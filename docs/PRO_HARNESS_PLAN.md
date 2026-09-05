@@ -130,8 +130,60 @@ The model reads them with `inspectGraphicType` and `listGraphicTypes`.
 | Overlap, overflow, escape, occlusion, unpainted field, lifecycle, replay, stress | the runtime bench and the instruments, as blocking findings | deterministic, calibrated on the catalog |
 | Spacing, proportion, alignment near-miss | instruments; block on collisions everywhere, advise where the type is uncalibrated | measured, but the owner's verdict flips per brief |
 | Hierarchy, composition, restraint, coherence, on-air quality; centred, inside, aligned, grows | knowledge cards (before) and the structured critique (after), advisory | subjective; the critic is at chance on most of them for a cheap model |
-| The catalog's taste (family tokens, ratified ranges) | the cards' numbers, and later exemplar retrieval per type | prose ranges are what a model can apply |
+| The catalog's taste (family tokens, ratified ranges) | the cards' numbers | prose ranges are what a model can apply |
+| What the shipped designs of one kind actually set | `exemplars.ts`, derived from the catalog's own CSS and pinned against it (§3.4) | an observation with an n on it is a different fact from a ratified range, and the ranges were ratified on lower thirds |
 | What failed before | the failure record card | the owner's own verdicts, phrased as checks |
+
+### 3.4 Exemplar measurements (`harness/exemplars.ts`)
+
+**BUILT 2026-09-06.** The cards' taste numbers are ratified RANGES, and they were ratified on
+lower thirds. A cheap model designing a scoreboard reads them and has nothing that says what a
+score figure measures next to a team name on a strip that already works. So a request that names
+a kind of graphic also gets a CARD OF MEASURED NUMBERS - what the shipped designs of that kind
+actually set.
+
+**What the card contains**, per kind of graphic:
+
+- **Type sizes by the part they set**, up to eight parts, most-measured first: `score 20px to
+  80px, middle 43px (n 26)`, `team 24-48, middle 35 (n 21)`, `clock 21-62, middle 32 (n 11)`.
+  The part is the ROLE WORD the design gave it - the last segment of its class - which is a
+  common noun and not a selector.
+- **Spacing and shape**: padding in both axes, gap, corner radius (a `999px` pill said in
+  words), letter-spacing in em, line-height - each as min / median / max with its sample count.
+- **Nothing else.** Nineteen of the catalog's twenty-two categories reach the bar; the three
+  that do not (two designs, or fewer than two measurable parts) simply have no card, because a
+  corpus of one design is the anchoring this is meant to avoid.
+
+**Why every line carries an n, and why the first line says "not rules and not floors".** The
+prompt already stacks two kinds of number - the legibility RULES that bind and the ratified
+taste RANGES that advise - and a third block of bare numbers would read as a fourth copy of the
+taste ranges rather than as an observation. So the card states its own epistemic status before
+its first number, and `n` is what makes "where shipped work landed" legible as a distribution
+instead of a target. The lower thirds are the proof it is not a restatement: the corpus measures
+its name field at 20-68px where the ratified range is 44-92px, disagreeing in both directions.
+
+**What is withheld, and why.** Never a design's code, never a selector, never a design's id or
+name. A model handed one design's stylesheet copies its composition, and a named design reads as
+a thing to reproduce - the anti-anchoring rule `src/ai/AGENTS.md` has held since the creative
+pilot. Numbers and a role word carry the information without carrying the picture, and the test
+asserts the sharpest form of it: nothing in a rendered card parses as CSS through the module's
+own reader.
+
+**Where the numbers come from - statically, with no browser.** `variant.create()` needs a real
+DOM (`scripts/catalog-emit.mjs` measured all 504 designs failing in bare Node on `DOMParser`),
+so a rendered derivation would price a Chromium round into an answer that does not change: a
+design's authored `font-size: calc(44px * var(--scale))` IS the number it ships, at the 1080p
+reference every catalog design is written against. The parser reads that text. It resolves no
+`var()` and no `clamp()` - a value with no authored literal is skipped rather than guessed - and
+it flattens template holes first, because `.${P}-kicker { … }` is braces and would otherwise not
+read as a rule at all (missing that measured the whole competition pack as empty).
+
+**The constant is derived, never maintained.** `scripts/pro-harness-exemplars.test.mjs` runs in
+`npm run build`: it resolves the real catalog through Vite's SSR graph (the load
+`scripts/prerender.mjs` already does), re-derives the whole table through the module's own
+exported derivation, and fails on any difference - writing the regenerated block to
+`.tmp-exemplars-derived.ts` so the fix is a paste. A catalog change that moves a number is a red
+build, not a silent lie in a prompt.
 
 ## 4. The representation the model manipulates
 
@@ -367,19 +419,21 @@ rule, both of which the iterate loop can adopt without the tool loop.
 
 ## 11. What is built, what is next
 
-**Built (this branch):** `src/ai/pro/harness/` - findings and the stop rule, the patch guard,
-fourteen knowledge cards and their selection, type semantics from the registry, the critique
-schema, the `Workbench` interface, the seven tools, the `ToolLoopAgent` with phase gating,
-escalation and cost accounting; `scripts/pro-harness.test.mjs` (22 tests, in `npm run build`);
-`scripts/pro-harness-spike.mjs` with `--control` and `--generate`; `ai` and `zod` as
-dependencies.
+**Built:** `src/ai/pro/harness/` - findings and the stop rule, the patch guard, fourteen
+knowledge cards and their selection, type semantics from the registry, the exemplar
+measurements of §3.4, the critique schema, the `Workbench` interface, the seven tools, the
+`ToolLoopAgent` with phase gating, escalation and cost accounting;
+`scripts/pro-harness.test.mjs` (23 tests) and `scripts/pro-harness-exemplars.test.mjs`
+(18 tests), both in `npm run build`; `scripts/pro-harness-spike.mjs` with `--control` and
+`--generate`; `ai` and `zod` as dependencies.
 
 **Not built, in order:**
 
 1. The paid round of §10 and the owner's read of it.
 2. The bridge workbench, so the harness runs off the same door the CLI uses and can be hosted.
-3. Exemplar retrieval per type: the nearest catalog designs' MEASURED numbers (type sizes,
-   paddings, gaps in the instrument's units) as a card, never their code.
+3. ~~Exemplar retrieval per type~~ - **DONE 2026-09-06**, §3.4: the shipped designs' measured
+   type sizes, paddings and gaps as a card, never their code. Unmeasured against a model: the
+   paid round of §10 is the first thing that will say whether the card earns its ~150 tokens.
 4. The product path: a Pro request that resolves to no composed type routes to the harness,
    inside the existing reservation, with the wizard's Finish unchanged.
 5. Agent-authored machines when no type fits (the P2 question) - the `animation` region stays

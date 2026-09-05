@@ -45,7 +45,7 @@ prefix passed in, so it runs in Node; the DOM-bearing checks are the workbench's
 type whose machine lives in the region has a platform-owned region (the bench workbench refuses
 `animation` there).
 
-## Knowledge (`knowledge.ts`, `typeSemantics.ts`)
+## Knowledge (`knowledge.ts`, `typeSemantics.ts`, `exemplars.ts`)
 
 **EXPERIMENT.** Fourteen universal cards, written as inspection (what earns a pass), loaded by
 trigger with a six-card core; type semantics read live from the registry and `AI_CATEGORIES`.
@@ -54,6 +54,21 @@ through `designRulesPromptBlock`; a card never copies one. A card's taste number
 `docs/DESIGN_LANGUAGE.md`'s ratified ranges - change both or neither. `typeSemantics.ts` imports
 the registry and is kept OUT of the pure test path; the `TypeSemantics` interface lives in
 `workbench.ts` for that reason.
+
+**`exemplars.ts` is the THIRD kind of number, and it is an OBSERVATION, never a rule.** What the
+shipped designs of one kind of graphic set - type sizes by the part they name, paddings, gaps,
+radii, tracking, line-height - as min/median/max with the sample count on every line, so it reads
+as a distribution and not as a target. Three rules bind it:
+
+- **Never a design's code, selector, id or name.** A model handed a stylesheet copies the
+  composition, and a named design reads as a thing to reproduce (the anti-anchoring rule,
+  `src/ai/AGENTS.md`). Numbers and the role WORD are the whole payload.
+- **The constant is DERIVED, never edited.** `scripts/pro-harness-exemplars.test.mjs` (in
+  `npm run build`) re-derives it from the live catalog through the module's own exported
+  derivation and fails on any drift, writing the regenerated block out to paste. A number moved
+  by hand is a number the next catalog change will contradict.
+- **It stays PURE and imports nothing** - the corpus reaches it as a checked-in constant, so
+  `typeSemantics.ts` is still the only module here that touches the catalog or the registry.
 
 ## The critique (`critique.ts`)
 
