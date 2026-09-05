@@ -255,6 +255,30 @@ noacgKinds.share = {
   }
 };
 
+// fraction: a figure against a TOTAL held in a companion field (a meter's current over its
+// target). Derives "fraction" (0..1, clamped) and "percent" (as text); the facts are "full" at
+// or past the target and "empty" at zero.
+noacgKinds.fraction = {
+  value: function (id, spec) {
+    var current = parseFloat(noacgFieldText(id).replace(/[^0-9.\\-]/g, ''));
+    var total = spec.total ? parseFloat(noacgFieldText(spec.total).replace(/[^0-9.\\-]/g, '')) : NaN;
+    if (!(total > 0) || isNaN(current)) return 0;
+    var share = current / total;
+    return share < 0 ? 0 : share > 1 ? 1 : share;
+  },
+  fact: function (id, spec, name) {
+    var share = this.value(id, spec);
+    if (name === 'full') return share >= 1;
+    if (name === 'empty') return share <= 0;
+    return false;
+  },
+  derive: function (id, spec, name) {
+    if (name === 'fraction') return this.value(id, spec);
+    if (name === 'percent') return noacgPercentText(this.value(id, spec) * 100);
+    return name === 'text' ? noacgFieldText(id) : null;
+  }
+};
+
 // vote-status: an "open" / "closed" token a controller writes (docs/OGRAF_STATE_IN_FIELDS.md).
 // Empty means "not stated", and then - and only then - the human count line in the fallback
 // field is read, so a board exported before the token existed still closes on the sentence it
@@ -328,7 +352,6 @@ function noacgClockReset() { noacgKinds.clock.reset(); }
 // the same panels the same way. Deterministic on every road: the same code draws the same
 // element in the editor, in an export and under SPX. Never brand-amber: it sits on THEIR artwork.
 
-var NOACG_SVG_NS = 'http://www.w3.org/2000/svg';
 var NOACG_DEFAULT_INK = '#e9e7e1';
 var NOACG_DEFAULT_YES = '#2f9e5b';
 var NOACG_DEFAULT_NO = '#d64545';
@@ -381,8 +404,11 @@ function noacgAnchorBox(rule, rowKey) {
   return box;
 }
 
+// Created in the artwork's own namespace, read off the artwork rather than written out: a
+// template must be self-contained, and the export gate reads any http URL in its JS as a
+// dependency on the network.
 function noacgSvgEl(name, attrs) {
-  var el = document.createElementNS(NOACG_SVG_NS, name);
+  var el = document.createElementNS(noacgArt().namespaceURI, name);
   for (var k in attrs) if (Object.prototype.hasOwnProperty.call(attrs, k)) el.setAttribute(k, String(attrs[k]));
   return el;
 }

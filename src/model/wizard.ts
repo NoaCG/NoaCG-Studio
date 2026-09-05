@@ -437,7 +437,23 @@ export type DesignSvgBehaviour =
   | DesignSvgQuizBehaviour
   | DesignSvgPollBehaviour
   | DesignSvgScoreBehaviour
-  | DesignSvgTimerBehaviour;
+  | DesignSvgTimerBehaviour
+  | DesignSvgRecipeBehaviour;
+
+/**
+ * Any OTHER recipe without rows (docs/SVG_BEHAVIOUR_PLAN.md §7): the meter, the alert, and every
+ * recipe after them. One shape for all of them - the recipe's id, its layer roles as candidate
+ * ids, and its options - so a new recipe never grows this union again. The four members above
+ * are the shapes the wizard grew one at a time and still holds.
+ */
+export interface DesignSvgRecipeBehaviour {
+  kind: 'recipe';
+  recipe: string;
+  /** Layer role -> the candidate id bound to it. */
+  layers: Record<string, string>;
+  /** The recipe's structural options as chosen (a checkbox each). */
+  options?: Record<string, boolean>;
+}
 
 /**
  * The quiz binding: which text layers are the question and the answers, and which DRAWN layers
@@ -449,6 +465,9 @@ export type DesignSvgBehaviour =
  */
 export interface DesignSvgQuizBehaviour {
   kind: 'quiz';
+  /** The quiz recipe's options as chosen: `lock` (require lock before reveal, on by default),
+   *  `autoReveal` (a timer reveals a few seconds after the lock, off). */
+  options?: Record<string, boolean>;
   /** Index into `DesignSvg.fields` of the question line. */
   question: number;
   /** Indices into `DesignSvg.fields` of the answer lines, in row order — A, B, C, … */

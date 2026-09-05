@@ -394,5 +394,51 @@
         "what": "while voting is open"
       }
     ]
+  },
+  "meter": {
+    "name": "The meter",
+    "verbs": "a bar fills toward a target",
+    "buttons": "the Current and Target figures, each with + and −",
+    "roles": [
+      {
+        "id": "bar",
+        "label": "Bar",
+        "kind": "layer",
+        "paint": [
+          "gauge"
+        ],
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "\\bbar\\b|\\bmeter\\b|progress|palkki|mittari",
+        "teach": "Progress bar",
+        "also": [
+          "Meter",
+          "Palkki"
+        ],
+        "what": "draw it at its FULL length - that length is the target"
+      },
+      {
+        "id": "percent",
+        "label": "Percent",
+        "kind": "layer",
+        "paint": [
+          "write"
+        ],
+        "pool": "text",
+        "words": "%|percent|share|osuus",
+        "teach": "Percent",
+        "also": [
+          "Share",
+          "Osuus"
+        ],
+        "what": "written as the current figure's share of the target"
+      }
+    ]
+  },
+  "alert": {
+    "name": "The alert",
+    "verbs": "it plays, holds, and takes itself off",
+    "buttons": "nothing extra: it clears itself after eight seconds, and Next clears it sooner",
+    "roles": []
   }
 }

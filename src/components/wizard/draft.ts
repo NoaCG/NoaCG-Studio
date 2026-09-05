@@ -166,10 +166,21 @@ export interface SvgFieldDraft {
  * where it belonged, which is the whole reason adding the second, third and fourth ones touched
  * nothing above this type.
  */
-export type SvgBehaviourDraft = SvgQuizDraft | SvgPollDraft | SvgScoreDraft | SvgTimerDraft;
+export type SvgBehaviourDraft = SvgQuizDraft | SvgPollDraft | SvgScoreDraft | SvgTimerDraft | SvgRecipeDraft;
+
+/** Any other recipe without rows, held generically (model/wizard.ts DesignSvgRecipeBehaviour). */
+export interface SvgRecipeDraft {
+  kind: 'recipe';
+  recipe: string;
+  /** Layer role -> candidate id; empty = not picked. */
+  layers: Record<string, string>;
+  options: Record<string, boolean>;
+}
 
 export interface SvgQuizDraft {
   kind: 'quiz';
+  /** The recipe's options as ticked; absent = the recipe's defaults. */
+  options?: Record<string, boolean>;
   /** Candidate id of the question text layer. Empty = not chosen. */
   question: string;
   /** Candidate ids of the answer text layers, in row order — A, B, C, … */
@@ -1065,6 +1076,7 @@ export function behaviourBindingGaps(draft: WizardDraft): string[] {
   if (behaviour.kind === 'poll') return pollBindingGaps(behaviour);
   if (behaviour.kind === 'score') return scoreBindingGaps(draft, behaviour);
   if (behaviour.kind === 'timer') return timerBindingGaps(draft, behaviour);
+  if (behaviour.kind === 'recipe') return [];
   const on = draft.svgFields.filter((f) => f.on);
   const bound = (candidateId: string): boolean => on.some((f) => f.candidateId === candidateId);
   const gaps: string[] = [];
@@ -1228,7 +1240,7 @@ export function behaviourSummary(draft: WizardDraft): string {
   const parts: string[] = [];
   const behaviour = draft.svgBehaviour;
   if (behaviour) {
-    const recipeId = behaviour.kind === 'poll' ? 'vote' : behaviour.kind === 'timer' ? 'countdown' : behaviour.kind;
+    const recipeId = behaviour.kind === 'poll' ? 'vote' : behaviour.kind === 'timer' ? 'countdown' : behaviour.kind === 'recipe' ? behaviour.recipe : behaviour.kind;
     const words = BEHAVIOUR_WORDS[recipeId];
     parts.push(words ? `${words.name.toLowerCase()}: ${words.verbs}` : behaviour.kind);
     if (behaviour.kind === 'quiz') {
@@ -1284,6 +1296,14 @@ function svgBehaviourOption(draft: WizardDraft): DesignSvgBehaviour | null {
       expired: behaviour.expired || undefined,
     };
   }
+  if (behaviour.kind === 'recipe') {
+    return {
+      kind: 'recipe',
+      recipe: behaviour.recipe,
+      layers: Object.fromEntries(Object.entries(behaviour.layers).filter(([, id]) => !!id)),
+      ...(Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
+    };
+  }
   const on = draft.svgFields.filter((f) => f.on);
   const indexOf = (candidateId: string): number => on.findIndex((f) => f.candidateId === candidateId);
   if (behaviour.kind === 'score') {
@@ -1309,6 +1329,7 @@ function svgBehaviourOption(draft: WizardDraft): DesignSvgBehaviour | null {
       wrong: r.wrong || undefined,
     })),
     locked: behaviour.locked || undefined,
+    ...(behaviour.options && Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
   };
 }
 
@@ -1387,6 +1408,12 @@ export function proposeSvgBehaviour(svg: SvgImportResult): SvgBehaviourDraft | n
       paused: one(best.layers, 'paused'),
       expired: one(best.layers, 'expired'),
     };
+  }
+  if (best.recipe !== 'vote') {
+    // Every recipe without rows is held generically - the meter today, whatever comes next.
+    const layers: Record<string, string> = {};
+    for (const [role, value] of Object.entries(best.layers)) if (typeof value === 'string') layers[role] = value;
+    return { kind: 'recipe', recipe: best.recipe, layers, options: {} };
   }
   return {
     kind: 'poll',

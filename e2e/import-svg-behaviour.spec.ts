@@ -1,6 +1,7 @@
 import { test, expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import nodePath from 'node:path';
 import JSZip from 'jszip';
 import { settleDurableWrites } from './_durable';
@@ -467,7 +468,7 @@ test('switches and a choice: hidden layers named show: and choice: get their own
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
   const extras = page.getByTestId('map-svg-extras');
   await expect(extras).toBeVisible();
-  await expect(page.getByTestId('map-svg-why-extras')).toContainText('1 switch · 1 choice');
+  await expect(extras).toContainText('1 switch · 1 choice');
   const rows = extras.locator('[data-testid^="map-svg-extra-use-"]');
   await expect(rows).toHaveCount(3);
   await expect(extras.locator('input[value="Sponsor"]')).toHaveCount(1);
@@ -563,6 +564,88 @@ test('an undrawn quiz moment wears NoaCG’s own look, and a drawn one replaces 
   await expect(made('answer.wrong/B')).toHaveClass(/imported-design-on/);
   await expect(made('answer.correct/A')).not.toHaveClass(/imported-design-on/);
   await shot(page, '27-quiz-default-looks');
+});
+
+test('the quiz\u2019s first option: no lock, and Reveal correct works straight from a pick', async ({ page }) => {
+  // "WHAT IF I DON'T WANT TO BE ABLE TO LOCK IT?" (owner, 2026-08-22) - the north star's own
+  // example of the next producer changing the logic. A recipe OPTION is a structural variant an
+  // expert authored (docs/SVG_BEHAVIOUR_PLAN.md §7e): one checkbox adds the arrow from the pick
+  // to the reveal, and the structural guard reads the new graph. Nothing else moves.
+  await openImportDoor(page, QUIZ_SVG);
+  const lock = page.getByTestId('map-svg-option-lock');
+  await expect(lock).toBeChecked();
+  await lock.uncheck();
+  await intoProduction(page, 'Direct reveal quiz', 'Quiz Night');
+  await settleDurableWrites(page);
+  await page.getByTestId('cue-field-f5-opt-C').click();
+  await page.getByTestId('cue-field-f6-opt-B').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  await page.getByRole('button', { name: /Select answer/ }).click();
+  // Legal from the pick, with no lock in between - and the lock is still there for a show that
+  // wants it.
+  await expect(page.getByRole('button', { name: /Reveal correct/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /Lock it in/ })).toBeEnabled();
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
+});
+
+test('a meter: the bar the designer drew fills toward the target as the figure goes up', async ({ page }, testInfo) => {
+  // THE SURVEY'S "progress bar toward a target" (docs/BEHAVIOUR_SURVEY.md §3) on artwork somebody
+  // drew: a bar at its full length and two owned figures, no machine at all - a meter changes
+  // because its DATA changes. The recipe is held generically by the wizard (kind 'recipe'), which
+  // is the shape every rowless recipe after it takes.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect x="0" y="900" width="1920" height="180" fill="#111"/>
+  <text id="Title" data-name="Title" x="120" y="960" font-family="Arial" font-size="40" fill="#fff">Raised so far</text>
+  <rect id="Track" data-name="Track" x="120" y="1000" width="1000" height="30" fill="#333"/>
+  <rect id="Progress_x20_bar" data-name="Progress bar" x="120" y="1000" width="1000" height="30" fill="#2a6"/>
+  <text id="Percent" data-name="Percent" x="1160" y="1024" font-family="Arial" font-size="28" fill="#fff">0%</text>
+</svg>`;
+  const file = testInfo.outputPath('meter.svg');
+  writeFileSync(file, svg);
+  await openImportDoor(page, file);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('meter');
+  await expect(page.getByTestId('map-svg-recipe-bar').locator('option:checked')).toHaveText('Progress bar');
+  await intoProduction(page, 'Fundraiser meter', 'Telethon');
+  await settleDurableWrites(page);
+
+  // The two figures are ± steppers with nothing declared; the percent layer is the vote's, and is
+  // no longer a field the operator types.
+  const live = page.getByTestId('live-numbers');
+  await expect(live).toContainText('Current');
+  await expect(live).toContainText('Target');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const width = async () => Math.round(Number(await air.locator('[data-noacg-role~="bar"]').getAttribute('width')));
+  await expect.poll(width).toBe(0);
+  await page.getByTestId('cue-field-f1').fill('25');
+  await page.getByTestId('verb-update').click();
+  await expect.poll(width, { timeout: 10_000 }).toBe(250);
+  await expect(air.locator('[data-noacg-role~="percent"]')).toHaveText('25%');
+  await page.getByTestId('cue-field-f2').fill('50');
+  await page.getByTestId('verb-update').click();
+  await expect.poll(width, { timeout: 10_000 }).toBe(500);
+  await expect(air.locator('[data-noacg-role~="percent"]')).toHaveText('50%');
+});
+
+test('an alert takes itself off air after its hold', async ({ page }) => {
+  // The owner's alert story ("plays, holds briefly, self-outs") as one timer arrow from the
+  // entrance to the exit on artwork somebody drew - the catalog transition's own shape, chosen
+  // from the picker on a graphic whose names propose nothing.
+  await openImportDoor(page, SCOREBUG_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('alert');
+  await expect(page.getByTestId('map-svg-behaviour')).toContainText('takes itself off');
+  await intoProduction(page, 'Goal flash', 'Match');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('.imported-design')).not.toHaveCSS('opacity', '0');
+  // Eight seconds of hold, then the exit plays with nobody pressing anything.
+  await expect(air.locator('.imported-design')).toHaveCSS('opacity', '0', { timeout: 20_000 });
 });
 
 test('imported vote board: a real audience round moves the bars the designer drew', async ({ page }) => {

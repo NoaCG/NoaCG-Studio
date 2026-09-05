@@ -742,6 +742,16 @@ and the panel behind a row is exactly what the fit ladder measures at runtime, s
 builds each default once on first need from the row's field, the panel `svgFitContainer` finds
 under it, or the artwork's viewBox for a badge. Same code on every road, so the same picture.
 
+**Phase 5 shipped the first options and two recipes, and deferred two.** The quiz's `lock` and
+`autoReveal` options are arrows added or removed by a checkbox (§7e as written); the `meter`
+(a gauge over the new `fraction` kind) and the `alert` (the catalog transition's timer arc) are
+declarations of the shipped shape, and every rowless recipe after them is held by the wizard in
+ONE generic draft rather than a new union member. `pages` waits for the bounded counter to reach
+the control surfaces - a counter the runtime clamps while the operator's box runs past it is the
+drift `adjust` exists to prevent - and `ranking` waits for the `arrange` spike, since moving the
+designer's layers under the fit ladder is a paint mechanism that needs measuring before it needs
+a recipe. Two FULL recipes on one graphic stay refused: each owns the default path.
+
 **The paper pass** the rollout asked for before phase 3 (§9i restated against the built
 vocabulary): the reveal card is two `switch` instances; the election board is two `choice`
 instances plus two gauges over a `share` pair; the lineup is a `row-pick` field with per-row

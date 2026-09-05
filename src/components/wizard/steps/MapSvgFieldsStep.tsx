@@ -13,6 +13,7 @@ import type {
   SvgExtraDraft,
   SvgPollDraft,
   SvgQuizDraft,
+  SvgRecipeDraft,
   SvgScoreDraft,
   SvgStretchMode,
   SvgTimerDraft,
@@ -30,6 +31,8 @@ import {
   scoreDrawnPool,
 } from '../draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
+import { BEHAVIOUR_WORDS } from '../../../templates/behaviours/recipe';
+import { recipeById } from '../../../templates/behaviours/registry';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { extOf, fileToDataUrl } from '../../../assets/assetUtils';
 import {
@@ -493,21 +496,52 @@ const QUIZ_ANSWER_COUNTS = Array.from(
   (_, i) => MIN_QUIZ_ANSWERS + i,
 );
 
-/** What each behaviour is CALLED and what it DOES, in the section summary's two voices. A table
- *  rather than a nested ternary: the summary is read by every reader who never opens the section,
- *  and three behaviours is where a chain of conditionals stops being readable. */
-const BEHAVIOUR_NOUN: Record<SvgBehaviourDraft['kind'], string> = {
-  quiz: 'a quiz',
-  poll: 'a live vote',
-  score: 'a score tracker',
-  timer: 'a countdown',
-};
-const BEHAVIOUR_SUMMARY: Record<SvgBehaviourDraft['kind'], string> = {
-  quiz: 'a quiz: select, lock, reveal',
-  poll: 'a live vote: open, close, result',
-  score: 'a score tracker: a point, a flash, full time',
-  timer: 'a countdown: it starts on air, and holds, resumes and resets',
-};
+/** Which recipe a draft is: the four shapes the wizard grew one at a time, or the generic one. */
+function recipeIdOf(b: SvgBehaviourDraft): string {
+  return b.kind === 'poll' ? 'vote' : b.kind === 'timer' ? 'countdown' : b.kind === 'recipe' ? b.recipe : b.kind;
+}
+
+/** What a behaviour is CALLED and what it DOES, in the section summary's two voices - read from
+ *  the one word list every recipe declares itself in (templates/behaviours/words.json). */
+function behaviourNoun(b: SvgBehaviourDraft): string {
+  const words = BEHAVIOUR_WORDS[recipeIdOf(b)];
+  return words ? `a ${words.name.toLowerCase().replace(/^the /, '')}` : recipeIdOf(b);
+}
+function behaviourSummaryLine(b: SvgBehaviourDraft): string {
+  const words = BEHAVIOUR_WORDS[recipeIdOf(b)];
+  return words ? `${behaviourNoun(b)}: ${words.verbs}` : recipeIdOf(b);
+}
+
+/** A recipe's OPTIONS as checkboxes - the first customization rung (docs/SVG_BEHAVIOUR_PLAN.md
+ *  §7e): each is a structural variant an expert authored, so ticking one adds or removes arrows
+ *  and nothing else. */
+function RecipeOptions({
+  recipeId,
+  values,
+  onChange,
+}: {
+  recipeId: string;
+  values: Record<string, boolean>;
+  onChange: (values: Record<string, boolean>) => void;
+}) {
+  const options = recipeById(recipeId)?.options ?? [];
+  if (options.length === 0) return null;
+  return (
+    <div className="map-svg-row" data-testid="map-svg-options">
+      {options.map((o) => (
+        <label key={o.key} className="save-field" title={o.hint}>
+          <input
+            type="checkbox"
+            checked={values[o.key] ?? o.default}
+            onChange={(e) => onChange({ ...values, [o.key]: e.target.checked })}
+            data-testid={`map-svg-option-${o.key}`}
+          />
+          <span>{o.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
 
 /**
  * ONE PICKER OVER THE DRAWN LAYERS - a labelled select of every group and rectangle in the file,
@@ -1220,6 +1254,12 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
   // asking a second time here would be a second answer to one question
   // (docs/GRAPHIC_BEHAVIOUR_PLAN.md §13).
   const timer = behaviour?.kind === 'timer' ? behaviour : null;
+  // ANY OTHER RECIPE WITHOUT ROWS - the meter, the alert - is held generically and its pickers are
+  // read off the recipe's own roles, so a recipe added tomorrow needs no new block here.
+  const generic = behaviour?.kind === 'recipe' ? behaviour : null;
+  const patchGeneric = (patch: Partial<SvgRecipeDraft>) => {
+    if (generic) onDraft({ svgBehaviour: { ...generic, ...patch } });
+  };
   // ONE POOL FOR THE PICKER AND THE PROPOSAL (draft.ts `scoreDrawnPool`). A moment drawn as a
   // single rectangle - a coloured bar behind a team's row is the ordinary shape of a point flash -
   // is proposable, so it has to be selectable, or the row shows "not drawn" for a layer it really
@@ -1648,15 +1688,15 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
           rows for a question and two answers — below that there is nothing to bind, and the
           section would only be a puzzle. Everything here is a picker: no layer has to be
           named anything, and nobody edits XML. */}
-      {textLayers.length >= 3 && (
+      {(textLayers.length > 0 || (draft.designSvg?.groups.length ?? 0) > 0) && (
         <div className="panel-section" data-testid="map-svg-behaviour">
           <SectionHead
             title="What it does"
             summary={
               behaviour
                 ? behaviourGaps.length > 0
-                  ? `${BEHAVIOUR_NOUN[behaviour.kind]}, once you say ${behaviourGaps[0]}`
-                  : BEHAVIOUR_SUMMARY[behaviour.kind]
+                  ? `${behaviourNoun(behaviour)}, once you say ${behaviourGaps[0]}`
+                  : behaviourSummaryLine(behaviour)
                 : steppers || 'it just comes on and off'
             }
             testid="map-svg-why-behaviour"
@@ -1690,7 +1730,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
           <label className="save-field">
             <span>Behaviour</span>
             <select
-              value={behaviour?.kind ?? 'none'}
+              value={behaviour ? recipeIdOf(behaviour) : 'none'}
               onChange={(e) => {
                 const want = e.target.value;
                 // LEAVING THE COUNTDOWN PUTS BACK THE CLOCK ROW IT ARMED, and nothing else
@@ -1738,6 +1778,9 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                   // points on the wrong figure without saying so.
                   return onDraft({ svgBehaviour: score ?? { kind: 'score', rows: [emptyScoreRow(), emptyScoreRow()], final: '' }, svgFields });
                 }
+                if (want === 'meter' || want === 'alert') {
+                  return onDraft({ svgBehaviour: generic?.recipe === want ? generic : { kind: 'recipe', recipe: want, layers: {}, options: {} }, svgFields });
+                }
                 // A fresh vote starts with two empty option rows and nothing else picked. Empty
                 // rather than seeded from the first layers in the file: a poll's layers are
                 // display targets, and guessing which of somebody's fifteen layers is option one
@@ -1755,6 +1798,8 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
               <option value="poll">Live vote. The room votes; the bars move; you show the result.</option>
               <option value="score">Score tracker. A point per press, per team, and a new game.</option>
               <option value="timer">Countdown. It starts on air; you hold it, let it go, reset it.</option>
+              <option value="meter">Meter. A bar fills toward a target as the figure goes up.</option>
+              <option value="alert">Alert. It plays, holds eight seconds, and takes itself off.</option>
             </select>
           </label>
           {/* A binding that will be DROPPED says so here rather than at create time. Same rule
@@ -2106,8 +2151,49 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
               />
             </>
           )}
+          {generic && (
+            <>
+              <p className="hint" data-testid="map-svg-recipe-how">
+                {behaviourSummaryLine(generic)}. The operator gets {BEHAVIOUR_WORDS[generic.recipe]?.buttons ?? 'its buttons'}.
+              </p>
+              {(recipeById(generic.recipe)?.roles ?? [])
+                .filter((role) => role.kind === 'layer')
+                .map((role) =>
+                  role.pool === 'text' ? (
+                    <label className="save-field" key={role.id}>
+                      <span>{role.label}</span>
+                      <select
+                        value={generic.layers[role.id] ?? ''}
+                        onChange={(e) => patchGeneric({ layers: { ...generic.layers, [role.id]: e.target.value } })}
+                        onFocus={() => setHoverId(generic.layers[role.id] || null)}
+                        data-testid={`map-svg-recipe-${role.id}`}
+                      >
+                        <option value="">{NOT_DRAWN}</option>
+                        {textLayers.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <DrawnPicker
+                      key={role.id}
+                      label={role.label}
+                      value={generic.layers[role.id] ?? ''}
+                      drawn={scoreDrawn}
+                      onPick={(id) => patchGeneric({ layers: { ...generic.layers, [role.id]: id } })}
+                      onHover={setHoverId}
+                      testid={`map-svg-recipe-${role.id}`}
+                    />
+                  ),
+                )}
+              <RecipeOptions recipeId={generic.recipe} values={generic.options} onChange={(options) => patchGeneric({ options })} />
+            </>
+          )}
           {quiz && (
             <>
+              <RecipeOptions recipeId="quiz" values={quiz.options ?? {}} onChange={(options) => patchQuiz({ options })} />
               <div className="map-svg-row">
                 <label className="save-field grow">
                   <span>Question</span>

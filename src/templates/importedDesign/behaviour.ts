@@ -24,6 +24,7 @@ import type { FieldKind } from '../../model/fieldModel';
 import type {
   DesignSvg,
   DesignSvgExtra,
+  DesignSvgRecipeBehaviour,
   DesignSvgPollBehaviour,
   DesignSvgQuizBehaviour,
   DesignSvgScoreBehaviour,
@@ -120,6 +121,7 @@ export function bindingsOf(svg: DesignSvg): BehaviourBinding[] {
   else if (behaviour?.kind === 'poll') out.push(voteBinding(behaviour));
   else if (behaviour?.kind === 'timer') out.push(countdownBinding(svg, behaviour));
   else if (behaviour?.kind === 'score') out.push(scoreBinding(behaviour));
+  else if (behaviour?.kind === 'recipe') out.push(recipeBinding(behaviour));
   for (const extra of svg.extras ?? []) out.push(extraBinding(extra));
   return out;
 }
@@ -145,6 +147,7 @@ function quizBinding(quiz: DesignSvgQuizBehaviour): BehaviourBinding {
   return {
     recipe: 'quiz',
     rows: keys,
+    ...(quiz.options ? { options: quiz.options } : {}),
     fields: { question: quiz.question, answer: Object.fromEntries(keys.map((key, i) => [key, quiz.answers[i]])) },
     layers: layers({
       'answer.selected': perRow(keys, quiz.rows, (r) => r.selected),
@@ -195,6 +198,16 @@ function voteBinding(poll: DesignSvgPollBehaviour): BehaviourBinding {
       total: poll.total,
       badge: poll.badge,
     }),
+  };
+}
+
+/** Any other recipe without rows, as the wizard persisted it. */
+function recipeBinding(behaviour: DesignSvgRecipeBehaviour): BehaviourBinding {
+  return {
+    recipe: behaviour.recipe,
+    ...(behaviour.options ? { options: behaviour.options } : {}),
+    fields: {},
+    layers: layers(behaviour.layers),
   };
 }
 

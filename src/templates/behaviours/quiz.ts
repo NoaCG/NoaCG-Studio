@@ -19,16 +19,38 @@
 import { ANSWER_BOARD_CONTROLS, ANSWER_BOARD_MACHINE } from '../types/answerBoard';
 import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
-import type { TypeMachine } from '../types/graphicType';
+import type { TypeBranch, TypeMachine } from '../types/graphicType';
 
-/** The answer board's arc WITHOUT the audience branch: this binding has no drawn moment for
- *  percentages painted as chips. Filtered from the shipped declaration rather than restated. */
-const QUIZ_MACHINE: TypeMachine = withRepaint({
-  main: {
-    ...ANSWER_BOARD_MACHINE.main,
-    branches: (ANSWER_BOARD_MACHINE.main?.branches ?? []).filter((b) => b.id !== 'audience'),
-  },
-});
+/** How long after the lock a self-revealing board waits, in speed-relative seconds. */
+const AUTO_REVEAL_AFTER = 5;
+
+/**
+ * The answer board's arc WITHOUT the audience branch (this binding has no drawn moment for
+ * percentages painted as chips), with the two OPTIONS applied as arrows rather than as flags:
+ *
+ *   `lock` off  - the reveal is legal straight from a pick: an arrow from `selected` to the reveal
+ *                 joins the one the board already draws from the question. "What if I don't want
+ *                 to be able to lock it?" (owner, 2026-08-22) is this one checkbox.
+ *   `autoReveal` - a TIMER arrow from `locked` to the reveal, so a board reveals by itself a few
+ *                 seconds after the lock - and a late Reveal press still works before it fires.
+ *
+ * Filtered and extended from the shipped declaration rather than restated, so the arcs that
+ * survive can never drift from the catalog's.
+ */
+function quizMachine(ctx: RecipeContext): TypeMachine {
+  const branches: TypeBranch[] = (ANSWER_BOARD_MACHINE.main?.branches ?? [])
+    .filter((b) => b.id !== 'audience')
+    .map((b) => {
+      if (b.id === 'selected' && ctx.options.lock === false) {
+        return { ...b, edges: [...b.edges, { from: 'selected', to: { waypoint: 1 }, trigger: 'operator', event: 'judge' }] };
+      }
+      if (b.id === 'locked' && ctx.options.autoReveal === true) {
+        return { ...b, edges: [...b.edges, { from: 'locked', to: { waypoint: 1 }, trigger: 'timer', after: AUTO_REVEAL_AFTER }] };
+      }
+      return b;
+    });
+  return withRepaint({ main: { ...ANSWER_BOARD_MACHINE.main, branches } });
+}
 
 const letterOptions = (ctx: RecipeContext) => ctx.rows.map((letter) => ({ label: letter, value: letter }));
 
@@ -40,6 +62,10 @@ export const quizRecipe: BehaviourRecipe = {
   defaultZone: 'mid-center',
   rows: rowsOf('quiz'),
   roles: rolesOf('quiz'),
+  options: [
+    { key: 'lock', label: 'Require lock before reveal', hint: 'Off, and Reveal correct works straight from a pick.', default: true },
+    { key: 'autoReveal', label: 'Reveal by itself a few seconds after the lock', hint: 'A five-second timer; Reveal correct still works sooner.', default: false },
+  ],
   // The two dropdowns: the answer KEY (set by the producer before air, read by the reveal) and
   // the contestant's PICK. Both are row picks over the letters - the broadcast field policy's
   // dropdown exception, because four letters is a genuinely constrained choice.
@@ -66,7 +92,7 @@ export const quizRecipe: BehaviourRecipe = {
   // The reveal is a real STEP on the default path (SPX's Continue reaches it), and the entrance
   // is named for what it shows so the state chip reads "Question" rather than "Enter".
   path: () => ({ entrance: 'Question', steps: [{ name: 'Reveal', duration: 0.45 }] }),
-  machine: () => QUIZ_MACHINE,
+  machine: quizMachine,
   controls: () => ANSWER_BOARD_CONTROLS,
   paint: () => [
     { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
