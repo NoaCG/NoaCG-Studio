@@ -69,9 +69,9 @@ export const quizRecipe: BehaviourRecipe = {
   machine: () => QUIZ_MACHINE,
   controls: () => ANSWER_BOARD_CONTROLS,
   paint: () => [
-    { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight' },
-    { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct' },
-    { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong' },
+    { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
+    { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct', anchor: 'answer' },
+    { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong', anchor: 'answer' },
     { look: 'locked', when: { state: ['main/locked', 'main/sealed'] }, default: 'badge:Locked in' },
   ],
 };

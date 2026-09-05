@@ -478,6 +478,9 @@ function bundledName(fontId: string): string {
  *  a picker whose empty option read differently from its neighbour's would look like it meant
  *  something different. */
 const NOT_DRAWN = '— not drawn —';
+/** The quiz's moments fall back to NoaCG's own neutral look (docs/SVG_STATES_FROM_ARTWORK.md, the
+ *  ladder's rung 1); every other behaviour's undrawn moment shows nothing extra. */
+const DEFAULT_LOOK = '— not drawn: NoaCG’s own look —';
 const PICK_A_LAYER = '— pick a text layer —';
 
 /** How many answer rows a quiz board may carry, and the least it can carry. Written once
@@ -1664,7 +1667,8 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
             <p>Pick one and the operator gets real buttons on the control page for it.</p>
             <p>
               Your artwork does not change. You say which drawn layer shows at each moment. Leave
-              one undrawn and nothing extra shows, and the behaviour still works.
+              a quiz moment undrawn and NoaCG paints its own neutral look for it; every other
+              behaviour shows nothing extra there, and still works.
             </p>
             {/* SAY WHAT THE ARTWORK ALREADY EARNED. A scoreboard is the case that made this
                 necessary: a layer holding a plain figure becomes a number field and every control
@@ -2174,7 +2178,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                         onFocus={() => setHoverId(quiz.rows[at]?.[state] || null)}
                         data-testid={`map-svg-quiz-${state}-${at}`}
                       >
-                        <option value="">{NOT_DRAWN}</option>
+                        <option value="">{DEFAULT_LOOK}</option>
                         {draft.designSvg?.groups.map((g) => (
                           <option key={g.id} value={g.id}>
                             {g.label}
@@ -2194,7 +2198,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                   onChange={(e) => patchQuiz({ locked: e.target.value })}
                   data-testid="map-svg-quiz-locked"
                 >
-                  <option value="">{NOT_DRAWN}</option>
+                  <option value="">{DEFAULT_LOOK}</option>
                   {draft.designSvg?.groups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.label}

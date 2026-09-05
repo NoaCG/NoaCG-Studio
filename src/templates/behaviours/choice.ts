@@ -41,7 +41,7 @@ export const choiceRecipe: BehaviourRecipe = {
     withRepaint({
       parallel: [
         {
-          id: ctx.ns('group'),
+          id: ctx.nsId('group'),
           initial: 'none',
           states: [
             { id: 'none', name: `${ctx.name}: none`, timeline: null, edges: [] },
@@ -55,7 +55,7 @@ export const choiceRecipe: BehaviourRecipe = {
                 from,
                 to: key.toLowerCase(),
                 trigger: 'operator' as const,
-                event: ctx.ns(key.toLowerCase()),
+                event: ctx.nsId(key.toLowerCase()),
               })),
             })),
           ],
@@ -64,7 +64,7 @@ export const choiceRecipe: BehaviourRecipe = {
     }),
   controls: (ctx) =>
     ctx.rows.map((key, i) => ({
-      event: ctx.ns(key.toLowerCase()),
+      event: ctx.nsId(key.toLowerCase()),
       label: ctx.label(ROLE, key),
       section: ctx.name,
       order: i + 1,

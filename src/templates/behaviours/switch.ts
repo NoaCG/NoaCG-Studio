@@ -46,18 +46,18 @@ export const switchRecipe: BehaviourRecipe = {
     withRepaint({
       parallel: [
         {
-          id: ctx.ns('group'),
+          id: ctx.nsId('group'),
           initial: 'off',
           states: [
-            { id: 'off', name: `${ctx.name} hidden`, timeline: null, edges: [{ from: 'on', to: 'off', trigger: 'operator', event: ctx.ns('hide') }] },
-            { id: 'on', name: `${ctx.name} shown`, timeline: null, edges: [{ from: 'off', to: 'on', trigger: 'operator', event: ctx.ns('show') }] },
+            { id: 'off', name: `${ctx.name} hidden`, timeline: null, edges: [{ from: 'on', to: 'off', trigger: 'operator', event: ctx.nsId('hide') }] },
+            { id: 'on', name: `${ctx.name} shown`, timeline: null, edges: [{ from: 'off', to: 'on', trigger: 'operator', event: ctx.nsId('show') }] },
           ],
         },
       ],
     }),
   controls: (ctx) => [
-    { event: ctx.ns('show'), label: `Show ${ctx.name}`, section: 'Switches', set: { [ctx.ns(FIELD)]: 'on' } },
-    { event: ctx.ns('hide'), label: `Hide ${ctx.name}`, section: 'Switches', set: { [ctx.ns(FIELD)]: 'off' } },
+    { event: ctx.nsId('show'), label: `Show ${ctx.name}`, section: 'Switches', set: { [ctx.ns(FIELD)]: 'on' } },
+    { event: ctx.nsId('hide'), label: `Hide ${ctx.name}`, section: 'Switches', set: { [ctx.ns(FIELD)]: 'off' } },
   ],
   paint: (ctx) => [{ look: ctx.ns(ROLE), when: { facts: [`${ctx.ns(FIELD)}:is:on`] } }],
 };

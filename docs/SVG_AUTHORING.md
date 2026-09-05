@@ -230,7 +230,10 @@ each moment looks like; NoaCG decides when each one is on. Your artwork is never
 
 - **Draw the base look first.** The panel and the text layers, and nothing else. That alone is
   enough: pick the behaviour in the Fields step, fill in the pickers, and the graphic already does
-  its job. It simply shows nothing extra while it does.
+  its job. A quiz then paints every moment you did not draw with NoaCG's own neutral look - a ring
+  around the picked row, a tick and a cross on the reveal, a small LOCKED IN plate - so the
+  buttons visibly work from the first import; every moment you do draw replaces that look, one
+  moment at a time. The other behaviours show nothing extra for an undrawn moment.
 - **Hide the moment layers in your design app.** Click the eye off. That is how you keep seeing
   your own artwork while you draw, and it is what the import expects. A hidden layer is offered to
   the behaviour pickers *because* it is hidden. Hidden text is still skipped as a field.

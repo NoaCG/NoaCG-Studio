@@ -16,6 +16,9 @@
 //      the clock's own tick (clockPainted calls noacgRepaintTick).
 //   4. Measurement AT REST for gauges - measure once, remember, never re-read a pose an earlier
 //      pass moved (the lesson the vote board's bars and the growth runtime both paid for).
+//   5. The DEFAULT TREATMENTS for undrawn moments (the ratified moment ladder's rung 1): one
+//      neutral platform look per kind of moment, built on first need from the row's own
+//      geometry, replaced per moment by the designer's layer wherever one is bound.
 //
 // A recipe adds no JS. If a new behaviour needs a line here, it is a missing field kind.
 //
@@ -86,7 +89,7 @@ ${motionSpeedJs}
 
 // What the runtime remembers between repaints: measured gauge lengths (at rest, once), each
 // number field's last value and which one rose most recently, and a finished clock's length.
-var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, clockRanOut: 0 };
+var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, clockRanOut: 0, defaults: {} };
 
 // noacgRoleEls(role, key): every layer stamped with this role token.
 function noacgRoleToken(role, key) {
@@ -317,6 +320,126 @@ noacgKinds.clock = {
 };
 function noacgClockReset() { noacgKinds.clock.reset(); }
 
+// ── The default treatments (docs/SVG_STATES_FROM_ARTWORK.md, ratified 2026-09-03) ────────────
+// A moment the designer did not draw is painted by NoaCG rather than by nothing: one neutral
+// platform look per KIND of moment, replaced per moment by the designer's own layer wherever
+// one is bound. Built here, by the shipped runtime, on the first repaint that needs one - the
+// geometry needs layout, which the assembler does not have, and the fit ladder already measures
+// the same panels the same way. Deterministic on every road: the same code draws the same
+// element in the editor, in an export and under SPX. Never brand-amber: it sits on THEIR artwork.
+
+var NOACG_SVG_NS = 'http://www.w3.org/2000/svg';
+var NOACG_DEFAULT_INK = '#e9e7e1';
+var NOACG_DEFAULT_YES = '#2f9e5b';
+var NOACG_DEFAULT_NO = '#d64545';
+
+function noacgArt() {
+  return document.querySelector('.${PREFIX}-art');
+}
+
+// noacgArtBox(el): an element's box in the ARTWORK's own units, whatever transforms sit between
+// it and the root - Illustrator writes a text's position as a matrix, so its own getBBox is
+// near the origin and only the CTM says where it paints.
+function noacgArtBox(el) {
+  var art = noacgArt();
+  var b;
+  try { b = el.getBBox(); } catch (e) { return null; }
+  if (!(b.width > 0) && !(b.height > 0)) return null;
+  var rootCtm = art.getScreenCTM();
+  var elCtm = el.getScreenCTM();
+  if (!rootCtm || !elCtm) return { x: b.x, y: b.y, width: b.width, height: b.height };
+  var m = rootCtm.inverse().multiply(elCtm);
+  var corners = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]];
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (var i = 0; i < corners.length; i++) {
+    var x = m.a * corners[i][0] + m.c * corners[i][1] + m.e;
+    var y = m.b * corners[i][0] + m.d * corners[i][1] + m.f;
+    if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+// The box a default is drawn around: the PANEL behind the row's field where the fit ladder
+// finds one (the same panel it fits the text into), else the text's own box, else the artwork.
+function noacgAnchorBox(rule, rowKey) {
+  var art = noacgArt();
+  if (!art) return null;
+  var anchorId = rule.anchor ? noacgFieldFor(rule.anchor, rowKey) : null;
+  var anchor = anchorId ? document.getElementById(anchorId) : null;
+  if (!anchor) {
+    var vb = art.viewBox && art.viewBox.baseVal;
+    return vb && vb.width > 0 ? { x: vb.x, y: vb.y, width: vb.width, height: vb.height, whole: true } : null;
+  }
+  var panel = typeof svgFitContainer === 'function' ? svgFitContainer(anchor) : null;
+  var box = panel ? noacgArtBox(panel) : null;
+  if (!box) {
+    var text = noacgArtBox(anchor);
+    if (!text) return null;
+    var pad = text.height * 0.35;
+    box = { x: text.x - pad, y: text.y - pad, width: text.width + pad * 2, height: text.height + pad * 2 };
+  }
+  return box;
+}
+
+function noacgSvgEl(name, attrs) {
+  var el = document.createElementNS(NOACG_SVG_NS, name);
+  for (var k in attrs) if (Object.prototype.hasOwnProperty.call(attrs, k)) el.setAttribute(k, String(attrs[k]));
+  return el;
+}
+
+// noacgDefaultEl(rule, rowKey): the platform's own layer for an undrawn moment, built once and
+// kept. Stamped like a drawn look, so from here on the runtime cannot tell the two apart.
+function noacgDefaultEl(rule, rowKey) {
+  var token = noacgRoleToken(rule.look, rowKey);
+  var memory = noacgBehaviourMemory.defaults;
+  if (memory[token]) return memory[token];
+  if (memory[token] === null) return null;             // asked before layout: ask again later
+  var art = noacgArt();
+  var box = noacgAnchorBox(rule, rowKey);
+  if (!art || !box) { memory[token] = null; return null; }
+  var kind = String(rule['default'] || '');
+  var word = kind.indexOf(':') === -1 ? '' : kind.slice(kind.indexOf(':') + 1);
+  kind = kind.indexOf(':') === -1 ? kind : kind.slice(0, kind.indexOf(':'));
+  var g = noacgSvgEl('g', { 'data-noacg-default': token, 'class': '${LOOK_CLASS}' });
+  g.setAttribute('${BEHAVIOUR_ROLE_ATTR}', token);
+  var stroke = Math.max(2, Math.round(box.height * 0.06));
+  if (kind === 'row-highlight') {
+    g.appendChild(noacgSvgEl('rect', {
+      x: box.x + stroke / 2, y: box.y + stroke / 2, width: box.width - stroke, height: box.height - stroke,
+      rx: stroke * 1.5, fill: 'none', stroke: NOACG_DEFAULT_INK, 'stroke-width': stroke, 'stroke-opacity': 0.85,
+    }));
+  } else if (kind === 'row-mark') {
+    // A tick or a cross at the row's end, drawn in the row's own height.
+    var s = box.height * 0.5;
+    var cx = box.x + box.width - s;
+    var cy = box.y + box.height / 2;
+    var colour = word === 'wrong' ? NOACG_DEFAULT_NO : NOACG_DEFAULT_YES;
+    g.appendChild(noacgSvgEl('rect', {
+      x: box.x, y: box.y, width: box.width, height: box.height, fill: 'none', stroke: colour, 'stroke-width': stroke, 'stroke-opacity': 0.9,
+    }));
+    var d = word === 'wrong'
+      ? 'M' + (cx - s * 0.3) + ' ' + (cy - s * 0.3) + ' L' + (cx + s * 0.3) + ' ' + (cy + s * 0.3) + ' M' + (cx + s * 0.3) + ' ' + (cy - s * 0.3) + ' L' + (cx - s * 0.3) + ' ' + (cy + s * 0.3)
+      : 'M' + (cx - s * 0.35) + ' ' + cy + ' L' + (cx - s * 0.1) + ' ' + (cy + s * 0.28) + ' L' + (cx + s * 0.38) + ' ' + (cy - s * 0.3);
+    g.appendChild(noacgSvgEl('path', { d: d, fill: 'none', stroke: colour, 'stroke-width': stroke * 1.3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+  } else if (kind === 'badge') {
+    // A compact plate in the artwork's top-right corner, carrying the moment's word.
+    var w = Math.max(120, box.width * 0.12);
+    var h = Math.max(26, box.height * 0.05);
+    var x = box.x + box.width - w - h;
+    var y = box.y + h;
+    g.appendChild(noacgSvgEl('rect', { x: x, y: y, width: w, height: h, rx: h * 0.15, fill: '#0d1017', 'fill-opacity': 0.55, stroke: NOACG_DEFAULT_INK, 'stroke-width': Math.max(1.5, h * 0.06), 'stroke-opacity': 0.8 }));
+    var t = noacgSvgEl('text', { x: x + w / 2, y: y + h * 0.68, fill: NOACG_DEFAULT_INK, 'font-family': 'Inter, Arial, sans-serif', 'font-size': h * 0.48, 'letter-spacing': h * 0.08, 'text-anchor': 'middle' });
+    t.textContent = (word || 'ON').toUpperCase();
+    g.appendChild(t);
+  } else {
+    memory[token] = null;
+    return null;
+  }
+  art.appendChild(g);
+  memory[token] = g;
+  return g;
+}
+
 // ── Conditions ──────────────────────────────────────────────────────────────
 
 function noacgFactHolds(token, rowKey) {
@@ -444,7 +567,7 @@ function noacgRepaintWith(reason) {
   }
   var rules = NOACG_BEHAVIOUR.paint || [];
   // Looks first: any rule naming a token turns it on; a token no rule holds for goes off.
-  var lit = {}, pops = {}, seen = {};
+  var lit = {}, pops = {}, seen = {}, defaults = {};
   var r, rule, keys, k;
   for (r = 0; r < rules.length; r++) {
     rule = rules[r];
@@ -453,6 +576,7 @@ function noacgRepaintWith(reason) {
     for (k = 0; k < keys.length; k++) {
       var token = noacgRoleToken(rule.look, keys[k]);
       seen[token] = true;
+      if (rule['default'] && !defaults[token]) defaults[token] = { rule: rule, key: keys[k] };
       if (noacgHolds(rule.when, keys[k])) {
         lit[token] = true;
         if (rule.enter === 'pop' && reason === 'state') pops[token] = true;
@@ -463,6 +587,11 @@ function noacgRepaintWith(reason) {
     if (!Object.prototype.hasOwnProperty.call(seen, t)) continue;
     var slash = t.indexOf('/');
     var els = noacgRoleEls(slash === -1 ? t : t.slice(0, slash), slash === -1 ? null : t.slice(slash + 1));
+    // Drew nothing for this moment: NoaCG's own look stands in, built once (the ladder's rung 1).
+    if (els.length === 0 && defaults[t]) {
+      var made = noacgDefaultEl(defaults[t].rule, defaults[t].key);
+      els = made ? [made] : els;
+    }
     for (var e = 0; e < els.length; e++) {
       noacgLookShow(els[e], !!lit[t]);
       if (lit[t] && pops[t]) noacgPop(els[e]);

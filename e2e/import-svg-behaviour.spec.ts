@@ -517,6 +517,54 @@ test('switches and a choice: hidden layers named show: and choice: get their own
   await shot(page, '26-quiz-with-switch-and-choice');
 });
 
+test('an undrawn quiz moment wears NoaCG’s own look, and a drawn one replaces it', async ({ page }) => {
+  // THE MOMENT LADDER (docs/SVG_STATES_FROM_ARTWORK.md, ratified 2026-09-03). The owner imported a
+  // quiz board with nothing hidden, pressed every button, and watched the Program monitor not
+  // change by one pixel - the machine was flawless and invisible. Rung 1 is the fix: a moment the
+  // designer did not draw is painted by NoaCG, one neutral look per kind, built by the shipped
+  // runtime from the row's own geometry so it is the same on every road. This is that board.
+  test.slow();
+  const PLAIN = fileURLToPath(new URL('./fixtures/svg-corpus/illustrator-quiz-board-multiline.svg', import.meta.url));
+  await openImportDoor(page, PLAIN);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  // Every moment picker says what will happen when nothing is drawn, rather than "not drawn".
+  await expect(page.getByTestId('map-svg-quiz-selected-0').locator('option:checked')).toContainText('NoaCG');
+  await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('NoaCG');
+
+  await intoProduction(page, 'Plain quiz', 'Quiz Night');
+  await settleDurableWrites(page);
+  await page.getByTestId('cue-field-f5-opt-C').click();
+  await page.getByTestId('cue-field-f6-opt-B').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const made = (token: string) => air.locator(`[data-noacg-default="${token}"]`);
+
+  // Nothing is painted until a state says so.
+  await page.getByRole('button', { name: /Select answer/ }).click();
+  await expect(made('answer.selected/B')).toHaveClass(/imported-design-on/);
+  // The default rings the row's own panel, drawn in the artwork's units: a real box, not a dot.
+  const ring = await made('answer.selected/B').locator('rect').first().evaluate((el) => ({
+    w: Number(el.getAttribute('width')),
+    h: Number(el.getAttribute('height')),
+  }));
+  expect(ring.w).toBeGreaterThan(200);
+  expect(ring.h).toBeGreaterThan(20);
+  await expect(made('answer.selected/A')).not.toHaveClass(/imported-design-on/);
+
+  await page.getByRole('button', { name: /Lock it in/ }).click();
+  await expect(made('locked')).toHaveClass(/imported-design-on/);
+  await expect(made('locked').locator('text')).toHaveText('LOCKED IN');
+
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  await expect(made('answer.correct/C')).toHaveClass(/imported-design-on/);
+  await expect(made('answer.wrong/A')).toHaveClass(/imported-design-on/);
+  await expect(made('answer.wrong/B')).toHaveClass(/imported-design-on/);
+  await expect(made('answer.correct/A')).not.toHaveClass(/imported-design-on/);
+  await shot(page, '27-quiz-default-looks');
+});
+
 test('imported vote board: a real audience round moves the bars the designer drew', async ({ page }) => {
   // THE JOIN (docs/GRAPHIC_BEHAVIOUR_PLAN.md §12). Every piece under this shipped separately —
   // the audience plane counts votes (Phase 6), the catalog has a live-vote arc, the importer

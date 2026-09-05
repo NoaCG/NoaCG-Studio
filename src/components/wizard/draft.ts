@@ -1231,6 +1231,13 @@ export function behaviourSummary(draft: WizardDraft): string {
     const recipeId = behaviour.kind === 'poll' ? 'vote' : behaviour.kind === 'timer' ? 'countdown' : behaviour.kind;
     const words = BEHAVIOUR_WORDS[recipeId];
     parts.push(words ? `${words.name.toLowerCase()}: ${words.verbs}` : behaviour.kind);
+    if (behaviour.kind === 'quiz') {
+      // The moments a quiz can show, and how many the designer drew - the rest wear NoaCG's own
+      // look (docs/SVG_STATES_FROM_ARTWORK.md §5.2 asked for exactly this row).
+      const drawn = behaviour.rows.reduce((n, r) => n + [r.selected, r.correct, r.wrong].filter(Boolean).length, 0) + (behaviour.locked ? 1 : 0);
+      const total = behaviour.rows.length * 3 + 1;
+      parts.push(drawn === total ? 'every moment drawn' : `${drawn} of ${total} moments drawn, the rest use NoaCG’s own look`);
+    }
   }
   const extras = svgExtrasOptions(draft) ?? [];
   const switches = extras.filter((e) => e.kind === 'switch');

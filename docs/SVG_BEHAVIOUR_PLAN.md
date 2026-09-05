@@ -736,6 +736,12 @@ timeline may call by name, like the engine's own `pauseClock`) and a kind PARAME
 companion field (`warnAt`, `fallback`). Both are in `FieldKindSpec` as plain strings. Nothing else
 in §2 changed, and no recipe emits JavaScript - the test in §6a held for all four.
 
+**The default treatments are built by the runtime, not at assembly** (phase 4). §7d said
+"generated at build time from the measured panels"; the assembler runs in a parser with no layout,
+and the panel behind a row is exactly what the fit ladder measures at runtime, so the runtime
+builds each default once on first need from the row's field, the panel `svgFitContainer` finds
+under it, or the artwork's viewBox for a badge. Same code on every road, so the same picture.
+
 **The paper pass** the rollout asked for before phase 3 (§9i restated against the built
 vocabulary): the reveal card is two `switch` instances; the election board is two `choice`
 instances plus two gauges over a `share` pair; the lineup is a `row-pick` field with per-row

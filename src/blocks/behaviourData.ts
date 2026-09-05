@@ -60,8 +60,12 @@ export interface LookRule {
    *  winner mark. Never on a data repaint: a bar that overshoots reads as the wrong figure. */
   enter?: 'pop';
   /** The platform treatment painted when the look's layer is absent for that row - the moment
-   *  ladder's rung 1 (docs/SVG_STATES_FROM_ARTWORK.md). Absent = nothing shows when undrawn. */
+   *  ladder's rung 1 (docs/SVG_STATES_FROM_ARTWORK.md): `row-highlight`, `row-mark:correct`,
+   *  `row-mark:wrong`, `badge:<word>`. Absent = nothing shows when undrawn. */
   default?: string;
+  /** The FIELD role the default is drawn around (the row's own text, and the panel behind it
+   *  where the fit ladder finds one); absent = the whole artwork. */
+  anchor?: string;
 }
 
 /** Scale a layer the designer drew at its FULL extent by a 0..1 value a field derives. */
@@ -193,6 +197,7 @@ function isRule(v: unknown): v is PaintRule {
     if (v.when !== undefined && !isCondition(v.when)) return false;
     if (v.enter !== undefined && v.enter !== 'pop') return false;
     if (v.default !== undefined && typeof v.default !== 'string') return false;
+    if (v.anchor !== undefined && typeof v.anchor !== 'string') return false;
     return true;
   }
   const target = typeof v.gauge === 'string' ? v.gauge : typeof v.write === 'string' ? v.write : null;
