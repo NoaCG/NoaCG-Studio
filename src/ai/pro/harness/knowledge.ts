@@ -12,10 +12,14 @@
 //
 // WHAT IT IS NOT. Not the legibility rules - those are numbers in src/model/designRules.ts and
 // reach the model through `designRulesPromptBlock`, never copied here (one module, zero drift).
-// Not a gate - a card is what the model reads BEFORE it designs; the instruments measure what it
-// did afterwards, and only the measurement decides. Not one giant prompt: `knowledgeForRequest`
-// picks a core set of about six cards and adds the rest by trigger, and the model can ask for
-// any card by id.
+// Not the CORPUS either - what the shipped designs of a given kind actually set is a measurement
+// with an n on it, and it lives in `exemplars.ts`, derived from the catalog and pinned against
+// it. A card's numbers are RATIFIED RANGES and an exemplar's are OBSERVATIONS; the two are worth
+// stacking precisely because they are different kinds of fact, and copying either into the other
+// would make one of them a lie. Not a gate - a card is what the model reads BEFORE it designs;
+// the instruments measure what it did afterwards, and only the measurement decides. Not one
+// giant prompt: `knowledgeForRequest` picks a core set of about six cards and adds the rest by
+// trigger, and the model can ask for any card by id.
 //
 // WRITTEN AS INSPECTION. Every line states what to look at and what earns a pass, never a list
 // of named failures - a prohibition suppresses the behaviour it constrains (src/ai/AGENTS.md).
