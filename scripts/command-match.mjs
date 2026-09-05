@@ -432,7 +432,7 @@ export const DEV_SERVER_DEPENDENT_SCRIPTS =
   'ai-lite-calibrate|ai-lite-regress|ai-vision-dataset|catalog-geometry|catalog-sameness|engine-floor'
   + '|factory|field-coverage|footprint-stability-sweep|import-suggest-audit|lite-on-pro-bank'
   + '|make-render-manifest|numerals|occlusion-sweep|overflow-sweep|pack8-shots|palette-freedom'
-  + '|plate-legibility-sweep|pro-spike|pro-taste-rejudge|pro-type-calibrate|probe-composition'
+  + '|plate-legibility-sweep|pro-harness-spike|pro-iterate-spike|pro-spike|pro-taste-rejudge|pro-type-calibrate|probe-composition'
   + '|reference-companion-sweep|reference-select-check|reference-select-simulate|svg-import-sweep'
   + '|render-smoke|render-smoke-hyperframes|render-smoke-video|spike-axis-calibrate'
   + '|spike-checkpoint-probe|spike-countdown-calibrate|spike-device-mutation-check'

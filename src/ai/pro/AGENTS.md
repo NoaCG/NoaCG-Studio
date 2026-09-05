@@ -133,6 +133,16 @@ a live foot-gun rather than a harmless leftover. It carried the retired image ro
 add a route Pro does not spend on. The audited image entry stays in `aiModelCatalog.ts` as an
 audit record and is marked in use by nothing.
 
+## The Pro Harness (`pro/harness/`)
+
+**EXPERIMENT - bench-only.** The evidence-driven tool loop the owner asked for on 2026-09-05: a
+cheap model designs into a scaffolded spine through three writable regions, the platform renders,
+validates and measures after every patch, and a repair round runs only on new evidence. Its
+contract is **`src/ai/pro/harness/AGENTS.md`** (with its thin `CLAUDE.md`), which loads when you
+work in that directory; the architecture and the first experiment are `docs/PRO_HARNESS_PLAN.md`.
+One thing binds from out here: the harness is the road for types the language composer does
+NOT compose - it never replaces the Phase A lane below for the types it does.
+
 ## NoaCG Pro PHASE A - the design language (`pro/language/`)
 
 **LIVE since 2026-08-15 - this is what a Pro user gets.** The premise change in

@@ -224,6 +224,9 @@ served inside its target changes ROUTE, never price.
       Two ballot notes still unfixed belong in the re-run build.
 - [ ] **Pro** - open, in order: the two-round set read; validating the fail-closed custom lane;
       the topic card's read into the package. Every paid round spend-capped, approved separately.
+- [ ] **The Pro Harness** (owner brief 2026-09-05): any custom graphic from a cheap model, as a
+      standard template, through an evidence-driven tool loop - `docs/PRO_HARNESS_PLAN.md`. Loop
+      core built; the first paid round (§10 there) awaits a stated cap.
 - [ ] **A generated graphic can carry its own STATE MACHINE** - every tier. No generation path
       asks a model for a machine, and `importAnimData` drops one by construction; the fix is a
       structured MACHINE stage spliced in deterministically. **The gap between "make a graphic"

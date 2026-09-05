@@ -220,6 +220,7 @@ lite-payload.tmp.json
 mark-field-ab/
 pro-freeform-blind/
 pro-iterate-out*/
+pro-harness-out*/
 pro-iterate-blind/
 pro-typesweep-blind/
 pro-spike-out-*.log
