@@ -483,7 +483,7 @@ function bundledName(fontId: string): string {
 const NOT_DRAWN = '— not drawn —';
 /** The quiz's moments fall back to NoaCG's own neutral look (docs/SVG_STATES_FROM_ARTWORK.md, the
  *  ladder's rung 1); every other behaviour's undrawn moment shows nothing extra. */
-const DEFAULT_LOOK = '— not drawn: NoaCG’s own look —';
+const DEFAULT_LOOK = 'Not drawn: NoaCG’s own look';
 const PICK_A_LAYER = '— pick a text layer —';
 
 /** How many answer rows a quiz board may carry, and the least it can carry. Written once

@@ -33,7 +33,7 @@ export const choiceRecipe: BehaviourRecipe = {
       label: ctx.name,
       kind: 'select',
       value: '',
-      options: [{ label: '—', value: '' }, ...ctx.rows.map((key) => ({ label: ctx.label(ROLE, key), value: key.toLowerCase() }))],
+      options: [{ label: '-', value: '' }, ...ctx.rows.map((key) => ({ label: ctx.label(ROLE, key), value: key.toLowerCase() }))],
       // A row pick over the choice's own rows: "picked" holds on the option the value names, so
       // ONE rule paints every option and a second choice on the graphic cannot cross-light it.
       spec: { kind: 'row-pick', rows: ctx.ns(ROLE) },

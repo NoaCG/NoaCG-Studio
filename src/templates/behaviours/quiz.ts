@@ -85,7 +85,7 @@ export const quizRecipe: BehaviourRecipe = {
       // Empty until somebody picks - and the empty string is not a letter, which the row-pick
       // kind checks before any lookup.
       value: '',
-      options: [{ label: '—', value: '' }, ...letterOptions(ctx)],
+      options: [{ label: '-', value: '' }, ...letterOptions(ctx)],
       spec: { kind: 'row-pick', rows: 'answer' },
     },
   ],

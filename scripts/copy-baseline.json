@@ -638,9 +638,6 @@
     "src/templates/importedDesign/designPresets.ts": {
       "em-dash": 12
     },
-    "src/templates/importedDesign/quizBehaviour.ts": {
-      "em-dash": 6
-    },
     "src/templates/importedDesign/shared.ts": {
       "em-dash": 15
     },
