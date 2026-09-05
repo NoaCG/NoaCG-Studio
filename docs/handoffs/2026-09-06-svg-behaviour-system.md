@@ -1,7 +1,9 @@
 # Session - the SVG behaviour system, phases 0 to 5
 
 **Branch:** `claude/svg-behaviour-control-system-459532` (from `a3dcc68e`). **Date:** 2026-09-05
-into 2026-09-06. **State:** finished, built, affected specs green (140 of 140), queued for landing.
+into 2026-09-06. **State:** finished, built, affected specs green (140 of 140), `origin/main` at
+`582670b2` merged in (one `package.json` conflict, both sides kept), integration plan run, queued for
+landing.
 
 ## What landed
 
