@@ -6,29 +6,35 @@
 // steps, the type `attachMachine` compiles - once, for every recipe. Before it, each behaviour was
 // a module of its own that hand-wrote all seven of those things (docs/GRAPHIC_BEHAVIOUR_PLAN.md
 // §10-§13 record what each found); the five findings together are the decomposition this file
-// implements (docs/SVG_BEHAVIOUR_PLAN.md §1). The four modules are gone; what each behaviour IS
-// now reads in one declaration each, and adding a behaviour adds a declaration.
+// implements (docs/SVG_BEHAVIOUR_PLAN.md §1). Adding a behaviour adds a declaration.
 //
-// The wizard still holds a binding in the per-recipe shapes it grew one at a time
-// (`DesignSvgBehaviour` in model/wizard.ts); the adapters at the bottom of this file turn each of
-// those into the one `BehaviourBinding` the compiler reads. A generic binding member for the
-// recipes the wizard does not yet have pickers for arrives with the switches (phase 3).
+// A GRAPHIC MAY CARRY SEVERAL (plan §7c). At most one FULL recipe - the quiz, the score tracker,
+// the vote, the countdown, each of which owns the default path - plus any number of INSTANCED
+// micro-recipes (a switch per hidden layer, a choice per set of exclusive looks), each namespaced
+// by its own name so their roles, fields, groups and events cannot collide. Every part compiles
+// the same way; `composeParts` merges them into one table, one runtime and one machine, which is
+// the composition the machine has always allowed and the binding never did.
+//
+// The wizard still holds a full recipe's binding in the per-recipe shapes it grew one at a time
+// (`DesignSvgBehaviour` in model/wizard.ts) and the micro-recipes as `DesignSvg.extras`; the
+// adapters at the bottom turn each into the one `BehaviourBinding` the compiler reads.
 
 import type { SpxField } from '../../model/types';
 import type { FieldKind } from '../../model/fieldModel';
 import type {
   DesignSvg,
+  DesignSvgExtra,
   DesignSvgPollBehaviour,
   DesignSvgQuizBehaviour,
   DesignSvgScoreBehaviour,
   DesignSvgTimerBehaviour,
 } from '../../model/wizard';
 import type { AnimData, AnimStep } from '../../blocks/animData';
-import { BEHAVIOUR_ROLE_ATTR, roleToken, type BehaviourData, type FieldKindSpec } from '../../blocks/behaviourData';
+import { BEHAVIOUR_ROLE_ATTR, roleToken, type BehaviourData, type FieldKindSpec, type PaintRule } from '../../blocks/behaviourData';
 import { SVG_CANDIDATE_ATTR } from '../../assets/svgImport';
-import type { GraphicType, TypeField } from '../types/graphicType';
+import type { GraphicType, TypeControlEvent, TypeField, TypeMachine } from '../types/graphicType';
 import { DATA_SOURCE_CLASS } from '../shared/base';
-import type { RecipeContext, RecipeField } from '../behaviours/recipe';
+import type { BehaviourRecipe, RecipeContext, RecipeField, RecipePath } from '../behaviours/recipe';
 import { REPAINT_CALL } from '../behaviours/recipe';
 import { recipeById } from '../behaviours/registry';
 import { behaviourDataJs, behaviourRuntimeJs, LOOK_CLASS, lookCss } from './behaviourRuntime';
@@ -81,9 +87,14 @@ export interface BoundBehaviour {
  */
 export interface BehaviourBinding {
   recipe: string;
+  /** An INSTANCED recipe's own name ("Sponsor", "Status") - the operator's word for it, and the
+   *  namespace its roles, fields, group and events live under. */
+  name?: string;
   options?: Record<string, string | number | boolean>;
   /** The row keys, in row order, for a recipe with rows. */
   rows?: string[];
+  /** What each row is CALLED where the key is not the word (a choice's options). */
+  rowLabels?: Record<string, string>;
   fields: Record<string, number | Record<string, number>>;
   layers: Record<string, string | Record<string, string>>;
 }
@@ -96,18 +107,21 @@ export interface BehaviourBinding {
  * mirrors their order and kinds in the type shim, and takes the operator's own titles from them.
  */
 export function boundBehaviour(svg: DesignSvg, artworkFields: SpxField[]): BoundBehaviour | null {
-  const behaviour = svg.behaviour;
-  if (!behaviour) return null;
-  return compileBinding(artworkFields, bindingOf(svg));
+  const bindings = bindingsOf(svg);
+  return bindings.length === 0 ? null : composeParts(artworkFields, bindings);
 }
 
-/** The wizard's per-recipe shape as the one binding the compiler reads. */
-export function bindingOf(svg: DesignSvg): BehaviourBinding {
-  const behaviour = svg.behaviour!;
-  if (behaviour.kind === 'quiz') return quizBinding(behaviour);
-  if (behaviour.kind === 'poll') return voteBinding(behaviour);
-  if (behaviour.kind === 'timer') return countdownBinding(svg, behaviour);
-  return scoreBinding(behaviour);
+/** Every binding a design carries: the full recipe's, then the extras in the order they were
+ *  declared. The wizard's per-recipe shapes become the one binding the compiler reads. */
+export function bindingsOf(svg: DesignSvg): BehaviourBinding[] {
+  const out: BehaviourBinding[] = [];
+  const behaviour = svg.behaviour;
+  if (behaviour?.kind === 'quiz') out.push(quizBinding(behaviour));
+  else if (behaviour?.kind === 'poll') out.push(voteBinding(behaviour));
+  else if (behaviour?.kind === 'timer') out.push(countdownBinding(svg, behaviour));
+  else if (behaviour?.kind === 'score') out.push(scoreBinding(behaviour));
+  for (const extra of svg.extras ?? []) out.push(extraBinding(extra));
+  return out;
 }
 
 /** Per-row layer bindings from a list of rows, skipping the rows the designer left undrawn. */
@@ -184,6 +198,32 @@ function voteBinding(poll: DesignSvgPollBehaviour): BehaviourBinding {
   };
 }
 
+/** A choice option's row KEY: its label as one upper-case token, unique within the choice. */
+export function optionKey(label: string, taken: Set<string>): string {
+  const base = label.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'OPTION';
+  let key = base;
+  for (let n = 2; taken.has(key); n++) key = `${base}_${n}`;
+  taken.add(key);
+  return key;
+}
+
+/** A switch or a choice, as the wizard persisted it. */
+function extraBinding(extra: DesignSvgExtra): BehaviourBinding {
+  if (extra.kind === 'switch') {
+    return { recipe: 'switch', name: extra.name, fields: {}, layers: { on: extra.layer } };
+  }
+  const taken = new Set<string>();
+  const keyed = extra.options.map((o) => ({ ...o, key: optionKey(o.label, taken) }));
+  return {
+    recipe: 'choice',
+    name: extra.name,
+    rows: keyed.map((o) => o.key),
+    rowLabels: Object.fromEntries(keyed.map((o) => [o.key, o.label])),
+    fields: {},
+    layers: { option: Object.fromEntries(keyed.map((o) => [o.key, o.layer])) },
+  };
+}
+
 // ── The compiler ─────────────────────────────────────────────────────────────────────────────
 
 /** SPX ftype for an owned field's kind - the type registry's own mapping, restated for the one
@@ -207,6 +247,14 @@ function at<T>(map: Record<string, T | Record<string, T>> | undefined, role: str
   return key === undefined ? (value as T) : undefined;
 }
 
+/** An instance's name as a lower-case token for roles (`sponsor`) and as a bare identifier
+ *  for machine group ids and events (`sponsor`, `q_2`), which the machine's shape gate requires. */
+function slugOf(name: string): { slug: string; ident: string } {
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'x';
+  const ident = slug.replace(/-/g, '_').replace(/^(\d)/, '_$1');
+  return { slug, ident };
+}
+
 /**
  * Strip whatever the designer used to hide a layer, so the look class is the only thing deciding
  * whether it shows. The designer hid the layer to see their base look; the stylesheet hides it
@@ -228,16 +276,38 @@ export function clearDrawnHiding(el: Element): void {
   else el.removeAttribute('style');
 }
 
-/** Compile one recipe against one binding. */
-export function compileBinding(artworkFields: SpxField[], binding: BehaviourBinding): BoundBehaviour {
+/** One recipe compiled against one binding, before the parts are merged. */
+interface CompiledPart {
+  recipe: BehaviourRecipe;
+  owned: RecipeField[];
+  /** The `fN` of each owned field, in order. */
+  ownedIds: string[];
+  markLayers(root: Element): void;
+  hasLooks: boolean;
+  table: BehaviourData;
+  machine: TypeMachine;
+  controls: TypeControlEvent[];
+  path: RecipePath | undefined;
+}
+
+/**
+ * Compile one recipe against one binding. `offset` is where its owned fields start, counted
+ * from the artwork's field count - the parts before it own the ids in between.
+ */
+function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offset: number): CompiledPart {
   const recipe = recipeById(binding.recipe);
   if (!recipe) throw new Error(`Behaviour: no recipe "${binding.recipe}".`);
   const rows = binding.rows ?? [];
-  const from = artworkFields.length;
+  const from = artworkFields.length + offset;
   const options: RecipeContext['options'] = {
     ...Object.fromEntries((recipe.options ?? []).map((o) => [o.key, o.default])),
     ...(binding.options ?? {}),
   };
+  const name = binding.name?.trim() || recipe.name;
+  const { slug, ident } = slugOf(name);
+  // An instanced recipe lives under its own name; a full recipe's words are its own.
+  const ns = (id: string): string => (recipe.instanced ? `${recipe.id}.${slug}.${id}` : id);
+  const nsId = (id: string): string => (recipe.instanced ? `${ident}_${id}` : id);
   // Owned fields are declared in terms of the context, and the context resolves owned fields -
   // so the list is filled in after the context exists. Nothing in `fields()` may ask for an
   // owned field's id, and nothing does: the fields are what the ids are minted for.
@@ -246,6 +316,10 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
   const ctx: RecipeContext = {
     rows,
     options,
+    name,
+    slug,
+    ns,
+    nsId,
     fieldId: (role, key) => {
       const index = at(binding.fields, role, key);
       if (index !== undefined) return `f${index}`;
@@ -258,6 +332,7 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
       return ownedIndex(role) === -1 ? null : role;
     },
     label: (role, key) => {
+      if (key !== undefined && binding.rowLabels?.[key]) return binding.rowLabels[key];
       const index = at(binding.fields, role, key);
       const title = index === undefined ? '' : artworkFields[index]?.title?.trim() ?? '';
       if (title) return title;
@@ -267,42 +342,42 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
     bound: (role, key) => at(binding.layers, role, key) !== undefined || at(binding.fields, role, key) !== undefined,
   };
   owned = recipe.fields(ctx);
+  const ownedIds = owned.map((_, i) => `f${from + i}`);
 
   const lookRoles = new Set(recipe.roles.filter((r) => r.kind === 'layer' && r.paint?.includes('look')).map((r) => r.id));
-  const table = (): BehaviourData => {
-    const fields: NonNullable<BehaviourData['fields']> = {};
-    for (const role of recipe.roles.filter((r) => r.kind === 'field')) {
-      if (role.perRow) {
-        const byKey = Object.fromEntries(rows.flatMap((key) => {
-          const id = ctx.fieldId(role.id, key);
-          return id ? [[key, id]] : [];
-        }));
-        if (Object.keys(byKey).length > 0) fields[role.id] = byKey;
-      } else {
-        const id = ctx.fieldId(role.id);
-        if (id) fields[role.id] = id;
-      }
+  const fields: NonNullable<BehaviourData['fields']> = {};
+  for (const role of recipe.roles.filter((r) => r.kind === 'field')) {
+    if (role.perRow) {
+      const byKey = Object.fromEntries(rows.flatMap((key) => {
+        const id = ctx.fieldId(role.id, key);
+        return id ? [[key, id]] : [];
+      }));
+      if (Object.keys(byKey).length > 0) fields[ns(role.id)] = byKey;
+    } else {
+      const id = ctx.fieldId(role.id);
+      if (id) fields[ns(role.id)] = id;
     }
-    for (const field of owned) fields[field.key] = ctx.fieldId(field.key)!;
-    const kinds: Record<string, FieldKindSpec> = {};
-    for (const field of owned) if (field.spec) kinds[ctx.fieldId(field.key)!] = field.spec;
-    for (const [id, spec] of Object.entries(recipe.artworkKinds?.(ctx) ?? {})) {
-      // A parameter the recipe could not resolve (an optional companion field) is left out
-      // rather than written as "undefined".
-      kinds[id] = Object.fromEntries(Object.entries(spec).filter(([, v]) => v !== undefined)) as FieldKindSpec;
-    }
-    const data: BehaviourData = { version: 1, recipe: recipe.id, paint: recipe.paint(ctx) };
-    if (Object.keys(options).length > 0) data.options = options;
-    if (recipe.rows) data.rows = { [recipe.rows.role]: rows };
-    if (Object.keys(fields).length > 0) data.fields = fields;
-    if (Object.keys(kinds).length > 0) data.kinds = kinds;
-    return data;
-  };
-  const withClock = (): boolean => Object.values(table().kinds ?? {}).some((spec) => spec.kind === 'clock');
+  }
+  for (const field of owned) fields[field.key] = ctx.fieldId(field.key)!;
+  const kinds: Record<string, FieldKindSpec> = {};
+  for (const field of owned) if (field.spec) kinds[ctx.fieldId(field.key)!] = field.spec;
+  for (const [id, spec] of Object.entries(recipe.artworkKinds?.(ctx) ?? {})) {
+    // A parameter the recipe could not resolve (an optional companion field) is left out
+    // rather than written as "undefined".
+    kinds[id] = Object.fromEntries(Object.entries(spec).filter(([, v]) => v !== undefined)) as FieldKindSpec;
+  }
+  const table: BehaviourData = { version: 1, recipe: recipe.id, paint: recipe.paint(ctx) };
+  if (recipe.instanced) table.recipe = `${recipe.id}:${name}`;
+  if (Object.keys(options).length > 0) table.options = options;
+  if (recipe.rows && rows.length > 0) table.rows = { [ns(recipe.rows.role)]: rows };
+  if (Object.keys(fields).length > 0) table.fields = fields;
+  if (Object.keys(kinds).length > 0) table.kinds = kinds;
 
   return {
-    layerIds: [],
-    fieldCount: owned.length,
+    recipe,
+    owned,
+    ownedIds,
+    hasLooks: lookRoles.size > 0,
     markLayers: (root) => {
       for (const role of recipe.roles.filter((r) => r.kind === 'layer')) {
         const keys = role.perRow ? rows : [undefined];
@@ -314,7 +389,7 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
           // A SPACE-SEPARATED list of tokens, like the growth stamp: one layer may play two
           // roles, and a plain setAttribute would let the second erase the first.
           const tokens = (el.getAttribute(BEHAVIOUR_ROLE_ATTR) ?? '').split(/\s+/).filter(Boolean);
-          const token = roleToken(role.id, key);
+          const token = roleToken(ns(role.id), key);
           if (!tokens.includes(token)) tokens.push(token);
           el.setAttribute(BEHAVIOUR_ROLE_ATTR, tokens.join(' '));
           if (lookRoles.has(role.id)) {
@@ -326,7 +401,67 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
         }
       }
     },
-    css: lookRoles.size > 0 ? lookCss : '',
+    table,
+    machine: recipe.machine(ctx),
+    controls: recipe.controls(ctx),
+    path: recipe.path?.(ctx),
+  };
+}
+
+/** Compile one binding on its own - the shape the specs and the validator reason about. */
+export function compileBinding(artworkFields: SpxField[], binding: BehaviourBinding): BoundBehaviour {
+  return composeParts(artworkFields, [binding]);
+}
+
+/**
+ * Compile every binding and merge the parts into the one module svg.ts speaks.
+ *
+ * ONE FULL RECIPE AT MOST: the default path is the SPX walk, and two recipes that both want to
+ * name its entrance or splice a step into it would be two walks. Instanced recipes never touch
+ * the path, so any number compose; a second full recipe is refused here rather than emitting a
+ * machine two arcs fight over.
+ */
+export function composeParts(artworkFields: SpxField[], bindings: BehaviourBinding[]): BoundBehaviour {
+  const parts: CompiledPart[] = [];
+  let offset = 0;
+  for (const binding of bindings) {
+    const part = compilePart(artworkFields, binding, offset);
+    parts.push(part);
+    offset += part.owned.length;
+  }
+  const full = parts.filter((p) => !p.recipe.instanced);
+  if (full.length > 1) {
+    throw new Error(`Behaviour: a graphic carries one full recipe at most (${full.map((p) => p.recipe.id).join(', ')}).`);
+  }
+  const owned = parts.flatMap((p) => p.owned);
+  const withClock = parts.some((p) => Object.values(p.table.kinds ?? {}).some((spec) => spec.kind === 'clock'));
+
+  const table = (): BehaviourData => {
+    const merged: BehaviourData = {
+      version: 1,
+      // The full recipe names the table; a graphic of switches alone is named by the first.
+      recipe: (full[0] ?? parts[0]).table.recipe,
+      paint: parts.flatMap((p) => p.table.paint as PaintRule[]),
+    };
+    if (parts.length > 1) merged.parts = parts.map((p) => p.table.recipe);
+    const options = Object.assign({}, ...parts.map((p) => p.table.options ?? {}));
+    if (Object.keys(options).length > 0) merged.options = options;
+    const rows = Object.assign({}, ...parts.map((p) => p.table.rows ?? {}));
+    if (Object.keys(rows).length > 0) merged.rows = rows;
+    const fields = Object.assign({}, ...parts.map((p) => p.table.fields ?? {}));
+    if (Object.keys(fields).length > 0) merged.fields = fields;
+    const kinds = Object.assign({}, ...parts.map((p) => p.table.kinds ?? {}));
+    if (Object.keys(kinds).length > 0) merged.kinds = kinds;
+    return merged;
+  };
+
+  return {
+    layerIds: [],
+    fieldCount: owned.length,
+    markLayers: (root) => {
+      for (const part of parts) part.markLayers(root);
+    },
+    css: parts.some((p) => p.hasLooks) ? lookCss : '',
     fields: (start) =>
       owned.map((field, i) => {
         const spx: SpxField = { field: `f${start + i}`, ftype: ftypeFor(field.kind), title: field.label, value: field.value };
@@ -340,24 +475,26 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
     <!-- The behaviour's own values. SPX writes them here; the rules in template.js read them.
          None of these is ever drawn - the artwork's own layers are what the audience sees. -->
 ${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLASS}">${field.value}</div>`).join('\n')}`,
-    js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock())}`,
+    js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock)}`,
     updateHook: `  if (typeof noacgRepaintData === 'function') noacgRepaintData();  // the behaviour's looks, gauges and readouts (below)`,
     steps: (data) => {
-      const path = recipe.path?.(ctx);
-      if (!path) return data;
+      const paths = parts.map((p) => p.path).filter((p): p is RecipePath => !!p);
+      if (paths.length === 0) return data;
       const repaint = { time: 0, call: REPAINT_CALL };
+      const entrance = paths.find((p) => p.entrance)?.entrance;
+      const entranceCalls = paths.flatMap((p) => p.entranceCalls ?? []);
       const steps = data.steps.map((s, i) =>
         i === 0
           ? {
               ...s,
-              ...(path.entrance ? { name: path.entrance } : {}),
+              ...(entrance ? { name: entrance } : {}),
               // The entrance repaints too: every look starts hidden and the runtime's memory
               // starts empty, so something has to put the board in a known state on arrival.
-              calls: [...(path.entranceCalls ?? []).map((call) => ({ time: 0, call })), repaint, ...(s.calls ?? [])],
+              calls: [...entranceCalls.map((call) => ({ time: 0, call })), repaint, ...(s.calls ?? [])],
             }
           : { ...s },
       );
-      const extra: AnimStep[] = (path.steps ?? []).map((step) => ({
+      const extra: AnimStep[] = paths.flatMap((p) => p.steps ?? []).map((step) => ({
         name: step.name,
         duration: step.duration,
         ease: data.steps[data.steps.length - 1]?.ease ?? 'power2.in',
@@ -378,22 +515,27 @@ ${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLAS
         value: '',
         role: 'data',
       }));
+      const lead = full[0] ?? parts[0];
+      const machine: TypeMachine = {
+        ...(full[0]?.machine.main ? { main: full[0].machine.main } : {}),
+        parallel: parts.flatMap((p) => p.machine.parallel ?? []),
+      };
       return {
-        id: `imported-${recipe.id}`,
-        name: `Imported ${recipe.name.toLowerCase()}`,
-        description: recipe.description,
+        id: `imported-${parts.map((p) => p.recipe.id).join('-')}`,
+        name: `Imported ${lead.recipe.name.toLowerCase()}`,
+        description: lead.recipe.description,
         // The artwork IS the structure. Nothing is required, because the author's own drawing is
         // what the parts would name and we did not draw it - `missingParts` has nothing to check.
-        structure: { prefix: PREFIX, category: recipe.category, parts: [] },
-        // The artwork's own fields first, then the owned ones, mirroring the template's real
-        // field order: `fieldIdFor` resolves a control's payload key by INDEX in this array.
+        structure: { prefix: PREFIX, category: lead.recipe.category, parts: [] },
+        // The artwork's own fields first, then every part's owned ones in order, mirroring the
+        // template's real field order: `fieldIdFor` resolves a control's payload key by INDEX.
         fields: [
           ...artwork,
           ...owned.map((f): TypeField => ({ key: f.key, label: f.label, kind: f.kind, value: f.value, role: 'data', ...(f.options ? { options: f.options } : {}) })),
         ],
-        machine: recipe.machine(ctx),
-        controls: recipe.controls(ctx),
-        capabilities: { maxLines: 1, logo: 'none', animationPresets: [], defaultZone: recipe.defaultZone },
+        machine,
+        controls: parts.flatMap((p) => p.controls),
+        capabilities: { maxLines: 1, logo: 'none', animationPresets: [], defaultZone: lead.recipe.defaultZone },
         designs: [],
       };
     },

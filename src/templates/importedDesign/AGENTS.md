@@ -184,6 +184,9 @@ adds no emitted JS**: a behaviour that needs a line is a missing FIELD KIND in t
   THREE drivers: a state entry (`noacgRepaint` on every recipe state), a data write
   (`noacgRepaintData`) and the clock's tick (`clockPainted`).
 - The validator pairs the table with its runtime and checks every state and field a rule names.
+- **A graphic composes ONE full recipe at most with any number of INSTANCED ones** (`switch`,
+  `choice` - `DesignSvg.extras`), each namespaced by its name (`ctx.ns` / `ctx.nsId`); the parts
+  merge into one table, one runtime and one machine (`composeParts`).
 
 E2E: import-svg-behaviour (vote: fixtures/svg-corpus/illustrator-live-vote-band.svg; score:
 illustrator-four-team-scoreboard.svg; countdown: illustrator-question-timer-board.svg) +

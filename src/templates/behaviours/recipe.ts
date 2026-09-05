@@ -146,6 +146,18 @@ export interface RecipePath {
 export interface RecipeContext {
   /** The row keys, in row order - empty for a recipe without rows. */
   rows: string[];
+  /** An INSTANCED recipe's own name ("Sponsor"), the operator's word for it; a full recipe's
+   *  display name otherwise. */
+  name: string;
+  /** The name as a lower-case token. */
+  slug: string;
+  /** Namespace a role or field key by the instance (`switch.sponsor.on`); the identity for a
+   *  full recipe. Every instanced recipe writes its roles, owned field keys and rule tokens
+   *  through this, so two instances on one graphic cannot collide. */
+  ns(id: string): string;
+  /** The same for a machine GROUP id or an EVENT, which the machine's shape gate requires to be
+   *  a bare identifier (`sponsor_show`). */
+  nsId(id: string): string;
   /** The `fN` a role compiled to (per row when `key` is given), or null when unbound. */
   fieldId(role: string, key?: string): string | null;
   /** The LOGICAL key of that field in the type shim, for controls' payload/adjust/set. */
@@ -170,6 +182,10 @@ export interface BehaviourRecipe {
   id: string;
   name: string;
   description: string;
+  /** A recipe a graphic may carry SEVERAL of, each under its own name (a switch, a choice). It
+   *  never touches the default path, and its roles, fields, group and events are namespaced by
+   *  the compiler through `ctx.ns` / `ctx.nsId`. A full recipe (the quiz) is one per graphic. */
+  instanced?: boolean;
   /** The category whose assembler conventions the compiled type reuses (the structure prefix
    *  is always the imported design's). */
   category: AssemblerId;

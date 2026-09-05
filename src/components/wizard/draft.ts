@@ -31,6 +31,7 @@ import type {
   AnimSpeed,
   DesignArt,
   DesignSvgBehaviour,
+  DesignSvgExtra,
   DesignSvgGrowth,
   DesignSvgHidden,
   ExtraFieldSpec,
@@ -46,7 +47,8 @@ import type { EasingId } from '../../model/easings';
 import { ensureFontFace, fontByStack, type CustomFont } from '../../model/fonts';
 import type { EraseRect, RegionInk } from '../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../assets/svgImport';
-import { bestProposal, type ProposedBinding } from '../../templates/behaviours/naming';
+import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../templates/behaviours/naming';
+import { BEHAVIOUR_WORDS } from '../../templates/behaviours/recipe';
 import type { ProjectLegibility } from '../../model/designRules';
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
@@ -706,6 +708,10 @@ export interface WizardDraft {
   /** The BEHAVIOUR bound to the artwork, or null for the ordinary in/out graphic the importer
    *  has always produced. Proposed from the layer names at drop, and freely re-picked. */
   svgBehaviour: SvgBehaviourDraft | null;
+  /** The SWITCHES and CHOICES on the artwork's hidden layers (docs/SVG_BEHAVIOUR_PLAN.md §7c),
+   *  one entry per layer the reader gave a use. Proposed from `show:` / `choice:` names at
+   *  drop; every hidden layer no recipe claimed is offered the same two answers in the step. */
+  svgExtras: SvgExtraDraft[];
   /** Does the graphic HUG its text — one rectangle widening so a longer value fits at full
    *  size (plan §3)? Off is the graphic that declares a STAGE, which is every board and
    *  every scorebug; on is the lower third whose banner is as wide as the name on it. */
@@ -771,6 +777,7 @@ export function initialDraft(): WizardDraft {
     svgImages: [],
     svgOutlines: [],
     svgBehaviour: null,
+    svgExtras: [],
     svgStretch: { on: false, shapeId: null },
     svgFonts: [],
     legibility: {},
@@ -886,6 +893,7 @@ export function draftToOptions(variant: TemplateVariant, draft: WizardDraft): Wi
           // built before the question existed.
           hidden: hiddenSvgLayers(draft),
           behaviour: svgBehaviourOption(draft) ?? undefined,
+          extras: svgExtrasOptions(draft),
           // A growth rule travels only when it is both ON and pointed at a shape that still
           // exists: a half-answered picker must never become a graphic that resizes at random.
           growth: svgGrowthOptions(draft),
@@ -1163,6 +1171,73 @@ function timerBindingGaps(draft: WizardDraft, timer: SvgTimerDraft): string[] {
   const picked = [timer.bar, timer.warning, timer.paused, timer.expired].filter(Boolean);
   if (new Set(picked).size !== picked.length) gaps.push('one layer is picked for two things');
   return gaps;
+}
+
+/** One hidden layer's use as a switch or as an option of a choice, as the mapping step holds it. */
+export interface SvgExtraDraft {
+  /** The group candidate id. */
+  candidateId: string;
+  use: 'switch' | 'choice';
+  /** The switch's name, or the choice OPTION's label - the operator's word for it. */
+  name: string;
+  /** The choice's name (the section its buttons sit under). Switches carry none. */
+  group?: string;
+}
+
+/** The switches and choices the drop proposes from the two prefixes, named by their layers. */
+export function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
+  return proposeExtras(svg).map(({ candidateId, prefix }) =>
+    prefix.kind === 'switch'
+      ? { candidateId, use: 'switch' as const, name: prefix.name }
+      : { candidateId, use: 'choice' as const, name: prefix.option, group: prefix.group },
+  );
+}
+
+/** A hidden layer's display name for the extras section: the prefix stripped, else the label. */
+export function extraLayerName(label: string): string {
+  const prefix = extraPrefixOf(label);
+  if (!prefix) return label;
+  return prefix.kind === 'switch' ? prefix.name : prefix.option;
+}
+
+/**
+ * The switches and choices as the generator wants them. A switch needs its layer; a choice needs
+ * a name and at least two options - one option is a switch spelled longer, and it is dropped
+ * rather than compiled into a choice with one button. Absent when there are none, so an untouched
+ * import builds the bytes it built before the question existed.
+ */
+function svgExtrasOptions(draft: WizardDraft): DesignSvgExtra[] | undefined {
+  const exists = (id: string) => draft.designSvg?.groups.some((g) => g.id === id) ?? false;
+  const out: DesignSvgExtra[] = [];
+  for (const e of draft.svgExtras) {
+    if (e.use === 'switch' && exists(e.candidateId) && e.name.trim()) out.push({ kind: 'switch', name: e.name.trim(), layer: e.candidateId });
+  }
+  const groups = new Map<string, { label: string; layer: string }[]>();
+  for (const e of draft.svgExtras) {
+    if (e.use !== 'choice' || !exists(e.candidateId) || !e.group?.trim() || !e.name.trim()) continue;
+    const list = groups.get(e.group.trim()) ?? [];
+    list.push({ label: e.name.trim(), layer: e.candidateId });
+    groups.set(e.group.trim(), list);
+  }
+  for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name, options });
+  return out.length > 0 ? out : undefined;
+}
+
+/** One line saying what the graphic DOES, for the Finish step and the mapping step's summary. */
+export function behaviourSummary(draft: WizardDraft): string {
+  const parts: string[] = [];
+  const behaviour = draft.svgBehaviour;
+  if (behaviour) {
+    const recipeId = behaviour.kind === 'poll' ? 'vote' : behaviour.kind === 'timer' ? 'countdown' : behaviour.kind;
+    const words = BEHAVIOUR_WORDS[recipeId];
+    parts.push(words ? `${words.name.toLowerCase()}: ${words.verbs}` : behaviour.kind);
+  }
+  const extras = svgExtrasOptions(draft) ?? [];
+  const switches = extras.filter((e) => e.kind === 'switch');
+  const choices = extras.filter((e) => e.kind === 'choice');
+  if (switches.length > 0) parts.push(`${switches.length} ${switches.length === 1 ? 'switch' : 'switches'}`);
+  for (const c of choices) if (c.kind === 'choice') parts.push(`a choice, ${c.name} (${c.options.map((o) => o.label).join(', ')})`);
+  return parts.join(' · ');
 }
 
 /**

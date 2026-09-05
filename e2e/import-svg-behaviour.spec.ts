@@ -438,6 +438,85 @@ test('the proposal reads evidence, not order: answer rows with bars are a vote, 
   await expect(page.getByTestId('map-svg-fields')).toContainText('1 of 4');
 });
 
+test('switches and a choice: hidden layers named show: and choice: get their own buttons, beside a quiz', async ({ page }, testInfo) => {
+  // THE UNIVERSAL FLOOR (docs/SVG_BEHAVIOUR_PLAN.md §7c). An award card's winner name, a sponsor
+  // tag, a status bug's three looks - none of these is a behaviour anybody writes a recipe for,
+  // and all of them are a hidden layer that is either up or not. Two prefixes make them arrive
+  // bound; every hidden layer no recipe claimed is offered the same two answers in the step. And
+  // it is the first COMPOSITION: a switch and a choice beside a quiz are three parallel groups
+  // and disjoint role sets on one graphic, which the machine always allowed and the binding never
+  // did.
+  test.slow();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <g id="Board"><rect x="0" y="600" width="1920" height="480" fill="#111"/></g>
+  <text id="Question" data-name="Question" x="120" y="700" font-family="Arial" font-size="40" fill="#fff">Which is the capital?</text>
+  <text id="Answer_x20_A" data-name="Answer A" x="120" y="800" font-family="Arial" font-size="32" fill="#fff">Helsinki</text>
+  <text id="Answer_x20_B" data-name="Answer B" x="120" y="880" font-family="Arial" font-size="32" fill="#fff">Turku</text>
+  <g id="A_x20_selected" data-name="A selected" display="none"><rect x="100" y="770" width="600" height="44" fill="#f6a623"/></g>
+  <g id="B_x20_selected" data-name="B selected" display="none"><rect x="100" y="850" width="600" height="44" fill="#f6a623"/></g>
+  <g id="show_x3A_Sponsor" data-name="show:Sponsor" display="none"><rect x="1500" y="640" width="300" height="80" fill="#2a6"/></g>
+  <g id="choice_x3A_Status_x2F_Live" data-name="choice:Status/Live" display="none"><rect x="1500" y="900" width="200" height="60" fill="#c33"/></g>
+  <g id="choice_x3A_Status_x2F_Replay" data-name="choice:Status/Replay" display="none"><rect x="1500" y="900" width="200" height="60" fill="#36c"/></g>
+</svg>`;
+  const file = testInfo.outputPath('quiz-with-extras.svg');
+  writeFileSync(file, svg);
+  await openImportDoor(page, file);
+
+  // The quiz is proposed from its words; the three prefixed layers arrive as a switch and a
+  // choice, and the step names them the operator's way.
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  const extras = page.getByTestId('map-svg-extras');
+  await expect(extras).toBeVisible();
+  await expect(page.getByTestId('map-svg-why-extras')).toContainText('1 switch · 1 choice');
+  const rows = extras.locator('[data-testid^="map-svg-extra-use-"]');
+  await expect(rows).toHaveCount(3);
+  await expect(extras.locator('input[value="Sponsor"]')).toHaveCount(1);
+  await expect(extras.locator('input[value="Status"]')).toHaveCount(2);
+
+  await intoProduction(page, 'Capital quiz', 'Quiz Night');
+  await settleDurableWrites(page);
+
+  // THREE BUTTON SETS ON ONE PAGE: the quiz's arc, the switch's pair, the choice's options.
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions).toContainText('Select answer');
+  await expect(actions).toContainText('Show Sponsor');
+  await expect(actions).toContainText('Hide Sponsor');
+  await expect(actions).toContainText('Live');
+  await expect(actions).toContainText('Replay');
+
+  await page.getByTestId('cue-field-f4-opt-A').click(); // the pick
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const lit = (token: string) => expect(air.locator(`[data-noacg-role~="${token}"]`)).toHaveClass(/imported-design-on/);
+  const dark = (token: string) => expect(air.locator(`[data-noacg-role~="${token}"]`)).not.toHaveClass(/imported-design-on/);
+
+  // Nothing is lit on arrival.
+  await dark('switch.sponsor.on');
+  await dark('choice.status.option/LIVE');
+
+  // The switch: its own group, its own reported field, and the layer follows the press.
+  await page.getByRole('button', { name: /Show Sponsor/ }).click();
+  await lit('switch.sponsor.on');
+  await expect(page.getByRole('button', { name: /Show Sponsor/ })).toBeDisabled();
+  await page.getByRole('button', { name: /Hide Sponsor/ }).click();
+  await dark('switch.sponsor.on');
+
+  // The choice: one shows at a time, and the current option's button is greyed.
+  await actions.getByRole('button', { name: /Live$/ }).click();
+  await lit('choice.status.option/LIVE');
+  await dark('choice.status.option/REPLAY');
+  await actions.getByRole('button', { name: /Replay$/ }).click();
+  await lit('choice.status.option/REPLAY');
+  await dark('choice.status.option/LIVE');
+
+  // …and the quiz still selects beside them: composition changed nothing about the arc.
+  await page.getByRole('button', { name: /Select answer/ }).click();
+  await lit('answer.selected/A');
+  await lit('choice.status.option/REPLAY');
+  await shot(page, '26-quiz-with-switch-and-choice');
+});
+
 test('imported vote board: a real audience round moves the bars the designer drew', async ({ page }) => {
   // THE JOIN (docs/GRAPHIC_BEHAVIOUR_PLAN.md §12). Every piece under this shipped separately —
   // the audience plane counts votes (Phase 6), the catalog has a live-vote arc, the importer

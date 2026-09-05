@@ -13,6 +13,7 @@ import {
   initialDraft,
   mergeDraft,
   proposeSvgBehaviour,
+  proposeSvgExtras,
   type DraftPatch,
   type WizardDraft,
 } from './draft';
@@ -1878,6 +1879,8 @@ export default function CreationWizard() {
                     // Every picker in the mapping step is re-pickable, and a file that looks like
                     // nothing in particular proposes nothing at all.
                     svgBehaviour: proposed,
+                    // The switches and choices the names declare outright (`show:`, `choice:`).
+                    svgExtras: proposeSvgExtras(result),
                     // THE HUG (plan §3) starts OFF here with the widest rectangle proposed;
                     // the mapping step then MEASURES the rendered artwork and turns growth on
                     // by itself where it is unambiguous (GOALS goal 5 - MapSvgFieldsStep
@@ -1917,7 +1920,7 @@ export default function CreationWizard() {
                   setMode('svg');
                 }}
                 onClearSvg={() => {
-                  patch({ designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null });
+                  patch({ designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null });
                   setMode('design');
                 }}
                 templateFile={importedFile}
@@ -1953,6 +1956,7 @@ export default function CreationWizard() {
                     svgImages: [],
                     svgOutlines: [],
                     svgBehaviour: null,
+                    svgExtras: [],
                     svgStretch: { on: false, shapeId: null },
                     svgFonts: [],
                     designArt,

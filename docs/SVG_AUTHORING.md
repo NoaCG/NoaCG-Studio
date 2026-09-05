@@ -238,6 +238,13 @@ each moment looks like; NoaCG decides when each one is on. Your artwork is never
   a highlight after the text and it covers the word it was meant to highlight. Keep the panels and
   the moment layers below, and the text at the top of the stack.
 
+**Any hidden layer can be a switch or part of a choice, with no behaviour at all.** Hide a layer and
+name it `show:Sponsor`, and the operator gets Show Sponsor and Hide Sponsor. Hide two or more and
+name them `choice:Status/Live`, `choice:Status/Replay`, `choice:Status/Standby`, and the operator
+gets one button per option, with one look showing at a time. Both work beside a quiz or a score
+tracker on the same graphic, and both are offered in the Fields step on every hidden layer that
+nothing else claimed, so the names are a shortcut here too.
+
 **Naming is a shortcut, not a rule.** Every layer below is a picker in the Fields step, so a file
 whose layers are called "Group 7" still works. Name them the way the tables say and the binding
 arrives filled in, and you change nothing. The row number or letter has to stand as its own word:

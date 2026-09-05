@@ -97,6 +97,9 @@ export interface BehaviourData {
   /** The recipe declaration that wrote this table, or "custom" once an editor has moved it
    *  past any recipe. The wizard reopens a binding from this; the runtime never reads it. */
   recipe: string;
+  /** Every recipe compiled into this table when there is more than one - a full recipe beside
+   *  any number of instanced switches and choices (`switch:Sponsor`). ADDITIVE OPTIONAL. */
+  parts?: string[];
   /** The recipe's structural options as chosen (a checkbox each on the mapping step). */
   options?: Record<string, string | number | boolean>;
   /** Row sets: the row role -> its keys in row order (`answer: ["A","B","C"]`). */

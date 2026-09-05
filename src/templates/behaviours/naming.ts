@@ -165,6 +165,8 @@ export function proposeBinding(svg: SvgImportResult, recipe: BehaviourRecipe): P
 export function bestProposal(svg: SvgImportResult): ProposedBinding | null {
   let best: ProposedBinding | null = null;
   for (const recipe of BEHAVIOUR_RECIPES) {
+    // An instanced recipe is proposed from its PREFIX (`proposeExtras`), never from evidence.
+    if (recipe.instanced) continue;
     const proposal = proposeBinding(svg, recipe);
     if (!proposal) continue;
     if (!best || proposal.distinctive > best.distinctive || (proposal.distinctive === best.distinctive && proposal.matched > best.matched)) {
@@ -172,4 +174,26 @@ export function bestProposal(svg: SvgImportResult): ProposedBinding | null {
     }
   }
   return best;
+}
+
+/** A hidden layer's explicit role, from the two prefixes the docs teach (§3c): `show:Sponsor` is a
+ *  switch named Sponsor; `choice:Status/Live` is the Live option of a choice named Status. */
+export type ExtraPrefix = { kind: 'switch'; name: string } | { kind: 'choice'; group: string; option: string };
+
+export function extraPrefixOf(label: string): ExtraPrefix | null {
+  const show = /^show:\s*(.+)$/i.exec(label.trim());
+  if (show && show[1].trim()) return { kind: 'switch', name: show[1].trim() };
+  const choice = /^choice:\s*([^/]+)\/(.+)$/i.exec(label.trim());
+  if (choice && choice[1].trim() && choice[2].trim()) return { kind: 'choice', group: choice[1].trim(), option: choice[2].trim() };
+  return null;
+}
+
+/** The switches and choices the layer names declare outright - every hidden group whose name
+ *  carries a prefix. Never required: the mapping step offers the same two answers on every
+ *  hidden layer that no recipe claimed. */
+export function proposeExtras(svg: SvgImportResult): { candidateId: string; prefix: ExtraPrefix }[] {
+  return svg.groups.flatMap((g) => {
+    const prefix = extraPrefixOf(g.label);
+    return prefix ? [{ candidateId: g.id, prefix }] : [];
+  });
 }

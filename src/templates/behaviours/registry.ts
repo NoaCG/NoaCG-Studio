@@ -10,8 +10,10 @@ import { quizRecipe } from './quiz';
 import { scoreRecipe } from './score';
 import { countdownRecipe } from './countdown';
 import { voteRecipe } from './vote';
+import { switchRecipe } from './switch';
+import { choiceRecipe } from './choice';
 
-export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [quizRecipe, scoreRecipe, countdownRecipe, voteRecipe];
+export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [quizRecipe, scoreRecipe, countdownRecipe, voteRecipe, switchRecipe, choiceRecipe];
 
 export function recipeById(id: string): BehaviourRecipe | null {
   return BEHAVIOUR_RECIPES.find((r) => r.id === id) ?? null;

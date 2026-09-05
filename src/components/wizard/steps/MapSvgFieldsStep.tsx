@@ -10,6 +10,7 @@ import type {
   SvgImageDraft,
   SvgOutlineDraft,
   SvgBehaviourDraft,
+  SvgExtraDraft,
   SvgPollDraft,
   SvgQuizDraft,
   SvgScoreDraft,
@@ -24,6 +25,7 @@ import {
   emptyPollRow,
   emptyScoreRow,
   emptyTimerDraft,
+  extraLayerName,
   pollDrivenLayers,
   scoreDrawnPool,
 } from '../draft';
@@ -1287,6 +1289,41 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
         : `${numberFields.length} numbers, each with + and −`;
   const behaviourGaps = behaviourBindingGaps(draft);
 
+  // THE SWITCHES AND CHOICES (docs/SVG_BEHAVIOUR_PLAN.md §7c): every hidden group the behaviour
+  // above did not claim is offered the same two answers. A hidden layer is a moment the designer
+  // drew; the recipe's pickers take the ones it has words for, and this is the road for every
+  // other one - an award's winner name, a sponsor tag, a map's highlight.
+  const claimed = new Set<string>();
+  if (behaviour) {
+    const collect = (value: unknown) => {
+      if (typeof value === 'string') claimed.add(value);
+      else if (Array.isArray(value)) value.forEach(collect);
+      else if (value && typeof value === 'object') Object.values(value).forEach(collect);
+    };
+    collect(behaviour);
+  }
+  const hiddenUnclaimed = (draft.designSvg?.groups ?? []).filter((g) => g.hidden && !claimed.has(g.id));
+  const extraOf = (id: string): SvgExtraDraft | undefined => draft.svgExtras.find((e) => e.candidateId === id);
+  const patchExtra = (g: { id: string; label: string }, patch: Omit<Partial<SvgExtraDraft>, 'use'> & { use?: SvgExtraDraft['use'] | '' }) => {
+    const rest = draft.svgExtras.filter((e) => e.candidateId !== g.id);
+    if (patch.use === '') return onDraft({ svgExtras: rest });
+    const current = extraOf(g.id) ?? { candidateId: g.id, use: 'switch' as const, name: extraLayerName(g.label) };
+    const { use, ...fields } = patch;
+    const next: SvgExtraDraft = { ...current, ...fields, ...(use ? { use } : {}) };
+    if (next.use === 'choice' && !next.group) next.group = 'Choice';
+    if (next.use === 'switch') delete next.group;
+    onDraft({ svgExtras: [...rest, next] });
+  };
+  const extraCounts = (() => {
+    const switches = draft.svgExtras.filter((e) => e.use === 'switch' && hiddenUnclaimed.some((g) => g.id === e.candidateId)).length;
+    const choiceNames = new Set(draft.svgExtras.filter((e) => e.use === 'choice' && hiddenUnclaimed.some((g) => g.id === e.candidateId)).map((e) => e.group ?? ''));
+    const parts = [
+      switches > 0 ? `${switches} ${switches === 1 ? 'switch' : 'switches'}` : '',
+      choiceNames.size > 0 ? `${choiceNames.size} ${choiceNames.size === 1 ? 'choice' : 'choices'}` : '',
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(' · ') : 'none - the hidden layers stay as drawn';
+  })();
+
   const patchFont = (family: string, patch: Partial<SvgFontDraft>) =>
     onDraft({
       svgFonts: draft.svgFonts.map((f) => (f.family === family ? { ...f, ...patch } : f)),
@@ -2171,6 +2208,60 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
         </div>
       )}
 
+      {hiddenUnclaimed.length > 0 && (
+        <div className="panel-section" data-testid="map-svg-extras">
+          <SectionHead title="Switches and choices" summary={extraCounts} testid="map-svg-why-extras">
+            <p>
+              A hidden layer can be a SWITCH the operator shows and hides, or one option of a
+              CHOICE, where one layer of the set shows at a time. Each gets its own buttons on the
+              control page. Name a layer <code>show:Sponsor</code> or <code>choice:Status/Live</code>{' '}
+              in your design app and it arrives set; otherwise pick here.
+            </p>
+          </SectionHead>
+          {hiddenUnclaimed.map((g) => {
+            const extra = extraOf(g.id);
+            return (
+              <div className="map-svg-row" key={g.id} data-testid={`map-svg-extra-${g.id}`}>
+                <label className="save-field grow">
+                  <span>Hidden layer</span>
+                  <input
+                    value={extra?.name ?? extraLayerName(g.label)}
+                    disabled={!extra}
+                    onChange={(e) => patchExtra(g, { name: e.target.value })}
+                    onFocus={() => setHoverId(g.id)}
+                    data-testid={`map-svg-extra-name-${g.id}`}
+                    aria-label={`What the operator calls ${g.label}`}
+                  />
+                </label>
+                <label className="save-field">
+                  <span>Use</span>
+                  <select
+                    value={extra?.use ?? ''}
+                    onChange={(e) => patchExtra(g, { use: e.target.value as SvgExtraDraft['use'] | '' })}
+                    onFocus={() => setHoverId(g.id)}
+                    data-testid={`map-svg-extra-use-${g.id}`}
+                  >
+                    <option value="">Leave as drawn</option>
+                    <option value="switch">A switch: Show / Hide</option>
+                    <option value="choice">One option of a choice</option>
+                  </select>
+                </label>
+                {extra?.use === 'choice' && (
+                  <label className="save-field">
+                    <span>Choice</span>
+                    <input
+                      value={extra.group ?? ''}
+                      onChange={(e) => patchExtra(g, { group: e.target.value })}
+                      data-testid={`map-svg-extra-group-${g.id}`}
+                      aria-label={`Which choice ${g.label} belongs to`}
+                    />
+                  </label>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {svg.candidates.length > 0 && svg.shapes.length > 0 && (
         /* THE HUG (docs/SVG_IMPORT_PLAN.md §3, GOALS goal 5). A lower third's banner should be
            as wide as the name on it; a quiz board and a scorebug declare a stage and must not

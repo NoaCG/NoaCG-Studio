@@ -365,6 +365,13 @@ export interface DesignSvg {
    *  Absent means the ordinary in/out graphic the importer has always produced. */
   behaviour?: DesignSvgBehaviour;
   /**
+   * The SWITCHES and CHOICES bound to the artwork beside (or instead of) a behaviour
+   * (docs/SVG_BEHAVIOUR_PLAN.md §7c): a hidden layer the operator shows and hides, or a set of
+   * hidden layers of which one shows at a time. Any number; each compiles as its own parallel
+   * group under its own name. Absent = none, which every import before this had.
+   */
+  extras?: DesignSvgExtra[];
+  /**
    * THE LAYOUT RELATIONSHIPS (plan §6c): which elements may grow, which way, and what travels
    * with them. Absent or empty = the graphic declares a STAGE and nothing moves, which is
    * every board, every scorebug, and everything the importer produced before this existed.
@@ -574,6 +581,23 @@ export interface DesignSvgTimerBehaviour {
   /** The drawn TIME UP plate, shown once the count reaches zero. */
   expired?: string;
 }
+
+/** A switch or a choice on the artwork's own hidden layers (docs/SVG_BEHAVIOUR_PLAN.md §7c). */
+export type DesignSvgExtra =
+  | {
+      kind: 'switch';
+      /** The operator's word for it - the button reads "Show <name>". */
+      name: string;
+      /** The hidden layer, as a group candidate id. */
+      layer: string;
+    }
+  | {
+      kind: 'choice';
+      /** The operator's word for the set - the buttons' section. */
+      name: string;
+      /** Two or more options, each a hidden layer with the word the operator presses. */
+      options: { label: string; layer: string }[];
+    };
 
 /** One outlined-text group hidden in favour of a placed HTML field. */
 export interface DesignSvgOutline {

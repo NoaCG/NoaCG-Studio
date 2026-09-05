@@ -7,7 +7,7 @@ import type { Show } from '../../../model/shows';
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { isRenderConfigured } from '../../../render/config';
 import { formatProjectSummary } from '../../../model/projectFormat';
-import { draftResolution, type WizardDraft } from '../draft';
+import { draftResolution, type WizardDraft, behaviourSummary } from '../draft';
 
 import { BetaFeedbackButton } from '../../feedback/BetaFeedback';
 import WizardConfirm from '../WizardConfirm';
@@ -126,6 +126,12 @@ export function catalogSummaryRows(variant: TemplateVariant, draft: WizardDraft)
         step: 'fields',
       });
     }
+  }
+  // WHAT THE GRAPHIC DOES - the one thing that makes an imported board different from a still,
+  // and the row the 2026-09-01 walk found missing (docs/SVG_STATES_FROM_ARTWORK.md §5.2).
+  if (draft.designSvg) {
+    const does = behaviourSummary(draft);
+    if (does) rows.push({ label: 'Behaviour', value: does, step: 'fields' });
   }
   // An imported SVG carries its own look — the palette/typeface read-back would describe
   // knobs the artwork does not read.
