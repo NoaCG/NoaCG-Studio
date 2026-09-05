@@ -3,7 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-03
-state: unstarted
+state: advanced
+note: "the design pass (item 1) is docs/SVG_BEHAVIOUR_PLAN.md, 2026-09-05 - one binding format, recipes as declarations, switch/choice as the recipe-free floor; item 2 (publish the layer contract) becomes a page generated from the declarations in its phase 2"
 asked: "what I would actually want is for us to put fable or just think and figure out a solution on how we can make the graphic work as we want without needing to use a ready-made template"
 ---
 # Make any graphic behave, without a ready-made template for it

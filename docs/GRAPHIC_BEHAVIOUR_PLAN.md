@@ -5,7 +5,9 @@
 back against what it promised. Read §10 to §13 for what stands today: §12 is the THIRD BEHAVIOUR §6
 said to wait for, and §13 the fifth. **The SCORE TRACKER (the fourth, 2026-09-03) has no section
 here** - its record is its own module header, `src/templates/importedDesign/scoreBehaviour.ts`, and
-`docs/SCORE_CONTROL_SURVEY.md` for how its buttons were chosen.
+`docs/SCORE_CONTROL_SURVEY.md` for how its buttons were chosen. **What replaces the five modules with
+one binding format is `docs/SVG_BEHAVIOUR_PLAN.md`** (2026-09-05): it reads §10-§13 as a
+decomposition and plans the port; this document stays the record of what each behaviour found.
 
 **The goal it serves** (`docs/GOALS.md` NOW): by **2026-09-12**, a student draws their own graphic,
 gets the behaviour their show needs onto it, and plays it out - without writing a line of code. The

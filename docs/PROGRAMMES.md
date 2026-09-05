@@ -100,6 +100,10 @@ finding driven fresh, his three routes judged (defaults / assigned layers / laye
 ladder, not competitors), one recommendation (a default treatment under the drawn-state
 mechanism), the student-facing artwork contract, and mockups in `docs/design/svg-states/`.
 Decisions §7 of that doc are the owner's.
+**Round-2 input (2026-09-05): `docs/SVG_BEHAVIOUR_PLAN.md`** - the binding format recipes and
+sentences write into: role stamps plus a versioned table, one paint runtime, field kinds owning
+every comparison, `switch` / `choice` as the universal floor, eight worked graphics. Its phases 0-2
+generalize the shipped attach road and are current work; phase 3 on is capability and waits here.
 Entry to ACTIVE (implementation): evidence a candidate surface works, plus the owner's ruling.
 Doctrine (owner, 2026-09-01): "no expression language, ever" stands. The requirement is
 conditional/state-dependent behaviour through structural states, transitions, events and guards;
