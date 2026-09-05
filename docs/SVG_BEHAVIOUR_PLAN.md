@@ -1,9 +1,12 @@
 # SVG behaviour - one binding for any graphic
 
-**Status: implementation plan, 2026-09-05. Phases 0-2 are current work (they generalize what the
-NOW push already shipped and fix defects filed against it); phase 3 onwards adds capability and is
-staged for the weekly alignment under programme P2.** Nothing here changes the two graphics the
-2026-09-12 production is judged on. Nothing here waits on them either.
+**Status: implementation plan, 2026-09-05; phases 0, 1 and 2 BUILT the same night** (the owner's
+go-ahead that evening: work through phase 5, land when ready). The five modules are gone; the
+quiz, the score tracker, the live vote and the countdown compile from declarations under
+`src/templates/behaviours/` through one table and one runtime, the proposal reads one word list,
+and the designer-facing tables are generated from it. §13 records what building it changed in
+the design. Phase 3 onwards adds capability under programme P2. Nothing here changes what the two
+graphics the 2026-09-12 production is judged on do on air.
 
 **The question this answers.** Five behaviours now attach to imported artwork - the quiz, the
 plain-stepper scoreboard, the live vote, the score tracker, the countdown - and every one of them is
@@ -707,3 +710,34 @@ design question is answered by the strongest model and reported, never escalated
 **What needs the owner (needs: alignment).** Whether phase 3 onwards enters the P2 implementation
 lane on the strength of the phase 2 paper pass, or waits for the round-2 proxy protocol in
 `docs/BEHAVIOUR_AUTHORING_RESEARCH.md` §6. Phases 0-2 need nothing from him.
+
+---
+
+## 13. What building phases 0-2 changed in the design (2026-09-05)
+
+Three things moved between the plan above and the code, each for a reason worth keeping.
+
+**Rule tokens name field ROLES, not `fN` ids.** §5b wrote `f6:picked`. A per-row look on a score
+board needs "this row's own figure rose", which a fixed id cannot say, so the head of a token is a
+field role (`score:moved`, `selectedAnswer:picked`, `clock:warning`) resolved through the table's
+own `fields` map - per row for a per-row role. A bare `fN` still parses. The table reads as words
+rather than as numbers, which is the readability a hand edit in Advanced mode needs anyway.
+
+**The role words live in one JSON table, and the docs are generated from it.** §10 promised a
+generated page; the mechanism is `src/templates/behaviours/words.json` (read by the recipes, the
+proposal and `scripts/behaviour-docs.mjs`) plus marker blocks in `docs/SVG_AUTHORING.md` §5b that
+the build refuses to let drift. The same table carries a `weak` word per role: a name that binds a
+role without being evidence of the behaviour, which is how a student's `Option 1` rows fill a
+quiz's answers while three bars beside them still make the file a vote.
+
+**The runtime's field kinds are the whole of what a recipe cannot say.** Porting the countdown
+needed two things §2c did not list: an OPERATION on a kind (`noacgClockReset`, which a state's
+timeline may call by name, like the engine's own `pauseClock`) and a kind PARAMETER that names a
+companion field (`warnAt`, `fallback`). Both are in `FieldKindSpec` as plain strings. Nothing else
+in §2 changed, and no recipe emits JavaScript - the test in §6a held for all four.
+
+**The paper pass** the rollout asked for before phase 3 (§9i restated against the built
+vocabulary): the reveal card is two `switch` instances; the election board is two `choice`
+instances plus two gauges over a `share` pair; the lineup is a `row-pick` field with per-row
+looks; the breaking-news wrap is a `switch` beside the `countdown`. Each needs only §7c's two
+micro-recipes and the composition rule, which is what phase 3 builds.

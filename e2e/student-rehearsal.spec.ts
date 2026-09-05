@@ -174,26 +174,25 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
   await expect(qTitles.nth(0)).toHaveValue('Question text');
   await expect(qTitles.nth(4)).toHaveValue('Option 4');
 
-  // NO PROPOSAL. "Option 1" is not "Answer A", so `proposeQuizBinding` returns null and the step
-  // opens with the behaviour off. This is the road a student who never read the authoring page
-  // walks, and it has to be walkable.
+  // THE STUDENT'S OWN WORDS ARE READ. "Option 1" is not "Answer A", and until 2026-09-05 the
+  // quiz's matcher wanted the word `answer`, so this file proposed nothing and the whole binding
+  // was fifteen clicks by hand (docs/GRAPHIC_BEHAVIOUR_PLAN.md §11). The one scorer over every
+  // recipe's words (templates/behaviours/naming.ts) reads the drawn Pick / Right / Wrong moments
+  // as the evidence they are, and the option rows fill the answers weakly beside them - so the
+  // step opens with the quiz bound. Every one of these is still a picker the student can change.
   const kind = page.getByTestId('map-svg-behaviour-kind');
-  await expect(kind).toHaveValue('none');
-  await kind.selectOption('quiz');
-
-  // FOUR ANSWERS, each pointed at a text layer and at the three drawings the student made. Every
-  // one of these is a picker: no layer was named anything in particular.
-  await page.getByTestId('map-svg-quiz-question').selectOption({ label: 'Question text' });
-  await page.getByTestId('map-svg-quiz-count').selectOption('4');
+  await expect(kind).toHaveValue('quiz');
+  await expect(page.getByTestId('map-svg-quiz-question').locator('option:checked')).toHaveText('Question text');
+  await expect(page.getByTestId('map-svg-quiz-count')).toHaveValue('4');
   for (const at of [0, 1, 2, 3]) {
-    await page.getByTestId(`map-svg-quiz-answer-${at}`).selectOption({ label: `Option ${at + 1}` });
+    await expect(page.getByTestId(`map-svg-quiz-answer-${at}`).locator('option:checked')).toHaveText(`Option ${at + 1}`);
     // The drawn states report themselves as hidden, which is how the reader tells a moment from
     // the base artwork in a list of fifteen groups.
-    await page.getByTestId(`map-svg-quiz-selected-${at}`).selectOption({ label: `Pick ${at + 1} (hidden)` });
-    await page.getByTestId(`map-svg-quiz-correct-${at}`).selectOption({ label: `Right ${at + 1} (hidden)` });
-    await page.getByTestId(`map-svg-quiz-wrong-${at}`).selectOption({ label: `Wrong ${at + 1} (hidden)` });
+    await expect(page.getByTestId(`map-svg-quiz-selected-${at}`).locator('option:checked')).toHaveText(`Pick ${at + 1} (hidden)`);
+    await expect(page.getByTestId(`map-svg-quiz-correct-${at}`).locator('option:checked')).toHaveText(`Right ${at + 1} (hidden)`);
+    await expect(page.getByTestId(`map-svg-quiz-wrong-${at}`).locator('option:checked')).toHaveText(`Wrong ${at + 1} (hidden)`);
   }
-  await page.getByTestId('map-svg-quiz-locked').selectOption({ label: 'Locked (hidden)' });
+  await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toHaveText('Locked (hidden)');
   await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
 
   await intoShow(page, 'Tunturi quiz', { existing: 'Friday Show' });
