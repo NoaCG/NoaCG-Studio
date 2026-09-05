@@ -48,6 +48,7 @@ import { ensureFontFace, fontByStack, type CustomFont } from '../../model/fonts'
 import type { EraseRect, RegionInk } from '../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../templates/behaviours/naming';
+import { recipeById } from '../../templates/behaviours/registry';
 import { BEHAVIOUR_WORDS } from '../../templates/behaviours/recipe';
 import type { ProjectLegibility } from '../../model/designRules';
 
@@ -363,6 +364,16 @@ export function disarmTimerClock(fields: SvgFieldDraft[]): SvgFieldDraft[] {
  * groups, and a shape was never a text field to begin with.
  */
 export function pollDrivenLayers(behaviour: SvgBehaviourDraft | null): Set<string> {
+  // ANY recipe's WRITE targets are driven the same way: a meter's percent layer is written by the
+  // runtime, so an operator field on it would be the two-writers graphic the vote avoids.
+  if (behaviour?.kind === 'recipe') {
+    const written = new Set(
+      (recipeById(behaviour.recipe)?.roles ?? [])
+        .filter((r) => r.kind === 'layer' && r.paint?.includes('write'))
+        .map((r) => r.id),
+    );
+    return new Set(Object.entries(behaviour.layers).filter(([role, id]) => written.has(role) && !!id).map(([, id]) => id));
+  }
   if (behaviour?.kind !== 'poll') return new Set();
   return new Set(
     [behaviour.question, behaviour.total, ...behaviour.rows.flatMap((r) => [r.label, r.value])].filter(Boolean),

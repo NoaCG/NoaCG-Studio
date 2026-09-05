@@ -1,8 +1,8 @@
 ---
-kind: owner-action
+kind: walk
 date: 2026-09-05
-done: false
-needs: alignment
+serves: now
+answered: false
 ---
 # One binding for any SVG behaviour - the plan, and the one thing in it that is yours
 
@@ -32,7 +32,7 @@ you, per your 2026-09-05 ruling.
 Open `docs/SVG_BEHAVIOUR_PLAN.md`. Read §0 (one screen), then §9 (eight graphics, one paragraph
 each - the reuse test), then §12.
 
-## What needs you (needs: alignment)
+## What needs you, at the weekly alignment
 
 Phases 0-2 generalize what already ships and close four filed defects; they are current work and
 start without you. **Phase 3 onwards adds capability under programme P2**, which by the register

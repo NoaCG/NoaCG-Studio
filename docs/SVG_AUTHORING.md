@@ -384,7 +384,7 @@ with + and -, and nothing else is needed.
 | bar | `Progress bar` | draw it at its FULL length - that length is the target |
 | percent | `Percent` | written as the current figure's share of the target |
 
-`Meter`, `Palkki` work as well as `Progress bar`; `Share`, `Osuus` work as well as `Percent`.
+`Meter` works as well as `Progress bar`; `Share`, `Osuus` work as well as `Percent`.
 
 The operator gets the Current and Target figures, each with + and −.
 <!-- behaviour:meter:end -->

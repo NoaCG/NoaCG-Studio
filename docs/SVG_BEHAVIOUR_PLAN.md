@@ -1,12 +1,14 @@
 # SVG behaviour - one binding for any graphic
 
-**Status: implementation plan, 2026-09-05; phases 0, 1 and 2 BUILT the same night** (the owner's
+**Status: implementation plan, 2026-09-05; phases 0 to 5 BUILT the same night** (the owner's
 go-ahead that evening: work through phase 5, land when ready). The five modules are gone; the
 quiz, the score tracker, the live vote and the countdown compile from declarations under
-`src/templates/behaviours/` through one table and one runtime, the proposal reads one word list,
-and the designer-facing tables are generated from it. §13 records what building it changed in
-the design. Phase 3 onwards adds capability under programme P2. Nothing here changes what the two
-graphics the 2026-09-12 production is judged on do on air.
+`src/templates/behaviours/` through one table and one runtime; switches and choices compose beside
+them; an undrawn quiz moment wears NoaCG's own look; the quiz's lock is an option; a meter and an
+alert joined; the proposal reads one word list and the designer-facing tables are generated from
+it. §13 records what building it changed in the design and what phase 5 left for later. Phases 6
+and 7 remain. Nothing here changes what the two graphics the 2026-09-12 production is judged on do
+on air with a bound quiz - only what an UNBOUND moment shows.
 
 **The question this answers.** Five behaviours now attach to imported artwork - the quiz, the
 plain-stepper scoreboard, the live vote, the score tracker, the countdown - and every one of them is

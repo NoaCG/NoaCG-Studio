@@ -409,13 +409,13 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "\\bbar\\b|\\bmeter\\b|progress|palkki|mittari",
+        "words": "progress|\\bmeter\\b|mittari",
         "teach": "Progress bar",
         "also": [
-          "Meter",
-          "Palkki"
+          "Meter"
         ],
-        "what": "draw it at its FULL length - that length is the target"
+        "what": "draw it at its FULL length - that length is the target",
+        "weak": "\\bbar\\b|palkki"
       },
       {
         "id": "percent",

@@ -34,7 +34,9 @@ export const choiceRecipe: BehaviourRecipe = {
       kind: 'select',
       value: '',
       options: [{ label: '—', value: '' }, ...ctx.rows.map((key) => ({ label: ctx.label(ROLE, key), value: key.toLowerCase() }))],
-      spec: { kind: 'select' },
+      // A row pick over the choice's own rows: "picked" holds on the option the value names, so
+      // ONE rule paints every option and a second choice on the graphic cannot cross-light it.
+      spec: { kind: 'row-pick', rows: ctx.ns(ROLE) },
     },
   ],
   machine: (ctx) =>
@@ -70,5 +72,5 @@ export const choiceRecipe: BehaviourRecipe = {
       order: i + 1,
       set: { [ctx.ns(FIELD)]: key.toLowerCase() },
     })),
-  paint: (ctx) => ctx.rows.map((key) => ({ look: ctx.ns(ROLE), rows: ROLE, when: { facts: [`${ctx.ns(FIELD)}:is:${key.toLowerCase()}`] } })),
+  paint: (ctx) => [{ look: ctx.ns(ROLE), rows: ctx.ns(ROLE), when: { facts: [`${ctx.ns(FIELD)}:picked`] } }],
 };

@@ -1730,7 +1730,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
           <label className="save-field">
             <span>Behaviour</span>
             <select
-              value={behaviour ? recipeIdOf(behaviour) : 'none'}
+              value={behaviour ? (behaviour.kind === 'recipe' ? behaviour.recipe : behaviour.kind) : 'none'}
               onChange={(e) => {
                 const want = e.target.value;
                 // LEAVING THE COUNTDOWN PUTS BACK THE CLOCK ROW IT ARMED, and nothing else
