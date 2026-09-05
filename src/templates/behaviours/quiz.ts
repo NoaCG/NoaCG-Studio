@@ -18,7 +18,7 @@
 
 import { ANSWER_BOARD_CONTROLS, ANSWER_BOARD_MACHINE } from '../types/answerBoard';
 import type { BehaviourRecipe, RecipeContext } from './recipe';
-import { withRepaint } from './recipe';
+import { rolesOf, rowsOf, withRepaint } from './recipe';
 import type { TypeMachine } from '../types/graphicType';
 
 /** The answer board's arc WITHOUT the audience branch: this binding has no drawn moment for
@@ -38,15 +38,8 @@ export const quizRecipe: BehaviourRecipe = {
   description: 'Select an answer, lock it in, reveal the correct one.',
   category: 'quiz',
   defaultZone: 'mid-center',
-  rows: { role: 'answer', keys: 'letters', min: 2, max: 6 },
-  roles: [
-    { id: 'question', label: 'Question', kind: 'field', required: true, words: /question|kysymys/i },
-    { id: 'answer', label: 'Answer', kind: 'field', perRow: true, required: true, distinctive: true, words: /^answer\b|^vastaus\b/i },
-    { id: 'answer.selected', label: 'selected', kind: 'layer', paint: ['look'], perRow: true, words: /select|picked|valittu/i },
-    { id: 'answer.correct', label: 'correct', kind: 'layer', paint: ['look'], perRow: true, words: /correct|right|oikein/i },
-    { id: 'answer.wrong', label: 'wrong', kind: 'layer', paint: ['look'], perRow: true, words: /wrong|incorrect|väärin/i },
-    { id: 'locked', label: 'Locked in', kind: 'layer', paint: ['look'], words: /lock|lukittu/i },
-  ],
+  rows: rowsOf('quiz'),
+  roles: rolesOf('quiz'),
   // The two dropdowns: the answer KEY (set by the producer before air, read by the reveal) and
   // the contestant's PICK. Both are row picks over the letters - the broadcast field policy's
   // dropdown exception, because four letters is a genuinely constrained choice.

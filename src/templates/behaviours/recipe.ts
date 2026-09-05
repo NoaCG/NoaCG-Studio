@@ -19,6 +19,7 @@
 // the kind is what gets added (importedDesign/behaviourRuntime.ts), once, for every recipe.
 
 import type { FieldKind, FieldOption } from '../../model/fieldModel';
+import words from './words.json';
 import type { AssemblerId, Zone9 } from '../../model/wizard';
 import type { AnimCall } from '../../blocks/animData';
 import type { FieldKindSpec, PaintRule } from '../../blocks/behaviourData';
@@ -45,11 +46,71 @@ export interface RecipeRole {
   numeric?: boolean;
   countdown?: boolean;
   /** The words a designer may name the layer with - the shortcut, never the door. Matched
-   *  against the layer's label with the row key already stripped. */
+   *  against the layer's label with the row key already stripped (naming.ts). */
   words: RegExp;
+  /** Names that bind the role but are NOT evidence of this behaviour: an option row is an answer
+   *  row on a student's quiz, and a quiz's answer row on a vote board, so `option` fills the
+   *  quiz's answers without ever being what makes a file a quiz. */
+  weak?: RegExp;
+  /** Which inventory a LAYER role is picked from: a text layer, or a group or rectangle. */
+  pool?: 'text' | 'drawn';
   /** Evidence of THIS behaviour rather than any: a bar for the vote, a numeric team figure for
    *  the score board. The offer preselects a recipe only on distinctive evidence. */
   distinctive?: boolean;
+}
+
+/** One recipe's entry in words.json. */
+interface WordsEntry {
+  name: string;
+  verbs: string;
+  buttons: string;
+  rows?: { role: string; keys: 'letters' | 'numbers'; min: number; max: number; teach: string };
+  roles: Array<{
+    id: string;
+    label: string;
+    kind: 'field' | 'layer';
+    paint?: ('look' | 'gauge' | 'write')[];
+    perRow?: boolean;
+    required?: boolean;
+    numeric?: boolean;
+    countdown?: boolean;
+    distinctive?: boolean;
+    pool?: 'text' | 'drawn';
+    words: string;
+    weak?: string;
+    teach: string;
+    also?: string[];
+    what: string;
+  }>;
+}
+
+/** The role words of every recipe, as the table declares them (words.json). */
+export const BEHAVIOUR_WORDS = words as unknown as Record<string, WordsEntry>;
+
+/** A recipe's roles, compiled from words.json - the one place a role word is written. */
+export function rolesOf(recipeId: string): RecipeRole[] {
+  const entry = BEHAVIOUR_WORDS[recipeId];
+  if (!entry) throw new Error(`Behaviour: words.json has no entry for "${recipeId}".`);
+  return entry.roles.map((r) => ({
+    id: r.id,
+    label: r.label,
+    kind: r.kind,
+    ...(r.paint ? { paint: r.paint } : {}),
+    ...(r.perRow ? { perRow: true } : {}),
+    ...(r.required ? { required: true } : {}),
+    ...(r.numeric ? { numeric: true } : {}),
+    ...(r.countdown ? { countdown: true } : {}),
+    ...(r.distinctive ? { distinctive: true } : {}),
+    ...(r.pool ? { pool: r.pool } : {}),
+    words: new RegExp(r.words, 'i'),
+    ...(r.weak ? { weak: new RegExp(r.weak, 'i') } : {}),
+  }));
+}
+
+/** A recipe's row declaration from words.json. */
+export function rowsOf(recipeId: string): BehaviourRecipe['rows'] {
+  const rows = BEHAVIOUR_WORDS[recipeId]?.rows;
+  return rows ? { role: rows.role, keys: rows.keys, min: rows.min, max: rows.max } : undefined;
 }
 
 /** A hidden holder the recipe owns, compiled after the artwork's own fields. */

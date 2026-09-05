@@ -22,14 +22,15 @@
 import { scoreboardType } from '../types/scoreboard';
 import type { TypeBranch, TypeControlEvent, TypeGroup, TypeMachine } from '../types/graphicType';
 import type { BehaviourRecipe, RecipeContext } from './recipe';
-import { withRepaint } from './recipe';
+import { rolesOf, rowsOf, withRepaint } from './recipe';
 
 /**
  * How many teams a board may carry. Eight: every row earns two buttons, so eight teams is already
  * a wall of nineteen - the point at which a board stops being operable live, which is the only
- * thing worth capping on (the survey agrees from both sides).
+ * thing worth capping on (the survey agrees from both sides). Declared in words.json beside the
+ * words; read here so the mapping step's count picker and the recipe cannot disagree.
  */
-export const SCORE_MAX_ROWS = 8;
+export const SCORE_MAX_ROWS = rowsOf('score')!.max;
 
 const scoreEvent = (row: number): string => `score${row + 1}`;
 const unscoreEvent = (row: number): string => `unscore${row + 1}`;
@@ -130,15 +131,8 @@ export const scoreRecipe: BehaviourRecipe = {
   description: 'A point per team with the flash you drew, a correction, full time and a new game.',
   category: 'scoreboard',
   defaultZone: 'top-center',
-  rows: { role: 'team', keys: 'numbers', min: 2, max: SCORE_MAX_ROWS },
-  roles: [
-    { id: 'team', label: 'Team', kind: 'field', perRow: true, required: true, words: /^(?:team|side|player|joukkue)\b/i },
-    // The figure IS the signature: a numbered row whose figure is a plain number is what a score
-    // board has that a quiz and a versus card do not - and it is what a `+1` needs.
-    { id: 'score', label: 'Score', kind: 'field', perRow: true, required: true, numeric: true, distinctive: true, words: /\bscore\b|\bpoints?\b|\bgoals?\b|pisteet|maalit/i },
-    { id: 'team.flash', label: 'Flash', kind: 'layer', paint: ['look'], perRow: true, words: /\bflash\b|\bgoal\b|\bscored\b|maali/i },
-    { id: 'final', label: 'Full time', kind: 'layer', paint: ['look'], words: /full[\s-]?time|final|game over|loppu/i },
-  ],
+  rows: rowsOf('score'),
+  roles: rolesOf('score'),
   fields: () => [],
   // Named for what a score board IS on air; no extra step, because a scoreboard has no reveal
   // sequence - everything interesting is beside the path, in the two parallel groups.

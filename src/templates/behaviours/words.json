@@ -1,0 +1,398 @@
+{
+  "_": "THE ROLE WORDS of every behaviour recipe (docs/SVG_BEHAVIOUR_PLAN.md §3b). One table, three readers: the recipes take their roles from it, the mapping step's proposal matches layer names against `words` through the shared tokenizer, and scripts/behaviour-docs.mjs generates the designer-facing tables in docs/SVG_AUTHORING.md §5b from it - so a word taught in the docs is the word the matcher reads. JSON rather than TS because that script runs in plain Node. `words` is a case-insensitive regex source matched against the layer's name with its row key already taken out; `teach` is the one example name the docs print; `also` are the synonyms the docs list (every one must match `words` - the docs script checks). `pool` says which inventory a layer role is picked from: `text` (a text layer) or `drawn` (a group or a rectangle).",
+  "quiz": {
+    "name": "The quiz",
+    "verbs": "select, lock, reveal",
+    "sample": "svg-samples/quiz-board.svg",
+    "buttons": "Select answer, Lock it in and Reveal correct",
+    "rows": {
+      "role": "answer",
+      "keys": "letters",
+      "min": 2,
+      "max": 6,
+      "teach": "Two to six answers."
+    },
+    "roles": [
+      {
+        "id": "question",
+        "label": "Question",
+        "kind": "field",
+        "required": true,
+        "pool": "text",
+        "words": "question|kysymys",
+        "teach": "Question",
+        "what": "always - it is a field the operator types"
+      },
+      {
+        "id": "answer",
+        "label": "Answer",
+        "kind": "field",
+        "perRow": true,
+        "required": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "^answer$|^vastaus$",
+        "teach": "Answer A",
+        "also": [
+          "Vastaus A"
+        ],
+        "what": "always - a field",
+        "weak": "^(?:option|vaihtoehto)$"
+      },
+      {
+        "id": "answer.selected",
+        "label": "selected",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "select|pick|valittu",
+        "teach": "A selected",
+        "also": [
+          "A picked"
+        ],
+        "what": "while that answer is the pick",
+        "distinctive": true
+      },
+      {
+        "id": "answer.correct",
+        "label": "correct",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "correct|right|oikein",
+        "teach": "A correct",
+        "also": [
+          "A right"
+        ],
+        "what": "on the reveal, if it is the correct answer",
+        "distinctive": true
+      },
+      {
+        "id": "answer.wrong",
+        "label": "wrong",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "wrong|incorrect|väärin",
+        "teach": "A wrong",
+        "what": "on the reveal, if it is not",
+        "distinctive": true
+      },
+      {
+        "id": "locked",
+        "label": "Locked in",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "pool": "drawn",
+        "words": "lock|lukittu",
+        "teach": "Locked in",
+        "what": "once the answer is locked (one, whole board)"
+      }
+    ]
+  },
+  "score": {
+    "name": "The score tracker",
+    "verbs": "a point, a flash, full time",
+    "buttons": "a +1 and a −1 under each team's own name, plus Clear flash, Full time and New game",
+    "rows": {
+      "role": "team",
+      "keys": "numbers",
+      "min": 2,
+      "max": 8,
+      "teach": "Two to eight teams."
+    },
+    "roles": [
+      {
+        "id": "team",
+        "label": "Team",
+        "kind": "field",
+        "perRow": true,
+        "required": true,
+        "pool": "text",
+        "words": "^(?:team|side|player|joukkue)$",
+        "teach": "Team 1",
+        "also": [
+          "Side 1",
+          "Player 1",
+          "Joukkue 1"
+        ],
+        "what": "a field the operator types"
+      },
+      {
+        "id": "score",
+        "label": "Score",
+        "kind": "field",
+        "perRow": true,
+        "required": true,
+        "numeric": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "\\bscore\\b|\\bpoints?\\b|\\bgoals?\\b|pisteet|maalit",
+        "teach": "Score 1",
+        "also": [
+          "Points 1",
+          "Goals 1",
+          "Team 1 Score"
+        ],
+        "what": "a field - draw a plain number in it"
+      },
+      {
+        "id": "team.flash",
+        "label": "Flash",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "\\bflash\\b|\\bgoal\\b|\\bscored\\b|maali",
+        "teach": "Flash 1",
+        "also": [
+          "Goal 1",
+          "Scored 1"
+        ],
+        "what": "shown for the moment that team's point lands"
+      },
+      {
+        "id": "final",
+        "label": "Full time",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "pool": "drawn",
+        "words": "full[\\s-]?time|final|game over|loppu",
+        "teach": "Full time",
+        "also": [
+          "Final",
+          "Game over"
+        ],
+        "what": "once the game is called (one, whole board)"
+      }
+    ]
+  },
+  "countdown": {
+    "name": "The countdown",
+    "verbs": "it starts on air, and you hold it",
+    "buttons": "Start, Pause and Reset",
+    "roles": [
+      {
+        "id": "clock",
+        "label": "Clock",
+        "kind": "field",
+        "required": true,
+        "countdown": true,
+        "pool": "text",
+        "words": "^$",
+        "teach": "anything",
+        "what": "the readout - set its row to Countdown"
+      },
+      {
+        "id": "bar",
+        "label": "Timer bar",
+        "kind": "layer",
+        "paint": [
+          "gauge"
+        ],
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "timer bar|time bar|\\bdrain\\b|aikapalkki",
+        "teach": "Timer bar",
+        "also": [
+          "Drain",
+          "Aikapalkki"
+        ],
+        "what": "draw it at its FULL length - that length is the whole count"
+      },
+      {
+        "id": "warning",
+        "label": "Warning",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "\\bwarn(?:ing)?\\b|last (?:stretch|seconds)|\\bhurry\\b|varoitus",
+        "teach": "Warning",
+        "also": [
+          "Last stretch",
+          "Hurry"
+        ],
+        "what": "the look the final seconds wear"
+      },
+      {
+        "id": "paused",
+        "label": "Paused",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "\\bpaused?\\b|\\bhold\\b|\\bheld\\b|tauko|tauolla",
+        "teach": "Paused",
+        "also": [
+          "Hold",
+          "Tauko"
+        ],
+        "what": "while the operator is holding the clock"
+      },
+      {
+        "id": "expired",
+        "label": "Time up",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "time.?s? up|\\bexpired\\b|\\bfinished\\b|aika loppu|^aika$",
+        "teach": "Time up",
+        "also": [
+          "Expired",
+          "Finished",
+          "Aika loppu"
+        ],
+        "what": "once it reaches zero"
+      }
+    ]
+  },
+  "vote": {
+    "name": "The live vote",
+    "verbs": "the room votes, the bars move",
+    "buttons": "Close voting, Show result and Call the winner",
+    "rows": {
+      "role": "option",
+      "keys": "numbers",
+      "min": 2,
+      "max": 8,
+      "teach": "Two to eight options."
+    },
+    "roles": [
+      {
+        "id": "question",
+        "label": "Question",
+        "kind": "layer",
+        "paint": [
+          "write"
+        ],
+        "pool": "text",
+        "words": "question|prompt|kysymys",
+        "teach": "Question",
+        "what": "written from the round"
+      },
+      {
+        "id": "option",
+        "label": "Option",
+        "kind": "layer",
+        "paint": [
+          "write"
+        ],
+        "perRow": true,
+        "required": true,
+        "pool": "text",
+        "words": "^(?:option|choice|answer|vaihtoehto)$",
+        "teach": "Option 1",
+        "also": [
+          "Choice 1",
+          "Answer 1",
+          "Vaihtoehto 1"
+        ],
+        "what": "written from the round"
+      },
+      {
+        "id": "bar",
+        "label": "Bar",
+        "kind": "layer",
+        "paint": [
+          "gauge"
+        ],
+        "perRow": true,
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "\\bbar\\b|palkki",
+        "teach": "Bar 1",
+        "also": [
+          "Palkki 1"
+        ],
+        "what": "draw it at its FULL length - that length is 100%"
+      },
+      {
+        "id": "percent",
+        "label": "Percent",
+        "kind": "layer",
+        "paint": [
+          "write",
+          "look"
+        ],
+        "perRow": true,
+        "pool": "text",
+        "words": "%|percent|share|osuus",
+        "teach": "Percent 1",
+        "also": [
+          "Share 1",
+          "Osuus 1"
+        ],
+        "what": "appears with the result"
+      },
+      {
+        "id": "winner",
+        "label": "Winner",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "winner|voittaja",
+        "teach": "Winner 1",
+        "also": [
+          "Voittaja 1"
+        ],
+        "what": "only on the row that won, and never on a tie"
+      },
+      {
+        "id": "total",
+        "label": "Total votes",
+        "kind": "layer",
+        "paint": [
+          "write"
+        ],
+        "pool": "text",
+        "words": "total|votes|ääntä",
+        "teach": "Total votes",
+        "also": [
+          "Ääntä"
+        ],
+        "what": "written from the round"
+      },
+      {
+        "id": "badge",
+        "label": "Vote badge",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "pool": "drawn",
+        "words": "badge|vote now|äänestä",
+        "teach": "Vote badge",
+        "also": [
+          "Äänestä"
+        ],
+        "what": "while voting is open"
+      }
+    ]
+  }
+}

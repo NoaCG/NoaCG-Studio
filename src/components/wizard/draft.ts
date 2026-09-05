@@ -46,7 +46,7 @@ import type { EasingId } from '../../model/easings';
 import { ensureFontFace, fontByStack, type CustomFont } from '../../model/fonts';
 import type { EraseRect, RegionInk } from '../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../assets/svgImport';
-import { SCORE_MAX_ROWS } from '../../templates/behaviours/score';
+import { bestProposal, type ProposedBinding } from '../../templates/behaviours/naming';
 import type { ProjectLegibility } from '../../model/designRules';
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
@@ -1231,160 +1231,6 @@ function svgBehaviourOption(draft: WizardDraft): DesignSvgBehaviour | null {
 }
 
 /**
- * PROPOSE a quiz binding from the layer names — the accelerator, never the requirement.
- *
- * The mapping step's pickers are the road anyone can walk (plan §5, door A). This is door B
- * sitting behind them: a designer who names layers the obvious way ("Question", "Answer A",
- * "A selected") opens the step with every picker already filled and nothing to do. Naming
- * NOTHING costs three clicks per row and no correctness, which is the line the MXMZ lesson
- * draws — a convention may pay you, it may never gate you (docs/COMPETITOR_MXMZ.md §3).
- *
- * Returns null when the file does not look like a quiz at all, so an ordinary import is
- * never nudged toward a behaviour it does not want.
- */
-export function proposeQuizBinding(svg: SvgImportResult): SvgQuizDraft | null {
-  const answers = svg.candidates.filter((c) => /^answer\b/i.test(c.label.trim()));
-  if (answers.length < 2) return null;
-  const question = svg.candidates.find((c) => /question/i.test(c.label));
-  const letters = answers.map((_, i) => String.fromCharCode(65 + i));
-  // "A selected" / "Answer A selected" / "selected A" all name the same drawing. The letter
-  // and the state word both have to be there — a layer called "Selected" alone belongs to no
-  // row, and guessing which would be worse than leaving the picker empty.
-  const layer = (letter: string, state: string): string =>
-    svg.groups.find((g) => {
-      const label = g.label.toLowerCase();
-      return new RegExp(`(^|\\W)${letter.toLowerCase()}(\\W|$)`).test(label) && label.includes(state);
-    })?.id ?? '';
-  return {
-    kind: 'quiz',
-    question: question?.id ?? '',
-    answers: answers.map((a) => a.id),
-    rows: letters.map((letter) => ({
-      selected: layer(letter, 'select'),
-      correct: layer(letter, 'correct'),
-      wrong: layer(letter, 'wrong'),
-    })),
-    locked: svg.groups.find((g) => /lock/i.test(g.label))?.id ?? '',
-  };
-}
-
-/**
- * PROPOSE a poll binding from the layer names — door B behind door A, exactly as the quiz's is.
- *
- * The signature is option rows WITH BARS. Option rows alone are not enough and the corpus proved
- * it: the student's quiz board (`student-illustrator-quiz.svg`) names its four answers "Option
- * 1".."Option 4", so a proposal keyed on the word `option` claimed a quiz as a vote — which is
- * worse than proposing nothing, because it puts a confident wrong answer in front of somebody who
- * came here to be helped. A BAR is what a vote board has and a quiz board does not, so two rows
- * must resolve one before anything is proposed at all.
- *
- * Everything else is matched WITHIN the row it belongs to, by the same number or letter, so a
- * file that names three things "Bar" proposes none of them rather than putting all three on row
- * one.
- */
-export function proposePollBinding(svg: SvgImportResult): SvgPollDraft | null {
-  // The row's number or letter, and it must NOT be the tail of a longer word: `\b` alone matches
-  // the "s" of a heading layer called "Options", which would propose that heading as row 1 and
-  // shift every real option one row off its own bar.
-  const rowKey = (label: string): string | null => {
-    const m = /^(?:option|choice|answer|vaihtoehto)\s*([0-9]+|[a-z])(?![a-z])/i.exec(label.trim());
-    return m ? m[1].toUpperCase() : null;
-  };
-  const options = svg.candidates
-    .map((c) => ({ c, key: rowKey(c.label) }))
-    .filter((r): r is { c: (typeof svg.candidates)[number]; key: string } => r.key !== null)
-    // A round carries at most eight options (AUDIENCE_LIMITS.options), so proposing a ninth row
-    // would be a row no vote can ever fill - and the step's own count picker stops at eight, so
-    // the select would render a number that is not the truth.
-    .slice(0, 8);
-  if (options.length < 2) return null;
-  // The row's own number or letter has to appear in the layer's name as a WORD — "Bar 1" is
-  // row 1's bar, "Bar 10" is not, and a layer called "Bar" alone belongs to no row. Guessing
-  // which would be worse than leaving the picker empty (the quiz's own rule).
-  const inRow = (key: string, label: string): boolean =>
-    new RegExp(`(^|\\W)${key.toLowerCase()}(\\W|$)`).test(label.toLowerCase());
-  const pick = (key: string, word: RegExp, pool: { id: string; label: string }[]): string =>
-    pool.find((g) => word.test(g.label) && inRow(key, g.label))?.id ?? '';
-  const drawn = [...svg.groups, ...svg.shapes];
-  const rows = options.map(({ c, key }) => ({
-    label: c.id,
-    bar: pick(key, /\bbar\b|palkki/i, drawn),
-    value: pick(key, /%|percent|share|osuus/i, svg.candidates),
-    winner: pick(key, /winner|voittaja/i, svg.groups),
-  }));
-  if (rows.filter((r) => r.bar).length < 2) return null;
-  return {
-    kind: 'poll',
-    question: svg.candidates.find((c) => /question|prompt|kysymys/i.test(c.label))?.id ?? '',
-    rows,
-    total: svg.candidates.find((c) => /total|votes|ääntä/i.test(c.label))?.id ?? '',
-    badge: svg.groups.find((g) => /badge|vote now|äänestä/i.test(g.label))?.id ?? '',
-  };
-}
-
-/**
- * PROPOSE a score binding from the layer names — door B behind door A, exactly as the other two.
- *
- * THE SIGNATURE IS A NUMBERED ROW WHOSE FIGURE IS A FIGURE. Two rows must resolve a team layer
- * AND a score layer whose sample reads as a plain number, or nothing is proposed. Each half is
- * there because of a wrong answer one of the earlier behaviours gave:
- *
- *  - the ROW KEY, because "Home" and "Away" alone say a board has two sides and nothing about
- *    what it does. A versus card, a head-to-head stat panel and a scoreboard all name their
- *    halves that way, and the poll's own lesson is that a confident wrong answer is worse than
- *    none — it puts a wrong binding in front of somebody who came here to be helped. A designer
- *    with a Home/Away board reaches the same place through the pickers, in one click per row.
- *  - the NUMERIC sample, because it is what a score board has that a quiz and a vote do not, and
- *    it is also the thing the binding actually needs: a "+1" press moves a `number` field, and a
- *    layer reading "2 - 1" is text however it looks (docs/SVG_AUTHORING.md section 3).
- *
- * Everything is matched WITHIN the row it belongs to, by the same number or letter, so a file
- * that names three things "Score" proposes none of them rather than putting all three on row one.
- */
-export function proposeScoreBinding(svg: SvgImportResult): SvgScoreDraft | null {
-  // The row's number or letter, and it must NOT be the tail of a longer word — the poll's rule,
-  // for the poll's reason ("Teams" would otherwise propose the heading as row S).
-  const rowKey = (label: string): string | null => {
-    const m = /^(?:team|side|player|joukkue)\s*([0-9]+|[a-z])(?![a-z])/i.exec(label.trim());
-    return m ? m[1].toUpperCase() : null;
-  };
-  const FIGURE_WORD = /\bscore\b|\bpoints?\b|\bgoals?\b|pisteet|maalit/i;
-  const teams: { c: (typeof svg.candidates)[number]; key: string }[] = [];
-  for (const c of svg.candidates) {
-    const key = rowKey(c.label);
-    // ONE TEAM PER KEY, and never the row's own FIGURE. `Team 1 Score` is an idiomatic name for
-    // the figure and it starts with "team", so it reads as a second row 1 - which produced four
-    // rows for a two-team board, with one layer standing as row 2's NAME and rows 1 and 2's
-    // score. `scoreBindingGaps` then refused it for "one layer is picked for two things", so the
-    // author got a wrong layout plus an error they did not cause.
-    if (!key || FIGURE_WORD.test(c.label) || teams.some((t) => t.key === key)) continue;
-    if (teams.length === SCORE_MAX_ROWS) break;
-    teams.push({ c, key });
-  }
-  if (teams.length < 2) return null;
-  const inRow = (key: string, label: string): boolean =>
-    new RegExp(`(^|\\W)${key.toLowerCase()}(\\W|$)`).test(label.toLowerCase());
-  const pick = <T extends { id: string; label: string }>(key: string, word: RegExp, pool: T[]): T | undefined =>
-    pool.find((g) => word.test(g.label) && inRow(key, g.label));
-  const rows = teams.map(({ c, key }) => {
-    const figure = pick(key, FIGURE_WORD, svg.candidates);
-    return {
-      name: c.id,
-      // A figure that is not a figure is not proposed at all. Left empty the reader is told what
-      // is missing (`scoreBindingGaps`) instead of being handed a binding that cannot compile.
-      score: figure?.numeric ? figure.id : '',
-      flash: pick(key, /\bflash\b|\bgoal\b|\bscored\b|maali/i, scoreDrawnPool(svg))?.id ?? '',
-    };
-  });
-  if (rows.filter((r) => r.score).length < 2) return null;
-  return {
-    kind: 'score',
-    rows,
-    final: scoreDrawnPool(svg).find((g) => /full[\s-]?time|final|game over|loppu/i.test(g.label))?.id ?? '',
-  };
-}
-
-/**
  * The drawings a behaviour's moments may be picked from: named groups AND rectangles.
  *
  * THE NAME IS THE SCORE BOARD'S ONLY BECAUSE IT GOT HERE FIRST. The countdown's four pickers read
@@ -1405,55 +1251,73 @@ export function scoreDrawnPool(svg: Pick<SvgImportResult, 'groups' | 'shapes'>):
 }
 
 /**
- * PROPOSE a timer binding from the layer names — door B behind door A, exactly as the other three.
+ * PROPOSE a behaviour from the layer names - the accelerator, never the requirement
+ * (templates/behaviours/naming.ts: one tokenizer, one scorer over every recipe's words).
  *
- * THE SIGNATURE IS A CLOCK PLUS A MOMENT THAT ONLY A COUNTDOWN HAS, and it takes both halves for
- * the reason the poll and the score board each paid for once: a confident wrong answer is worse
- * than none, because it puts a wrong binding in front of somebody who came here to be helped.
+ * The mapping step's pickers are the road anyone can walk; this is door B sitting behind them: a
+ * designer who names layers the obvious way ("Question", "Answer A", "A selected", "Team 1",
+ * "Bar 1") opens the step with every picker already filled and nothing to do. Naming NOTHING
+ * costs a few clicks per row and no correctness, which is the line the MXMZ lesson draws - a
+ * convention may pay you, it may never gate you (docs/COMPETITOR_MXMZ.md §3).
  *
- *  - a CLOCK-SHAPED text layer alone is not enough, and a scorebug is why. `docs/svg-samples/
- *    scorebug.svg` draws a match clock reading `12:00`, and that board is not a countdown - it is
- *    a scoreboard with a clock on it. Every corpus fixture with a match clock would otherwise
- *    open on a behaviour its designer never asked for.
- *  - so a DRAWN MOMENT of a countdown's own kind has to be there too: a bar, a paused mark, a
- *    warning look, a time-up plate. A scorebug draws none of those.
- *
- * NOTHING IS MATCHED BY ROW, because a countdown has no rows. That is the first proposal here
- * with no row key at all, and it is why this one is simple where the other three are careful.
- */
-export function proposeTimerBinding(svg: SvgImportResult): SvgTimerDraft | null {
-  const hasClock = svg.candidates.some((c) => c.clock);
-  if (!hasClock) return null;
-  const drawn = [...svg.groups, ...svg.shapes];
-  const find = (word: RegExp): string => drawn.find((g) => word.test(g.label))?.id ?? '';
-  const bar = find(/timer bar|time bar|\bdrain\b|aikapalkki/i);
-  const warning = find(/\bwarn(ing)?\b|last (stretch|seconds)|\bhurry\b|varoitus/i);
-  const paused = find(/\bpause[d]?\b|\bhold\b|\bheld\b|tauko|tauolla/i);
-  const expired = find(/time.?s? up|\bexpired\b|\bfinished\b|aika loppu|^aika$/i);
-  // At least one moment, or this file is a graphic with a clock on it rather than a countdown.
-  if (!bar && !warning && !paused && !expired) return null;
-  return { kind: 'timer', bar, warning, paused, expired };
-}
-
-/**
- * The proposal the mapping step opens with, whichever behaviour the file looks like — or null,
- * which is the common case and stays the default.
- *
- * ASKED STRICTEST FIRST. The quiz's signature ("Answer A" names a row of a board that has a right
- * answer) is the narrowest, then the score board's (a numbered team row whose figure is a plain
- * number), then the countdown's (a clock layer AND a moment only a countdown has), then the
- * vote's. The countdown sits after the score board deliberately: a scorebug draws a match clock,
- * so a file that satisfies both is a scoreboard with a clock on it rather than a countdown with
- * teams. Nothing here gates anything: every picker in the step is the road, and this is the
- * shortcut for a designer who happened to name layers the obvious way.
+ * Returns null when the names carry no distinctive evidence of any behaviour, so an ordinary
+ * import is never nudged toward one it does not want. The four DRAFT shapes below are the mapping
+ * step's own vocabulary; the proposal itself is one binding, whichever recipe won.
  */
 export function proposeSvgBehaviour(svg: SvgImportResult): SvgBehaviourDraft | null {
-  return (
-    proposeQuizBinding(svg)
-    ?? proposeScoreBinding(svg)
-    ?? proposeTimerBinding(svg)
-    ?? proposePollBinding(svg)
-  );
+  const best = bestProposal(svg);
+  if (!best) return null;
+  const one = (map: ProposedBinding['fields'], role: string): string => (typeof map[role] === 'string' ? (map[role] as string) : '');
+  const per = (map: ProposedBinding['fields'], role: string, key: string): string => {
+    const value = map[role];
+    return value && typeof value === 'object' ? (value[key] ?? '') : '';
+  };
+  const keys = best.rows;
+  if (best.recipe === 'quiz') {
+    return {
+      kind: 'quiz',
+      question: one(best.fields, 'question'),
+      answers: keys.map((key) => per(best.fields, 'answer', key)),
+      rows: keys.map((key) => ({
+        selected: per(best.layers, 'answer.selected', key),
+        correct: per(best.layers, 'answer.correct', key),
+        wrong: per(best.layers, 'answer.wrong', key),
+      })),
+      locked: one(best.layers, 'locked'),
+    };
+  }
+  if (best.recipe === 'score') {
+    return {
+      kind: 'score',
+      rows: keys.map((key) => ({
+        name: per(best.fields, 'team', key),
+        score: per(best.fields, 'score', key),
+        flash: per(best.layers, 'team.flash', key),
+      })),
+      final: one(best.layers, 'final'),
+    };
+  }
+  if (best.recipe === 'countdown') {
+    return {
+      kind: 'timer',
+      bar: one(best.layers, 'bar'),
+      warning: one(best.layers, 'warning'),
+      paused: one(best.layers, 'paused'),
+      expired: one(best.layers, 'expired'),
+    };
+  }
+  return {
+    kind: 'poll',
+    question: one(best.layers, 'question'),
+    rows: keys.map((key) => ({
+      label: per(best.layers, 'option', key),
+      bar: per(best.layers, 'bar', key),
+      value: per(best.layers, 'percent', key),
+      winner: per(best.layers, 'winner', key),
+    })),
+    total: one(best.layers, 'total'),
+    badge: one(best.layers, 'badge'),
+  };
 }
 
 /**

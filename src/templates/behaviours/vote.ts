@@ -21,7 +21,7 @@
 import { LIVE_POLL_CONTROLS, LIVE_POLL_MACHINE } from '../types/livePoll';
 import type { TypeMachine } from '../types/graphicType';
 import type { BehaviourRecipe } from './recipe';
-import { withRepaint } from './recipe';
+import { rolesOf, rowsOf, withRepaint } from './recipe';
 
 /** The status field's title and vocabulary. Exported because the production dashboard writes
  *  this field and has to find it by title (`pollFieldMap` / `tallyValues`). An EMPTY value means
@@ -68,18 +68,10 @@ export const voteRecipe: BehaviourRecipe = {
   description: 'The audience votes at the join link; the bars you drew move, and the operator decides when the result shows.',
   category: 'poll',
   defaultZone: 'mid-center',
-  rows: { role: 'option', keys: 'numbers', min: 2, max: 8 },
-  roles: [
-    { id: 'question', label: 'Question', kind: 'layer', paint: ['write'], words: /question|prompt|kysymys/i },
-    { id: 'option', label: 'Option', kind: 'layer', paint: ['write'], perRow: true, required: true, words: /^(?:option|choice|answer|vaihtoehto)\b/i },
-    // A BAR is what a vote board has and a quiz board does not, so it is the evidence.
-    { id: 'bar', label: 'Bar', kind: 'layer', paint: ['gauge'], perRow: true, distinctive: true, words: /\bbar\b|palkki/i },
-    // The figure is written AND waits for the result, so it is a readout and a look at once.
-    { id: 'percent', label: 'Percent', kind: 'layer', paint: ['write', 'look'], perRow: true, words: /%|percent|share|osuus/i },
-    { id: 'winner', label: 'Winner', kind: 'layer', paint: ['look'], perRow: true, words: /winner|voittaja/i },
-    { id: 'total', label: 'Total votes', kind: 'layer', paint: ['write'], words: /total|votes|ääntä/i },
-    { id: 'badge', label: 'Vote badge', kind: 'layer', paint: ['look'], words: /badge|vote now|äänestä/i },
-  ],
+  rows: rowsOf('vote'),
+  // A BAR is what a vote board has and a quiz board does not, so it is the evidence; the figure
+  // is written AND waits for the result, so it is a readout and a look at once.
+  roles: rolesOf('vote'),
   // THE FIVE FIELDS THAT ARE THE WIRE, in the order they were appended: a control's payload key
   // resolves by INDEX, so a field added LAST moves nothing already saved or exported.
   fields: () => [

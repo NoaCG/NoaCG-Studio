@@ -21,7 +21,7 @@
 import { countdownType } from '../types/clocks';
 import type { TypeBranch, TypeGroup, TypeMachine } from '../types/graphicType';
 import type { BehaviourRecipe, RecipeContext } from './recipe';
-import { withRepaint } from './recipe';
+import { rolesOf, withRepaint } from './recipe';
 
 /** How long before zero the last-stretch look comes up when the operator has not said otherwise.
  *  Ten, not thirty: a class quiz runs thirty-second questions, and a warning armed at thirty is on
@@ -77,15 +77,9 @@ export const countdownRecipe: BehaviourRecipe = {
   description: 'The clock starts on air; the operator holds, resumes and resets it, and your drawings follow the count.',
   category: 'game-timer',
   defaultZone: 'top-center',
-  roles: [
-    // The clock: the artwork field bound as the countdown. Never matched by name - it is chosen
-    // by setting the row's kind, and the recipe finds it.
-    { id: 'clock', label: 'Clock', kind: 'field', required: true, countdown: true, words: /^$/ },
-    { id: 'bar', label: 'Timer bar', kind: 'layer', paint: ['gauge'], distinctive: true, words: /timer bar|time bar|\bdrain\b|aikapalkki/i },
-    { id: 'warning', label: 'Warning', kind: 'layer', paint: ['look'], distinctive: true, words: /\bwarn(?:ing)?\b|last (?:stretch|seconds)|\bhurry\b|varoitus/i },
-    { id: 'paused', label: 'Paused', kind: 'layer', paint: ['look'], distinctive: true, words: /\bpaused?\b|\bhold\b|\bheld\b|tauko|tauolla/i },
-    { id: 'expired', label: 'Time up', kind: 'layer', paint: ['look'], distinctive: true, words: /time.?s? up|\bexpired\b|\bfinished\b|aika loppu|^aika$/i },
-  ],
+  // The clock role is bound by the row's KIND, never by a name (naming.ts); the four drawn
+  // moments are the evidence a scorebug's match clock does not have.
+  roles: rolesOf('countdown'),
   // The one owned field: the warning threshold, deliberately OUTSIDE the clock's own field
   // signature, so editing it on air moves the warning and never re-arms the count.
   fields: () => [{ key: 'warnAt', label: 'Warn at (seconds)', kind: 'number', value: String(DEFAULT_WARN_SECONDS) }],

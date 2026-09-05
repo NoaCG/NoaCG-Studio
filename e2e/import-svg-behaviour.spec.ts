@@ -403,6 +403,41 @@ test('imported quiz: drawn layers are proposed from their names, and the operato
   await shot(page, '6-quiz-revealed');
 });
 
+test('the proposal reads evidence, not order: answer rows with bars are a vote, and a heading is not a row', async ({ page }, testInfo) => {
+  // TWO FILED DEFECTS OF THE MODULE-ERA DETECTOR (docs/backlog/, 2026-09-05), both from the same
+  // shape - each behaviour carried its own regexes and an order-sensitive dispatcher chose the
+  // first that answered. `Answer 1` rows always read as a QUIZ because the quiz was asked first,
+  // even beside three bars nothing but a vote has; and a heading called `Options` was read as
+  // option S, so the audience's first option overwrote the heading on air. One tokenizer and one
+  // scorer over every recipe's words (templates/behaviours/naming.ts) is the fix, and this is
+  // the file that would have caught both.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <g id="Board"><rect x="0" y="700" width="1920" height="380" fill="#111"/></g>
+  <text id="Options" data-name="Options" x="120" y="760" font-family="Arial" font-size="30" fill="#fff">OPTIONS</text>
+  <text id="Answer_x20_1" data-name="Answer 1" x="120" y="820" font-family="Arial" font-size="30" fill="#fff">Keep the crest</text>
+  <text id="Answer_x20_2" data-name="Answer 2" x="120" y="880" font-family="Arial" font-size="30" fill="#fff">New crest</text>
+  <text id="Answer_x20_3" data-name="Answer 3" x="120" y="940" font-family="Arial" font-size="30" fill="#fff">Ask the members</text>
+  <g id="Rails">
+    <rect id="Bar_x20_1" data-name="Bar 1" x="560" y="800" width="1000" height="36" fill="#f6a623"/>
+    <rect id="Bar_x20_2" data-name="Bar 2" x="560" y="860" width="1000" height="36" fill="#f6a623"/>
+    <rect id="Bar_x20_3" data-name="Bar 3" x="560" y="920" width="1000" height="36" fill="#f6a623"/>
+  </g>
+</svg>`;
+  const file = testInfo.outputPath('answers-with-bars.svg');
+  writeFileSync(file, svg);
+  await openImportDoor(page, file);
+
+  // A vote, with exactly the three rows the designer drew - the heading is not a fourth.
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('poll');
+  await expect(page.getByTestId('map-svg-poll-count')).toHaveValue('3');
+  for (const at of [0, 1, 2]) {
+    await expect(page.getByTestId(`map-svg-poll-label-${at}`).locator('option:checked')).toHaveText(`Answer ${at + 1}`);
+    await expect(page.getByTestId(`map-svg-poll-bar-${at}`).locator('option:checked')).toHaveText(`Bar ${at + 1}`);
+  }
+  // …and the heading stays an ordinary field the operator can retype.
+  await expect(page.getByTestId('map-svg-fields')).toContainText('1 of 4');
+});
+
 test('imported vote board: a real audience round moves the bars the designer drew', async ({ page }) => {
   // THE JOIN (docs/GRAPHIC_BEHAVIOUR_PLAN.md §12). Every piece under this shipped separately —
   // the audience plane counts votes (Phase 6), the catalog has a live-vote arc, the importer
