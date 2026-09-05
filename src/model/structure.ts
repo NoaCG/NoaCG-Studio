@@ -39,7 +39,9 @@ export function svgLayerElements(art: Element): Element[] {
     // (`<prefix>-qstate` and its siblings) instead. On the shipped quiz-board sample that is 14 of
     // 19 layers, so the per-layer stagger spent fourteen of its nineteen beats on nothing anybody
     // could see - the owner read the result, correctly, as a stagger that does not stagger.
-    if (/(?:^|\s)[\w-]+-[a-z]+state(?:\s|$)/.test(child.getAttribute('class') ?? '')) continue;
+    // `<prefix>-look` is the one pair every recipe uses since the binding table
+    // (docs/SVG_BEHAVIOUR_PLAN.md §5); the `-qstate` family is what the module era emitted.
+    if (/(?:^|\s)[\w-]+-(?:[a-z]+state|look)(?:\s|$)/.test(child.getAttribute('class') ?? '')) continue;
     if (isHiddenNode(child, art)) continue;
     out.push(child);
   }

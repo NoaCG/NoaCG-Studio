@@ -380,26 +380,26 @@ test('imported quiz: drawn layers are proposed from their names, and the operato
   // The PROGRAM renderer is what the audience sees. `frameLocator` reaches into it through CDP
   // even though the iframe carries no allow-same-origin (see e2e/_frame.ts).
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
-  const lit = () => air.locator('.imported-design-qstate.imported-design-qon');
+  const lit = () => air.locator('.imported-design-look.imported-design-on');
 
   await page.getByRole('button', { name: /Select answer/ }).click();
   await expect(lit()).toHaveCount(1);
-  await expect(air.locator('#q-sel-2')).toHaveClass(/imported-design-qon/);
+  await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await shot(page, '4-quiz-selected');
 
   await page.getByRole('button', { name: /Lock it in/ }).click();
-  await expect(air.locator('#q-lock')).toHaveClass(/imported-design-qon/);
+  await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
   // The pick stays up through the lock — two states showing, which is the moment itself.
-  await expect(air.locator('#q-sel-2')).toHaveClass(/imported-design-qon/);
+  await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await shot(page, '5-quiz-locked');
 
   await page.getByRole('button', { name: /Reveal correct/ }).click();
   // C is the key: its row lights, the other three take the wrong treatment.
-  await expect(air.locator('#q-cor-3')).toHaveClass(/imported-design-qon/);
-  for (const row of [1, 2, 4]) {
-    await expect(air.locator(`#q-wrong-${row}`)).toHaveClass(/imported-design-qon/);
+  await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
+  for (const row of ['A', 'B', 'D']) {
+    await expect(air.locator(`[data-noacg-role~="answer.wrong/${row}"]`)).toHaveClass(/imported-design-on/);
   }
-  await expect(air.locator('#q-cor-1')).not.toHaveClass(/imported-design-qon/);
+  await expect(air.locator('[data-noacg-role~="answer.correct/A"]')).not.toHaveClass(/imported-design-on/);
   await shot(page, '6-quiz-revealed');
 });
 
@@ -952,13 +952,15 @@ test('imported quiz: the behaviour survives the export and runs standalone from 
   expect(htmlPath).toBeTruthy();
   const html = await zip.file(htmlPath)!.async('string');
 
-  // THE DRAWN STATES TRAVELLED: the designer's layers, our ids, the rules that hide them, and
-  // the paint that shows them — all inside the one file.
-  for (const id of ['q-sel-1', 'q-sel-2', 'q-sel-3', 'q-sel-4', 'q-cor-3', 'q-wrong-1', 'q-lock']) {
-    expect(html).toContain(`id="${id}"`);
+  // THE DRAWN LOOKS TRAVELLED: the designer's layers, our role stamps, the rules that hide
+  // them, the table that says when each shows and the runtime that reads it — all inside the
+  // one file (docs/SVG_BEHAVIOUR_PLAN.md §5).
+  for (const token of ['answer.selected/A', 'answer.selected/B', 'answer.selected/C', 'answer.selected/D', 'answer.correct/C', 'answer.wrong/A', 'locked']) {
+    expect(html).toContain(`data-noacg-role="${token}"`);
   }
-  expect(html).toContain('.imported-design-qstate');
-  expect(html).toContain('function revealAnswer');
+  expect(html).toContain('.imported-design-look');
+  expect(html).toContain('var NOACG_BEHAVIOUR = ');
+  expect(html).toContain('function noacgRepaint(');
   // THE MACHINE TRAVELLED: it lives in the template's own data block, so the arcs and their
   // operator events are in the file rather than in a registry the playout machine cannot ask.
   expect(html).toContain('"machine"');
@@ -978,7 +980,7 @@ test('imported quiz: the behaviour survives the export and runs standalone from 
   page.on('requestfailed', (r) => missing.push(r.url()));
   await page.goto(pathToFileURL(nodePath.join(dir, htmlPath)).href);
 
-  const lit = () => page.locator('.imported-design-qstate.imported-design-qon');
+  const lit = () => page.locator('.imported-design-look.imported-design-on');
   await page.evaluate(() => {
     const w = window as unknown as { play?: () => void; update?: (d: string) => void };
     w.play?.();
@@ -993,12 +995,12 @@ test('imported quiz: the behaviour survives the export and runs standalone from 
     }, event);
 
   await fire('select');
-  await expect(page.locator('#q-sel-2')).toHaveClass(/imported-design-qon/);
+  await expect(page.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await fire('lock');
-  await expect(page.locator('#q-lock')).toHaveClass(/imported-design-qon/);
+  await expect(page.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
   await fire('judge');
-  await expect(page.locator('#q-cor-3')).toHaveClass(/imported-design-qon/);
-  await expect(page.locator('#q-wrong-1')).toHaveClass(/imported-design-qon/);
+  await expect(page.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
+  await expect(page.locator('[data-noacg-role~="answer.wrong/A"]')).toHaveClass(/imported-design-on/);
   await shot(page, '7-quiz-exported-standalone');
 
   // Nothing reached for the network or for a file the package does not carry.
@@ -1240,10 +1242,10 @@ test('CasparCG package: the standalone panel drives the imported QUIZ board thro
   await panel.locator('.field', { hasText: 'Selected answer' })
     .getByRole('button', { name: 'C', exact: true }).click();
   await select.click();
-  await expect(air.locator('#q-sel-3')).toHaveClass(/imported-design-qon/, { timeout: 10_000 });
+  await expect(air.locator('[data-noacg-role~="answer.selected/C"]')).toHaveClass(/imported-design-on/, { timeout: 10_000 });
 
   await lock.click();
-  await expect(air.locator('#q-lock')).toHaveClass(/imported-design-qon/, { timeout: 10_000 });
+  await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/, { timeout: 10_000 });
   // …and the pick is structurally final. `select` has no arrow out of `locked`, and neither does
   // `revealChoice` - its only arrow leaves the hidden-pick `sealed` state, which this round never
   // entered. The guard is the graph, mirrored as greying, and it travelled in the package.
@@ -1252,7 +1254,7 @@ test('CasparCG package: the standalone panel drives the imported QUIZ board thro
 
   // The reveal, which is what a quiz is for: the designer's own correct-answer marker lights.
   await panel.getByRole('button', { name: '⚡ Reveal correct' }).click();
-  await expect(air.locator('#q-cor-3')).toHaveClass(/imported-design-qon/, { timeout: 10_000 });
+  await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/, { timeout: 10_000 });
 
   await panel.close();
   await air.close();

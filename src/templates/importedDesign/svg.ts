@@ -28,8 +28,7 @@ import {
   type TemplateVariant,
   type WizardOptions,
 } from '../../model/wizard';
-import type { SpxField } from '../../model/types';
-import { SVG_CANDIDATE_ATTR, clockSampleMinutes, svgPictureTarget } from '../../assets/svgImport';
+import { SVG_CANDIDATE_ATTR, svgPictureTarget } from '../../assets/svgImport';
 import { svgFieldSelectors, svgLayerSelectors } from '../../model/structure';
 import type { AnimData } from '../../blocks/animData';
 import {
@@ -48,6 +47,7 @@ import { clockRuntimeJs } from '../shared/clock';
 import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
+import { countdownIndex, svgFields } from './artworkFields';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
 import { PREFIX } from './shared';
@@ -200,7 +200,7 @@ function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   // binding, so any such id moves aside (references to it inside the file move with it). The
   // behaviour's own fields count here too - its holders carry `fN` ids like any other field,
   // and the stamped layer ids (`q-sel-1`, `p-bar-1`, …) are ours for the same reason.
-  const behaviour = boundBehaviour(svg.behaviour);
+  const behaviour = boundBehaviour(svg, svgFields(svg));
   const taken = new Set([
     ...[...svg.fields, ...svg.images, ...Array(behaviour?.fieldCount ?? 0)].map((_, i) => `f${i}`),
     ...(behaviour?.layerIds ?? []),
@@ -287,47 +287,6 @@ function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
     el.removeAttribute(SVG_CANDIDATE_ATTR);
   }
   return new XMLSerializer().serializeToString(root);
-}
-
-/** The ONE countdown field of a design (plan P2 "clock ftype"): the first text layer bound
- *  as a countdown, or -1. One, because the shared clock runtime (templates/shared/clock.ts)
- *  drives one display; a second countdown choice binds as plain text. */
-function countdownIndex(svg: DesignSvg): number {
-  return svg.fields.findIndex((f) => f.countdown);
-}
-
-/** The SPX DataFields: one per bound text layer (numeric samples as real number fields;
- *  the countdown layer as its LENGTH in minutes, the drawn readout converted - "10:00" is
- *  ten), then one filelist per bound picture layer - update() swaps that node's href, and
- *  an empty value keeps the picture the designer drew. */
-function svgFields(svg: DesignSvg): SpxField[] {
-  const clock = countdownIndex(svg);
-  return [
-    ...svg.fields.map((f, i): SpxField =>
-      i === clock
-        ? {
-            field: `f${i}`,
-            ftype: 'number',
-            title: `${f.title} (minutes)`,
-            value: String(clockSampleMinutes(f.sample) ?? 5),
-          }
-        : {
-            field: `f${i}`,
-            ftype: f.numeric ? 'number' : 'textfield',
-            title: f.title,
-            value: f.sample,
-          },
-    ),
-    ...svg.images.map((f, i): SpxField => ({
-      field: `f${svg.fields.length + i}`,
-      ftype: 'filelist',
-      title: f.title,
-      value: '',
-      // The SPX picker lists the project's images/ folder, like every image field.
-      assetfolder: './images/',
-      extension: 'png',
-    })),
-  ];
 }
 
 /**
@@ -2440,7 +2399,7 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   const artworkFields = svgFields(svg);
   // The behaviour's own fields sit AFTER the artwork's, and that order is load-bearing: the
   // behaviour's type shim mirrors it so a control's payload resolves to the right `fN`.
-  const behaviour = boundBehaviour(svg.behaviour);
+  const behaviour = boundBehaviour(svg, artworkFields);
   const fields = behaviour
     ? [...artworkFields, ...behaviour.fields(artworkFields.length)]
     : artworkFields;

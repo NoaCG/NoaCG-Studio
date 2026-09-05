@@ -166,6 +166,10 @@ const MAP = [
   // shard on 2026-08-23 - the picker grew a direction-arrow row sharing the wizard Travel
   // box's class, and `ux.spec.ts`, which broke on the resulting ambiguous locator, was never
   // planned. The surfaces that MOUNT the picker are therefore named here explicitly.
+  // The behaviour binding table and the recipes it is compiled from (docs/SVG_BEHAVIOUR_PLAN.md):
+  // every imported-artwork behaviour, the rehearsal, and the machine-graph spec that reads the
+  // same machine.
+  [/^src\/blocks\/behaviourData\.ts$|^src\/templates\/behaviours\/|^src\/templates\/importedDesign\/(behaviour|behaviourRuntime|artworkFields)\.ts$/, ['import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'import-svg.spec.ts', 'motion-presets.spec.ts']],
   [/^src\/blocks\/motionPresets\.ts$/, ['motion-presets.spec.ts']],
   [
     /^src\/components\/MotionPresetPicker\.tsx$/,

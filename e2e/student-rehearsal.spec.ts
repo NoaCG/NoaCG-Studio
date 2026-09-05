@@ -223,17 +223,17 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
   // SCOPED BY TITLE: the PROGRAM monitor stacks one iframe per live LAYER, and the scorebug is
   // still on air under the quiz — which is what a two-graphic show looks like.
   const air = page.frameLocator('[data-testid="program-stage"] iframe[title="Tunturi quiz"]');
-  await expect(air.locator('.imported-design-qstate.imported-design-qon')).toHaveCount(0); // the entrance is not a verdict
+  await expect(air.locator('.imported-design-look.imported-design-on')).toHaveCount(0); // the entrance is not a verdict
 
   await page.getByRole('button', { name: /Select answer/ }).click();
-  await expect(air.locator('#q-sel-2')).toHaveClass(/imported-design-qon/);
+  await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: /Lock it in/ }).click();
-  await expect(air.locator('#q-lock')).toHaveClass(/imported-design-qon/);
+  await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
   // The pick stays up through the lock — two states showing, which is the moment itself.
-  await expect(air.locator('#q-sel-2')).toHaveClass(/imported-design-qon/);
+  await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: /Reveal correct/ }).click();
-  await expect(air.locator('#q-cor-1')).toHaveClass(/imported-design-qon/);
-  await expect(air.locator('#q-wrong-2')).toHaveClass(/imported-design-qon/);
+  await expect(air.locator('[data-noacg-role~="answer.correct/A"]')).toHaveClass(/imported-design-on/);
+  await expect(air.locator('[data-noacg-role~="answer.wrong/B"]')).toHaveClass(/imported-design-on/);
 
   // NOT ONE OPERATOR ACTION NEEDED THE CODE. The editor never opened, and this page has no code
   // view to open.
@@ -274,7 +274,7 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
   await page.getByTestId('verb-take').click();
   const air2 = page.frameLocator('[data-testid="program-stage"] iframe[title="Tunturi quiz"]');
   await page.getByRole('button', { name: /Select answer/ }).click();
-  await expect(air2.locator('#q-sel-2')).toHaveClass(/imported-design-qon/);
+  await expect(air2.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
 
   // **THE DIRECT REVEAL IS NOT REACHABLE, AND THE BUTTON SAYS SO.** `ANSWER_BOARD_MACHINE` draws
   // `judge` only from `locked` (templates/types/answerBoard.ts), so a reveal with no lock is not
@@ -288,7 +288,7 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await expect(page.getByRole('button', { name: /Reveal correct/ })).toBeEnabled();
   await page.getByRole('button', { name: /Reveal correct/ }).click();
-  await expect(air2.locator('#q-cor-1')).toHaveClass(/imported-design-qon/);
+  await expect(air2.locator('[data-noacg-role~="answer.correct/A"]')).toHaveClass(/imported-design-on/);
 });
 
 test('a half-made quiz binding says what is missing instead of silently coming on and off', async ({

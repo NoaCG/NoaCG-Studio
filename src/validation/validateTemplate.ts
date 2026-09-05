@@ -14,6 +14,14 @@ import {
   hasTransitionStyleRuntime,
 } from '../templates/shared/animRuntime';
 import { DATA_FTYPES, type SpxTemplate } from '../model/types';
+import {
+  behaviourDataFault,
+  behaviourFieldsNamed,
+  behaviourStatesNamed,
+  parseBehaviourData,
+} from '../blocks/behaviourData';
+import { deriveMachine } from '../blocks/animMachine';
+import { hasBehaviourRuntime } from '../templates/importedDesign/behaviourRuntime';
 
 export interface ValidationIssue {
   rule: string;
@@ -414,6 +422,51 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
           rule: 'svg',
           message: `The inline SVG references "${m[1]}" on the network — an exported graphic must play out offline. Embed the file into the SVG or add it as an asset.`,
         });
+      }
+    }
+  }
+
+  // 5e. The BEHAVIOUR BINDING table (blocks/behaviourData.ts) - the looks, gauges and readouts
+  //     of behaviour on imported artwork. Shape-gated like the animation data, paired with its
+  //     runtime like the machine, and checked against the machine it names states of: a rule
+  //     naming a state no group has, or a field no holder carries, would never fire on air.
+  {
+    const fault = behaviourDataFault(template.js);
+    if (fault === 'unreadable' || fault === 'off-shape') {
+      errors.push({
+        rule: 'behaviour',
+        message:
+          'The NOACG_BEHAVIOUR block is not valid - the behaviour rules would run unchecked on air. Fix the table (or remove it) before exporting.',
+      });
+    } else if (fault === 'unknown-version') {
+      warnings.push({
+        rule: 'behaviour',
+        message: 'The NOACG_BEHAVIOUR block is a version this build does not read; the template is treated as hand-crafted behaviour.',
+      });
+    } else if (fault === 'ok') {
+      const table = parseBehaviourData(template.js)!;
+      if (!hasBehaviourRuntime(template.js)) {
+        errors.push({
+          rule: 'behaviour',
+          message:
+            'The template carries a NOACG_BEHAVIOUR table but no behaviour runtime - re-create the graphic so the runtime that reads the table is emitted with it.',
+        });
+      }
+      const anim = parseAnimData(template.js);
+      if (anim) {
+        const machine = deriveMachine(anim);
+        const known = new Set(machine.groups.flatMap((g) => g.states.map((s) => `${g.id}/${s.id}`)));
+        for (const named of behaviourStatesNamed(table)) {
+          if (!known.has(named)) {
+            errors.push({ rule: 'behaviour', message: `A behaviour rule waits for state "${named}", but the machine has no such state - that look would never show.` });
+          }
+        }
+      }
+      const fieldIds = new Set(template.fields.map((f) => f.field));
+      for (const id of behaviourFieldsNamed(table)) {
+        if (!fieldIds.has(id)) {
+          errors.push({ rule: 'behaviour', message: `A behaviour rule reads field "${id}", but the template defines no such field.` });
+        }
       }
     }
   }

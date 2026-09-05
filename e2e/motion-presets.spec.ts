@@ -291,10 +291,11 @@ test('wizard: the layer stagger spends its beats on what is visible, and the wor
     }));
   });
 
-  // NOT ONE HIDDEN LAYER. The quiz states are `q-sel-*`, `q-cor-*`, `q-wrong-*` and `q-lock`;
-  // every one of them is display:none until the operator gets there, and a beat spent on one is a
-  // beat the viewer sees nothing happen in.
-  expect(beats.filter((b) => /^#q-/.test(b.selector))).toEqual([]);
+  // NOT ONE HIDDEN LAYER. The quiz's looks keep the designer's own ids ("A selected",
+  // "B correct", "Locked in" - `data-noacg-role` says what each is); every one of them is
+  // display:none until the operator gets there, and a beat spent on one is a beat the viewer
+  // sees nothing happen in.
+  expect(beats.filter((b) => /selected|correct|wrong|Locked/i.test(b.selector))).toEqual([]);
 
   // The words ARE members, and each opens hidden - which is the half he could see.
   const words = beats.filter((b) => /^#f\d+$/.test(b.selector));
