@@ -463,10 +463,14 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
         }
       }
       const fieldIds = new Set(template.fields.map((f) => f.field));
-      for (const id of behaviourFieldsNamed(table)) {
+      const named = behaviourFieldsNamed(table);
+      for (const id of named.ids) {
         if (!fieldIds.has(id)) {
           errors.push({ rule: 'behaviour', message: `A behaviour rule reads field "${id}", but the template defines no such field.` });
         }
+      }
+      for (const head of named.unresolved) {
+        errors.push({ rule: 'behaviour', message: `A behaviour rule reads "${head}", which names no field the table knows.` });
       }
     }
   }

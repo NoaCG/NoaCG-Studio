@@ -180,12 +180,12 @@ test('imported score board: four teams are proposed, and one press adds a point 
   await expect(page.getByTestId('action-log')).toContainText('Took');
 
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
-  const flashOn = (n: number) => expect(air.locator(`#s-flash-${n}`)).toHaveClass(/imported-design-son/);
-  const flashOff = (n: number) => expect(air.locator(`#s-flash-${n}`)).not.toHaveClass(/imported-design-son/);
+  const flashOn = (n: number) => expect(air.locator(`[data-noacg-role~="team.flash/${n}"]`)).toHaveClass(/imported-design-on/);
+  const flashOff = (n: number) => expect(air.locator(`[data-noacg-role~="team.flash/${n}"]`)).not.toHaveClass(/imported-design-on/);
 
   // Nothing is lit on arrival: every drawn state starts hidden and the entrance is not a verdict.
   for (const n of [1, 2, 3, 4]) await flashOff(n);
-  await expect(air.locator('#s-final')).not.toHaveClass(/imported-design-son/);
+  await expect(air.locator('[data-noacg-role~="final"]')).not.toHaveClass(/imported-design-on/);
 
   // ── ONE PRESS IS A POINT AND A MOMENT ───────────────────────────────────────────────────────
   //
@@ -228,7 +228,7 @@ test('imported score board: four teams are proposed, and one press adds a point 
 
   // Full time is the match's own end, and it is the designer's own plate.
   await page.getByTestId('cue-action-final').click();
-  await expect(air.locator('#s-final')).toHaveClass(/imported-design-son/);
+  await expect(air.locator('[data-noacg-role~="final"]')).toHaveClass(/imported-design-on/);
   await shot(page, '18-score-full-time');
 
   // ── NEW GAME IS ONE PRESS, AND IT REACHES THE CUE ───────────────────────────────────────────
@@ -243,7 +243,7 @@ test('imported score board: four teams are proposed, and one press adds a point 
   await expect(air.locator('#f2')).toHaveText('0');
   await expect(air.locator('#f6')).toHaveText('0');
   // …and the board is live again, with nothing left of the last game.
-  await expect(air.locator('#s-final')).not.toHaveClass(/imported-design-son/);
+  await expect(air.locator('[data-noacg-role~="final"]')).not.toHaveClass(/imported-design-on/);
   for (const n of [1, 2, 3, 4]) await flashOff(n);
   await shot(page, '19-score-new-game');
 
@@ -518,24 +518,24 @@ test('imported vote board: a real audience round moves the bars the designer dre
 
   // THE ROUND'S OWN WORDING IS ON THE DESIGNER'S LAYERS. Nothing was typed into a field for this:
   // the options came from the round, through the wire, into the layers the pickers named.
-  await expect(air.locator('#p-opt-1')).toHaveText('Keep the crest');
-  await expect(air.locator('#p-opt-3')).toHaveText('Put it to members');
-  await expect(air.locator('#p-q')).toHaveText('Which way should the club vote?');
+  await expect(air.locator('[data-noacg-role~="option/1"]')).toHaveText('Keep the crest');
+  await expect(air.locator('[data-noacg-role~="option/3"]')).toHaveText('Put it to members');
+  await expect(air.locator('[data-noacg-role~="question"]')).toHaveText('Which way should the club vote?');
 
   // …AND THE BAR MOVED, WITHOUT A TRANSITION. Data never causes a state change, so the growth
   // happens inside the state the board is already in: 2 of 4 votes is half the length the
   // designer drew, and the drawn length is what 100% means on this board.
   await expect
-    .poll(async () => Math.round(Number(await air.locator('#p-bar-1').getAttribute('width'))), { timeout: 10_000 })
+    .poll(async () => Math.round(Number(await air.locator('[data-noacg-role~="bar/1"]').getAttribute('width'))), { timeout: 10_000 })
     .toBe(500);
   await expect
-    .poll(async () => Math.round(Number(await air.locator('#p-bar-2').getAttribute('width'))))
+    .poll(async () => Math.round(Number(await air.locator('[data-noacg-role~="bar/2"]').getAttribute('width'))))
     .toBe(250);
 
   // The badge is up because the vote is open, and the figures are NOT — they are the result's
   // beat, exactly as on a catalog vote board.
-  await expect(air.locator('#p-open')).toHaveClass(/imported-design-pon/);
-  await expect(air.locator('#p-val-1')).not.toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="badge"]')).toHaveClass(/imported-design-on/);
+  await expect(air.locator('[data-noacg-role~="percent/1"]')).not.toHaveClass(/imported-design-on/);
   await shot(page, '11-vote-open');
 
   // ── THE BADGE FILLS ITS PILL, AND NO LENGTH CAN STRAND IT (owner walk, 2026-09-03) ──────────
@@ -574,7 +574,7 @@ test('imported vote board: a real audience round moves the bars the designer dre
   await badgeText.fill('PLEASE CAST YOUR VOTE RIGHT NOW EVERYBODY IN THIS ROOM');
   await page.getByTestId('verb-update').click();
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
-  await expect(air.locator('#p-open')).toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="badge"]')).toHaveClass(/imported-design-on/);
   await expect(air.locator('#f0')).toBeVisible();
 
   // AND IT COMES BACK. The one thing that made this destructive rather than merely ugly is that
@@ -583,7 +583,7 @@ test('imported vote board: a real audience round moves the bars the designer dre
   await page.getByTestId('verb-update').click();
   await expect(page.getByTestId('cue-overflow')).toHaveCount(0);
   await expect(air.locator('#f0')).toHaveText('VOTE NOW');
-  await expect(air.locator('#p-open')).toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="badge"]')).toHaveClass(/imported-design-on/);
   expect(await badgeSize()).toBe(drawnSize);
 
   // EVERYTHING A FOREIGN CONTROLLER NEEDS IS IN A FIELD. Over the OGraf Server API a graphic's
@@ -610,23 +610,23 @@ test('imported vote board: a real audience round moves the bars the designer dre
   // token must close the vote while the sentence beside it says the opposite in Finnish.
   await count.fill('4 ääntä · äänestys suljettu');
   await page.getByTestId('verb-update').click();
-  // The line has to LAND before "the badge did not move" means anything: #p-open is already lit,
+  // The line has to LAND before "the badge did not move" means anything: the badge is already lit,
   // so asserting it alone would pass just as well if the update never reached the renderer at
-  // all. #p-total is the designer's own layer, written from this very field, so waiting on it is
+  // all. The total is the designer's own layer, written from this very field, so waiting on it is
   // what makes the badge assertion below a real one.
-  await expect(air.locator('#p-total')).toHaveText('4 ääntä · äänestys suljettu');
-  await expect(air.locator('#p-open')).toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="total"]')).toHaveText('4 ääntä · äänestys suljettu');
+  await expect(air.locator('[data-noacg-role~="badge"]')).toHaveClass(/imported-design-on/);
 
   await status.selectOption({ value: 'closed' });
   await page.getByTestId('verb-update').click();
-  await expect(air.locator('#p-open')).not.toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="badge"]')).not.toHaveClass(/imported-design-on/);
 
   // …and it follows the data rather than latching: the machine is still in the voting state, so
   // a controller that puts the vote back on gets its badge back. Pressing Close voting is the
   // sticky one, because that leaves the state.
   await status.selectOption({ value: 'open' });
   await page.getByTestId('verb-update').click();
-  await expect(air.locator('#p-open')).toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="badge"]')).toHaveClass(/imported-design-on/);
 
   // THE OLD SENTENCE STILL CLOSES A BOARD THAT STATES NOTHING ELSE. A board saved or exported
   // before the status field existed carries only the count line, and a board that suddenly
@@ -635,11 +635,11 @@ test('imported vote board: a real audience round moves the bars the designer dre
   await status.selectOption({ value: '' });
   await count.fill('4 votes · voting closed');
   await page.getByTestId('verb-update').click();
-  await expect(air.locator('#p-open')).not.toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="badge"]')).not.toHaveClass(/imported-design-on/);
 
   await count.fill('4 votes · voting open');
   await page.getByTestId('verb-update').click();
-  await expect(air.locator('#p-open')).toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="badge"]')).toHaveClass(/imported-design-on/);
 
   // ── THE FIGURES, LIVE OR HELD ───────────────────────────────────────────────────────────────
   //
@@ -653,35 +653,35 @@ test('imported vote board: a real audience round moves the bars the designer dre
   // is also the point — a data write, firing no transition, with the board still in `voting`.
   const figures = page.getByTestId('cue-field-f5');
   await expect(figures).toHaveValue('');
-  await expect(air.locator('#p-val-1')).not.toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="percent/1"]')).not.toHaveClass(/imported-design-on/);
   await figures.selectOption({ value: 'live' });
   await page.getByTestId('verb-update').click();
-  await expect(air.locator('#p-val-1')).toHaveClass(/imported-design-pon/);
-  await expect(air.locator('#p-val-1')).toHaveText('50%');
+  await expect(air.locator('[data-noacg-role~="percent/1"]')).toHaveClass(/imported-design-on/);
+  await expect(air.locator('[data-noacg-role~="percent/1"]')).toHaveText('50%');
   // The vote is still open and still says so — turning the figures on is not the result.
-  await expect(air.locator('#p-open')).toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="badge"]')).toHaveClass(/imported-design-on/);
   await shot(page, '11b-vote-live-figures');
 
   // …and it follows the field back off, so a production can change its mind without a reload.
   await figures.selectOption({ value: '' });
   await page.getByTestId('verb-update').click();
-  await expect(air.locator('#p-val-1')).not.toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="percent/1"]')).not.toHaveClass(/imported-design-on/);
 
   // Closing takes the badge and nothing else: a closed vote still shows what came in.
   await page.getByRole('button', { name: /Close voting/ }).click();
-  await expect(air.locator('#p-open')).not.toHaveClass(/imported-design-pon/);
-  await expect.poll(async () => Math.round(Number(await air.locator('#p-bar-1').getAttribute('width')))).toBe(500);
+  await expect(air.locator('[data-noacg-role~="badge"]')).not.toHaveClass(/imported-design-on/);
+  await expect.poll(async () => Math.round(Number(await air.locator('[data-noacg-role~="bar/1"]').getAttribute('width')))).toBe(500);
 
   await page.getByRole('button', { name: /Show result/ }).click();
-  await expect(air.locator('#p-val-1')).toHaveClass(/imported-design-pon/);
-  await expect(air.locator('#p-val-1')).toHaveText('50%');
-  await expect(air.locator('#p-val-2')).toHaveText('25%');
+  await expect(air.locator('[data-noacg-role~="percent/1"]')).toHaveClass(/imported-design-on/);
+  await expect(air.locator('[data-noacg-role~="percent/1"]')).toHaveText('50%');
+  await expect(air.locator('[data-noacg-role~="percent/2"]')).toHaveText('25%');
   await shot(page, '12-vote-result');
 
   // The winner is the designer's own arrow, and only the leader gets it — a tie would get none.
   await page.getByRole('button', { name: /Call the winner/ }).click();
-  await expect(air.locator('#p-win-1')).toHaveClass(/imported-design-pon/);
-  await expect(air.locator('#p-win-2')).not.toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="winner/1"]')).toHaveClass(/imported-design-on/);
+  await expect(air.locator('[data-noacg-role~="winner/2"]')).not.toHaveClass(/imported-design-on/);
   await shot(page, '13-vote-called');
 
   // ── THE ROUND THAT DOES NOT FIT THE BOARD ───────────────────────────────────────────────────
@@ -705,10 +705,10 @@ test('imported vote board: a real audience round moves the bars the designer dre
     .getByTestId('cue-field-f2')
     .fill('Keep the crest | 1\nNew crest | 1\nPut it to members | 1\nAsk the committee | 1\nAbolish the crest | 9');
   await page.getByTestId('verb-update').click();
-  await expect(air.locator('#p-val-1')).toHaveText('7.7%');   // its true share of all 13 votes
+  await expect(air.locator('[data-noacg-role~="percent/1"]')).toHaveText('7.7%');   // its true share of all 13 votes
   // "Abolish the crest" took 9 of the 13 and is not on this board, so NO row is marked.
   for (const row of [1, 2, 3]) {
-    await expect(air.locator(`#p-win-${row}`)).not.toHaveClass(/imported-design-pon/);
+    await expect(air.locator(`[data-noacg-role~="winner/${row}"]`)).not.toHaveClass(/imported-design-on/);
   }
   await expect(page.getByTestId('cue-overflow')).toContainText('Options', { timeout: 15_000 });
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
@@ -719,7 +719,7 @@ test('imported vote board: a real audience round moves the bars the designer dre
   await page.getByTestId('cue-field-f2').fill('Keep the crest | 1\nNew crest | 1\nPut it to members | 9');
   await count.fill('11 votes · voting open');
   await page.getByTestId('verb-update').click();
-  await expect(air.locator('#p-win-3')).toHaveClass(/imported-design-pon/);
+  await expect(air.locator('[data-noacg-role~="winner/3"]')).toHaveClass(/imported-design-on/);
   await expect(page.getByTestId('cue-overflow')).toBeHidden({ timeout: 15_000 });
 });
 
@@ -784,15 +784,15 @@ test('imported countdown: the take starts it, and the operator holds, resumes an
   // rather than off the machine, because the clock is the one thing here no state can vouch for.
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const readout = air.locator('.imported-design-clock');
-  const lit = (id: string) => expect(air.locator(`#${id}`)).toHaveClass(/imported-design-ton/);
-  const dark = (id: string) => expect(air.locator(`#${id}`)).not.toHaveClass(/imported-design-ton/);
+  const lit = (role: string) => expect(air.locator(`[data-noacg-role~="${role}"]`)).toHaveClass(/imported-design-on/);
+  const dark = (role: string) => expect(air.locator(`[data-noacg-role~="${role}"]`)).not.toHaveClass(/imported-design-on/);
 
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   // Nothing is lit on arrival: the entrance is not a verdict, and every drawn state starts hidden.
-  await dark('t-held');
-  await dark('t-warn');
-  await dark('t-up');
+  await dark('paused');
+  await dark('warning');
+  await dark('expired');
   // It is COUNTING - the readout has left 5:00 on its own, with no press and no update().
   await expect(readout).not.toHaveText('5:00', { timeout: 4000 });
 
@@ -804,7 +804,7 @@ test('imported countdown: the take starts it, and the operator holds, resumes an
   // POLLED, never sampled once: `renderClock` writes the digits synchronously and only SCHEDULES
   // the bar's tween, which first touches the attribute on the next animation frame - so a single
   // read taken right after the readout assertion can still catch the drawn 520.
-  const barWidth = async () => Number(await air.locator('#t-bar').getAttribute('width'));
+  const barWidth = async () => Number(await air.locator('[data-noacg-role~="bar"]').getAttribute('width'));
   await expect.poll(barWidth).toBeLessThan(520);
   const drainedTo = await barWidth();
   await page.waitForTimeout(1200);
@@ -817,7 +817,7 @@ test('imported countdown: the take starts it, and the operator holds, resumes an
   // halves are read, because either could be right while the other is wrong - the mark could show
   // over a clock still running, or the clock could stop with nothing on screen saying why.
   await page.getByTestId('cue-action-pause').click();
-  await lit('t-held');
+  await lit('paused');
   const heldAt = await readout.textContent();
   await page.waitForTimeout(1500);
   await expect(readout).toHaveText(heldAt ?? '');
@@ -826,7 +826,7 @@ test('imported countdown: the take starts it, and the operator holds, resumes an
   // Start again from where it was held - NOT from the top. `resumeClock` re-anchors the deadline
   // to the remaining time, which is the whole difference between a pause and a stop.
   await page.getByTestId('cue-action-start').click();
-  await dark('t-held');
+  await dark('paused');
   await expect(readout).not.toHaveText(heldAt ?? '', { timeout: 4000 });
 
   // ── RESET PUTS IT BACK TO THE TOP, AND STOPS IT THERE ───────────────────────────────────────
@@ -839,7 +839,7 @@ test('imported countdown: the take starts it, and the operator holds, resumes an
   await expect(readout).toHaveText('5:00');
   await page.waitForTimeout(1500);
   await expect(readout).toHaveText('5:00');
-  await dark('t-held');
+  await dark('paused');
   // The bar is full again, and it is the FULL length the designer drew rather than the length of
   // whatever the last pass left. That is the one thing a remembered measurement can get wrong:
   // re-reading the drawn length after a pass would let a drained bar become the new 100%, so a
@@ -861,8 +861,8 @@ test('imported countdown: the take starts it, and the operator holds, resumes an
   await page.getByTestId('cue-field-f1').fill('0.15');
   await page.getByTestId('verb-update').click();
   await page.getByTestId('cue-action-start').click();
-  await lit('t-warn');
-  await dark('t-up');
+  await lit('warning');
+  await dark('expired');
   // AND THE CLOCK IS STILL READABLE THROUGH IT. Found by looking at a frame rather than by an
   // assertion: the first version of this artwork drew the red panel ABOVE the text with its own
   // copy of "5:00" inside it, so every class assertion here passed while the board on air showed a
@@ -876,8 +876,8 @@ test('imported countdown: the take starts it, and the operator holds, resumes an
   // owner ruling. The plate comes up and the warning goes, because they are one decision made in
   // one place rather than two conditions that could both be true.
   await expect(readout).toHaveText('0:00', { timeout: 15_000 });
-  await lit('t-up');
-  await dark('t-warn');
+  await lit('expired');
+  await dark('warning');
   await shot(page, '25-timer-up');
 
   // …AND AN UNRELATED UPDATE DOES NOT UN-FINISH IT. This is the half the owner ruling is really
@@ -891,14 +891,14 @@ test('imported countdown: the take starts it, and the operator holds, resumes an
   await page.getByTestId('cue-field-f2').fill('Kiitos');
   await page.getByTestId('verb-update').click();
   await expect(air.locator('#f2')).toHaveText('Kiitos');
-  await lit('t-up');
+  await lit('expired');
   await expect.poll(barWidth).toBe(0);
 
   // A NEW LENGTH, though, IS a different count - which is the shared runtime's own intent, read
   // off the total this behaviour is already handed rather than off a second signal.
   await page.getByTestId('cue-field-f1').fill('2');
   await page.getByTestId('verb-update').click();
-  await dark('t-up');
+  await dark('expired');
 });
 
 test('imported countdown: changing your mind puts the clock layer back to plain text', async ({ page }) => {

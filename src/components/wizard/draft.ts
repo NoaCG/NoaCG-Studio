@@ -46,7 +46,7 @@ import type { EasingId } from '../../model/easings';
 import { ensureFontFace, fontByStack, type CustomFont } from '../../model/fonts';
 import type { EraseRect, RegionInk } from '../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../assets/svgImport';
-import { SCORE_MAX_ROWS } from '../../templates/importedDesign/scoreBehaviour';
+import { SCORE_MAX_ROWS } from '../../templates/behaviours/score';
 import type { ProjectLegibility } from '../../model/designRules';
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and

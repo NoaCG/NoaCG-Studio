@@ -6,17 +6,18 @@
 // steps, the type `attachMachine` compiles - once, for every recipe. Before it, each behaviour was
 // a module of its own that hand-wrote all seven of those things (docs/GRAPHIC_BEHAVIOUR_PLAN.md
 // §10-§13 record what each found); the five findings together are the decomposition this file
-// implements (docs/SVG_BEHAVIOUR_PLAN.md §1).
+// implements (docs/SVG_BEHAVIOUR_PLAN.md §1). The four modules are gone; what each behaviour IS
+// now reads in one declaration each, and adding a behaviour adds a declaration.
 //
-// PHASE 1 (2026-09-05): the quiz goes through the compiler. The vote, the score tracker and the
-// countdown still go through their modules until phase 2 ports them; `boundBehaviour` is the seam
-// both roads meet at, and svg.ts asks for a bound module and stops caring which road it took.
+// The wizard still holds a binding in the per-recipe shapes it grew one at a time
+// (`DesignSvgBehaviour` in model/wizard.ts); the adapters at the bottom of this file turn each of
+// those into the one `BehaviourBinding` the compiler reads. A generic binding member for the
+// recipes the wizard does not yet have pickers for arrives with the switches (phase 3).
 
 import type { SpxField } from '../../model/types';
 import type { FieldKind } from '../../model/fieldModel';
 import type {
   DesignSvg,
-  DesignSvgBehaviour,
   DesignSvgPollBehaviour,
   DesignSvgQuizBehaviour,
   DesignSvgScoreBehaviour,
@@ -31,38 +32,8 @@ import type { RecipeContext, RecipeField } from '../behaviours/recipe';
 import { REPAINT_CALL } from '../behaviours/recipe';
 import { recipeById } from '../behaviours/registry';
 import { behaviourDataJs, behaviourRuntimeJs, LOOK_CLASS, lookCss } from './behaviourRuntime';
-import { clearDrawnHiding } from './drawnState';
+import { countdownIndex } from './artworkFields';
 import { PREFIX } from './shared';
-import {
-  importedPollType,
-  markPollLayers,
-  pollBehaviourCss,
-  pollBehaviourFields,
-  pollBehaviourHtml,
-  pollBehaviourJs,
-  pollLayerIds,
-  withPollSteps,
-} from './pollBehaviour';
-import {
-  importedScoreType,
-  markScoreLayers,
-  scoreBehaviourCss,
-  scoreBehaviourFields,
-  scoreBehaviourHtml,
-  scoreBehaviourJs,
-  scoreLayerIds,
-  withScoreSteps,
-} from './scoreBehaviour';
-import {
-  importedTimerType,
-  markTimerLayers,
-  timerBehaviourCss,
-  timerBehaviourFields,
-  timerBehaviourHtml,
-  timerBehaviourJs,
-  timerLayerIds,
-  withTimerSteps,
-} from './timerBehaviour';
 
 // ── The module interface (the seam svg.ts speaks) ────────────────────────────────────────────
 
@@ -75,7 +46,8 @@ import {
  */
 export interface BoundBehaviour {
   /** Every id the behaviour stamps, so the binder moves a designer's colliding id aside. The
-   *  compiler stamps ROLES rather than ids and claims none; the module road still claims its. */
+   *  compiler stamps ROLES rather than ids and claims none - kept on the seam because the
+   *  binder's `taken` set reads it, and a later road may claim ids again. */
   layerIds: string[];
   /** How many operator fields it adds after the artwork's own. DERIVED, never typed: this
    *  number reserves the behaviour's `fN` ids in the binder's `taken` set, and written by hand
@@ -126,27 +98,89 @@ export interface BehaviourBinding {
 export function boundBehaviour(svg: DesignSvg, artworkFields: SpxField[]): BoundBehaviour | null {
   const behaviour = svg.behaviour;
   if (!behaviour) return null;
-  if (behaviour.kind === 'quiz') return compileBinding(artworkFields, quizBinding(behaviour));
-  if (behaviour.kind === 'poll') return pollModule(behaviour);
-  if (behaviour.kind === 'timer') return timerModule(behaviour);
-  return scoreModule(behaviour);
+  return compileBinding(artworkFields, bindingOf(svg));
 }
 
-/** The quiz's persisted shape as a binding. The rows are the answers, lettered in row order. */
+/** The wizard's per-recipe shape as the one binding the compiler reads. */
+export function bindingOf(svg: DesignSvg): BehaviourBinding {
+  const behaviour = svg.behaviour!;
+  if (behaviour.kind === 'quiz') return quizBinding(behaviour);
+  if (behaviour.kind === 'poll') return voteBinding(behaviour);
+  if (behaviour.kind === 'timer') return countdownBinding(svg, behaviour);
+  return scoreBinding(behaviour);
+}
+
+/** Per-row layer bindings from a list of rows, skipping the rows the designer left undrawn. */
+function perRow<R>(keys: string[], rows: R[], pick: (row: R) => string | undefined): Record<string, string> {
+  return Object.fromEntries(keys.flatMap((key, i) => {
+    const id = rows[i] ? pick(rows[i]) : undefined;
+    return id ? [[key, id]] : [];
+  }));
+}
+
+/** Layer bindings whose layer may be absent, written once. */
+function layers(entries: Record<string, string | Record<string, string> | undefined>): BehaviourBinding['layers'] {
+  return Object.fromEntries(
+    Object.entries(entries).filter(([, v]) => v !== undefined && (typeof v === 'string' ? v !== '' : Object.keys(v).length > 0)),
+  ) as BehaviourBinding['layers'];
+}
+
+/** The quiz: the answers are the rows, lettered in row order. */
 function quizBinding(quiz: DesignSvgQuizBehaviour): BehaviourBinding {
   const keys = quiz.answers.map((_, i) => String.fromCharCode(65 + i));
-  const perRow = (pick: (row: DesignSvgQuizBehaviour['rows'][number]) => string | undefined) =>
-    Object.fromEntries(keys.flatMap((key, i) => (quiz.rows[i] && pick(quiz.rows[i]) ? [[key, pick(quiz.rows[i])!]] : [])));
   return {
     recipe: 'quiz',
     rows: keys,
     fields: { question: quiz.question, answer: Object.fromEntries(keys.map((key, i) => [key, quiz.answers[i]])) },
-    layers: {
-      'answer.selected': perRow((r) => r.selected),
-      'answer.correct': perRow((r) => r.correct),
-      'answer.wrong': perRow((r) => r.wrong),
-      ...(quiz.locked ? { locked: quiz.locked } : {}),
+    layers: layers({
+      'answer.selected': perRow(keys, quiz.rows, (r) => r.selected),
+      'answer.correct': perRow(keys, quiz.rows, (r) => r.correct),
+      'answer.wrong': perRow(keys, quiz.rows, (r) => r.wrong),
+      locked: quiz.locked,
+    }),
+  };
+}
+
+/** The score tracker: the teams are the rows, numbered; names and figures are fields. */
+function scoreBinding(score: DesignSvgScoreBehaviour): BehaviourBinding {
+  const keys = score.rows.map((_, i) => String(i + 1));
+  return {
+    recipe: 'score',
+    rows: keys,
+    fields: {
+      team: Object.fromEntries(keys.map((key, i) => [key, score.rows[i].name])),
+      score: Object.fromEntries(keys.map((key, i) => [key, score.rows[i].score])),
     },
+    layers: layers({ 'team.flash': perRow(keys, score.rows, (r) => r.flash), final: score.final }),
+  };
+}
+
+/** The countdown: the clock is the artwork field bound as the countdown - found, never asked. */
+function countdownBinding(svg: DesignSvg, timer: DesignSvgTimerBehaviour): BehaviourBinding {
+  const clock = countdownIndex(svg);
+  return {
+    recipe: 'countdown',
+    fields: clock === -1 ? {} : { clock },
+    layers: layers({ bar: timer.bar, warning: timer.warning, paused: timer.paused, expired: timer.expired }),
+  };
+}
+
+/** The live vote: the options are the rows, numbered; nothing is a field the operator types. */
+function voteBinding(poll: DesignSvgPollBehaviour): BehaviourBinding {
+  const keys = poll.rows.map((_, i) => String(i + 1));
+  return {
+    recipe: 'vote',
+    rows: keys,
+    fields: {},
+    layers: layers({
+      question: poll.question,
+      option: perRow(keys, poll.rows, (r) => r.label),
+      bar: perRow(keys, poll.rows, (r) => r.bar),
+      percent: perRow(keys, poll.rows, (r) => r.value),
+      winner: perRow(keys, poll.rows, (r) => r.winner),
+      total: poll.total,
+      badge: poll.badge,
+    }),
   };
 }
 
@@ -171,6 +205,27 @@ function at<T>(map: Record<string, T | Record<string, T>> | undefined, role: str
   if (value === undefined) return undefined;
   if (typeof value === 'object' && value !== null) return key === undefined ? undefined : (value as Record<string, T>)[key];
   return key === undefined ? (value as T) : undefined;
+}
+
+/**
+ * Strip whatever the designer used to hide a layer, so the look class is the only thing deciding
+ * whether it shows. The designer hid the layer to see their base look; the stylesheet hides it
+ * now, so the file's own display/visibility would fight the rule that shows it. Two of the three
+ * forms are handled here - the attribute and the inline style. The third, a CLASS whose rule lives
+ * in the file's own `<style>` block, is Illustrator's default export shape and is handled at
+ * import (`hiddenClasses` in assets/svgImport.ts).
+ */
+export function clearDrawnHiding(el: Element): void {
+  el.removeAttribute('display');
+  el.removeAttribute('visibility');
+  const style = el.getAttribute('style');
+  if (!style) return;
+  const kept = style
+    .split(';')
+    .filter((d) => !/^\s*(display|visibility)\s*:/i.test(d))
+    .join(';');
+  if (kept.trim()) el.setAttribute('style', kept);
+  else el.removeAttribute('style');
 }
 
 /** Compile one recipe against one binding. */
@@ -231,7 +286,11 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
     for (const field of owned) fields[field.key] = ctx.fieldId(field.key)!;
     const kinds: Record<string, FieldKindSpec> = {};
     for (const field of owned) if (field.spec) kinds[ctx.fieldId(field.key)!] = field.spec;
-    Object.assign(kinds, recipe.artworkKinds?.(ctx) ?? {});
+    for (const [id, spec] of Object.entries(recipe.artworkKinds?.(ctx) ?? {})) {
+      // A parameter the recipe could not resolve (an optional companion field) is left out
+      // rather than written as "undefined".
+      kinds[id] = Object.fromEntries(Object.entries(spec).filter(([, v]) => v !== undefined)) as FieldKindSpec;
+    }
     const data: BehaviourData = { version: 1, recipe: recipe.id, paint: recipe.paint(ctx) };
     if (Object.keys(options).length > 0) data.options = options;
     if (recipe.rows) data.rows = { [recipe.rows.role]: rows };
@@ -239,10 +298,7 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
     if (Object.keys(kinds).length > 0) data.kinds = kinds;
     return data;
   };
-  const withClock = (): boolean => {
-    const kinds = table().kinds ?? {};
-    return Object.values(kinds).some((spec) => spec.kind === 'clock');
-  };
+  const withClock = (): boolean => Object.values(table().kinds ?? {}).some((spec) => spec.kind === 'clock');
 
   return {
     layerIds: [],
@@ -265,8 +321,6 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
             const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
             if (!own.includes(LOOK_CLASS)) own.push(LOOK_CLASS);
             el.setAttribute('class', own.join(' '));
-            // The designer switched this layer off to see their base look; the stylesheet
-            // hides it now, so the file's own display/visibility would fight the rule.
             clearDrawnHiding(el);
           }
         }
@@ -345,53 +399,3 @@ ${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLAS
     },
   };
 }
-
-// ── The module road (phase 2 ports these three to recipes) ───────────────────────────────────
-
-function pollModule(poll: DesignSvgPollBehaviour): BoundBehaviour {
-  return {
-    layerIds: pollLayerIds(poll),
-    fieldCount: pollBehaviourFields(0).length,
-    markLayers: (root) => markPollLayers(root, poll),
-    css: pollBehaviourCss,
-    fields: (from) => pollBehaviourFields(from),
-    html: (from) => pollBehaviourHtml(from),
-    js: (from) => pollBehaviourJs(poll, from),
-    updateHook: `  if (typeof paintPollState === 'function') paintPollState();  // the live vote's tally (below)`,
-    steps: withPollSteps,
-    type: (svg) => importedPollType(svg),
-  };
-}
-
-function timerModule(timer: DesignSvgTimerBehaviour): BoundBehaviour {
-  return {
-    layerIds: timerLayerIds(),
-    fieldCount: timerBehaviourFields(0).length,
-    markLayers: (root) => markTimerLayers(root, timer),
-    css: timerBehaviourCss,
-    fields: (from) => timerBehaviourFields(from),
-    html: (from) => timerBehaviourHtml(from),
-    js: (from) => timerBehaviourJs(timer, from),
-    updateHook: `  if (typeof paintTimerState === 'function') paintTimerState();  // the drawn countdown states (below)`,
-    steps: withTimerSteps,
-    type: (svg) => importedTimerType(svg),
-  };
-}
-
-function scoreModule(score: DesignSvgScoreBehaviour): BoundBehaviour {
-  return {
-    layerIds: scoreLayerIds(score),
-    fieldCount: scoreBehaviourFields().length,
-    markLayers: (root) => markScoreLayers(root, score),
-    css: scoreBehaviourCss,
-    fields: () => scoreBehaviourFields(),
-    html: () => scoreBehaviourHtml(),
-    js: () => scoreBehaviourJs(score),
-    updateHook: `  if (typeof paintScoreState === 'function') paintScoreState();  // the drawn score states (below)`,
-    steps: withScoreSteps,
-    type: (svg) => importedScoreType(svg, score),
-  };
-}
-
-/** Kept for the wizard's summary line while the module road exists. */
-export type { DesignSvgBehaviour };

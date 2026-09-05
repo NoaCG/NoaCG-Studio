@@ -27,7 +27,7 @@ import {
   pollDrivenLayers,
   scoreDrawnPool,
 } from '../draft';
-import { SCORE_MAX_ROWS } from '../../../templates/importedDesign/scoreBehaviour';
+import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { extOf, fileToDataUrl } from '../../../assets/assetUtils';
 import {

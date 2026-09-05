@@ -33,7 +33,7 @@ import {
   POLL_STATUS_CLOSED,
   POLL_STATUS_OPEN,
   POLL_STATUS_TITLE,
-} from '../../templates/importedDesign/pollBehaviour';
+} from '../../templates/behaviours/vote';
 import type { SpxField } from '../../model/types';
 
 /**

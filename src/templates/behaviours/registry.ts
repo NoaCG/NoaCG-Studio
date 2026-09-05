@@ -7,8 +7,11 @@
 
 import type { BehaviourRecipe } from './recipe';
 import { quizRecipe } from './quiz';
+import { scoreRecipe } from './score';
+import { countdownRecipe } from './countdown';
+import { voteRecipe } from './vote';
 
-export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [quizRecipe];
+export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [quizRecipe, scoreRecipe, countdownRecipe, voteRecipe];
 
 export function recipeById(id: string): BehaviourRecipe | null {
   return BEHAVIOUR_RECIPES.find((r) => r.id === id) ?? null;

@@ -10,7 +10,7 @@ browsable - the wizard's "Import graphic" entry is its only way in): **imp01**, 
 (`shared.ts` + `stretch.ts`), and **svg01** (`svg.ts`). Read the relevant contract before changing
 any rule here: **docs/IMPORT_MVP.md** (raster, plus diagnosis), **docs/SVG_IMPORT_PLAN.md** (SVG -
 §3 the fit ladder and the hug, §6b one fit per graphic, §6c vertical growth),
-**docs/GRAPHIC_BEHAVIOUR_PLAN.md** §10 and §12 (behaviour).
+**docs/SVG_BEHAVIOUR_PLAN.md** (behaviour).
 
 ## What both variants share
 
@@ -162,48 +162,29 @@ its FOLLOWERS. §6c carries the mechanism; these are the tripwires.
 A graphic with an EMPTY table never moves, and a lower third's default row is measured at design
 time by the wizard, never at play time (`src/components/wizard/AGENTS.md`).
 
-## BEHAVIOUR - four modules behind ONE seam
+## BEHAVIOUR - recipes, one table, one runtime (docs/SVG_BEHAVIOUR_PLAN.md)
 
-`behaviour.ts` is the seam; `boundBehaviour(svg.behaviour)` is all `svg.ts` asks for (§10, §12,
-§13).
-Both reuse a CATALOG type's machine + controls through `attachMachine`, FILTERED from the shipped
-declaration, never copied. Binding is PICKERS; names are only an accelerator, and a proposal needs
-evidence of ITS OWN behaviour (a student quiz names answers "Option 1", so the poll's requires
-BARS). **Classes, never inline styles** (`drawnState.ts`): a snap clears inline props. No registry -
-the varying part is the paint.
+`behaviour.ts` is the COMPILER; `boundBehaviour(svg, artworkFields)` is all `svg.ts` asks for. A
+behaviour is a DECLARATION in `templates/behaviours/<id>.ts` (roles, rows, owned fields, machine,
+controls, paint rules); the compiler stamps the picked layers with `data-noacg-role="role/KEY"`,
+emits the versioned `NOACG_BEHAVIOUR` table (`blocks/behaviourData.ts`) and ONE paint runtime
+(`behaviourRuntime.ts`) in the design-owned JS, and hands `attachMachine` the type. **A recipe
+adds no emitted JS**: a behaviour that needs a line is a missing FIELD KIND in the runtime.
 
-- **quizBehaviour.ts** (pilot): `ANSWER_BOARD_MACHINE` less its audience branch. The DESIGNER draws
-  each moment as a layer and the runtime toggles it (`-qstate`/`-qon`).
-- **pollBehaviour.ts**: `LIVE_POLL_MACHINE` less its automatic voting window (a real audience votes
-  over minutes). Badge/figures/winner marks are drawn states (`-pstate`/`-pon`); a BAR has none -
-  drawn full length, measured once AT REST, tweened as `<rect>` `width` and never a scale. **BARS
-  MOVE ON DATA, NOT ON STATE** (`paintPollState` runs from update()): only close/result/call are
-  transitions, and the TAKE opens the vote. **Its four field titles `Question`/`Options`/`Vote
-  count`/`Vote status` ARE the join** to the audience plane (`pollFieldMap`); a layer it drives
-  stops being a field (`draftToOptions`). `Vote status` is the load-bearing one: a token
-  (`open`/`closed`, empty = not stated) the controller writes and `pollVotingClosed()` obeys, so
-  the badge never depends on the wording of `Vote count` - that line is display copy a station may
-  translate, and reading a status out of it put VOTE NOW on air through a closed vote
-  (docs/OGRAF_STATE_IN_FIELDS.md §5a). A new reported field goes LAST, which is what keeps it
-  additive: a control's payload key resolves by INDEX.
+- **A look shows when ANY of its rules holds; a rule is picks only** - any of some `group/state`,
+  and all of some `role:fact` a field's KIND exposes (`selectedAnswer:picked`, `score:moved`,
+  `clock:warning`, `voteStatus:open`). No comparison outside the runtime's kinds, ever.
+- **Classes, never inline styles** (`<prefix>-look` / `-on`, one pair for every recipe): a snap
+  clears inline props. **Gauges measure once, at rest.** **Bars move on DATA, not on state.**
+- The wire and its rulings survive unchanged: the vote's five field TITLES are the join to the
+  audience plane (`pollFieldMap`), `Vote status` is a token the controller writes (the
+  `vote-status` kind falls back to the count line only when it is unstated), the score's `+1`
+  rides `adjust` and New game rides `set`, the countdown's take starts the count and holds at
+  0:00 (the `clock` kind latches a finished count until a new length arrives), and a repaint has
+  THREE drivers: a state entry (`noacgRepaint` on every recipe state), a data write
+  (`noacgRepaintData`) and the clock's tick (`clockPainted`).
+- The validator pairs the table with its runtime and checks every state and field a rule names.
 
-- **scoreBehaviour.ts**: the catalog scoreboard's two parallel groups, edges regenerated for
-  however many rows the designer drew (`SCORE_MAX_ROWS` 8). The FIRST MIXED binding - team names
-  and figures are field INDICES (the operator types and bumps them, so they stay fields), flashes
-  are candidate ids. Owns NO fields: every value it drives is a layer already bound. `adjust`
-  carries the point WITH the flash, and `set` (minted for it) is the only thing that can say
-  "make it zero". Which row flashed is DATA - one `Flash` state, read from the figure that moved.
-- **timerBehaviour.ts**: the catalog countdown's `running`/`paused` plus an `armed` state, which
-  is what lets Start and Reset differ (an event's effect is the DESTINATION state's calls, so two
-  events into one state run one call). **It binds NO clock** - the countdown FIELD is the clock,
-  and this reads it. **The take starts the count** (owner ruling, operator-stories-2026-08-27).
-  Its paint has a THIRD driver, and that is the finding: neither the machine nor `update()` but
-  the shared clock runtime's own `clockPainted` hook, four times a second. So the bar, the
-  last-stretch look and the time-up plate are DATA (an authored timer edge is fixed at state
-  entry and cannot follow a count somebody pauses); only the held mark is a state. Owns ONE
-  field, `Warn at (seconds)`, deliberately OUTSIDE the clock's own field signature so editing it
-  on air never re-arms the count.
-
-E2E: import-svg-behaviour (vote artwork: fixtures/svg-corpus/illustrator-live-vote-band.svg; score:
+E2E: import-svg-behaviour (vote: fixtures/svg-corpus/illustrator-live-vote-band.svg; score:
 illustrator-four-team-scoreboard.svg; countdown: illustrator-question-timer-board.svg) +
 configured/imported-quiz-output.

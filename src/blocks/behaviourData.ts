@@ -170,7 +170,9 @@ export function parseBehaviourData(js: string): BehaviourData | null {
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isStringList = (v: unknown): v is string[] => Array.isArray(v) && v.every((s) => typeof s === 'string');
 const ROLE_RE = /^[a-z][a-z0-9.-]*$/;
-const TOKEN_RE = /^f\d+:[a-z][a-z0-9-]*(?::[^:]*)?$/;
+/** A `field:fact` or `field:derivation` token. The head is a FIELD ROLE (`selectedAnswer`,
+ *  `score` - resolved through `fields`, per row for a per-row role) or a bare `fN`. */
+const TOKEN_RE = /^[A-Za-z][A-Za-z0-9.-]*:[a-z][a-z0-9-]*(?::[^:]*)?$/;
 const STATE_RE = /^[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/;
 
 function isCondition(v: unknown): v is BehaviourCondition {
@@ -240,18 +242,34 @@ export function behaviourStatesNamed(data: BehaviourData): string[] {
   return [...out];
 }
 
-/** Every `fN` a table names, in rules and in the field map. */
-export function behaviourFieldsNamed(data: BehaviourData): string[] {
-  const out = new Set<string>();
-  const fromToken = (token: string) => out.add(token.split(':')[0]);
+/** The `fN` ids a token head resolves to: the field map's entry for a role (every row's id for
+ *  a per-row role), or the head itself when it is already an id. Empty = an unknown role. */
+export function resolveTokenHead(data: BehaviourData, head: string): string[] {
+  const mapped = data.fields?.[head];
+  if (typeof mapped === 'string') return [mapped];
+  if (mapped && typeof mapped === 'object') return Object.values(mapped);
+  return /^f\d+$/.test(head) ? [head] : [];
+}
+
+/** Every field a table names - the `fN` ids in the field map and the kinds, and the heads of
+ *  every token - for the validator: `ids` must all exist, `unresolved` heads name no field. */
+export function behaviourFieldsNamed(data: BehaviourData): { ids: string[]; unresolved: string[] } {
+  const ids = new Set<string>();
+  const unresolved = new Set<string>();
+  const fromToken = (token: string) => {
+    const head = token.split(':')[0];
+    const resolved = resolveTokenHead(data, head);
+    if (resolved.length === 0) unresolved.add(head);
+    for (const id of resolved) ids.add(id);
+  };
   for (const rule of data.paint) {
     if ('look' in rule) for (const f of rule.when?.facts ?? []) fromToken(f);
     else fromToken(rule.from);
   }
   for (const value of Object.values(data.fields ?? {})) {
-    if (typeof value === 'string') out.add(value);
-    else for (const id of Object.values(value)) out.add(id);
+    if (typeof value === 'string') ids.add(value);
+    else for (const id of Object.values(value)) ids.add(id);
   }
-  for (const id of Object.keys(data.kinds ?? {})) out.add(id);
-  return [...out];
+  for (const id of Object.keys(data.kinds ?? {})) ids.add(id);
+  return { ids: [...ids], unresolved: [...unresolved] };
 }

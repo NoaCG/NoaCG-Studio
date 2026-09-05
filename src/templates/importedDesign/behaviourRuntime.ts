@@ -114,6 +114,16 @@ function noacgKindOf(fieldId) {
   return (NOACG_BEHAVIOUR.kinds && NOACG_BEHAVIOUR.kinds[fieldId]) || { kind: 'text' };
 }
 
+// noacgFieldFor(head, rowKey): the fN a token's head names - a field ROLE from the table's own
+// map (this row's entry for a per-row role, which is how "this row's score" is said), or an fN
+// written out. Null when the table knows no such role.
+function noacgFieldFor(head, rowKey) {
+  var mapped = NOACG_BEHAVIOUR.fields && NOACG_BEHAVIOUR.fields[head];
+  if (typeof mapped === 'string') return mapped;
+  if (mapped && typeof mapped === 'object') return rowKey && mapped[rowKey] ? mapped[rowKey] : null;
+  return /^f\\d+$/.test(head) ? head : null;
+}
+
 // ── The field kinds ─────────────────────────────────────────────────────────
 // Each kind answers two questions about one field: fact(name, rowKey) - does this named truth
 // hold (for this row) - and derive(name, rowKey) - a value the field derives. The comparisons
@@ -288,6 +298,9 @@ noacgKinds.clock = {
   },
   derive: function (id, spec, name) {
     if (name !== 'fraction') return null;
+    // A finished count's bar stays empty: the shared engine re-derives the full length on an
+    // unrelated update, and refilling the bar would repaint the lie the fact above refuses.
+    if (this.ranOut()) return 0;
     var total = this.total();
     var share = total > 0 ? this.left() / total : 0;
     return share < 0 ? 0 : share > 1 ? 1 : share;
@@ -308,7 +321,8 @@ function noacgClockReset() { noacgKinds.clock.reset(); }
 
 function noacgFactHolds(token, rowKey) {
   var at = token.indexOf(':');
-  var id = token.slice(0, at);
+  var id = noacgFieldFor(token.slice(0, at), rowKey);
+  if (!id) return false;
   var name = token.slice(at + 1);
   var spec = noacgKindOf(id);
   var kind = noacgKinds[spec.kind];
@@ -317,7 +331,8 @@ function noacgFactHolds(token, rowKey) {
 
 function noacgDerive(token, rowKey) {
   var at = token.indexOf(':');
-  var id = token.slice(0, at);
+  var id = noacgFieldFor(token.slice(0, at), rowKey);
+  if (!id) return null;
   var name = token.slice(at + 1);
   var spec = noacgKindOf(id);
   var kind = noacgKinds[spec.kind];
@@ -407,7 +422,8 @@ function noacgGauge(el, token, share, motion) {
 // over the tick interval, whatever the motion knob says: it is a picture of the clock, not
 // motion, and an eased or slowed drain would disagree with the digits beside it.
 function noacgGaugeMotion(token, reason, row) {
-  var spec = noacgKindOf(token.slice(0, token.indexOf(':')));
+  var id = noacgFieldFor(token.slice(0, token.indexOf(':')), null);
+  var spec = id ? noacgKindOf(id) : { kind: 'text' };
   if (spec.kind === 'clock') return { duration: 0.25, ease: 'none', overwrite: true };
   if (reason !== 'data') return null;
   var speed = motionSpeed();

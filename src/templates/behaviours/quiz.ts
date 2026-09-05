@@ -75,14 +75,10 @@ export const quizRecipe: BehaviourRecipe = {
   path: () => ({ entrance: 'Question', steps: [{ name: 'Reveal', duration: 0.45 }] }),
   machine: () => QUIZ_MACHINE,
   controls: () => ANSWER_BOARD_CONTROLS,
-  paint: (ctx) => {
-    const key = ctx.fieldId('correctAnswer')!;
-    const pick = ctx.fieldId('selectedAnswer')!;
-    return [
-      { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: [`${pick}:picked`] }, default: 'row-highlight' },
-      { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: [`${key}:picked`] }, default: 'row-mark:correct' },
-      { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: [`${key}:unpicked`] }, default: 'row-mark:wrong' },
-      { look: 'locked', when: { state: ['main/locked', 'main/sealed'] }, default: 'badge:Locked in' },
-    ];
-  },
+  paint: () => [
+    { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight' },
+    { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct' },
+    { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong' },
+    { look: 'locked', when: { state: ['main/locked', 'main/sealed'] }, default: 'badge:Locked in' },
+  ],
 };
