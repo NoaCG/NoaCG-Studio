@@ -124,7 +124,7 @@ sweep-*.json
 # directory's CONTENTS (/*) and lists the exceptions. Add a line when a first-party skill
 # is added - otherwise it silently stays untracked.
 .claude/skills/*
-!.claude/skills/noacg-graphic/
+!.claude/skills/noacg-graphic-local/
 !.claude/skills/ograf-expert/
 !.claude/skills/spx-html-template-expert/
 .agents/*
@@ -135,7 +135,7 @@ sweep-*.json
 !.agents/skills/handoff/
 !.agents/skills/n/
 !.agents/skills/next/
-!.agents/skills/noacg-graphic/
+!.agents/skills/noacg-graphic-local/
 !.agents/skills/orchestrator-week/
 !.agents/skills/o/
 !.agents/skills/ograf-expert/
