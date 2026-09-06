@@ -10,10 +10,12 @@ now pushes the branch, opens its pull request, posts the `/check` verdict as the
 `scripts/land.mjs` for one labelled pull request at a time on a GitHub runner: merge `main` in,
 a `ci.yml` run on exactly that commit, fast-forward `main` on green. Refusals (a conflict, a red
 run, no verdict) are written on the pull request. Nothing on your laptop is in the landing path
-any more. `npm run land:ruleset -- --apply` created the ruleset that lets only that workflow and
-you push `main` (you said yes to it on 2026-09-06). Branch pushes now plan CI from the fork
-point, and a `main` run that is already superseded cancels itself instead of re-running the
-full suite.
+any more. `npm run land:ruleset -- --apply` created the ruleset on `main` (you said yes to it on
+2026-09-06): no deletion, no rewrite. The push restriction that would let only the Land workflow
+push `main` is not available on a user-owned repository (GitHub accepts the bot user as a bypass
+actor and still refuses the workflow token's push; measured on the first cloud landing), so that
+half waits for the organisation. Branch pushes now plan CI from the fork point, and a `main` run
+that is already superseded cancels itself instead of re-running the full suite.
 
 **Route, under a minute.** Open the Actions tab, workflow "Land", and read the last few runs:
 each names the pull request it landed or why it refused. Then Settings, Rules, Rulesets shows

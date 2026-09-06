@@ -71,10 +71,12 @@ contract is `supabase/AGENTS.md`.
     label is removed; nothing is retried behind anyone's back. Until then the same mechanical
     path ran as `scripts/auto-merge.mjs` on the owner's machine, one runner per machine, dead
     when the lid closed; that script remains for `--dry-run` preflights and is no longer a lander.
-  - **Only the lander may push `main`.** A ruleset (`npm run land:ruleset -- --apply`,
-    `scripts/landing-ruleset.mjs`) restricts pushes to the Land workflow and the repository
-    admin, and forbids deleting or rewriting the branch. A second lander cannot exist by accident,
-    and a hand push from a session is refused by GitHub itself.
+  - **Only the lander pushes `main`.** A ruleset (`npm run land:ruleset -- --apply`,
+    `scripts/landing-ruleset.mjs`) forbids deleting or rewriting the branch. Restricting pushes
+    to the Land workflow needs the repository in an organisation (GitHub accepts the bot user as
+    a bypass actor on a user-owned repository and still refuses the workflow token's push), so
+    until then the single lander rests on the client, which creates no local landing, and on the
+    hooks; the script applies the stronger shape the day the organisation exists.
   - The local job queue (`npm run jobs`) still serializes browser work on this machine and lists
     recent landings; `scripts/landings.mjs` keeps that ledger fed from the merged pull requests.
 

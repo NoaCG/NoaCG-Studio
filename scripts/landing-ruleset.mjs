@@ -63,9 +63,15 @@ export function findExisting(rulesets, name = RULESET_NAME) {
   return (rulesets ?? []).find((r) => r.name === name) ?? null;
 }
 
-/** Create or update; returns the shape GitHub accepted. A 422 on one shape tries the next. */
-function applyRuleset(slug, existing) {
-  for (const lander of LANDER_SHAPES) {
+/**
+ * Create or update; returns the shape GitHub accepted. A 422 on one shape tries the next.
+ * `--lander <shape>` forces one: GitHub ACCEPTS the bot user as a bypass actor on a user-owned
+ * repository and then still refuses the workflow token's push (measured 2026-09-06, the first
+ * cloud landing: three refused pushes with main unmoved), so `none` is the shape that works
+ * there until the repository is in an organisation.
+ */
+function applyRuleset(slug, existing, forced = null) {
+  for (const lander of forced ? [forced] : LANDER_SHAPES) {
     const body = JSON.stringify(desiredRuleset({ lander }));
     try {
       if (existing) gh(['api', '--method', 'PUT', `repos/${slug}/rulesets/${existing.id}`, '--input', '-'], body);
@@ -90,7 +96,10 @@ function main() {
     console.log('Run with --apply to create or update it (weaker shapes are tried if GitHub refuses this one).');
     return;
   }
-  const lander = applyRuleset(slug, existing);
+  const forcedIndex = process.argv.indexOf('--lander');
+  const forced = forcedIndex >= 0 ? process.argv[forcedIndex + 1] : null;
+  if (forced && !LANDER_SHAPES.includes(forced)) throw new Error(`--lander must be one of ${LANDER_SHAPES.join(', ')}`);
+  const lander = applyRuleset(slug, existing, forced);
   const after = findExisting(JSON.parse(gh(['api', `repos/${slug}/rulesets`])));
   const detail = JSON.parse(gh(['api', `repos/${slug}/rulesets/${after.id}`]));
   console.log(`[landing-ruleset] ${existing ? 'updated' : 'created'} ruleset ${after.id} on ${slug} with the "${lander}" shape`);

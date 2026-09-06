@@ -267,7 +267,15 @@ async function landOne(number, { dryRun }) {
     }
     const push = git(['push', 'origin', 'HEAD:refs/heads/main', `--force-with-lease=refs/heads/main:${mainSha}`], { allowFailure: true });
     if (push.status !== 0) {
-      say('the push to main was refused (main moved between the check and the push) - integrating again');
+      // Two different refusals wear the same exit code: main moved (integrate again), or GitHub
+      // itself refused the push (a ruleset, a permission) - which no retry fixes. The first cloud
+      // landing spent its three attempts on the second while saying the first (2026-09-06).
+      git(['fetch', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main']);
+      const why = (push.stderr || push.stdout).trim().split('\n').filter((l) => /remote:|rejected|error/i.test(l)).join(' ').slice(0, 300);
+      if (git(['rev-parse', 'origin/main']).stdout.trim() === mainSha) {
+        return refuse(pr, `GitHub refused the push to main while main had not moved: ${why || 'no reason given'}. That is a permission or a ruleset, not this branch.`, { dryRun });
+      }
+      say(`the push to main was refused because main moved (${why}) - integrating again`);
       continue;
     }
     say(`landed ${branch} on main as ${verified.slice(0, 8)}`);

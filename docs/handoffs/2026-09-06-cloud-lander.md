@@ -23,8 +23,12 @@ run from a main checkout (the owner said yes to the ruleset on 2026-09-06).
      migrations from the `production` environment's `SUPABASE_ACCESS_TOKEN` when it exists.
    - `npm run queue:merge` is the cloud client: push, PR, `noacg/reviewed` status, `land` label.
      The laptop lander (`auto-merge.mjs` under the job runner) is no longer reachable from it.
-   - `scripts/landing-ruleset.mjs` (`npm run land:ruleset -- --apply`): only the Land workflow and
-     the repository admin may push `main`; no deletion, no rewrite.
+   - `scripts/landing-ruleset.mjs` (`npm run land:ruleset -- --apply`): the ruleset on `main` -
+     no deletion, no rewrite. The push restriction (only the Land workflow pushes `main`) is not
+     available on a user-owned repository: GitHub accepts the bot user as a bypass actor and still
+     refused the workflow token's push on the first cloud landing, so the ruleset was re-applied
+     with `--lander none`. The day the repository is in an organisation, `--apply` alone puts the
+     strong shape on.
    - `ci.yml`: every branch push plans from the fork point (never `github.event.before`); a
      `main` run whose commit main has already moved past cancels itself.
    - `scripts/landings.mjs`: keeps `landed.jsonl` fed from merged `land`-labelled pull requests
