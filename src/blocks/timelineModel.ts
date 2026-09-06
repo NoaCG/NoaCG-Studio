@@ -47,6 +47,11 @@ export interface TimelineTween {
    *  phase seconds (animSpeed applied, like `duration`). The converter turns a loop with
    *  finite literal values into step data; a DOM-measured loop stays read-only. */
   loop?: { repeat: number; yoyo: boolean; repeatDelay: number } | null;
+  /** Whether the first argument was a target list this parser could READ — a quoted selector
+   *  or an array literal. False means a variable or an element reference, which carries no
+   *  selector into the data block; `targetsConvertible` refuses the template on it. An empty
+   *  but readable list (`tl.fromTo([], …)`) is true: it animates nothing, deliberately. */
+  targetsRead: boolean;
 }
 
 /** Timeline v2 importer: one `tl.call(fnName)` lifecycle hook found in a phase, resolved to
@@ -266,11 +271,18 @@ function parseCall(kind: TimelineTween['kind'], args: string, animSpeed: number)
   // a model wrote one (2026-09-06, docs/AI_ATTEMPTS.md).
   const arr = args.match(/^\s*\[([^\]]*)\]/);
   const single = args.match(/^\s*(?:'([^']+)'|"([^"]+)")/);
-  // NO TARGET IS AN EMPTY LIST, NEVER A PLACEHOLDER. This used to fall back to `['?']`, which
-  // reads as a selector all the way through the importer, survives `parseAnimData`, and then
-  // throws `'?' is not a valid selector` inside GSAP the first time the graphic plays - a
-  // converter failing OPEN, in the one place whose contract is to fail closed and keep the
-  // author's code byte-identical. `targetsConvertible` below turns it back into a refusal.
+  // AN UNREADABLE TARGET IS NOT AN EMPTY ONE, and the difference decides whether the whole
+  // template converts. `tl.fromTo([], …)` is a real, readable instruction - the emitters write
+  // it for a design with no lines to stagger, and it correctly animates nothing. A first
+  // argument that is a VARIABLE or an element reference is the other thing: there is no
+  // selector to carry into the data block at all.
+  //
+  // That case used to fall back to the literal string `'?'`, which reads as a selector the whole
+  // way through the importer, survives `parseAnimData`, and then throws `'?' is not a valid
+  // selector` inside GSAP the first time the graphic plays - the converter failing OPEN, in the
+  // one place whose contract is to keep the author's code byte-identical when it gains nothing.
+  // `targetsConvertible` below turns it back into the refusal it should always have been.
+  const targetsRead = Boolean(arr || single);
   const targets = arr
     ? arr[1].split(',').map((s) => s.replace(/['"\s]/g, '')).filter(Boolean)
     : single
@@ -323,6 +335,7 @@ function parseCall(kind: TimelineTween['kind'], args: string, animSpeed: number)
 
   return {
     targets,
+    targetsRead,
     kind,
     props,
     duration: kind === 'set' ? 0 : durationMatch ? Number(durationMatch[1]) / animSpeed : 0,
@@ -437,6 +450,7 @@ function parsePhase(id: TimelinePhase['id'], body: string, animSpeed: number): T
     phaseEnd = Math.max(phaseEnd, end);
     tweens.push({
       targets: parsed.targets,
+      targetsRead: parsed.targetsRead,
       kind: parsed.kind,
       props: parsed.props,
       duration: parsed.duration,
@@ -475,9 +489,11 @@ function parsePhase(id: TimelinePhase['id'], body: string, animSpeed: number): T
     // One unrecognizable `tl.add` is enough to refuse: the phase carries motion this model
     // cannot name, and a partial conversion would silently lose it.
     dynamicsConvertible: unnamedAdds === 0,
-    // Same rule for a tween whose target could not be read - refuse the template rather than
-    // convert it into one that throws the first time an operator presses Take.
-    targetsConvertible: tweens.every((t) => t.targets.length > 0),
+    // Same rule for a tween whose target could not be READ - refuse the template rather than
+    // convert it into one that throws the first time an operator presses Take. A tween that
+    // readably targets nothing (`tl.fromTo([], …)`, what the emitters write for a design with
+    // no lines) is not that: it converts, and animates nothing, exactly as it always did.
+    targetsConvertible: tweens.every((t) => t.targetsRead),
   };
 }
 
