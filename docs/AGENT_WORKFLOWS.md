@@ -358,7 +358,7 @@ Never put a second copy of the procedure in a tool adapter.
   project, so `~/.claude/commands/<name>.md` always wins over `.claude/commands/<name>.md` for a
   colliding name - with no error and no warning. Confirmed live 2026-07-25 for `/safe-merge` and
   `/handoff`, which expanded to repo-agnostic personal versions while the correct project files
-  sat on disk unused. (`next`, `cleanup-worktrees` and `noacg-task` have no personal counterpart;
+  sat on disk unused. (`next` and `cleanup-worktrees` have no personal counterpart;
   Codex has no equivalent collision - `~/.codex/skills/` and `~/.codex/prompts/` are clean.) Both
   personal files now open by checking for `.agent-workflows/<name>.md` in the invoking repo and
   deferring to it, so the collision is handled rather than avoided. **Do not assume a project

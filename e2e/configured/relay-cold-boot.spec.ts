@@ -162,6 +162,27 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
   expect(rpcCalls, 'the boot resolved and then read the log').toContain('control_show_by_slug');
   expect(rpcCalls).toContain('control_tail');
 
+  // ── THE BOARD COMES DOWN HERE, AND ITS ROUTES COME DOWN WITH IT ─────────────────────────────
+  //
+  // It has answered everything it was opened for, and leaving it alive through the cleanup below
+  // is what made this spec red. The board keeps FOLLOWING for as long as it exists: it polls the
+  // log every 30 s (`CONTROL_POLL_MS`) and reports itself after each apply, and every one of
+  // those requests enters the route handler above, which proxies it through the `request`
+  // fixture. The cleanup is several seconds of real clicks, and Playwright disposes `request`
+  // when the test ends - so a proxied call still in flight at that moment dies with "Request
+  // context disposed", and reds a test whose assertions have all already passed.
+  //
+  // ONLY THE HOSTED TIER EVER SAW IT, which is exactly what that tier is for. The proxied POST
+  // takes about a millisecond against a local stack and ~163 ms from a runner to hosted staging -
+  // both measured on the same commit, 2026-09-06 - so the window a callback can be caught in is
+  // over a hundred times wider there. `ffba7006` was green on configured-suite and red here
+  // (issue #57, run 34018756952), which is the split this suite exists to produce.
+  //
+  // `unrouteAll` and not `close()` alone: it WAITS for the handlers already running and swallows
+  // their errors, and closing the page cannot do that half.
+  await board.unrouteAll({ behavior: 'ignoreErrors' });
+  await board.close();
+
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
   await page.getByTestId('production-links-toggle').click();
@@ -172,5 +193,4 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
     for (const s of loadShows()) deleteShow(s.id);
   });
   await wipeMyGraphics(page);
-  await board.close();
 });

@@ -214,6 +214,28 @@ try {
   // Same contract as above: awareness only, never a reason to fail session start.
 }
 
+// --- What is red on main right now -----------------------------------------------------------
+//
+// The rolling alarms (scripts/alarm-issues.mjs) are filed by five workflows and were read back by
+// nobody. The landing queue gates on ci.yml alone, so a break in any other tier slows nothing
+// down: issue #56 stood for eight hours and forty-three minutes overnight on 2026-09-05 with
+// three landings stacked on top of it, and it was the owner who noticed. This is the cheapest
+// place that cannot be skipped, for the same reason the receipts line below is here.
+//
+// Answered from a cache shared by every worktree, so the ordinary session start pays nothing and
+// one fetch every ten minutes serves the whole machine. Silent when nothing is open.
+try {
+  const { formatAlarms, readAlarms } = await import('../alarm-issues.mjs');
+  const { alarms, asOfMinutes } = readAlarms({ cwd: root, timeoutMs: 4000 });
+  const lines = formatAlarms(alarms, { asOfMinutes });
+  if (lines.length > 0) {
+    console.log('');
+    for (const line of lines) console.log(line);
+  }
+} catch {
+  // Awareness only. GitHub being unreachable must never stop a session from starting.
+}
+
 // --- Owner receipts and the handoff drain ----------------------------------------------------
 //
 // An owner-raised task must be visible from the repository alone, in every session that could
