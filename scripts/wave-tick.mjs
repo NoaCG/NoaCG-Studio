@@ -36,6 +36,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ensureJobsDir, findRunner, jobsDir, pending, readJobs, readLandings, landingStateFor } from './jobs-store.mjs';
+import { syncLandings } from './landings.mjs';
 import { nodeProcesses } from './e2e-runs.mjs';
 import { git, worktreeEntries } from './worktree-cleanup-lib.mjs';
 
@@ -381,6 +382,7 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
     worktreeEntries(REPO_ROOT).filter((entry) => entry.branch).map((entry) => [entry.branch, entry]),
   );
   const jobs = readJobs(dir);
+  syncLandings(dir); // the cloud lander writes nothing locally; pull what GitHub landed first
   const landings = readLandings(dir);
   // Queued work with nothing draining it. Reading the process table costs about three quarters of
   // a second and only when there is work, so a quiet queue pays nothing for the check.

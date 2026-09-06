@@ -340,6 +340,8 @@ try {
     const {
       SHARDS_SKIPPED_REFUSAL, readLandings, landingForWorktree, refusalForWorktree,
     } = await import('../jobs-store.mjs');
+    const { syncLandings } = await import('../landings.mjs');
+    syncLandings(dir);
     const mine = landingForWorktree(readLandings(dir), root);
     if (mine && (mine.at ?? 0) >= since) {
       console.log('');

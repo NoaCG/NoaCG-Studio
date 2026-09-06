@@ -95,58 +95,39 @@ stops before the first state change. Two minutes here saves a refusal later.
 
 With no branch it queues THIS worktree's. **It reads the `/check` stamp**: the tip being queued
 must be the sha `/check` reviewed, or `add-merge` refuses. Landing without a review is possible
-and visible, never silent: `npm run queue:merge -- --unreviewed "<reason>"` puts the reason on the
-job record. Then:
+and visible, never silent: `npm run queue:merge -- --unreviewed "<reason>"` posts the reason where
+the lander and anyone reading the pull request see it.
 
-    npm run jobs        # position, what is running, why anything waits
+**The queue is on GitHub** (`docs/WORKFLOW_ARCHITECTURE.md` §5.2). Queueing pushes the branch,
+opens or reuses its pull request against `main`, posts the review verdict as the `noacg/reviewed`
+commit status on the tip, and adds the `land` label. The Land workflow
+(`.github/workflows/land.yml`, `scripts/land.mjs`) takes labelled pull requests one at a time:
+it merges `main` into the branch, hands the merge commit its own `ci.yml` run (a dispatch with the
+integrated `main` sha as `diff_base`, because a push made with the workflow's token starts no
+run), and on a green `CI gate` fast-forwards `main`. If `main` moves while the gate runs it
+integrates again, up to three times. Watch it with:
 
-**The job pushes for you - do not push by hand.** The pin is `git rev-parse <branch>`, the LOCAL
-ref (`jobs.mjs` `branchTip`), so a commit that has never left this machine is covered; and the job
-pushes the branch itself before it waits on CI (`auto-merge.mjs`, just above the `awaitCi` call).
-The rhythm is **commit everything, then queue** - not commit, push, queue. Two sessions reached
-for the hand push by habit on 2026-08-26 and neither needed it.
+    gh run list --workflow land.yml --limit 5
+    gh pr view <number>
 
-The one exception is a PRE-CHECK of your own work before handing it to the queue. That is worth
-having - it is how one branch found a spec that passed locally and failed on CI's fonts - but it
-must be a FULL DISPATCH (`gh workflow run ci.yml --ref <branch>`), never a bare push: an ordinary
-push plans from the PREVIOUS push, and preflight phase 3 refuses a run that skipped every shard as
-loudly as it refuses a red one. A bare markdown-only push is therefore a refusal, not a delay.
-And the pre-check is only ever the run the GATE consumes when main has not moved by your turn - if
-it has, phase 2 makes a merge commit and the gate waits on a fresh run for that sha regardless.
+**Every refusal is written on the pull request and the label comes off**: a conflict integrating
+`main` (resolve it here, commit, queue again), a red run (fix it, queue again), no
+`noacg/reviewed` status on the tip, or CI giving no verdict inside the landing cap (queue again;
+by then a run for that sha exists). Nothing is retried behind anyone's back, and the laptop holds
+nothing: a closed lid stops no landing.
 
-**THE GATE NO LONGER WAITS ON A WEBHOOK - it hands itself a run.** When `main` has moved, the sha
-being verified is a merge commit the job has just minted, so its CI run arrives by GitHub's PUSH
-WEBHOOK - and delivery is not bounded: on 2026-08-26 three webhooks arrived 28-35 minutes late,
-each spending the gate's whole wait budget hoping and then refusing in words that read like a tree
-fault. So `waitForCi` (`auto-merge.mjs`) now gives the webhook ~30 seconds and then dispatches the
-run itself (`gh workflow run ci.yml --ref <branch>` - created by the API immediately, no webhook
-in the path, and `--ref` targets the branch tip, which after the job's own push IS the verified
-sha). It also reads runs properly: ci.yml runs only (never a deploy-verify run), ties between a
-push run and a dispatch broken on `databaseId` (`selectCiRun`, `safe-merge-preflight.mjs`), a
-cancelled shell never mistaken for a verdict, and the listing - not `gh run watch`'s exit, which
-returns immediately on a run still `pending` with zero jobs (j-0088) - decides when the wait ends.
+The rhythm is **commit everything, then queue** - `queue:merge` does the push. A pre-check of your
+own work before queueing is still worth having (a spec that passes locally and fails on CI's
+fonts is found that way); since branch runs plan from the fork point, a plain push is an honest
+pre-check now, and `gh workflow run ci.yml --ref <branch>` asks for the full suite.
 
-**One caveat: a RUNNING runner keeps the code it started with.** A landing draining through a
-runner that started before this behaviour landed still waits passively; the manual move is the
-same as the automatic one - while the gate waits, run `gh workflow run ci.yml --ref <branch>`
-yourself (watch `node scripts/jobs.mjs log <job>` for the push line first, so the tip is the
-verified sha). The next `add` after the old runner exits starts a fresh one with the new code.
-
-The residual race remains: the push's own webhook can arrive mid-watch and cancel the dispatched
-run (the ci.yml concurrency group is the REF, not the sha). The gate keeps waiting through the
-cancelled shell and follows the replacement; if nothing conclusive ever arrives it refuses,
-loudly, exactly as before - re-queue, and by then a run for that sha is on disk.
-
-Nothing else to do. Merge jobs never run beside each other, so queued landings drain strictly one
-at a time in order. If `main` moves under yours mid-gate it re-integrates and re-verifies by
-itself, up to three times.
-
-**A migration on your branch applies itself.** Once the branch is on `origin/main` the job runs
-`npm run db:push`, so you never have to remember a production push. It refuses anything that can
-remove something - a DROP, a REVOKE on an object the migration did not create - and reports instead;
-that refusal does not fail the landing. If it happens, add an `owner-action` file under
-`docs/acceptance/owner-queue/` carrying the `npm run db:push -- --allow <version>` command,
-because from there it is the owner's call.
+**A migration on your branch applies itself.** After the fast-forward, the workflow's `migrate`
+job runs `db-push` for production and staging from the `production` environment's
+`SUPABASE_ACCESS_TOKEN`; without that secret it says so and the landing stands, and the push is
+made by hand as before (`supabase/AGENTS.md`). `db-push` refuses anything that can remove
+something and reports instead; that refusal never fails a landing. If it happens, add an
+`owner-action` file under `docs/acceptance/owner-queue/` carrying the
+`npm run db:push -- --allow <version>` command, because from there it is the owner's call.
 
 ## 4. When it lands
 

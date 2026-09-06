@@ -61,21 +61,22 @@ contract is `supabase/AGENTS.md`.
     declaration that the work is done, made by the only party who can make it. It pins the branch's
     current commit, so a later commit makes the job refuse and ask you to queue again.
     `.agent-workflows/queue-merge.md` is the procedure.
-  - Underneath it: `npm run queue:merge`, never `safe-merge` run directly. It runs `scripts/auto-merge.mjs`, the mechanical path of the
-    flow: only a `clear` verdict, clean trees, a conflict-free integration and a green gate on the
-    integrated sha, REFUSING everything else without changing anything further. `--dry-run` stops
-    before the first state change; `npm run jobs` shows what is running and why anything waits.
-    **Merge jobs never run beside anything**, so queued landings drain strictly one at a time in
-    order - which is the point. Nothing was ever at RISK without it (`--ff-only` and the Phase 4
-    re-check see to that), but on a busy day a branch gating had close to a coin-flip chance of
-    `main` moving under it, and every such collision costs a FULL re-verification, because a new
-    `main` is a new tree. The queue trades racing for waiting. **It only serializes what goes
-    through it** - a session running the flow by hand is outside it, which is the churn the owner
-    asked to end.
-  - The flow does not authorize branch or worktree cleanup, with one carve-out: a branch with no
-    worktree (a closed session leaves those behind) has nowhere to integrate `main` and run the
-    gate, so the flow creates a TEMPORARY worktree for it and removes that same one at the end -
-    never any other, never with `--force`. If the flow's checks fail, stop and report.
+  - **The queue runs on GitHub, not on any laptop** (2026-09-06, `docs/WORKFLOW_ARCHITECTURE.md`
+    §5.2). `npm run queue:merge` pushes the branch, opens or reuses its pull request, posts the
+    `/check` verdict as the `noacg/reviewed` commit status on the tip, and adds the `land` label.
+    `.github/workflows/land.yml` runs `scripts/land.mjs` for one labelled pull request at a time
+    (the `landing` concurrency group is the queue): it merges `main` into the branch, gets a
+    `ci.yml` run on exactly that commit by dispatch, and on a green `CI gate` fast-forwards `main`.
+    A conflict, a red run, or `main` moving three times is written on the pull request and the
+    label is removed; nothing is retried behind anyone's back. Until then the same mechanical
+    path ran as `scripts/auto-merge.mjs` on the owner's machine, one runner per machine, dead
+    when the lid closed; that script remains for `--dry-run` preflights and is no longer a lander.
+  - **Only the lander may push `main`.** A ruleset (`npm run land:ruleset -- --apply`,
+    `scripts/landing-ruleset.mjs`) restricts pushes to the Land workflow and the repository
+    admin, and forbids deleting or rewriting the branch. A second lander cannot exist by accident,
+    and a hand push from a session is refused by GitHub itself.
+  - The local job queue (`npm run jobs`) still serializes browser work on this machine and lists
+    recent landings; `scripts/landings.mjs` keeps that ledger fed from the merged pull requests.
 
 ## Production migrations, and cleanup
 

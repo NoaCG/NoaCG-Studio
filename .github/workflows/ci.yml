@@ -179,6 +179,12 @@ jobs:
     name: E2E plan
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # `actions: write` is for one thing: a main run that finds main already past its own commit
+    # cancels itself (the "superseded" exit below). Cancelling is how it stays out of
+    # main-health's verdicts - that script skips cancelled runs by design.
+    permissions:
+      contents: read
+      actions: write
     outputs:
       mode: ${{ steps.plan.outputs.mode }}
       specs: ${{ steps.plan.outputs.specs }}
@@ -206,6 +212,7 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
           DISPATCH_BASE: ${{ inputs.diff_base }}
+          GH_TOKEN: ${{ github.token }}
           # Student-release sprint (docs/GOALS_ARCHIVE.md "Student release"): a would-be FULL
           # escalation runs the focus set instead; the nightly still runs everything.
           # Delete this line when the sprint ends (scripts/e2e-lists.mjs says what else goes).
@@ -213,6 +220,22 @@ jobs:
           E2E_SPRINT_FOCUS: '1'
         run: |
           set -euo pipefail
+          # SUPERSEDED MAIN RUNS STOP HERE. main runs the full suite (below), and with landings
+          # arriving every few minutes the full runs used to queue up behind each other: 496 of
+          # 512 main runs in the 30 days to 2026-09-06 re-tested a commit that was already green
+          # on its branch, 42% of all runner minutes. A run whose commit main has already moved
+          # past answers a question nobody is asking - the newer run covers it - so it cancels
+          # itself. Cancelled, not skipped-as-success: main-health and red-main-issue skip a
+          # cancelled run rather than reading it as a verdict about that commit.
+          if [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
+            LATEST="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq .commit.sha 2>/dev/null || true)"
+            if [ -n "$LATEST" ] && [ "$LATEST" != "$GITHUB_SHA" ]; then
+              echo "::notice title=E2E plan::main is already at ${LATEST} - this run for ${GITHUB_SHA} is superseded and cancels itself."
+              gh run cancel "$GITHUB_RUN_ID"
+              sleep 30
+              exit 1
+            fi
+          fi
           if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; else BASE="$PUSH_BEFORE"; fi
           # The fork-point base below asks "is this merge's second parent contained in main?",
           # which needs a main ref to ask it OF. `fetch-depth: 0` above brings the remote branches
@@ -265,14 +288,20 @@ jobs:
           # the documented way to answer a preflight that refuses a skipped-shard run. Recovering
           # a base there would quietly remove the one manual door for demanding everything.
           # `main` is untouched too: it runs everything by the block below, on purpose.
+          #
+          # Since 2026-09-06 the fork point is the base of EVERY branch push, not only a first
+          # one. `github.event.before` is the previous push, and a plan measured from it covers
+          # only the delta since then; when a follow-up push cancelled the run in flight, the new
+          # run planned past a delta nothing had covered and reported green having skipped every
+          # shard (the class of failure `warn-command.mjs`'s push notice exists to point at, 16
+          # handoffs deep). The fork point is an ancestor of HEAD whatever came before, so the
+          # plan is the same honest answer every time: this branch's whole work, plus what main
+          # brought in since the fork. It can only plan MORE than `before`, never less.
           if [ "$EVENT" = "push" ] && [ "$REF" != "refs/heads/main" ] \
-            && { [ -z "$BASE" ] \
-              || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
-              || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; } \
             && git rev-parse --verify --quiet origin/main >/dev/null; then
             FORK="$(git merge-base origin/main HEAD 2>/dev/null || true)"
             if [ -n "$FORK" ] && git cat-file -e "${FORK}^{commit}" 2>/dev/null; then
-              echo "::notice title=E2E plan::No push base ('${BASE}') - measuring from the fork point ${FORK} rather than running everything."
+              echo "::notice title=E2E plan::Measuring from the fork point ${FORK} (the base of every branch push)."
               BASE="$FORK"
             fi
           fi

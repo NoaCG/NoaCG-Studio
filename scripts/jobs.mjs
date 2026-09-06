@@ -31,6 +31,7 @@ import { isPortBusy } from './port-probe.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
 import { onlyMainIntegrationsBetween } from './safe-merge-preflight.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
+import { syncLandings } from './landings.mjs';
 import {
   FOREGROUND_WAIT_CAP_MS,
   MAX_LANDING_RETRIES,
@@ -364,35 +365,62 @@ async function cmdAddMerge() {
     console.error('  To land without it, say why on the record:  npm run queue:merge -- --unreviewed "<reason>"');
     process.exit(1);
   }
-  // Forward the flags auto-merge understands. Dropping one silently is worse than rejecting it:
-  // `--accept conflict` went missing here once and the job refused with the very verdict the flag
-  // was there to answer, which reads exactly like the policy refusing rather than the queue
-  // losing an argument.
-  const passthrough = ['--accept', '--attempts'].flatMap((name) => {
-    const value = valueOf(name);
-    return value ? [name, value] : [];
-  });
-  // The boolean escape from the red-main gate. It takes no value, so it cannot go through the
-  // loop above - and it must reach the job, because the ONE branch that legitimately lands onto a
-  // red main is the branch that fixes it, and that branch is queued like any other.
-  if (flag('--onto-red-main')) passthrough.push('--onto-red-main');
-  // Pin the commit the branch is at RIGHT NOW. Queueing a landing means "this work is finished";
-  // if commits arrive afterwards, the job refuses rather than landing something nobody queued.
-  const tip = branchTip(target);
-  const pin = tip ? ` --expect-sha ${tip}` : '';
-  const job = addJob(dir, {
-    command: `node scripts/auto-merge.mjs --branch ${target}${passthrough.length ? ` ${passthrough.join(' ')}` : ''}${pin}`,
-    checkout: process.cwd(),
-    branch: target,
-    kind: 'merge',
-    after: (valueOf('--after') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
-    capMinutes: Number(valueOf('--cap') ?? 45),
-    review,
-    now: Date.now(),
-  });
-  await ensureRunner();
-  console.log(`${job.id} queued: land ${target}${review.stamp === 'unreviewed' ? ` (UNREVIEWED: ${review.reason})` : ''}`);
-  console.log(`  output: node scripts/jobs.mjs log ${job.id}`);
+  // THE QUEUE IS ON GITHUB (2026-09-06, docs/WORKFLOW_ARCHITECTURE.md §5.2). Queueing means:
+  // push the branch, open (or reuse) its pull request, post the review verdict as the
+  // `noacg/reviewed` commit status on the tip, and add the `land` label. The Land workflow
+  // (.github/workflows/land.yml, scripts/land.mjs) does the rest, one landing at a time, on
+  // GitHub's runners - nothing on this machine holds the landing any more, so a closed lid
+  // stops nothing. The flags the laptop lander took are accepted and named as ignored rather
+  // than refused, so an old habit does not strand a landing.
+  for (const old of ['--after', '--accept', '--attempts', '--cap', '--onto-red-main']) {
+    if (flag(old)) console.log(`  note: ${old} means nothing to the cloud lander and is ignored (a conflict or a red run is written on the pull request).`);
+  }
+  if (!tipForReview) {
+    console.error(`add-merge refused: ${target} has no local tip to push.`);
+    process.exit(1);
+  }
+  const description = review.stamp === 'reviewed'
+    ? `reviewed by /check at ${String(review.reviewedSha).slice(0, 8)} (${review.verdict ?? 'pass'})`
+    : `UNREVIEWED: ${review.reason}`;
+  const queued = queueOnGitHub(target, tipForReview, description);
+  console.log(`queued on GitHub: ${queued.url}${review.stamp === 'unreviewed' ? ` (UNREVIEWED: ${review.reason})` : ''}`);
+  console.log('  the Land workflow lands it one at a time; its refusals are written on the pull request.');
+  console.log(`  progress:  gh run list --workflow land.yml --limit 5   |   gh pr view ${queued.number}`);
+}
+
+/**
+ * Push, open or reuse the pull request, post the reviewed status, add the label. Every step is
+ * idempotent, so queueing twice is harmless. Returns { number, url }.
+ */
+function queueOnGitHub(branch, tip, description) {
+  const ghRun = (ghArgs) => {
+    const result = spawnSync('gh', ghArgs, { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
+    if (result.status !== 0) {
+      console.error(`add-merge: gh ${ghArgs.slice(0, 2).join(' ')} failed: ${(result.stderr || result.stdout).trim()}`);
+      process.exit(1);
+    }
+    return result.stdout.trim();
+  };
+  const push = spawnSync('git', ['push', 'origin', `refs/heads/${branch}:refs/heads/${branch}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
+  if (push.status !== 0) {
+    console.error(`add-merge: could not push ${branch}: ${(push.stderr || push.stdout).trim()}`);
+    process.exit(1);
+  }
+  let pr;
+  try {
+    pr = JSON.parse(ghRun(['pr', 'list', '--head', branch, '--base', 'main', '--state', 'open', '--json', 'number,url', '--limit', '1']))[0] ?? null;
+  } catch {
+    pr = null;
+  }
+  if (!pr) {
+    const subject = spawnSync('git', ['log', '-1', '--format=%s', tip], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true }).stdout.trim() || branch;
+    const url = ghRun(['pr', 'create', '--base', 'main', '--head', branch, '--title', subject.slice(0, 120), '--body', `Landed by the queue (\`npm run queue:merge\`). ${description}.`]);
+    pr = { number: Number(url.split('/').pop()), url };
+  }
+  ghRun(['api', `repos/{owner}/{repo}/statuses/${tip}`, '-f', 'state=success', '-f', 'context=noacg/reviewed', '-f', `description=${description.slice(0, 140)}`]);
+  ghRun(['label', 'create', 'land', '--force', '--color', 'F5A623', '--description', 'Queued for the landing queue (scripts/land.mjs)']);
+  ghRun(['pr', 'edit', String(pr.number), '--add-label', 'land']);
+  return pr;
 }
 
 /**
@@ -459,6 +487,8 @@ async function cmdList() {
   // Landings first, and shown even when the queue is empty: "which branches are in, and therefore
   // which sessions are finished?" is the question automating the merge quietly took away, and an
   // empty queue is exactly when it gets asked.
+  // The cloud lander writes nothing here; the listing pulls what GitHub landed before it reads.
+  syncLandings(dir);
   const landed = readLandings(dir).slice(-6);
   if (landed.length > 0) {
     console.log('Landed through the queue (newest last):');
