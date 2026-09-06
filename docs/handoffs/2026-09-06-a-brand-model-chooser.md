@@ -56,6 +56,25 @@ row's GOAL is built and, unusually for a cloud container, **actually run** - see
   `.wz-match input`, which now matches nothing - they would have gone red on CI with the feature
   working. Each now saves a look and drives the chooser. **32/32 passed** across those two plus
   `wizard-brand.spec.ts`.
+- **A targeted 96-test slice, at 2 workers: 95 passed, 1 failed.** `library.spec.ts`,
+  `productions.spec.ts`, `shows.spec.ts`, `wizard-kit.spec.ts`, `wizard-logo.spec.ts`,
+  `wizard-finish.spec.ts`, `sync.spec.ts`, `storage-full.spec.ts` - every spec this change could
+  plausibly reach, including "looks: capture the current look in Home, apply it to another
+  graphic, survive reload", "a look carries SHAPE", "a kit opened FOR a production joins that one,
+  in its look", and the whole logo-slot file. The one failure is
+  `library.spec.ts:413` "a Home card frames on the GRAPHIC", a rendering-geometry assertion, and
+  it is **PRE-EXISTING**: the pre-branch worktree fails it with the byte-identical number
+  (`239.47222900390625` against `< 4`). It is the headless-shell shim of trap 7 rasterising
+  differently, not this branch.
+- **The 83-spec sprint-focus plan was STARTED and abandoned, on purpose.** At its default
+  6 workers it is 752 tests on one container, and it went red at about a 60% rate on specs that
+  cannot touch brands - ai, auth, caspar-connect, control-panel - each failing at 8-9 s, which is
+  the 7 s expect timeout plus overhead. That is the overload red e2e/AGENTS.md describes, and it
+  was MEASURED rather than assumed: `auth.spec.ts` + `adapt-first.spec.ts` pass **8/8 on the
+  PRE-BRANCH tree** (a detached worktree at `8c1b39b`, 2 workers) and **8/8 on this branch**
+  (2 workers), while 7 of those same 8 were red inside the 6-worker run. **Do not read that
+  abandoned log as a verdict on this branch.** A real pre-merge run belongs on CI or on a machine
+  that is not also this session.
 - **NOT run:** the rest of the suite, and `npm run catalog:affected`. `src/templates/` is
   untouched, and `applyLookToTemplate`'s change is additive and gated on `brand.logo` existing, so
   no catalog design's rendered output moves - but that is reasoning, not a measurement, and the
@@ -101,7 +120,12 @@ open.
    seed (and before any post-reload `evaluate` read) is the fix. e2e/AGENTS.md warns about the
    post-reload READ; it does not warn about the pre-hydration WRITE, and that is the half that
    bit here.
-6. **Playwright in this container has no headless shell.** `/opt/pw-browsers` holds
+6. **Six workers is too many for this container.** The suite sizes its worker count from free
+   RAM and reports "6 workers - 14 GB free"; at that width the app boots slower than the 7 s
+   default `expect` timeout and specs fail as "element(s) not found" on screens that are merely
+   late. Two workers is what held here. The comparison above is the shape any session in a cloud
+   container should run before believing a local red.
+7. **Playwright in this container has no headless shell.** `/opt/pw-browsers` holds
    `chromium-1228` but only `chromium_headless_shell-1194`, and `npx playwright install
    chromium-headless-shell` fails to download through the proxy. What worked: a shim at
    `/opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell`

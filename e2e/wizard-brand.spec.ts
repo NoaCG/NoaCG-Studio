@@ -110,8 +110,10 @@ test('a chosen brand puts its accent, typeface and logo into the created graphic
   expect(t.css).toContain(ACCENT);
   expect(t.css).toContain('Oswald');
   // THE LOGO, in the design's own slot - a real SPX image field bound to an <img>, with the
-  // mark bundled as an asset. This design's own default is logo-off, which is the point:
-  // choosing a brand with a mark turns the slot on (decision 2).
+  // mark bundled as an asset. This design declares no `defaultLogo` at all, so its slot is off
+  // until something supplies a path; the brand is what supplies one (decision 2). No shipped
+  // design declares `defaultLogo: false`, so the stronger half of that decision - a brand
+  // overriding an explicit logo-off - has nothing in the catalog to be tested against yet.
   const logoField = t.fields.find((f) => f.ftype === 'filelist');
   expect(logoField).toMatchObject({ value: 'images/a7-mark.png' });
   expect(t.assets).toContain('images/a7-mark.png');
