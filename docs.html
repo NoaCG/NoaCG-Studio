@@ -55,6 +55,7 @@
         <p class="group">Make a graphic</p>
         <a href="#graphics">Graphics</a>
         <a href="#svg">Import your own SVG graphic</a>
+        <a href="#artwork">Pictures, logos &amp; Lottie</a>
         <p class="group">Connect playout</p>
         <a href="#browser-source">OBS, vMix &amp; browser sources</a>
         <a href="#casparcg">CasparCG</a>
@@ -730,6 +731,130 @@ Full results at https://example.org</code></pre>
             The counts themselves come from a round you open on the production's
             <a href="#audience">Audience tab</a>. They reach the graphic as an ordinary cue that you
             still take to air, so nothing a viewer sends can put itself on screen.
+          </p>
+        </section>
+
+        <!-- ═══════════════════════ ARTWORK THAT IS NOT AN SVG ═══════════════════════ -->
+        <section id="artwork">
+          <h2>Pictures, logos and Lottie animations</h2>
+          <p>
+            An SVG is the best thing to bring in, because its text stays text. Everything else
+            still works, and this is what happens to it: where you put the file, what NoaCG does to
+            it, what comes out in an export, and what a font nobody has does to a graphic that
+            looked right in the studio.
+          </p>
+          <div class="doc-table"><table>
+            <tr><th>File</th><th>What it is good for</th></tr>
+            <tr><td>PNG, WebP</td><td>A finished design, or a logo. Both carry transparency, which is what lets video show through.</td></tr>
+            <tr><td>JPEG, AVIF, GIF</td><td>Photographs and stills. No transparency in a JPEG, so it covers whatever is behind it.</td></tr>
+            <tr><td>Lottie (<code>.json</code>)</td><td>A vector animation out of After Effects. Stays sharp at any size and weighs almost nothing.</td></tr>
+            <tr><td>A font file (<code>.woff2</code>, <code>.woff</code>, <code>.ttf</code>, <code>.otf</code>)</td><td>A licensed face your design needs. Taken by the SVG import when it lists the families it found.</td></tr>
+            <tr><td>Video (<code>.webm</code>, <code>.mp4</code>)</td><td>A short sting inside a graphic. Capped at 3 MB, so it is not the way to play a clip.</td></tr>
+          </table></div>
+
+          <h3 id="artwork-in">Three ways in</h3>
+          <p>
+            <strong>As the graphic itself.</strong> <a href="/app#/new">The studio</a> &rarr;
+            <strong>New graphic</strong> &rarr; <strong>Import graphic</strong> takes a PNG, a JPEG
+            or a WebP as readily as an SVG. You clean the artwork up, place the text fields
+            yourself, and pick how it moves. Nothing is redrawn. The difference from an SVG is that
+            a picture has no layers to read, so the fields are ones you place rather than ones the
+            file already named.
+          </p>
+          <p>
+            <strong>As a logo on a catalog design.</strong> Designs that carry a mark offer a logo
+            slot while you are making the graphic, and you upload your file into it. The slot is a
+            real image field, so it can also be left empty now and filled at playout.
+          </p>
+          <p>
+            <strong>As a file in the graphic.</strong> Switch <strong>Advanced mode</strong> on in
+            Settings and the editor opens, with an <strong>Assets</strong> panel listing every file
+            the graphic carries. Drop files on it, then drag one onto the canvas to place it. That
+            is the only route for a Lottie animation.
+          </p>
+          <p>
+            Pictures for a live show are separate. On a production, <strong>Add pictures</strong>
+            builds one picture graphic holding all of them, with a cue each, so taking picture three
+            replaces picture one instead of stacking on top of it. Twenty per production.
+          </p>
+
+          <h3 id="artwork-embedded">Nothing is linked. Everything is carried</h3>
+          <p>
+            A file you bring in is copied into the graphic, and the graphic keeps the bytes. There
+            is no link back to your computer, no folder that has to stay where it was, and nothing
+            is fetched over the network when the graphic plays. That is what makes a package work
+            on a playout machine with no internet, and it is why an address on the web is not a
+            substitute: the studio warns about one, and the machine that never reaches it shows
+            nothing at all.
+          </p>
+          <p>
+            An imported picture is measured and, if it is larger than the frame it will be drawn
+            in, re-encoded at the frame's own size. Nothing on a 1920 &times; 1080 canvas can use
+            more pixels than that, so it cannot cost you quality. A PNG stays a PNG and a JPEG
+            stays a JPEG, an SVG is never touched, and the result is kept only if it actually came
+            out smaller. Going the other way is not offered: artwork smaller than the canvas stays
+            at its own pixel size rather than being enlarged and softened.
+          </p>
+          <p>
+            <strong>Transparency is the one thing to get right before you import.</strong> A
+            full-frame picture with no transparent areas covers the whole picture on air. That is
+            right for a title card and wrong for a lower third, and the fix is in the program you
+            drew it in: export again as a PNG or a WebP with a transparent background.
+          </p>
+
+          <h3 id="artwork-export">What comes out in an export</h3>
+          <p>
+            Packages come in two shapes and your files are handled differently in each. A
+            <strong>folder</strong> package (OGraf, or a playout system that loads a whole template
+            folder) writes them out as real files beside the
+            template: your pictures under <code>images/</code>, fonts under <code>fonts/</code>,
+            the animation engine under <code>js/</code>. Paths are relative, so the folder can be
+            copied anywhere. A <strong>single-file</strong> package (CasparCG, an OBS or vMix
+            overlay) has nothing to sit beside, so every one of those files is embedded in the one
+            HTML file instead. Either way the package is complete and works from a local disk.
+          </p>
+          <p>
+            The operator page in the package lets an image field be switched between the pictures
+            <em>that graphic already carries</em>, plus None. It is not a file browser. If an
+            operator is going to need an alternate logo on the night, bring it in before you
+            export. Clearing the field back to None returns the design's own placeholder.
+          </p>
+
+          <h3 id="artwork-lottie">Lottie animations</h3>
+          <p>
+            Drop the <code>.json</code> into the Assets panel and drag it onto the canvas. It
+            plays as soon as the graphic loads and it loops, so it suits a badge, a spinner or a
+            looping ornament rather than something that has to hit a cue. It is not driven by the
+            graphic coming on and off air.
+          </p>
+          <p>
+            The player is about 165 kB and it is added only to graphics that actually use one, so
+            a graphic without a Lottie carries none of that weight. It is bundled, never fetched:
+            in a folder package the animation stays a file next to the template, in a single-file
+            package it is embedded, and neither one asks the network for anything.
+          </p>
+
+          <h3 id="artwork-fonts">Fonts, and what a missing one does</h3>
+          <p>
+            <strong>A missing font is silent.</strong> It is not an error and it does not stop
+            anything. The browser falls back to the next family it has, so the graphic comes up in
+            the wrong typeface, at a slightly different width, and looks close enough that nobody
+            notices until it is on air. That is the whole reason fonts are packaged rather than
+            named.
+          </p>
+          <p>
+            So NoaCG bundles them. A typeface you picked in the studio is written into the
+            package, and its licence travels with it. A face of your own comes in through the
+            <a href="#svg-fonts">SVG import's font matching</a>, which lists the families your
+            file names and takes a file for each one, and it is packaged the same way
+            afterwards.
+          </p>
+          <p>
+            One difference between the two package shapes is worth knowing. A folder package with a
+            font file missing still builds, and it can be repaired by dropping the file into
+            <code>fonts/</code>. A single-file package refuses to build instead, because there is
+            no folder to repair and the alternative is handing you a graphic that quietly airs in
+            the wrong face.
           </p>
         </section>
 
