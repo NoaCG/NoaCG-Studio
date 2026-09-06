@@ -7,7 +7,7 @@ orchestrator integrates the branch.
 
 ## What landed
 
-Four commits, `5fd5843` .. `6ea5b7a`. Every claim in the row's GOAL is built and, unusually for a
+Six commits, `5fd5843` .. `d5ca42e`. Every claim in the row's GOAL is built and, unusually for a
 cloud container, **actually run** - see Evidence.
 
 **Model (§3).**
@@ -83,8 +83,16 @@ cloud container, **actually run** - see Evidence.
 - **NOT run:** the rest of the suite, and `npm run catalog:affected`. `src/templates/` is
   untouched, and `applyLookToTemplate`'s change is additive and gated on `brand.logo` existing, so
   no catalog design's rendered output moves - but that is reasoning, not a measurement, and the
-  catalog gates are the thing that would prove it. **check: not run** as a workflow; its three legs
-  were run individually (build, the spec, a review pass by hand).
+  catalog gates are the thing that would prove it.
+
+**`/check` ran, and it earned its place.** `review: delegated` (opus, high - 8 findings, 6 fixed,
+2 taken as reports); `simplify: inline` (the skill returned fan-out instructions rather than a
+result, so the four angles were worked here); `verify: inline` - `npm run build` green, and 55
+tests across the five brand-adjacent spec files green, plus the 28-test final pass whose ONE
+failure is the pre-existing framing test above. `taste: not applicable` - nothing here moves what
+a graphic looks like: the mark lands in a slot the design already drew, at the size and position
+that design already decided, and the catalog's own drawing is untouched. Verdict stamp:
+`.git/noacg-jobs/checks/claude-a-brand-model-chooser.json`.
 
 ## What /check changed, and why it mattered
 
@@ -198,6 +206,8 @@ UI can put one in - the spec is what stands behind that claim meanwhile.
 - `2808f18` - the two existing specs moved onto the chooser, and the new one hardened.
 - `62a5b91` - one redundant field dropped from `applyLookToTemplate`'s return.
 - `6ea5b7a` - the durable-seed hazard written into `e2e/AGENTS.md`, plus this handoff.
+- `d5ca42e` - **`/check`'s fixes.** The largest single change on the branch and the most
+  important one to read: see "What /check changed" above.
 
 Where to read the reasoning:
 
