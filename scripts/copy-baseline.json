@@ -424,6 +424,9 @@
     "src/templates/competition/shared.ts": {
       "em-dash": 12
     },
+    "src/templates/contract.ts": {
+      "em-dash": 8
+    },
     "src/templates/cornerBug/bug01.ts": {
       "em-dash": 7
     },
