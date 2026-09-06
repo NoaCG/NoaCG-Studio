@@ -21,6 +21,7 @@ import {
   type CategoryGroupId,
   type GraphicCategoryId,
   type MotionIntensity,
+  type OccasionId,
   type PlacementId,
   type ProgrammeFamilyId,
   type ProgrammeFormatId,
@@ -230,6 +231,7 @@ interface ParsedQuery {
   tokens: string[];
   boostCategories: Set<GraphicCategoryId>;
   boostSubtypes: Set<string>;
+  boostOccasions: Set<OccasionId>;
   boostStructures: Set<StructureId>;
   boostFormats: Set<ProgrammeFormatId>;
   boostFamilies: Set<ProgrammeFamilyId>;
@@ -245,6 +247,25 @@ interface ParsedQuery {
    * the first page, unreachable by typing its own name. `namedAliasScore` below is the answer.
    */
   aliasPhrases: string[];
+  /**
+   * The words an occasion phrase SPENT WITHOUT CONSUMING — the other half of the non-consuming
+   * rule in `parseQuery`.
+   *
+   * A word left in the query still faces the unreachable-token drop, and "goodbye" reaches no
+   * design's name, category or description: it is a purpose word and nothing else. So the drop
+   * removed it and the step announced "we ignored: goodbye" over a full page of sign-off cards
+   * that word had just produced. Reporting a word as ignored when it decided the whole answer is
+   * worse than the empty grid the drop exists to prevent — one is an honest failure, the other
+   * tells the reader their question was thrown away when it was not.
+   */
+  spentWords: Set<string>;
+}
+
+/** Is this alias entry ONE an occasion minted, and nothing else? Those are the non-consuming
+ *  keys (see the loop below); an entry that also carries a category, subtype or format meant
+ *  something before facet I existed and keeps its old behaviour. */
+function occasionOnly(targets: AliasTargets): boolean {
+  return Boolean(targets.occasions?.length) && Object.values(targets).filter(Boolean).length === 1;
 }
 
 function parseQuery(raw: string, forgiving: boolean): ParsedQuery {
@@ -253,15 +274,18 @@ function parseQuery(raw: string, forgiving: boolean): ParsedQuery {
     tokens: [],
     boostCategories: new Set(),
     boostSubtypes: new Set(),
+    boostOccasions: new Set(),
     boostStructures: new Set(),
     boostFormats: new Set(),
     boostFamilies: new Set(),
     boostStyles: new Set(),
     aliasPhrases: [],
+    spentWords: new Set(),
   };
   const addTargets = (t: AliasTargets) => {
     t.categories?.forEach((c) => parsed.boostCategories.add(c));
     t.subtypes?.forEach((s) => parsed.boostSubtypes.add(s));
+    t.occasions?.forEach((o) => parsed.boostOccasions.add(o));
     t.structures?.forEach((s) => parsed.boostStructures.add(s));
     t.formats?.forEach((f) => parsed.boostFormats.add(f));
     t.families?.forEach((f) => parsed.boostFamilies.add(f));
@@ -272,9 +296,29 @@ function parseQuery(raw: string, forgiving: boolean): ParsedQuery {
   for (const alias of aliasKeys) {
     const needle = ` ${alias} `;
     if (!text.includes(needle)) continue;
+    addTargets(ALIASES[alias]);
+    // AN OCCASION PHRASE ADDS A PURPOSE; IT NEVER DELETES A WORD.
+    //
+    // Expansion normally CONSUMES its phrase, which is right for "breaking news" (a genre, not a
+    // design) and catastrophic for a purpose word that is also an ordinary English word the
+    // catalog uses — the hazard model/taxonomy.ts states outright, and the reason bare "logo",
+    // "text" and "super" are deliberately not keys. Facet I mints a key for every phrase a person
+    // might type at a moment, so it walked straight into it: measured 2026-09-06, "halftime" lost
+    // ig20 (the half-time notes board, the ONLY design that answers the word) and "standby" lost
+    // the four live bugs, because the token was eaten before `textScore` ever saw it. Neither can
+    // be rescued downstream — `browseTemplates` drops a design scoring zero on both halves before
+    // `namedAliasScore` is reached.
+    //
+    // So a key that exists ONLY because an occasion declared it leaves the text alone: the moment
+    // is boosted AND the word still matches whatever carries it. A key that already meant
+    // something before facet I ("intermission", the holding category) keeps consuming exactly as
+    // it did, so no query that worked yesterday answers differently today.
+    if (occasionOnly(ALIASES[alias])) {
+      for (const word of alias.split(/\s+/)) parsed.spentWords.add(word);
+      continue;
+    }
     text = text.replace(needle, ' ');
     parsed.aliasPhrases.push(alias);
-    addTargets(ALIASES[alias]);
   }
   let tokens = text.split(/\s+/).filter(Boolean);
   // A TYPO IN AN ALIAS lands too — the Nordic vocabulary lives only in the alias table, so a
@@ -286,8 +330,17 @@ function parseQuery(raw: string, forgiving: boolean): ParsedQuery {
       if (token.length < FUZZY_MIN || tokenReaches(token, false)) return true;
       const near = aliasKeys.find((k) => !k.includes(' ') && withinOneEdit(token, k));
       if (!near) return true;
-      parsed.aliasPhrases.push(near);
       addTargets(ALIASES[near]);
+      // The same rule as the phrase loop above, and it bites here too: a one-word occasion key
+      // matches ITSELF at distance zero, so this branch would swallow the very token it came
+      // from. That is how "halftime" still lost ig20 after the phrase loop was fixed — the word
+      // reaches no design EXACTLY, which is exactly when a forgiving mid-word match is the only
+      // thing that can find it, and the token has to survive to get one.
+      if (occasionOnly(ALIASES[near])) {
+        parsed.spentWords.add(token);
+        return true;
+      }
+      parsed.aliasPhrases.push(near);
       return false;
     });
   }
@@ -344,6 +397,20 @@ function textScore(meta: TemplateMeta, plan: PlannedToken[]): number {
 function aliasScore(meta: TemplateMeta, q: ParsedQuery): number {
   let score = 0;
   if (q.boostCategories.has(meta.category)) score += 40;
+  // THE MOMENT OUTRANKS THE FORM (facet I — model/taxonomy.ts OCCASIONS).
+  //
+  // Measured before this existed: "be right back" is an alias for the holding CATEGORY, so it
+  // returned all 21 holding screens at an identical 40 and the BRB card the reader asked for
+  // ("Short Break") came 11th, under five front doors and a service hold. An alias can only ever
+  // point at a facet, and until now no facet said what a design was FOR — which is the owner's
+  // complaint on the 2026-08-28 walk, in a second dress.
+  //
+  // 35 is chosen against the two scores it has to sit between: a design carrying the moment
+  // clears one that merely shares the category (40 + 35 against 40) by more than any tiebreak,
+  // while a word that names a moment and nothing else still cannot outrank a design's own NAME
+  // plus its category. It sits above the subtype's 25 deliberately: a subtype is one form's
+  // internal filing, and the moment is the thing the reader actually asked about.
+  if (meta.occasions.some((o) => q.boostOccasions.has(o))) score += 35;
   // A precise word ranks its SUBTYPE above the rest of the boosted category.
   if (meta.subtype && q.boostSubtypes.has(meta.subtype)) score += 25;
   if (meta.structures.some((s) => q.boostStructures.has(s))) score += 20;
@@ -452,7 +519,10 @@ export function browseTemplates(filters: BrowseFilters, context: BrowseContext =
   // search. A brief term keeps the exact AND, because a term that matches nothing is what makes
   // its idf meaningful (see BrowseContext.briefTerm).
   const tokens = context.briefTerm ? q.tokens : q.tokens.filter((t) => tokenReaches(t, true));
-  const ignored = q.tokens.filter((t) => !tokens.includes(t));
+  // A word the index cannot reach but an OCCASION spent is not ignored — it is the word that
+  // answered (see ParsedQuery.spentWords). It contributes no text score either way; what this
+  // decides is only whether the step tells the reader it threw their word away.
+  const ignored = q.tokens.filter((t) => !tokens.includes(t) && !q.spentWords.has(t));
   // The fallback rule: a token the catalog reaches exactly keeps the exact contract; only a
   // token that reached nothing is matched forgivingly. Decided here, once per query.
   const plan: PlannedToken[] = tokens.map((t) => ({

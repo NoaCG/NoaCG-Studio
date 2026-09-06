@@ -29,6 +29,7 @@
     "check:copy": "node scripts/check-copy.mjs",
     "check:preview-serialization": "node scripts/check-preview-serialization.mjs",
     "check:catalog-emit": "node scripts/check-catalog-emit.mjs",
+    "test:use-case-search": "node --test scripts/use-case-search.test.mjs",
     "catalog:affected": "node scripts/catalog-affected.mjs",
     "check:catalog-cost": "node scripts/catalog-cost.mjs",
     "catalog:specs": "node scripts/catalog-specs.mjs",

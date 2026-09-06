@@ -529,6 +529,106 @@ export const COMPLEXITY_LABELS: Record<Complexity, string> = {
   simple: 'Simple', standard: 'Standard', advanced: 'Advanced',
 };
 
+// ── Facet I: occasion — the MOMENT this graphic is for ──────────────────────
+//
+// Every other facet answers what a graphic IS (category, structure, coverage), what SHOW it
+// belongs to (programme format) or what it LOOKS like (style family). None of them answers the
+// question a confused person actually arrives with: *what part of my show is this for?*
+//
+// The owner asked for this on the 2026-08-28 walk, with an example: "if they're searching for a
+// specific 'thanks for watching', they might not find it if we don't mention that... so if
+// someone is confused and not really sure what they want, they can find guidance." The same walk
+// ruled STYLE LABELS the wrong tool for it — "if I want a nice-looking graphic for my late-night
+// show, which one of these do I choose? It's not really helping that much" — so occasion is its
+// own axis and is deliberately NOT another adjective on the card.
+//
+// THE AXIS IS A CLOCK. Every value is a moment in a broadcast, in the order they happen: before
+// it starts, what is next, a pause, something has gone wrong, the end. That is what keeps this
+// list closed — a value that is not a moment has nowhere to sit.
+//
+// ── THE RULE FOR ADMITTING A NEW OCCASION (all three, or it does not go in) ─────
+//
+//   1. IT IS A MOMENT ON THE SHOW'S CLOCK. Not a form (that is the graphic category — a lower
+//      third is not a moment), not a show type (that is the programme format — an award show is
+//      not a moment), not a look (that is the style family). If you cannot say when in a
+//      broadcast it happens, it is not an occasion.
+//   2. A CONFUSED PERSON TYPES IT AS THEIR WHOLE QUESTION, and the phrases they would type are
+//      declared with it, below. An occasion nobody types is a filing word; filing words belong
+//      to the category tree, which is already there.
+//   3. AT LEAST THREE SHIPPED DESIGNS HONESTLY HAVE IT (gated in `validateTaxonomy`), and no
+//      single existing facet value already gathers them. The one deliberate exception is a
+//      moment on the same clock as an occasion already admitted — `break` is served only by
+//      holding screens today and its category's subtype list could almost carry it, but
+//      splitting one axis across two facets is exactly the rot this list exists to prevent.
+//
+// And a ceiling, also gated: EIGHT. A show's clock has a handful of moments on it; a list past
+// eight has stopped being a clock and become the free text the whole facet model refuses.
+//
+// WHAT WAS CONSIDERED AND REFUSED, so the next reader does not re-litigate it: `show-open` (the
+// `title` category's `show-open` / `session-title` subtypes already gather every opener — rule
+// 3), `awards`, `fundraiser`, `memorial`, `graduation`, `wedding` (all programme FORMATS
+// already — rule 1), `breaking-news` and `sponsor-read` (purpose words the alias table already
+// fans across forms, proposal §20.3 — rule 3).
+
+export type OccasionId = 'pre-show' | 'coming-up' | 'break' | 'technical-problem' | 'sign-off';
+
+export interface Occasion {
+  id: OccasionId;
+  /** The user-facing name of the moment. */
+  name: string;
+  /**
+   * THE WORDS A CONFUSED PERSON TYPES. Every phrase is folded into the alias table (below), so
+   * it reaches the designs that declare this occasion and nothing else — an alias is the one
+   * mechanism in this file that can point a whole PHRASE at a facet, which is why the occasion
+   * lives here and not in the loose word index. Putting these in the text index instead would
+   * mean "the", "back" and "show" scoring designs, which is the uncontrolled-adjective failure
+   * the facet model refuses (proposal §11).
+   */
+  phrases: string[];
+}
+
+/** The five moments, in the order they happen on air. */
+export const OCCASIONS: Occasion[] = [
+  {
+    id: 'pre-show',
+    name: 'Before the show',
+    phrases: [
+      'starting soon', 'before the show', 'pre show', 'preshow', 'waiting screen', 'holding screen',
+      'countdown to start', 'doors open', 'we start soon', 'show starts soon',
+    ],
+  },
+  {
+    id: 'coming-up',
+    name: 'What is next',
+    phrases: ['coming up', 'up next', 'what is next', 'whats next', 'now and next', 'later in the show'],
+  },
+  {
+    id: 'break',
+    name: 'During a break',
+    phrases: [
+      'be right back', 'brb', 'back shortly', 'back soon', 'back in five', 'short break',
+      'intermission', 'interval', 'halftime', 'half time', 'commercial break',
+    ],
+  },
+  {
+    id: 'technical-problem',
+    name: 'Something has gone wrong',
+    phrases: [
+      'technical difficulties', 'technical difficulty', 'technical problem', 'please stand by',
+      'stand by', 'standby', 'sorry for the interruption', 'we are having problems',
+    ],
+  },
+  {
+    id: 'sign-off',
+    name: 'The end of the show',
+    phrases: [
+      'thanks for watching', 'thank you for watching', 'sign off', 'signoff', 'sign out',
+      'goodbye', 'good bye', 'bye for now', 'see you next time', 'end card', 'end screen',
+      'stream ending', 'stream is over', 'that is all', 'offline',
+    ],
+  },
+];
+
 // ── Search aliases ──────────────────────────────────────────────────────────
 
 /** What an alias expands to. An alias may resolve to a SET of values across facets —
@@ -543,6 +643,10 @@ export interface AliasTargets {
   formats?: ProgrammeFormatId[];
   families?: ProgrammeFamilyId[];
   styles?: StyleTag[];
+  /** The MOMENT the phrase names (facet I). Filled automatically from each occasion's own
+   *  `phrases` — declare it here by hand only to give an existing alias an occasion it should
+   *  also carry, the way "intermission" is both the holding category and the break moment. */
+  occasions?: OccasionId[];
 }
 
 /**
@@ -674,7 +778,7 @@ const ALIASES_EN: Record<string, AliasTargets> = {
   'be right back': { categories: ['holding'] },
   'intermission': { categories: ['holding'] },
   'stream ending': { categories: ['holding'] },
-  'outro': { categories: ['credits', 'holding'] },
+  'outro': { categories: ['credits', 'holding'], occasions: ['sign-off'] },
   'roll': { categories: ['credits'] },
   'credit roll': { categories: ['credits'] },
   // The rest of the end-of-programme vocabulary. Plain "credit"/"credits" already reaches the
@@ -684,9 +788,9 @@ const ALIASES_EN: Record<string, AliasTargets> = {
   // nothing or the wrong thing when measured on 2026-08-26: "crew", "special thanks",
   // "end titles" and "supporters" returned NO template at all, and "closing credits" and
   // "rolling credits" each returned exactly one, from a loose two-word text match.
-  'closing credits': { categories: ['credits'] },
-  'rolling credits': { categories: ['credits'] },
-  'end titles': { categories: ['credits'] },
+  'closing credits': { categories: ['credits'], occasions: ['sign-off'] },
+  'rolling credits': { categories: ['credits'], occasions: ['sign-off'] },
+  'end titles': { categories: ['credits'], occasions: ['sign-off'] },
   'crew': { categories: ['credits'] },
   'cast list': { categories: ['credits'] },
   'special thanks': { categories: ['credits'] },
@@ -873,17 +977,17 @@ const ALIASES_SV: Record<string, AliasTargets> = {
   // was actively WRONG without it: 'paus' folds to a prefix of the English "pause", which
   // scoreboard descriptions use for the clock, so it returned 24 scoreboards. Consuming the
   // phrase is what stops that accidental prefix match.
-  'paus': { categories: ['holding'] },
-  'pausskärm': { categories: ['holding'] },
-  'strax tillbaka': { categories: ['holding'], subtypes: ['brb'] },
-  'strax börjar vi': { categories: ['holding'], subtypes: ['starting'] },
-  'sändningen börjar snart': { categories: ['holding'], subtypes: ['starting'] },
-  'mellanakt': { categories: ['holding'], subtypes: ['intermission'] },
-  'eftertexter': { categories: ['credits'] },
-  'sluttexter': { categories: ['credits'] },
+  'paus': { categories: ['holding'], occasions: ['break'] },
+  'pausskärm': { categories: ['holding'], occasions: ['break'] },
+  'strax tillbaka': { categories: ['holding'], subtypes: ['brb'], occasions: ['break'] },
+  'strax börjar vi': { categories: ['holding'], subtypes: ['starting'], occasions: ['pre-show'] },
+  'sändningen börjar snart': { categories: ['holding'], subtypes: ['starting'], occasions: ['pre-show'] },
+  'mellanakt': { categories: ['holding'], subtypes: ['intermission'], occasions: ['break'] },
+  'eftertexter': { categories: ['credits'], occasions: ['sign-off'] },
+  'sluttexter': { categories: ['credits'], occasions: ['sign-off'] },
   'medverkande': { categories: ['credits'], subtypes: ['role-credits'] },
   'tack till': { categories: ['credits'], subtypes: ['thank-you'] },
-  'rulltext': { categories: ['credits'], subtypes: ['end-credits'] },
+  'rulltext': { categories: ['credits'], subtypes: ['end-credits'], occasions: ['sign-off'] },
   // commerce
   'samarbetspartner': { categories: ['sponsor', 'bug'], subtypes: ['sponsor'] },
   'prisskylt': { categories: ['product'], subtypes: ['price'] },
@@ -924,9 +1028,9 @@ const ALIASES_SV: Record<string, AliasTargets> = {
   'skylt': { categories: ['lower-third', 'title'] },
   'plansch': { categories: ['title', 'info'] },
   'stoppur': { categories: ['timer'] },
-  'pausbild': { categories: ['holding'], subtypes: ['break'] },
-  'reklampaus': { categories: ['holding'], subtypes: ['break'] },
-  'testbild': { categories: ['holding'] },
+  'pausbild': { categories: ['holding'], subtypes: ['break'], occasions: ['break'] },
+  'reklampaus': { categories: ['holding'], subtypes: ['break'], occasions: ['break'] },
+  'testbild': { categories: ['holding'], occasions: ['technical-problem'] },
   'topplista': { categories: ['results'], subtypes: ['leaderboard'] },
   'resultatlista': { categories: ['results'], subtypes: ['results-table'] },
   'tablå': { categories: ['list'], subtypes: ['schedule'] },
@@ -1020,12 +1124,12 @@ const ALIASES_FI: Record<string, AliasTargets> = {
   'soittolista': { categories: ['list'], subtypes: ['setlist'] },
   'kartta': { categories: ['map'] },
   // breaks and credits
-  'tauko': { categories: ['holding'] },
-  'taukokuva': { categories: ['holding'], subtypes: ['break'] },
-  'alkaa pian': { categories: ['holding'], subtypes: ['starting'] },
-  'palaamme pian': { categories: ['holding'], subtypes: ['brb'] },
-  'lähetys alkaa': { categories: ['holding'], subtypes: ['starting'] },
-  'lopputekstit': { categories: ['credits'] },
+  'tauko': { categories: ['holding'], occasions: ['break'] },
+  'taukokuva': { categories: ['holding'], subtypes: ['break'], occasions: ['break'] },
+  'alkaa pian': { categories: ['holding'], subtypes: ['starting'], occasions: ['pre-show'] },
+  'palaamme pian': { categories: ['holding'], subtypes: ['brb'], occasions: ['break'] },
+  'lähetys alkaa': { categories: ['holding'], subtypes: ['starting'], occasions: ['pre-show'] },
+  'lopputekstit': { categories: ['credits'], occasions: ['sign-off'] },
   'tekijät': { categories: ['credits'], subtypes: ['role-credits'] },
   'kiitokset': { categories: ['credits'], subtypes: ['thank-you'] },
   'esiintyjät': { categories: ['credits'], subtypes: ['role-credits'] },
@@ -1072,9 +1176,9 @@ const ALIASES_FI: Record<string, AliasTargets> = {
   'laskuri': { categories: ['timer', 'progress'] },
   'pistetilanne': { categories: ['scoreboard'] },
   'tuloslista': { categories: ['results'], subtypes: ['results-table'] },
-  'väliaika': { categories: ['holding'], subtypes: ['intermission', 'break'] },
-  'mainoskatko': { categories: ['holding'], subtypes: ['break'] },
-  'kreditit': { categories: ['credits'] },
+  'väliaika': { categories: ['holding'], subtypes: ['intermission', 'break'], occasions: ['break'] },
+  'mainoskatko': { categories: ['holding'], subtypes: ['break'], occasions: ['break'] },
+  'kreditit': { categories: ['credits'], occasions: ['sign-off'] },
   // Short for tietovisa. Consuming it also ends an accidental prefix match: bare "visa" used
   // to reach the frame designs through the English "visualizer" (the 'paus' pattern).
   'visa': { categories: ['poll-quiz'] },
@@ -1093,8 +1197,17 @@ function mergeAliasTargets(a: AliasTargets, b: AliasTargets): AliasTargets {
     formats: union(a.formats, b.formats),
     families: union(a.families, b.families),
     styles: union(a.styles, b.styles),
+    occasions: union(a.occasions, b.occasions),
   };
 }
+
+/** Facet I as alias entries: every occasion's own phrases, pointing at it. Built rather than
+ *  written into the tables below, so a phrase declared on the occasion cannot fail to reach it —
+ *  the declaration IS the alias. Merged like any other table, so a phrase that already means
+ *  something ("intermission" = the holding category) keeps that meaning and gains the moment. */
+const ALIASES_OCCASION: Record<string, AliasTargets> = Object.fromEntries(
+  OCCASIONS.flatMap((occasion) => occasion.phrases.map((phrase) => [phrase, { occasions: [occasion.id] }])),
+);
 
 /**
  * THE ONE alias table search reads, in three languages, keyed on the NORMALIZED phrase.
@@ -1104,7 +1217,7 @@ function mergeAliasTargets(a: AliasTargets, b: AliasTargets): AliasTargets {
  */
 export const ALIASES: Record<string, AliasTargets> = (() => {
   const out: Record<string, AliasTargets> = {};
-  for (const table of [ALIASES_EN, ALIASES_SV, ALIASES_FI]) {
+  for (const table of [ALIASES_EN, ALIASES_SV, ALIASES_FI, ALIASES_OCCASION]) {
     for (const [phrase, targets] of Object.entries(table)) {
       const key = normalizeSearchText(phrase);
       out[key] = key in out ? mergeAliasTargets(out[key], targets) : targets;

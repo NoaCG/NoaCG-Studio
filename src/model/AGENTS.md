@@ -74,7 +74,16 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   they never overwrite. Two rules when adding one: a key that is also an English word the
   catalog uses will DELETE that word's text matches (alias expansion consumes the phrase), and
   a purpose word must fan across every FORM that serves it, since a category says what a
-  graphic is and never what it is for (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §20.3). Pure data; derivation lives in
+  graphic is and never what it is for (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §20.3).
+  **`OCCASIONS` is FACET I - the MOMENT a graphic is for** (§21, shipped 2026-09-06): a closed
+  five-value vocabulary on the show's own clock (`pre-show`, `coming-up`, `break`,
+  `technical-problem`, `sign-off`), each declaring the PHRASES a confused person types. The
+  phrases are folded into `ALIASES` automatically, so the declaration IS the search behaviour and
+  a phrase cannot fail to reach its occasion. **The rule for admitting a new one is written next
+  to the list and GATED** by `validateTaxonomy` (ceiling 8, floor 3 designs, every phrase
+  resolving); the axis is a clock, so a value that is not a MOMENT - a form, a show type, a look -
+  has nowhere to sit. Which designs carry which moment is declared in src/templates/meta.ts, not
+  here. Pure data; derivation lives in
   src/templates/templateMeta.ts, the browse engine in src/templates/search.ts.
 - **designRules.ts** - the CANONICAL on-air legibility rules (docs/DESIGN_RULES_PLAN.md): the
   owner's size table (role x standard/safe mode x viewing profile, % of the frame's short

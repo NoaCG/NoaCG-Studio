@@ -16,6 +16,8 @@ import {
   FORMATS,
   GRAPHIC_CATEGORIES,
   graphicCategoryById,
+  normalizeSearchText,
+  OCCASIONS,
   PRESET_MOTION,
   type CapabilityId,
   type CategoryGroupId,
@@ -25,6 +27,7 @@ import {
   type GraphicCategoryId,
   type MotionIntensity,
   type MotionStyleId,
+  type OccasionId,
   type PlacementId,
   type ProgrammeFamilyId,
   type ProgrammeFormatId,
@@ -33,7 +36,9 @@ import {
   CATEGORY_DEFAULT_META,
   HIDDEN_CONFIG_FIELDS,
   TYPE_META,
+  TYPE_OCCASIONS,
   VARIANT_META,
+  VARIANT_OCCASIONS,
   type DeclaredTemplateMeta,
 } from './meta';
 import { PACKS } from './packs';
@@ -65,6 +70,9 @@ export interface TemplateMeta {
   coverage: CoverageClass;
   programmeFormats: ProgrammeFormatId[];
   programmeFamilies: ProgrammeFamilyId[];
+  /** The moments this design is FOR (facet I). Empty for anything undeclared, which is most of
+   *  the catalog and is not a defect — see the tables in meta.ts. */
+  occasions: OccasionId[];
   fieldSchema: SpxField[];
   fieldSemantics: FieldSemantic[];
   fieldCounts: FieldCounts;
@@ -84,6 +92,19 @@ function declaredFor(variant: TemplateVariant): DeclaredTemplateMeta | null {
     CATEGORY_DEFAULT_META[variant.category]
   );
 }
+
+/** Facet I's own resolution: the variant's declaration, else its type's, else none. There is
+ *  deliberately no category fallback — a category is a FORM, and every design of one form does
+ *  not share one moment (half the holding shelf is a front door and half is a sign-off, which is
+ *  the confusion this facet was added to end). */
+function occasionsFor(variant: TemplateVariant): OccasionId[] {
+  return VARIANT_OCCASIONS[variant.id] ?? (variant.typeId ? TYPE_OCCASIONS[variant.typeId] : undefined) ?? [];
+}
+
+/** Facet I's ceiling and floor — the two halves of its admission rule a gate can check.
+ *  The reasoning behind both numbers is with OCCASIONS in model/taxonomy.ts. */
+const MAX_OCCASIONS = 8;
+const MIN_DESIGNS_PER_OCCASION = 3;
 
 // ── Programme relevance (proposal §3) ───────────────────────────────────────
 //
@@ -247,6 +268,7 @@ export function templateMeta(variant: TemplateVariant): TemplateMeta | null {
     coverage,
     programmeFormats: formats,
     programmeFamilies: families,
+    occasions: occasionsFor(variant),
     fieldSchema: fields,
     fieldSemantics: semantics,
     fieldCounts,
@@ -279,10 +301,14 @@ export function allTemplateMeta(): { variant: TemplateVariant; meta: TemplateMet
  * config's verbatim sheet names 1:1, every browsable variant must resolve a primary
  * category, declared subtypes must come from their category's controlled list, and a
  * positional semantics array must match its variant's compiled schema length (a field
- * insertion fails loudly instead of silently shifting every meaning by one).
+ * insertion fails loudly instead of silently shifting every meaning by one) — and facet I's
+ * ADMISSION RULE, which is a gate rather than a paragraph nobody reads (see OCCASIONS).
  */
 export function validateTaxonomy(): string[] {
   const problems: string[] = [];
+  // Derived ONCE: every check below walks the same catalog, and `allTemplateMeta` rebuilds its
+  // array on each call.
+  const entries = allTemplateMeta();
 
   // Category groups: CATEGORY_GROUP_OF is total by type (a category without a shelf is a
   // compile error), so the only runtime failure left is a group id nothing maps to.
@@ -313,7 +339,54 @@ export function validateTaxonomy(): string[] {
     }
   }
 
-  for (const { variant, meta } of allTemplateMeta()) {
+  // Facet I's rule, enforced. The vocabulary is only worth having while it stays a closed,
+  // small list of real moments, so the two halves of the rule that a machine CAN check are
+  // checked: the ceiling, and the three-design floor under every value. Prose alone would have
+  // let the list grow one plausible word at a time into the free text the facet model refuses.
+  if (OCCASIONS.length > MAX_OCCASIONS) {
+    problems.push(`${OCCASIONS.length} occasions declared; the ceiling is ${MAX_OCCASIONS} (see OCCASIONS)`);
+  }
+  const occasionUse = new Map<OccasionId, number>(OCCASIONS.map((occasion) => [occasion.id, 0]));
+  const browsableIds = new Set<string>();
+  const compiledTypeIds = new Set<string>();
+  for (const { variant, meta } of entries) {
+    browsableIds.add(variant.id);
+    if (variant.typeId) compiledTypeIds.add(variant.typeId);
+    for (const id of meta.occasions) occasionUse.set(id, (occasionUse.get(id) ?? 0) + 1);
+  }
+  // A declaration for an id no browsable variant has is a typo that would otherwise declare
+  // nothing at all, silently — the loudest possible failure mode for a table of ids.
+  for (const id of Object.keys(VARIANT_OCCASIONS)) {
+    if (!browsableIds.has(id)) problems.push(`VARIANT_OCCASIONS declares "${id}", which is not a browsable variant`);
+  }
+  // The same check on the type table, and it is the more dangerous of the two: a typo'd typeId
+  // silently strips the occasion from every design that type compiles, and the three-design floor
+  // can still pass on the hand-declared variants beside them — so the only symptom would be four
+  // sign-off cards quietly missing from a "goodbye" search.
+  for (const typeId of Object.keys(TYPE_OCCASIONS)) {
+    if (!compiledTypeIds.has(typeId)) problems.push(`TYPE_OCCASIONS declares "${typeId}", which compiles no browsable variant`);
+  }
+  for (const [id, count] of occasionUse) {
+    if (count < MIN_DESIGNS_PER_OCCASION) {
+      problems.push(
+        `occasion "${id}" is declared by ${count} design(s); the floor is ${MIN_DESIGNS_PER_OCCASION} ` +
+          '(fewer than that is a design\'s own name, not a moment)',
+      );
+    }
+  }
+  // Every phrase an occasion declares has to actually reach it: the fold into ALIASES is what
+  // makes the declaration the search behaviour, and a phrase that lost its target there would
+  // fail silently — the word would simply return the wrong designs.
+  for (const occasion of OCCASIONS) {
+    for (const phrase of occasion.phrases) {
+      const key = normalizeSearchText(phrase);
+      if (!ALIASES[key]?.occasions?.includes(occasion.id)) {
+        problems.push(`occasion "${occasion.id}": phrase "${phrase}" does not resolve to it through ALIASES`);
+      }
+    }
+  }
+
+  for (const { variant, meta } of entries) {
     const category = graphicCategoryById(meta.category);
     if (meta.subtype && !category.subtypes.includes(meta.subtype)) {
       problems.push(`${variant.id}: subtype "${meta.subtype}" is not in category "${category.id}"`);

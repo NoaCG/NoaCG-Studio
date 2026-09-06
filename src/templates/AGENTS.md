@@ -113,6 +113,12 @@ was not drawn in.
 - **meta.ts** - the DECLARED sliver: per-type and per-variant graphic category / subtype /
   structures / field semantics, with a SINGLE-VALUED per-old-category fallback. Resolution
   order: `VARIANT_META[id]` → `TYPE_META[typeId]` → `CATEGORY_DEFAULT_META[category]`.
+  **`TYPE_OCCASIONS` / `VARIANT_OCCASIONS` are declared SEPARATELY from `DeclaredTemplateMeta`**
+  (facet I - what a design is FOR): that resolution is winner-takes-all, so folding the occasion
+  into it would force a design to restate its category, structures and semantics just to gain one
+  word. An occasion resolves on its own - variant, else type, else NONE, with no category fallback,
+  because half a shelf being a front door and half a sign-off is the confusion the facet ends.
+  **Undeclared is the default and costs nothing**; a guess is worse than a gap.
   `AssemblerId` (model/wizard.ts, renamed from `TemplateCategory` 2026-08-11) stays the
   ASSEMBLER/routing id, never rendered in UI; the graphic category is presentation metadata
   on top — no file moves, no value renames.
@@ -141,6 +147,21 @@ was not drawn in.
   RANKING input the user never chose (today: the saved brand's family, a deliberately small
   boost that a genuine programme match always outranks), kept out of `BrowseFilters` so it
   can never grow a chip or be cleared by Clear-all.
+  **A MOMENT OUTRANKS A FORM.** `aliasScore` pays +35 for an occasion the query named (facet I,
+  model/taxonomy.ts `OCCASIONS`), above the subtype's 25 and stacking on the category's 40.
+  Measured 2026-09-06 before it existed: "be right back" is an alias for the holding CATEGORY, so
+  it returned all 21 holding screens at an identical score and the BRB card came ELEVENTH, under
+  five front doors; "goodbye" returned NOTHING. An alias can only point at a facet, and until
+  facet I no facet said what a design was for. Occasion phrases are alias KEYS, never words in the
+  loose index - putting "before the show" in the text index would score every design carrying
+  "show", which is the uncontrolled-adjective failure the facet model refuses.
+  **The gate is `npm run test:use-case-search`** (`scripts/use-case-search.test.mjs`): it runs the
+  real engine over the real catalog in a blank Chromium page, and carries `validateTaxonomy()`,
+  which enforces facet I's admission rule - the ceiling of 8, the floor of 3 designs per occasion,
+  a declared id that names no real variant, and every phrase resolving to its occasion. Outside
+  `npm run build` for the same reason `check:catalog-emit` is: it needs a browser (the search
+  index is built out of CREATED designs, and creating one parses the html it just emitted).
+
   **It returns the WHOLE result and the step renders a PAGE of it.** `browseTemplates` has no
   limit argument and must not grow one - the total is what the step reports ("Showing 12 of
   82"), and a filter's honest effect is a number the engine has to know in full to produce.
