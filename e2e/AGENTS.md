@@ -32,6 +32,13 @@ belong where specs are written rather than in the contract every session loads.
   last write or two - which one varies. `settleDurableWrites` before tearing the page down;
   `awaitDurableReady` after a reload whose read is an `evaluate` (`e2e/_durable.ts`). A UI
   assertion needs neither: the shell cannot render before hydration resolves.
+  **The WRITE has the same hazard, and it is the half that reads as a product bug.** `page.goto`
+  resolves on `load`, which can precede hydration, so a SEED written there is a
+  read-modify-WHOLE-RECORD write (model/AGENTS.md) against a list that is not yet the list - and
+  the record can be gone after the reload. Measured 2026-09-06 seeding a brand: the reloaded page
+  read `loadLooks()` as `[]` in 2 of 5 tests on one run and 0 of 5 on the next, and the wizard
+  then honestly showed no chooser, which looks exactly like the feature being broken.
+  `awaitDurableReady` BEFORE the seed is the fix.
 - **A spec that presses Space (or Enter) must first say where FOCUS is.** Clicking a control leaves
   it focused, and Space belongs to a focused button by design (spaceKey.ts) - so the press lands on
   that button, not on the surface under test. Call `parkFocusOffControls` (`e2e/_keys.ts`) rather

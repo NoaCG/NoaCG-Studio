@@ -1,7 +1,9 @@
 # Brands - your own look, chosen per graphic
 
 **Status: binding plan, owner-directed 2026-09-05. Level 1 is wave work; level 2 is parked and
-described in section 9.** The ask, in the owner's words: *"we need to be able to create a brand and
+described in section 9. Row 1 of section 10 (the MODEL and the wizard CHOOSER) landed
+2026-09-06 - sections 3 and 5, plus the logo half of section 6's one-graphic apply; the CREATOR
+of section 4 and the production-wide apply are still to build.** The ask, in the owner's words: *"we need to be able to create a brand and
 then in the wizard you should be able to choose that brand. The graphic would magically adapt to
 the brand. If there's a place for a logo, that logo would be placed there. Colors, fonts,
 everything would follow the brand."* The creator lives on Home.

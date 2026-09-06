@@ -161,7 +161,7 @@ returns `ignored`, and the count line renders it ("ignoring “my”",
 the whole query to zero — measured 2026-08-27, "big title" returned NOTHING while "title"
 returned 71. A result the reader did not entirely ask for has to admit which part of the
 question it dropped; a query made only of unreachable words still honestly returns nothing. The footer's brand
-toggle feeds `brandFamily` as browse CONTEXT, not a filter: the package's siblings rank
+chooser feeds `brandFamily` as browse CONTEXT, not a filter: the package's siblings rank
 first, no chip appears, Clear-all leaves it alone, and a genuine programme match always
 outranks it. MiniPreview mounts its iframe only when the card scrolls into view
 (IntersectionObserver).
@@ -198,7 +198,7 @@ done chips MiniPreview in `lazy` mode (its one caller), not navigation; the
 look question is a bordered card, never a modal (it would cover the rail and tray), and its
 yes is a deterministic transform over the `:root` contract and
 NOTHING else (`kitLookPatch` — the motion preset carries only where the target design DECLARES
-it, and the brand toggle reaches every graphic of the set); both Finish doors SAVE
+it, and the chosen brand reaches every graphic of the set); both Finish doors SAVE
 FIRST, every write claimed (see "Save + Home"), export asking the production page for its
 dialog via templateStore's one-shot `pendingProductionExport` and NAMING the production it
 packages, which is the whole pool; and the kit's last rail entry is not a jump
@@ -425,9 +425,22 @@ other one on the step.
 greyed, when it cannot** (owner 2026-08-28 on palettes, 2026-09-03 on the import walk). Ask the
 BUILT artifact, not the category: `cssPaintsWith` for a colour or typeface role,
 `presetMovesSomething` (blocks/presetRegistry.ts) for a motion card, the create's own contract
-for a step reveal (`STEP_CATEGORIES`) or a project brand (`BRAND_MODES` in CreationWizard). A
+for a step reveal (`STEP_CATEGORIES`) or a brand (`BRAND_MODES` in CreationWizard). A
 control whose promise degrades to a no-op for some class of input needs that class named at the
 offer site, in the same commit as the control.
+
+**THE BRAND CHOOSER** (footer, `data-testid="wz-brand"`; docs/BRAND_PLAN.md) replaced the
+"Colors & typeface from this project" checkbox, which copied a look off a graphic nobody chose.
+It lists SAVED brands by name (`loadLooks`) and is ABSENT with none - never a disabled control -
+and it starts at None even when one brand is the default: matching is explicit. `brandPatch`
+writes palette, typeface and `brandLogo`; `brandClearPatch` clears the same four. **The mark is
+its own draft field, never one of `importedImages`** - that array means "artwork the person
+brought", and three other surfaces read it (the raster drop's own artwork, Browse's logo-first
+ranking, the Import step's Next), so a brand parked there answered questions nobody asked it.
+`draftToOptions` decides PER DESIGN whether the mark travels: never to `logo: 'none'`, and never
+to `imageSlot: 'picture'` (a presenter's avatar, cover artwork), so no design bundles a mark it
+cannot show. `kitLookPatch` carries it, so a kit's whole set gets it. Create writes NO brand
+record - Home owns making one.
 
 **Create with AI** (Entry card -> steps/AiStep, mode 'ai') is the MERGED describe/import step.
 One drop zone accepts images AND an existing .html/.zip template. A dropped template parses

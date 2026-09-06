@@ -92,7 +92,9 @@ export async function createProject(page: Page, spec: string | CreateSpec = 'Hai
       const { CATEGORIES } = await import('/src/model/wizard.ts');
       const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
       const { formatTemplate } = await import('/src/format/formatCode.ts');
-      const { saveBrand } = await import('/src/model/brand.ts');
+      const { setDefaultBrand } = await import('/src/model/brand.ts');
+      const { createLook } = await import('/src/model/packets.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
       const { saveProject } = await import('/src/model/project.ts');
       const { useTemplateStore } = await import('/src/store/templateStore.ts');
       const { useDocKindStore } = await import('/src/store/docKindStore.ts');
@@ -125,12 +127,21 @@ export async function createProject(page: Page, spec: string | CreateSpec = 'Hai
       store.applyTemplate(template, { resetSampleData: true });
       store.setActiveTab('html');
       useDocKindStore.getState().setKind('spx');
-      saveBrand({
+      // A NAMED brand, and the default pointer at it - the anonymous record Create used to
+      // write is retired (model/brand.ts). This is what makes the wizard's footer chooser
+      // appear in a spec that starts from a created project, exactly as the old toggle did.
+      //
+      // It is a DURABLE write where the old `saveBrand` was a synchronous localStorage one, so
+      // it is committed below before this bootstrap returns: a spec that reloads soon after
+      // would otherwise come back to an empty look list about one time in three, and read as
+      // the chooser being broken (e2e/AGENTS.md, the durable-seed hazard).
+      const made = createLook(`${variant.name} look`, {
         styleTag: variant.styleTag,
         palette: variant.defaultPalette,
         fontId: variant.defaultFontId,
         customFont: null,
       });
+      setDefaultBrand(made.id);
 
       // The production autosaver intentionally waits 800 ms, but this direct bootstrap can
       // reach a reload assertion sooner than a person can finish the wizard. Persist the same
@@ -143,6 +154,7 @@ export async function createProject(page: Page, spec: string | CreateSpec = 'Hai
         created.aiSpec,
         created.aiThread,
       );
+      await commitDurableWrites();
     }, wanted),
   );
   await expect(page.locator('.wz-modal')).toBeHidden();

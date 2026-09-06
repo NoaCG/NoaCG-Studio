@@ -77,6 +77,11 @@ export function kitLookPatch(source: WizardDraft, target: TemplateVariant): Draf
     cssVarOverrides: source.cssVarOverrides,
     fontId: source.fontId,
     customFont: source.customFont,
+    // The BRAND'S MARK is part of the look and travels with it, so every graphic of the set
+    // carries it - not only the one that happened to be on screen when the brand was chosen.
+    // `logoEnabled` still does not travel (a capability of the design, not a look): each
+    // design's own slot decides whether there is anywhere to put it.
+    brandLogo: source.brandLogo,
     sizeScale: source.sizeScale,
     typeScale: source.typeScale,
     animation: {
@@ -98,9 +103,8 @@ export function kitLookPatch(source: WizardDraft, target: TemplateVariant): Draf
  * order of how deliberately they were chosen.
  *
  * **The order is the whole contract.** `packPaletteId` is the pack's curated taste pick, so it
- * loses to anything the user said. `brand` is the footer's "Colors & typeface from this
- * project" — an explicit ask, and the one the production-context open turns on by itself, so it
- * outranks the pack. `look` is the first graphic's identity once the look question was answered
+ * loses to anything the user said. `brand` is the BRAND chosen in the footer — an explicit
+ * ask, and the one the production-context open selects by itself, so it outranks the pack. `look` is the first graphic's identity once the look question was answered
  * yes, and it wins because it is the most recent deliberate choice. Rebuilding from
  * `initialDraft()` without the middle one is what silently dropped the toggle on the kit path.
  */
@@ -141,8 +145,8 @@ export function buildRemaining(plan: KitPlan, source: WizardDraft): (SpxTemplate
     return buildDraftTemplate(
       item.variant,
       // No `brand` here on purpose: `source` IS the first graphic's draft, which already had
-      // the brand applied, and `kitLookPatch` carries its palette and typeface forward. Passing
-      // the brand again would be the same fact arriving twice by two routes.
+      // the brand applied, and `kitLookPatch` carries its palette, typeface and mark forward.
+      // Passing the brand again would be the same fact arriving twice by two routes.
       kitItemDraft(source, item.variant, {
         packPaletteId: plan.pack.paletteId,
         look: kitLookPatch(source, item.variant),

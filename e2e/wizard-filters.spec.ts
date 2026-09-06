@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
 import { chooseCategory, chooseType, pickDesign, resultTotal, revealDesign, shownCount } from './_browse';
+import { settleDurableWrites } from './_durable';
 
 // The Browse step's faceted discovery (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12-13, groups
 // §4c): ONE category-group dropdown (+ the selected group's member-category chips) + field
@@ -445,15 +446,27 @@ test('a card\'s ⓘ opens its full detail without picking the template', async (
   await expect(page.locator('.wz-variant-detail')).toHaveCount(1);
 });
 
-test('the brand toggle ranks the package siblings first without filtering anything out', async ({ page }) => {
-  // Create a glass graphic so the saved project brand is the glass family, then reopen the
-  // wizard and turn on "Use current project's colors & typeface" (proposal §13.3). The create
-  // rides the Advanced editor door (the footer shortcut is Skip to finish since step 6).
+test('the chosen brand ranks its family first without filtering anything out', async ({ page }) => {
+  // Make a glass graphic, save it as a BRAND, then reopen the wizard and choose that brand in the
+  // footer (proposal §13.3; docs/BRAND_PLAN.md §5). The create rides the Advanced editor door
+  // (the footer shortcut is Skip to finish since step 6).
   await enableAdvancedMode(page);
   await toBrowseStep(page);
   await pickDesign(page, 'Frosted Card');
   await finishIntoEditor(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
+
+  await page.evaluate(async () => {
+    const { createLook, captureLookFromTemplate } = await import('/src/model/packets.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    // The STYLE FAMILY is stated, not captured. Nothing in a template's own code records which
+    // catalog family it came from, so `captureLookFromTemplate` borrows it from whatever brand
+    // the app already considers current - and here there is none. The family is exactly what this
+    // test is about, so it is set rather than left to that fallback.
+    const captured = captureLookFromTemplate(useTemplateStore.getState().template);
+    createLook('Glass house', { ...captured, styleTag: 'glass' });
+  });
+  await settleDurableWrites(page);
 
   await startNewProject(page);
   await page.locator('[data-entry="template"]').click();
@@ -462,7 +475,7 @@ test('the brand toggle ranks the package siblings first without filtering anythi
   const firstStyle = () => page.locator('.wz-variant .wz-style-tag').first().textContent();
   expect(await firstStyle()).not.toBe('Glass');
 
-  await page.locator('.wz-match input[type="checkbox"]').check();
+  await page.getByTestId('wz-brand').selectOption({ label: 'Glass house' });
   expect(await firstStyle()).toBe('Glass');
   // Ranking, never filtering: the result total is untouched.
   expect(await resultTotal(page)).toBe(n.lowerThirds);

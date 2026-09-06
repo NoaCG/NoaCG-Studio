@@ -75,6 +75,17 @@ export interface Show {
    *  global project brand stays the default outside a production). ADDITIVE OPTIONAL - an
    *  older build reads and rewrites the record untouched. */
   look?: ProjectBrand;
+  /** The BRAND this production is in, by saved-look id (model/brand.ts). The wizard's chooser
+   *  preselects it when a graphic is created FOR this production, and "Apply brand to all
+   *  graphics" sets it.
+   *
+   *  It sits BESIDE `look` rather than replacing it, and when both exist the REFERENCE wins: a
+   *  reference stays right when the brand is edited, while `look` is a copy taken from whichever
+   *  graphic happened to be added first. `look` remains the fallback for every production that
+   *  never chose a brand - which is all of them until somebody does. ADDITIVE OPTIONAL (root
+   *  AGENTS.md rule 6): absent = no brand chosen, an older build reads and rewrites the record
+   *  untouched. */
+  brandId?: string;
   /** The graphic POOL, in layer order — which templates the production can air, each once. */
   graphics: SavedGraphic[];
   /** The cue rundown, in playout order (docs/CLOUD_PLAYOUT.md). ADDITIVE OPTIONAL — an older
@@ -698,6 +709,16 @@ export function setShowLook(showId: string, look: ProjectBrand | undefined): Sho
   return patchShow(showId, (show) => {
     if (look) show.look = look;
     else delete show.look;
+    return true;
+  });
+}
+
+/** Point the production at a saved BRAND (or clear it, with undefined). The reference the
+ *  wizard's chooser preselects; `setShowLook` above still records the captured copy. */
+export function setShowBrand(showId: string, brandId: string | undefined): Show[] {
+  return patchShow(showId, (show) => {
+    if (brandId) show.brandId = brandId;
+    else delete show.brandId;
     return true;
   });
 }

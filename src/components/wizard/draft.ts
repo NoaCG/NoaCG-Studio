@@ -691,6 +691,22 @@ export interface WizardDraft {
   };
   /** Images dropped in via the "Import graphics" entry (stored as data-URL assets). */
   importedImages: AssetFile[];
+  /**
+   * THE CHOSEN BRAND'S MARK, kept apart from the user's own pictures.
+   *
+   * It lived in `importedImages` for one evening and that was wrong twice over. Those images
+   * are the wizard's word for "artwork the person brought": the Import walk's raster drop
+   * writes the dropped file there and reads `[0]` back as the artwork, Browse re-ranks
+   * logo-capable designs first when the list is non-empty, and the Import step's Next unlocks
+   * on it - so a brand quietly answered three questions nobody had asked it. Worse, the raster
+   * drop's own patch sets `importedImages` and a brand patch spread after it replaced the
+   * artwork with the mark, leaving `designArt` pointing at a file the template no longer
+   * bundled.
+   *
+   * As its own field it is one fact in one place, and `draftToOptions` decides per design
+   * whether the mark travels at all.
+   */
+  brandLogo: AssetFile | null;
   /** Which imported image goes into the variant's logo slot (relative assets/ path). */
   logoAssetPath: string | null;
   /** The Fields step's logo toggle on an 'optional'-logo variant; null = undecided
@@ -787,6 +803,7 @@ export function initialDraft(): WizardDraft {
     nudge: { x: 0, y: 0 },
     animation: { presetId: null, outPresetId: null, direction: 'both', motionIn: null, motionOut: null, speed: 1, easing: 'auto', steps: null },
     importedImages: [],
+    brandLogo: null,
     logoAssetPath: null,
     logoEnabled: null,
     designArt: null,
@@ -806,6 +823,23 @@ export function initialDraft(): WizardDraft {
   };
 }
 
+/**
+ * The chosen brand's mark, IF this design is one it should reach - otherwise null.
+ *
+ * Two designs are refused, and both refusals are the same rule read twice. A design with
+ * `logo: 'none'` drew no slot, and nothing invents one (decision 2). A design with
+ * `imageSlot: 'picture'` drew a slot for CONTENT rather than for a mark - `ls41`'s round
+ * presenter avatar, `ls25`'s square cover artwork (model/wizard.ts) - and dropping a channel
+ * mark into a headshot is the one outcome worse than dropping none: the operator's own file is
+ * replaced by something they never chose. A picture slot is still filled by an image the person
+ * imported themselves, because they picked it.
+ */
+function brandMarkFor(variant: TemplateVariant, draft: WizardDraft): AssetFile | null {
+  if (!draft.brandLogo) return null;
+  if (variant.logo === 'none' || variant.imageSlot === 'picture') return null;
+  return draft.brandLogo;
+}
+
 export function draftResolution(draft: WizardDraft): Resolution {
   return resolutionForSelection(draftFormatSelection(draft));
 }
@@ -822,7 +856,13 @@ export function formatDraftPatch(selection: ProjectFormatSelection): DraftPatch 
   return { ...selection, formatTouched: true };
 }
 
-/** The DraftPatch that applies a saved project brand to the draft (the wizard's "Use current project's colors & typeface" toggle). */
+/**
+ * The DraftPatch that applies a chosen BRAND to the draft (the wizard footer's brand chooser).
+ *
+ * Colour, typeface, and the brand's mark as `brandLogo` - which is a fact about the BRAND, not
+ * about what the person imported, and is why it has a field of its own (see `WizardDraft`).
+ * Whether that mark reaches the graphic is `draftToOptions`'s decision, per design.
+ */
 export function brandPatch(brand: import('../../model/brand').ProjectBrand): DraftPatch {
   // ANYTHING THE CATALOG CANNOT NAME TRAVELS AS A CUSTOM PALETTE. A look CAPTURED off a
   // template (model/packets.ts captureLookFromTemplate) is minted with id 'captured', not
@@ -843,11 +883,31 @@ export function brandPatch(brand: import('../../model/brand').ProjectBrand): Dra
     paletteId: known ? brand.palette.id : null,
     fontId: brand.customFont ? 'custom' : brand.fontId,
     customFont: brand.customFont,
+    brandLogo: brand.logo ?? null,
   };
+}
+
+/**
+ * The DraftPatch that takes a brand back OFF the draft - the chooser moving to None, or to a
+ * different brand (in which case this runs first and `brandPatch` writes the new one over it).
+ *
+ * Colour and typeface are cleared outright, as the old toggle did. The mark needs no unwinding
+ * at all: it never entered `importedImages` or `logoAssetPath`, so dropping `brandLogo` leaves
+ * whatever picture the person imported themselves exactly where it was, still chosen. That is
+ * the whole reason the mark is a field of its own.
+ */
+export function brandClearPatch(): DraftPatch {
+  return { paletteId: null, customPalette: null, fontId: null, customFont: null, brandLogo: null };
 }
 
 /** Map the draft onto WizardOptions (nulls fall back to the variant's defaults). */
 export function draftToOptions(variant: TemplateVariant, draft: WizardDraft): WizardOptions {
+  const mark = brandMarkFor(variant, draft);
+  // The mark rides with the user's own pictures only where it is actually going to be used, so
+  // a design that cannot show it never bundles its bytes into the template or the export.
+  const images = mark
+    ? [...draft.importedImages.filter((a) => a.path !== mark.path), mark]
+    : draft.importedImages;
   return {
     resolution: draftResolution(draft),
     fps: draft.fps,
@@ -877,10 +937,15 @@ export function draftToOptions(variant: TemplateVariant, draft: WizardDraft): Wi
       // null = undecided; resolveOptions then uses the variant's own `defaultSteps`.
       steps: draft.animation.steps ?? undefined,
     },
-    importedImages: draft.importedImages.length > 0 ? draft.importedImages : undefined,
-    logoAssetPath: variant.logo !== 'none' ? draft.logoAssetPath ?? undefined : undefined,
-    // null = the user hasn't decided; resolveOptions then falls back to "an image exists".
-    logoEnabled: draft.logoEnabled ?? undefined,
+    importedImages: images.length > 0 ? images : undefined,
+    // THE BRAND'S MARK LEADS while a brand is chosen (docs/BRAND_PLAN.md decision 2), and the
+    // person's own picture is still sitting in `logoAssetPath` underneath it - so clearing the
+    // brand gives that picture straight back, with nothing to restore and nothing to guess.
+    logoAssetPath: variant.logo !== 'none' ? mark?.path ?? draft.logoAssetPath ?? undefined : undefined,
+    // null = the user hasn't decided; resolveOptions then falls back to "an image exists" -
+    // which a brand's mark now is, so a design declaring `defaultLogo: false` cannot silently
+    // swallow it.
+    logoEnabled: draft.logoEnabled ?? (mark ? true : undefined),
     designArt: draft.designArt ?? undefined,
     designSvg: draft.designSvg
       ? {

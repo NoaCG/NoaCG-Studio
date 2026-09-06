@@ -42,10 +42,15 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
 
   // The logo slot: built-in designs always carry one; optional designs get a toggle.
   // Unset (null) follows "a logo image exists" — the import flow pre-fills it.
+  // A chosen brand's mark counts as "a logo image exists" here exactly as it does in
+  // `draftToOptions` - otherwise this toggle reads OFF beside a preview that is showing the
+  // mark, and the two surfaces disagree about the same graphic.
+  const brandMark = variant.imageSlot === 'picture' ? null : draft.brandLogo;
   const logoOn =
     variant.logo === 'built-in' ||
-    (draft.logoEnabled ?? variant.defaultLogo ?? draft.logoAssetPath !== null);
-  const logoImage = draft.importedImages.find((a) => a.path === draft.logoAssetPath);
+    (draft.logoEnabled ?? variant.defaultLogo ?? (draft.logoAssetPath !== null || brandMark !== null));
+  const logoImage =
+    draft.importedImages.find((a) => a.path === draft.logoAssetPath) ?? brandMark ?? undefined;
 
   /** Upload a custom logo: embed it as a data-URL asset and point the slot at it. */
   const uploadLogo = async (file: File) => {

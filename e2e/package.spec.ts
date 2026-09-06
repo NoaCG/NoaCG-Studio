@@ -2,6 +2,7 @@ import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
 import { chooseType, pickDesign } from './_browse';
+import { settleDurableWrites } from './_durable';
 
 // The broadcast-package flows: custom colors, imported fonts, the project brand,
 // and the first-wave categories (info cards, end credits, tickers).
@@ -77,8 +78,10 @@ test('imported font: embedded, applied, and bundled into the export', async ({ p
   expect(download.suggestedFilename()).toMatch(/\.zip$/);
 });
 
-test('project brand: match toggle carries the look to another variant', async ({ page }) => {
-  // First creation with a custom accent saves the brand.
+test('a saved brand carries its look to another variant', async ({ page }) => {
+  // A graphic with a custom accent, saved as a NAMED brand. Create no longer writes a brand
+  // record of its own (docs/BRAND_PLAN.md decision 6), so making one is a deliberate act -
+  // which is the whole point of the chooser this then drives.
   await toVariantStep(page, 'Lower thirds', 'Hairline');
   await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByRole('button', { name: 'Next →' }).click();
@@ -89,15 +92,22 @@ test('project brand: match toggle carries the look to another variant', async ({
     .fill('#00ff88');
   await create(page);
 
-  // Second creation, different family: the brand accent applies via the match toggle.
+  await page.evaluate(async () => {
+    const { createLook, captureLookFromTemplate } = await import('/src/model/packets.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    createLook('Channel green', captureLookFromTemplate(useTemplateStore.getState().template));
+  });
+  await settleDurableWrites(page);
+
+  // Second creation, different family: the brand's accent applies through the chooser.
   await startNewProject(page);
   await page.locator('[data-entry="template"]').click();
   await chooseType(page, 'Lower thirds');
   await pickDesign(page, 'Frosted Card');
-  // The match toggle is off by default — carrying the look over is an explicit choice.
-  const match = page.locator('.wz-match input');
-  await expect(match).not.toBeChecked();
-  await match.check();
+  // None until somebody chooses - carrying a look over is explicit, as the old toggle was.
+  const brand = page.getByTestId('wz-brand');
+  await expect(brand).toHaveValue('');
+  await brand.selectOption({ label: 'Channel green' });
   await create(page);
   await expect
     .poll(async () => frame(page).locator('.lower-third').evaluate(() => {

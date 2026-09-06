@@ -151,8 +151,15 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   anything else is refused with a reason, never coerced. `importShowDataset` (shows.ts) lands
   the result as an ordinary editable dataset; there is deliberately no link back to the file.
   Gate: `scripts/csv.test.mjs`, in the build.
-- **brand.ts** - ProjectBrand save/load (localStorage 'spx-gfx-brand'), captured on every wizard
-  Create.
+- **brand.ts** - the BRAND's payload shape (`ProjectBrand`: palette, typeface, shape tokens, plus
+  the additive-optional `logo` asset and `notes`) and WHICH brand is the default. A brand IS a
+  saved look (packets.ts), so the anonymous singleton that every wizard Create used to overwrite
+  is retired: `defaultBrandId` ('spx-gfx-default-brand') POINTS at one, and `loadBrand()` -
+  which lives in packets.ts beside the store it reads, or the two modules form an import cycle
+  the dependency gate refuses - resolves it. The old 'spx-gfx-brand' key is never written by the
+  app again, only READ (`legacyBrandOffer`, and captureLookFromTemplate's style-family fallback)
+  and carried by the sync seam. `MAX_BRAND_LOGO_BYTES` is measured against real 512 px marks,
+  not chosen.
 - **aiThread.ts** - the Create-with-AI CONVERSATION a graphic was created from (the talk turns
   of components/wizard/steps/AiStep.tsx), captured at create so the graphic carries the reasoning
   that produced it. Persisted BESIDE aiSpec as `SavedProject.aiThread` / `GraphicDoc.aiThread`,
