@@ -269,22 +269,38 @@ for (const recipe of ['thumbnail', 'canvas'] as const) {
       const box = w.document.querySelector('.credits-box');
       const track = w.document.querySelector('#credits-track');
       let pct = null;
+      let drawnPx = null;
       if (box && track) {
         const b = box.getBoundingClientRect(); const t = track.getBoundingClientRect();
         const overlap = Math.max(0, Math.min(b.bottom, t.bottom) - Math.max(b.top, t.top));
         pct = b.height > 0 ? Math.round((overlap / b.height) * 100) : 0;
+        // AND SOMETHING IS ACTUALLY DRAWN THERE. A rect overlap cannot see a hidden row, and
+        // since the roll runs its list off the frame and hides it (creditsEndBeat), a design
+        // whose closing beat failed would park a full-height track of INVISIBLE rows over the
+        // viewport and report 100% coverage. So measure the parts that are still painted.
+        const parts = w.document.querySelectorAll('.credits-page, .credits-end');
+        drawnPx = 0;
+        for (const part of parts) {
+          if (Number(w.getComputedStyle(part).opacity) < 0.05) continue;
+          const r = part.getBoundingClientRect();
+          drawnPx += Math.max(0, Math.min(b.bottom, r.bottom) - Math.max(b.top, r.top));
+        }
+        drawnPx = Math.round(drawnPx);
       }
-      out.push({ id: variant.id, pct });
+      out.push({ id: variant.id, pct, drawnPx });
       f.remove();
     }
     return out;
-  })()`)) as { id: string; pct: number | null }[];
+  })()`)) as { id: string; pct: number | null; drawnPx: number | null }[];
 
     expect(covered.length).toBeGreaterThan(10);
     for (const design of covered) {
       // A number, not a truthy check: 0 is exactly the failure this exists for.
       expect(design.pct, design.id).not.toBeNull();
       expect(design.pct, design.id).toBeGreaterThan(20);
+      // A settled ROLL shows its closing mark rather than a frame of names, so what is asserted
+      // here is that the frame is not EMPTY - the failure this whole test exists for.
+      expect(design.drawnPx, `${design.id} draws nothing in its viewport`).toBeGreaterThan(20);
     }
   });
 }
@@ -345,10 +361,10 @@ for (const design of [
       };
 
       const run = build(100);
-      // QUERY THE ROWS AFTER THE BUILD. rebuildCredits() replaces the track's children, so a
-      // reference taken before it is detached - and a detached element's computed style is
-      // EMPTY, which Number('') turns into a perfectly passing 0.
-      const end = track.querySelector('.credits-end');
+      // QUERY THE ROWS AFTER THE BUILD, and again after anything that rebuilds them. Every
+      // rebuild replaces the track's children, so a reference taken before one is detached -
+      // and a detached element's computed style is EMPTY, which Number('') turns into a
+      // perfectly passing 0. That is why the readers below re-query rather than close over a row.
       const pages = Array.prototype.slice.call(track.querySelectorAll('.credits-page'));
       run.tl.seek(0.001);
       // How far the LIST reaches inside the track, measured where it sits.
@@ -364,23 +380,52 @@ for (const design of [
         if (travelled > maxTravel) maxTravel = travelled;
       }
 
+      // Where the VISIBLE mark sits, from the union of the end block's own children rather than
+      // from the block's rect. The rect includes the design's air around the mark (cr01 breathes
+      // 60px above the hairline and 15px below it), which is exactly the offset this has to be
+      // able to see - measuring the same padded box the code centres would agree with a bug.
+      const markCentre = () => {
+        const kids = track.querySelector('.credits-end').children;
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (let i = 0; i < kids.length; i++) {
+          const r = kids[i].getBoundingClientRect();
+          if (r.width === 0 && r.height === 0) continue;
+          lo = Math.min(lo, axis === 'y' ? r.top : r.left);
+          hi = Math.max(hi, axis === 'y' ? r.bottom : r.right);
+        }
+        return (lo + hi) / 2;
+      };
+      const offCentre = () => {
+        const b = box.getBoundingClientRect();
+        return Math.round(Math.abs(markCentre() - (axis === 'y' ? (b.top + b.bottom) / 2 : (b.left + b.right) / 2)));
+      };
+      const drawn = () => ({
+        pagesGone: Array.prototype.slice.call(track.querySelectorAll('.credits-page'))
+          // Bounded rather than exact: the last frame is sampled at the finite motion's end,
+          // which is a float, so a fade can report 0.999997 there.
+          .every((p) => Number(w.getComputedStyle(p).opacity) < 0.02),
+        markOpacity: Number(w.getComputedStyle(track.querySelector('.credits-end')).opacity),
+      });
+
       // The last frame: the list gone, the mark alone in the middle.
       run.tl.seek(run.finite);
-      const b = box.getBoundingClientRect();
-      const e = end.getBoundingClientRect();
-      const boxCentre = axis === 'y' ? (b.top + b.bottom) / 2 : (b.left + b.right) / 2;
-      const endCentre = axis === 'y' ? (e.top + e.bottom) / 2 : (e.left + e.right) / 2;
-
+      const atEnd = drawn();
       const out = {
         speedField: speedField.field + ':' + speedField.ftype + ':' + speedField.value,
         speedHolderHidden: w.getComputedStyle(d.getElementById(speedField.field)).display === 'none',
         listExtent: Math.round(listExtent),
         maxTravel: Math.round(maxTravel),
-        // Bounded rather than exact: the last frame is sampled at the finite motion's end,
-        // which is a float, so a fade can report 0.999997 there.
-        pagesGoneAtEnd: pages.every((p) => Number(w.getComputedStyle(p).opacity) < 0.02),
-        markOpacityAtEnd: Number(w.getComputedStyle(end).opacity),
-        markOffCentre: Math.round(Math.abs(endCentre - boxCentre)),
+        pagesGoneAtEnd: atEnd.pagesGone,
+        markOpacityAtEnd: atEnd.markOpacity,
+        markOffCentre: offCentre(),
+        // The mark is on air and the operator corrects the year. update() re-renders every row,
+        // so a closing pose carried on the rows themselves would be thrown away here and the
+        // tail of the credit list would come back on top of the mark.
+        afterUpdate: (() => {
+          w.update(JSON.stringify({ f1: 'Corrected on air' }));
+          return drawn();
+        })(),
         at100: Math.round(run.finite * 100) / 100,
         at200: Math.round(build(200).finite * 100) / 100,
         atNonsense: Math.round(build('fast').finite * 100) / 100,
@@ -390,6 +435,7 @@ for (const design of [
     })()`)) as {
       speedField: string; speedHolderHidden: boolean; listExtent: number; maxTravel: number;
       pagesGoneAtEnd: boolean; markOpacityAtEnd: number; markOffCentre: number;
+      afterUpdate: { pagesGone: boolean; markOpacity: number };
       at100: number; at200: number; atNonsense: number;
     };
 
@@ -406,6 +452,11 @@ for (const design of [
     expect(measured.pagesGoneAtEnd, `${design.id} list still drawn at the end`).toBe(true);
     expect(measured.markOpacityAtEnd, `${design.id} mark missing at the end`).toBeGreaterThan(0.98);
     expect(measured.markOffCentre, `${design.id} mark off centre`).toBeLessThanOrEqual(2);
+
+    // And it stays that way through an update. The mark is what is on air at this point, so a
+    // correction to the year must not bring the credit list back on top of it.
+    expect(measured.afterUpdate.pagesGone, `${design.id} list came back on update()`).toBe(true);
+    expect(measured.afterUpdate.markOpacity, `${design.id} mark lost on update()`).toBeGreaterThan(0.98);
 
     // Doubling the speed roughly halves the graphic (roughly, because the entrance fades either
     // side of the travel scale too), and a value the operator could not have meant falls back to

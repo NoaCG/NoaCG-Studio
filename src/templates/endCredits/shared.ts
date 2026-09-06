@@ -376,6 +376,30 @@ const CREDITS_SAMPLE = [
 const SPEED_DEFAULT = '100';
 
 /**
+ * The scroll's two poses, as CSS rather than as opacity on the rows.
+ *
+ * A roll or a crawl runs the list all the way off the frame and then brings the closing mark in
+ * on its own (creditsRoll / creditsCrawl). Which pose is live is one attribute on the track,
+ * written by the motion itself:
+ *
+ *   rolling  the list is travelling, so the mark waits its turn
+ *   ended    the list has gone, so only the mark is drawn
+ *
+ * It has to be the TRACK's attribute and not the rows' opacity, because `update()` re-renders
+ * every row: a pose carried on the rows is thrown away the moment an operator corrects the year
+ * with the mark already on air, and the tail of the credit list comes back on top of it. The
+ * track is what survives the rebuild.
+ */
+const scrollPoseCss = `/* The scroll's two poses - see creditsRoll() in the JS, which writes the attribute. */
+#credits-track[data-credits="rolling"] .credits-end {
+  opacity: 0;                      /* the closing mark waits until the list has run through */
+}
+
+#credits-track[data-credits="ended"] .credits-page {
+  opacity: 0;                      /* the list has gone; a rebuild must not bring it back */
+}`;
+
+/**
  * What the speed field is CALLED, per motion preset, and which presets have one at all.
  * The word has to match what the operator sees happen: a roll and a reel scroll, a crawl
  * crawls, and a one-pager swap does not move at all, so its speed is the reading time it
@@ -495,6 +519,8 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
 ${backgroundCss}
 
 ${design.css}
+
+${scrollPoseCss}
 
 ${dataSourceCss}
 `;

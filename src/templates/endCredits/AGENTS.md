@@ -72,6 +72,19 @@ Owner walk 2026-08-28, and it holds for anything in here that moves:
   out. The travel therefore measures to the end block's position, not the track's full extent.
   Do not "fix" it back to stopping on the mark: a roll that ends with the last names on screen
   and the logo held in the middle is the thing that walk was about.
+- **The closing pose is an ATTRIBUTE on `#credits-track`** (`data-credits="rolling" | "ended"`)
+  driving two rules in `scrollPoseCss`, never opacity on the rows. `update()` re-renders every
+  row, so a pose carried on the rows is thrown away the moment an operator corrects the year with
+  the mark on air, and the tail of the credit list comes back on top of it. The track survives the
+  rebuild; the rows do not. (What the rebuild cannot re-centre is the crawl's park when the
+  correction changes the mark's WIDTH - measured at 26px on cr04, and left alone.)
+- **The speed field is chosen from the CREATE-TIME preset, and a post-creation preset swap does
+  not revisit it** (the Inspector's motion-style picker offers all five, none is `structural`).
+  So a board swapped to a roll scrolls at the design's own pace with no operator field, and a roll
+  swapped to a board keeps a field that moves nothing. Neither is worse than the pre-2026-09-06
+  behaviour and both are editor-side; fixing it properly means either marking the credits presets
+  `structural` or emitting the field for every credits design, and that is a decision about the
+  picker, not about this file.
 - **A roll's SETTLED pose is now that closing beat** - the mark alone. Every surface that shows
   a graphic without a playback gesture parks it there (`preview/settleGraphic.ts`), so a Browse
   card, a library thumbnail and an operator preview of a roll show the end block rather than a

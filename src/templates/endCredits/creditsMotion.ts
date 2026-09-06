@@ -69,8 +69,18 @@ function creditsMotionSpeed() {
 // straight through the track, so the track's own box starts 50px below its content in cr01, and
 // arithmetic built from offsets parks the closing mark 50px low with nothing saying so. A rect
 // difference cannot be wrong about that, because it asks the browser where things actually are.
-function creditsMid(rect, axis) {
-  return axis === 'x' ? (rect.left + rect.right) / 2 : (rect.top + rect.bottom) / 2;
+function creditsMid(el, axis) {
+  var rect = el.getBoundingClientRect();
+  var style = getComputedStyle(el);
+  // The CONTENT box, not the border box. A design may hold its closing mark inside asymmetric
+  // padding (cr01 breathes 60px above the hairline and 15px below it), and centring the padded
+  // box parks the visible mark low by half that difference. The padding is the design's air
+  // around the mark, not part of the mark.
+  var before = parseFloat(axis === 'x' ? style.paddingLeft : style.paddingTop) || 0;
+  var after = parseFloat(axis === 'x' ? style.paddingRight : style.paddingBottom) || 0;
+  var start = axis === 'x' ? rect.left : rect.top;
+  var end = axis === 'x' ? rect.right : rect.bottom;
+  return (start + before + end - after) / 2;
 }
 
 function creditsMoveBy(track, axis, from, to) {
@@ -87,18 +97,19 @@ function creditsMoveBy(track, axis, from, to) {
 //
 // No design has to move its end block for this: the block is measured where it already sits
 // at the foot of the track, and the track is simply parked at the offset that puts it in the
-// middle of the viewport. Everything that has already scrolled past is faded out first, so
-// the names cannot come back with it. play() re-renders the track from scratch, so none of
-// these inline values survive into the next take.
+// middle of the viewport.
+//
+// WHAT HIDES THE LIST IS AN ATTRIBUTE ON THE TRACK, not opacity on the rows. update() re-renders
+// every row (rebuildCredits assigns innerHTML), so a pose carried on the rows is thrown away the
+// moment an operator corrects the year with the mark on air - and the tail of the credits comes
+// back on top of it. The track survives that rebuild, and so does its data-credits; the two
+// rules it drives are in the stylesheet (templates/endCredits/shared.ts).
 function creditsEndBeat(seq, track, box, endBlock, axis) {
-  var pages = track.querySelectorAll('.credits-page');
-  var boxRect = box.getBoundingClientRect();
-  var endRect = endBlock.getBoundingClientRect();
   var park = creditsMoveBy(track, axis,
-    creditsMid(endRect, axis),                 // from: where the mark is now…
-    creditsMid(boxRect, axis));                // …to: the middle of the viewport
+    creditsMid(endBlock, axis),                // from: where the mark is now…
+    creditsMid(box, axis));                    // …to: the middle of the viewport
 
-  if (pages.length) seq.set(pages, { opacity: 0 });      // the list has gone; it never returns
+  seq.set(track, { attr: { 'data-credits': 'ended' } });  // the list has gone; it never returns
   seq.set(track, axis === 'x' ? { x: park } : { y: park });
   seq.fromTo(endBlock,
     { opacity: 0 },
@@ -130,7 +141,9 @@ function creditsRoll(target) {
   if (distance <= 0) return null;
 
   var seq = gsap.timeline();
-  if (hasEndBeat) seq.set(endBlock, { opacity: 0 }, 0);       // the mark waits its turn
+  // Opening the travel also CLEARS a previous take's closing pose - the attribute rides on the
+  // track, which every rebuild keeps, so a replay would otherwise start with the list hidden.
+  seq.set(track, { attr: { 'data-credits': hasEndBeat ? 'rolling' : 'none' } }, 0);
   seq.fromTo(track,
     { y: startY },
     { y: endY, duration: distance / pixelsPerSecond, ease: 'none' },  // constant speed — never eased
@@ -208,7 +221,7 @@ function creditsCrawl(target) {
   if (distance <= 0) return null;
 
   var seq = gsap.timeline();
-  if (hasEndBeat) seq.set(endBlock, { opacity: 0 }, 0);       // the mark waits its turn
+  seq.set(track, { attr: { 'data-credits': hasEndBeat ? 'rolling' : 'none' } }, 0);  // the mark waits its turn
   seq.fromTo(track,
     { x: startX },
     { x: endX, duration: distance / pixelsPerSecond, ease: 'none' },  // constant speed — never eased
