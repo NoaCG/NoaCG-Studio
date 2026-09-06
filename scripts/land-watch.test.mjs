@@ -7,9 +7,11 @@ import { watchVerdict } from './land-watch.mjs';
 
 const open = (over = {}) => ({ state: 'OPEN', mergedAt: null, mergeCommit: null, headRefOid: 'abc', autoMergeRequest: { enabledAt: 'x' }, ...over });
 
-test('an open pull request with auto-merge on is waiting in the queue; no answer from gh is waiting too', () => {
+test('an open pull request with auto-merge on, or a queue entry, is waiting; no answer from gh is waiting too', () => {
   assert.deepEqual(watchVerdict(open()), { verdict: 'waiting' });
+  assert.deepEqual(watchVerdict(open({ autoMergeRequest: null, mergeQueueEntry: { state: 'AWAITING_CHECKS', position: 1 } })), { verdict: 'waiting' }, 'the queue clears the auto-merge request when it takes the pull request');
   assert.deepEqual(watchVerdict(null), { verdict: 'waiting' });
+  assert.deepEqual(watchVerdict(open({ state: 'MERGED', merged: true, mergeCommit: { oid: 'm9' } })), { verdict: 'landed', sha: 'm9' });
 });
 
 test('a merged pull request landed, at its merge commit or its head', () => {

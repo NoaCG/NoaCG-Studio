@@ -31,8 +31,10 @@ const CAP_MS = 60 * 60_000;
  */
 export function watchVerdict(pr, checks = []) {
   if (!pr) return { verdict: 'waiting' };
-  if (pr.state === 'MERGED' || pr.mergedAt) return { verdict: 'landed', sha: pr.mergeCommit?.oid ?? pr.headRefOid };
-  if (pr.state === 'OPEN' && pr.autoMergeRequest) return { verdict: 'waiting' };
+  if (pr.state === 'MERGED' || pr.merged || pr.mergedAt) return { verdict: 'landed', sha: pr.mergeCommit?.oid ?? pr.headRefOid };
+  // Auto-merge is the request; once the queue takes the pull request the request reads null and
+  // the queue entry carries the state (AWAITING_CHECKS, MERGEABLE, ...). Either one is waiting.
+  if (pr.state === 'OPEN' && (pr.autoMergeRequest || pr.mergeQueueEntry)) return { verdict: 'waiting' };
   const failed = (checks ?? []).filter((c) => /^(FAILURE|ERROR|CANCELLED|TIMED_OUT)$/i.test(c.conclusion ?? c.state ?? ''));
   const reason = failed.length > 0
     ? `${failed.map((c) => c.name ?? c.context).join(', ')} failed on the pull request`
@@ -50,6 +52,18 @@ function gh(args) {
   }
 }
 
+/**
+ * The pull request as the queue sees it. `gh pr view --json` does not expose the queue entry, so
+ * this is one GraphQL query; the repository is whatever `gh` resolves for this checkout.
+ */
+function viewPr(number) {
+  const slug = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { encoding: 'utf8', windowsHide: true, timeout: 20_000 }).stdout?.trim();
+  if (!slug) return null;
+  const [owner, name] = slug.split('/');
+  const query = `{ repository(owner:"${owner}",name:"${name}"){ pullRequest(number:${Number(number)}){ state merged url headRefOid mergeCommit{ oid } autoMergeRequest{ enabledAt } mergeQueueEntry{ state position } } } }`;
+  return gh(['api', 'graphql', '-f', `query=${query}`])?.data?.repository?.pullRequest ?? null;
+}
+
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
 async function main() {
@@ -63,7 +77,7 @@ async function main() {
   const started = Date.now();
   let lastSaid = '';
   while (Date.now() - started < CAP_MS) {
-    const view = gh(['pr', 'view', String(pr), '--json', 'state,mergedAt,mergeCommit,headRefOid,autoMergeRequest,url']);
+    const view = viewPr(pr);
     const { verdict, sha } = watchVerdict(view, []);
     if (verdict === 'landed') {
       const dir = jobsDir();
