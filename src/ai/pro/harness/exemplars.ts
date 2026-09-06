@@ -14,8 +14,8 @@
 //
 // WHY IT EXISTS. The taste ranges were ratified on LOWER THIRDS. A cheap model designing a
 // scoreboard reads them and has nothing that says what a score figure is, next to a team name,
-// on a strip that already works. Three shipped scoreboards' numbers are that, and they cost the
-// prompt about 120 tokens.
+// on a strip that already works. The shipped scoreboards' numbers are that, and they cost the
+// prompt about 270 tokens - measured over the nineteen cards, not estimated.
 //
 // WHAT IS WITHHELD, AND WHY. Never a design's code, never a selector, never a design's id or
 // name. A model handed one design's stylesheet copies its composition - the anti-anchoring rule

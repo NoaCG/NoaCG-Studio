@@ -433,7 +433,8 @@ measurements of §3.4, the critique schema, the `Workbench` interface, the seven
 2. The bridge workbench, so the harness runs off the same door the CLI uses and can be hosted.
 3. ~~Exemplar retrieval per type~~ - **DONE 2026-09-06**, §3.4: the shipped designs' measured
    type sizes, paddings and gaps as a card, never their code. Unmeasured against a model: the
-   paid round of §10 is the first thing that will say whether the card earns its ~150 tokens.
+   paid round of §10 is the first thing that will say whether the card earns its ~270 tokens
+   (measured: 1,077 chars on the average of the nineteen cards).
 4. The product path: a Pro request that resolves to no composed type routes to the harness,
    inside the existing reservation, with the wizard's Finish unchanged.
 5. Agent-authored machines when no type fits (the P2 question) - the `animation` region stays
