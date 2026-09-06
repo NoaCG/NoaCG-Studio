@@ -1,3 +1,5 @@
+// guards: src/assets/svgGeometry.ts
+//
 // Self-tests for src/assets/svgGeometry.ts - the transform arithmetic the SVG import uses to work
 // out where a drawn shape actually is. Pure math, no DOM, no network.
 //

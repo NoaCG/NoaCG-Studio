@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: **/AGENTS.md, **/CLAUDE.md, scripts/contract-evidence-baseline.json
+//
 // Hand-written contracts may not GROW evidence (docs/WORKFLOW_ARCHITECTURE.md phase 0).
 //
 //   node scripts/check-contract-evidence.mjs           # part of `npm run build`

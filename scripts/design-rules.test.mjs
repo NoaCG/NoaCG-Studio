@@ -1,3 +1,5 @@
+// guards: src/model/designRules.ts
+//
 // Self-tests for the canonical design-rules module (src/model/designRules.ts) - the pure math
 // only, no DOM: the owner size table's composition (floor x mode x profile), the warning band,
 // exemptions, the weight/contrast/safe-area helpers, and that the prompt block is GENERATED

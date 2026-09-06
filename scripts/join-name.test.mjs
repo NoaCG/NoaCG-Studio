@@ -1,3 +1,5 @@
+// guards: src/control/joinName.ts
+//
 // The one rule the audience slug keeps in TypeScript: the shape we PROPOSE from a production's
 // name. Everything about what is acceptable lives on the column in migration 0035, so these
 // cases are about the proposal, never about validation.

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: .github/workflows/**, .github/actions/**
+//
 // Validate every GitHub Actions workflow against the Actions schema, locally, in the build gate.
 //
 // Why this exists: a workflow file is the one thing in this repository that ONLY GitHub could

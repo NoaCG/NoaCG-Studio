@@ -804,25 +804,15 @@ jobs:
 
       - uses: ./.github/actions/playwright-chromium
 
-      # No dev server needed: it bundles the catalog into a blank Chromium page, so it runs
-      # BEFORE the factory's server and answers in about two seconds. Outside `npm run build`
-      # for the same reason `check:catalog-emit` is - the search index is built out of CREATED
-      # designs, and creating one parses the html it just emitted, so it needs a real DOM. It had
-      # no CI home at all until an occasion widened the credits vocabulary and the miss reached
-      # the merge queue.
-      - name: Search and occasion gates
-        run: npm run test:use-case-search
-
-      # Four node-level gates that are outside `npm run build` on purpose: they spawn servers
-      # and subprocesses, and roughly doubling the build's test time on every laptop to catch
-      # them is a bad trade. On a runner they cost about twelve seconds together, and until now
-      # they ran only when somebody typed the command. `check:gate-coverage` keeps this honest.
-      - name: Node gates outside the build
-        run: |
-          npm run test:ports
-          npm run test:sample-names
-          npm run test:local-relay
-          npm run test:ai-lite-semantic
+      # THE FACTORY TIER: every test file whose header says `gate: factory` (or `needs: browser`),
+      # discovered by scripts/gates.mjs rather than listed here. These are outside `npm run build`
+      # on purpose - one bundles the catalog into a blank Chromium page (the search index is built
+      # out of CREATED designs, which needs a real DOM), the others spawn servers and subprocesses -
+      # and roughly doubling the build's test time on every laptop to catch them is a bad trade.
+      # On a runner they cost seconds, and they run BEFORE the factory's server, needing none.
+      # `check:gate-coverage` refuses a test that names a tier nothing runs.
+      - name: Factory-tier tests
+        run: node scripts/gates.mjs run --gate factory
 
       # The factory needs a dev server. Its dedicated runner prevents a collision with the
       # offline-pinned Playwright servers, and the shell trap always cleans the process up.

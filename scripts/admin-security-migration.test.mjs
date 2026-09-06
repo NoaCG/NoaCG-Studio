@@ -1,3 +1,5 @@
+// guards: supabase/migrations/**
+//
 // Pins the authorization posture of the admin/suspension predicates so a later edit cannot
 // quietly reopen arbitrary-user probing. Static assertions over the migration text, in the same
 // spirit as ai-lite-migration.test.mjs: they run offline, in every checkout, with no database.

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: api/**
+//
 // Refuse an api/ path the deployment will not route.
 //
 // MEASURED ON PRODUCTION 2026-08-14, not inferred: a `[...path].ts` function under api/ routes

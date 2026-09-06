@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: workflow ci.yml
+// guards: e2e/**, scripts/e2e-durations.json
+//
 // Run the e2e specs that cover the files you changed - the inner loop locally, and the per-merge
 // tier in CI (docs/DEPLOYMENT.md; the nightly still runs the whole suite).
 //

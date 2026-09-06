@@ -61,7 +61,8 @@ npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes;
 npm run lint     # eslint . --max-warnings 0 (also part of build)
 npm run test:worktree-safety  # Git-safety regression tests for shared workflows
 npm run check:workflows       # .github/workflows/*.yml + .github/actions/*/action.yml (in build)
-npm run check:gate-coverage   # every check:/test: script is run by the build, a workflow, or a named exemption (in build)
+npm run check:gate-coverage   # every check/test declares its tier (gate:) and its paths (guards:) in its header (in build)
+npm run gates -- list         # the gates the build discovers; --gate factory, --changed <ref> for what a change reaches
 npm run check:vercel-config   # vercel.json routes (in build)
 npm run check:function-budget # api/'s function count (in build)
 npm run check:freshness       # vendored GSAP/Lottie + pinned model ids - REPORTS, weekly, not a gate

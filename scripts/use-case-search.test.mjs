@@ -1,3 +1,7 @@
+// gate: factory
+// needs: browser
+// guards: src/templates/**
+//
 // FACET I — "what is this graphic FOR", and whether searching for it works.
 //
 // The owner asked for this on the 2026-08-28 walk with an example: *"if they're searching for a

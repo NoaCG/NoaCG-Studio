@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: docs/**, README.md
+//
 // THE docs/README.md MAP IS COMPLETE, AND THIS IS WHAT KEEPS IT THAT WAY.
 //
 //   node scripts/check-docs-index.mjs        # part of `npm run build`

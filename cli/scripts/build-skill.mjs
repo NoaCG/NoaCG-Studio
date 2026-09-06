@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: cli/**
+//
 // THE ONE GENERATOR for every shipped copy of the `noacg-graphic` skill (docs/AGENT_CLI.md).
 //
 // Source of truth: cli/skill/noacg-graphic/ (SKILL.md + references/). Everything an agent can

@@ -1,3 +1,6 @@
+// gate: build
+// guards: api/**, src/ai/**
+
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import {

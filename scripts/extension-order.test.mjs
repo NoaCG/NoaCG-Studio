@@ -1,3 +1,5 @@
+// guards: supabase/migrations/**
+//
 // Can supabase/migrations/ be applied to an EMPTY database, in order?
 //
 // One class of answer, checked statically: a migration must not call an extension's function

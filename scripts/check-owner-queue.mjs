@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: docs/acceptance/owner-queue/**
+//
 // THE OWNER QUEUE'S TWO KEYS, AND THIS IS WHAT KEEPS THEM THERE.
 //
 //   node scripts/check-owner-queue.mjs        # part of `npm run build`

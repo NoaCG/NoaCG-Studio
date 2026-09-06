@@ -1,3 +1,5 @@
+// guards: supabase/migrations/**
+
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';

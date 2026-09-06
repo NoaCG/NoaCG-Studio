@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: contracts/**, .claude/rules/**
+//
 // Compile the rule store into the loaded contracts (docs/WORKFLOW_ARCHITECTURE.md §5.3).
 //
 //   node scripts/compile-contracts.mjs            # write .claude/rules/*.md and contracts/index.md

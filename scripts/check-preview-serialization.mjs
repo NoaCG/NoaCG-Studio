@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: src/**
+//
 // A function serialized into a preview document with `.toString()` must be bound under the name
 // the BUNDLER gave it, not under the name this repo's source spells.
 //

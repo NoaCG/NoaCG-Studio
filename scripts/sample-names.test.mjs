@@ -1,3 +1,6 @@
+// gate: factory
+// guards: src/templates/shared/sampleNames.ts, e2e/**
+//
 // The sample-name roster's one guard: a retired placeholder must not come back.
 //
 // Deliberately NOT a build gate. A stray placeholder is a low-stakes copy mistake, and the

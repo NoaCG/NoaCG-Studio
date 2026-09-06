@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: workflow post-land.yml
+// guards: supabase/migrations/**
+//
 // Do the hosted projects hold every migration this repository has? PRODUCTION, and `noacg-staging`
 // beside it.
 //

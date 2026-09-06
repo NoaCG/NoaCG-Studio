@@ -1,3 +1,5 @@
+// gate: factory
+//
 // Tests for the dev-server port registry (scripts/port-registry.mjs) and for the tooling that
 // reads its result (scripts/dev-port.mjs). Run with `npm run test:ports`.
 //

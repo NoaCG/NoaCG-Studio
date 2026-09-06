@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: none - the --check half only reports drift; record:e2e-durations is what changes the table
+// guards: scripts/e2e-durations.json, e2e/**
+//
 // HOW LONG EACH SPEC FILE TAKES - the measured table `scripts/e2e-affected.mjs` sizes a CI run's
 // shard count from, and the command that refreshes it.
 //

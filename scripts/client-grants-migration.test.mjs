@@ -1,3 +1,5 @@
+// guards: supabase/migrations/**, api/_lib/**
+//
 // A table in `public` is UNREACHABLE the moment it is created: Postgres grants a new table to
 // nobody but its owner. Hosted Supabase hides that, because its bootstrap sets
 //

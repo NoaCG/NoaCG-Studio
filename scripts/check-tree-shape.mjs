@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: *
+//
 // Refuse tracked files that nobody meant to commit: an unexpected entry at the repo ROOT, or a
 // path segment that is really a mistyped command-line flag.
 //

@@ -1,3 +1,5 @@
+// guards: src/templates/endCredits/shared.ts
+//
 // Self-tests for the end-credits text format - the one field an operator pastes a whole
 // credit list into (src/templates/endCredits/shared.ts, docs/END_CREDITS.md).
 //

@@ -1,3 +1,6 @@
+// gate: workflow weekly-audit.yml
+// guards: src/ai/**, api/_lib/**
+//
 // The PINNED-MODEL liveness check: every model id this codebase hard-codes, checked against its
 // provider's live listing.
 //

@@ -22,21 +22,39 @@ the GitHub Actions schema: a misspelled key, a wrong-typed value, a `needs:` nam
 not exist - the last being exactly what editing the CI gate's dependency set can introduce. Never
 wait for GitHub to catch it instead; during the 2026-08-06 outage two pushes produced no run at all.
 
-Right after it, `scripts/check-gate-coverage.mjs` asks a different question about the same
-files: not whether a workflow is VALID, but whether anything ever runs the gates this repo has
-written. A `check:*` or `test:*` script must be run by `npm run build`, or named by a workflow,
-or exempted by name with a reason inside the guard. There is no fourth option, and the exemption
-list is checked both ways - an entry for a script that has since been deleted, or has since been
-wired up, fails the build too.
+**The gates are discovered, never listed.** The build line starts with `node scripts/gates.mjs
+run`, which runs every `check:*` script whose entry file declares `// gate: build` in its header,
+then one `node --test` over every `scripts/**/*.test.mjs` on disk that does not declare another
+tier. A new test runs from the moment it exists; a new check needs a `check:*` script (so a person
+can run it by name) and a header. The header is the registry:
+
+```
+// gate: build | factory | after-build | workflow <file.yml> | none - <why>
+// guards: <glob>, <glob>, ...      the paths whose change this gate can catch
+// needs: browser                   (a test) needs Chromium, so it runs in the factory tier
+```
+
+`factory` is ci.yml's Factory gates job (`node scripts/gates.mjs run --gate factory`: a browser,
+servers, subprocesses); `after-build` is named on the build line after the bundle exists
+(`check-line-endings` reads what the generators wrote); `workflow` names the workflow that runs
+it; `none` carries the reason, and "not wired yet" is not one. A test's guards are the modules
+it imports plus its sibling `<name>.mjs`, plus whatever the header adds; a test that reads
+fixtures nothing imports (a migration's SQL, the catalog) says so.
+
+`scripts/check-gate-coverage.mjs` audits the declarations rather than the build line: a missing
+or unknown tier, a `workflow` that does not name the gate, a `none` without a reason, a guard
+matching no file in the repository, and a `scripts/check-*.mjs` with no `check:` script all fail
+the build. `node scripts/gates.mjs list [--gate <tier>] [--changed <ref>]` says what would run
+and which gates a change reaches; the build still runs every gate in its tier, the declarations
+are what a scoped tier (`docs/WORKFLOW_ARCHITECTURE.md` §5.1, T0) will select from.
 
 **The incident it comes from.** On 2026-09-06 a nine-row wave landed red. `test:use-case-search`
 held the rule that would have caught it, sat outside `npm run build` because it needs Chromium,
 and was named by no workflow at all - so the cloud container that wrote it could not run it and
-neither could CI. The spec that eventually failed takes 27 seconds. The gap had already been
-written down in the row's own handoff, in prose, which is where it stayed. Six more gates were
-in the same state and now have homes: `test:ports`, `test:sample-names`, `test:local-relay` and
-`test:ai-lite-semantic` run in the Factory gates job; `check:catalog-cost` and
-`check:e2e-durations` are exempt because both only ever report.
+neither could CI. The spec that eventually failed takes 27 seconds. The first guard asked "does
+the build line or a workflow name it?", and the cheap answer was always to make the build line
+longer: it became the most conflicted line in the repository, edited in 66 commits in a month.
+Now the gate says where it runs, in its own file, and the line never changes.
 
 **A gate outside the build is normal and fine** - a browser, a server, a secret, or a second on
 every laptop are all good reasons. What is not fine is a gate outside the build AND outside CI,

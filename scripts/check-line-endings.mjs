@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: after-build
+// guards: .gitattributes, scripts/**
+//
 // THE PHANTOM-DIRTY FILE, CAUGHT AND NAMED INSTEAD OF PUZZLED OVER.
 //
 //   node scripts/check-line-endings.mjs        # part of `npm run build`

@@ -1,3 +1,6 @@
+// gate: build
+// guards: src/**, *.html
+//
 // THE PRODUCT IS CLIENT-AGNOSTIC, AND ITS OWN WORDS HAVE TO SHOW IT.
 //
 // NoaCG exports to many playout environments and is committed to none of them. SPX is the

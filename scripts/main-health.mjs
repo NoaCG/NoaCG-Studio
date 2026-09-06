@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: none - a question about main right now, asked by a person or a landing; never a gate on a change
+// guards: .github/workflows/ci.yml
+//
 // IS MAIN ITSELF GREEN RIGHT NOW? The question the landing gate never asked.
 //
 //   node scripts/main-health.mjs [--json]

@@ -1,3 +1,5 @@
+// guards: src/templates/tickers/shared.ts
+//
 // Self-tests for the ticker text format - the one field a rundown of stories is typed into
 // (src/templates/tickers/shared.ts, docs/TICKERS.md).
 //

@@ -1,3 +1,6 @@
+// gate: workflow ci.yml
+// guards: src/templates/**, scripts/catalog-emit.mjs
+//
 // THE SOURCE HALF OF THE CATALOG BASELINE, IN TWO AND A HALF SECONDS.
 //
 // Three of the four gates in e2e/catalog-baseline.spec.ts ask questions about TEXT - the emitted

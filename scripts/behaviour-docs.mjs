@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: src/templates/behaviours/**, docs/SVG_AUTHORING.md
+//
 // THE DESIGNER-FACING NAMING TABLES ARE GENERATED FROM THE RECIPES, AND THIS IS WHAT KEEPS THEM SO.
 //
 //   node scripts/behaviour-docs.mjs --check    # part of `npm run build`

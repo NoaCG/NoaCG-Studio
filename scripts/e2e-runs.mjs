@@ -1,3 +1,6 @@
+// gate: none - lists and waits for this machine's browser jobs, the queue wrapper; meaningless on a runner
+// guards: scripts/command-match.mjs
+//
 // WHO ELSE IS RUNNING PLAYWRIGHT RIGHT NOW - across every checkout of this repo on this machine.
 //
 // WHY THIS EXISTS. Several worktrees are normally live at once (scripts/worktree-activity.mjs

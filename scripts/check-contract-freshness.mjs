@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: **
+//
 // THE CONTRACTS DESCRIBE THINGS THAT STILL EXIST - and this is what keeps them honest.
 //
 //   node scripts/check-contract-freshness.mjs        # part of `npm run build`
