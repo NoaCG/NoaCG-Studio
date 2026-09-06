@@ -64,6 +64,16 @@ could be READ. All 504 designs emit byte-identical code.
    answer. Note for whoever builds it: `bridgeApi.normalize` returns the same generic "could not be
    converted" sentence the harness finding used to, and `animationBreach` is the fix already written.
 
+## One thing found while verifying, and NOT caused here
+
+`main` is red on the catalog render baseline (`e2e/catalog-baseline.spec.ts:386`) - nine credits
+designs, each reporting `#count` and a hidden `noacg-data-source` holder moved. It reproduces with
+this branch's two app-code files reverted to `origin/main`, so it is main's, and
+`check-catalog-emit` passes, so it is a render-time move the source gate cannot see. Filed as
+`docs/backlog/credits-render-baseline-is-red-on-main.md` with the attribution and the two suspect
+commits. **It is red for every branch that merges main in**, so expect it on the next integration
+run too - the integration here was 1 failed, 1266 passed, and that 1 is this.
+
 ## Owner queue
 
 `docs/acceptance/owner-queue/2026-09-06-j-a-graphic-that-threw-on-air.md` - the importer fault, with
