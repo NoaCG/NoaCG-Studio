@@ -346,7 +346,9 @@ async function cmdAddMerge() {
   const tipForReview = branchTip(target);
   const stamp = readReviewStamp(dir, target);
   const gap = stampGap(stamp, tipForReview);
-  const unreviewedReason = valueOf('--unreviewed');
+  // `valueOf` answers undefined for an absent flag and undefined again for a flag with nothing
+  // after it; both mean "no reason given", and only a present flag is checked for shape.
+  const unreviewedReason = flag('--unreviewed') ? (valueOf('--unreviewed') ?? '') : null;
   if (unreviewedReason !== null && (unreviewedReason === '' || unreviewedReason.startsWith('-'))) {
     console.error('add-merge refused: --unreviewed takes a reason in words, e.g. --unreviewed "hotfix for the red main; reviewed by eye".');
     process.exit(1);
