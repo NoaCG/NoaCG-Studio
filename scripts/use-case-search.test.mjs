@@ -38,6 +38,7 @@ const GATHER = (queries) => {
       ignored: out.ignored,
       ids: out.best.map((r) => r.variant.id),
       occasionsById: Object.fromEntries(out.best.map((r) => [r.variant.id, r.meta.occasions])),
+      categoriesById: Object.fromEntries(out.best.map((r) => [r.variant.id, r.meta.category])),
     };
   }
   return {
@@ -47,9 +48,31 @@ const GATHER = (queries) => {
       .filter(({ meta }) => meta.occasions.length > 0)
       .map(({ meta }) => ({ id: meta.id, occasions: meta.occasions })),
     catalogSize: allTemplateMeta().length,
+    creditsShelf: allTemplateMeta().filter(({ meta }) => meta.category === 'credits').map(({ meta }) => meta.id),
     search,
   };
 };
+
+/**
+ * THE WORDS THAT NAME THE CREDITS SHELF, in the three languages the alias table speaks. Every one
+ * of them is a person who knows exactly what they want, which is what separates them from a
+ * moment phrase like "goodbye". Deliberately NOT here: "outro", which names both shelves in the
+ * table because it honestly means either.
+ */
+const CREDITS_WORDS = [
+  'credits',
+  'closing credits',
+  'rolling credits',
+  'end titles',
+  'crew',
+  'special thanks',
+  'supporters',
+  'eftertexter',
+  'sluttexter',
+  'rulltext',
+  'lopputekstit',
+  'kreditit',
+];
 
 const QUERIES = [
   'thanks for watching', // the owner's own words
@@ -62,6 +85,8 @@ const QUERIES = [
   // at the bottom of this file. Both are ordinary English words the catalog already used.
   'halftime',
   'standby',
+  // FACET I MUST NOT WIDEN A WORD THAT ALREADY NAMES ONE SHELF - see the test at the bottom.
+  ...CREDITS_WORDS,
 ];
 
 const gathered = await withBundledPage(SPECS, (page) => page.evaluate(GATHER, QUERIES));
@@ -185,4 +210,29 @@ test('an occasion phrase adds a purpose and never DELETES a word', () => {
     standby.occasionsById[standby.ids[0]].includes('technical-problem'),
     'and a standby card should still lead it',
   );
+});
+
+test('a word that NAMES one shelf is not widened by the moment it happens at', () => {
+  // THE SECOND WAY FACET I CAN DAMAGE A WORD, and the one that reached the merge queue.
+  //
+  // The first (the test above) was an occasion phrase EATING a word. This is the mirror: eight
+  // credits aliases were handed `occasions: ['sign-off']` as well as their shelf, and an occasion
+  // ADMITS designs rather than only ranking them. `sign-off` spans two shelves, so "end titles"
+  // began answering with the credits shelf PLUS five holding screens - 17 where the shelf holds
+  // 12. Measured 2026-09-06 on the integrated branch, where it turned the whole wave's landing
+  // red on e2e/wizard-filters.spec.ts.
+  //
+  // The rule, and the reason this list is words rather than a derived property: whether a phrase
+  // is a SHELF word or a MOMENT word is editorial, not structural. "stream ending" legitimately
+  // reaches both shelves and "eftertexter" legitimately reaches one, and nothing in the data
+  // tells them apart - so the vocabulary is written down and measured.
+  const shelf = gathered.creditsShelf.length;
+  assert.ok(shelf > 0, 'the credits shelf is empty - this test is measuring nothing');
+  for (const phrase of CREDITS_WORDS) {
+    const result = gathered.search[phrase];
+    assert.equal(result.total, shelf, `"${phrase}" answers with ${result.total} designs, not the ${shelf} on the credits shelf`);
+    for (const id of result.ids) {
+      assert.equal(result.categoriesById[id], 'credits', `"${phrase}" reached ${id}, which is not on the credits shelf`);
+    }
+  }
 });

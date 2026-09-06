@@ -161,6 +161,14 @@ was not drawn in.
   a declared id that names no real variant, and every phrase resolving to its occasion. Outside
   `npm run build` for the same reason `check:catalog-emit` is: it needs a browser (the search
   index is built out of CREATED designs, and creating one parses the html it just emitted).
+  It runs in CI in the **Factory gates** job, which needs no plan flag to fire.
+
+  **An occasion ADMITS designs into a result; it does not only rank them.** So an alias that
+  already names one shelf must not also carry an occasion that spans several: `sign-off` covers
+  credits AND holding, and eight credits aliases carried it, so "end titles" answered with the
+  12-design credits shelf plus 5 holding screens. Only `outro` keeps it, because that word does
+  honestly mean either. Shelf word or moment word is an editorial call - "stream ending" spans
+  both on purpose - so the vocabulary is a measured list in the gate, never a derived rule.
 
   **It returns the WHOLE result and the step renders a PAGE of it.** `browseTemplates` has no
   limit argument and must not grow one - the total is what the step reports ("Showing 12 of

@@ -1323,6 +1323,15 @@ three-design floor under every value, a declared id naming no real variant, and 
 resolving to its occasion through `ALIASES`. `npm run test:use-case-search` runs it beside the
 real search engine over the real catalog; both mutations were checked to fail it before landing.
 
+**An occasion ADMITS designs, it does not only rank them - so it must never be attached to a word
+that already names one shelf.** `sign-off` spans credits and holding, and eight credits aliases
+carried it: "end titles" answered with the twelve-design credits shelf plus five holding screens.
+Whether a phrase is a SHELF word ("eftertexter") or a MOMENT word ("stream ending", which
+honestly reaches both) is editorial, and nothing in the data separates them - so the credits
+vocabulary is written down and measured in `scripts/use-case-search.test.mjs` rather than derived.
+That file now runs in CI's **Factory gates** job. It ran in no workflow at all before, which is
+how this reached the merge queue.
+
 **Refused, so nobody re-litigates them:** `show-open` (the `title` category's `show-open` /
 `session-title` subtypes already gather every opener - rule 3), `awards`, `fundraiser`,
 `memorial`, `graduation`, `wedding` (all programme FORMATS already - rule 1), `breaking-news` and

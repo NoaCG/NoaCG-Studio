@@ -555,6 +555,15 @@ jobs:
 
       - uses: ./.github/actions/playwright-chromium
 
+      # No dev server needed: it bundles the catalog into a blank Chromium page, so it runs
+      # BEFORE the factory's server and answers in about two seconds. Outside `npm run build`
+      # for the same reason `check:catalog-emit` is - the search index is built out of CREATED
+      # designs, and creating one parses the html it just emitted, so it needs a real DOM. It had
+      # no CI home at all until an occasion widened the credits vocabulary and the miss reached
+      # the merge queue.
+      - name: Search and occasion gates
+        run: npm run test:use-case-search
+
       # The factory needs a dev server. Its dedicated runner prevents a collision with the
       # offline-pinned Playwright servers, and the shell trap always cleans the process up.
       - name: Run factory gates

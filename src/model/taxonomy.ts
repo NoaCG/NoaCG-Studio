@@ -788,9 +788,15 @@ const ALIASES_EN: Record<string, AliasTargets> = {
   // nothing or the wrong thing when measured on 2026-08-26: "crew", "special thanks",
   // "end titles" and "supporters" returned NO template at all, and "closing credits" and
   // "rolling credits" each returned exactly one, from a loose two-word text match.
-  'closing credits': { categories: ['credits'], occasions: ['sign-off'] },
-  'rolling credits': { categories: ['credits'], occasions: ['sign-off'] },
-  'end titles': { categories: ['credits'], occasions: ['sign-off'] },
+  // AND NONE OF THEM CARRIES `occasions: ['sign-off']`, though every one of them happens at that
+  // moment. An occasion ADMITS designs rather than only ranking them, and `sign-off` spans the
+  // holding shelf too, so attaching it here answered "end titles" with the 12 credits designs
+  // PLUS 5 holding screens - measured 2026-09-06, when it turned a whole wave's landing red.
+  // `outro` above keeps the occasion because that word genuinely means either shelf.
+  // Gated by `npm run test:use-case-search` (CI: Factory gates).
+  'closing credits': { categories: ['credits'] },
+  'rolling credits': { categories: ['credits'] },
+  'end titles': { categories: ['credits'] },
   'crew': { categories: ['credits'] },
   'cast list': { categories: ['credits'] },
   'special thanks': { categories: ['credits'] },
@@ -983,11 +989,11 @@ const ALIASES_SV: Record<string, AliasTargets> = {
   'strax börjar vi': { categories: ['holding'], subtypes: ['starting'], occasions: ['pre-show'] },
   'sändningen börjar snart': { categories: ['holding'], subtypes: ['starting'], occasions: ['pre-show'] },
   'mellanakt': { categories: ['holding'], subtypes: ['intermission'], occasions: ['break'] },
-  'eftertexter': { categories: ['credits'], occasions: ['sign-off'] },
-  'sluttexter': { categories: ['credits'], occasions: ['sign-off'] },
+  'eftertexter': { categories: ['credits'] },
+  'sluttexter': { categories: ['credits'] },
   'medverkande': { categories: ['credits'], subtypes: ['role-credits'] },
   'tack till': { categories: ['credits'], subtypes: ['thank-you'] },
-  'rulltext': { categories: ['credits'], subtypes: ['end-credits'], occasions: ['sign-off'] },
+  'rulltext': { categories: ['credits'], subtypes: ['end-credits'] },
   // commerce
   'samarbetspartner': { categories: ['sponsor', 'bug'], subtypes: ['sponsor'] },
   'prisskylt': { categories: ['product'], subtypes: ['price'] },
@@ -1129,7 +1135,7 @@ const ALIASES_FI: Record<string, AliasTargets> = {
   'alkaa pian': { categories: ['holding'], subtypes: ['starting'], occasions: ['pre-show'] },
   'palaamme pian': { categories: ['holding'], subtypes: ['brb'], occasions: ['break'] },
   'lähetys alkaa': { categories: ['holding'], subtypes: ['starting'], occasions: ['pre-show'] },
-  'lopputekstit': { categories: ['credits'], occasions: ['sign-off'] },
+  'lopputekstit': { categories: ['credits'] },
   'tekijät': { categories: ['credits'], subtypes: ['role-credits'] },
   'kiitokset': { categories: ['credits'], subtypes: ['thank-you'] },
   'esiintyjät': { categories: ['credits'], subtypes: ['role-credits'] },
@@ -1178,7 +1184,7 @@ const ALIASES_FI: Record<string, AliasTargets> = {
   'tuloslista': { categories: ['results'], subtypes: ['results-table'] },
   'väliaika': { categories: ['holding'], subtypes: ['intermission', 'break'], occasions: ['break'] },
   'mainoskatko': { categories: ['holding'], subtypes: ['break'], occasions: ['break'] },
-  'kreditit': { categories: ['credits'], occasions: ['sign-off'] },
+  'kreditit': { categories: ['credits'] },
   // Short for tietovisa. Consuming it also ends an accidental prefix match: bare "visa" used
   // to reach the frame designs through the English "visualizer" (the 'paus' pattern).
   'visa': { categories: ['poll-quiz'] },
