@@ -3,7 +3,11 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-08-26
-state: unstarted
+state: advanced
+note: >-
+  items 2 (countdowns and clocks) and 3 (artwork that is not an SVG) are on the page,
+  2026-09-06. Item 1 (the creation wizard) is deliberately not written yet - see the body.
+  Item 4 (which package do I want) still stands.
 asked: >-
   "I like the new docs" - the next guides on the /docs shelf, in the order they earn their place
   (paraphrase of the 2026-08-26 walk)
@@ -39,13 +43,28 @@ One guide is roughly an afternoon: run the flow, write it, pin its load-bearing 
    without the editor ever opening. `#getting-started` currently compresses all of it into three
    list items. This is the one guide a first-time reader most needs and it is not a graphic kind,
    so it belongs beside `#svg` under "Make a graphic".
-2. **Countdowns and clocks.** A timer's content is a duration, not a line of text, and the input-only
-   hidden field is the shape a reader will otherwise misuse. Goes in the `#graphics` shelf.
-3. **Bringing artwork in that is not an SVG.** Logos, pictures, Lottie files: what is embedded, what
-   travels into an export, and what a missing font does. Today this is spread across the SVG guide
-   and nowhere else.
+
+   **STILL OPEN, and held back on purpose.** It was skipped on 2026-09-06 while items 2 and 3 were
+   written, because the wizard was being changed the same night: a step-by-step guide to a surface
+   that is moving documents a screen the reader will not find. Write it once the wizard's steps
+   have settled, and check what Entry and Finish actually look like on the day rather than working
+   from this paragraph.
+2. ~~**Countdowns and clocks.**~~ **Done, 2026-09-06.** `#countdowns` in the `#graphics` shelf.
+   It carries the length-not-text rule, the colon trap (`2:30` reads as two minutes), the
+   `noacg-data-source` holder and why the class rather than an inline `display:none`, what an
+   Update does to a running count, the optional wall-clock start time, and the two clocks that work
+   the other way round (the scorebug's typed match clock, the speaking timer). Pinned in
+   `e2e/docs.spec.ts`.
+3. ~~**Bringing artwork in that is not an SVG.**~~ **Done, 2026-09-06.** `#artwork`, beside the SVG
+   guide under "Make a graphic". Routes in, what is copied and downscaled, what a folder package
+   writes versus what a single-file one embeds, that the exported operator page only switches
+   between the pictures the graphic already carries, that a Lottie autoplays and loops from load,
+   and that a missing font is silent. Pinned in `e2e/docs.spec.ts`.
 4. **Exporting for each target.** Six targets exist and the page documents playing them, not
    choosing between them. A short "which package do I want" page, not six pages.
+
+   **STILL OPEN.** The constraint above is the hard part of it: this is one page, and if it cannot
+   be made short it should not be made.
 
 **Deliberately not on this list:** one guide per catalog design, an AI page (that work is
 postponed), and anything about the editor beyond what Advanced mode already implies.
