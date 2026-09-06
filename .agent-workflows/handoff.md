@@ -2,11 +2,11 @@
 
 Shared canonical procedure for the `handoff` workflow - invoked as `/handoff` in Claude Code,
 `$handoff` in Codex. Cross-references to other workflows below use their plain names (e.g.
-"the safe-merge workflow"); translate as `/safe-merge` in Claude Code, `$safe-merge` in Codex.
+"the queue-merge workflow"); translate as `/queue-merge` in Claude Code, `$queue-merge` in Codex.
 
-End-of-session handoff for **NoaCG Studio**. Usually run right after the safe-merge workflow,
-so the work is typically already committed, merged, pushed, and validated. Do NOT redo that
-work.
+End-of-session handoff for **NoaCG Studio**. Usually run once the branch has been handed to the
+landing queue, so the work is typically already committed, verified and either landed or waiting
+its turn. Do NOT redo that work.
 
 Optional focus from the user, if one was given at invocation.
 
@@ -89,8 +89,8 @@ language:
 
 - `SAFE TO ARCHIVE` - all four hold: the working tree is clean, there is no mid-merge/rebase
   state and no stash holding this work, `git merge-base --is-ancestor HEAD main` exits 0, and
-  `git merge-base --is-ancestor HEAD origin/main` exits 0. The normal state after a clean run of
-  the safe-merge workflow.
+  `git merge-base --is-ancestor HEAD origin/main` exits 0. The normal state once the queue has
+  landed the branch.
 - `SAFE TO ARCHIVE WITH NOTES` - the same four hold, and there are follow-ups captured in the
   prompt above. The verdict answers whether closing the chat LOSES anything, and a follow-up
   written down is not a loss.
@@ -117,8 +117,8 @@ commands for the user to run.
 - **What's outstanding** - `git status --porcelain=v1 --branch`, untracked files worth keeping
   (`git ls-files --others --exclude-standard`), `git stash list`, any mid-merge/rebase state, and
   whether the work actually reached `main`/`origin/main` when the session's story says it did.
-- **Validation** - reuse existing evidence: a `npm run build` already run, the safe-merge
-  workflow's gate, any `e2e/` or in-browser check already done. `npm run build` (tsc + eslint +
+- **Validation** - reuse existing evidence: a `npm run build` already run, the landing job's CI
+  gate, any `e2e/` or in-browser check already done. `npm run build` (tsc + eslint +
   vite) is the gate; focused script tests may also apply. Do not run verification during
   handoff. If code changed after the last check, record verification as the next required action.
 
