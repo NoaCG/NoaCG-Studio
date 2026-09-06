@@ -1,6 +1,6 @@
 ---
 name: safe-merge
-description: Land a branch on main - preflight checks, verified gate, then push. With no branch, drains the queue of `clear` branches in merge order.
+description: Break-glass manual landing, for when the queue cannot do it - preflight checks, verified gate, then push. Normal landings go through queue-merge.
 ---
 
 Read `.agent-workflows/safe-merge.md` (relative to the repo root) now and follow it in full -

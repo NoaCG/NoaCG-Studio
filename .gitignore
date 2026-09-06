@@ -127,7 +127,6 @@ sweep-*.json
 !.claude/skills/noacg-graphic/
 !.claude/skills/ograf-expert/
 !.claude/skills/spx-html-template-expert/
-!.claude/skills/video-quality-round/
 .agents/*
 !.agents/skills/
 .agents/skills/*
@@ -137,7 +136,6 @@ sweep-*.json
 !.agents/skills/n/
 !.agents/skills/next/
 !.agents/skills/noacg-graphic/
-!.agents/skills/noacg-task/
 !.agents/skills/orchestrator-week/
 !.agents/skills/o/
 !.agents/skills/ograf-expert/
@@ -147,7 +145,6 @@ sweep-*.json
 !.agents/skills/so/
 !.agents/skills/spx-html-template-expert/
 !.agents/skills/start/
-!.agents/skills/video-quality-round/
 !.agents/skills/walk/
 skills-lock.json
 
