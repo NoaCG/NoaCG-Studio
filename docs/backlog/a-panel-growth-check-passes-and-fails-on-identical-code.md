@@ -40,6 +40,25 @@ wrapping cannot absorb the growth) is on `main` as `9a907209` and the failure re
 with the same numbers. **So that fix did not address the cause**, and the comment above the
 assertion currently tells the next reader that it did.
 
+## What was done, and what is still unproven
+
+**2026-09-06, `claude/import-svg-fit-waits-for-the-face`.** Candidate 1 below was confirmed as a
+real mechanism by reading the runtime rather than by reproducing the failure: `svg.ts` ends its fit
+block with `document.fonts.ready.then(refitSvgText)`, so the fit runs TWICE and only the second
+pass measures against the type the design is drawn in. The spec's `settle()` waited for
+`data-doc-pending` and `data-doc-rev` - the DOCUMENT rebuild - which is a different claim, so a
+measurement could land between the two passes. In a fallback face the 140 W's fit after shrinking
+and nothing ever needs to widen, which is exactly the "both widths 1238" that was measured.
+`settle()` now waits for `document.fonts.ready` inside the preview iframe, and the three width
+assertions carry both plate widths, the measured text width, the resolved family and
+`document.fonts.status` in their messages.
+
+**This is a mechanism, not a confirmation.** The failure is Linux-only and does not reproduce on
+the Windows checkout, so nothing local can demonstrate the fix. It has to be judged by full CI runs
+over time. Leave this file open until several have passed, then delete it. If it recurs, the new
+message names the face - and if `fonts` reads `loaded` with the real family and the plate still did
+not grow, candidate 2 is the remaining one and this diagnosis was wrong.
+
 ## What it would take
 
 Find out what makes the panel not grow, rather than widening the slack again. Two candidates, in
