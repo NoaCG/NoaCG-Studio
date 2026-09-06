@@ -739,6 +739,21 @@ did not; the catalog agrees with it exactly. Check the instrument against the sh
 concluding a scaffold is wrong - the rule at the end of `src/ai/AGENTS.md` says this and it was
 still worth re-learning here.
 
+**A SIXTH fault: the unpainted-field check does not honour `noacg-data-source`.** A countdown
+refused on `runtime:bench-field-unpainted` - "Field Timer (minutes) (f1) ... reaches no pixels in
+ANY of the graphic's states". The model had written it EXACTLY as the root `AGENTS.md` prescribes:
+`<span id="f1" class="noacg-data-source">`, with the rule in the stylesheet and no inline
+`display:none`. That contract names this very case - *"An input-only value (e.g. a countdown
+duration) may live in a hidden holder"* - because the value is INPUT to the clock engine and the
+clock is what paints. All 6 shipped designs in the `game-timer` family do the same thing.
+
+`unreachableFields` (`src/validation/fieldPaint.ts`) exists for a real defect - the 2026-08-01 pass
+shipped 88 fields structurally impossible to draw - but it cannot tell a hidden holder NOTHING
+reads from a hidden holder the runtime reads as input, and the `noacg-data-source` class is exactly
+the declaration of which one this is. The check does not look at it. So a graphic built to the
+contract is refused for obeying it, and `fieldPaints` is an AI-lane option, so the catalog never
+exposes the false positive.
+
 **RETRY WHEN** the bank finishes on the fixed harness - the run is resumable
 (`--resume --out=pro-harness-out-gemini-v3`) and 2 of 21 are recorded. The standing instruction this
 round adds: **when a harness round refuses work that looks correct, reproduce the refusal in the
