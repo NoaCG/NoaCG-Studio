@@ -27,7 +27,10 @@ name: CI
 # duplicate run is to ignore. `pull_request` stays because a FORK's branch never pushes here.
 on:
   push:
-    branches: ['**']
+    # The merge queue's temporary branches are pushed by GitHub and get their run from the
+    # `merge_group` event below; a push run on the same ref shared its concurrency group with
+    # that run and cancelled it within seconds, which the queue read as a failed check.
+    branches: ['**', '!gh-readonly-queue/**']
   pull_request:
   # The merge queue (docs/WORKFLOW_ARCHITECTURE.md §5.2): GitHub builds a temporary merge of the
   # queued pull requests on top of main and runs this workflow on it; `CI gate` on that commit is
@@ -80,8 +83,9 @@ on:
 # raises no notification, so this is not an inbox problem either
 # (docs/VERIFICATION.md, "What a red run means, and what actually emails").
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # A merge-group run keys on its own id: nothing may cancel the run the queue is waiting on.
+  group: ci-${{ github.event_name == 'merge_group' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.event_name != 'merge_group' }}
 
 permissions:
   contents: read
