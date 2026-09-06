@@ -23,20 +23,21 @@ export const WIZARD = {
       'src/components/wizard/steps/MapSvgFieldsStep', 'src/components/wizard/steps/ImportDesignStep',
       'src/components/wizard/steps/PrepareDesignStep', 'src/components/wizard/steps/PlaceFieldsStep',
       'src/components/wizard/DesignPrepCanvas', 'src/components/wizard/fieldAutoMap',
-      'src/components/wizard/import/', 'src/templates/importedDesign/',
+      'src/components/wizard/import/', 'src/components/wizard/draft/import.ts',
+      'src/templates/importedDesign/',
     ],
     ai: ['src/components/wizard/steps/AiStep', 'src/components/wizard/steps/ai/', 'src/components/wizard/ai/'],
     template: [
       'src/components/wizard/steps/BrowseStep', 'src/components/wizard/steps/FieldsStep',
       'src/components/wizard/steps/StyleStep', 'src/components/wizard/steps/AnimationStep',
       'src/components/wizard/steps/FinishStep', 'src/components/wizard/steps/TemplateStep',
-      'src/components/wizard/template/',
+      'src/components/wizard/template/', 'src/components/wizard/draft/template.ts',
     ],
   },
   // src/model/wizard.ts is the pre-row-1 path of the template contract (now
   // src/templates/contract.ts, with the vocabulary in src/model/templateVocabulary.ts). Both
   // are listed: the window this reads still holds commits that touched the old path.
-  shared: ['src/components/wizard/CreationWizard.tsx', 'src/components/wizard/draft.ts', 'src/model/wizard.ts', 'src/templates/contract.ts', 'src/model/templateVocabulary.ts'],
+  shared: ['src/components/wizard/CreationWizard.tsx', 'src/components/wizard/draft.ts', 'src/components/wizard/draft/core.ts', 'src/model/wizard.ts', 'src/templates/contract.ts', 'src/model/templateVocabulary.ts'],
 };
 
 function commits(days) {

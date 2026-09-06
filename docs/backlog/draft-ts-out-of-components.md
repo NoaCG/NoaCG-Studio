@@ -38,7 +38,11 @@ the gate rather than landing. Then the wizard e2e specs for behaviour.
 
 ## Evidence
 
-- `wc -l src/components/wizard/draft.ts` -> 1,049. `docs/ARCHITECTURE.md` §5 says 430.
+- `wc -l src/components/wizard/draft/*.ts` -> 1,902 across three files. Wizard row 1
+  (docs/WORKFLOW_ARCHITECTURE.md §5.5) split the 1,861-line `draft.ts` by capability into
+  `draft/core.ts`, `draft/template.ts` and `draft/import.ts`, and left `draft.ts` as a nine-line
+  re-export. `docs/ARCHITECTURE.md` §5 said 430 when this item was written. The item stands as it
+  was: the logic is still under `components/`.
 - `git log --since="1 month ago" --name-only` -> 30 commits.
 - `docs/ARCHITECTURE.md` §5: "Logic files without JSX do not live under `components/`."
 - Checked in the same pass and moving the OTHER way: §5 also lists `CanvasInteraction.tsx` at
