@@ -13,6 +13,7 @@ import type {
   CoverageClass,
   FieldSemantic,
   GraphicCategoryId,
+  OccasionId,
   StructureId,
 } from '../model/taxonomy';
 
@@ -615,6 +616,72 @@ export const CATEGORY_DEFAULT_META: Record<AssemblerId, DeclaredTemplateMeta | n
     extraCapabilities: ['operator-states', 'image-upload', 'pause-resume'],
   },
   'imported-design': null, // user content — never browsable
+};
+
+// ── Facet I: what a design is FOR (model/taxonomy.ts OCCASIONS) ─────────────
+//
+// DECLARED SEPARATELY FROM `DeclaredTemplateMeta`, on purpose. That resolution is
+// winner-takes-all — a VARIANT_META entry replaces the type's and the category's answer
+// wholesale — so folding occasions into it would mean restating a design's category, structures
+// and semantics just to say what moment it is for. Four sign-off cards would have had to be
+// re-declared from scratch to gain one word, and the first time somebody got that restatement
+// slightly wrong the design would browse as something it is not. An occasion is orthogonal to
+// what a graphic IS, so it resolves on its own: the variant's list, else its type's, else NONE.
+//
+// UNDECLARED IS THE DEFAULT AND COSTS NOTHING. A design with no occasion has an empty list and
+// behaves exactly as it did before this facet existed — it is simply not reachable by a moment
+// word. Declare only what a design honestly IS for; a guess here is worse than a gap, because a
+// wrong moment puts a graphic in front of somebody at the wrong point in their show.
+
+/** Occasions declared for every variant a graphic TYPE compiles. */
+export const TYPE_OCCASIONS: Record<string, OccasionId[]> = {
+  // The four holding screens the clock type compiles are all front doors (types/clocks.ts).
+  'holding-screen': ['pre-show'],
+  // The type exists because a show has to end somewhere (types/signOff.ts).
+  'sign-off': ['sign-off'],
+  // Now / next — the card whose whole job is saying what comes after this (types/briefings.ts).
+  'now-next': ['coming-up'],
+};
+
+/** Occasions declared per design, for the hand-written ones and to override a type's. */
+export const VARIANT_OCCASIONS: Record<string, OccasionId[]> = {
+  // ── Before the show ──
+  ss05: ['pre-show'], // counts to a wall-clock start time
+  ss10: ['pre-show'], // "Service Begins Soon"
+  ss11: ['pre-show'], // the venue hold, counting to the ticketed time
+  ss18: ['pre-show'],
+  ss20: ['pre-show'],
+  ss21: ['pre-show'],
+  // A running order held as a board is what a channel shows BEFORE the first item, even though
+  // it is built on the credits assembler — the occasion follows the moment, not the machinery.
+  cr05: ['pre-show'],
+
+  // ── During a break ──
+  ss06: ['break'], // "Short Break", the house BRB card
+  ss07: ['break'], // "Intermission"
+  ss12: ['break'], // "Back Shortly"
+  ss19: ['break'], // the break card as a poster
+  // The between-items hold is both: the show has paused, and the card says what is next.
+  ss13: ['break', 'coming-up'],
+
+  // ── Something has gone wrong ──
+  // Deliberately no countdown on any of these: nobody can promise when a fault ends.
+  ss08: ['technical-problem'], // "Please Stand By"
+  al07: ['technical-problem'], // the calm technical-difficulty strip
+  al10: ['technical-problem'], // the house standby card
+
+  // ── The end of the show ──
+  ss09: ['sign-off'], // "Thanks for Watching" — the owner's own example
+  cr01: ['sign-off'],
+  cr02: ['sign-off'],
+  cr03: ['sign-off'],
+  cr04: ['sign-off'],
+  cr06: ['sign-off'],
+  cr13: ['sign-off'],
+  // NOT declared, and the gaps are the honest half of this table: cr07 (a thank-you wall reads
+  // as well mid-telethon as at the end), cr08 / cr09 / cr12 (sponsor acknowledgement runs
+  // whenever the contract says), cr11 (a memorial roll — the `memorial` programme format is
+  // what gathers it, not a moment). A design nobody can place stays unplaced.
 };
 
 /** Field ids that are hidden CONFIG inputs, excluded from the visible-field buckets

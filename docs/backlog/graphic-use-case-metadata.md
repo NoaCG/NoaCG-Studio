@@ -3,7 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-08-28
-state: unstarted
+state: advanced
+note: "Facet I (OCCASION) shipped 2026-09-06 on claude/g-use-case-metadata - a closed five-value vocabulary with its admission rule gated, declared on 36 designs, and read by search: 'goodbye' went from 0 results to 11 sign-offs, and the BRB card 'be right back' asks for went from 11th to 1st. What still stands: 466 designs declare no occasion (only declare what a design honestly IS for - a guess is worse than a gap), and the Browse CARD does not show it yet, deliberately - proposal 21.5 has the rule it must follow so it does not become the second style label the owner already rejected."
 asked: "we should look into what kind of metadata we can have in the graphics - use cases and stuff like that"
 ---
 # Use-case metadata on graphics, so purpose is findable

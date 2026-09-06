@@ -21,6 +21,7 @@ import {
   type CategoryGroupId,
   type GraphicCategoryId,
   type MotionIntensity,
+  type OccasionId,
   type PlacementId,
   type ProgrammeFamilyId,
   type ProgrammeFormatId,
@@ -230,6 +231,7 @@ interface ParsedQuery {
   tokens: string[];
   boostCategories: Set<GraphicCategoryId>;
   boostSubtypes: Set<string>;
+  boostOccasions: Set<OccasionId>;
   boostStructures: Set<StructureId>;
   boostFormats: Set<ProgrammeFormatId>;
   boostFamilies: Set<ProgrammeFamilyId>;
@@ -253,6 +255,7 @@ function parseQuery(raw: string, forgiving: boolean): ParsedQuery {
     tokens: [],
     boostCategories: new Set(),
     boostSubtypes: new Set(),
+    boostOccasions: new Set(),
     boostStructures: new Set(),
     boostFormats: new Set(),
     boostFamilies: new Set(),
@@ -262,6 +265,7 @@ function parseQuery(raw: string, forgiving: boolean): ParsedQuery {
   const addTargets = (t: AliasTargets) => {
     t.categories?.forEach((c) => parsed.boostCategories.add(c));
     t.subtypes?.forEach((s) => parsed.boostSubtypes.add(s));
+    t.occasions?.forEach((o) => parsed.boostOccasions.add(o));
     t.structures?.forEach((s) => parsed.boostStructures.add(s));
     t.formats?.forEach((f) => parsed.boostFormats.add(f));
     t.families?.forEach((f) => parsed.boostFamilies.add(f));
@@ -344,6 +348,20 @@ function textScore(meta: TemplateMeta, plan: PlannedToken[]): number {
 function aliasScore(meta: TemplateMeta, q: ParsedQuery): number {
   let score = 0;
   if (q.boostCategories.has(meta.category)) score += 40;
+  // THE MOMENT OUTRANKS THE FORM (facet I — model/taxonomy.ts OCCASIONS).
+  //
+  // Measured before this existed: "be right back" is an alias for the holding CATEGORY, so it
+  // returned all 21 holding screens at an identical 40 and the BRB card the reader asked for
+  // ("Short Break") came 11th, under five front doors and a service hold. An alias can only ever
+  // point at a facet, and until now no facet said what a design was FOR — which is the owner's
+  // complaint on the 2026-08-28 walk, in a second dress.
+  //
+  // 35 is chosen against the two scores it has to sit between: a design carrying the moment
+  // clears one that merely shares the category (40 + 35 against 40) by more than any tiebreak,
+  // while a word that names a moment and nothing else still cannot outrank a design's own NAME
+  // plus its category. It sits above the subtype's 25 deliberately: a subtype is one form's
+  // internal filing, and the moment is the thing the reader actually asked about.
+  if (meta.occasions.some((o) => q.boostOccasions.has(o))) score += 35;
   // A precise word ranks its SUBTYPE above the rest of the boosted category.
   if (meta.subtype && q.boostSubtypes.has(meta.subtype)) score += 25;
   if (meta.structures.some((s) => q.boostStructures.has(s))) score += 20;

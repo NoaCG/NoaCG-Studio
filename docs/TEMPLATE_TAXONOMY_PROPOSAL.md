@@ -1267,3 +1267,111 @@ What that changes, and what it deliberately does not:
   Reel") are still what the owner read as "reels and crawls" - unchanged from §19, and still a
   job for the session that owns the credits pack, because the name slugs the public template
   page's URL.
+
+---
+
+## 21. Facet I - OCCASION: what a graphic is FOR [SHIPPED, 2026-09-06]
+
+The ninth facet, and the first one added since the original eight. It answers the question a
+confused person actually arrives with, which none of the others could: **what part of my show is
+this for?** Category answers what a graphic IS, programme format answers what SHOW it belongs to,
+style family answers what it LOOKS like. Purpose had nowhere to live.
+
+**Where it came from.** Owner receipt `docs/backlog/graphic-use-case-metadata.md`, from the
+2026-08-28 walk: *"if they're searching for a specific 'thanks for watching', they might not find
+it if we don't mention that... we should look into what kind of metadata we can have in the
+graphics - use cases and stuff like that, so if someone is confused and not really sure what they
+want, they can find guidance."* The same walk ruled STYLE LABELS the wrong tool for it - *"if I
+want a nice-looking graphic for my late-night show, which one of these do I choose? It's not
+really helping that much"* - so occasion is its own axis and adds no adjective anywhere.
+
+### 21.1 The axis is a clock
+
+Every value is a moment in a broadcast, in the order they happen. That is what keeps the list
+closed: a value that is not a moment has nowhere to sit.
+
+| id | name | example designs |
+|---|---|---|
+| `pre-show` | Before the show | ss01-ss05, ss10, ss11, ss18, ss20, ss21, cr05 |
+| `coming-up` | What is next | card18-card21, card60, card68, ss13 |
+| `break` | During a break | ss06, ss07, ss12, ss13, ss19 |
+| `technical-problem` | Something has gone wrong | ss08, al07, al10 |
+| `sign-off` | The end of the show | ss09, ss14-ss17, cr01-cr04, cr06, cr13 |
+
+### 21.2 THE RULE for admitting a new occasion
+
+All three, or it does not go in. The full text lives with `OCCASIONS` in
+`src/model/taxonomy.ts`; this is the summary.
+
+1. **It is a MOMENT ON THE SHOW'S CLOCK.** Not a form (that is the graphic category), not a show
+   type (that is the programme format), not a look (that is the style family). If you cannot say
+   *when in a broadcast* it happens, it is not an occasion.
+2. **A confused person types it as their whole question**, and the phrases they would type are
+   declared with it. An occasion nobody types is a filing word, and filing words belong to the
+   category tree.
+3. **At least three shipped designs honestly have it, and no single existing facet value already
+   gathers them.** One deliberate exception: a moment on the same clock as an occasion already
+   admitted (`break` is served only by holding screens today, and its category's subtype list
+   could almost carry it - but splitting one axis across two facets is the rot this list exists
+   to prevent).
+
+Plus a ceiling of **eight**. A show's clock has a handful of moments on it; a list past eight has
+stopped being a clock and become the free text §11 refuses.
+
+**The rule is a GATE, not a paragraph.** `validateTaxonomy()` enforces the ceiling, the
+three-design floor under every value, a declared id naming no real variant, and every phrase
+resolving to its occasion through `ALIASES`. `npm run test:use-case-search` runs it beside the
+real search engine over the real catalog; both mutations were checked to fail it before landing.
+
+**Refused, so nobody re-litigates them:** `show-open` (the `title` category's `show-open` /
+`session-title` subtypes already gather every opener - rule 3), `awards`, `fundraiser`,
+`memorial`, `graduation`, `wedding` (all programme FORMATS already - rule 1), `breaking-news` and
+`sponsor-read` (purpose words §20.3's alias fan-out already handles - rule 3).
+
+### 21.3 How it is declared, and how search reads it
+
+- **Declared** in `src/templates/meta.ts` as `TYPE_OCCASIONS` / `VARIANT_OCCASIONS`, deliberately
+  SEPARATE from `DeclaredTemplateMeta`: that resolution is winner-takes-all, so folding occasions
+  into it would force a design to restate its category, structures and semantics to gain one
+  word. Resolution is variant, else type, else NONE - **no category fallback**, because half the
+  holding shelf is a front door and half is a sign-off, which is the confusion the facet ends.
+- **Undeclared is the default.** 36 designs of 502 declare an occasion; the rest have an empty
+  list and behave exactly as they did before the facet existed. A guess is worse than a gap - a
+  wrong moment puts a graphic in front of somebody at the wrong point in their show. The gaps are
+  written down beside the table (cr07, cr08, cr09, cr11, cr12).
+- **Search reads it through the ALIAS table**, not the loose word index. Each occasion's phrases
+  are folded into `ALIASES` automatically, so the declaration IS the search behaviour; a matching
+  design scores +35 in `aliasScore`, above the subtype's 25 and stacking on the category's 40.
+  Phrases in the *text* index would have scored every design carrying "show" or "back", which is
+  the uncontrolled-adjective failure §11 refuses.
+
+### 21.4 What it measured, before and after
+
+Run on the real catalog, 2026-09-06:
+
+| query | before | after |
+|---|---|---|
+| "thanks for watching" | 1 result (ss09, found by its own NAME) | 11, ss09 first, **all eleven sign-offs** |
+| "goodbye" | **0 results**, the word reported as ignored | 11 sign-offs across two shelves |
+| "be right back" | 21 holding screens at one score; the BRB card **11th** | 5 break cards lead, front doors ranked below |
+| "technical difficulties" | 2, and "difficulties" dropped as unreachable | 3 across two shelves, nothing dropped |
+
+The owner's literal phrase already worked, by the accident of ss09 being *called* "Thanks for
+Watching". The three rows under it are the same request one step out, where it did not.
+
+### 21.5 The Browse card - DECIDED: not yet, and why
+
+**The occasion does not go on the Browse card in this change.** Two reasons, and the second is
+the real one:
+
+- The card is `src/components/wizard/steps/BrowseStep.tsx`, owned by another session on the night
+  this landed.
+- **The only version worth shipping is the conditional one.** A label every card on a shelf
+  carries is noise - which is exactly why the style label failed the owner ("it's not really
+  helping that much"). An occasion earns its place on a card only when it DISTINGUISHES: shown
+  when the visible result set is not uniform in it, hidden when it is. On a "thanks for watching"
+  search every card would say Sign-off and none of them would be telling the reader anything; on
+  the holding shelf browsed cold, "Before the show" against "During a break" is the whole answer.
+
+Next step for whoever owns the card: render `meta.occasions` as one quiet line, gated on the
+result set carrying more than one distinct occasion. Nothing else about the facet has to change.

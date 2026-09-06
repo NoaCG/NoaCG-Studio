@@ -63,17 +63,51 @@ const rawSuffix = {
 /** The 16-hex-char fingerprint the baseline is written in (e2e/catalog-baseline.spec.ts). */
 export const hash = (s) => createHash('sha256').update(s, 'utf8').digest('hex').slice(0, 16);
 
-/** The catalog as one self-contained browser script, exposed as `window.NOACG_CATALOG`. */
-async function bundleCatalog() {
+/** One module of the catalog's graph as a self-contained browser script, exposed as
+ *  `window[globalName]`. */
+async function bundleModule(entry, globalName) {
   const bundle = await rolldown({
-    input: CATALOG_ENTRY,
+    input: entry,
     platform: 'browser',
     plugins: [rawSuffix],
     logLevel: 'silent',
   });
-  const { output } = await bundle.generate({ format: 'iife', name: 'NOACG_CATALOG', codeSplitting: false });
+  const { output } = await bundle.generate({ format: 'iife', name: globalName, codeSplitting: false });
   await bundle.close();
   return output[0].code;
+}
+
+/**
+ * Open ONE blank Chromium page with each `{ entry, globalName }` bundled onto it, and hand the
+ * page to `fn`.
+ *
+ * The DOM is the whole point (see the header): anything that CREATES a design parses the html it
+ * just emitted, and the search index is built out of created designs, so a question about either
+ * needs a real DOM. Chromium's is the honest one and costs about a second.
+ *
+ * It takes a LIST because a caller often needs two modules of the same graph on one page — the
+ * search engine and the metadata validator, say — and launching a second browser to ask the
+ * second question would double the cost of the answer.
+ *
+ * @template T
+ * @param {{ entry: string, globalName: string }[]} specs modules to bundle, in load order
+ * @param {(page: import('@playwright/test').Page) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function withBundledPage(specs, fn) {
+  // Independent, so overlapped: the bundles do not need the browser and the browser does not
+  // need them, and this is the one function every fast catalog gate goes through.
+  const [scripts, browser] = await Promise.all([
+    Promise.all(specs.map((s) => bundleModule(s.entry, s.globalName))),
+    chromium.launch(),
+  ]);
+  try {
+    const page = await browser.newPage();
+    for (const content of scripts) await page.addScriptTag({ content });
+    return await fn(page);
+  } finally {
+    await browser.close();
+  }
 }
 
 /**
@@ -87,16 +121,7 @@ async function bundleCatalog() {
  * @returns {Promise<T>}
  */
 export async function withCatalogPage(fn) {
-  // Independent, so overlapped: the bundle does not need the browser and the browser does not
-  // need the bundle, and this is the one function every fast catalog gate goes through.
-  const [script, browser] = await Promise.all([bundleCatalog(), chromium.launch()]);
-  try {
-    const page = await browser.newPage();
-    await page.addScriptTag({ content: script });
-    return await fn(page);
-  } finally {
-    await browser.close();
-  }
+  return withBundledPage([{ entry: CATALOG_ENTRY, globalName: 'NOACG_CATALOG' }], fn);
 }
 
 /**
