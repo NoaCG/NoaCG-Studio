@@ -40,7 +40,7 @@ export const WIZARD = {
   // src/model/wizard.ts is the pre-row-1 path of the template contract (now
   // src/templates/contract.ts, with the vocabulary in src/model/templateVocabulary.ts). Both
   // are listed: the window this reads still holds commits that touched the old path.
-  shared: ['src/components/wizard/CreationWizard.tsx', 'src/components/wizard/draft.ts', 'src/components/wizard/draft/core.ts', 'src/model/wizard.ts', 'src/templates/contract.ts', 'src/model/templateVocabulary.ts'],
+  shared: ['src/components/wizard/CreationWizard.tsx', 'src/components/wizard/draft.ts', 'src/components/wizard/draft/core.ts', 'src/components/wizard/draft/format.ts', 'src/model/wizard.ts', 'src/templates/contract.ts', 'src/model/templateVocabulary.ts'],
 };
 
 function commits(days) {

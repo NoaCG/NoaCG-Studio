@@ -48,4 +48,4 @@ The `/docs` pages were rewritten this way on 2026-09-02 and he accepted them the
 ## Evidence
 
 Owner walk, verbatim in `docs/acceptance/owner-queue/2026-08-30-a-live-vote-on-your-own-artwork.md`.
-The step is `src/components/wizard/steps/MapSvgFieldsStep.tsx`.
+The step is `src/components/wizard/import/MapSvgFieldsStep.tsx`.

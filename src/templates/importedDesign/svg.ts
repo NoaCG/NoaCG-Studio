@@ -76,7 +76,7 @@ const NO_SVG: DesignSvg = {
  * mapping step's hover highlight needs a handle on the layer a checklist row means, and the
  * preview iframe is the only canvas that has the fit runtime. A ticked OUTLINE group still
  * loses its marker there - that group is hidden and its live stand-in wears the marker
- * instead (components/wizard/draft.ts `withSvgOutlineFields`), so one marker always points at
+ * instead (components/wizard/import/draft.ts `withSvgOutlineFields`), so one marker always points at
  * whatever actually airs.
  */
 /** The attribute every element a layout rule names carries. One stamp kind for the feature. */
@@ -241,7 +241,7 @@ function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   // the class below is what the `.{prefix}-outlined { display: none }` rule in template.css
   // matches, so a professional can compare the live text against the shapes by deleting
   // one line, and the file still carries everything the designer exported. The HTML field
-  // that stands in for it is placed afterwards (components/wizard/draft.ts).
+  // that stands in for it is placed afterwards (components/wizard/import/draft.ts).
   for (const outline of svg.outlines) {
     const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${outline.candidateId}"]`);
     if (!el) continue;

@@ -574,10 +574,19 @@ test('the Import-graphic folder plans the import road, and only the import road'
     'import-svg.spec.ts',
     'import-svg-corpus.spec.ts',
     'import-svg-behaviour.spec.ts',
+    // Not named after the road, but they drive it through the import entry and assert on testids
+    // only these components render: the quiz and behaviour rows of MapSvgFieldsStep, the format
+    // and raster warnings of ImportDesignStep, the tool area and the font field of
+    // PlaceFieldsStep. The generic wizard rule reached them until the lookahead took this folder
+    // out of it, so the narrowing has to name them or it runs FEWER specs with no alarm.
+    'student-rehearsal.spec.ts',
+    'project-format.spec.ts',
+    'text-tools.spec.ts',
+    'google-fonts.spec.ts',
   ];
   const { mode, specs } = planFor(['src/components/wizard/import/MapSvgFieldsStep.tsx']);
   assert.equal(mode, 'subset', 'the capability is mapped, so it must not escalate to the full suite');
-  assert.deepEqual(specs, [...road].sort(), 'a file under wizard/import/ plans exactly the nine import specs');
+  assert.deepEqual(specs, [...road].sort(), 'a file under wizard/import/ plans exactly the import road');
 
   // The narrowing is the point of the row, and it only holds while the generic wizard rule
   // SKIPS this folder: the rules are union'd, so without the negative lookahead the capability

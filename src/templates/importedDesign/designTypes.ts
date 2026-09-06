@@ -26,7 +26,7 @@ export interface DesignSvg {
   images: DesignSvgImage[];
   /** Outlined-text groups the user chose to REPLACE (plan §1.A): the generator hides each
    *  one; the HTML field that stands in for it is placed afterwards through the raster
-   *  flow's placed-line transform (components/wizard/draft.ts withSvgOutlineFields), which
+   *  flow's placed-line transform (components/wizard/import/draft.ts withSvgOutlineFields), which
    *  is why only the identity travels here — the placement is a draft concern. */
   outlines: DesignSvgOutline[];
   /**

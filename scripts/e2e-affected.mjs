@@ -249,14 +249,26 @@ const MAP = [
   [/^src\/templates\//, ['anim-engine.spec.ts', 'catalog-baseline.spec.ts', 'package.spec.ts', 'images.spec.ts', 'stage-fit-determinism.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts', 'competition-pack.spec.ts', 'holding-pack.spec.ts', 'full-frame-offering.spec.ts', 'public-service.spec.ts', 'template-escaping.spec.ts', 'sports.spec.ts', 'audience-pack.spec.ts', 'community.spec.ts', 'library.spec.ts', 'library-productions.spec.ts', 'exports.spec.ts', 'wizard-kit.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts', 'wizard-setup-fields.spec.ts', 'end-credits.spec.ts', 'counting-settle.spec.ts', 'productions.spec.ts']],
   // The Import-graphic capability lives behind its own folder and its own index
   // (src/components/wizard/import/, docs/WORKFLOW_ARCHITECTURE.md §5.5 wizard row 2), so a
-  // change inside it selects the import road's nine specs and nothing else - 38 specs down to
-  // 9. The rules below are UNION'd, not first-match, so the narrowing is what the negative
+  // change inside it selects the import road's own specs and the four others that assert on
+  // testids these files render - 38 specs down to 13. The rules below are UNION'd, not
+  // first-match, so the narrowing is what the negative
   // lookahead in the generic wizard rule does; this line only names the road's own specs. A
   // change ANYWHERE ELSE under the wizard still runs all nine, because the shell mounts these
   // steps and the draft re-exports their state.
   [
     /^src\/components\/wizard\/import\//,
-    ['import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-stretch.spec.ts', 'import-canvas.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts'],
+    [
+      // The road's own nine.
+      'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-stretch.spec.ts',
+      'import-canvas.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts',
+      'import-svg-behaviour.spec.ts',
+      // And the four that reach these components through the import entry and assert on testids
+      // only they render: the quiz and behaviour rows of MapSvgFieldsStep (student-rehearsal, the
+      // spec that gates the quiz and scoreboard push), ImportDesignStep's format and raster
+      // warnings (project-format), PlaceFieldsStep's tool area (text-tools) and its font field
+      // (google-fonts). They were reached by the generic wizard rule before the lookahead.
+      'student-rehearsal.spec.ts', 'project-format.spec.ts', 'text-tools.spec.ts', 'google-fonts.spec.ts',
+    ],
   ],
   // wizard-finish, wizard-kit and wizard-shell were MISSING from this list, so a FinishStep,
   // kit-flow or wizard-header change ran neither the spec named after it nor anything that

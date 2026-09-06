@@ -77,6 +77,6 @@ either way.
 ## Evidence
 
 Both confirmed by reading `src/assets/svgImport.ts`, `src/templates/importedDesign/pollBehaviour.ts`
-and `src/components/wizard/steps/MapSvgFieldsStep.tsx` on 2026-09-05. The public docs page written
+and `src/components/wizard/import/MapSvgFieldsStep.tsx` on 2026-09-05. The public docs page written
 on the same branch (`docs.html`, "Draw a live vote") tells designers to keep rectangle bars to five
 options and to prefer square ends, which is a workaround for both, not a fix.
