@@ -1592,6 +1592,11 @@ function layoutDataJs(svg: DesignSvg, labelOf: (candidateId: string) => string):
 // edge, which is a fair guess sideways and a poor one downwards - so a vertical rule is
 // normally written with its followers spelled out.
 //
+// A follower travels by default (\`mode: 'move'\`): it keeps its distance and its size. Write
+// \`mode: 'grow'\` instead and the layer is STRETCHED by what the panel gained, which is what a
+// rail or a tint band wants. You rarely need to: furniture drawn to the panel's own two edges is
+// measured and stretched automatically, and never appears in this list.
+//
 // Delete a row and that element stops growing. Edit \`axis\` and it grows the other way.
 var NOACG_LAYOUT = {
   version: ${LAYOUT_VERSION},
@@ -2103,9 +2108,15 @@ function svgRestOneRule(rule, index) {
       : (rest.dir < 0 ? box.left : box.right);
     rest.followers = svgFollowersOf(rule, panel, edge, rest.dir);
   }
-  if (art0 && !(rule.followers && rule.followers.length)) {
-    svgCollectSpanners(art0, rule, panel, box, rest.dir, rest.followers);
-  }
+  // FURNITURE THAT SPANS THE PANEL STRETCHES, declared list or not - the same rule the end caps
+  // below have, for the same reason. A rail drawn down the plate's own two edges is the panel's
+  // furniture, not a layer an author decides about: a plate that grew and left a strip its rail
+  // does not cover is simply wrong, whichever way the reader answered a different question.
+  // This used to run only while the rule carried NO declared list, so touching any follower row -
+  // dropping a strap, adding a layer - silently stopped the shipped lower third's amber rail
+  // growing with its plate. A DECLARED entry still wins: svgCollectSpanners skips an element the
+  // set already lists, so a layer the author named travels the way they said.
+  if (art0) svgCollectSpanners(art0, rule, panel, box, rest.dir, rest.followers);
   // END CAPS RIDE THE MOVING EDGE, always - declared list or not. A cap is the panel's own
   // furniture (svgIsEndCap: a narrow shape hugging the far edge), so it is not a follower an
   // author decides about: a grown panel with its end-cap left behind mid-artwork is simply

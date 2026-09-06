@@ -599,6 +599,12 @@ before the type shrinks.** Deterministic layout, never AI.
   (a strap pinned to the frame bottom) and things that should stretch rather than move. No
   geometry rule separates those - the same shape of problem as the shrink-vs-grow default, which
   §3 already decided not to infer. So the derived set becomes the PROPOSAL the author edits.
+  **AMENDED 2026-09-06: stretch-versus-move IS separable, and only stay-versus-move is not.**
+  A layer that must stretch is drawn TO BOTH of the panel's edges (`svgCollectSpanners`); a layer
+  that must move is drawn PAST one of them. Measured over the whole corpus, the two sets never
+  intersect and the per-row move/grow picker was right on none of the 79 rows that carried it, so
+  the picker is gone: the list declares WHICH layers travel, and spanning furniture stretches
+  itself. Evidence and the ruling: docs/TEXT_BOX_BINDING.md, "What travels is not a question".
 - **ACCEPTANCE CRITERION, explicit (owner): deterministic convergence across editor, export and
   SPX.** Wrap and grow are circular - line count depends on type size, available height depends
   on growth, growth depends on line count - and the fit runs INSIDE the template, so the same

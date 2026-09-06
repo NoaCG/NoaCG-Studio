@@ -2139,7 +2139,12 @@ test('svg import: the followers of a growing panel are proposed, then become the
   await page.getByTestId('map-svg-follower-drop-s2').click();
   await expect(page.getByTestId('map-svg-follower-s2')).toHaveCount(0);
   await expect(list).not.toContainText('read from your artwork');
-  await page.getByTestId('map-svg-follower-mode-s1').selectOption('grow');
+  // DROPPING IS THE WHOLE EDIT. The row used to carry a second question - move or grow - and it
+  // is gone (owner, 2026-09-05; measured across the corpus, its second answer was right on none
+  // of the 79 rows that asked it). What travels is still the author's; how it travels is not a
+  // question any more.
+  await expect(page.getByTestId('map-svg-follower-s1')).toContainText('Moves out of the way');
+  await expect(page.getByTestId('map-svg-follower-s1').locator('select')).toHaveCount(0);
 
   await createProject(page);
 
@@ -2152,7 +2157,7 @@ test('svg import: the followers of a growing panel are proposed, then become the
   const table = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(js)![0];
   expect(table).toContain('version: 1');
   expect(table).toContain("axis: 'y'");
-  expect(table).toMatch(/followers: \[\{ el: 'g0f0', mode: 'grow' \}\]/);
+  expect(table).toMatch(/followers: \[\{ el: 'g0f0', mode: 'move' \}\]/);
   // One follower, not two - the dropped strap left no row behind.
   expect(table.match(/mode: '/g)).toHaveLength(1);
 });
@@ -2259,34 +2264,43 @@ test('svg import: only artwork travels — a text layer is never offered as one'
   // The section is named and explained by what the reader will watch happen, with a real number
   // in it - never by our word for the transform.
   await expect(page.getByTestId('map-svg-followers')).toContainText('What else moves');
-  await expect(page.getByTestId('map-svg-follower-mode-s1').locator('option')).toHaveText([
-    'Moves out of the way',
-    'Grows by the same amount',
-  ]);
+  // THE ROW STATES ITS ANSWER; IT DOES NOT ASK FOR ONE (owner, 2026-09-05: "everything else
+  // should just move out of the way"). Measured over the whole SVG corpus before the second
+  // option came out, it was asked on 79 rows and was right on none of them: a row here is a layer
+  // drawn PAST the growing edge, and a layer that must stretch is one drawn TO BOTH of the
+  // panel's edges, which the runtime grows by itself.
+  await expect(page.getByTestId('map-svg-follower-s1')).toContainText('Moves out of the way');
+  await expect(page.getByTestId('map-svg-followers').locator('select')).toHaveCount(0);
   await page.getByTestId('map-svg-why-followers').click();
   const why = page.getByTestId('map-svg-why-followers-body');
   await expect(why).toContainText('40 px');
-  await expect(why).toContainText('Moves out of the way');
+  await expect(why).toContainText('stays exactly where you drew it');
+  // …and it names the road that replaced the option rather than pretending stretching never
+  // happens: furniture drawn across the panel grows with it, unasked.
+  await expect(why).toContainText('grows with the panel by itself');
   // SHORT ENOUGH THAT SOMEBODY READS IT (owner walk, 2026-09-03: "it needs to be shorter and
   // just what it does ... No one wants to read more than a few lines"). Two paragraphs: the
-  // picture, and what the two modes do. The third said where the list came from and why text is
-  // not on it - both of which the summary beside the title and the line above the list already
-  // say, so it was the step explaining itself twice.
+  // picture, and the one thing there is to do about it. The third said where the list came from
+  // and why text is not on it - both of which the summary beside the title and the line above the
+  // list already say, so it was the step explaining itself twice.
   await expect(why.locator('p')).toHaveCount(2);
 
   // AND THE FOOTNOTE STILL SHIPS AS A TRAVELLER. A declared list replaces the runtime's own
   // derivation outright, so committing only the artwork rows would have quietly stopped the
   // footnote moving the moment the reader touched one - and the grown board would print over it.
-  await page.getByTestId('map-svg-follower-mode-s1').selectOption('grow');
+  // Dropping the caption is the sharpest version of that: the reader has emptied the only list
+  // they were shown, and the line nobody asked them about is still in the table.
+  await page.getByTestId('map-svg-follower-drop-s1').click();
+  await expect(page.getByTestId('map-svg-followers').locator('.map-svg-row')).toHaveCount(0);
   await createProject(page);
   const table = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
   });
   expect(table).toContain("axis: 'y'");
-  // Two rows: the caption the reader chose about, and the text line they were not asked about.
-  expect(table.match(/mode: '/g)).toHaveLength(2);
-  expect(table).toMatch(/mode: 'grow'/);
+  // One row, and it is the text line - the caption the reader dropped left nothing behind.
+  expect(table).toMatch(/followers: \[\{ el: 'g0f0', mode: 'move' \}\]/);
+  expect(table.match(/mode: '/g)).toHaveLength(1);
 });
 
 test('svg import: authoring growth alone does not open an empty travel list', async ({ page }) => {

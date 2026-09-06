@@ -239,7 +239,43 @@ value is unreachable rather than warned about. For a taller box the label also s
 lines the cap buys at the drawn size - the owner's "we shouldn't be able to put one page of text",
 derived from the cap rather than asked as a second question.
 
-Today's "What else moves" list is kept, unchanged in mechanism, nested under the box that grows.
+Today's "What else moves" list is kept, unchanged in mechanism, nested under the box that grows -
+and it is a list of WHICH layers, never of how each one behaves. That second half is settled below.
+
+### What travels is not a question - settled 2026-09-06
+
+The owner, on 2026-09-05, about the per-layer picker each listed follower carried ("Moves out of
+the way" / "Grows by the same amount"):
+
+> I feel like this option seems unnecessary. I think it might even just be more confusing to get
+> these options ... when the question becomes long and the box gets bigger, everything else should
+> just move out of the way.
+
+**Settled with the corpus rather than by taste.** Every fixture in `e2e/fixtures/svg-corpus/` was
+marked up with the real importer, rendered at design size and swept over every panel a reader could
+pick as the grower against both axes - 172 combinations - running `proposeFollowers`, `canStretch`
+and `svgCollectSpanners` unchanged from the source they live in:
+
+- **79** follower rows carried the question;
+- **35** of those even offered the second answer (the other 44 are groups, pictures and outlines,
+  which cannot stretch and were already move-only);
+- **0** of them were a layer that should stretch.
+
+Zero is structural, not a property of this corpus. **A row in that list is a layer drawn PAST the
+growing edge; a layer that must stretch is one drawn TO BOTH of the panel's edges** - a rail down
+its side, a tint band behind it. The two sets cannot intersect, so the question was asked exactly
+where its second answer could not be right. The artwork that genuinely stretches is real and
+common - 31 such layers across 23 of the 46 importable fixtures - and it never needed the control:
+`svgCollectSpanners` measures those at play time and grows them, in the same breath as the end caps.
+
+**So the picker is gone and the row states its answer.** Stretching stays reachable and is not
+equal weight: it happens by itself where the artwork asks for it, and a pro writes `mode: 'grow'`
+in the `NOACG_LAYOUT` table, which the generated code documents in place.
+
+One defect came out with it. Spanners were collected only while a rule carried NO declared follower
+list, so the moment a reader edited that list - dropped a strap, added a layer - the rail on their
+lower third silently stopped growing with its plate. It is collected always now, exactly as end
+caps are, and a declared entry still wins.
 
 ### The guardrail, said once
 

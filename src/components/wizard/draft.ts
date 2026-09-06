@@ -592,7 +592,20 @@ function modeOfAxis(axis: 'x' | 'y' | 'xy' | undefined): SvgStretchMode {
 export interface SvgFollowerDraft {
   /** The layer's `data-noacg-candidate` marker. */
   candidateId: string;
-  /** 'move' translates it by the growth; 'grow' stretches it by the same amount instead. */
+  /**
+   * 'move' translates it by the growth; 'grow' stretches it by the same amount instead.
+   *
+   * THE WIZARD ONLY EVER WRITES 'move' (owner, 2026-09-05: "everything else should just move out
+   * of the way"). The mapping step's per-row picker is gone - measured across the SVG corpus, it
+   * asked 79 rows a question whose second answer was right on none of them, because a row in that
+   * list is a layer drawn PAST the growing edge and a layer that must stretch is one drawn TO BOTH
+   * of the panel's edges. The runtime finds and grows those itself (`svgCollectSpanners`).
+   *
+   * The FIELD stays, and stays two-valued, for the two readers that still need it: a template
+   * saved while the picker existed carries 'grow' and must keep stretching, and a pro editing
+   * `NOACG_LAYOUT` in the generated code writes it by hand - the road the removed control was
+   * standing in front of. Neither is a shape change, so nothing here needs a migration.
+   */
   mode: 'move' | 'grow';
 }
 
