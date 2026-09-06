@@ -427,7 +427,9 @@ measurements of §3.4, the critique schema, the `Workbench` interface, the seven
 (18 tests), both in `npm run build`; `scripts/pro-harness-spike.mjs` with `--control` and
 `--generate`; `ai` and `zod` as dependencies.
 
-**The paid round of §10 RAN on 2026-09-06** ($0.42 of a €3 authorization) and found two platform
+**The paid round of §10 RAN on 2026-09-06** ($1.44 over the bank, $1.97 including the two
+abandoned attempts, of a €3 authorization; the bank finished 5 of 21 clean - see the verdict in
+`docs/AI_ATTEMPTS.md` for why 9 of the 16 refusals were the gate rather than the model) and found two platform
 faults before it could measure a single design decision - the harness restating the animation
 grammar instead of naming the breach, and the shared importer reading single-quoted selectors only
 and inventing `'?'` for a target it could not read, which converts, validates and then throws inside
@@ -442,7 +444,12 @@ round is `gemini-2.5-flash`, the route hosted Pro actually spends on. Two variab
 
 **Not built, in order:**
 
-1. Finishing the resumed bank, then the blind page and the owner's read of it.
+1. **Fix the two unclearable findings, then re-run the three types they blocked.** `step-contract`
+   asks a machine-driven type the wrong question (a quiz's reveal is an EVENT, not step keyframes -
+   all 12 shipped quiz boards have the same empty middle step), and `unreachableFields` does not
+   honour `noacg-data-source`, so a countdown built exactly to the root contract is refused. Between
+   them they took 9 of 21 cells - every quiz-board, countdown and podium-score - and no rate on
+   those types means anything until they are fixed.
 2. The bridge workbench, so the harness runs off the same door the CLI uses and can be hosted.
 3. ~~Exemplar retrieval per type~~ - **DONE 2026-09-06**, §3.4: the shipped designs' measured
    type sizes, paddings and gaps as a card, never their code. Unmeasured against a model: the

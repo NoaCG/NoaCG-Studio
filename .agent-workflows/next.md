@@ -1,9 +1,9 @@
 # next - plan what to do next in this session
 
 Shared canonical procedure for the `next` workflow - invoked as `/next` in Claude Code, `$next`
-in Codex. Cross-references to other workflows below use their plain names (e.g. "the safe-merge
-workflow"); translate the same way: `/safe-merge` in Claude Code, `$safe-merge` in Codex, and
-likewise for "the handoff workflow" / "the cleanup-worktrees workflow".
+in Codex. Cross-references to other workflows below use their plain names (e.g. "the queue-merge
+workflow"); translate the same way: `/queue-merge` in Claude Code, `$queue-merge` in Codex, and
+likewise for "the handoff workflow" / "the safe-merge workflow".
 
 Mid-session planning for **NoaCG Studio**. The user wants to decide what to do next in THIS
 session and expects real, choosable options - or an honest "we're done". This workflow only
@@ -15,7 +15,7 @@ Optional focus from the user, if one was given at invocation.
 
 **Never invent work to have something to offer.** If the session's line of work is complete,
 verified, and committed, and nothing actionable is outstanding, the correct output is one short
-paragraph saying exactly that - and, if true, that the natural next step is the safe-merge
+paragraph saying exactly that - and, if true, that the natural next step is the queue-merge
 workflow or the handoff workflow, not more work here. A padded option list is a failure of this
 workflow. "Nothing more to be done in this session" is a fully valid, complete answer.
 
@@ -94,15 +94,18 @@ phone. Each option 1-2 lines, fragment style:
   banned. Real risk/blocker appended only if one exists; no ritual fields.
 
 Sources rank in this order: session leftover > verification gap > landing the work (the
-safe-merge workflow + push) > backlog (`docs/GOALS.md`). Prefer product-meaningful work
+queue-merge workflow) > backlog (`docs/GOALS.md`). Prefer product-meaningful work
 over easy filler - a test or doc task earns its place only by closing a real risk, not by being
 convenient. Every option must fit the product pillars and the governing nested
 `AGENTS.md`/`CLAUDE.md`/`docs/` contracts.
 
-When the session's work is committed and verified, **"merge and push via the safe-merge
-workflow" is a first-class option** - often the recommended one. Offering it here is fine; the
-user picking it is what makes it user-initiated. Never START it yourself off this workflow -
-but once the user PICKS it, run it (section 2c).
+When the session's work is committed and verified, **"queue the branch for landing" is a
+first-class option** - often the recommended one. That is the queue-merge workflow, and it is
+the only landing action this workflow ever offers: the queue lands one branch at a time, gated
+on CI, so nothing here waits on the user to merge anything. What it does wait on is the user
+saying the work is FINISHED, because queueing is that declaration and a branch can be green and
+clean while this session is still mid-conversation. So offer it, never queue off this workflow
+unasked - and once the user PICKS it, run it (section 2c).
 
 **Order the merge option by what `merge-order.mjs --branch <this branch>` said**, so this
 workflow never recommends a landing that makes another branch's landing much worse:
@@ -110,9 +113,10 @@ workflow never recommends a landing that makes another branch's landing much wor
 - **`clear`** - offer it normally, no caveat.
 - **`caution`** - still offerable and still recommendable; append the cost in a fragment
   (`costs <branch> N conflicted files`).
-- **`hold`** - do NOT recommend landing this branch. Keep it in the list (the user may have a
-  reason) but say in the same line which branch should land first and why - the rename, the
-  duplicated migration number, the conflict count. Recommend a different option instead.
+- **`hold`** - do NOT offer this branch as a plain queueing option. The risk is large enough
+  that this session settles it first, so the option becomes that work - integrate `main` here,
+  resolve, re-run the build, then queue - and it says in the same line what forced it: the
+  rename, the duplicated migration number, the conflict count.
 
 Never turn this into an option to go merge the OTHER branch: that is another worktree's
 business, and this workflow reports collisions rather than acting on them. Name it, and stop.
@@ -158,16 +162,22 @@ run.
 - Never skip this because the answer feels obvious, because there is only one real option, or
   because there is no work left. Those cases still get a pick - see section 3.
 
-### 2c. A picked option is an invocation - including the safe-merge one
+### 2c. A picked option is an invocation - including the landing one
 
-**When the user picks the safe-merge option, RUN it.** Do not answer the pick by asking them to
-type `/safe-merge` themselves. The option named a branch, this workflow offered it, and the user
+**When the user picks the landing option, RUN it.** Do not answer the pick by asking them to
+type the command themselves. The option named a branch, this workflow offered it, and the user
 chose it - that is a user decision about a specific branch, which is exactly what "explicitly
 invoked" means. Refusing a pick you just offered is a bug, not caution.
 
-Mechanically: read `.agent-workflows/safe-merge.md` and follow it in full for the branch named in
-the option. In Claude Code do NOT try to call the `/safe-merge` command as a tool - its adapter
-sets `disable-model-invocation: true` so the model can never invoke it on its own initiative, and
+Mechanically: read `.agent-workflows/queue-merge.md` and follow it in full for the branch named
+in the option. It hands the branch to the machine-wide queue, which does the merging; this
+session never merges into `main` itself.
+
+The manual safe-merge flow is a different thing and is not offered here - the queue runs its
+mechanical path already, and a session driving it by hand is outside the serialization. If the
+user explicitly asks for it anyway, read `.agent-workflows/safe-merge.md` and follow it. In
+Claude Code do NOT try to call the `/safe-merge` command as a tool - its adapter sets
+`disable-model-invocation: true` so the model can never invoke it on its own initiative, and
 that flag stays. Following the shared file directly is the same procedure with the same standing
 permissions, entered the one way that requires a human to have chosen it.
 
@@ -184,9 +194,9 @@ the natural close. No consolation backlog list.
 **Then still offer a pick** - the close is a choice too. Build it from whichever of these are
 genuinely available, recommended one first:
 
-- **The safe-merge workflow** - only when this session's branch is committed, verified, and
-  actually mergeable, and `merge-order.mjs` did not return `hold`. Picking it is what makes it
-  user-initiated; never run it unasked, and always run it once picked (section 2c).
+- **The queue-merge workflow** - only when this session's branch is committed, verified, and
+  actually landable, and `merge-order.mjs` did not return `hold`. Picking it is what declares the
+  work finished; never queue unasked, and always run it once picked (section 2c).
 - **The handoff workflow** - write the handoff note and close out.
 - **Stop here** - nothing further, leave the session as is.
 - **Start something new** - open the backlog (`docs/GOALS.md`)
@@ -205,9 +215,9 @@ recommended one") - only then begin, and do only the picked option (section 2c).
 
 - **Read, don't write.** The planning turn changes nothing. No commits, fixes, file creation, or
   memory writes.
-  The one thing a PICK may then do is start the option the user chose - including safe-merge.
-- **Options must be about THIS session's line of work.** Suggesting the safe-merge workflow /
-  push for this session's branch is in scope; never execute it unasked. Never offer
+  The one thing a PICK may then do is start the option the user chose - including landing.
+- **Options must be about THIS session's line of work.** Offering to queue this session's branch
+  for landing is in scope; never queue it unasked, and never queue another session's branch. Never offer
   repo/workspace cleanup (leftover worktrees, stale branches, node_modules pruning, etc.) - the
   user handles those deliberately elsewhere. Same for other worktrees' business or work that
   plainly belongs in a fresh session - name that separately in one line if it exists.

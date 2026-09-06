@@ -438,6 +438,22 @@ async function cmdList() {
     })}\n`);
     return;
   }
+  // WHAT IS RED ON MAIN, above everything else, because it frames the rest of this report: the
+  // queue below is busy landing branches on top of whatever is already broken, and it is
+  // supposed to (it gates on ci.yml alone so an infrastructure fault cannot freeze it). Nothing
+  // read the rolling alarms back until this line - scripts/alarm-issues.mjs has the measurement.
+  // Silent when nothing is open, and never able to fail this report.
+  try {
+    const { formatAlarms, readAlarms } = await import('./alarm-issues.mjs');
+    const { alarms, asOfMinutes } = readAlarms();
+    const lines = formatAlarms(alarms, { asOfMinutes });
+    if (lines.length > 0) {
+      for (const line of lines) console.log(line);
+      console.log('');
+    }
+  } catch {
+    // A report about the queue must not depend on GitHub answering.
+  }
   // Landings first, and shown even when the queue is empty: "which branches are in, and therefore
   // which sessions are finished?" is the question automating the merge quietly took away, and an
   // empty queue is exactly when it gets asked.

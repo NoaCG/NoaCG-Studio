@@ -8,7 +8,7 @@
 //   1. noacgRepaint() reads the machine's pointers and every field the table names, asks each
 //      field's KIND for its facts and derivations, evaluates every paint rule, and applies the
 //      result: looks by class, gauges by a scale measured at rest, readouts by text.
-//   2. The FIELD-KIND LIBRARY - `row-pick`, `select`, `number`, `counter`, `share`, `list`,
+//   2. The FIELD-KIND LIBRARY - `row-pick`, `row-set`, `select`, `number`, `counter`, `share`, `list`,
 //      `puzzle`, `fraction`, `clock`, `vote-status` - each a small function from a holder's text
 //      to facts and derived values. This is the one place a comparison lives, and it is not
 //      authorable: a recipe names a fact, never a test.
@@ -241,6 +241,42 @@ noacgKinds.list = {
   report: function (id, spec) {
     if (typeof svgFitOver === 'undefined') return;
     svgFitOver[id] = noacgListRows(id).length > noacgRowsOf(spec.rows).length;
+  }
+};
+
+// row-set: a list whose LINES ARE ROW KEYS, in the order they were added (a bingo caller's
+// called numbers, a checklist, the nominees revealed so far). Membership, not position: "listed"
+// holds on a row whose key is on the list, "unlisted" on one whose key is not, and "last" on the
+// row named by the newest line - the number just called. The two facts about the WHOLE list,
+// asked without a row, are "any" (something has been called) and "none". Derives "count" (how
+// many rows are listed), "last" (that key, or '') and "key" (the row's own key, for a numeral
+// drawn per row). A line that names no row is ignored rather than counted.
+function noacgRowSetKeys(id, spec) {
+  var keys = noacgRowsOf(spec.rows);
+  var out = [];
+  var lines = noacgFieldText(id).split('\\n');
+  for (var i = 0; i < lines.length; i++) {
+    var key = lines[i].trim().toUpperCase();
+    if (key !== '' && keys.indexOf(key) !== -1 && out.indexOf(key) === -1) out.push(key);
+  }
+  return out;
+}
+noacgKinds['row-set'] = {
+  fact: function (id, spec, name, rowKey) {
+    var listed = noacgRowSetKeys(id, spec);
+    if (name === 'listed') return listed.indexOf(rowKey) !== -1;
+    if (name === 'unlisted') return noacgRowsOf(spec.rows).indexOf(rowKey) !== -1 && listed.indexOf(rowKey) === -1;
+    if (name === 'last') return listed.length > 0 && listed[listed.length - 1] === rowKey;
+    if (name === 'any') return listed.length > 0;
+    if (name === 'none') return listed.length === 0;
+    return false;
+  },
+  derive: function (id, spec, name, rowKey) {
+    var listed = noacgRowSetKeys(id, spec);
+    if (name === 'count') return String(listed.length);
+    if (name === 'last') return listed.length > 0 ? listed[listed.length - 1] : '';
+    if (name === 'key') return rowKey || '';
+    return name === 'text' ? noacgFieldText(id) : null;
   }
 };
 

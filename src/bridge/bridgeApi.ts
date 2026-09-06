@@ -77,7 +77,16 @@ export interface BridgeTypeSummary {
   prefix: string;
   fields: Array<{ key: string; label: string; kind: string; value: string; role: string; ftype: string; options?: Array<{ label: string; value: string }> }>;
   /** The operator events the type's machine carries (its buttons), with declared labels. */
-  events: Array<{ event: string; label: string; section?: string; payload?: string[]; adjust?: Record<string, number> }>;
+  events: Array<{
+    event: string;
+    label: string;
+    section?: string;
+    payload?: string[];
+    adjust?: Record<string, number>;
+    set?: Record<string, string>;
+    add?: Record<string, string>;
+    remove?: Record<string, string>;
+  }>;
   designs: Array<{ id: string; name: string; description: string; styleTag: string }>;
   /** Whether `scaffold({type, design:'neutral'})` is available for this type. */
   neutral: boolean;
@@ -106,6 +115,9 @@ function summarize(type: GraphicType): BridgeTypeSummary {
       ...(c?.section ? { section: c.section } : {}),
       ...(c?.payload?.length ? { payload: c.payload } : {}),
       ...(c?.adjust && Object.keys(c.adjust).length ? { adjust: c.adjust } : {}),
+      ...(c?.set && Object.keys(c.set).length ? { set: c.set } : {}),
+      ...(c?.add && Object.keys(c.add).length ? { add: c.add } : {}),
+      ...(c?.remove && Object.keys(c.remove).length ? { remove: c.remove } : {}),
     };
   });
   return {

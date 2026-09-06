@@ -44,6 +44,28 @@ could be READ. All 504 designs emit byte-identical code.
   text at 48px against the 50px floor, twice. Worth noting that §23.1 recorded that floor failing
   312 of 489 shipped designs and the owner has not re-ratified it for enforcement.
 
+## The bank FINISHED: 5 of 21, $1.444
+
+Full verdict in `docs/AI_ATTEMPTS.md`. The headline is a loss against the baseline's 19 of 21 at
+$0.118, and the attribution is the useful half:
+
+**Nine cells - three ENTIRE types - carried a finding the gate could never pass**, whatever the
+design: every quiz-board on the mis-calibrated `step-contract`, every countdown and podium-score on
+`bench-field-unpainted` refusing a `noacg-data-source` holder built to the root contract.
+
+| | delivered | rate | cost per delivered |
+|---|---|---|---|
+| as measured, 21 cells | 5 | 24% | $0.289 |
+| the 12 cells the gate could pass | 5 | 42% | $0.121 |
+| baseline (`gemini-3.7-flash`) | 19 of 21 | 90% | $0.118 |
+
+Cost per delivered is level with the baseline; the delivered RATE is not. Rounds per delivered is
+1.6 against ~2.7 model calls, so the loop is efficient when it works and simply works less often.
+
+**The real model weakness, and the honest negative result:** dense types whose values grow. Tickers
+0 of 3, every one on `bench-stress` (text colliding once values double); scoreboards 1 of 3, same
+class. Lower thirds 2 of 3 and stat panels 2 of 3 - the simple stacked shapes.
+
 ## What is next
 
 1. **Resume the bank.** 3 of 21 recorded, resumable and cheap:

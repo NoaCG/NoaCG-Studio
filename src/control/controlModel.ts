@@ -89,11 +89,44 @@ export function adjustedValue(current: string | number | undefined, delta: numbe
   return String((parseInt(String(current ?? ''), 10) || 0) + delta);
 }
 
+/** A lines field's non-empty lines, trimmed - the one reading of a list every surface shares. */
+function listLines(current: string | number | undefined): string[] {
+  return String(current ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/** A lines field with one value ADDED as its last line - the list twin of `adjustedValue`
+ *  (an event's `add`). A value already on the list is not added twice: the list is a set of
+ *  lines (a bingo number called once, a letter revealed once), so a second press is a no-op
+ *  rather than a duplicate the board would then paint twice. */
+export function addedValue(current: string | number | undefined, value: string): string {
+  const lines = listLines(current);
+  const line = value.trim();
+  if (line && !lines.includes(line)) lines.push(line);
+  return lines.join('\n');
+}
+
+/** A lines field with the LAST line equal to the value taken out (an event's `remove`, the
+ *  undo of `addedValue`). A value the list does not hold leaves it as it was. */
+export function removedValue(current: string | number | undefined, value: string): string {
+  const lines = listLines(current);
+  const at = lines.lastIndexOf(value.trim());
+  if (at !== -1) lines.splice(at, 1);
+  return lines.join('\n');
+}
+
+/** The members of the payload family a button may carry - `payload` aside, which rides a field
+ *  as it reads and moves nothing. */
+type MovingButton = Pick<ControlButton, 'adjust' | 'set' | 'add' | 'remove'>;
+
 /**
  * The field values a button's press carries — THE one rule every surface that fires an event
  * uses, so the production page, the hosted page, the editor's Control tab and the exported
- * panel cannot disagree about what rides (`controlPanelHtml.ts` inlines the same rule, since
- * it ships without this module):
+ * panel cannot disagree about what rides (`controlPanelHtml.ts` and
+ * `productionControllerHtml.ts` inline the same rule, since those pages ship without this
+ * module):
  *
  * - `payload` fields ride at their CURRENT value (the pick, the focused row);
  * - `adjust` fields ride at their current value MOVED by the declared delta (a goal's +1 on
@@ -102,17 +135,22 @@ export function adjustedValue(current: string | number | undefined, delta: numbe
  * - `set` fields ride at the figure the control DECLARES (a score board's "New game" putting
  *   every score back to 0). It reads nothing from the surface, which is what lets a reset exist
  *   at all: neither of the two above can say "make it this".
+ * - `add` list fields ride with the SOURCE field's current value appended as a line (a puzzle's
+ *   "Reveal letter" adding the Guess box to the revealed letters) - the list twin of `adjust`,
+ *   and the one member that can say "add this". `remove` is its inverse: the last line equal to
+ *   the source comes out. A source that reads empty, or a remove of a line the list does not
+ *   hold, leaves the list off the wire, so the press cannot blank a board by mistake.
  *
  * `valueOf` is the surface's own answer for "what does this field read right now" (its staged
  * box, its on-air record); `undefined` means the surface has no value, and a payload field then
  * stays off the wire so the graphic keeps what it has (a bare `''` once wiped a quiz pick), while
- * an adjust field counts from 0. Returns `undefined` when nothing rides, so a bare event fires
- * bare. The keys of `button.adjust` are ALSO what the surface must write back into its own
- * field state after sending, the way its live-number stepper does - or the next press would
- * move from the stale value.
+ * an adjust field counts from 0 and a list from empty. Returns `undefined` when nothing rides, so
+ * a bare event fires bare. The keys of `button.adjust`, `set`, `add` and `remove` (`movedKeys`)
+ * are ALSO what the surface must write back into its own field state after sending, the way its
+ * live-number stepper does - or the next press would move from the stale value.
  */
 export function eventPayload(
-  button: Pick<ControlButton, 'payload' | 'adjust' | 'set'>,
+  button: Pick<ControlButton, 'payload'> & MovingButton,
   valueOf: (key: string) => string | number | undefined,
 ): Record<string, string> | undefined {
   const payload: Record<string, string> = {};
@@ -124,6 +162,17 @@ export function eventPayload(
     payload[key] = adjustedValue(valueOf(key), delta);
   }
   for (const [key, value] of Object.entries(button.set ?? {})) payload[key] = value;
+  for (const [key, source] of Object.entries(button.add ?? {})) {
+    const line = String(valueOf(source) ?? '').trim();
+    if (line) payload[key] = addedValue(valueOf(key), line);
+  }
+  for (const [key, source] of Object.entries(button.remove ?? {})) {
+    const line = String(valueOf(source) ?? '').trim();
+    if (!line) continue;
+    const current = valueOf(key);
+    const next = removedValue(current, line);
+    if (next !== listLines(current).join('\n')) payload[key] = next;
+  }
   return Object.keys(payload).length > 0 ? payload : undefined;
 }
 
@@ -132,26 +181,44 @@ export function eventPayload(
  *
  * One helper because four surfaces do this and every one of them used to spell it
  * `Object.keys(button.adjust ?? {})`. A control family that grows (`set` arrived with the score
- * board's reset) then leaves each surface to remember on its own, and the one that forgets shows
- * an operator a box still reading the old score while air reads the new one - the exact drift
- * `adjust`'s write-back exists to prevent, arriving by omission instead of by design.
+ * board's reset, `add` and `remove` with the puzzle's Reveal letter) then leaves each surface to
+ * remember on its own, and the one that forgets shows an operator a box still reading the old
+ * score while air reads the new one - the exact drift `adjust`'s write-back exists to prevent,
+ * arriving by omission instead of by design.
  */
-export function movedKeys(button: Pick<ControlButton, 'adjust' | 'set'>): string[] {
-  return [...Object.keys(button.adjust ?? {}), ...Object.keys(button.set ?? {})];
+export function movedKeys(button: MovingButton): string[] {
+  return [
+    ...Object.keys(button.adjust ?? {}),
+    ...Object.keys(button.set ?? {}),
+    ...Object.keys(button.add ?? {}),
+    ...Object.keys(button.remove ?? {}),
+  ];
 }
 
-/** What a press MOVES, in the OPERATOR'S words ("Score A +1", "Score A to 0"), for the button
- *  hints - `labelOf` resolves a field id to its label, the way every surface words a payload.
- *  Both roads are worded here, so a reset's hint says what it will do rather than nothing. */
+/** The field ids a press READS without moving them - the sources an `add` or a `remove` takes
+ *  its line from. A surface whose values live in an entry or a cue needs to know these ride
+ *  from the same place a payload field would, so the Guess box the operator just typed into is
+ *  what the press reveals. */
+export function sourceKeys(button: Pick<ControlButton, 'add' | 'remove'>): string[] {
+  return [...Object.values(button.add ?? {}), ...Object.values(button.remove ?? {})];
+}
+
+/** What a press MOVES, in the OPERATOR'S words ("Score A +1", "Score A to 0", "Guess into
+ *  Revealed letters"), for the button hints - `labelOf` resolves a field id to its label, the
+ *  way every surface words a payload. Every road is worded here, so a reset's hint says what
+ *  it will do rather than nothing. */
 export function adjustWords(
-  button: Pick<ControlButton, 'adjust' | 'set'>,
+  button: MovingButton,
   labelOf: (key: string) => string | undefined,
 ): string {
+  const name = (key: string) => labelOf(key) ?? key;
   return [
     ...Object.entries(button.adjust ?? {}).map(
-      ([key, delta]) => `${labelOf(key) ?? key} ${delta > 0 ? '+' : ''}${delta}`,
+      ([key, delta]) => `${name(key)} ${delta > 0 ? '+' : ''}${delta}`,
     ),
-    ...Object.entries(button.set ?? {}).map(([key, value]) => `${labelOf(key) ?? key} to ${value || '(empty)'}`),
+    ...Object.entries(button.set ?? {}).map(([key, value]) => `${name(key)} to ${value || '(empty)'}`),
+    ...Object.entries(button.add ?? {}).map(([key, source]) => `${name(source)} into ${name(key)}`),
+    ...Object.entries(button.remove ?? {}).map(([key, source]) => `${name(source)} out of ${name(key)}`),
   ].join(', ');
 }
 

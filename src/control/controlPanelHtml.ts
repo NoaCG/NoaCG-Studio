@@ -481,6 +481,9 @@ GRAPHICS.forEach(function (g) {
       var ta = el('textarea', { placeholder: 'one entry per line' });
       ta.value = v || '';
       ta.oninput = function () { onChange(c.key, ta.value); };
+      // An ⚡ event that ADDS a line to this list (a puzzle's Reveal letter) or takes one back
+      // writes the state and asks the box to repaint, exactly as a number's adjust does.
+      repaint[c.key] = function () { ta.value = state[c.key] || ''; };
       wrap.appendChild(ta);
     } else if (c.kind === 'select') {
       var opts = c.options || [];
@@ -499,11 +502,17 @@ GRAPHICS.forEach(function (g) {
           };
           seg.appendChild(b);
         });
+        // A set on a select (a survey's Reveal 3 writing "on") lands in the state; the lit
+        // segment has to follow, or the panel shows a row still hidden while air shows it.
+        repaint[c.key] = function () {
+          for (var n = seg.firstChild, i = 0; n; n = n.nextSibling, i++) n.className = opts[i] && opts[i].value === state[c.key] ? 'on' : '';
+        };
         wrap.appendChild(seg);
       } else {
         var sel = el('select');
         opts.forEach(function (o) { var opt = el('option', { value: o.value }, [o.label]); if (o.value === v) opt.selected = true; sel.appendChild(opt); });
         sel.onchange = function () { onChange(c.key, sel.value); };
+        repaint[c.key] = function () { sel.value = state[c.key] || ''; };
         wrap.appendChild(sel);
       }
     } else if (c.kind === 'toggle') {
@@ -547,6 +556,9 @@ GRAPHICS.forEach(function (g) {
       t.value = isClock ? clockPlain(v) : (v || '');
       if (isClock) clockInput = t;
       t.oninput = function () { onChange(c.key, t.value); };
+      // A set that clears a text box (a puzzle's New puzzle emptying the guess) repaints it
+      // too; the clock box is repainted by its own verbs and keeps its plain-time reading.
+      if (!isClock) repaint[c.key] = function () { t.value = state[c.key] || ''; };
       wrap.appendChild(t);
     }
     return wrap;
@@ -602,14 +614,17 @@ GRAPHICS.forEach(function (g) {
     // The SAME rule as controlModel.ts eventPayload (this page ships without it): payload
     // fields ride at their current value; adjust fields (a goal's +1) ride moved by their
     // delta, counted from the current value (anything that does not read as an integer counts
-    // from 0); set fields (a score board's "New game") ride at the figure the control declares.
-    // The new figure is written into the panel's own state + box - the press aired it, so it is
-    // what the next press counts from and what every later ⟳ Take re-sends.
+    // from 0); set fields (a score board's "New game") ride at the figure the control declares;
+    // add fields (a puzzle's "Reveal letter") ride with the source box's value appended as a line
+    // unless it is already one, and remove fields with the last such line taken out - an empty
+    // source, or a line the list does not hold, leaves the list off the wire. The new value is
+    // written into the panel's own state + box - the press aired it, so it is what the next
+    // press counts from and what every later ⟳ Take re-sends.
     var payload = null;
     (e.payload || []).forEach(function (key) {
       if (state[key] !== undefined) { payload = payload || {}; payload[key] = state[key]; }
     });
-    // One writer for both roads, so a third member of the family cannot arrive and forget to
+    // One writer for every road, so a new member of the family cannot arrive and forget to
     // repaint the box - which is the only half an operator can see.
     function stage(key, value) {
       payload = payload || {};
@@ -626,6 +641,31 @@ GRAPHICS.forEach(function (g) {
     for (var sk in setTo) {
       if (!Object.prototype.hasOwnProperty.call(setTo, sk)) continue;
       stage(sk, setTo[sk]);
+    }
+    // The list's non-empty lines, trimmed - controlModel.ts listLines, restated.
+    function listLines(value) {
+      var out = [];
+      String(value == null ? '' : value).split('\\n').forEach(function (line) { var l = line.trim(); if (l) out.push(l); });
+      return out;
+    }
+    var addTo = e.add || {};
+    for (var lk in addTo) {
+      if (!Object.prototype.hasOwnProperty.call(addTo, lk)) continue;
+      var addLine = String(state[addTo[lk]] == null ? '' : state[addTo[lk]]).trim();
+      if (!addLine) continue;
+      var added = listLines(state[lk]);
+      if (added.indexOf(addLine) === -1) added.push(addLine);
+      stage(lk, added.join('\\n'));
+    }
+    var removeFrom = e.remove || {};
+    for (var rk in removeFrom) {
+      if (!Object.prototype.hasOwnProperty.call(removeFrom, rk)) continue;
+      var removeLine = String(state[removeFrom[rk]] == null ? '' : state[removeFrom[rk]]).trim();
+      var kept = listLines(state[rk]);
+      var at = removeLine ? kept.lastIndexOf(removeLine) : -1;
+      if (at === -1) continue;
+      kept.splice(at, 1);
+      stage(rk, kept.join('\\n'));
     }
     // A clock verb writes the clock's own value around the event, in the order the wire module
     // fixes: the origin BEFORE a start, the banked time AFTER a hold or a reset.

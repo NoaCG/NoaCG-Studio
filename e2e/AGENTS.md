@@ -157,6 +157,20 @@ belong where specs are written rather than in the contract every session loads.
   `teams` table alone sends the reader to the wrong table. And a count is a SNAPSHOT of whatever
   settled: a second, independent fetch failing later reads as 0. That direction is a miss rather
   than a false red, so it is the one to accept - say so where you take it.
+- **A route handler that awaits the `request` fixture must be taken down before the test ends**,
+  and a page that keeps polling has to be closed where its assertions finish rather than at the
+  bottom of the file. Playwright disposes `request` on test end, so a proxied call still in flight
+  dies with "Request context disposed" and reds a test whose assertions all passed. It is not a
+  product fault and the message does not say so. `configured/relay-cold-boot.spec.ts` proxies its
+  board's RPCs through `request`, and the board follows the log for as long as it is open (a poll
+  every `CONTROL_POLL_MS`, plus a report after each apply) - so it was still calling during the
+  several seconds of unpublish-and-wipe at the end. **Only the hosted tier ever caught it**: the
+  proxied POST is about 1 ms against a local stack and ~163 ms from a runner to hosted staging, so
+  the window is over a hundred times wider there, and `ffba7006` was green on configured-suite and
+  red on hosted-latency the same night (issue #57). `await page.unrouteAll({ behavior:
+  'ignoreErrors' })` is the half that closing cannot do - it waits for handlers already running
+  and swallows their errors - and it goes before `close()`. A handler that only calls
+  `route.fulfill` is not exposed; the fixture is what dies.
 
 ## Traps when RUNNING the suite
 

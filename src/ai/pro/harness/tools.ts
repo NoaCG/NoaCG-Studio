@@ -285,6 +285,14 @@ export function createHarnessTools(ctx: ToolContext) {
       if (!applied.ok) {
         // A refused patch costs no render and consumes no round: the reasons come back as
         // harness findings so the model fixes the patch, not the design.
+        //
+        // THE REASONS ARE ALSO RECORDED, because a refused patch makes no round and so leaves no
+        // trace anywhere else. On 2026-09-06 `sb-esports` burned four steps and stopped, reporting
+        // that even the scaffold's own boxHtml came back "field element id=... must appear exactly
+        // once (found 0)" - and the round could not be diagnosed afterwards, because the only
+        // account of the refusal was the model's own. A guard that can refuse the platform's own
+        // scaffold is a guard whose refusals have to be readable without taking the model's word.
+        run.events.push(`patch refused: ${applied.reasons.join(' | ')}`);
         return {
           text: [
             'The patch was refused - nothing was applied and nothing was rendered. Each reason names what to change:',

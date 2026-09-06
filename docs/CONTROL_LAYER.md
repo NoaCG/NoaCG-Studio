@@ -90,9 +90,20 @@ A template's playout behaviour travels INSIDE the template, and nowhere else:
 - `machine.controls` (blocks/animData.ts `MachineControl`) is ADDITIVE OPTIONAL metadata
   INSIDE `NOACG_ANIM`: label, section, order, `payload` (field ids whose current values ride
   the event), `adjust` (field ids whose current value MOVED by a delta rides the event - a
-  goal's `{f1: 1}`), `destructive`. It travels in the template, so exported and hosted panels
-  keep their labels with no registry to ask. Graphic types declare it as `TypeControlEvent`
-  (logical payload/adjust keys); `compileControls` resolves them to `fN` ids at attach.
+  goal's `{f1: 1}`), `set` (field ids the press puts to a declared figure - a reset's
+  `{f1: '0'}`), `add` (list field ids the press appends the named source field's value to as a
+  line - a puzzle's `{f2: 'f3'}`, Reveal letter adding the Guess box to the revealed letters),
+  `remove` (its inverse: the last line equal to the source comes out), `destructive`. It travels
+  in the template, so exported and hosted panels keep their labels with no registry to ask.
+  Graphic types declare it as `TypeControlEvent` (logical keys); `compileControls` resolves them
+  to `fN` ids at attach, and refuses an `add` or `remove` on anything but a `lines` field.
+- **The four moving members are one family, and one road per field.** `payload` rides a field
+  as it reads; `adjust` moves a figure; `set` writes a constant; `add` and `remove` move a LIST by
+  one line (2026-09-06, the list twin of `adjust` three game-show graphics asked for). A field
+  key appears in at most one of them on a press; an `add` or `remove` source is only read, so it
+  may ride elsewhere too. `movedKeys` names what a press moved, `sourceKeys` what it read, and
+  `adjustWords` words all four for the button hints, so a surface that grows a fifth member has
+  one place to add it.
 - **An `adjust` is a payload the SURFACE computes** (`controlModel.ts eventPayload` - the one
   rule, inlined verbatim in `controlPanelHtml.ts`): `current + delta` rides as an ordinary
   payload value, so the figure lands exactly when the machine accepts the event and not

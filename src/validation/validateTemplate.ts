@@ -387,6 +387,25 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
               });
             }
           }
+          // An add or a remove moves a LIST by one line: the list has to be a textarea, and the
+          // source has to exist, or the press reads nothing and the list never moves.
+          for (const member of ['add', 'remove'] as const) {
+            const verb = member === 'add' ? 'adds to' : 'removes from';
+            for (const [key, source] of Object.entries(control[member] ?? {})) {
+              const field = fieldById.get(key);
+              if (!field) {
+                warnings.push({ rule: 'machine', message: `Machine controls: "${control.event}" ${verb} "${key}", but no field has that id.` });
+              } else if (field.ftype !== 'textarea') {
+                warnings.push({
+                  rule: 'machine',
+                  message: `Machine controls: "${control.event}" ${verb} "${key}", which is a ${field.ftype} field, not a line list.`,
+                });
+              }
+              if (!fieldById.has(source)) {
+                warnings.push({ rule: 'machine', message: `Machine controls: "${control.event}" ${verb} "${key}" from "${source}", but no field has that id.` });
+              }
+            }
+          }
         }
       }
     }

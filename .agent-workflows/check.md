@@ -167,5 +167,8 @@ Goal: leave the changed code simpler than the review left it, without changing w
   commit the check ran on, and any commit after it invalidates the stamp (re-run or honestly
   re-stamp what was re-checked). Overwrite the branch's previous stamp; the file is per-machine
   state like the job store, never committed.
-- Then **stop**. Landing is the queue's: `/queue-merge` reads this stamp (`scripts/jobs.mjs
-  add-merge` refuses a tip the stamp does not cover), so the stamp is what lets the branch queue.
+- Then **stop**. Landing is serialized, not permissioned: when the work this check covers is
+  finished, the `queue-merge` workflow hands the branch to the landing queue, which lands it
+  one branch at a time. The queue reads this stamp (`scripts/jobs.mjs add-merge` refuses a tip
+  the stamp does not cover), so the stamp is what lets the branch queue. Never merge into
+  `main` by hand.

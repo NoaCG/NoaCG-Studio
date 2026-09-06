@@ -799,7 +799,7 @@ reads, `adjust` moves a number, `set` writes a constant; none can say "add this"
 ships on the data road (the operator adds the letter to the Revealed box and presses Update),
 which is honest and a keystroke slower than the show. Not a doctrine break: a fourth member of
 the payload family on the control surfaces, `add: { list: sourceField }`, resolved on the surface
-like the other three so the box moves with the board. Not built here.
+like the other three so the box moves with the board. Not built here; built the same day, below.
 
 **FINDING - a recipe carries ONE row set, and a grid has two.** The bracket (teams and matches),
 the Jeopardy board (categories and values) and the Deal or No Deal case board (cases and
@@ -819,3 +819,43 @@ nothing in the file can say "this text is not a field". Both are `docs/backlog/`
 **The wizard holds every recipe with rows in ONE generic draft** (`SvgRecipeDraft.rows`,
 `DesignSvgRecipeBehaviour.rows` and `.fields`, additive), offered from the registry rather than a
 hand-kept list, so the four legacy draft shapes are the last of their kind.
+
+### The list twin, built (2026-09-06, later the same day)
+
+**`add` is the fourth member of the payload family, and `remove` is its honest inverse.** A
+control declares `add: { <listField>: <sourceField> }`; the surface reads the source, appends it
+to the list unless that exact line is already there, and the WHOLE list rides the event as
+ordinary payload - so the machine applies it only when it accepts the press, the log holds the
+absolute list for recovery, and every surface writes it back into its own box exactly as it does
+for `adjust` (`controlModel.ts` `addedValue` / `removedValue` / `movedKeys`, the same rule
+inlined in the exported panel and the production controller, `compileControls` resolving the
+logical keys, the OGraf vendor block carrying both maps and the reader taking the list out of the
+plain payload keys). `remove` takes the last line equal to the source back out. An empty source,
+or a remove of a line the list does not hold, leaves the list off the wire, so a press can never
+blank a board by mistake. The list must be a `lines` field; the source may be anything, since it
+is only read. One road per field still holds: a list key rides as payload, adjusted, set, added
+to or removed from, never two of those on one press.
+
+The puzzle got a Guess box, "Reveal letter" and "Take back a letter" on a `letters` group of one
+state (re-entering the entrance state would replay the entrance, so the press does not ride the
+main path). The revealed letters became a line list, and the puzzle kind still reads them typed
+on one line. The exported panel repaints a text box, a line list and a dropdown after a press now,
+not only a number - a `set` on the survey's revealed switch had been landing in the panel's state
+without lighting the segment.
+
+**`row-set` is built, on a bingo caller** (`src/templates/behaviours/bingo.ts`,
+`e2e/fixtures/svg-shows/bingo-board.svg`). The kind is §2c's line: a lines field whose lines are
+row keys, `listed` / `unlisted` per row, plus `last` (the row the newest line names), the whole-list
+facts `any` / `none`, and the derivations `count`, `last` and `key`. Calling a number is `add`, a
+wrong call is `remove`, and the numerals the student draws are a per-row `write` role deriving the
+row's own key - which is what keeps a named numeral out of the operator's fields (the second trap
+below, answered for this recipe by naming and still open in general).
+
+**The two-row-set question stays open.** The bingo grid did not answer it: twenty-five cells on a
+five-by-five grid are ONE keyed repetition (the number), so one row set holds them. What the
+bracket, the Jeopardy board and the case board need is two INDEPENDENT repetitions on one recipe
+(teams and matches, categories and values), and nothing in the row-set work makes the shape of
+that declaration obvious. Recorded, not designed.
+
+**The two import traps are filed** (`docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md`,
+`docs/backlog/decorative-numerals-arrive-as-fields.md`).

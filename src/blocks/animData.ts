@@ -221,6 +221,28 @@ export interface MachineControl {
    * A key may not also appear in `payload` or `adjust`: one road per field. ADDITIVE OPTIONAL.
    */
   set?: Record<string, string>;
+  /**
+   * List field ids (fN, a textarea) the press ADDS A LINE TO, mapped to the field id whose
+   * current value is the line - a puzzle board's "Reveal letter" appending the Guess box to the
+   * revealed letters, a bingo caller's "Call it" appending the number to call.
+   *
+   * THE FOURTH MEMBER OF THE FAMILY, the list twin of `adjust`: `adjust` moves a figure by a
+   * delta, this moves a list by one line. The surface reads the source field, appends it to the
+   * list unless that exact line is already there, and the WHOLE list rides as ordinary payload -
+   * so the machine applies it only when it accepts the event, the log holds the absolute list for
+   * recovery, and the surface writes it back into its own box exactly as it does for `adjust`.
+   * A source that reads empty adds nothing, and the list stays off the wire. The list key may not
+   * also appear in `payload`, `adjust`, `set` or `remove`: one road per field. The SOURCE is only
+   * read, so it may ride elsewhere too. ADDITIVE OPTIONAL.
+   */
+  add?: Record<string, string>;
+  /**
+   * The honest inverse of `add`, for an undo: list field ids mapped to the source field whose
+   * current value is the line to take OUT - the last line equal to it, so one press takes back
+   * one press. A source that reads empty, or a line the list does not hold, changes nothing and
+   * the list stays off the wire. Same one-road rule as `add`. ADDITIVE OPTIONAL.
+   */
+  remove?: Record<string, string>;
   /** Style the button as consequential (a lock, a final call). */
   destructive?: boolean;
 }
@@ -603,6 +625,21 @@ function isMachineShape(raw: unknown, stepCount: number): raw is AnimMachine {
           if (c.adjust && typeof c.adjust === 'object' && key in (c.adjust as Record<string, unknown>)) return false;
         }
       }
+      // `add` and `remove`: list field id -> source field id, both non-empty strings. The list
+      // key takes one road like every other member, and may not be added to and taken from on
+      // the same press; the source is only read, so it is free to appear anywhere.
+      for (const member of ['add', 'remove'] as const) {
+        const map = c[member];
+        if (map === undefined) continue;
+        if (!map || typeof map !== 'object' || Array.isArray(map)) return false;
+        for (const [key, source] of Object.entries(map as Record<string, unknown>)) {
+          if (!key || typeof source !== 'string' || !source) return false;
+          if (Array.isArray(c.payload) && c.payload.includes(key)) return false;
+          if (c.adjust && typeof c.adjust === 'object' && key in (c.adjust as Record<string, unknown>)) return false;
+          if (c.set && typeof c.set === 'object' && key in (c.set as Record<string, unknown>)) return false;
+          if (member === 'remove' && c.add && typeof c.add === 'object' && key in (c.add as Record<string, unknown>)) return false;
+        }
+      }
       if (c.destructive !== undefined && typeof c.destructive !== 'boolean') return false;
     }
   }
@@ -814,6 +851,13 @@ export function serializeAnimData(data: AnimData): string {
           const set = c.set;
           const entries = Object.keys(set).sort().map((k) => `${JSON.stringify(k)}: ${JSON.stringify(set[k])}`);
           parts.push(`"set": { ${entries.join(', ')} }`);
+        }
+        for (const member of ['add', 'remove'] as const) {
+          const map = c[member];
+          if (map === undefined) continue;
+          // Sorted keys, for the fixed-point proof, exactly as `adjust` and `set` above.
+          const entries = Object.keys(map).sort().map((k) => `${JSON.stringify(k)}: ${JSON.stringify(map[k])}`);
+          parts.push(`"${member}": { ${entries.join(', ')} }`);
         }
         if (c.destructive !== undefined) parts.push(`"destructive": ${c.destructive}`);
         lines.push(`      { ${parts.join(', ')} }${ci < sorted.length - 1 ? ',' : ''}`);

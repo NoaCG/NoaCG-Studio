@@ -263,6 +263,13 @@ export interface TypeControlEvent {
    *  putting every score back to 0. The third member of the payload family: `payload` rides a
    *  field as it reads, `adjust` rides it moved, and only this one can express a reset. */
   set?: Record<string, string>;
+  /** Logical LIST field keys the press ADDS A LINE TO, each mapped to the logical field whose
+   *  current value is the line - a puzzle board's `{ revealed: 'guess' }`. The fourth member, the
+   *  list twin of `adjust`: the surface appends the source to the list and the whole list rides as
+   *  payload. The list must be a `lines` field; the source may be any field. */
+  add?: Record<string, string>;
+  /** The honest inverse of `add`, for an undo: the last line equal to the source comes out. */
+  remove?: Record<string, string>;
   destructive?: boolean;
 }
 
@@ -562,6 +569,24 @@ function compileControls(type: GraphicType, machine: AnimMachine): MachineContro
         set[id] = value;
       }
       if (Object.keys(set).length > 0) control.set = set;
+    }
+    // `add` and `remove`: the list must be a `lines` field (a line is appended to it, so anything
+    // else would be "moved" from whatever a newline does to its text), the source any field.
+    for (const member of ['add', 'remove'] as const) {
+      const declaredMap = declared[member];
+      if (declaredMap === undefined) continue;
+      const verb = member === 'add' ? 'adds to' : 'removes from';
+      const resolved: Record<string, string> = {};
+      for (const [key, sourceKey] of Object.entries(declaredMap)) {
+        const id = fieldIdFor(type.fields, key);
+        if (!id) throw new Error(`GraphicType "${type.id}": control "${declared.event}" ${verb} an unknown field "${key}".`);
+        const field = type.fields.find((f) => f.key === key);
+        if (field?.kind !== 'lines') throw new Error(`GraphicType "${type.id}": control "${declared.event}" ${verb} "${key}", which is not a lines field.`);
+        const source = fieldIdFor(type.fields, sourceKey);
+        if (!source) throw new Error(`GraphicType "${type.id}": control "${declared.event}" ${verb} "${key}" from an unknown field "${sourceKey}".`);
+        resolved[id] = source;
+      }
+      if (Object.keys(resolved).length > 0) control[member] = resolved;
     }
     if (declared.destructive !== undefined) control.destructive = declared.destructive;
     out.push(control);

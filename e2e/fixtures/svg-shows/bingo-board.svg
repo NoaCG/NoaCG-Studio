@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!-- NoaCG show corpus. A BINGO CALLER BOARD, the board a bingo night keeps on screen: twenty-five
+     numbers on a grid, each lit as it is called, the newest one ringed and written large beside
+     the grid with a running count. Drawn the way a student draws it:
+
+     The base look     -> the backplate, the title, twenty-five dark tiles with their numerals
+                          drawn on them (named "Number 1..25", so NoaCG keeps them as drawing
+                          rather than offering twenty-five fields), the readout plate.
+     "Called 1..25"    -> hidden: the amber plate a tile wears once its number is called.
+     "Last 1..25"      -> hidden: the white ring around the number called most recently.
+     "Last call"       -> the big number, written by NoaCG from the newest call and hidden until
+                          the first one (draw it as it looks showing).
+     "Count"           -> the running count, written by NoaCG.
+
+     Full-frame 1920x1080. Words last. -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1920 1080" width="1920" height="1080" style="enable-background:new 0 0 1920 1080;"
+	 xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#0D1017;}
+	.st1{fill:#161B24;}
+	.st2{fill:#F6A623;}
+	.st3{fill:#FFFFFF;}
+	.st4{font-family:'Archivo-Bold';}
+	.st5{font-size:56px;}
+	.st6{fill:#1B2431;}
+	.st7{font-size:56px;}
+	.st8{font-size:240px;}
+	.st9{fill:#9AA4B2;}
+	.st10{font-family:'Inter-Medium';}
+	.st11{fill:none;stroke:#FFFFFF;stroke-width:8;}
+	.st12{font-size:28px;letter-spacing:6px;}
+	.st13{font-size:72px;}
+</style>
+<g id="Backplate">
+	<rect y="0" class="st0" width="1920" height="1080"/>
+</g>
+<g id="Title_x20_card" data-name="Title card">
+	<rect x="160" y="80" class="st1" width="1600" height="110"/>
+	<rect x="160" y="80" class="st2" width="1600" height="8"/>
+</g>
+<g id="Board">
+	<rect x="160" y="260" class="st6" width="150" height="120" rx="8"/>
+	<rect x="330" y="260" class="st6" width="150" height="120" rx="8"/>
+	<rect x="500" y="260" class="st6" width="150" height="120" rx="8"/>
+	<rect x="670" y="260" class="st6" width="150" height="120" rx="8"/>
+	<rect x="840" y="260" class="st6" width="150" height="120" rx="8"/>
+	<rect x="160" y="400" class="st6" width="150" height="120" rx="8"/>
+	<rect x="330" y="400" class="st6" width="150" height="120" rx="8"/>
+	<rect x="500" y="400" class="st6" width="150" height="120" rx="8"/>
+	<rect x="670" y="400" class="st6" width="150" height="120" rx="8"/>
+	<rect x="840" y="400" class="st6" width="150" height="120" rx="8"/>
+	<rect x="160" y="540" class="st6" width="150" height="120" rx="8"/>
+	<rect x="330" y="540" class="st6" width="150" height="120" rx="8"/>
+	<rect x="500" y="540" class="st6" width="150" height="120" rx="8"/>
+	<rect x="670" y="540" class="st6" width="150" height="120" rx="8"/>
+	<rect x="840" y="540" class="st6" width="150" height="120" rx="8"/>
+	<rect x="160" y="680" class="st6" width="150" height="120" rx="8"/>
+	<rect x="330" y="680" class="st6" width="150" height="120" rx="8"/>
+	<rect x="500" y="680" class="st6" width="150" height="120" rx="8"/>
+	<rect x="670" y="680" class="st6" width="150" height="120" rx="8"/>
+	<rect x="840" y="680" class="st6" width="150" height="120" rx="8"/>
+	<rect x="160" y="820" class="st6" width="150" height="120" rx="8"/>
+	<rect x="330" y="820" class="st6" width="150" height="120" rx="8"/>
+	<rect x="500" y="820" class="st6" width="150" height="120" rx="8"/>
+	<rect x="670" y="820" class="st6" width="150" height="120" rx="8"/>
+	<rect x="840" y="820" class="st6" width="150" height="120" rx="8"/>
+</g>
+<g id="Called_x20_1" data-name="Called 1" display="none"><rect x="160" y="260" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_2" data-name="Called 2" display="none"><rect x="330" y="260" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_3" data-name="Called 3" display="none"><rect x="500" y="260" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_4" data-name="Called 4" display="none"><rect x="670" y="260" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_5" data-name="Called 5" display="none"><rect x="840" y="260" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_6" data-name="Called 6" display="none"><rect x="160" y="400" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_7" data-name="Called 7" display="none"><rect x="330" y="400" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_8" data-name="Called 8" display="none"><rect x="500" y="400" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_9" data-name="Called 9" display="none"><rect x="670" y="400" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_10" data-name="Called 10" display="none"><rect x="840" y="400" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_11" data-name="Called 11" display="none"><rect x="160" y="540" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_12" data-name="Called 12" display="none"><rect x="330" y="540" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_13" data-name="Called 13" display="none"><rect x="500" y="540" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_14" data-name="Called 14" display="none"><rect x="670" y="540" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_15" data-name="Called 15" display="none"><rect x="840" y="540" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_16" data-name="Called 16" display="none"><rect x="160" y="680" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_17" data-name="Called 17" display="none"><rect x="330" y="680" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_18" data-name="Called 18" display="none"><rect x="500" y="680" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_19" data-name="Called 19" display="none"><rect x="670" y="680" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_20" data-name="Called 20" display="none"><rect x="840" y="680" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_21" data-name="Called 21" display="none"><rect x="160" y="820" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_22" data-name="Called 22" display="none"><rect x="330" y="820" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_23" data-name="Called 23" display="none"><rect x="500" y="820" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_24" data-name="Called 24" display="none"><rect x="670" y="820" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Called_x20_25" data-name="Called 25" display="none"><rect x="840" y="820" class="st2" width="150" height="120" rx="8"/></g>
+<g id="Last_x20_1" data-name="Last 1" display="none"><rect x="153" y="253" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_2" data-name="Last 2" display="none"><rect x="323" y="253" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_3" data-name="Last 3" display="none"><rect x="493" y="253" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_4" data-name="Last 4" display="none"><rect x="663" y="253" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_5" data-name="Last 5" display="none"><rect x="833" y="253" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_6" data-name="Last 6" display="none"><rect x="153" y="393" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_7" data-name="Last 7" display="none"><rect x="323" y="393" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_8" data-name="Last 8" display="none"><rect x="493" y="393" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_9" data-name="Last 9" display="none"><rect x="663" y="393" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_10" data-name="Last 10" display="none"><rect x="833" y="393" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_11" data-name="Last 11" display="none"><rect x="153" y="533" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_12" data-name="Last 12" display="none"><rect x="323" y="533" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_13" data-name="Last 13" display="none"><rect x="493" y="533" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_14" data-name="Last 14" display="none"><rect x="663" y="533" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_15" data-name="Last 15" display="none"><rect x="833" y="533" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_16" data-name="Last 16" display="none"><rect x="153" y="673" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_17" data-name="Last 17" display="none"><rect x="323" y="673" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_18" data-name="Last 18" display="none"><rect x="493" y="673" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_19" data-name="Last 19" display="none"><rect x="663" y="673" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_20" data-name="Last 20" display="none"><rect x="833" y="673" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_21" data-name="Last 21" display="none"><rect x="153" y="813" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_22" data-name="Last 22" display="none"><rect x="323" y="813" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_23" data-name="Last 23" display="none"><rect x="493" y="813" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_24" data-name="Last 24" display="none"><rect x="663" y="813" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Last_x20_25" data-name="Last 25" display="none"><rect x="833" y="813" class="st11" width="164" height="134" rx="12"/></g>
+<g id="Readout_x20_plate" data-name="Readout plate">
+	<rect x="1100" y="260" class="st1" width="660" height="680"/>
+	<rect x="1100" y="260" class="st2" width="660" height="8"/>
+</g>
+<g id="Words">
+	<text id="Title" data-name="Title" transform="matrix(1 0 0 1 200 158)" class="st3 st4 st5">BINGO NIGHT</text>
+	<text id="Number_x20_1" data-name="Number 1" transform="matrix(1 0 0 1 235 340)" class="st3 st4 st7" text-anchor="middle">1</text>
+	<text id="Number_x20_2" data-name="Number 2" transform="matrix(1 0 0 1 405 340)" class="st3 st4 st7" text-anchor="middle">2</text>
+	<text id="Number_x20_3" data-name="Number 3" transform="matrix(1 0 0 1 575 340)" class="st3 st4 st7" text-anchor="middle">3</text>
+	<text id="Number_x20_4" data-name="Number 4" transform="matrix(1 0 0 1 745 340)" class="st3 st4 st7" text-anchor="middle">4</text>
+	<text id="Number_x20_5" data-name="Number 5" transform="matrix(1 0 0 1 915 340)" class="st3 st4 st7" text-anchor="middle">5</text>
+	<text id="Number_x20_6" data-name="Number 6" transform="matrix(1 0 0 1 235 480)" class="st3 st4 st7" text-anchor="middle">6</text>
+	<text id="Number_x20_7" data-name="Number 7" transform="matrix(1 0 0 1 405 480)" class="st3 st4 st7" text-anchor="middle">7</text>
+	<text id="Number_x20_8" data-name="Number 8" transform="matrix(1 0 0 1 575 480)" class="st3 st4 st7" text-anchor="middle">8</text>
+	<text id="Number_x20_9" data-name="Number 9" transform="matrix(1 0 0 1 745 480)" class="st3 st4 st7" text-anchor="middle">9</text>
+	<text id="Number_x20_10" data-name="Number 10" transform="matrix(1 0 0 1 915 480)" class="st3 st4 st7" text-anchor="middle">10</text>
+	<text id="Number_x20_11" data-name="Number 11" transform="matrix(1 0 0 1 235 620)" class="st3 st4 st7" text-anchor="middle">11</text>
+	<text id="Number_x20_12" data-name="Number 12" transform="matrix(1 0 0 1 405 620)" class="st3 st4 st7" text-anchor="middle">12</text>
+	<text id="Number_x20_13" data-name="Number 13" transform="matrix(1 0 0 1 575 620)" class="st3 st4 st7" text-anchor="middle">13</text>
+	<text id="Number_x20_14" data-name="Number 14" transform="matrix(1 0 0 1 745 620)" class="st3 st4 st7" text-anchor="middle">14</text>
+	<text id="Number_x20_15" data-name="Number 15" transform="matrix(1 0 0 1 915 620)" class="st3 st4 st7" text-anchor="middle">15</text>
+	<text id="Number_x20_16" data-name="Number 16" transform="matrix(1 0 0 1 235 760)" class="st3 st4 st7" text-anchor="middle">16</text>
+	<text id="Number_x20_17" data-name="Number 17" transform="matrix(1 0 0 1 405 760)" class="st3 st4 st7" text-anchor="middle">17</text>
+	<text id="Number_x20_18" data-name="Number 18" transform="matrix(1 0 0 1 575 760)" class="st3 st4 st7" text-anchor="middle">18</text>
+	<text id="Number_x20_19" data-name="Number 19" transform="matrix(1 0 0 1 745 760)" class="st3 st4 st7" text-anchor="middle">19</text>
+	<text id="Number_x20_20" data-name="Number 20" transform="matrix(1 0 0 1 915 760)" class="st3 st4 st7" text-anchor="middle">20</text>
+	<text id="Number_x20_21" data-name="Number 21" transform="matrix(1 0 0 1 235 900)" class="st3 st4 st7" text-anchor="middle">21</text>
+	<text id="Number_x20_22" data-name="Number 22" transform="matrix(1 0 0 1 405 900)" class="st3 st4 st7" text-anchor="middle">22</text>
+	<text id="Number_x20_23" data-name="Number 23" transform="matrix(1 0 0 1 575 900)" class="st3 st4 st7" text-anchor="middle">23</text>
+	<text id="Number_x20_24" data-name="Number 24" transform="matrix(1 0 0 1 745 900)" class="st3 st4 st7" text-anchor="middle">24</text>
+	<text id="Number_x20_25" data-name="Number 25" transform="matrix(1 0 0 1 915 900)" class="st3 st4 st7" text-anchor="middle">25</text>
+	<text id="Last_x20_call_x20_caption" data-name="Last call caption" transform="matrix(1 0 0 1 1430 370)" class="st9 st10 st12" text-anchor="middle">LAST CALL</text>
+	<text id="Last_x20_call" data-name="Last call" transform="matrix(1 0 0 1 1430 690)" class="st2 st4 st8" text-anchor="middle">42</text>
+	<text id="Count" data-name="Count" transform="matrix(1 0 0 1 1430 850)" class="st3 st4 st13" text-anchor="middle">0</text>
+	<text id="Called_x20_caption" data-name="Called caption" transform="matrix(1 0 0 1 1430 900)" class="st9 st10 st12" text-anchor="middle">CALLED</text>
+</g>
+</svg>

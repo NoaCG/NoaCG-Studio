@@ -138,11 +138,26 @@ export function ografContract(manifest: unknown, { includeHidden = false } = {})
       }
     }
     if (Object.keys(set).length) button.set = set;
+    // The ADD and REMOVE lists (a puzzle's Reveal letter) ride the vendor object as list id ->
+    // source id; the list is a schema property too, so it comes out of the plain payload keys.
+    const listed = new Set<string>([...Object.keys(adjust), ...Object.keys(set)]);
+    for (const member of ['add', 'remove'] as const) {
+      const map: Record<string, string> = {};
+      if (isRecord(vendor?.[member])) {
+        for (const [key, source] of Object.entries(vendor[member] as Record<string, unknown>)) {
+          if (key && typeof source === 'string' && source && !listed.has(key)) map[key] = source;
+        }
+      }
+      if (Object.keys(map).length) {
+        button[member] = map;
+        for (const key of Object.keys(map)) listed.add(key);
+      }
+    }
     // The payload keys are the action schema's properties - the same flat {key: value} map
     // `customAction({id, payload})` takes and `ControlMessage.payload` carries.
     const actionSchema = isRecord(raw.schema) ? raw.schema : null;
     const payloadKeys = (actionSchema && isRecord(actionSchema.properties) ? Object.keys(actionSchema.properties) : [])
-      .filter((key) => !(key in adjust) && !(key in set));
+      .filter((key) => !listed.has(key));
     if (payloadKeys.length) button.payload = payloadKeys;
     buttons.push(button);
   }
