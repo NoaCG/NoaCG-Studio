@@ -440,5 +440,297 @@
     "verbs": "it plays, holds, and takes itself off",
     "buttons": "nothing extra: it clears itself after eight seconds, and Next clears it sooner",
     "roles": []
+  },
+  "survey": {
+    "name": "The survey board",
+    "verbs": "reveal the answers, count the strikes",
+    "buttons": "Reveal 1, Reveal 2 and so on, Strike, Take back a strike, Clear strikes and Reset board, plus the Answers box (one line per answer, `Toaster | 32`)",
+    "rows": {
+      "role": "answer",
+      "keys": "numbers",
+      "min": 2,
+      "max": 8,
+      "teach": "Two to eight answers."
+    },
+    "roles": [
+      {
+        "id": "question",
+        "label": "Question",
+        "kind": "field",
+        "pool": "text",
+        "words": "question|kysymys",
+        "teach": "Question",
+        "what": "a field the operator types"
+      },
+      {
+        "id": "answer",
+        "label": "Answer",
+        "kind": "layer",
+        "paint": ["write", "look"],
+        "perRow": true,
+        "required": true,
+        "pool": "text",
+        "words": "^(?:answer|survey|vastaus)$",
+        "teach": "Answer 1",
+        "also": ["Vastaus 1"],
+        "what": "draw it as it looks revealed - written from the Answers box, hidden until its reveal"
+      },
+      {
+        "id": "points",
+        "label": "Points",
+        "kind": "layer",
+        "paint": ["write", "look"],
+        "perRow": true,
+        "numeric": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "^(?:points?|pts|pisteet)$",
+        "teach": "Points 1",
+        "also": ["Pts 1", "Pisteet 1"],
+        "what": "a plain figure - written from the Answers box, shown with its answer"
+      },
+      {
+        "id": "answer.revealed",
+        "label": "Revealed",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "reveal|flip|open|paljastettu",
+        "teach": "Revealed 1",
+        "also": ["Flip 1", "Open 1"],
+        "what": "shown once that answer is revealed"
+      },
+      {
+        "id": "strike.1",
+        "label": "Strike 1",
+        "kind": "layer",
+        "paint": ["look"],
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "^(?:strike|x|huti)\\s*1$",
+        "teach": "Strike 1",
+        "also": ["X 1"],
+        "what": "the first X, lit from the first strike on"
+      },
+      {
+        "id": "strike.2",
+        "label": "Strike 2",
+        "kind": "layer",
+        "paint": ["look"],
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "^(?:strike|x|huti)\\s*2$",
+        "teach": "Strike 2",
+        "what": "the second X"
+      },
+      {
+        "id": "strike.3",
+        "label": "Strike 3",
+        "kind": "layer",
+        "paint": ["look"],
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "^(?:strike|x|huti)\\s*3$",
+        "teach": "Strike 3",
+        "what": "the third X - and the Strike button greys"
+      },
+      {
+        "id": "total",
+        "label": "Total",
+        "kind": "layer",
+        "paint": ["write"],
+        "pool": "text",
+        "words": "total|sum|round|yhteensä",
+        "teach": "Total",
+        "also": ["Sum", "Yhteensä"],
+        "what": "written by NoaCG: the points of the revealed answers, added up"
+      }
+    ]
+  },
+  "list": {
+    "name": "The stepped list",
+    "verbs": "one entry per Next press",
+    "buttons": "nothing extra: Next reveals the next entry, and the Entries box holds the list, one line per number",
+    "rows": {
+      "role": "item",
+      "keys": "numbers",
+      "min": 2,
+      "max": 12,
+      "teach": "Two to twelve entries; the option decides whether they arrive from the last number down or from 1 up."
+    },
+    "roles": [
+      {
+        "id": "item",
+        "label": "Entry",
+        "kind": "layer",
+        "paint": ["write", "look"],
+        "perRow": true,
+        "required": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "^(?:item|entry|number|no|kohta)$",
+        "teach": "Item 10",
+        "also": ["Entry 10", "Number 10", "Kohta 10"],
+        "what": "draw it as it looks revealed - written from the Entries box, hidden until its number comes up"
+      },
+      {
+        "id": "item.mark",
+        "label": "Mark",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "mark|current|latest|highlight|merkki",
+        "teach": "Mark 10",
+        "also": ["Current 10", "Highlight 10"],
+        "what": "shown on the entry that just arrived, until the next one does"
+      }
+    ]
+  },
+  "lineup": {
+    "name": "The lineup",
+    "verbs": "who is on now, who has been on",
+    "buttons": "Next guest, Previous guest, one button per guest, and Nobody on, plus the On now figure with + and −",
+    "rows": {
+      "role": "guest",
+      "keys": "numbers",
+      "min": 2,
+      "max": 8,
+      "teach": "Two to eight guests, in the order they come on."
+    },
+    "roles": [
+      {
+        "id": "guest",
+        "label": "Guest",
+        "kind": "field",
+        "perRow": true,
+        "required": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "^(?:guest|act|speaker|vieras)$",
+        "teach": "Guest 1",
+        "also": ["Act 1", "Speaker 1", "Vieras 1"],
+        "what": "a field the operator types"
+      },
+      {
+        "id": "guest.now",
+        "label": "On now",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "\\bnow\\b|current|on air|\\bup\\b|nyt",
+        "teach": "Now 1",
+        "also": ["Current 1", "Nyt 1"],
+        "what": "shown on the guest who is on"
+      },
+      {
+        "id": "guest.done",
+        "label": "Been on",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "\\bdone\\b|\\bbeen\\b|\\bpast\\b|\\bover\\b|ollut",
+        "teach": "Done 1",
+        "also": ["Been 1", "Past 1"],
+        "what": "shown on every guest who has already been on"
+      }
+    ]
+  },
+  "puzzle": {
+    "name": "The puzzle board",
+    "verbs": "letters appear as they are called",
+    "buttons": "Solve and New puzzle, plus the Puzzle box (the phrase) and the Revealed letters box you add each called letter to",
+    "rows": {
+      "role": "tile",
+      "keys": "numbers",
+      "min": 4,
+      "max": 40,
+      "teach": "Four to forty tiles, numbered left to right and then down; the phrase is laid over them in that order, so put spaces where the tiles should stay blank."
+    },
+    "roles": [
+      {
+        "id": "category",
+        "label": "Category",
+        "kind": "field",
+        "pool": "text",
+        "words": "category|clue|kategoria|vihje",
+        "teach": "Category",
+        "what": "a field the operator types"
+      },
+      {
+        "id": "tile",
+        "label": "Letter",
+        "kind": "layer",
+        "paint": ["write", "look"],
+        "perRow": true,
+        "required": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "^(?:letter|tile|kirjain)$",
+        "teach": "Letter 1",
+        "also": ["Tile 1", "Kirjain 1"],
+        "what": "one letter, drawn as it looks revealed - written from the phrase, shown once its letter is called"
+      },
+      {
+        "id": "tile.used",
+        "label": "Used",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "used|white|face|käytössä",
+        "teach": "Used 1",
+        "also": ["White 1"],
+        "what": "shown on every tile the phrase reaches - the white face behind a letter still hidden"
+      },
+      {
+        "id": "solved",
+        "label": "Solved",
+        "kind": "layer",
+        "paint": ["look"],
+        "pool": "drawn",
+        "words": "solved|ratkaistu|\\bwin\\b",
+        "teach": "Solved",
+        "also": ["Ratkaistu"],
+        "what": "once the puzzle is solved (one, whole board)"
+      }
+    ]
+  },
+  "reveal": {
+    "name": "The reveal",
+    "verbs": "typed text, sealed until one press",
+    "buttons": "Reveal, plus The reveal box for the text",
+    "roles": [
+      {
+        "id": "secret",
+        "label": "The reveal",
+        "kind": "layer",
+        "paint": ["write", "look"],
+        "required": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "price|secret|hidden|reveal|hinta|paljastus",
+        "teach": "Price",
+        "also": ["Secret", "Reveal", "Hinta"],
+        "what": "draw it as it looks revealed - written from The reveal box, hidden until the press"
+      },
+      {
+        "id": "cover",
+        "label": "Cover",
+        "kind": "layer",
+        "paint": ["look"],
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "cover|envelope|sealed|closed|kansi",
+        "teach": "Cover",
+        "also": ["Envelope", "Sealed", "Kansi"],
+        "what": "shown until the reveal - the sealed plate over the text"
+      }
+    ]
   }
 }

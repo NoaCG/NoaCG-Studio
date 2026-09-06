@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!-- NoaCG show corpus. AN EIGHT-TEAM BRACKET, the tournament episode's board: four first-round
+     matches, two semi-finals, a final and a champion. Drawn the way a student draws it:
+
+     The base look        -> the backplate, eight team slots, four semi-final slots, two final
+                             slots, the champion slot, and the connecting lines.
+     "choice:Match/1..7"  -> hidden: the amber frame around the match being played.
+     "show:Crown"         -> hidden: the crown over the champion slot.
+
+     Every slot is text the operator types, the round-two slots included: the winner's name
+     moves up by being typed, because the file has no way to say "the winner of match 1".
+
+     Full-frame 1920x1080. Words last. -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1920 1080" width="1920" height="1080" style="enable-background:new 0 0 1920 1080;"
+	 xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#0D1017;}
+	.st1{fill:#1B2431;}
+	.st2{fill:#F6A623;}
+	.st3{fill:#FFFFFF;}
+	.st4{font-family:'Inter-Medium';}
+	.st5{font-size:30px;}
+	.st6{fill:none;stroke:#2C3A50;stroke-width:4;}
+	.st7{fill:none;stroke:#F6A623;stroke-width:6;}
+	.st8{fill:#161B24;}
+	.st9{font-family:'Archivo-Bold';}
+	.st10{font-size:40px;}
+</style>
+<g id="Backplate">
+	<rect y="0" class="st0" width="1920" height="1080"/>
+</g>
+<g id="Lines">
+	<line class="st6" x1="480" y1="150" x2="520" y2="150"/>
+	<line class="st6" x1="480" y1="250" x2="520" y2="250"/>
+	<line class="st6" x1="520" y1="150" x2="520" y2="250"/>
+	<line class="st6" x1="520" y1="200" x2="560" y2="200"/>
+	<line class="st6" x1="480" y1="370" x2="520" y2="370"/>
+	<line class="st6" x1="480" y1="470" x2="520" y2="470"/>
+	<line class="st6" x1="520" y1="370" x2="520" y2="470"/>
+	<line class="st6" x1="520" y1="420" x2="560" y2="420"/>
+	<line class="st6" x1="480" y1="590" x2="520" y2="590"/>
+	<line class="st6" x1="480" y1="690" x2="520" y2="690"/>
+	<line class="st6" x1="520" y1="590" x2="520" y2="690"/>
+	<line class="st6" x1="520" y1="640" x2="560" y2="640"/>
+	<line class="st6" x1="480" y1="810" x2="520" y2="810"/>
+	<line class="st6" x1="480" y1="910" x2="520" y2="910"/>
+	<line class="st6" x1="520" y1="810" x2="520" y2="910"/>
+	<line class="st6" x1="520" y1="860" x2="560" y2="860"/>
+	<line class="st6" x1="880" y1="200" x2="920" y2="200"/>
+	<line class="st6" x1="880" y1="420" x2="920" y2="420"/>
+	<line class="st6" x1="920" y1="200" x2="920" y2="420"/>
+	<line class="st6" x1="920" y1="310" x2="960" y2="310"/>
+	<line class="st6" x1="880" y1="640" x2="920" y2="640"/>
+	<line class="st6" x1="880" y1="860" x2="920" y2="860"/>
+	<line class="st6" x1="920" y1="640" x2="920" y2="860"/>
+	<line class="st6" x1="920" y1="750" x2="960" y2="750"/>
+	<line class="st6" x1="1280" y1="310" x2="1320" y2="310"/>
+	<line class="st6" x1="1280" y1="750" x2="1320" y2="750"/>
+	<line class="st6" x1="1320" y1="310" x2="1320" y2="750"/>
+	<line class="st6" x1="1320" y1="530" x2="1360" y2="530"/>
+</g>
+<g id="Slots">
+	<rect x="160" y="120" class="st1" width="320" height="60"/>
+	<rect x="160" y="220" class="st1" width="320" height="60"/>
+	<rect x="160" y="340" class="st1" width="320" height="60"/>
+	<rect x="160" y="440" class="st1" width="320" height="60"/>
+	<rect x="160" y="560" class="st1" width="320" height="60"/>
+	<rect x="160" y="660" class="st1" width="320" height="60"/>
+	<rect x="160" y="780" class="st1" width="320" height="60"/>
+	<rect x="160" y="880" class="st1" width="320" height="60"/>
+	<rect x="560" y="170" class="st1" width="320" height="60"/>
+	<rect x="560" y="390" class="st1" width="320" height="60"/>
+	<rect x="560" y="610" class="st1" width="320" height="60"/>
+	<rect x="560" y="830" class="st1" width="320" height="60"/>
+	<rect x="960" y="280" class="st1" width="320" height="60"/>
+	<rect x="960" y="720" class="st1" width="320" height="60"/>
+	<rect x="1360" y="490" class="st8" width="400" height="80"/>
+	<rect x="1360" y="490" class="st2" width="400" height="6"/>
+</g>
+<g id="choice_x3A_Match_x2F_1" data-name="choice:Match/1" display="none"><rect x="150" y="110" class="st7" width="340" height="180" rx="6"/></g>
+<g id="choice_x3A_Match_x2F_2" data-name="choice:Match/2" display="none"><rect x="150" y="330" class="st7" width="340" height="180" rx="6"/></g>
+<g id="choice_x3A_Match_x2F_3" data-name="choice:Match/3" display="none"><rect x="150" y="550" class="st7" width="340" height="180" rx="6"/></g>
+<g id="choice_x3A_Match_x2F_4" data-name="choice:Match/4" display="none"><rect x="150" y="770" class="st7" width="340" height="180" rx="6"/></g>
+<g id="choice_x3A_Match_x2F_5" data-name="choice:Match/5" display="none"><rect x="550" y="160" class="st7" width="340" height="300" rx="6"/></g>
+<g id="choice_x3A_Match_x2F_6" data-name="choice:Match/6" display="none"><rect x="550" y="600" class="st7" width="340" height="300" rx="6"/></g>
+<g id="choice_x3A_Match_x2F_7" data-name="choice:Match/7" display="none"><rect x="950" y="270" class="st7" width="340" height="520" rx="6"/></g>
+<g id="show_x3A_Crown" data-name="show:Crown" display="none">
+	<polygon class="st2" points="1520,470 1540,430 1560,455 1580,420 1600,455 1620,430 1640,470"/>
+</g>
+<g id="Words">
+	<text id="Team_x20_1" data-name="Team 1" transform="matrix(1 0 0 1 180 160)" class="st3 st4 st5">Kallio Kings</text>
+	<text id="Team_x20_2" data-name="Team 2" transform="matrix(1 0 0 1 180 260)" class="st3 st4 st5">Espoo Eagles</text>
+	<text id="Team_x20_3" data-name="Team 3" transform="matrix(1 0 0 1 180 380)" class="st3 st4 st5">Turku Tide</text>
+	<text id="Team_x20_4" data-name="Team 4" transform="matrix(1 0 0 1 180 480)" class="st3 st4 st5">Oulu Owls</text>
+	<text id="Team_x20_5" data-name="Team 5" transform="matrix(1 0 0 1 180 600)" class="st3 st4 st5">Vaasa Wind</text>
+	<text id="Team_x20_6" data-name="Team 6" transform="matrix(1 0 0 1 180 700)" class="st3 st4 st5">Lahti Lakers</text>
+	<text id="Team_x20_7" data-name="Team 7" transform="matrix(1 0 0 1 180 820)" class="st3 st4 st5">Tampere Titans</text>
+	<text id="Team_x20_8" data-name="Team 8" transform="matrix(1 0 0 1 180 920)" class="st3 st4 st5">Rovaniemi Reindeer</text>
+	<text id="Semi_x20_1" data-name="Semi 1" transform="matrix(1 0 0 1 580 210)" class="st3 st4 st5">Winner of match 1</text>
+	<text id="Semi_x20_2" data-name="Semi 2" transform="matrix(1 0 0 1 580 430)" class="st3 st4 st5">Winner of match 2</text>
+	<text id="Semi_x20_3" data-name="Semi 3" transform="matrix(1 0 0 1 580 650)" class="st3 st4 st5">Winner of match 3</text>
+	<text id="Semi_x20_4" data-name="Semi 4" transform="matrix(1 0 0 1 580 870)" class="st3 st4 st5">Winner of match 4</text>
+	<text id="Final_x20_1" data-name="Final 1" transform="matrix(1 0 0 1 980 320)" class="st3 st4 st5">Winner of match 5</text>
+	<text id="Final_x20_2" data-name="Final 2" transform="matrix(1 0 0 1 980 760)" class="st3 st4 st5">Winner of match 6</text>
+	<text id="Champion" data-name="Champion" transform="matrix(1 0 0 1 1560 545)" class="st3 st9 st10" text-anchor="middle">Champion</text>
+</g>
+</svg>

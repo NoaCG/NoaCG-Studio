@@ -131,6 +131,11 @@ export interface RecipeField {
   options?: FieldOption[];
   /** What the runtime should treat it as, when it is more than plain text. */
   spec?: FieldKindSpec;
+  /** An owned field that belongs to ONE ROW - a survey board's "revealed" switch per answer. The
+   *  table maps the ROLE per row (`revealed: { "1": "f9", … }`), so a rule's `revealed:is:on` is
+   *  asked of the row the look belongs to; `key` stays unique across the recipe (`revealed-1`),
+   *  and is what a control's `set` names. */
+  row?: { role: string; key: string };
 }
 
 /** One extra step on the DEFAULT PATH (a quiz's Reveal, a vote's Result): a lifecycle beat that
