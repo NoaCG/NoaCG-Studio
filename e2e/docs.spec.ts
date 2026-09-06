@@ -109,8 +109,11 @@ test('the four guides carry their load-bearing content', async ({ page }) => {
 test('the package chooser names every export target, and the live route first', async ({ page }) => {
   await page.goto('/docs');
   const chooser = page.locator('#export');
-  // Every host in export/registry.ts EXPORT_TARGETS. Adding a target without a row here is the
-  // silent failure: the page still reads perfectly and simply does not mention it.
+  // Every host in export/registry.ts EXPORT_TARGETS, as a HAND-KEPT list. The registry cannot
+  // be imported here - it reaches `../assets/gsap.min.js?raw`, a Vite-only specifier that
+  // Playwright's transform does not resolve - so this does not catch a SEVENTH target added
+  // without a row. It catches a row being lost from the six that exist, which is the likelier
+  // edit; adding a target means adding it here too.
   for (const host of ['OBS', 'vMix', 'CasparCG', 'SPX', 'OGraf', 'LiveOS', 'H2R']) {
     await expect(chooser).toContainText(host);
   }

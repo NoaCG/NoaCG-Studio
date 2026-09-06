@@ -65,8 +65,9 @@ One guide is roughly an afternoon: run the flow, write it, pin its load-bearing 
    six-row table of "playing it in / take / what you get", led by the question that comes first
    (a production driven from NoaCG needs no package at all) and closed by the fact that makes a
    wrong pick cheap (export again). The two hosts with their own guide are linked, not
-   re-explained. `e2e/docs.spec.ts` pins that every target in `EXPORT_TARGETS` has a row, so a
-   seventh target cannot be added without one.
+   re-explained. `e2e/docs.spec.ts` pins that each of the six targets has a row, from a
+   hand-kept list: the registry reaches a Vite-only `?raw` import and cannot be read from a
+   spec, so adding a seventh target means adding it to that list as well.
 
 **Deliberately not on this list:** one guide per catalog design, an AI page (that work is
 postponed), and anything about the editor beyond what Advanced mode already implies.

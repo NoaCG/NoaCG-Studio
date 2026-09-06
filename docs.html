@@ -472,9 +472,9 @@ Full results at https://example.org</code></pre>
           </p>
           <p>
             <strong>Countdown to Start</strong> and the other screens that carry a start time are
-            the ones to pick when you know the hour the show begins. A screen for a technical
-            problem, such as the <strong>technical pause</strong> card, deliberately has no clock
-            on it at all: a wrong promise on air is worse than no promise.
+            the ones to pick when you know the hour the show begins. <strong>Please Stand By</strong>,
+            the screen for a technical problem, deliberately has no clock on it at all: a wrong
+            promise on air is worse than no promise.
           </p>
         </section>
 
@@ -809,8 +809,8 @@ Full results at https://example.org</code></pre>
             <strong>folder</strong> package (OGraf, or a playout system that loads a whole template
             folder) writes them out as real files beside the
             template: your pictures under <code>images/</code>, fonts under <code>fonts/</code>,
-            the animation engine under <code>js/</code>. Paths are relative, so the folder can be
-            copied anywhere. A <strong>single-file</strong> package (CasparCG, an OBS or vMix
+            and the animation engine in a folder of its own. Paths are relative, so the folder can
+            be copied anywhere. A <strong>single-file</strong> package (CasparCG, an OBS or vMix
             overlay) has nothing to sit beside, so every one of those files is embedded in the one
             HTML file instead. Either way the package is complete and works from a local disk.
           </p>
@@ -830,9 +830,9 @@ Full results at https://example.org</code></pre>
           </p>
           <p>
             The player is about 165 kB and it is added only to graphics that actually use one, so
-            a graphic without a Lottie carries none of that weight. It is bundled, never fetched:
-            in a folder package the animation stays a file next to the template, in a single-file
-            package it is embedded, and neither one asks the network for anything.
+            a graphic without a Lottie carries none of that weight. It is bundled, never fetched.
+            The animation travels inside the package too, as a file beside the template or embedded
+            in it depending on the package, and nothing about it reaches the network.
           </p>
 
           <h3 id="artwork-fonts">Fonts, and what a missing one does</h3>
@@ -879,7 +879,7 @@ Full results at https://example.org</code></pre>
             <tr><th>Playing it in</th><th>Take</th><th>What you get</th></tr>
             <tr>
               <td><strong>OBS, vMix</strong>, or anything that renders a web page</td>
-              <td>HTML overlay</td>
+              <td>HTML overlay (OBS / vMix)</td>
               <td>One <code>.html</code> that plays itself when the source loads, and an operator
                 page for live edits. <a href="#browser-source">The guide</a>.</td>
             </tr>
@@ -891,8 +891,7 @@ Full results at https://example.org</code></pre>
                 <a href="#casparcg">The guide</a>.</td>
             </tr>
             <tr>
-              <td>A playout system that loads a <strong>folder of templates</strong>, such as
-                <strong>SPX</strong></td>
+              <td>A playout system that loads a <strong>folder of templates</strong>, such as <strong>SPX</strong></td>
               <td>SPX export</td>
               <td>A folder to drop into that system's templates directory. Your fields appear in
                 its rundown by name, and an operator page comes with it for anything else.</td>
@@ -906,13 +905,13 @@ Full results at https://example.org</code></pre>
             </tr>
             <tr>
               <td><strong>LiveOS</strong> (NetOn.Live)</td>
-              <td>LiveOS export</td>
+              <td>LiveOS (NetOn.Live) export</td>
               <td>The same OGraf package, with that engine's install steps beside it. Its fields
                 become LiveOS operator inputs.</td>
             </tr>
             <tr>
               <td><strong>H2R Graphics</strong></td>
-              <td>H2R export</td>
+              <td>H2R Graphics export</td>
               <td>One <code>.html</code> for H2R's Custom HTML graphic type. The fields become H2R
                 inputs, and its on and off drive the entrance and the exit.</td>
             </tr>
