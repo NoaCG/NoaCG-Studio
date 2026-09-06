@@ -754,12 +754,48 @@ the declaration of which one this is. The check does not look at it. So a graphi
 contract is refused for obeying it, and `fieldPaints` is an AI-lane option, so the catalog never
 exposes the false positive.
 
-**RETRY WHEN** the bank finishes on the fixed harness - the run is resumable
-(`--resume --out=pro-harness-out-gemini-v3`) and 2 of 21 are recorded. The standing instruction this
-round adds: **when a harness round refuses work that looks correct, reproduce the refusal in the
-browser before concluding anything about the model** - both faults here were invisible to the
-ledger, which recorded finding ids without their messages, and `runtime:play-threw`'s message IS the
-exception.
+## THE BANK FINISHED: 5 of 21, $1.444 - and three whole types could never have passed
+
+**21 of 21 cells, 5 delivered clean, $1.444, $0.0688 per attempt.** Against the iterate loop's 19 of
+21 at $0.118 a graphic, the headline is a clear LOSS. The attribution is what makes it useful.
+
+**Nine cells - three ENTIRE types - carried a blocking finding the gate could never pass**, whatever
+the design: every quiz-board on the mis-calibrated `step-contract`, every countdown and every
+podium-score on `bench-field-unpainted` refusing a `noacg-data-source` holder built to the contract.
+That is 43% of the bank structurally unable to deliver. Removing exactly those:
+
+| | delivered | rate | cost per delivered |
+|---|---|---|---|
+| as measured, 21 cells | 5 | 24% | **$0.289** |
+| the 12 cells the gate could actually pass | 5 | **42%** | **$0.121** |
+| baseline (iterate loop, `gemini-3.7-flash`) | 19 of 21 | **90%** | **$0.118** |
+
+**So cost per delivered is level with the baseline and the DELIVERED RATE is not** - 42% against
+90%. Rounds per delivered is 1.6 against the baseline's ~2.7 model calls, so the loop is efficient
+when it works; it simply works less often. **The route is not competitive yet, and the answer splits
+in two:** three types were lost to our own instruments, and the rest is a real model weakness.
+
+**What the model genuinely cannot do: dense types whose values grow.** Tickers went 0 of 3, every
+one on `bench-stress` - text colliding once operator values double. Scoreboards 1 of 3, the failure
+the same class. Lower thirds 2 of 3 and stat panels 2 of 3, both simple stacked shapes. That is the
+owner's "text has to know its box" finding (§2 item 9) measured against a cheap model, and it is the
+honest negative result of this round.
+
+**A note on the size floor, which is the next thing to settle.** Three cells (lt-caster, sb-esports,
+st-election) were refused with NOTHING blocking but `readability-text-under-size-floor`, at 43-48px
+against the 50px primary floor - the floor `docs/NOACG_PRO_PLAN.md` §23.1 measured as failing
+**312 of 489 shipped designs** and which the owner has not re-ratified for enforcement. Whether
+those three are defects or false stops is an owner question, not a machine one, and it moves the
+delivered rate by three cells either way.
+
+**RETRY WHEN** the two unclearable classes are fixed - the step check taught that a machine-driven
+type's reveal is an EVENT and not step keyframes, and `unreachableFields` taught to honour
+`noacg-data-source`. Until then no rate from this bank is a statement about the model on those three
+types, and re-running it would buy the same nine refusals again. The standing instruction this round
+adds: **when a harness round refuses work that looks correct, reproduce the refusal and check the
+instrument against the SHIPPED CORPUS before concluding anything about the model** - four of the six
+faults here were the gate, the model diagnosed three of them correctly in its own words, and twice a
+first diagnosis of mine was wrong until the catalog was measured.
 
 ### Teaching the free-form coder its structure spine by example
 **Through 2026-07-17 · every result converted the moment a `-box` class was injected · FIXED by
