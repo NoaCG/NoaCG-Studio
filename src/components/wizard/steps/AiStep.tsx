@@ -64,6 +64,7 @@ import {
 import { useAuthState } from '../../auth/useAuthState';
 import SignInPrompt from '../../auth/SignInPrompt';
 import AiProviderSettings from '../../AiProviderSettings';
+import AgentRouteCard from './ai/AgentRouteCard';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../../assets/paletteExtract';
 import {
@@ -228,7 +229,12 @@ const TIER_OPTIONS: { id: AiTier; name: string; hint: string }[] = [
   {
     id: 'custom',
     name: 'Bring your own key',
-    hint: 'Run it on your own OpenAI, Anthropic, Google or Hugging Face key — any model that provider offers, at that provider’s prices.',
+    // The last clause is the steer at the KEY MOMENT itself: the full case for the agent route
+    // sits at the top of the step (AgentRouteCard), and the sheet's pointer is right above this
+    // picker, so here one sentence is enough. Loud where the decision is made, quiet where the
+    // key is typed - an interstitial in front of the field would be the brush-off the receipt
+    // warns against.
+    hint: 'Run it on your own OpenAI, Anthropic, Google or Hugging Face key: any model that provider offers, at that provider’s prices. If you have Claude Code or Codex, you do not need this.',
   },
 ];
 
@@ -407,12 +413,23 @@ export default function AiStep({
   // configured needs the setup in front of them, a Lite visitor does not.
   const [showSettings, setShowSettings] = useState(false);
   const settingsAutoOpened = useRef(false);
+  // THE AGENT ROUTE (steps/ai/AgentRouteCard.tsx): the user's own coding agent is the PREFERRED
+  // way to make graphics with NoaCG, said at the top of the step before any tier and any key.
+  // The card is one line until asked; it opens by itself on exactly the condition below, where
+  // the key field is about to be on screen, and the settings sheet's pointer opens it too.
+  const [agentRouteOpen, setAgentRouteOpen] = useState(false);
+  const agentRouteRef = useRef<HTMLDivElement>(null);
+  const revealAgentRoute = () => {
+    setAgentRouteOpen(true);
+    agentRouteRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
 
   useEffect(() => {
     if (liteStatus === undefined || settingsAutoOpened.current) return;
     settingsAutoOpened.current = true;
     if (!liteStatus?.enabled && loadAiSettings().tier !== 'pro' && !aiConfigured()) {
       setShowSettings(true);
+      setAgentRouteOpen(true);
     }
   }, [liteStatus]);
   const [prompt, setPrompt] = useState('');
@@ -1163,6 +1180,10 @@ export default function AiStep({
                 : 'Describe what you need, and optionally add artwork or an existing template. Every result is validated and exercised in a live playout test before you can create it, and lands as clean, editable code.'}
           </p>
         </SectionHead>
+        {/* Before the drop zone, the brief, the tiers and any key: the preferred route is the
+            first thing the step says after its caution. Never gated on an account - a visitor
+            with no account is exactly who owns a better road than the one that asks for one. */}
+        <AgentRouteCard ref={agentRouteRef} open={agentRouteOpen} onToggle={setAgentRouteOpen} />
         {liteMode && liteStatus?.allowance && (
           <p className="hint" data-testid="lite-allowance">
             {liteStatus.allowance.dailySuccessesRemaining} successful generation(s) left today ·{' '}
@@ -1667,6 +1688,14 @@ export default function AiStep({
                   tier is the deliberate route where provider, key, and models are the user's
                   own. A tier this build does not offer is ABSENT, not greyed: an unbuilt door
                   described in the present tense is the defect this panel just fixed. */}
+              {/* FIRST in the sheet, above every tier: the route that needs no tier and no key.
+                  A pointer rather than a second copy of the card, so there is one place the
+                  commands live and this line only reveals it. */}
+              <p className="hint ai-agent-pointer" data-testid="ai-agent-pointer">
+                Have Claude Code or Codex? Your own agent is the preferred route, and it needs no
+                tier and no key.{' '}
+                <button type="button" className="link-btn" onClick={revealAgentRoute}>Show me ›</button>
+              </p>
               <div className="ai-tier" role="radiogroup" aria-label="AI tier" data-testid="ai-tier">
                 {tierOptions.map((option) => {
                   const unavailable = option.id === 'lite' && !liteOffered;

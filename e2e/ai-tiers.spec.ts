@@ -76,6 +76,41 @@ test('the tiers are NoaCG Lite and Bring your own key — and Pro is not a door 
   await expect(tiers.getByTestId('ai-tier-pro')).toHaveCount(0);
 });
 
+test("the user's own coding agent is named as the preferred route before any tier and any key", async ({ page }) => {
+  // Owner, 2026-08-26 and 2026-09-03 (docs/backlog/byo-key-and-create-with-ai-guidance.md):
+  // steer users to their own Claude Code before any key entry - it is the PREFERRED route, not
+  // a hint beside the tier picker. This build has nothing configured, so the key field is
+  // about to be on screen and the card is open by itself, commands showing.
+  await openAiSettings(page);
+  const route = page.getByTestId('ai-agent-route');
+  await expect(route).toContainText('Preferred');
+  await expect(route).toContainText('Claude Code or Codex');
+  const body = page.getByTestId('ai-agent-route-body');
+  // The commands are docs/AGENT_CLI.md's Distribution table, never an invented one-liner.
+  await expect(body).toContainText('claude plugin marketplace add miwco/NoaCG-Studio');
+  await expect(body).toContainText('claude plugin install noacg@noacg-studio');
+  await expect(body).toContainText('codex plugin add noacg@noacg-studio');
+  await expect(body.getByRole('link')).toHaveAttribute('href', '/docs#agent-install');
+  // Honest about what it needs, and no brush-off for somebody with no agent.
+  await expect(body).toContainText('a terminal');
+  await expect(body).toContainText('No coding agent?');
+  // In the sheet the pointer comes BEFORE the tier picker - first, in document order.
+  const sheet = page.getByTestId('ai-settings');
+  const pointerFirst = await sheet.evaluate((el) => {
+    const pointer = el.querySelector('[data-testid="ai-agent-pointer"]');
+    const tiers = el.querySelector('[data-testid="ai-tier"]');
+    return Boolean(pointer && tiers && pointer.compareDocumentPosition(tiers) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(pointerFirst).toBe(true);
+  // And the key tier itself tells a coding-agent user they do not need it.
+  await expect(sheet.getByTestId('ai-tier-custom')).toContainText('you do not need this');
+  // Hide, then the sheet's pointer brings it back.
+  await page.getByTestId('ai-agent-route-toggle').click();
+  await expect(body).toHaveCount(0);
+  await sheet.getByRole('button', { name: 'Show me' }).click();
+  await expect(body).toBeVisible();
+});
+
 test('the bring-your-own-key picker lists exactly the four providers a user can pay', async ({ page }) => {
   await openAiSettings(page);
   const providers = page.locator('#ai-provider option');
