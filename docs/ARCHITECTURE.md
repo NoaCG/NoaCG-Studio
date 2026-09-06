@@ -170,8 +170,9 @@ live under `components/`.
 Grandfathered offenders (hoist the inline assembly into `blocks/` **when you are already
 touching that code path** - never as a drive-by campaign): `CanvasInteraction.tsx` (13 inline
 `applyTemplate` sites), `StepTimeline.tsx:375` and `:388`, `Inspector.tsx:280`, and
-`components/wizard/draft.ts` (a 430-line logic module parked in the UI tree - move it toward
-`blocks/`/`templates/` when next reworked).
+`components/wizard/draft/` (`core.ts`, `template.ts`, `import.ts`, with `draft.ts` re-exporting
+them - wizard row 1 split the file by capability and left it under `components/`, so the hoist
+toward `blocks/`/`templates/` is still open).
 
 ## 6. Known debts (grandfathered, shrink-only)
 

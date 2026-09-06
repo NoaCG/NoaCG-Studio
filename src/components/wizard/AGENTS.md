@@ -243,7 +243,7 @@ The Text step OPENS with the fields already placed where the artwork has an empt
 (`assets/suggestFields.ts` - deterministic, no model call), ONCE and only into an empty step;
 `✨ Suggest fields` re-runs it, and artwork with no flat panel refuses out loud while the manual
 tools stand unchanged. Specs live in `draft.designFields` in DESIGN px and become REAL placed fields
-at build - `draft.ts` `withDesignFieldSpecs` runs addPlacedLine + setLineTextStyle + setLineFit, so
+at build - `draft/import.ts` `withDesignFieldSpecs` runs addPlacedLine + setLineTextStyle + setLineFit, so
 wizard placement, editor, preview and export agree by construction. Every font source the
 **FontPicker** (`wizard/FontPicker.tsx`) offers EMBEDS, so playout never depends on the machine's
 fonts, the emitted code never references Google, and Local Font Access stays Chromium-only and
@@ -251,7 +251,7 @@ permission-gated.
 
 **The Animation step differs for this category alone:** the UNIVERSAL in/out bank LEADS
 (`components/MotionPresetPicker.tsx`) in place of the category's four whole-unit presets, which the
-bank stands in for (`draft.ts` `isWholeUnitPreset` hides their cards; the SVG layer stagger stays
+bank stands in for (`draft/template.ts` `isWholeUnitPreset` hides their cards; the SVG layer stagger stays
 beside them). The pick lives in `draft.animation.motionIn/motionOut` and is written AT BUILD by
 `withUniversalMotion`, through the same engine the saved graphic's control page applies after - so
 the wizard preview, the created graphic and the page that reads it back agree by construction. The
@@ -275,7 +275,7 @@ mode never reaches them.
 
 **`svg` mode.** Prepare and Text cannot apply; MapSvgFieldsStep is the one mapping step, over text
 layers, pictures and the OUTLINED-TEXT rows - a ticked glyph group is hidden and a placed line
-stands in, its box MEASURED on the step's own inline render and never the preview iframe (`draft.ts`
+stands in, its box MEASURED on the step's own inline render and never the preview iframe (`draft/import.ts`
 `withSvgOutlineFields`/addPlacedLine). **The SVG export help LEADS the drop step, ABOVE the zone**
 (`.wz-help-strip`): nothing below the gesture's target is read. Three rules in `assets/svgImport.ts`
 are load-bearing: a `<tspan>` is a LINE or a KERNED RUN and only the measured GAP tells them apart
@@ -368,7 +368,7 @@ size -> --scale, Text size -> --type-scale); the Animation step renders the slid
 card with a direction-of-travel picker.
 
 **THE ANIMATION STEP OFFERS THE UNIVERSAL BANK IN EVERY CATEGORY** - the switch
-(`draft.ts` `usesUniversalMotion`) asks the BUILT TEMPLATE whether it has a unit to move, not
+(`draft/template.ts` `usesUniversalMotion`) asks the BUILT TEMPLATE whether it has a unit to move, not
 what category it is. Where the design has choreographies of its own they lead, in their own
 grid, and the six universal families sit under a **"Simple motion"** `<details>` beneath them
 (open from the start when the graphic already holds one). Where the design's own presets ARE
