@@ -11,7 +11,7 @@ note: 59380da0 landed part 1, the same-offer collapse of packages that differ on
 
 Owner walk 2026-08-28. **Part 1, the bug, landed 2026-09-02** ("Offer only palettes that can
 change the graphic in front of you"): the Style step now asks `cssPaintsWith`
-(`src/blocks/cssVars.ts`) which of the four colour roles a design actually paints with, drops
+(`src/model/cssVars.ts`) which of the four colour roles a design actually paints with, drops
 the accent bar where there is no accent, collapses packages that differ only in roles the
 design ignores, and lists only the painted roles under Custom. This file is what is left.
 

@@ -2,7 +2,7 @@
 // reference the external css/js/gsap files that ship beside it. Both the importer (model) and the
 // SPX Starter packager (export) apply it, so it lives in the kernel where either may reach it.
 
-/** Ensure the HTML references the external css/js/gsap files (Starter packaging). */
+/** Ensure the HTML references the external css/js/gsap files that ship beside it. */
 export function ensureExternalRefs(html: string): string {
   let out = html;
   const head = /<\/head>/i;

@@ -14,7 +14,7 @@ asked: "row C /check, reuse 1 - the orchestrator ruled: its own row, because it 
 `src/export/targets/ograf.ts` `scopeCssToGraphic` (with `indexOutside`, `matchingBrace`,
 `splitSelectors`) is the repo's fifth walker of the same shape, and the only one that skips
 comments, quoted strings and unquoted `url()`: `src/ai/creative/style.ts` `eachRule` and
-`stripHidingDeclarations`, `src/blocks/edit.ts` `findRuleBody`, `src/blocks/cssVars.ts`
+`stripHidingDeclarations`, `src/blocks/edit.ts` `findRuleBody`, `src/model/cssVars.ts`
 `findRootBody`, and `src/model/spxDefinition.ts` `matchBraces` (the JS-side twin). No CSS parser
 package is in `package.json`, so there is nothing off-the-shelf to call. Each copy has its own
 blind spots; the ograf one is the only one gated (browser-parsed, fail-closed, at export).
