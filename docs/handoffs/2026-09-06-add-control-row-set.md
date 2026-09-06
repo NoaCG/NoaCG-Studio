@@ -1,9 +1,10 @@
 # Session - the `add` control, the `row-set` kind and the bingo caller
 
 **Branch:** `claude/add-control-row-set-field-d1d013` (from `main` `296df0ef`). **Date:**
-2026-09-06. **State:** see the wrap-up at the bottom - the focused walks, the build and the
-affected plan are the three verdicts, and the branch is queued for landing only once all three
-are green.
+2026-09-06. **State:** finished and queued for landing. The three walks (puzzle, bingo, the bingo
+CasparCG package) are green through the queue (j-0676, j-0677); `npm run build` is green on the
+branch stamp; the affected plan (j-0679) passed 966 of 967, the one red being the credits render
+baseline that is already on file as laptop-only and not red on main.
 
 ## What landed
 
