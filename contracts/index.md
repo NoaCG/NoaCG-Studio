@@ -7,3 +7,4 @@ contracts nothing; `npm run rules -- <path>` lists what applies to a file.
 | id | kind | fires | status | scope | rule |
 |---|---|---|---|---|---|
 | `root/lesson-recorded-rule-goes-evidence-compiled` | invariant | contract | active | `**` | A lesson is recorded with `npm run learn`: the rule goes to `contracts/rules/`, the evidence to `contracts/records/`, and the compiled `.claude/rules/` files are never edited by hand. |
+| `root/read-build-own-exit-code-never` | trap | contract | active | `**` | Read a build's own exit code, never a pipeline's: `npm run build > log 2>&1; echo $?`, because piping the build through `tail` or `head` reports the pipe's status and a failing gate reads as green. |
