@@ -9,7 +9,7 @@
 // confidence - and requirements, not the label, drive verification, so a mislabelled
 // intent with correct parts still verifies correctly.
 
-import type { Zone9 } from './wizard';
+import type { Zone9 } from './templateVocabulary';
 
 /** How the user asked to generate (plan §2). Structural fit is necessary but NOT
  *  sufficient for adapt: an explicit mode is never overridden by routing. */

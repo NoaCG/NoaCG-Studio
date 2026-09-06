@@ -93,18 +93,12 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   NOTHING). Prompting, the spike instruments and the product validator's warn-first checks
   (validation/designRulesWarnings.ts) all READ this module; nothing copies a number. Math
   pinned by `scripts/design-rules.test.mjs` in the build gate. Extend additively.
-- **wizard.ts** - categories, variants, WizardOptions, palettes. A variant declares its
-  CAPABILITIES - `maxLines` (1-5 line capacity), `logo: 'none' | 'optional' | 'built-in'`,
-  `animationPresets`, `defaultSteps` - which drive the wizard's Fields/Animation options AND the
-  Template step's filter chips, so a new family inherits both automatically. `defaultSteps` is
-  what a graphic that is STEPPED BY CONSTRUCTION declares (a numbered process, a checklist): it
-  decides what an untouched `create({})` produces, so the wizard draft's steps flag is tri-state
-  (null = the design decides) rather than a boolean that would override it. Sizing is two knobs:
-  `sizeScale` (--scale, whole graphic) and `typeScale` (--type-scale, text only).
-  DISCOVERY metadata does NOT live on the variant: browse facets and search come from the one
-  taxonomy (taxonomy.ts + templates/templateMeta.ts + templates/search.ts). A variant carries
-  only what it needs to BUILD itself; a second discovery model on the variant would drift from
-  the first the moment either changed.
+- **wizard.ts** - a RE-EXPORT SHIM, kept for one landing (docs/WORKFLOW_ARCHITECTURE.md §5.5,
+  domain row 1). The template contract it held - categories, variants, WizardOptions, palettes,
+  field plans - lives in templates/contract.ts, and the Import-graphic shapes (`DesignSvg*`,
+  `DesignArt`) in templates/importedDesign/designTypes.ts; read those contracts there. Every
+  importer in this directory takes types only. The next landing rewrites the importers to the
+  new paths and deletes the shim.
 - **fonts.ts** - bundled OFL typeface registry + CustomFont import helpers. Each face carries
   **`tabularFigures`**, MEASURED by `scripts/numerals.mjs --fonts` and never declared by hand:
   six of the seventeen bundled faces render uneven digits even under

@@ -41,7 +41,7 @@ served the group flattened into the original row kinds by `creditGroupRows` (rol
 groups landed. **A row builder must still answer all three row kinds**; a design that only handles
 'heading' and 'credit' renders `undefined` for a bare name.
 
-**cr01's Emphasis is the catalog's first `TemplateVariant.styleChoices`** (model/wizard.ts) - a
+**cr01's Emphasis is the catalog's first `TemplateVariant.styleChoices`** (templates/contract.ts) - a
 design decision the DESIGN owns and the user picks in the Style step, resolved into
 `o.styleChoices`, illegal values dropped back to the design's default. It emits ONE class on
 `.credits-box` (`credits-box--emph-role` / `--emph-name`) writing six custom properties, so no

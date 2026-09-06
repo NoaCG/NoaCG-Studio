@@ -283,6 +283,17 @@ module.exports = {
       from: { path: '^src/model/prefs\\.ts$' },
       to: { path: '^src/editor/commentVisibility' },
     },
+
+    // ---- the row-1 shim (docs/WORKFLOW_ARCHITECTURE.md §5.5) - deleted together with the shim --
+    {
+      comment:
+        'Domain row 1 shim: src/model/wizard.ts is a re-export of templates/contract.ts and ' +
+        'templates/importedDesign/designTypes.ts for ONE landing, so the branches that are ' +
+        'open while its importers are rewritten keep compiling. The next landing deletes the ' +
+        'shim and this allowance with it; it permits no other model -> templates edge.',
+      from: { path: '^src/model/wizard\\.ts$' },
+      to: { path: '^src/templates/(contract|importedDesign/designTypes)\\.ts$' },
+    },
   ],
   allowedSeverity: 'error',
 

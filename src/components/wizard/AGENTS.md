@@ -349,7 +349,7 @@ graphic's NAME is the only edit, because it slugs the zip and the playout folder
 E2E across the three modes: `e2e/import-svg.spec.ts`, `e2e/import-graphic.spec.ts`,
 `e2e/import-prepare.spec.ts`, `e2e/import-stretch.spec.ts` and `e2e/google-fonts.spec.ts`.
 
-The steps are driven by each variant's declared CAPABILITIES (model/wizard.ts): the Fields step
+The steps are driven by each variant's declared CAPABILITIES (templates/contract.ts): the Fields step
 offers up to `maxLines` text lines plus the logo toggle + custom upload on a `logo: 'optional'`
 design (built-in slots show it checked and locked); it also offers a graphic TYPE's SETUP values
 - which answer a quiz marks correct, the club colours, a countdown's duration - rendered through

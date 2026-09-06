@@ -15,7 +15,7 @@
 import type { FieldKind } from './fieldModel';
 import type { CustomFont } from './fonts';
 import type { EasingId } from './easings';
-import type { AnimPresetId, AnimSpeed, ExtraFieldSpec, LineSpec } from './wizard';
+import type { AnimPresetId, AnimSpeed, ExtraFieldSpec, LineSpec } from './templateVocabulary';
 
 /** The AI category ids. The union lives HERE (the persisted schema references it); each id's
  *  REGISTRY entry — names, template links, suggested fields, workflow rules — lives in

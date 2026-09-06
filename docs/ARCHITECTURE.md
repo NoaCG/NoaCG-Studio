@@ -127,7 +127,8 @@ dependency-cruiser; §7):
    render, control, video, backend, community) never touch the store - they take and return
    plain documents.
 4. **Nothing imports `components/`.** UI is the top of the graph.
-5. **`model/` imports nothing above layer 0** except the one grandfathered edge in §6 (`model -> editor`, type-only).
+5. **`model/` imports nothing above layer 0** except the one grandfathered edge in §6 (`model -> editor`,
+   type-only) and the one temporary shim there.
 
 ## 4. Where does new code go
 
@@ -182,6 +183,7 @@ the row. Do not add rows without updating §3's justification trail.
 | model -> editor | `model/prefs.ts:5` type-only `CommentVisibility` | accepted - type-only, harmless; move the type to `model/` if ever inconvenient |
 | model <-> assets | `fonts.ts` <-> `assetUtils` | accepted - kernel siblings, both layer 0 |
 | blocks -> templates presets | `blocks/presetRegistry.ts` imports 8 preset tables | accepted - data-table aggregation, no logic cycle; revisit only if a preset ever imports blocks logic |
+| model -> templates | `model/wizard.ts:14-15` `export *` of `templates/contract.ts` + `templates/importedDesign/designTypes.ts` | temporary, one landing (docs/WORKFLOW_ARCHITECTURE.md §5.5, domain row 1) - rewrite the importers to the new paths, then delete the shim and its `.dependency-cruiser.cjs` allowance together |
 
 ## 7. Enforcement roadmap
 
@@ -219,7 +221,8 @@ editing the area. This map is reference; the law is §2 and §3 above.
 ```
 src/                     (* = has its own AGENTS.md; read it, this line is only the label)
   model/ *     SpxTemplate types, SPX parse/serialize, catalog data, fonts, brand, library, shows
-  templates/ * the wizard catalog, the :root style contract, the GRAPHIC TYPE registry
+  templates/ * the wizard catalog and its contract (contract.ts), the :root style contract, the
+               GRAPHIC TYPE registry
   store/ *     templateStore.ts (zustand) - the applyTemplate/undo choke point; saveActions.ts
   blocks/ *    deterministic transforms: blocks, field editing, Timeline v2, animMachine.ts
   ai/ *        the SPX GENERATION HARNESS; ai/video/ is the parallel VIDEO motion harness

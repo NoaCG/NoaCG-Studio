@@ -240,6 +240,11 @@ const MAP = [
   // from it by importing it directly are named here; the templates subset alone would miss
   // storage-full, which builds its own fixture off createDefaultTemplate().
   [/^src\/templates\/defaultTemplate\.ts$/, ['format.spec.ts', 'storage-full.spec.ts']],
+  // The Import-graphic road's option shapes (DesignSvg*, DesignArt, DesignStretch). They were
+  // full-suite as part of src/model/wizard.ts; the generic ^src/templates/ rule below does not
+  // name the import road, whose consumers are the wizard steps, so the specs are named here.
+  [/^src\/templates\/importedDesign\/designTypes\.ts$/, ['import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-stretch.spec.ts', 'import-canvas.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts']],
+
   // src/model/cssVars.ts has no row: it is CORE (src/model), and CORE is decided before MAP is
   // read, so a row here would never fire. The two specs that pin `cssPaintsWith` - whether the
   // wizard offers a palette role at all (components/wizard/steps/StyleStep.tsx) - are
@@ -550,6 +555,12 @@ const CORE = [
   /^playwright\.config\.ts$/,
   /^(package|package-lock)\.json$/,
   /^vite\.config/,
+  // The template contract: TemplateVariant, WizardOptions, the palettes and the resolvers that
+  // every catalog design and every wizard surface reads. It lived in src/model (CORE) until
+  // domain row 1 moved it here, and moving a file does not narrow what depends on it - 617
+  // template files and the whole wizard do. The files AROUND it keep their subset; this one
+  // path escalates, which is what CORE is for (docs/WORKFLOW_ARCHITECTURE.md §5.5, row 1).
+  /^src\/templates\/contract\.ts$/,
   /^app\.html$/,
 ];
 
