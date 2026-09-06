@@ -54,3 +54,7 @@ supabase/advisor-baseline.json text eol=lf
 # Rewritten by `npm run check:copy -- --update` (scripts/check-copy.mjs): the per-file
 # baseline of copy tells that predate the gate.
 scripts/copy-baseline.json text eol=lf
+
+# Rewritten by scripts/behaviour-docs.mjs (`npm run write:behaviour-docs`; `--check` in the root
+# build), which regenerates the §5b naming tables from src/templates/behaviours/words.json.
+docs/SVG_AUTHORING.md text eol=lf
