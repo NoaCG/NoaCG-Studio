@@ -20,34 +20,16 @@
 // THE FIRST VERSION asked "does the build line, or a workflow, or an exemption name this gate?"
 // and that question had one cheap answer: make the build line longer. The line became the most
 // conflicted thing in the repository (docs/WORKFLOW_ARCHITECTURE.md §1.4). THE QUESTION IS NOW
-// INVERTED: each gate says in its own header where it runs (`gate: build | factory | after-build
-// | workflow <file> | none - <why>`) and which paths it guards (`guards:`), scripts/gates.mjs
-// discovers the gates from those headers, and this check audits the declarations - a declared
-// workflow must name the gate, a `none` must carry a reason, every guard must match a file in
-// the repository. A gate that runs nowhere cannot exist without saying so, in its own file.
-import { readFileSync } from 'node:fs';
+// INVERTED: each gate says in its own header where it runs and which paths it guards,
+// scripts/gates.mjs discovers the gates from those headers, and this check is its `audit` - the
+// rules are in that file, beside the discovery they judge.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ROOT, auditGates, discoverChecks, discoverTests, repositoryFiles } from './gates.mjs';
+import { audit } from './gates.mjs';
 
 function main() {
-  const scripts = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts ?? {};
-  const checks = discoverChecks(scripts);
-  const tests = discoverTests();
-  const problems = auditGates({
-    checks,
-    tests,
-    tracked: repositoryFiles(),
-    workflowText: (name) => {
-      try {
-        return readFileSync(path.join(ROOT, '.github', 'workflows', name), 'utf8');
-      } catch {
-        return null;
-      }
-    },
-    buildLine: scripts.build ?? '',
-  });
+  const { problems, checks, tests } = audit();
   if (problems.length > 0) {
     console.error(`\ncheck-gate-coverage: ${problems.length} problem(s):\n`);
     for (const problem of problems) console.error(`  - ${problem}`);

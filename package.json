@@ -12,7 +12,7 @@
     "dev": "vite",
     "dev:worktree": "node scripts/dev-worktree.mjs",
     "dev:bench": "node scripts/dev-bench.mjs",
-    "build": "node scripts/gates.mjs run && node scripts/build-player-host.mjs && node scripts/build-production-pack.mjs && tsc && tsc -p tsconfig.api.json && eslint . --max-warnings 0 && depcruise --config .dependency-cruiser.cjs src && vite build && node scripts/prerender.mjs && node scripts/write-version.mjs && node scripts/check-client-secrets.mjs dist && node scripts/check-line-endings.mjs",
+    "build": "node scripts/gates.mjs run && node scripts/build-player-host.mjs && node scripts/build-production-pack.mjs && tsc && tsc -p tsconfig.api.json && eslint . --max-warnings 0 && depcruise --config .dependency-cruiser.cjs src && vite build && node scripts/prerender.mjs && node scripts/write-version.mjs && node scripts/check-client-secrets.mjs dist && node scripts/gates.mjs run --gate after-build",
     "build:vercel": "node scripts/check-vercel-config.mjs && node scripts/check-function-budget.mjs && node scripts/check-api-route-depth.mjs && node scripts/check-client-secrets.mjs && node scripts/build-production-pack.mjs && vite build && node scripts/prerender.mjs && node scripts/write-version.mjs && node scripts/check-client-secrets.mjs dist",
     "build:player-host": "node scripts/build-player-host.mjs --force",
     "check:shared-instructions": "node scripts/check-shared-instructions.mjs",
