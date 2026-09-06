@@ -21,6 +21,27 @@ export { applyGraphicPatch, describeWritableRegions, boxInnerRange, animationRan
 export type { GraphicPatch, PatchResult } from './patch.js';
 export { KNOWLEDGE_CARDS, CORE_KNOWLEDGE, knowledgeCard, knowledgeIndex, knowledgeForRequest, renderKnowledge } from './knowledge.js';
 export type { KnowledgeCard, KnowledgeId, KnowledgeRequest } from './knowledge.js';
+export {
+  EXEMPLAR_CORPORA,
+  MIN_ROLE_SAMPLES,
+  MAX_ROLES,
+  PILL_RADIUS,
+  exemplarFor,
+  exemplarForCategory,
+  exemplarCardFor,
+  renderExemplarCard,
+  isCardWorthy,
+  measureCss,
+  mergeMeasurements,
+  reduceCorpus,
+  spread,
+  pxValue,
+  shorthandParts,
+  roleOf,
+  rolesOf,
+  emptyMeasurement,
+} from './exemplars.js';
+export type { ExemplarCorpus, RoleSizes, Spread, CssMeasurement } from './exemplars.js';
 export { CRITIQUE_QUESTIONS, CRITIQUE_SCHEMA, critiqueFindings, critiquePrompt, critiqueWarrantsRepair } from './critique.js';
 export type { CritiqueAnswers, CritiqueQuestionId } from './critique.js';
 export { fromValidation, locusOf, describeTypeSemantics } from './workbench.js';

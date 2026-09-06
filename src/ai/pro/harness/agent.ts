@@ -25,6 +25,7 @@ import { generateText, hasToolCall, isStepCount, Output, ToolLoopAgent, type Lan
 import type { SpxTemplate } from '../../../model/types.js';
 import { designRulesPromptBlock, type LegibilityMode, type ViewingTarget } from '../../../model/designRules.js';
 import { CRITIQUE_SCHEMA, critiqueFindings, critiquePrompt } from './critique.js';
+import { exemplarCardFor } from './exemplars.js';
 import { blocking, normalizeFindings, type Finding, type RoundRecord } from './findings.js';
 import { knowledgeForRequest, renderKnowledge } from './knowledge.js';
 import { createHarnessTools, newRunState, toolsForPhase, type HarnessBudget, type HarnessRunState, type HarnessTools } from './tools.js';
@@ -131,9 +132,14 @@ function reportedCost(meta: unknown): number | undefined {
   return undefined;
 }
 
-/** The first message: the brief, the operator contract, the legibility rules and the knowledge
- *  cards the request triggered - everything the model needs to design, and nothing about how to
- *  drive the tools (the instructions carry that). */
+/** The first message: the brief, the operator contract, the legibility rules, the knowledge
+ *  cards the request triggered and - when the request named a kind of graphic - what the shipped
+ *  designs of that kind measure. Everything the model needs to design, and nothing about how to
+ *  drive the tools (the instructions carry that).
+ *
+ *  The three number blocks are stacked in order of how hard they bind: the legibility RULES,
+ *  then the ratified taste RANGES inside the cards, then the corpus MEASUREMENT, which binds
+ *  nothing and says so in its own first line. */
 export function firstMessage(request: HarnessRequest): string {
   const cards = knowledgeForRequest({
     brief: request.brief,
@@ -146,6 +152,7 @@ export function firstMessage(request: HarnessRequest): string {
   const rules = request.legibility
     ? designRulesPromptBlock(request.legibility.target, request.legibility.mode, request.legibility.format ?? { width: 1920, height: 1080 })
     : designRulesPromptBlock({ profile: 'tv' }, 'standard', { width: 1920, height: 1080 });
+  const exemplar = exemplarCardFor({ typeId: request.typeId });
   return [
     '# The brief',
     request.brief.trim(),
@@ -157,6 +164,7 @@ export function firstMessage(request: HarnessRequest): string {
     '',
     '# Design knowledge for this graphic',
     renderKnowledge(cards),
+    ...(exemplar ? ['', exemplar] : []),
     '',
     'Begin. Read what you need, scaffold once, then design.',
   ].filter((line) => line !== undefined).join('\n');
