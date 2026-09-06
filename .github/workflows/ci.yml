@@ -306,7 +306,9 @@ jobs:
             && git rev-parse --verify --quiet origin/main >/dev/null; then
             FORK="$(git merge-base origin/main HEAD 2>/dev/null || true)"
             if [ -n "$FORK" ] && git cat-file -e "${FORK}^{commit}" 2>/dev/null; then
-              echo "::notice title=E2E plan::Measuring from the fork point ${FORK} (the base of every branch push)."
+              # On a branch that has merged main this is the merged-in main sha, and `--integration`
+              # below walks it back to the true fork point; the two agree on what to plan.
+              echo "::notice title=E2E plan::Measuring from the merge-base with main, ${FORK} (the base of every branch push)."
               BASE="$FORK"
             fi
           fi

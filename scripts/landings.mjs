@@ -14,19 +14,39 @@ import { join } from 'node:path';
 
 const LEDGER = 'landed.jsonl';
 
-/** The merge commit a landed pull request produced: the ff push moved main to the head sha. */
-function entryFor(pr) {
+/**
+ * The merge commit a landed pull request produced: the ff push moved main to the head sha. The
+ * worktree is the session the landing belongs to (the session-start notice keys on it); the
+ * watcher job records it directly, and this fills it from the branch's checkout when one exists.
+ */
+function entryFor(pr, worktreeOf) {
   return {
     branch: pr.headRefName,
     sha: pr.mergeCommit?.oid ?? pr.headRefOid,
-    worktree: null,
+    worktree: worktreeOf(pr.headRefName),
     at: Date.parse(pr.mergedAt) || Date.now(),
     pr: pr.number,
   };
 }
 
+/** branch -> checkout path, from `git worktree list`; null when the branch has no checkout here. */
+export function worktreeLookup(porcelain) {
+  const map = new Map();
+  let current = null;
+  for (const line of String(porcelain ?? '').split('\n')) {
+    if (line.startsWith('worktree ')) current = line.slice('worktree '.length).trim().replaceAll('\\', '/');
+    else if (line.startsWith('branch refs/heads/') && current) map.set(line.slice('branch refs/heads/'.length).trim(), current);
+  }
+  return (branch) => map.get(branch) ?? null;
+}
+
+function localWorktrees() {
+  const result = spawnSync('git', ['worktree', 'list', '--porcelain'], { encoding: 'utf8', windowsHide: true, timeout: 10_000 });
+  return worktreeLookup(result.status === 0 ? result.stdout : '');
+}
+
 /** Pure: the entries the ledger lacks, oldest first. */
-export function missingEntries(ledgerLines, prs) {
+export function missingEntries(ledgerLines, prs, worktreeOf = () => null) {
   const known = new Set();
   for (const line of ledgerLines) {
     try {
@@ -39,7 +59,7 @@ export function missingEntries(ledgerLines, prs) {
   }
   return (prs ?? [])
     .filter((pr) => pr.mergedAt && pr.headRefName)
-    .map(entryFor)
+    .map((pr) => entryFor(pr, worktreeOf))
     .filter((e) => !known.has(e.sha) && !known.has(`pr:${e.pr}`))
     .sort((a, b) => a.at - b.at);
 }
@@ -59,12 +79,12 @@ function fetchLanded(limit) {
 }
 
 /** Append what GitHub landed that the ledger does not know. Returns the entries added. */
-export function syncLandings(dir, { limit = 40, fetch = fetchLanded } = {}) {
+export function syncLandings(dir, { limit = 40, fetch = fetchLanded, worktrees = localWorktrees } = {}) {
   const file = join(dir, LEDGER);
   const lines = existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean) : [];
   const prs = fetch(limit);
   if (!prs) return [];
-  const missing = missingEntries(lines, prs);
+  const missing = missingEntries(lines, prs, worktrees());
   if (missing.length > 0) appendFileSync(file, `${missing.map((e) => JSON.stringify(e)).join('\n')}\n`);
   return missing;
 }

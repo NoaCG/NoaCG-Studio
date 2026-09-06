@@ -147,25 +147,21 @@ branch someone is actively committing to is not yours to finish.
 
 If in doubt, ask that session to queue its own. It costs a message and removes the whole question.
 
-**A branch whose worktree is gone lands anyway.** A closed session leaves its branch with nowhere
-to integrate main and run the gate, and that used to be a refusal - so finished work sat unlandable
-and the outstanding listing called it "not queued". The job now makes ONE temporary worktree at
-`.claude/worktrees/auto-merge-tmp-<branch>`, lands there, and removes that same path again - never
-another, never with `--force`. It still refuses if that path already exists, because something left
-it behind and its contents are not this job's to assume.
+**A branch whose worktree is gone lands anyway.** The lander works on GitHub's runner from the
+pushed branch; no local worktree is part of the path.
 
 ## When a landing gives up
 
-`npm run jobs` prints, for every branch ahead of main, either `QUEUED <id>`, `not queued`, or a
-loud row saying the landing FAILED or was WITHDRAWN - with the reason it stopped (killed at its
-cap, process vanished, still blocked, a refusal and its exit code) and the exact command that puts
-it back:
+The local merge job (`scripts/land-watch.mjs`) only WATCHES the pull request, so `npm run jobs`
+prints, for every branch ahead of main, either `QUEUED <id>`, `not queued`, or a loud row saying
+the landing FAILED - with the lander's refusal, copied from the pull request. **The refusal is on
+the pull request** (`gh pr view <number>`): a conflict integrating `main`, a red run, no
+`noacg/reviewed` status, no verdict inside the cap. Fix it, run `/check`, and queue again:
 
-    node scripts/jobs.mjs requeue <branch>
+    npm run queue:merge
 
-"Not queued" never describes a branch that was queued. Re-queue after reading the log
-(`node scripts/jobs.mjs log <id>`) - a landing that refused usually refused for a reason that is
-still true.
+`node scripts/jobs.mjs requeue <branch>` only puts the watcher back; it lands nothing by itself.
+"Not queued" never describes a branch that was queued.
 
 **`requeue` re-runs a declaration; `add-merge` makes one.** That is the whole difference, and it is
 why any session may run the first without a permission prompt while the second stays behind one

@@ -383,9 +383,22 @@ async function cmdAddMerge() {
     ? `reviewed by /check at ${String(review.reviewedSha).slice(0, 8)} (${review.verdict ?? 'pass'})`
     : `UNREVIEWED: ${review.reason}`;
   const queued = queueOnGitHub(target, tipForReview, description);
+  // The local shadow: a merge job whose command only WATCHES the pull request (scripts/land-watch.mjs),
+  // so the branch is frozen while it is queued, the tick reports QUEUED and LANDED, and the ledger
+  // gets the landing with this checkout as its session - every local reader keeps its one shape.
+  const job = addJob(dir, {
+    command: `node scripts/land-watch.mjs --pr ${queued.number} --branch ${target}`,
+    checkout: process.cwd(),
+    branch: target,
+    kind: 'merge',
+    capMinutes: 65,
+    review,
+    now: Date.now(),
+  });
+  await ensureRunner();
   console.log(`queued on GitHub: ${queued.url}${review.stamp === 'unreviewed' ? ` (UNREVIEWED: ${review.reason})` : ''}`);
   console.log('  the Land workflow lands it one at a time; its refusals are written on the pull request.');
-  console.log(`  progress:  gh run list --workflow land.yml --limit 5   |   gh pr view ${queued.number}`);
+  console.log(`  ${job.id} watches it here:  node scripts/jobs.mjs log ${job.id}   |   gh run list --workflow land.yml --limit 5`);
 }
 
 /**
