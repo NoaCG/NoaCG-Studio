@@ -132,8 +132,14 @@ for, so growing the table needs the same rule applied, not enthusiasm.
   dead knobs, and `Occasion.name` already carries the label the card will want; `validateTaxonomy`
   derived the 502-entry catalog five times and now derives it once; the three id/count walks
   merged into one pass.
-- **verify:** `npm run build` green; `npm run test:use-case-search` 9/9. **e2e: not run** (no
-  browser budget in this container - see above).
+- **verify:** `npm run build` **green on the committed sha 9b878bb523**, stamped
+  `claude/g-use-case-metadata` (checked - a build in the wrong worktree stamps a different
+  branch). `npm run test:use-case-search` 9/9. **e2e: not run** (no browser budget in this
+  container - see above).
+  One earlier build run failed on `scripts/catalog-cost.test.mjs`. It passes standalone, it is
+  pure arithmetic over `catalog-cost.mjs` and touches nothing in this diff, and it did not
+  reproduce on a re-run of the same tree - a contention flake in this container, ~70 node
+  tests deep. Named here rather than swallowed, per the "re-run the unchanged SHA" rule.
 - **taste: not applicable.** Nothing here can move what a graphic looks like: no design file, no
   shared template machinery, no fit or alignment code. The change is discovery metadata, the
   search engine and docs.
@@ -147,3 +153,32 @@ does reach CI through `scripts/factory.mjs`; the search-RANKING half - the only 
 have caught the alias-consumption bug - runs only when somebody types the command. I left the
 workflow files alone because CI config was outside this row's scope and three other rows were
 landing tonight. **One line in `ci.yml` beside `check:catalog-emit` closes it.**
+
+## Two things the orchestrator has to do that I could not
+
+1. **The /check verdict stamp could not be written.** It belongs at
+   `<common-git-dir>/noacg-jobs/checks/claude-g-use-case-metadata.json`, and this worktree is
+   isolated - every path under the shared checkout is refused from here. (Row C hit the same wall
+   tonight.) The contents, so it can be written verbatim:
+
+   ```json
+   {
+     "v": 1,
+     "branch": "claude/g-use-case-metadata",
+     "mergeBase": "8c1b39ba37286186f1ee5e04c6f2a8674b36a42d",
+     "reviewedSha": "9b878bb5238a0f7a94b77942e7e691d6e1071db5",
+     "legs": {
+       "review":   { "mode": "delegated", "findings": 3, "fixed": 4, "effort": "high" },
+       "simplify": { "mode": "inline",    "findings": 3, "fixed": 3 },
+       "verify":   { "mode": "inline", "build": "green", "tests": "use-case-search 9/9",
+                     "e2e": "not run", "taste": "not applicable" }
+     },
+     "verdict": "pass-with-gap"
+   }
+   ```
+
+   `verdict: pass-with-gap` is honest rather than `pass`: e2e did not run, and the new gate is in
+   no CI workflow (the section above).
+
+2. **Nothing was pushed, queued or merged**, per the row's instructions. Two commits on
+   `claude/g-use-case-metadata`, tree clean.
