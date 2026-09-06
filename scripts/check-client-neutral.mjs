@@ -44,11 +44,11 @@ const SCANNED = [
   // wants a directory to match. That hole hid three user-visible strings until timeline/ was
   // split out on 2026-08-26 and they moved into a subdirectory. Extensions are filtered below.
   'src/components',
-  // The FIELD PLANS are user copy living in a model file: `itemLabel`, `itemHint`, a fixed
+  // The FIELD PLANS are user copy living in the template contract: `itemLabel`, `itemHint`, a fixed
   // plan's `reason` and a list's `formatNote` are all rendered verbatim on the wizard's Fields
   // step, and `StyleChoiceSpec` titles on its Style step. Same hole shape as the loose
   // components above - a sentence a reader sees, in a file nothing scanned.
-  'src/model/wizard.ts',
+  'src/templates/contract.ts',
   'index.html',
   'docs.html',
   'app.html',

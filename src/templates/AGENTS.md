@@ -111,6 +111,25 @@ prints a design's distance to its nearest catalog neighbour; under 0.25 is a nea
 `node scripts/palette-freedom.mjs` answers the other half - whether a design can take a palette it
 was not drawn in.
 
+## The template contract (contract.ts)
+
+- **contract.ts** - categories, variants, WizardOptions, palettes. A variant declares its
+  CAPABILITIES - `maxLines` (1-5 line capacity), `logo: 'none' | 'optional' | 'built-in'`,
+  `animationPresets`, `defaultSteps` - which drive the wizard's Fields/Animation options AND the
+  Template step's filter chips, so a new family inherits both automatically. `defaultSteps` is
+  what a graphic that is STEPPED BY CONSTRUCTION declares (a numbered process, a checklist): it
+  decides what an untouched `create({})` produces, so the wizard draft's steps flag is tri-state
+  (null = the design decides) rather than a boolean that would override it. Sizing is two knobs:
+  `sizeScale` (--scale, whole graphic) and `typeScale` (--type-scale, text only).
+  DISCOVERY metadata does NOT live on the variant: browse facets and search come from the one
+  taxonomy (model/taxonomy.ts + templateMeta.ts + search.ts). A variant carries only what it
+  needs to BUILD itself; a second discovery model on the variant would drift from the first the
+  moment either changed.
+- **importedDesign/designSvgTypes.ts** - the Import-graphic road's option shapes (`DesignSvg*`,
+  `DesignArt`, `DesignStretch`); contract.ts carries them only as WizardOptions members.
+  `model/wizard.ts` re-exports both files for one landing while their importers are rewritten
+  (docs/WORKFLOW_ARCHITECTURE.md §5.5, domain row 1).
+
 ## Discovery metadata (the Browse step's facets — docs/TEMPLATE_TAXONOMY_PROPOSAL.md)
 
 - **meta.ts** - the DECLARED sliver: per-type and per-variant graphic category / subtype /
@@ -122,7 +141,7 @@ was not drawn in.
   word. An occasion resolves on its own - variant, else type, else NONE, with no category fallback,
   because half a shelf being a front door and half a sign-off is the confusion the facet ends.
   **Undeclared is the default and costs nothing**; a guess is worse than a gap.
-  `AssemblerId` (model/wizard.ts, renamed from `TemplateCategory` 2026-08-11) stays the
+  `AssemblerId` (contract.ts, renamed from `TemplateCategory` 2026-08-11) stays the
   ASSEMBLER/routing id, never rendered in UI; the graphic category is presentation metadata
   on top — no file moves, no value renames.
 - **templateMeta.ts** - the DERIVED bulk, memoized per variant: field counts off the compiled
