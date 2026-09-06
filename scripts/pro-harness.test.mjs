@@ -24,6 +24,9 @@ const runtime = await buildApiRuntime([
   'src/ai/pro/harness/agent.ts',
   'src/ai/pro/harness/patch.ts',
   'src/ai/pro/harness/knowledge.ts',
+  // The REAL importer, compiled beside the harness so `animationBreach` can be pinned against the
+  // thing it explains rather than against a second copy of its rules (see the last test here).
+  'src/blocks/timelineModel.ts',
 ]);
 after(async () => { await runtime.cleanup(); });
 
@@ -44,6 +47,7 @@ const patch = await emitted('harness/patch.js');
 const knowledge = await emitted('harness/knowledge.js');
 const tools = await emitted('harness/tools.js');
 const agent = await emitted('harness/agent.js');
+const timelineModel = await emitted('blocks/timelineModel.js');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────────────────
 
@@ -494,4 +498,60 @@ test('toolsForPhase forces the next move once a phase has been dithered in', () 
   assert.equal(tools.toolsForPhase('finish', 0).force, 'finishGraphic');
   assert.equal(tools.toolsForPhase('refuse', 0).force, 'stopGraphic');
   assert.deepEqual(tools.toolsForPhase('done', 0).active, []);
+});
+
+// ── `animationBreach` explains the importer, and is PINNED to it ──────────────────────────────
+//
+// The 2026-09-06 paid round refused two correct timelines because `parseTimeline` gives up
+// silently and the harness only restated the grammar back at the model (docs/AI_ATTEMPTS.md).
+// `animationBreach` names the first unmet precondition instead - which is only worth anything
+// while it agrees with the parser, so the two are asserted to agree here rather than trusted to.
+
+/** A region in the exact form the importer wants, with `mutate` applied to its text. */
+function region(mutate = (s) => s) {
+  const body = mutate([
+    "var animSpeed = 1;",
+    "var easeIn = 'expo.out';",
+    "var easeOut = 'power3.in';",
+    'function buildInTimeline() {',
+    '  var tl = gsap.timeline();',
+    '  tl.to("#f0", { opacity: 1, duration: 0.5 / animSpeed, ease: easeIn }, 0);',
+    '  return tl;',
+    '}',
+    'function buildOutTimeline() {',
+    '  var tl = gsap.timeline();',
+    '  tl.to("#f0", { opacity: 0, duration: 0.3 / animSpeed, ease: easeOut }, 0);',
+    '  return tl;',
+    '}',
+  ].join('\n'));
+  return `function play(){}\n/* == ANIMATION (generated — the Animation panel rewrites this block) == */\n${body}\n/* == END ANIMATION == */\nfunction stop(){}`;
+}
+
+const BREACHES = [
+  ['the good region', region(), null],
+  // The exact defect the paid round hit: a correct timeline missing two declarations.
+  ["easeIn and easeOut absent", region((s) => s.replace(/var ease(In|Out) = '[^']+';\n/g, '')), /easeIn/],
+  ['easeOut absent', region((s) => s.replace(/var easeOut = '[^']+';\n/, '')), /easeOut/],
+  // Double quotes are invisible to the importer's /'([^']+)'/ - the sentence has to say so.
+  ['easeIn double-quoted', region((s) => s.replace("var easeIn = 'expo.out';", 'var easeIn = "expo.out";')), /single-quoted/],
+  ['animSpeed absent', region((s) => s.replace('var animSpeed = 1;\n', '')), /animSpeed/],
+  ['the exit builder absent', region((s) => s.slice(0, s.indexOf('function buildOutTimeline'))), /buildOutTimeline/],
+  ['a builder with no tween', region((s) => s.replace(/ {2}tl\.to\("#f0", \{ opacity: 0[^\n]*\n/, '')), /buildOutTimeline/],
+  ['the markers gone', 'function play(){}\nvar animSpeed = 1;\nfunction stop(){}', /markers/],
+];
+
+test('animationBreach names the first unmet precondition, in the importer\'s own words', () => {
+  for (const [what, js, expected] of BREACHES) {
+    const breach = patch.animationBreach(js);
+    if (expected === null) assert.equal(breach, null, `${what}: expected no breach, got ${breach}`);
+    else assert.match(String(breach), expected, `${what}: the sentence must name what is missing`);
+  }
+});
+
+test('animationBreach agrees with parseTimeline on every case - null exactly when it parses', () => {
+  for (const [what, js] of BREACHES) {
+    const parses = timelineModel.parseTimeline(js) !== null;
+    const clean = patch.animationBreach(js) === null;
+    assert.equal(clean, parses, `${what}: animationBreach says ${clean ? 'clean' : 'broken'} but the importer ${parses ? 'parses' : 'does not parse'} it`);
+  }
 });

@@ -79,6 +79,10 @@ export default tseslint.config(
       'pro-bench-out*/',
       'pro-spike-out*/',
       'pro-iterate-out*/', // the iterate/type-sweep rounds save every emit round to disk
+      // The Pro Harness bench writes each delivered graphic's html/css/js to code/. It is
+      // a MODEL's code, kept as evidence of a round, so linting it reds the build over a
+      // finding the round already recorded - which is what it did on 2026-09-06.
+      'pro-harness-out*/',
       'pro-freeform-blind/',
       'pro-iterate-blind/',
       'pro-typesweep-blind/',

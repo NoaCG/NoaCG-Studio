@@ -370,7 +370,19 @@ function createPlaywrightWorkbench({ proType, ticker, steps, shotsDir, tag }) {
         return { normalized: out, converted: Boolean(parseAnimData(out.js)) };
       }, template);
       const raw = [];
-      if (!converted) raw.push({ source: 'harness', code: 'animation-unconvertible', severity: 'block', message: 'the ANIMATION region could not be converted to keyframe data - stay inside the authoring grammar (var animSpeed/easeIn/easeOut, buildInTimeline/buildOutTimeline, tl.set/to/fromTo with literal values, durations as N / animSpeed)' });
+      // A region the importer could not read comes back with the PRECONDITION IT MISSED, not with
+      // the grammar restated. Restating it is what cost the 2026-09-06 round four rounds on a
+      // correct timeline (docs/AI_ATTEMPTS.md); `animationBreach` names the first unmet check in
+      // the importer's own order, which is what makes this a repairable finding.
+      if (!converted) {
+        const breach = patchModule.animationBreach(template.js);
+        raw.push({
+          source: 'harness',
+          code: 'animation-unconvertible',
+          severity: 'block',
+          message: `the ANIMATION region could not be converted to keyframe data: ${breach ?? 'the region met every declaration the importer requires, so the defect is inside a tween - use literal values only, durations as N / animSpeed, and no DOM measurement'}`,
+        });
+      }
       const validation = await page.evaluate(async ({ template, category }) => {
         const bust = '?t=' + Date.now();
         const { productionSpxValidator } = await import('/src/ai/lite/pipeline.ts' + bust);
