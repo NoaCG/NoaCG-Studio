@@ -449,8 +449,14 @@ export type DesignSvgBehaviour =
 export interface DesignSvgRecipeBehaviour {
   kind: 'recipe';
   recipe: string;
-  /** Layer role -> the candidate id bound to it. */
-  layers: Record<string, string>;
+  /** Layer role -> the candidate id bound to it; a per-row role maps the row's key to it. */
+  layers: Record<string, string | Record<string, string>>;
+  /** Field role -> index into `DesignSvg.fields` (what the operator types); per row, key -> index.
+   *  ADDITIVE: a recipe whose roles are all layers (the meter) carries none. */
+  fields?: Record<string, number | Record<string, number>>;
+  /** The row keys in row order, for a recipe with rows (a survey's answers, a lineup's guests).
+   *  Positional - numbers or letters as the recipe spells them - exactly as the quiz's are. */
+  rows?: string[];
   /** The recipe's structural options as chosen (a checkbox each). */
   options?: Record<string, boolean>;
 }

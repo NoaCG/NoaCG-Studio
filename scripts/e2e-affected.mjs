@@ -415,6 +415,9 @@ const MAP = [
   // invisible to this plan until the scoreboard arrived: editing the vote band would have re-run
   // the sweep and not the walk that drives it.
   [/^e2e\/fixtures\/svg-corpus\//, ['import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts']],
+  // The SHOW corpus (e2e/fixtures/svg-shows/README.md): the game-show and late-night graphics the
+  // behaviour spec walks through the wizard and the operator's controls.
+  [/^e2e\/fixtures\/svg-shows\//, ['import-svg-behaviour.spec.ts']],
   // THE PRACTICE LIBRARY (docs/svg-samples/) is documentation by location and a FIXTURE SET by
   // use: `e2e/_svg-import.ts` loads scorebug.svg and quiz-board.svg out of it, and
   // import-svg.spec.ts loads illustrator-export.svg. The blanket `^docs/` ignore below has a

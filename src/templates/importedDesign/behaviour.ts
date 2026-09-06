@@ -201,13 +201,31 @@ function voteBinding(poll: DesignSvgPollBehaviour): BehaviourBinding {
   };
 }
 
-/** Any other recipe without rows, as the wizard persisted it. */
+/** Any other recipe, as the wizard persisted it - its rows already keyed, its field roles
+ *  already indices, so the generic shape is the binding with nothing translated. */
 function recipeBinding(behaviour: DesignSvgRecipeBehaviour): BehaviourBinding {
+  const fields: BehaviourBinding['fields'] = {};
+  for (const [role, value] of Object.entries(behaviour.fields ?? {})) {
+    // An index below zero is a pick the wizard could not resolve to a ticked row; it binds nothing.
+    if (typeof value === 'number') {
+      if (value >= 0) fields[role] = value;
+      continue;
+    }
+    const byKey = Object.fromEntries(Object.entries(value).filter(([, i]) => i >= 0));
+    if (Object.keys(byKey).length > 0) fields[role] = byKey;
+  }
   return {
     recipe: behaviour.recipe,
     ...(behaviour.options ? { options: behaviour.options } : {}),
-    fields: {},
-    layers: layers(behaviour.layers),
+    ...(behaviour.rows ? { rows: behaviour.rows } : {}),
+    fields,
+    layers: layers(
+      Object.fromEntries(
+        Object.entries(behaviour.layers).map(([role, value]) =>
+          typeof value === 'string' ? [role, value] : [role, Object.fromEntries(Object.entries(value).filter(([, id]) => !!id))],
+        ),
+      ),
+    ),
   };
 }
 
@@ -325,7 +343,9 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
   // so the list is filled in after the context exists. Nothing in `fields()` may ask for an
   // owned field's id, and nothing does: the fields are what the ids are minted for.
   let owned: RecipeField[] = [];
-  const ownedIndex = (key: string): number => owned.findIndex((f) => f.key === key);
+  // By key for a graphic-level owned field; by role AND row for one the recipe owns per row.
+  const ownedIndex = (key: string, row?: string): number =>
+    row === undefined ? owned.findIndex((f) => f.key === key && !f.row) : owned.findIndex((f) => f.row?.role === key && f.row.key === row);
   const ctx: RecipeContext = {
     rows,
     options,
@@ -336,13 +356,14 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
     fieldId: (role, key) => {
       const index = at(binding.fields, role, key);
       if (index !== undefined) return `f${index}`;
-      const own = ownedIndex(role);
+      const own = ownedIndex(role, key);
       return own === -1 ? null : `f${from + own}`;
     },
     fieldKey: (role, key) => {
       const index = at(binding.fields, role, key);
       if (index !== undefined) return `svg${index}`;
-      return ownedIndex(role) === -1 ? null : role;
+      const own = ownedIndex(role, key);
+      return own === -1 ? null : owned[own].key;
     },
     label: (role, key) => {
       if (key !== undefined && binding.rowLabels?.[key]) return binding.rowLabels[key];
@@ -371,9 +392,17 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
       if (id) fields[ns(role.id)] = id;
     }
   }
-  for (const field of owned) fields[field.key] = ctx.fieldId(field.key)!;
+  for (const [i, field] of owned.entries()) {
+    // A per-row owned field joins its ROLE's map, so a rule's `revealed:is:on` is asked of the
+    // row the look belongs to; a graphic-level one is mapped by its key.
+    if (field.row) {
+      const byKey = (fields[field.row.role] as Record<string, string> | undefined) ?? {};
+      byKey[field.row.key] = ownedIds[i];
+      fields[field.row.role] = byKey;
+    } else fields[field.key] = ownedIds[i];
+  }
   const kinds: Record<string, FieldKindSpec> = {};
-  for (const field of owned) if (field.spec) kinds[ctx.fieldId(field.key)!] = field.spec;
+  for (const [i, field] of owned.entries()) if (field.spec) kinds[ownedIds[i]] = field.spec;
   for (const [id, spec] of Object.entries(recipe.artworkKinds?.(ctx) ?? {})) {
     // A parameter the recipe could not resolve (an optional companion field) is left out
     // rather than written as "undefined".

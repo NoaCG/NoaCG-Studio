@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!-- NoaCG show corpus. A PUZZLE BOARD, the Wheel of Fortune shape: a category, one row of
+     fourteen tiles, letters revealed one at a time. Drawn the way a student draws it:
+
+     The base look     -> the backplate, the category, fourteen green tiles, and on each tile a
+                          letter drawn AS IT LOOKS REVEALED (NoaCG hides it until it is).
+     "Used 1..14"      -> hidden: the white face a tile wears where the puzzle has a letter.
+     "Solved"          -> hidden: the glow around the board once the puzzle is solved.
+
+     Full-frame 1920x1080. Words last. -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1920 1080" width="1920" height="1080" style="enable-background:new 0 0 1920 1080;"
+	 xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#0D1017;}
+	.st1{fill:#161B24;}
+	.st2{fill:#F6A623;}
+	.st3{fill:#FFFFFF;}
+	.st4{font-family:'Archivo-Bold';}
+	.st5{font-size:44px;}
+	.st6{fill:#1F5F3A;}
+	.st7{fill:#F2F2EE;}
+	.st8{fill:#0D1017;}
+	.st9{font-size:72px;}
+	.st10{fill:none;stroke:#F6A623;stroke-width:10;}
+</style>
+<g id="Backplate">
+	<rect y="0" class="st0" width="1920" height="1080"/>
+</g>
+<g id="Category_x20_card" data-name="Category card">
+	<rect x="560" y="180" class="st1" width="800" height="100"/>
+	<rect x="560" y="180" class="st2" width="800" height="8"/>
+</g>
+<g id="Solved" display="none">
+	<rect x="140" y="420" class="st10" width="1640" height="160" rx="12"/>
+</g>
+<g id="Tiles">
+	<rect x="160" y="440" class="st6" width="100" height="120"/>
+	<rect x="275" y="440" class="st6" width="100" height="120"/>
+	<rect x="390" y="440" class="st6" width="100" height="120"/>
+	<rect x="505" y="440" class="st6" width="100" height="120"/>
+	<rect x="620" y="440" class="st6" width="100" height="120"/>
+	<rect x="735" y="440" class="st6" width="100" height="120"/>
+	<rect x="850" y="440" class="st6" width="100" height="120"/>
+	<rect x="965" y="440" class="st6" width="100" height="120"/>
+	<rect x="1080" y="440" class="st6" width="100" height="120"/>
+	<rect x="1195" y="440" class="st6" width="100" height="120"/>
+	<rect x="1310" y="440" class="st6" width="100" height="120"/>
+	<rect x="1425" y="440" class="st6" width="100" height="120"/>
+	<rect x="1540" y="440" class="st6" width="100" height="120"/>
+	<rect x="1655" y="440" class="st6" width="100" height="120"/>
+</g>
+<g id="Used_x20_1" data-name="Used 1" display="none"><rect x="160" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_2" data-name="Used 2" display="none"><rect x="275" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_3" data-name="Used 3" display="none"><rect x="390" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_4" data-name="Used 4" display="none"><rect x="505" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_5" data-name="Used 5" display="none"><rect x="620" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_6" data-name="Used 6" display="none"><rect x="735" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_7" data-name="Used 7" display="none"><rect x="850" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_8" data-name="Used 8" display="none"><rect x="965" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_9" data-name="Used 9" display="none"><rect x="1080" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_10" data-name="Used 10" display="none"><rect x="1195" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_11" data-name="Used 11" display="none"><rect x="1310" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_12" data-name="Used 12" display="none"><rect x="1425" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_13" data-name="Used 13" display="none"><rect x="1540" y="440" class="st7" width="100" height="120"/></g>
+<g id="Used_x20_14" data-name="Used 14" display="none"><rect x="1655" y="440" class="st7" width="100" height="120"/></g>
+<g id="Words">
+	<text id="Category" data-name="Category" transform="matrix(1 0 0 1 960 250)" class="st3 st4 st5" text-anchor="middle">PHRASE</text>
+	<text id="Letter_x20_1" data-name="Letter 1" transform="matrix(1 0 0 1 210 526)" class="st8 st4 st9" text-anchor="middle">S</text>
+	<text id="Letter_x20_2" data-name="Letter 2" transform="matrix(1 0 0 1 325 526)" class="st8 st4 st9" text-anchor="middle">U</text>
+	<text id="Letter_x20_3" data-name="Letter 3" transform="matrix(1 0 0 1 440 526)" class="st8 st4 st9" text-anchor="middle">R</text>
+	<text id="Letter_x20_4" data-name="Letter 4" transform="matrix(1 0 0 1 555 526)" class="st8 st4 st9" text-anchor="middle">V</text>
+	<text id="Letter_x20_5" data-name="Letter 5" transform="matrix(1 0 0 1 670 526)" class="st8 st4 st9" text-anchor="middle">E</text>
+	<text id="Letter_x20_6" data-name="Letter 6" transform="matrix(1 0 0 1 785 526)" class="st8 st4 st9" text-anchor="middle">Y</text>
+	<text id="Letter_x20_7" data-name="Letter 7" transform="matrix(1 0 0 1 900 526)" class="st8 st4 st9" text-anchor="middle">A</text>
+	<text id="Letter_x20_8" data-name="Letter 8" transform="matrix(1 0 0 1 1015 526)" class="st8 st4 st9" text-anchor="middle">B</text>
+	<text id="Letter_x20_9" data-name="Letter 9" transform="matrix(1 0 0 1 1130 526)" class="st8 st4 st9" text-anchor="middle">C</text>
+	<text id="Letter_x20_10" data-name="Letter 10" transform="matrix(1 0 0 1 1245 526)" class="st8 st4 st9" text-anchor="middle">D</text>
+	<text id="Letter_x20_11" data-name="Letter 11" transform="matrix(1 0 0 1 1360 526)" class="st8 st4 st9" text-anchor="middle">E</text>
+	<text id="Letter_x20_12" data-name="Letter 12" transform="matrix(1 0 0 1 1475 526)" class="st8 st4 st9" text-anchor="middle">F</text>
+	<text id="Letter_x20_13" data-name="Letter 13" transform="matrix(1 0 0 1 1590 526)" class="st8 st4 st9" text-anchor="middle">G</text>
+	<text id="Letter_x20_14" data-name="Letter 14" transform="matrix(1 0 0 1 1705 526)" class="st8 st4 st9" text-anchor="middle">H</text>
+</g>
+</svg>

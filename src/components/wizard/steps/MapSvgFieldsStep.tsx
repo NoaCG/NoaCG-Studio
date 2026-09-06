@@ -14,6 +14,7 @@ import type {
   SvgPollDraft,
   SvgQuizDraft,
   SvgRecipeDraft,
+  SvgRecipeRow,
   SvgScoreDraft,
   SvgStretchMode,
   SvgTimerDraft,
@@ -24,6 +25,7 @@ import {
   behaviourBindingGaps,
   disarmTimerClock,
   emptyPollRow,
+  emptyRecipeRow,
   emptyScoreRow,
   emptyTimerDraft,
   extraLayerName,
@@ -31,7 +33,7 @@ import {
   scoreDrawnPool,
 } from '../draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
-import { BEHAVIOUR_WORDS, rolesOf } from '../../../templates/behaviours/recipe';
+import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import {
   clearFill,
   fillGap,
@@ -44,7 +46,7 @@ import {
   type FillLayer,
   type FillPick,
 } from '../fieldAutoMap';
-import { recipeById } from '../../../templates/behaviours/registry';
+import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { extOf, fileToDataUrl } from '../../../assets/assetUtils';
 import {
@@ -540,6 +542,10 @@ const NOT_DRAWN = '— not drawn —';
  *  ladder's rung 1); every other behaviour's undrawn moment shows nothing extra. */
 const DEFAULT_LOOK = 'Not drawn: NoaCG’s own look';
 const PICK_A_LAYER = '— pick a text layer —';
+
+/** The four recipes the wizard holds in shapes of their own (draft.ts); every other one is the
+ *  generic draft and is listed from the registry. */
+const LEGACY_RECIPES = new Set(['quiz', 'score', 'countdown', 'vote']);
 
 /** How many answer rows a quiz board may carry, and the least it can carry. Written once
  *  because the SEED reads off the artwork now (one question, the rest answers) and a seed the
@@ -1327,8 +1333,20 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
   // ANY OTHER RECIPE WITHOUT ROWS - the meter, the alert - is held generically and its pickers are
   // read off the recipe's own roles, so a recipe added tomorrow needs no new block here.
   const generic = behaviour?.kind === 'recipe' ? behaviour : null;
+  const genericRecipe = generic ? recipeById(generic.recipe) : null;
+  const genericRoles = genericRecipe?.roles ?? [];
+  const genericRows = generic?.rows ?? null;
   const patchGeneric = (patch: Partial<SvgRecipeDraft>) => {
     if (generic) onDraft({ svgBehaviour: { ...generic, ...patch } });
+  };
+  const patchGenericRow = (at: number, patch: Partial<SvgRecipeRow>) =>
+    patchGeneric({ rows: (genericRows ?? []).map((r, i) => (i === at ? { ...r, ...patch } : r)) });
+  /** Add or remove a row of a generic recipe, keeping every other row's picks beside it. */
+  const setGenericRowCount = (want: number) => {
+    if (!genericRows) return;
+    const rows = [...genericRows];
+    while (rows.length < want) rows.push(emptyRecipeRow());
+    patchGeneric({ rows: rows.slice(0, want) });
   };
   // ONE POOL FOR THE PICKER AND THE PROPOSAL (draft.ts `scoreDrawnPool`). A moment drawn as a
   // single rectangle - a coloured bar behind a team's row is the ordinary shape of a point flash -
@@ -1430,6 +1448,38 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
   const hintFor = (role: string, key: string | undefined, value: string, testid: string) => (
     <NameHint hint={!value && recipeId ? nameHint(recipeId, role, key) : null} filled={filledWhy(role, key, value)} testid={testid} />
   );
+  /** One picker of a generic recipe, whichever pool its role reads from. Shared by the
+   *  graphic-level and the per-row boxes so the two cannot offer different inventories. */
+  const genericPicker = (role: RecipeRole, value: string, key: string | undefined, testid: string, set: (id: string) => void) =>
+    role.kind === 'field' ? (
+      <label className="save-field" key={testid}>
+        <span>{role.label}</span>
+        <select value={value} onChange={(e) => set(e.target.value)} onFocus={() => setHoverId(value || null)} data-testid={testid}>
+          <option value="">{PICK_A_LAYER}</option>
+          {onFields.map((f) => (
+            <option key={f.candidateId} value={f.candidateId}>
+              {f.title}
+            </option>
+          ))}
+        </select>
+        {hintFor(role.id, key, value, testid)}
+      </label>
+    ) : role.pool === 'text' ? (
+      <label className="save-field" key={testid}>
+        <span>{role.label}</span>
+        <select value={value} onChange={(e) => set(e.target.value)} onFocus={() => setHoverId(value || null)} data-testid={testid}>
+          <option value="">{NOT_DRAWN}</option>
+          {textLayers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        {hintFor(role.id, key, value, testid)}
+      </label>
+    ) : (
+      <DrawnPicker key={testid} label={role.label} value={value} drawn={scoreDrawn} onPick={set} onHover={setHoverId} testid={testid} hint={hintFor(role.id, key, value, testid)} />
+    );
   const fillThemIn = () => {
     if (!behaviour || !recipeId) return;
     const stage = stageRef.current;
@@ -1895,8 +1945,19 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                   // points on the wrong figure without saying so.
                   return onDraft({ svgBehaviour: score ?? { kind: 'score', rows: [emptyScoreRow(), emptyScoreRow()], final: '' }, svgFields });
                 }
-                if (want === 'meter' || want === 'alert') {
-                  return onDraft({ svgBehaviour: generic?.recipe === want ? generic : { kind: 'recipe', recipe: want, layers: {}, options: {} }, svgFields });
+                const wanted = recipeById(want);
+                if (wanted && !wanted.instanced) {
+                  // Any other recipe is held generically. A recipe with rows opens on its minimum,
+                  // every picker empty, for the poll's reason: guessing which of somebody's
+                  // fifteen layers is row one would bind the wrong drawing without saying so.
+                  const seeded: SvgRecipeDraft = {
+                    kind: 'recipe',
+                    recipe: want,
+                    layers: {},
+                    ...(wanted.rows ? { rows: Array.from({ length: wanted.rows.min }, emptyRecipeRow) } : {}),
+                    options: {},
+                  };
+                  return onDraft({ svgBehaviour: generic?.recipe === want ? generic : seeded, svgFields });
                 }
                 // A fresh vote starts with two empty option rows and nothing else picked. Empty
                 // rather than seeded from the first layers in the file: a poll's layers are
@@ -1915,8 +1976,13 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
               <option value="poll">Live vote. The room votes; the bars move; you show the result.</option>
               <option value="score">Score tracker. A point per press, per team, and a new game.</option>
               <option value="timer">Countdown. It starts on air; you hold it, let it go, reset it.</option>
-              <option value="meter">Meter. A bar fills toward a target as the figure goes up.</option>
-              <option value="alert">Alert. It plays, holds eight seconds, and takes itself off.</option>
+              {/* Every other recipe, from the registry: a recipe added tomorrow is offered here
+                  with no new line, in the words its declaration carries. */}
+              {BEHAVIOUR_RECIPES.filter((r) => !r.instanced && !LEGACY_RECIPES.has(r.id)).map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}. {r.description}
+                </option>
+              ))}
             </select>
           </label>
           {/* A binding that will be DROPPED says so here rather than at create time. Same rule
@@ -2324,40 +2390,54 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
               <p className="hint" data-testid="map-svg-recipe-how">
                 {behaviourSummaryLine(generic)}. The operator gets {BEHAVIOUR_WORDS[generic.recipe]?.buttons ?? 'its buttons'}.
               </p>
-              {(recipeById(generic.recipe)?.roles ?? [])
-                .filter((role) => role.kind === 'layer')
-                .map((role) =>
-                  role.pool === 'text' ? (
-                    <label className="save-field" key={role.id}>
-                      <span>{role.label}</span>
-                      <select
-                        value={generic.layers[role.id] ?? ''}
-                        onChange={(e) => patchGeneric({ layers: { ...generic.layers, [role.id]: e.target.value } })}
-                        onFocus={() => setHoverId(generic.layers[role.id] || null)}
-                        data-testid={`map-svg-recipe-${role.id}`}
-                      >
-                        <option value="">{NOT_DRAWN}</option>
-                        {textLayers.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                      {hintFor(role.id, undefined, generic.layers[role.id] ?? '', `map-svg-recipe-${role.id}`)}
-                    </label>
-                  ) : (
-                    <DrawnPicker
-                      key={role.id}
-                      label={role.label}
-                      value={generic.layers[role.id] ?? ''}
-                      drawn={scoreDrawn}
-                      onPick={(id) => patchGeneric({ layers: { ...generic.layers, [role.id]: id } })}
-                      onHover={setHoverId}
-                      testid={`map-svg-recipe-${role.id}`}
-                      hint={hintFor(role.id, undefined, generic.layers[role.id] ?? '', `map-svg-recipe-${role.id}`)}
-                    />
-                  ),
-                )}
+              {/* GRAPHIC-LEVEL ROLES, one picker each, read off the declaration: a field role
+                  from the ticked rows (it becomes what the operator types), a written text
+                  role from every text layer, a drawing from the drawn pool. */}
+              {genericRoles
+                .filter((role) => !role.perRow && !role.countdown)
+                .map((role) => {
+                  const value = (role.kind === 'field' ? generic.fields?.[role.id] : generic.layers[role.id]) ?? '';
+                  const testid = `map-svg-recipe-${role.id}`;
+                  const set = (id: string) =>
+                    role.kind === 'field'
+                      ? patchGeneric({ fields: { ...(generic.fields ?? {}), [role.id]: id } })
+                      : patchGeneric({ layers: { ...generic.layers, [role.id]: id } });
+                  return genericPicker(role, value, undefined, testid, set);
+                })}
+              {genericRows && genericRecipe?.rows && (
+                <>
+                  <label className="save-field">
+                    <span>{genericRecipe.rows.role.charAt(0).toUpperCase() + genericRecipe.rows.role.slice(1)} rows</span>
+                    <select
+                      value={String(genericRows.length)}
+                      onChange={(e) => setGenericRowCount(Number(e.target.value))}
+                      data-testid="map-svg-recipe-count"
+                    >
+                      {Array.from({ length: genericRecipe.rows.max - genericRecipe.rows.min + 1 }, (_, i) => genericRecipe.rows!.min + i).map((n) => (
+                        <option key={n} value={n}>
+                          {n} rows
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {genericRows.map((row, at) => (
+                    <div className="map-svg-quiz-row" key={at} data-testid={`map-svg-recipe-row-${at}`}>
+                      <span className="map-svg-quiz-letter">{rowKeyAt[at] ?? at + 1}</span>
+                      <div className="map-svg-quiz-states">
+                        {genericRoles
+                          .filter((role) => role.perRow)
+                          .map((role) => {
+                            const value = (role.kind === 'field' ? row.fields[role.id] : row.layers[role.id]) ?? '';
+                            const testid = `map-svg-recipe-${role.id}-${at}`;
+                            const set = (id: string) =>
+                              patchGenericRow(at, role.kind === 'field' ? { fields: { ...row.fields, [role.id]: id } } : { layers: { ...row.layers, [role.id]: id } });
+                            return genericPicker(role, value, rowKeyAt[at], testid, set);
+                          })}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
               <RecipeOptions recipeId={generic.recipe} values={generic.options} onChange={(options) => patchGeneric({ options })} />
             </>
           )}

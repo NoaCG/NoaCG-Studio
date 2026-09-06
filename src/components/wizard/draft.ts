@@ -33,6 +33,7 @@ import type {
   DesignSvgBehaviour,
   DesignSvgExtra,
   DesignSvgGrowth,
+  DesignSvgRecipeBehaviour,
   DesignSvgHidden,
   ExtraFieldSpec,
   LineSpec,
@@ -49,7 +50,7 @@ import type { EraseRect, RegionInk } from '../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../templates/behaviours/naming';
 import { recipeById } from '../../templates/behaviours/registry';
-import { BEHAVIOUR_WORDS } from '../../templates/behaviours/recipe';
+import { BEHAVIOUR_WORDS, rowKeys } from '../../templates/behaviours/recipe';
 import type { ProjectLegibility } from '../../model/designRules';
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
@@ -169,13 +170,29 @@ export interface SvgFieldDraft {
  */
 export type SvgBehaviourDraft = SvgQuizDraft | SvgPollDraft | SvgScoreDraft | SvgTimerDraft | SvgRecipeDraft;
 
-/** Any other recipe without rows, held generically (model/wizard.ts DesignSvgRecipeBehaviour). */
+/** Any other recipe, held generically (model/wizard.ts DesignSvgRecipeBehaviour): its roles are
+ *  read off the declaration, so a recipe added tomorrow needs no new member here. Every value
+ *  is a candidate id; indices are resolved at `svgBehaviourOption`, when the field order is known. */
 export interface SvgRecipeDraft {
   kind: 'recipe';
   recipe: string;
-  /** Layer role -> candidate id; empty = not picked. */
+  /** Graphic-level LAYER role -> candidate id; empty = not picked. */
   layers: Record<string, string>;
+  /** Graphic-level FIELD role -> the candidate id of the ticked text row the operator types. */
+  fields?: Record<string, string>;
+  /** One entry per row, in row order, for a recipe with rows: that row's field and layer picks. */
+  rows?: SvgRecipeRow[];
   options: Record<string, boolean>;
+}
+
+export interface SvgRecipeRow {
+  fields: Record<string, string>;
+  layers: Record<string, string>;
+}
+
+/** An empty row of a generic recipe - nothing picked yet. */
+export function emptyRecipeRow(): SvgRecipeRow {
+  return { fields: {}, layers: {} };
 }
 
 export interface SvgQuizDraft {
@@ -372,7 +389,11 @@ export function pollDrivenLayers(behaviour: SvgBehaviourDraft | null): Set<strin
         .filter((r) => r.kind === 'layer' && r.paint?.includes('write'))
         .map((r) => r.id),
     );
-    return new Set(Object.entries(behaviour.layers).filter(([role, id]) => written.has(role) && !!id).map(([, id]) => id));
+    const picks = [
+      ...Object.entries(behaviour.layers),
+      ...(behaviour.rows ?? []).flatMap((row) => Object.entries(row.layers)),
+    ];
+    return new Set(picks.filter(([role, id]) => written.has(role) && !!id).map(([, id]) => id));
   }
   if (behaviour?.kind !== 'poll') return new Set();
   return new Set(
@@ -1165,7 +1186,7 @@ export function behaviourBindingGaps(draft: WizardDraft): string[] {
   if (behaviour.kind === 'poll') return pollBindingGaps(behaviour);
   if (behaviour.kind === 'score') return scoreBindingGaps(draft, behaviour);
   if (behaviour.kind === 'timer') return timerBindingGaps(draft, behaviour);
-  if (behaviour.kind === 'recipe') return [];
+  if (behaviour.kind === 'recipe') return recipeBindingGaps(draft, behaviour);
   const on = draft.svgFields.filter((f) => f.on);
   const bound = (candidateId: string): boolean => on.some((f) => f.candidateId === candidateId);
   const gaps: string[] = [];
@@ -1173,6 +1194,42 @@ export function behaviourBindingGaps(draft: WizardDraft): string[] {
   const loose = behaviour.answers.filter((a) => !bound(a)).length;
   if (loose > 0) gaps.push(loose === 1 ? 'one answer layer' : `${loose} answer layers`);
   if (behaviour.answers.length < 2) gaps.push('at least two answers');
+  return gaps;
+}
+
+/**
+ * A generic recipe asks for what its declaration marks REQUIRED and nothing more: a required
+ * field role has to name a ticked text row (it becomes an operator field), a required layer role
+ * has to be picked, per row where the role repeats, and a recipe with rows needs at least its
+ * minimum. Everything optional stays the beginner path: a survey with no strikes drawn still
+ * reveals and adds up.
+ */
+function recipeBindingGaps(draft: WizardDraft, behaviour: SvgRecipeDraft): string[] {
+  const recipe = recipeById(behaviour.recipe);
+  if (!recipe) return [`a behaviour NoaCG knows (“${behaviour.recipe}” is not one)`];
+  const on = draft.svgFields.filter((f) => f.on);
+  const ticked = (candidateId: string): boolean => on.some((f) => f.candidateId === candidateId);
+  const gaps: string[] = [];
+  const rows = behaviour.rows ?? [];
+  if (recipe.rows && rows.length < recipe.rows.min) gaps.push(`at least ${recipe.rows.min} ${recipe.rows.role} rows`);
+  for (const role of recipe.roles) {
+    if (!role.required || role.countdown) continue;
+    const label = role.label.toLowerCase();
+    if (role.perRow) {
+      const missing = rows.filter((row) => !(role.kind === 'field' ? ticked(row.fields[role.id] ?? '') : row.layers[role.id])).length;
+      if (missing > 0) gaps.push(missing === 1 ? `the ${label} layer for one row` : `the ${label} layer for ${missing} rows`);
+    } else {
+      const picked = role.kind === 'field' ? behaviour.fields?.[role.id] ?? '' : behaviour.layers[role.id] ?? '';
+      if (!(role.kind === 'field' ? ticked(picked) : picked)) gaps.push(`which layer is the ${label}`);
+    }
+  }
+  // ONE LAYER, ONE JOB - the poll's rule, for the poll's reason: the second stamp is silent.
+  const picked = [
+    ...Object.values(behaviour.layers),
+    ...Object.values(behaviour.fields ?? {}),
+    ...rows.flatMap((row) => [...Object.values(row.fields), ...Object.values(row.layers)]),
+  ].filter(Boolean);
+  if (new Set(picked).size !== picked.length) gaps.push('one layer is picked for two things');
   return gaps;
 }
 
@@ -1385,16 +1442,38 @@ function svgBehaviourOption(draft: WizardDraft): DesignSvgBehaviour | null {
       expired: behaviour.expired || undefined,
     };
   }
+  const on = draft.svgFields.filter((f) => f.on);
+  const indexOf = (candidateId: string): number => on.findIndex((f) => f.candidateId === candidateId);
   if (behaviour.kind === 'recipe') {
+    const recipe = recipeById(behaviour.recipe);
+    const rows = behaviour.rows ?? [];
+    // Positional keys, as the quiz's letters and the score's numbers are: the row's place in the
+    // list is its key, whatever the layer was called.
+    const keys = recipe?.rows ? rowKeys(recipe.rows.keys, rows.length) : [];
+    const picked = (map: Record<string, string> | undefined): Record<string, string> =>
+      Object.fromEntries(Object.entries(map ?? {}).filter(([, id]) => !!id));
+    const perRow = <T,>(pick: (row: SvgRecipeRow) => Record<string, T>): Record<string, Record<string, T>> => {
+      const out: Record<string, Record<string, T>> = {};
+      rows.forEach((row, i) => {
+        for (const [role, value] of Object.entries(pick(row))) {
+          (out[role] ??= {})[keys[i]] = value;
+        }
+      });
+      return out;
+    };
+    const fields: NonNullable<DesignSvgRecipeBehaviour['fields']> = {
+      ...Object.fromEntries(Object.entries(picked(behaviour.fields)).map(([role, id]) => [role, indexOf(id)])),
+      ...perRow((row) => Object.fromEntries(Object.entries(picked(row.fields)).map(([role, id]) => [role, indexOf(id)]))),
+    };
     return {
       kind: 'recipe',
       recipe: behaviour.recipe,
-      layers: Object.fromEntries(Object.entries(behaviour.layers).filter(([, id]) => !!id)),
+      layers: { ...picked(behaviour.layers), ...perRow((row) => picked(row.layers)) },
+      ...(Object.keys(fields).length > 0 ? { fields } : {}),
+      ...(keys.length > 0 ? { rows: keys } : {}),
       ...(Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
     };
   }
-  const on = draft.svgFields.filter((f) => f.on);
-  const indexOf = (candidateId: string): number => on.findIndex((f) => f.candidateId === candidateId);
   if (behaviour.kind === 'score') {
     return {
       kind: 'score',
@@ -1499,10 +1578,24 @@ export function proposeSvgBehaviour(svg: SvgImportResult): SvgBehaviourDraft | n
     };
   }
   if (best.recipe !== 'vote') {
-    // Every recipe without rows is held generically - the meter today, whatever comes next.
+    // Every other recipe is held generically - the meter, the survey board, whatever comes next:
+    // its graphic-level picks by role, and one row per key the proposal found.
     const layers: Record<string, string> = {};
+    const fields: Record<string, string> = {};
     for (const [role, value] of Object.entries(best.layers)) if (typeof value === 'string') layers[role] = value;
-    return { kind: 'recipe', recipe: best.recipe, layers, options: {} };
+    for (const [role, value] of Object.entries(best.fields)) if (typeof value === 'string') fields[role] = value;
+    const rows: SvgRecipeRow[] = keys.map((key) => ({
+      fields: Object.fromEntries(Object.entries(best.fields).flatMap(([role, value]) => (typeof value === 'object' && value[key] ? [[role, value[key]]] : []))),
+      layers: Object.fromEntries(Object.entries(best.layers).flatMap(([role, value]) => (typeof value === 'object' && value[key] ? [[role, value[key]]] : []))),
+    }));
+    return {
+      kind: 'recipe',
+      recipe: best.recipe,
+      layers,
+      ...(Object.keys(fields).length > 0 ? { fields } : {}),
+      ...(rows.length > 0 ? { rows } : {}),
+      options: {},
+    };
   }
   return {
     kind: 'poll',

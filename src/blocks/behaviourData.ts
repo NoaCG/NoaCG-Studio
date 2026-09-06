@@ -55,6 +55,10 @@ export interface LookRule {
   look: string;
   /** The row set this look repeats over, when it is one look per row. */
   rows?: string;
+  /** ONE row's look, when the rule is about that row alone - a top-ten entry that stays up from
+   *  its own step on, which is a different state list per row and so a rule per row. A pick of a
+   *  row, never a comparison; `rows` and `row` are not used together. ADDITIVE OPTIONAL. */
+  row?: string;
   when?: BehaviourCondition;
   /** A small platform pop when the look is (re)painted on by a state entry - a flash, a
    *  winner mark. Never on a data repaint: a bar that overshoots reads as the wrong figure. */
@@ -194,6 +198,7 @@ function isRule(v: unknown): v is PaintRule {
   if (v.rows !== undefined && typeof v.rows !== 'string') return false;
   if (typeof v.look === 'string') {
     if (!ROLE_RE.test(v.look)) return false;
+    if (v.row !== undefined && (typeof v.row !== 'string' || v.rows !== undefined)) return false;
     if (v.when !== undefined && !isCondition(v.when)) return false;
     if (v.enter !== undefined && v.enter !== 'pop') return false;
     if (v.default !== undefined && typeof v.default !== 'string') return false;
