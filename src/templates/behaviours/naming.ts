@@ -28,13 +28,29 @@ import type { SvgImportResult } from '../../assets/svgImport';
 import type { BehaviourRecipe, RecipeRole } from './recipe';
 import { BEHAVIOUR_RECIPES } from './registry';
 
+/** The tokenizer's two rules, written once: what separates tokens, and what a key token is. */
+const TOKEN_GAP = /[\s_-]+/;
+const KEY_TOKEN = /^(?:[A-Za-z]|\d+)$/;
+
 /** A layer name split into its row KEY and the HEAD the role words are matched against. */
 export function rowTokenOf(label: string): { key: string | null; head: string } {
-  const tokens = label.trim().split(/[\s_-]+/).filter(Boolean);
-  const keys = tokens.filter((t) => /^(?:[A-Za-z]|\d+)$/.test(t));
+  const tokens = label.trim().split(TOKEN_GAP).filter(Boolean);
+  const keys = tokens.filter((t) => KEY_TOKEN.test(t));
   if (keys.length !== 1) return { key: null, head: label.trim() };
   const key = keys[0].toUpperCase();
   return { key, head: tokens.filter((t) => t !== keys[0]).join(' ') };
+}
+
+/** The same name for another row: `Answer A` with key `C` is `Answer C`. A name with no key
+ *  token (or several) is returned as it is. Lives beside the tokenizer so the two cannot drift. */
+export function withRowKey(label: string, key: string): string {
+  if (rowTokenOf(label).key === null) return label;
+  return label
+    .trim()
+    .split(TOKEN_GAP)
+    .filter(Boolean)
+    .map((t) => (KEY_TOKEN.test(t) ? key : t))
+    .join(' ');
 }
 
 /** Does this name play this role? Returns the row key for a per-row role, `''` for a role

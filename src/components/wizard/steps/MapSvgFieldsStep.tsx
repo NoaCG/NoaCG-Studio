@@ -32,7 +32,18 @@ import {
 } from '../draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf } from '../../../templates/behaviours/recipe';
-import { fillGap, nameHint, pickersOf, proposeFill, withFill, type FillLayer, type FillPick } from '../fieldAutoMap';
+import {
+  clearFill,
+  fillGap,
+  nameHint,
+  pickersOf,
+  proposeFill,
+  recipeIdOf,
+  rowKeysOf,
+  withFill,
+  type FillLayer,
+  type FillPick,
+} from '../fieldAutoMap';
 import { recipeById } from '../../../templates/behaviours/registry';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { extOf, fileToDataUrl } from '../../../assets/assetUtils';
@@ -539,11 +550,6 @@ const QUIZ_ANSWER_COUNTS = Array.from(
   { length: MAX_QUIZ_ANSWERS - MIN_QUIZ_ANSWERS + 1 },
   (_, i) => MIN_QUIZ_ANSWERS + i,
 );
-
-/** Which recipe a draft is: the four shapes the wizard grew one at a time, or the generic one. */
-function recipeIdOf(b: SvgBehaviourDraft): string {
-  return b.kind === 'poll' ? 'vote' : b.kind === 'timer' ? 'countdown' : b.kind === 'recipe' ? b.recipe : b.kind;
-}
 
 /** A picker's label is the ROLE'S OWN WORD (words.json), so the box, the docs' table and the
  *  name hint under the box all say the same thing - the vocabulary ruling in
@@ -1426,11 +1432,15 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
   const fillDrawn: FillLayer[] = quiz
     ? (draft.designSvg?.groups ?? []).map((g) => ({ id: g.id, label: g.label, hidden: g.hidden }))
     : scoreDrawn.map((g) => ({ id: g.id, label: g.label, hidden: g.hidden }));
-  const fillPickers = behaviour ? pickersOf(behaviour) : [];
-  const gap = behaviour && recipeId ? fillGap(recipeId, fillPickers, fillText, fillDrawn) : { empty: 0, spare: 0 };
-  // The fill's marks belong to the behaviour they were made on; a change of behaviour orphans
+  // A hidden group already declared a switch or a choice is in use, whatever the pickers say.
+  const fillTaken = draft.svgExtras.map((e) => e.candidateId);
+  const fillPickers = behaviour ? pickersOf(behaviour, fillText) : [];
+  /** Each row's key as the hints and the fill speak it - the key the row's own layer carries. */
+  const rowKeyAt = behaviour ? rowKeysOf(behaviour, fillText) : [];
+  const gap = behaviour && recipeId ? fillGap(recipeId, fillPickers, fillText, fillDrawn, fillTaken) : { empty: 0, spare: 0 };
+  // The fill's marks belong to the recipe they were made on; a change of behaviour orphans
   // them, and an orphaned mark would explain a box that no longer exists.
-  const fillShown = fill && behaviour && fill.before.kind === behaviour.kind ? fill : null;
+  const fillShown = fill && behaviour && recipeIdOf(fill.before) === recipeId ? fill : null;
   /** The reason under a box, while the box still holds what the fill chose. */
   const filledWhy = (role: string, key: string | undefined, value: string): string | undefined =>
     fillShown?.picks.find((p) => p.role === role && p.key === key && p.candidateId === value)?.reason;
@@ -1444,12 +1454,15 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
       ? measureLayers(stage, [...fillText, ...fillDrawn].map((l) => l.id))
       : new Map<string, Pick<FillLayer, 'box' | 'color'>>();
     const withGeometry = (l: FillLayer): FillLayer => ({ ...l, ...(measured.get(l.id) ?? {}) });
-    const picks = proposeFill(recipeId, fillPickers, fillText.map(withGeometry), fillDrawn.map(withGeometry));
+    const picks = proposeFill(recipeId, fillPickers, fillText.map(withGeometry), fillDrawn.map(withGeometry), fillTaken);
     setFill({ before: behaviour, picks });
-    if (picks.length > 0) onDraft({ svgBehaviour: withFill(behaviour, picks) });
+    if (picks.length > 0) onDraft({ svgBehaviour: withFill(behaviour, picks, fillText) });
   };
+  // UNDO EMPTIES THE BOXES THE FILL FILLED and nothing else: a box the reader changed since, a
+  // row they added, an option they ticked all stay - the press is taken back, not the minutes
+  // after it.
   const undoFill = () => {
-    if (fillShown && fillShown.picks.length > 0) onDraft({ svgBehaviour: fillShown.before });
+    if (behaviour && fillShown && fillShown.picks.length > 0) onDraft({ svgBehaviour: clearFill(behaviour, fillShown.picks, fillText) });
     setFill(null);
   };
 
@@ -2048,7 +2061,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                         </option>
                       ))}
                     </select>
-                    {hintFor('option', String(at + 1), row.label, `map-svg-poll-label-${at}`)}
+                    {hintFor('option', rowKeyAt[at], row.label, `map-svg-poll-label-${at}`)}
                   </label>
                   <div className="map-svg-quiz-states">
                     <label className="save-field">
@@ -2072,7 +2085,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
-                      {hintFor('bar', String(at + 1), row.bar, `map-svg-poll-bar-${at}`)}
+                      {hintFor('bar', rowKeyAt[at], row.bar, `map-svg-poll-bar-${at}`)}
                     </label>
                     <label className="save-field">
                       <span>Figure</span>
@@ -2089,7 +2102,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
-                      {hintFor('percent', String(at + 1), row.value, `map-svg-poll-value-${at}`)}
+                      {hintFor('percent', rowKeyAt[at], row.value, `map-svg-poll-value-${at}`)}
                     </label>
                     <label className="save-field">
                       <span>Winner</span>
@@ -2107,7 +2120,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
-                      {hintFor('winner', String(at + 1), row.winner, `map-svg-poll-winner-${at}`)}
+                      {hintFor('winner', rowKeyAt[at], row.winner, `map-svg-poll-winner-${at}`)}
                     </label>
                   </div>
                 </div>
@@ -2199,7 +2212,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                         </option>
                       ))}
                     </select>
-                    {hintFor('team', String(at + 1), row.name, `map-svg-score-name-${at}`)}
+                    {hintFor('team', rowKeyAt[at], row.name, `map-svg-score-name-${at}`)}
                   </label>
                   <div className="map-svg-quiz-states">
                     <label className="save-field">
@@ -2218,7 +2231,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
-                      {hintFor('score', String(at + 1), row.score, `map-svg-score-figure-${at}`)}
+                      {hintFor('score', rowKeyAt[at], row.score, `map-svg-score-figure-${at}`)}
                     </label>
                     <label className="save-field">
                       <span>Flash</span>
@@ -2236,7 +2249,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
-                      {hintFor('team.flash', String(at + 1), row.flash, `map-svg-score-flash-${at}`)}
+                      {hintFor('team.flash', rowKeyAt[at], row.flash, `map-svg-score-flash-${at}`)}
                     </label>
                   </div>
                 </div>
@@ -2425,7 +2438,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                         </option>
                       ))}
                     </select>
-                    {hintFor('answer', String.fromCharCode(65 + at), answerId, `map-svg-quiz-answer-${at}`)}
+                    {hintFor('answer', rowKeyAt[at], answerId, `map-svg-quiz-answer-${at}`)}
                   </label>
                   {/* The three drawn states travel together: they either sit beside the answer
                       or take their own line as a set of three. Individually wrapped, the
@@ -2448,7 +2461,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
-                      {hintFor(`answer.${state}`, String.fromCharCode(65 + at), quiz.rows[at]?.[state] ?? '', `map-svg-quiz-${state}-${at}`)}
+                      {hintFor(`answer.${state}`, rowKeyAt[at], quiz.rows[at]?.[state] ?? '', `map-svg-quiz-${state}-${at}`)}
                     </label>
                   ))}
                   </div>

@@ -87,11 +87,16 @@ interface WordsEntry {
 /** The role words of every recipe, as the table declares them (words.json). */
 export const BEHAVIOUR_WORDS = words as unknown as Record<string, WordsEntry>;
 
-/** A recipe's roles, compiled from words.json - the one place a role word is written. */
+/** A recipe's roles, compiled from words.json - the one place a role word is written. Compiled
+ *  ONCE per recipe: the mapping step asks for them per picker per render, and a role's regexes
+ *  are the same objects whoever asks. Callers never mutate the array. */
+const ROLES_BY_RECIPE = new Map<string, RecipeRole[]>();
 export function rolesOf(recipeId: string): RecipeRole[] {
+  const cached = ROLES_BY_RECIPE.get(recipeId);
+  if (cached) return cached;
   const entry = BEHAVIOUR_WORDS[recipeId];
   if (!entry) throw new Error(`Behaviour: words.json has no entry for "${recipeId}".`);
-  return entry.roles.map((r) => ({
+  const roles = entry.roles.map((r) => ({
     id: r.id,
     label: r.label,
     kind: r.kind,
@@ -105,6 +110,8 @@ export function rolesOf(recipeId: string): RecipeRole[] {
     words: new RegExp(r.words, 'i'),
     ...(r.weak ? { weak: new RegExp(r.weak, 'i') } : {}),
   }));
+  ROLES_BY_RECIPE.set(recipeId, roles);
+  return roles;
 }
 
 /** A recipe's row declaration from words.json. */

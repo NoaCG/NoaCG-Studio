@@ -1569,10 +1569,13 @@ test('the mapping step explains itself: the name under an empty box, the count o
   await page.getByTestId('map-svg-quiz-selected-0').selectOption({ label: 'Layer 10 (hidden)' });
   await expect(page.getByTestId('map-svg-quiz-selected-0-why')).toHaveCount(0);
 
-  // Undo puts the whole press back - the boxes, the names under them, the notice and the button.
+  // Undo takes the PRESS back, not the minutes after it: the boxes the fill filled empty again,
+  // with the names under them, the notice and the button; the box the reader set stays theirs.
   await page.getByTestId('map-svg-fill-undo').click();
   await expect(page.getByTestId('map-svg-quiz-wrong-0').locator('option:checked')).toContainText('NoaCG');
   await expect(page.getByTestId('map-svg-quiz-wrong-0-hint')).toHaveText('name it “A wrong”');
-  await expect(notice).toContainText('13 boxes');
+  await expect(page.getByTestId('map-svg-quiz-correct-1').locator('option:checked')).toContainText('NoaCG');
+  await expect(page.getByTestId('map-svg-quiz-selected-0').locator('option:checked')).toHaveText('Layer 10 (hidden)');
+  await expect(notice).toContainText('12 boxes');
   await expect(page.getByTestId('map-svg-fill-button')).toBeVisible();
 });

@@ -20,8 +20,8 @@
 // PICKERS - one per box on the screen, named by the recipe's role id and its row key - and the
 // two adapters at the bottom translate a behaviour draft to pickers and a fill back into it.
 
-import { BEHAVIOUR_WORDS, rolesOf, rowsOf, type RecipeRole } from '../../templates/behaviours/recipe';
-import { matchRole, rowTokenOf } from '../../templates/behaviours/naming';
+import { BEHAVIOUR_WORDS, rolesOf, rowKeys, rowsOf, type RecipeRole } from '../../templates/behaviours/recipe';
+import { matchRole, withRowKey } from '../../templates/behaviours/naming';
 import type { SvgBehaviourDraft } from './draft';
 
 /** One box on the mapping step: which role it binds, for which row, from which inventory. */
@@ -59,16 +59,6 @@ function taughtNames(recipeId: string, roleId: string): string[] {
   return entry ? [entry.teach, ...(entry.also ?? [])] : [];
 }
 
-/** `Answer A` re-keyed to row C is `Answer C`; a name with no key token is returned as is. */
-function rekey(name: string, key: string): string {
-  if (rowTokenOf(name).key === null) return name;
-  return name
-    .trim()
-    .split(/[\s_-]+/)
-    .map((t) => (/^(?:[A-Za-z]|\d+)$/.test(t) ? key : t))
-    .join(' ');
-}
-
 /**
  * The names that would fill this picker, first the one the docs teach. Each is put through the
  * matcher for THIS row before it is offered: a taught name the matcher would not read as this
@@ -79,7 +69,7 @@ export function namesThatFill(recipeId: string, roleId: string, rowKey?: string)
   if (!role || role.countdown) return [];
   const out: string[] = [];
   for (const taught of taughtNames(recipeId, roleId)) {
-    const name = rowKey ? rekey(taught, rowKey) : taught;
+    const name = rowKey ? withRowKey(taught, rowKey) : taught;
     const match = matchRole(role, name);
     if (!match || match.key !== (rowKey ?? '')) continue;
     if (!out.includes(name)) out.push(name);
@@ -111,6 +101,15 @@ function candidatesFor(pool: Pool, text: FillLayer[], drawn: FillLayer[]): FillL
   return drawn;
 }
 
+/** The boxes still empty (the clock's is bound by kind, never by a name, so it is never one),
+ *  and every layer already in use - by a box, or by something other than these boxes (`taken`:
+ *  a hidden group declared a switch or a choice), so it is neither counted as unused nor filled. */
+function emptyAndClaimed(roles: RecipeRole[], pickers: FillPicker[], taken: string[]) {
+  const claimed = new Set([...pickers.map((p) => p.value).filter(Boolean), ...taken]);
+  const empty = pickers.filter((p) => !p.value && roles.some((r) => r.id === p.role && !r.countdown));
+  return { empty, claimed };
+}
+
 /**
  * How many pickers are still empty, and how many unused layers the file holds that one of them
  * could take. The step shows its notice off these two numbers.
@@ -120,10 +119,10 @@ export function fillGap(
   pickers: FillPicker[],
   text: FillLayer[],
   drawn: FillLayer[],
+  taken: string[] = [],
 ): { empty: number; spare: number } {
   const roles = rolesOf(recipeId);
-  const claimed = new Set(pickers.map((p) => p.value).filter(Boolean));
-  const empty = pickers.filter((p) => !p.value && roles.some((r) => r.id === p.role && !r.countdown));
+  const { empty, claimed } = emptyAndClaimed(roles, pickers, taken);
   const pools = new Set(empty.map((p) => poolOf(roles.find((r) => r.id === p.role)!)));
   const spareIds = new Set<string>();
   for (const pool of pools) {
@@ -157,12 +156,14 @@ const height = (l: FillLayer) => (l.box ? l.box.bottom - l.box.top : 0);
  *   1. NAMES, through the same matcher the drop used - a layer whose name reads as the role for
  *      this row. Reaches a picker the drop left empty when the reader chose the behaviour by hand.
  *   2. THE ROW TEXT (answers, teams, options): unused text layers top to bottom, one per empty row.
- *      A rowless text role that is the first in its recipe (the question) takes the topmost first.
+ *      A question, where the recipe has one, takes the topmost first.
  *   3. THE ROW'S OTHER TEXT (a team's figure, an option's percentage): the unused text layer that
  *      sits on that row - nearest vertical centre - a plain figure where the role asks for one.
- *   4. THE ROW'S DRAWINGS: an unused HIDDEN drawing whose centre sits on the row. Several on one
- *      row are told apart by colour where the role has one (green is correct, red is wrong), else
- *      by the order the file draws them, in the recipe's role order.
+ *   4. THE ROW'S DRAWINGS: an unused HIDDEN drawing whose centre sits on the row and reaches
+ *      across its words. Several on one row are told apart by colour where the role has one
+ *      (green is correct, red is wrong), else by the order the file draws them, in the recipe's
+ *      role order. A bar (a gauge) is the widest drawing beside the row's words - never one that
+ *      spans the words, which is the row's own plate.
  *   5. ONE LEFT, ONE BOX: a rowless drawing role is filled only when exactly one empty box and
  *      exactly one unused drawing of its pool remain. Anything less certain stays empty.
  *
@@ -174,11 +175,11 @@ export function proposeFill(
   pickers: FillPicker[],
   text: FillLayer[],
   drawn: FillLayer[],
+  taken: string[] = [],
 ): FillPick[] {
   const roles = rolesOf(recipeId);
   const roleOf = (id: string) => roles.find((r) => r.id === id);
-  const claimed = new Set(pickers.map((p) => p.value).filter(Boolean));
-  const empty = pickers.filter((p) => !p.value && roleOf(p.role) && !roleOf(p.role)!.countdown);
+  const { empty, claimed } = emptyAndClaimed(roles, pickers, taken);
   const picks: FillPick[] = [];
   const take = (picker: FillPicker, layer: FillLayer, reason: string) => {
     picks.push({ role: picker.role, key: picker.key, candidateId: layer.id, reason });
@@ -210,24 +211,28 @@ export function proposeFill(
     const filled = picks.find((p) => p.role === rowRoleId && p.key === key)?.candidateId;
     return text.find((l) => l.id === (bound || filled));
   };
-  const byTop = (a: FillLayer, b: FillLayer) => (centre(a) ?? 0) - (centre(b) ?? 0);
+  // Top to bottom where the layers were measured; an unmeasured layer goes LAST, never first.
+  const byTop = (a: FillLayer, b: FillLayer) => (centre(a) ?? Infinity) - (centre(b) ?? Infinity);
+  const measured = text.some((l) => centre(l) != null);
+  const topDown = (layers: FillLayer[]) => (measured ? [...layers].sort(byTop) : layers);
   const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 
   // 2. The row text, and the question before it.
-  const firstTextRole = roles.find((r) => poolOf(r) === 'text' && !r.perRow && !r.countdown);
-  const question = firstTextRole && empty.find((p) => p.role === firstTextRole.id);
+  const questionRole = roleOf('question');
+  const question = questionRole && poolOf(questionRole) === 'text' && empty.find((p) => p.role === 'question');
   if (question) {
-    const layer = wordsFirst(firstTextRole!, [...spare('text')].sort(byTop)).find((l) => fits(firstTextRole!, l));
-    if (layer) take(question, layer, 'the top text layer');
+    const layer = wordsFirst(questionRole!, topDown(spare('text'))).find((l) => fits(questionRole!, l));
+    if (layer) take(question, layer, measured ? 'the top text layer' : 'the first text layer in the file');
   }
   if (rowRoleId) {
     const rowRole = roleOf(rowRoleId)!;
     const rows = empty.filter((p) => p.role === rowRoleId);
+    const order = topDown(text);
     for (const picker of rows) {
-      const layer = wordsFirst(rowRole, spare('text')).find((l) => fits(rowRole, l));
+      const layer = wordsFirst(rowRole, topDown(spare('text'))).find((l) => fits(rowRole, l));
       if (!layer) break;
-      const at = text.indexOf(layer) + 1;
-      take(picker, layer, `the ${ordinal(at)} text layer in the file`);
+      const at = order.indexOf(layer) + 1;
+      take(picker, layer, `the ${ordinal(at)} text layer ${measured ? 'from the top' : 'in the file'}`);
     }
   }
 
@@ -248,10 +253,12 @@ export function proposeFill(
   const rowKeys = [...new Set(pickers.map((p) => p.key).filter((k): k is string => !!k))];
   const anchors = rowKeys.map((key) => ({ key, c: (() => { const a = anchorOf(key); return a ? centre(a) : null; })() }));
   // A drawing is ON a row when its centre sits within the row text's own height of that text's
-  // centre, nearer to it than to any other row's, AND it reaches across the text sideways - a
-  // row's highlight spans its words; a "+1" stamp far to the right at the same height does not,
-  // and binding it as the row's look would hide the stamp and light the wrong thing.
-  const rowOf = (layer: FillLayer): string | null => {
+  // centre and nearer to it than to any other row's. A LOOK must also reach across the words - a
+  // row's highlight spans them; a "+1" stamp far to the right at the same height does not, and
+  // binding it as the row's look would hide the stamp and light the wrong thing. A GAUGE is the
+  // opposite: a bar sits BESIDE the words, and a drawing that spans them end to end is the row's
+  // own plate, which scaled by a vote share would be the wrong thing moving.
+  const rowOf = (layer: FillLayer, pool: 'look' | 'gauge'): string | null => {
     const c = centre(layer);
     if (c == null || !layer.box) return null;
     let best: { key: string; d: number } | null = null;
@@ -266,14 +273,16 @@ export function proposeFill(
     const anchor = anchorOf(best.key);
     if (!anchor?.box) return null;
     const across = layer.box.left <= anchor.box.right && layer.box.right >= anchor.box.left;
-    return across && best.d <= Math.max(height(anchor), 1) * 1.5 && best.d < nearestOther ? best.key : null;
+    const spans = layer.box.left <= anchor.box.left && layer.box.right >= anchor.box.right;
+    const fits = pool === 'look' ? across : !spans;
+    return fits && best.d <= Math.max(height(anchor), 1) * 1.5 && best.d < nearestOther ? best.key : null;
   };
   for (const key of rowKeys) {
     for (const pool of ['look', 'gauge'] as const) {
       const boxes = empty.filter((p) => p.key === key && poolOf(roleOf(p.role)!) === pool);
       if (boxes.length === 0) continue;
       const here = spare(pool)
-        .filter((l) => rowOf(l) === key)
+        .filter((l) => rowOf(l, pool) === key)
         .sort((a, b) => drawn.indexOf(a) - drawn.indexOf(b));
       if (here.length === 0) continue;
       // Colour first, for the roles that have one.
@@ -290,9 +299,9 @@ export function proposeFill(
       const left = here.filter((l) => !claimed.has(l.id));
       if (left.length === 0) continue;
       if (pool === 'gauge') {
-        // A bar is the widest drawing on its row.
+        // A bar is the widest drawing beside its row's words.
         const widest = [...left].sort((a, b) => (b.box!.right - b.box!.left) - (a.box!.right - a.box!.left))[0];
-        take(boxes[0], widest, `the widest drawing on row ${key}`);
+        take(boxes[0], widest, `the widest drawing beside row ${key}`);
         continue;
       }
       const total = left.length;
@@ -323,109 +332,121 @@ export function proposeFill(
 
 // ── THE DRAFT, AS PICKERS, AND BACK ──
 
-const QUIZ_STATES = ['selected', 'correct', 'wrong'] as const;
-const letter = (i: number) => String.fromCharCode(65 + i);
-
-/** Every box the step shows for this behaviour, in the step's own order. */
-export function pickersOf(b: SvgBehaviourDraft): FillPicker[] {
-  if (b.kind === 'quiz') {
-    return [
-      { role: 'question', value: b.question },
-      ...b.answers.flatMap((a, i) => [
-        { role: 'answer', key: letter(i), value: a },
-        ...QUIZ_STATES.map((s) => ({ role: `answer.${s}`, key: letter(i), value: b.rows[i]?.[s] ?? '' })),
-      ]),
-      { role: 'locked', value: b.locked },
-    ];
-  }
-  if (b.kind === 'score') {
-    return [
-      ...b.rows.flatMap((r, i) => [
-        { role: 'team', key: String(i + 1), value: r.name },
-        { role: 'score', key: String(i + 1), value: r.score },
-        { role: 'team.flash', key: String(i + 1), value: r.flash },
-      ]),
-      { role: 'final', value: b.final },
-    ];
-  }
-  if (b.kind === 'poll') {
-    return [
-      { role: 'question', value: b.question },
-      ...b.rows.flatMap((r, i) => [
-        { role: 'option', key: String(i + 1), value: r.label },
-        { role: 'bar', key: String(i + 1), value: r.bar },
-        { role: 'percent', key: String(i + 1), value: r.value },
-        { role: 'winner', key: String(i + 1), value: r.winner },
-      ]),
-      { role: 'total', value: b.total },
-      { role: 'badge', value: b.badge },
-    ];
-  }
-  if (b.kind === 'timer') {
-    return [
-      { role: 'bar', value: b.bar },
-      { role: 'warning', value: b.warning },
-      { role: 'paused', value: b.paused },
-      { role: 'expired', value: b.expired },
-    ];
-  }
-  return rolesOf(b.recipe)
-    .filter((r) => r.kind === 'layer')
-    .map((r) => ({ role: r.id, value: b.layers[r.id] ?? '' }));
+/** The text layer each row is known by, in row order: the answer, the team name, the option. */
+function rowLayerIds(b: SvgBehaviourDraft): string[] {
+  if (b.kind === 'quiz') return b.answers;
+  if (b.kind === 'score') return b.rows.map((r) => r.name);
+  if (b.kind === 'poll') return b.rows.map((r) => r.label);
+  return [];
 }
 
-/** The behaviour with the picks written into their boxes; everything else untouched. */
-export function withFill(b: SvgBehaviourDraft, picks: FillPick[]): SvgBehaviourDraft {
-  const pick = (role: string, key?: string) => picks.find((p) => p.role === role && p.key === key)?.candidateId;
-  const or = (current: string, role: string, key?: string) => current || pick(role, key) || '';
+/**
+ * THE KEY OF EACH ROW is the key the matcher READS off its own text layer - `Answer 1` is row 1,
+ * `Answer B` is row B - because that is the key the drop binds moments by (naming.ts): a hint
+ * that taught "A selected" beside a row named `Answer 1` would teach a name the import does not
+ * read, and a fill that refused `1 selected` for it would refuse a name the import binds. A row
+ * whose layer the matcher does not read as a row at all ("Group 7"), or a set of keys that
+ * collide, falls back to the recipe's own positional keys (letters for the quiz, numbers for the
+ * rest) - on such a board no key is honoured by name, and positional is the one a reader expects.
+ */
+export function rowKeysOf(b: SvgBehaviourDraft, text: FillLayer[]): string[] {
+  const ids = rowLayerIds(b);
+  const recipeId = recipeIdOf(b);
+  const rows = rowsOf(recipeId);
+  const rowRole = rows && rolesOf(recipeId).find((r) => r.id === rows.role);
+  const positional = rowKeys(rows?.keys ?? 'numbers', ids.length);
+  if (!rowRole) return positional;
+  const named = ids.map((id, i) => {
+    const label = text.find((l) => l.id === id)?.label;
+    return (label && matchRole(rowRole, label)?.key) || positional[i];
+  });
+  return new Set(named).size === named.length ? named : positional;
+}
+
+/** Which recipe a draft is: the four shapes the wizard grew one at a time, or the generic one. */
+export function recipeIdOf(b: SvgBehaviourDraft): string {
+  return b.kind === 'poll' ? 'vote' : b.kind === 'timer' ? 'countdown' : b.kind === 'recipe' ? b.recipe : b.kind;
+}
+
+/** Every box of the behaviour, visited in the step's own order, each mapped to its next value. */
+function mapBoxes(b: SvgBehaviourDraft, text: FillLayer[], f: (role: string, key: string | undefined, value: string) => string): SvgBehaviourDraft {
+  const keys = rowKeysOf(b, text);
   if (b.kind === 'quiz') {
     return {
       ...b,
-      question: or(b.question, 'question'),
-      answers: b.answers.map((a, i) => or(a, 'answer', letter(i))),
+      question: f('question', undefined, b.question),
+      answers: b.answers.map((a, i) => f('answer', keys[i], a)),
       rows: b.rows.map((r, i) => ({
-        selected: or(r.selected, 'answer.selected', letter(i)),
-        correct: or(r.correct, 'answer.correct', letter(i)),
-        wrong: or(r.wrong, 'answer.wrong', letter(i)),
+        selected: f('answer.selected', keys[i], r.selected),
+        correct: f('answer.correct', keys[i], r.correct),
+        wrong: f('answer.wrong', keys[i], r.wrong),
       })),
-      locked: or(b.locked, 'locked'),
+      locked: f('locked', undefined, b.locked),
     };
   }
   if (b.kind === 'score') {
     return {
       ...b,
       rows: b.rows.map((r, i) => ({
-        name: or(r.name, 'team', String(i + 1)),
-        score: or(r.score, 'score', String(i + 1)),
-        flash: or(r.flash, 'team.flash', String(i + 1)),
+        name: f('team', keys[i], r.name),
+        score: f('score', keys[i], r.score),
+        flash: f('team.flash', keys[i], r.flash),
       })),
-      final: or(b.final, 'final'),
+      final: f('final', undefined, b.final),
     };
   }
   if (b.kind === 'poll') {
     return {
       ...b,
-      question: or(b.question, 'question'),
+      question: f('question', undefined, b.question),
       rows: b.rows.map((r, i) => ({
-        label: or(r.label, 'option', String(i + 1)),
-        bar: or(r.bar, 'bar', String(i + 1)),
-        value: or(r.value, 'percent', String(i + 1)),
-        winner: or(r.winner, 'winner', String(i + 1)),
+        label: f('option', keys[i], r.label),
+        bar: f('bar', keys[i], r.bar),
+        value: f('percent', keys[i], r.value),
+        winner: f('winner', keys[i], r.winner),
       })),
-      total: or(b.total, 'total'),
-      badge: or(b.badge, 'badge'),
+      total: f('total', undefined, b.total),
+      badge: f('badge', undefined, b.badge),
     };
   }
   if (b.kind === 'timer') {
     return {
       ...b,
-      bar: or(b.bar, 'bar'),
-      warning: or(b.warning, 'warning'),
-      paused: or(b.paused, 'paused'),
-      expired: or(b.expired, 'expired'),
+      bar: f('bar', undefined, b.bar),
+      warning: f('warning', undefined, b.warning),
+      paused: f('paused', undefined, b.paused),
+      expired: f('expired', undefined, b.expired),
     };
   }
-  const layers = { ...b.layers };
-  for (const p of picks) if (!p.key && !layers[p.role]) layers[p.role] = p.candidateId;
+  const layers: Record<string, string> = {};
+  for (const role of rolesOf(b.recipe)) {
+    if (role.kind !== 'layer') continue;
+    const value = f(role.id, undefined, b.layers[role.id] ?? '');
+    if (value) layers[role.id] = value;
+  }
   return { ...b, layers };
+}
+
+/** Every box the step shows for this behaviour, in the step's own order. */
+export function pickersOf(b: SvgBehaviourDraft, text: FillLayer[]): FillPicker[] {
+  const out: FillPicker[] = [];
+  mapBoxes(b, text, (role, key, value) => {
+    out.push({ role, key, value });
+    return value;
+  });
+  return out;
+}
+
+const pickFor = (picks: FillPick[], role: string, key: string | undefined, value?: string) =>
+  picks.find((p) => p.role === role && p.key === key && (value === undefined || p.candidateId === value));
+
+/** The behaviour with the picks written into their EMPTY boxes; everything else untouched. */
+export function withFill(b: SvgBehaviourDraft, picks: FillPick[], text: FillLayer[]): SvgBehaviourDraft {
+  return mapBoxes(b, text, (role, key, value) => value || pickFor(picks, role, key)?.candidateId || '');
+}
+
+/** The behaviour with every box that STILL holds its pick emptied again - the Undo. A box the
+ *  reader changed since keeps what they chose; so does everything the fill never touched. */
+export function clearFill(b: SvgBehaviourDraft, picks: FillPick[], text: FillLayer[]): SvgBehaviourDraft {
+  return mapBoxes(b, text, (role, key, value) => (pickFor(picks, role, key, value) ? '' : value));
 }
