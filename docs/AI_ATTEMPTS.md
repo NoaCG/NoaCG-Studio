@@ -714,6 +714,20 @@ from the graphic's own entrance duration in its data block, bounded to [1800ms, 
 **Consequence for the frames already on disk: they were shot under the flat wait and must be
 re-captured before any blind read.**
 
+**A FIFTH fault, found on the resumed bank, and it is unwinnable by construction.** Every
+quiz-board cell refuses on `runtime:step-contract` - "step 2 of 3 changed nothing on screen after
+next()" - in every round. The scaffold is why: the neutral quiz spine's middle step, named "Reveal",
+carries **zero layers, zero reveals and zero hides**. It is an empty step, so it cannot change
+anything, and the bench blocks delivery on exactly that. The model cannot fix it either, because
+quiz-board carries a machine and the workbench therefore refuses it the ANIMATION region - it is
+told "the region is platform-owned here". So the platform hands the model a graphic whose machine
+has an empty middle step, blocks the graphic on that step doing nothing, and refuses the model the
+one region that could change it. The model diagnosed it correctly and said so before stopping
+("step 2 not changing (likely a state machine issue)"), which is the same shape as the animation
+region: it was right and the platform was wrong. This is the class this file already names -
+**repair rounds unwinnable by construction** - and the standing instruction under "Teaching the
+free-form coder its structure spine by example" applies unchanged.
+
 **RETRY WHEN** the bank finishes on the fixed harness - the run is resumable
 (`--resume --out=pro-harness-out-gemini-v3`) and 2 of 21 are recorded. The standing instruction this
 round adds: **when a harness round refuses work that looks correct, reproduce the refusal in the
