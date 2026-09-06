@@ -35,6 +35,13 @@ same way; `registry.ts` is the list.
   runtime's `counter` kind only clamps what is painted.
 - **The row role must be a real role** (`rows.role` names a declared role id), or the proposal
   finds no rows and the wizard shows none.
+- **A press that appends to a list rides `add`** (`add: { list: source }`, the puzzle's Reveal
+  letter, the bingo's Call it), its undo rides `remove`, and the list is a `lines` field the
+  `row-set` kind can read (`listed` / `unlisted` / `last` per row, `any` / `none` for the whole
+  list). Never an event that mutates a field from inside the template: the operator's box would
+  not move with the board.
+- **A press that must not replay the entrance rides a parallel group of ONE state** with
+  self-transitions (the puzzle's `letters`, the bingo's `board`), never a self-edge on waypoint 0.
 
 E2E: `e2e/import-svg-behaviour.spec.ts` (every recipe, the composition, the defaults, the options)
 and `e2e/student-rehearsal.spec.ts`.

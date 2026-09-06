@@ -644,7 +644,7 @@
   "puzzle": {
     "name": "The puzzle board",
     "verbs": "letters appear as they are called",
-    "buttons": "Solve and New puzzle, plus the Puzzle box (the phrase) and the Revealed letters box you add each called letter to",
+    "buttons": "Reveal letter and Take back a letter (both read the Guess box), Solve and New puzzle, plus the Puzzle box (the phrase) and the Revealed letters box, one letter per line or all on one line",
     "rows": {
       "role": "tile",
       "keys": "numbers",
@@ -730,6 +730,81 @@
         "teach": "Cover",
         "also": ["Envelope", "Sealed", "Kansi"],
         "what": "shown until the reveal - the sealed plate over the text"
+      }
+    ]
+  },
+  "bingo": {
+    "name": "The bingo caller",
+    "verbs": "one press calls a number",
+    "buttons": "Call it, Take back and New game, plus the Number to call box with + and − and the Called numbers box (one number per line, in the order they were called)",
+    "rows": {
+      "role": "called",
+      "keys": "numbers",
+      "min": 5,
+      "max": 90,
+      "teach": "Five to ninety numbers, one Called layer each. Name the numeral on each tile Number 1, Number 2 and so on, and it stays your drawing instead of arriving as a field."
+    },
+    "roles": [
+      {
+        "id": "number",
+        "label": "Numeral",
+        "kind": "layer",
+        "paint": ["write"],
+        "perRow": true,
+        "pool": "text",
+        "words": "^(?:number|num|no|ball|numero|pallo)$",
+        "teach": "Number 7",
+        "also": ["Ball 7", "Numero 7"],
+        "what": "the numeral on a tile, left as you drew it - naming it keeps it out of the operator’s fields"
+      },
+      {
+        "id": "called",
+        "label": "Called",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "required": true,
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "called|lit|marked|huudettu",
+        "teach": "Called 7",
+        "also": ["Marked 7", "Huudettu 7"],
+        "what": "shown on a number once it has been called"
+      },
+      {
+        "id": "called.last",
+        "label": "Last called",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "^(?:last|latest|newest|ring|viimeisin)$",
+        "teach": "Last 7",
+        "also": ["Latest 7", "Ring 7"],
+        "what": "shown on the number called most recently, until the next call"
+      },
+      {
+        "id": "latest",
+        "label": "Last call readout",
+        "kind": "layer",
+        "paint": ["write", "look"],
+        "pool": "text",
+        "words": "^(?:last call|latest|now calling|viimeisin numero)$",
+        "teach": "Last call",
+        "also": ["Latest", "Now calling"],
+        "what": "the number called most recently, written large - hidden until the first call"
+      },
+      {
+        "id": "tally",
+        "label": "Count",
+        "kind": "layer",
+        "paint": ["write"],
+        "pool": "text",
+        "words": "^(?:count|calls|so far|lukumäärä)$",
+        "teach": "Count",
+        "also": ["Calls", "So far"],
+        "what": "how many numbers have been called, written by the board"
       }
     ]
   }

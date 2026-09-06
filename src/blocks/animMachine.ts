@@ -290,6 +290,10 @@ export interface ControlButton {
   adjust?: Record<string, number>;
   /** Field ids the press SETS to the declared figure (a score board's "New game"). */
   set?: Record<string, string>;
+  /** List field ids the press ADDS A LINE TO, from the named source field's current value (a
+   *  puzzle's "Reveal letter"); `remove` takes that line back out - the list twin of `adjust`. */
+  add?: Record<string, string>;
+  remove?: Record<string, string>;
   destructive?: boolean;
 }
 
@@ -320,6 +324,8 @@ export function machineControls(machine: AnimMachine): ControlButton[] {
     if (c?.payload !== undefined) button.payload = c.payload;
     if (c?.adjust !== undefined) button.adjust = c.adjust;
     if (c?.set !== undefined) button.set = c.set;
+    if (c?.add !== undefined) button.add = c.add;
+    if (c?.remove !== undefined) button.remove = c.remove;
     if (c?.destructive !== undefined) button.destructive = c.destructive;
     return button;
   });

@@ -96,13 +96,17 @@ function customActions(template: SpxTemplate): Array<Record<string, unknown>> {
     // field (a score board's "New game" putting a score back to 0) rides the same way and for
     // the same reason: the action really does take a new score, and only a NoaCG host knows
     // which figure the button declares.
-    ...(button.section || button.destructive || button.adjust || button.set
+    // An ADDED list (a puzzle's Reveal letter) rides the same way again: the action takes the new
+    // list, and only a NoaCG host knows which box the line comes from.
+    ...(button.section || button.destructive || button.adjust || button.set || button.add || button.remove
       ? {
           v_noacg: {
             ...(button.section ? { section: button.section } : {}),
             ...(button.destructive ? { destructive: true } : {}),
             ...(button.adjust ? { adjust: button.adjust } : {}),
             ...(button.set ? { set: button.set } : {}),
+            ...(button.add ? { add: button.add } : {}),
+            ...(button.remove ? { remove: button.remove } : {}),
           },
         }
       : {}),
@@ -112,7 +116,7 @@ function customActions(template: SpxTemplate): Array<Record<string, unknown>> {
     // author forgot to describe it — so a generated operator form has to guess whether to draw
     // anything. Our own reader (control/ografContract.ts) treats both the same way, but a
     // stranger's does not have to.
-    ...(button.payload?.length || button.adjust || button.set
+    ...(button.payload?.length || button.adjust || button.set || button.add || button.remove
       ? {
           schema: {
             type: 'object',
@@ -121,6 +125,8 @@ function customActions(template: SpxTemplate): Array<Record<string, unknown>> {
                 ...(button.payload ?? []),
                 ...Object.keys(button.adjust ?? {}),
                 ...Object.keys(button.set ?? {}),
+                ...Object.keys(button.add ?? {}),
+                ...Object.keys(button.remove ?? {}),
               ].map((key) => {
                 const field = byId.get(key);
                 return [

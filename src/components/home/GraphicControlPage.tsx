@@ -14,6 +14,7 @@ import {
   machineStateNames,
   movedKeys,
   overflowNote,
+  sourceKeys,
   type ControlButton,
 } from '../../control/controlModel';
 import { renderControlPanelHtml } from '../../control/controlPanelHtml';
@@ -345,10 +346,14 @@ export default function GraphicControlPage({ id }: { id: string }) {
     // graphic keeps the field values it already has on air - the same thing the exported panel
     // does, where the payload comes from field boxes that always hold a value.
     const descriptorByKey = new Map(descriptors.map((d) => [d.key, d]));
+    // A field the press MOVES (an adjust's figure, an add's list) or READS (an add's source)
+    // has a value here even with no entry: the last figure a press put up, else the default -
+    // so a goal counts from something and a Reveal letter has a box to read.
+    const counted = new Set([...movedKeys(b), ...sourceKeys(b)]);
     const payload = eventPayload(b, (key) => {
       const entryValue = active?.values[key];
       if (entryValue !== undefined) return String(entryValue);
-      if (b.adjust && key in b.adjust) return adjusted[key] ?? descriptorByKey.get(key)?.defaultValue;
+      if (counted.has(key)) return adjusted[key] ?? descriptorByKey.get(key)?.defaultValue;
       return undefined;
     });
     postCmd({ cmd: 'dispatch', event: b.event, payload: payload ?? {} });
@@ -695,7 +700,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
                           title={
                             !legal
                               ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
-                              : b.adjust || b.set
+                              : movedKeys(b).length > 0
                                 ? `Fires "${b.event}" and moves ${adjustWords(b)} with it`
                                 : b.payload?.length
                                   ? active

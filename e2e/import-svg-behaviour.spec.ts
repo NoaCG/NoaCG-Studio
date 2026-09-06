@@ -1760,9 +1760,12 @@ test('lineup with a segment bug and a coming-up strip: Next guest walks the list
   await shot(page, '35-lineup-with-extras');
 });
 
-test('puzzle board: letters appear as they are added to the revealed box, and Solve shows the rest', async ({ page }) => {
+test('puzzle board: one press reveals the guessed letter, one takes it back, and Solve shows the rest', async ({ page }) => {
   // The Wheel of Fortune board: every tile's truth is derived from one typed phrase, character
-  // by character, by the runtime's puzzle kind - a data write, never a state per letter.
+  // by character, by the runtime's puzzle kind - a data write, never a state per letter. The
+  // press that reveals a letter is `add`, the list twin of `adjust`: the surface appends the
+  // Guess box to the revealed list and the whole list rides the event, so the operator's own box
+  // moves with the board and the data road (type the letters, Update) still works beside it.
   test.slow();
   await openImportDoor(page, SHOW('puzzle-board'));
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('puzzle');
@@ -1772,7 +1775,8 @@ test('puzzle board: letters appear as they are added to the revealed box, and So
   await intoProduction(page, 'Puzzle', 'Game night');
   await settleDurableWrites(page);
 
-  // The category is the artwork's field; the phrase and the revealed letters are the recipe's.
+  // The category is the artwork's field; the phrase, the revealed letters and the guess are
+  // the recipe's, in that order.
   await page.getByTestId('cue-field-f1').fill('SURVEY SAYS');
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
@@ -1786,7 +1790,33 @@ test('puzzle board: letters appear as they are added to the revealed box, and So
   await expect(layer('tile/1')).toHaveText('S');
   await shot(page, '36-puzzle-blank');
 
-  await page.getByTestId('cue-field-f2').fill('RSTLNE');
+  // ONE PRESS PER LETTER. The guess rides the event appended to the revealed list, and the list
+  // box on this page reads what air reads; a second press with the same letter adds nothing.
+  const actions = page.getByTestId('cue-actions');
+  const reveal = actions.getByRole('button', { name: /Reveal letter$/ });
+  const revealed = page.getByTestId('cue-field-f2');
+  await page.getByTestId('cue-field-f3').fill('R');
+  await reveal.click();
+  await lit('tile/3'); // R
+  await dark('tile/1'); // S, not yet
+  await expect(revealed).toHaveValue('R');
+  await page.getByTestId('cue-field-f3').fill('S');
+  await reveal.click();
+  await lit('tile/1'); // S
+  await lit('tile/8'); // the second S
+  await expect(revealed).toHaveValue('R\nS');
+  await reveal.click();
+  await expect(revealed).toHaveValue('R\nS');
+  await shot(page, '37-puzzle-two-pressed');
+
+  // The honest inverse: the last line equal to the guess comes out, and the tiles go dark.
+  await actions.getByRole('button', { name: /Take back a letter$/ }).click();
+  await dark('tile/1');
+  await lit('tile/3');
+  await expect(revealed).toHaveValue('R');
+
+  // The data road still works beside the press: typed on one line, the letters still read.
+  await revealed.fill('RSTLNE');
   await page.getByTestId('verb-update').click();
   await lit('tile/1'); // S
   await lit('tile/3'); // R
@@ -1857,4 +1887,120 @@ test('bracket: no recipe at all - the slots are typed, the match highlight is a 
   await actions.getByRole('button', { name: /Show Crown/ }).click();
   await lit('switch.crown.on');
   await shot(page, '41-bracket');
+});
+
+test('bingo caller: one press lights the number and rings it, the readouts follow, and Take back and New game undo it', async ({ page }) => {
+  // The seventh show graphic (docs/SVG_BEHAVIOUR_SHOWS.md §4g): the `row-set` kind proven on
+  // artwork. What has been called is ONE line list; a tile lights while its key is listed, the
+  // newest wears the ring, and the readouts derive from the same field. Calling is `add`, the
+  // list twin of `adjust` - the same press the puzzle's Reveal letter rides.
+  test.slow();
+  await openImportDoor(page, SHOW('bingo-board'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('bingo');
+  await expect(page.getByTestId('map-svg-recipe-count')).toHaveValue('25');
+  await filled(page, 'map-svg-recipe-called.last-6');
+  await filled(page, 'map-svg-recipe-number-24');
+  await filled(page, 'map-svg-recipe-latest');
+  await filled(page, 'map-svg-recipe-tally');
+  // The twenty-five numerals, the big number and the count are written by the board, so none of
+  // them is a field the operator types - a numeral NAMED for its tile stays the student's drawing
+  // (the unnamed kind arrives as a field to untick: docs/backlog/decorative-numerals-arrive-as-fields.md).
+  await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveCount(27);
+  await shot(page, '42-bingo-mapping');
+
+  await intoProduction(page, 'Bingo caller', 'Bingo night');
+  await settleDurableWrites(page);
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions).toContainText('Call it');
+  await expect(actions).toContainText('Take back');
+  await expect(actions).toContainText('New game');
+
+  // The title and the two captions are the artwork's fields; the list and the number to call are
+  // the recipe's, after them.
+  const called = page.getByTestId('cue-field-f3');
+  const toCall = page.getByTestId('cue-field-f4');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { layer, lit, dark } = onAir(page);
+  await dark('called/7');
+  await dark('latest');
+  await expect(layer('tally')).toHaveText('0');
+  await expect(layer('number/7')).toHaveText('7');
+
+  const callIt = actions.getByRole('button', { name: /Call it$/ });
+  await toCall.fill('7');
+  await callIt.click();
+  await lit('called/7');
+  await lit('called.last/7');
+  await lit('latest');
+  await expect(layer('latest')).toHaveText('7');
+  await expect(layer('tally')).toHaveText('1');
+  await expect(called).toHaveValue('7');
+  await shot(page, '43-bingo-first-call');
+
+  await toCall.fill('12');
+  await callIt.click();
+  await lit('called/12');
+  await lit('called.last/12');
+  await dark('called.last/7');
+  await lit('called/7');
+  await expect(layer('latest')).toHaveText('12');
+  await expect(layer('tally')).toHaveText('2');
+  await expect(called).toHaveValue('7\n12');
+  await shot(page, '44-bingo-two-called');
+
+  // Take back removes the number in the box - the honest inverse - and the ring goes back to 7.
+  await actions.getByRole('button', { name: /Take back$/ }).click();
+  await dark('called/12');
+  await lit('called.last/7');
+  await expect(layer('latest')).toHaveText('7');
+  await expect(layer('tally')).toHaveText('1');
+  await expect(called).toHaveValue('7');
+
+  // New game clears both boxes through `set`, and the big number hides again.
+  await actions.getByRole('button', { name: /New game$/ }).click();
+  await dark('called/7');
+  await dark('latest');
+  await expect(layer('tally')).toHaveText('0');
+  await expect(called).toHaveValue('');
+  await expect(toCall).toHaveValue('');
+});
+
+test('CasparCG package: the standalone panel drives the bingo caller, add and take back included', async ({ page, context }) => {
+  // The exported panel ships without controlModel.ts and carries its own copy of the payload
+  // rule, so `add` and `remove` had to be driven here as `set` was for the score board - and the
+  // list box has to move with the press, or a later ⟳ Take re-sends the board before the call.
+  test.setTimeout(180_000);
+  await openImportDoor(page, SHOW('bingo-board'));
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+
+  const { air, panel } = await casparPackageOnAir(page, context, 'http://caspar-bingo.local');
+  const events = panel.locator('.events');
+  const toCall = panel.locator('.field[data-key="f4"] input.num-input');
+  const called = panel.locator('.field[data-key="f3"] textarea');
+  const tile = (n: number) => air.locator(`[data-noacg-role~="called/${n}"]`);
+
+  await panel.getByRole('button', { name: '▶ Play' }).click();
+  await toCall.fill('7');
+  await events.getByRole('button', { name: '⚡ Call it' }).click();
+  await expect(tile(7)).toHaveClass(/imported-design-on/, { timeout: 10_000 });
+  await expect(called).toHaveValue('7');
+  await toCall.fill('12');
+  await events.getByRole('button', { name: '⚡ Call it' }).click();
+  await expect(tile(12)).toHaveClass(/imported-design-on/, { timeout: 10_000 });
+  await expect(called).toHaveValue('7\n12');
+
+  await events.getByRole('button', { name: '⚡ Take back' }).click();
+  await expect(tile(12)).not.toHaveClass(/imported-design-on/, { timeout: 10_000 });
+  await expect(tile(7)).toHaveClass(/imported-design-on/);
+  await expect(called).toHaveValue('7');
+
+  // A re-take sends the panel's own boxes, which is why the write-back matters.
+  await panel.getByRole('button', { name: '⟳ Take' }).click();
+  await expect(tile(7)).toHaveClass(/imported-design-on/, { timeout: 10_000 });
+  await expect(tile(12)).not.toHaveClass(/imported-design-on/);
+
+  await panel.close();
+  await air.close();
 });

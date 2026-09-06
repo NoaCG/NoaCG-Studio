@@ -3330,6 +3330,29 @@ test('svg import: the too-long mode answers the same however the reader got ther
   const settle = async () => {
     await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
     await expect(stage).toHaveAttribute('data-doc-rev', /\d/, { timeout: 20_000 });
+    // AND THE FACE HAS TO HAVE ARRIVED, because the fit runs TWICE and only the second pass is
+    // measured against the type the design is actually drawn in. `svg.ts` ends its fit block with
+    // `document.fonts.ready.then(refitSvgText)`: the first pass runs at DOMContentLoaded against
+    // whatever face is resolved by then, and the second re-measures once the real one has loaded.
+    // The two attributes above say the DOCUMENT was rebuilt, which is a different claim, so a
+    // measurement taken here could land between the passes.
+    //
+    // WHAT THAT COST: on 2026-09-06 this test failed with `wide.w` and `fixed.w` both 1238 - the
+    // plate had not grown AT ALL under grow-x, because in a fallback face the 140 W's fit after
+    // shrinking and nothing ever needed to widen. Green on main and green again on a re-run of the
+    // same sha half an hour later, so it read as a regression in whichever branch met it
+    // (docs/backlog/a-panel-growth-check-passes-and-fails-on-identical-code.md). The 2026-09-05
+    // occurrence, with the same two numbers, was treated as a wrapping problem instead.
+    //
+    // The runtime registers its `.then` at load, so by the time this one resolves `refitSvgText`
+    // has already run - the extra macrotask is only insurance for a browser that orders them
+    // otherwise.
+    await frame.locator('#f0').evaluate(async (el) => {
+      const fonts = el.ownerDocument.fonts;
+      if (!fonts) return;
+      await fonts.ready;
+      await new Promise((done) => setTimeout(done, 0));
+    });
   };
 
   // WHICH shape is the question's plate, decided ONCE, while the question is short enough to sit
@@ -3391,19 +3414,39 @@ test('svg import: the too-long mode answers the same however the reader got ther
   // below came back 1238 against an expected >1246 and took main red (2026-09-05). One long
   // unbreakable token removes the question of where a space falls: wrapping cannot help it, so
   // width is the only rung that can, on any machine's fonts.
+  //
+  // THAT WAS NOT THE WHOLE CAUSE. The identical pair of numbers came back on 2026-09-06, past
+  // that fix, because the measurement could be taken between the fit's two passes - so `settle()`
+  // now waits for the face as well. Both halves are needed: this line decides that growth is the
+  // only rung available, and the wait decides that the growth is measured in the real type.
   await question.fill('W'.repeat(140));
   const wide = await apply('grow-x');
   const both = await apply('grow-xy');
   let fixed = await apply('shrink');
+
+  // WHAT THE TYPE ACTUALLY WAS, read before the assertions so a failure carries its own
+  // diagnosis instead of costing an afternoon of archaeology. Every earlier occurrence of this
+  // failure reported two plate widths and nothing about the face they were measured in, which is
+  // the one fact that separates "the panel is broken" from "the panel was measured too early".
+  const face = await frame.locator('#f0').evaluate((el) => ({
+    family: getComputedStyle(el).fontFamily,
+    status: el.ownerDocument.fonts ? el.ownerDocument.fonts.status : 'unsupported',
+    textW: Math.round(el.getBoundingClientRect().width),
+  }));
+  const measured =
+    `plate ${fixed.w}px under shrink, ${wide.w}px under grow-x; ` +
+    `the words measure ${face.textW}px in ${face.family} (fonts ${face.status})`;
 
   const ROTATION_SLACK = 8;
   // This board's plates are drawn as portrait rects on a -88.68° rotation, so growing one along
   // its own axis moves its SCREEN rectangle a little on the other axis too - measured 262 against
   // 259. That is the rotation, not the panel getting taller, and an equality here would be an
   // assertion tighter than the thing it asserts (e2e/AGENTS.md).
-  expect(wide.w).toBeGreaterThan(fixed.w + ROTATION_SLACK); // wider means wider…
-  expect(Math.abs(wide.h - fixed.h)).toBeLessThan(ROTATION_SLACK); // …and never taller
-  expect(both.w).toBeGreaterThan(fixed.w + ROTATION_SLACK); // wider first…
+  // Equal widths here mean the plate never grew, which is a different fault from growing too
+  // little - so the message says which one happened and in what type.
+  expect(wide.w, `grow-x did not widen the plate: ${measured}`).toBeGreaterThan(fixed.w + ROTATION_SLACK);
+  expect(Math.abs(wide.h - fixed.h), `grow-x made the plate taller: ${measured}`).toBeLessThan(ROTATION_SLACK);
+  expect(both.w, `grow-xy did not widen the plate: ${measured}`).toBeGreaterThan(fixed.w + ROTATION_SLACK);
 
   // HEIGHT IS ASKED WITH WORDS, because wrapping is the whole point of a taller panel.
   await question.fill([LONG, LONG, LONG, LONG].join(' '));
