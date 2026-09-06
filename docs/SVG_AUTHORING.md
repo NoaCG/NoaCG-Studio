@@ -257,6 +257,15 @@ one the names carry the most evidence of - a board with option rows AND bars is 
 option rows and a drawn pick is a quiz. The tables are generated from the same word list the
 import reads, so what this page teaches is what the import understands.
 
+**The Fields step says the same thing, where it matters.** Under every box the names did not
+fill, it prints the name that would have filled it - `name it "C selected"` - read off the same
+word list, so the two never disagree. When three or more boxes are empty and the file holds layers
+nothing is using, it says so with the count, and offers **Fill them in**: one press that fills the
+empty boxes from the names first and then from where each layer sits on the artwork - the hidden
+drawings on an answer's row become that row's moments, a green one its correct look and a red one
+its wrong look, the figure beside a team name its score. Every box it fills says why under it, and
+Undo puts the whole press back. It guesses; you check. A box it is not sure about it leaves empty.
+
 ### The quiz — select, lock, reveal
 
 Copy [`svg-samples/quiz-board.svg`](svg-samples/quiz-board.svg). Draw the panel, the question and
@@ -304,8 +313,10 @@ game puts every score to zero and undoes full time. You can also just type a sco
 that is the road for when you have lost track rather than fumbled.
 
 **Home and Away boards work too**, they just are not proposed for you: a board with two rows called
-`Home` and `Away` needs one pick per row in the Fields step. The numbering is what tells NoaCG a
-board is a score tracker rather than a versus card, and a wrong guess would be worse than none.
+`Home` and `Away` needs one pick per row in the Fields step, or one press of Fill them in there,
+which takes the two names top to bottom and the figure sitting on each one's row. The numbering is
+what tells NoaCG a board is a score tracker rather than a versus card, and a wrong guess made
+silently would be worse than none.
 
 ### The live vote — the room votes, the bars move
 

@@ -262,3 +262,62 @@
 .map-svg-per-panel-rows .save-field > span {
   white-space: normal;
 }
+
+/* THE LINE UNDER A BOX (docs/backlog/the-mapping-step-should-explain-and-offer-to-do-it.md,
+   ask 1). Under an empty picker it is the layer name that would have filled it, read off the
+   matcher; after a Fill them in press it is why that layer was chosen. Muted and small because it
+   is a whisper beside the control, not a warning: a quiz board with nothing drawn shows twelve of
+   them, and twelve amber lines would read as twelve faults on a board that is valid as it is. */
+.save-field > .map-svg-name-hint {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-dim);
+  /* The label above is tracked caps; this is a sentence, so it keeps its own case and tracking. */
+  text-transform: none;
+  letter-spacing: 0;
+}
+.save-field > .map-svg-name-hint.filled {
+  color: var(--text);
+}
+/* A ROW WITH A LINE UNDER SOME OF ITS BOXES ALIGNS AT THE TOP. The rows used to bottom-align so
+   a checkbox sat on the input beside it; with a hint under one box and none under its neighbour,
+   bottom alignment pushes the neighbour's select down to the hint's baseline, and two selects on
+   one row stop sitting on one line. Every label in these rows is one short word, so top
+   alignment keeps the selects level whatever hangs under them. */
+.map-svg-quiz-row,
+.map-svg-row.hinted {
+  align-items: flex-start;
+}
+.map-svg-quiz-states {
+  align-items: start;
+}
+/* The row's letter sits beside the select, not the label: 11px caps plus the field's 6px gap. */
+.map-svg-quiz-letter {
+  padding-top: 21px;
+  padding-bottom: 0;
+}
+
+/* FILL THEM IN (ask 3): the button before a press, the result and its Undo after one. */
+.map-svg-fill {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0 2px;
+}
+.map-svg-fill .hint {
+  flex: 1 1 auto;
+  margin: 0;
+}
+.map-svg-fill button {
+  flex: 0 0 auto;
+}
+
+/* MEASURING A HIDDEN MOMENT. The fill reads where each drawn moment sits and what colour it is
+   off the offscreen render, and a hidden layer has no box. While the step holds `data-reveal`
+   on the stage every hiding is lifted, whether Illustrator wrote it inline or through a class -
+   `!important` on a stylesheet rule beats both. The attribute is set and removed inside one
+   synchronous read, so nothing is ever painted revealed. */
+.map-svg-stage[data-reveal] svg * {
+  display: inline !important;
+  visibility: visible !important;
+}

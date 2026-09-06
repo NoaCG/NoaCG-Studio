@@ -1504,3 +1504,75 @@ test('CasparCG package: the standalone panel drives the imported QUIZ board thro
   await panel.close();
   await air.close();
 });
+
+test('the mapping step explains itself: the name under an empty box, the count of what did not match, and one press that fills them with reasons', async ({ page }, testInfo) => {
+  // THE OWNER'S ASK, 2026-09-05, straight after his sample board worked end to end
+  // (docs/backlog/the-mapping-step-should-explain-and-offer-to-do-it.md): "it's such a hassle to
+  // click through 16 boxes". A board whose answers are named but whose moment layers are called
+  // "Layer 7" is the exact shape: the quiz is proposed, every drawn box stays empty, and nothing
+  // used to say why. Now each empty box says the name that would have filled it - read off the
+  // same word list the import matches, never a copy - the step counts what did not match, and
+  // Fill them in guesses from where each hidden drawing sits and what colour it is, saying why
+  // under every box it fills, with one Undo for the whole press.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <g id="Board"><rect x="0" y="600" width="1920" height="480" fill="#111"/></g>
+  <text id="Question" data-name="Question" x="120" y="700" font-family="Arial" font-size="40" fill="#fff">Which river is the longest?</text>
+  <text id="Answer_x20_A" data-name="Answer A" x="120" y="800" font-family="Arial" font-size="32" fill="#fff">Kemijoki</text>
+  <text id="Answer_x20_B" data-name="Answer B" x="120" y="880" font-family="Arial" font-size="32" fill="#fff">Tornionjoki</text>
+  <text id="Answer_x20_C" data-name="Answer C" x="120" y="960" font-family="Arial" font-size="32" fill="#fff">Oulujoki</text>
+  <text id="Answer_x20_D" data-name="Answer D" x="120" y="1040" font-family="Arial" font-size="32" fill="#fff">Iijoki</text>
+  <g id="Layer_x20_7" data-name="Layer 7" display="none"><rect x="100" y="770" width="600" height="44" fill="#f6a623"/></g>
+  <g id="Layer_x20_8" data-name="Layer 8" display="none"><rect x="100" y="850" width="600" height="44" fill="#2f9e5b"/></g>
+  <g id="Layer_x20_9" data-name="Layer 9" display="none"><rect x="100" y="770" width="600" height="44" fill="#a8323c"/></g>
+  <g id="Layer_x20_10" data-name="Layer 10" display="none"><rect x="1500" y="640" width="260" height="52" fill="#f6a623"/></g>
+  <g id="Layer_x20_11" data-name="Layer 11" display="none"><rect x="1500" y="850" width="120" height="44" fill="#2f9e5b"/></g>
+</svg>`;
+  const file = testInfo.outputPath('quiz-with-unnamed-moments.svg');
+  writeFileSync(file, svg);
+  await openImportDoor(page, file);
+
+  // The quiz is proposed from its answers; the moments are not, and the boxes wear the role's
+  // own word (the vocabulary ruling in docs/SVG_STATES_FROM_ARTWORK.md §7).
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await expect(page.getByTestId('map-svg-quiz-row-0')).toContainText('Selected');
+  await expect(page.getByTestId('map-svg-quiz-row-0')).toContainText('Correct');
+
+  // 1. The name that would have filled each empty box, beside it.
+  await expect(page.getByTestId('map-svg-quiz-selected-0-hint')).toHaveText('name it “A selected”');
+  await expect(page.getByTestId('map-svg-quiz-wrong-2-hint')).toHaveText('name it “C wrong”');
+  await expect(page.getByTestId('map-svg-quiz-locked-hint')).toHaveText('name it “Locked in”');
+  // …and none under a box the names filled.
+  await expect(page.getByTestId('map-svg-quiz-answer-0-hint')).toHaveCount(0);
+
+  // 2. The count: four rows of three moments plus the lock are thirteen empty boxes, and the
+  //    file holds five hidden layers nothing is using.
+  const notice = page.getByTestId('map-svg-unmatched');
+  await expect(notice).toContainText('13 boxes');
+  await expect(notice).toContainText('5 layers');
+
+  // 3. One press. The two drawings across row A are told apart by colour - the red one is the
+  //    wrong look, the amber one is what is left - row B's green one is its correct look, and the
+  //    two plates off to the right fit no row, so the lock stays empty rather than guessed.
+  await page.getByTestId('map-svg-fill-button').click();
+  await expect(page.getByTestId('map-svg-fill-result')).toContainText('Filled 3 boxes');
+  await expect(page.getByTestId('map-svg-quiz-wrong-0').locator('option:checked')).toHaveText('Layer 9 (hidden)');
+  await expect(page.getByTestId('map-svg-quiz-wrong-0-why')).toContainText('the red drawing on row A');
+  await expect(page.getByTestId('map-svg-quiz-selected-0').locator('option:checked')).toHaveText('Layer 7 (hidden)');
+  await expect(page.getByTestId('map-svg-quiz-selected-0-why')).toContainText('the drawing left on row A');
+  await expect(page.getByTestId('map-svg-quiz-correct-1').locator('option:checked')).toHaveText('Layer 8 (hidden)');
+  await expect(page.getByTestId('map-svg-quiz-correct-1-why')).toContainText('the green drawing on row B');
+  await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('NoaCG');
+  await expect(page.getByTestId('map-svg-quiz-locked-hint')).toHaveText('name it “Locked in”');
+  await expect(notice).toHaveCount(0);
+
+  // A box the reader changes drops its reason: the mark explains the fill's choice, not theirs.
+  await page.getByTestId('map-svg-quiz-selected-0').selectOption({ label: 'Layer 10 (hidden)' });
+  await expect(page.getByTestId('map-svg-quiz-selected-0-why')).toHaveCount(0);
+
+  // Undo puts the whole press back - the boxes, the names under them, the notice and the button.
+  await page.getByTestId('map-svg-fill-undo').click();
+  await expect(page.getByTestId('map-svg-quiz-wrong-0').locator('option:checked')).toContainText('NoaCG');
+  await expect(page.getByTestId('map-svg-quiz-wrong-0-hint')).toHaveText('name it “A wrong”');
+  await expect(notice).toContainText('13 boxes');
+  await expect(page.getByTestId('map-svg-fill-button')).toBeVisible();
+});
