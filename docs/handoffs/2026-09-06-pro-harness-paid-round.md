@@ -66,13 +66,17 @@ could be READ. All 504 designs emit byte-identical code.
 
 ## One thing found while verifying, and NOT caused here
 
-`main` is red on the catalog render baseline (`e2e/catalog-baseline.spec.ts:386`) - nine credits
-designs, each reporting `#count` and a hidden `noacg-data-source` holder moved. It reproduces with
-this branch's two app-code files reverted to `origin/main`, so it is main's, and
-`check-catalog-emit` passes, so it is a render-time move the source gate cannot see. Filed as
-`docs/backlog/credits-render-baseline-is-red-on-main.md` with the attribution and the two suspect
-commits. **It is red for every branch that merges main in**, so expect it on the next integration
-run too - the integration here was 1 failed, 1266 passed, and that 1 is this.
+The integration run was **1 failed, 1266 passed**, and the 1 is not this branch's and not main's.
+Nine credits designs fail the catalog render baseline (`e2e/catalog-baseline.spec.ts:386`) ON THIS
+LAPTOP and pass on CI - main's run `34018718825` is green across all nine full E2E shards, which
+include that spec. Reverting this branch's two app-code files to `origin/main` reproduces it
+identically, and `check-catalog-emit` passes, so nothing moved in the code: it is an environment
+divergence, font metrics the first suspect (every failure names `#count` and a hidden
+`noacg-data-source` holder, and credits measure their roll).
+
+Filed as `docs/backlog/credits-render-baseline-diverges-on-this-laptop.md`. **Expect it on your own
+integration run** - it is red here for every branch, which is exactly why it is worth fixing rather
+than tolerating. Do not re-record the baseline to silence it; that moves the divergence onto CI.
 
 ## Owner queue
 
