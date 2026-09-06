@@ -145,14 +145,14 @@ actually set.
 **What the card contains**, per kind of graphic:
 
 - **Type sizes by the part they set**, up to eight parts, most-measured first: `score 20px to
-  80px, middle 43px (n 26)`, `team 24-48, middle 35 (n 21)`, `clock 21-62, middle 32 (n 11)`.
+  80px, middle 43.5px (n 26)`, `team 24-48, middle 35 (n 21)`, `clock 21-62, middle 32 (n 11)`.
   The part is the ROLE WORD the design gave it - the last segment of its class - which is a
   common noun and not a selector.
 - **Spacing and shape**: padding in both axes, gap, corner radius (a `999px` pill said in
   words), letter-spacing in em, line-height - each as min / median / max with its sample count.
-- **Nothing else.** Nineteen of the catalog's twenty-two categories reach the bar; the three
-  that do not (two designs, or fewer than two measurable parts) simply have no card, because a
-  corpus of one design is the anchoring this is meant to avoid.
+- **Nothing else.** Nineteen of the catalog's twenty-three categories reach the bar; the four
+  that do not - `versus`, `transition`, `audience`, `imported-design` - simply have no card,
+  because a corpus of one or two designs is the anchoring this is meant to avoid.
 
 **Why every line carries an n, and why the first line says "not rules and not floors".** The
 prompt already stacks two kinds of number - the legibility RULES that bind and the ratified

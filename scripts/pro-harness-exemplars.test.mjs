@@ -19,6 +19,7 @@
 
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
+import os from 'node:os';
 import path from 'node:path';
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -101,24 +102,39 @@ function idsIn(text) {
   return new Set([...text.matchAll(/\bid:\s*'([A-Za-z0-9_-]+)'/g)].map((m) => m[1]));
 }
 
-async function deriveCorpora() {
-  const files = sourceFiles();
+const remember = (read) => {
   const cache = new Map();
-  const textOf = (f) => {
-    if (!cache.has(f)) cache.set(f, readFileSync(f, 'utf8'));
-    return cache.get(f);
+  return (key) => {
+    if (!cache.has(key)) cache.set(key, read(key));
+    return cache.get(key);
   };
-  const catalog = await loadCatalog();
-  return catalog
+};
+
+const textOf = remember((f) => readFileSync(f, 'utf8'));
+const measureOf = remember((f) => exemplars.measureCss(textOf(f)));
+
+// ONE catalog load for the whole file. It boots a Vite SSR graph (~3 s), and a second call in a
+// later test paid that again for the same answer.
+const catalog = await loadCatalog();
+
+function deriveCorpora() {
+  const files = sourceFiles();
+  const claims = new Map();
+  const corpora = catalog
     .map(({ category, ids, typeIds }) => {
       const chosen = filesForCategory(files, textOf, ids);
-      const measured = exemplars.mergeMeasurements(chosen.map((f) => exemplars.measureCss(textOf(f))));
+      for (const f of chosen) {
+        if (!claims.has(f)) claims.set(f, []);
+        claims.get(f).push(category);
+      }
+      const measured = exemplars.mergeMeasurements(chosen.map(measureOf));
       return exemplars.reduceCorpus({ category, typeIds, designs: ids.length, files: chosen.length }, measured);
     })
     .filter((corpus) => exemplars.isCardWorthy(corpus));
+  return { corpora, claims };
 }
 
-const derived = await deriveCorpora();
+const { corpora: derived, claims } = deriveCorpora();
 
 /** The checked-in constant, regenerated. Printed on a mismatch so the fix is a paste. */
 function asSource(corpora) {
@@ -132,11 +148,32 @@ test('the shipped constant IS the catalog, re-derived', () => {
   const fresh = JSON.stringify(derived);
   const shipped = JSON.stringify(exemplars.EXEMPLAR_CORPORA);
   if (fresh !== shipped) {
-    const out = path.join(projectRoot, '.tmp-exemplars-derived.ts');
+    // OUTSIDE the repo. A failing gate that drops an untracked `.ts` in the project root is a
+    // second failure waiting for the next `git add -A`: the name is in neither `.gitignore` nor
+    // `check-tree-shape`'s allowed root entries, so committing it hard-fails the build.
+    const out = path.join(os.tmpdir(), 'noacg-exemplars-derived.ts');
     writeFileSync(out, asSource(derived), 'utf8');
     assert.fail(
       'src/ai/pro/harness/exemplars.ts EXEMPLAR_CORPORA no longer matches the catalog. '
       + `The regenerated block is in ${out} - paste it over the constant, keeping the comment above it.`,
+    );
+  }
+});
+
+test('no source file feeds two kinds of graphic their numbers', () => {
+  // A file is claimed by every category whose design ids it declares, and three type compilers
+  // declare designs in two categories at once (`types/bugs.ts`, `types/clocks.ts`,
+  // `types/goals.ts`). None of them carries CSS today, so nothing is contaminated - but the day
+  // one gains a stylesheet, both categories would silently take on the other's numbers AND the
+  // pin would re-derive the contaminated table as truth. That is the one way this test can
+  // certify a lie, so it is the one thing it checks beyond the numbers themselves.
+  const empty = JSON.stringify(exemplars.emptyMeasurement());
+  for (const [file, categories] of claims) {
+    if (categories.length < 2) continue;
+    assert.equal(
+      JSON.stringify(measureOf(file)),
+      empty,
+      `${path.relative(projectRoot, file)} is claimed by ${categories.join(' and ')} and now carries CSS - split it, or the two cards will quote each other's numbers`,
     );
   }
 });
@@ -191,8 +228,7 @@ test('a card hands over numbers, never code', () => {
   }
 });
 
-test('a card names no design - not its id, not its name', async () => {
-  const catalog = await loadCatalog();
+test('a card names no design - not its id, not its name', () => {
   const ids = new Set(catalog.flatMap((c) => c.ids));
   const cards = exemplars.EXEMPLAR_CORPORA.map((c) => exemplars.renderExemplarCard(c)).join('\n');
   for (const id of ids) {
@@ -244,6 +280,50 @@ test('the parser reads the authored number and refuses to guess at the rest', ()
   assert.equal(exemplars.pxValue('var(--panel-radius)'), null, 'a token has no authored number here');
   assert.equal(exemplars.pxValue('1.2em'), null);
   assert.equal(exemplars.pxValue('clamp(20px, 3vw, 40px)'), null, 'a range is not one number');
+});
+
+test('a bare zero is a length, not a missing number', () => {
+  // `padding: 0 calc(35px * var(--scale))` is how a strap spends width and no height, and the
+  // catalog writes it 46 times. Reading the zero as absent dropped the horizontal value too.
+  assert.equal(exemplars.pxValue('0'), 0);
+  assert.equal(exemplars.pxValue('0px'), 0);
+  const measured = exemplars.measureCss('.x-strap {\n  padding: 0 calc(35px * var(--scale));\n}');
+  assert.deepEqual(measured.paddingBlock, [0]);
+  assert.deepEqual(measured.paddingInline, [35]);
+});
+
+test('a rule naming two parts is measured as both', () => {
+  const measured = exemplars.measureCss('.x-title,\n.x-extra {\n  font-size: calc(22px * var(--scale));\n}');
+  assert.deepEqual(measured.fontByRole, { title: [22], extra: [22] });
+  assert.deepEqual(exemplars.rolesOf('.x-title, .x-extra'), ['title', 'extra']);
+});
+
+test('a declaration wrapped over two lines is still one declaration', () => {
+  const css = '.x-panel {\n  padding: calc(20px * var(--scale)) calc(28px * var(--scale))\n           calc(20px * var(--scale)) calc(34px * var(--scale));\n}';
+  const measured = exemplars.measureCss(css);
+  assert.deepEqual(measured.paddingBlock, [20]);
+  assert.deepEqual(measured.paddingInline, [28]);
+});
+
+test('a comment never becomes part of a value', () => {
+  const measured = exemplars.measureCss('.x-name {\n  font-size: 40px;  /* the headline: 40px reads at distance */\n}');
+  assert.deepEqual(measured.fontByRole, { name: [40] });
+});
+
+test('an even sample count puts the middle between the two middles', () => {
+  assert.deepEqual(exemplars.spread([0.03, 0.12]), { n: 2, min: 0.03, median: 0.075, max: 0.12 });
+  assert.deepEqual(exemplars.spread([20, 30, 40]), { n: 3, min: 20, median: 30, max: 40 });
+});
+
+test('a type id beats a category id that spells the same word', () => {
+  // `poll` is a graphic type whose designs sit among the infographics, and also a wizard
+  // category of five designs of another type. Resolving it by whichever map was written last
+  // handed a poll brief the wrong corpus.
+  const byType = exemplars.exemplarFor('poll');
+  assert.equal(byType.category, 'infographic', 'the type resolves to where its own designs live');
+  assert.ok(byType.typeIds.includes('poll'));
+  const byCategory = exemplars.exemplarCardFor({ typeId: null, category: 'poll' });
+  assert.match(byCategory, /shipped poll graphics/, 'the category still resolves for a caller that names one');
 });
 
 test('a shorthand splits at the top level, not inside a calc', () => {

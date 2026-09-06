@@ -27,6 +27,7 @@ export {
   MAX_ROLES,
   PILL_RADIUS,
   exemplarFor,
+  exemplarForCategory,
   exemplarCardFor,
   renderExemplarCard,
   isCardWorthy,
@@ -37,6 +38,7 @@ export {
   pxValue,
   shorthandParts,
   roleOf,
+  rolesOf,
   emptyMeasurement,
 } from './exemplars.js';
 export type { ExemplarCorpus, RoleSizes, Spread, CssMeasurement } from './exemplars.js';
