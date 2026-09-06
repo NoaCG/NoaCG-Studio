@@ -223,6 +223,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* WHAT THE LAYER DOES, STATED (owner, 2026-09-05: "everything else should just move out of the
+   way"). This was a two-option select until the corpus was measured and the second option turned
+   out to be right on none of the 79 rows that carried it - so it is a fact about the row now, set
+   back like the hint it is, and never mistaken for a control. */
+.map-svg-follower-note {
+  flex: 0 0 auto;
+  align-self: center;
+  /* WITH A FALLBACK, because `--muted` is not declared anywhere: bare, the declaration is
+     invalid at computed-value time and the note inherits full-strength text, which is exactly
+     the emphasis a statement beside the layer's own name must not have. */
+  color: var(--muted, rgba(232, 237, 242, 0.62));
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
 
 /* ONE PART OF THE ARTWORK ANSWERING THE TOO-LONG QUESTION DIFFERENTLY (owner walk, 2026-09-03).
    A sub-list inside the growth question, indented like the follower list above and for the same

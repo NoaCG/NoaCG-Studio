@@ -317,6 +317,11 @@ NOTHING** - the runtime derives, as the hug did - and **the first edit materiali
 nothing. **A TRAVELLER THE READER CHOOSES ABOUT IS ARTWORK**: a text layer past the edge is STATED
 in one line and committed WITH the set, never given a control row. `followArmed` is a visible MODE
 rather than a modifier, so an armed pick toggles a FOLLOWER and a pick on text does nothing.
+**THE LIST SAYS WHICH LAYERS, NEVER HOW EACH ONE BEHAVES** (owner 2026-09-05, settled on the corpus
+2026-09-06 - docs/TEXT_BOX_BINDING.md, "What travels is not a question"): the per-row move/grow
+picker is gone, every listed layer moves, and furniture drawn to the growing panel's own two edges
+stretches by itself (`svgCollectSpanners`) without ever being a row. `mode` survives in the draft
+and in `NOACG_LAYOUT` for saved templates and for a pro editing the code - never as a control.
 **Every handler patching `svgStretch` must SPREAD it**: rebuilt fresh, it dropped the axis.
 
 **THE TOO-LONG CONTROL IS A LADDER**, in the owner's order - wider, wider-then-wrap, wrap, smaller,

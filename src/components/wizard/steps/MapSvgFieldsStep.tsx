@@ -1096,23 +1096,6 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
     return all.find((c) => c.id === id)?.label ?? id;
   };
 
-  /**
-   * CAN THIS FOLLOWER STRETCH, or only travel?
-   *
-   * Growing writes a width or a height, and only a SHAPE candidate has one - a rect, or a path
-   * whose geometry read as a rectangle. A text layer, a group, a picture: the attribute lands on
-   * an element that has no meaning for it and the layer does not move at all. Text followers are
-   * added to this list AUTOMATICALLY, so the row that most often carried the broken option was
-   * one the reader never chose to add (owner, 2026-09-05: "the text didn't follow the box").
-   *
-   * The rule the owner has now given twice - offer nothing that cannot do anything on the graphic
-   * in front of you (2026-08-28 for the Style step, 2026-09-03 for the layer tagger) - makes this
-   * a missing option rather than a disabled one: a row that can only travel says so and stops
-   * asking a question with one answer.
-   */
-  const canStretch = (candidateId: string): boolean =>
-    !!svg?.shapes.some((s) => s.id === candidateId);
-
   // ── PICKING A LAYER ON THE ARTWORK (docs/SVG_IMPORT_PLAN.md §6a step 5) ──
   // The checklist and the canvas are two views of one decision, and pointing at the thing itself
   // is the one that needs no reading. What a pick MEANS depends on what was picked - a text layer
@@ -2775,21 +2758,25 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                 }
                 testid="map-svg-why-followers"
               >
-                {/* THE PICTURE, THEN THE TWO CHOICES. The third paragraph explained why text is
-                    not on the list and where the list came from - the model, not the outcome
-                    (owner walk, 2026-09-03). The list's own summary already says it was read
-                    from the artwork, and the line above the list already says text moves. */}
+                {/* THE PICTURE, THEN THE ONE THING TO DO ABOUT IT. The third paragraph explained
+                    why text is not on the list and where the list came from - the model, not the
+                    outcome (owner walk, 2026-09-03). The list's own summary already says it was
+                    read from the artwork, and the line above the list already says text moves. */}
                 <p>
                   {growAxis === 'y'
                     ? 'When the board grows 40 px taller, every layer listed here drops 40 px, so the gap you drew stays the gap on air.'
                     : 'When the banner grows 120 px wider, every layer listed here shifts 120 px right, so the gap you drew stays the gap on air.'}
                 </p>
+                {/* WHAT ✕ DOES IS "OFF THE LIST", never "pinned". A layer drawn to the panel's
+                    own two edges grows with it whether or not it is listed, so promising that ✕
+                    freezes anything would be false for exactly the layer a reader is most likely
+                    to click on by hand. */}
                 <p>
-                  <strong>Moves out of the way</strong> keeps its distance and its size.{' '}
-                  <strong>Grows by the same amount</strong> makes the layer itself bigger instead
+                  ✕ takes a layer off the list, and it stays where you drew it.{' '}
                   {growAxis === 'y'
-                    ? ', which is what a stripe drawn down the whole board wants.'
-                    : ', which is what a rule drawn across the whole banner wants.'}
+                    ? 'A stripe drawn down the board’s whole height'
+                    : 'A rule drawn across the banner’s whole width'}{' '}
+                  is the exception: it belongs to the panel, so it grows with it either way.
                 </p>
               </SectionHead>
               <button
@@ -2807,42 +2794,31 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                   onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
                   data-testid={`map-svg-follower-${f.candidateId}`}
                 >
+                  {/* THE ROW STATES WHAT HAPPENS; IT DOES NOT ASK (owner, 2026-09-05: "when the
+                      question becomes long and the box gets bigger, everything else should just
+                      move out of the way").
+                      This row used to carry a second answer - "Grows by the same amount" - beside
+                      the first. Measured across the whole corpus before it was taken out
+                      (docs/TEXT_BOX_BINDING.md, "What travels is not a question"), the question was
+                      asked on 79 rows and the second answer was right on none of them, because the
+                      two sets cannot overlap: a row here is a layer drawn PAST the growing edge,
+                      and a layer that must stretch is one drawn TO BOTH of the panel's edges. Those
+                      the runtime finds and grows itself (svgCollectSpanners), so the one artwork
+                      that needs stretching never needed the control. */}
                   <span className="grow">{labelOfCandidate(f.candidateId)}</span>
-                  <label className="save-field">
-                    <span>Then it</span>
-                    <select
-                      value={canStretch(f.candidateId) ? f.mode : 'move'}
-                      onChange={(e) =>
-                        setFollowers(
-                          declaredFollowers.map((o) =>
-                            o.candidateId === f.candidateId
-                              ? { ...o, mode: e.target.value as 'move' | 'grow' }
-                              : o,
-                          ),
-                        )
-                      }
-                      data-testid={`map-svg-follower-mode-${f.candidateId}`}
-                    >
-                      {/* THE RESULT, not the mechanism. "Moves with it" / "Stretches with it"
-                          named our two transforms; these name what the reader will watch the
-                          layer do.
-
-                          Stretching is offered only to a layer that HAS a width to change. On a
-                          text layer or a group the attribute goes nowhere, and picking it used to
-                          stop the layer following at all - so the row now asks nothing it cannot
-                          answer, and a template saved with the old choice travels instead
-                          (svgCanGrow, templates/importedDesign/svg.ts). */}
-                      <option value="move">Moves out of the way</option>
-                      {canStretch(f.candidateId) && (
-                        <option value="grow">Grows by the same amount</option>
-                      )}
-                    </select>
-                  </label>
+                  {/* STATED FROM THE ROW'S OWN VALUE, never as a constant. Nothing the wizard
+                      writes is 'grow' any more, but the draft can still hold one (draft.ts says
+                      which readers need it), and a statement that ignores what it is describing
+                      is worse than the picker it replaced - it would read "moves" beside a layer
+                      the emitted graphic stretches. */}
+                  <span className="map-svg-follower-note">
+                    {f.mode === 'grow' ? 'Grows by the same amount' : 'Moves out of the way'}
+                  </span>
                   <button
                     onClick={() =>
                       setFollowers(declaredFollowers.filter((o) => o.candidateId !== f.candidateId))
                     }
-                    title="This one stays where it was drawn"
+                    title="Take this one off the list"
                     data-testid={`map-svg-follower-drop-${f.candidateId}`}
                   >
                     ✕

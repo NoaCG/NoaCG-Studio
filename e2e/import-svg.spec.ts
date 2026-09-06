@@ -2139,7 +2139,12 @@ test('svg import: the followers of a growing panel are proposed, then become the
   await page.getByTestId('map-svg-follower-drop-s2').click();
   await expect(page.getByTestId('map-svg-follower-s2')).toHaveCount(0);
   await expect(list).not.toContainText('read from your artwork');
-  await page.getByTestId('map-svg-follower-mode-s1').selectOption('grow');
+  // DROPPING IS THE WHOLE EDIT. The row used to carry a second question - move or grow - and it
+  // is gone (owner, 2026-09-05; measured across the corpus, its second answer was right on none
+  // of the 79 rows that asked it). What travels is still the author's; how it travels is not a
+  // question any more.
+  await expect(page.getByTestId('map-svg-follower-s1')).toContainText('Moves out of the way');
+  await expect(page.getByTestId('map-svg-follower-s1').locator('select')).toHaveCount(0);
 
   await createProject(page);
 
@@ -2152,7 +2157,7 @@ test('svg import: the followers of a growing panel are proposed, then become the
   const table = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(js)![0];
   expect(table).toContain('version: 1');
   expect(table).toContain("axis: 'y'");
-  expect(table).toMatch(/followers: \[\{ el: 'g0f0', mode: 'grow' \}\]/);
+  expect(table).toMatch(/followers: \[\{ el: 'g0f0', mode: 'move' \}\]/);
   // One follower, not two - the dropped strap left no row behind.
   expect(table.match(/mode: '/g)).toHaveLength(1);
 });
@@ -2259,34 +2264,45 @@ test('svg import: only artwork travels — a text layer is never offered as one'
   // The section is named and explained by what the reader will watch happen, with a real number
   // in it - never by our word for the transform.
   await expect(page.getByTestId('map-svg-followers')).toContainText('What else moves');
-  await expect(page.getByTestId('map-svg-follower-mode-s1').locator('option')).toHaveText([
-    'Moves out of the way',
-    'Grows by the same amount',
-  ]);
+  // THE ROW STATES ITS ANSWER; IT DOES NOT ASK FOR ONE (owner, 2026-09-05: "everything else
+  // should just move out of the way"). Measured over the whole SVG corpus before the second
+  // option came out, it was asked on 79 rows and was right on none of them: a row here is a layer
+  // drawn PAST the growing edge, and a layer that must stretch is one drawn TO BOTH of the
+  // panel's edges, which the runtime grows by itself.
+  await expect(page.getByTestId('map-svg-follower-s1')).toContainText('Moves out of the way');
+  await expect(page.getByTestId('map-svg-followers').locator('select')).toHaveCount(0);
   await page.getByTestId('map-svg-why-followers').click();
   const why = page.getByTestId('map-svg-why-followers-body');
   await expect(why).toContainText('40 px');
-  await expect(why).toContainText('Moves out of the way');
+  await expect(why).toContainText('takes a layer off the list');
+  // …and it names the road that replaced the option rather than pretending stretching never
+  // happens: furniture drawn across the panel grows with it, listed or not. The "either way" is
+  // load-bearing - a reader who adds that rail by hand and then drops it still gets a growing
+  // rail, so a ✕ that promised to freeze anything would be false exactly there.
+  await expect(why).toContainText('grows with it either way');
   // SHORT ENOUGH THAT SOMEBODY READS IT (owner walk, 2026-09-03: "it needs to be shorter and
   // just what it does ... No one wants to read more than a few lines"). Two paragraphs: the
-  // picture, and what the two modes do. The third said where the list came from and why text is
-  // not on it - both of which the summary beside the title and the line above the list already
-  // say, so it was the step explaining itself twice.
+  // picture, and the one thing there is to do about it. The third said where the list came from
+  // and why text is not on it - both of which the summary beside the title and the line above the
+  // list already say, so it was the step explaining itself twice.
   await expect(why.locator('p')).toHaveCount(2);
 
   // AND THE FOOTNOTE STILL SHIPS AS A TRAVELLER. A declared list replaces the runtime's own
   // derivation outright, so committing only the artwork rows would have quietly stopped the
   // footnote moving the moment the reader touched one - and the grown board would print over it.
-  await page.getByTestId('map-svg-follower-mode-s1').selectOption('grow');
+  // Dropping the caption is the sharpest version of that: the reader has emptied the only list
+  // they were shown, and the line nobody asked them about is still in the table.
+  await page.getByTestId('map-svg-follower-drop-s1').click();
+  await expect(page.getByTestId('map-svg-followers').locator('.map-svg-row')).toHaveCount(0);
   await createProject(page);
   const table = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
   });
   expect(table).toContain("axis: 'y'");
-  // Two rows: the caption the reader chose about, and the text line they were not asked about.
-  expect(table.match(/mode: '/g)).toHaveLength(2);
-  expect(table).toMatch(/mode: 'grow'/);
+  // One row, and it is the text line - the caption the reader dropped left nothing behind.
+  expect(table).toMatch(/followers: \[\{ el: 'g0f0', mode: 'move' \}\]/);
+  expect(table.match(/mode: '/g)).toHaveLength(1);
 });
 
 test('svg import: authoring growth alone does not open an empty travel list', async ({ page }) => {
@@ -3000,6 +3016,65 @@ test('svg import: text stays off a decorative end-cap, and the cap travels when 
   expect(long.size).toBe(56);
   expect(long.capMoved).toContain('translate(');
   expect(long.gapToCap).toBeGreaterThan(0);
+});
+
+test('svg import: a rail spanning the panel still stretches after the reader edits what travels', async ({ page }) => {
+  // WHY THIS EXISTS. The per-follower "Moves out of the way / Grows by the same amount" picker is
+  // gone (owner 2026-09-05, settled on the corpus 2026-09-06 - docs/TEXT_BOX_BINDING.md, "What
+  // travels is not a question"), because a row in that list can never be a layer that should
+  // stretch. What DOES stretch is furniture drawn to the panel's own two edges, and the runtime
+  // finds it itself - but it only looked while the rule carried NO declared follower list. So the
+  // moment a reader dropped one row, the rail on their own lower third silently stopped growing
+  // with its plate, and after the picker went there was no control left to bring it back.
+  //
+  // A board with an amber rail down its full height, a caption below it, and a strap pinned to
+  // the frame bottom that geometry wrongly proposes - so dropping the strap is an ordinary edit
+  // that leaves a real declared list behind.
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+      <rect id="Board" x="300" y="200" width="1200" height="120" rx="8" fill="#0d1017"/>
+      <rect id="Rail" x="300" y="200" width="12" height="120" fill="#f6a623"/>
+      <text id="Question" x="340" y="272" font-size="44" fill="#ffffff">Which city?</text>
+      <rect id="Caption" x="300" y="360" width="1200" height="60" rx="8" fill="#20242c"/>
+      <rect id="Strap" x="0" y="1000" width="1000" height="60" fill="#20242c"/>
+    </svg>`,
+    'rail.svg',
+  );
+  await page.locator('.wz-next').click();
+  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-y');
+  await expect(page.getByTestId('map-svg-stretch-only')).toContainText('Board');
+
+  // The rail is never a row: it is not drawn past the growing edge, it is drawn ACROSS the panel.
+  await expect(page.getByTestId('map-svg-followers')).not.toContainText('Rail');
+  await page.getByTestId('map-svg-follower-drop-s2').click(); // the frame-bottom strap
+  await expect(page.getByTestId('map-svg-followers')).not.toContainText('read from your artwork');
+  await createProject(page);
+
+  const frame = previewFrame(page);
+  const run = (value: string) =>
+    frame.locator('#f0').evaluate((el, v) => {
+      const w = window as unknown as { update: (s: string) => void };
+      w.update(JSON.stringify({ f0: v }));
+      return {
+        board: document.getElementById('Board')!.getBoundingClientRect().height,
+        rail: document.getElementById('Rail')!.getBoundingClientRect().height,
+        captionMoved: document.getElementById('Caption')!.getAttribute('transform'),
+      };
+    }, value);
+
+  const rest = await run('Which city?');
+  expect(rest.captionMoved).toBeNull();
+
+  // A value long enough to wrap makes the board taller. The rail grows with it, by the same
+  // amount, so the strip the board gained is not left bare - and the caption the reader kept on
+  // the list still travels.
+  const long = await run(
+    'Which of these famous chess openings begins one e four, e five, two knight f three?',
+  );
+  expect(long.board).toBeGreaterThan(rest.board + 1);
+  expect(long.rail - rest.rail).toBeCloseTo(long.board - rest.board, 0);
+  expect(long.captionMoved).toContain('translate(');
 });
 
 test('svg import: an all-outlined file does not offer drawing text over the drawn type', async ({ page }) => {

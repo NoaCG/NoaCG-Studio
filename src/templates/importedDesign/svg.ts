@@ -1592,6 +1592,11 @@ function layoutDataJs(svg: DesignSvg, labelOf: (candidateId: string) => string):
 // edge, which is a fair guess sideways and a poor one downwards - so a vertical rule is
 // normally written with its followers spelled out.
 //
+// A follower travels by default (\`mode: 'move'\`): it keeps its distance and its size. Write
+// \`mode: 'grow'\` instead and the layer is STRETCHED by what the panel gained, which is what a
+// rail or a tint band wants. You rarely need to: furniture drawn to the panel's own two edges is
+// measured and stretched automatically, and never appears in this list.
+//
 // Delete a row and that element stops growing. Edit \`axis\` and it grows the other way.
 var NOACG_LAYOUT = {
   version: ${LAYOUT_VERSION},
@@ -1963,8 +1968,19 @@ function svgCollectSpanners(art, rule, grower, panel, dir, out) {
       if (Math.abs(r.left - panel.left) > tol || Math.abs(r.right - panel.right) > tol) continue;
       if (r.bottom < panel.top + 1 || r.top > panel.bottom - 1) continue;
     }
+    // ONLY WHAT CAN ACTUALLY BE STRETCHED. A circle, an ellipse and a polygon all span a panel
+    // as readily as a rail does and none of them carries the attribute growing writes, so
+    // collecting one bought a follower that could not do the thing it was collected for.
+    if (!svgCanGrow(rule, el)) continue;
+    // ALREADY SPOKEN FOR - by identity, and by CONTAINMENT either way. A group the author
+    // declared travels whole, so a rail inside it would otherwise be granted the group's
+    // translate AND a stretch of its own, landing a full grant from the design at the wrong
+    // size. svgCollectFollowers descends into a straddling group for the same reason.
     var listed = false;
-    for (var j = 0; j < out.length; j++) if (out[j].el === el) listed = true;
+    for (var j = 0; j < out.length; j++) {
+      var o = out[j].el;
+      if (o === el || (o.contains && (o.contains(el) || el.contains(o)))) listed = true;
+    }
     if (!listed) out.push({ el: el, base: svgGrowBase(rule, el, dir), mode: 'grow' });
   }
 }
@@ -1977,7 +1993,15 @@ function svgFollowersOf(rule, el, edge, dir) {
     for (var i = 0; i < rule.followers.length; i++) {
       var node = svgLayoutEl(rule.followers[i].el);
       if (!node) continue;
-      var mode = rule.followers[i].mode === 'grow' ? 'grow' : 'move';
+      // A DECLARED 'grow' IS DEMOTED HERE, not at apply time, because the two modes keep
+      // different KINDS of resting pose: growing remembers an attribute map, travelling
+      // remembers the transform string. Demoted later, the layer travelled with the attribute
+      // map as its base and svgTravel wrote 'translate(...) [object Object]' - which Blink
+      // discards whole, taking the transform the designer wrote with it, and svgLayoutRest then
+      // restored the size it never changed rather than the transform it destroyed. Deciding the
+      // mode before the pose is captured is what keeps "a layer that cannot grow travels
+      // instead" (svgCanGrow) true rather than merely intended.
+      var mode = rule.followers[i].mode === 'grow' && svgCanGrow(rule, node) ? 'grow' : 'move';
       var base = mode === 'grow' ? svgGrowBase(rule, node, dir) : node.getAttribute('transform');
       out.push({ el: node, base: base, mode: mode });
     }
@@ -2103,18 +2127,23 @@ function svgRestOneRule(rule, index) {
       : (rest.dir < 0 ? box.left : box.right);
     rest.followers = svgFollowersOf(rule, panel, edge, rest.dir);
   }
-  if (art0 && !(rule.followers && rule.followers.length)) {
-    svgCollectSpanners(art0, rule, panel, box, rest.dir, rest.followers);
-  }
+  // FURNITURE THAT SPANS THE PANEL STRETCHES, declared list or not - the same rule the end caps
+  // below have, for the same reason. A rail drawn down the plate's own two edges is the panel's
+  // furniture, not a layer an author decides about: a plate that grew and left a strip its rail
+  // does not cover is simply wrong, whichever way the reader answered a different question.
+  // This used to run only while the rule carried NO declared list, so touching any follower row -
+  // dropping a strap, adding a layer - silently stopped the shipped lower third's amber rail
+  // growing with its plate. A DECLARED entry still wins: svgCollectSpanners skips an element the
+  // set already lists, so a layer the author named travels the way they said.
+  if (art0) svgCollectSpanners(art0, rule, panel, box, rest.dir, rest.followers);
   // END CAPS RIDE THE MOVING EDGE, always - declared list or not. A cap is the panel's own
   // furniture (svgIsEndCap: a narrow shape hugging the far edge), so it is not a follower an
   // author decides about: a grown panel with its end-cap left behind mid-artwork is simply
   // wrong, and the room measurement already promises the cap stays on the edge the text is
   // kept off of.
-  var art = document.querySelector('.${PREFIX}-art');
-  if (art) {
+  if (art0) {
     var axis = rule.axis === 'y' ? 'y' : 'x';
-    var caps = art.querySelectorAll('rect, path, polygon, ellipse, circle, image');
+    var caps = art0.querySelectorAll('rect, path, polygon, ellipse, circle, image');
     for (var c = 0; c < caps.length; c++) {
       var el = caps[c];
       if (el === panel || el.contains(panel) || panel.contains(el)) continue;
