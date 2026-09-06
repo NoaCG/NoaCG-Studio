@@ -1475,14 +1475,18 @@ export default function AiStep({
               )}
               {looks.length > 0 && (
                 <div className="ai-brand-row">
-                  <span className="hint">Or a saved look:</span>
+                  {/* COLOURS ONLY, and the label says so. Everywhere else a chosen brand also
+                      carries its typeface and its logo; this strip writes `spec.brandColors` and
+                      nothing more, so naming it "a brand" without the qualifier would promise
+                      the AI door something it does not do yet (docs/BRAND_PLAN.md §5). */}
+                  <span className="hint">Or a brand&rsquo;s colors:</span>
                   <select
-                    aria-label="Saved brand look"
+                    aria-label="Brand colors"
                     value=""
                     onChange={(e) => applySavedLook(e.target.value)}
                     disabled={!!busy}
                   >
-                    <option value="">Pick a look…</option>
+                    <option value="">Pick a brand…</option>
                     {looks.map((l) => (
                       <option key={l.id} value={l.id}>{l.name}</option>
                     ))}

@@ -4,6 +4,7 @@ import { variantById, variantsFor } from '../../templates/catalog';
 import { createBlankTemplate } from '../../templates/blank';
 import {
   armTimerClock,
+  brandClearPatch,
   brandPatch,
   buildDraftTemplate,
   draftFormatSelection,
@@ -17,7 +18,8 @@ import {
   type DraftPatch,
   type WizardDraft,
 } from './draft';
-import { loadBrand, saveBrand, type ProjectBrand } from '../../model/brand';
+import { type ProjectBrand } from '../../model/brand';
+import { loadLooks } from '../../model/packets';
 import { FONTS, fontNameKey } from '../../model/fonts';
 import { commitStagedSelection } from '../../ai/preferences';
 import { formatTemplate } from '../../format/formatCode';
@@ -129,8 +131,23 @@ const STEP_TITLES_FILE = ['Start', 'Template file', 'Finish'];
 type WizardMode = 'template' | 'import' | 'design' | 'svg' | 'file' | 'ai' | 'video' | 'blank';
 
 /** The walks whose created graphic actually carries the draft's palette and typeface — the
- *  "Colors & typeface from this project" offer in the footer, and the reasoning, are there. */
+ *  BRAND CHOOSER in the footer, and the reasoning, are there. */
 const BRAND_MODES: WizardMode[] = ['template', 'import', 'design', 'svg', 'ai'];
+
+/** One entry in the footer's brand chooser: a saved brand, by the name its owner gave it.
+ *
+ *  It is a shape of its own rather than a `SavedLook` because one entry is NOT a saved record -
+ *  a production that carries a captured look and has never chosen a brand is offered its own
+ *  look under a synthetic id, so the chooser can show what the graphic is actually being created
+ *  in instead of showing None over a preselected look. */
+interface BrandChoice {
+  id: string;
+  name: string;
+  brand: ProjectBrand;
+}
+
+/** The synthetic entry above. Never a look id, so it can never collide with one. */
+const PRODUCTION_LOOK_ID = 'production-look';
 
 /** The active walk's steps, in order. One function so the RAIL and the URL can never disagree
  *  about what step 3 of this mode is called. */
@@ -212,8 +229,8 @@ interface FinishedWalk {
   aiThread: AiThread | null;
   importedFile: ImportedTemplateResult | null;
   contextProductionId: string | null;
-  brand: ProjectBrand | null;
-  matchBrand: boolean;
+  brandChoices: BrandChoice[];
+  brandId: string | null;
   /** What the walk produced, filled in once the door has finished doing it. */
   made: MadeGraphic | null;
 }
@@ -270,10 +287,13 @@ export default function CreationWizard() {
   // change — committed to the created project so the graphic carries the reasoning that made it.
   const [aiThread, setAiThread] = useState<AiThread | null>(null);
   const acceptedAiGeneration = useRef<string | null>(null);
-  // The saved project brand (the "Use current project's colors & typeface" toggle keeps new
-  // graphics in the same package).
-  const [brand, setBrand] = useState<ProjectBrand | null>(null);
-  const [matchBrand, setMatchBrand] = useState(false);
+  // THE BRAND CHOOSER (docs/BRAND_PLAN.md §5). `brandChoices` is what the footer offers -
+  // every saved brand, plus a production's own captured look when it has one and no brand;
+  // `brandId` is which of them is chosen, null being None. The chosen brand is DERIVED rather
+  // than held: two states saying which brand is in force is two states that can disagree.
+  const [brandChoices, setBrandChoices] = useState<BrandChoice[]>([]);
+  const [brandId, setBrandId] = useState<string | null>(null);
+  const brand = brandId ? brandChoices.find((b) => b.id === brandId)?.brand ?? null : null;
   // The production this open is FOR (one-shot from pendingProductionId; Finish preselects it).
   const [contextProductionId, setContextProductionId] = useState<string | null>(null);
   // ── BACK INTO THE WALK ──
@@ -489,8 +509,8 @@ export default function CreationWizard() {
           if (live && graphicById(live)?.name === made.name) made.graphicId = live;
         }
         madeThisOpen.current = made;
-        setBrand(walk.brand);
-        setMatchBrand(walk.matchBrand);
+        setBrandChoices(walk.brandChoices);
+        setBrandId(walk.brandId);
         setStretchDemo(null);
         resetKit();
         // The step the walk ENDED on, not the one the history entry happens to name: the
@@ -526,11 +546,13 @@ export default function CreationWizard() {
       setAiThread(null);
       setStretchDemo(null);
       resetKit();
-      const b = loadBrand();
-      setBrand(b);
-      // Off by default: reusing the previous project's look is an explicit choice,
-      // not something a new graphic silently inherits.
-      setMatchBrand(false);
+      // Every saved brand, offered by name. NONE is selected: matching is an explicit act, and
+      // a person with no brands sees no chooser at all (docs/BRAND_PLAN.md decision 1). The
+      // DEFAULT brand does not preselect itself here either - it is what Home's "Use for new
+      // graphics" star means, and the wizard still asks.
+      const saved = loadLooks().map((l) => ({ id: l.id, name: l.name, brand: l.brand }));
+      setBrandChoices(saved);
+      setBrandId(null);
       // PRODUCTION CONTEXT (step 6): opened FOR a production (its page's "+ New graphic"),
       // the wizard pre-applies that production's look — the unified brand its graphics
       // share — and the Finish step preselects it. One-shot, like pendingDesignId.
@@ -539,10 +561,17 @@ export default function CreationWizard() {
       setContextProductionId(forProduction);
       if (forProduction) {
         const show = loadShows().find((s) => s.id === forProduction);
-        if (show?.look) {
-          setBrand(show.look);
-          setMatchBrand(true);
-          setDraft((d) => mergeDraft(d, brandPatch(show.look!)));
+        // The REFERENCE wins over the captured copy (model/shows.ts `brandId`): a production
+        // that named a brand gets whatever that brand says today, and one that only ever
+        // captured a look is offered that look under a synthetic entry, so the chooser names
+        // what the graphic is being created in rather than reading None over a preselection.
+        const named = show?.brandId ? saved.find((b) => b.id === show.brandId) : undefined;
+        const chosen: BrandChoice | null =
+          named ?? (show?.look ? { id: PRODUCTION_LOOK_ID, name: `${show.name} (this production's look)`, brand: show.look } : null);
+        if (chosen) {
+          if (!named) setBrandChoices([chosen, ...saved]);
+          setBrandId(chosen.id);
+          setDraft((d) => mergeDraft(d, brandPatch(chosen.brand, d)));
         }
       }
     } else {
@@ -677,6 +706,39 @@ export default function CreationWizard() {
   const patch = (p: DraftPatch) => setDraft((d) => mergeDraft(d, p));
 
   /**
+   * The footer chooser's one move. Whatever the last brand put on the draft comes off FIRST
+   * (`brandClearPatch`), then the new one goes on - so switching from a brand with a logo to one
+   * without leaves no orphan mark, and None leaves the person's own imported images alone.
+   *
+   * Both patches are folded into one `setDraft` because the second is computed against the
+   * result of the first: two `patch()` calls would each read the draft as it was before either.
+   */
+  const chooseBrand = (nextId: string | null) => {
+    const next = nextId ? brandChoices.find((b) => b.id === nextId)?.brand ?? null : null;
+    const previous = brand;
+    setBrandId(next ? nextId : null);
+    setDraft((d) => {
+      const cleared = mergeDraft(d, brandClearPatch(previous, d));
+      return next ? mergeDraft(cleared, brandPatch(next, cleared)) : cleared;
+    });
+  };
+
+  /** What the chooser promises, in the words of the walk it is standing in. The brand's own
+   *  notes ride along, because "how should this look" is the thing the name cannot say. */
+  const brandTitle = [
+    'Colours, typeface, and - where the design has a place for one - this brand\u2019s logo.',
+    // IMPORTED ARTWORK KEEPS ITS OWN FILLS (docs/BRAND_PLAN.md §7). Saying so here is the whole
+    // point of a per-mode tooltip: the brand reaches the :root variables and the typeface the
+    // artwork's TEXT reads, and nothing recolours the drawing.
+    mode === 'svg' || mode === 'design'
+      ? 'Imported artwork keeps its own colours - a brand reaches its text and its style variables only.'
+      : '',
+    brand?.notes?.trim() ?? '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  /**
    * The ✕. From any step past Entry it goes BACK TO THE WIZARD'S FRONT PAGE rather than out of
    * the wizard: the reader who is three steps into the wrong mode wants the other door, not the
    * app behind it, and losing the whole surface to correct one wrong turn is the fault this
@@ -715,10 +777,10 @@ export default function CreationWizard() {
     // rewound walk had already made — the export door mints one and leaves the wizard open, so
     // it takes no browser navigation to reach.
     forgetWalk();
-    // Back to what a fresh open sets. The toggle WRITES the brand into the draft, so leaving
-    // it checked over a draft that was just cleared would show a look the graphic no longer
-    // carries — the checkbox and the preview disagreeing about the same fact.
-    setMatchBrand(false);
+    // Back to what a fresh open sets. The chooser WRITES the brand into the draft, so leaving a
+    // brand selected over a draft that was just cleared would name a look the graphic no longer
+    // carries — the chooser and the preview disagreeing about the same fact.
+    setBrandId(null);
   };
   // Escape's handler reads this rather than closing over `leaveStep` directly (see below).
   leaveStepRef.current = leaveStep;
@@ -777,8 +839,8 @@ export default function CreationWizard() {
       aiThread,
       importedFile,
       contextProductionId,
-      brand,
-      matchBrand,
+      brandChoices,
+      brandId,
       made: null,
     };
   };
@@ -861,7 +923,7 @@ export default function CreationWizard() {
         // set, not just whichever one was on screen when it was ticked. It is also what the
         // production-context open turns on by itself, so a kit started from a production's
         // "+ New graphic" arrives in that production's look.
-        brand: matchBrand && brand ? brandPatch(brand) : null,
+        brand: brand ? brandPatch(brand, draft) : null,
       }),
     );
     setStep(2);
@@ -1176,15 +1238,10 @@ export default function CreationWizard() {
     // the store exactly like the AI path's aiSpec, so the autosave slot and every Save carry
     // them (an untouched draft normalizes to nothing).
     useTemplateStore.getState().setLegibility(draft.legibility);
-    // Remember this look as the project brand so the next graphic matches it.
-    saveBrand({
-      styleTag: variant.styleTag,
-      palette:
-        draft.customPalette ??
-        (draft.paletteId ? paletteById(draft.paletteId) : variant.defaultPalette),
-      fontId: draft.fontId && draft.fontId !== 'custom' ? draft.fontId : draft.fontId === 'custom' ? null : variant.defaultFontId,
-      customFont: draft.fontId === 'custom' ? draft.customFont : null,
-    });
+    // CREATE WRITES NO BRAND (docs/BRAND_PLAN.md decision 6). It used to overwrite one anonymous
+    // record with whatever had just been made, and that is exactly why the footer's old offer
+    // read as inert: it proposed a look nobody had chosen, named or seen. A brand is now a thing
+    // a person makes on purpose, on Home, and picks from the chooser below.
     // ACTIVATION: the funnel's one quality signal - a visitor who made something. Recorded
     // per create rather than once per visitor, so the analysis can ask both "did they ever"
     // and "how often"; the mode says which door produced it.
@@ -1461,21 +1518,23 @@ export default function CreationWizard() {
           dropped template FILE is applied byte-faithfully with the name as the only edit; and
           `createBlankTemplate(resolution, fps)` takes no draft at all. Ticking the box in those
           three wrote a palette into the draft that nothing downstream ever read. */}
-      {brand && BRAND_MODES.includes(mode) && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
-        <label className="wz-match" title="Reuse this project's palette and typeface so the new graphic belongs to the same package">
-          <input
-            type="checkbox"
-            checked={matchBrand}
-            onChange={(e) => {
-              setMatchBrand(e.target.checked);
-              patch(
-                e.target.checked
-                  ? brandPatch(brand)
-                  : { paletteId: null, customPalette: null, fontId: null },
-              );
-            }}
-          />
-          Colors &amp; typeface from this project
+      {/* WITH NO BRANDS THERE IS NO CONTROL, not a disabled one (docs/BRAND_PLAN.md decision 1):
+          an empty chooser is a promise the install cannot keep, and the door to making one is
+          Home, not here. */}
+      {brandChoices.length > 0 && BRAND_MODES.includes(mode) && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
+        <label className="wz-match" title={brandTitle}>
+          Brand
+          <select
+            className="wz-brand-select"
+            data-testid="wz-brand"
+            value={brandId ?? ''}
+            onChange={(e) => chooseBrand(e.target.value || null)}
+          >
+            <option value="">None</option>
+            {brandChoices.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
         </label>
       )}
       <div className="spacer" />
@@ -1559,7 +1618,7 @@ export default function CreationWizard() {
       const logo = Number(b.logo !== 'none') - Number(a.logo !== 'none');
       if (logo !== 0) return logo;
     }
-    if (matchBrand && brand) {
+    if (brand) {
       return Number(b.styleTag === brand.styleTag) - Number(a.styleTag === brand.styleTag);
     }
     return 0;
@@ -1787,7 +1846,7 @@ export default function CreationWizard() {
                   onFormat={(selection) => patch(formatDraftPatch(selection))}
                   legibility={draft.legibility}
                   onLegibility={(legibility) => patch({ legibility })}
-                  brandPalette={matchBrand && brand ? brand.palette : null}
+                  brandPalette={brand ? brand.palette : null}
                   result={aiResult?.template ?? null}
                   onResult={(template, valid, spec, generationId, path, pack) =>
                     setAiResult(template ? { template, valid, spec, generationId, path, pack: pack ?? null } : null)}
@@ -1911,8 +1970,11 @@ export default function CreationWizard() {
                     lines: [],
                     zone: null,
                     animation: { presetId: null, outPresetId: null },
-                    ...(matchBrand && brand
-                      ? brandPatch(brand)
+                    // Against a draft with NO images: this patch clears them a line above, and
+                    // a brand's mark must join what remains rather than restore what the drop
+                    // just dropped.
+                    ...(brand
+                      ? brandPatch(brand, { ...draft, importedImages: [] })
                       : { paletteId: null, customPalette: null, fontId: null }),
                   });
                   // The walk changes shape the moment the file is read: an SVG has nothing
@@ -1975,8 +2037,11 @@ export default function CreationWizard() {
                     lines: [],
                     zone: null,
                     animation: { presetId: null, outPresetId: null },
-                    ...(matchBrand && brand
-                      ? brandPatch(brand)
+                    // Against a draft with NO images: this patch clears them a line above, and
+                    // a brand's mark must join what remains rather than restore what the drop
+                    // just dropped.
+                    ...(brand
+                      ? brandPatch(brand, { ...draft, importedImages: [] })
                       : { paletteId: null, customPalette: null, fontId: null }),
                   });
                   // A raster drop is the classic prepare/place walk — also the way back from
@@ -2022,16 +2087,16 @@ export default function CreationWizard() {
                     zone: null,
                     logoEnabled: null, // the logo decision belongs to the picked design
                     animation: { presetId: null, outPresetId: null },
-                    // Matched brand carries the package look into every new graphic.
-                    ...(matchBrand && brand
-                      ? brandPatch(brand)
+                    // The chosen brand carries its look into every new graphic.
+                    ...(brand
+                      ? brandPatch(brand, draft)
                       : { paletteId: null, customPalette: null, fontId: null }),
                   })
                 }
                 onAi={() => { setMode('ai'); setStep(1); }}
                 // Ranking context, not a filter: with the footer's brand toggle on, the
                 // package's siblings lead the results (proposal §13.3).
-                brandFamily={matchBrand && brand ? brand.styleTag : null}
+                brandFamily={brand ? brand.styleTag : null}
                 buildMode={buildMode}
                 onBuildMode={setBuildMode}
                 kitPack={kitPack}
@@ -2125,9 +2190,9 @@ export default function CreationWizard() {
                     // checklist is stepped by construction and a name strap is not, so
                     // switching design re-asks instead of carrying the last answer across.
                     animation: { presetId: null, outPresetId: null, steps: null },
-                    // Matched brand carries the package look into every new graphic.
-                    ...(matchBrand && brand
-                      ? brandPatch(brand)
+                    // The chosen brand carries its look into every new graphic.
+                    ...(brand
+                      ? brandPatch(brand, draft)
                       : { paletteId: null, customPalette: null, fontId: null }),
                   })
                 }

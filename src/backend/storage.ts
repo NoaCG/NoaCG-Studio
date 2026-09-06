@@ -19,7 +19,7 @@ import {
   deleteLook,
   type SavedLook,
 } from '../model/packets';
-import { loadBrand, saveBrand, clearBrand, type ProjectBrand } from '../model/brand';
+import { loadLegacyBrand, saveLegacyBrand, clearLegacyBrand, type ProjectBrand } from '../model/brand';
 import { loadProject, upsertProject, clearProject, type SavedProject } from '../model/project';
 import { loadAllShows, upsertShow, deleteShow, type Show } from '../model/shows';
 import { loadAllGraphics, upsertGraphic, deleteGraphic, type GraphicDoc } from '../model/library';
@@ -124,7 +124,11 @@ export class LocalStorageProvider implements StorageProvider {
       const project = loadProject();
       return project ? [toStoredRecord('project', project.id, project)] : [];
     }
-    const brand = loadBrand();
+    // The 'brand' kind still carries the RETIRED anonymous record (model/brand.ts header): the
+    // app never writes it any more, but a device that has one and a device that does not must
+    // still converge, and the creator's "previous project look" offer reads it. A NAMED brand
+    // syncs as a 'look' — this row is not a copy of one.
+    const brand = loadLegacyBrand();
     return brand ? [toStoredRecord('brand', BRAND_ID, brand)] : [];
   }
 
@@ -141,7 +145,7 @@ export class LocalStorageProvider implements StorageProvider {
     else if (record.kind === 'graphic') upsertGraphic(record.body as GraphicDoc);
     else if (record.kind === 'video') upsertSavedVideoRecord(record.body as SavedVideoRecord);
     else if (record.kind === 'project') upsertProject(record.body as SavedProject);
-    else saveBrand(record.body as ProjectBrand);
+    else saveLegacyBrand(record.body as ProjectBrand);
   }
 
   async remove(kind: SyncKind, id: string): Promise<void> {
@@ -150,6 +154,6 @@ export class LocalStorageProvider implements StorageProvider {
     else if (kind === 'graphic') deleteGraphic(id);
     else if (kind === 'video') deleteSavedVideoProject(id);
     else if (kind === 'project') clearProject();
-    else clearBrand();
+    else clearLegacyBrand();
   }
 }

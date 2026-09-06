@@ -26,9 +26,10 @@ import {
   numericFontStack,
   type CustomFont,
 } from './fonts';
-import { loadBrand, type ProjectBrand } from './brand';
+import { getDefaultBrandId, hydrateBrand, loadLegacyBrand, type ProjectBrand } from './brand';
 import { TOKEN_VARS } from './themeTokens';
-import type { SpxTemplate, TemplateType } from './types';
+import { replaceDefinitionInHtml } from './spxDefinition';
+import type { SpxField, SpxTemplate, TemplateType } from './types';
 import { extOf, isFontAsset } from '../assets/assetUtils';
 import { durable } from './durableStore';
 import { uuid } from './id';
@@ -173,11 +174,38 @@ export function loadLooks(): SavedLook[] {
   return loadAllLooks().filter((l) => !l.deleted);
 }
 
+/**
+ * The DEFAULT brand's payload - what new graphics start from where something must choose one -
+ * or null when no brand is the default, or when the look the pointer names is gone (deleted on
+ * another device, say, in which case it resolves to nothing rather than to something arbitrary).
+ *
+ * It lives HERE rather than in `model/brand.ts` because a brand IS a look: resolving the pointer
+ * means reading this store, and brand.ts importing it back would be an import cycle the
+ * dependency gate refuses. brand.ts owns the pointer and the payload's shape; this owns the
+ * records.
+ */
+export function loadBrand(): ProjectBrand | null {
+  const id = getDefaultBrandId();
+  if (!id) return null;
+  const look = loadLooks().find((l) => l.id === id);
+  if (!look?.brand?.palette || !look.brand.styleTag) return null;
+  return hydrateBrand({ ...look.brand, updatedAt: look.brand.updatedAt ?? look.updatedAt });
+}
+
 export function addLook(name: string, brand: ProjectBrand): SavedLook[] {
+  createLook(name, brand);
+  return loadLooks();
+}
+
+/** Same write, returning the RECORD. Anything that must then point at what it just made needs
+ *  the id (the brand creator's "use this for new graphics", model/brand.ts `setDefaultBrand`),
+ *  and re-finding it by name in the list is a guess whenever two brands share one. */
+export function createLook(name: string, brand: ProjectBrand): SavedLook {
+  const look: SavedLook = { id: newId(), name: name.trim() || 'Untitled look', brand, updatedAt: nowIso() };
   const all = loadAllLooks();
-  all.push({ id: newId(), name: name.trim() || 'Untitled look', brand, updatedAt: nowIso() });
+  all.push(look);
   saveList(LOOKS_KEY, all);
-  return all.filter((l) => !l.deleted);
+  return look;
 }
 
 /**
@@ -243,7 +271,12 @@ const FONT_BLOCK_RE = /\/\* (?:Bundled open-source|Imported) font[\s\S]*?\}/;
  * Style-panel tweaks — plus its font). Falls back to the saved project brand.
  */
 export function captureLookFromTemplate(template: SpxTemplate): ProjectBrand {
-  const brand = loadBrand();
+  // The STYLE FAMILY is the one thing a template's own code cannot say (nothing in the HTML
+  // records which catalog family it came from), so it is borrowed from whatever brand the app
+  // already considers current — the default brand, and failing that the retired anonymous
+  // record a person's earlier Creates left behind (model/brand.ts). Neither existing means the
+  // family degrades to 'minimal', which costs nothing but Browse ranking order.
+  const brand = loadBrand() ?? loadLegacyBrand();
   const css = template.css;
   const val = (name: string, fallback: string) => getCssVariable(css, name) ?? fallback;
 
@@ -358,5 +391,54 @@ export function applyLookToTemplate(template: SpxTemplate, brand: ProjectBrand):
     if (name === 'font-label') css = ensureFontFace(css, fontByStack(value), '--font-label points at this face.');
   }
 
-  return { ...template, css, assets };
+  // ── THE MARK, INTO A SLOT THE GRAPHIC ALREADY HAS ───────────────────────────────────────
+  //
+  // Same rule as creation (docs/BRAND_PLAN.md decision 2): where the design drew a place for a
+  // logo the brand's mark goes in it, and where it did not, NOTHING is invented - no floating
+  // overlay, no grafted field. A graphic with no slot comes back with its html, its fields and
+  // its asset list exactly as they arrived, which is what makes "apply a brand" safe to press on
+  // anything.
+  let html = template.html;
+  let fields = template.fields;
+  const slot = brand.logo ? logoFieldOf(template) : null;
+  if (brand.logo && slot) {
+    const path = brand.logo.path;
+    html = html.replace(slot.tag, markTag(slot.tag, path));
+    fields = fields.map((f) => (f.field === slot.field.field ? { ...f, value: path } : f));
+    // The definition block is the operator's copy of that value - leaving it behind would show
+    // the mark on the canvas and an empty file picker in the control panel.
+    html = replaceDefinitionInHtml(html, template.settings, fields);
+    assets = [...assets.filter((a) => a.path !== path), brand.logo];
+  }
+
+  return { ...template, html, css, js: template.js, fields, assets };
+}
+
+/**
+ * The template's LOGO slot: a filelist field whose `<img id="fN">` also wears a `…-logo` class,
+ * plus the exact tag text, so the caller can rewrite it without re-finding it.
+ *
+ * Both halves are required on purpose. A filelist field alone is not a logo slot - `ls41` binds
+ * one to a person's AVATAR (`.lower-third-avatar`), and dropping a channel mark into a
+ * presenter's headshot is worse than doing nothing. And a design that styles `.{prefix}-logo`
+ * without a field has no operator-visible slot to fill. A design whose slot this misses is
+ * simply left alone, which is the honest failure for a guess about somebody else's markup.
+ */
+function logoFieldOf(template: SpxTemplate): { field: SpxField; tag: string } | null {
+  for (const field of template.fields) {
+    if (field.ftype !== 'filelist') continue;
+    const tag = new RegExp(`<img[^>]*\\bid="${field.field}"[^>]*>`).exec(template.html)?.[0];
+    if (tag && /\bclass="[^"]*-logo\b/.test(tag)) return { field, tag };
+  }
+  return null;
+}
+
+/** The same `<img>` with the mark in it: `src` written, and the empty-slot `display: none`
+ *  removed - a design hides its slot inline while it holds no file (templates/shared/logoSlot.ts),
+ *  so leaving that behind would bundle the logo and show nothing. */
+function markTag(tag: string, path: string): string {
+  const shown = tag.replace(/\s*style="display:\s*none"/, '');
+  return /\bsrc="[^"]*"/.test(shown)
+    ? shown.replace(/\bsrc="[^"]*"/, `src="${path}"`)
+    : shown.replace(/<img/, `<img src="${path}"`);
 }

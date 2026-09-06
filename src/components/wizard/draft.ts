@@ -822,8 +822,17 @@ export function formatDraftPatch(selection: ProjectFormatSelection): DraftPatch 
   return { ...selection, formatTouched: true };
 }
 
-/** The DraftPatch that applies a saved project brand to the draft (the wizard's "Use current project's colors & typeface" toggle). */
-export function brandPatch(brand: import('../../model/brand').ProjectBrand): DraftPatch {
+/**
+ * The DraftPatch that applies a chosen BRAND to the draft (the wizard footer's brand chooser).
+ *
+ * Colour, typeface and - when the brand has a mark - the LOGO. The current draft is needed
+ * because the mark JOINS the imported images rather than replacing them: in the Import walk the
+ * person has their own pictures in that list, and a brand must never eat one.
+ */
+export function brandPatch(
+  brand: import('../../model/brand').ProjectBrand,
+  draft: WizardDraft,
+): DraftPatch {
   // ANYTHING THE CATALOG CANNOT NAME TRAVELS AS A CUSTOM PALETTE. A look CAPTURED off a
   // template (model/packets.ts captureLookFromTemplate) is minted with id 'captured', not
   // 'custom' - and `draftToOptions` resolves a non-custom palette through `paletteById`,
@@ -838,11 +847,56 @@ export function brandPatch(brand: import('../../model/brand').ProjectBrand): Dra
   // Membership, not the resolver: `paletteById` is total by design and can never report a
   // miss, so asking it whether an id is known is asking a question it cannot answer.
   const known = PALETTES.some((p) => p.id === brand.palette.id);
+  const logo = brand.logo;
   return {
     customPalette: known ? null : brand.palette,
     paletteId: known ? brand.palette.id : null,
     fontId: brand.customFont ? 'custom' : brand.fontId,
     customFont: brand.customFont,
+    // THE MARK GOES WHERE THE DESIGN HAS A PLACE FOR ONE, AND NOWHERE ELSE (docs/BRAND_PLAN.md
+    // decision 2). Nothing here decides that, and nothing here has to: `draftToOptions` drops
+    // `logoAssetPath` for a design whose `logo` is 'none', and `resolveOptions` reads
+    // `logoEnabled` only for an 'optional' one - so a slotless design receives a path nothing
+    // reads, and no logo appears. Inventing a place for one is explicitly out of scope.
+    //
+    // `logoEnabled: true` is the one thing the path does not already imply. The fallback chain
+    // is `options.logoEnabled ?? variant.defaultLogo ?? !!options.logoAssetPath`, so a design
+    // declaring `defaultLogo: false` would swallow the path silently - and the decision is that
+    // choosing a brand with a logo turns the slot ON, even there.
+    ...(logo
+      ? {
+          importedImages: [...draft.importedImages.filter((a) => a.path !== logo.path), logo],
+          logoAssetPath: logo.path,
+          logoEnabled: true,
+        }
+      : {}),
+  };
+}
+
+/**
+ * The DraftPatch that takes a brand back OFF the draft - the chooser moving to None, or to a
+ * different brand (in which case this runs first and `brandPatch` writes the new one over it).
+ *
+ * Colour and typeface are cleared outright, as the old toggle did. The LOGO is not: only the
+ * asset THIS brand put in the list goes, and `logoAssetPath` falls back to whatever picture the
+ * person imported themselves rather than to nothing - the same answer the Import step's own
+ * `onImages` gives. A brand may never delete a user's image on its way out.
+ */
+export function brandClearPatch(
+  brand: import('../../model/brand').ProjectBrand | null,
+  draft: WizardDraft,
+): DraftPatch {
+  const base: DraftPatch = { paletteId: null, customPalette: null, fontId: null, customFont: null };
+  const logo = brand?.logo;
+  if (!logo) return base;
+  const kept = draft.importedImages.filter((a) => a.path !== logo.path);
+  const wasBrands = draft.logoAssetPath === logo.path;
+  return {
+    ...base,
+    importedImages: kept,
+    logoAssetPath: wasBrands ? kept[0]?.path ?? null : draft.logoAssetPath,
+    // Back to "nobody has decided", so the design's own default answers again.
+    logoEnabled: wasBrands ? null : draft.logoEnabled,
   };
 }
 

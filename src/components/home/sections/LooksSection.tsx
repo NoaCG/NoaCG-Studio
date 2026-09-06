@@ -10,7 +10,7 @@ import {
   type SavedLook,
 } from '../../../model/packets';
 import { commitDurableWrites } from '../../../model/durableStore';
-import { saveBrand } from '../../../model/brand';
+import { getDefaultBrandId, setDefaultBrand } from '../../../model/brand';
 import { slug } from '../../../export/common';
 import { IconDownload, IconPalette, IconUpload } from '../../icons';
 
@@ -20,6 +20,10 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
   const setActiveTab = useTemplateStore((s) => s.setActiveTab);
   const [newLookName, setNewLookName] = useState('');
+  // WHICH look new graphics start from, as a POINTER rather than a copy (model/brand.ts): the
+  // row that owns it wears the star, and pressing "Use for new graphics" on another row moves
+  // it. Held in state so the star moves on the press instead of on the next visit.
+  const [defaultId, setDefaultId] = useState<string | null>(() => getDefaultBrandId());
   const [note, setNote] = useState<string | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
 
@@ -79,7 +83,12 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
             ))}
           </span>
           <div className="lib-info">
-            <strong>{look.name}</strong>
+            <strong>
+              {look.name}
+              {look.id === defaultId && (
+                <span title="New graphics start from this brand" aria-label="Default brand"> ★</span>
+              )}
+            </strong>
             <span className="muted">{look.brand.customFont?.family ?? look.brand.fontId ?? ''}</span>
           </div>
           <div className="lib-actions">
@@ -95,10 +104,15 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
             Apply
           </button>
           <button
-            onClick={() => { saveBrand(look.brand); setNote(`✓ "${look.name}" is now the brand for new graphics.`); }}
-            title="New graphics from the wizard will match this look"
+            onClick={() => {
+              setDefaultBrand(look.id);
+              setDefaultId(look.id);
+              setNote(`✓ "${look.name}" is now the brand for new graphics.`);
+            }}
+            title="Preselect this brand where something has to choose one: a production's new graphics, and the star on Home"
+            disabled={look.id === defaultId}
           >
-            Use for new
+            Use for new graphics
           </button>
           <button
             onClick={() => {
@@ -111,7 +125,18 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
             <IconDownload />
           </button>
           </div>
-          <button onClick={() => { deleteLook(look.id); onChanged(); }} title="Delete this look" aria-label={`Delete ${look.name}`}>✕</button>
+          <button
+            onClick={() => {
+              deleteLook(look.id);
+              // The pointer goes with the record it named. `loadBrand` already resolves a dead
+              // id to null, so this is tidiness rather than correctness - but a star that is
+              // still SET on nothing would come back the moment an id was reused.
+              if (look.id === defaultId) { setDefaultBrand(null); setDefaultId(null); }
+              onChanged();
+            }}
+            title="Delete this look"
+            aria-label={`Delete ${look.name}`}
+          >✕</button>
         </div>
       ))}
       {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'}>{note}</p>}

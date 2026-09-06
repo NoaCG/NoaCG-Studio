@@ -79,7 +79,8 @@ async function createProject(page, spec) {
     const { CATEGORIES } = await import('/src/model/wizard.ts');
     const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
     const { formatTemplate } = await import('/src/format/formatCode.ts');
-    const { saveBrand } = await import('/src/model/brand.ts');
+    const { setDefaultBrand } = await import('/src/model/brand.ts');
+    const { createLook } = await import('/src/model/packets.ts');
     const { saveProject } = await import('/src/model/project.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { useDocKindStore } = await import('/src/store/docKindStore.ts');
@@ -101,10 +102,11 @@ async function createProject(page, spec) {
     store.applyTemplate(template, { resetSampleData: true });
     store.setActiveTab('html');
     useDocKindStore.getState().setKind('spx');
-    saveBrand({
+    const made = createLook(`${variant.name} look`, {
       styleTag: variant.styleTag, palette: variant.defaultPalette,
       fontId: variant.defaultFontId, customFont: null,
     });
+    setDefaultBrand(made.id);
     const created = useTemplateStore.getState();
     saveProject(created.template, created.baseline, { graphicId: created.saved.graphicId, dirty: created.saved.dirty }, created.aiSpec, created.aiThread);
   }, spec);
