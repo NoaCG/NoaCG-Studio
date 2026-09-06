@@ -2611,7 +2611,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                       the runtime finds and grows itself (svgCollectSpanners), so the one artwork
                       that needs stretching never needed the control. */}
                   <span className="grow">{labelOfCandidate(f.candidateId)}</span>
-                  <span className="map-svg-follower-mode">Moves out of the way</span>
+                  <span className="map-svg-follower-note">Moves out of the way</span>
                   <button
                     onClick={() =>
                       setFollowers(declaredFollowers.filter((o) => o.candidateId !== f.candidateId))

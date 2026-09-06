@@ -3016,6 +3016,65 @@ test('svg import: text stays off a decorative end-cap, and the cap travels when 
   expect(long.gapToCap).toBeGreaterThan(0);
 });
 
+test('svg import: a rail spanning the panel still stretches after the reader edits what travels', async ({ page }) => {
+  // WHY THIS EXISTS. The per-follower "Moves out of the way / Grows by the same amount" picker is
+  // gone (owner 2026-09-05, settled on the corpus 2026-09-06 - docs/TEXT_BOX_BINDING.md, "What
+  // travels is not a question"), because a row in that list can never be a layer that should
+  // stretch. What DOES stretch is furniture drawn to the panel's own two edges, and the runtime
+  // finds it itself - but it only looked while the rule carried NO declared follower list. So the
+  // moment a reader dropped one row, the rail on their own lower third silently stopped growing
+  // with its plate, and after the picker went there was no control left to bring it back.
+  //
+  // A board with an amber rail down its full height, a caption below it, and a strap pinned to
+  // the frame bottom that geometry wrongly proposes - so dropping the strap is an ordinary edit
+  // that leaves a real declared list behind.
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+      <rect id="Board" x="300" y="200" width="1200" height="120" rx="8" fill="#0d1017"/>
+      <rect id="Rail" x="300" y="200" width="12" height="120" fill="#f6a623"/>
+      <text id="Question" x="340" y="272" font-size="44" fill="#ffffff">Which city?</text>
+      <rect id="Caption" x="300" y="360" width="1200" height="60" rx="8" fill="#20242c"/>
+      <rect id="Strap" x="0" y="1000" width="1000" height="60" fill="#20242c"/>
+    </svg>`,
+    'rail.svg',
+  );
+  await page.locator('.wz-next').click();
+  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-y');
+  await expect(page.getByTestId('map-svg-stretch-only')).toContainText('Board');
+
+  // The rail is never a row: it is not drawn past the growing edge, it is drawn ACROSS the panel.
+  await expect(page.getByTestId('map-svg-followers')).not.toContainText('Rail');
+  await page.getByTestId('map-svg-follower-drop-s2').click(); // the frame-bottom strap
+  await expect(page.getByTestId('map-svg-followers')).not.toContainText('read from your artwork');
+  await createProject(page);
+
+  const frame = previewFrame(page);
+  const run = (value: string) =>
+    frame.locator('#f0').evaluate((el, v) => {
+      const w = window as unknown as { update: (s: string) => void };
+      w.update(JSON.stringify({ f0: v }));
+      return {
+        board: document.getElementById('Board')!.getBoundingClientRect().height,
+        rail: document.getElementById('Rail')!.getBoundingClientRect().height,
+        captionMoved: document.getElementById('Caption')!.getAttribute('transform'),
+      };
+    }, value);
+
+  const rest = await run('Which city?');
+  expect(rest.captionMoved).toBeNull();
+
+  // A value long enough to wrap makes the board taller. The rail grows with it, by the same
+  // amount, so the strip the board gained is not left bare - and the caption the reader kept on
+  // the list still travels.
+  const long = await run(
+    'Which of these famous chess openings begins one e four, e five, two knight f three?',
+  );
+  expect(long.board).toBeGreaterThan(rest.board + 1);
+  expect(long.rail - rest.rail).toBeCloseTo(long.board - rest.board, 0);
+  expect(long.captionMoved).toContain('translate(');
+});
+
 test('svg import: an all-outlined file does not offer drawing text over the drawn type', async ({ page }) => {
   // The backlog's outline-fallback ruling (2026-08-28): on a file with no text layers, a drawn
   // box could only land ON TOP of the outlined type, with nothing removing the shapes under it.

@@ -227,10 +227,11 @@
    way"). This was a two-option select until the corpus was measured and the second option turned
    out to be right on none of the 79 rows that carried it - so it is a fact about the row now, set
    back like the hint it is, and never mistaken for a control. */
-.map-svg-follower-mode {
+.map-svg-follower-note {
   flex: 0 0 auto;
-  color: var(--muted, rgba(232, 237, 242, 0.62));
-  font-size: 0.85rem;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.8rem;
   white-space: nowrap;
 }
 
