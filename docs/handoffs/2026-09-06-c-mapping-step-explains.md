@@ -80,7 +80,11 @@ rule (one sentence; 9.8 KB headroom left on that chain). Owner-queue item:
   `npm run test:e2e:affected:queued` (or the integration form after taking `main`).
 - **taste: not applicable** - nothing here moves what a graphic looks like; the step's own
   layout is the one unseen surface (below).
-- Stamp written: `.git/noacg-jobs/checks/claude-c-mapping-step-explains.json`.
+- **Stamp NOT written.** The isolated worktree harness refuses any write to the shared
+  `.git/noacg-jobs/checks/` path, so `claude-c-mapping-step-explains.json` does not exist. The
+  mode lines above are the record; the orchestrator writes the stamp on the laptop (reviewedSha
+  `110b35f`, review delegated 9/9, simplify inline 2/2, verify build green, e2e not run) or
+  re-runs `/check` there.
 
 ## Observed vs reasoned - be honest with the owner
 
