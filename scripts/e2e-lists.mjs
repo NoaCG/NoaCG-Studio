@@ -135,6 +135,18 @@ export const CONFIGURED_TRIGGERS = [
   // the other half - CONFIGURED_TRIGGERS is asked BEFORE the ignore list, which is what makes it
   // reachable at all for a path under `docs/`.
   /^docs\/svg-samples\/quiz-board\.svg$/,
+  // THE BEHAVIOUR COMPILER AND ITS RECIPES (docs/SVG_BEHAVIOUR_PLAN.md), for the sharper half
+  // of the same story. These decide how a bound layer is STAMPED - the `data-noacg-role`
+  // token and the look class pair every drawn moment is addressed by - and
+  // e2e/configured/imported-quiz-output.spec.ts is the only thing that reads those stamps on
+  // the far side of the hosted wire. The offline walk reads them too and is migrated with the
+  // compiler, so the two drift SILENTLY: on 2026-09-05 the quiz became a declaration, the id
+  // namespace it used to stamp (`q-sel-2`, `q-lock`) went with it, e2e/import-svg-behaviour.spec.ts
+  // was rewritten in the same commit, and this spec was not. It landed red, and nothing on the
+  // way in had said the configured suite was even reachable from that change.
+  /^src\/templates\/behaviours\//,
+  /^src\/templates\/importedDesign\/(behaviour|behaviourRuntime)\.ts$/,
+  /^src\/blocks\/behaviourData\.ts$/,
   // AGENT ACCESS (docs/AGENT_SAVE.md): the consent page with a session, the loopback handoff,
   // redeem, a save 201, the deep link after sync and revoke -> 401 only exist against a real
   // backend (e2e/configured/agent-access.spec.ts). The offline spec can only pin their absence.

@@ -2,9 +2,12 @@
 //
 // Deliberately NOT a build gate. A stray placeholder is a low-stakes copy mistake, and the
 // catalog already carries four heavy per-change gates; adding a fifth for this would cost
-// every contributor time to protect against something a review catches. This runs where the
-// other focused infrastructure tests do (`npm run test:sample-names`), and fails loudly enough
-// to be worth having.
+// every contributor time to protect against something a review catches.
+//
+// That argument is about the BUILD, which every laptop runs many times a day - not about CI,
+// which runs once and does not care about a second. So since 2026-09-06 this runs in the
+// Factory gates job, and `npm run test:sample-names` still runs it here. It had no automatic
+// home at all before that, which `check:gate-coverage` now refuses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

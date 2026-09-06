@@ -564,6 +564,17 @@ jobs:
       - name: Search and occasion gates
         run: npm run test:use-case-search
 
+      # Four node-level gates that are outside `npm run build` on purpose: they spawn servers
+      # and subprocesses, and roughly doubling the build's test time on every laptop to catch
+      # them is a bad trade. On a runner they cost about twelve seconds together, and until now
+      # they ran only when somebody typed the command. `check:gate-coverage` keeps this honest.
+      - name: Node gates outside the build
+        run: |
+          npm run test:ports
+          npm run test:sample-names
+          npm run test:local-relay
+          npm run test:ai-lite-semantic
+
       # The factory needs a dev server. Its dedicated runner prevents a collision with the
       # offline-pinned Playwright servers, and the shell trap always cleans the process up.
       - name: Run factory gates
