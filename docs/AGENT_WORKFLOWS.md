@@ -337,6 +337,38 @@ chain had 1470 bytes free on 2026-09-02 with no move left in it. When relocation
 next lever is a DELETION, which is the owner's ruling to make: file the proposed cuts and what
 each loses under `docs/acceptance/owner-queue/` rather than taking them.
 
+## Retiring one, and what a workflow actually costs
+
+**Only the NAME and DESCRIPTION of a workflow load in every session; the body loads when somebody
+invokes it.** So a long procedure nobody runs costs almost nothing, and the way to reduce the
+noise is to retire a workflow or sharpen its description, never to trim a file for size. On
+2026-09-06 `next.md` was 229 lines and last typed on 2026-08-25; cutting it would have bought
+nothing, while retiring two unused workflows and renaming a third took three entries out of every
+session's list. Two skills sharing one description is the version of this that actually misfires:
+the repository's in-repo graphic skill and the published plugin's carried the same name and
+near-identical trigger text, so nothing chose between them on purpose.
+
+**Measure before retiring anything, because impressions are wrong here.** The evidence is in the
+transcripts, which record both ways a workflow is entered:
+
+```bash
+grep -roh --include=*.jsonl -E '<command-name>/?[a-z0-9:-]+</command-name>' ~/.claude/projects
+grep -roh --include=*.jsonl -E '"name":"Skill","input":\{"skill":"[a-z0-9:_-]+"' ~/.claude/projects
+```
+
+Tally each, and pair the counts with a LAST-USED date by carrying the nearest preceding
+`"timestamp"` on the same pass - a total is a poor signal on its own, and the date is what
+identifies a workflow the repo has already replaced. That is how `safe-merge` was judged: 217
+runs up to 2026-08-25 and none after, the day the landing queue arrived. Sessions launched by
+other sessions invoke through the Skill tool rather than typing a command, so a count that reads
+only the first pattern misses most of the real traffic.
+
+**A personal command is not a candidate for deletion.** `~/.claude/commands/safe-merge.md` and
+`handoff.md` are the repo-agnostic versions that serve every OTHER project on the machine, and
+they already defer to `.agent-workflows/<name>.md` when the invoking repo has one, so they shadow
+nothing here. Removing them to tidy up this repository would take those commands away from
+repositories that have no replacement.
+
 ## Adding or changing a workflow
 
 1. Add or edit `.agent-workflows/<name>.md`. For a modular workflow, put the change in the module
