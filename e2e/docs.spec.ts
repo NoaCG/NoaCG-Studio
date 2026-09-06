@@ -102,6 +102,27 @@ test('the four guides carry their load-bearing content', async ({ page }) => {
   await expect(svg).toContainText('read as one more');
 });
 
+// The chooser page. The rest of "Connect playout" documents how to play a package; this one is
+// the question asked before any of that, and its whole job is that a reader finds the row for
+// the system they already run. A host missing from the table is a reader with nowhere to go, so
+// every target the product exports to is named here or this fails.
+test('the package chooser names every export target, and the live route first', async ({ page }) => {
+  await page.goto('/docs');
+  const chooser = page.locator('#export');
+  // Every host in export/registry.ts EXPORT_TARGETS. Adding a target without a row here is the
+  // silent failure: the page still reads perfectly and simply does not mention it.
+  for (const host of ['OBS', 'vMix', 'CasparCG', 'SPX', 'OGraf', 'LiveOS', 'H2R']) {
+    await expect(chooser).toContainText(host);
+  }
+  // The honest lead: a production driven from NoaCG needs no package at all, and a reader who
+  // downloads one for a show this page is about to run live has been sent the wrong way.
+  await expect(chooser).toContainText('are you exporting at all');
+  await expect(chooser.locator('a[href="#dashboard"]')).toHaveCount(1);
+  // The two hosts that have their own guide are handed to it rather than re-explained.
+  await expect(chooser.locator('a[href="#browser-source"]')).toHaveCount(1);
+  await expect(chooser.locator('a[href="#casparcg"]')).toHaveCount(1);
+});
+
 // The non-SVG artwork guide. An SVG keeps its text and gets its own section; this one is for
 // everything a reader actually turns up holding - a logo, a photograph, a Lottie file - and its
 // value is the three facts nothing in the product says out loud.

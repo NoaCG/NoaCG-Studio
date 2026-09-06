@@ -5,9 +5,9 @@ kind: ask
 raised: 2026-08-26
 state: advanced
 note: >-
-  items 2 (countdowns and clocks) and 3 (artwork that is not an SVG) are on the page,
-  2026-09-06. Item 1 (the creation wizard) is deliberately not written yet - see the body.
-  Item 4 (which package do I want) still stands.
+  items 2 (countdowns and clocks), 3 (artwork that is not an SVG) and 4 (which package do I
+  want) are on the page, 2026-09-06. Only item 1 (the creation wizard) is left, and it is
+  deliberately held rather than merely unwritten - see the body.
 asked: >-
   "I like the new docs" - the next guides on the /docs shelf, in the order they earn their place
   (paraphrase of the 2026-08-26 walk)
@@ -60,11 +60,13 @@ One guide is roughly an afternoon: run the flow, write it, pin its load-bearing 
    writes versus what a single-file one embeds, that the exported operator page only switches
    between the pictures the graphic already carries, that a Lottie autoplays and loops from load,
    and that a missing font is silent. Pinned in `e2e/docs.spec.ts`.
-4. **Exporting for each target.** Six targets exist and the page documents playing them, not
-   choosing between them. A short "which package do I want" page, not six pages.
-
-   **STILL OPEN.** The constraint above is the hard part of it: this is one page, and if it cannot
-   be made short it should not be made.
+4. ~~**Exporting for each target.**~~ **Done, 2026-09-06.** `#export`, leading the "Connect
+   playout" group, because that group used to start halfway through the answer. One page: a
+   six-row table of "playing it in / take / what you get", led by the question that comes first
+   (a production driven from NoaCG needs no package at all) and closed by the fact that makes a
+   wrong pick cheap (export again). The two hosts with their own guide are linked, not
+   re-explained. `e2e/docs.spec.ts` pins that every target in `EXPORT_TARGETS` has a row, so a
+   seventh target cannot be added without one.
 
 **Deliberately not on this list:** one guide per catalog design, an AI page (that work is
 postponed), and anything about the editor beyond what Advanced mode already implies.

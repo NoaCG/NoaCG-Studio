@@ -57,6 +57,7 @@
         <a href="#svg">Import your own SVG graphic</a>
         <a href="#artwork">Pictures, logos &amp; Lottie</a>
         <p class="group">Connect playout</p>
+        <a href="#export">Which package do I want</a>
         <a href="#browser-source">OBS, vMix &amp; browser sources</a>
         <a href="#casparcg">CasparCG</a>
         <p class="group">Run the show</p>
@@ -855,6 +856,78 @@ Full results at https://example.org</code></pre>
             <code>fonts/</code>. A single-file package refuses to build instead, because there is
             no folder to repair and the alternative is handing you a graphic that quietly airs in
             the wrong face.
+          </p>
+        </section>
+
+        <!-- ═══════════════════════ WHICH PACKAGE ═══════════════════════ -->
+        <section id="export">
+          <h2>Which package do I want</h2>
+          <p>
+            Every graphic exports to all six of the packages below, and you never pick between them
+            while you are designing. The choice is made at the end, and it is made by whatever is
+            going to put the graphic in the picture. Find that here, take the row, and read the
+            guide it points at if there is one.
+          </p>
+          <p>
+            <strong>First: are you exporting at all?</strong> If NoaCG is running the show, the
+            answer is no. A <a href="#dashboard">production</a> gives you an output URL you add as a
+            browser source and an operator page you drive it from, and nothing is downloaded. An
+            export is for handing the graphic to a system that will own it, or for running it on a
+            machine that will not have this page open.
+          </p>
+          <div class="doc-table"><table>
+            <tr><th>Playing it in</th><th>Take</th><th>What you get</th></tr>
+            <tr>
+              <td><strong>OBS, vMix</strong>, or anything that renders a web page</td>
+              <td>HTML overlay</td>
+              <td>One <code>.html</code> that plays itself when the source loads, and an operator
+                page for live edits. <a href="#browser-source">The guide</a>.</td>
+            </tr>
+            <tr>
+              <td><strong>CasparCG</strong></td>
+              <td>CasparCG export</td>
+              <td>One <code>.html</code> with everything inlined, plus a shim that reads CasparCG's
+                own data payloads and an operator page for the days there is no playout machine.
+                <a href="#casparcg">The guide</a>.</td>
+            </tr>
+            <tr>
+              <td>A playout system that loads a <strong>folder of templates</strong>, such as
+                <strong>SPX</strong></td>
+              <td>SPX export</td>
+              <td>A folder to drop into that system's templates directory. Your fields appear in
+                its rundown by name, and an operator page comes with it for anything else.</td>
+            </tr>
+            <tr>
+              <td>An <strong>OGraf</strong> renderer</td>
+              <td>OGraf (EBU) export</td>
+              <td>A folder holding the OGraf manifest and the graphic as a web component. This is
+                the EBU's interchange format, so it is also the one to take when you do not yet
+                know what will play it.</td>
+            </tr>
+            <tr>
+              <td><strong>LiveOS</strong> (NetOn.Live)</td>
+              <td>LiveOS export</td>
+              <td>The same OGraf package, with that engine's install steps beside it. Its fields
+                become LiveOS operator inputs.</td>
+            </tr>
+            <tr>
+              <td><strong>H2R Graphics</strong></td>
+              <td>H2R export</td>
+              <td>One <code>.html</code> for H2R's Custom HTML graphic type. The fields become H2R
+                inputs, and its on and off drive the entrance and the exit.</td>
+            </tr>
+          </table></div>
+          <p>
+            All six are complete and none of them needs the internet. Fonts, pictures, the animation
+            engine and your own code travel inside the package, paths are relative, and nothing is
+            fetched while the graphic is on air. The difference between them is only the shape the
+            host expects, which is covered in
+            <a href="#artwork-export">what comes out in an export</a>. Nothing is lost by picking
+            wrongly either: export again and take a different one.
+          </p>
+          <p>
+            You do not have to open the editor to get any of this. The last step of making a graphic
+            offers the export directly.
           </p>
         </section>
 
