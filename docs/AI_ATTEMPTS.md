@@ -703,6 +703,17 @@ spends on. That is the right model for the product question and the wrong one fo
 harness-versus-iterate comparison - the round changes two variables at once, and no rate from it
 should be read as the harness alone.
 
+**A THIRD fault, and this one would have corrupted the owner's read rather than a rate.** The
+bench settled for a flat 1800ms before measuring and photographing. `lt-latenight` wrote a 2.9s
+entrance whose title line only arrives at 2.2s, so every instrument measured - and the frame kept -
+a graphic one line short, with dead space in the panel where the missing line belongs. The cell
+still DELIVERED CLEAN, because the template is fine; it is the instrument that was early. A blind
+reader handed that frame marks the cell down for a defect that is not in the graphic, which is the
+deliver-signal leak §23.1 drove to zero, arriving from the opposite direction. The settle now comes
+from the graphic's own entrance duration in its data block, bounded to [1800ms, 6000ms].
+**Consequence for the frames already on disk: they were shot under the flat wait and must be
+re-captured before any blind read.**
+
 **RETRY WHEN** the bank finishes on the fixed harness - the run is resumable
 (`--resume --out=pro-harness-out-gemini-v3`) and 2 of 21 are recorded. The standing instruction this
 round adds: **when a harness round refuses work that looks correct, reproduce the refusal in the

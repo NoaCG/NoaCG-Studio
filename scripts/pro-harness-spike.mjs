@@ -177,7 +177,25 @@ async function mountAndMeasure(template, data, opts) {
       error = String(e?.message ?? e).slice(0, 300);
     }
     await win.document.fonts.ready;
-    await new Promise((resolve) => setTimeout(resolve, 1800));
+    // SETTLE FOR THIS GRAPHIC'S OWN ENTRANCE, not for a number that was right about the catalog.
+    // The wait was a flat 1800ms; `lt-latenight` wrote a 2.9s entrance whose title line only
+    // arrives at 2.2s, so every instrument measured - and the frame photographed - a graphic
+    // one line short, and the cell still delivered clean. A blind reader would have marked it
+    // down for a defect that is not in the template (2026-09-06; the rule this breaks is
+    // src/ai/AGENTS.md's "check the instrument before concluding anything about what it
+    // measured"). The entrance length is in the graphic's own data block, so read it.
+    let settle = 1800;
+    try {
+      const { parseAnimData } = await import('/src/blocks/animData.ts' + bust);
+      const anim = parseAnimData(template.js);
+      const entrance = Number(anim?.steps?.[0]?.duration);
+      const speed = Number(anim?.speed) || 1;
+      // +400ms so the last keyframe has landed and the browser has painted it.
+      if (Number.isFinite(entrance)) settle = (entrance / speed) * 1000 + 400;
+    } catch { /* an unreadable block keeps the flat wait - the honest fallback */ }
+    // Bounded both ways: never shorter than the old wait (the catalog settles well inside it),
+    // never long enough for one slow entrance to stall a 21-brief bank.
+    await new Promise((resolve) => setTimeout(resolve, Math.min(Math.max(settle, 1800), 6000)));
     return error;
   }, { template, data });
   const measured = await measureFrame(opts);
