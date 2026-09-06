@@ -714,19 +714,30 @@ from the graphic's own entrance duration in its data block, bounded to [1800ms, 
 **Consequence for the frames already on disk: they were shot under the flat wait and must be
 re-captured before any blind read.**
 
-**A FIFTH fault, found on the resumed bank, and it is unwinnable by construction.** Every
-quiz-board cell refuses on `runtime:step-contract` - "step 2 of 3 changed nothing on screen after
-next()" - in every round. The scaffold is why: the neutral quiz spine's middle step, named "Reveal",
-carries **zero layers, zero reveals and zero hides**. It is an empty step, so it cannot change
-anything, and the bench blocks delivery on exactly that. The model cannot fix it either, because
-quiz-board carries a machine and the workbench therefore refuses it the ANIMATION region - it is
-told "the region is platform-owned here". So the platform hands the model a graphic whose machine
-has an empty middle step, blocks the graphic on that step doing nothing, and refuses the model the
-one region that could change it. The model diagnosed it correctly and said so before stopping
-("step 2 not changing (likely a state machine issue)"), which is the same shape as the animation
-region: it was right and the platform was wrong. This is the class this file already names -
-**repair rounds unwinnable by construction** - and the standing instruction under "Teaching the
-free-form coder its structure spine by example" applies unchanged.
+**A FIFTH fault, found on the resumed bank: the STEP-CONTRACT CHECK is mis-calibrated for a
+machine-driven type.** Every quiz-board cell refuses on `runtime:step-contract` - "step 2 of 3
+changed nothing on screen after next()" - in every round, and the model cannot clear it, because
+quiz-board carries a machine and the workbench therefore refuses it the ANIMATION region ("the
+region is platform-owned here"). Unwinnable by construction, the class this file already names.
+
+**The measurement settles where the fault is, and it is NOT the scaffold.** The graphic's middle
+step, named "Reveal", carries zero layers, zero reveals and zero hides - and so does the middle step
+of **all 12 shipped catalog quiz boards**, measured through their own emitted data. A quiz board's
+reveal is a MACHINE transition, not step keyframes; the empty middle step is how the whole family is
+built. So the check that fails these cells would fail every quiz board the catalog ships, which is
+the signature `src/ai/pro/AGENTS.md` names: *an instrument whose false positives are the good
+designs is one authors learn to ignore.* The instrument advances the default path with `next()` and
+diffs the markup, and that is the wrong question for a type whose visible change comes from an
+operator EVENT.
+
+The model diagnosed it correctly before stopping ("step 2 not changing (likely a state machine
+issue)"), which is the third time in this round that the cheap model was right about a platform
+fault the gate reported as its failure.
+
+**A first attempt at this entry blamed the neutral scaffold**, before the catalog was measured. It
+did not; the catalog agrees with it exactly. Check the instrument against the shipped corpus before
+concluding a scaffold is wrong - the rule at the end of `src/ai/AGENTS.md` says this and it was
+still worth re-learning here.
 
 **RETRY WHEN** the bank finishes on the fixed harness - the run is resumable
 (`--resume --out=pro-harness-out-gemini-v3`) and 2 of 21 are recorded. The standing instruction this
