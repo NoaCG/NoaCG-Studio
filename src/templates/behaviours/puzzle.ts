@@ -49,9 +49,9 @@ export const puzzleRecipe: BehaviourRecipe = {
     { event: NEW_EVENT, label: 'New puzzle', section: 'Puzzle', order: 2, destructive: true, set: { [REVEALED]: '' } },
   ],
   paint: () => [
-    { write: 'tile.letter', rows: 'tile', from: `${PHRASE}:letter` },
-    { look: 'tile.letter', rows: 'tile', when: { facts: [`${PHRASE}:shown`] } },
-    { look: 'tile.letter', rows: 'tile', when: { state: ['main/solved'], facts: [`${PHRASE}:used`] } },
+    { write: 'tile', rows: 'tile', from: `${PHRASE}:letter` },
+    { look: 'tile', rows: 'tile', when: { facts: [`${PHRASE}:shown`] } },
+    { look: 'tile', rows: 'tile', when: { state: ['main/solved'], facts: [`${PHRASE}:used`] } },
     { look: 'tile.used', rows: 'tile', when: { facts: [`${PHRASE}:used`] } },
     { look: 'solved', when: { state: ['main/solved'] }, enter: 'pop' },
   ],

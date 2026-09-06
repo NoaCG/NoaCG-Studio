@@ -759,3 +759,63 @@ vocabulary): the reveal card is two `switch` instances; the election board is tw
 instances plus two gauges over a `share` pair; the lineup is a `row-pick` field with per-row
 looks; the breaking-news wrap is a `switch` beside the `countdown`. Each needs only §7c's two
 micro-recipes and the composition rule, which is what phase 3 builds.
+
+### The reuse test, run for real (2026-09-06, `docs/SVG_BEHAVIOUR_SHOWS.md`)
+
+Six game-show and late-night graphics, drawn as a student would and imported through the wizard.
+Five became recipes of the shipped shape (`survey`, `list`, `lineup`, `puzzle`, `reveal`); the
+bracket binds with a switch and a choice and nothing else. What the six changed, and what they
+found, in the order they matter:
+
+**A counter's ceiling is the machine's, and that closes the `pages` question.** The survey's
+strikes are a `counter` field whose `+1` rides `adjust` on a `strike` event, and a `strikes` group
+of four states carries that event only three times - so the fourth press is greyed by the
+structural guard every control surface already honours, and the operator's box can never run past
+the three X's. No legality reaches the surfaces from the runtime; the runtime's clamp only decides
+what a figure a controller wrote past the ceiling paints. A paged list is the same shape with
+`page` for `strike`, which is what §13 above was waiting for.
+
+**A rule may be about ONE row** (`row` beside `rows` in `LookRule`, additive). The top ten's
+tenth entry stays up from its own step to the last, which is a different state list per row and
+so a rule per row; the grammar gained a pick of a row, not a third slot. The recipe emits ten
+rules and the whole behaviour is the default path - no event, no group, and SPX's Continue,
+CasparCG's NEXT and OGraf's steps all drive it.
+
+**A recipe may own a field per row** (`RecipeField.row`). The survey's "Answer 3 revealed" is a
+select the Reveal 3 button `set`s and the row's look binds to, the switch's own wire rule applied
+per row: a data-only controller reveals a row by writing `on`. It is what made a row-set kind
+unnecessary for a board of at most eight answers.
+
+**Three field kinds joined**: `counter` (facts `reached:N`, `is:N`, `at-min`, `at-max`, `zero`),
+`list` (a "Label | figure" line per row: `label`, `figure`, `line` per row, `total` over the rows
+whose companion field reads on, `listed`) and `puzzle` (a phrase over tiles: `letter` per tile,
+`used`, `shown`, `hidden`). The `row-pick` kind gained the order facts `before` and `after`. Every
+one is a small pure function from a holder's text; no recipe emits JavaScript, still.
+
+**FINDING - a list field has no button that adds to it.** The puzzle's "Reveal R", the bracket's
+"advance the winner of match 3" and a bingo caller's "call 42" all want one press to append a
+value to a lines field - the "list twin of `adjust`" §9e named. `payload` rides a field as it
+reads, `adjust` moves a number, `set` writes a constant; none can say "add this". The puzzle
+ships on the data road (the operator adds the letter to the Revealed box and presses Update),
+which is honest and a keystroke slower than the show. Not a doctrine break: a fourth member of
+the payload family on the control surfaces, `add: { list: sourceField }`, resolved on the surface
+like the other three so the box moves with the board. Not built here.
+
+**FINDING - a recipe carries ONE row set, and a grid has two.** The bracket (teams and matches),
+the Jeopardy board (categories and values) and the Deal or No Deal case board (cases and
+amounts) each repeat along two keys. §7a's `rows` is one keyed repetition by design; the bracket
+therefore binds as DATA - every slot typed, the match highlight a `choice`, the crown a `switch` -
+which is brief C6's own lesson rather than a defeat. What the model cannot say is the cross-row
+LOOKUP ("the winner of match 1's name moves up by itself"), which is a `row-pick` deriving a
+companion per-row field's text: a kind derivation, allowed by the doctrine, unbuilt because the
+second row set has to exist first. Left as the plan's next design question, not bent around.
+
+**Two import traps the walk surfaced, neither the behaviour's.** A text layer named after its own
+sample text ("Champion" reading "Champion") loses its name to the parent group, because the
+importer treats a name equal to the content as Illustrator's default naming (`namesItsOwnCopy`).
+And decorative numerals a student types ("10.", "9.") arrive as ten fields to untick, because
+nothing in the file can say "this text is not a field". Both are `docs/backlog/` material.
+
+**The wizard holds every recipe with rows in ONE generic draft** (`SvgRecipeDraft.rows`,
+`DesignSvgRecipeBehaviour.rows` and `.fields`, additive), offered from the registry rather than a
+hand-kept list, so the four legacy draft shapes are the last of their kind.

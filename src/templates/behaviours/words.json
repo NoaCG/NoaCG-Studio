@@ -663,7 +663,7 @@
         "what": "a field the operator types"
       },
       {
-        "id": "tile.letter",
+        "id": "tile",
         "label": "Letter",
         "kind": "layer",
         "paint": ["write", "look"],

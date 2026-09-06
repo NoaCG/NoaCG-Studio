@@ -105,4 +105,62 @@ The artwork is under `e2e/fixtures/svg-shows/`, drawn the way a student would: l
 `docs/SVG_AUTHORING.md` §5b, `show:` and `choice:` where they fit, nothing else prefixed.
 `e2e/import-svg-behaviour.spec.ts` drives every file that binds.
 
-(Filled in below as each graphic is walked.)
+### What the shipped system did with each file, before anything was built
+
+The honest first import, through the wizard as it stood on `main` that morning:
+
+| File | Proposed | What the hidden layers were offered as | Verdict |
+|---|---|---|---|
+| survey board | the QUIZ, wrongly (eight `Answer N` rows are the quiz's evidence) | eleven layers, each "a switch" or "one option of a choice" | needs a recipe, a counter kind and a summed list |
+| top ten list | nothing | ten marks as switches or choices | needs a recipe, and a rule about one row |
+| guest lineup | nothing; the `show:` strip and the `choice:` bug arrived bound | eight Now/Done layers as switches or choices | needs a recipe; the extras bind today |
+| puzzle board | nothing | fifteen layers as switches or choices | needs a recipe and a text-parsing kind |
+| bid and price reveal | nothing; the `choice:Winner` rings arrived bound | the cover as a switch, and no way to hide the typed price | needs a recipe; the winner binds today |
+| bracket | nothing; the `choice:Match` frames and `show:Crown` arrived bound | (none left) | binds as data plus the extras |
+
+### 4a. Survey board - needs a recipe, a field kind and a per-row field; built
+
+`survey` (`src/templates/behaviours/survey.ts`). Reveal 1..8 are self-transitions on one `board`
+state whose press `set`s the row's own "Answer N revealed" field, so the look binds to data and a
+controller can reveal by writing `on`. Strike rides `adjust` on a `strikes` counter, and a group
+of four states greys the fourth press: the ceiling is the machine's. The `list` kind writes each
+slot's answer and points from one lines box and sums the revealed points into the total. What
+was needed beyond the shipped shape: the `counter` and `list` kinds, and a recipe owning a field
+per row (`RecipeField.row`). The reveal cannot be taken back by a button, on purpose.
+
+### 4b. Top ten list - needs a recipe and a rule about one row; built
+
+`list`. One step on the default path per entry, in reveal order (an option flips it), so Next,
+Continue and OGraf steps drive it with no event. Each entry's look is a rule for THAT row naming
+every step from its own on, which is the additive `row` key beside `rows`. The rank numerals a
+student types arrive as fields to untick, a finding about the import.
+
+### 4c. Guest lineup with extras - needs a recipe; composes with the shipped extras; built
+
+`lineup`. "On now" is a number field the `row-pick` kind reads; the guests already on are dimmed
+by the kind's new `before` fact rather than by a state per guest; a group of states exists only to
+grey Next on the last guest and Back on the first. The `show:` strip and the `choice:` bug bound
+beside it from the first import, which is the composition rule doing its job.
+
+### 4d. Puzzle board - needs a recipe and a field kind; built, with a finding
+
+`puzzle`. The `puzzle` kind derives every tile's letter and its used / shown / hidden facts from
+one typed phrase and a revealed-letters field; Solve is the walk's own arrow. FINDING: revealing a
+letter is typing it and pressing Update, because no control can append to a field - the list twin
+of `adjust` that plan §9e named. Recorded in the plan's §13, shipped on the data road.
+
+### 4e. Bid and price reveal - needs a recipe (rowless); the winner binds today; built
+
+`reveal`. A switch cannot show typed text (hidden text is never a field), so the price is a written
+layer the recipe's field fills, lit from the Revealed step on, with the drawn cover lit before it.
+The four bids are number fields with + and -, and the winner is a `choice:` the file already
+carried. The generic rowless draft held it with no wizard change.
+
+### 4f. Bracket - binds with the extras; the model's limit found
+
+No recipe. Fifteen typed slots, a `choice:Match` frame, a `show:Crown`. FINDING: a bracket
+repeats along two keys (teams, matches) and a recipe carries one; and the winner's name moving
+up by itself is a cross-row lookup the doctrine allows as a kind derivation but the one-row-set
+shape cannot host. Recorded in §13 of the plan; the bracket ships as data, which is brief C6's
+own answer. A second import trap surfaced here: a layer named after its own sample text loses its
+name to its parent group.
