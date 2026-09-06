@@ -125,10 +125,8 @@ was not drawn in.
   taxonomy (model/taxonomy.ts + templateMeta.ts + search.ts). A variant carries only what it
   needs to BUILD itself; a second discovery model on the variant would drift from the first the
   moment either changed.
-- **importedDesign/designSvgTypes.ts** - the Import-graphic road's option shapes (`DesignSvg*`,
+- **importedDesign/designTypes.ts** - the Import-graphic road's option shapes (`DesignSvg*`,
   `DesignArt`, `DesignStretch`); contract.ts carries them only as WizardOptions members.
-  `model/wizard.ts` re-exports both files for one landing while their importers are rewritten
-  (docs/WORKFLOW_ARCHITECTURE.md §5.5, domain row 1).
 
 ## Discovery metadata (the Browse step's facets — docs/TEMPLATE_TAXONOMY_PROPOSAL.md)
 

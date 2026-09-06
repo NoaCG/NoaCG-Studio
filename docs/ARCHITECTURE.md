@@ -183,7 +183,7 @@ the row. Do not add rows without updating §3's justification trail.
 | model -> editor | `model/prefs.ts:5` type-only `CommentVisibility` | accepted - type-only, harmless; move the type to `model/` if ever inconvenient |
 | model <-> assets | `fonts.ts` <-> `assetUtils` | accepted - kernel siblings, both layer 0 |
 | blocks -> templates presets | `blocks/presetRegistry.ts` imports 8 preset tables | accepted - data-table aggregation, no logic cycle; revisit only if a preset ever imports blocks logic |
-| model -> templates | `model/wizard.ts` is a RE-EXPORT SHIM for `templates/contract.ts` + `templates/importedDesign/designSvgTypes.ts` (docs/WORKFLOW_ARCHITECTURE.md §5.5, domain row 1) | temporary, one landing: rewrite the importers to the new paths, then delete the shim and its `.dependency-cruiser.cjs` allowance together |
+| model -> templates | `model/wizard.ts:14-15` `export *` of `templates/contract.ts` + `templates/importedDesign/designTypes.ts` | temporary, one landing (docs/WORKFLOW_ARCHITECTURE.md §5.5, domain row 1) - rewrite the importers to the new paths, then delete the shim and its `.dependency-cruiser.cjs` allowance together |
 
 ## 7. Enforcement roadmap
 

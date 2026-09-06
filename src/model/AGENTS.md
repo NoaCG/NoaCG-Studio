@@ -96,7 +96,7 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
 - **wizard.ts** - a RE-EXPORT SHIM, kept for one landing (docs/WORKFLOW_ARCHITECTURE.md §5.5,
   domain row 1). The template contract it held - categories, variants, WizardOptions, palettes,
   field plans - lives in templates/contract.ts, and the Import-graphic shapes (`DesignSvg*`,
-  `DesignArt`) in templates/importedDesign/designSvgTypes.ts; read those contracts there. Every
+  `DesignArt`) in templates/importedDesign/designTypes.ts; read those contracts there. Every
   importer in this directory takes types only. The next landing rewrites the importers to the
   new paths and deletes the shim.
 - **fonts.ts** - bundled OFL typeface registry + CustomFont import helpers. Each face carries

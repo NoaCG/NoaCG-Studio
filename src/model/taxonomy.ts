@@ -8,7 +8,7 @@
 // sliver in src/templates/meta.ts. Display labels live here so renames and localization never
 // touch stored ids.
 
-import type { AnimPresetId } from './wizard';
+import type { AnimPresetId } from './templateVocabulary';
 import type { StyleTag } from './fonts';
 
 // ── Facet A: programme families and formats ─────────────────────────────────

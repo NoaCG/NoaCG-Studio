@@ -24,7 +24,7 @@
 // again by the app — only by the cloud-sync seam, which still carries the row so a device that
 // has one and a device that does not converge (src/backend/storage.ts).
 
-import type { Palette } from './wizard';
+import type { Palette } from './templateVocabulary';
 import type { CustomFont, StyleTag } from './fonts';
 import type { AssetFile } from './types';
 import { registerAppFont } from './fonts';
