@@ -29,6 +29,14 @@ run from a main checkout (the owner said yes to the ruleset on 2026-09-06).
      `main` run whose commit main has already moved past cancels itself.
    - `scripts/landings.mjs`: keeps `landed.jsonl` fed from merged `land`-labelled pull requests
      (called by `npm run jobs`, the tick and the session-start notice).
+   - `scripts/land-watch.mjs`: the local merge job `queue:merge` still enqueues only WATCHES the
+     pull request, so the frozen-branch hook, the tick's QUEUED/LANDED events, stop-wait and the
+     ledger keep their one shape. A landing needs no laptop; a laptop that is off just does not
+     watch.
+   - After the fast-forward the lander dispatches `ci.yml` and the configured suite on `main`
+     itself, because a push made with the workflow's token starts no run. The review's one
+     skipped finding: `scripts/main-health.mjs` still hands out `add-merge --onto-red-main`
+     (accepted and ignored by the cloud client; its wording is pinned by a test).
    - Docs: `docs/BRANCHING_AND_LANDING.md`, `.agent-workflows/queue-merge.md`, root `AGENTS.md`.
 
 ## Open, in order of payoff (phase 1's second half, then phase 2a)
