@@ -53,6 +53,6 @@ the file, so a lost symbol is a visible change rather than a missing paragraph.
 
 - `npm run check:contracts` - the store parses, no rule carries evidence, no two active rules
   read as one, every named mechanism exists, the generated files are current.
-- `npm run check:contract-evidence` - a hand-written `AGENTS.md` may not gain an evidence
-  paragraph; the count only ratchets down.
+- `npm run check:contract-evidence` - a hand-written `AGENTS.md` may not gain a line carrying a
+  date, a run id or a measurement; the count is a limit that only tightens.
 - `scripts/check-contract-freshness.mjs` - a backticked path or script a rule names must exist.

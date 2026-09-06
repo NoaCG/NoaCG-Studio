@@ -214,7 +214,8 @@ export function planMainHealth(health, { failing = null, allowRed = false, branc
       '  emails in 35 hours (docs/CI_STABILITY.md) - every landing pushes main, every push starts a\n' +
       '  run, and every run reports the same bug under a new sha.\n' +
       `  If ${branch} IS the fix for that, land it with:\n` +
-      `      node scripts/jobs.mjs add-merge ${branch} --onto-red-main`,
+      `      node scripts/jobs.mjs add-merge ${branch} --onto-red-main\n` +
+      '  (add --unreviewed "<reason>" if /check has not stamped this tip - the queue refuses an unstamped tip)',
   };
 }
 

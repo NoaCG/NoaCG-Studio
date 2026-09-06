@@ -130,7 +130,7 @@ Chromium integrates thousands of changes a day because **the cost of integrating
 | LUCI, Swarming, RBE, monorepo build system | Scale infrastructure | none | **Inappropriate**; nothing here needs it |
 | Human code review per CL | | `/check` review pass | Keep as is; give the stamp a machine consumer |
 
-**Where NoaCG's architecture is fundamentally wrong, not merely under-tuned:** (1) the landing authority is a process on a developer machine; (2) the validation gate is a monolith whose scope is the repository; (3) knowledge is stored as loaded prose in files every branch mutates, with a ceiling as the only counter-force; (4) the full-validation tier gates nothing and runs per landing, so it costs the most and protects the least.
+**Where NoaCG's architecture is wrong at the level of design, and no tuning reaches it:** (1) the landing authority is a process on a developer machine; (2) the validation gate is a monolith whose scope is the repository; (3) knowledge is stored as loaded prose in files every branch mutates, with a ceiling as the only counter-force; (4) the full-validation tier gates nothing and runs per landing, so it costs the most and protects the least.
 
 ## 4. Architectures for instructions and learning
 
@@ -345,7 +345,7 @@ Dependency-cone selection is not worth building before `model/wizard.ts` leaves 
 
 **Domain rows:**
 
-1. `model/wizard.ts` → `templates/contract.ts` (`TemplateVariant`, `WizardOptions`, palettes, `resolveOptions`, `fieldsFromOptions`) and `templates/importedDesign/designSvgTypes.ts`; a re-export shim for one landing, then delete. 621 mechanical import rewrites; verified by build, depcruise and an unchanged `catalog-baseline.json`. Land it in a quiet window before any open template branch. Highest leverage: 617 files leave `CORE`.
+1. `model/wizard.ts` → `templates/contract.ts` (`TemplateVariant`, `WizardOptions`, palettes, `resolveOptions`, `fieldsFromOptions`) and `templates/importedDesign/designSvgTypes.ts`; a re-export shim for one landing, then delete. 621 mechanical import rewrites; verified by build, depcruise and an unchanged `catalog-baseline.json`. Land it in a quiet window before any open template branch. Biggest payoff: 617 files leave `CORE`.
 2. `model/taxonomy.ts` → `templates/taxonomy.ts` + `templates/searchAliases.ts`.
 3. The §6 debts in one row: `slug`, `ensureExternalRefs`, `cssVars` → `model/`; `EditorTab` → `blocks/`; `defaultTemplate` → `templates/`. Deletes the model → export → control chain.
 4. New `src/production/` domain (layer 1): `showStore`, `cues`, `datasets`, `layers`, `publishState`, `looks`, with `Show`/`SavedGraphic` as the interface; persisted shape and version unchanged, pinned by the production specs; edge-table row in the same commit.
@@ -402,7 +402,7 @@ Each phase lands green and alone; nothing waits on the owner except the two acco
 - Gate: a hand-written contract may not gain a dated or measured paragraph; `learn` is the only path for new lessons. Loaded bytes stop growing on the day this lands.
 - Give the `/check` stamp its consumer: `add-merge` refuses a branch whose stamp does not match the tip (local queue, until phase 1 replaces it).
 
-**Phase 1: landing in the cloud and the validation tiers (the highest leverage; 3 to 5 sessions).**
+**Phase 1: landing in the cloud and the validation tiers (the biggest payoff; 3 to 5 sessions).**
 - Owner: add the Supabase secret (agreed 2026-09-06). The organization can follow whenever decided; phase 1 builds `land.yml` in the queue-compatible shape from 5.2.
 - Ruleset on `main` (pushes only from the lander, `noacg/reviewed` required); `land.yml`; `queue:merge` as the thin client; `auto-merge.mjs` reduced to preflight; retire `order-blocked`, the twelve-hour hold and the red-main refusal.
 - `ci.yml`: one setup job with artifacts; base = merge-base; `main` runs T3 once per batch with the superseded-exit; auto re-run of failed shards; quarantine bot; revert bot.

@@ -191,8 +191,10 @@ alive:** the harness's live-session inventory, the branch tip's age, and the mti
 transcript. **The inventory ALONE is not enough and reading it that way is the trap**: it fails
 open for subagents, and on 2026-09-05 it reported a row idle while that row was committing every
 four minutes and about to queue itself (row Z's measurement, `incidents.md`). A tip that moved in
-the last half hour is alive whatever any inventory says. Then `node scripts/jobs.mjs add-merge <branch>`, and
-the report says which branches the loop queued and why. **What protects a half-finished branch is
+the last half hour is alive whatever any inventory says. Then `node scripts/jobs.mjs add-merge <branch>`
+(with `--unreviewed "queued by the night loop: the session is gone"` when the tip carries no
+`/check` stamp - `add-merge` refuses an unstamped tip otherwise, and the reason lands on the job
+record), and the report says which branches the loop queued and why. **What protects a half-finished branch is
 the GATE, not the owner's attention**: `auto-merge` runs the full gate and refuses red, on a
 feature branch, behind a queue that lands one at a time. Asking him instead buys no safety and
 costs the landing. **Whatever is uncommitted stays uncommitted** - the landing takes the branch's

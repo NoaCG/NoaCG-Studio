@@ -6,7 +6,7 @@
 // much memory the machine running it happens to have.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -46,6 +46,8 @@ import {
   timedOutRecord,
   waitVerdict,
   writeJob,
+  readReviewStamp,
+  stampGap,
 } from './jobs-store.mjs';
 
 const NIGHT = 3; // 03:00 local
@@ -1364,4 +1366,40 @@ test('an ordering block is still a hold, not a dispatch - the recovery it alread
   assert.equal(next.recovery, undefined, 'a hold asks for nothing to be run');
   assert.equal(next.ciDispatched, undefined);
   assert.equal(refusalGuidance(blocked.refusal, 'claude/c').recovery, null);
+});
+
+// ---------------------------------------------------------------------------------------------
+// The /check stamp, read by add-merge: a stamp covers a tip when its sha is a prefix of the tip
+// (sessions have written 8, 10 and 40 characters), at least seven hex characters, and the
+// verdict is a pass. Pinned in both directions.
+
+test('stampGap: a full or abbreviated sha that prefixes the tip with a passing verdict covers it', () => {
+  const tip = '012bb5d1aa00bb11cc22dd33ee44ff5566778899';
+  assert.equal(stampGap({ reviewedSha: tip, verdict: 'pass' }, tip), null);
+  assert.equal(stampGap({ reviewedSha: '012bb5d1', verdict: 'green' }, tip), null);
+  assert.equal(stampGap({ reviewedSha: '012BB5D1AA', verdict: 'pass' }, tip), null);
+  assert.equal(stampGap({ reviewedSha: '012bb5d1' }, tip), null, 'a stamp with no verdict field is a pass');
+});
+
+test('stampGap: names the gap - no stamp, an unresolved tip, a short or wrong sha, a failing verdict', () => {
+  const tip = '012bb5d1aa00bb11cc22dd33ee44ff5566778899';
+  assert.match(stampGap(null, tip), /no \/check stamp/);
+  assert.match(stampGap({ reviewedSha: '012bb5d1' }, null), /tip could not be resolved/);
+  assert.match(stampGap({ reviewedSha: '012bb' }, tip), /is not a sha/);
+  assert.match(stampGap({ reviewedSha: 'deadbeef' }, tip), /reviewed deadbeef, but the tip is 012bb5d1/);
+  assert.match(stampGap({ reviewedSha: '012bb5d1', verdict: 'fail' }, tip), /verdict is "fail", not a pass/);
+});
+
+test('readReviewStamp: reads checks/<branch-with-dashes>.json and treats an unreadable one as absent', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'stamp-'));
+  assert.equal(readReviewStamp(dir, 'claude/x'), null);
+  const checks = join(dir, 'checks');
+  mkdirSync(checks, { recursive: true });
+  writeFileSync(join(checks, 'claude-x.json'), JSON.stringify({ v: 1, reviewedSha: 'abc1234', verdict: 'pass' }));
+  writeFileSync(join(checks, 'claude-y.json'), 'not json');
+  writeFileSync(join(checks, 'claude-z.json'), JSON.stringify({ v: 1 }));
+  assert.equal(readReviewStamp(dir, 'claude/x').reviewedSha, 'abc1234');
+  assert.equal(readReviewStamp(dir, 'claude/y'), null);
+  assert.equal(readReviewStamp(dir, 'claude/z'), null, 'a stamp without reviewedSha proves nothing');
+  rmSync(dir, { recursive: true, force: true });
 });

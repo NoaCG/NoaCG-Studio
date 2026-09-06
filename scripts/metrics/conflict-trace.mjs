@@ -32,14 +32,25 @@ export function classify(file) {
 function main() {
   const args = process.argv.slice(2);
   const days = args.includes('--days') ? Number(args[args.indexOf('--days') + 1]) : 45;
-  const merges = git(['log', '--merges', `--since=${days}.days`, '--format=%H', 'origin/main']).split('\n').filter(Boolean);
+  // One git call for the whole window: each merge prints its own `@@<sha>` line followed by the
+  // `diff --cc` headers of the files that needed a resolution. One spawn per merge cost about 33 s
+  // over a 45-day window; this takes under a second.
+  const stream = git(['log', '--merges', `--since=${days}.days`, '--cc', '--format=@@%H', 'origin/main']);
+  const merges = [];
+  let current = null;
+  for (const line of stream.split('\n')) {
+    // A combined-diff hunk header also starts with `@@` (`@@@ -1,3 -1,3 +1,3 @@@`); only a bare sha
+    // after the marker is a merge boundary.
+    if (/^@@[0-9a-f]{40}$/.test(line)) {
+      current = { sha: line.slice(2), files: [] };
+      merges.push(current);
+    } else if (current && line.startsWith('diff --cc ')) current.files.push(line.slice('diff --cc '.length));
+  }
   const perFile = new Map();
   const perClass = new Map();
   let withConflict = 0;
   const shape = { codeOnly: 0, mdOnly: 0, both: 0 };
-  for (const sha of merges) {
-    const out = git(['show', '--cc', '--format=', sha]);
-    const files = [...out.matchAll(/^diff --cc (.+)$/gm)].map((m) => m[1]);
+  for (const { files } of merges) {
     if (files.length === 0) continue;
     withConflict += 1;
     let code = false;

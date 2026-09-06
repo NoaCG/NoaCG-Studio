@@ -107,6 +107,7 @@
       "Bash(node scripts/e2e-runs.mjs --all)",
       "Bash(node scripts/e2e-runs.mjs --orphans)",
       "Bash(npm run queue:merge)",
+      "Bash(npm run queue:merge -- --unreviewed *)",
       "Bash(npm run queue:merge 2>&1)",
       "PowerShell(npm run queue:merge)",
       "Bash(node scripts/jobs.mjs requeue)",

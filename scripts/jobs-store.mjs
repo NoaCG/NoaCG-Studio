@@ -132,6 +132,43 @@ export function writeJob(dir, job) {
  * as the port registry's tickets, for the same reason: the filesystem is the arbiter, and there
  * is no lock left behind if the process dies mid-claim.
  */
+/**
+ * The `/check` verdict stamp for a branch, or null. The file is per-machine state beside the job
+ * store (`checks/<branch-with-slashes-as-dashes>.json`, .agent-workflows/check.md); a stamp that
+ * does not parse is the same as no stamp, since a verdict nobody can read proves nothing.
+ */
+export function readReviewStamp(dir, branch) {
+  const file = join(dir, 'checks', `${String(branch).replaceAll('/', '-')}.json`);
+  if (!existsSync(file)) return null;
+  try {
+    const stamp = JSON.parse(readFileSync(file, 'utf8'));
+    return stamp && typeof stamp.reviewedSha === 'string' ? stamp : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The stamp verdicts that mean "passed". Sessions have written both; anything else is not a pass. */
+const PASSING_VERDICTS = new Set(['pass', 'green']);
+
+/**
+ * Does a stamp cover a tip? The sha it names must be a prefix of the tip (18 of the 68 stamps
+ * on this machine on 2026-09-06 held an abbreviated sha, and a stamp `/check` wrote by hand is
+ * not wrong for being short), at least seven hex characters, and the verdict must be a pass.
+ * Returns the reason it does not, or null when it does.
+ */
+export function stampGap(stamp, tip) {
+  if (!stamp) return 'no /check stamp exists';
+  if (typeof tip !== 'string' || tip.length === 0) return 'the branch tip could not be resolved';
+  const reviewed = String(stamp.reviewedSha).toLowerCase();
+  if (!/^[0-9a-f]{7,40}$/.test(reviewed)) return `the stamp's reviewedSha "${stamp.reviewedSha}" is not a sha`;
+  if (!tip.toLowerCase().startsWith(reviewed)) return `the stamp reviewed ${reviewed.slice(0, 8)}, but the tip is ${tip.slice(0, 8)}`;
+  if (stamp.verdict !== undefined && !PASSING_VERDICTS.has(String(stamp.verdict).toLowerCase())) {
+    return `the stamp's verdict is "${stamp.verdict}", not a pass`;
+  }
+  return null;
+}
+
 export function addJob(dir, {
   command, checkout, branch = null, kind = 'gate', after = [], capMinutes = POLICY.capMinutes,
   retryOf = null, retryCount = 0, orderHold = null, blockedSince = null,
@@ -1195,6 +1232,9 @@ export function retryLandingFor(job, {
     capMinutes: job.capMinutes ?? POLICY.capMinutes,
     retryOf: job.id,
     retryCount: spent + 1,
+    // The review verdict rides along: a retry lands the same declared work, so what `/check`
+    // said about it (or that nothing did) stays on the record.
+    ...(job.review ? { review: job.review } : {}),
     ...(budgetSpentByABug ? { repinnedRetry: true } : {}),
     // Carried onto the new job so a second refusal for the same reason escalates instead of
     // asking for a third full suite, and stated as `recovery` so the caller knows to run it.
@@ -1333,6 +1373,7 @@ export function requeueDecision(branch, jobs, git = {}) {
       after: [],
       capMinutes: landing.job.capMinutes ?? POLICY.capMinutes,
       retryOf: landing.job.id,
+      ...(landing.job.review ? { review: landing.job.review } : {}),
       // A FRESH AUTOMATIC BUDGET, because this is a person putting the work back rather than the
       // sweep spending its one try. The sweep cannot loop on it either: `adoptOrphanedLandings`
       // treats `retryOf` as "already handled", so this job is the last word on the old one.

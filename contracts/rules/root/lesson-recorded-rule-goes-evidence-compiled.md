@@ -1,4 +1,5 @@
 ---
+v: 1
 scope: **
 kind: invariant
 fires: contract

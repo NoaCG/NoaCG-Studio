@@ -9,11 +9,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
-  compileOutputs, findDuplicates, globMatches, groupSlug, idOf, loadRules, parseRule, rulesFor, similarity, symbolsOf,
+  compileOutputs, findDuplicates, globMatches, groupSlug, idOf, loadRules, parseRule, rulesFor, similarity, splitList, symbolsOf,
 } from './contracts-lib.mjs';
 import { drift, plan, write } from './compile-contracts.mjs';
 
 const GOOD = `---
+v: 1
 scope: src/components/wizard/**, src/templates/shared/base.ts
 kind: trap
 fires: contract
@@ -22,6 +23,8 @@ since: 2026-09-02
 ---
 An input-only value lives in a holder carrying \`class="noacg-data-source"\`, never an inline \`style="display:none"\`.
 `;
+
+const withBody = (text) => GOOD.replace(/^An input.*$/m, text);
 
 function store(files) {
   const root = mkdtempSync(path.join(tmpdir(), 'contracts-'));
@@ -40,12 +43,31 @@ test('idOf derives the id from the path and nothing else', () => {
   assert.equal(idOf('docs/x.md'), null);
 });
 
-test('a well-formed rule parses with no problems and keeps its symbols', () => {
+test('a well-formed rule parses with no problems and keeps its symbols; CRLF reads the same', () => {
   const { rule, problems } = parseRule('contracts/rules/wizard/data-source-holder.md', GOOD);
   assert.deepEqual(problems, []);
   assert.equal(rule.id, 'wizard/data-source-holder');
+  assert.equal(rule.v, 1);
   assert.deepEqual(rule.scope, ['src/components/wizard/**', 'src/templates/shared/base.ts']);
   assert.deepEqual(rule.symbols, ['class="noacg-data-source"', 'style="display:none"']);
+  const crlf = parseRule('contracts/rules/wizard/data-source-holder.md', GOOD.replace(/\n/g, '\r\n'));
+  assert.deepEqual(crlf.problems, []);
+  assert.equal(crlf.rule.body, rule.body);
+});
+
+test('the format is versioned: a missing v reads as 1, an unknown v is refused', () => {
+  assert.deepEqual(parseRule('contracts/rules/a/b.md', GOOD.replace('v: 1\n', '')).problems, []);
+  const { problems } = parseRule('contracts/rules/a/b.md', GOOD.replace('v: 1', 'v: 2'));
+  assert.match(problems[0], /format version 2 is not 1/);
+});
+
+test('splitList keeps a brace group whole, so a scope agrees with the matcher', () => {
+  assert.deepEqual(splitList('src/**/*.{ts,tsx}, e2e/*.ts'), ['src/**/*.{ts,tsx}', 'e2e/*.ts']);
+  assert.deepEqual(splitList(' a ,, b '), ['a', 'b']);
+  assert.deepEqual(splitList(undefined), []);
+  const { rule } = parseRule('contracts/rules/a/b.md', GOOD.replace(/scope: .*/, 'scope: src/**/*.{ts,tsx}'));
+  assert.deepEqual(rule.scope, ['src/**/*.{ts,tsx}']);
+  assert.equal(rulesFor([rule], 'src/a/b.tsx').length, 1);
 });
 
 test('a rule carrying evidence is refused, naming what it carries', () => {
@@ -53,13 +75,16 @@ test('a rule carrying evidence is refused, naming what it carries', () => {
     ['Measured 2026-09-03, keep the holder hidden.', 'a date'],
     ['Run 33905531739 showed the holder airing.', 'a run id'],
     ['The chain must keep 4 KB free.', 'a measurement'],
+    ['A quarter is 40% of the corpus.', 'a measurement'],
+    ['It took 12 minutes.', 'a measurement'],
   ]) {
-    const { problems } = parseRule('contracts/rules/a/b.md', GOOD.replace(/^An input.*$/m, text));
+    const { problems } = parseRule('contracts/rules/a/b.md', withBody(text));
     assert.equal(problems.length, 1, text);
     assert.match(problems[0], new RegExp(expect));
   }
   const allowed = GOOD.replace('---\nAn', 'allow-numbers: true\n---\nKeep 4 KB free. An');
   assert.deepEqual(parseRule('contracts/rules/a/b.md', allowed).problems, []);
+  assert.deepEqual(parseRule('contracts/rules/a/b.md', withBody('Prefer `minutes` over `ms` in copy.')).problems, [], 'a unit word alone is not a measurement');
 });
 
 test('missing or wrong frontmatter fields are each named', () => {
@@ -80,7 +105,7 @@ test('similarity is high for a paraphrase about the same symbols and low for unr
   assert.equal(symbolsOf(c).length, 0);
 });
 
-test('loadRules refuses a fires: target that is not in the tree and accepts one that is', () => {
+test('loadRules refuses a fires: target that is not in the tree, accepts one that is, and marks it carried', () => {
   const root = store({
     'contracts/rules/a/hooked.md': GOOD.replace('fires: contract', 'fires: hook:guard-edit'),
     'contracts/rules/a/gated.md': GOOD.replace('fires: contract', 'fires: gate:check-copy').replace('holder', 'panel'),
@@ -90,16 +115,19 @@ test('loadRules refuses a fires: target that is not in the tree and accepts one 
   assert.equal(rules.length, 2);
   assert.equal(problems.length, 1);
   assert.match(problems[0], /scripts\/hooks\/guard-edit\.mjs does not exist/);
+  assert.equal(rules.find((r) => r.id === 'a/gated').carried, true);
+  assert.equal(rules.find((r) => r.id === 'a/hooked').carried, false);
   rmSync(root, { recursive: true, force: true });
 });
 
-test('two active rules that read as one fail the plan; a retired twin does not', () => {
+test('two active rules that read as one fail the plan; a retired twin does not; outputs are rendered either way', () => {
   const twin = GOOD.replace('never an inline', 'and never an inline');
   const root = store({ 'contracts/rules/a/one.md': GOOD, 'contracts/rules/a/two.md': twin });
   const { rules } = loadRules(root);
   assert.equal(findDuplicates(rules).length, 1);
   const first = plan(root);
   assert.match(first.problems.join('\n'), /read as the same rule/);
+  assert.ok(first.outputs.size > 0, 'a plan with problems still renders, so write() can never erase the tree');
   writeFileSync(path.join(root, 'contracts/rules/a/two.md'), twin.replace('status: active', 'status: retired'), 'utf8');
   const second = plan(root);
   assert.deepEqual(second.problems, []);
@@ -116,12 +144,12 @@ test('the compiler groups by scope set, writes paths-scoped files, and spends no
   });
   const { rules, problems } = loadRules(root);
   assert.deepEqual(problems, []);
-  const outputs = compileOutputs(rules, root);
+  const outputs = compileOutputs(rules);
   const files = [...outputs.keys()].sort();
   const wizardSlug = groupSlug(['src/components/wizard/**', 'src/templates/shared/base.ts']);
   assert.match(wizardSlug, /^src-components-wizard-[a-z0-9]{1,4}$/);
   assert.deepEqual(files, ['.claude/rules/everywhere.md', `.claude/rules/${wizardSlug}.md`, 'contracts/index.md'].sort());
-  const wizard = outputs.get(files.find((f) => f.includes('wizard')));
+  const wizard = outputs.get(`.claude/rules/${wizardSlug}.md`);
   assert.match(wizard, /^---\npaths:\n {2}- "src\/components\/wizard\/\*\*"\n {2}- "src\/templates\/shared\/base\.ts"\n---\n/);
   assert.match(wizard, /GENERATED by scripts\/compile-contracts\.mjs/);
   assert.ok(wizard.indexOf('**trap**') < wizard.indexOf('**taste**'), 'traps come before taste');
@@ -130,6 +158,13 @@ test('the compiler groups by scope set, writes paths-scoped files, and spends no
   assert.ok(![...outputs.keys()].some((f) => f.includes('e2e')), 'a rule a gate carries produces no contract file');
   assert.match(outputs.get('contracts/index.md'), /gate:check-copy \(carried\)/);
   rmSync(root, { recursive: true, force: true });
+});
+
+test('the index keeps a wrapped rule on one table row', () => {
+  const { rule } = parseRule('contracts/rules/a/b.md', withBody('Keep the holder\nhidden by class. Then more.'));
+  rule.carried = false;
+  const index = compileOutputs([rule]).get('contracts/index.md');
+  assert.match(index, /\| Keep the holder hidden by class\. \|/);
 });
 
 test('write then check is clean; a hand edit or a stale file is drift', () => {

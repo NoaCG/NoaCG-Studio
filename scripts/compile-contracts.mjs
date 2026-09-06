@@ -26,7 +26,11 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LABEL = '[compile-contracts]';
 
-/** Everything the store says the generated tree should be, plus every problem found on the way. */
+/**
+ * Everything the store says the generated tree should be, plus every problem found on the way.
+ * The outputs are rendered even when there are problems, so a caller that forgets to look at
+ * `problems` cannot hand `write()` an empty map and erase the compiled tree.
+ */
 export function plan(root = ROOT) {
   const { rules, problems } = loadRules(root);
   for (const pair of findDuplicates(rules)) {
@@ -35,8 +39,7 @@ export function plan(root = ROOT) {
         'keep one, and mark the other `status: retired` with `supersedes:` on the survivor',
     );
   }
-  const outputs = problems.length === 0 ? compileOutputs(rules, root) : new Map();
-  return { rules, problems, outputs };
+  return { rules, problems, outputs: compileOutputs(rules) };
 }
 
 /** Generated files on disk that the store no longer produces. */

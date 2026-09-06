@@ -30,7 +30,7 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 /** Top-level directories a backticked path may name. A token outside these is not treated as a path. */
 export const REPO_PREFIXES = Object.freeze([
-  'scripts', 'docs', 'src', 'api', 'supabase', 'cli', 'e2e', 'benchmarks', 'public',
+  'scripts', 'docs', 'src', 'api', 'supabase', 'cli', 'e2e', 'benchmarks', 'public', 'contracts',
   '.github', '.agent-workflows', '.agents', '.claude', 'example_projects', 'NoaCG-Brand-Kit',
 ]);
 
@@ -121,13 +121,15 @@ function ignoredRefs(refs) {
  * The contract files to scan: every AGENTS.md / CLAUDE.md, every workflow markdown, the rule
  * store and what it compiles to. A rule under contracts/rules/ is what the generated
  * .claude/rules/ files are made of, so a stale path there rots in every session that reads a
- * matching file - the same failure this gate exists for.
+ * matching file - the same failure this gate exists for. contracts/records/ is NOT scanned: a
+ * record is frozen evidence of a moment, and a path it named may rightly be gone.
  */
 function contractFiles() {
   const out = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' });
   return out.split('\n').map((line) => line.trim().replace(/\\/g, '/')).filter(Boolean).filter((file) =>
     /(^|\/)(AGENTS|CLAUDE)\.md$/.test(file) || file.startsWith('.agent-workflows/')
-    || (file.startsWith('contracts/') && file.endsWith('.md')) || file.startsWith('.claude/rules/'));
+    || (file.startsWith('contracts/') && !file.startsWith('contracts/records/') && file.endsWith('.md'))
+    || file.startsWith('.claude/rules/'));
 }
 
 function main() {

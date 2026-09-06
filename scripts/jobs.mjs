@@ -55,6 +55,8 @@ import {
   pending,
   pruneJobs,
   readJobs,
+  readReviewStamp,
+  stampGap,
   readLandings,
   reapDead,
   refusalGuidance,
@@ -343,17 +345,19 @@ async function cmdAddMerge() {
   // the landing ledger can see it, instead of silently.
   const tipForReview = branchTip(target);
   const stamp = readReviewStamp(dir, target);
+  const gap = stampGap(stamp, tipForReview);
   const unreviewedReason = valueOf('--unreviewed');
+  if (unreviewedReason !== null && (unreviewedReason === '' || unreviewedReason.startsWith('-'))) {
+    console.error('add-merge refused: --unreviewed takes a reason in words, e.g. --unreviewed "hotfix for the red main; reviewed by eye".');
+    process.exit(1);
+  }
   let review;
-  if (stamp && tipForReview && stamp.reviewedSha === tipForReview) {
+  if (!gap) {
     review = { stamp: 'reviewed', reviewedSha: stamp.reviewedSha, verdict: stamp.verdict ?? null };
   } else if (unreviewedReason) {
-    review = { stamp: 'unreviewed', reason: unreviewedReason, ...(stamp ? { staleStamp: stamp.reviewedSha } : {}) };
+    review = { stamp: 'unreviewed', reason: unreviewedReason, gap };
   } else {
-    const why = !stamp
-      ? `no /check stamp exists for ${target}`
-      : `the stamp reviewed ${String(stamp.reviewedSha).slice(0, 8)}, but the tip is ${String(tipForReview).slice(0, 8)}`;
-    console.error(`add-merge refused: ${why}.`);
+    console.error(`add-merge refused: ${gap} (${target}).`);
     console.error('  Run /check on this tip first (it writes the stamp), then queue again.');
     console.error('  To land without it, say why on the record:  npm run queue:merge -- --unreviewed "<reason>"');
     process.exit(1);
@@ -1161,22 +1165,6 @@ function gitFacts() {
       windowsHide: true,
     }).status === 0,
   };
-}
-
-/**
- * The `/check` verdict stamp for a branch, or null. The file is per-machine state beside the job
- * store (`checks/<branch-with-slashes-as-dashes>.json`, .agent-workflows/check.md); a stamp that
- * does not parse is the same as no stamp, since a verdict nobody can read proves nothing.
- */
-export function readReviewStamp(jobsDirectory, branch) {
-  const file = join(jobsDirectory, 'checks', `${branch.replaceAll('/', '-')}.json`);
-  if (!existsSync(file)) return null;
-  try {
-    const stamp = JSON.parse(readFileSync(file, 'utf8'));
-    return stamp && typeof stamp.reviewedSha === 'string' ? stamp : null;
-  } catch {
-    return null;
-  }
 }
 
 function branchTip(branch) {

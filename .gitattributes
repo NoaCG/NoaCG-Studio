@@ -58,3 +58,7 @@ scripts/copy-baseline.json text eol=lf
 # Rewritten by scripts/behaviour-docs.mjs (`npm run write:behaviour-docs`; `--check` in the root
 # build), which regenerates the §5b naming tables from src/templates/behaviours/words.json.
 docs/SVG_AUTHORING.md text eol=lf
+# The rule store and what it compiles to: rewritten in place by scripts/compile-contracts.mjs and
+# scripts/learn.mjs with LF, so an autocrlf checkout must not report them phantom-dirty.
+contracts/**/*.md text eol=lf
+.claude/rules/*.md text eol=lf
