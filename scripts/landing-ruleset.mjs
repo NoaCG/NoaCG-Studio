@@ -1,61 +1,66 @@
 #!/usr/bin/env node
-// The one ruleset on `main`: only the lander (GitHub Actions) and the repository admin may push
-// it, nobody may delete or rewrite it (docs/WORKFLOW_ARCHITECTURE.md §5.2).
+// The one ruleset on `main`: the merge queue is the only way onto it (docs/WORKFLOW_ARCHITECTURE.md
+// §5.2).
 //
 //   node scripts/landing-ruleset.mjs            # print the ruleset GitHub holds, and the one this file wants
 //   node scripts/landing-ruleset.mjs --apply    # create it, or update it to match
+//   node scripts/landing-ruleset.mjs --apply --without-review   # bootstrap: before the Reviewed check exists on main
 //
-// Idempotent: the ruleset is found by NAME and updated in place. Rulesets are the mechanism that
-// makes "one lander" a fact rather than a rule somebody remembers: with the `update` rule active,
-// a push to main from a session's laptop is refused by GitHub itself. The repository admin stays
-// a bypass actor on purpose - an emergency needs a door, and every use of it shows in the
-// ruleset's own insights - and can be removed here when the lander has run for a while.
+// Idempotent: the ruleset is found by NAME and updated in place. With "require merge queue" on,
+// GitHub performs every merge itself and refuses direct pushes to main from anyone but a bypass
+// actor, so "one lander" is a fact of the branch rather than a rule anybody remembers - and no
+// workflow token ever needs to push main. The repository admin stays a bypass actor for
+// emergencies; every use shows in the ruleset's insights.
 //
-// Applying needs the owner's `gh` login (admin on the repository); the owner said yes to this on
-// 2026-09-06. The Actions app id (15368) and the admin role id (5) are GitHub's fixed values.
+// The required checks are the two the queue consumes: `CI gate` (ci.yml, on the pull request and
+// again on the merge group) and `Reviewed` (ci.yml, the /check stamp read off the pull request
+// head). Requiring `Reviewed` before that job exists on main would wedge the queue, hence
+// `--without-review` for the one landing that brings it.
+//
+// Applying needs an organisation owner's `gh` login; the owner said yes on 2026-09-06.
 
 import { execFileSync } from 'node:child_process';
 
 export const RULESET_NAME = 'main is landed by the queue';
-const ACTIONS_APP_ID = 15368;
-/** The `github-actions[bot]` account, the actor a workflow's own token pushes as. */
-const ACTIONS_BOT_USER_ID = 41898282;
 const REPOSITORY_ADMIN_ROLE_ID = 5;
 
-/**
- * The ruleset as it should be. Pure, so a test can pin it. `lander` says how the Land workflow
- * is allowed past the push restriction: as the Actions app ('integration', what an organisation
- * accepts), as the bot user ('user'), or not at all ('none' - then the `update` rule is left
- * out, since it would block the lander itself; deletion and rewrites stay forbidden, and the
- * single-lander property rests on the client and the hooks until the repository is in an
- * organisation). GitHub refuses the app on a user-owned repository: "Actor GitHub Actions
- * integration must be part of the ruleset source or owner organization" (2026-09-06).
- */
-export function desiredRuleset({ lander = 'integration' } = {}) {
-  const bypass = [{ actor_id: REPOSITORY_ADMIN_ROLE_ID, actor_type: 'RepositoryRole', bypass_mode: 'always' }];
-  if (lander === 'integration') bypass.unshift({ actor_id: ACTIONS_APP_ID, actor_type: 'Integration', bypass_mode: 'always' });
-  if (lander === 'user') bypass.unshift({ actor_id: ACTIONS_BOT_USER_ID, actor_type: 'User', bypass_mode: 'always' });
-  const rules = [{ type: 'deletion' }, { type: 'non_fast_forward' }];
-  // `update` is "pushes to this branch are restricted": only bypass actors may push at all.
-  if (lander !== 'none') rules.push({ type: 'update' });
+/** The ruleset as it should be. Pure, so a test can pin it. */
+export function desiredRuleset({ withReview = true } = {}) {
+  const contexts = ['CI gate', ...(withReview ? ['Reviewed'] : [])];
   return {
     name: RULESET_NAME,
     target: 'branch',
     enforcement: 'active',
-    bypass_actors: bypass,
+    bypass_actors: [{ actor_id: REPOSITORY_ADMIN_ROLE_ID, actor_type: 'RepositoryRole', bypass_mode: 'always' }],
     conditions: { ref_name: { include: ['refs/heads/main'], exclude: [] } },
-    rules,
+    rules: [
+      { type: 'deletion' },
+      { type: 'non_fast_forward' },
+      {
+        type: 'merge_queue',
+        parameters: {
+          // A merge commit keeps every landed commit as it was verified; squashing would rewrite
+          // what CI saw. Up to five pull requests are built and merged as one group.
+          merge_method: 'MERGE',
+          max_entries_to_build: 5,
+          min_entries_to_merge: 1,
+          max_entries_to_merge: 5,
+          min_entries_to_merge_wait_minutes: 2,
+          grouping_strategy: 'ALLGREEN',
+          check_response_timeout_minutes: 60,
+        },
+      },
+      {
+        type: 'required_status_checks',
+        parameters: {
+          strict_required_status_checks_policy: false,
+          do_not_enforce_on_create: false,
+          required_status_checks: contexts.map((context) => ({ context })),
+        },
+      },
+    ],
   };
 }
-
-/**
- * The shapes to try, strongest first; the first GitHub accepts is the one applied. `user` is
- * never tried on its own: GitHub accepts it and then still refuses the workflow token's push, so
- * applying it automatically would block every landing (it did, twice, on 2026-09-06). It stays
- * reachable through `--lander user` for the day GitHub changes that.
- */
-export const LANDER_SHAPES = ['integration', 'none'];
-export const ALL_SHAPES = ['integration', 'user', 'none'];
 
 function gh(args, input) {
   return execFileSync('gh', args, { encoding: 'utf8', input, windowsHide: true });
@@ -69,51 +74,26 @@ export function findExisting(rulesets, name = RULESET_NAME) {
   return (rulesets ?? []).find((r) => r.name === name) ?? null;
 }
 
-/**
- * Create or update; returns the shape GitHub accepted. A 422 on one shape tries the next.
- * `--lander <shape>` forces one: GitHub ACCEPTS the bot user as a bypass actor on a user-owned
- * repository and then still refuses the workflow token's push (measured 2026-09-06, the first
- * cloud landing: three refused pushes with main unmoved), so `none` is the shape that works
- * there until the repository is in an organisation.
- */
-function applyRuleset(slug, existing, forced = null) {
-  for (const lander of forced ? [forced] : LANDER_SHAPES) {
-    const body = JSON.stringify(desiredRuleset({ lander }));
-    try {
-      if (existing) gh(['api', '--method', 'PUT', `repos/${slug}/rulesets/${existing.id}`, '--input', '-'], body);
-      else gh(['api', '--method', 'POST', `repos/${slug}/rulesets`, '--input', '-'], body);
-      return lander;
-    } catch (error) {
-      const refused = /422|Validation Failed/.test(String(error.stdout ?? error.message));
-      if (!refused) throw error;
-      console.log(`[landing-ruleset] GitHub refused the "${lander}" shape: ${String(error.stdout ?? '').replace(/\s+/g, ' ').slice(0, 160)}`);
-    }
-  }
-  throw new Error('every ruleset shape was refused');
-}
-
 function main() {
   const apply = process.argv.includes('--apply');
+  const withReview = !process.argv.includes('--without-review');
   const slug = repo();
   const existing = findExisting(JSON.parse(gh(['api', `repos/${slug}/rulesets`])));
+  const wanted = desiredRuleset({ withReview });
   if (!apply) {
     console.log(`[landing-ruleset] ${slug}: ${existing ? `ruleset ${existing.id} "${existing.name}" (${existing.enforcement})` : 'no ruleset named as wanted'}`);
-    console.log(JSON.stringify(desiredRuleset(), null, 2));
-    console.log('Run with --apply to create or update it (weaker shapes are tried if GitHub refuses this one).');
+    console.log(JSON.stringify(wanted, null, 2));
+    console.log('Run with --apply to create or update it.');
     return;
   }
-  const forcedIndex = process.argv.indexOf('--lander');
-  const forced = forcedIndex >= 0 ? process.argv[forcedIndex + 1] : null;
-  if (forced && !ALL_SHAPES.includes(forced)) throw new Error(`--lander must be one of ${ALL_SHAPES.join(', ')}`);
-  const lander = applyRuleset(slug, existing, forced);
+  const body = JSON.stringify(wanted);
+  if (existing) gh(['api', '--method', 'PUT', `repos/${slug}/rulesets/${existing.id}`, '--input', '-'], body);
+  else gh(['api', '--method', 'POST', `repos/${slug}/rulesets`, '--input', '-'], body);
   const after = findExisting(JSON.parse(gh(['api', `repos/${slug}/rulesets`])));
   const detail = JSON.parse(gh(['api', `repos/${slug}/rulesets/${after.id}`]));
-  console.log(`[landing-ruleset] ${existing ? 'updated' : 'created'} ruleset ${after.id} on ${slug} with the "${lander}" shape`);
-  console.log(`  enforcement ${detail.enforcement}; rules ${detail.rules.map((r) => r.type).join(', ')}; bypass ${detail.bypass_actors.map((a) => `${a.actor_type}:${a.actor_id}`).join(', ')}`);
-  if (lander === 'none') {
-    console.log('  NOTE: GitHub refused the Actions app as a bypass actor, so pushes to main are not restricted; the single lander rests on the client and the hooks.');
-    console.log('  An organisation owner can add "GitHub Actions" to this ruleset\'s bypass list in the web UI (Settings, Rules, Rulesets); once it is there, re-run --apply and the strong shape holds.');
-  }
+  const checks = detail.rules.find((r) => r.type === 'required_status_checks')?.parameters.required_status_checks.map((c) => c.context) ?? [];
+  console.log(`[landing-ruleset] ${existing ? 'updated' : 'created'} ruleset ${after.id} on ${slug}`);
+  console.log(`  enforcement ${detail.enforcement}; rules ${detail.rules.map((r) => r.type).join(', ')}; required checks ${checks.join(', ')}; bypass ${detail.bypass_actors.map((a) => `${a.actor_type}:${a.actor_id}`).join(', ')}`);
 }
 
 if (process.argv[1] && process.argv[1].replaceAll('\\', '/').endsWith('/scripts/landing-ruleset.mjs')) main();

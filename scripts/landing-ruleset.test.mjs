@@ -1,29 +1,27 @@
-// The ruleset on main: its shape is pinned so a change to who may push main is a visible diff.
+// The ruleset on main: its shape is pinned so a change to how main is landed is a visible diff.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { desiredRuleset, findExisting, RULESET_NAME } from './landing-ruleset.mjs';
 
-test('the ruleset restricts main to the lander and the admin, and forbids deletion and rewrites', () => {
+test('main is landed by the merge queue, with CI gate and Reviewed required, and only the admin bypasses', () => {
   const r = desiredRuleset();
   assert.equal(r.name, RULESET_NAME);
   assert.equal(r.enforcement, 'active');
   assert.deepEqual(r.conditions.ref_name.include, ['refs/heads/main']);
-  assert.deepEqual(r.rules.map((x) => x.type).sort(), ['deletion', 'non_fast_forward', 'update']);
-  assert.deepEqual(r.bypass_actors.map((a) => `${a.actor_type}:${a.actor_id}:${a.bypass_mode}`), [
-    'Integration:15368:always',
-    'RepositoryRole:5:always',
-  ]);
+  assert.deepEqual(r.rules.map((x) => x.type), ['deletion', 'non_fast_forward', 'merge_queue', 'required_status_checks']);
+  const queue = r.rules.find((x) => x.type === 'merge_queue').parameters;
+  assert.equal(queue.merge_method, 'MERGE', 'a merge commit keeps what CI verified; a squash rewrites it');
+  assert.equal(queue.max_entries_to_merge, 5);
+  const checks = r.rules.find((x) => x.type === 'required_status_checks').parameters.required_status_checks.map((c) => c.context);
+  assert.deepEqual(checks, ['CI gate', 'Reviewed']);
+  assert.deepEqual(r.bypass_actors.map((a) => `${a.actor_type}:${a.actor_id}:${a.bypass_mode}`), ['RepositoryRole:5:always']);
 });
 
-test('the weaker shapes: the bot user as the bypass, or no push restriction at all', () => {
-  const user = desiredRuleset({ lander: 'user' });
-  assert.deepEqual(user.bypass_actors.map((a) => `${a.actor_type}:${a.actor_id}`), ['User:41898282', 'RepositoryRole:5']);
-  assert.ok(user.rules.some((r) => r.type === 'update'));
-  const none = desiredRuleset({ lander: 'none' });
-  assert.deepEqual(none.bypass_actors.map((a) => a.actor_type), ['RepositoryRole']);
-  assert.deepEqual(none.rules.map((r) => r.type).sort(), ['deletion', 'non_fast_forward'], 'without a lander bypass, restricting pushes would block the lander itself');
+test('the bootstrap shape requires only CI gate, for the landing that brings the Reviewed job', () => {
+  const checks = desiredRuleset({ withReview: false }).rules.find((x) => x.type === 'required_status_checks').parameters.required_status_checks.map((c) => c.context);
+  assert.deepEqual(checks, ['CI gate']);
 });
 
 test('findExisting matches by name only', () => {

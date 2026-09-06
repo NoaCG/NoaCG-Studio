@@ -61,22 +61,19 @@ contract is `supabase/AGENTS.md`.
     declaration that the work is done, made by the only party who can make it. It pins the branch's
     current commit, so a later commit makes the job refuse and ask you to queue again.
     `.agent-workflows/queue-merge.md` is the procedure.
-  - **The queue runs on GitHub, not on any laptop** (2026-09-06, `docs/WORKFLOW_ARCHITECTURE.md`
-    §5.2). `npm run queue:merge` pushes the branch, opens or reuses its pull request, posts the
-    `/check` verdict as the `noacg/reviewed` commit status on the tip, and adds the `land` label.
-    `.github/workflows/land.yml` runs `scripts/land.mjs` for one labelled pull request at a time
-    (the `landing` concurrency group is the queue): it merges `main` into the branch, gets a
-    `ci.yml` run on exactly that commit by dispatch, and on a green `CI gate` fast-forwards `main`.
-    A conflict, a red run, or `main` moving three times is written on the pull request and the
-    label is removed; nothing is retried behind anyone's back. Until then the same mechanical
-    path ran as `scripts/auto-merge.mjs` on the owner's machine, one runner per machine, dead
-    when the lid closed; that script remains for `--dry-run` preflights and is no longer a lander.
-  - **Only the lander pushes `main`.** A ruleset (`npm run land:ruleset -- --apply`,
-    `scripts/landing-ruleset.mjs`) forbids deleting or rewriting the branch. Restricting pushes
-    to the Land workflow needs the repository in an organisation (GitHub accepts the bot user as
-    a bypass actor on a user-owned repository and still refuses the workflow token's push), so
-    until then the single lander rests on the client, which creates no local landing, and on the
-    hooks; the script applies the stronger shape the day the organisation exists.
+  - **The queue is GitHub's merge queue, not anything on a laptop** (2026-09-06,
+    `docs/WORKFLOW_ARCHITECTURE.md` §5.2). `npm run queue:merge` pushes the branch, opens or
+    reuses its pull request, posts the `/check` verdict as the `noacg/reviewed` commit status on
+    the tip, labels it `land` and turns auto-merge on. When `CI gate` and `Reviewed` pass on the
+    pull request, GitHub queues it, builds a temporary merge of the queued pull requests on `main`,
+    runs `ci.yml` on that group, and merges it in order; a group whose gate fails is dropped and
+    auto-merge is turned off on the pull request, which the local watcher job reports. Until then
+    the mechanical path ran as `scripts/auto-merge.mjs` on the owner's machine, one runner per
+    machine, dead when the lid closed; that script remains for `--dry-run` preflights.
+  - **Nothing but the queue writes `main`.** The ruleset (`npm run land:ruleset -- --apply`,
+    `scripts/landing-ruleset.mjs`) requires the merge queue and the two checks, and forbids
+    deleting or rewriting the branch; the repository admin is the one bypass, for emergencies,
+    and every use of it shows in the ruleset's insights.
   - The local job queue (`npm run jobs`) still serializes browser work on this machine and lists
     recent landings; `scripts/landings.mjs` keeps that ledger fed from the merged pull requests.
 

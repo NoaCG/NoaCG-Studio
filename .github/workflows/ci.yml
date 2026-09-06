@@ -29,6 +29,10 @@ on:
   push:
     branches: ['**']
   pull_request:
+  # The merge queue (docs/WORKFLOW_ARCHITECTURE.md §5.2): GitHub builds a temporary merge of the
+  # queued pull requests on top of main and runs this workflow on it; `CI gate` on that commit is
+  # what lets the group merge. The plan below measures from the group's base, which is main.
+  merge_group:
   # The manual door, for when the automatic ones are shut. On 2026-08-06 an Actions incident
   # throttled webhook delivery to ~15%, so pushes stopped producing runs at all - and with only
   # push and pull_request triggers there was no way to ask for one. A dispatched run has no
@@ -175,6 +179,45 @@ jobs:
   # What can this change actually have broken? The answer decides both which specs run and how
   # many runners they are worth. It needs no dependencies - scripts/e2e-affected.mjs is node
   # builtins and git - so this job costs seconds, and every other E2E job waits on it.
+  # THE REVIEW CHECK. `npm run queue:merge` posts the /check verdict as the `noacg/reviewed`
+  # commit status on the branch tip; this job turns it into a check the merge queue can require.
+  # On a pull request it reads the tip directly. On a merge group the commit under test is a
+  # temporary merge GitHub made, so the pull request is read off the group's ref
+  # (`gh-readonly-queue/main/pr-<n>-<base>`) and the status is looked up on ITS head. A branch
+  # with no review status - or a failing one - cannot enter or pass the queue.
+  reviewed:
+    name: Reviewed
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    steps:
+      - name: Find the review status on the pull request head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          GROUP_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "merge_group" ]; then
+            NUMBER="$(echo "$GROUP_REF" | sed -nE 's#.*/pr-([0-9]+)-.*#\1#p')"
+            [ -n "$NUMBER" ] || { echo "::error::cannot read a pull request number off $GROUP_REF"; exit 1; }
+            SHA="$(gh pr view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)"
+          else
+            SHA="$PR_HEAD"
+          fi
+          STATE="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status" --jq '[.statuses[] | select(.context == "noacg/reviewed")][0].state // "missing"')"
+          DESC="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status" --jq '[.statuses[] | select(.context == "noacg/reviewed")][0].description // ""')"
+          echo "noacg/reviewed on ${SHA}: ${STATE} ${DESC}"
+          if [ "$STATE" != "success" ]; then
+            echo "::error::no passing noacg/reviewed status on ${SHA} - queue with npm run queue:merge, which posts the /check stamp"
+            exit 1
+          fi
+
   plan:
     name: E2E plan
     runs-on: ubuntu-latest
@@ -212,6 +255,7 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
           DISPATCH_BASE: ${{ inputs.diff_base }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
           GH_TOKEN: ${{ github.token }}
           # Student-release sprint (docs/GOALS_ARCHIVE.md "Student release"): a would-be FULL
           # escalation runs the focus set instead; the nightly still runs everything.
@@ -241,7 +285,7 @@ jobs:
               fi
             fi
           fi
-          if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; else BASE="$PUSH_BEFORE"; fi
+          if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; elif [ "$EVENT" = "merge_group" ]; then BASE="$MERGE_GROUP_BASE"; else BASE="$PUSH_BEFORE"; fi
           # The fork-point base below asks "is this merge's second parent contained in main?",
           # which needs a main ref to ask it OF. `fetch-depth: 0` above brings the remote branches
           # with it, but a missing `origin/main` would make that question answer "no merge here"
