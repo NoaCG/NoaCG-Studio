@@ -24,6 +24,7 @@ import { definitionScriptBlock } from '../../model/spxDefinition';
 import { resolveEasing } from '../../model/easings';
 import {
   resolveOptions,
+  type AnimPresetId,
   type ResolvedOptions,
   type TemplateVariant,
   type WizardOptions,
@@ -45,7 +46,7 @@ import type { PresetConfig } from '../lowerThirds/animPresets';
 import type { AnimData } from '../../blocks/animData';
 import { convertToDataRegion } from '../shared/standard';
 import { creditsPresetById } from './creditsPresets';
-import { CREDITS_MOTION_JS } from './creditsMotion';
+import { creditsMotionJs } from './creditsMotion';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
 
 export interface CreditsDesign {
@@ -371,6 +372,22 @@ const CREDITS_SAMPLE = [
   'Special thanks to everyone who made this show possible',
 ].join('\n');
 
+/** The operator speed field's default, in percent of the design's authored pace. */
+const SPEED_DEFAULT = '100';
+
+/**
+ * What the speed field is CALLED, per motion preset, and which presets have one at all.
+ * The word has to match what the operator sees happen: a roll and a reel scroll, a crawl
+ * crawls, and a one-pager swap does not move at all, so its speed is the reading time it
+ * allows each page. The static board is absent on purpose: nothing there has a speed.
+ */
+const SPEED_FIELD_TITLE: Partial<Record<AnimPresetId, string>> = {
+  'credits-roll': 'Scroll speed (%)',
+  'credits-loop': 'Scroll speed (%)',
+  'credits-crawl': 'Crawl speed (%)',
+  'credits-pages': 'Page speed (%)',
+};
+
 /** Build the complete end-credits SpxTemplate. */
 export function assembleCredits(meta: CreditsMeta, design: CreditsDesign, o: ResolvedOptions,
   /** Refine the converted animation data — the seam a graphic TYPE injects its machine
@@ -404,6 +421,25 @@ export function assembleCredits(meta: CreditsMeta, design: CreditsDesign, o: Res
       : []),
   ];
 
+  // The SPEED field, the operator's rather than the author's (owner walk 2026-08-28: "anything with
+  // scrolling graphics should have a speed setting in the control panel"). A roll has to fit
+  // whatever is under it, and that is decided at the desk with the graphic already on air.
+  //
+  // A PERCENTAGE of the pace the design ships at, defaulted to 100, so an untouched graphic
+  // plays exactly as it always did and there is one obvious number to come back to. It is
+  // appended LAST rather than slotted before the logo, so the logo keeps the id (f2) every
+  // template that already exists uses for it. Input only: creditsSpeed() reads it and nothing
+  // draws it, so it lives in a hidden holder like every other input-only value.
+  //
+  // The static board gets NO speed field. Nothing moves there, and an operator control page
+  // must never offer a field the graphic cannot use: the same rule that makes the logo field
+  // a variant capability rather than a category fixture.
+  const speedTitle = SPEED_FIELD_TITLE[o.animation.presetId];
+  const speedField = speedTitle ? `f${fields.length}` : null;
+  if (speedField && speedTitle) {
+    fields.push({ field: speedField, ftype: 'number', title: speedTitle, value: SPEED_DEFAULT });
+  }
+
   const settings = baseSettings(meta, o, { steps: '1', playlayer: '4', webplayout: '4' });
 
   const html = documentHtml({
@@ -422,7 +458,11 @@ ${design.html}
     <!-- Hidden data sources — SPX writes the field values here; JS renders them. -->
     <div id="f0" class="noacg-data-source">${creditsText}</div>
     <div id="f1" class="noacg-data-source">${yearText}</div>${hasLogo ? `
-    <div id="f2" class="noacg-data-source">${logoPath}</div>` : ''}
+    <div id="f2" class="noacg-data-source">${logoPath}</div>` : ''}${speedField ? `
+    <!-- ${speedField}: how fast this plays, as a percentage of the design's own pace.
+         100 = as designed · 150 = half again as fast · 60 = a slow, ceremonial read.
+         Input only: creditsSpeed() reads it, nothing ever draws it. -->
+    <div id="${speedField}" class="noacg-data-source">${SPEED_DEFAULT}</div>` : ''}
   </div>`,
   });
 
@@ -473,7 +513,7 @@ ${dataSourceCss}
 
   const js = creditsRuntimeJs(
     meta.name,
-    `${design.rowBuilderJs}\n\n${CREDITS_MOTION_JS}\n\n${preset.emit(cfg)}`,
+    `${design.rowBuilderJs}\n\n${creditsMotionJs(speedField)}\n\n${preset.emit(cfg)}`,
     hasLogo,
   );
 

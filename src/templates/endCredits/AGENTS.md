@@ -56,3 +56,24 @@ where a paged design stacks them absolutely.
 the track's content in one `.credits-loop-run`, appends as many `.credits-loop-clone` copies as
 the viewport needs, and travels exactly one run's height - a bare `repeat: -1` would snap the
 list back to the top, which everyone watching a wall of names is watching closely enough to see.
+
+## Speed is the operator's, and the list runs all the way through
+
+Owner walk 2026-08-28, and it holds for anything in here that moves:
+
+- **Every design with motion emits a SPEED field** (`Scroll speed (%)` / `Crawl speed (%)` /
+  `Page speed (%)`, ftype `number`, default `100` = the pace the design ships at, clamped to
+  10-400 by `creditsSpeed()`). It is appended LAST so the logo keeps `f2`, and it is input only:
+  a hidden `.noacg-data-source` holder, never drawn. **The static board emits none** - nothing
+  there has a speed, and a control page must not offer a field the graphic cannot use. It applies
+  at the next `play()`, because that is when the travel is measured.
+- **`creditsRoll()` and `creditsCrawl()` run the LIST off the frame**, then bring the
+  `.credits-end` block in as its own beat (`creditsEndBeat()`), centred, with the pages faded
+  out. The travel therefore measures to the end block's position, not the track's full extent.
+  Do not "fix" it back to stopping on the mark: a roll that ends with the last names on screen
+  and the logo held in the middle is the thing that walk was about.
+- **A roll's SETTLED pose is now that closing beat** - the mark alone. Every surface that shows
+  a graphic without a playback gesture parks it there (`preview/settleGraphic.ts`), so a Browse
+  card, a library thumbnail and an operator preview of a roll show the end block rather than a
+  frame of names. That is the honest final frame of the new motion; if the cards ever need a
+  mid-roll frame instead, that belongs in the settle recipe, not in a template.
