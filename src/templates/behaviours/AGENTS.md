@@ -29,6 +29,12 @@ same way; `registry.ts` is the list.
   dot). One FULL recipe per graphic; instanced ones compose freely (`composeParts`).
 - **If an operator has to SEE it, it is a field** (docs/OGRAF_STATE_IN_FIELDS.md): a switch's or a
   choice's look binds to the reported `select` its button `set`s, never to the group.
+- **A recipe may own a field PER ROW** (`RecipeField.row`: the survey's "Answer 3 revealed"), and a
+  rule may be about ONE row (`row` beside `rows`: the top ten's entry that stays up from its own
+  step on). **A counter's ceiling is the machine's**: a group of states greys the button; the
+  runtime's `counter` kind only clamps what is painted.
+- **The row role must be a real role** (`rows.role` names a declared role id), or the proposal
+  finds no rows and the wizard shows none.
 
 E2E: `e2e/import-svg-behaviour.spec.ts` (every recipe, the composition, the defaults, the options)
 and `e2e/student-rehearsal.spec.ts`.
