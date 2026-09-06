@@ -34,7 +34,7 @@ test('the graphics shelf holds one guide per kind', async ({ page }) => {
   // The kinds are guides INSIDE one section now, because the left nav carries main topics only
   // (owner, 2026-08-26: end credits and tickers as top-level entries confused it). Their
   // anchors are what the rest of the repo links to, so they have to survive the nesting.
-  for (const id of ['scoreboards', 'quiz', 'end-credits', 'tickers']) {
+  for (const id of ['scoreboards', 'quiz', 'end-credits', 'tickers', 'countdowns']) {
     await expect(graphics.locator(`[id="${id}"]`)).toHaveCount(1);
   }
   // Quizzes and game shows are what the 2026-09-12 student production runs on, so the buttons
@@ -46,6 +46,15 @@ test('the graphics shelf holds one guide per kind', async ({ page }) => {
   // And the two text-box formats keep the rule each of them turns on.
   await expect(graphics).toContainText('A colon ends a role');
   await expect(graphics).toContainText('A colon ends a kicker');
+  // The countdown guide turns on one fact: a timer's content is a LENGTH, and the length is
+  // read with parseFloat, so a colon truncates it silently (templates/shared/clock.ts
+  // clockDurationSeconds). A reader who types the digits they want on screen gets two minutes
+  // and no error, which is the mistake the guide exists to stop.
+  await expect(graphics).toContainText('is two minutes, not two and a half');
+  // The other half: the length has nowhere visible to go, and the class is what hides it. An
+  // inline display:none is cleared by the entrance reset and airs the raw number
+  // (templates/shared/base.ts DATA_SOURCE_CLASS), so the class name is load-bearing copy.
+  await expect(graphics).toContainText('noacg-data-source');
 });
 
 test('the four guides carry their load-bearing content', async ({ page }) => {
@@ -91,6 +100,58 @@ test('the four guides carry their load-bearing content', async ({ page }) => {
   // And the trap that turns a correct-looking board into a wrong one, which is the half no
   // other page carries.
   await expect(svg).toContainText('read as one more');
+});
+
+// The chooser page. The rest of "Connect playout" documents how to play a package; this one is
+// the question asked before any of that, and its whole job is that a reader finds the row for
+// the system they already run. A host missing from the table is a reader with nowhere to go, so
+// every target the product exports to is named here or this fails.
+test('the package chooser names every export target, and the live route first', async ({ page }) => {
+  await page.goto('/docs');
+  const chooser = page.locator('#export');
+  // Every host in export/registry.ts EXPORT_TARGETS, as a HAND-KEPT list. The registry cannot
+  // be imported here - it reaches `../assets/gsap.min.js?raw`, a Vite-only specifier that
+  // Playwright's transform does not resolve - so this does not catch a SEVENTH target added
+  // without a row. It catches a row being lost from the six that exist, which is the likelier
+  // edit; adding a target means adding it here too.
+  for (const host of ['OBS', 'vMix', 'CasparCG', 'SPX', 'OGraf', 'LiveOS', 'H2R']) {
+    await expect(chooser).toContainText(host);
+  }
+  // The honest lead: a production driven from NoaCG needs no package at all, and a reader who
+  // downloads one for a show this page is about to run live has been sent the wrong way.
+  await expect(chooser).toContainText('are you exporting at all');
+  await expect(chooser.locator('a[href="#dashboard"]')).toHaveCount(1);
+  // The two hosts that have their own guide are handed to it rather than re-explained.
+  await expect(chooser.locator('a[href="#browser-source"]')).toHaveCount(1);
+  await expect(chooser.locator('a[href="#casparcg"]')).toHaveCount(1);
+});
+
+// The non-SVG artwork guide. An SVG keeps its text and gets its own section; this one is for
+// everything a reader actually turns up holding - a logo, a photograph, a Lottie file - and its
+// value is the three facts nothing in the product says out loud.
+test('the artwork guide carries the three facts a picture brings with it', async ({ page }) => {
+  await page.goto('/docs');
+  const artwork = page.locator('#artwork');
+
+  // (a) A MISSING FONT IS SILENT. font-display: swap paints the fallback stack and keeps going
+  // (export/bundledFonts.ts measured the heading's ink width moving ~5 px), so the only symptom
+  // is a graphic that airs in the wrong face. Nothing warns; the page is the warning.
+  await expect(artwork).toContainText('A missing font is silent');
+
+  // (b) The exported operator page's image picker offers the pictures THAT GRAPHIC carries plus
+  // None (control/controlPanelHtml.ts emitGraphic), which is not what "swap the file at playout"
+  // leads a reader to expect. Getting this wrong is discovered on the night.
+  await expect(artwork).toContainText('that graphic already carries');
+
+  // (c) A Lottie autoplays and loops from load (blocks/lottieInsert.ts LOTTIE_BOOTSTRAP), so it
+  // is not a thing you cue. A reader who reaches for one to hit a beat needs to know before
+  // they build the graphic around it.
+  await expect(artwork).toContainText('plays as soon as the graphic loads and it loops');
+
+  // The guide hands the font-file case to the SVG guide rather than repeating it, so the target
+  // of that link has to exist - an in-page link that goes nowhere is silent.
+  await expect(artwork.locator('a[href="#svg-fonts"]')).toHaveCount(1);
+  await expect(page.locator('[id="svg-fonts"]')).toHaveCount(1);
 });
 
 // The SVG guide is the one page read by somebody who has never opened the product, which is why

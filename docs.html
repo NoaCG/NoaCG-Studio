@@ -55,7 +55,9 @@
         <p class="group">Make a graphic</p>
         <a href="#graphics">Graphics</a>
         <a href="#svg">Import your own SVG graphic</a>
+        <a href="#artwork">Pictures, logos &amp; Lottie</a>
         <p class="group">Connect playout</p>
+        <a href="#export">Which package do I want</a>
         <a href="#browser-source">OBS, vMix &amp; browser sources</a>
         <a href="#casparcg">CasparCG</a>
         <p class="group">Run the show</p>
@@ -119,9 +121,9 @@
             looks. Changing the design never means retyping the content.
           </p>
           <p>
-            Most kinds need no guide. A lower third, a card, a corner bug or a countdown takes a
-            few plain fields and the wizard shows you all of them at once. The four below ask for
-            their content in a particular shape, so they get one each.
+            Most kinds need no guide. A lower third, a card or a corner bug takes a few plain
+            fields and the wizard shows you all of them at once. The five below ask for their
+            content in a particular shape, so they get one each.
           </p>
           <p>
             These guides name buttons an operator presses. You never draw those buttons. NoaCG
@@ -136,6 +138,8 @@
               pick and the reveal.</li>
             <li><a href="#end-credits">End credits</a> - the whole roll in one text box.</li>
             <li><a href="#tickers">Tickers</a> - the whole rundown in one text box.</li>
+            <li><a href="#countdowns">Countdowns and clocks</a> - a length in minutes, not the
+              digits you want on screen.</li>
           </ul>
 
           <h3 id="scoreboards" class="doc-kind">Scoreboards</h3>
@@ -365,6 +369,112 @@ Full results at https://example.org</code></pre>
             it there. <strong>Status Rotator</strong> shows one service at a time and puts the
             kicker in a fixed-width column, so the name starts in the same spot on every beat and
             your eye stops re-reading it.
+          </p>
+
+          <h3 id="countdowns" class="doc-kind">Countdowns and clocks</h3>
+          <p>
+            A countdown does not take a line of text. It takes a <strong>length</strong>, and it
+            works out the numbers on screen from that. The field is called
+            <strong>Timer (minutes)</strong> on a countdown and
+            <strong>Countdown (minutes)</strong> on a holding screen, which is the same clock with
+            the show's name above it. Both are covered here, because the clock is the part that
+            behaves in a way nobody would guess.
+          </p>
+
+          <h4 id="countdowns-length">What you type is a length</h4>
+          <p>
+            Whole minutes. <code>3</code> is three minutes. Decimals work, so <code>0.5</code> is
+            thirty seconds and <code>1.5</code> is a minute and a half. The clock paints
+            <code>M:SS</code>, and <code>H:MM:SS</code> once there is an hour or more to wait.
+          </p>
+          <p>
+            Do not type the digits you want on screen. Reading stops at a colon, so
+            <code>2:30</code> is two minutes, not two and a half. A field left empty, or holding
+            zero or something that is not a number at all, counts five minutes rather than
+            nothing.
+          </p>
+
+          <h4 id="countdowns-hidden">The length is never on screen</h4>
+          <p>
+            A bare <code>3</code> painted over a graphic tells an audience nothing, so the number
+            you type lives in a holder the design keeps hidden. The operator fills it in like any
+            other field and the clock reads it from there. That is why a countdown appears to have
+            a field with nowhere to go on the artwork. It has, and that is the field.
+          </p>
+          <p>
+            If you work in the code: the holder is a <code>div</code> carrying
+            <code>class="noacg-data-source"</code>, and that class is the only thing that should
+            hide it. An inline <code>style="display:none"</code> is wiped when the graphic is
+            reset to its resting state, and the raw number then shows on the canvas.
+          </p>
+
+          <h4 id="countdowns-run">Running it</h4>
+          <p>
+            Taking the graphic on air starts the count at the full length. Taking it off stops it.
+            At zero the clock stops itself and the design switches to the look it was drawn with
+            for time being up. It never runs past zero and never shows a negative number.
+          </p>
+          <p>
+            <strong>Change the length while it is on air.</strong> Type a new number, press
+            Update, and the count re-anchors to it at once, running or not. Nothing replays and
+            nothing else moves. An Update that carries a new title and the same length leaves the
+            count exactly where it is, so correcting a typo mid-hold does not restart the clock.
+          </p>
+          <p>
+            <strong>Pause clock</strong> and <strong>Resume clock</strong> hold the count and pick
+            it up from where it stopped. That is not the same as taking the graphic out and back
+            in, which starts again from the full length.
+          </p>
+
+          <h4 id="countdowns-start-time">Counting to a time on the wall</h4>
+          <p>
+            Some holding screens carry a second field, <strong>Start time (HH:MM, optional)</strong>.
+            Fill it in and it wins over the length: the screen counts to that time however long it
+            has already been up, so the number agrees with the clock in the room. Leave it empty
+            and the length is used instead, which is what makes it optional.
+          </p>
+          <p>
+            It is 24-hour, so half past seven in the evening is <code>19:30</code>. A time that has
+            already gone by today counts to tomorrow, so a screen holding at 23:50 for a
+            <code>00:15</code> start shows twenty-five minutes rather than a negative number.
+            Anything that is not a time, <code>25:99</code> included, is ignored and the length is
+            used.
+          </p>
+
+          <h4 id="countdowns-other">Clocks that are not countdowns</h4>
+          <p>
+            A <strong>scorebug</strong> works the other way round. Its clock is a field you can see,
+            you type a time into it (<code>43:12</code>) to correct a drift, and whether it counts
+            up or down was decided by the design, not by the operator. Football counts up, hockey
+            and basketball count down. The buttons are <strong>Start clock</strong>,
+            <strong>Stop clock</strong> and <strong>Reset to period start</strong>, and the reset
+            returns to the period's own starting value rather than to zero.
+          </p>
+          <p>
+            The <strong>speaking timer</strong> runs two clocks, one per side, and only one of them
+            at a time. <strong>Switch speaker</strong> passes the floor and stops the other clock on
+            the same press. <strong>Speaking time each</strong> is the allowance both clocks reset
+            to, and it is on screen on purpose, so nobody has to be told what
+            <strong>Reset clocks</strong> will do. <strong>Penalty (seconds)</strong> is a hidden
+            input-only field of exactly the same shape as a countdown's length: it says how many
+            seconds one press of <strong>Penalty</strong> docks from whoever is speaking.
+          </p>
+
+          <h4 id="countdowns-designs">The designs</h4>
+          <p>
+            <strong>Clean Clock</strong> is a quiet label over big tabular digits.
+            <strong>Power Clock</strong> is the corner slab that flips to the accent and flashes at
+            zero. <strong>House Countdown</strong> and <strong>Frost Countdown</strong> are the
+            house and frosted-glass versions. Those four carry the pause. So do the holding screens
+            <strong>Quiet Hold</strong>, <strong>Volt Hold</strong>, <strong>Frost Hold</strong> and
+            <strong>House Hold</strong>. The other clocks in the catalog run from the take to zero
+            without one, which is all a break card needs.
+          </p>
+          <p>
+            <strong>Countdown to Start</strong> and the other screens that carry a start time are
+            the ones to pick when you know the hour the show begins. <strong>Please Stand By</strong>,
+            the screen for a technical problem, deliberately has no clock on it at all: a wrong
+            promise on air is worse than no promise.
           </p>
         </section>
 
@@ -622,6 +732,201 @@ Full results at https://example.org</code></pre>
             The counts themselves come from a round you open on the production's
             <a href="#audience">Audience tab</a>. They reach the graphic as an ordinary cue that you
             still take to air, so nothing a viewer sends can put itself on screen.
+          </p>
+        </section>
+
+        <!-- ═══════════════════════ ARTWORK THAT IS NOT AN SVG ═══════════════════════ -->
+        <section id="artwork">
+          <h2>Pictures, logos and Lottie animations</h2>
+          <p>
+            An SVG is the best thing to bring in, because its text stays text. Everything else
+            still works, and this is what happens to it: where you put the file, what NoaCG does to
+            it, what comes out in an export, and what a font nobody has does to a graphic that
+            looked right in the studio.
+          </p>
+          <div class="doc-table"><table>
+            <tr><th>File</th><th>What it is good for</th></tr>
+            <tr><td>PNG, WebP</td><td>A finished design, or a logo. Both carry transparency, which is what lets video show through.</td></tr>
+            <tr><td>JPEG, AVIF, GIF</td><td>Photographs and stills. No transparency in a JPEG, so it covers whatever is behind it.</td></tr>
+            <tr><td>Lottie (<code>.json</code>)</td><td>A vector animation out of After Effects. Stays sharp at any size and weighs almost nothing.</td></tr>
+            <tr><td>A font file (<code>.woff2</code>, <code>.woff</code>, <code>.ttf</code>, <code>.otf</code>)</td><td>A licensed face your design needs. Taken by the SVG import when it lists the families it found.</td></tr>
+            <tr><td>Video (<code>.webm</code>, <code>.mp4</code>)</td><td>A short sting inside a graphic. Capped at 3 MB, so it is not the way to play a clip.</td></tr>
+          </table></div>
+
+          <h3 id="artwork-in">Three ways in</h3>
+          <p>
+            <strong>As the graphic itself.</strong> <a href="/app#/new">The studio</a> &rarr;
+            <strong>New graphic</strong> &rarr; <strong>Import graphic</strong> takes a PNG, a JPEG
+            or a WebP as readily as an SVG. You clean the artwork up, place the text fields
+            yourself, and pick how it moves. Nothing is redrawn. The difference from an SVG is that
+            a picture has no layers to read, so the fields are ones you place rather than ones the
+            file already named.
+          </p>
+          <p>
+            <strong>As a logo on a catalog design.</strong> Designs that carry a mark offer a logo
+            slot while you are making the graphic, and you upload your file into it. The slot is a
+            real image field, so it can also be left empty now and filled at playout.
+          </p>
+          <p>
+            <strong>As a file in the graphic.</strong> Switch <strong>Advanced mode</strong> on in
+            Settings and the editor opens, with an <strong>Assets</strong> panel listing every file
+            the graphic carries. Drop files on it, then drag one onto the canvas to place it. That
+            is the only route for a Lottie animation.
+          </p>
+          <p>
+            Pictures for a live show are separate. On a production, <strong>Add pictures</strong>
+            builds one picture graphic holding all of them, with a cue each, so taking picture three
+            replaces picture one instead of stacking on top of it. Twenty per production.
+          </p>
+
+          <h3 id="artwork-embedded">Nothing is linked. Everything is carried</h3>
+          <p>
+            A file you bring in is copied into the graphic, and the graphic keeps the bytes. There
+            is no link back to your computer, no folder that has to stay where it was, and nothing
+            is fetched over the network when the graphic plays. That is what makes a package work
+            on a playout machine with no internet, and it is why an address on the web is not a
+            substitute: the studio warns about one, and the machine that never reaches it shows
+            nothing at all.
+          </p>
+          <p>
+            An imported picture is measured and, if it is larger than the frame it will be drawn
+            in, re-encoded at the frame's own size. Nothing on a 1920 &times; 1080 canvas can use
+            more pixels than that, so it cannot cost you quality. A PNG stays a PNG and a JPEG
+            stays a JPEG, an SVG is never touched, and the result is kept only if it actually came
+            out smaller. Going the other way is not offered: artwork smaller than the canvas stays
+            at its own pixel size rather than being enlarged and softened.
+          </p>
+          <p>
+            <strong>Transparency is the one thing to get right before you import.</strong> A
+            full-frame picture with no transparent areas covers the whole picture on air. That is
+            right for a title card and wrong for a lower third, and the fix is in the program you
+            drew it in: export again as a PNG or a WebP with a transparent background.
+          </p>
+
+          <h3 id="artwork-export">What comes out in an export</h3>
+          <p>
+            Packages come in two shapes and your files are handled differently in each. A
+            <strong>folder</strong> package (OGraf, or a playout system that loads a whole template
+            folder) writes them out as real files beside the
+            template: your pictures under <code>images/</code>, fonts under <code>fonts/</code>,
+            and the animation engine in a folder of its own. Paths are relative, so the folder can
+            be copied anywhere. A <strong>single-file</strong> package (CasparCG, an OBS or vMix
+            overlay) has nothing to sit beside, so every one of those files is embedded in the one
+            HTML file instead. Either way the package is complete and works from a local disk.
+          </p>
+          <p>
+            The operator page in the package lets an image field be switched between the pictures
+            <em>that graphic already carries</em>, plus None. It is not a file browser. If an
+            operator is going to need an alternate logo on the night, bring it in before you
+            export. Clearing the field back to None returns the design's own placeholder.
+          </p>
+
+          <h3 id="artwork-lottie">Lottie animations</h3>
+          <p>
+            Drop the <code>.json</code> into the Assets panel and drag it onto the canvas. It
+            plays as soon as the graphic loads and it loops, so it suits a badge, a spinner or a
+            looping ornament rather than something that has to hit a cue. It is not driven by the
+            graphic coming on and off air.
+          </p>
+          <p>
+            The player is about 165 kB and it is added only to graphics that actually use one, so
+            a graphic without a Lottie carries none of that weight. It is bundled, never fetched.
+            The animation travels inside the package too, as a file beside the template or embedded
+            in it depending on the package, and nothing about it reaches the network.
+          </p>
+
+          <h3 id="artwork-fonts">Fonts, and what a missing one does</h3>
+          <p>
+            <strong>A missing font is silent.</strong> It is not an error and it does not stop
+            anything. The browser falls back to the next family it has, so the graphic comes up in
+            the wrong typeface, at a slightly different width, and looks close enough that nobody
+            notices until it is on air. That is the whole reason fonts are packaged rather than
+            named.
+          </p>
+          <p>
+            So NoaCG bundles them. A typeface you picked in the studio is written into the
+            package, and its licence travels with it. A face of your own comes in through the
+            <a href="#svg-fonts">SVG import's font matching</a>, which lists the families your
+            file names and takes a file for each one, and it is packaged the same way
+            afterwards.
+          </p>
+          <p>
+            One difference between the two package shapes is worth knowing. A folder package with a
+            font file missing still builds, and it can be repaired by dropping the file into
+            <code>fonts/</code>. A single-file package refuses to build instead, because there is
+            no folder to repair and the alternative is handing you a graphic that quietly airs in
+            the wrong face.
+          </p>
+        </section>
+
+        <!-- ═══════════════════════ WHICH PACKAGE ═══════════════════════ -->
+        <section id="export">
+          <h2>Which package do I want</h2>
+          <p>
+            Every graphic exports to all six of the packages below, and you never pick between them
+            while you are designing. The choice is made at the end, and it is made by whatever is
+            going to put the graphic in the picture. Find that here, take the row, and read the
+            guide it points at if there is one.
+          </p>
+          <p>
+            <strong>First: are you exporting at all?</strong> If NoaCG is running the show, the
+            answer is no. A <a href="#dashboard">production</a> gives you an output URL you add as a
+            browser source and an operator page you drive it from, and nothing is downloaded. An
+            export is for handing the graphic to a system that will own it, or for running it on a
+            machine that will not have this page open.
+          </p>
+          <div class="doc-table"><table>
+            <tr><th>Playing it in</th><th>Take</th><th>What you get</th></tr>
+            <tr>
+              <td><strong>OBS, vMix</strong>, or anything that renders a web page</td>
+              <td>HTML overlay (OBS / vMix)</td>
+              <td>One <code>.html</code> that plays itself when the source loads, and an operator
+                page for live edits. <a href="#browser-source">The guide</a>.</td>
+            </tr>
+            <tr>
+              <td><strong>CasparCG</strong></td>
+              <td>CasparCG export</td>
+              <td>One <code>.html</code> with everything inlined, plus a shim that reads CasparCG's
+                own data payloads and an operator page for the days there is no playout machine.
+                <a href="#casparcg">The guide</a>.</td>
+            </tr>
+            <tr>
+              <td>A playout system that loads a <strong>folder of templates</strong>, such as <strong>SPX</strong></td>
+              <td>SPX export</td>
+              <td>A folder to drop into that system's templates directory. Your fields appear in
+                its rundown by name, and an operator page comes with it for anything else.</td>
+            </tr>
+            <tr>
+              <td>An <strong>OGraf</strong> renderer</td>
+              <td>OGraf (EBU) export</td>
+              <td>A folder holding the OGraf manifest and the graphic as a web component. This is
+                the EBU's interchange format, so it is also the one to take when you do not yet
+                know what will play it.</td>
+            </tr>
+            <tr>
+              <td><strong>LiveOS</strong> (NetOn.Live)</td>
+              <td>LiveOS (NetOn.Live) export</td>
+              <td>The same OGraf package, with that engine's install steps beside it. Its fields
+                become LiveOS operator inputs.</td>
+            </tr>
+            <tr>
+              <td><strong>H2R Graphics</strong></td>
+              <td>H2R Graphics export</td>
+              <td>One <code>.html</code> for H2R's Custom HTML graphic type. The fields become H2R
+                inputs, and its on and off drive the entrance and the exit.</td>
+            </tr>
+          </table></div>
+          <p>
+            All six are complete and none of them needs the internet. Fonts, pictures, the animation
+            engine and your own code travel inside the package, paths are relative, and nothing is
+            fetched while the graphic is on air. The difference between them is only the shape the
+            host expects, which is covered in
+            <a href="#artwork-export">what comes out in an export</a>. Nothing is lost by picking
+            wrongly either: export again and take a different one.
+          </p>
+          <p>
+            You do not have to open the editor to get any of this. The last step of making a graphic
+            offers the export directly.
           </p>
         </section>
 

@@ -79,6 +79,8 @@ const ALLOWED = [
   { file: 'src/components/wizard/steps/ImportDesignStep.tsx', line: "? 'Name it, then send it to a production or export it: OGraf, CasparCG, SPX, LiveOS or an OBS/vMix overlay. Your file is kept exactly as you wrote it.'", why: 'target list on the import finish line' },
   { file: 'src/components/home/sections/ProductionsSection.tsx', line: 'title="Export every graphic of this production — OGraf, CasparCG, SPX, OBS/vMix overlay, H2R, LiveOS"', why: 'target list on the export button' },
   { file: 'docs.html', line: 'The folder is at the same time a valid <strong>SPX</strong> package and an', why: 'names the two FORMATS one file satisfies at once - the fact is the point' },
+  { file: 'docs.html', line: '<td>A playout system that loads a <strong>folder of templates</strong>, such as <strong>SPX</strong></td>', why: "the 'which package do I want' table's row for folder-loading playout, named beside OBS/vMix, CasparCG, OGraf, LiveOS and H2R - a reader running it has to find their own row" },
+  { file: 'docs.html', line: '<td>SPX export</td>', why: "the same table's Take column: the literal label of the export button that row sends the reader to" },
 
   // ── A named target's own surface, or genuinely host-specific instruction. The reader has
   //    already chosen that host, so telling them where its templates folder is IS the help.
