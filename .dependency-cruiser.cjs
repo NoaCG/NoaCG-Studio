@@ -291,8 +291,8 @@ module.exports = {
         'templates/importedDesign/designTypes.ts for ONE landing, so the branches that are ' +
         'open while its importers are rewritten keep compiling. The next landing deletes the ' +
         'shim and this allowance with it; it permits no other model -> templates edge.',
-      from: { path: '^src/model/wizard\.ts$' },
-      to: { path: '^src/templates/(contract|importedDesign/designTypes)\.ts$' },
+      from: { path: '^src/model/wizard\\.ts$' },
+      to: { path: '^src/templates/(contract|importedDesign/designTypes)\\.ts$' },
     },
   ],
   allowedSeverity: 'error',
