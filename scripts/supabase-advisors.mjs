@@ -1,3 +1,6 @@
+// gate: none - reads the live Supabase project with credentials no runner holds
+// guards: supabase/**
+//
 // The SUPABASE ADVISOR gate: fails on a NEW advisor finding, ignores the accepted ones.
 //
 // Why a baseline rather than a plain "run the advisors" check: most of what the advisors report

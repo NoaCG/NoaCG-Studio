@@ -1,3 +1,5 @@
+// guards: supabase/migrations/**
+//
 // Migration 0039 is what keeps hosted usage inside the plan's included quota, and every rule in it
 // is invisible until the day it matters - a policy that quietly stopped being RESTRICTIVE, or a
 // prune job that lost its schedule, would look exactly like a working system right up to the

@@ -1,3 +1,6 @@
+// gate: build
+// guards: AGENTS.md, **/AGENTS.md, **/CLAUDE.md, .agent-workflows/**, .agents/**, .claude/**, docs/AGENT_WORKFLOWS.md
+//
 // Guard the shared Claude Code / Codex instruction architecture against drift.
 //
 // Canonical content:

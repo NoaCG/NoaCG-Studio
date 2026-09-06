@@ -10,6 +10,7 @@
 // Cost: twelve node starts, about 1.2 s; a refused launch pays one to three git calls per missing
 // path.
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -20,6 +21,13 @@ import { runHook, wiringProblem } from './test-lib.mjs';
 
 const HOOK = new URL('./guard-agent-launch.mjs', import.meta.url);
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
+
+// The refusals need the second look, and the second look needs an `origin/main` to compare
+// against: the hook stands down without one (its own fail-open rule, tested below). A CI
+// checkout of a branch has no `origin/main`, so the refusal cases are skipped there with the
+// reason on the record rather than failing on a world the hook was never asked to judge.
+const HAS_MAIN = spawnSync('git', ['rev-parse', '--verify', '--quiet', 'origin/main'], { cwd: REPO, stdio: 'ignore', windowsHide: true }).status === 0;
+const needsMain = HAS_MAIN ? false : 'no origin/main in this checkout, so the hook stands down instead of refusing';
 
 function launch(prompt, extra = {}) {
   return {
@@ -50,7 +58,7 @@ test('a wave prompt whose paths all exist launches', () => {
   assert.equal(status, 0, message);
 });
 
-test('a TOUCHES entry one letter off is refused, and the entry is quoted back', () => {
+test('a TOUCHES entry one letter off is refused, and the entry is quoted back', { skip: needsMain }, () => {
   const { status, message } = runHook(HOOK, launch(ROW.replace('scripts/hooks/,', 'scripts/hoks/,')));
   assert.equal(status, 2);
   assert.match(message, /TOUCHES names scripts\/hoks\//);
@@ -58,7 +66,7 @@ test('a TOUCHES entry one letter off is refused, and the entry is quoted back', 
   assert.match(message, /wave-plan-check\.mjs/); // the check this is the second half of
 });
 
-test('a wrapped READ line is read to its end', () => {
+test('a wrapped READ line is read to its end', { skip: needsMain }, () => {
   const { status, message } = runHook(HOOK, launch(ROW.replace('.claude/settings.json.', '.claude/setings.json.')));
   assert.equal(status, 2);
   assert.match(message, /READ names \.claude\/setings\.json/);
@@ -82,7 +90,7 @@ test('a generated or gitignored path is not refused, whether or not this tree ha
   assert.equal(status, 0, message);
 });
 
-test('a prompt in the `instructions` field is judged the same way', () => {
+test('a prompt in the `instructions` field is judged the same way', { skip: needsMain }, () => {
   const { status } = runHook(HOOK, launch('', { instructions: 'TOUCHES scripts/hoks/guard.mjs' }));
   assert.equal(status, 2);
 });

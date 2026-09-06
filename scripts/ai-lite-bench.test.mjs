@@ -1,3 +1,5 @@
+// guards: src/ai/lite/**
+//
 // Self-tests for the NoaCG Lite benchmark (run in the build gate):
 //  - production-vs-benchmark pipeline EQUIVALENCE pins (one compile path, no drift)
 //  - gold / floor / repair suite validity against the real server-side semantic validator

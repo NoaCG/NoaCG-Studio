@@ -1,3 +1,6 @@
+// gate: factory
+// (binds ports and spawns servers: seconds on a runner, a cost on every laptop build)
+//
 // Tests for the dev-server port registry (scripts/port-registry.mjs) and for the tooling that
 // reads its result (scripts/dev-port.mjs). Run with `npm run test:ports`.
 //

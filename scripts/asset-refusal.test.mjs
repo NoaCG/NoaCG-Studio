@@ -1,3 +1,5 @@
+// guards: src/backend/assets.ts
+//
 // The two ways Supabase Storage can refuse an asset once the capacity ceilings of migration 0039
 // are in force, and how we describe them to a person.
 //

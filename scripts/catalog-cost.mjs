@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: none - reports what the next design costs and never gates, by its own header
+// guards: src/templates/**
+//
 // WHAT THE NEXT DESIGN COSTS - the owner's question of 2026-09-04, answered as a number rather
 // than a paragraph:
 //

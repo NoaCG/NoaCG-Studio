@@ -1,3 +1,5 @@
+// guards: supabase/migrations/**
+//
 // A SECURITY DEFINER function in `public` is exposed the moment it is created: Supabase's default
 // privileges hand EXECUTE to `anon`, `authenticated` and `service_role` as explicit per-role grants,
 // so `revoke ... from public` removes nothing and silence means "open to the internet". That defect

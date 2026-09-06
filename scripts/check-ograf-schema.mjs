@@ -1,3 +1,6 @@
+// gate: workflow weekly-audit.yml
+// guards: src/export/**, scripts/ograf-schema-baseline.json
+//
 // The OGraf CONFORMANCE report: our manifests, and our transcription of the spec, checked
 // against the EBU's PUBLISHED JSON-Schema files with a real JSON-Schema engine.
 //

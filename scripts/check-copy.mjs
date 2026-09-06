@@ -1,3 +1,6 @@
+// gate: build
+// guards: src/**, docs/**, README.md, cli/**, *.html, scripts/copy-baseline.json
+//
 // THE COPY A USER READS MUST NOT READ AS MACHINE-WRITTEN.
 //
 // The owner's complaint, 2026-08-26, is specific and it is the most common one this product gets:

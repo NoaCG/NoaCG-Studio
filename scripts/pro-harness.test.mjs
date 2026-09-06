@@ -1,3 +1,5 @@
+// guards: src/ai/pro/harness/**
+//
 // THE ZERO-TOKEN CONTROL for the Pro Harness (src/ai/pro/harness/, docs/PRO_HARNESS_PLAN.md §9).
 //
 // Two halves. The PURE half pins the modules the loop's decisions rest on - finding identity and

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: docs/backlog/**
+//
 // THE OWNER RECEIPT - owner-raised work that survives a forgetful planner.
 //
 //   node scripts/owner-receipts.mjs               # open receipts: asks first, unstarted and oldest first

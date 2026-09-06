@@ -1,3 +1,6 @@
+// gate: factory
+// guards: api/_lib/aiLiteProfile.ts, src/ai/lite/**
+
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';

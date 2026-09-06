@@ -1,3 +1,6 @@
+// gate: build
+// guards: src/**, docs/**, e2e/**, scripts/**
+
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 

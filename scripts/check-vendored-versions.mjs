@@ -1,3 +1,6 @@
+// gate: workflow weekly-audit.yml
+// guards: src/assets/**
+//
 // The VENDORED-DEPENDENCY freshness check: everything this repo ships that npm cannot see.
 //
 // Why this exists: `npm outdated` and `npm audit` only know about entries in package.json. The

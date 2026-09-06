@@ -1,3 +1,5 @@
+// guards: src/ai/pro/harness/**
+//
 // THE CORPUS PIN for the Pro Harness's exemplar measurements (src/ai/pro/harness/exemplars.ts,
 // docs/PRO_HARNESS_PLAN.md §3.4).
 //

@@ -1,3 +1,6 @@
+// gate: factory
+// guards: src/export/local-relay/**
+//
 // Conformance tests for the LOCAL RELAY protocol v1 (src/export/local-relay/) — the one
 // protocol, two stdlib implementations (relay.ps1 for Windows, relay.py for macOS/Linux).
 // Both are spawned for real against a temp package dir and must answer identically:

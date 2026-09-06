@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: api/**, vercel.json
+//
 // Count the serverless functions this deployment would create, and refuse to exceed the plan's cap.
 //
 // Why this exists: the Vercel Hobby plan refuses a deployment with more than 12 serverless

@@ -1,3 +1,5 @@
+// guards: src/model/csv.ts
+//
 // Unit tests for the shared quoted-CSV/JSON parser (src/model/csv.ts, Phase 7).
 //
 // These run in the BUILD GATE rather than in Playwright because there is no browser in the

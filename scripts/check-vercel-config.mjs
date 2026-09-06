@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// gate: build
+// guards: vercel.json
+//
 // Validate vercel.json's routing config with the same library Vercel validates it with.
 //
 // Why this exists: on 2026-08-07 a header rule with the source `/join(/(.*))?` reached main. Every
