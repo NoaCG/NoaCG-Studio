@@ -166,6 +166,21 @@ belong where specs are written rather than in the contract every session loads.
   summary built on `.ok` reports all 32 as passed on a run where none executed. Read
   `.specs[].tests[].results[].status`, and make an env-gated job a verdict by asserting on
   `.stats`: `skipped == 0` and `expected + unexpected + flaky >= <declared count>`.
+- **A Claude Code cloud container fails specs that are green everywhere else, and does it
+  differently every run.** Measured 2026-09-06: `ai-tiers.spec.ts` failed a DIFFERENT random
+  subset on each of three runs in one container - 4 failed, then 6, then 6 on the FIRST tree
+  again, unchanged - always at the same `expect(page.locator('.wz-modal')).toBeVisible()`
+  after `page.goto('/app')`, which is BOOT, before anything those specs are about. The
+  hover-highlight test in `import-svg.spec.ts` was red the same night on the branch AND on its
+  base. Both are green everywhere else: 45 executions on the owner's laptop (five repeats of
+  `ai-tiers`, five of the hover test) and four consecutive green `nightly.yml` runs, which is
+  the full suite on GitHub's Linux runners. **So a red in a cloud container is not evidence
+  about your row.** Check the last nightly, or re-run on the base commit, before believing one.
+  The cause is boot latency on a starved CPU: `/app`'s durable-store hydration falls back after
+  4 s (root `AGENTS.md`, "Gotchas") against the 7 s `expect` timeout in `playwright.config.ts`.
+  The fix in a spec is `_svg-import.ts`'s pattern - an explicit
+  `waitFor({ state: 'visible', timeout: 10_000 })` on the cold-boot auto-open - never a longer
+  global timeout, which only hides the next one.
 - **A wholesale local red can be green on CI, with no code fault.** 42 failed / 7 passed across
   the AI specs locally while the same commit passed CI's full 8-shard run - the checkout, not the
   code. Before attributing a big local red to your change, `git stash push src scripts` and re-run
