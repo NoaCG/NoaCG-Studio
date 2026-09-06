@@ -7,8 +7,8 @@ orchestrator integrates the branch.
 
 ## What landed
 
-One commit (`5fd5843`) plus whatever follows it for the spec hardening below. Every claim in the
-row's GOAL is built and, unusually for a cloud container, **actually run** - see Evidence.
+Four commits, `5fd5843` .. `6ea5b7a`. Every claim in the row's GOAL is built and, unusually for a
+cloud container, **actually run** - see Evidence.
 
 **Model (§3).**
 - `ProjectBrand` gains `logo?: AssetFile` and `notes?: string`, both additive optional.
@@ -158,8 +158,15 @@ UI can put one in - the spec is what stands behind that claim meanwhile.
 
 ## Commit pointers
 
-- `5fd5843` - the whole row. `src/model/brand.ts` is the header worth reading first: it states why
-  the singleton retired and what the old key is still for.
+- `5fd5843` - the feature.
+- `2808f18` - the two existing specs moved onto the chooser, and the new one hardened.
+- `62a5b91` - one redundant field dropped from `applyLookToTemplate`'s return.
+- `6ea5b7a` - the durable-seed hazard written into `e2e/AGENTS.md`, plus this handoff.
+
+Where to read the reasoning:
+
+- `src/model/brand.ts` - the file header first. It states why the singleton retired and what the
+  old key is still for.
 - `src/components/wizard/draft.ts` `brandPatch` / `brandClearPatch` - the logo half, with the
   `paletteById` trap the row warned about left intact above it.
 - `src/model/packets.ts` `applyLookToTemplate` + `logoFieldOf` / `markTag` - the apply-to-existing
