@@ -147,14 +147,12 @@ export function animationBreach(js: string): string | null {
   if (!/var animSpeed = [\d.]+/.test(region) || Number(region.match(/var animSpeed = ([\d.]+)/)?.[1] ?? 0) === 0) {
     return 'the region has no `var animSpeed = 1;` - it must declare a non-zero speed on its own line before the builders.';
   }
-  // Single quotes are not a style preference here: the importer's pattern is /'([^']+)'/, so a
-  // double-quoted ease is invisible to it. Declare them even when every tween names its own ease.
   for (const name of ['easeIn', 'easeOut'] as const) {
-    if (new RegExp(`var ${name} = '[^']+'`).test(region)) continue;
+    if (new RegExp(`var ${name} = (?:'[^']+'|"[^"]+")`).test(region)) continue;
     const loose = new RegExp(`var ${name}\\s*=`).test(region);
     return loose
-      ? `\`var ${name}\` is declared but not in the form the importer reads - it must be single-quoted, e.g. \`var ${name} = 'expo.out';\`.`
-      : `the region has no \`var ${name} = 'expo.out';\` - both \`easeIn\` and \`easeOut\` must be declared, single-quoted, even when each tween names its own ease.`;
+      ? `\`var ${name}\` is declared but not in the form the importer reads - it must be a quoted ease name, e.g. \`var ${name} = 'expo.out';\`.`
+      : `the region has no \`var ${name} = 'expo.out';\` - both \`easeIn\` and \`easeOut\` must be declared, even when each tween names its own ease.`;
   }
   for (const [fn, what] of [['buildInTimeline', 'entrance'], ['buildOutTimeline', 'exit']] as const) {
     // The importer's body pattern is `function NAME() {` … newline `}`, so the spacing and the
@@ -163,8 +161,16 @@ export function animationBreach(js: string): string | null {
     if (body === undefined) {
       return `the ${what} builder is missing or not in the form the importer reads - write it exactly as \`function ${fn}() {\` … and close it with \`}\` at the start of its own line.`;
     }
-    if (!/tl\.(set|to|fromTo)\(([\s\S]*?)\);/.test(body)) {
+    const calls = [...body.matchAll(/tl\.(set|to|fromTo)\(([\s\S]*?)\);/g)];
+    if (!calls.length) {
       return `\`${fn}\` has no \`tl.set\` / \`tl.to\` / \`tl.fromTo\` call the importer can read - each one must end with \`);\` on the same statement.`;
+    }
+    // Every tween has to NAME its target as a quoted selector. A variable or an element
+    // reference leaves the importer with nothing to write into the data block, and it refuses
+    // the whole template rather than invent one (`targetsConvertible`, blocks/timelineModel.ts).
+    for (const [, , args] of calls) {
+      if (/^\s*(?:'[^']+'|"[^"]+"|\[)/.test(args)) continue;
+      return `a tween in \`${fn}\` does not start with a quoted CSS selector - write \`tl.to(".${'${prefix}'}-name", { … })\` or an array of them, never a variable or an element reference.`;
     }
   }
   return null;

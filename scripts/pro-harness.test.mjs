@@ -533,7 +533,13 @@ const BREACHES = [
   ["easeIn and easeOut absent", region((s) => s.replace(/var ease(In|Out) = '[^']+';\n/g, '')), /easeIn/],
   ['easeOut absent', region((s) => s.replace(/var easeOut = '[^']+';\n/, '')), /easeOut/],
   // Double quotes are invisible to the importer's /'([^']+)'/ - the sentence has to say so.
-  ['easeIn double-quoted', region((s) => s.replace("var easeIn = 'expo.out';", 'var easeIn = "expo.out";')), /single-quoted/],
+  // Both quote styles are ordinary JavaScript and the importer now reads both, so a
+  // double-quoted ease is NOT a breach - it was one until 2026-09-06, and the model that hit it
+  // had written perfectly good code.
+  ['easeIn double-quoted', region((s) => s.replace("var easeIn = 'expo.out';", 'var easeIn = "expo.out";')), null],
+  ['a double-quoted selector', region((s) => s.replace(/"#f0"/g, "'#f0'")), null],
+  // The defect that produced a graphic which threw on air: a tween with no quoted target.
+  ['a tween targeting a variable', region((s) => s.replace('tl.to("#f0", { opacity: 0', 'tl.to(nameEl, { opacity: 0')), /quoted CSS selector/],
   ['animSpeed absent', region((s) => s.replace('var animSpeed = 1;\n', '')), /animSpeed/],
   ['the exit builder absent', region((s) => s.slice(0, s.indexOf('function buildOutTimeline'))), /buildOutTimeline/],
   ['a builder with no tween', region((s) => s.replace(/ {2}tl\.to\("#f0", \{ opacity: 0[^\n]*\n/, '')), /buildOutTimeline/],
@@ -548,10 +554,18 @@ test('animationBreach names the first unmet precondition, in the importer\'s own
   }
 });
 
-test('animationBreach agrees with parseTimeline on every case - null exactly when it parses', () => {
+test('animationBreach agrees with the importer on every case - null exactly when the region converts', () => {
+  // The predicate is the one `importAnimData` actually applies, not `parseTimeline` alone: a
+  // region can PARSE and still be unconvertible, which is precisely how a tween with no readable
+  // target used to slip through and produce a graphic that threw on air.
+  const converts = (js) => {
+    const model = timelineModel.parseTimeline(js);
+    if (!model) return false;
+    return model.phases.every((p) => p.loopsConvertible && p.dynamicsConvertible && p.targetsConvertible);
+  };
   for (const [what, js] of BREACHES) {
-    const parses = timelineModel.parseTimeline(js) !== null;
+    const ok = converts(js);
     const clean = patch.animationBreach(js) === null;
-    assert.equal(clean, parses, `${what}: animationBreach says ${clean ? 'clean' : 'broken'} but the importer ${parses ? 'parses' : 'does not parse'} it`);
+    assert.equal(clean, ok, `${what}: animationBreach says ${clean ? 'clean' : 'broken'} but the importer ${ok ? 'converts' : 'refuses'} it`);
   }
 });

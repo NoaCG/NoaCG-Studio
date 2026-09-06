@@ -94,6 +94,12 @@ export interface TimelinePhase {
    *  A hand-written `tl.add(someLocalTimeline)` carries motion this model cannot name, so
    *  the importer refuses the template outright rather than silently dropping it. */
   dynamicsConvertible: boolean;
+  /** True when every tween named a target this parser could read. A tween whose first argument
+   *  is not a quoted selector — a variable, an element reference, a template string — has no
+   *  selector to write into the data block, and inventing one produces a graphic that throws on
+   *  air (see `parseCall`). False refuses the whole template, which is the honest outcome: the
+   *  region stays the author's code and the timeline reads it read-only. */
+  targetsConvertible: boolean;
 }
 
 /** T3 — one Continue press: which line GROUP reveals, how long, with which ease. */
@@ -254,14 +260,22 @@ function fnBodyRe(name: string): RegExp {
 
 /** Parse one tl.<kind>(...) call's argument text into a tween (position math done later). */
 function parseCall(kind: TimelineTween['kind'], args: string, animSpeed: number) {
-  // Targets: the first argument — a quoted selector or an array of quoted selectors.
+  // Targets: the first argument — a quoted selector or an array of quoted selectors. BOTH quote
+  // styles, because both are ordinary JavaScript and the authoring grammar never named one: the
+  // catalog happens to be written in single quotes, so a double-quoted selector went unread until
+  // a model wrote one (2026-09-06, docs/AI_ATTEMPTS.md).
   const arr = args.match(/^\s*\[([^\]]*)\]/);
-  const single = args.match(/^\s*'([^']+)'/);
+  const single = args.match(/^\s*(?:'([^']+)'|"([^"]+)")/);
+  // NO TARGET IS AN EMPTY LIST, NEVER A PLACEHOLDER. This used to fall back to `['?']`, which
+  // reads as a selector all the way through the importer, survives `parseAnimData`, and then
+  // throws `'?' is not a valid selector` inside GSAP the first time the graphic plays - a
+  // converter failing OPEN, in the one place whose contract is to fail closed and keep the
+  // author's code byte-identical. `targetsConvertible` below turns it back into a refusal.
   const targets = arr
-    ? arr[1].split(',').map((s) => s.replace(/['\s]/g, '')).filter(Boolean)
+    ? arr[1].split(',').map((s) => s.replace(/['"\s]/g, '')).filter(Boolean)
     : single
-      ? [single[1]]
-      : ['?'];
+      ? [single[1] ?? single[2]]
+      : [];
 
   // The animated props come from the LAST object literal (fromTo's "to" vars).
   const objects = args.match(/\{[^{}]*\}/g) ?? [];
@@ -461,6 +475,9 @@ function parsePhase(id: TimelinePhase['id'], body: string, animSpeed: number): T
     // One unrecognizable `tl.add` is enough to refuse: the phase carries motion this model
     // cannot name, and a partial conversion would silently lose it.
     dynamicsConvertible: unnamedAdds === 0,
+    // Same rule for a tween whose target could not be read - refuse the template rather than
+    // convert it into one that throws the first time an operator presses Take.
+    targetsConvertible: tweens.every((t) => t.targets.length > 0),
   };
 }
 
@@ -470,8 +487,9 @@ export function parseTimeline(js: string): TimelineModel | null {
   if (!region) return null;
 
   const animSpeed = Number(region.match(/var animSpeed = ([\d.]+)/)?.[1] ?? NaN);
-  const easeIn = region.match(/var easeIn = '([^']+)'/)?.[1];
-  const easeOut = region.match(/var easeOut = '([^']+)'/)?.[1];
+  // Both quote styles, for the same reason as the selectors in `parseCall`.
+  const easeIn = region.match(/var easeIn = (?:'([^']+)'|"([^"]+)")/)?.slice(1).find(Boolean);
+  const easeOut = region.match(/var easeOut = (?:'([^']+)'|"([^"]+)")/)?.slice(1).find(Boolean);
   if (!animSpeed || !easeIn || !easeOut) return null;
 
   const phases: TimelinePhase[] = [];
