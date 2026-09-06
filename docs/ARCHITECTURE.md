@@ -32,7 +32,7 @@ thin `CLAUDE.md` import.
 | 0 kernel | `entitlements/` | the PURE entitlement contract: feature/limit keys, plan + grant shapes, the precedence merge and its per-value source (docs/ADMIN.md) | `contract` |
 | 0 kernel | `feedback/` | the PURE feedback contract: rating axis, enumerated reason vocabularies, area and triage states, the submission shape (docs/ADMIN.md §10) | `contract` |
 | 1 transforms | `blocks/` * | deterministic `(template) => template` patchers, Timeline v2 engine, `NOACG_ANIM` literal, state-machine graph + mutators | `registry`, `animData`, `animMachine`, `machineEdit`, named patcher modules |
-| 1 transforms | `templates/` * | wizard catalog, assemblers, graphic types, `:root` style contract | `catalog`, `variant.create(options)`, `types/` registry |
+| 1 transforms | `templates/` * | wizard catalog, assemblers, graphic types, `:root` style contract | `catalog`, `variant.create(options)`, `types/` registry, `defaultTemplate` (the store's seed) |
 | 1 transforms | `validation/` | the export + AI gate, runtime bench, the PUBLISH gate (`publishGate` = validate + share-safety bench; the one gate behind the community door, the bridge, hosted publish and production export) and the production-grain LIBRARY->AIR gate (`productionGate`, docs/AGENT_SAVE.md §4) | `validateTemplate`, `runtimeBench`, `publishGate`, `productionGate` |
 | 1 transforms | `preview/` | srcdoc composition | `composeDocument` |
 | 1 transforms | `editor/` | Monaco view-only helpers (comment visibility) | `commentVisibility` |
@@ -127,7 +127,7 @@ dependency-cruiser; §7):
    render, control, video, backend, community) never touch the store - they take and return
    plain documents.
 4. **Nothing imports `components/`.** UI is the top of the graph.
-5. **`model/` imports nothing above layer 0** except the two grandfathered edges in §6.
+5. **`model/` imports nothing above layer 0** except the one grandfathered edge in §6 (`model -> editor`, type-only).
 
 ## 4. Where does new code go
 

@@ -181,6 +181,10 @@ const MAP = [
   // changes the FIRST FRAME somebody judges a template by, and both specs that measure it
   // live here rather than under the timeline rule below.
   [/^src\/blocks\/animData\.ts$/, ['wizard-preview.spec.ts', 'end-credits.spec.ts', 'public-service.spec.ts']],
+  // defaultTemplate.ts left src/model (CORE) for src/templates, so the specs that seed a graphic
+  // from it by importing it directly are named here; the templates subset alone would miss
+  // storage-full, which builds its own fixture off createDefaultTemplate().
+  [/^src\/templates\/defaultTemplate\.ts$/, ['format.spec.ts', 'storage-full.spec.ts']],
   // src/model/cssVars.ts has no row: it is CORE (src/model), and CORE is decided before MAP is
   // read, so a row here would never fire. The two specs that pin `cssPaintsWith` - whether the
   // wizard offers a palette role at all (components/wizard/steps/StyleStep.tsx) - are

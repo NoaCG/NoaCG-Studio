@@ -358,6 +358,8 @@ Dependency-cone selection is not worth building before `model/wizard.ts` leaves 
 
 Prerequisites for the CI and contract work: wizard rows 1 and 2, domain rows 1 and 3. Everything else runs alongside phase 2.
 
+*Domain row 3, as landed.* The five §6 debts are gone: `defaultTemplate.ts` lives in `templates/` (with one narrow `store -> templates` edge for the store's seed), `ensureExternalRefs`, `cssVars` and `slug` live in `model/`, and `EditorTab` lives in `blocks/` with the store re-exporting it. `export/common.ts` no longer mixes packaging with document hygiene. The table in §5.5 above still describes the pre-move state it audited.
+
 ## 6. The end-to-end flow
 
 ```
