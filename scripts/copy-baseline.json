@@ -583,7 +583,7 @@
       "em-dash": 4
     },
     "src/templates/endCredits/creditsMotion.ts": {
-      "em-dash": 10
+      "em-dash": 9
     },
     "src/templates/endCredits/creditsPresets.ts": {
       "em-dash": 16,

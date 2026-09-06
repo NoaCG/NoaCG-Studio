@@ -61,6 +61,23 @@ function creditsMotionSpeed() {
   return motionSpeed() * creditsSpeed();
 }
 
+// creditsMid() / creditsMoveBy(): the two lines all of the travel below is measured with.
+//
+// EVERY distance here is a difference between two RECTS ON SCREEN, added to the transform the
+// track is already carrying - never a composition of offsetTop, clientHeight and scrollHeight.
+// Those look equivalent and are not: the first row's heading carries a top margin that COLLAPSES
+// straight through the track, so the track's own box starts 50px below its content in cr01, and
+// arithmetic built from offsets parks the closing mark 50px low with nothing saying so. A rect
+// difference cannot be wrong about that, because it asks the browser where things actually are.
+function creditsMid(rect, axis) {
+  return axis === 'x' ? (rect.left + rect.right) / 2 : (rect.top + rect.bottom) / 2;
+}
+
+function creditsMoveBy(track, axis, from, to) {
+  var here = Number(gsap.getProperty(track, axis)) || 0;   // a previous take may have left one
+  return here + (to - from);
+}
+
 // creditsEndBeat(): the closing mark's own beat, appended to a roll or a crawl.
 //
 // The logo + year block is NOT part of the scroll. The list runs all the way through, the
@@ -75,14 +92,11 @@ function creditsMotionSpeed() {
 // these inline values survive into the next take.
 function creditsEndBeat(seq, track, box, endBlock, axis) {
   var pages = track.querySelectorAll('.credits-page');
-  var trackRect = track.getBoundingClientRect();
+  var boxRect = box.getBoundingClientRect();
   var endRect = endBlock.getBoundingClientRect();
-  // Rect differences, not offsetTop: #credits-track is not a positioned element in every
-  // design, so offsetParent is not reliably the track. Both rects carry the same travel
-  // transform, so subtracting them cancels it.
-  var park = axis === 'x'
-    ? -((endRect.left - trackRect.left) + endRect.width / 2 - box.clientWidth / 2)
-    : -((endRect.top - trackRect.top) + endRect.height / 2 - box.clientHeight / 2);
+  var park = creditsMoveBy(track, axis,
+    creditsMid(endRect, axis),                 // from: where the mark is now…
+    creditsMid(boxRect, axis));                // …to: the middle of the viewport
 
   if (pages.length) seq.set(pages, { opacity: 0 });      // the list has gone; it never returns
   seq.set(track, axis === 'x' ? { x: park } : { y: park });
@@ -103,14 +117,14 @@ function creditsRoll(target) {
   var endBlock = track.querySelector('.credits-end');
   var hasEndBeat = !!endBlock && endBlock.getBoundingClientRect().height > 0;
 
-  // How far the LIST reaches: to the closing mark when there is one (the mark is not part of
-  // the roll), otherwise the whole track. Travel that far and the last row is off the top.
-  var listHeight = hasEndBeat
-    ? endBlock.getBoundingClientRect().top - track.getBoundingClientRect().top
-    : track.scrollHeight;
+  // Where the LIST ends: at the closing mark when there is one (the mark is not part of the
+  // roll), otherwise at the foot of the track. Travel until that point reaches the TOP of the
+  // viewport and the last row has left the frame.
+  var boxRect = box.getBoundingClientRect();
+  var listEnd = hasEndBeat ? endBlock.getBoundingClientRect().top : track.getBoundingClientRect().bottom;
 
   var startY = box.clientHeight;                              // enter from below the viewport…
-  var endY = -listHeight;                                     // …and run right off the top
+  var endY = creditsMoveBy(track, 'y', listEnd, boxRect.top); // …and run right off the top
   var distance = startY - endY;
   var pixelsPerSecond = 90 * creditsMotionSpeed();            // reading speed — raise for faster credits
   if (distance <= 0) return null;
@@ -183,13 +197,12 @@ function creditsCrawl(target) {
   var endBlock = track.querySelector('.credits-end');
   var hasEndBeat = !!endBlock && endBlock.getBoundingClientRect().width > 0;
 
-  // How far the LIST reaches along the line — up to the closing mark, or the whole track.
-  var listWidth = hasEndBeat
-    ? endBlock.getBoundingClientRect().left - track.getBoundingClientRect().left
-    : track.scrollWidth;
+  // Where the LIST ends along the line: at the closing mark, or at the end of the track.
+  var boxRect = box.getBoundingClientRect();
+  var listEnd = hasEndBeat ? endBlock.getBoundingClientRect().left : track.getBoundingClientRect().right;
 
-  var startX = box.clientWidth;                               // enter from the right edge…
-  var endX = -listWidth;                                      // …and run right off the left
+  var startX = box.clientWidth;                                // enter from the right edge…
+  var endX = creditsMoveBy(track, 'x', listEnd, boxRect.left); // …and run right off the left
   var distance = startX - endX;
   var pixelsPerSecond = 160 * creditsMotionSpeed();           // crawl speed
   if (distance <= 0) return null;

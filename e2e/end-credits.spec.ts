@@ -39,12 +39,19 @@ async function pasteCredits(page: Page, text: string) {
 test('the whole credit roll is one field, and one role can credit five people', async ({ page }) => {
   await createProject(page, 'Classic Roll');
 
-  // ONE field for the list. Two more exist and are not per-person: the year line and the logo.
+  // ONE field for the list. Three more exist and none of them is per-person: the year line,
+  // the logo, and the operator's speed (owner walk 2026-08-28 - a roll has to fit whatever is
+  // under it, and that is set at the desk).
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.map((f) => `${f.field}:${f.ftype}:${f.title}`);
   });
-  expect(fields).toEqual(['f0:textarea:Credits', 'f1:textfield:Year / copyright', 'f2:filelist:Logo']);
+  expect(fields).toEqual([
+    'f0:textarea:Credits',
+    'f1:textfield:Year / copyright',
+    'f2:filelist:Logo',
+    'f3:number:Scroll speed (%)',
+  ]);
 
   await pasteCredits(page, PASTE);
   const frame = page.frameLocator('iframe.preview-frame');
@@ -128,7 +135,7 @@ test('the Fields step is one paste box, not a field per person', async ({ page }
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.map((f) => `${f.field}:${f.ftype}`);
   });
-  expect(fields).toEqual(['f0:textarea', 'f1:textfield', 'f2:filelist']);
+  expect(fields).toEqual(['f0:textarea', 'f1:textfield', 'f2:filelist', 'f3:number']);
 
   const frame = page.frameLocator('iframe.preview-frame');
   const group = frame.locator('.credits-group', { hasText: 'Camera Operators' });
@@ -161,13 +168,22 @@ test('the closing logo is a default, not a requirement', async ({ page }) => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return {
-      fields: t.fields.map((f) => f.field),
-      logoInHtml: t.html.includes('id="f2"'),
+      // The FIELD, not an id: with the logo off the speed field takes f2, so an id is no
+      // longer evidence either way about a logo.
+      fields: t.fields.map((f) => `${f.field}:${f.ftype}`),
+      logoField: t.fields.some((f) => f.ftype === 'filelist'),
+      logoInHtml: t.html.includes('credits-logo'),
       logoInCss: t.css.includes('.credits-logo'),
       logoInJs: t.js.includes('credits-logo'),
     };
   });
-  expect(built).toEqual({ fields: ['f0', 'f1'], logoInHtml: false, logoInCss: false, logoInJs: false });
+  expect(built).toEqual({
+    fields: ['f0:textarea', 'f1:textfield', 'f2:number'],
+    logoField: false,
+    logoInHtml: false,
+    logoInCss: false,
+    logoInJs: false,
+  });
 
   // The roll still signs off - the hairline and the year are not the logo's dependants.
   const frame = page.frameLocator('iframe.preview-frame');
@@ -270,5 +286,132 @@ for (const recipe of ['thumbnail', 'canvas'] as const) {
       expect(design.pct, design.id).not.toBeNull();
       expect(design.pct, design.id).toBeGreaterThan(20);
     }
+  });
+}
+
+// THE SCROLL RUNS ALL THE WAY THROUGH, AND THE SPEED IS THE OPERATOR'S (owner walk 2026-08-28:
+// "anything with scrolling graphics should have a speed setting in the control panel, and the
+// scroll runs all the way through by default"). Before that walk a roll stopped with the last
+// names still on screen and the closing logo held in the middle of the frame, which is not what a
+// credit roll does anywhere else.
+//
+// Both halves are measured off the BUILT timeline rather than watched, because the travel is
+// tens of seconds long: the list must reach far enough that its last row leaves the viewport,
+// and the end block must arrive afterwards, alone and centred. Two designs, two axes - the crawl
+// is the same change along x, and a fix that only reached the roll would pass on one of them.
+for (const design of [
+  { id: 'cr01', axis: 'y', name: 'roll' },
+  { id: 'cr04', axis: 'x', name: 'crawl' },
+]) {
+  test(`the ${design.name} runs the list off the frame, then brings the mark in on its own`, async ({ page }) => {
+    await enableAdvancedMode(page);
+    await page.goto('/app');
+    await page.keyboard.press('Escape');
+
+    const measured = (await page.evaluate(`(async () => {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const axis = ${JSON.stringify(design.axis)};
+      const tpl = variantById(${JSON.stringify(design.id)}).create({});
+      const speedField = tpl.fields.filter((f) => f.ftype === 'number')[0];
+
+      const f = document.createElement('iframe');
+      f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1920px;height:1080px;';
+      document.body.appendChild(f);
+      await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(tpl, {}); });
+      await new Promise((r) => setTimeout(r, 250));
+
+      const w = f.contentWindow;
+      const d = w.document;
+      const box = d.querySelector('.credits-box');
+      const track = d.querySelector('#credits-track');
+
+      // Build the entrance at a given operator speed and report where its finite motion ends.
+      // (The ambient background drift repeats forever, so the timeline's own duration is GSAP's
+      // infinity sentinel - the same reason preview/settleGraphic.ts computes this.)
+      const build = (percent) => {
+        d.getElementById(speedField.field).textContent = String(percent);
+        w.gsap.killTweensOf('*');
+        w.rebuildCredits();
+        const tl = w.buildInTimeline();
+        tl.pause();
+        let finite = 0;
+        const kids = tl.getChildren(false);
+        for (let i = 0; i < kids.length; i++) {
+          const total = kids[i].totalDuration();
+          if (isFinite(total) && total < 1e9) finite = Math.max(finite, kids[i].startTime() + total);
+        }
+        return { tl, finite };
+      };
+
+      const run = build(100);
+      // QUERY THE ROWS AFTER THE BUILD. rebuildCredits() replaces the track's children, so a
+      // reference taken before it is detached - and a detached element's computed style is
+      // EMPTY, which Number('') turns into a perfectly passing 0.
+      const end = track.querySelector('.credits-end');
+      const pages = Array.prototype.slice.call(track.querySelectorAll('.credits-page'));
+      run.tl.seek(0.001);
+      // How far the LIST reaches inside the track, measured where it sits.
+      const trackAt0 = track.getBoundingClientRect();
+      const lastPage = pages[pages.length - 1].getBoundingClientRect();
+      const listExtent = axis === 'y' ? lastPage.bottom - trackAt0.top : lastPage.right - trackAt0.left;
+
+      // The furthest the track ever travels, sampled across the whole entrance.
+      let maxTravel = 0;
+      for (let i = 0; i <= 60; i++) {
+        run.tl.seek((run.finite * i) / 60);
+        const travelled = -w.gsap.getProperty(track, axis);
+        if (travelled > maxTravel) maxTravel = travelled;
+      }
+
+      // The last frame: the list gone, the mark alone in the middle.
+      run.tl.seek(run.finite);
+      const b = box.getBoundingClientRect();
+      const e = end.getBoundingClientRect();
+      const boxCentre = axis === 'y' ? (b.top + b.bottom) / 2 : (b.left + b.right) / 2;
+      const endCentre = axis === 'y' ? (e.top + e.bottom) / 2 : (e.left + e.right) / 2;
+
+      const out = {
+        speedField: speedField.field + ':' + speedField.ftype + ':' + speedField.value,
+        speedHolderHidden: w.getComputedStyle(d.getElementById(speedField.field)).display === 'none',
+        listExtent: Math.round(listExtent),
+        maxTravel: Math.round(maxTravel),
+        // Bounded rather than exact: the last frame is sampled at the finite motion's end,
+        // which is a float, so a fade can report 0.999997 there.
+        pagesGoneAtEnd: pages.every((p) => Number(w.getComputedStyle(p).opacity) < 0.02),
+        markOpacityAtEnd: Number(w.getComputedStyle(end).opacity),
+        markOffCentre: Math.round(Math.abs(endCentre - boxCentre)),
+        at100: Math.round(run.finite * 100) / 100,
+        at200: Math.round(build(200).finite * 100) / 100,
+        atNonsense: Math.round(build('fast').finite * 100) / 100,
+      };
+      f.remove();
+      return out;
+    })()`)) as {
+      speedField: string; speedHolderHidden: boolean; listExtent: number; maxTravel: number;
+      pagesGoneAtEnd: boolean; markOpacityAtEnd: number; markOffCentre: number;
+      at100: number; at200: number; atNonsense: number;
+    };
+
+    // The speed is a real operator field, defaulted to the pace the design ships at, and its
+    // value never airs - it lives in a hidden holder like every other input-only value.
+    expect(measured.speedField).toBe('f3:number:100');   // both designs take a logo, so f2 is its
+    expect(measured.speedHolderHidden).toBe(true);
+
+    // All the way through: the track travels at least as far as the list itself reaches, so the
+    // last row leaves the viewport rather than parking in it.
+    expect(measured.maxTravel, `${design.id} travel vs list extent`).toBeGreaterThanOrEqual(measured.listExtent - 2);
+
+    // Then the closing mark, on its own, in the middle of the viewport.
+    expect(measured.pagesGoneAtEnd, `${design.id} list still drawn at the end`).toBe(true);
+    expect(measured.markOpacityAtEnd, `${design.id} mark missing at the end`).toBeGreaterThan(0.98);
+    expect(measured.markOffCentre, `${design.id} mark off centre`).toBeLessThanOrEqual(2);
+
+    // Doubling the speed roughly halves the graphic (roughly, because the entrance fades either
+    // side of the travel scale too), and a value the operator could not have meant falls back to
+    // the design's own pace rather than to a roll that never finishes.
+    expect(measured.at200).toBeGreaterThan(measured.at100 * 0.45);
+    expect(measured.at200).toBeLessThan(measured.at100 * 0.6);
+    expect(measured.atNonsense).toBe(measured.at100);
   });
 }
