@@ -20,7 +20,8 @@ import {
 import type { Ftype, SpxField, SpxTemplate } from '../model/types';
 import { NUMERIC_FIGURES } from '../templates/shared/numerals';
 
-import type { EditorTab } from '../store/templateStore';
+/** The editor tab a block wants shown after it applies (store/templateStore re-exports it). */
+export type EditorTab = 'html' | 'css' | 'js';
 
 export interface BuildingBlock {
   id: string;

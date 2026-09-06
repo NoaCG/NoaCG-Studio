@@ -584,7 +584,7 @@ test('a look carries SHAPE, and never grafts a token onto a design that reads no
   const out = await page.evaluate(async () => {
     const { variantById, CATALOG } = await import('/src/templates/catalog.ts');
     const { captureLookFromTemplate, applyLookToTemplate } = await import('/src/model/packets.ts');
-    const { getCssVariable } = await import('/src/blocks/cssVars.ts');
+    const { getCssVariable } = await import('/src/model/cssVars.ts');
 
     const source = variantById('lt08').create({}); // Frosted Card - glass: a real radius and blur
     const look = captureLookFromTemplate(source);

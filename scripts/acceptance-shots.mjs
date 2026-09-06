@@ -88,7 +88,7 @@ await page.waitForTimeout(400);
 const exports_ = await page.evaluate(async () => {
   const { useTemplateStore } = await import('/src/store/templateStore.ts');
   const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
-  const { slug } = await import('/src/export/common.ts');
+  const { slug } = await import('/src/model/slug.ts');
   const template = useTemplateStore.getState().template;
   const sampleData = useTemplateStore.getState().sampleData;
   const outFiles = [];

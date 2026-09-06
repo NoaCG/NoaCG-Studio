@@ -8,7 +8,7 @@ import { apiError, methodGuard, secretMatches } from '../http.js';
 import { getJobStore } from '../jobStore.js';
 import { localOutputPath } from '../executor.js';
 import { RENDER_FORMATS } from '../../../src/render/manifest.js';
-import { slug } from '../../../src/export/slug.js';
+import { slug } from '../../../src/model/slug.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {

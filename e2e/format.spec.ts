@@ -73,7 +73,7 @@ test('formatTemplate formats HTML but leaves CSS and JS alone by default', async
   await page.goto('/app');
   const out = await page.evaluate(async () => {
     const { formatTemplate } = await import('/src/format/formatCode.ts');
-    const { createDefaultTemplate } = await import('/src/model/defaultTemplate.ts');
+    const { createDefaultTemplate } = await import('/src/templates/defaultTemplate.ts');
     const base = createDefaultTemplate();
     const messyHtml = { ...base, html: '<div    id="f0">x</div>', css: '.a{color:red}', js: 'var x=1' };
     const result = await formatTemplate(messyHtml);

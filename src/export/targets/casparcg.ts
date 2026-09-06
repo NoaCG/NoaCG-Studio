@@ -15,7 +15,8 @@
 import JSZip from 'jszip';
 import type { SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
-import { addControlPanel, slug, withControlReceiver } from '../common';
+import { addControlPanel, withControlReceiver } from '../common';
+import { slug } from '../../model/slug';
 import { onAirGuideMd } from '../onAirGuide';
 import { casparClientStepsMd, dataFields, fieldReferenceMd } from '../fieldReference';
 import type { ExportContext, ExportTarget } from '../registry';

@@ -21,7 +21,7 @@ import {
   styleTerm,
   type StyleTerm,
 } from '../../model/styleVocabulary';
-import { contrastRatio, looksLikeColor, parseCssColor } from '../../blocks/cssVars';
+import { contrastRatio, looksLikeColor, parseCssColor } from '../../model/cssVars';
 import { FONTS, fontByStack, fontStack } from '../../model/fonts';
 import { formatCssLength, parseCssLength } from '../../blocks/cssLength';
 import ColorField from './ColorField';

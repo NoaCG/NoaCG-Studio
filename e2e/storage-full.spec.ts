@@ -83,7 +83,7 @@ test('a full quota never parks the user in the canvas silently: Home’s + Produ
   await page.goto('/app');
   await page.evaluate(async () => {
     const { createGraphic } = await import('/src/model/library.ts');
-    const { createDefaultTemplate } = await import('/src/model/defaultTemplate.ts');
+    const { createDefaultTemplate } = await import('/src/templates/defaultTemplate.ts');
     createGraphic(createDefaultTemplate(), { name: 'Match Board' });
     window.location.hash = '#/home/graphics';
   });

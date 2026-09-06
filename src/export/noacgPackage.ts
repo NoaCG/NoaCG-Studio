@@ -34,7 +34,8 @@ import {
   noacgVendorBlock,
   type OgrafPackageOptions,
 } from './targets/ograf';
-import { projectFormatReadme, slug, spxReadme } from './common';
+import { projectFormatReadme, spxReadme } from './common';
+import { slug } from '../model/slug';
 import { onAirGuideMd } from './onAirGuide';
 
 export interface GraphicPackageOptions {

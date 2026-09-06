@@ -15,8 +15,7 @@ import { controlReceiverScript } from '../control/receiverScript';
 import { renderControlPanelHtml } from '../control/controlPanelHtml';
 import { hasRealtimeControl, remoteControlConfig } from '../control/realtimeControl';
 
-export { slug } from './slug';
-import { slug } from './slug';
+import { slug } from '../model/slug';
 
 /** Machine-readable authored format for round-trip imports. This metadata does not resize,
  * stretch, or crop the template - it records the canonical SpxTemplate settings in the package. */
@@ -87,22 +86,6 @@ export async function addSharedAssets(zip: JSZip, template: SpxTemplate): Promis
       zip.file(asset.path, asset.data);
     }
   }
-}
-
-/** Ensure the HTML references the external css/js/gsap files (Starter packaging). */
-export function ensureExternalRefs(html: string): string {
-  let out = html;
-  const head = /<\/head>/i;
-  if (!/href=["'](?:\.\/)?css\/template\.css["']/i.test(out) && head.test(out)) {
-    out = out.replace(head, `  <link rel="stylesheet" href="css/template.css" />\n</head>`);
-  }
-  if (!/src=["'](?:\.\/)?js\/gsap\.min\.js["']/i.test(out) && head.test(out)) {
-    out = out.replace(head, `  <script src="js/gsap.min.js"></script>\n</head>`);
-  }
-  if (!/src=["'](?:\.\/)?js\/template\.js["']/i.test(out) && head.test(out)) {
-    out = out.replace(head, `  <script src="js/template.js"></script>\n</head>`);
-  }
-  return out;
 }
 
 /**

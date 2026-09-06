@@ -185,8 +185,9 @@ const MAP = [
   // `cssPaintsWith` decides whether the wizard offers a palette role at all
   // (components/wizard/steps/StyleStep.tsx). Loosen it and the Style step goes back to offering
   // packages that cannot change the graphic; tighten it and it hides controls that work. Rules
-  // are unioned, so this is added to the `^src/blocks/` list below rather than replacing it.
-  [/^src\/blocks\/cssVars\.ts$/, ['wizard-setup-fields.spec.ts', 'wizard-preview.spec.ts']],
+  // are unioned, and cssVars.ts lives in src/model (CORE), so the full-suite escalation already
+  // covers it; the entry stays to name the two specs that pin the reason above.
+  [/^src\/model\/cssVars\.ts$/, ['wizard-setup-fields.spec.ts', 'wizard-preview.spec.ts']],
   [/^src\/blocks\//, ['motion-presets.spec.ts', 'anim-engine.spec.ts', 'timeline-v2.spec.ts', 'inspector.spec.ts', 'canvas-keyframe.spec.ts', 'legacy-timeline.spec.ts', 'multi-select.spec.ts', 'pasteboard.spec.ts', 'ux.spec.ts', 'bench.spec.ts', 'import-graphic.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
   // creative-routing rides along because ROUTING and SATISFACTION resolve live against the
   // catalog and the type registry (src/templates/structuralAnchor.ts): a structure the

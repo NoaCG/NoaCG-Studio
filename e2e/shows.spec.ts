@@ -293,7 +293,7 @@ test('a production package never carries the hosted receiver, and each graphic g
   const result = await page.evaluate(async () => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { buildShowZip } = await import('/src/export/showExport.ts');
-    const { slug } = await import('/src/export/slug.ts');
+    const { slug } = await import('/src/model/slug.ts');
     const third = variantsFor('lower-third')[0].create({});
     const ticker = variantsFor('ticker')[0].create({});
     // Layers are the numbers the OPERATOR chose (docs/PLAYOUT_DASHBOARD.md §5) — addGraphicToShow

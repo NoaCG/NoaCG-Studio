@@ -11,7 +11,7 @@ import {
   type Resolution,
 } from '../../model/projectFormat';
 import { addPlacedLine } from '../../blocks/designLayout';
-import { getCssVariable, setCssVariable } from '../../blocks/cssVars';
+import { getCssVariable, setCssVariable } from '../../model/cssVars';
 import { FONTS, fontStack } from '../../model/fonts';
 import { applyPlacedFieldSpecs } from '../../blocks/designFields';
 import { anyPresetById, type AnimPhase } from '../../blocks/presetRegistry';

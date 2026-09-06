@@ -63,7 +63,7 @@ async function composition(page: Page) {
   const inCode = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { getCssVariable } = await import('/src/blocks/cssVars.ts');
+    const { getCssVariable } = await import('/src/model/cssVars.ts');
     const s = useTemplateStore.getState();
     const data = parseAnimData(s.template.js);
     const tracksOf = (sel: string) =>

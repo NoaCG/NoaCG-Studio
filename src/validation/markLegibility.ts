@@ -25,7 +25,7 @@
 // choosing the colours is still there to choose differently.
 
 import { probeMarkElement } from '../assets/assetInfo';
-import { BROADCAST_BACKDROP, contrastRatio, parseCssColor, type CssColor } from '../blocks/cssVars';
+import { BROADCAST_BACKDROP, contrastRatio, parseCssColor, type CssColor } from '../model/cssVars';
 import type { SpxTemplate } from '../model/types';
 import { composeDocument } from '../preview/composeDocument';
 
@@ -62,7 +62,7 @@ export interface MarkLegibilityFinding {
 /** A grey with the same RELATIVE LUMINANCE as the measured ink.
  *
  *  Contrast depends on luminance alone, so this reproduces the ink's ratio exactly while keeping
- *  the arithmetic itself in `blocks/cssVars.ts` - the repo has one contrast function and this is
+ *  the arithmetic itself in `model/cssVars.ts` - the repo has one contrast function and this is
  *  not going to be the second. (Inverts the sRGB transfer the probe applied.) */
 function greyOfLuminance(luminance: number): CssColor {
   const l = Math.max(0, Math.min(1, luminance));

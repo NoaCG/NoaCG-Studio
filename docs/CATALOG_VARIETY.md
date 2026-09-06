@@ -622,7 +622,7 @@ at 1920x1080, settled, and read back element by element — once at its own defa
 hostile palette with Porcelain's tonal shape (a near-white panel, near-black text — a shipped,
 offered option) and a loud accent no family was drawn around, so "the accent moved" is unambiguous.
 Contrast composites every ancestor background down to the broadcast backdrop `rgb(16,18,22)`
-(`blocks/cssVars.ts`), and a text run is judged at WCAG AA for its own rendered size and weight.
+(`model/cssVars.ts`), and a text run is judged at WCAG AA for its own rendered size and weight.
 
 **459 measured, 0 failed to build.**
 

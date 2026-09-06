@@ -69,7 +69,8 @@ here and not in §6 are wrong - fix the code, not the table.
 - `blocks` -> templates (preset data tables + `shared/animRuntime`, `shared/textFit`)
 - `validation` -> blocks, templates, preview
 - `preview`, `editor`, `format`, `backend`, `landing`, `teach` -> (kernel only)
-- `store` -> blocks, validation
+- `store` -> blocks, validation, templates (`defaultTemplate` only - the store's initial document,
+  when no project is saved, is the first catalog variant)
 - `ai` -> templates, blocks, validation, video, backend (`getAccessToken` only - proxy metering)
 - `video` -> validation, render
 - `render` -> control, preview, showchat, backend (`getAccessToken` only)
@@ -122,11 +123,11 @@ dependency-cruiser; §7):
    but still read config through `backend/config`.
 2. **The render purity trio** (`render/manifest.ts`, `schedule.ts`, `limits.ts`) stays DOM-free,
    `?raw`-free, `import.meta`-free - `api/` and `render-worker/` compile these same files.
-3. **`store/` is imported only by `components/`, `App.tsx`, and `blocks/registry.ts`
-   (grandfathered type import, §6).** Processing domains (ai, export, render, control, video,
-   backend, community) never touch the store - they take and return plain documents.
+3. **`store/` is imported only by `components/` and `App.tsx`.** Processing domains (ai, export,
+   render, control, video, backend, community) never touch the store - they take and return
+   plain documents.
 4. **Nothing imports `components/`.** UI is the top of the graph.
-5. **`model/` imports nothing above layer 0** except the four grandfathered edges in §6.
+5. **`model/` imports nothing above layer 0** except the two grandfathered edges in §6.
 
 ## 4. Where does new code go
 
@@ -178,12 +179,7 @@ the row. Do not add rows without updating §3's justification trail.
 
 | Edge | Where | Smallest safe fix |
 |---|---|---|
-| model -> templates | `model/defaultTemplate.ts:4` imports `lt01` | move `defaultTemplate.ts` into `templates/` (it is catalog data); update the ~2 importers |
-| model -> export | `model/importTemplate.ts:10` imports `ensureExternalRefs` | relocate `ensureExternalRefs` out of `export/common` into `model/` - it is a document hygiene helper, not packaging |
-| model -> blocks | `model/packets.ts:11` imports `cssVars` | move `blocks/cssVars.ts` to `model/` (generic template-text util; mechanical move) |
 | model -> editor | `model/prefs.ts:5` type-only `CommentVisibility` | accepted - type-only, harmless; move the type to `model/` if ever inconvenient |
-| blocks -> store | `blocks/registry.ts:23` type-only `EditorTab` | move the `EditorTab` type into `blocks/` (it is "which tab a block wants"); `store/` re-exports |
-| control -> export | `controlModel.ts:11`, `realtimeControl.ts:13` import `slug` | move `slug()` to `model/` - generic util misplaced in `export/`; deletes the control/export cycle |
 | model <-> assets | `fonts.ts` <-> `assetUtils` | accepted - kernel siblings, both layer 0 |
 | blocks -> templates presets | `blocks/presetRegistry.ts` imports 8 preset tables | accepted - data-table aggregation, no logic cycle; revisit only if a preset ever imports blocks logic |
 
@@ -193,8 +189,7 @@ the row. Do not add rows without updating §3's justification trail.
   3, and 4 of §3 via `@typescript-eslint/no-restricted-imports` (zero new dependencies; part of
   `npm run lint` and the build gate). Because flat-config rule options **replace** rather than
   merge when several blocks match a file, `src/` is split into disjoint regions, each carrying
-  the full restriction set for its region - keep it that way when editing. The one file-level
-  exemption (`src/blocks/registry.ts`) mirrors its §6 row; delete both together. Invariant 2 is
+  the full restriction set for its region - keep it that way when editing. Invariant 2 is
   pinned by the purity-trio block in the same file: `no-restricted-globals` (DOM/environment
   globals) plus `no-restricted-syntax` (query-suffix imports, `import.meta`) scoped to exactly
   `render/manifest.ts`, `schedule.ts`, and `limits.ts` - different rule names than the Stage A

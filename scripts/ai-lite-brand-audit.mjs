@@ -82,7 +82,7 @@ const HOUSE_AMBER = [246, 166, 35];
  */
 const TONE_CODES = new Set(['ink-contrast', 'field-separation', 'brand-accent-verbatim']);
 const geometryFailures = (failures) => failures.filter((code) => !TONE_CODES.has(code));
-// The broadcast backdrop every contrast composite ends on (blocks/cssVars.ts).
+// The broadcast backdrop every contrast composite ends on (model/cssVars.ts).
 const BACKDROP = [16, 18, 22];
 
 const args = process.argv.slice(2);

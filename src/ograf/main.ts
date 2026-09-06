@@ -17,7 +17,7 @@ import type { SpxTemplate } from '../model/types';
 import { composeDocument } from '../preview/composeDocument';
 import { frameGraphic, framingTransform, type GraphicBox } from '../preview/frameGraphic';
 import { ografTarget } from '../export/targets/ograf';
-import { slug } from '../export/slug';
+import { slug } from '../model/slug';
 import { starterGuideMd } from './guide';
 
 function findVariant(name: string): TemplateVariant | null {

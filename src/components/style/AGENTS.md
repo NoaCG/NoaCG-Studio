@@ -28,7 +28,7 @@ Two contracts to keep when adding a control:
   `none`, `50%`). A length control edits the number INSIDE the expression via
   `blocks/cssLength.ts` - overwriting the value would drop `var(--scale)` and the radius
   would silently stop scaling with the graphic.
-- **A colour is parsed WITH its alpha** (`blocks/cssVars.ts` `parseCssColor` /
+- **A colour is parsed WITH its alpha** (`model/cssVars.ts` `parseCssColor` /
   `formatCssColor`) and written back in the form it arrived in. `--panel-bg` is an `rgba()`
   in nearly every design; a native `<input type="color">` has no alpha, so the old
   swatch-plus-hex pairing turned a translucent panel opaque with nothing on screen to show it.

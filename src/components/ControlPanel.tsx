@@ -16,7 +16,7 @@ import { useAuthUi } from './auth/authUi';
 import { hasChatGraphic, chatGraphicBlock, stripChatGraphic, chatBackendRefKey, type ChatMode } from '../showchat/chatGraphicBlock';
 import { listMyShows, type ShowRow } from '../showchat/chatData';
 import ModerationPanel from '../showchat/ModerationPanel';
-import { slug } from '../export/common';
+import { slug } from '../model/slug';
 import { addGraphicToShow, createShow, loadShows, type Show } from '../model/shows';
 import { commitDurableWrites } from '../model/durableStore';
 import { useTemplateStore, type PlayoutAction } from '../store/templateStore';

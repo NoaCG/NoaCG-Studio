@@ -2307,7 +2307,7 @@ now twice objected to.
 
 ### 17.8 The plate instrument - 2026-08-16, and the constant that hid the defect
 
-**The hole was one constant.** `BROADCAST_BACKDROP` (`blocks/cssVars.ts`) is a single near-black
+**The hole was one constant.** `BROADCAST_BACKDROP` (`model/cssVars.ts`) is a single near-black
 card, `rgb(16, 18, 22)`, and every contrast number this repo computes is computed against it. A
 near-white super measures 14:1 there and 1.1:1 over a bright sky. Nothing in the tree was asking
 the second question, which is why `minimalist.ledger` passed every gate and lost to the first busy

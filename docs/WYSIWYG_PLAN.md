@@ -22,7 +22,7 @@ scene model, no hidden transform layer, nothing the code editor can't show.
 
 - **Position** is already a code contract: the 9-zone anchor + `nudge {x,y}` written by
   `zoneDecls()` into the root rule; the Style panel re-anchors via the same patch
-  (`blocks/cssVars.ts` + `zoneDecls`). A drag is just "compute nearest zone + residual nudge
+  (`model/cssVars.ts` + `zoneDecls`). A drag is just "compute nearest zone + residual nudge
   → apply the existing patch."
 - **Size** is one knob: `--scale` in the `:root` contract.
 - **Text** is sample data: the Data panel's values drive `update()` — inline editing writes

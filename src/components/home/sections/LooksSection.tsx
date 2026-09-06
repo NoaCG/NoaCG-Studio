@@ -12,7 +12,7 @@ import {
 } from '../../../model/packets';
 import { commitDurableWrites } from '../../../model/durableStore';
 import { getDefaultBrandId, setDefaultBrand } from '../../../model/brand';
-import { slug } from '../../../export/common';
+import { slug } from '../../../model/slug';
 import { IconDownload, IconPalette, IconUpload } from '../../icons';
 
 /** The Brand looks section — moved verbatim from HomePage (step 8's split), emoji → icons. */

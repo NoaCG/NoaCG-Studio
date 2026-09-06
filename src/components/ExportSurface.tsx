@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { saveAs } from 'file-saver';
 import { EXPORT_TARGETS, type GraphicUsage } from '../export/registry';
 import { validateOgrafOfflineCompatibility } from '../export/targets/ograf';
-import { slug } from '../export/common';
+import { slug } from '../model/slug';
 import { loadPrefs, savePrefs } from '../model/prefs';
 import { isRenderConfigured } from '../render/config';
 import RenderPanel from './render/RenderPanel';

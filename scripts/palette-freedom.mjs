@@ -46,7 +46,7 @@ const HOSTILE = {
   panel: 'rgba(250,250,248,0.96)',
 };
 
-/** What a broadcast graphic sits over when nothing else is behind it (blocks/cssVars.ts). */
+/** What a broadcast graphic sits over when nothing else is behind it (model/cssVars.ts). */
 const BACKDROP = [16, 18, 22];
 
 const browser = await chromium.launch();

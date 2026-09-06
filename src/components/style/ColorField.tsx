@@ -12,7 +12,7 @@
 // would rather type. Whatever the value arrived as is what it is written back as.
 
 import { useId, useRef, useState } from 'react';
-import { formatCssColor, parseCssColor, type CssColor } from '../../blocks/cssVars';
+import { formatCssColor, parseCssColor, type CssColor } from '../../model/cssVars';
 import { IconEyedropper } from '../icons';
 
 /** Chromium's EyeDropper. Feature-detected - it exists nowhere else, and its absence is not
