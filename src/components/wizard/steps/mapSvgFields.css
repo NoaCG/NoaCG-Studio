@@ -230,7 +230,10 @@
 .map-svg-follower-note {
   flex: 0 0 auto;
   align-self: center;
-  color: var(--muted);
+  /* WITH A FALLBACK, because `--muted` is not declared anywhere: bare, the declaration is
+     invalid at computed-value time and the note inherits full-strength text, which is exactly
+     the emphasis a statement beside the layer's own name must not have. */
+  color: var(--muted, rgba(232, 237, 242, 0.62));
   font-size: 0.8rem;
   white-space: nowrap;
 }

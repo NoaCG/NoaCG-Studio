@@ -2274,10 +2274,12 @@ test('svg import: only artwork travels — a text layer is never offered as one'
   await page.getByTestId('map-svg-why-followers').click();
   const why = page.getByTestId('map-svg-why-followers-body');
   await expect(why).toContainText('40 px');
-  await expect(why).toContainText('stays exactly where you drew it');
+  await expect(why).toContainText('takes a layer off the list');
   // …and it names the road that replaced the option rather than pretending stretching never
-  // happens: furniture drawn across the panel grows with it, unasked.
-  await expect(why).toContainText('grows with the panel by itself');
+  // happens: furniture drawn across the panel grows with it, listed or not. The "either way" is
+  // load-bearing - a reader who adds that rail by hand and then drops it still gets a growing
+  // rail, so a ✕ that promised to freeze anything would be false exactly there.
+  await expect(why).toContainText('grows with it either way');
   // SHORT ENOUGH THAT SOMEBODY READS IT (owner walk, 2026-09-03: "it needs to be shorter and
   // just what it does ... No one wants to read more than a few lines"). Two paragraphs: the
   // picture, and the one thing there is to do about it. The third said where the list came from

@@ -2576,12 +2576,16 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                     ? 'When the board grows 40 px taller, every layer listed here drops 40 px, so the gap you drew stays the gap on air.'
                     : 'When the banner grows 120 px wider, every layer listed here shifts 120 px right, so the gap you drew stays the gap on air.'}
                 </p>
+                {/* WHAT ✕ DOES IS "OFF THE LIST", never "pinned". A layer drawn to the panel's
+                    own two edges grows with it whether or not it is listed, so promising that ✕
+                    freezes anything would be false for exactly the layer a reader is most likely
+                    to click on by hand. */}
                 <p>
-                  Drop one with ✕ and it stays exactly where you drew it.{' '}
+                  ✕ takes a layer off the list, and it stays where you drew it.{' '}
                   {growAxis === 'y'
                     ? 'A stripe drawn down the board’s whole height'
                     : 'A rule drawn across the banner’s whole width'}{' '}
-                  is not on this list: it grows with the panel by itself.
+                  is the exception: it belongs to the panel, so it grows with it either way.
                 </p>
               </SectionHead>
               <button
@@ -2611,12 +2615,19 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                       the runtime finds and grows itself (svgCollectSpanners), so the one artwork
                       that needs stretching never needed the control. */}
                   <span className="grow">{labelOfCandidate(f.candidateId)}</span>
-                  <span className="map-svg-follower-note">Moves out of the way</span>
+                  {/* STATED FROM THE ROW'S OWN VALUE, never as a constant. Nothing the wizard
+                      writes is 'grow' any more, but the draft can still hold one (draft.ts says
+                      which readers need it), and a statement that ignores what it is describing
+                      is worse than the picker it replaced - it would read "moves" beside a layer
+                      the emitted graphic stretches. */}
+                  <span className="map-svg-follower-note">
+                    {f.mode === 'grow' ? 'Grows by the same amount' : 'Moves out of the way'}
+                  </span>
                   <button
                     onClick={() =>
                       setFollowers(declaredFollowers.filter((o) => o.candidateId !== f.candidateId))
                     }
-                    title="This one stays where it was drawn"
+                    title="Take this one off the list"
                     data-testid={`map-svg-follower-drop-${f.candidateId}`}
                   >
                     ✕
