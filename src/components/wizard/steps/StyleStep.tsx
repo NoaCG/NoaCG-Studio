@@ -227,9 +227,9 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
 
   // Two packages are the SAME OFFER when they differ only in roles this design never paints.
   // Grouped rather than filtered so the ACTIVE package always survives as its group's
-  // representative - a draft can arrive carrying a palette (via "Colors & typeface from this
-  // project") that is not the one this list would otherwise have shown, and a selection nothing
-  // is highlighting reads as a broken step.
+  // representative - a draft can arrive carrying a palette (from the footer's brand chooser)
+  // that is not the one this list would otherwise have shown, and a selection nothing is
+  // highlighting reads as a broken step.
   const byLook = new Map<string, Palette>();
   for (const p of palettes) {
     const look = paintedRoles.map(({ key }) => p[key]).join('|');

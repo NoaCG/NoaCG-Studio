@@ -1,6 +1,7 @@
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
+import { awaitDurableReady } from './_durable';
 import { chooseType, pickDesign } from './_browse';
 
 // THE BRAND CHOOSER (docs/BRAND_PLAN.md §5). A brand is a NAMED, saved record - colours,
@@ -27,6 +28,13 @@ const BRAND_FONT = 'oswald';
  *  record's id. The write is CONFIRMED before the caller reloads - the durable store reports a
  *  refusal after the call returns (model/durableStore.ts). */
 async function seedBrand(page: Page, opts: { logo: boolean }): Promise<string> {
+  // HYDRATE FIRST. Every mutator in model/ is a read-modify-WHOLE-RECORD write over the
+  // synchronous mirror (model/AGENTS.md), so seeding into a mirror that has not finished
+  // hydrating is a write against a list that is not yet the list. Measured 2026-09-06: without
+  // this the reloaded page read `loadLooks()` as `[]` about one run in three, and the wizard
+  // then honestly showed no chooser - a green-or-red coin flip on a fact that was never in
+  // question.
+  await awaitDurableReady(page);
   return page.evaluate(async ({ logo, accent, name, fontId, data }) => {
     const { createLook } = await import('/src/model/packets.ts');
     const { setDefaultBrand } = await import('/src/model/brand.ts');
@@ -66,6 +74,7 @@ async function openWizard(page: Page) {
 
 async function toPickedDesign(page: Page) {
   await expect(page.locator('.wz-modal')).toBeVisible();
+  await awaitDurableReady(page);
   await page.locator('[data-entry="template"]').click();
   await chooseType(page, 'Topic');
   await pickDesign(page, 'Hairline Card');
@@ -145,6 +154,10 @@ test('creating a graphic writes no brand record', async ({ page }) => {
 
   // Create used to overwrite one anonymous record with whatever had just been made, which is
   // why the old footer offer proposed a look nobody had chosen (docs/BRAND_PLAN.md decision 6).
+  // A post-reload read from an `evaluate` outruns hydration unless it is asked to wait
+  // (e2e/_durable.ts): the mirror falls back to localStorage, where looks do not live, and the
+  // answer is an honest, wrong, empty list.
+  await awaitDurableReady(page);
   const after = await page.evaluate(async () => {
     const { loadLooks } = await import('/src/model/packets.ts');
     return {

@@ -859,10 +859,13 @@ export function brandPatch(
     // `logoEnabled` only for an 'optional' one - so a slotless design receives a path nothing
     // reads, and no logo appears. Inventing a place for one is explicitly out of scope.
     //
-    // `logoEnabled: true` is the one thing the path does not already imply. The fallback chain
-    // is `options.logoEnabled ?? variant.defaultLogo ?? !!options.logoAssetPath`, so a design
-    // declaring `defaultLogo: false` would swallow the path silently - and the decision is that
-    // choosing a brand with a logo turns the slot ON, even there.
+    // `logoEnabled: true` is the one thing the path does not already imply, and today it is
+    // BELT AND BRACES rather than load-bearing: the fallback chain is
+    // `options.logoEnabled ?? variant.defaultLogo ?? !!options.logoAssetPath`, and no design in
+    // the catalog declares `defaultLogo: false` (checked 2026-09-06), so the path alone already
+    // turns every slot on. It is written anyway because the decision is about the FUTURE design
+    // that says logo-off by default: choosing a brand with a mark turns its slot on too, and a
+    // design added later must not quietly opt out of the brand's promise.
     ...(logo
       ? {
           importedImages: [...draft.importedImages.filter((a) => a.path !== logo.path), logo],

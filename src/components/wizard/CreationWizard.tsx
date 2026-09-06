@@ -919,10 +919,10 @@ export default function CreationWizard() {
     setDraft((d) =>
       kitItemDraft(d, item.variant, {
         packPaletteId: plan.pack.paletteId,
-        // The footer's "Colors & typeface from this project" applies to EVERY graphic of the
-        // set, not just whichever one was on screen when it was ticked. It is also what the
-        // production-context open turns on by itself, so a kit started from a production's
-        // "+ New graphic" arrives in that production's look.
+        // The footer's chosen BRAND applies to EVERY graphic of the set, not just whichever
+        // one was on screen when it was picked. It is also what the production-context open
+        // selects by itself, so a kit started from a production's "+ New graphic" arrives in
+        // that production's brand.
         brand: brand ? brandPatch(brand, draft) : null,
       }),
     );

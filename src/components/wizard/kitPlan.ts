@@ -98,9 +98,8 @@ export function kitLookPatch(source: WizardDraft, target: TemplateVariant): Draf
  * order of how deliberately they were chosen.
  *
  * **The order is the whole contract.** `packPaletteId` is the pack's curated taste pick, so it
- * loses to anything the user said. `brand` is the footer's "Colors & typeface from this
- * project" — an explicit ask, and the one the production-context open turns on by itself, so it
- * outranks the pack. `look` is the first graphic's identity once the look question was answered
+ * loses to anything the user said. `brand` is the BRAND chosen in the footer — an explicit
+ * ask, and the one the production-context open selects by itself, so it outranks the pack. `look` is the first graphic's identity once the look question was answered
  * yes, and it wins because it is the most recent deliberate choice. Rebuilding from
  * `initialDraft()` without the middle one is what silently dropped the toggle on the kit path.
  */
