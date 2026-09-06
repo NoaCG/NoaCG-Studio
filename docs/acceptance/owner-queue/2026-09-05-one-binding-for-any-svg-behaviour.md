@@ -47,3 +47,10 @@ alignment whether that is enough, or whether it waits for the round-2 proxy prot
   one - designers will draw against it.
 - §7e: "require lock before reveal" as a checkbox is the first answer to your 2026-08-22 question.
   Whether a checkbox is the right shape for it, or too small, is a thing only a walk tells.
+
+## Answered 2026-09-06
+
+Both lines above are ruled: the two prefixes and the checkbox stay as shipped until the students
+have used them (`docs/OWNER_RULINGS.md`). Phases 3 to 5 were built the same night on his go-ahead,
+so the phase-2 evidence question is moot. The walk is still worth the minute for the plan itself.
+

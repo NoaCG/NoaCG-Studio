@@ -562,3 +562,36 @@ written, because the answers change the model. Verbatim:
 
 Recorded as decisions 1-3 of that plan; the creator on Home and "we just plan here and create the
 draft for the night wave" are 4 and the split in §10.
+
+---
+
+## owner-decisions-2026-09-06
+
+Given the morning after the SVG behaviour system (phases 0 to 5 of `docs/SVG_BEHAVIOUR_PLAN.md`)
+landed on `main` as `8c1b39ba`.
+
+**The two taste lines stay as shipped until the students have used them.** `show:` and `choice:`
+remain the only two layer-name prefixes, and "require lock before reveal" remains a checkbox in
+the mapping step. Both may change after the first student test; neither changes before it.
+
+> We can keep "show" and "choice" as the two layer name prefixes right now, and also the checkbox
+> for "require lock before review". We can change them after we have tested it with the students.
+
+**The quiz is done; the next work is the OTHER graphics.** The quiz already has its hard-coded
+control page and now opens bound, so no more effort goes there. The list to work through is the
+one we already have (the challenge set in `docs/BEHAVIOUR_AUTHORING_RESEARCH.md` §4 and the
+worked examples in `docs/SVG_BEHAVIOUR_PLAN.md` §9), filtered by what the students will produce:
+GAME SHOWS and LATE-NIGHT TALK SHOWS. Complicated graphics that fit those shows are the test.
+
+> Because we already have the hard-coded quiz backend control panel for the graphics, I would like
+> to see the other graphics. We had a list of them, so I would want us to first figure out those
+> and not concentrate on the quiz because we already have that one working. With our students,
+> we're going to be doing game shows and late-night talk shows. Any complicated graphic that would
+> fit those shows would be a good way to test what we can do. We could just investigate what type
+> of graphics could fit those shows. What does American TV already use that needs special
+> commands? Try to build it, import it, and see if our system works.
+
+The method is the plan's own reuse test made real: find the graphic, draw it as an SVG, import it
+through the wizard, and report whether the shipped recipes and extras bind it, whether it needs a
+new field kind or recipe, or whether it breaks the model.
+

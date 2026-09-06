@@ -21,6 +21,7 @@ import {
   allocatePort,
   candidatePort,
   listTickets,
+  normalizeRoot,
   preferredPort,
   pruneStaleReservations,
   releaseReservation,
@@ -270,7 +271,12 @@ describe('tooling reads the allocated port', () => {
     const mine = allocate(registry, root);
     const fromChild = await allocateInChild({ registry, root });
     assert.equal(fromChild.port, mine.port);
-    assert.equal(readTicketRoot(registry, mine.port), root);
+    // Against the NORMALIZED root, because that is what a ticket carries: `normalizeRoot`
+    // runs `resolve()`, and COLLIDING_A is only already-absolute on Windows. On Linux the
+    // fixture picks up the CWD, so comparing to the raw string asserted a Windows-only fact
+    // and failed the first time this file ran on a GitHub runner (2026-09-06). What the test
+    // is actually about is the three readings AGREEING, which holds on either platform.
+    assert.equal(readTicketRoot(registry, mine.port), normalizeRoot(root));
   });
 
   it('makes dev-port.mjs, its CLI, launch.json and dev-port.json report one number', () => {
