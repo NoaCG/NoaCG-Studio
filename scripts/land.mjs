@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // THE LANDER - the one writer of `main`, run by .github/workflows/land.yml on GitHub's runners.
 //
-//   node scripts/land.mjs --pr 123            # in the workflow; GH_TOKEN and GH_REPO are set
+//   node scripts/land.mjs --pr 123            # land this pull request, then any other labelled one
+//   node scripts/land.mjs --all               # land every labelled pull request, oldest first
 //   node scripts/land.mjs --pr 123 --dry-run  # anywhere: the decisions, no push, no dispatch
 //
 // WHY THIS EXISTS (docs/WORKFLOW_ARCHITECTURE.md §5.2). Until 2026-09-06 the only thing that could
@@ -16,18 +17,24 @@
 // HOW A BRANCH GETS HERE. `npm run queue:merge` (scripts/jobs.mjs add-merge) pushes the branch,
 // opens or reuses its pull request, posts the `/check` stamp as the `noacg/reviewed` commit
 // status on the tip, and adds the `land` label. The label is the declaration; this script is
-// what acts on it.
+// what acts on it. The label stays on a landed pull request (that is how scripts/landings.mjs
+// finds what landed) and comes off a refused one.
 //
-// TWO GITHUB FACTS THE SHAPE RESTS ON. A push made with the workflow's own token starts no
-// workflow run, so the merge commit this script pushes gets its `ci.yml` run by DISPATCH, with
-// `diff_base` set to the main sha it integrated - the same stand-in `auto-merge.mjs` used when the
-// push webhook was late. And a ruleset (scripts/landing-ruleset.mjs) lets only this workflow and
-// the repository admin push `main`, so a second lander cannot exist by accident.
+// THREE GITHUB FACTS THE SHAPE RESTS ON. A push made with the workflow's own token starts no
+// workflow run, so the merge commit this script pushes gets its `ci.yml` run by DISPATCH (with
+// `diff_base` set to the main sha it integrated, the stand-in `auto-merge.mjs` used when the push
+// webhook was late), and the fast-forward of main is followed by a dispatch of `ci.yml` and the
+// configured suite on main, since the push itself starts neither. GitHub keeps ONE pending run
+// per concurrency group and cancels an older pending one, so a burst of labels would strand all
+// but the newest - hence a run lands its own pull request and then every other labelled one it
+// can find, and a schedule sweeps for anything left. And a ruleset (scripts/landing-ruleset.mjs)
+// lets only this workflow and the repository admin push `main`, so a second lander cannot exist.
 //
 // EVERY REFUSAL IS WRITTEN ON THE PULL REQUEST and the label is removed, so the session that
 // queued the branch reads why in the one place it will look. Nothing here retries a verdict:
 // a red run is a person's problem, a conflict is the session's, and only "CI never answered"
-// is retried, by re-queueing (re-adding the label).
+// is retried, by re-queueing (re-adding the label). An unexpected error is a refusal too, with
+// the error text - a run that dies with the label still on would strand the branch silently.
 
 import { spawnSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
@@ -81,12 +88,21 @@ export function judgeRun(run, jobs) {
   return { ok: true, why: null };
 }
 
+/**
+ * The branch may only move the way the lander moved it. `expected` is the sha the review status
+ * covered, or the merge commit this lander pushed; any other tip is work nobody queued.
+ */
+export function tipGap(tip, expected) {
+  if (tip === expected) return null;
+  return `the branch moved to ${tip.slice(0, 8)} after it was queued at ${expected.slice(0, 8)} - run /check on the new tip and queue again`;
+}
+
 // --- the OS half --------------------------------------------------------------------------------
 
-function sh(cmd, args, { allowFailure = false, input } = {}) {
-  const result = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', input, windowsHide: true });
+function sh(cmd, args, { allowFailure = false } = {}) {
+  const result = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', windowsHide: true });
   if (result.status !== 0 && !allowFailure) {
-    throw new Error(`${cmd} ${args.join(' ')} failed (${result.status}): ${result.stderr || result.stdout}`);
+    throw new Error(`${cmd} ${args.slice(0, 3).join(' ')} failed (${result.status}): ${(result.stderr || result.stdout).trim().slice(0, 400)}`);
   }
   return result;
 }
@@ -110,8 +126,16 @@ function output(name, value) {
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
 }
 
+const PR_FIELDS = 'number,state,isDraft,baseRefName,headRefName,headRefOid,labels,url';
+
 function readPr(number) {
-  return ghJson(['pr', 'view', String(number), '--json', 'number,state,isDraft,baseRefName,headRefName,headRefOid,labels,url']);
+  return ghJson(['pr', 'view', String(number), '--json', PR_FIELDS]);
+}
+
+/** Open pull requests carrying the label, oldest first - the queue, in the order it was joined. */
+function labelledPrs() {
+  const prs = ghJson(['pr', 'list', '--state', 'open', '--label', LAND_LABEL, '--base', 'main', '--limit', '50', '--json', 'number']) ?? [];
+  return prs.map((p) => p.number).sort((a, b) => a - b);
 }
 
 function statusesOn(sha) {
@@ -131,15 +155,17 @@ function jobsOf(id) {
   return ghJson(['run', 'view', String(id), '--json', 'jobs'])?.jobs ?? null;
 }
 
-function dispatchCi(branch, diffBase) {
-  gh(['workflow', 'run', 'ci.yml', '--ref', branch, '--field', `diff_base=${diffBase}`]);
+function dispatch(workflow, ref, fields = {}) {
+  const args = ['workflow', 'run', workflow, '--ref', ref];
+  for (const [k, v] of Object.entries(fields)) args.push('--field', `${k}=${v}`);
+  gh(args, { allowFailure: workflow !== 'ci.yml' });
 }
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
 /** Wait for a verdict on `sha`: { ok, why, runId }. */
-async function waitForVerdict(branch, sha, diffBase, { dryRun }) {
-  let dispatched = false;
+async function waitForVerdict(branch, sha, diffBase, { dryRun, alreadyDispatched }) {
+  let dispatched = alreadyDispatched;
   const classified = new Set();
   for (let tick = 0; tick < WAIT_TICKS; tick += 1) {
     const picked = selectCiRun(runsFor(branch, sha));
@@ -152,43 +178,36 @@ async function waitForVerdict(branch, sha, diffBase, { dryRun }) {
     } else if (picked.run && !classified.has(picked.run.databaseId)) {
       classified.add(picked.run.databaseId);
       const jobs = jobsOf(picked.run.databaseId);
-      if (jobs && cancelledRunDidWork({ jobs }) && !dispatched) {
+      if (jobs && cancelledRunDidWork({ jobs })) {
         say(`run ${picked.run.databaseId} was cancelled by a job's own timeout - asking for a fresh run`);
-        if (!dryRun) dispatchCi(branch, diffBase);
-        dispatched = true;
+        if (!dryRun) dispatch('ci.yml', branch, { diff_base: diffBase });
       }
     } else if (!dispatched && tick >= DISPATCH_GRACE_TICKS) {
       say('no CI run for this commit - dispatching one');
       if (dryRun) return { ok: false, why: 'dry run: would dispatch ci.yml and wait', runId: null };
-      dispatchCi(branch, diffBase);
+      dispatch('ci.yml', branch, { diff_base: diffBase });
       dispatched = true;
     }
     await sleep(TICK_MS);
   }
-  return { ok: false, why: 'CI gave no verdict within the landing cap - re-queue to try again', runId: null };
+  return { ok: false, why: 'CI gave no verdict within the landing cap - queue again', runId: null };
 }
 
 function comment(number, body) {
-  gh(['pr', 'comment', String(number), '--body', body]);
+  gh(['pr', 'comment', String(number), '--body', body], { allowFailure: true });
 }
 
 function refuse(pr, why, { dryRun }) {
   say(`REFUSED: ${why}`);
   if (!dryRun) {
-    comment(pr.number, `**Landing refused**: ${why}\n\nFix it and re-add the \`${LAND_LABEL}\` label (\`npm run queue:merge\` does that), or land another way on purpose.`);
+    comment(pr.number, `**Landing refused**: ${why}\n\nFix it and queue again (\`npm run queue:merge\` re-adds the \`${LAND_LABEL}\` label).`);
     gh(['pr', 'edit', String(pr.number), '--remove-label', LAND_LABEL], { allowFailure: true });
   }
-  output('landed', '');
-  return 1;
+  return { landed: null };
 }
 
-export async function main(argv = process.argv.slice(2)) {
-  const number = argv[argv.indexOf('--pr') + 1];
-  const dryRun = argv.includes('--dry-run');
-  if (!number || argv.indexOf('--pr') === -1) {
-    console.error('Usage: node scripts/land.mjs --pr <number> [--dry-run]');
-    return 2;
-  }
+/** Land one pull request. Returns { landed: sha | null }. */
+async function landOne(number, { dryRun }) {
   const pr = readPr(number);
   const precondition = planPreconditions(pr);
   if (precondition) return refuse(pr ?? { number }, precondition, { dryRun });
@@ -197,34 +216,40 @@ export async function main(argv = process.argv.slice(2)) {
 
   const gap = reviewedGap(statusesOn(pr.headRefOid), pr.headRefOid);
   if (gap) return refuse(pr, gap, { dryRun });
+  let expected = pr.headRefOid;
 
   for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
-    git(['fetch', '--no-tags', 'origin', `+refs/heads/main:refs/remotes/origin/main`, `+refs/heads/${branch}:refs/remotes/origin/${branch}`]);
+    git(['fetch', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main', `+refs/heads/${branch}:refs/remotes/origin/${branch}`]);
     const mainSha = git(['rev-parse', 'origin/main']).stdout.trim();
     git(['checkout', '-q', '-B', 'landing', `origin/${branch}`]);
     const tip = git(['rev-parse', 'HEAD']).stdout.trim();
+    const moved = tipGap(tip, expected);
+    if (moved) return refuse(pr, moved, { dryRun });
     say(`attempt ${attempt}: main is ${mainSha.slice(0, 8)}, branch tip is ${tip.slice(0, 8)}`);
 
     const merge = git(['merge', '--no-edit', 'origin/main'], { allowFailure: true });
     if (merge.status !== 0) {
       git(['merge', '--abort'], { allowFailure: true });
-      return refuse(pr, `integrating main (${mainSha.slice(0, 8)}) conflicts - resolve it on the branch and queue again`, { dryRun });
+      return refuse(pr, `integrating main (${mainSha.slice(0, 8)}) conflicts - resolve it on the branch, run /check, and queue again`, { dryRun });
     }
     const verified = git(['rev-parse', 'HEAD']).stdout.trim();
+    let alreadyDispatched = false;
     if (verified !== tip) {
       say(`merged main in as ${verified.slice(0, 8)}`);
       if (dryRun) {
         say('dry run: would push the merge commit, carry the reviewed status and dispatch ci.yml');
-        return 0;
+        return { landed: null };
       }
       git(['push', 'origin', `HEAD:refs/heads/${branch}`]);
+      expected = verified;
       postReviewed(verified, `carried from ${tip.slice(0, 8)} across a clean merge of main ${mainSha.slice(0, 8)}`);
-      dispatchCi(branch, mainSha);
+      dispatch('ci.yml', branch, { diff_base: mainSha });
+      alreadyDispatched = true;
     } else {
       say('the branch already contains main');
     }
 
-    const verdict = await waitForVerdict(branch, verified, mainSha, { dryRun });
+    const verdict = await waitForVerdict(branch, verified, mainSha, { dryRun, alreadyDispatched });
     if (!verdict.ok) {
       const link = verdict.runId ? ` (run ${verdict.runId})` : '';
       return refuse(pr, `${verdict.why}${link}`, { dryRun });
@@ -238,23 +263,58 @@ export async function main(argv = process.argv.slice(2)) {
     }
     if (dryRun) {
       say(`dry run: would fast-forward main to ${verified.slice(0, 8)}`);
-      return 0;
+      return { landed: null };
     }
-    const push = git(['push', 'origin', `HEAD:refs/heads/main`, `--force-with-lease=refs/heads/main:${mainSha}`], { allowFailure: true });
+    const push = git(['push', 'origin', 'HEAD:refs/heads/main', `--force-with-lease=refs/heads/main:${mainSha}`], { allowFailure: true });
     if (push.status !== 0) {
       say('the push to main was refused (main moved between the check and the push) - integrating again');
       continue;
     }
     say(`landed ${branch} on main as ${verified.slice(0, 8)}`);
+    // The push above started no workflow (it was made with the workflow's token), so main's own
+    // post-submit runs - the full suite and the configured suite - are asked for by name.
+    dispatch('ci.yml', 'main');
+    dispatch('configured-suite.yml', 'main');
     comment(pr.number, `Landed on \`main\` as ${verified} (CI run ${verdict.runId}).`);
-    gh(['pr', 'edit', String(pr.number), '--remove-label', LAND_LABEL], { allowFailure: true });
-    output('landed', verified);
-    return 0;
+    return { landed: verified };
   }
   return refuse(pr, `main moved ${ATTEMPTS} times while this landing ran - queue again`, { dryRun });
+}
+
+export async function main(argv = process.argv.slice(2)) {
+  const dryRun = argv.includes('--dry-run');
+  const first = argv.indexOf('--pr') >= 0 ? Number(argv[argv.indexOf('--pr') + 1]) : null;
+  const all = argv.includes('--all') || first !== null;
+  if (first === null && !all) {
+    console.error('Usage: node scripts/land.mjs --pr <number> | --all  [--dry-run]');
+    return 2;
+  }
+  const landed = [];
+  const done = new Set();
+  let refused = 0;
+  const queue = first !== null ? [first] : labelledPrs();
+  while (queue.length > 0) {
+    const number = queue.shift();
+    if (done.has(number)) continue;
+    done.add(number);
+    let result;
+    try {
+      result = await landOne(number, { dryRun });
+    } catch (error) {
+      result = refuse({ number }, `the lander hit an error: ${error.message}`, { dryRun });
+    }
+    if (result.landed) landed.push(result.landed);
+    else refused += 1;
+    if (dryRun) break;
+    // After each landing (or refusal) look again: a label added while this run worked would
+    // otherwise wait for the schedule, and a pending sibling run may have been cancelled.
+    for (const next of labelledPrs()) if (!done.has(next)) queue.push(next);
+  }
+  output('landed', landed[landed.length - 1] ?? '');
+  say(`${landed.length} landed, ${refused} refused`);
+  return refused > 0 && landed.length === 0 ? 1 : 0;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   process.exit(await main());
 }
-

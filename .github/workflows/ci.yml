@@ -227,13 +227,18 @@ jobs:
           # past answers a question nobody is asking - the newer run covers it - so it cancels
           # itself. Cancelled, not skipped-as-success: main-health and red-main-issue skip a
           # cancelled run rather than reading it as a verdict about that commit.
-          if [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
+          # Both a push to main and a dispatch on main count: since the lander pushes main with
+          # the workflow's token, main's runs arrive by dispatch. If the cancel itself fails, the
+          # run simply carries on - a superseded run that completes costs minutes, a plan step
+          # that fails would read as red main.
+          if [ "$REF" = "refs/heads/main" ] && { [ "$EVENT" = "push" ] || [ "$EVENT" = "workflow_dispatch" ]; }; then
             LATEST="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq .commit.sha 2>/dev/null || true)"
             if [ -n "$LATEST" ] && [ "$LATEST" != "$GITHUB_SHA" ]; then
               echo "::notice title=E2E plan::main is already at ${LATEST} - this run for ${GITHUB_SHA} is superseded and cancels itself."
-              gh run cancel "$GITHUB_RUN_ID"
-              sleep 30
-              exit 1
+              if gh run cancel "$GITHUB_RUN_ID"; then
+                sleep 30
+                exit 1
+              fi
             fi
           fi
           if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; else BASE="$PUSH_BEFORE"; fi

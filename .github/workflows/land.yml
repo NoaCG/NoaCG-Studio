@@ -21,8 +21,15 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: 'Pull request number to land'
-        required: true
+        description: 'Pull request number to land (empty: every labelled one)'
+        required: false
+        default: ''
+  # The sweep. GitHub keeps one PENDING run per concurrency group and cancels an older pending
+  # one when a newer arrives, so a burst of labels would strand all but the newest. A run lands
+  # every labelled pull request it can find before it ends, and this catches whatever a
+  # cancelled pending run left behind.
+  schedule:
+    - cron: '*/15 * * * *'
 
 concurrency:
   group: landing
@@ -37,7 +44,7 @@ permissions:
 jobs:
   land:
     name: Land
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'land'
+    if: github.event_name != 'pull_request' || github.event.label.name == 'land'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     outputs:
@@ -61,7 +68,7 @@ jobs:
         run: |
           git config user.name "noacg-lander"
           git config user.email "lander@noacg.studio"
-          node scripts/land.mjs --pr "$PR"
+          if [ -n "${PR:-}" ]; then node scripts/land.mjs --pr "$PR"; else node scripts/land.mjs --all; fi
 
   migrate:
     name: Apply migrations

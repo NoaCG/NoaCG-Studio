@@ -401,6 +401,17 @@ function queueOnGitHub(branch, tip, description) {
     }
     return result.stdout.trim();
   };
+  // The lander pushes its merge of main onto the branch. A session whose local branch lacks that
+  // commit cannot push over it, and the refusal git gives ("non-fast-forward") reads like a
+  // network fault - so say what it is and what to do.
+  spawnSync('git', ['fetch', '--no-tags', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
+  const remoteAhead = spawnSync('git', ['merge-base', '--is-ancestor', `refs/remotes/origin/${branch}`, tip], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
+  const remoteExists = spawnSync('git', ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true }).status === 0;
+  if (remoteExists && remoteAhead.status !== 0) {
+    console.error(`add-merge refused: origin/${branch} has commits this checkout does not (the lander's integration of main, or another session's push).`);
+    console.error(`  Take them in first, then run /check on the new tip and queue again:  git pull --ff-only origin ${branch}`);
+    process.exit(1);
+  }
   const push = spawnSync('git', ['push', 'origin', `refs/heads/${branch}:refs/heads/${branch}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
   if (push.status !== 0) {
     console.error(`add-merge: could not push ${branch}: ${(push.stderr || push.stdout).trim()}`);

@@ -4,7 +4,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { judgeRun, LAND_LABEL, planPreconditions, REVIEWED_CONTEXT, reviewedGap } from './land.mjs';
+import { judgeRun, LAND_LABEL, planPreconditions, REVIEWED_CONTEXT, reviewedGap, tipGap } from './land.mjs';
+
+test('the branch may only move the way the lander moved it', () => {
+  const queued = '012bb5d1aa00bb11cc22dd33ee44ff5566778899';
+  assert.equal(tipGap(queued, queued), null);
+  assert.match(tipGap('deadbeefdeadbeefdeadbeefdeadbeefdeadbeef', queued), /moved to deadbeef after it was queued at 012bb5d1/);
+});
 
 const pr = (over = {}) => ({
   number: 7, state: 'OPEN', isDraft: false, baseRefName: 'main', headRefName: 'claude/x',
