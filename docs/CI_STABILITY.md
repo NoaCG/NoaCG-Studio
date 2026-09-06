@@ -316,8 +316,8 @@ has already landed. Nothing read the table, so the rules were a person's to reme
 `ci.yml`'s: a red `main` or merge-group run re-runs its failed spec files once on the same commit,
 a fail-then-pass IS the receipt, and the gate writes the spec into **`e2e/quarantine.json`** through
 the merge queue (`scripts/e2e-quarantine.mjs`; `docs/VERIFICATION.md` "A red main answers itself
-first"). A quarantined spec leaves the blocking shards, runs in its own non-blocking job on `main`,
-and comes back after twenty consecutive passes - never by being forgotten. This table stays as the
+first"). A quarantined spec leaves the blocking shards, runs in `quarantine.yml` on every push to
+`main`, and comes back after `RELEASE_AFTER` consecutive passes - never by being forgotten. This table stays as the
 history of the rows worked by hand. **Do not fix a flaky spec without reproducing it first** - a
 spec fix without a reproduction is exactly the recurring-breakage pattern this file exists to end,
 and on this evidence the more common failure is softening an assertion that was telling the truth.

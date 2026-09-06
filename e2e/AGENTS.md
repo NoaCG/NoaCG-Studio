@@ -175,10 +175,11 @@ belong where specs are written rather than in the contract every session loads.
 ## Traps when RUNNING the suite
 
 - **A spec in `e2e/quarantine.json` is not in the blocking plan.** It failed and then passed on one
-  commit, so `ci.yml` keeps it out of the shards and runs it in its own non-blocking job on `main`
-  until twenty consecutive passes release it (`npm run quarantine list`; the mechanism is in
-  `docs/VERIFICATION.md`, "A red main answers itself first"). Fixing it means reproducing the
-  flake first, never softening the assertion; the release is earned by passing, not by editing the
+  commit, so the planner keeps it out of the shards and `quarantine.yml` runs it on every push to
+  `main` until `RELEASE_AFTER` consecutive passes release it (`npm run quarantine list`; the
+  mechanism is in `docs/VERIFICATION.md`, "A red main answers itself first"). A change that edits
+  the spec runs it blocking again, so the fix is tested. Fixing it means reproducing the flake
+  first, never softening the assertion; the release is earned by passing, not by editing the
   file, though a hand release through the queue is allowed once the cause is fixed.
 - **A suite that skips itself exits 0.** `npm run test:e2e:live` with `E2E_EMAIL`/`E2E_PASSWORD`
   unset prints `32 skipped` and exits 0, so any job checking only the exit code is permanently,

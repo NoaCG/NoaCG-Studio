@@ -179,23 +179,17 @@ test('the DERIVED gate job never makes a run look exhausted on its own', () => {
   assert.deepEqual(set.cancelled, []);
 });
 
-// A QUARANTINED SPEC'S FAILURE IS NOT MAIN BEING RED. Its job runs `continue-on-error` on main
-// (ci.yml `e2e-quarantine`) and its verdict is read by scripts/e2e-quarantine.mjs; here it must
-// neither enter the set nor stop an otherwise-exhausted run from reading as exhausted.
-import { isNonBlockingJob } from './ci-failure-set.mjs';
+// MAIN'S PUSH RUNS, one per commit, newest first - the list the revert's last-verdict walk and the
+// quarantine's pass history both read, so what counts as a main run is spelled once.
+import { mainPushRuns } from './ci-failure-set.mjs';
 
-test('quarantine jobs are non-blocking and never reach the failure set', () => {
-  assert.equal(isNonBlockingJob('E2E quarantine (e2e/anim-engine.spec.ts)'), true);
-  assert.equal(isNonBlockingJob('E2E 2/9 (full)'), false);
-  assert.equal(isNonBlockingJob('E2E retry (failed specs, same commit)'), false);
-  const jobs = [
-    { id: 1, name: 'E2E quarantine (e2e/anim-engine.spec.ts)', conclusion: 'failure' },
-    { id: 2, name: 'Build', conclusion: 'success' },
-  ];
-  const set = failureSet(jobs, () => [{ path: 'e2e/anim-engine.spec.ts', annotation_level: 'failure' }]);
-  assert.deepEqual(set.items, []);
-  assert.equal(set.hash, 'unknown');
-  assert.equal(set.exhausted, false);
-  const withCancelled = failureSet([...jobs, { id: 3, name: 'E2E 1/9 (full)', conclusion: 'cancelled' }], () => []);
-  assert.equal(withCancelled.exhausted, true, 'a failed quarantine job does not turn "ran out of time" into "found a fault"');
+test('main push runs are read from one workflow, completed pushes only, deduplicated by commit', () => {
+  const asked = [];
+  const gh = (args) => {
+    asked.push(args[0]);
+    return [{ head_sha: 'a', conclusion: 'success' }, { head_sha: 'a', conclusion: 'cancelled' }, { conclusion: 'failure' }, { head_sha: 'b', conclusion: 'failure' }];
+  };
+  assert.deepEqual(mainPushRuns({ repo: 'o/r', workflow: 'quarantine.yml', limit: 5, gh }), [{ head_sha: 'a', conclusion: 'success' }, { head_sha: 'b', conclusion: 'failure' }]);
+  assert.equal(asked[0], 'repos/o/r/actions/workflows/quarantine.yml/runs?branch=main&event=push&status=completed&per_page=5');
+  assert.deepEqual(mainPushRuns({ repo: 'o/r', gh: () => [] }), []);
 });

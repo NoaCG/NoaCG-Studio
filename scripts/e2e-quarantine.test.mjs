@@ -1,6 +1,7 @@
-// The quarantine's rules, pinned: what enters, what leaves, how passes are counted, and that the
-// stored shape survives a round trip. All pure - the store on disk is exercised only through the
-// serializer, and the run history through an injected `gh`.
+// The quarantine's rules, pinned: what enters, what leaves, how passes are counted off the commit
+// statuses quarantine.yml posts, and that the stored shape survives a round trip. All pure - the
+// store on disk is exercised only through the serializer, and the status history through an
+// injected `gh`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -14,16 +15,16 @@ import {
   dueForRelease,
   emptyStore,
   enter,
-  passHistory,
-  planIdentity,
-  quarantineJobName,
+  passHistories,
   quarantinedSpecs,
+  queueStoreChange,
   readStore,
   release,
   serializeStore,
   slugOf,
-  specPath,
+  statusContext,
 } from './e2e-quarantine.mjs';
+import { editedSpecs, planIdentity, specFilterArg, specPath } from './e2e-spec-names.mjs';
 
 const A = 'e2e/anim-engine.spec.ts';
 const B = 'e2e/import-svg.spec.ts';
@@ -50,7 +51,7 @@ test('a released spec that comes back carries its count up by one', () => {
   assert.equal(release(emptyStore(), A).released, false, 'releasing what is not there is a no-op');
 });
 
-test('passes are counted newest first, a run without the job is skipped, the first failure ends the streak', () => {
+test('passes are counted newest first, a commit without the status is skipped, the first failure ends the streak', () => {
   assert.equal(consecutivePasses([]), 0);
   assert.equal(consecutivePasses(['success', 'success', null, 'success', 'failure', 'success']), 3);
   assert.equal(consecutivePasses(['failure', 'success']), 0);
@@ -63,23 +64,25 @@ test('release is due at RELEASE_AFTER consecutive passes and not one earlier', (
   assert.deepEqual(dueForRelease(store, (spec) => history[spec]), [A]);
 });
 
-test('the run history reads each run\'s job for the spec and stops once it has enough answers', () => {
-  const runs = Array.from({ length: 30 }, (_, i) => ({ id: 100 - i, conclusion: 'success' }));
+test('the status history reads one statuses call per commit for every spec, and stops once each has enough answers', () => {
+  const runs = Array.from({ length: 30 }, (_, i) => ({ head_sha: `sha${100 - i}` }));
   const asked = [];
   const gh = (args) => {
     asked.push(args[0]);
-    if (args[0].includes('/workflows/ci.yml/runs')) return runs;
-    const id = Number(args[0].match(/runs\/(\d+)\/jobs/)[1]);
-    // The two newest runs did not have the job yet; the third failed it; the rest passed.
-    if (id >= 99) return [{ name: 'E2E 1/9 (full)', conclusion: 'success' }];
-    if (id === 98) return [{ name: quarantineJobName(A), conclusion: 'failure' }];
-    return [{ name: quarantineJobName(A), conclusion: 'success' }];
+    if (args[0].includes('/workflows/quarantine.yml/runs')) return runs;
+    const n = Number(args[0].match(/commits\/sha(\d+)\/status$/)[1]);
+    // The two newest commits carry no status yet; the third failed A; the rest passed both.
+    if (n >= 99) return [{ context: 'Vercel', state: 'success' }];
+    if (n === 98) return [{ context: statusContext(A), state: 'failure' }, { context: statusContext(B), state: 'success' }];
+    return [{ context: statusContext(A), state: 'success' }, { context: statusContext(B), state: 'success' }];
   };
-  const history = passHistory({ repo: 'o/r', spec: A, gh, need: 5 });
-  assert.deepEqual(history.slice(0, 4), [null, null, 'failure', 'success']);
-  assert.equal(history.filter((h) => h !== null).length, 5, 'stops after `need` verdicts');
-  assert.equal(consecutivePasses(history), 0, 'the failure at run 98 ends the streak');
-  assert.equal(asked.length, 1 + 7, 'one runs call, then one jobs call per run until five answered');
+  const histories = passHistories({ repo: 'o/r', specs: [A, B], gh, need: 5 });
+  assert.deepEqual(histories.get(A).slice(0, 4), [null, null, 'failure', 'success']);
+  assert.equal(consecutivePasses(histories.get(A)), 0, 'the failure at sha98 ends A\'s streak');
+  assert.equal(consecutivePasses(histories.get(B)), 5);
+  assert.equal(asked.length, 1 + 7, 'one runs call, then one combined-status call per commit until every spec has five answers');
+  assert.ok(asked[1].endsWith('/status'), 'the combined endpoint, one latest state per context');
+  assert.equal(statusContext('anim-engine.spec.ts'), `noacg/quarantine/${A}`);
 });
 
 test('the store round-trips through the serializer with sorted keys, and a newer version is refused', () => {
@@ -102,11 +105,46 @@ test('the store round-trips through the serializer with sorted keys, and a newer
   }
 });
 
+test('a store change that origin/main already holds is not committed, and a queued or refused branch is left alone', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'quarantine-'));
+  try {
+    const file = path.join(dir, 'quarantine.json');
+    writeFileSync(file, serializeStore(enter(emptyStore(), [A], { date: '2026-09-01', run: 'r' }).store));
+    const calls = [];
+    const git = (args) => {
+      calls.push(args);
+      if (args[0] === 'ls-remote') return { status: 0, out: '', err: '' };
+      if (args[0] === 'rev-parse') return { status: 0, out: 'm'.repeat(40), err: '' };
+      return { status: 0, out: '', err: '' };
+    };
+    const gh = () => ({ status: 0, out: '[]', err: '' });
+    const result = queueStoreChange({ branch: 'quarantine/enter-x', title: 't', body: 'b', mechanism: 'm', mutate: (store) => enter(store, [A]).store, git, gh, file });
+    assert.match(result.skipped, /already holds/);
+    assert.ok(!calls.some((c) => c[0] === 'commit' || c[0] === 'push'));
+
+    const open = queueStoreChange({
+      branch: 'quarantine/enter-x',
+      title: 't',
+      body: 'b',
+      mechanism: 'm',
+      mutate: (s) => s,
+      git: (args) => (args[0] === 'ls-remote' ? { status: 0, out: 'sha\tref', err: '' } : { status: 0, out: '', err: '' }),
+      gh: (args) => ({ status: 0, out: args.includes('open') ? '[{"number":9,"url":"u9"}]' : '[]', err: '' }),
+      file,
+    });
+    assert.match(open.skipped, /already queued as u9/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('identities convert both ways and the branch slug is stable', () => {
   assert.equal(planIdentity(A), 'anim-engine.spec.ts');
   assert.equal(planIdentity('e2e\\anim-engine.spec.ts'), 'anim-engine.spec.ts');
   assert.equal(specPath('anim-engine.spec.ts'), A);
   assert.equal(specPath(A), A);
+  assert.equal(specFilterArg(A), specFilterArg('anim-engine.spec.ts'), 'the filter is the same from either name');
+  assert.deepEqual([...editedSpecs(['e2e\\x.spec.ts', 'src/a.ts', 'e2e/_helper.ts', 'e2e/configured/y.spec.ts'])], ['x.spec.ts', 'configured/y.spec.ts']);
   assert.equal(slugOf([A, B]), slugOf([B, A]));
   assert.notEqual(slugOf([A]), slugOf([B]));
   assert.match(slugOf([A]), /^[0-9a-f]{8}$/);

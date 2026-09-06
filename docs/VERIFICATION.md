@@ -870,28 +870,40 @@ three mechanisms have had their turn, all in `ci.yml`:
 1. **The second run.** When the E2E shards fail on `main` or in the merge group, the `E2E retry`
    job reads the failed spec FILES off the shards' blob reports (`scripts/e2e-retry.mjs`) and runs
    exactly those once more on the same commit. Fail-then-pass: the gate passes, with a warning
-   naming the specs. Fail-then-fail: the run is red as before. A shard that died before Playwright
-   reported names no spec, so there is nothing to re-run and the run stays red.
-2. **The quarantine.** A fail-then-pass is the receipt a flake needs, and the gate writes it:
-   the specs go into `e2e/quarantine.json` on a branch off `origin/main`, queued through the merge
-   queue like any landing (`scripts/e2e-quarantine.mjs enter --queue`). From the next landing on,
-   the planner keeps them out of the blocking shards and `main` runs each in its own non-blocking
-   `E2E quarantine (<spec>)` job; the `Quarantine release` job reads that job's verdicts out of
-   the run history and queues the release after `RELEASE_AFTER` consecutive passes. A spec leaves
-   quarantine by passing, never by being forgotten. `npm run quarantine list` shows what is in.
-3. **The revert.** On a `main` push whose failure survived the second run (or was never a spec: a
-   red build is deterministic) and whose previous `main` run was green, the gate reverts the
-   batch - every first-parent commit the push brought in, newest first - on `revert/<sha7>` and
-   queues it (`scripts/revert-landing.mjs`). The red-main issue names the pull request, and the
-   next green `main` run closes the issue. `shouldRevert` in `scripts/red-main-issue.mjs` is the
-   rule; a `main` that was already red, a conflicting revert, an unknown `before` and a run with
-   no verdict are each written into the issue as the reason nothing was reverted.
+   naming the specs. Fail-then-fail: the run is red as before. Three things make the retry refuse
+   instead, and the run stays red on each: fewer reports than shards (a shard died before
+   Playwright reported, so its files never ran), no failing spec in the reports (the failure was
+   not a test), and a failing spec the change itself edits (that flake is the change's, bounced
+   to its author, never quarantined on a second run).
+2. **The quarantine.** A fail-then-pass is the receipt a flake needs, and the `After the gate`
+   job writes it: the specs go into `e2e/quarantine.json` on a branch off `origin/main`, queued
+   through the merge queue like any landing (`scripts/e2e-quarantine.mjs enter --queue`). From
+   the next landing on, the planner keeps them out of the blocking shards, and `quarantine.yml`
+   runs each one on every push to `main` in its own job, posting the verdict as the commit
+   status `noacg/quarantine/<spec>`; its `Quarantine release` job reads those statuses newest
+   first and queues the release after `RELEASE_AFTER` consecutive passes. A spec leaves
+   quarantine by passing, never by being forgotten; a spec the change edits stays in the
+   blocking plan, so the fix for a flake is tested. `npm run quarantine list` shows what is in.
+3. **The revert.** On a `main` push whose failure survived the second run (the retry re-ran the
+   specs and they failed) or was never a spec (a red build is deterministic), and whose last
+   `main` commit WITH a verdict was green, the `After the gate` job reverts everything since that
+   commit - every first-parent commit, newest first - on `revert/<sha7>` and queues it
+   (`scripts/revert-landing.mjs`). The last verdict, not the previous push: a superseded `main`
+   run cancels itself and two landings a minute apart finish in either order, so the range may
+   hold several landings and the pull request lists every one. The red-main issue names the
+   pull request, and the next green `main` run closes the issue. `shouldRevert` in
+   `scripts/red-main-issue.mjs` is the rule; a `main` that was already red, a retry that re-ran
+   nothing, a conflicting revert, and a run with no verdict are each written into the issue as
+   the reason nothing was reverted.
 
 What still reaches a person: a failure that survives the second run on a `main` that was already
-red, a revert that conflicts, and every quarantine entry (the pull request is the record). The
-mechanical landings carry `noacg/reviewed` posted by the mechanism, and its description says
-`mechanical: ...` rather than claiming a review; they ask for their branch run by dispatch with
-`require_review`, because a push made with the workflow token starts no run.
+red, a revert that conflicts, a spec the change itself made flaky, and every quarantine entry
+(the pull request is the record). The mechanical landings carry `noacg/reviewed` posted by the
+mechanism, and its description says `mechanical: ...` rather than claiming a review; they ask
+for their branch run by dispatch with `require_review`, because a push made with the workflow
+token starts no run. They need the organisation to let Actions open pull requests
+(`scripts/landing-ruleset.mjs --apply` sets it, with an owner's `admin:org` login); until it is
+set, the branch is pushed, `gh pr create` is refused, and the next run retries.
 
 ### A CANCELLED run does not email. Only a FAILURE does.
 

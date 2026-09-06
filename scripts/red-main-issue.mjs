@@ -27,48 +27,72 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describeFailureSet, fetchFailureSet } from './ci-failure-set.mjs';
+import { describeFailureSet, fetchFailureSet, ghJsonLines, mainPushRuns } from './ci-failure-set.mjs';
+import { spawnRunner } from './queue-pr.mjs';
 import { revertLanding } from './revert-landing.mjs';
 
 export const TITLE = 'CI is red on main';
 
-const ZERO_SHA = '0'.repeat(40);
-
 /**
- * SHOULD THIS RUN REVERT THE BATCH IT TESTED? Pure, for the same reason `planRedMainComment` is:
- * a revert is the one thing here that changes `main`, and the rule must be checkable by hand.
+ * SHOULD THIS RUN REVERT WHAT IT TESTED? Pure, for the same reason `planRedMainComment` is: a
+ * revert is the one thing here that changes `main`, and the rule must be checkable by hand.
  *
- * The evidence a revert needs (docs/WORKFLOW_ARCHITECTURE.md §3, "sheriffs + auto-revert"): this
- * is a push to main, so there IS a batch (`before..sha`); something failed - a run that only ran
- * out of clock has no verdict and reverts nothing; the failed specs were already re-run once on
- * this commit and failed again, or the failure was never a spec (a red build is deterministic);
- * and the run before this batch was GREEN, so the batch is the culprit by the only evidence there
- * is. A main that was already red is not this batch's doing, and stacking a revert on a red main
- * would revert an innocent landing; that case is written into the issue instead.
+ * The evidence a revert needs (docs/WORKFLOW_ARCHITECTURE.md §3, "sheriffs + auto-revert"):
+ *   - a push to main, so something landed here;
+ *   - a verdict: a run that only ran out of clock reverts nothing;
+ *   - for a spec failure, a SECOND RUN that happened and failed: the retry job re-ran the failed
+ *     specs (`retried` > 0) and they failed again. A retry that passed is a flake; one that was
+ *     cancelled, skipped, or refused before re-running anything (a shard that died before
+ *     reporting, a spec the change itself edited) is no verdict about the specs, so nothing is
+ *     reverted on it. A failure that was never a spec (a red build) is deterministic on its own;
+ *   - the last main commit WITH a verdict was green, so everything since it is the culprit by the
+ *     only evidence there is. A main that was already red is not this landing's doing, and
+ *     stacking a revert on a red main would revert an innocent landing; that case is written into
+ *     the issue instead. `previous` may be a function, called only once the cheaper rules have
+ *     passed - it costs API calls and a git walk.
+ *
+ * @returns {{ revert: boolean, reason: string, since?: string }}
  */
-export function shouldRevert({ event = '', ref = '', before = '', previous = 'unknown', exhausted = false, retry = 'skipped' } = {}) {
-  if (event !== 'push' || ref !== 'refs/heads/main') return { revert: false, reason: 'not a push to main, so no batch landed here' };
+export function shouldRevert({ event = '', ref = '', exhausted = false, retry = 'skipped', retried = 0, items = [], previous = () => ({ sha: null, conclusion: 'unknown' }) } = {}) {
+  if (event !== 'push' || ref !== 'refs/heads/main') return { revert: false, reason: 'not a push to main, so nothing landed here' };
   if (exhausted) return { revert: false, reason: 'the run reached no verdict, so nothing is known to be broken' };
-  if (!before || before === ZERO_SHA) return { revert: false, reason: 'the push names no `before` commit, so the batch cannot be bounded' };
   if (retry === 'success') return { revert: false, reason: 'the failed specs passed on their second run - a flake, quarantined rather than reverted' };
-  if (previous === 'failure') return { revert: false, reason: 'main was already red before this batch, so the batch is not the culprit - fix main forward' };
-  if (previous !== 'success') return { revert: false, reason: 'the run before this batch has no verdict, so the batch cannot be blamed on this evidence' };
-  return { revert: true, reason: 'the run before this batch was green and the failure survived a second run on the same commit' };
+  const specFailed = items.some((i) => /^e2e\//.test(i) || /^job: E2E/.test(i));
+  if (specFailed && retry !== 'failure') return { revert: false, reason: `the failed specs never got a second run (retry job: ${retry}), so this may be a flake` };
+  if (specFailed && retried === 0) return { revert: false, reason: 'the retry job re-ran nothing - a shard died before reporting, or the failing spec is one this landing edited - so the specs have no second verdict' };
+  const last = typeof previous === 'function' ? previous() : previous;
+  if (last?.conclusion === 'failure') return { revert: false, reason: `main was already red at ${String(last.sha).slice(0, 7)}, before this landing, so it is not the culprit - fix main forward` };
+  if (last?.conclusion !== 'success' || !last?.sha) return { revert: false, reason: 'no earlier main commit has a verdict of its own, so nothing can be blamed on this evidence' };
+  return { revert: true, since: last.sha, reason: `main was green at ${String(last.sha).slice(0, 7)} and the failure survived a second run on the same commit` };
 }
 
 /**
- * The verdict of the completed main push run BEFORE this one: `success`, `failure` or `unknown`.
- * Cancelled and skipped runs are walked past (a superseded run is no verdict), and only pushes
- * count - a dispatched run on main is somebody asking a question, not a landing.
+ * The nearest main commit before `sha` that a completed push run judged: `{ sha, conclusion }`
+ * with `success` or `failure`, or `{ sha: null, conclusion: 'unknown' }`. Walked along main's
+ * first-parent history, because the previous PUSH is not the previous verdict: a run whose commit
+ * main moved past cancels itself, and two landings a minute apart finish in either order, so the
+ * newest completed run can belong to a commit AFTER the one being judged. Only pushes count - a
+ * dispatched run on main is somebody asking a question, not a landing.
  */
-export function previousMainVerdict({ repo, runId, gh = ghJsonLines, limit = 15 } = {}) {
-  if (!repo) return 'unknown';
-  const runs = gh([`repos/${repo}/actions/workflows/ci.yml/runs?branch=main&event=push&status=completed&per_page=${limit}`, '--jq', '.workflow_runs[] | {id, conclusion}']);
-  for (const run of runs) {
-    if (String(run?.id) === String(runId)) continue;
-    if (run?.conclusion === 'success' || run?.conclusion === 'failure') return run.conclusion;
+export function lastVerdictBefore({ repo, sha, gh = ghJsonLines, git = gitLines, limit = 40 } = {}) {
+  const none = { sha: null, conclusion: 'unknown' };
+  if (!repo || !sha) return none;
+  // `success` and `failure` only. A `timed_out` run is exhaustion (scripts/main-health.mjs counts
+  // it red for its own question, "may I land onto this?"); for blame it is no verdict, and the
+  // walk goes on to the nearest commit that was actually judged.
+  const verdicts = new Map();
+  for (const run of mainPushRuns({ repo, limit, gh })) {
+    if (run.conclusion === 'success' || run.conclusion === 'failure') verdicts.set(run.head_sha, run.conclusion);
   }
-  return 'unknown';
+  for (const ancestor of git(['log', '--first-parent', '--format=%H', `--max-count=${limit}`, `${sha}^`])) {
+    if (verdicts.has(ancestor)) return { sha: ancestor, conclusion: verdicts.get(ancestor) };
+  }
+  return none;
+}
+
+/** One line per commit from git, or nothing when git cannot answer. */
+function gitLines(args) {
+  return spawnRunner('git')(args, { allowFailure: true }).out.split('\n').map((l) => l.trim()).filter(Boolean);
 }
 
 /** The HTML comment that carries the failure set from one run to the next, through the issue. */
@@ -130,10 +154,12 @@ export function planRedMainComment({ existing = null, bodies = [], sha = '', has
 }
 
 /** The issue body / comment text. The failing specs are IN it, so the alarm names the fault. */
-export function issueBody({ sha, runUrl, items, hash, retry = 'skipped', revert = null }) {
+export function issueBody({ sha, runUrl, items, hash, retry = 'skipped', retried = 0, revert = null }) {
   const lines = [`Commit ${sha} failed CI: ${runUrl}`, '', `Failing: ${describeFailureSet(items, { max: 12 })}`];
-  if (retry === 'failure') lines.push('', 'The failed specs were re-run once on this same commit and failed again, so this is not a flake.');
+  if (retry === 'failure' && retried > 0) lines.push('', `The ${retried} failed spec file(s) were re-run once on this same commit and failed again, so this is not a flake.`);
+  else if (retry === 'failure') lines.push('', 'The retry job could not re-run the failed specs (a shard died before reporting, or the failing spec is one this landing edited) - open its log.');
   else if (retry === 'skipped') lines.push('', 'No second run: the failure was not in the E2E shards, or this was not a main push.');
+  else if (retry === 'cancelled') lines.push('', 'The retry job ran out of time, so the failed specs have no second verdict.');
   if (revert?.status === 'queued') {
     lines.push('', `Reverting the batch: ${revert.url} - queued through the merge queue; main is green again when it lands, and this issue closes on that run.`);
   } else if (revert) {
@@ -147,23 +173,6 @@ export function issueBody({ sha, runUrl, items, hash, retry = 'skipped', revert 
     marker(hash),
   );
   return lines.join('\n');
-}
-
-/** `gh api ... --jq` prints one JSON value per line; unreadable output is no answer, not a crash. */
-function ghJsonLines(args) {
-  const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true });
-  if (res.status !== 0) return [];
-  return String(res.stdout ?? '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      try {
-        return [JSON.parse(line)];
-      } catch {
-        return [];
-      }
-    });
 }
 
 function gh(args) {
@@ -193,23 +202,27 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   // checks the decision makes, and cheaper than paging structured comment objects.
   const decision = planRedMainComment({ existing, bodies: existing ? readBodies(existing) : [], sha, hash, exhausted, cancelled });
 
-  // THE REVERT, decided before the issue is written so the issue can name it. `previousMainVerdict`
-  // is asked only when the cheaper rules have not already said no: it is two API calls.
+  // THE REVERT, decided before the issue is written so the issue can name it. The last verdict
+  // is looked up lazily, only once the cheaper rules have not already said no.
   const event = process.env.EVENT ?? '';
   const ref = process.env.REF ?? '';
-  const before = process.env.BEFORE ?? '';
-  let verdict = shouldRevert({ event, ref, before, previous: 'success', exhausted, retry });
-  if (verdict.revert) verdict = shouldRevert({ event, ref, before, previous: previousMainVerdict({ repo, runId: process.env.RUN_ID }), exhausted, retry });
+  let retried;
+  try {
+    retried = JSON.parse(process.env.RETRY_SPECS || '[]').length;
+  } catch {
+    retried = 0;
+  }
+  const verdict = shouldRevert({ event, ref, exhausted, retry, retried, items, previous: () => lastVerdictBefore({ repo, sha }) });
   let revert;
   if (verdict.revert) {
-    console.log(`Reverting the batch: ${verdict.reason}`);
-    revert = revertLanding({ before, sha, runUrl, failing: describeFailureSet(items, { max: 4 }) });
+    console.log(`Reverting: ${verdict.reason}`);
+    revert = revertLanding({ since: verdict.since, sha, runUrl, failing: describeFailureSet(items, { max: 4 }) });
     console.log(revert.status === 'queued' ? `Revert queued: ${revert.url}` : `::warning title=Revert::${revert.status}: ${revert.reason}`);
   } else {
     revert = { status: 'skipped', reason: verdict.reason };
     console.log(`::notice title=Revert::not reverting - ${verdict.reason}`);
   }
-  const body = issueBody({ sha, runUrl, items, hash, retry, revert });
+  const body = issueBody({ sha, runUrl, items, hash, retry, retried, revert });
 
   if (decision.action === 'create') {
     console.log(`Filing the red-main issue: ${decision.reason}`);
