@@ -411,7 +411,7 @@ export function applyLookToTemplate(template: SpxTemplate, brand: ProjectBrand):
     assets = [...assets.filter((a) => a.path !== path), brand.logo];
   }
 
-  return { ...template, html, css, js: template.js, fields, assets };
+  return { ...template, html, css, fields, assets };
 }
 
 /**
