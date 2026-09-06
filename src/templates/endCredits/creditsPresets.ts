@@ -1,11 +1,14 @@
 // End-credits motion presets. Same marked-region + knob contract as every category
 // (animSpeed / easeIn / easeOut), but the travel itself is LINEAR (ease: 'none') per the
-// easing doctrine — continuous motion never eases. animSpeed scales the travel speed.
+// easing doctrine — continuous motion never eases. animSpeed scales the travel speed, and
+// the OPERATOR scales it again from the control page's speed field (creditsMotion.ts).
 //
 // The credits structure contract (see shared.ts):
 //   .credits (root, opacity:0) → .credits-box (viewport, overflow hidden)
 //     → #credits-track (rows injected by rebuildCredits())
-// The end of the track is the .credits-end block (logo placeholder + year).
+// The end of the track is the .credits-end block (logo placeholder + year) — which the roll
+// and the crawl deliberately leave OUT of the travel, so the list runs all the way through
+// and the mark arrives afterwards as its own beat.
 //
 // The box's fade is ordinary keyframeable motion and lives here. The TRAVEL is not: a roll
 // covers its own content height, a crawl its own width, a page swap runs one segment per
@@ -68,10 +71,11 @@ export const CREDITS_PRESETS: AnimPreset[] = [
   {
     id: 'credits-roll' as AnimPresetId,
     name: 'Rolling credits',
-    description: 'The classic upward roll — linear travel that stops with the logo + year centered.',
+    description: 'The classic upward roll — the list runs right off the top, then the logo + year arrive.',
     autoEase: { easeIn: 'power2.out', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}
-// Preset: Rolling credits — linear upward travel; ends holding the logo + year centered.
+// Preset: Rolling credits — linear upward travel; the list runs all the way off the top,
+// and then the logo + year arrive as their own beat (creditsRoll() above).
 ${knobs(cfg)}
 
 // buildInTimeline(): fade in, then roll the track up at a steady reading speed.
@@ -178,11 +182,11 @@ ${MARK_CLOSE}`,
   {
     id: 'credits-crawl' as AnimPresetId,
     name: 'Horizontal crawl',
-    description: 'A single-line crawl across the frame — linear, ticker-style, ends on the logo + year.',
+    description: 'A single-line crawl across the frame — linear, ticker-style; it runs right off the edge.',
     autoEase: { easeIn: 'power2.out', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}
-// Preset: Horizontal crawl — the track travels across the frame at constant speed and
-// finishes with the logo + year block.
+// Preset: Horizontal crawl — the track travels across the frame at constant speed until the
+// last item has left it, and then the logo + year block arrives on its own.
 ${knobs(cfg)}
 
 // buildInTimeline(): fade in the strip, then crawl the track from right to left.

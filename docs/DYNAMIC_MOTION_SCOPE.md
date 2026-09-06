@@ -27,8 +27,13 @@ The five loop presets (`src/templates/tickers/tickerPresets.ts`,
 measurement, not a literal:
 
 - `ticker-marquee`: `oneSet = track.scrollWidth / 2; x → -oneSet; duration = oneSet / (140 * speed)`, `repeat: -1`.
-- `credits-roll`: `endY = -(track.scrollHeight - box.clientHeight/2 - endBlock.offsetHeight/2); duration = (startY - endY) / (90 * speed)`.
-- `credits-crawl`: `endX = -(track.scrollWidth - box.clientWidth); duration = distance / (160 * speed)`.
+- `credits-roll`: `endY = -listHeight; duration = (startY - endY) / (90 * speed)`, where `listHeight`
+  reaches the closing `.credits-end` block rather than the track's full height - the roll runs the
+  list all the way off the top, and the mark arrives after it as its own beat (owner walk
+  2026-08-28). Before that walk it was `-(track.scrollHeight - box.clientHeight/2 - endBlock.offsetHeight/2)`,
+  which stopped with the last names still on screen and the logo held in the middle.
+- `credits-crawl`: `endX = -listWidth; duration = distance / (160 * speed)` - the same change along x
+  (previously `-(track.scrollWidth - box.clientWidth)`).
 
 The magnitudes change with the operator's text, so **no static keyframe number can hold them** —
 baking a measured pixel value into the data would be wrong the moment the content changes.

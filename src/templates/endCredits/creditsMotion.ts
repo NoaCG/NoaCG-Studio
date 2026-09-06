@@ -1,6 +1,6 @@
 // The credits' MEASURED motion — the travel a keyframe cannot describe.
 //
-// A roll travels the height of its own content and stops with the logo centered; a crawl
+// A roll travels the height of its own content and runs it all the way off the top; a crawl
 // travels its own width; a page swap runs one segment per page and holds each one long
 // enough to read. Every one of those magnitudes comes from the operator's text, which
 // changes on air — so no static keyframe number can hold them
@@ -12,32 +12,145 @@
 // clock engine — so the timeline never rewrites them and you can edit the reading speed
 // here. All three ship in every credits template: the data names the live one, and swapping
 // the motion preset just swaps that name.
+//
+// TWO THINGS ARE THE OPERATOR'S, not the author's (owner walk 2026-08-28):
+//   - the SPEED, because a roll has to fit a music bed and that is decided at the desk;
+//   - the fact that the list RUNS ALL THE WAY THROUGH, because a credit roll that stops with
+//     the last names still on screen and the logo held in the middle is not what a credit
+//     roll does anywhere else. The closing mark arrives afterwards, as its own beat.
 
 import { motionSpeedJs } from '../shared/base';
 
-/** The credits motion builders, emitted before the marked region in every credits template. */
-export const CREDITS_MOTION_JS = `// ---- Measured motion (the animation data references these by name) ----
+/**
+ * The credits motion builders, emitted before the marked region in every credits template.
+ *
+ * `speedFieldId` is the id of the operator's speed field (`f2` or `f3`, depending on whether
+ * the design takes a logo). It is `null` for a design with no motion at all: the static board,
+ * which is given no speed field because an operator control page must never offer a field the
+ * graphic cannot use.
+ */
+export function creditsMotionJs(speedFieldId: string | null): string {
+  return `// ---- Measured motion (the animation data references these by name) ----
 ${motionSpeedJs}
 
-// creditsRoll(): the classic upward roll. Starts just below the viewport and stops with the
-// end block (logo + year) centered — both measured here, at play() time, because they
-// depend on how many names the operator listed.
+${speedFieldId
+      ? `// creditsSpeed(): the OPERATOR's speed, read from the "${speedFieldId}" field on the control
+// page. It is a PERCENTAGE of the reading speed this design ships at, so 100 is exactly the
+// authored pace, 150 is half again as fast and 60 is a slow memorial roll. Input only: the
+// value lives in a hidden holder and is never drawn.
+//
+// Blank, non-numeric or zero all mean "as designed" rather than "stop": a roll that never
+// finishes because someone typed 0 is a graphic stuck on air, and the clamp below is what
+// keeps that from being one keystroke away.
+function creditsSpeed() {
+  var el = document.getElementById('${speedFieldId}');
+  var percent = el ? parseFloat(el.textContent) : NaN;
+  if (!isFinite(percent) || percent <= 0) return 1;      // blank or nonsense: the design's own speed
+  return Math.min(400, Math.max(10, percent)) / 100;     // 10%–400%, so it always finishes
+}`
+      : `// This design holds its list still (the static board preset), so it ships no speed
+// field: there is nothing to speed up, and an operator control page must never offer a field
+// the graphic cannot use. The builders below still read this, so it answers for the design.
+function creditsSpeed() {
+  return 1;
+}`}
+
+// The live pace: the design's authored speed multiplied by the operator's percentage. Every
+// builder below reads this one function, so the two knobs can never disagree.
+function creditsMotionSpeed() {
+  return motionSpeed() * creditsSpeed();
+}
+
+// creditsMid() / creditsMoveBy(): the two lines all of the travel below is measured with.
+//
+// EVERY distance here is a difference between two RECTS ON SCREEN, added to the transform the
+// track is already carrying - never a composition of offsetTop, clientHeight and scrollHeight.
+// Those look equivalent and are not: the first row's heading carries a top margin that COLLAPSES
+// straight through the track, so the track's own box starts 50px below its content in cr01, and
+// arithmetic built from offsets parks the closing mark 50px low with nothing saying so. A rect
+// difference cannot be wrong about that, because it asks the browser where things actually are.
+function creditsMid(el, axis) {
+  var rect = el.getBoundingClientRect();
+  var style = getComputedStyle(el);
+  // The CONTENT box, not the border box. A design may hold its closing mark inside asymmetric
+  // padding (cr01 breathes 60px above the hairline and 15px below it), and centring the padded
+  // box parks the visible mark low by half that difference. The padding is the design's air
+  // around the mark, not part of the mark.
+  var before = parseFloat(axis === 'x' ? style.paddingLeft : style.paddingTop) || 0;
+  var after = parseFloat(axis === 'x' ? style.paddingRight : style.paddingBottom) || 0;
+  var start = axis === 'x' ? rect.left : rect.top;
+  var end = axis === 'x' ? rect.right : rect.bottom;
+  return (start + before + end - after) / 2;
+}
+
+function creditsMoveBy(track, axis, from, to) {
+  var here = Number(gsap.getProperty(track, axis)) || 0;   // a previous take may have left one
+  return here + (to - from);
+}
+
+// creditsEndBeat(): the closing mark's own beat, appended to a roll or a crawl.
+//
+// The logo + year block is NOT part of the scroll. The list runs all the way through, the
+// last name leaving the frame entirely, and only then does the mark arrive, alone and
+// centered in the viewport. That is what a credit roll does everywhere else, and it is why
+// the travel above stops where the list ends rather than where the mark sits.
+//
+// No design has to move its end block for this: the block is measured where it already sits
+// at the foot of the track, and the track is simply parked at the offset that puts it in the
+// middle of the viewport.
+//
+// WHAT HIDES THE LIST IS AN ATTRIBUTE ON THE TRACK, not opacity on the rows. update() re-renders
+// every row (rebuildCredits assigns innerHTML), so a pose carried on the rows is thrown away the
+// moment an operator corrects the year with the mark on air - and the tail of the credits comes
+// back on top of it. The track survives that rebuild, and so does its data-credits; the two
+// rules it drives are in the stylesheet (templates/endCredits/shared.ts).
+function creditsEndBeat(seq, track, box, endBlock, axis) {
+  var park = creditsMoveBy(track, axis,
+    creditsMid(endBlock, axis),                // from: where the mark is now…
+    creditsMid(box, axis));                    // …to: the middle of the viewport
+
+  seq.set(track, { attr: { 'data-credits': 'ended' } });  // the list has gone; it never returns
+  seq.set(track, axis === 'x' ? { x: park } : { y: park });
+  seq.fromTo(endBlock,
+    { opacity: 0 },
+    { opacity: 1, duration: 0.8 / creditsMotionSpeed(), ease: 'power2.out' }  // a plain arrival
+  );
+}
+
+// creditsRoll(): the classic upward roll. Starts just below the viewport and travels until
+// the last name has left the top. Both are measured here, at play() time, because they depend
+// on how many names the operator listed. When the design carries a closing mark (a logo, a
+// year, an end text), it arrives afterwards as its own beat; see creditsEndBeat().
 function creditsRoll(target) {
   var track = document.querySelector(target);
   var box = document.querySelector('.credits-box');
   if (!track || !box) return null;
   var endBlock = track.querySelector('.credits-end');
+  var hasEndBeat = !!endBlock && endBlock.getBoundingClientRect().height > 0;
+
+  // Where the LIST ends: at the closing mark when there is one (the mark is not part of the
+  // roll), otherwise at the foot of the track. Travel until that point reaches the TOP of the
+  // viewport and the last row has left the frame.
+  var boxRect = box.getBoundingClientRect();
+  var listEnd = hasEndBeat ? endBlock.getBoundingClientRect().top : track.getBoundingClientRect().bottom;
 
   var startY = box.clientHeight;                              // enter from below the viewport…
-  var endY = -(track.scrollHeight - box.clientHeight / 2 - (endBlock ? endBlock.offsetHeight : 0) / 2);
-  var distance = startY - endY;                               // …and stop on the end block
-  var pixelsPerSecond = 90 * motionSpeed();                   // reading speed — raise for faster credits
+  var endY = creditsMoveBy(track, 'y', listEnd, boxRect.top); // …and run right off the top
+  var distance = startY - endY;
+  var pixelsPerSecond = 90 * creditsMotionSpeed();            // reading speed — raise for faster credits
   if (distance <= 0) return null;
 
-  return gsap.fromTo(track,
+  var seq = gsap.timeline();
+  // Opening the travel also CLEARS a previous take's closing pose - the attribute rides on the
+  // track, which every rebuild keeps, so a replay would otherwise start with the list hidden.
+  seq.set(track, { attr: { 'data-credits': 'rolling' } }, 0);
+  seq.fromTo(track,
     { y: startY },
-    { y: endY, duration: distance / pixelsPerSecond, ease: 'none' }  // constant speed — never eased
+    { y: endY, duration: distance / pixelsPerSecond, ease: 'none' },  // constant speed — never eased
+    0
   );
+  if (hasEndBeat) creditsEndBeat(seq, track, box, endBlock, 'y');
+  return seq;
 }
 
 // creditsLoop(): the roll that never ends — a repeating production-credits reel for a
@@ -47,6 +160,9 @@ function creditsRoll(target) {
 // height and the second copy has arrived precisely where the first began, so the seam is
 // not visible and there is no jump to hide. That is why this measures and clones rather
 // than just repeating a tween — a bare repeat would snap the list back to the top.
+//
+// There is no end beat here, and there cannot be: a reel has no end to arrive after. The
+// closing mark rides round with the list, which is what a sponsor wall wants anyway.
 //
 // The clone is rebuilt on every play(): rebuildCredits() replaces the track's children
 // first, so there is never a stale or doubled copy to clean up.
@@ -77,43 +193,55 @@ function creditsLoop(target) {
     track.appendChild(clone);
   }
 
-  var pixelsPerSecond = 90 * motionSpeed();         // reading speed — raise for a faster reel
+  var pixelsPerSecond = 90 * creditsMotionSpeed();  // reading speed — raise for a faster reel
   return gsap.fromTo(track,
     { y: 0 },
     { y: -distance, duration: distance / pixelsPerSecond, ease: 'none', repeat: -1 }
   );
 }
 
-// creditsCrawl(): a single-line horizontal crawl. Same idea as the roll, along x — the
-// travel is the track's own width, so it always finishes on the end block.
+// creditsCrawl(): a single-line horizontal crawl. Same idea as the roll, along x — the strip
+// runs all the way off the left edge, and the closing mark arrives after it on its own.
 // Flip the direction by swapping startX/endX.
 function creditsCrawl(target) {
   var track = document.querySelector(target);
   var box = document.querySelector('.credits-box');
   if (!track || !box) return null;
+  var endBlock = track.querySelector('.credits-end');
+  var hasEndBeat = !!endBlock && endBlock.getBoundingClientRect().width > 0;
 
-  var startX = box.clientWidth;                               // enter from the right edge…
-  var endX = -(track.scrollWidth - box.clientWidth);          // …stop with the track's end visible
+  // Where the LIST ends along the line: at the closing mark, or at the end of the track.
+  var boxRect = box.getBoundingClientRect();
+  var listEnd = hasEndBeat ? endBlock.getBoundingClientRect().left : track.getBoundingClientRect().right;
+
+  var startX = box.clientWidth;                                // enter from the right edge…
+  var endX = creditsMoveBy(track, 'x', listEnd, boxRect.left); // …and run right off the left
   var distance = startX - endX;
-  var pixelsPerSecond = 160 * motionSpeed();                  // crawl speed
+  var pixelsPerSecond = 160 * creditsMotionSpeed();           // crawl speed
   if (distance <= 0) return null;
 
-  return gsap.fromTo(track,
+  var seq = gsap.timeline();
+  seq.set(track, { attr: { 'data-credits': 'rolling' } }, 0);   // the mark waits its turn
+  seq.fromTo(track,
     { x: startX },
-    { x: endX, duration: distance / pixelsPerSecond, ease: 'none' }  // constant speed — never eased
+    { x: endX, duration: distance / pixelsPerSecond, ease: 'none' },  // constant speed — never eased
+    0
   );
+  if (hasEndBeat) creditsEndBeat(seq, track, box, endBlock, 'x');
+  return seq;
 }
 
 // creditsPages(): each section appears as a full page, holds, then swaps to the next. One
 // segment PER PAGE, and each page's hold is derived from its own row count — a content-
 // driven shape, which is the other thing keyframes can't express. The last page (logo +
-// year) stays up until stop().
+// year) stays up until stop(). Nothing scrolls, so the operator's speed sets the READING
+// TIME here instead of a travel rate: raise it and every page holds for less.
 function creditsPages(target) {
   var track = document.querySelector(target);
   if (!track) return null;
   var pages = track.querySelectorAll('.credits-page, .credits-end');
   if (!pages.length) return null;
-  var speed = motionSpeed();
+  var speed = creditsMotionSpeed();
 
   var seq = gsap.timeline();
   seq.set(pages, { opacity: 0 }, 0);            // all pages start hidden
@@ -128,3 +256,4 @@ function creditsPages(target) {
   });
   return seq;
 }`;
+}

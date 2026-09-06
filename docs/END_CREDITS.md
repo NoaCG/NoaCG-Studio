@@ -77,6 +77,20 @@ Special thanks to everyone who made this show possible
 The second field (`f1`) is the year / copyright line the roll ends on, and designs that take a
 logo have a third (`f2`) for the mark above it.
 
+The last field is the **speed** - `Scroll speed (%)` on a roll or a reel, `Crawl speed (%)` on a
+crawl, `Page speed (%)` on the one-pager swap - as a percentage of the pace the design ships at.
+**100 is exactly the authored pace**, 150 is half again as fast, 60 is a slow ceremonial read;
+blank, zero or nonsense all mean 100 rather than "stop", and the value is clamped to 10-400 so a
+roll always finishes. It is an operator control because a roll has to fit whatever is under it,
+and that is decided at the desk (owner walk 2026-08-28). It applies from the next take: the
+travel is measured when `play()` runs, so retyping it does not retime a roll already on air.
+The static board has no speed field - nothing there moves.
+
+**The list runs all the way through.** A roll travels until the last name has left the top of the
+frame, and only then does the closing mark (logo + year) arrive on its own, centred - the same on a
+crawl, along x. That is the default and there is nothing to switch on; a design with no mark simply
+runs the list off and ends empty.
+
 ## The same text in any design
 
 The format is deliberately **layout-independent**: it says what the content IS, never how it is
