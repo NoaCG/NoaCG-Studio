@@ -81,6 +81,15 @@ belong where specs are written rather than in the contract every session loads.
   tween touches none of what it asserted. For a HELD key use real auto-repeat
   (`e2e/_keys.ts holdKeyRepeats`, CDP `autoRepeat: true`); `keyboard.down()` sends one keydown and
   never repeats, so it cannot exercise the gesture at all.
+- **A DETACHED element's computed style is EMPTY, and `Number('')` is 0** - so a stale reference
+  reads as a passing zero rather than as an error. Any runtime that re-renders its own rows
+  invalidates the references a spec took before it (`rebuildCredits()` assigns
+  `track.innerHTML`, and the credits family is the worked example), and an assertion like
+  `Number(getComputedStyle(row).opacity) === 0` then passes on an element that is not in the
+  document at all. It cost a whole debugging round on 2026-09-06: "the list is gone at the end"
+  passed vacuously while "the mark is up" failed beside it, on the same detached rows. Query
+  after the build, and prefer an assertion whose passing value is not the empty string's
+  numeric shadow.
 - **A DUPLICATE renderer command has to be asserted as ARITHMETIC, never as a picture.** A
   replayed `play` settles on the picture that was already there, so asserting on the rendered
   frame passes the bug under mutation testing while `data-plays` (the entrance count
