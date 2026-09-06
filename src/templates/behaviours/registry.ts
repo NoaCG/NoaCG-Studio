@@ -14,8 +14,27 @@ import { switchRecipe } from './switch';
 import { choiceRecipe } from './choice';
 import { meterRecipe } from './meter';
 import { alertRecipe } from './alert';
+import { surveyRecipe } from './survey';
+import { listRecipe } from './list';
+import { lineupRecipe } from './lineup';
+import { puzzleRecipe } from './puzzle';
+import { revealRecipe } from './reveal';
 
-export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [quizRecipe, scoreRecipe, countdownRecipe, voteRecipe, meterRecipe, alertRecipe, switchRecipe, choiceRecipe];
+export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
+  quizRecipe,
+  scoreRecipe,
+  countdownRecipe,
+  voteRecipe,
+  meterRecipe,
+  alertRecipe,
+  surveyRecipe,
+  listRecipe,
+  lineupRecipe,
+  puzzleRecipe,
+  revealRecipe,
+  switchRecipe,
+  choiceRecipe,
+];
 
 export function recipeById(id: string): BehaviourRecipe | null {
   return BEHAVIOUR_RECIPES.find((r) => r.id === id) ?? null;

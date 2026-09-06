@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!-- NoaCG show corpus. A GUEST LINEUP, the desk show's "tonight" card, with the two extras every
+     such show carries: a coming-up strip and a segment bug. Drawn the way a student draws it:
+
+     The base look            -> the backplate, the title, four guest rows.
+     "Now 1..4"               -> hidden: the lit plate behind the guest who is on now.
+     "Done 1..4"              -> hidden: a dimming veil over a guest who has already been on.
+     "show:Coming up next"    -> hidden: the strip along the bottom, a switch.
+     "choice:Segment/..."     -> hidden: four corner bugs, one showing at a time.
+
+     Full-frame 1920x1080. Words last. -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1920 1080" width="1920" height="1080" style="enable-background:new 0 0 1920 1080;"
+	 xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#0D1017;}
+	.st1{fill:#161B24;}
+	.st2{fill:#F6A623;}
+	.st3{fill:#FFFFFF;}
+	.st4{font-family:'Archivo-Bold';}
+	.st5{font-size:52px;}
+	.st6{fill:#1B2431;}
+	.st7{font-family:'Inter-Medium';}
+	.st8{font-size:42px;}
+	.st9{fill:#2C3A50;}
+	.st10{fill:#0D1017;fill-opacity:0.6;}
+	.st11{fill:#25313F;}
+	.st12{font-size:30px;}
+	.st13{fill:#D9382B;}
+	.st14{fill:#2A6F4E;}
+	.st15{fill:#3A4C9C;}
+	.st16{fill:#8C3A9C;}
+</style>
+<g id="Backplate">
+	<rect y="0" class="st0" width="1920" height="1080"/>
+</g>
+<g id="Title_x20_card" data-name="Title card">
+	<rect x="240" y="120" class="st1" width="1440" height="120"/>
+	<rect x="240" y="120" class="st2" width="1440" height="8"/>
+</g>
+<g id="Rows">
+	<rect x="240" y="300" class="st6" width="1440" height="110"/>
+	<rect x="240" y="430" class="st6" width="1440" height="110"/>
+	<rect x="240" y="560" class="st6" width="1440" height="110"/>
+	<rect x="240" y="690" class="st6" width="1440" height="110"/>
+</g>
+<g id="Now_x20_1" data-name="Now 1" display="none">
+	<rect x="240" y="300" class="st9" width="1440" height="110"/>
+	<rect x="240" y="300" class="st2" width="12" height="110"/>
+</g>
+<g id="Now_x20_2" data-name="Now 2" display="none">
+	<rect x="240" y="430" class="st9" width="1440" height="110"/>
+	<rect x="240" y="430" class="st2" width="12" height="110"/>
+</g>
+<g id="Now_x20_3" data-name="Now 3" display="none">
+	<rect x="240" y="560" class="st9" width="1440" height="110"/>
+	<rect x="240" y="560" class="st2" width="12" height="110"/>
+</g>
+<g id="Now_x20_4" data-name="Now 4" display="none">
+	<rect x="240" y="690" class="st9" width="1440" height="110"/>
+	<rect x="240" y="690" class="st2" width="12" height="110"/>
+</g>
+<g id="show_x3A_Coming_x20_up_x20_next" data-name="show:Coming up next" display="none">
+	<rect x="240" y="900" class="st11" width="1440" height="90"/>
+	<rect x="240" y="900" class="st2" width="12" height="90"/>
+	<text transform="matrix(1 0 0 1 290 958)" class="st2 st4 st12">COMING UP NEXT</text>
+</g>
+<g id="choice_x3A_Segment_x2F_Monologue" data-name="choice:Segment/Monologue" display="none">
+	<rect x="1500" y="40" class="st13" width="300" height="60" rx="8"/>
+	<text transform="matrix(1 0 0 1 1650 82)" class="st3 st4 st12" text-anchor="middle">MONOLOGUE</text>
+</g>
+<g id="choice_x3A_Segment_x2F_Desk" data-name="choice:Segment/Desk" display="none">
+	<rect x="1500" y="40" class="st14" width="300" height="60" rx="8"/>
+	<text transform="matrix(1 0 0 1 1650 82)" class="st3 st4 st12" text-anchor="middle">DESK</text>
+</g>
+<g id="choice_x3A_Segment_x2F_Guest" data-name="choice:Segment/Guest" display="none">
+	<rect x="1500" y="40" class="st15" width="300" height="60" rx="8"/>
+	<text transform="matrix(1 0 0 1 1650 82)" class="st3 st4 st12" text-anchor="middle">GUEST</text>
+</g>
+<g id="choice_x3A_Segment_x2F_Music" data-name="choice:Segment/Music" display="none">
+	<rect x="1500" y="40" class="st16" width="300" height="60" rx="8"/>
+	<text transform="matrix(1 0 0 1 1650 82)" class="st3 st4 st12" text-anchor="middle">MUSIC</text>
+</g>
+<g id="Words">
+	<text id="Title" data-name="Title" transform="matrix(1 0 0 1 300 200)" class="st3 st4 st5">Tonight</text>
+	<text id="Guest_x20_1" data-name="Guest 1" transform="matrix(1 0 0 1 300 372)" class="st3 st7 st8">Maija Virtanen</text>
+	<text id="Guest_x20_2" data-name="Guest 2" transform="matrix(1 0 0 1 300 502)" class="st3 st7 st8">The Helsinki Ferry Band</text>
+	<text id="Guest_x20_3" data-name="Guest 3" transform="matrix(1 0 0 1 300 632)" class="st3 st7 st8">Professor Ilkka Salo</text>
+	<text id="Guest_x20_4" data-name="Guest 4" transform="matrix(1 0 0 1 300 762)" class="st3 st7 st8">A surprise</text>
+</g>
+<g id="Done_x20_1" data-name="Done 1" display="none">
+	<rect x="240" y="300" class="st10" width="1440" height="110"/>
+</g>
+<g id="Done_x20_2" data-name="Done 2" display="none">
+	<rect x="240" y="430" class="st10" width="1440" height="110"/>
+</g>
+<g id="Done_x20_3" data-name="Done 3" display="none">
+	<rect x="240" y="560" class="st10" width="1440" height="110"/>
+</g>
+<g id="Done_x20_4" data-name="Done 4" display="none">
+	<rect x="240" y="690" class="st10" width="1440" height="110"/>
+</g>
+</svg>

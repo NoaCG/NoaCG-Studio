@@ -8,9 +8,10 @@
 //   1. noacgRepaint() reads the machine's pointers and every field the table names, asks each
 //      field's KIND for its facts and derivations, evaluates every paint rule, and applies the
 //      result: looks by class, gauges by a scale measured at rest, readouts by text.
-//   2. The FIELD-KIND LIBRARY - `row-pick`, `select`, `number`, `share`, `clock`, `vote-status`
-//      - each a small function from a holder's text to facts and derived values. This is the one
-//      place a comparison lives, and it is not authorable: a recipe names a fact, never a test.
+//   2. The FIELD-KIND LIBRARY - `row-pick`, `select`, `number`, `counter`, `share`, `list`,
+//      `puzzle`, `fraction`, `clock`, `vote-status` - each a small function from a holder's text
+//      to facts and derived values. This is the one place a comparison lives, and it is not
+//      authorable: a recipe names a fact, never a test.
 //   3. Three DRIVERS, because five behaviours needed all three: a state entry (every recipe
 //      state's timeline calls noacgRepaint), a data write (update() calls noacgRepaintData) and
 //      the clock's own tick (clockPainted calls noacgRepaintTick).
@@ -150,7 +151,9 @@ noacgKinds.select = {
 
 // row-pick: a dropdown over a row set's keys. "picked" holds on the row the value names;
 // "unpicked" on every OTHER row the value could have named - never on any row when nothing
-// is picked, so an empty key reveals no verdict rather than marking every row wrong.
+// is picked, so an empty key reveals no verdict rather than marking every row wrong. "before"
+// and "after" are the ORDER facts: this row comes before the picked one in row order (a guest
+// who has already been on), or after it (one still to come).
 noacgKinds['row-pick'] = {
   fact: function (id, spec, name, rowKey) {
     var value = noacgFieldText(id).trim().toUpperCase();
@@ -158,9 +161,114 @@ noacgKinds['row-pick'] = {
     var named = value !== '' && keys.indexOf(value) !== -1;
     if (name === 'picked') return named && value === rowKey;
     if (name === 'unpicked') return named && value !== rowKey;
+    if (name === 'before') return named && keys.indexOf(rowKey) < keys.indexOf(value);
+    if (name === 'after') return named && keys.indexOf(rowKey) > keys.indexOf(value);
     return false;
   },
   derive: noacgKinds.text.derive
+};
+
+// counter: a figure with a floor and a ceiling (a strike count, a page). Facts: "reached:N" once
+// the figure is N or more - the third strike's X lights on the third press and stays lit -
+// "is:N" at exactly N, "at-min" and "at-max" at the bounds, "zero" at 0. The bounds are what the
+// machine greys the buttons by; here they only clamp what is painted, so a figure a controller
+// wrote past the ceiling paints the ceiling rather than nothing.
+noacgKinds.counter = {
+  value: function (id, spec) {
+    var n = noacgNumberOf(id);
+    var min = spec.min !== undefined ? parseInt(spec.min, 10) : 0;
+    var max = spec.max !== undefined ? parseInt(spec.max, 10) : NaN;
+    if (!isNaN(min) && n < min) n = min;
+    if (!isNaN(max) && n > max) n = max;
+    return n;
+  },
+  fact: function (id, spec, name) {
+    var n = this.value(id, spec);
+    if (name.indexOf('reached:') === 0) return n >= parseInt(name.slice(8), 10);
+    if (name.indexOf('is:') === 0) return n === parseInt(name.slice(3), 10);
+    if (name === 'at-min') return spec.min !== undefined && n <= parseInt(spec.min, 10);
+    if (name === 'at-max') return spec.max !== undefined && n >= parseInt(spec.max, 10);
+    if (name === 'zero') return n === 0;
+    return false;
+  },
+  derive: function (id, spec, name) {
+    if (name === 'value') return this.value(id, spec);
+    return name === 'text' ? String(this.value(id, spec)) : null;
+  }
+};
+
+// list: one line per row, "Label | figure" or just the label (the share kind's wire without the
+// arithmetic of shares). Derives each row's label, its figure and its line; the fact "listed"
+// holds on a row the list has a line for. "total" adds up the figures of the rows whose
+// companion field - the per-row role spec.when names, a survey's "revealed" switch - reads
+// on, so a board's round total is the sum of what is showing and nothing the operator types.
+function noacgListRows(id) {
+  var out = [];
+  var lines = noacgFieldText(id).split('\\n');
+  for (var i = 0; i < lines.length; i++) {
+    var raw = lines[i].trim();
+    if (raw === '') continue;
+    var at = raw.lastIndexOf('|');
+    var label = at === -1 ? raw : raw.slice(0, at).trim();
+    var figure = at === -1 ? NaN : parseFloat(raw.slice(at + 1).replace(/[^0-9.\\-]/g, ''));
+    out.push({ label: label, figure: isNaN(figure) ? 0 : figure, line: raw });
+  }
+  return out;
+}
+noacgKinds.list = {
+  fact: function (id, spec, name, rowKey) {
+    var at = noacgRowsOf(spec.rows).indexOf(rowKey);
+    if (name === 'listed') return at !== -1 && at < noacgListRows(id).length;
+    return false;
+  },
+  derive: function (id, spec, name, rowKey) {
+    var rows = noacgListRows(id);
+    var keys = noacgRowsOf(spec.rows);
+    if (name === 'total') {
+      var sum = 0;
+      for (var i = 0; i < rows.length && i < keys.length; i++) {
+        var gate = spec.when ? noacgFieldFor(spec.when, keys[i]) : null;
+        if (!spec.when || (gate && noacgFieldText(gate).trim().toLowerCase() === 'on')) sum += rows[i].figure;
+      }
+      return String(sum);
+    }
+    var row = keys.indexOf(rowKey) === -1 ? null : rows[keys.indexOf(rowKey)];
+    if (name === 'label') return row ? row.label : '';
+    if (name === 'figure') return row ? String(row.figure) : '';
+    if (name === 'line') return row ? row.line : '';
+    return name === 'text' ? noacgFieldText(id) : null;
+  },
+  report: function (id, spec) {
+    if (typeof svgFitOver === 'undefined') return;
+    svgFitOver[id] = noacgListRows(id).length > noacgRowsOf(spec.rows).length;
+  }
+};
+
+// puzzle: a phrase laid over tiles, one character per row in row order, with the letters the
+// operator has revealed in a companion field (spec.revealed). Derives each tile's "letter";
+// facts per tile: "used" where the phrase has a character other than a space, "shown" where that
+// character is revealed (or is not a letter at all - punctuation is never hidden), "hidden" for
+// a letter still to come.
+noacgKinds.puzzle = {
+  charAt: function (id, spec, rowKey) {
+    var at = noacgRowsOf(spec.rows).indexOf(rowKey);
+    var phrase = noacgFieldText(id).toUpperCase();
+    return at === -1 || at >= phrase.length ? ' ' : phrase.charAt(at);
+  },
+  fact: function (id, spec, name, rowKey) {
+    var ch = this.charAt(id, spec, rowKey);
+    var used = ch !== ' ';
+    if (name === 'used') return used;
+    var letter = /[A-Z\\u00C0-\\u024F]/.test(ch);
+    var revealed = spec.revealed ? noacgFieldText(spec.revealed).toUpperCase().indexOf(ch) !== -1 : false;
+    if (name === 'shown') return used && (!letter || revealed);
+    if (name === 'hidden') return used && letter && !revealed;
+    return false;
+  },
+  derive: function (id, spec, name, rowKey) {
+    if (name === 'letter') { var ch = this.charAt(id, spec, rowKey); return ch === ' ' ? '' : ch; }
+    return name === 'text' ? noacgFieldText(id) : null;
+  }
 };
 
 // number: a figure. "moved" holds on the field that ROSE most recently within its group (a
@@ -598,7 +706,7 @@ function noacgRepaintWith(reason) {
   for (r = 0; r < rules.length; r++) {
     rule = rules[r];
     if (!rule.look) continue;
-    keys = rule.rows ? noacgRowsOf(rule.rows) : [null];
+    keys = rule.row ? [rule.row] : rule.rows ? noacgRowsOf(rule.rows) : [null];
     for (k = 0; k < keys.length; k++) {
       var token = noacgRoleToken(rule.look, keys[k]);
       seen[token] = true;
@@ -627,7 +735,7 @@ function noacgRepaintWith(reason) {
   for (r = 0; r < rules.length; r++) {
     rule = rules[r];
     if (!rule.gauge && !rule.write) continue;
-    keys = rule.rows ? noacgRowsOf(rule.rows) : [null];
+    keys = rule.row ? [rule.row] : rule.rows ? noacgRowsOf(rule.rows) : [null];
     for (k = 0; k < keys.length; k++) {
       var targets = noacgRoleEls(rule.gauge || rule.write, keys[k]);
       if (targets.length === 0) continue;

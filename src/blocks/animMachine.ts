@@ -28,7 +28,7 @@ export const OFF_STATE_ID = 'off';
 
 /** A step name as a state id: lowercased, non-alphanumerics folded to '-'. The interpreter
  *  applies the identical fold, so editor and runtime name the same states. */
-function slugify(name: string): string {
+export function slugify(name: string): string {
   return (
     name
       .toLowerCase()
