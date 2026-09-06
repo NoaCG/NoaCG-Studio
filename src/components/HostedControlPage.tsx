@@ -1015,7 +1015,7 @@ function HostedCueEditor({
                       ).catch((err: Error) => onError(err.message));
                     }}
                     title={
-                      e.adjust || e.set
+                      movedKeys(e).length > 0
                         ? `Fires "${e.event}" and moves ${adjustWords(e, (key) => descriptorByKey.get(key)?.label)} with it — only where the graph allows it`
                         : `Fires "${e.event}" — only where the graph allows it`
                     }

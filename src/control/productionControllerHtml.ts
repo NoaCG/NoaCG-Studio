@@ -675,10 +675,11 @@ var stepButtons = [];
 // The clock field's box, for the same reason: a clock verb repaints the banked time into it
 // rather than rebuilding the editor around it.
 var clockBox = null;
-// Every NUMBER field's box by key, for the same reason again: an ⚡ event that ADJUSTS a
-// figure (a scoreboard's goal moving that side's score) repaints the new value into the box
-// rather than rebuilding the editor around it.
-var numberBoxes = {};
+// Every field's REPAINTER by key, for the same reason again: an ⚡ event that MOVES a field - a
+// scoreboard's goal adjusting that side's score, a survey's reveal setting a row's switch, a
+// puzzle's Reveal letter adding a line to the revealed list - repaints the new value into the
+// box rather than rebuilding the editor around it.
+var repaint = {};
 // Every field's box and its hidden TOO LONG mark, for the same reason once more: the warning
 // arrives from a poll, and rebuilding a box to show it would take the focus out of the input
 // the operator is typing into at exactly the moment they need to shorten it.
@@ -761,7 +762,7 @@ function paintEditor() {
   fields.innerHTML = '';
   stepButtons = [];
   clockBox = null;
-  numberBoxes = {};
+  repaint = {};
   overBoxes = {};
   var values = cueValues(cue);
   (g ? g.controls : []).forEach(function (c) {
@@ -833,6 +834,11 @@ function paintEditor() {
           };
           seg.appendChild(b);
         });
+        // A set on this choice (a survey's Reveal 3 writing "on") lights the segment it named.
+        repaint[c.key] = function (value) {
+          var n = seg.firstChild;
+          opts.forEach(function (o) { if (n) { n.className = (o.value !== undefined ? o.value : o) === value ? 'on' : ''; n = n.nextSibling; } });
+        };
         box.appendChild(seg);
         fields.appendChild(box);
         return;
@@ -865,7 +871,7 @@ function paintEditor() {
       input.type = 'number';
       input.value = values[c.key] !== undefined ? values[c.key] : '';
       input.oninput = function () { stage(input.value); };
-      numberBoxes[c.key] = input;
+      repaint[c.key] = function (value) { input.value = value; };
       var numRow = document.createElement('div');
       numRow.className = 'numrow';
       var makeStep = function (dir, label) {
@@ -910,6 +916,9 @@ function paintEditor() {
     if (g && g.clock && c.key === g.clock.field) { clockBox = input; raw = clockPlain(raw); }
     input.value = raw;
     input.oninput = function () { stage(input.value); };
+    // A text box, a line list or a dropdown an ⚡ event moves (a set, an add, a remove) is
+    // repainted like a number; the clock box keeps its plain-time reading and its own verbs.
+    if (clockBox !== input) repaint[c.key] = function (value) { input.value = value; };
     box.appendChild(input);
     fields.appendChild(box);
   });
@@ -956,9 +965,11 @@ function paintEditor() {
       // fields ride at the cue's current value; adjust fields (a goal's +1) ride moved by their
       // delta, counted from the cue's current value (anything that does not read as an integer
       // counts from 0); set fields (a score board's "New game") ride at the figure the control
-      // declares. Either way it is staged into the draft and repainted into the box in the same
-      // breath - the press aired it, so it is what the next press counts from and what ⟳ TAKE
-      // re-sends.
+      // declares; add fields (a puzzle's "Reveal letter") ride with the source field's value
+      // appended as a line unless it is already one, and remove fields with the last such line
+      // taken out - an empty source, or a line the list does not hold, leaves the list off the
+      // wire. Every road is staged into the draft and repainted into the box in the same breath -
+      // the press aired it, so it is what the next press counts from and what ⟳ TAKE re-sends.
       var payload = null;
       (e.payload || []).forEach(function (key) {
         var v = cueValues(cue)[key];
@@ -969,7 +980,7 @@ function paintEditor() {
         payload[key] = value;
         if (!drafts[cue.id]) drafts[cue.id] = {};
         drafts[cue.id][key] = value;
-        if (numberBoxes[key]) numberBoxes[key].value = value;
+        if (repaint[key]) repaint[key](value);
       };
       var adjust = e.adjust || {};
       for (var ak in adjust) {
@@ -981,6 +992,33 @@ function paintEditor() {
       for (var sk in setTo) {
         if (!Object.prototype.hasOwnProperty.call(setTo, sk)) continue;
         stage(sk, setTo[sk]);
+      }
+      // The list's non-empty lines, trimmed - controlModel.ts listLines, restated.
+      var listLines = function (value) {
+        var out = [];
+        String(value == null ? '' : value).split('\\n').forEach(function (line) { var l = line.trim(); if (l) out.push(l); });
+        return out;
+      };
+      var addTo = e.add || {};
+      for (var lk in addTo) {
+        if (!Object.prototype.hasOwnProperty.call(addTo, lk)) continue;
+        var addSource = cueValues(cue)[addTo[lk]];
+        var addLine = String(addSource == null ? '' : addSource).trim();
+        if (!addLine) continue;
+        var added = listLines(cueValues(cue)[lk]);
+        if (added.indexOf(addLine) === -1) added.push(addLine);
+        stage(lk, added.join('\\n'));
+      }
+      var removeFrom = e.remove || {};
+      for (var rk in removeFrom) {
+        if (!Object.prototype.hasOwnProperty.call(removeFrom, rk)) continue;
+        var removeSource = cueValues(cue)[removeFrom[rk]];
+        var removeLine = String(removeSource == null ? '' : removeSource).trim();
+        var kept = listLines(cueValues(cue)[rk]);
+        var at = removeLine ? kept.lastIndexOf(removeLine) : -1;
+        if (at === -1) continue;
+        kept.splice(at, 1);
+        stage(rk, kept.join('\\n'));
       }
       var eventRow = { graphic: cue.graphic, stream: 'program', msg: payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event } };
       // A CLOCK VERB writes the clock's own value around its event row, in one batch so the

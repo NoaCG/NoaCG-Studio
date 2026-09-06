@@ -146,8 +146,10 @@ beside it from the first import, which is the composition rule doing its job.
 
 `puzzle`. The `puzzle` kind derives every tile's letter and its used / shown / hidden facts from
 one typed phrase and a revealed-letters field; Solve is the walk's own arrow. FINDING: revealing a
-letter is typing it and pressing Update, because no control can append to a field - the list twin
-of `adjust` that plan §9e named. Recorded in the plan's §13, shipped on the data road.
+letter was typing it and pressing Update, because no control could append to a field - the list
+twin of `adjust` that plan §9e named. Built later the same day as the `add` control (plan §13,
+"The list twin, built"): the board now has a Guess box, "Reveal letter" and "Take back a letter",
+and the data road still works beside them.
 
 ### 4e. Bid and price reveal - needs a recipe (rowless); the winner binds today; built
 
@@ -164,3 +166,16 @@ up by itself is a cross-row lookup the doctrine allows as a kind derivation but 
 shape cannot host. Recorded in §13 of the plan; the bracket ships as data, which is brief C6's
 own answer. A second import trap surfaced here: a layer named after its own sample text loses its
 name to its parent group.
+
+### 4g. Bingo caller - needs a recipe and the `row-set` kind; built (later the same day)
+
+`bingo` (`src/templates/behaviours/bingo.ts`, `e2e/fixtures/svg-shows/bingo-board.svg`). Drawn
+after the six above, to prove §2c's `row-set` kind on artwork rather than on paper: twenty-five
+numbers on a grid, a hidden lit plate and a hidden ring per number, a big readout and a count.
+What has been called is ONE line list the kind reads - a tile lights while its key is `listed`,
+the newest wears the ring (`last`), the big number shows while `any` is called, and the count and
+the last number derive from the same field. Calling is the `add` control the puzzle's finding
+asked for, Take back is its inverse, and the numerals a student draws are a per-row `write` role
+deriving the row's own key, so a numeral named `Number 7` stays drawing rather than becoming one
+of twenty-five fields to untick. The grid did not answer the two-row-set question: its cells are
+one keyed repetition, and the open case is two independent ones.

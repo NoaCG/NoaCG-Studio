@@ -1462,10 +1462,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (!selectedGraphic || !selectedLayerLive) return;
     flushDraft();
     const values = airValues();
+    // A field the press MOVES counts from what AIR shows (a goal's +1, a Reveal letter's list);
+    // a field it only READS (the guess, the number to call) is the cue's own value.
+    const moved = new Set(movedKeys(button));
     const payload = eventPayload(button, (key) =>
-      button.adjust && key in button.adjust ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? '0') : values[key],
+      moved.has(key) ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? (button.adjust && key in button.adjust ? '0' : '')) : values[key],
     );
-    const adjusted = Object.fromEntries(movedKeys(button).map((key) => [key, payload?.[key] ?? '']));
+    // Only what actually rode: an add whose source box was empty moves nothing, and mirroring
+    // an empty string for it would wipe the list the press left alone.
+    const adjusted = Object.fromEntries(movedKeys(button).filter((key) => payload?.[key] !== undefined).map((key) => [key, payload![key]]));
     if (Object.keys(adjusted).length > 0 && airCue) {
       // Into the draft when the on-air cue is the one being edited (its box repaints at once),
       // straight into the record otherwise - either way the cue holds the figure air shows.
@@ -2070,10 +2075,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                             ? 'The graphic is not on air — Take the cue first'
                             : !legal
                               ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
-                              : b.adjust || b.set
+                              : movedKeys(b).length > 0
                                 ? // An adjust press moves a figure WITH the event (a goal's +1),
                                   // counted from what air shows; a `set` press puts one back to a
-                                  // declared figure (a reset) - the hint says which, and to what.
+                                  // declared figure (a reset); an `add` press puts a line on a
+                                  // list - the hint says which, and to what.
                                   `Fires "${b.event}" on air and moves ${adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label)} with it`
                               : b.payload?.length
                                 ? // The payload in the OPERATOR'S words, not as `f7`. This is
