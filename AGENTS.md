@@ -269,9 +269,9 @@ Every rule below in full, with the incident that produced it:
   session, and one for the orchestrator too, DETACHED at `origin/main`.
 - **Landing is SERIALIZED, not permissioned**, and **`/queue-merge` is how work reaches `main`**
   (owner, 2026-08-25): run it in the session that owns the branch, when that work is FINISHED. It
-  merges nothing itself - it pushes the branch, labels its pull request `land`, and the Land
-  workflow on GitHub lands one branch at a time (`scripts/land.mjs`; no laptop is in the path,
-  and a ruleset forbids deleting or rewriting `main`). **Nobody else queues your branch**:
+  merges nothing itself - it pushes the branch, opens its pull request with auto-merge on, and
+  GitHub's merge queue lands it in turn once `CI gate` and `Reviewed` pass (no laptop is in the
+  path, and the ruleset lets nothing but the queue write `main`). **Nobody else queues your branch**:
   queueing IS the declaration that the work is done, and only that session can make it. **Never
   merge into `main` yourself**, and never drive the `safe-merge` flow by hand.
   `.agent-workflows/queue-merge.md` is the procedure.

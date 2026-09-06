@@ -98,33 +98,33 @@ must be the sha `/check` reviewed, or `add-merge` refuses. Landing without a rev
 and visible, never silent: `npm run queue:merge -- --unreviewed "<reason>"` posts the reason where
 the lander and anyone reading the pull request see it.
 
-**The queue is on GitHub** (`docs/WORKFLOW_ARCHITECTURE.md` §5.2). Queueing pushes the branch,
-opens or reuses its pull request against `main`, posts the review verdict as the `noacg/reviewed`
-commit status on the tip, and adds the `land` label. The Land workflow
-(`.github/workflows/land.yml`, `scripts/land.mjs`) takes labelled pull requests one at a time:
-it merges `main` into the branch, hands the merge commit its own `ci.yml` run (a dispatch with the
-integrated `main` sha as `diff_base`, because a push made with the workflow's token starts no
-run), and on a green `CI gate` fast-forwards `main`. If `main` moves while the gate runs it
-integrates again, up to three times. Watch it with:
+**The queue is GitHub's merge queue** (`docs/WORKFLOW_ARCHITECTURE.md` §5.2). Queueing pushes the
+branch, opens or reuses its pull request against `main`, posts the review verdict as the
+`noacg/reviewed` commit status on the tip, adds the `land` label and turns auto-merge on. Once the
+two required checks pass on the pull request - `CI gate` and `Reviewed`, both jobs of `ci.yml` -
+GitHub adds it to the queue, builds a temporary merge of the queued pull requests on `main`, runs
+`ci.yml` on that (`merge_group`), and merges the group in order. Nobody pushes `main`, not even a
+workflow: the ruleset (`scripts/landing-ruleset.mjs`) requires the queue. Watch it with:
 
-    gh run list --workflow land.yml --limit 5
     gh pr view <number>
+    gh run list --workflow ci.yml --limit 5
 
-**Every refusal is written on the pull request and the label comes off**: a conflict integrating
-`main` (resolve it here, commit, queue again), a red run (fix it, queue again), no
-`noacg/reviewed` status on the tip, or CI giving no verdict inside the landing cap (queue again;
-by then a run for that sha exists). Nothing is retried behind anyone's back, and the laptop holds
-nothing: a closed lid stops no landing.
+**A refusal shows on the pull request**: a check that failed on the pull request keeps it out
+of the queue, and a group whose `CI gate` failed is dropped from the queue with auto-merge turned
+off. The local watcher job names the failed check. Fix it, run `/check`, and queue again. A
+conflict with `main` shows as a pull request that cannot merge; resolve it here, commit, queue
+again. Nothing is retried behind anyone's back, and the laptop holds nothing: a closed lid stops
+no landing.
 
 The rhythm is **commit everything, then queue** - `queue:merge` does the push. A pre-check of your
 own work before queueing is still worth having (a spec that passes locally and fails on CI's
 fonts is found that way); since branch runs plan from the fork point, a plain push is an honest
 pre-check now, and `gh workflow run ci.yml --ref <branch>` asks for the full suite.
 
-**A migration on your branch applies itself.** After the fast-forward, the workflow's `migrate`
-job runs `db-push` for production and staging from the `production` environment's
-`SUPABASE_ACCESS_TOKEN`; without that secret it says so and the landing stands, and the push is
-made by hand as before (`supabase/AGENTS.md`). `db-push` refuses anything that can remove
+**A migration on your branch applies itself.** Every landing is a push to `main`, and
+`.github/workflows/post-land.yml` runs `db-push` for production and staging from the `production`
+environment's `SUPABASE_ACCESS_TOKEN`; without that secret it says so and the landing stands, and
+the push is made by hand as before (`supabase/AGENTS.md`). `db-push` refuses anything that can remove
 something and reports instead; that refusal never fails a landing. If it happens, add an
 `owner-action` file under `docs/acceptance/owner-queue/` carrying the
 `npm run db:push -- --allow <version>` command, because from there it is the owner's call.

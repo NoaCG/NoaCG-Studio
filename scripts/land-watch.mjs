@@ -1,16 +1,17 @@
 #!/usr/bin/env node
-// The local shadow of a cloud landing: a merge job that follows the pull request.
+// The local shadow of a landing: a merge job that follows the pull request through the queue.
 //
 //   node scripts/land-watch.mjs --pr 58 --branch claude/x     # what `npm run queue:merge` enqueues
 //
-// The landing itself happens on GitHub (.github/workflows/land.yml, scripts/land.mjs). But eleven
+// The landing itself is GitHub's merge queue (docs/WORKFLOW_ARCHITECTURE.md §5.2). But eleven
 // things on this machine key on a LOCAL merge job for the branch - the hook that freezes a queued
 // branch, the tick's QUEUED and LANDED events, stop-wait's "unqueued" warning, the night report,
 // the session-start notice - and none of them should have to learn a second shape. So queueing
 // still enqueues a merge job, and this is its command: it polls the pull request until it is
-// merged (exit 0, and the landing goes in the ledger with THIS checkout as its session), or the
-// `land` label is gone without a merge (exit 1, with the lander's refusal comment as the reason).
-// Nothing here lands anything; a laptop that is off just does not watch.
+// merged (exit 0, and the landing goes in the ledger with THIS checkout as its session), or
+// auto-merge is off without a merge - GitHub drops an entry whose checks failed and disables
+// auto-merge on it (exit 1, with the failing check as the reason). Nothing here lands anything;
+// a laptop that is off just does not watch.
 //
 // Exit 5 (`NO_VERDICT_EXIT`) after the cap means "still queued on GitHub" - the store retries
 // that once, which re-runs this watcher, exactly as it retried a landing CI never answered.
@@ -28,13 +29,14 @@ const CAP_MS = 60 * 60_000;
  * Pure: what the pull request's state means for the watcher.
  * { verdict: 'landed' | 'refused' | 'waiting', sha?, reason? }
  */
-export function watchVerdict(pr, comments = []) {
+export function watchVerdict(pr, checks = []) {
   if (!pr) return { verdict: 'waiting' };
   if (pr.state === 'MERGED' || pr.mergedAt) return { verdict: 'landed', sha: pr.mergeCommit?.oid ?? pr.headRefOid };
-  const labelled = (pr.labels ?? []).some((l) => l.name === 'land');
-  if (labelled && pr.state === 'OPEN') return { verdict: 'waiting' };
-  const refusal = [...comments].reverse().find((c) => /Landing refused/.test(c.body ?? ''));
-  const reason = refusal ? refusal.body.replace(/\*\*Landing refused\*\*:\s*/, '').split('\n')[0] : `the pull request is ${String(pr.state).toLowerCase()} and no longer labelled`;
+  if (pr.state === 'OPEN' && pr.autoMergeRequest) return { verdict: 'waiting' };
+  const failed = (checks ?? []).filter((c) => /^(FAILURE|ERROR|CANCELLED|TIMED_OUT)$/i.test(c.conclusion ?? c.state ?? ''));
+  const reason = failed.length > 0
+    ? `${failed.map((c) => c.name ?? c.context).join(', ')} failed on the pull request`
+    : `the pull request is ${String(pr.state).toLowerCase()} and no longer queued for auto-merge`;
   return { verdict: 'refused', reason };
 }
 
@@ -61,7 +63,7 @@ async function main() {
   const started = Date.now();
   let lastSaid = '';
   while (Date.now() - started < CAP_MS) {
-    const view = gh(['pr', 'view', String(pr), '--json', 'state,mergedAt,mergeCommit,headRefOid,labels,url']);
+    const view = gh(['pr', 'view', String(pr), '--json', 'state,mergedAt,mergeCommit,headRefOid,autoMergeRequest,url']);
     const { verdict, sha } = watchVerdict(view, []);
     if (verdict === 'landed') {
       const dir = jobsDir();
@@ -72,20 +74,20 @@ async function main() {
       return 0;
     }
     if (verdict === 'refused') {
-      const comments = gh(['pr', 'view', String(pr), '--json', 'comments'])?.comments ?? [];
-      const detail = watchVerdict(view, comments);
+      const checks = gh(['pr', 'view', String(pr), '--json', 'statusCheckRollup'])?.statusCheckRollup ?? [];
+      const detail = watchVerdict(view, checks);
       console.error(`land-watch: the landing of ${branch} was refused: ${detail.reason}`);
       console.error(`  ${view?.url ?? ''} - fix it, run /check, and npm run queue:merge again.`);
       return 1;
     }
-    const line = view ? `waiting on GitHub - ${view.url}` : 'waiting (gh gave no answer this tick)';
+    const line = view ? `waiting in the merge queue - ${view.url}` : 'waiting (gh gave no answer this tick)';
     if (line !== lastSaid) {
       console.log(`land-watch: ${line}`);
       lastSaid = line;
     }
     await sleep(POLL_MS);
   }
-  console.error(`land-watch: ${branch} is still queued on GitHub after an hour - the watcher is put back once (gh run list --workflow land.yml).`);
+  console.error(`land-watch: ${branch} is still queued on GitHub after an hour - the watcher is put back once (gh pr view ${pr}).`);
   return NO_VERDICT_EXIT;
 }
 

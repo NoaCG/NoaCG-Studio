@@ -4,24 +4,22 @@ date: 2026-09-06
 ---
 # The landing queue runs on GitHub
 
-**What changed.** Phase 1 of `docs/WORKFLOW_ARCHITECTURE.md`, first half. `npm run queue:merge`
-now pushes the branch, opens its pull request, posts the `/check` verdict as the
-`noacg/reviewed` commit status and adds the `land` label; `.github/workflows/land.yml` runs
-`scripts/land.mjs` for one labelled pull request at a time on a GitHub runner: merge `main` in,
-a `ci.yml` run on exactly that commit, fast-forward `main` on green. Refusals (a conflict, a red
-run, no verdict) are written on the pull request. Nothing on your laptop is in the landing path
-any more. `npm run land:ruleset -- --apply` created the ruleset on `main` (you said yes to it on
-2026-09-06): no deletion, no rewrite. The push restriction that would let only the Land workflow
-push `main` is not available on a user-owned repository (GitHub accepts the bot user as a bypass
-actor and still refuses the workflow token's push; measured on the first cloud landing), so that
-half waits for the organisation. Branch pushes now plan CI from the fork point, and a `main` run
-that is already superseded cancels itself instead of re-running the full suite.
+**What changed.** Phase 1 of `docs/WORKFLOW_ARCHITECTURE.md`, first half. `main` is on GitHub's
+merge queue. `npm run queue:merge` pushes the branch, opens its pull request, posts the `/check`
+verdict as the `noacg/reviewed` commit status, labels it and turns auto-merge on; when `CI gate`
+and `Reviewed` pass, GitHub queues it, tests the queued group as one merge on `main`, and merges
+it in order. The ruleset "main is landed by the queue" requires the queue and the two checks and
+forbids deleting or rewriting `main`; you are the one bypass. Nothing on your laptop is in the
+landing path. Every landing is a push to `main`, so `main`'s full suite, the configured suite and
+the migrations (`post-land.yml`, from the Production environment's token) run by themselves.
+Branch pushes plan CI from the fork point, and a `main` run that is already superseded cancels
+itself instead of re-running the full suite.
 
-**Route, under a minute.** Open the Actions tab, workflow "Land", and read the last few runs:
-each names the pull request it landed or why it refused. Then Settings, Rules, Rulesets shows
-"main is landed by the queue" with its two bypass actors. `npm run jobs` still lists the recent
-landings, now pulled from the merged pull requests.
+**Route, under a minute.** Open any recent pull request: the checks list shows `CI gate` and
+`Reviewed`, and a queued one shows "in the merge queue". Settings, Rules, Rulesets shows the
+ruleset with "Require merge queue" on. `npm run jobs` lists the recent landings, pulled from the
+merged pull requests.
 
-**What to look at.** Whether a refusal comment reads as help, and whether you want the
-repository-admin bypass on the ruleset removed once the lander has landed a week of work (the
-plan keeps it for emergencies).
+**What to look at.** Whether a dropped landing reads as help on the pull request (the local
+watcher names the failed check), and whether you want the admin bypass removed after a week of
+landings (the plan keeps it for emergencies).

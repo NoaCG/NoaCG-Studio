@@ -397,8 +397,8 @@ async function cmdAddMerge() {
   });
   await ensureRunner();
   console.log(`queued on GitHub: ${queued.url}${review.stamp === 'unreviewed' ? ` (UNREVIEWED: ${review.reason})` : ''}`);
-  console.log('  the Land workflow lands it one at a time; its refusals are written on the pull request.');
-  console.log(`  ${job.id} watches it here:  node scripts/jobs.mjs log ${job.id}   |   gh run list --workflow land.yml --limit 5`);
+  console.log('  auto-merge is on: GitHub\'s merge queue takes it once CI gate and Reviewed pass, and merges it in turn.');
+  console.log(`  ${job.id} watches it here:  node scripts/jobs.mjs log ${job.id}   |   gh pr view ${queued.number}`);
 }
 
 /**
@@ -442,8 +442,12 @@ function queueOnGitHub(branch, tip, description) {
     pr = { number: Number(url.split('/').pop()), url };
   }
   ghRun(['api', `repos/{owner}/{repo}/statuses/${tip}`, '-f', 'state=success', '-f', 'context=noacg/reviewed', '-f', `description=${description.slice(0, 140)}`]);
-  ghRun(['label', 'create', 'land', '--force', '--color', 'F5A623', '--description', 'Queued for the landing queue (scripts/land.mjs)']);
+  // The label marks a queued pull request for the ledger sync and the listing; auto-merge is what
+  // hands it to GitHub's merge queue the moment its required checks (`CI gate`, `Reviewed`) pass.
+  ghRun(['label', 'create', 'land', '--force', '--color', 'F5A623', '--description', 'Queued for the landing queue']);
   ghRun(['pr', 'edit', String(pr.number), '--add-label', 'land']);
+  // No strategy flag: the merge queue owns the strategy, and `gh` refuses one when a queue is on.
+  ghRun(['pr', 'merge', String(pr.number), '--auto']);
   return pr;
 }
 

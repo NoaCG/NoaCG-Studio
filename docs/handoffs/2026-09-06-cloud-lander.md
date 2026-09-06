@@ -1,10 +1,13 @@
 # Session - the workflow plan, phase 0 (the rule store) and phase 1 (the cloud lander)
 
 **Branch:** `claude/cloud-lander` (from `origin/main` `5e30efdc`, which is phase 0 landed).
-**Date:** 2026-09-06. **State:** phase 1's first half built and verified; queued for landing
-through the LAPTOP lander one last time (the Land workflow reads `scripts/land.mjs` from `main`,
-which does not have it until this lands). After it lands, `npm run land:ruleset -- --apply` was
-run from a main checkout (the owner said yes to the ruleset on 2026-09-06).
+**Date:** 2026-09-06. **State:** phase 1's first half landed in three steps the same afternoon:
+an Actions lander (`land.yml`, landed through the laptop lander one last time), then the owner
+rename after the move to the NoaCG organisation, then the switch to GitHub's merge queue, which
+retired the Actions lander. The final shape: `queue:merge` opens the pull request with
+auto-merge on; `ci.yml` runs on `merge_group` with `CI gate` and `Reviewed` as the required
+checks; the ruleset requires the queue; `post-land.yml` applies migrations on every push to
+`main`; `scripts/land-watch.mjs` is the local watcher job.
 
 ## What this session did
 
