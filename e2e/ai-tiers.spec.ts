@@ -59,6 +59,13 @@ async function openAiSettings(page: Page) {
   // after this answer, so a blind click is as likely to close the panel as to open it.
   await page.route('**/api/ai/lite/status', (route) => route.fulfill({ json: { enabled: false } }));
   await page.goto('/app');
+  // WAIT for the cold-boot auto-open explicitly, the way `_svg-import.ts` does, rather than
+  // leaning on the 7 s default. `/app` boots through a watchdog and a durable-store hydration
+  // that falls back to localStorage only after 4 s (root AGENTS.md, "Gotchas"), so on a slow
+  // machine the wizard mounts uncomfortably close to the deadline. That is what made this
+  // helper fail a DIFFERENT random subset of the file on every run in a cloud container on
+  // 2026-09-06, always here, always before anything the tests are about (e2e/AGENTS.md).
+  await page.locator('.wz-modal').waitFor({ state: 'visible', timeout: 10_000 });
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
   await expect(page.getByTestId('ai-settings')).toBeVisible();

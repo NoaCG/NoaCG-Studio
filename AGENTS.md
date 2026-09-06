@@ -61,6 +61,7 @@ npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes;
 npm run lint     # eslint . --max-warnings 0 (also part of build)
 npm run test:worktree-safety  # Git-safety regression tests for shared workflows
 npm run check:workflows       # .github/workflows/*.yml + .github/actions/*/action.yml (in build)
+npm run check:gate-coverage   # every check:/test: script is run by the build, a workflow, or a named exemption (in build)
 npm run check:vercel-config   # vercel.json routes (in build)
 npm run check:function-budget # api/'s function count (in build)
 npm run check:freshness       # vendored GSAP/Lottie + pinned model ids - REPORTS, weekly, not a gate
@@ -247,45 +248,35 @@ Every rule below in full, with the incident that produced it:
 **`docs/BRANCHING_AND_LANDING.md`**.
 
 - **Work on a FEATURE BRANCH, in a worktree**, and make the worktree first:
-  `git worktree add -b <branch> .claude/worktrees/<name> main`. Several sessions are typically
-  active at once, so `node scripts/worktree-activity.mjs` prints what is in flight elsewhere -
-  every other worktree's uncommitted and not-yet-merged files, then every branch ahead of `main`
-  that no worktree has checked out - before you start something that collides. The rhythm:
-  **commit each completed, verified phase/step** to the feature branch with a descriptive
-  message. **Never add a `Co-Authored-By` trailer or any agent co-author.** Don't commit `dist/`
-  in feature work.
-- **The checkout that holds `main` is shared infrastructure - never occupy it with a feature
-  branch.** `scripts/auto-merge.mjs` finds it with `worktreeFor('main')` and integrates, gates and
-  lands every queued branch there. **The hazard is not occupancy, it is MUTATION**: the queue
-  checks out, merges, builds and resets that tree during every integration, so a read taken there
-  mid-integration can be wrong with nothing saying so, and a build run there gates `main` instead
-  of your branch while still reporting green. **A green gate on the wrong tree is worse than a red
-  one** - the build's branch stamp (`[write-version] dist/version.json -> <branch>@<sha>`) is what
-  says which. Hence a worktree per session, and one for the orchestrator too - DETACHED at
-  `origin/main`, since git will not let a second worktree hold `main`. The one thing the main
-  checkout is for is being on `main`.
-- **Landing is SERIALIZED, not permissioned.** Merging never waits on the user; it waits on the
-  other branches. **`/queue-merge` is how work reaches `main`** (owner, 2026-08-25): run it in the
-  session that owns the branch, when that work is FINISHED. It does not merge anything itself - it
-  puts the branch in the machine-wide queue, which lands it when its turn comes, strictly one at a
-  time. **Nobody else queues your branch**, because a branch can be green, clean and `clear` while
-  its session is still mid-conversation about what to do next, and no verdict can tell those
-  apart. Queueing IS the declaration that the work is done, made by the only party who can make
-  it. **Never merge into `main` yourself**, and reach `main` through the queue rather than running
-  the `safe-merge` flow by hand - the queue runs that flow's mechanical path for you, and a session
-  driving it itself is outside the serialization, which is the churn the owner asked to end.
-  `.agent-workflows/queue-merge.md` is the procedure; the ordering and one-at-a-time rules it
-  enforces are in the doc above.
+  `git worktree add -b <branch> .claude/worktrees/<name> main`. Several sessions run at once, so
+  `node scripts/worktree-activity.mjs` prints what is in flight elsewhere - every other
+  worktree's uncommitted and not-yet-merged files, then every branch ahead of `main` nobody has
+  checked out - before you start something that collides. **Commit each completed, verified
+  phase** with a descriptive message. **Never add a `Co-Authored-By` trailer or any agent
+  co-author.** Don't commit `dist/` in feature work.
+- **Never occupy the checkout that holds `main` with a feature branch, and never read or build
+  there.** `scripts/auto-merge.mjs` (`worktreeFor('main')`) checks out, merges, builds and resets
+  that tree during every integration, so a read taken mid-integration can be wrong with nothing
+  saying so, and a build there gates `main` instead of your branch while still reporting green.
+  **A green gate on the wrong tree is worse than a red one** - the build's branch stamp
+  (`[write-version] dist/version.json -> <branch>@<sha>`) is what says which. Hence a worktree per
+  session, and one for the orchestrator too, DETACHED at `origin/main`.
+- **Landing is SERIALIZED, not permissioned**, and **`/queue-merge` is how work reaches `main`**
+  (owner, 2026-08-25): run it in the session that owns the branch, when that work is FINISHED. It
+  merges nothing itself - it puts the branch in the machine-wide queue, which lands one branch at
+  a time. **Nobody else queues your branch**: queueing IS the declaration that the work is done,
+  and only that session can make it. **Never merge into `main` yourself**, and never drive the
+  `safe-merge` flow by hand - the queue runs its mechanical path for you.
+  `.agent-workflows/queue-merge.md` is the procedure.
 - **Publishing PAST `main` still needs the user, in that message** - `npm publish`, anything costing
   money. Those are not landings: a later commit cannot take them back.
 - **Production migrations are a MECHANISM, not a permission** (owner, 2026-08-25), and **you should
-  never have to run one**: a landing through the queue applies whatever production is missing as
-  soon as the branch is on `origin/main`, so the schema a migration was written for is the schema
-  the next request meets. **A REFUSAL is the only thing that still reaches you**, answered per
+  never have to run one**: a landing applies whatever production is missing as soon as the branch
+  is on `origin/main`. **A REFUSAL is the only thing that still reaches you**, answered per
   version (`npm run db:push -- --allow 0052`) and filed under `docs/acceptance/owner-queue/` by the
-  branch's own session; the landing itself succeeds either way. **Which statements pass, which
-  stop, and why the classifier (`scripts/db-push.test.mjs`) is the guard rather than any prose:
-  `supabase/AGENTS.md`**, which is authoritative here and loads when you work in that directory.
+  branch's own session; the landing succeeds either way. **`supabase/AGENTS.md` is authoritative**
+  on which statements pass, which stop, and why the classifier (`scripts/db-push.test.mjs`) is the
+  guard rather than any prose; it loads when you work in that directory.
 - **Cleanup is a MECHANISM, not a permission** (owner, 2026-08-30). A worktree and its branch may
   go once **every commit on the branch is an ancestor of a freshly fetched `origin/main`** - not a
   clean tree, not "the session is finished". **A worktree with NO branch is refused by its own

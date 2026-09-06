@@ -1579,3 +1579,282 @@ test('the mapping step explains itself: the name under an empty box, the count o
   await expect(notice).toContainText('12 boxes');
   await expect(page.getByTestId('map-svg-fill-button')).toBeVisible();
 });
+
+// ── THE SHOW CORPUS (docs/SVG_BEHAVIOUR_SHOWS.md) ────────────────────────────────────────────
+//
+// Six graphics American game shows and late-night talk shows put on air with operator commands
+// during the show, drawn the way a student draws them (e2e/fixtures/svg-shows/README.md) and
+// walked the way a person walks them: drop, check what the names proposed, into a production,
+// Take, press the buttons, read which of the designer's layers is lit inside the program frame.
+// They are the reuse test of the behaviour system run for real: five needed a recipe of the
+// shipped shape and three field kinds, one binds with a switch and a choice alone.
+
+const SHOW = (name: string) => fileURLToPath(new URL(`./fixtures/svg-shows/${name}.svg`, import.meta.url));
+
+/** The program frame's lit / dark readers for one page, shared by the six walks below. */
+function onAir(page: Page) {
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const layer = (token: string) => air.locator(`[data-noacg-role~="${token}"]`);
+  return {
+    air,
+    layer,
+    lit: (token: string) => expect(layer(token)).toHaveClass(/imported-design-on/),
+    dark: (token: string) => expect(layer(token)).not.toHaveClass(/imported-design-on/),
+  };
+}
+
+/** A picker on the mapping step has something in it - the names filled it. */
+async function filled(page: Page, testid: string) {
+  expect(await page.getByTestId(testid).inputValue(), `${testid} should be filled from the layer names`).not.toBe('');
+}
+
+test('survey board: reveal in any order lights the row and adds its points to the total, and the fourth strike is greyed', async ({ page }) => {
+  // The Family Feud board (brief C5 with a strike count). The reveals are self-transitions whose
+  // press SETS that row's own field, the strikes are a counter whose ceiling is the machine's,
+  // and the total is the runtime's sum over what is revealed.
+  test.slow();
+  await openImportDoor(page, SHOW('survey-board'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('survey');
+  await expect(page.getByTestId('map-svg-recipe-count')).toHaveValue('8');
+  await filled(page, 'map-svg-recipe-strike.3');
+  await filled(page, 'map-svg-recipe-total');
+  await filled(page, 'map-svg-recipe-answer.revealed-7');
+  // The eight answers, their eight figures and the total are written by the board, so none of
+  // them is a field the operator types - the step marks every one.
+  await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveCount(17);
+  await shot(page, '30-survey-mapping');
+
+  await intoProduction(page, 'Survey board', 'Feud night');
+  await settleDurableWrites(page);
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions).toContainText('Reveal 3');
+  await expect(actions).toContainText('Strike');
+  await expect(actions).toContainText('Reset board');
+
+  // The answers are one box, a line per slot; the question is the artwork's own field.
+  await page.getByTestId('cue-field-f1').fill('Toaster | 32\nFridge | 24\nKettle | 15');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { layer, lit, dark } = onAir(page);
+  await dark('answer/3');
+  await expect(layer('total')).toHaveText('0');
+
+  await actions.getByRole('button', { name: /Reveal 3$/ }).click();
+  await lit('answer/3');
+  await lit('points/3');
+  await lit('answer.revealed/3');
+  await expect(layer('answer/3')).toHaveText('Kettle');
+  await expect(layer('total')).toHaveText('15');
+  await dark('answer/1');
+  await actions.getByRole('button', { name: /Reveal 1$/ }).click();
+  await lit('answer/1');
+  await expect(layer('total')).toHaveText('47');
+  await shot(page, '31-survey-two-revealed');
+
+  // Three strikes and the button greys itself: the fourth press is refused by the machine, so
+  // the operator's box can never run past the X's the artwork has.
+  const strike = actions.getByRole('button', { name: /Strike$/ });
+  await strike.click();
+  await lit('strike.1');
+  await dark('strike.2');
+  await strike.click();
+  await strike.click();
+  await lit('strike.3');
+  await expect(strike).toBeDisabled();
+  await expect(page.getByTestId('cue-field-f10')).toHaveValue('3');
+  await actions.getByRole('button', { name: /Take back a strike/ }).click();
+  await dark('strike.3');
+  await lit('strike.2');
+  await shot(page, '32-survey-strikes');
+
+  // Reset puts every row's own field and the count back, through `set`, so the boxes move too.
+  await actions.getByRole('button', { name: /Reset board/ }).click();
+  await dark('answer/3');
+  await dark('strike.1');
+  await expect(layer('total')).toHaveText('0');
+  await expect(page.getByTestId('cue-field-f4')).toHaveValue('off');
+});
+
+test('stepped list: Next reveals the entries from ten down to one, each staying up, the mark on the newest', async ({ page }) => {
+  // The late-night top ten. The whole behaviour is the default path - one step per entry - so
+  // the operator's Next (and SPX's Continue) drives it with no event of the recipe's own; each
+  // row's look is a rule for that row naming every step from its own onward.
+  test.slow();
+  await openImportDoor(page, SHOW('top-ten-list'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('list');
+  await expect(page.getByTestId('map-svg-recipe-count')).toHaveValue('10');
+  await filled(page, 'map-svg-recipe-item.mark-9');
+  await expect(page.getByTestId('map-svg-options')).toContainText(/last number down/i);
+  await intoProduction(page, 'Top ten', 'Late night');
+  await settleDurableWrites(page);
+
+  // The entries are one box, line 1 being number 1; the title and the ten rank numerals are
+  // the artwork's own fields, so the box is the field after them.
+  await page.getByTestId('cue-field-f11').fill('One\nTwo\nThree\nFour\nFive\nSix\nSeven\nEight\nNine\nTen');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { layer, lit, dark } = onAir(page);
+  await dark('item/10');
+  await dark('item/1');
+
+  await page.getByTestId('verb-next').click();
+  await lit('item/10');
+  await lit('item.mark/10');
+  await expect(layer('item/10')).toHaveText('Ten');
+  await dark('item/9');
+  await page.getByTestId('verb-next').click();
+  await lit('item/9');
+  await lit('item/10');
+  await lit('item.mark/9');
+  await dark('item.mark/10');
+  await expect(layer('item/9')).toHaveText('Nine');
+  await shot(page, '33-top-ten-two-in');
+});
+
+test('lineup with a segment bug and a coming-up strip: Next guest walks the list, past guests dim, and the extras compose beside it', async ({ page }) => {
+  // Plan §9f, the nearly machineless graphic, with the verb it lacked. Who is on is a number
+  // field the row-pick kind reads; the group of states exists only to grey Next on the last guest.
+  test.slow();
+  await openImportDoor(page, SHOW('guest-lineup'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('lineup');
+  await expect(page.getByTestId('map-svg-recipe-count')).toHaveValue('4');
+  await filled(page, 'map-svg-recipe-guest.done-3');
+  await expect(page.getByTestId('map-svg-extras')).toContainText('1 switch · 1 choice');
+  await intoProduction(page, 'Tonight', 'Late night');
+  await settleDurableWrites(page);
+
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions).toContainText('Next guest');
+  await expect(actions).toContainText('Show Coming up next');
+  await expect(actions).toContainText('Monologue');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { lit, dark } = onAir(page);
+  await dark('guest.now/1');
+
+  const next = actions.getByRole('button', { name: /Next guest/ });
+  await next.click();
+  await lit('guest.now/1');
+  await expect(page.getByTestId('cue-field-f5')).toHaveValue('1');
+  await next.click();
+  await lit('guest.now/2');
+  await dark('guest.now/1');
+  await lit('guest.done/1');
+  await dark('guest.done/2');
+  // Straight to the last guest: everyone before is done, and Next has nowhere to go.
+  await actions.getByRole('button', { name: /Guest 4$/ }).click();
+  await lit('guest.now/4');
+  await lit('guest.done/3');
+  await expect(next).toBeDisabled();
+  await actions.getByRole('button', { name: /Previous guest/ }).click();
+  await lit('guest.now/3');
+  await dark('guest.done/3');
+  await shot(page, '34-lineup-third-guest');
+
+  // The switch and the choice beside it: three parallel groups on one card.
+  await actions.getByRole('button', { name: /Show Coming up next/ }).click();
+  await lit('switch.coming-up-next.on');
+  await actions.getByRole('button', { name: /Desk$/ }).click();
+  await lit('choice.segment.option/DESK');
+  await lit('guest.now/3');
+  await shot(page, '35-lineup-with-extras');
+});
+
+test('puzzle board: letters appear as they are added to the revealed box, and Solve shows the rest', async ({ page }) => {
+  // The Wheel of Fortune board: every tile's truth is derived from one typed phrase, character
+  // by character, by the runtime's puzzle kind - a data write, never a state per letter.
+  test.slow();
+  await openImportDoor(page, SHOW('puzzle-board'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('puzzle');
+  await expect(page.getByTestId('map-svg-recipe-count')).toHaveValue('14');
+  await filled(page, 'map-svg-recipe-tile.used-13');
+  await filled(page, 'map-svg-recipe-solved');
+  await intoProduction(page, 'Puzzle', 'Game night');
+  await settleDurableWrites(page);
+
+  // The category is the artwork's field; the phrase and the revealed letters are the recipe's.
+  await page.getByTestId('cue-field-f1').fill('SURVEY SAYS');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { layer, lit, dark } = onAir(page);
+  await lit('tile.used/1');
+  await lit('tile.used/6');
+  await dark('tile.used/7'); // the space
+  await lit('tile.used/11');
+  await dark('tile.used/12'); // past the phrase
+  await dark('tile/1');
+  await expect(layer('tile/1')).toHaveText('S');
+  await shot(page, '36-puzzle-blank');
+
+  await page.getByTestId('cue-field-f2').fill('RSTLNE');
+  await page.getByTestId('verb-update').click();
+  await lit('tile/1'); // S
+  await lit('tile/3'); // R
+  await lit('tile/5'); // E
+  await dark('tile/2'); // U
+  await dark('tile/6'); // Y
+  await shot(page, '37-puzzle-rstlne');
+
+  await page.getByTestId('cue-actions').getByRole('button', { name: /Solve$/ }).click();
+  await lit('tile/2');
+  await lit('tile/6');
+  await lit('solved');
+  await dark('tile/7');
+  await shot(page, '38-puzzle-solved');
+});
+
+test('bid and price reveal: the typed price stays behind the cover until one press, and the winner is a choice', async ({ page }) => {
+  // The Price Is Right. A switch cannot do this - hidden text is never a field - so the price is
+  // a written layer the recipe's own field fills, shown from the Revealed step on, with the
+  // drawn cover up until then. The four bids are plain number fields; the winner is a choice.
+  test.slow();
+  await openImportDoor(page, SHOW('price-reveal'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('reveal');
+  await filled(page, 'map-svg-recipe-secret');
+  await filled(page, 'map-svg-recipe-cover');
+  await expect(page.getByTestId('map-svg-extras')).toContainText('1 choice');
+  await intoProduction(page, 'Actual retail price', 'Game night');
+  await settleDurableWrites(page);
+
+  // Item, then four names and four bids, are the artwork's fields; the reveal box follows.
+  await page.getByTestId('cue-field-f9').fill('1399');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { layer, lit, dark } = onAir(page);
+  await lit('cover');
+  await dark('secret');
+  await shot(page, '39-price-sealed');
+
+  const actions = page.getByTestId('cue-actions');
+  await actions.getByRole('button', { name: /Reveal$/ }).click();
+  await lit('secret');
+  await dark('cover');
+  await expect(layer('secret')).toHaveText('1399');
+  await actions.getByRole('button', { name: /\b2$/ }).click();
+  await lit('choice.winner.option/2');
+  await dark('choice.winner.option/1');
+  await shot(page, '40-price-revealed');
+});
+
+test('bracket: no recipe at all - the slots are typed, the match highlight is a choice and the crown a switch', async ({ page }) => {
+  // Brief C6 in its own words: the bracket is data. What the file cannot say (the winner of match
+  // 1 moving up by itself) is recorded in docs/SVG_BEHAVIOUR_PLAN.md §13, not worked around here.
+  test.slow();
+  await openImportDoor(page, SHOW('bracket'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await expect(page.getByTestId('map-svg-extras')).toContainText('1 switch · 1 choice');
+  await expect(page.getByTestId('map-svg-extras').locator('[data-testid^="map-svg-extra-use-"]')).toHaveCount(8);
+  await intoProduction(page, 'Bracket', 'Finals');
+  await settleDurableWrites(page);
+
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { lit, dark } = onAir(page);
+  const actions = page.getByTestId('cue-actions');
+  await actions.getByRole('button', { name: /\b3$/ }).click();
+  await lit('choice.match.option/3');
+  await dark('choice.match.option/1');
+  await actions.getByRole('button', { name: /Show Crown/ }).click();
+  await lit('switch.crown.on');
+  await shot(page, '41-bracket');
+});

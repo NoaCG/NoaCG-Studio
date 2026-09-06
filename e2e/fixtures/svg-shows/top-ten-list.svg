@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!-- NoaCG show corpus. A TOP TEN LIST, the late-night desk shape: a title, then ten entries read
+     from ten down to one, each arriving on a Next press. Drawn the way a student draws it:
+
+     The base look     -> the backplate, the title, ten numbered rows with the entry text drawn
+                          AS IT LOOKS REVEALED (NoaCG hides each until its number comes up).
+     "Mark 1..10"      -> hidden: the amber rail on the row that just arrived.
+     The rank numerals -> plain text a student would type; they arrive as fields to untick.
+
+     Full-frame 1920x1080. Words last. -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1920 1080" width="1920" height="1080" style="enable-background:new 0 0 1920 1080;"
+	 xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#0D1017;}
+	.st1{fill:#161B24;}
+	.st2{fill:#F6A623;}
+	.st3{fill:#FFFFFF;}
+	.st4{font-family:'Archivo-Bold';}
+	.st5{font-size:56px;}
+	.st6{fill:#1B2431;}
+	.st7{font-family:'Inter-Medium';}
+	.st8{font-size:34px;}
+	.st9{fill:#9AA4B2;}
+	.st10{font-size:30px;}
+</style>
+<g id="Backplate">
+	<rect y="0" class="st0" width="1920" height="1080"/>
+</g>
+<g id="Title_x20_card" data-name="Title card">
+	<rect x="160" y="60" class="st1" width="1600" height="110"/>
+	<rect x="160" y="60" class="st2" width="1600" height="8"/>
+</g>
+<g id="Rows">
+	<rect x="160" y="200" class="st6" width="780" height="76"/>
+	<rect x="160" y="292" class="st6" width="780" height="76"/>
+	<rect x="160" y="384" class="st6" width="780" height="76"/>
+	<rect x="160" y="476" class="st6" width="780" height="76"/>
+	<rect x="160" y="568" class="st6" width="780" height="76"/>
+	<rect x="980" y="200" class="st6" width="780" height="76"/>
+	<rect x="980" y="292" class="st6" width="780" height="76"/>
+	<rect x="980" y="384" class="st6" width="780" height="76"/>
+	<rect x="980" y="476" class="st6" width="780" height="76"/>
+	<rect x="980" y="568" class="st6" width="780" height="76"/>
+</g>
+<g id="Mark_x20_10" data-name="Mark 10" display="none">
+	<rect x="160" y="200" class="st2" width="10" height="76"/>
+</g>
+<g id="Mark_x20_9" data-name="Mark 9" display="none">
+	<rect x="160" y="292" class="st2" width="10" height="76"/>
+</g>
+<g id="Mark_x20_8" data-name="Mark 8" display="none">
+	<rect x="160" y="384" class="st2" width="10" height="76"/>
+</g>
+<g id="Mark_x20_7" data-name="Mark 7" display="none">
+	<rect x="160" y="476" class="st2" width="10" height="76"/>
+</g>
+<g id="Mark_x20_6" data-name="Mark 6" display="none">
+	<rect x="160" y="568" class="st2" width="10" height="76"/>
+</g>
+<g id="Mark_x20_5" data-name="Mark 5" display="none">
+	<rect x="980" y="200" class="st2" width="10" height="76"/>
+</g>
+<g id="Mark_x20_4" data-name="Mark 4" display="none">
+	<rect x="980" y="292" class="st2" width="10" height="76"/>
+</g>
+<g id="Mark_x20_3" data-name="Mark 3" display="none">
+	<rect x="980" y="384" class="st2" width="10" height="76"/>
+</g>
+<g id="Mark_x20_2" data-name="Mark 2" display="none">
+	<rect x="980" y="476" class="st2" width="10" height="76"/>
+</g>
+<g id="Mark_x20_1" data-name="Mark 1" display="none">
+	<rect x="980" y="568" class="st2" width="10" height="76"/>
+</g>
+<g id="Words">
+	<text id="Title" data-name="Title" transform="matrix(1 0 0 1 200 136)" class="st3 st4 st5">Top ten signs your quiz show is in trouble</text>
+	<text id="Rank_x20_10" data-name="Rank 10" transform="matrix(1 0 0 1 250 252)" class="st9 st4 st10" text-anchor="end">10.</text>
+	<text id="Item_x20_10" data-name="Item 10" transform="matrix(1 0 0 1 280 252)" class="st3 st7 st8">The buzzer is a kazoo</text>
+	<text id="Rank_x20_9" data-name="Rank 9" transform="matrix(1 0 0 1 250 344)" class="st9 st4 st10" text-anchor="end">9.</text>
+	<text id="Item_x20_9" data-name="Item 9" transform="matrix(1 0 0 1 280 344)" class="st3 st7 st8">The host asks the audience for the answers</text>
+	<text id="Rank_x20_8" data-name="Rank 8" transform="matrix(1 0 0 1 250 436)" class="st9 st4 st10" text-anchor="end">8.</text>
+	<text id="Item_x20_8" data-name="Item 8" transform="matrix(1 0 0 1 280 436)" class="st3 st7 st8">The prize is a firm handshake</text>
+	<text id="Rank_x20_7" data-name="Rank 7" transform="matrix(1 0 0 1 250 528)" class="st9 st4 st10" text-anchor="end">7.</text>
+	<text id="Item_x20_7" data-name="Item 7" transform="matrix(1 0 0 1 280 528)" class="st3 st7 st8">Round two is a nap</text>
+	<text id="Rank_x20_6" data-name="Rank 6" transform="matrix(1 0 0 1 250 620)" class="st9 st4 st10" text-anchor="end">6.</text>
+	<text id="Item_x20_6" data-name="Item 6" transform="matrix(1 0 0 1 280 620)" class="st3 st7 st8">The scoreboard is a whiteboard</text>
+	<text id="Rank_x20_5" data-name="Rank 5" transform="matrix(1 0 0 1 1070 252)" class="st9 st4 st10" text-anchor="end">5.</text>
+	<text id="Item_x20_5" data-name="Item 5" transform="matrix(1 0 0 1 1100 252)" class="st3 st7 st8">Nobody knows the rules, including the host</text>
+	<text id="Rank_x20_4" data-name="Rank 4" transform="matrix(1 0 0 1 1070 344)" class="st9 st4 st10" text-anchor="end">4.</text>
+	<text id="Item_x20_4" data-name="Item 4" transform="matrix(1 0 0 1 1100 344)" class="st3 st7 st8">The lifeline is your mum</text>
+	<text id="Rank_x20_3" data-name="Rank 3" transform="matrix(1 0 0 1 1070 436)" class="st9 st4 st10" text-anchor="end">3.</text>
+	<text id="Item_x20_3" data-name="Item 3" transform="matrix(1 0 0 1 1100 436)" class="st3 st7 st8">Every question is about the host</text>
+	<text id="Rank_x20_2" data-name="Rank 2" transform="matrix(1 0 0 1 1070 528)" class="st9 st4 st10" text-anchor="end">2.</text>
+	<text id="Item_x20_2" data-name="Item 2" transform="matrix(1 0 0 1 1100 528)" class="st3 st7 st8">The sponsor is the host's cousin</text>
+	<text id="Rank_x20_1" data-name="Rank 1" transform="matrix(1 0 0 1 1070 620)" class="st9 st4 st10" text-anchor="end">1.</text>
+	<text id="Item_x20_1" data-name="Item 1" transform="matrix(1 0 0 1 1100 620)" class="st3 st7 st8">It is filmed in the host's garage</text>
+</g>
+</svg>

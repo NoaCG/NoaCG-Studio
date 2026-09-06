@@ -177,7 +177,25 @@ async function mountAndMeasure(template, data, opts) {
       error = String(e?.message ?? e).slice(0, 300);
     }
     await win.document.fonts.ready;
-    await new Promise((resolve) => setTimeout(resolve, 1800));
+    // SETTLE FOR THIS GRAPHIC'S OWN ENTRANCE, not for a number that was right about the catalog.
+    // The wait was a flat 1800ms; `lt-latenight` wrote a 2.9s entrance whose title line only
+    // arrives at 2.2s, so every instrument measured - and the frame photographed - a graphic
+    // one line short, and the cell still delivered clean. A blind reader would have marked it
+    // down for a defect that is not in the template (2026-09-06; the rule this breaks is
+    // src/ai/AGENTS.md's "check the instrument before concluding anything about what it
+    // measured"). The entrance length is in the graphic's own data block, so read it.
+    let settle = 1800;
+    try {
+      const { parseAnimData } = await import('/src/blocks/animData.ts' + bust);
+      const anim = parseAnimData(template.js);
+      const entrance = Number(anim?.steps?.[0]?.duration);
+      const speed = Number(anim?.speed) || 1;
+      // +400ms so the last keyframe has landed and the browser has painted it.
+      if (Number.isFinite(entrance)) settle = (entrance / speed) * 1000 + 400;
+    } catch { /* an unreadable block keeps the flat wait - the honest fallback */ }
+    // Bounded both ways: never shorter than the old wait (the catalog settles well inside it),
+    // never long enough for one slow entrance to stall a 21-brief bank.
+    await new Promise((resolve) => setTimeout(resolve, Math.min(Math.max(settle, 1800), 6000)));
     return error;
   }, { template, data });
   const measured = await measureFrame(opts);
@@ -370,7 +388,19 @@ function createPlaywrightWorkbench({ proType, ticker, steps, shotsDir, tag }) {
         return { normalized: out, converted: Boolean(parseAnimData(out.js)) };
       }, template);
       const raw = [];
-      if (!converted) raw.push({ source: 'harness', code: 'animation-unconvertible', severity: 'block', message: 'the ANIMATION region could not be converted to keyframe data - stay inside the authoring grammar (var animSpeed/easeIn/easeOut, buildInTimeline/buildOutTimeline, tl.set/to/fromTo with literal values, durations as N / animSpeed)' });
+      // A region the importer could not read comes back with the PRECONDITION IT MISSED, not with
+      // the grammar restated. Restating it is what cost the 2026-09-06 round four rounds on a
+      // correct timeline (docs/AI_ATTEMPTS.md); `animationBreach` names the first unmet check in
+      // the importer's own order, which is what makes this a repairable finding.
+      if (!converted) {
+        const breach = patchModule.animationBreach(template.js);
+        raw.push({
+          source: 'harness',
+          code: 'animation-unconvertible',
+          severity: 'block',
+          message: `the ANIMATION region could not be converted to keyframe data: ${breach ?? 'the region met every declaration the importer requires, so the defect is inside a tween - use literal values only, durations as N / animSpeed, and no DOM measurement'}`,
+        });
+      }
       const validation = await page.evaluate(async ({ template, category }) => {
         const bust = '?t=' + Date.now();
         const { productionSpxValidator } = await import('/src/ai/lite/pipeline.ts' + bust);
@@ -566,7 +596,18 @@ for (const entry of briefs) {
     type: entry.type,
     status: result.status,
     reason: result.reason,
-    rounds: result.rounds.map((r) => ({ round: r.round, model: r.model, blocking: findingsModule.blocking(r.findings).length, advisory: r.findings.length - findingsModule.blocking(r.findings).length, codes: r.findings.map((f) => f.id) })),
+    // THE BLOCKING FINDINGS KEEP THEIR SENTENCES. Ids alone say WHICH check failed and never
+    // WHAT it read, so a refusal like `runtime:play-threw` - whose message is the actual
+    // exception - could not be diagnosed from the ledger at all on 2026-09-06, only guessed at
+    // from the model's own account of it. A round is evidence or it is nothing.
+    rounds: result.rounds.map((r) => ({
+      round: r.round,
+      model: r.model,
+      blocking: findingsModule.blocking(r.findings).length,
+      advisory: r.findings.length - findingsModule.blocking(r.findings).length,
+      codes: r.findings.map((f) => f.id),
+      blockingMessages: findingsModule.blocking(r.findings).map((f) => `${f.id}: ${f.message}`),
+    })),
     bestRound: result.bestRound,
     steps: result.steps,
     escalated: result.escalated,

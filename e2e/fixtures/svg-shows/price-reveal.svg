@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!-- NoaCG show corpus. BIDS AND THE ACTUAL PRICE, the Price Is Right shape: an item, four
+     contestants with their bids, the actual price sealed until one press reveals it, and a winner
+     called by the host. Drawn the way a student draws it:
+
+     The base look        -> the backplate, the item, four bid plates, and the price drawn AS IT
+                             LOOKS REVEALED (NoaCG hides it until the reveal).
+     "Cover"              -> hidden: the sealed plate over the price, up until the reveal.
+     "choice:Winner/1..4" -> hidden: the amber ring around the contestant the host names.
+
+     Full-frame 1920x1080. Words last. -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1920 1080" width="1920" height="1080" style="enable-background:new 0 0 1920 1080;"
+	 xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#0D1017;}
+	.st1{fill:#161B24;}
+	.st2{fill:#F6A623;}
+	.st3{fill:#FFFFFF;}
+	.st4{font-family:'Archivo-Bold';}
+	.st5{font-size:52px;}
+	.st6{fill:#1B2431;}
+	.st7{font-family:'Inter-Medium';}
+	.st8{font-size:36px;}
+	.st9{font-size:56px;}
+	.st10{fill:#2C3A50;}
+	.st11{font-size:96px;}
+	.st12{fill:none;stroke:#F6A623;stroke-width:8;}
+	.st13{fill:#9AA4B2;}
+	.st14{font-size:28px;}
+</style>
+<g id="Backplate">
+	<rect y="0" class="st0" width="1920" height="1080"/>
+</g>
+<g id="Item_x20_card" data-name="Item card">
+	<rect x="360" y="80" class="st1" width="1200" height="120"/>
+	<rect x="360" y="80" class="st2" width="1200" height="8"/>
+</g>
+<g id="Bid_x20_plates" data-name="Bid plates">
+	<rect x="160" y="700" class="st6" width="380" height="200"/>
+	<rect x="580" y="700" class="st6" width="380" height="200"/>
+	<rect x="1000" y="700" class="st6" width="380" height="200"/>
+	<rect x="1420" y="700" class="st6" width="380" height="200"/>
+</g>
+<g id="Price_x20_plate" data-name="Price plate">
+	<rect x="610" y="300" class="st10" width="700" height="240"/>
+	<rect x="610" y="300" class="st2" width="700" height="10"/>
+</g>
+<g id="Cover" display="none">
+	<rect x="610" y="300" class="st1" width="700" height="240"/>
+	<rect x="610" y="300" class="st2" width="700" height="10"/>
+	<text transform="matrix(1 0 0 1 960 400)" class="st13 st4 st14" text-anchor="middle">ACTUAL RETAIL PRICE</text>
+	<text transform="matrix(1 0 0 1 960 500)" class="st2 st4 st11" text-anchor="middle">?</text>
+</g>
+<g id="choice_x3A_Winner_x2F_1" data-name="choice:Winner/1" display="none">
+	<rect x="150" y="690" class="st12" width="400" height="220" rx="10"/>
+</g>
+<g id="choice_x3A_Winner_x2F_2" data-name="choice:Winner/2" display="none">
+	<rect x="570" y="690" class="st12" width="400" height="220" rx="10"/>
+</g>
+<g id="choice_x3A_Winner_x2F_3" data-name="choice:Winner/3" display="none">
+	<rect x="990" y="690" class="st12" width="400" height="220" rx="10"/>
+</g>
+<g id="choice_x3A_Winner_x2F_4" data-name="choice:Winner/4" display="none">
+	<rect x="1410" y="690" class="st12" width="400" height="220" rx="10"/>
+</g>
+<g id="Words">
+	<text id="Item" data-name="Item" transform="matrix(1 0 0 1 960 160)" class="st3 st4 st5" text-anchor="middle">An espresso machine</text>
+	<text id="Price" data-name="Price" transform="matrix(1 0 0 1 960 470)" class="st3 st4 st11" text-anchor="middle">1399</text>
+	<text id="Name_x20_1" data-name="Name 1" transform="matrix(1 0 0 1 350 770)" class="st3 st7 st8" text-anchor="middle">Aino</text>
+	<text id="Bid_x20_1" data-name="Bid 1" transform="matrix(1 0 0 1 350 860)" class="st2 st4 st9" text-anchor="middle">1200</text>
+	<text id="Name_x20_2" data-name="Name 2" transform="matrix(1 0 0 1 770 770)" class="st3 st7 st8" text-anchor="middle">Ben</text>
+	<text id="Bid_x20_2" data-name="Bid 2" transform="matrix(1 0 0 1 770 860)" class="st2 st4 st9" text-anchor="middle">1500</text>
+	<text id="Name_x20_3" data-name="Name 3" transform="matrix(1 0 0 1 1190 770)" class="st3 st7 st8" text-anchor="middle">Cleo</text>
+	<text id="Bid_x20_3" data-name="Bid 3" transform="matrix(1 0 0 1 1190 860)" class="st2 st4 st9" text-anchor="middle">900</text>
+	<text id="Name_x20_4" data-name="Name 4" transform="matrix(1 0 0 1 1610 770)" class="st3 st7 st8" text-anchor="middle">Dev</text>
+	<text id="Bid_x20_4" data-name="Bid 4" transform="matrix(1 0 0 1 1610 860)" class="st2 st4 st9" text-anchor="middle">1350</text>
+</g>
+</svg>

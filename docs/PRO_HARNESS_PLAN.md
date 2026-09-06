@@ -427,9 +427,22 @@ measurements of §3.4, the critique schema, the `Workbench` interface, the seven
 (18 tests), both in `npm run build`; `scripts/pro-harness-spike.mjs` with `--control` and
 `--generate`; `ai` and `zod` as dependencies.
 
+**The paid round of §10 RAN on 2026-09-06** ($0.42 of a €3 authorization) and found two platform
+faults before it could measure a single design decision - the harness restating the animation
+grammar instead of naming the breach, and the shared importer reading single-quoted selectors only
+and inventing `'?'` for a target it could not read, which converts, validates and then throws inside
+GSAP on play. Both are fixed and pinned; the full account is `docs/AI_ATTEMPTS.md`, "The Pro Harness
+animation region, and the two platform faults under it". What the round DID establish, on the cells
+that got through: the loop works as designed and is cheap - `lt-caster` clean gate, one critique, one
+advisory repair, **$0.0298** against the iterate loop's $0.118 - and the failures were never
+composition. The bank is resumable at 2 of 21 (`--resume --out=pro-harness-out-gemini-v3`).
+
+**Read the round's rate with its confound stated:** §23.1's baseline is `gemini-3.7-flash` and this
+round is `gemini-2.5-flash`, the route hosted Pro actually spends on. Two variables moved at once.
+
 **Not built, in order:**
 
-1. The paid round of §10 and the owner's read of it.
+1. Finishing the resumed bank, then the blind page and the owner's read of it.
 2. The bridge workbench, so the harness runs off the same door the CLI uses and can be hosted.
 3. ~~Exemplar retrieval per type~~ - **DONE 2026-09-06**, §3.4: the shipped designs' measured
    type sizes, paddings and gaps as a card, never their code. Unmeasured against a model: the

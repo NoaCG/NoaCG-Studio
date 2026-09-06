@@ -139,6 +139,10 @@ export function importAnimData(template: SpxTemplate): AnimData | null {
   // honestly: it stays legacy and renders read-only on the classic strip.
   if (!inPhase.loopsConvertible || !outPhase.loopsConvertible) return null;
   if (!inPhase.dynamicsConvertible || !outPhase.dynamicsConvertible) return null;
+  // A tween whose target this parser could not read has no selector to write into the data
+  // block. Refusing keeps the author's code; converting anyway produced a graphic that threw
+  // inside GSAP on play() (2026-09-06).
+  if (!inPhase.targetsConvertible || !outPhase.targetsConvertible) return null;
 
   const enter: AnimStep = {
     name: 'Enter',

@@ -22,6 +22,26 @@ the GitHub Actions schema: a misspelled key, a wrong-typed value, a `needs:` nam
 not exist - the last being exactly what editing the CI gate's dependency set can introduce. Never
 wait for GitHub to catch it instead; during the 2026-08-06 outage two pushes produced no run at all.
 
+Right after it, `scripts/check-gate-coverage.mjs` asks a different question about the same
+files: not whether a workflow is VALID, but whether anything ever runs the gates this repo has
+written. A `check:*` or `test:*` script must be run by `npm run build`, or named by a workflow,
+or exempted by name with a reason inside the guard. There is no fourth option, and the exemption
+list is checked both ways - an entry for a script that has since been deleted, or has since been
+wired up, fails the build too.
+
+**The incident it comes from.** On 2026-09-06 a nine-row wave landed red. `test:use-case-search`
+held the rule that would have caught it, sat outside `npm run build` because it needs Chromium,
+and was named by no workflow at all - so the cloud container that wrote it could not run it and
+neither could CI. The spec that eventually failed takes 27 seconds. The gap had already been
+written down in the row's own handoff, in prose, which is where it stayed. Six more gates were
+in the same state and now have homes: `test:ports`, `test:sample-names`, `test:local-relay` and
+`test:ai-lite-semantic` run in the Factory gates job; `check:catalog-cost` and
+`check:e2e-durations` are exempt because both only ever report.
+
+**A gate outside the build is normal and fine** - a browser, a server, a secret, or a second on
+every laptop are all good reasons. What is not fine is a gate outside the build AND outside CI,
+because that gate protects nothing while looking exactly like one that does.
+
 There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
 Verify product changes with `npm run build` plus in-browser checks; never mark work done on a green
 build alone if the behaviour is observable.

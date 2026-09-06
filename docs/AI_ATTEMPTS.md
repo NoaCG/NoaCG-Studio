@@ -661,6 +661,66 @@ they cover the LIVE Phase-A routing stage and stay.
 Pro: the inspection-question critic, the scaffold/style split, the knowledge cards, and the
 one-vision-call-to-text reference bridge.
 
+### The Pro Harness animation region, and the two platform faults under it
+**2026-09-06 · `vercel:google/gemini-2.5-flash` through `scripts/pro-harness-spike.mjs` · $0.42 of a
+€3 authorization · NOT a model failure: both walls were ours.** The first paid round of
+`docs/PRO_HARNESS_PLAN.md` §10 refused its first cells on the ANIMATION region and never on design.
+The model wrote clean timelines - valid selectors, sane timing, the right shape - and the platform
+threw them away twice, for two different reasons.
+
+- **The finding restated the grammar instead of naming the breach.** `animation-unconvertible` said
+  "stay inside the authoring grammar", which is the grammar the model believed it had written. On
+  `lt-markets` the entire defect was two absent declarations: pasting `var easeIn` and `var easeOut`
+  back into the model's own bytes makes the identical code parse. It spent four rounds and $0.072
+  guessing, then stopped, reporting that the requirements contradicted each other. `animationBreach`
+  (`src/ai/pro/harness/patch.ts`) now walks the importer's seven preconditions in the importer's own
+  order and returns the first unmet one, quoting the form required - which is what §6 already
+  required of every blocking finding, and what THIS FILE's own standing instruction asked for.
+- **Behind it, the importer read single-quoted selectors only, and invented one when it could not
+  read a target.** `tl.to(".lower-third-box", …)` is ordinary JavaScript and the authoring grammar
+  names no quote style; the catalog simply happens to be written the other way, so nothing had ever
+  exercised the branch. The fallback was the literal string `'?'`, which reads as a selector all the
+  way through the importer, survives `parseAnimData`, and throws `'?' is not a valid selector`
+  inside GSAP the first time the graphic plays - a converter failing OPEN in the one place whose
+  contract is to keep the author's code byte-identical when it gains nothing. It reaches every
+  caller of that door, `bridgeApi.normalize` and so the agent CLI included, not just this bench.
+
+**The first fix for the second fault was wrong, and the catalog gate is what said so.** Refusing any
+tween with an empty target list took four shipped corner bugs down with it: `tl.fromTo([], …)` is
+what the emitters write for a design with no lines to stagger, and it has always converted correctly.
+The rule turns on whether the target list could be READ, not whether it was empty. All 504 designs
+emit byte-identical code, and the graphics this round refused convert with valid selectors and play.
+
+**What it says about the harness.** The architecture held: `lt-caster` delivered through the
+untouched loop - clean gate, one critique, one advisory repair - at **$0.0298**, a quarter of the
+iterate loop's $0.118 per graphic. After both fixes the two cells that had consumed $0.18 producing
+nothing delivered at $0.039 and $0.041, in two rounds and one. The failure was never composition,
+spacing or typography, which is the dimension the round was meant to test and did not get to.
+
+**A caveat the numbers carry.** The §23.1 baseline (19 of 21 clean, 21 of 21 airable, $0.118) was
+measured on `gemini-3.7-flash`; this round runs `gemini-2.5-flash`, the route hosted Pro actually
+spends on. That is the right model for the product question and the wrong one for a clean
+harness-versus-iterate comparison - the round changes two variables at once, and no rate from it
+should be read as the harness alone.
+
+**A THIRD fault, and this one would have corrupted the owner's read rather than a rate.** The
+bench settled for a flat 1800ms before measuring and photographing. `lt-latenight` wrote a 2.9s
+entrance whose title line only arrives at 2.2s, so every instrument measured - and the frame kept -
+a graphic one line short, with dead space in the panel where the missing line belongs. The cell
+still DELIVERED CLEAN, because the template is fine; it is the instrument that was early. A blind
+reader handed that frame marks the cell down for a defect that is not in the graphic, which is the
+deliver-signal leak §23.1 drove to zero, arriving from the opposite direction. The settle now comes
+from the graphic's own entrance duration in its data block, bounded to [1800ms, 6000ms].
+**Consequence for the frames already on disk: they were shot under the flat wait and must be
+re-captured before any blind read.**
+
+**RETRY WHEN** the bank finishes on the fixed harness - the run is resumable
+(`--resume --out=pro-harness-out-gemini-v3`) and 2 of 21 are recorded. The standing instruction this
+round adds: **when a harness round refuses work that looks correct, reproduce the refusal in the
+browser before concluding anything about the model** - both faults here were invisible to the
+ledger, which recorded finding ids without their messages, and `runtime:play-threw`'s message IS the
+exception.
+
 ### Teaching the free-form coder its structure spine by example
 **Through 2026-07-17 · every result converted the moment a `-box` class was injected · FIXED by
 naming the contract.** The coder followed the authoring grammar perfectly and `parseTimeline` read

@@ -22,7 +22,7 @@
 
 import { BEHAVIOUR_WORDS, rolesOf, rowKeys, rowsOf, type RecipeRole } from '../../templates/behaviours/recipe';
 import { matchRole, withRowKey } from '../../templates/behaviours/naming';
-import type { SvgBehaviourDraft } from './draft';
+import type { SvgBehaviourDraft, SvgRecipeRow } from './draft';
 
 /** One box on the mapping step: which role it binds, for which row, from which inventory. */
 export interface FillPicker {
@@ -337,6 +337,13 @@ function rowLayerIds(b: SvgBehaviourDraft): string[] {
   if (b.kind === 'quiz') return b.answers;
   if (b.kind === 'score') return b.rows.map((r) => r.name);
   if (b.kind === 'poll') return b.rows.map((r) => r.label);
+  if (b.kind === 'recipe') {
+    // The row role may be a field (a lineup's guest) or a written layer (a survey's answer).
+    const rows = rowsOf(b.recipe);
+    const rowRole = rows && rolesOf(b.recipe).find((r) => r.id === rows.role);
+    if (!rowRole) return [];
+    return (b.rows ?? []).map((row) => (rowRole.kind === 'field' ? row.fields[rowRole.id] : row.layers[rowRole.id]) ?? '');
+  }
   return [];
 }
 
@@ -418,13 +425,25 @@ function mapBoxes(b: SvgBehaviourDraft, text: FillLayer[], f: (role: string, key
       expired: f('expired', undefined, b.expired),
     };
   }
+  // The generic recipe: every graphic-level role, then every row's roles, in declaration order.
+  const roles = rolesOf(b.recipe);
   const layers: Record<string, string> = {};
-  for (const role of rolesOf(b.recipe)) {
-    if (role.kind !== 'layer') continue;
-    const value = f(role.id, undefined, b.layers[role.id] ?? '');
-    if (value) layers[role.id] = value;
+  const fields: Record<string, string> = {};
+  for (const role of roles) {
+    if (role.perRow || role.countdown) continue;
+    const value = f(role.id, undefined, (role.kind === 'field' ? b.fields?.[role.id] : b.layers[role.id]) ?? '');
+    if (value) (role.kind === 'field' ? fields : layers)[role.id] = value;
   }
-  return { ...b, layers };
+  const rows = (b.rows ?? []).map((row, i) => {
+    const next: SvgRecipeRow = { fields: {}, layers: {} };
+    for (const role of roles) {
+      if (!role.perRow) continue;
+      const value = f(role.id, keys[i], (role.kind === 'field' ? row.fields[role.id] : row.layers[role.id]) ?? '');
+      if (value) (role.kind === 'field' ? next.fields : next.layers)[role.id] = value;
+    }
+    return next;
+  });
+  return { ...b, layers, ...(Object.keys(fields).length > 0 ? { fields } : {}), ...(b.rows ? { rows } : {}) };
 }
 
 /** Every box the step shows for this behaviour, in the step's own order. */

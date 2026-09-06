@@ -262,7 +262,12 @@ export function createHarnessTools(ctx: ToolContext) {
     inputSchema: z.object({
       css: z.string().max(20000).optional().describe('The design stylesheet. Use the :root variables (--accent, --text-color, --text-dim, --panel-bg, --font-heading, --scale, --type-scale); never redeclare :root or @font-face.'),
       boxHtml: z.string().max(12000).optional().describe('Markup inside <div class="PREFIX-box">. Keep every field element id="fN" exactly once; classes start with the prefix; each text field inside its own <div class="PREFIX-mask">.'),
-      animation: z.string().max(8000).optional().describe('The ANIMATION region in the authoring grammar: var animSpeed/easeIn/easeOut, function buildInTimeline() and buildOutTimeline() returning one gsap.timeline() each; only tl.set/to/fromTo with literal values; durations as N / animSpeed.'),
+      // THE THREE `var` LINES ARE A REQUIREMENT, NOT A HOUSE STYLE. NoaCG's importer reads the
+      // region as text and gives up on the first literal it cannot find, so a missing or
+      // double-quoted `easeIn` loses the whole timeline however good the motion is. The old
+      // wording named the three in a slash-list and a cheap model read it as "any of these";
+      // `animationBreach` in patch.ts names whichever one is missing when it happens.
+      animation: z.string().max(8000).optional().describe('The ANIMATION region in the authoring grammar. It MUST open with these three declarations, each on its own line and the eases in SINGLE quotes, even when every tween names its own ease: `var animSpeed = 1;`, `var easeIn = \'expo.out\';`, `var easeOut = \'power3.in\';`. Then `function buildInTimeline() {` and `function buildOutTimeline() {`, each returning one gsap.timeline() and each closed by `}` at the start of its own line. Inside them only tl.set/to/fromTo with literal values, durations as N / animSpeed, and no DOM measurement.'),
       addresses: z.array(z.string()).optional().describe('On a repair: the finding ids this change is meant to fix.'),
       rationale: z.string().max(400).describe('One or two sentences: the device and the hierarchy decision, or on a repair what changed and why.'),
     }),
