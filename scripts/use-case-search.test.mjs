@@ -58,6 +58,10 @@ const QUERIES = [
   'technical difficulties',
   'starting soon',
   'lower third', // an unrelated query, to prove nothing else moved
+  // The two words that caught the facet stealing from the rest of the catalog — see the test
+  // at the bottom of this file. Both are ordinary English words the catalog already used.
+  'halftime',
+  'standby',
 ];
 
 const gathered = await withBundledPage(SPECS, (page) => page.evaluate(GATHER, QUERIES));
@@ -151,4 +155,34 @@ test('every declared occasion is one of the closed vocabulary', () => {
   for (const { id, occasions } of gathered.declared) {
     for (const occasion of occasions) assert.ok(known.has(occasion), `${id} declares unknown occasion "${occasion}"`);
   }
+});
+
+test('an occasion phrase adds a purpose and never DELETES a word', () => {
+  // THE REGRESSION THIS FILE EXISTS FOR, after the gate itself missed it once.
+  //
+  // Alias expansion normally CONSUMES its phrase, and facet I mints a key for every phrase a
+  // person might type at a moment — so the first version of it quietly ate ordinary English words
+  // the catalog was already using. Measured on the branch: "halftime" lost ig20, the half-time
+  // notes board and the ONLY design that answers the word, and "standby" lost the four live bugs.
+  // Nothing downstream can rescue that: `browseTemplates` drops a design scoring zero on both
+  // halves before the named-alias bonus is ever reached.
+  //
+  // The general rule, asserted through the two words that broke: a moment ranks its designs up,
+  // and every design the word ALREADY reached is still reachable by it.
+  const halftime = gathered.search['halftime'];
+  assert.ok(halftime.ids.includes('ig20'), '"halftime" no longer reaches the half-time notes board');
+  assert.ok(
+    halftime.occasionsById[halftime.ids[0]].includes('break'),
+    'and the break screens should still lead it',
+  );
+
+  const standby = gathered.search['standby'];
+  for (const id of ['bug09', 'bug10', 'bug11', 'bug12']) {
+    assert.ok(standby.ids.includes(id), `"standby" no longer reaches the live bug ${id}`);
+  }
+  assert.ok(standby.ids.includes('al10') && standby.ids.includes('ss08'));
+  assert.ok(
+    standby.occasionsById[standby.ids[0]].includes('technical-problem'),
+    'and a standby card should still lead it',
+  );
 });

@@ -306,6 +306,9 @@ export function allTemplateMeta(): { variant: TemplateVariant; meta: TemplateMet
  */
 export function validateTaxonomy(): string[] {
   const problems: string[] = [];
+  // Derived ONCE: every check below walks the same catalog, and `allTemplateMeta` rebuilds its
+  // array on each call.
+  const entries = allTemplateMeta();
 
   // Category groups: CATEGORY_GROUP_OF is total by type (a category without a shelf is a
   // compile error), so the only runtime failure left is a group id nothing maps to.
@@ -343,16 +346,25 @@ export function validateTaxonomy(): string[] {
   if (OCCASIONS.length > MAX_OCCASIONS) {
     problems.push(`${OCCASIONS.length} occasions declared; the ceiling is ${MAX_OCCASIONS} (see OCCASIONS)`);
   }
-  const occasionUse = new Map<OccasionId, number>();
-  for (const occasion of OCCASIONS) occasionUse.set(occasion.id, 0);
+  const occasionUse = new Map<OccasionId, number>(OCCASIONS.map((occasion) => [occasion.id, 0]));
+  const browsableIds = new Set<string>();
+  const compiledTypeIds = new Set<string>();
+  for (const { variant, meta } of entries) {
+    browsableIds.add(variant.id);
+    if (variant.typeId) compiledTypeIds.add(variant.typeId);
+    for (const id of meta.occasions) occasionUse.set(id, (occasionUse.get(id) ?? 0) + 1);
+  }
   // A declaration for an id no browsable variant has is a typo that would otherwise declare
   // nothing at all, silently — the loudest possible failure mode for a table of ids.
-  const browsableIds = new Set(allTemplateMeta().map(({ variant }) => variant.id));
   for (const id of Object.keys(VARIANT_OCCASIONS)) {
     if (!browsableIds.has(id)) problems.push(`VARIANT_OCCASIONS declares "${id}", which is not a browsable variant`);
   }
-  for (const { meta } of allTemplateMeta()) {
-    for (const id of meta.occasions) occasionUse.set(id, (occasionUse.get(id) ?? 0) + 1);
+  // The same check on the type table, and it is the more dangerous of the two: a typo'd typeId
+  // silently strips the occasion from every design that type compiles, and the three-design floor
+  // can still pass on the hand-declared variants beside them — so the only symptom would be four
+  // sign-off cards quietly missing from a "goodbye" search.
+  for (const typeId of Object.keys(TYPE_OCCASIONS)) {
+    if (!compiledTypeIds.has(typeId)) problems.push(`TYPE_OCCASIONS declares "${typeId}", which compiles no browsable variant`);
   }
   for (const [id, count] of occasionUse) {
     if (count < MIN_DESIGNS_PER_OCCASION) {
@@ -374,7 +386,7 @@ export function validateTaxonomy(): string[] {
     }
   }
 
-  for (const { variant, meta } of allTemplateMeta()) {
+  for (const { variant, meta } of entries) {
     const category = graphicCategoryById(meta.category);
     if (meta.subtype && !category.subtypes.includes(meta.subtype)) {
       problems.push(`${variant.id}: subtype "${meta.subtype}" is not in category "${category.id}"`);

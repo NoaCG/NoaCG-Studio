@@ -629,17 +629,6 @@ export const OCCASIONS: Occasion[] = [
   },
 ];
 
-export const OCCASION_LABELS: Record<OccasionId, string> = Object.fromEntries(
-  OCCASIONS.map((o) => [o.id, o.name]),
-) as Record<OccasionId, string>;
-
-export function occasionById(id: OccasionId): Occasion {
-  const found = OCCASIONS.find((o) => o.id === id);
-  // Unreachable through the union type; a guard for data that arrives from a publish payload.
-  if (!found) throw new Error(`unknown occasion "${id}"`);
-  return found;
-}
-
 // ── Search aliases ──────────────────────────────────────────────────────────
 
 /** What an alias expands to. An alias may resolve to a SET of values across facets —

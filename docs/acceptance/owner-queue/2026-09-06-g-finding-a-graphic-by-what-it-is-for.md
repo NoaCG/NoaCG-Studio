@@ -1,3 +1,7 @@
+---
+kind: walk
+date: 2026-09-06
+---
 # Finding a graphic by what it is FOR
 
 **Date:** 2026-09-06 · **Branch:** `claude/g-use-case-metadata`
