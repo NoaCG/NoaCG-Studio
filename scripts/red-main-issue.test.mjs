@@ -130,3 +130,43 @@ test('a genuinely unidentifiable failure still speaks up - exhaustion is a narro
   const decision = planRedMainComment({ existing: 1, bodies: ['unrelated'], sha: 'f'.repeat(40), hash: 'unknown', exhausted: false });
   assert.equal(decision.action, 'comment');
 });
+
+// THE REVERT RULE. A revert changes main, so every way it can be wrong has a case: it fires only on
+// a main push whose previous run was green and whose failure survived the second run, and every
+// refusal names its reason so the issue can carry it.
+import { shouldRevert } from './red-main-issue.mjs';
+
+const MAIN = { event: 'push', ref: 'refs/heads/main', before: 'b'.repeat(40) };
+
+test('a main push that stayed red after the retry, onto a green main, is reverted', () => {
+  assert.equal(shouldRevert({ ...MAIN, previous: 'success', retry: 'failure' }).revert, true);
+  assert.equal(shouldRevert({ ...MAIN, previous: 'success', retry: 'skipped' }).revert, true, 'a red build had no retry and is still deterministic');
+});
+
+test('every other case refuses with a reason', () => {
+  const cases = [
+    [{ ...MAIN, event: 'merge_group', previous: 'success' }, /not a push to main/],
+    [{ ...MAIN, ref: 'refs/heads/topic', previous: 'success' }, /not a push to main/],
+    [{ ...MAIN, previous: 'success', exhausted: true }, /no verdict/],
+    [{ ...MAIN, before: '0'.repeat(40), previous: 'success' }, /before/],
+    [{ ...MAIN, before: '', previous: 'success' }, /before/],
+    [{ ...MAIN, previous: 'success', retry: 'success' }, /flake/],
+    [{ ...MAIN, previous: 'failure', retry: 'failure' }, /already red/],
+    [{ ...MAIN, previous: 'unknown', retry: 'failure' }, /no verdict/],
+  ];
+  for (const [input, reason] of cases) {
+    const decision = shouldRevert(input);
+    assert.equal(decision.revert, false, JSON.stringify(input));
+    assert.match(decision.reason, reason, JSON.stringify(input));
+  }
+});
+
+test('the body names the revert, or the reason there is none, and says whether the retry ran', () => {
+  const queued = issueBody({ sha: SHA, runUrl: 'u', items: ['e2e/x.spec.ts'], hash: HASH, retry: 'failure', revert: { status: 'queued', url: 'https://github.com/o/r/pull/80' } });
+  assert.match(queued, /re-run once on this same commit and failed again/);
+  assert.match(queued, /Reverting the batch: https:\/\/github\.com\/o\/r\/pull\/80/);
+  const skipped = issueBody({ sha: SHA, runUrl: 'u', items: ['job: Build'], hash: HASH, retry: 'skipped', revert: { status: 'skipped', reason: 'main was already red' } });
+  assert.match(skipped, /Not reverted automatically: main was already red/);
+  assert.match(skipped, /No second run/);
+  assert.ok(!/refuses to merge onto it/.test(skipped), 'the queue no longer refuses on a red main; the body must not claim it does');
+});

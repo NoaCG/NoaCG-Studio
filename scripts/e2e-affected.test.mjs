@@ -811,3 +811,14 @@ test('the base resolvers answer for the repository they are given, before and af
     rmSync(repo, { recursive: true, force: true });
   }
 });
+
+// THE QUARANTINE SPLIT. What the shards get and what the quarantine job gets are one input divided,
+// and a quarantined spec the plan never selected is nobody's business.
+import { splitQuarantined } from './e2e-affected.mjs';
+
+test('quarantined specs leave the blocking list and are reported as e2e/ paths', () => {
+  const split = splitQuarantined(['a.spec.ts', 'b.spec.ts', 'c.spec.ts'], ['e2e/b.spec.ts', 'e2e/zzz.spec.ts']);
+  assert.deepEqual(split, { blocking: ['a.spec.ts', 'c.spec.ts'], quarantined: ['e2e/b.spec.ts'] });
+  assert.deepEqual(splitQuarantined(['a.spec.ts'], []), { blocking: ['a.spec.ts'], quarantined: [] });
+  assert.deepEqual(splitQuarantined([], ['e2e/a.spec.ts']), { blocking: [], quarantined: [] });
+});

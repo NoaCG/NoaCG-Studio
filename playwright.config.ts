@@ -76,7 +76,10 @@ export default defineConfig({
   use: {
     baseURL: base,
     // There are deliberately no retries to disguise flakes, so CI collects diagnostics on the
-    // first failure rather than waiting for a retry that will never happen.
+    // first failure rather than waiting for a retry that will never happen. The one second run
+    // a failed spec gets is ci.yml's `e2e-retry` job on main and in the merge group, and it
+    // leaves a record: a fail-then-pass writes the spec into e2e/quarantine.json through the
+    // merge queue (scripts/e2e-quarantine.mjs), which is the opposite of a retry nobody sees.
     //
     // Locally that setting is off, and it is the single largest local speed win measured here.
     // `retain-on-failure` does not mean "record only failures" - the tracer runs for EVERY

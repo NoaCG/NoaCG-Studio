@@ -29,6 +29,40 @@ import {
   SHARD_CAP_MINUTES,
   SHARD_SAFETY_MINUTES,
 } from './e2e-durations.mjs';
+import { planIdentity, quarantinedSpecs, readStore as readQuarantine, specPath } from './e2e-quarantine.mjs';
+
+/**
+ * THE QUARANTINE, applied to a plan. A spec in e2e/quarantine.json failed and then passed on one
+ * commit, so its verdict is not one the gate may block on; it leaves the blocking file list here
+ * and ci.yml runs it in its own non-blocking job on main (scripts/e2e-quarantine.mjs has the
+ * mechanism and the release rule). Pure, so the split is testable: `blocking` is what the shards
+ * get, `quarantined` is what the quarantine job gets, and their union is the input.
+ *
+ * A quarantined name that is not on disk is dropped silently - a spec deleted while quarantined
+ * has nothing left to run - and a quarantined name that is not IN the plan is not reported: a
+ * subset that never selected the spec has nothing to say about it.
+ *
+ * @param {string[]} specs planner names (`anim-engine.spec.ts`)
+ * @param {string[]} quarantined store identities (`e2e/anim-engine.spec.ts`)
+ */
+export function splitQuarantined(specs, quarantined) {
+  const bare = new Set((quarantined ?? []).map(planIdentity));
+  return {
+    blocking: specs.filter((s) => !bare.has(s)),
+    quarantined: specs.filter((s) => bare.has(s)).map(specPath),
+  };
+}
+
+function quarantineOnDisk() {
+  try {
+    return quarantinedSpecs(readQuarantine());
+  } catch (error) {
+    // A store this build cannot read must not silently un-quarantine everything, nor hide the
+    // suite: say so, and plan as if nothing were quarantined - the direction that runs MORE.
+    process.stderr.write(`e2e-affected: ignoring e2e/quarantine.json - ${error.message}\n`);
+    return [];
+  }
+}
 
 /**
  * True only when this file was RUN, not imported. `planFor` below is exported for tests, and
@@ -1077,14 +1111,21 @@ export function integrationBase(cwd = undefined) {
  *  "no filter"; the two are consistent because every runner is now handed its files explicitly. */
 function emitJson({ mode, specs, catalog, base, changed }) {
   const onDisk = specFilesOnDisk();
-  const suite = mode === 'full' ? onDisk : specs;
+  const planned = mode === 'full' ? onDisk : specs;
+
+  // The quarantine split comes AFTER the ghost check below so a ghost is still reported, and
+  // BEFORE sizing and packing so the shards are sized for the files they will actually run.
+  const { blocking: suite, quarantined } = splitQuarantined(planned, quarantineOnDisk());
+  if (quarantined.length > 0) {
+    process.stderr.write(`e2e-affected: ${quarantined.length} quarantined spec(s) left the blocking shards for main's non-blocking job: ${quarantined.join(', ')}\n`);
+  }
 
   // A SPEC NAME THAT NAMES NOTHING used to be harmless: Playwright took the plan as filters and
   // simply matched nothing extra. Now each name becomes one runner's whole file list, so a ghost
   // left behind by a rename can land alone in a bin and red that shard with "no tests found" -
   // a MAP typo reported as a test failure. `e2e-affected.test.mjs` already documents that a MAP
   // rule pointing at a path that no longer exists is otherwise silent.
-  const ghosts = suite.filter((spec) => !onDisk.includes(spec));
+  const ghosts = planned.filter((spec) => !onDisk.includes(spec));
   if (ghosts.length > 0) {
     throw new Error(`the plan names ${ghosts.length} spec file(s) that do not exist: ${ghosts.join(', ')} - fix MAP in scripts/e2e-affected.mjs`);
   }
@@ -1092,7 +1133,10 @@ function emitJson({ mode, specs, catalog, base, changed }) {
   const table = readTable();
   // The same `suite` goes to the sizing and to the packing, so the runner count and the
   // assignment are answering about one file list rather than two.
-  const shardSpecs = mode === 'none' ? [] : packShards(suite, shardsFor({ mode, specs }, table, suite), table);
+  // A full plan whose every file is quarantined would hand Playwright an EMPTY list, which is
+  // every test; `mode` is downgraded so the shard job's own emptiness refusal never sees it.
+  const effectiveMode = suite.length === 0 && mode !== 'none' ? 'none' : mode;
+  const shardSpecs = effectiveMode === 'none' ? [] : packShards(suite, shardsFor({ mode: effectiveMode, specs: suite }, table, suite), table);
   const shards = Math.max(1, shardSpecs.length);
 
   // UNMEASURED SPECS ARE NOW LOUD. They are packed at the median, which was a harmless guess while
@@ -1142,7 +1186,7 @@ function emitJson({ mode, specs, catalog, base, changed }) {
   }
 
   process.stdout.write(
-    `${JSON.stringify({ mode, specs, catalog, shards, shardSpecs, predicted, overCap, unmeasured, base, changed })}\n`,
+    `${JSON.stringify({ mode: effectiveMode, specs, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed })}\n`,
   );
 }
 
@@ -1367,8 +1411,16 @@ function main() {
 
   if (listOnly) return 0;
 
+  // Locally, a quarantined spec leaves a SUBSET the same way it leaves the shards: a known flake
+  // must not stand between a person and a verdict on their change. A full run passes Playwright
+  // no file list and so still includes it, which is fine at a laptop - the point of the split is
+  // what the GATE blocks on, and nothing local is a gate.
+  const { blocking, quarantined } = splitQuarantined(plan, quarantineOnDisk());
+  if (quarantined.length > 0 && !full) {
+    log(`e2e-affected: skipping ${quarantined.length} quarantined spec(s) (e2e/quarantine.json): ${quarantined.join(', ')}`);
+  }
   const { status, runs } = runPlan(
-    { mode, specs: plan, catalog: catalogAffected },
+    { mode: full ? mode : blocking.length > 0 ? mode : 'none', specs: full ? plan : blocking, catalog: catalogAffected },
     ({ args }) => spawnSync('npx', args, { stdio: 'inherit', shell: true }).status,
   );
   if (runs.length > 1 || status !== 0) log(summariseRuns(runs, status));

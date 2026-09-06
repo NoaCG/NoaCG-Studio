@@ -37,6 +37,17 @@ const FAILED = new Set(['failure', 'timed_out']);
 const DERIVED_JOBS = new Set(['CI gate']);
 
 /**
+ * A NON-BLOCKING job has no say in the set either. The quarantine jobs (`E2E quarantine (<spec>)`,
+ * ci.yml) run specs that already failed-then-passed on one commit; they carry
+ * `continue-on-error`, so the run stays green when one fails, and a red quarantined spec must
+ * not be reported as main being red - that is the whole point of quarantining it. Its verdict is
+ * read by scripts/e2e-quarantine.mjs from the run history instead.
+ */
+export function isNonBlockingJob(name) {
+  return /^E2E quarantine \(/.test(String(name ?? ''));
+}
+
+/**
  * One failing job's contribution to the set, as a stable identity.
  *
  * A shard index is not part of the identity: Playwright splits by test COUNT, so the same spec
@@ -62,7 +73,7 @@ export function jobIdentity(name) {
  * red build is never mistaken for a red spec.
  */
 export function failureSet(jobs, annotationsFor = () => []) {
-  const own = (jobs ?? []).filter((job) => !DERIVED_JOBS.has(job?.name));
+  const own = (jobs ?? []).filter((job) => !DERIVED_JOBS.has(job?.name) && !isNonBlockingJob(job?.name));
   // EXHAUSTED IS NOT FAILED. A job killed by its own `timeout-minutes` is recorded by GitHub as
   // `cancelled`, and one cancelled job makes the whole RUN cancelled - so a run where four E2E
   // shards ran out of clock and everything else passed reaches this function with nothing in

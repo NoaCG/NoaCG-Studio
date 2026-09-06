@@ -1,0 +1,6 @@
+{
+  "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run in their own non-blocking job on main and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml through the merge queue; edit by hand only to release early.",
+  "version": 1,
+  "specs": {},
+  "released": {}
+}
