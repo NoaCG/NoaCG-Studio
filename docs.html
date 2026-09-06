@@ -119,9 +119,9 @@
             looks. Changing the design never means retyping the content.
           </p>
           <p>
-            Most kinds need no guide. A lower third, a card, a corner bug or a countdown takes a
-            few plain fields and the wizard shows you all of them at once. The four below ask for
-            their content in a particular shape, so they get one each.
+            Most kinds need no guide. A lower third, a card or a corner bug takes a few plain
+            fields and the wizard shows you all of them at once. The five below ask for their
+            content in a particular shape, so they get one each.
           </p>
           <p>
             These guides name buttons an operator presses. You never draw those buttons. NoaCG
@@ -136,6 +136,8 @@
               pick and the reveal.</li>
             <li><a href="#end-credits">End credits</a> - the whole roll in one text box.</li>
             <li><a href="#tickers">Tickers</a> - the whole rundown in one text box.</li>
+            <li><a href="#countdowns">Countdowns and clocks</a> - a length in minutes, not the
+              digits you want on screen.</li>
           </ul>
 
           <h3 id="scoreboards" class="doc-kind">Scoreboards</h3>
@@ -365,6 +367,112 @@ Full results at https://example.org</code></pre>
             it there. <strong>Status Rotator</strong> shows one service at a time and puts the
             kicker in a fixed-width column, so the name starts in the same spot on every beat and
             your eye stops re-reading it.
+          </p>
+
+          <h3 id="countdowns" class="doc-kind">Countdowns and clocks</h3>
+          <p>
+            A countdown does not take a line of text. It takes a <strong>length</strong>, and it
+            works out the numbers on screen from that. The field is called
+            <strong>Timer (minutes)</strong> on a countdown and
+            <strong>Countdown (minutes)</strong> on a holding screen, which is the same clock with
+            the show's name above it. Both are covered here, because the clock is the part that
+            behaves in a way nobody would guess.
+          </p>
+
+          <h4 id="countdowns-length">What you type is a length</h4>
+          <p>
+            Whole minutes. <code>3</code> is three minutes. Decimals work, so <code>0.5</code> is
+            thirty seconds and <code>1.5</code> is a minute and a half. The clock paints
+            <code>M:SS</code>, and <code>H:MM:SS</code> once there is an hour or more to wait.
+          </p>
+          <p>
+            Do not type the digits you want on screen. Reading stops at a colon, so
+            <code>2:30</code> is two minutes, not two and a half. A field left empty, or holding
+            zero or something that is not a number at all, counts five minutes rather than
+            nothing.
+          </p>
+
+          <h4 id="countdowns-hidden">The length is never on screen</h4>
+          <p>
+            A bare <code>3</code> painted over a graphic tells an audience nothing, so the number
+            you type lives in a holder the design keeps hidden. The operator fills it in like any
+            other field and the clock reads it from there. That is why a countdown appears to have
+            a field with nowhere to go on the artwork. It has, and that is the field.
+          </p>
+          <p>
+            If you work in the code: the holder is a <code>div</code> carrying
+            <code>class="noacg-data-source"</code>, and that class is the only thing that should
+            hide it. An inline <code>style="display:none"</code> is wiped when the graphic is
+            reset to its resting state, and the raw number then shows on the canvas.
+          </p>
+
+          <h4 id="countdowns-run">Running it</h4>
+          <p>
+            Taking the graphic on air starts the count at the full length. Taking it off stops it.
+            At zero the clock stops itself and the design switches to the look it was drawn with
+            for time being up. It never runs past zero and never shows a negative number.
+          </p>
+          <p>
+            <strong>Change the length while it is on air.</strong> Type a new number, press
+            Update, and the count re-anchors to it at once, running or not. Nothing replays and
+            nothing else moves. An Update that carries a new title and the same length leaves the
+            count exactly where it is, so correcting a typo mid-hold does not restart the clock.
+          </p>
+          <p>
+            <strong>Pause clock</strong> and <strong>Resume clock</strong> hold the count and pick
+            it up from where it stopped. That is not the same as taking the graphic out and back
+            in, which starts again from the full length.
+          </p>
+
+          <h4 id="countdowns-start-time">Counting to a time on the wall</h4>
+          <p>
+            Some holding screens carry a second field, <strong>Start time (HH:MM, optional)</strong>.
+            Fill it in and it wins over the length: the screen counts to that time however long it
+            has already been up, so the number agrees with the clock in the room. Leave it empty
+            and the length is used instead, which is what makes it optional.
+          </p>
+          <p>
+            It is 24-hour, so half past seven in the evening is <code>19:30</code>. A time that has
+            already gone by today counts to tomorrow, so a screen holding at 23:50 for a
+            <code>00:15</code> start shows twenty-five minutes rather than a negative number.
+            Anything that is not a time, <code>25:99</code> included, is ignored and the length is
+            used.
+          </p>
+
+          <h4 id="countdowns-other">Clocks that are not countdowns</h4>
+          <p>
+            A <strong>scorebug</strong> works the other way round. Its clock is a field you can see,
+            you type a time into it (<code>43:12</code>) to correct a drift, and whether it counts
+            up or down was decided by the design, not by the operator. Football counts up, hockey
+            and basketball count down. The buttons are <strong>Start clock</strong>,
+            <strong>Stop clock</strong> and <strong>Reset to period start</strong>, and the reset
+            returns to the period's own starting value rather than to zero.
+          </p>
+          <p>
+            The <strong>speaking timer</strong> runs two clocks, one per side, and only one of them
+            at a time. <strong>Switch speaker</strong> passes the floor and stops the other clock on
+            the same press. <strong>Speaking time each</strong> is the allowance both clocks reset
+            to, and it is on screen on purpose, so nobody has to be told what
+            <strong>Reset clocks</strong> will do. <strong>Penalty (seconds)</strong> is a hidden
+            input-only field of exactly the same shape as a countdown's length: it says how many
+            seconds one press of <strong>Penalty</strong> docks from whoever is speaking.
+          </p>
+
+          <h4 id="countdowns-designs">The designs</h4>
+          <p>
+            <strong>Clean Clock</strong> is a quiet label over big tabular digits.
+            <strong>Power Clock</strong> is the corner slab that flips to the accent and flashes at
+            zero. <strong>House Countdown</strong> and <strong>Frost Countdown</strong> are the
+            house and frosted-glass versions. Those four carry the pause. So do the holding screens
+            <strong>Quiet Hold</strong>, <strong>Volt Hold</strong>, <strong>Frost Hold</strong> and
+            <strong>House Hold</strong>. The other clocks in the catalog run from the take to zero
+            without one, which is all a break card needs.
+          </p>
+          <p>
+            <strong>Countdown to Start</strong> and the other screens that carry a start time are
+            the ones to pick when you know the hour the show begins. A screen for a technical
+            problem, such as the <strong>technical pause</strong> card, deliberately has no clock
+            on it at all: a wrong promise on air is worse than no promise.
           </p>
         </section>
 

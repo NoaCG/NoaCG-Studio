@@ -34,7 +34,7 @@ test('the graphics shelf holds one guide per kind', async ({ page }) => {
   // The kinds are guides INSIDE one section now, because the left nav carries main topics only
   // (owner, 2026-08-26: end credits and tickers as top-level entries confused it). Their
   // anchors are what the rest of the repo links to, so they have to survive the nesting.
-  for (const id of ['scoreboards', 'quiz', 'end-credits', 'tickers']) {
+  for (const id of ['scoreboards', 'quiz', 'end-credits', 'tickers', 'countdowns']) {
     await expect(graphics.locator(`[id="${id}"]`)).toHaveCount(1);
   }
   // Quizzes and game shows are what the 2026-09-12 student production runs on, so the buttons
@@ -46,6 +46,15 @@ test('the graphics shelf holds one guide per kind', async ({ page }) => {
   // And the two text-box formats keep the rule each of them turns on.
   await expect(graphics).toContainText('A colon ends a role');
   await expect(graphics).toContainText('A colon ends a kicker');
+  // The countdown guide turns on one fact: a timer's content is a LENGTH, and the length is
+  // read with parseFloat, so a colon truncates it silently (templates/shared/clock.ts
+  // clockDurationSeconds). A reader who types the digits they want on screen gets two minutes
+  // and no error, which is the mistake the guide exists to stop.
+  await expect(graphics).toContainText('is two minutes, not two and a half');
+  // The other half: the length has nowhere visible to go, and the class is what hides it. An
+  // inline display:none is cleared by the entrance reset and airs the raw number
+  // (templates/shared/base.ts DATA_SOURCE_CLASS), so the class name is load-bearing copy.
+  await expect(graphics).toContainText('noacg-data-source');
 });
 
 test('the four guides carry their load-bearing content', async ({ page }) => {
