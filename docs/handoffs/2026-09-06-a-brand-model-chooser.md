@@ -117,9 +117,9 @@ open.
    `load`, which is before hydration; a `createLook` there is a read-modify-whole-record write
    against a mirror that is not yet the list, and the reloaded page then read `loadLooks()` as
    `[]` in 2 of 5 tests on one run and 0 of 5 on another. `awaitDurableReady(page)` BEFORE the
-   seed (and before any post-reload `evaluate` read) is the fix. e2e/AGENTS.md warns about the
-   post-reload READ; it does not warn about the pre-hydration WRITE, and that is the half that
-   bit here.
+   seed (and before any post-reload `evaluate` read) is the fix. e2e/AGENTS.md warned only about
+   the post-reload READ, and the WRITE is the half that bit here - so this one is no longer a
+   trap outside the repo: it is written into that contract in `6ea5b7a`.
 6. **Six workers is too many for this container.** The suite sizes its worker count from free
    RAM and reports "6 workers - 14 GB free"; at that width the app boots slower than the 7 s
    default `expect` timeout and specs fail as "element(s) not found" on screens that are merely
