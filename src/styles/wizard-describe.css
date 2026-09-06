@@ -251,13 +251,7 @@
   white-space: pre;
   user-select: all;
 }
-.ai-agent-route-body code {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  background: var(--bg);
-  padding: 1px 5px;
-  border-radius: 4px;
-}
+/* Inline commands wear the app's `code.inline` (wizard-and-dialogs.css), not a rule of their own. */
 .ai-agent-pointer { margin: 0 0 8px; }
 
 /* On-air readiness: one row per thing that was checked. */

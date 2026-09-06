@@ -234,7 +234,9 @@ const TIER_OPTIONS: { id: AiTier; name: string; hint: string }[] = [
     // picker, so here one sentence is enough. Loud where the decision is made, quiet where the
     // key is typed - an interstitial in front of the field would be the brush-off the receipt
     // warns against.
-    hint: 'Run it on your own OpenAI, Anthropic, Google or Hugging Face key: any model that provider offers, at that provider’s prices. If you have Claude Code or Codex, you do not need this.',
+    // "Account" rather than "key": Hugging Face issues tokens, not keys (credentialNoun), and
+    // the field below this picker is labelled with each provider's own word.
+    hint: 'Run it on your own account with OpenAI, Anthropic, Google or Hugging Face: any model that provider offers, at that provider’s prices. If you have Claude Code or Codex, you do not need this.',
   },
 ];
 
@@ -419,10 +421,18 @@ export default function AiStep({
   // the key field is about to be on screen, and the settings sheet's pointer opens it too.
   const [agentRouteOpen, setAgentRouteOpen] = useState(false);
   const agentRouteRef = useRef<HTMLDivElement>(null);
+  // A reveal is a nonce, not a boolean, so a second "Show me" on an already-open card still
+  // scrolls - and the scroll runs in an effect AFTER the body has rendered, aligned to the
+  // card's top, so the commands land in view rather than the one-line card being centred and
+  // the body it exists to show cut off below the fold.
+  const [agentRouteReveal, setAgentRouteReveal] = useState(0);
   const revealAgentRoute = () => {
     setAgentRouteOpen(true);
-    agentRouteRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setAgentRouteReveal((n) => n + 1);
   };
+  useEffect(() => {
+    if (agentRouteReveal > 0) agentRouteRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [agentRouteReveal]);
 
   useEffect(() => {
     if (liteStatus === undefined || settingsAutoOpened.current) return;
@@ -1183,7 +1193,12 @@ export default function AiStep({
         {/* Before the drop zone, the brief, the tiers and any key: the preferred route is the
             first thing the step says after its caution. Never gated on an account - a visitor
             with no account is exactly who owns a better road than the one that asks for one. */}
-        <AgentRouteCard ref={agentRouteRef} open={agentRouteOpen} onToggle={setAgentRouteOpen} />
+        <AgentRouteCard
+          ref={agentRouteRef}
+          open={agentRouteOpen}
+          onToggle={setAgentRouteOpen}
+          hostedOffered={liteOffered || proOffered}
+        />
         {liteMode && liteStatus?.allowance && (
           <p className="hint" data-testid="lite-allowance">
             {liteStatus.allowance.dailySuccessesRemaining} successful generation(s) left today ·{' '}

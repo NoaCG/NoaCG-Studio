@@ -33,7 +33,7 @@ import { forwardRef } from 'react';
  */
 
 /** The docs page's "paste this to your agent" prompt, which does the whole setup. */
-export const AGENT_ROUTE_DOCS_HREF = '/docs#agent-install';
+const AGENT_ROUTE_DOCS_HREF = '/docs#agent-install';
 
 /** docs/AGENT_CLI.md, Distribution: the Claude Code plugin, two commands, nothing to install first. */
 const CLAUDE_CODE_INSTALL = 'claude plugin marketplace add miwco/NoaCG-Studio\nclaude plugin install noacg@noacg-studio';
@@ -41,9 +41,20 @@ const CLAUDE_CODE_INSTALL = 'claude plugin marketplace add miwco/NoaCG-Studio\nc
 interface Props {
   open: boolean;
   onToggle: (open: boolean) => void;
+  /**
+   * Whether a NoaCG-run tier (Lite or Pro) is on offer here. The closing line for somebody
+   * with no agent has to be true in BOTH builds: on a hosted studio nothing needs installing
+   * or pasting, but on a self-hosted one the only road left is their own provider account,
+   * and "nothing to install" there would send them to a Generate button that stays disabled
+   * until a key is stored.
+   */
+  hostedOffered: boolean;
 }
 
-const AgentRouteCard = forwardRef<HTMLDivElement, Props>(function AgentRouteCard({ open, onToggle }, ref) {
+const AgentRouteCard = forwardRef<HTMLDivElement, Props>(function AgentRouteCard(
+  { open, onToggle, hostedOffered },
+  ref,
+) {
   return (
     <div className="ai-agent-route" data-testid="ai-agent-route" ref={ref}>
       <div className="ai-agent-route-line">
@@ -76,12 +87,12 @@ const AgentRouteCard = forwardRef<HTMLDivElement, Props>(function AgentRouteCard
           </p>
           <p>
             <strong>Claude Code:</strong> run these two lines once, then ask for the graphic you
-            need, or type <code>/noacg:graphic</code>.
+            need, or type <code className="inline">/noacg:graphic</code>.
           </p>
           <pre className="ai-agent-cmd"><code>{CLAUDE_CODE_INSTALL}</code></pre>
           <p>
-            <strong>Codex:</strong> <code>codex plugin marketplace add miwco/NoaCG-Studio</code>,
-            then <code>codex plugin add noacg@noacg-studio</code>.
+            <strong>Codex:</strong> <code className="inline">codex plugin marketplace add miwco/NoaCG-Studio</code>,
+            then <code className="inline">codex plugin add noacg@noacg-studio</code>.
           </p>
           <p>
             Would rather not type commands?{' '}
@@ -91,8 +102,9 @@ const AgentRouteCard = forwardRef<HTMLDivElement, Props>(function AgentRouteCard
             and it does the setup itself, then asks you what to make.
           </p>
           <p>
-            No coding agent? Nothing to install: describe the graphic below and NoaCG makes it
-            right here.
+            {hostedOffered
+              ? 'No coding agent? Nothing to install: describe the graphic below and NoaCG makes it right here.'
+              : 'No coding agent? This door still works: Bring your own key, under AI settings below, runs it on your own provider account.'}
           </p>
         </div>
       )}
