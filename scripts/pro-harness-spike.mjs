@@ -578,7 +578,18 @@ for (const entry of briefs) {
     type: entry.type,
     status: result.status,
     reason: result.reason,
-    rounds: result.rounds.map((r) => ({ round: r.round, model: r.model, blocking: findingsModule.blocking(r.findings).length, advisory: r.findings.length - findingsModule.blocking(r.findings).length, codes: r.findings.map((f) => f.id) })),
+    // THE BLOCKING FINDINGS KEEP THEIR SENTENCES. Ids alone say WHICH check failed and never
+    // WHAT it read, so a refusal like `runtime:play-threw` - whose message is the actual
+    // exception - could not be diagnosed from the ledger at all on 2026-09-06, only guessed at
+    // from the model's own account of it. A round is evidence or it is nothing.
+    rounds: result.rounds.map((r) => ({
+      round: r.round,
+      model: r.model,
+      blocking: findingsModule.blocking(r.findings).length,
+      advisory: r.findings.length - findingsModule.blocking(r.findings).length,
+      codes: r.findings.map((f) => f.id),
+      blockingMessages: findingsModule.blocking(r.findings).map((f) => `${f.id}: ${f.message}`),
+    })),
     bestRound: result.bestRound,
     steps: result.steps,
     escalated: result.escalated,
