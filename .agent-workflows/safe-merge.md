@@ -1,4 +1,15 @@
-# safe-merge - land one branch on main, in the right order
+# safe-merge - land one branch on main by hand, when the queue cannot
+
+**This is the break-glass procedure, not the way work lands.** Work reaches `main` through the
+landing queue: a session declares its branch finished with the queue-merge workflow, and the
+queue runs THIS procedure's mechanical path for it (`scripts/auto-merge.mjs` and
+`scripts/safe-merge-preflight.mjs`), one branch at a time, gated on CI. Between 2026-07-27 and
+2026-08-25 this workflow ran 217 times; since the queue landed on 2026-08-25 it has run zero,
+and that is the correct number.
+
+Read this file when the queue itself cannot do the job: the runner is dead, a landing refuses
+for a reason a person has to judge, or `main` is in a state the automation will not touch. Then
+follow it in full.
 
 Shared canonical procedure for the `safe-merge` workflow - `/safe-merge` in Claude Code,
 `$safe-merge` in Codex. Cross-references use plain names ("the cleanup-worktrees workflow").
@@ -13,31 +24,23 @@ stopping at the first failure and reporting what is left.
 ## When this may run
 
 Landing is serialized, not permissioned (root `AGENTS.md`, "Git"). Nobody waits on an approval;
-what a run waits on is the other branches.
+what a run waits on is the other branches. Running this workflow by hand puts a landing OUTSIDE
+that serialization - it is still safe, because `--ff-only` and the Phase 4 re-check cannot be
+talked out of, but it races every queued branch, and that is how five landings in a hundred
+minutes each cost a full re-verification. So the normal answer to "land this" is
+`npm run queue:merge`, and this file is what a person reads when that has already failed.
 
-> **Prefer the queue: `npm run queue:merge -- <branch>`** (owner, 2026-08-25 - every landing goes
-> through it). That runs `scripts/auto-merge.mjs`, which is this procedure's mechanical path, and
-> merge jobs never run beside each other - so several branches land one at a time in order instead
-> of racing. Running this workflow by hand is outside that serialization: it is still safe, because
-> `--ff-only` and the Phase 4 re-check cannot be talked out of, but it is how five landings in a
-> hundred minutes each cost a full re-verification. Use this file directly when the queue refuses
-> and a person has to judge why.
+**The user starts every run, explicitly.** The Claude adapter keeps
+`disable-model-invocation: true` and the shared-instruction gate enforces it, so the model cannot
+invoke this as a tool of its own accord. One thing counts as a real invocation: the user typing
+the command (`/safe-merge`, `$safe-merge`). No other workflow offers this one as a pick any more -
+the planning workflow offers queueing instead - so there is no second door to honour. Never infer
+an invocation from a request to inspect or discuss a merge, or from work merely looking finished.
 
-**A human still starts each run today.** The Claude adapter keeps `disable-model-invocation: true`
-and the shared-instruction gate enforces it, so the model cannot invoke this as a tool of its own
-accord. Two things count as a real invocation: the user typing the command
-(`/safe-merge`, `$safe-merge`), or **the user SELECTING this workflow from a pick another workflow
-offered** for a named branch - a pick is a decision about a specific branch, so honour it by
-running this procedure rather than answering "type the command yourself". Acting on a pick means
-reading this file and following it directly; the adapter is only a pointer here anyway. Never
-infer an invocation from a request to inspect or discuss a merge, or from work merely looking
-finished.
-
-**Unattended landing of `clear` branches arrives with the job runner**, not before
-(`docs/JOB_RUNNER_PLAN.md`, rollout step 4). The owner's condition for automation was that it stay
-visible - "it just needs to be clear that something is merging" - and the queue plus the
-SessionStart summary are what make it visible. Lifting the flag before that would deliver the
-automation without the condition attached to it.
+**Unattended landing is what the queue already does**, and the owner's condition for it was that
+it stay visible - "it just needs to be clear that something is merging". `npm run jobs` and the
+SessionStart summary are what make it visible. This procedure stays attended: a person read it
+because something needed judging, and that person sees it through.
 
 Whoever starts the run, a **`caution` or `hold`** verdict stops and asks. Those are the cases that
 historically went wrong - a stacked branch jumping its ancestor, two branches minting one

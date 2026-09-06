@@ -439,7 +439,7 @@ Official source:
 ### Prompt 1 - Streaming notifications and activity
 
 ```text
-$noacg-task Build NoaCG Studio's first complete streaming notification and activity pack.
+Build NoaCG Studio's first complete streaming notification and activity pack.
 
 Use gpt-5.6-sol with high reasoning. Work only on a feature branch in this worktree. Read the
 root instructions, docs/DESIGN_LANGUAGE.md, docs/GOALS.md, docs/STATE_MACHINE_SCHEMA.md, and the
@@ -469,7 +469,7 @@ stop without merging.
 ### Prompt 2 - Editorial and cinematic information systems
 
 ```text
-$noacg-task Turn editorial and cinematic from lower-third-only looks into usable information
+Turn editorial and cinematic from lower-third-only looks into usable information
 systems.
 
 Use gpt-5.6-sol with high reasoning. Limit ownership to info cards, tickers, alerts/public-info,
@@ -497,7 +497,7 @@ Commit and stop without merging.
 ### Prompt 3 - Full-frame scenes, frames, and transitions
 
 ```text
-$noacg-task Rebuild NoaCG's full-frame offering so holding scenes, camera layouts, and transitions
+Rebuild NoaCG's full-frame offering so holding scenes, camera layouts, and transitions
 look like premium package assets.
 
 Use gpt-5.6-sol with xhigh reasoning. Own only src/templates/startingSoon,
@@ -526,7 +526,7 @@ Commit and stop without merging.
 ### Prompt 4 - Competitive programme depth
 
 ```text
-$noacg-task Add the highest-value missing sports, esports, and tabletop operator graphics without
+Add the highest-value missing sports, esports, and tabletop operator graphics without
 duplicating the existing competition pack.
 
 Use gpt-5.6-sol with high reasoning. Own scoreboards, game timers, competition boards, and sports
