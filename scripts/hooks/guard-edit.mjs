@@ -51,6 +51,18 @@ if (rel === 'src/assets/gsap.min.js') {
   );
 }
 
+// The compiled contracts. Claude Code loads .claude/rules/*.md by itself when a matching file
+// is read; every one of them is rendered from contracts/rules/ by scripts/compile-contracts.mjs,
+// and `npm run build` refuses a stale copy. A hand edit here is lost at the next compile and
+// wrong until then.
+if (rel.startsWith('.claude/rules/') || rel === 'contracts/index.md') {
+  deny(
+    `${rel} is generated from contracts/rules/ by scripts/compile-contracts.mjs. To change a rule, ` +
+      'edit its file under contracts/rules/ (or record a new one with `npm run learn -- ...`), then ' +
+      'run `npm run contracts:compile` and commit the result.',
+  );
+}
+
 if (rel === 'package-lock.json') {
   deny(
     'package-lock.json should only change through npm (npm install / update / dedupe), never a ' +

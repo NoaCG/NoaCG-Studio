@@ -93,7 +93,10 @@ stops before the first state change. Two minutes here saves a refusal later.
 
     npm run queue:merge
 
-With no branch it queues THIS worktree's. Then:
+With no branch it queues THIS worktree's. **It reads the `/check` stamp**: the tip being queued
+must be the sha `/check` reviewed, or `add-merge` refuses. Landing without a review is possible
+and visible, never silent: `npm run queue:merge -- --unreviewed "<reason>"` puts the reason on the
+job record. Then:
 
     npm run jobs        # position, what is running, why anything waits
 

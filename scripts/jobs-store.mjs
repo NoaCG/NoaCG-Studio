@@ -135,7 +135,7 @@ export function writeJob(dir, job) {
 export function addJob(dir, {
   command, checkout, branch = null, kind = 'gate', after = [], capMinutes = POLICY.capMinutes,
   retryOf = null, retryCount = 0, orderHold = null, blockedSince = null,
-  retryReason = null, repinnedRetry = false, ciDispatched = false, now,
+  retryReason = null, repinnedRetry = false, ciDispatched = false, review = null, now,
 }) {
   if (!KINDS.includes(kind)) throw new Error(`unknown job kind: ${kind}`);
   if (typeof command !== 'string' || command.trim() === '') throw new Error('a job needs a command');
@@ -175,6 +175,10 @@ export function addJob(dir, {
       // This landing has already been handed a full CI run by the queue. Kept on the record so a
       // second gate-proved-nothing refusal escalates rather than asking for another.
       ...(ciDispatched ? { ciDispatched } : {}),
+      // What `/check` said about the tip this job pins: `{ stamp: 'reviewed', reviewedSha }` when
+      // the stamp matched, `{ stamp: 'unreviewed', reason }` when the session queued past it. The
+      // landing reads it the way it reads CI - a verdict with a machine consumer (2026-09-06).
+      ...(review ? { review } : {}),
       enqueuedAt: now,
       state: 'waiting',
       startedAt: null,

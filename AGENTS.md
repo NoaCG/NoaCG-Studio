@@ -181,6 +181,12 @@ region - user code outside the markers is never modified, and the timeline dock 
 from the CODE, never the category, which keeps pre-migration templates working. Per-surface detail:
 src/components/AGENTS.md; the Browse storefront's facets: `docs/TEMPLATE_TAXONOMY_PROPOSAL.md`.
 
+## Learning something
+
+A lesson is recorded with `npm run learn -- ...` (the rule to `contracts/rules/`, the evidence
+to `contracts/records/`, compiled into `.claude/rules/`), never as a new paragraph in a contract:
+`check:contract-evidence` refuses one. `docs/WORKFLOW_ARCHITECTURE.md` §5.3 is the design.
+
 ## Verifying changes
 
 Seven rules; the full procedure is **`docs/VERIFICATION.md`**.

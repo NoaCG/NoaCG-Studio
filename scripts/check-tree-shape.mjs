@@ -37,7 +37,10 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   // for `claude plugin marketplace add miwco/NoaCG-Studio` to find it; the plugins stay under cli/.
   '.agent-workflows', '.agents', '.claude', '.claude-plugin', '.codex', '.dependency-cruiser.cjs', '.env.bench',
   '.env.example', '.gitattributes', '.github', '.gitignore', '.nvmrc', 'AGENTS.md', 'CLAUDE.md', 'LICENSE',
-  'NoaCG-Brand-Kit', 'README.md', 'admin.html', 'api', 'app.html', 'benchmarks', 'bridge.html', 'cli', 'docs',
+  'NoaCG-Brand-Kit', 'README.md', 'admin.html', 'api', 'app.html', 'benchmarks', 'bridge.html', 'cli',
+  // `contracts/` is the rule store the loaded contracts are compiled from (docs/WORKFLOW_ARCHITECTURE.md
+  // §5.3): one rule per file, one record per incident, neither loaded into a session.
+  'contracts', 'docs',
   'docs.html', 'e2e',
   'eslint.config.js', 'index.html', 'join.html', 'ograf.html', 'output.html', 'package-lock.json',
   'package.json', 'packs', 'player-host', 'playwright.catalog.config.ts', 'playwright.config.ts',

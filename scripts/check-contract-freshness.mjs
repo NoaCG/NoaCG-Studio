@@ -117,11 +117,17 @@ function ignoredRefs(refs) {
   }
 }
 
-/** The contract files to scan: every AGENTS.md / CLAUDE.md, and every workflow markdown. */
+/**
+ * The contract files to scan: every AGENTS.md / CLAUDE.md, every workflow markdown, the rule
+ * store and what it compiles to. A rule under contracts/rules/ is what the generated
+ * .claude/rules/ files are made of, so a stale path there rots in every session that reads a
+ * matching file - the same failure this gate exists for.
+ */
 function contractFiles() {
   const out = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' });
   return out.split('\n').map((line) => line.trim().replace(/\\/g, '/')).filter(Boolean).filter((file) =>
-    /(^|\/)(AGENTS|CLAUDE)\.md$/.test(file) || file.startsWith('.agent-workflows/'));
+    /(^|\/)(AGENTS|CLAUDE)\.md$/.test(file) || file.startsWith('.agent-workflows/')
+    || (file.startsWith('contracts/') && file.endsWith('.md')) || file.startsWith('.claude/rules/'));
 }
 
 function main() {

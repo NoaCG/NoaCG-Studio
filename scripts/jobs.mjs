@@ -335,6 +335,29 @@ async function cmdAddMerge() {
     console.error('  Then act on it and queue again. Queueing means "this is finished"; an unread review means it is not.');
     process.exit(1);
   }
+  // The `/check` verdict stamp gets its machine consumer here. `/check` writes
+  // `checks/<branch>.json` with the EXACT sha it reviewed (.agent-workflows/check.md); 68 such
+  // stamps sat on disk on 2026-09-06 and nothing read one. Queueing a tip the stamp does not
+  // cover is queueing unreviewed work, so it is refused - with the one honest way past named:
+  // `--unreviewed "<reason>"`, which lands with the reason on the job record where the report and
+  // the landing ledger can see it, instead of silently.
+  const tipForReview = branchTip(target);
+  const stamp = readReviewStamp(dir, target);
+  const unreviewedReason = valueOf('--unreviewed');
+  let review;
+  if (stamp && tipForReview && stamp.reviewedSha === tipForReview) {
+    review = { stamp: 'reviewed', reviewedSha: stamp.reviewedSha, verdict: stamp.verdict ?? null };
+  } else if (unreviewedReason) {
+    review = { stamp: 'unreviewed', reason: unreviewedReason, ...(stamp ? { staleStamp: stamp.reviewedSha } : {}) };
+  } else {
+    const why = !stamp
+      ? `no /check stamp exists for ${target}`
+      : `the stamp reviewed ${String(stamp.reviewedSha).slice(0, 8)}, but the tip is ${String(tipForReview).slice(0, 8)}`;
+    console.error(`add-merge refused: ${why}.`);
+    console.error('  Run /check on this tip first (it writes the stamp), then queue again.');
+    console.error('  To land without it, say why on the record:  npm run queue:merge -- --unreviewed "<reason>"');
+    process.exit(1);
+  }
   // Forward the flags auto-merge understands. Dropping one silently is worse than rejecting it:
   // `--accept conflict` went missing here once and the job refused with the very verdict the flag
   // was there to answer, which reads exactly like the policy refusing rather than the queue
@@ -358,10 +381,11 @@ async function cmdAddMerge() {
     kind: 'merge',
     after: (valueOf('--after') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     capMinutes: Number(valueOf('--cap') ?? 45),
+    review,
     now: Date.now(),
   });
   await ensureRunner();
-  console.log(`${job.id} queued: land ${target}`);
+  console.log(`${job.id} queued: land ${target}${review.stamp === 'unreviewed' ? ` (UNREVIEWED: ${review.reason})` : ''}`);
   console.log(`  output: node scripts/jobs.mjs log ${job.id}`);
 }
 
@@ -1137,6 +1161,22 @@ function gitFacts() {
       windowsHide: true,
     }).status === 0,
   };
+}
+
+/**
+ * The `/check` verdict stamp for a branch, or null. The file is per-machine state beside the job
+ * store (`checks/<branch-with-slashes-as-dashes>.json`, .agent-workflows/check.md); a stamp that
+ * does not parse is the same as no stamp, since a verdict nobody can read proves nothing.
+ */
+export function readReviewStamp(jobsDirectory, branch) {
+  const file = join(jobsDirectory, 'checks', `${branch.replaceAll('/', '-')}.json`);
+  if (!existsSync(file)) return null;
+  try {
+    const stamp = JSON.parse(readFileSync(file, 'utf8'));
+    return stamp && typeof stamp.reviewedSha === 'string' ? stamp : null;
+  } catch {
+    return null;
+  }
 }
 
 function branchTip(branch) {
