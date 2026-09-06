@@ -48,8 +48,14 @@ export function desiredRuleset({ lander = 'integration' } = {}) {
   };
 }
 
-/** The shapes to try, strongest first; the first GitHub accepts is the one applied. */
-export const LANDER_SHAPES = ['integration', 'user', 'none'];
+/**
+ * The shapes to try, strongest first; the first GitHub accepts is the one applied. `user` is
+ * never tried on its own: GitHub accepts it and then still refuses the workflow token's push, so
+ * applying it automatically would block every landing (it did, twice, on 2026-09-06). It stays
+ * reachable through `--lander user` for the day GitHub changes that.
+ */
+export const LANDER_SHAPES = ['integration', 'none'];
+export const ALL_SHAPES = ['integration', 'user', 'none'];
 
 function gh(args, input) {
   return execFileSync('gh', args, { encoding: 'utf8', input, windowsHide: true });
@@ -98,14 +104,15 @@ function main() {
   }
   const forcedIndex = process.argv.indexOf('--lander');
   const forced = forcedIndex >= 0 ? process.argv[forcedIndex + 1] : null;
-  if (forced && !LANDER_SHAPES.includes(forced)) throw new Error(`--lander must be one of ${LANDER_SHAPES.join(', ')}`);
+  if (forced && !ALL_SHAPES.includes(forced)) throw new Error(`--lander must be one of ${ALL_SHAPES.join(', ')}`);
   const lander = applyRuleset(slug, existing, forced);
   const after = findExisting(JSON.parse(gh(['api', `repos/${slug}/rulesets`])));
   const detail = JSON.parse(gh(['api', `repos/${slug}/rulesets/${after.id}`]));
   console.log(`[landing-ruleset] ${existing ? 'updated' : 'created'} ruleset ${after.id} on ${slug} with the "${lander}" shape`);
   console.log(`  enforcement ${detail.enforcement}; rules ${detail.rules.map((r) => r.type).join(', ')}; bypass ${detail.bypass_actors.map((a) => `${a.actor_type}:${a.actor_id}`).join(', ')}`);
   if (lander === 'none') {
-    console.log('  NOTE: pushes to main are not restricted by GitHub on a user-owned repository; the single lander rests on the client and the hooks until the repository moves to an organisation.');
+    console.log('  NOTE: GitHub refused the Actions app as a bypass actor, so pushes to main are not restricted; the single lander rests on the client and the hooks.');
+    console.log('  An organisation owner can add "GitHub Actions" to this ruleset\'s bypass list in the web UI (Settings, Rules, Rulesets); once it is there, re-run --apply and the strong shape holds.');
   }
 }
 

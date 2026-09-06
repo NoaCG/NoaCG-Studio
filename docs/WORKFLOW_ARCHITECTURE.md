@@ -90,10 +90,10 @@ The mechanical parts already exist as scripts: `wave-tick`, `wave-watch`, `ci-wa
 | Merge jobs 14 d | 380: 269 done, 89 failed, 8 timed out | `ls <git-common-dir>/noacg-jobs/j-*.json`; `grep -ohE "auto-merge REFUSED: [^\n]{0,70}" .../logs/j-*.log \| sort \| uniq -c` |
 | "blocked by unqueued branch" | 58 log lines | `grep -l "NO landing is queued" .../logs/j-*.log \| wc -l` |
 | Red main | 16 issues, ~78 h open, worst 35 h | `gh issue list --search '"CI is red on main" in:title' --state all --limit 50 --json number,createdAt,closedAt` |
-| `ci.yml` runs/day | 61 over 30 d (1,850 runs: 512 main, 1,338 branch, 281 cancelled); 83 over the last 3 d | `gh api "repos/miwco/NoaCG-Studio/actions/runs?created=<from>..<to>&per_page=100" --paginate` (the `gh run list` cap of 1,000 rows reaches back only 8 days) |
+| `ci.yml` runs/day | 61 over 30 d (1,850 runs: 512 main, 1,338 branch, 281 cancelled); 83 over the last 3 d | `gh api "repos/NoaCG/NoaCG-Studio/actions/runs?created=<from>..<to>&per_page=100" --paginate` (the `gh run list` cap of 1,000 rows reaches back only 8 days) |
 | Runner-minutes, 30 d | 113,685 (62 h/day): branches 53%, main 43%, nightly 3%; 42% is `main` re-running a sha already green on its branch | per-run `actions/runs/<id>/jobs`, summed job durations |
 | Full run cost | 149 specs, 1,250 tests, 102.8 recorded min, 9 shards, 16 jobs, ~119 runner-min, 14.4 min wall | `gh run view <id> --json jobs`; `node -e "const t=require('./scripts/e2e-durations.json');console.log(Object.values(t.minutes).reduce((a,b)=>a+b,0))"` |
-| Branch run | median 68 runner-min, 8.2 min wall; 27 of 32 "subset" runs on 9 shards | same, plus the plan job log: `gh api repos/miwco/NoaCG-Studio/actions/jobs/<planJobId>/logs \| grep -E 'plan: \{'` |
+| Branch run | median 68 runner-min, 8.2 min wall; 27 of 32 "subset" runs on 9 shards | same, plus the plan job log: `gh api repos/NoaCG/NoaCG-Studio/actions/jobs/<planJobId>/logs \| grep -E 'plan: \{'` |
 | Installs per run | node_modules restored in up to 12 jobs, Chromium in up to 11 | job step names via `gh api .../actions/jobs/<id>` |
 | Escalation replay (150 landings) | 77 none, 73 subset, 40 escalated to focus, 40 raised catalog; planned min p90 72 | scratchpad `classify.mjs` (imports `planFor` from `scripts/e2e-affected.mjs`, `git rev-list --first-parent -n 150 origin/main`) |
 | Files that escalate alone | 7.3% of tracked files; 16% of `src/components/` | same script over `git ls-files` |
@@ -482,7 +482,7 @@ Effect on the five asks: (1) time to `main` bounded by T2, laptop no longer need
 gh run list --workflow=ci.yml --limit 250 --json databaseId,headBranch,conclusion,event,createdAt,updatedAt
 gh run view <id> --json jobs --jq '.jobs[] | "\(.name)\t\(.conclusion)\t\(.startedAt)\t\(.completedAt)"'
 # what the plan job decided
-gh api repos/miwco/NoaCG-Studio/actions/jobs/<planJobId>/logs | grep -E 'plan: \{|##\[notice\]'
+gh api repos/NoaCG/NoaCG-Studio/actions/jobs/<planJobId>/logs | grep -E 'plan: \{|##\[notice\]'
 # job store and landing ledger
 J=$(git rev-parse --git-common-dir)/noacg-jobs; ls $J/j-*.json | wc -l; wc -l $J/landed.jsonl
 grep -ohE "auto-merge REFUSED: [^\n]{0,70}" $J/logs/j-*.log | sort | uniq -c | sort -rn
@@ -494,5 +494,5 @@ for m in $(git log --merges --since=45.days --format=%H main); do git show --cc 
 node scripts/check-shared-instructions.mjs
 git log --before="2026-08-15 23:59:59" -1 --format=%H -- AGENTS.md
 # GitHub-side landing state
-gh api repos/miwco/NoaCG-Studio/rulesets; gh api repos/miwco/NoaCG-Studio/branches/main/protection
+gh api repos/NoaCG/NoaCG-Studio/rulesets; gh api repos/NoaCG/NoaCG-Studio/branches/main/protection
 ```

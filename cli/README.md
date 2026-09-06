@@ -36,10 +36,10 @@ asks what to make. It runs a couple of install commands you have to approve.
 Set up NoaCG Studio so you can build broadcast graphics for me, then ask me what to make.
 
 1. Install the entrance that matches you. Claude Code:
-     claude plugin marketplace add miwco/NoaCG-Studio
+     claude plugin marketplace add NoaCG/NoaCG-Studio
      claude plugin install noacg@noacg-studio
    Codex:
-     codex plugin marketplace add miwco/NoaCG-Studio
+     codex plugin marketplace add NoaCG/NoaCG-Studio
      codex plugin add noacg@noacg-studio
    Any other agent that speaks MCP: register a stdio server, command "npx", arguments
    "-y @noacg/cli mcp". I will approve these commands as you run them.
@@ -73,7 +73,7 @@ command, with nothing to install first; the skill runs this CLI from the termina
 `noacg-mcp` plugin adds the always-on MCP server (`cli/plugin-mcp/README.md` says what it costs).
 
 ```
-claude plugin marketplace add miwco/NoaCG-Studio
+claude plugin marketplace add NoaCG/NoaCG-Studio
 claude plugin install noacg@noacg-studio
 ```
 
@@ -84,7 +84,7 @@ there is nothing to copy by hand; `codex plugin add noacg-mcp@noacg-studio` adds
 always-on server the same way.
 
 ```
-codex plugin marketplace add miwco/NoaCG-Studio
+codex plugin marketplace add NoaCG/NoaCG-Studio
 codex plugin add noacg@noacg-studio
 ```
 

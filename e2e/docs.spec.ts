@@ -225,12 +225,12 @@ test('the agent guide offers both install routes, and they are the real ones', a
   // the `name` field in .claude-plugin/marketplace.json - if either half drifts the command
   // silently installs nothing (owner, 2026-08-26: a personal handle here is fine, it is normal
   // practice; what is not fine is the guide not working).
-  await expect(agents).toContainText('claude plugin marketplace add miwco/NoaCG-Studio');
+  await expect(agents).toContainText('claude plugin marketplace add NoaCG/NoaCG-Studio');
   await expect(agents).toContainText('claude plugin install noacg@noacg-studio');
   // Codex installs the same plugin from the same root marketplace manifest, which is what
   // replaced the manual `~/.codex/skills/` copy and the separate `codex mcp add`. Both halves
   // are pinned for the same reason as the Claude pair: a drift here installs nothing, silently.
-  await expect(agents).toContainText('codex plugin marketplace add miwco/NoaCG-Studio');
+  await expect(agents).toContainText('codex plugin marketplace add NoaCG/NoaCG-Studio');
   await expect(agents).toContainText('codex plugin add noacg@noacg-studio');
   // The server on its own stays documented for people who do not want the skill.
   await expect(agents).toContainText('claude mcp add noacg -- npx -y @noacg/cli mcp');

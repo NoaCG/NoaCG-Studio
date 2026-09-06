@@ -20,7 +20,7 @@ every session's context. That is the whole reason it is a separate plugin.
 ## Install
 
 ```bash
-claude plugin marketplace add miwco/NoaCG-Studio
+claude plugin marketplace add NoaCG/NoaCG-Studio
 claude plugin install noacg@noacg-studio        # the skill and the command
 claude plugin install noacg-mcp@noacg-studio    # this server, if you want it
 npm i -g @noacg/cli                             # one process instead of npx plus a child

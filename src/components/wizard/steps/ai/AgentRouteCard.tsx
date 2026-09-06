@@ -36,7 +36,7 @@ import { forwardRef } from 'react';
 const AGENT_ROUTE_DOCS_HREF = '/docs#agent-install';
 
 /** docs/AGENT_CLI.md, Distribution: the Claude Code plugin, two commands, nothing to install first. */
-const CLAUDE_CODE_INSTALL = 'claude plugin marketplace add miwco/NoaCG-Studio\nclaude plugin install noacg@noacg-studio';
+const CLAUDE_CODE_INSTALL = 'claude plugin marketplace add NoaCG/NoaCG-Studio\nclaude plugin install noacg@noacg-studio';
 
 interface Props {
   open: boolean;
@@ -91,7 +91,7 @@ const AgentRouteCard = forwardRef<HTMLDivElement, Props>(function AgentRouteCard
           </p>
           <pre className="ai-agent-cmd"><code>{CLAUDE_CODE_INSTALL}</code></pre>
           <p>
-            <strong>Codex:</strong> <code className="inline">codex plugin marketplace add miwco/NoaCG-Studio</code>,
+            <strong>Codex:</strong> <code className="inline">codex plugin marketplace add NoaCG/NoaCG-Studio</code>,
             then <code className="inline">codex plugin add noacg@noacg-studio</code>.
           </p>
           <p>

@@ -82,7 +82,7 @@ Claude Code installs the skill and the `/noacg:graphic` command; the plugin runs
 graphic is being made:
 
 ```bash
-claude plugin marketplace add miwco/NoaCG-Studio
+claude plugin marketplace add NoaCG/NoaCG-Studio
 ```
 
 ```bash

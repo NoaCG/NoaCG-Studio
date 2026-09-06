@@ -30,7 +30,7 @@ marketplace name `noacg-studio`), and it lists both plugins.
 **Claude Code** (any machine):
 
 ```bash
-claude plugin marketplace add miwco/NoaCG-Studio
+claude plugin marketplace add NoaCG/NoaCG-Studio
 claude plugin install noacg@noacg-studio
 ```
 
@@ -54,7 +54,7 @@ installs from the repository the same way (verified 2026-08-27 against `origin/m
 local checkout):
 
 ```bash
-codex plugin marketplace add miwco/NoaCG-Studio
+codex plugin marketplace add NoaCG/NoaCG-Studio
 codex plugin add noacg@noacg-studio
 ```
 

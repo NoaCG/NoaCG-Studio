@@ -176,7 +176,7 @@ function templatePage(entry) {
     <p><strong>NoaCG Studio</strong> - premium broadcast graphics, built by choosing.
     Free, open source (AGPL-3.0), no account needed to create, preview or export.</p>
     <p><a href="/">Home</a> &middot; <a href="${escape(cta)}">Open the editor</a> &middot;
-       <a href="https://github.com/miwco/NoaCG-Studio">Source</a></p>
+       <a href="https://github.com/NoaCG/NoaCG-Studio">Source</a></p>
   </footer>
 </main>
 </body>

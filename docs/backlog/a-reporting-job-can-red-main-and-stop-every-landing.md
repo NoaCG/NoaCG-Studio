@@ -52,7 +52,7 @@ Do not simply delete the job. The merged report is what makes a nine-shard failu
 
 ## Evidence
 
-- Run https://github.com/miwco/NoaCG-Studio/actions/runs/33967372686 - `Combined E2E report`
+- Run https://github.com/NoaCG/NoaCG-Studio/actions/runs/33967372686 - `Combined E2E report`
   the only failure, `CI gate` and all nine full shards green.
 - `gh run rerun <id> --failed` cleared it with no code change, which is what confirms the cause
   was the network rather than the tree.

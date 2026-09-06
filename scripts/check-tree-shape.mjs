@@ -34,7 +34,7 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   // `.claude-plugin/` holds ONLY marketplace.json - the Claude Code plugin marketplace entries for
   // the `noacg` plugin under cli/plugin/ and the optional `noacg-mcp` plugin under cli/plugin-mcp/
   // (docs/AGENT_CLI.md "Distribution"). The marketplace manifest has to sit at the repository root
-  // for `claude plugin marketplace add miwco/NoaCG-Studio` to find it; the plugins stay under cli/.
+  // for `claude plugin marketplace add NoaCG/NoaCG-Studio` to find it; the plugins stay under cli/.
   '.agent-workflows', '.agents', '.claude', '.claude-plugin', '.codex', '.dependency-cruiser.cjs', '.env.bench',
   '.env.example', '.gitattributes', '.github', '.gitignore', '.nvmrc', 'AGENTS.md', 'CLAUDE.md', 'LICENSE',
   'NoaCG-Brand-Kit', 'README.md', 'admin.html', 'api', 'app.html', 'benchmarks', 'bridge.html', 'cli',

@@ -59,7 +59,7 @@ deployment row, and a project page that looks idle and healthy - which is why th
 When a commit has no deployment at all, read the GitHub commit status before suspecting a webhook:
 
 ```bash
-gh api repos/miwco/NoaCG-Studio/commits/<sha>/status
+gh api repos/NoaCG/NoaCG-Studio/commits/<sha>/status
 ```
 
 `"Vercel" ... "Deployment failed."` with a `vercel.link/<class>` target naming the fault. **That

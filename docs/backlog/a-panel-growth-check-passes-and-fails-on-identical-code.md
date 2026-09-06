@@ -14,8 +14,8 @@ The measurement, 2026-09-06:
 
 | | run | verdict |
 |---|---|---|
-| `main` at `31ffe42f` | [34026859619](https://github.com/miwco/NoaCG-Studio/actions/runs/34026859619), full, 9 shards | **passed** |
-| `claude/relay-cold-boot-hosted-teardown` at `ea8f5274` | [34027483173](https://github.com/miwco/NoaCG-Studio/actions/runs/34027483173), full, 9 shards | **failed**, 1 failed / 195 passed in shard 4 |
+| `main` at `31ffe42f` | [34026859619](https://github.com/NoaCG/NoaCG-Studio/actions/runs/34026859619), full, 9 shards | **passed** |
+| `claude/relay-cold-boot-hosted-teardown` at `ea8f5274` | [34027483173](https://github.com/NoaCG/NoaCG-Studio/actions/runs/34027483173), full, 9 shards | **failed**, 1 failed / 195 passed in shard 4 |
 | the same run, same sha, `--failed` re-run of shard 4 alone | 34027483173 (re-run) | **passed** |
 
 Twenty-nine minutes apart, and the third row is the same job on the same commit half an hour after
@@ -79,9 +79,9 @@ claiming the 2026-09-05 fix settled it needs correcting either way.
 
 ## Evidence
 
-- Failing shard: run [34027483173](https://github.com/miwco/NoaCG-Studio/actions/runs/34027483173),
+- Failing shard: run [34027483173](https://github.com/NoaCG/NoaCG-Studio/actions/runs/34027483173),
   `E2E 4/9 (full)`, `e2e/import-svg.spec.ts:3404`.
-- Passing run on the same code: [34026859619](https://github.com/miwco/NoaCG-Studio/actions/runs/34026859619).
+- Passing run on the same code: [34026859619](https://github.com/NoaCG/NoaCG-Studio/actions/runs/34026859619).
 - The previous red main and the fix that was believed to settle it: `9a907209`, and the comment
   block above `e2e/import-svg.spec.ts:3404`.
 - `docs/CI_STABILITY.md` is the standing argument for why a red that nobody can attribute is more

@@ -58,7 +58,7 @@ jobs:
   publish:
     name: Publish @noacg/cli
     # Never on a fork, and never on a fork's tag push.
-    if: ${{ github.repository == 'miwco/NoaCG-Studio' }}
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

@@ -7,11 +7,11 @@
   "homepage": "https://noacg.studio",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/miwco/NoaCG-Studio.git",
+    "url": "git+https://github.com/NoaCG/NoaCG-Studio.git",
     "directory": "cli"
   },
   "bugs": {
-    "url": "https://github.com/miwco/NoaCG-Studio/issues"
+    "url": "https://github.com/NoaCG/NoaCG-Studio/issues"
   },
   "keywords": [
     "broadcast-graphics",

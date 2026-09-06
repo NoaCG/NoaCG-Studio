@@ -642,7 +642,7 @@ test('a push alone, a dispatch alone, a dry run, and the pair as text are not th
 test('pushedUpdates reads the branches a push updated off the report git printed', () => {
   // Git prints the report on stderr; the tool response carries both streams as fields.
   const stderr =
-    'To github.com:miwco/NoaCG-Studio.git\n' +
+    'To github.com:NoaCG/NoaCG-Studio.git\n' +
     '   1765fcfe..2a3b4c5d  claude/r-mistake-triggers -> claude/r-mistake-triggers\n';
   assert.deepEqual(pushedUpdates('git push', { stdout: '', stderr, interrupted: false, exit_code: 0 }), [
     { from: '1765fcfe', to: '2a3b4c5d', branch: 'claude/r-mistake-triggers' },

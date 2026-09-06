@@ -94,7 +94,7 @@ test("the user's own coding agent is named as the preferred route before any tie
   await expect(route).toContainText('Claude Code or Codex');
   const body = page.getByTestId('ai-agent-route-body');
   // The commands are docs/AGENT_CLI.md's Distribution table, never an invented one-liner.
-  await expect(body).toContainText('claude plugin marketplace add miwco/NoaCG-Studio');
+  await expect(body).toContainText('claude plugin marketplace add NoaCG/NoaCG-Studio');
   await expect(body).toContainText('claude plugin install noacg@noacg-studio');
   await expect(body).toContainText('codex plugin add noacg@noacg-studio');
   await expect(body.getByRole('link')).toHaveAttribute('href', '/docs#agent-install');

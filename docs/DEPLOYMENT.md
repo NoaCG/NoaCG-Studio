@@ -197,7 +197,7 @@ tests the rule against a fixture tree, since `api/` alone only ever exercises to
   commit that deployed. On 2026-08-07 the header source `/join(/(.*))?` (an unnamed group
   inside an optional group - not valid path-to-regexp, though it reads like the `/(.*)` rules
   beside it) stopped eight consecutive `main` commits this way. The only signal is the
-  **`Vercel` commit status** on GitHub: `gh api repos/miwco/NoaCG-Studio/commits/<sha>/status`
+  **`Vercel` commit status** on GitHub: `gh api repos/NoaCG/NoaCG-Studio/commits/<sha>/status`
   → `"description": "Deployment failed."` with a `vercel.link/...` target URL naming the class.
   `gh run list` never shows it, because no workflow of ours deploys.
   **`npm run check:vercel-config` now runs this locally in the build gate**
