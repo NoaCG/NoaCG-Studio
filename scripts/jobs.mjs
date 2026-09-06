@@ -446,7 +446,8 @@ function queueOnGitHub(branch, tip, description) {
   // hands it to GitHub's merge queue the moment its required checks (`CI gate`, `Reviewed`) pass.
   ghRun(['label', 'create', 'land', '--force', '--color', 'F5A623', '--description', 'Queued for the landing queue']);
   ghRun(['pr', 'edit', String(pr.number), '--add-label', 'land']);
-  ghRun(['pr', 'merge', String(pr.number), '--auto', '--merge']);
+  // No strategy flag: the merge queue owns the strategy, and `gh` refuses one when a queue is on.
+  ghRun(['pr', 'merge', String(pr.number), '--auto']);
   return pr;
 }
 
