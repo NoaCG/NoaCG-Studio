@@ -397,7 +397,7 @@ export function applyLookToTemplate(template: SpxTemplate, brand: ProjectBrand):
   // logo the brand's mark goes in it, and where it did not, NOTHING is invented - no floating
   // overlay, no grafted field. A graphic with no slot comes back with its html, its fields and
   // its asset list exactly as they arrived, which is what makes "apply a brand" safe to press on
-  // anything.
+  // anything - including a graphic whose picture slot holds a presenter (see the titles below).
   let html = template.html;
   let fields = template.fields;
   const slot = brand.logo ? logoFieldOf(template) : null;
@@ -415,18 +415,52 @@ export function applyLookToTemplate(template: SpxTemplate, brand: ProjectBrand):
 }
 
 /**
- * The template's LOGO slot: a filelist field whose `<img id="fN">` also wears a `…-logo` class,
- * plus the exact tag text, so the caller can rewrite it without re-finding it.
+ * The picture slots that hold the ORGANISATION'S OWN MARK, by the title the design gives the
+ * field. A brand's logo goes in one of these and nowhere else.
  *
- * Both halves are required on purpose. A filelist field alone is not a logo slot - `ls41` binds
- * one to a person's AVATAR (`.lower-third-avatar`), and dropping a channel mark into a
- * presenter's headshot is worse than doing nothing. And a design that styles `.{prefix}-logo`
- * without a field has no operator-visible slot to fill. A design whose slot this misses is
- * simply left alone, which is the honest failure for a guess about somebody else's markup.
+ * THE CLASS IS NOT ENOUGH, and assuming it was is how this nearly shipped wrong. Every image
+ * slot in the catalog wears `.{prefix}-logo` - including `ls41`'s round presenter AVATAR and
+ * `ls25`'s square COVER ARTWORK - so matching on the class alone would replace an operator's
+ * headshot with a channel mark and rewrite their file value in the definition block. The two
+ * families this list leaves out are left out for different reasons and both are deliberate:
+ *
+ *   · a slot for a PERSON, a PRODUCT or a PICTURE (`Avatar`, `Photo`, `Cover artwork`,
+ *     `Product image`, `QR image`) holds content the operator chose, never a brand;
+ *   · a slot for SOMEBODY ELSE'S mark (`Team A logo`, `Sponsor 1`, `Partner 2`, `Club crest`,
+ *     `Tournament crest`) is a third party's identity, and a channel putting its own mark
+ *     there would be stating something untrue on air.
+ *
+ * A title this list does not know is left alone, which is the honest answer to a guess about
+ * somebody else's markup: a MISS costs the person one drag-and-drop, and a wrong WRITE costs
+ * them a graphic they have to notice is wrong.
+ */
+const BRAND_SLOT_TITLES = [
+  'logo',
+  'channel mark',
+  'institution logo',
+  'institution mark',
+  'production mark',
+  'masthead',
+];
+
+/**
+ * The template's BRAND slot, or null when it has none - the same question `applyLookToTemplate`
+ * asks, exported so a surface that has just applied a brand can put the mark on screen without
+ * re-deciding which field was the slot (components/home/sections/LooksSection.tsx).
+ */
+export function brandSlotField(template: SpxTemplate): SpxField | null {
+  return logoFieldOf(template)?.field ?? null;
+}
+
+/**
+ * The template's BRAND slot: a filelist field titled as the organisation's own mark whose
+ * `<img id="fN">` wears a `…-logo` class, plus the exact tag text so the caller can rewrite it
+ * without re-finding it. Null when the graphic has no such slot.
  */
 function logoFieldOf(template: SpxTemplate): { field: SpxField; tag: string } | null {
   for (const field of template.fields) {
     if (field.ftype !== 'filelist') continue;
+    if (!BRAND_SLOT_TITLES.includes(field.title.trim().toLowerCase())) continue;
     const tag = new RegExp(`<img[^>]*\\bid="${field.field}"[^>]*>`).exec(template.html)?.[0];
     if (tag && /\bclass="[^"]*-logo\b/.test(tag)) return { field, tag };
   }

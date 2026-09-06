@@ -13,7 +13,9 @@ import { chooseType, pickDesign } from './_browse';
 //   · None takes back exactly what the brand put there;
 //   · Create writes no brand record - the anonymous one it used to overwrite is retired;
 //   · applying a brand to a graphic that ALREADY exists fills a logo slot it has, and leaves a
-//     graphic with no slot untouched.
+//     graphic with no slot untouched;
+//   · a design whose picture slot holds a PERSON or a PRODUCT is never given the mark, at
+//     create or on apply, and a design that cannot show one never bundles its bytes.
 
 /** A visible 1×1 red PNG, so an injected mark can be told apart from an empty slot. */
 const LOGO_DATA_URL =
@@ -196,17 +198,23 @@ test('applying a brand fills an existing logo slot and leaves a slotless graphic
       );
     };
 
-    // A design that CAN hold a mark, created with its slot on but no file in it - the ordinary
-    // shape of a graphic somebody made before they had a brand.
-    const withSlot = all.find((v) => v.logo === 'optional')!;
-    // …and one that declares no slot at all.
+    // A design that takes the SHARED slot, created with it on but no file in it - the ordinary
+    // shape of a graphic somebody made before they had a brand. Named rather than "the first
+    // optional one", because which slot a design draws decides the answer.
+    const withSlot = all.find((v) => v.id === 'card01')!;
+    // …one that declares no slot at all…
     const slotless = all.find((v) => v.logo === 'none')!;
+    // …and one whose slot holds a PERSON. `ls41` wears the same `-logo` class as every other
+    // image slot, so only its field TITLE says a channel mark does not belong in it.
+    const portrait = all.find((v) => v.id === 'ls41')!;
 
     const before = build(withSlot.id, true);
     const bare = build(slotless.id, null);
+    const face = build(portrait.id, true);
     const brand = loadBrand()!;
     const filled = applyLookToTemplate(before, brand);
     const untouched = applyLookToTemplate(bare, brand);
+    const stillTheirs = applyLookToTemplate(face, brand);
 
     const slotField = filled.fields.find((f) => f.ftype === 'filelist');
     return {
@@ -222,6 +230,9 @@ test('applying a brand fills an existing logo slot and leaves a slotless graphic
       slotlessHtmlUnchanged: untouched.html === bare.html,
       slotlessFieldsUnchanged: JSON.stringify(untouched.fields) === JSON.stringify(bare.fields),
       slotlessHasNoMark: untouched.assets.every((a) => a.path !== 'images/a7-mark.png'),
+      portraitSlotTitle: face.fields.find((f) => f.ftype === 'filelist')?.title ?? null,
+      portraitHtmlUnchanged: stillTheirs.html === face.html,
+      portraitHasNoMark: stillTheirs.assets.every((a) => a.path !== 'images/a7-mark.png'),
     };
   }, { accent: ACCENT, data: LOGO_DATA_URL });
 
@@ -236,4 +247,55 @@ test('applying a brand fills an existing logo slot and leaves a slotless graphic
   expect(result.slotlessHtmlUnchanged).toBe(true);
   expect(result.slotlessFieldsUnchanged).toBe(true);
   expect(result.slotlessHasNoMark).toBe(true);
+  // AND NOTHING GOES INTO A SLOT DRAWN FOR SOMEBODY'S FACE. Replacing a presenter's headshot
+  // with a channel mark - and rewriting the operator's file value to match - is the one outcome
+  // worse than doing nothing at all.
+  expect(result.portraitSlotTitle).toBe('Avatar');
+  expect(result.portraitHtmlUnchanged).toBe(true);
+  expect(result.portraitHasNoMark).toBe(true);
+});
+
+test('a design that cannot show the mark never bundles it', async ({ page }) => {
+  await openWizard(page);
+  await seedBrand(page, { logo: true });
+
+  const result = await page.evaluate(async () => {
+    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const { brandPatch } = await import('/src/components/wizard/draft.ts');
+    const { loadBrand } = await import('/src/model/packets.ts');
+
+    const all = Object.values(CATALOG).flat();
+    const brand = loadBrand()!;
+    const made = (variantId: string) => {
+      const variant = all.find((v) => v.id === variantId)!;
+      const draft = mergeDraft(
+        mergeDraft(initialDraft(), {
+          variantId: variant.id,
+          lines: variant.suggestedLines.map((l) => ({ ...l })),
+          zone: null,
+          animation: { presetId: null, outPresetId: null },
+        }),
+        brandPatch(brand),
+      );
+      return buildDraftTemplate(variant, draft);
+    };
+
+    const slotless = all.find((v) => v.logo === 'none')!;
+    const carries = (t: { assets: { path: string }[] }) =>
+      t.assets.some((a) => a.path === 'images/a7-mark.png');
+    return {
+      // The mark IS bundled where it is shown…
+      shown: carries(made('card01')),
+      // …and nowhere else. A design with no slot, and one whose slot holds a presenter, each
+      // pay nothing for a brand they cannot display - not a byte in the template, not a byte in
+      // the export.
+      slotless: carries(made(slotless.id)),
+      portrait: carries(made('ls41')),
+    };
+  });
+
+  expect(result.shown).toBe(true);
+  expect(result.slotless).toBe(false);
+  expect(result.portrait).toBe(false);
 });

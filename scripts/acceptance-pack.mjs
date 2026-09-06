@@ -81,6 +81,7 @@ async function createProject(page, spec) {
     const { formatTemplate } = await import('/src/format/formatCode.ts');
     const { setDefaultBrand } = await import('/src/model/brand.ts');
     const { createLook } = await import('/src/model/packets.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     const { saveProject } = await import('/src/model/project.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { useDocKindStore } = await import('/src/store/docKindStore.ts');
@@ -109,6 +110,8 @@ async function createProject(page, spec) {
     setDefaultBrand(made.id);
     const created = useTemplateStore.getState();
     saveProject(created.template, created.baseline, { graphicId: created.saved.graphicId, dirty: created.saved.dirty }, created.aiSpec, created.aiThread);
+    // The brand is a durable write now, so it is committed before this returns (see e2e/_create.ts).
+    await commitDurableWrites();
   }, spec);
   await wait(page, 1_200);
 }

@@ -77,6 +77,11 @@ export function kitLookPatch(source: WizardDraft, target: TemplateVariant): Draf
     cssVarOverrides: source.cssVarOverrides,
     fontId: source.fontId,
     customFont: source.customFont,
+    // The BRAND'S MARK is part of the look and travels with it, so every graphic of the set
+    // carries it - not only the one that happened to be on screen when the brand was chosen.
+    // `logoEnabled` still does not travel (a capability of the design, not a look): each
+    // design's own slot decides whether there is anywhere to put it.
+    brandLogo: source.brandLogo,
     sizeScale: source.sizeScale,
     typeScale: source.typeScale,
     animation: {
@@ -140,8 +145,8 @@ export function buildRemaining(plan: KitPlan, source: WizardDraft): (SpxTemplate
     return buildDraftTemplate(
       item.variant,
       // No `brand` here on purpose: `source` IS the first graphic's draft, which already had
-      // the brand applied, and `kitLookPatch` carries its palette and typeface forward. Passing
-      // the brand again would be the same fact arriving twice by two routes.
+      // the brand applied, and `kitLookPatch` carries its palette, typeface and mark forward.
+      // Passing the brand again would be the same fact arriving twice by two routes.
       kitItemDraft(source, item.variant, {
         packPaletteId: plan.pack.paletteId,
         look: kitLookPatch(source, item.variant),

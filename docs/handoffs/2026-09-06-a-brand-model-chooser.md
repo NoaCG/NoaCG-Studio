@@ -27,9 +27,14 @@ cloud container, **actually run** - see Evidence.
   the comment (see Traps).
 
 **Behaviour (§5, §3, §6).**
-- `brandPatch(brand, draft)` now also writes `importedImages` (merged, never replaced),
-  `logoAssetPath` and `logoEnabled: true`. `brandClearPatch(previous, draft)` is its inverse and
-  removes only that brand's asset.
+- `brandPatch(brand)` writes palette, typeface and **`brandLogo`** - a draft field of its own.
+  `brandClearPatch()` clears the same four. The mark deliberately does NOT live in
+  `importedImages`; `draftToOptions` decides per design whether it travels at all (see "What
+  /check changed").
+- **A design never receives a mark it cannot show**: not one with `logo: 'none'`, and not one
+  with `imageSlot: 'picture'` - `ls41`'s presenter avatar, `ls25`'s cover artwork. Neither
+  bundles its bytes either.
+- `kitLookPatch` carries the mark, so a kit's whole set gets it, not just the first graphic.
 - The footer checkbox is a `<select data-testid="wz-brand">`. Absent with zero brands, None by
   default, production preselect via `brandId` then the captured `look` under a synthetic entry.
 - `applyLookToTemplate` fills an existing logo slot (img `src`, the field's `value`, and the
@@ -80,6 +85,37 @@ cloud container, **actually run** - see Evidence.
   no catalog design's rendered output moves - but that is reasoning, not a measurement, and the
   catalog gates are the thing that would prove it. **check: not run** as a workflow; its three legs
   were run individually (build, the spec, a review pass by hand).
+
+## What /check changed, and why it mattered
+
+The review leg found **two HIGH defects in my own first pass**, both from one decision: putting
+the brand's mark into `draft.importedImages`.
+
+1. **The raster drop discarded the artwork.** The Import walk's `onArt` handler sets
+   `importedImages` to the dropped file and the brand patch spread *after* it replaced that with
+   `[mark]`. `designArt` then pointed at an image the template no longer bundled - and
+   `validateTemplate` checks `assets/` and `lottie/` prefixes, not `images/`, so the broken
+   export would have passed the gate.
+2. **Apply on Home wrote the mark into the code and the canvas hid it.** `applyTemplate` keeps
+   the operator's existing sample data, so the slot's value stayed `''`, and the runtime reads an
+   empty file name as "hide this image". Bundled, referenced, invisible.
+
+Plus a MEDIUM I had asserted the opposite of in a comment: **every image slot in the catalog
+wears the `-logo` class**, `ls41`'s presenter avatar and `ls25`'s cover artwork included, so
+matching on the class alone would have replaced a headshot with a channel mark and rewritten the
+operator's file value.
+
+The fix for all three is one model change rather than three patches: the mark is
+`draft.brandLogo`, its own field, and the two decisions about where it may go are made where they
+belong - `draftToOptions` at create (by `variant.logo` and `variant.imageSlot`) and a field-TITLE
+allow-list at apply (`BRAND_SLOT_TITLES`, which also keeps a channel's mark out of `Team A logo`
+and `Sponsor 1`). Three things fell out for free: Browse no longer re-ranks as if artwork had
+been imported, the Import step's Next no longer unlocks on a brand, and None needs no unwinding
+because the person's own picture was never touched.
+
+Two findings were taken as reports rather than fixes, and both are recorded above: `setShowBrand`
+has no writer yet (row 2's apply-to-production), and `MAX_BRAND_LOGO_BYTES` is documented but
+enforced only by the creator that row 2 builds.
 
 ## One degradation, stated
 

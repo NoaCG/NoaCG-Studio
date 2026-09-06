@@ -571,7 +571,7 @@ export default function CreationWizard() {
         if (chosen) {
           if (!named) setBrandChoices([chosen, ...saved]);
           setBrandId(chosen.id);
-          setDraft((d) => mergeDraft(d, brandPatch(chosen.brand, d)));
+          setDraft((d) => mergeDraft(d, brandPatch(chosen.brand)));
         }
       }
     } else {
@@ -706,21 +706,14 @@ export default function CreationWizard() {
   const patch = (p: DraftPatch) => setDraft((d) => mergeDraft(d, p));
 
   /**
-   * The footer chooser's one move. Whatever the last brand put on the draft comes off FIRST
-   * (`brandClearPatch`), then the new one goes on - so switching from a brand with a logo to one
-   * without leaves no orphan mark, and None leaves the person's own imported images alone.
-   *
-   * Both patches are folded into one `setDraft` because the second is computed against the
-   * result of the first: two `patch()` calls would each read the draft as it was before either.
+   * The footer chooser's one move. A brand writes exactly four fields and None clears the same
+   * four, so switching brands needs no unwinding pass: there is nothing of the previous one
+   * left anywhere else on the draft to take back (wizard/draft.ts `brandLogo`).
    */
   const chooseBrand = (nextId: string | null) => {
     const next = nextId ? brandChoices.find((b) => b.id === nextId)?.brand ?? null : null;
-    const previous = brand;
     setBrandId(next ? nextId : null);
-    setDraft((d) => {
-      const cleared = mergeDraft(d, brandClearPatch(previous, d));
-      return next ? mergeDraft(cleared, brandPatch(next, cleared)) : cleared;
-    });
+    patch(next ? brandPatch(next) : brandClearPatch());
   };
 
   /** What the chooser promises, in the words of the walk it is standing in. The brand's own
@@ -923,7 +916,7 @@ export default function CreationWizard() {
         // one was on screen when it was picked. It is also what the production-context open
         // selects by itself, so a kit started from a production's "+ New graphic" arrives in
         // that production's brand.
-        brand: brand ? brandPatch(brand, draft) : null,
+        brand: brand ? brandPatch(brand) : null,
       }),
     );
     setStep(2);
@@ -1970,11 +1963,8 @@ export default function CreationWizard() {
                     lines: [],
                     zone: null,
                     animation: { presetId: null, outPresetId: null },
-                    // Against a draft with NO images: this patch clears them a line above, and
-                    // a brand's mark must join what remains rather than restore what the drop
-                    // just dropped.
                     ...(brand
-                      ? brandPatch(brand, { ...draft, importedImages: [] })
+                      ? brandPatch(brand)
                       : { paletteId: null, customPalette: null, fontId: null }),
                   });
                   // The walk changes shape the moment the file is read: an SVG has nothing
@@ -2037,11 +2027,8 @@ export default function CreationWizard() {
                     lines: [],
                     zone: null,
                     animation: { presetId: null, outPresetId: null },
-                    // Against a draft with NO images: this patch clears them a line above, and
-                    // a brand's mark must join what remains rather than restore what the drop
-                    // just dropped.
                     ...(brand
-                      ? brandPatch(brand, { ...draft, importedImages: [] })
+                      ? brandPatch(brand)
                       : { paletteId: null, customPalette: null, fontId: null }),
                   });
                   // A raster drop is the classic prepare/place walk — also the way back from
@@ -2089,7 +2076,7 @@ export default function CreationWizard() {
                     animation: { presetId: null, outPresetId: null },
                     // The chosen brand carries its look into every new graphic.
                     ...(brand
-                      ? brandPatch(brand, draft)
+                      ? brandPatch(brand)
                       : { paletteId: null, customPalette: null, fontId: null }),
                   })
                 }
@@ -2192,7 +2179,7 @@ export default function CreationWizard() {
                     animation: { presetId: null, outPresetId: null, steps: null },
                     // The chosen brand carries its look into every new graphic.
                     ...(brand
-                      ? brandPatch(brand, draft)
+                      ? brandPatch(brand)
                       : { paletteId: null, customPalette: null, fontId: null }),
                   })
                 }

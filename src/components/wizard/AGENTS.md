@@ -428,12 +428,15 @@ offer site, in the same commit as the control.
 **THE BRAND CHOOSER** (footer, `data-testid="wz-brand"`; docs/BRAND_PLAN.md) replaced the
 "Colors & typeface from this project" checkbox, which copied a look off a graphic nobody chose.
 It lists SAVED brands by name (`loadLooks`) and is ABSENT with none - never a disabled control -
-and it starts at None even when one brand is the default: matching is explicit. Choosing writes
-`brandPatch(brand, draft)` - palette, typeface, and the logo where the design has a slot, which
-is `logoAssetPath` + `logoEnabled: true` and NOT a place invented for one; None writes
-`brandClearPatch(previous, draft)`, which removes only the asset that brand added and never a
-picture the person imported. Both run in ONE `setDraft`, because the second is computed against
-the result of the first. Create writes NO brand record - Home owns making one.
+and it starts at None even when one brand is the default: matching is explicit. `brandPatch`
+writes palette, typeface and `brandLogo`; `brandClearPatch` clears the same four. **The mark is
+its own draft field, never one of `importedImages`** - that array means "artwork the person
+brought", and three other surfaces read it (the raster drop's own artwork, Browse's logo-first
+ranking, the Import step's Next), so a brand parked there answered questions nobody asked it.
+`draftToOptions` decides PER DESIGN whether the mark travels: never to `logo: 'none'`, and never
+to `imageSlot: 'picture'` (a presenter's avatar, cover artwork), so no design bundles a mark it
+cannot show. `kitLookPatch` carries it, so a kit's whole set gets it. Create writes NO brand
+record - Home owns making one.
 
 **Create with AI** (Entry card -> steps/AiStep, mode 'ai') is the MERGED describe/import step.
 One drop zone accepts images AND an existing .html/.zip template. A dropped template parses

@@ -22,6 +22,9 @@ saved. Choosing one puts its accent, its typeface AND its logo into the graphic'
   invented: no floating overlay, no grafted slot.
 - **None takes back exactly what the brand put there** - and only that. A picture you imported
   yourself is never removed on a brand's way out.
+- **A slot drawn for a PERSON or a PRODUCT is left alone.** The streamer card's round avatar and
+  the music strap's cover artwork use the same machinery as a logo slot, and a brand never fills
+  either - replacing a presenter with a channel mark is worse than showing no mark at all.
 - **"Use for new" on Home is now a pointer, not a copy**, reads "Use for new graphics", and the
   brand it names wears a ★.
 

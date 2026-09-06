@@ -4,6 +4,7 @@ import { useTemplateStore } from '../../../store/templateStore';
 import {
   addLook,
   applyLookToTemplate,
+  brandSlotField,
   captureLookFromTemplate,
   deleteLook,
   importLook,
@@ -19,6 +20,7 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
   const template = useTemplateStore((s) => s.template);
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
   const setActiveTab = useTemplateStore((s) => s.setActiveTab);
+  const setSampleValue = useTemplateStore((s) => s.setSampleValue);
   const [newLookName, setNewLookName] = useState('');
   // WHICH look new graphics start from, as a POINTER rather than a copy (model/brand.ts): the
   // row that owns it wears the star, and pressing "Use for new graphics" on another row moves
@@ -94,7 +96,15 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
           <div className="lib-actions">
           <button
             onClick={() => {
-              applyTemplate(applyLookToTemplate(template, look.brand));
+              const next = applyLookToTemplate(template, look.brand);
+              applyTemplate(next);
+              // THE SAMPLE DATA IS WHAT THE CANVAS SHOWS. `applyTemplate` keeps the values the
+              // operator already has (syncSampleData), so a slot that was empty stays empty -
+              // and the runtime reads an empty file name as "hide this image". The brand's mark
+              // would be in the code, bundled, and invisible. Writing the slot's new default
+              // into the live sample data is what puts it on screen.
+              const slot = brandSlotField(next);
+              if (slot?.value) setSampleValue(slot.field, slot.value);
               setActiveTab('css'); // land on the retinted :root vars, highlighted like any patch
               setNote(`✓ Applied "${look.name}" to the open graphic — back in the editor now.`);
               onDone();
