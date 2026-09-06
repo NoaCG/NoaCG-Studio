@@ -1,12 +1,13 @@
 // The bot's landing sequence, pinned: every call it makes and the order, against fake `git` and
 // `gh`. What matters is the shape - the stamp says "mechanical", the run is asked for by dispatch
-// with `require_review`, and a second call reuses the pull request instead of opening another.
+// with `require_review`, a second call reuses the pull request instead of opening another, and a
+// branch left on origin by a landing that died before its pull request is retried, not obeyed.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { branchExistsOnOrigin, mechanicalDescription, openPullRequestFor, queuePullRequest, LAND_LABEL, REVIEW_CONTEXT } from './queue-pr.mjs';
+import { alreadyQueued, branchExistsOnOrigin, mechanicalDescription, pullRequestFor, queuePullRequest, LAND_LABEL, REVIEW_CONTEXT } from './queue-pr.mjs';
 
-function fakeRunners({ existingPr = null, remoteBranch = false } = {}) {
+function fakeRunners({ openPr = null, closedPr = null, remoteBranch = false } = {}) {
   const calls = [];
   const git = (args) => {
     calls.push(['git', ...args]);
@@ -16,7 +17,11 @@ function fakeRunners({ existingPr = null, remoteBranch = false } = {}) {
   };
   const gh = (args) => {
     calls.push(['gh', ...args]);
-    if (args[0] === 'pr' && args[1] === 'list') return { status: 0, out: JSON.stringify(existingPr ? [existingPr] : []), err: '' };
+    if (args[0] === 'pr' && args[1] === 'list') {
+      const state = args[args.indexOf('--state') + 1];
+      const pr = state === 'open' ? openPr : closedPr;
+      return { status: 0, out: JSON.stringify(pr ? [pr] : []), err: '' };
+    }
     if (args[0] === 'pr' && args[1] === 'create') return { status: 0, out: 'https://github.com/o/r/pull/77', err: '' };
     return { status: 0, out: '', err: '' };
   };
@@ -34,7 +39,7 @@ test('a new branch is pushed, opened, stamped, labelled, dispatched and set to a
     'gh pr list',
     'gh pr create',
     `gh api repos/{owner}/{repo}/statuses/${'f'.repeat(40)}`,
-    `gh label create`,
+    'gh label create',
     'gh pr edit',
     'gh workflow run',
     'gh pr merge',
@@ -50,18 +55,22 @@ test('a new branch is pushed, opened, stamped, labelled, dispatched and set to a
 });
 
 test('an open pull request for the branch is reused, never duplicated', () => {
-  const { calls, git, gh } = fakeRunners({ existingPr: { number: 5, url: 'https://github.com/o/r/pull/5' } });
+  const { calls, git, gh } = fakeRunners({ openPr: { number: 5, url: 'https://github.com/o/r/pull/5' } });
   const pr = queuePullRequest({ branch: 'revert/abc1234', title: 't', body: 'b', mechanism: 'revert', git, gh });
   assert.equal(pr.number, 5);
   assert.equal(pr.created, false);
   assert.ok(!calls.some((c) => c[1] === 'pr' && c[2] === 'create'));
 });
 
-test('dispatch can be left out, and a missing branch is refused', () => {
-  const { calls, git, gh } = fakeRunners();
-  queuePullRequest({ branch: 'x', title: 't', body: 'b', mechanism: 'm', dispatch: false, git, gh });
-  assert.ok(!calls.some((c) => c[1] === 'workflow'));
-  assert.throws(() => queuePullRequest({ title: 't', body: 'b', mechanism: 'm', git, gh }), /branch is required/);
+test('a stale branch is replaced with a force-push; dispatch can be left out; a missing branch is refused', () => {
+  const forced = fakeRunners();
+  queuePullRequest({ branch: 'x', title: 't', body: 'b', mechanism: 'm', force: true, git: forced.git, gh: forced.gh });
+  assert.ok(forced.calls.some((c) => c[0] === 'git' && c[1] === 'push' && c[2] === '--force'));
+  const plain = fakeRunners();
+  queuePullRequest({ branch: 'x', title: 't', body: 'b', mechanism: 'm', dispatch: false, git: plain.git, gh: plain.gh });
+  assert.ok(!plain.calls.some((c) => c[1] === 'workflow'));
+  assert.ok(!plain.calls.some((c) => c[0] === 'git' && c[1] === 'push' && c[2] === '--force'));
+  assert.throws(() => queuePullRequest({ title: 't', body: 'b', mechanism: 'm', git: plain.git, gh: plain.gh }), /branch is required/);
 });
 
 test('the description is bounded to what a commit status accepts and says where it came from', () => {
@@ -71,14 +80,29 @@ test('the description is bounded to what a commit status accepts and says where 
   assert.equal(mechanicalDescription('revert of abc', 'https://run/9'), 'mechanical: revert of abc from https://run/9');
 });
 
-test('the origin branch probe and the open-PR probe read the tools, not assumptions', () => {
-  const present = fakeRunners({ remoteBranch: true, existingPr: { number: 1, url: 'u' } });
+test('what a branch on origin means: open is a landing in progress, closed is a person saying no, no pull request is a retry', () => {
+  const free = fakeRunners();
+  assert.deepEqual(alreadyQueued('x', free.git, free.gh), { state: 'free' });
+  const open = fakeRunners({ remoteBranch: true, openPr: { number: 1, url: 'u1' } });
+  assert.deepEqual(alreadyQueued('x', open.git, open.gh), { state: 'open', pr: { number: 1, url: 'u1' } });
+  const closed = fakeRunners({ remoteBranch: true, closedPr: { number: 2, url: 'u2', mergedAt: null } });
+  assert.equal(alreadyQueued('x', closed.git, closed.gh).state, 'closed');
+  // A closed AND merged pull request is not a refusal: the branch is simply left over.
+  const merged = fakeRunners({ remoteBranch: true, closedPr: { number: 3, url: 'u3', mergedAt: '2026-09-06T00:00:00Z' } });
+  assert.equal(alreadyQueued('x', merged.git, merged.gh).state, 'stale-branch');
+  // The organisation refusing `gh pr create` leaves exactly this: a branch and no pull request.
+  const stale = fakeRunners({ remoteBranch: true });
+  assert.equal(alreadyQueued('x', stale.git, stale.gh).state, 'stale-branch');
+});
+
+test('the origin branch probe and the pull-request probe read the tools, not assumptions', () => {
+  const present = fakeRunners({ remoteBranch: true, openPr: { number: 1, url: 'u' } });
   assert.equal(branchExistsOnOrigin('x', present.git), true);
-  assert.deepEqual(openPullRequestFor('x', present.gh), { number: 1, url: 'u' });
+  assert.deepEqual(pullRequestFor('x', present.gh), { number: 1, url: 'u' });
   const absent = fakeRunners();
   assert.equal(branchExistsOnOrigin('x', absent.git), false);
-  assert.equal(openPullRequestFor('x', absent.gh), null);
+  assert.equal(pullRequestFor('x', absent.gh), null);
   // An unreadable answer is "no pull request", never a crash - the callers act on null.
-  assert.equal(openPullRequestFor('x', () => ({ status: 0, out: 'not json', err: '' })), null);
-  assert.equal(openPullRequestFor('x', () => ({ status: 1, out: '', err: 'boom' })), null);
+  assert.equal(pullRequestFor('x', () => ({ status: 0, out: 'not json', err: '' })), null);
+  assert.equal(pullRequestFor('x', () => ({ status: 1, out: '', err: 'boom' })), null);
 });

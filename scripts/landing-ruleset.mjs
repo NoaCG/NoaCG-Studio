@@ -70,6 +70,31 @@ function repo() {
   return gh(['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner']).trim();
 }
 
+/**
+ * THE MECHANICAL LANDINGS NEED ONE MORE SETTING: "Allow GitHub Actions to create and approve pull
+ * requests", off by default on an organisation and on every repository in it. Without it a
+ * quarantine entry or a revert (scripts/queue-pr.mjs) pushes its branch and is refused at
+ * `gh pr create`; with it the pull request goes through the same queue as everything else. The
+ * organisation half needs an owner's `gh` login WITH the `admin:org` scope
+ * (`gh auth refresh -h github.com -s admin:org`), which a session's login usually lacks - so a
+ * refusal here is reported with that command, and the ruleset above is applied either way.
+ */
+export function allowActionsPullRequests(slug) {
+  const org = slug.split('/')[0];
+  const payload = JSON.stringify({ default_workflow_permissions: 'read', can_approve_pull_request_reviews: true });
+  for (const [scope, route] of [['organisation', `orgs/${org}/actions/permissions/workflow`], ['repository', `repos/${slug}/actions/permissions/workflow`]]) {
+    try {
+      gh(['api', '--method', 'PUT', route, '--input', '-'], payload);
+      console.log(`[landing-ruleset] ${scope}: Actions may open pull requests.`);
+    } catch (error) {
+      const detail = String(error.stderr ?? error.message ?? '').split('\n').find((l) => l.trim()) ?? '';
+      console.log(`[landing-ruleset] ${scope}: could not allow Actions to open pull requests (${detail.trim()}).`);
+      console.log('  needs: account - an organisation owner runs:  gh auth refresh -h github.com -s admin:org  then  node scripts/landing-ruleset.mjs --apply');
+      console.log('  Until then a quarantine entry or a revert is pushed and refused at `gh pr create`; the next run retries it.');
+    }
+  }
+}
+
 export function findExisting(rulesets, name = RULESET_NAME) {
   return (rulesets ?? []).find((r) => r.name === name) ?? null;
 }
@@ -89,6 +114,7 @@ function main() {
   const body = JSON.stringify(wanted);
   if (existing) gh(['api', '--method', 'PUT', `repos/${slug}/rulesets/${existing.id}`, '--input', '-'], body);
   else gh(['api', '--method', 'POST', `repos/${slug}/rulesets`, '--input', '-'], body);
+  allowActionsPullRequests(slug);
   const after = findExisting(JSON.parse(gh(['api', `repos/${slug}/rulesets`])));
   const detail = JSON.parse(gh(['api', `repos/${slug}/rulesets/${after.id}`]));
   const checks = detail.rules.find((r) => r.type === 'required_status_checks')?.parameters.required_status_checks.map((c) => c.context) ?? [];

@@ -1,0 +1,128 @@
+# THE QUARANTINE RUN: every spec in e2e/quarantine.json, on every push to main, each in its own
+# job, each posting its verdict as a commit status - and never in the way of anything.
+#
+# A quarantined spec failed and then passed on one commit (ci.yml's `e2e-retry` job and the gate
+# after it wrote the entry through the merge queue), so its verdict is not one the gate may block
+# on; scripts/e2e-affected.mjs keeps it out of the blocking shards. But a spec nobody runs never
+# earns its way back, so this workflow runs each one here, on the same commits ci.yml tests, and
+# `release-due` reads the record: twenty consecutive passes and the spec is released, through
+# the queue like its entry (scripts/e2e-quarantine.mjs).
+#
+# WHY A SEPARATE WORKFLOW, and why a COMMIT STATUS. Inside ci.yml these jobs would need
+# `continue-on-error` to keep the gate green, a name filter to keep the red-main alarm quiet, and
+# the release rule would rest on what GitHub reports as a `continue-on-error` job's conclusion.
+# Here a red job reds nothing that matters: main-health reads ci.yml's runs only, the alarm reads
+# ci.yml's jobs only, and the verdict is written explicitly as `noacg/quarantine/<spec>` on the
+# commit by a step that always runs, so the release rule reads a fact this workflow stated rather
+# than one it inferred. One statuses call per commit then answers for every quarantined spec.
+name: Quarantine
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  # One run per commit; a run whose commit main has moved past is still worth finishing, because
+  # the status it posts is per commit and the release rule walks commits.
+  group: quarantine-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # What is in quarantine right now, read off the store at this commit. Node builtins only, no
+  # install: seconds, and the matrix below is skipped entirely when the store is empty.
+  list:
+    name: Quarantined specs
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      specs: ${{ steps.list.outputs.specs }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            scripts
+            e2e/quarantine.json
+          sparse-checkout-cone-mode: false
+      - id: list
+        run: echo "specs=$(node scripts/e2e-quarantine.mjs matrix)" >> "$GITHUB_OUTPUT"
+
+  spec:
+    name: Quarantine (${{ matrix.spec }})
+    needs: list
+    if: ${{ needs.list.outputs.specs != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      statuses: write # the verdict, as noacg/quarantine/<spec> on this commit
+    strategy:
+      fail-fast: false
+      matrix:
+        spec: ${{ fromJSON(needs.list.outputs.specs) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: ./.github/actions/node-modules
+
+      - uses: ./.github/actions/playwright-chromium
+
+      # `continue-on-error` on the STEP: the job stays green either way, and the outcome is read
+      # off `steps.run.outcome` by the status step below, which is the record that matters.
+      - name: Run the quarantined spec
+        id: run
+        continue-on-error: true
+        env:
+          SPEC: ${{ matrix.spec }}
+        run: npm run test:e2e -- "$(node scripts/e2e-quarantine.mjs filter "$SPEC")"
+
+      # The context string is written and read by scripts/e2e-quarantine.mjs alone.
+      - name: Post the verdict on the commit
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/e2e-quarantine.mjs status "${{ matrix.spec }}" "${{ steps.run.outcome }}" --run "$RUN_URL"
+
+      - name: Upload failure evidence
+        uses: actions/upload-artifact@v4
+        if: ${{ steps.run.outcome == 'failure' }}
+        with:
+          name: test-results-quarantine-${{ strategy.job-index }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Which specs have now passed twenty commits in a row? Those are released - the store edit goes
+  # through the merge queue like the entry did - and the rest wait. Runs after every spec job has
+  # posted, whatever it posted. A write that fails here (a refused push, the organisation not yet
+  # letting Actions open pull requests) is a warning in this run and nothing else: the release is
+  # re-attempted on the next push.
+  release:
+    name: Quarantine release
+    needs: [list, spec]
+    if: ${{ always() && needs.list.outputs.specs != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      contents: write # push the release branch
+      pull-requests: write # open it, label it, auto-merge it
+      statuses: write # the mechanical `noacg/reviewed` stamp
+      actions: write # dispatch the release branch's run
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Release what has earned it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/e2e-quarantine.mjs release-due --queue --run "$RUN_URL"

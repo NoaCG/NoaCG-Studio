@@ -37,14 +37,21 @@ const FAILED = new Set(['failure', 'timed_out']);
 const DERIVED_JOBS = new Set(['CI gate']);
 
 /**
- * A NON-BLOCKING job has no say in the set either. The quarantine jobs (`E2E quarantine (<spec>)`,
- * ci.yml) run specs that already failed-then-passed on one commit; they carry
- * `continue-on-error`, so the run stays green when one fails, and a red quarantined spec must
- * not be reported as main being red - that is the whole point of quarantining it. Its verdict is
- * read by scripts/e2e-quarantine.mjs from the run history instead.
+ * Main's completed PUSH runs of one workflow, newest first, one per commit. Only pushes count - a
+ * dispatched run on main is somebody asking a question, not a landing - and only completed ones:
+ * the run asking is itself still in progress. Shared by the revert's last-verdict walk and the
+ * quarantine's pass history, so what "a main run" means is spelled once.
+ * @returns {{ head_sha: string, conclusion: string }[]}
  */
-export function isNonBlockingJob(name) {
-  return /^E2E quarantine \(/.test(String(name ?? ''));
+export function mainPushRuns({ repo, workflow = 'ci.yml', limit = 40, gh = ghJsonLines }) {
+  const seen = new Set();
+  const runs = [];
+  for (const run of gh([`repos/${repo}/actions/workflows/${workflow}/runs?branch=main&event=push&status=completed&per_page=${limit}`, '--jq', '.workflow_runs[] | {head_sha, conclusion}'])) {
+    if (!run?.head_sha || seen.has(run.head_sha)) continue;
+    seen.add(run.head_sha);
+    runs.push(run);
+  }
+  return runs;
 }
 
 /**
@@ -73,7 +80,7 @@ export function jobIdentity(name) {
  * red build is never mistaken for a red spec.
  */
 export function failureSet(jobs, annotationsFor = () => []) {
-  const own = (jobs ?? []).filter((job) => !DERIVED_JOBS.has(job?.name) && !isNonBlockingJob(job?.name));
+  const own = (jobs ?? []).filter((job) => !DERIVED_JOBS.has(job?.name));
   // EXHAUSTED IS NOT FAILED. A job killed by its own `timeout-minutes` is recorded by GitHub as
   // `cancelled`, and one cancelled job makes the whole RUN cancelled - so a run where four E2E
   // shards ran out of clock and everything else passed reaches this function with nothing in
@@ -152,8 +159,11 @@ export function fetchFailureSet(runId, { repo = process.env.GH_REPO, gh = ghJson
   return failureSet(jobs, (id) => gh([`repos/${repo}/check-runs/${id}/annotations?per_page=100`, '--jq', '.[] | {path, annotation_level}']));
 }
 
-/** `gh api ... --jq` prints one JSON value per line; unreadable output is no answer, not a crash. */
-function ghJsonLines(args) {
+/**
+ * `gh api ... --jq` prints one JSON value per line; unreadable output is no answer, not a crash.
+ * Shared with the quarantine and the revert, which read the same API the same way.
+ */
+export function ghJsonLines(args) {
   const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true });
   if (res.status !== 0) return [];
   return String(res.stdout ?? '')

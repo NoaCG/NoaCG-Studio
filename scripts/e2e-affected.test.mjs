@@ -812,13 +812,26 @@ test('the base resolvers answer for the repository they are given, before and af
   }
 });
 
-// THE QUARANTINE SPLIT. What the shards get and what the quarantine job gets are one input divided,
-// and a quarantined spec the plan never selected is nobody's business.
-import { splitQuarantined } from './e2e-affected.mjs';
+// THE QUARANTINE SPLIT. What the shards get and what quarantine.yml gets are one input divided;
+// a quarantined spec the plan never selected is nobody's business; and a quarantined spec the
+// change itself edits stays blocking, because that edit is the fix and must not land untested.
+import { effectivePlan, splitQuarantined } from './e2e-affected.mjs';
 
 test('quarantined specs leave the blocking list and are reported as e2e/ paths', () => {
   const split = splitQuarantined(['a.spec.ts', 'b.spec.ts', 'c.spec.ts'], ['e2e/b.spec.ts', 'e2e/zzz.spec.ts']);
   assert.deepEqual(split, { blocking: ['a.spec.ts', 'c.spec.ts'], quarantined: ['e2e/b.spec.ts'] });
   assert.deepEqual(splitQuarantined(['a.spec.ts'], []), { blocking: ['a.spec.ts'], quarantined: [] });
   assert.deepEqual(splitQuarantined([], ['e2e/a.spec.ts']), { blocking: [], quarantined: [] });
+});
+
+test('a quarantined spec the change edits stays in the blocking plan', () => {
+  const split = splitQuarantined(['a.spec.ts', 'b.spec.ts'], ['e2e/a.spec.ts', 'e2e/b.spec.ts'], { changed: ['e2e/b.spec.ts', 'src/x.ts'] });
+  assert.deepEqual(split, { blocking: ['b.spec.ts'], quarantined: ['e2e/a.spec.ts'] });
+});
+
+test('an emptied blocking list downgrades the mode, so Playwright is never handed an empty list', () => {
+  assert.deepEqual(effectivePlan({ mode: 'subset', blocking: [] }), { mode: 'none', specs: [] });
+  assert.deepEqual(effectivePlan({ mode: 'full', blocking: [] }), { mode: 'none', specs: [] });
+  assert.deepEqual(effectivePlan({ mode: 'subset', blocking: ['a.spec.ts'] }), { mode: 'subset', specs: ['a.spec.ts'] });
+  assert.deepEqual(effectivePlan({ mode: 'none', blocking: [] }), { mode: 'none', specs: [] });
 });
