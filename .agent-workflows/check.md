@@ -167,4 +167,6 @@ Goal: leave the changed code simpler than the review left it, without changing w
   commit the check ran on, and any commit after it invalidates the stamp (re-run or honestly
   re-stamp what was re-checked). Overwrite the branch's previous stamp; the file is per-machine
   state like the job store, never committed.
-- Then **stop** - landing on `main` is the user's call, via safe-merge.
+- Then **stop**. Landing is serialized, not permissioned: when the work this check covers is
+  finished, the `queue-merge` workflow hands the branch to the landing queue, which lands it
+  one branch at a time. Never merge into `main` by hand.

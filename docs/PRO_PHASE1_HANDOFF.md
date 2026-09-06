@@ -148,7 +148,7 @@ Open that session with the prompt in §8.
 ## 8. Session-opening prompt
 
 ```
-Start the NoaCG Pro BRAND round - the experiment Phase 0 never ran. /noacg-task
+Start the NoaCG Pro BRAND round - the experiment Phase 0 never ran.
 
 Read docs/PRO_PHASE1_HANDOFF.md in full first, then docs/NOACG_PRO_PLAN.md §0 (the
 verdict banner) and §14 (items 0a, 0, 1), then src/ai/AGENTS.md. The Phase 0 wrapper

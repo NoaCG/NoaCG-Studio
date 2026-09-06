@@ -96,7 +96,7 @@ The cost and capacity policy for the Pro account is
 
 ## Alerting (rolling issues - one per failure class, no duplicates)
 
-Five self-closing rolling issues, all following the weekly-audit pattern (one open issue,
+Nine self-closing rolling issues, all following the weekly-audit pattern (one open issue,
 one comment per newly failing commit, the same commit never alerts twice, auto-closed by
 the next healthy state):
 
@@ -105,8 +105,26 @@ the next healthy state):
 | `CI is red on main` | the CI gate, on a red `main` run |
 | `Production is not running the latest main commit` | deploy-verify: failed deploy, failed live verification, or drift |
 | `Nightly full test suite is red` | nightly: the full suite or a catalog gate failed - the body lists the suspect commits |
+| `Hosted-latency suite is red` | nightly: the configured specs against a HOSTED project, where latency-shaped defects live |
+| `Configured (authenticated) E2E suite is red` | configured-suite, on every landing and nightly: the signed-in tier against a local Supabase stack |
 | `Nightly sweep has not run` | nightly-drift (twice a day): no nightly at all in 26 h - the belt against a schedule that silently stops firing |
+| `Configured suite is not running on its schedule` | nightly-drift: the same belt for configured-suite |
+| `Catalog gates are not running on their schedule` | nightly-drift: the same belt for the catalog gates |
 | `Weekly dependency audit is red` | weekly-audit (Mondays): a new high/critical advisory |
+
+**They are read back where somebody is already looking.** Filing an alarm and reading it are
+two different mechanisms, and for a long time only the first existed: `scripts/main-health.mjs`
+reads ci.yml and nothing else, and the landing queue gates on ci.yml alone - deliberately, so
+a Docker image pull failing cannot freeze it. So a break in any other tier cost nothing and
+slowed nothing down. Issue #56 (`Configured (authenticated) E2E suite is red`) stood for eight
+hours and forty-three minutes overnight on 2026-09-05 with three landings stacked on top of it,
+and the owner noticed it before the machine did. `scripts/alarm-issues.mjs` now prints whatever
+is open at the top of `npm run jobs` and in every session's opening context, from a cache shared
+by all worktrees. It is a REPORT and never a gate: gating on these tiers is a separate decision
+with a real cost, argued against in the header of `configured-suite.yml` itself. The titles are
+checked against the workflows in `npm run build` (`scripts/alarm-issues.test.mjs`), because the
+first version of that reader recognised five of the nine and the four it missed were the four
+that report SILENCE.
 
 GitHub also emails the pusher on any failed run of their push (account notification
 settings, on by default). **Drill:** to prove the alarm path works, push a `main` commit
