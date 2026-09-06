@@ -58,7 +58,50 @@ Owner-queue walks: `docs/acceptance/owner-queue/2026-09-05-one-binding-for-any-s
   `check-catalog-emit` passing on all 504 designs is the proof no design moved, and the rendered
   sweeps were not run on that basis.
 
-## Where to look next
+## Owner feedback, 2026-09-06 (recorded in `docs/OWNER_RULINGS.md`)
 
-Phase 6 in the plan (reconstruct the mapping draft from the table) is small and closes
-`docs/backlog/back-to-the-wizard.md`'s second half. The `arrange` spike is the interesting one.
+- `show:` and `choice:` stay the only two prefixes, and "require lock before reveal" stays a
+  checkbox, until the students have used them. Do not reopen either.
+- **No more work on the quiz.** It has its hard-coded control page and now opens bound.
+- **The next session works through the OTHER graphics**, chosen for the two kinds of show the
+  students will make: GAME SHOWS and LATE-NIGHT TALK SHOWS. The list we already have is the
+  challenge set (`docs/BEHAVIOUR_AUTHORING_RESEARCH.md` §4, C1 to C8) and the plan's worked
+  examples (`docs/SVG_BEHAVIOUR_PLAN.md` §9). The question behind it is what American TV already
+  uses in those shows that needs special operator commands.
+- The method is the plan's reuse test made real: draw the graphic as an SVG, import it, and see
+  whether the system copes. Phase 6 (back to the wizard from the table) and the `arrange` spike
+  for ranking wait behind this.
+
+## Start the next session with this prompt
+
+> Read `docs/handoffs/2026-09-06-svg-behaviour-system.md` and `docs/SVG_BEHAVIOUR_PLAN.md` §0,
+> §7, §9 and §13, then work in a fresh worktree from `main`.
+>
+> The SVG behaviour system has landed and the quiz is done; leave it alone. Your job is the OTHER
+> graphics. Our students will produce GAME SHOWS and LATE-NIGHT TALK SHOWS this term. First,
+> investigate what American TV already uses in those two formats that needs special operator
+> commands during the show (survey boards that reveal one answer at a time and count strikes,
+> category and value boards, puzzle boards that reveal letters, bid and price reveals, a top-ten
+> list stepped from ten to one, guest lineups that advance, desk polls, brackets, over/under
+> calls, "coming up next" strips, applause and segment bugs). Cross that list with the challenge
+> set in `docs/BEHAVIOUR_AUTHORING_RESEARCH.md` §4 and the plan's §9 examples, and pick the five
+> or six complicated graphics that best test what the system can do. Write the pick and the reason
+> for each down before building anything.
+>
+> Then, for each pick: draw it as an SVG the way a student would (layer names per
+> `docs/SVG_AUTHORING.md` §5b, `show:` and `choice:` where they fit, no other prefixes), import
+> it through the wizard, and report honestly which of four outcomes it is: binds with the shipped
+> recipes and extras; needs a new field kind in `behaviourRuntime.ts`; needs a new recipe of the
+> shipped shape under `src/templates/behaviours/`; or breaks the model (a comparison, a data
+> condition, a second full recipe). Build what is a field kind or a recipe of the shipped shape,
+> with its words in `words.json`, its marker block in `docs/SVG_AUTHORING.md` §5b
+> (`npm run write:behaviour-docs`), its spec in `e2e/import-svg-behaviour.spec.ts` and its own
+> owner-queue walk file. Record what breaks the model as a finding in
+> `docs/SVG_BEHAVIOUR_PLAN.md` §13 with the graphic that produced it; do not bend the doctrine
+> to fit it. Keep the SVGs you draw as a corpus under `e2e/fixtures/` so the specs drive the real
+> artwork.
+>
+> Verify with the affected plan through the queue, land through `/queue-merge` when a graphic
+> is finished, and file a walk per graphic that works so the owner can see it in under a minute.
+> Do not touch `show:`, `choice:` or the quiz's lock checkbox: both are ruled to stay until the
+> students have used them (`docs/OWNER_RULINGS.md`, 2026-09-06).

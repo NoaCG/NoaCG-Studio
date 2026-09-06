@@ -75,7 +75,15 @@ test('an imported quiz board publishes, runs on the real output renderer, and re
   output.on('pageerror', (e) => console.log('[output pageerror]', e.message));
   await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}&debug=1`);
   const graphic = output.frameLocator('iframe');
-  const lit = graphic.locator('.imported-design-qstate.imported-design-qon');
+  // THE DRAWN LAYERS ARE ADDRESSED BY THEIR ROLE STAMP, never by an id. The behaviour
+  // compiler (templates/importedDesign/behaviour.ts) marks every bound layer with a
+  // `data-noacg-role` token and one class pair, and deliberately claims no id namespace of
+  // its own - so the `#q-sel-2` this walk used to look for is a layer nothing stamps any
+  // more, not a layer that failed to light. `e2e/import-svg-behaviour.spec.ts` walks the same
+  // board offline through these same selectors, which is what keeps the two runs honest.
+  const drawn = (role: string) => graphic.locator(`[data-noacg-role~="${role}"]`);
+  const ON = /imported-design-on/;
+  const lit = graphic.locator('.imported-design-look.imported-design-on');
 
   const shotBoth = async (name: string) => {
     await page.waitForTimeout(1500);
@@ -104,14 +112,14 @@ test('an imported quiz board publishes, runs on the real output renderer, and re
 
   // Select: the designer's own "B selected" layer, on the renderer.
   await page.getByTestId('cue-action-select').click();
-  await expect(graphic.locator('#q-sel-2')).toHaveClass(/imported-design-qon/, { timeout: 20_000 });
+  await expect(drawn('answer.selected/B')).toHaveClass(ON, { timeout: 20_000 });
   await shotBoth('imported-quiz-2-selected');
 
   // Lock: the board-level badge, with the pick still up.
   await page.getByTestId('cue-action-lock').click();
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Locked in', { timeout: 20_000 });
-  await expect(graphic.locator('#q-lock')).toHaveClass(/imported-design-qon/, { timeout: 20_000 });
-  await expect(graphic.locator('#q-sel-2')).toHaveClass(/imported-design-qon/);
+  await expect(drawn('locked')).toHaveClass(ON, { timeout: 20_000 });
+  await expect(drawn('answer.selected/B')).toHaveClass(ON);
   await shotBoth('imported-quiz-3-locked');
 
   // ── RENDERER REBOOT MID-LOCK. The pilot's real risk: a snap replays states with callbacks
@@ -119,18 +127,18 @@ test('an imported quiz board publishes, runs on the real output renderer, and re
   // on the trailing update(). Reload the output page and check the board is still locked with
   // the pick showing — the wire-level truth no local monitor can prove. ──
   await output.reload();
-  await expect(graphic.locator('#q-lock')).toHaveClass(/imported-design-qon/, { timeout: 30_000 });
-  await expect(graphic.locator('#q-sel-2')).toHaveClass(/imported-design-qon/);
+  await expect(drawn('locked')).toHaveClass(ON, { timeout: 30_000 });
+  await expect(drawn('answer.selected/B')).toHaveClass(ON);
   await expect(graphic.locator('#f0')).toContainText('2032 Olympics');
   await shotBoth('imported-quiz-4-rebooted-still-locked');
 
   // The verdict: C lights, the other three take the wrong treatment.
   await page.getByTestId('cue-action-judge').click();
-  await expect(graphic.locator('#q-cor-3')).toHaveClass(/imported-design-qon/, { timeout: 20_000 });
-  for (const row of [1, 2, 4]) {
-    await expect(graphic.locator(`#q-wrong-${row}`)).toHaveClass(/imported-design-qon/);
+  await expect(drawn('answer.correct/C')).toHaveClass(ON, { timeout: 20_000 });
+  for (const row of ['A', 'B', 'D']) {
+    await expect(drawn(`answer.wrong/${row}`)).toHaveClass(ON);
   }
-  await expect(graphic.locator('#q-cor-1')).not.toHaveClass(/imported-design-qon/);
+  await expect(drawn('answer.correct/A')).not.toHaveClass(ON);
   await shotBoth('imported-quiz-5-revealed');
 
   // Out, unpublish, and leave the throwaway account clean.
