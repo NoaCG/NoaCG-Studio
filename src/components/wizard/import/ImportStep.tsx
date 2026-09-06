@@ -3,12 +3,8 @@ import { CATEGORIES, type AssemblerId } from '../../../model/wizard';
 import type { AssetFile } from '../../../model/types';
 import { fileToDataUrl, isImageAsset, uniqueAssetPath } from '../../../assets/assetUtils';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
-import {
-  draftFormatSelection,
-  formatDraftPatch,
-  type DraftPatch,
-  type WizardDraft,
-} from '../draft';
+import { draftFormatSelection, formatDraftPatch } from '../draft/format';
+import type { DraftPatch, WizardDraft } from '../draft/core';
 
 interface Props {
   images: AssetFile[];

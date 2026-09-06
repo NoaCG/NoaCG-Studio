@@ -20,7 +20,7 @@ import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../..
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
-import type { WizardDraft } from './core';
+import type { WizardDraft } from '../draft/core';
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
  *  the sampling verdict it ran with. Its measured ink seeds a real text field per LINE it

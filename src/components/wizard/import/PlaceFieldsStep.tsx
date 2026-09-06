@@ -6,7 +6,8 @@ import FontPicker, { ensureAppFontFace } from '../FontPicker';
 import AnalyzeProposalPanel from './AnalyzeProposalPanel';
 import { suggestFieldsForArtwork } from '../../../assets/suggestFields';
 import { proposeEraseRect } from '../../../assets/eraseRegion';
-import type { DesignFieldSpec, DraftPatch, WizardDraft } from '../draft';
+import type { DraftPatch, WizardDraft } from '../draft/core';
+import type { DesignFieldSpec } from './draft';
 
 interface Props {
   art: DesignArt;

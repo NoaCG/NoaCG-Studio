@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import type { EraseRect } from '../../assets/eraseRegion';
+import type { EraseRect } from '../../../assets/eraseRegion';
 // Wizard-local, not styles.css: the proposal overlay is this surface's own vocabulary and
 // nothing else renders it, so it has no business in the sheet every page loads.
 import './prepProposal.css';

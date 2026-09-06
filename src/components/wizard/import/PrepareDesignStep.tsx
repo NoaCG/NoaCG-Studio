@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AssetFile, Resolution } from '../../../model/types';
 import type { DesignArt, DesignStretch } from '../../../model/wizard';
-import type { DesignEraseState } from '../draft';
+import type { DesignEraseState } from './draft';
 import {
   eraseRegionFlat,
   proposeEraseRect,
@@ -10,7 +10,7 @@ import {
   type EraseRect,
   type EraseResult,
 } from '../../../assets/eraseRegion';
-import DesignPrepCanvas, { StretchGuides } from '../DesignPrepCanvas';
+import DesignPrepCanvas, { StretchGuides } from './DesignPrepCanvas';
 
 interface Props {
   art: DesignArt;

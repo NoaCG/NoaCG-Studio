@@ -154,14 +154,29 @@
     "src/components/wizard/CreationWizard.tsx": {
       "em-dash": 7
     },
-    "src/components/wizard/DesignPrepCanvas.tsx": {
-      "em-dash": 2
-    },
     "src/components/wizard/FontPicker.tsx": {
       "em-dash": 4
     },
     "src/components/wizard/ViewingControls.tsx": {
       "em-dash": 1
+    },
+    "src/components/wizard/import/DesignPrepCanvas.tsx": {
+      "em-dash": 2
+    },
+    "src/components/wizard/import/ImportDesignStep.tsx": {
+      "em-dash": 3
+    },
+    "src/components/wizard/import/ImportStep.tsx": {
+      "em-dash": 1
+    },
+    "src/components/wizard/import/MapSvgFieldsStep.tsx": {
+      "em-dash": 6
+    },
+    "src/components/wizard/import/PlaceFieldsStep.tsx": {
+      "em-dash": 4
+    },
+    "src/components/wizard/import/PrepareDesignStep.tsx": {
+      "em-dash": 14
     },
     "src/components/wizard/steps/AiStep.tsx": {
       "em-dash": 31
@@ -181,12 +196,6 @@
     "src/components/wizard/steps/FinishStep.tsx": {
       "em-dash": 8
     },
-    "src/components/wizard/steps/ImportDesignStep.tsx": {
-      "em-dash": 3
-    },
-    "src/components/wizard/steps/ImportStep.tsx": {
-      "em-dash": 1
-    },
     "src/components/wizard/steps/KitFinishStep.tsx": {
       "em-dash": 1
     },
@@ -195,15 +204,6 @@
     },
     "src/components/wizard/steps/KitPicker.tsx": {
       "em-dash": 2
-    },
-    "src/components/wizard/steps/MapSvgFieldsStep.tsx": {
-      "em-dash": 6
-    },
-    "src/components/wizard/steps/PlaceFieldsStep.tsx": {
-      "em-dash": 4
-    },
-    "src/components/wizard/steps/PrepareDesignStep.tsx": {
-      "em-dash": 14
     },
     "src/components/wizard/steps/StyleStep.tsx": {
       "em-dash": 5

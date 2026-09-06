@@ -17,7 +17,7 @@
    past its neighbours. Vite inlines these at build time, so the emitted CSS is the same
    concatenation it was before the split.
 
-   Rules that belong to ONE component may also live beside it (wizard/prepProposal.css is the
+   Rules that belong to ONE component may also live beside it (wizard/import/prepProposal.css is the
    pattern); those load after everything here, which is where a component override belongs. */
 
 @import '../brandTokens.css'; /* the palette + type tokens, first so every part can read them */
