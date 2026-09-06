@@ -45,6 +45,34 @@ prefix passed in, so it runs in Node; the DOM-bearing checks are the workbench's
 type whose machine lives in the region has a platform-owned region (the bench workbench refuses
 `animation` there).
 
+## The animation region (`patch.ts` `animationBreach`)
+
+**EXPERIMENT.** The region is the model's to write wherever the type's machine does not live in it,
+and it is the one region whose acceptance test is a SHAPE READER rather than a renderer:
+`blocks/timelineModel.ts` `parseTimeline` looks for seven literal things in the text and gives up
+on the first it cannot find. Two rules follow, both bought with real money on 2026-09-06.
+
+- **A refused region names the precondition it missed, never the grammar.** `animationBreach`
+  walks the importer's checks in the importer's own order and returns the first unmet one, quoting
+  the form required. Restating the grammar is what the finding did before, and it cost a correct
+  timeline four rounds and $0.072 - the model had written the grammar it was being told to write,
+  and the two missing `var` lines were never mentioned. This is `docs/PRO_HARNESS_PLAN.md` §6's
+  rule (a blocking finding carries its reading and one fix hint) applied to the one finding that
+  did not obey it, and `docs/AI_ATTEMPTS.md` already carried the standing instruction: state a
+  machine-checked precondition as a requirement rather than showing it in an example.
+- **`animationBreach` is PINNED to the importer, not to a copy of its rules**
+  (`scripts/pro-harness.test.mjs`): over a table of regions it returns `null` exactly when the
+  region converts - and the predicate is the one `importAnimData` applies, not `parseTimeline`
+  alone, because a region can parse and still be refused. Widen the importer and the pin fails
+  until the sentence follows.
+
+**When the harness measures a defect in a SHARED module, fix it there.** The same round found the
+importer reading single-quoted selectors only, and inventing `'?'` for a target it could not read -
+a converter failing open, handing back a graphic that threw on air, through the door the agent CLI
+drives too. That is a platform bug the harness merely happened to be holding; `catalog:affected`
+and `check-catalog-emit` are what say whether the fix moved the catalog with it (the first attempt
+moved four corner bugs and was wrong).
+
 ## Knowledge (`knowledge.ts`, `typeSemantics.ts`, `exemplars.ts`)
 
 **EXPERIMENT.** Fourteen universal cards, written as inspection (what earns a pass), loaded by
