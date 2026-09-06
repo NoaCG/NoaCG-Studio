@@ -8,7 +8,8 @@
 
 import JSZip from 'jszip';
 import type { SpxTemplate } from '../../model/types';
-import { projectFormatReadme, slug } from '../common';
+import { projectFormatReadme } from '../common';
+import { slug } from '../../model/slug';
 import type { ExportTarget } from '../registry';
 import { addOgrafPackage } from './ograf';
 

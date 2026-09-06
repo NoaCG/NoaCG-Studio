@@ -37,7 +37,7 @@ const escape = (value) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-/** URL-shaped slug: hyphens, not the underscores export/slug.ts wants for folder names. */
+/** URL-shaped slug: hyphens, not the underscores model/slug.ts wants for folder names. */
 function pageSlug(name) {
   return (
     name

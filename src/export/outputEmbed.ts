@@ -29,7 +29,7 @@
 //      disagree, which here would be a white 1920x1080 card over the video.
 
 import type { Resolution } from '../model/types';
-import { slug } from './slug';
+import { slug } from '../model/slug';
 
 export interface OutputEmbedOptions {
   /** The production's name - the template's description in an SPX rundown. */

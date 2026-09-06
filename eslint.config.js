@@ -145,7 +145,6 @@ export default tseslint.config(
       'src/store/**',
       'src/App.tsx',
       'src/main.tsx',
-      'src/blocks/registry.ts',
       'src/ai/video/**',
     ],
     rules: {
@@ -202,17 +201,6 @@ export default tseslint.config(
       '@typescript-eslint/no-restricted-imports': ['error', {
         paths: [supabaseRestriction],
         patterns: [storeRestriction, componentsRestriction],
-      }],
-    },
-  },
-  {
-    // Grandfathered (ARCHITECTURE.md §6): blocks/registry.ts type-imports EditorTab from the
-    // store. Store restriction lifted for this one file; delete this block when that row falls.
-    files: ['src/blocks/registry.ts'],
-    rules: {
-      '@typescript-eslint/no-restricted-imports': ['error', {
-        paths: [supabaseRestriction],
-        patterns: [componentsRestriction],
       }],
     },
   },

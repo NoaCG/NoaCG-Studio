@@ -12,7 +12,7 @@
 // and which are the platform's, and whether the mark can be read on the surface the language
 // chose.
 
-import { contrastRatio, parseCssColor } from '../../../blocks/cssVars';
+import { contrastRatio, parseCssColor } from '../../../model/cssVars';
 import { applyLiteBrandPalette, clampLitePalette } from '../../lite/contract';
 import type { AssetFile } from '../../../model/types';
 import type { Palette } from '../../../model/wizard';

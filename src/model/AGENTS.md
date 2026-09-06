@@ -262,7 +262,12 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   which is what makes the anti-churn rule structural rather than remembered.
 - **easings.ts** - the easing catalog; the doctrine is in src/templates/AGENTS.md +
   DESIGN_LANGUAGE §4.
-- **defaultTemplate.ts** - the fallback template.
+- **cssVars.ts** - `:root` variable read/write helpers plus the colour model (`parseCssColor` /
+  `formatCssColor` / `contrastRatio`); the doctrine is in src/blocks/AGENTS.md.
+- **slug.ts** - the folder/zip/channel slug, shared by control and export (in the kernel so
+  neither imports the other).
+- **externalRefs.ts** - `ensureExternalRefs`: an imported template's HTML references the css/js/
+  gsap files a Starter package ships beside it; the importer and the SPX Starter packager share it.
 - **project.ts** - the current working project, autosaved to localStorage 'spx-gfx-project' so a
   reload restores the last graphic. One slot: creating a new graphic overwrites it (durable saves
   go to the LIBRARY via the Save button). Carries the save LINK - `graphicId` (which library

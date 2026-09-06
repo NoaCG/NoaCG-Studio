@@ -22,7 +22,7 @@ import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { RENDER_FORMATS, type RenderManifest } from '../../src/render/manifest.js';
-import { slug } from '../../src/export/slug.js';
+import { slug } from '../../src/model/slug.js';
 import type { JobOutput } from '../../src/render/types.js';
 import type { JobRecord } from './jobStore.js';
 import type { ExecutorProgress, ExecutorStartResult, RenderExecutor } from './executor.js';

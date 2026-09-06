@@ -87,7 +87,7 @@ const virtualEntry = {
       ? {
           code: `export { CATALOG } from '../templates/catalog';
 export { ografTarget } from '../export/targets/ograf';
-export { slug } from '../export/slug';
+export { slug } from '../model/slug';
 export { starterGuideMd } from './guide';
 `,
           moduleType: 'ts',

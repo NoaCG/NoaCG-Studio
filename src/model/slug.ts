@@ -1,5 +1,5 @@
-/** Slug suitable for a folder/zip/channel name (its own module so control + export code
- *  can share it without an import cycle through common.ts). */
+/** Slug suitable for a folder/zip/channel name. A kernel helper: control, export and the
+ *  components all reach it here (docs/ARCHITECTURE.md §3). */
 export function slug(name: string): string {
   return (
     name

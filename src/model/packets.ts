@@ -11,7 +11,7 @@
 //     its embedded graphics extracted), the SavedGraphic shape shows.ts pools reuse, and
 //     the look capture helpers.
 
-import { getCssVariable, setCssVariable } from '../blocks/cssVars';
+import { getCssVariable, setCssVariable } from './cssVars';
 import {
   FONTS,
   customFontFaceCss,

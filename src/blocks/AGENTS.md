@@ -83,10 +83,11 @@ player's `<head>` script tag (mirrors the GSAP tag; preview/exports strip-inline
 identically, and only when used - see assets/lottieSupport.ts). Autoplay + loop in v1; the
 timeline animates the container like any block part.
 
-## cssVars.ts / cssLength.ts
+## cssLength.ts, and model/cssVars.ts
 
 `:root` variable read/write helpers (the style surfaces' patch layer), plus the two value
-models the controls above them need.
+models the controls above them need. `cssVars.ts` lives in `src/model/` because the kernel's
+`packets.ts` reads it; the rules below bind it there.
 
 **Colour, WITH its alpha.** `parseCssColor`/`formatCssColor` are anchored (a shadow list is
 not a colour) and round-trip a value in the form it arrived in: an opaque hex stays hex, a

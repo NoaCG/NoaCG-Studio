@@ -10,7 +10,7 @@
 // the TOPIC being an unguessable capability (spx-control-<slug>-<random>), a shared secret between
 // the graphic and its control panel. Hand-rolled WebSocket (Phoenix vsn=1.0.0), no bundled library.
 
-import { slug } from '../export/slug';
+import { slug } from '../model/slug';
 import { loadBackendConfig } from '../backend/config';
 
 const OPEN = '/* == REMOTE CONTROL (Supabase Realtime) — edit or delete this whole block == */';

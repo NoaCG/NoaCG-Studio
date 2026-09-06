@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { useTemplateStore } from '../../store/templateStore';
 import { zoneDecls } from '../../templates/shared/base';
 import { nextFieldId, setCssDeclaration, setFieldDefault } from '../../blocks/edit';
-import { getCssVariable, setCssVariable } from '../../blocks/cssVars';
+import { getCssVariable, setCssVariable } from '../../model/cssVars';
 import type { Zone9 } from '../../model/wizard';
 import type { SpxTemplate } from '../../model/types';
 import { detectPrefix, getTemplateParts, type TemplatePart } from '../../model/structure';

@@ -15,7 +15,6 @@ export-time reflow, stretching, or cropping.
   by the working project's `saved.graphicId`, fresh at export time, and they are simply absent
   for a project that was never saved. Only the two targets that bundle an operator page - SPX
   and the HTML overlay - consume them).
-- **slug.ts** - shared slug helper (lives here to avoid an import cycle).
 - **selfContained.ts** - single-file composer: inline CSS/GSAP/JS/assets/FONTS + extra body
   scripts. ASYNC, because the fonts are fetched to be embedded.
 - **bundledFonts.ts** - the one place that knows how a builder font leaves the app. Generated CSS

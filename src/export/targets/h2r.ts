@@ -8,7 +8,7 @@
 import JSZip from 'jszip';
 import type { SpxField, SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
-import { slug } from '../common';
+import { slug } from '../../model/slug';
 import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget } from '../registry';
 

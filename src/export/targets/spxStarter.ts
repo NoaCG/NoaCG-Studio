@@ -9,12 +9,12 @@ import JSZip from 'jszip';
 import {
   addControlPanel,
   addSharedAssets,
-  ensureExternalRefs,
   injectControlReceiver,
   injectProjectFormatMeta,
-  slug,
   spxReadme,
 } from '../common';
+import { ensureExternalRefs } from '../../model/externalRefs';
+import { slug } from '../../model/slug';
 import { onAirGuideMd } from '../onAirGuide';
 import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget } from '../registry';

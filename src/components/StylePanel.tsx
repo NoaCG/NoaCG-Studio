@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTemplateStore } from '../store/templateStore';
-import { getCssVariable, listCssVariables, setCssVariable } from '../blocks/cssVars';
+import { getCssVariable, listCssVariables, setCssVariable } from '../model/cssVars';
 import { setCssDeclaration } from '../blocks/edit';
 import {
   FONTS,

@@ -59,6 +59,9 @@ a new design's name is taken, rename the NEW one; renaming a shipped design move
 
 blank.ts + the catalog, resolved through catalog.ts (CATALOG, variantsFor/variantById).
 
+**defaultTemplate.ts** - `createDefaultTemplate()`, the document the store opens when no project is
+saved: the first lower-third variant (`lt01`), so the fallback has one source of truth.
+
 **structuralAnchor.ts** - the one table answering "does a catalog structure carry this intent,
 and which one": the family words, `resolveAnchor`, `structuralFit`, and `anchorsSatisfiedBy` /
 `variantSatisfiesAnchor` (what a VARIANT is, for the satisfaction check). It lives here, not in

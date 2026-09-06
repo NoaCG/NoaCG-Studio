@@ -26,7 +26,7 @@
 
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { slug } from './common';
+import { slug } from '../model/slug';
 import { buildStarterInto } from './targets/spxStarter';
 import { onAirGuideMd } from './onAirGuide';
 import { showFieldReferenceMd, type ProductionFieldGraphic } from './fieldReference';

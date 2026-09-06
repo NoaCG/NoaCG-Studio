@@ -2,7 +2,7 @@
 // re-parses the SPXGCTemplateDefinition so fields stay in sync with the visible code.
 
 import { create } from 'zustand';
-import { createDefaultTemplate } from '../model/defaultTemplate';
+import { createDefaultTemplate } from '../templates/defaultTemplate';
 import { parseDefinition } from '../model/spxDefinition';
 import type { AssetFile, SpxTemplate } from '../model/types';
 import { DATA_FTYPES } from '../model/types';
@@ -13,8 +13,9 @@ import { normalizeThread, type AiThread } from '../model/aiThread';
 import { normalizeLegibility, type ProjectLegibility } from '../model/designRules';
 import { hasCurrentVideoProject } from '../model/videoProject';
 import { PATH_TARGET, type TimelineTarget } from '../blocks/timelineLens';
+import type { EditorTab } from '../blocks/registry';
 
-export type EditorTab = 'html' | 'css' | 'js';
+export type { EditorTab } from '../blocks/registry';
 export type PreviewBg = 'checkerboard' | 'black' | 'video';
 /** The panels the MOBILE tab strip switches between (SidePanel.tsx), and the ids the
  *  desktop docks accept as a "reveal this panel" signal. A subset of model/layout.ts's

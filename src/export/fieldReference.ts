@@ -11,7 +11,7 @@
 // documents can never disagree with the ids it ships.
 
 import { DATA_FTYPES, type SpxField, type SpxTemplate } from '../model/types';
-import { slug } from './slug';
+import { slug } from '../model/slug';
 
 /** Plain words for the SPX ftypes an operator actually fills in. The raw ftype rides along in
  *  the table because a client's own docs speak it. */

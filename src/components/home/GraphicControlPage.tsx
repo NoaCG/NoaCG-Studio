@@ -51,7 +51,7 @@ import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import ProductionPicker from './ProductionPicker';
 import { IconControl } from '../icons';
-import { slug } from '../../export/common';
+import { slug } from '../../model/slug';
 
 /** The speed knob's three stops — the wizard's Animation step offers the same three
  *  (model/wizard.ts AnimSpeed: ±33% read as "no change" on the owner's walk, ±80% does not). */

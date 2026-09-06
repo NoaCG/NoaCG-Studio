@@ -123,6 +123,11 @@ module.exports = {
       to: { path: '^src/(blocks|validation)/' },
     },
     {
+      comment: '§3: store -> templates (defaultTemplate only - the initial document is the first catalog variant)',
+      from: { path: '^src/store/' },
+      to: { path: '^src/templates/defaultTemplate\\.ts$' },
+    },
+    {
       comment: '§3: ai -> templates, blocks, validation, video',
       from: { path: '^src/ai/' },
       to: { path: '^src/(templates|blocks|validation|video)/' },
@@ -274,34 +279,9 @@ module.exports = {
 
     // ---- §6 grandfathered debts (delete together with the doc row) ------------------------
     {
-      comment: '§6 debt: model -> templates (defaultTemplate imports lt01)',
-      from: { path: '^src/model/defaultTemplate\\.ts$' },
-      to: { path: '^src/templates/lowerThirds/lt01' },
-    },
-    {
-      comment: '§6 debt: model -> export (importTemplate imports ensureExternalRefs)',
-      from: { path: '^src/model/importTemplate\\.ts$' },
-      to: { path: '^src/export/common' },
-    },
-    {
-      comment: '§6 debt: model -> blocks (packets imports cssVars)',
-      from: { path: '^src/model/packets\\.ts$' },
-      to: { path: '^src/blocks/cssVars' },
-    },
-    {
       comment: '§6 debt: model -> editor (prefs type-imports CommentVisibility)',
       from: { path: '^src/model/prefs\\.ts$' },
       to: { path: '^src/editor/commentVisibility' },
-    },
-    {
-      comment: '§6 debt: blocks -> store (registry type-imports EditorTab)',
-      from: { path: '^src/blocks/registry\\.ts$' },
-      to: { path: '^src/store/templateStore' },
-    },
-    {
-      comment: '§6 debt: control -> export (slug is a generic util misplaced in export/)',
-      from: { path: '^src/control/(controlModel|realtimeControl)\\.ts$' },
-      to: { path: '^src/export/slug' },
     },
   ],
   allowedSeverity: 'error',

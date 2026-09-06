@@ -7,7 +7,7 @@
 // import is just the normal Export tab.
 
 import JSZip from 'jszip';
-import { ensureExternalRefs } from '../export/common';
+import { ensureExternalRefs } from './externalRefs';
 import { parseDefinition } from './spxDefinition';
 import { sourceHash } from './contentHash';
 import {

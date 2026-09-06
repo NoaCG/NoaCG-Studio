@@ -2,7 +2,7 @@
 //
 // WHY IT EXISTS (docs/NOACG_PRO_PLAN.md §17.2). The owner's first read of an accepted Pro set
 // found `minimalist.ledger` unreadable over a busy mid-tone plate while every gate in the tree
-// passed it. The hole is one constant: `BROADCAST_BACKDROP` (blocks/cssVars.ts) is a single
+// passed it. The hole is one constant: `BROADCAST_BACKDROP` (model/cssVars.ts) is a single
 // near-black card, and every contrast number this repo computes is computed against it. A
 // near-white super measures 14:1 there and 1.1:1 over a bright sky, and nothing was asking the
 // second question.
@@ -25,7 +25,7 @@
 // is one authors learn to ignore (the mark-crowding lesson, src/ai/AGENTS.md). What it removes is
 // the silence.
 
-import { contrastRatio, parseCssColor, type CssColor } from '../blocks/cssVars';
+import { contrastRatio, parseCssColor, type CssColor } from '../model/cssVars';
 
 /**
  * The plates a graphic is measured against when nothing is known about the picture.
@@ -65,7 +65,7 @@ export interface PlateLegibilityFinding {
 }
 
 /** Alpha-composite `top` over `under`, both opaque out. The one piece of arithmetic this file
- *  owns; the contrast formula itself stays in `blocks/cssVars.ts`, where the repo keeps exactly
+ *  owns; the contrast formula itself stays in `model/cssVars.ts`, where the repo keeps exactly
  *  one copy of it. */
 function over(top: CssColor, under: CssColor): CssColor {
   if (top.a >= 1) return top;

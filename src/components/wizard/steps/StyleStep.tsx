@@ -15,7 +15,7 @@ import {
   formatCssColor,
   listCssVariables,
   parseCssColor,
-} from '../../../blocks/cssVars';
+} from '../../../model/cssVars';
 import FontPicker from '../FontPicker';
 import StyleControls from '../../style/StyleControls';
 import ColorField from '../../style/ColorField';
