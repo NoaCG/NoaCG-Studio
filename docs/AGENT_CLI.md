@@ -294,6 +294,13 @@ Every channel below ships the same one artifact; what differs is which entrance 
 | **Codex** (`.codex-plugin/plugin.json` in each plugin directory, the same `skills/`, the same root marketplace) | the whole plugin directory: the skill copy and the command (`noacg`), or `.mcp.json` (`noacg-mcp`) | `codex plugin marketplace add miwco/NoaCG-Studio` then `codex plugin add noacg@noacg-studio` (and `noacg-mcp@noacg-studio` for the server) |
 | **In-repo dogfooding** | the thin adapter triple (`.agent-workflows/noacg-graphic.md`, `.claude/skills/`, `.agents/skills/`) - POINTERS at the source | already there |
 
+**Two hand-kept copies of the install lines exist outside `build-skill.mjs`'s reach** - the docs
+page's Reference (`docs.html#agent-setup`, and the paste-prompt above it) and the studio's own
+steer, `src/components/wizard/steps/ai/AgentRouteCard.tsx` (the AI step's *Preferred* card, which
+shows the Claude Code pair, the Codex pair and `/noacg:graphic`). A change to the marketplace
+name, the plugin name or the command updates both in the same commit; nothing measures the drift
+yet, and `e2e/ai-tiers.spec.ts` pins only the studio copy's current text.
+
 **Codex reads the SAME root marketplace manifest** (measured 2026-08-27, `codex plugin`): a
 `codex plugin marketplace add` of either `miwco/NoaCG-Studio` or a local checkout resolves the
 marketplace name `noacg-studio` out of `.claude-plugin/marketplace.json`, and `codex plugin add

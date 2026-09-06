@@ -486,6 +486,15 @@ offer is ABSENT rather than greyed: **Pro renders only where it can run** (see b
 tier contract, the price targets and the price-book rule behind each model row are
 src/ai/AGENTS.md's.
 
+**The user's OWN CODING AGENT is the PREFERRED route, said before any tier and any key** (owner
+2026-08-26 + 2026-09-03, `docs/backlog/byo-key-and-create-with-ai-guidance.md`):
+`steps/ai/AgentRouteCard.tsx` sits under the section head - one visible line, the install lines
+and the `/docs#agent-install` link behind "Show me", OPEN by itself exactly when the settings
+sheet opens itself - plus a pointer FIRST in the sheet and a clause on the BYO tier's hint. It is
+copy and a link, never a tier: nothing runs here. Commands come from `docs/AGENT_CLI.md`'s
+Distribution table, never invented; the copy names what the user needs (their subscription, a
+terminal) and closes with the no-agent case. Pinned by `e2e/ai-tiers.spec.ts`.
+
 The PIPELINES behind Lite and Pro are src/ai/AGENTS.md's contract (and docs/NOACG_PRO_PLAN.md
 §7); what belongs here is what each tier does to this STEP.
 
