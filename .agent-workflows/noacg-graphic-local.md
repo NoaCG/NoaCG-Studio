@@ -1,7 +1,14 @@
-Shared canonical workflow for the `noacg-graphic` skill - auto-triggered by description match,
-or invoked explicitly as `/noacg-graphic` in Claude Code, `$noacg-graphic` in Codex.
+Shared canonical workflow for the `noacg-graphic-local` skill - invoked as
+`/noacg-graphic-local` in Claude Code, `$noacg-graphic-local` in Codex.
 
 # Make a NoaCG graphic (in-repo dogfooding of the product skill)
+
+**The name carries the difference, because both skills are loaded in this repository.** The
+published `noacg` plugin ships `noacg-graphic`, which makes a graphic against noacg.studio and
+is what a user gets; this one runs the same loop against THIS checkout's dev server and locally
+built CLI, to exercise the code being changed. While the two shared one name and one
+description, nothing chose between them on purpose - the plugin's was invoked 25 times and this
+one never.
 
 The PRODUCT skill - what a user's Claude Code or Codex loads - is `cli/skill/noacg-graphic/`
 (SKILL.md + references/). This workflow exists so a session working IN this repository can run
