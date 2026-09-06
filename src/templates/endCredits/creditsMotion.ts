@@ -143,7 +143,7 @@ function creditsRoll(target) {
   var seq = gsap.timeline();
   // Opening the travel also CLEARS a previous take's closing pose - the attribute rides on the
   // track, which every rebuild keeps, so a replay would otherwise start with the list hidden.
-  seq.set(track, { attr: { 'data-credits': hasEndBeat ? 'rolling' : 'none' } }, 0);
+  seq.set(track, { attr: { 'data-credits': 'rolling' } }, 0);
   seq.fromTo(track,
     { y: startY },
     { y: endY, duration: distance / pixelsPerSecond, ease: 'none' },  // constant speed — never eased
@@ -221,7 +221,7 @@ function creditsCrawl(target) {
   if (distance <= 0) return null;
 
   var seq = gsap.timeline();
-  seq.set(track, { attr: { 'data-credits': hasEndBeat ? 'rolling' : 'none' } }, 0);  // the mark waits its turn
+  seq.set(track, { attr: { 'data-credits': 'rolling' } }, 0);   // the mark waits its turn
   seq.fromTo(track,
     { x: startX },
     { x: endX, duration: distance / pixelsPerSecond, ease: 'none' },  // constant speed — never eased
