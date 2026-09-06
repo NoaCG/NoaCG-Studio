@@ -178,3 +178,18 @@ test('the DERIVED gate job never makes a run look exhausted on its own', () => {
   assert.equal(set.exhausted, false);
   assert.deepEqual(set.cancelled, []);
 });
+
+// MAIN'S PUSH RUNS, one per commit, newest first - the list the revert's last-verdict walk and the
+// quarantine's pass history both read, so what counts as a main run is spelled once.
+import { mainPushRuns } from './ci-failure-set.mjs';
+
+test('main push runs are read from one workflow, completed pushes only, deduplicated by commit', () => {
+  const asked = [];
+  const gh = (args) => {
+    asked.push(args[0]);
+    return [{ head_sha: 'a', conclusion: 'success' }, { head_sha: 'a', conclusion: 'cancelled' }, { conclusion: 'failure' }, { head_sha: 'b', conclusion: 'failure' }];
+  };
+  assert.deepEqual(mainPushRuns({ repo: 'o/r', workflow: 'quarantine.yml', limit: 5, gh }), [{ head_sha: 'a', conclusion: 'success' }, { head_sha: 'b', conclusion: 'failure' }]);
+  assert.equal(asked[0], 'repos/o/r/actions/workflows/quarantine.yml/runs?branch=main&event=push&status=completed&per_page=5');
+  assert.deepEqual(mainPushRuns({ repo: 'o/r', gh: () => [] }), []);
+});

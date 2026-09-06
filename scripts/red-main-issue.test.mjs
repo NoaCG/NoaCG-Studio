@@ -130,3 +130,77 @@ test('a genuinely unidentifiable failure still speaks up - exhaustion is a narro
   const decision = planRedMainComment({ existing: 1, bodies: ['unrelated'], sha: 'f'.repeat(40), hash: 'unknown', exhausted: false });
   assert.equal(decision.action, 'comment');
 });
+
+// THE REVERT RULE. A revert changes main, so every way it can be wrong has a case: it fires only on
+// a main push whose last commit with a verdict was green and whose failure survived a real second
+// run, and every refusal names its reason so the issue can carry it.
+import { lastVerdictBefore, shouldRevert } from './red-main-issue.mjs';
+
+const MAIN = { event: 'push', ref: 'refs/heads/main' };
+const GREEN = { sha: 'g'.repeat(40), conclusion: 'success' };
+const RED = { sha: 'r'.repeat(40), conclusion: 'failure' };
+const SPEC = ['e2e/x.spec.ts'];
+
+test('a main push whose specs failed twice, after a green verdict, is reverted from that verdict', () => {
+  const decision = shouldRevert({ ...MAIN, items: SPEC, retry: 'failure', retried: 1, previous: GREEN });
+  assert.equal(decision.revert, true);
+  assert.equal(decision.since, GREEN.sha);
+  assert.equal(shouldRevert({ ...MAIN, items: ['job: Build'], retry: 'skipped', previous: GREEN }).revert, true, 'a red build had no retry and is still deterministic');
+});
+
+test('the last verdict is looked up only once the cheap rules have passed', () => {
+  let asked = 0;
+  const previous = () => {
+    asked += 1;
+    return GREEN;
+  };
+  assert.equal(shouldRevert({ ...MAIN, items: SPEC, retry: 'success', previous }).revert, false);
+  assert.equal(asked, 0);
+  assert.equal(shouldRevert({ ...MAIN, items: SPEC, retry: 'failure', retried: 2, previous }).revert, true);
+  assert.equal(asked, 1);
+});
+
+test('every other case refuses with a reason', () => {
+  const cases = [
+    [{ ...MAIN, event: 'merge_group', items: SPEC, retry: 'failure', retried: 1, previous: GREEN }, /not a push to main/],
+    [{ ...MAIN, ref: 'refs/heads/topic', items: SPEC, retry: 'failure', retried: 1, previous: GREEN }, /not a push to main/],
+    [{ ...MAIN, items: SPEC, exhausted: true, previous: GREEN }, /no verdict/],
+    [{ ...MAIN, items: SPEC, retry: 'success', previous: GREEN }, /flake/],
+    [{ ...MAIN, items: SPEC, retry: 'skipped', previous: GREEN }, /never got a second run/],
+    [{ ...MAIN, items: SPEC, retry: 'cancelled', previous: GREEN }, /never got a second run/],
+    [{ ...MAIN, items: ['job: E2E shard'], retry: 'failure', retried: 0, previous: GREEN }, /re-ran nothing/],
+    [{ ...MAIN, items: SPEC, retry: 'failure', retried: 1, previous: RED }, /already red at rrrrrrr/],
+    [{ ...MAIN, items: SPEC, retry: 'failure', retried: 1, previous: { sha: null, conclusion: 'unknown' } }, /no earlier main commit has a verdict/],
+  ];
+  for (const [input, reason] of cases) {
+    const decision = shouldRevert(input);
+    assert.equal(decision.revert, false, JSON.stringify(input));
+    assert.match(decision.reason, reason, JSON.stringify(input));
+  }
+});
+
+test('the last verdict is the nearest first-parent ancestor a completed push run judged, not the newest run', () => {
+  const runs = [
+    { head_sha: 'later', conclusion: 'success' }, // a landing AFTER the one being judged, finished first
+    { head_sha: 'skip', conclusion: 'cancelled' }, // superseded, no verdict
+    { head_sha: 'prev', conclusion: 'failure' },
+    { head_sha: 'older', conclusion: 'success' },
+  ];
+  const gh = () => runs;
+  const git = () => ['skip', 'prev', 'older'];
+  assert.deepEqual(lastVerdictBefore({ repo: 'o/r', sha: 'red', gh, git }), { sha: 'prev', conclusion: 'failure' });
+  assert.deepEqual(lastVerdictBefore({ repo: 'o/r', sha: 'red', gh, git: () => ['skip', 'nothing'] }), { sha: null, conclusion: 'unknown' });
+  assert.deepEqual(lastVerdictBefore({ repo: '', sha: 'red', gh, git }), { sha: null, conclusion: 'unknown' });
+});
+
+test('the body names the revert, or the reason there is none, and says what the second run was', () => {
+  const queued = issueBody({ sha: SHA, runUrl: 'u', items: SPEC, hash: HASH, retry: 'failure', retried: 1, revert: { status: 'queued', url: 'https://github.com/o/r/pull/80' } });
+  assert.match(queued, /1 failed spec file\(s\) were re-run once on this same commit and failed again/);
+  assert.match(queued, /Reverting the batch: https:\/\/github\.com\/o\/r\/pull\/80/);
+  const refused = issueBody({ sha: SHA, runUrl: 'u', items: ['job: E2E shard'], hash: HASH, retry: 'failure', retried: 0, revert: { status: 'skipped', reason: 'the retry job re-ran nothing' } });
+  assert.match(refused, /could not re-run the failed specs/);
+  const skipped = issueBody({ sha: SHA, runUrl: 'u', items: ['job: Build'], hash: HASH, retry: 'skipped', revert: { status: 'skipped', reason: 'main was already red' } });
+  assert.match(skipped, /Not reverted automatically: main was already red/);
+  assert.match(skipped, /No second run/);
+  assert.ok(!/refuses to merge onto it/.test(skipped), 'the queue no longer refuses on a red main; the body must not claim it does');
+});

@@ -37,6 +37,24 @@ const FAILED = new Set(['failure', 'timed_out']);
 const DERIVED_JOBS = new Set(['CI gate']);
 
 /**
+ * Main's completed PUSH runs of one workflow, newest first, one per commit. Only pushes count - a
+ * dispatched run on main is somebody asking a question, not a landing - and only completed ones:
+ * the run asking is itself still in progress. Shared by the revert's last-verdict walk and the
+ * quarantine's pass history, so what "a main run" means is spelled once.
+ * @returns {{ head_sha: string, conclusion: string }[]}
+ */
+export function mainPushRuns({ repo, workflow = 'ci.yml', limit = 40, gh = ghJsonLines }) {
+  const seen = new Set();
+  const runs = [];
+  for (const run of gh([`repos/${repo}/actions/workflows/${workflow}/runs?branch=main&event=push&status=completed&per_page=${limit}`, '--jq', '.workflow_runs[] | {head_sha, conclusion}'])) {
+    if (!run?.head_sha || seen.has(run.head_sha)) continue;
+    seen.add(run.head_sha);
+    runs.push(run);
+  }
+  return runs;
+}
+
+/**
  * One failing job's contribution to the set, as a stable identity.
  *
  * A shard index is not part of the identity: Playwright splits by test COUNT, so the same spec
@@ -141,8 +159,11 @@ export function fetchFailureSet(runId, { repo = process.env.GH_REPO, gh = ghJson
   return failureSet(jobs, (id) => gh([`repos/${repo}/check-runs/${id}/annotations?per_page=100`, '--jq', '.[] | {path, annotation_level}']));
 }
 
-/** `gh api ... --jq` prints one JSON value per line; unreadable output is no answer, not a crash. */
-function ghJsonLines(args) {
+/**
+ * `gh api ... --jq` prints one JSON value per line; unreadable output is no answer, not a crash.
+ * Shared with the quarantine and the revert, which read the same API the same way.
+ */
+export function ghJsonLines(args) {
   const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true });
   if (res.status !== 0) return [];
   return String(res.stdout ?? '')

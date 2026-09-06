@@ -59,6 +59,16 @@ on:
         description: 'Plan from this commit instead of running everything. Empty (the default) runs the full suite.'
         required: false
         default: ''
+      # A branch pushed with the workflow's own token gets no push run (GitHub's rule for
+      # GITHUB_TOKEN), so the mechanical landings - a quarantine entry, a revert - ask for theirs
+      # by dispatch (scripts/queue-pr.mjs). Their pull request needs `Reviewed` on its tip to
+      # enter the queue, and that job runs only on pull requests and merge groups; this input
+      # makes it run on the dispatch too, reading the stamp the bot posted. Never on main.
+      require_review:
+        description: 'Also run the Reviewed check on this tip (used by queued mechanical pull requests).'
+        required: false
+        type: boolean
+        default: false
 
 # Superseded runs cancel on branches and PRs, but never on main: a landed commit must keep
 # its verdict (cancelled main runs left commits with NO CI answer while they were already
@@ -188,10 +198,11 @@ jobs:
   # On a pull request it reads the tip directly. On a merge group the commit under test is a
   # temporary merge GitHub made, so the pull request is read off the group's ref
   # (`gh-readonly-queue/main/pr-<n>-<base>`) and the status is looked up on ITS head. A branch
-  # with no review status - or a failing one - cannot enter or pass the queue.
+  # with no review status - or a failing one - cannot enter or pass the queue. A dispatch that
+  # asked for it (`require_review`, the mechanical landings' door) reads the dispatched tip.
   reviewed:
     name: Reviewed
-    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && inputs.require_review && github.ref != 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -212,7 +223,7 @@ jobs:
             [ -n "$NUMBER" ] || { echo "::error::cannot read a pull request number off $GROUP_REF"; exit 1; }
             SHA="$(gh pr view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)"
           else
-            SHA="$PR_HEAD"
+            SHA="${PR_HEAD:-$GITHUB_SHA}"
           fi
           STATE="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status" --jq '[.statuses[] | select(.context == "noacg/reviewed")][0].state // "missing"')"
           DESC="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status" --jq '[.statuses[] | select(.context == "noacg/reviewed")][0].description // ""')"
@@ -241,6 +252,9 @@ jobs:
       # by measured duration. `matrix` is sized from this same array, so the runner count and the
       # work handed out cannot disagree.
       shardSpecs: ${{ steps.plan.outputs.shardspecs }}
+      # The quarantined specs this plan would have run (e2e/quarantine.json): out of the shards
+      # above, into quarantine.yml's jobs on main. A JSON array; `[]` when there are none.
+      quarantined: ${{ steps.plan.outputs.quarantined }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -439,6 +453,7 @@ jobs:
               `specs=${plan.specs.join(" ")}`,
               `catalog=${plan.catalog}`,
               `shardspecs=${JSON.stringify(plan.shardSpecs)}`,
+              `quarantined=${JSON.stringify(plan.quarantined ?? [])}`,
               `matrix=${JSON.stringify({ shardIndex: Array.from({ length: shards }, (_, i) => i + 1), shardTotal: [shards] })}`,
             ].join("\n"));
           ' "$PLAN" >> "$GITHUB_OUTPUT"
@@ -585,6 +600,94 @@ jobs:
         if: failure()
         with:
           name: test-results-${{ matrix.shardIndex }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # THE SECOND RUN. When the shards fail on main or in the merge group, the specs that failed are
+  # run ONCE MORE on the same commit, here, and the gate reads both answers: fail-then-pass is a
+  # flake, and the gate passes while the specs go into e2e/quarantine.json through the merge
+  # queue; fail-then-fail is a regression, the run is red, and on main the batch is reverted
+  # (docs/WORKFLOW_ARCHITECTURE.md §5.1 and §3, "sheriffs + auto-revert + flake bots").
+  #
+  # The failed FILES come from the shards' own blob reports (scripts/e2e-retry.mjs), not from
+  # re-running whole shards: a shard is nine minutes of mostly-green specs, and the question is
+  # only about the ones that failed. Three things make this job REFUSE instead, and the gate stays
+  # red on each (scripts/e2e-retry.mjs `retryPlan`): fewer reports than shards (a shard died before
+  # Playwright reported, so its files never ran on this commit), no failing spec in the reports (the
+  # failure was not a test), and a failing spec this change itself edits (a flake in a spec the
+  # change wrote is the change's, bounced to its author, never quarantined on a second run).
+  #
+  # Branch pushes and pull requests get no second run: a flake there costs one push, and the
+  # quarantine is main's record, not a branch's. The merge group does get one, because a flake
+  # there bounces a finished landing out of the queue.
+  e2e-retry:
+    name: E2E retry (failed specs, same commit)
+    needs: [plan, e2e]
+    if: ${{ !cancelled() && needs.e2e.result == 'failure' && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'merge_group') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      # The spec files that were re-run, as a JSON array of repo-relative paths - what the gate
+      # quarantines when this job passes.
+      specs: ${{ steps.failed.outputs.specs }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: ./.github/actions/node-modules
+
+      - uses: ./.github/actions/playwright-chromium
+
+      - name: Download the shards' reports
+        uses: actions/download-artifact@v5
+        with:
+          path: all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      # `--shards` is how many reports there must be; `--changed` is what this change edits - the
+      # merge group's base, or the push's `before`. The script writes `specs` and `filters` to
+      # GITHUB_OUTPUT itself.
+      - name: Name the failed spec files
+        id: failed
+        env:
+          MATRIX: ${{ needs.plan.outputs.matrix }}
+          CHANGED_SINCE: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          SHARDS="$(node -e 'console.log(JSON.parse(process.env.MATRIX).shardTotal[0])')"
+          node scripts/e2e-retry.mjs --blobs all-blob-reports --shards "$SHARDS" --changed "$CHANGED_SINCE" --github-output
+
+      # The same anchored filters the shards use (`specFilterArg`), deliberately unquoted so word
+      # splitting hands Playwright one argument per file - see the shard step for why that is safe.
+      - name: Run them once more
+        env:
+          FILTERS: ${{ steps.failed.outputs.filters }}
+          NOACG_BLOB_NAME: report-retry.zip
+        run: npm run test:e2e -- $FILTERS
+
+      # Named OUTSIDE the `blob-report-*` glob the combined report downloads: this job runs beside
+      # the report job, and a retry's blob merged into the report would show the same spec once red
+      # and once green with nothing saying which was which.
+      - name: Upload the retry report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: retry-blob-report
+          path: blob-report/
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload failure evidence
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results-retry
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
@@ -774,20 +877,16 @@ jobs:
     # every code-testing job passed, and both times the gate went red and filed the rolling
     # red-main issue against a commit nothing was wrong with. A gate whose verdict can be
     # flipped by a job with no opinion about the code is reporting on the wrong thing.
-    needs: [build, plan, e2e, e2e-catalog, factory]
+    needs: [build, plan, e2e, e2e-retry, e2e-catalog, factory]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
-      issues: write # the main-branch failure steps file/close a rolling issue
-      actions: read # read this run's own jobs, to name WHAT failed
-      checks: read # and their annotations - Playwright's github reporter puts the spec there
     steps:
-      # The failure step below runs a script, so the scripts have to be here. One directory, in
-      # cone mode, and nothing else: this job needs no dependencies (red-main-issue.mjs and the
-      # ci-failure-set.mjs it imports are node builtins plus `gh`), and no setup-node - the runner
-      # image's own Node runs them, the same argument `e2e-report` makes for its `node -p`. A
-      # couple of seconds on a job that is otherwise pure waiting.
+      # A verdict and nothing else: this job is the required check, so it holds no write scope and
+      # no checkout beyond the one script it reads. Everything that ACTS on the verdict - the
+      # rolling issue, the quarantine entry, the revert - is the `after-gate` job below, which
+      # carries the write scopes and runs only on main and in the merge group.
       - uses: actions/checkout@v5
         with:
           sparse-checkout: scripts
@@ -800,11 +899,22 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           PLAN_RESULT: ${{ needs.plan.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
+          RETRY_RESULT: ${{ needs.e2e-retry.result }}
           CATALOG_RESULT: ${{ needs.e2e-catalog.result }}
           FACTORY_RESULT: ${{ needs.factory.result }}
         run: |
           status=0
           exhausted=0
+          # FAIL-THEN-PASS IS A FLAKE, NOT A RED. The shards failed and the retry job ran exactly
+          # the failed specs again on this same commit and they passed. The gate passes on that
+          # second answer, and the step after this one writes those specs into the quarantine
+          # through the merge queue, so the flake is on the record and out of the blocking plan
+          # from the next landing on. A retry that failed, or never ran, changes nothing below:
+          # the shards' verdict stands.
+          if [ "$E2E_RESULT" = "failure" ] && [ "$RETRY_RESULT" = "success" ]; then
+            echo "::warning title=CI gate::E2E shards failed and the failed specs passed on a second run of this same commit - a flake, not a regression. Those specs are being quarantined (e2e/quarantine.json)."
+            E2E_RESULT=success
+          fi
           fail() {
             echo "::error title=CI gate::$1 finished '$2' - open that job's log; the failing command and test names are annotated there."
             status=1
@@ -855,31 +965,84 @@ jobs:
           fi
           exit "$status"
 
-      # Fail-loud on main, the weekly-audit pattern: ONE rolling issue, closed by the next green.
-      #
+
+  # AFTER THE GATE: what a verdict on main or in the merge group sets in motion. Fail-loud on main,
+  # the weekly-audit pattern - ONE rolling issue, closed by the next green - and since phase 1c the
+  # two mechanical landings: a fail-then-pass is written into e2e/quarantine.json, a failure that
+  # survived its second run onto a green main is reverted. This is a separate job so the required
+  # check above stays a read-only verdict: the write scopes and the full checkout (a revert needs
+  # the range's commits and their parents) live here, and a write that fails here fails nothing
+  # that ci.yml is asked about. `always()` because it runs on the gate's failure as much as on its
+  # success; the branch and pull-request runs skip it entirely.
+  after-gate:
+    name: After the gate
+    needs: [gate, e2e-retry]
+    if: ${{ always() && needs.gate.result != 'skipped' && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'merge_group') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # the quarantine and revert branches
+      issues: write # the rolling red-main issue
+      pull-requests: write # the quarantine and revert pull requests
+      statuses: write # their mechanical `noacg/reviewed` stamp
+      actions: write # read this run's own jobs, to name WHAT failed; dispatch a queued branch's run
+      checks: read # and their annotations - Playwright's github reporter puts the spec there
+    steps:
+      # Enough history for the revert - the last-verdict walk reads 40 first-parent commits and
+      # `git revert -m 1` needs each merge's parents - without the full clone every green landing
+      # would otherwise pay to close an issue.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 60
+
+      # THE FLAKE GOES ON THE RECORD. The retry passed, so the gate passed; the specs it re-ran
+      # are written into e2e/quarantine.json on a branch off origin/main and queued
+      # (scripts/e2e-quarantine.mjs `enter --queue`). A spec already quarantined, or a branch
+      # already queued for this set, writes nothing and says so. `continue-on-error`: a write
+      # that fails (GitHub refusing the push, the organisation not yet letting Actions open pull
+      # requests) is a warning, never a red job over a green gate.
+      - name: Quarantine the specs that failed and then passed
+        if: ${{ needs.gate.result == 'success' && needs.e2e-retry.result == 'success' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SPECS: ${{ needs.e2e-retry.outputs.specs }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/e2e-quarantine.mjs enter --from-json "$SPECS" --run "$RUN_URL" --queue
+
       # WHAT IT SAYS AND WHEN is scripts/red-main-issue.mjs, with the reasoning and the receipts in
-      # its header and its unit tests. In one line: a re-run of a reported commit is silent (as
-      # before), a repeat of the SAME failing spec set is silent (new since 2026-08-29 - that is
-      # the 27-emails-for-one-bug fix), and anything else - a new spec, a changed set, a set this
-      # gate could not identify - always comments. The run goes red either way.
+      # its header and its unit tests. In one line: a re-run of a reported commit is silent, a
+      # repeat of the SAME failing spec set is silent (the 27-emails-for-one-bug fix), and anything
+      # else - a new spec, a changed set, a set this gate could not identify - always comments.
       #
-      # THIS STEP DECIDES WHETHER A RUN WAS MERELY EXHAUSTED, and it is deliberately the only
-      # thing that does. A workflow-level condition could only test `needs.e2e.result`, which
-      # collapses nine matrix legs into one word - so a run with one failed shard and one killed
-      # at the cap would be skipped as "exhausted" and a real regression would go unreported.
-      # `planRedMainComment` reads the per-job conclusions instead and can tell them apart.
+      # THIS STEP DECIDES WHETHER A RUN WAS MERELY EXHAUSTED, and it is deliberately the only thing
+      # that does: `needs.e2e.result` collapses nine matrix legs into one word, so a run with one
+      # failed shard and one killed at the cap would read as "exhausted" and a real regression would
+      # go unreported. `planRedMainComment` reads the per-job conclusions instead.
+      #
+      # THE REVERT rides on the same step, because the issue must name it. On a main push whose
+      # failure survived the second run (the retry re-ran the specs and they failed) or was never a
+      # spec, and whose last main commit with a verdict was green, scripts/revert-landing.mjs
+      # reverts everything since that commit on a branch and queues it; every other case is
+      # written into the issue as the reason nothing was reverted. `shouldRevert` in
+      # red-main-issue.mjs is the rule, with its tests.
       - name: File / update the red-main issue
-        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        if: ${{ needs.gate.result == 'failure' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
           SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          RETRY_RESULT: ${{ needs.e2e-retry.result }}
+          RETRY_SPECS: ${{ needs.e2e-retry.outputs.specs }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/red-main-issue.mjs
 
       - name: Close the red-main issue
-        if: ${{ success() && github.ref == 'refs/heads/main' }}
+        if: ${{ needs.gate.result == 'success' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
