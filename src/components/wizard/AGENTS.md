@@ -285,7 +285,11 @@ prefix guarantees a field and never turns unmarked rows off (only a PICTURE, off
 switched on by it). The step has a measured HEIGHT BUDGET, e2e-pinned EXACTLY by the fold cases in
 `e2e/import-svg.spec.ts`: a copy change costing a checklist row fails, one buying a row updates the
 number. Editing a row's sample writes it into the PREVIEW exactly as `update()` does on air, so a
-real length is testable here.
+real length is testable here. **The behaviour pickers explain themselves from the matcher, never
+from copy** (`wizard/fieldAutoMap.ts`): the name under an empty box, the unmatched-count notice
+(three empty boxes with unused layers) and "Fill them in" all read `words.json` through
+`matchRole`, a picker's label is the role's own `label`, and every fill pick carries a reason and
+one Undo - a silent fill is worse than an empty box.
 
 **A field the file never drew** arrives through "＋ Draw a field on the artwork", a marquee on the
 PREVIEW (`WizardPreview` `drawIn`/`drawing`/`onDraw`) whose box comes back as FRACTIONS of the

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { uuid } from '../../../model/id';
 import type {
@@ -31,7 +31,19 @@ import {
   scoreDrawnPool,
 } from '../draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
-import { BEHAVIOUR_WORDS } from '../../../templates/behaviours/recipe';
+import { BEHAVIOUR_WORDS, rolesOf } from '../../../templates/behaviours/recipe';
+import {
+  clearFill,
+  fillGap,
+  nameHint,
+  pickersOf,
+  proposeFill,
+  recipeIdOf,
+  rowKeysOf,
+  withFill,
+  type FillLayer,
+  type FillPick,
+} from '../fieldAutoMap';
 import { recipeById } from '../../../templates/behaviours/registry';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { extOf, fileToDataUrl } from '../../../assets/assetUtils';
@@ -80,6 +92,49 @@ function isTextLayer(svg: SvgImportResult | null, id: string): boolean {
  *  Written once because three of them ask the same question of the same stage. */
 function markerEl(stage: HTMLElement, id: string): Element | null {
   return stage.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`);
+}
+
+/** The largest painted shape's fill inside a layer - the colour a reader would say it is. */
+function dominantFill(el: Element): string | null {
+  let best: { area: number; fill: string } | null = null;
+  for (const node of el.querySelectorAll('rect, path, circle, ellipse, polygon, text')) {
+    const fill = getComputedStyle(node).fill;
+    if (!fill || fill === 'none' || fill.startsWith('url(')) continue;
+    const r = node.getBoundingClientRect();
+    const area = r.width * r.height;
+    if (!best || area > best.area) best = { area, fill };
+  }
+  return best?.fill ?? null;
+}
+
+/**
+ * WHERE EACH LAYER SITS, AND WHAT COLOUR IT IS, for the fill-them-in guess (fieldAutoMap.ts).
+ * Read off the step's own render with every hiding LIFTED for the duration of the read: a drawn
+ * moment is hidden as exported, and a hidden element has no box. The lift is a stylesheet rule
+ * keyed on `data-reveal` (mapSvgFields.css), so an Illustrator class-hidden layer is measured
+ * exactly like an inline-hidden one; the attribute is gone again before anything can paint.
+ */
+function measureLayers(stage: HTMLElement, ids: string[]): Map<string, Pick<FillLayer, 'box' | 'color'>> {
+  const out = new Map<string, Pick<FillLayer, 'box' | 'color'>>();
+  const root = stage.querySelector('svg');
+  if (!root) return out;
+  stage.setAttribute('data-reveal', '');
+  try {
+    const svgRect = root.getBoundingClientRect();
+    for (const id of ids) {
+      const el = markerEl(stage, id);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const box =
+        r.width > 0 && r.height > 0
+          ? { top: r.top - svgRect.top, bottom: r.bottom - svgRect.top, left: r.left - svgRect.left, right: r.right - svgRect.left }
+          : null;
+      out.set(id, { box, color: dominantFill(el) });
+    }
+  } finally {
+    stage.removeAttribute('data-reveal');
+  }
+  return out;
 }
 
 /**
@@ -496,9 +551,32 @@ const QUIZ_ANSWER_COUNTS = Array.from(
   (_, i) => MIN_QUIZ_ANSWERS + i,
 );
 
-/** Which recipe a draft is: the four shapes the wizard grew one at a time, or the generic one. */
-function recipeIdOf(b: SvgBehaviourDraft): string {
-  return b.kind === 'poll' ? 'vote' : b.kind === 'timer' ? 'countdown' : b.kind === 'recipe' ? b.recipe : b.kind;
+/** A picker's label is the ROLE'S OWN WORD (words.json), so the box, the docs' table and the
+ *  name hint under the box all say the same thing - the vocabulary ruling in
+ *  docs/SVG_STATES_FROM_ARTWORK.md §7: the operator's word and the designer's word are one word. */
+function roleLabel(recipeId: string, roleId: string): string {
+  const label = rolesOf(recipeId).find((r) => r.id === roleId)?.label ?? roleId;
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/** THE LINE UNDER A PICKER (docs/backlog/the-mapping-step-should-explain-and-offer-to-do-it.md,
+ *  ask 1): under an EMPTY box, the layer name that would have filled it, read off the matcher;
+ *  under a box the fill-them-in press chose, why it chose that layer. Nothing under a box the
+ *  reader filled or the drop matched - those need no explaining. */
+function NameHint({ hint, filled, testid }: { hint: string | null; filled?: string; testid: string }) {
+  if (filled) {
+    return (
+      <span className="map-svg-name-hint filled" data-testid={`${testid}-why`}>
+        filled: {filled}
+      </span>
+    );
+  }
+  if (!hint) return null;
+  return (
+    <span className="map-svg-name-hint" data-testid={`${testid}-hint`}>
+      {hint}
+    </span>
+  );
 }
 
 /** What a behaviour is CALLED and what it DOES, in the section summary's two voices - read from
@@ -561,6 +639,7 @@ function DrawnPicker({
   onPick,
   onHover,
   testid,
+  hint,
 }: {
   label: string;
   value: string;
@@ -568,6 +647,8 @@ function DrawnPicker({
   onPick: (id: string) => void;
   onHover: (id: string | null) => void;
   testid: string;
+  /** The line under the box (NameHint). */
+  hint?: ReactNode;
 }) {
   return (
     <label className="save-field">
@@ -586,6 +667,7 @@ function DrawnPicker({
           </option>
         ))}
       </select>
+      {hint}
     </label>
   );
 }
@@ -727,6 +809,11 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
   const [followArmed, setFollowArmed] = useState(false);
   const [fontBusy, setFontBusy] = useState<string | null>(null);
   const [fontError, setFontError] = useState<string | null>(null);
+  // THE LAST FILL-THEM-IN PRESS: the binding as it was before, and every pick with its reason.
+  // Held here rather than in the draft because it is an EXPLANATION of the draft, not part of
+  // it: Undo puts `before` back, and a pick is marked under its box only while the box still
+  // holds what the fill chose - change the box and the mark goes with it, with no bookkeeping.
+  const [fill, setFill] = useState<{ before: SvgBehaviourDraft; picks: FillPick[] } | null>(null);
   const uploadFor = useRef<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -1332,6 +1419,53 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
         : `${numberFields.length} numbers, each with + and −`;
   const behaviourGaps = behaviourBindingGaps(draft);
 
+  // ── THE STEP EXPLAINS ITSELF, AND OFFERS TO DO THE REST (fieldAutoMap.ts) ──
+  // The inventories the fill may draw on are EXACTLY what the pickers below offer, for the same
+  // reason `scoreDrawnPool` gives: a guess that picks something a box cannot show is a binding
+  // the reader cannot correct. The quiz's and the score board's text is the ticked rows; the
+  // vote's and any generic recipe's is every text layer; the quiz's drawings are groups only.
+  const recipeId = behaviour ? recipeIdOf(behaviour) : null;
+  const fillText: FillLayer[] =
+    quiz || score
+      ? onFields.map((f) => ({ id: f.candidateId, label: f.title, numeric: f.numeric }))
+      : textLayers.map((c) => ({ id: c.id, label: c.label, numeric: c.numeric }));
+  const fillDrawn: FillLayer[] = quiz
+    ? (draft.designSvg?.groups ?? []).map((g) => ({ id: g.id, label: g.label, hidden: g.hidden }))
+    : scoreDrawn.map((g) => ({ id: g.id, label: g.label, hidden: g.hidden }));
+  // A hidden group already declared a switch or a choice is in use, whatever the pickers say.
+  const fillTaken = draft.svgExtras.map((e) => e.candidateId);
+  const fillPickers = behaviour ? pickersOf(behaviour, fillText) : [];
+  /** Each row's key as the hints and the fill speak it - the key the row's own layer carries. */
+  const rowKeyAt = behaviour ? rowKeysOf(behaviour, fillText) : [];
+  const gap = behaviour && recipeId ? fillGap(recipeId, fillPickers, fillText, fillDrawn, fillTaken) : { empty: 0, spare: 0 };
+  // The fill's marks belong to the recipe they were made on; a change of behaviour orphans
+  // them, and an orphaned mark would explain a box that no longer exists.
+  const fillShown = fill && behaviour && recipeIdOf(fill.before) === recipeId ? fill : null;
+  /** The reason under a box, while the box still holds what the fill chose. */
+  const filledWhy = (role: string, key: string | undefined, value: string): string | undefined =>
+    fillShown?.picks.find((p) => p.role === role && p.key === key && p.candidateId === value)?.reason;
+  const hintFor = (role: string, key: string | undefined, value: string, testid: string) => (
+    <NameHint hint={!value && recipeId ? nameHint(recipeId, role, key) : null} filled={filledWhy(role, key, value)} testid={testid} />
+  );
+  const fillThemIn = () => {
+    if (!behaviour || !recipeId) return;
+    const stage = stageRef.current;
+    const measured = stage
+      ? measureLayers(stage, [...fillText, ...fillDrawn].map((l) => l.id))
+      : new Map<string, Pick<FillLayer, 'box' | 'color'>>();
+    const withGeometry = (l: FillLayer): FillLayer => ({ ...l, ...(measured.get(l.id) ?? {}) });
+    const picks = proposeFill(recipeId, fillPickers, fillText.map(withGeometry), fillDrawn.map(withGeometry), fillTaken);
+    setFill({ before: behaviour, picks });
+    if (picks.length > 0) onDraft({ svgBehaviour: withFill(behaviour, picks, fillText) });
+  };
+  // UNDO EMPTIES THE BOXES THE FILL FILLED and nothing else: a box the reader changed since, a
+  // row they added, an option they ticked all stay - the press is taken back, not the minutes
+  // after it.
+  const undoFill = () => {
+    if (behaviour && fillShown && fillShown.picks.length > 0) onDraft({ svgBehaviour: clearFill(behaviour, fillShown.picks, fillText) });
+    setFill(null);
+  };
+
   // THE SWITCHES AND CHOICES (docs/SVG_BEHAVIOUR_PLAN.md §7c): every hidden group the behaviour
   // above did not claim is offered the same two answers. A hidden layer is a moment the designer
   // drew; the recipe's pickers take the ones it has words for, and this is the road for every
@@ -1811,6 +1945,42 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
               off.
             </p>
           )}
+          {/* A LOT DID NOT MATCH (backlog ask 2). THREE is the line: one or two empty boxes are
+              what the line under each box already answers, three with unused layers in the file
+              is where clicking through starts being the chore the owner named, and the file
+              having layers nothing is using is what says the names, not the drawing, are what
+              fell short. A board with nothing drawn shows nothing here: its boxes are empty
+              because there is nothing to put in them, which is a valid board. */}
+          {behaviour && !fillShown && gap.empty >= 3 && gap.spare > 0 && (
+            <p className="map-svg-note" data-testid="map-svg-unmatched">
+              {gap.empty} boxes below are still empty, and the file has {gap.spare}{' '}
+              {gap.spare === 1 ? 'layer' : 'layers'} nothing is using. Their names did not say what
+              they are. Name them as the line under each box says and drop the file again, pick
+              them by hand, or press Fill them in and check what it chose.
+            </p>
+          )}
+          {/* ONE PRESS FOR THE REST (backlog ask 3). What it chose is shown under each box and
+              can be undone as one step, because a silent fill is worse than sixteen boxes. */}
+          {behaviour && (fillShown || (gap.empty > 0 && gap.spare > 0)) && (
+            <div className="map-svg-fill" data-testid="map-svg-fill">
+              {fillShown ? (
+                <>
+                  <span className="hint" data-testid="map-svg-fill-result">
+                    {fillShown.picks.length === 0
+                      ? 'Nothing filled: no unused layer sits where an empty box would need it. Pick them by hand.'
+                      : `Filled ${fillShown.picks.length} ${fillShown.picks.length === 1 ? 'box' : 'boxes'} from the names and from where each layer sits. The line under each says why; check them.`}
+                  </span>
+                  <button type="button" onClick={undoFill} data-testid="map-svg-fill-undo">
+                    {fillShown.picks.length === 0 ? 'OK' : 'Undo'}
+                  </button>
+                </>
+              ) : (
+                <button type="button" onClick={fillThemIn} data-testid="map-svg-fill-button">
+                  Fill them in
+                </button>
+              )}
+            </div>
+          )}
           {poll && (
             <>
               {/* WHERE THE NUMBERS COME FROM, said once and plainly. A reader who has just picked
@@ -1833,7 +2003,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                   tab. Everything else stays a field.
                 </p>
               )}
-              <div className="map-svg-row">
+              <div className="map-svg-row hinted">
                 <label className="save-field grow">
                   <span>Question</span>
                   <select
@@ -1849,6 +2019,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                       </option>
                     ))}
                   </select>
+                  {hintFor('question', undefined, poll.question, 'map-svg-poll-question')}
                 </label>
                 <label className="save-field">
                   <span>Options</span>
@@ -1890,6 +2061,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                         </option>
                       ))}
                     </select>
+                    {hintFor('option', rowKeyAt[at], row.label, `map-svg-poll-label-${at}`)}
                   </label>
                   <div className="map-svg-quiz-states">
                     <label className="save-field">
@@ -1913,6 +2085,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
+                      {hintFor('bar', rowKeyAt[at], row.bar, `map-svg-poll-bar-${at}`)}
                     </label>
                     <label className="save-field">
                       <span>Figure</span>
@@ -1929,6 +2102,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
+                      {hintFor('percent', rowKeyAt[at], row.value, `map-svg-poll-value-${at}`)}
                     </label>
                     <label className="save-field">
                       <span>Winner</span>
@@ -1946,11 +2120,12 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
+                      {hintFor('winner', rowKeyAt[at], row.winner, `map-svg-poll-winner-${at}`)}
                     </label>
                   </div>
                 </div>
               ))}
-              <div className="map-svg-row">
+              <div className="map-svg-row hinted">
                 <label className="save-field grow">
                   <span>Vote count</span>
                   <select
@@ -1966,6 +2141,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                       </option>
                     ))}
                   </select>
+                  {hintFor('total', undefined, poll.total, 'map-svg-poll-total')}
                 </label>
                 <label className="save-field grow">
                   <span>VOTE NOW badge</span>
@@ -1983,6 +2159,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                       </option>
                     ))}
                   </select>
+                  {hintFor('badge', undefined, poll.badge, 'map-svg-poll-badge')}
                 </label>
               </div>
             </>
@@ -2035,6 +2212,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                         </option>
                       ))}
                     </select>
+                    {hintFor('team', rowKeyAt[at], row.name, `map-svg-score-name-${at}`)}
                   </label>
                   <div className="map-svg-quiz-states">
                     <label className="save-field">
@@ -2053,6 +2231,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
+                      {hintFor('score', rowKeyAt[at], row.score, `map-svg-score-figure-${at}`)}
                     </label>
                     <label className="save-field">
                       <span>Flash</span>
@@ -2070,6 +2249,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
+                      {hintFor('team.flash', rowKeyAt[at], row.flash, `map-svg-score-flash-${at}`)}
                     </label>
                   </div>
                 </div>
@@ -2090,6 +2270,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                     </option>
                   ))}
                 </select>
+                {hintFor('final', undefined, score.final, 'map-svg-score-final')}
               </label>
             </>
           )}
@@ -2109,12 +2290,13 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                 clock still starts, holds and resets.
               </p>
               <DrawnPicker
-                label="Draining bar"
+                label={roleLabel('countdown', 'bar')}
                 value={timer.bar}
                 drawn={scoreDrawn}
                 onPick={(bar) => patchTimer({ bar })}
                 onHover={setHoverId}
                 testid="map-svg-timer-bar"
+                hint={hintFor('bar', undefined, timer.bar, 'map-svg-timer-bar')}
               />
               {/* THE ONE SENTENCE A DESIGNER HAS TO READ. A bar is the layer with no separate
                   looks - it has one length per second left - so it is drawn at the extreme and
@@ -2126,28 +2308,31 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                 shortens it as the time goes.
               </p>
               <DrawnPicker
-                label="Last stretch"
+                label={roleLabel('countdown', 'warning')}
                 value={timer.warning}
                 drawn={scoreDrawn}
                 onPick={(warning) => patchTimer({ warning })}
                 onHover={setHoverId}
                 testid="map-svg-timer-warning"
+                hint={hintFor('warning', undefined, timer.warning, 'map-svg-timer-warning')}
               />
               <DrawnPicker
-                label="Held"
+                label={roleLabel('countdown', 'paused')}
                 value={timer.paused}
                 drawn={scoreDrawn}
                 onPick={(paused) => patchTimer({ paused })}
                 onHover={setHoverId}
                 testid="map-svg-timer-paused"
+                hint={hintFor('paused', undefined, timer.paused, 'map-svg-timer-paused')}
               />
               <DrawnPicker
-                label="Time up"
+                label={roleLabel('countdown', 'expired')}
                 value={timer.expired}
                 drawn={scoreDrawn}
                 onPick={(expired) => patchTimer({ expired })}
                 onHover={setHoverId}
                 testid="map-svg-timer-expired"
+                hint={hintFor('expired', undefined, timer.expired, 'map-svg-timer-expired')}
               />
             </>
           )}
@@ -2175,6 +2360,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
+                      {hintFor(role.id, undefined, generic.layers[role.id] ?? '', `map-svg-recipe-${role.id}`)}
                     </label>
                   ) : (
                     <DrawnPicker
@@ -2185,6 +2371,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                       onPick={(id) => patchGeneric({ layers: { ...generic.layers, [role.id]: id } })}
                       onHover={setHoverId}
                       testid={`map-svg-recipe-${role.id}`}
+                      hint={hintFor(role.id, undefined, generic.layers[role.id] ?? '', `map-svg-recipe-${role.id}`)}
                     />
                   ),
                 )}
@@ -2194,7 +2381,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
           {quiz && (
             <>
               <RecipeOptions recipeId="quiz" values={quiz.options ?? {}} onChange={(options) => patchQuiz({ options })} />
-              <div className="map-svg-row">
+              <div className="map-svg-row hinted">
                 <label className="save-field grow">
                   <span>Question</span>
                   <select
@@ -2209,6 +2396,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                       </option>
                     ))}
                   </select>
+                  {hintFor('question', undefined, quiz.question, 'map-svg-quiz-question')}
                 </label>
                 <label className="save-field">
                   <span>Answers</span>
@@ -2226,7 +2414,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                 </label>
               </div>
               <p className="hint">
-                Each answer needs its text layer. The picked, right and wrong drawings are
+                Each answer needs its text layer. The selected, correct and wrong drawings are
                 yours to leave out.
               </p>
               {quiz.answers.map((answerId, at) => (
@@ -2250,6 +2438,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                         </option>
                       ))}
                     </select>
+                    {hintFor('answer', rowKeyAt[at], answerId, `map-svg-quiz-answer-${at}`)}
                   </label>
                   {/* The three drawn states travel together: they either sit beside the answer
                       or take their own line as a set of three. Individually wrapped, the
@@ -2257,7 +2446,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                   <div className="map-svg-quiz-states">
                   {(['selected', 'correct', 'wrong'] as const).map((state) => (
                     <label className="save-field" key={state}>
-                      <span>{state === 'selected' ? 'Picked' : state === 'correct' ? 'Right' : 'Wrong'}</span>
+                      <span>{roleLabel('quiz', `answer.${state}`)}</span>
                       <select
                         value={quiz.rows[at]?.[state] ?? ''}
                         onChange={(e) => patchQuizRow(at, { [state]: e.target.value })}
@@ -2272,6 +2461,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                           </option>
                         ))}
                       </select>
+                      {hintFor(`answer.${state}`, rowKeyAt[at], quiz.rows[at]?.[state] ?? '', `map-svg-quiz-${state}-${at}`)}
                     </label>
                   ))}
                   </div>
@@ -2292,6 +2482,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                     </option>
                   ))}
                 </select>
+                {hintFor('locked', undefined, quiz.locked, 'map-svg-quiz-locked')}
               </label>
             </>
           )}
