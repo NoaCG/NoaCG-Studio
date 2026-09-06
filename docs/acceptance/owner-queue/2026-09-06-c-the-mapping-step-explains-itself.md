@@ -25,8 +25,8 @@ Your three asks from 2026-09-05, straight after the sample quiz board worked
 - **Fill them in**: one press fills the empty boxes from the names first, then from where each
   hidden drawing sits on the artwork (the drawings across an answer's row are that row's moments;
   a green one is its correct look, a red one its wrong look; the figure beside a team name is its
-  score). Every box it fills says why under it; **Undo** puts the whole press back. A box it is
-  not sure about it leaves empty.
+  score). Every box it fills says why under it; **Undo** empties the boxes the press filled and
+  leaves anything you changed since. A box it is not sure about it leaves empty.
 
 ## The route, under a minute
 
