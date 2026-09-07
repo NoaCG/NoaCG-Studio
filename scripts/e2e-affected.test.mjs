@@ -872,3 +872,17 @@ test('an emptied blocking list downgrades the mode, so Playwright is never hande
   assert.deepEqual(effectivePlan({ mode: 'subset', blocking: ['a.spec.ts'] }), { mode: 'subset', specs: ['a.spec.ts'] });
   assert.deepEqual(effectivePlan({ mode: 'none', blocking: [] }), { mode: 'none', specs: [] });
 });
+
+test('a nested .gitattributes plans nothing, and the root one still runs everything', () => {
+  // Phase 2b writes a `.gitattributes` into every migrated area (scripts/compile-contracts.mjs):
+  // a merge driver and an end-of-line rule, neither of which reaches the browser. Left unignored,
+  // each of the hundred-odd migration rows would run its area's whole spec map for two lines of
+  // git metadata - `src/templates/versus/.gitattributes` alone planned 46 specs plus the catalog.
+  assert.equal(planFor(['src/templates/versus/.gitattributes']).mode, 'none');
+  assert.equal(planFor(['src/templates/versus/AGENTS.md', 'src/templates/versus/.gitattributes']).mode, 'none');
+  // The ROOT one is a different file doing a different job - it carries the eol rules for every
+  // generated artefact in the repository - and it keeps escalating.
+  assert.equal(planFor(['.gitattributes']).mode, 'full');
+  // And ignoring the metadata must not have ignored the code beside it.
+  assert.equal(planFor(['src/templates/versus/vs01.ts']).mode, 'subset');
+});
