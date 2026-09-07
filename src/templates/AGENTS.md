@@ -3,6 +3,7 @@
 
 Compiled from `contracts/rules`. Change a rule there (`npm run learn -- ...`), never here.
 
+- **trap** `behaviours/value-write-rule-paints-field-lands`: A value a write rule paints is NOT a field: it lands in textContent on a stamped artwork layer, while every derivation reads a field through getElementById(fN). A second lookup therefore cannot read what a first one wrote, and a write whose value is empty is skipped, so a Reset cannot clear what it filled. Chain a derivation only through a real field the operator owns.
 - **trap** `templates/add-imports-sanctioned-animation-data-importer`: Do not add imports from `src/blocks/**` to `src/templates/**`; the sanctioned animation-data and importer seam is not permission for more upward dependencies. Copy a small reusable helper locally when necessary, and inspect new imports first when wizard or AI suites time out wholesale without a console error.
 - **trap** `templates/adding-designs-add-only-their-new`: When adding designs to `scripts/overflow-baseline.json`, add only their new rows by hand and preserve every existing row. Confirm the result with `node scripts/overflow-sweep.mjs --baseline`, rather than replacing the reference with a full re-record.
 - **trap** `templates/arm-machine-timers-through-end-entry`: Arm machine timers through `gsap.delayedCall` from a `tl.call` at the end of the entry timeline, never through `setTimeout`. Keep timer arming subject to GSAP callback suppression.
