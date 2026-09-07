@@ -1,0 +1,5 @@
+# ai/retrieve-during-using-request-plus-current
+
+Rule: `ai/retrieve-during-using-request-plus-current`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 26 (zero-based blank-line inventory). Checked against code: specRefine passes priorSpec.category and keep: priorSpec.variantId; shortlistFor finds incumbent in anchored and puts it first. Source prose (historical evidence; only the rule above is authoritative): **A spec-level REFINEMENT retrieves too, and `ShortlistOptions.keep` makes that safe.** `specRefine` takes its anchor from the spec it is editing and its terms from the request PLUS what the graphic already is - "warmer colours" places nothing in a design index. `keep` pins the design in use into the shortlist, because narrowing collapses the `variantId` enum and a colour request would otherwise swap the user's graphic out from under them. It is matched against the ANCHOR, not the narrowed pool, and a `keep` from another structure is refused.

@@ -1,0 +1,5 @@
+# ai/share-community-checks-agree-about-network
+
+Rule: `ai/share-community-checks-agree-about-network`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 50 (zero-based blank-line inventory). Checked against code: safetyFindings maps shared constructs to ValidationIssue; mergeSafety sets ok:false and adds errors. Source prose (historical evidence; only the rule above is authoritative): **LIVE.** Nothing in the quality gate asks what the generated JavaScript *does*, and the model does not read only the user's brief: it reads uploaded REFERENCE IMAGES (text inside a picture is instructions to a vision model) and, on modify/convert, a whole HTML file the user may have been handed by someone else. `safetyFindings` screens the emitted JS for network calls, browser storage, runtime code building and cross-frame reach, sharing its construct list with the community share gate (`validation/templateBench.ts` `unsafeJsConstructs`) - one question, one answer, one place to update.

@@ -1,0 +1,5 @@
+# ai/keep-proposal-only-behind-never-auto
+
+Rule: `ai/keep-proposal-only-behind-never-auto`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 71 (zero-based blank-line inventory). Checked against code: aiImportAnalysisProfile defaults its flag off; importAnalysis/client.ts returns typed proposals; ImportStep accepts selected proposals via placement transforms. Source prose (historical evidence; only the rule above is authoritative): **EXPERIMENT - flag `AI_TASK_IMPORT_ANALYSIS_ENABLED` off by default.** `imported-graphic-analysis` (`docs/AI_TASK_REGISTRY.md`) assists the MANUAL Import Graphic flow and never replaces it. The schema, the downscale-before-it-leaves rule and the deterministic normalizer moved to **`src/ai/importAnalysis/AGENTS.md`** (with its thin `CLAUDE.md`), which loads when you work in that directory. Two things about it bind from out here: it is PROPOSAL-ONLY (no auto-apply, no code generation, no second representation), and an accepted suggestion applies through the exact transforms manual placement uses.

@@ -1,0 +1,5 @@
+# ai/read-before-proposing-apparently-new-approach
+
+Rule: `ai/read-before-proposing-apparently-new-approach`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 3 (zero-based blank-line inventory). Checked against code: The attempt ledger records failed strategies and revival conditions; current product calls generateProGraphic while creative/pipeline is reachable from bench code only. The old section-heading formatting requirement is not retained. Source prose (historical evidence; only the rule above is authoritative): **Every `##` section states its STATUS in its first line:** **LIVE** (a user reaches it today), **EXPERIMENT** (built, but flagged off or bench-only - no user reaches it), **RETIRED** (kept only because code still names it). A section's status is not derivable from its content, and reading an experiment as current strategy has already cost this project a paid round. Dead ends, what they measured, and the conditions that would revive them are **`docs/AI_ATTEMPTS.md`** - read it before proposing an approach that sounds new.

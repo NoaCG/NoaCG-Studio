@@ -1,0 +1,5 @@
+# ai/wrap-injected-validator-findings-reach-repair
+
+Rule: `ai/wrap-injected-validator-findings-reach-repair`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 52 (zero-based blank-line inventory). Checked against code: withSafetyChecks merges after inner validation; safetyFindings compares rule sets from source.js; AiStep.showChange and AIPromptPanel use mergeSafety. Source prose (historical evidence; only the rule above is authoritative): - **`withSafetyChecks`** wraps the INJECTED validator, so a finding reaches the repair loop. - **`mergeSafety`** screens again where a result is SHOWN (AiStep's `showChange`, AIPromptPanel) -   `generateRaw` validates itself and never runs the injected validator, so the screen meets that path at   the consumer instead. - **`source`** is the template a modify/convert started from, and only constructs the result ADDED are   reported: a graphic already carrying a Live data or Show chat block legitimately calls `fetch()`. A   generate passes no source.

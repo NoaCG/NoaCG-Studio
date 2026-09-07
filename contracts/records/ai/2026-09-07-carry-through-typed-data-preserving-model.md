@@ -1,0 +1,5 @@
+# ai/carry-through-typed-data-preserving-model
+
+Rule: `ai/carry-through-typed-data-preserving-model`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 55 (zero-based blank-line inventory). Checked against code: generationSpec.ts defines the model type; provider.ts imports it; specPrompt.ts returns an empty string for specIsEmpty. Source prose (historical evidence; only the rule above is authoritative): **LIVE.** The panel authors a `GenerationSpec` (schema in `src/model/generationSpec.ts` - MODEL layer, because SavedProject/GraphicDoc persist it as `aiSpec`) that rides `GenerateContext.spec` as TYPED data, never flattened into prose early. The registry, the prompt sections, the pinning and the spec validators moved to **`src/ai/spec/AGENTS.md`** (with its thin `CLAUDE.md`), which loads when you work in that directory. One thing about it binds from out here: **an empty spec injects nothing** - the prompt-only flow is byte-identical, so no path may start reading the spec unconditionally.

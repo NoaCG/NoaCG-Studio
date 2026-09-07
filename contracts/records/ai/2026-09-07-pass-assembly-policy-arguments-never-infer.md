@@ -1,0 +1,5 @@
+# ai/pass-assembly-policy-arguments-never-infer
+
+Rule: `ai/pass-assembly-policy-arguments-never-infer`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 28 (zero-based blank-line inventory). Checked against code: groundedResult defaults to sizeScaleRange [0.85,1.2]; Lite strips profile and passes keepChassisZone only, leaving specToTemplate's [0.7,1.4] range. Source prose (historical evidence; only the rule above is authoritative): **The policy is an ARGUMENT to `groundedResult`, not a constant** (`keepChassisZone`, `sizeScaleRange`), because **NoaCG Lite reaches that same function** with `profile` stripped, so nothing inside can detect Lite - and Lite must compile under its own declared contract (its schema allows `sizeScale` 0.7-1.4 where the harness tool says 0.85-1.2). Clamping every caller to the harness's numbers told the Lite model 1.35 was legal and discarded it at compile: the shown-but-illegal mismatch `narrowVariantTool` exists to prevent, one field over.

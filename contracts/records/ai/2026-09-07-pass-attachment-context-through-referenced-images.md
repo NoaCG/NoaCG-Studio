@@ -1,0 +1,5 @@
+# ai/pass-attachment-context-through-referenced-images
+
+Rule: `ai/pass-attachment-context-through-referenced-images`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 64 (zero-based blank-line inventory). Checked against code: toTemplate carries ctx.images and base.assets; contextFrom builds own plus attached with path deduplication; modify selects spec refinement independently of image presence. Source prose (historical evidence; only the rule above is authoritative): **`modify` takes a context** (`modify(prompt, template, context?, options?)`), which is what makes an image attached mid-conversation real: the context reaches `toTemplate`, so the asset is BUNDLED, not merely mentioned - a referenced-but-missing asset is the dangling-reference defect class that ships broken exports. `contextFrom(template, outer)` merges the template's own images with the turn's attachments, deduped by path. An attachment does NOT force the code level: the design stage sees the image and routes to `custom` itself when the catalog has nowhere to put it.
