@@ -77,13 +77,17 @@ OGraf is the canonical interchange and playout contract (`docs/OGRAF_FIRST_REVIE
 - **No sign-in for its own sake.** An account is asked for only where it *buys* something.
 
 ### Who we are replacing
-Four products; their proven capabilities are our requirements list. The full read, per capability
+Five products; their proven capabilities are our requirements list. The full read, per capability
 and per gap, is [`COMPETITORS.md`](COMPETITORS.md):
 - **Rive** - designer-first state-machine logic; sets the bar for our machine + logic surface.
 - **Singular.live** - cloud graphics + browser control room; our gap to open is breadth.
 - **Loopic** - closest positioning; its timeline/canvas are what Advanced mode has to beat.
 - **MXMZ** - Yle's named model; proves "your own SVG, playable" at broadcast scale. Nothing
   public shows them authoring LOGIC at all - that gap is ours to take.
+- **Pixla** - a control room in a box (rundown, prompter, timer, switcher control) with a designer
+  inside it. The only capability there that forces OUR user into another tool is that they cannot
+  draw a rectangle; the rest of their list is deliberately not ours
+  ([`COMPETITOR_PIXLA.md`](COMPETITOR_PIXLA.md) argues each refusal).
 
 ---
 
