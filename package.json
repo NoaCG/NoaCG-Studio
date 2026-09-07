@@ -160,6 +160,7 @@
     "check:owner-queue": "node scripts/check-owner-queue.mjs",
     "release:cli": "node scripts/release-cli.mjs",
     "learn": "node scripts/learn.mjs",
+    "contract:migrate": "node scripts/contract-migrate.mjs",
     "rules": "node scripts/rules.mjs",
     "contracts:compile": "node scripts/compile-contracts.mjs",
     "check:contracts": "node scripts/compile-contracts.mjs --check",
