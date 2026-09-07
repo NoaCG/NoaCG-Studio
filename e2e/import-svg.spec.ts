@@ -408,7 +408,9 @@ test('svg import: the static: prefix says a text layer is DRAWING, and its words
     return { fields: t.fields.map((f) => `${f.field}:${f.title}`), html: t.html };
   });
   expect(state.fields).toEqual(['f0:Item']);
-  expect(state.html).toContain('>10.</text>');
+  // Matched across the formatter's line breaks: the emitted template is Prettier-printed, so a
+  // <text> with several attributes has its words on their own line.
+  expect(state.html).toMatch(/<text\b[^>]*data-name="static:Rank"[^>]*>\s*10\.\s*<\/text>/);
   expect(state.html).not.toMatch(/<text[^>]*id="f1"/);
 });
 
