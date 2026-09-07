@@ -129,6 +129,20 @@ jobs:
           # flight is never called drift.
           MATURED="$(git rev-list -1 --before='90 minutes ago' origin/main || git rev-list -1 --before='90 minutes ago' HEAD)"
           if [ -z "$MATURED" ]; then echo "No matured commit yet."; exit 0; fi
+          # Not every main commit gets a production build: scripts/vercel-ignore-build.mjs skips
+          # the ones that cannot change the artifact (docs, contracts, tooling, tests). Production
+          # is therefore expected to serve the newest DEPLOY-AFFECTING commit, not the newest one.
+          # Both sides read the same list, scripts/deploy-affecting-paths.mjs, so they cannot
+          # disagree about which commits those are.
+          if DEPLOYABLE="$(node scripts/deploy-affecting-paths.mjs --last-affecting "$MATURED")"; then
+            if [ "$DEPLOYABLE" != "$MATURED" ]; then
+              echo "Matured main ($MATURED) is not deploy-affecting; production is expected to serve $DEPLOYABLE."
+            fi
+            MATURED="$DEPLOYABLE"
+          else
+            echo "No deploy-affecting commit within reach of $MATURED - nothing to compare."
+            exit 0
+          fi
           # Only meaningful once the version marker exists on that commit.
           if ! git cat-file -e "$MATURED:scripts/write-version.mjs" 2>/dev/null; then
             echo "Matured main predates the version marker - nothing to compare yet."
@@ -152,7 +166,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          SHA="$(git rev-list -1 --before='90 minutes ago' origin/main)"
+          # The same commit the check above compared against - the newest deploy-affecting one, not
+          # simply the newest, or the issue would name a commit that was never meant to deploy.
+          MATURED="$(git rev-list -1 --before='90 minutes ago' origin/main)"
+          SHA="$(node scripts/deploy-affecting-paths.mjs --last-affecting "$MATURED" || echo "$MATURED")"
           BODY="Drift: production has not picked up main commit ${SHA} - run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
           if [ -z "$EXISTING" ]; then

@@ -213,7 +213,31 @@ would only ever create a Preview deployment. Since dozens of worktree branches a
 at once and CI already builds each of them, previews are **opt-in**:
 `scripts/vercel-ignore-build.mjs` (wired as `ignoreCommand` in `vercel.json`) skips the
 Vercel build for every non-`main` branch unless the head commit message contains
-`[preview]`. `main` always builds - the script fails open (builds) on any error.
+`[preview]`. The script fails open (builds) on any error.
+
+**`main` builds only when the commit can change what production serves.** The list of paths
+that can is `scripts/deploy-affecting-paths.mjs`, and the range measured is
+`VERCEL_GIT_PREVIOUS_SHA..HEAD` - the last SUCCESSFUL deployment, so a skipped change is
+carried into the next decision rather than forgotten. Vercel clones shallowly, so the script
+deepens once and builds if the diff still cannot be read.
+
+Why: measured over the 2026-08-08..2026-09-07 billing cycle, `main` took 719 pushes and
+9.31K build CPU minutes for $32.39 against a $20 credit, and **48% of those pushes changed
+only documentation, contracts, workflow tooling or tests** - rebuilding a byte-identical site.
+Replaying the cycle through the filter leaves 371 builds instead of 718.
+
+**The list is a DENY list, and that direction is the safety argument.** A file is
+deploy-affecting unless it is named, so an unrecognised directory builds. The two mistakes are
+not symmetric: a needless build costs about $0.045, a wrongly skipped one leaves production
+serving an older commit with every gate green. `scripts/deploy-affecting-paths.test.mjs` pins
+that property, and pins that every script named by the `build:vercel` line is on the allow
+list - add a check there without naming it here and changing that check stops triggering the
+build that runs it.
+
+**The drift alarm reads the same list.** `deploy-verify.yml`'s drift check asks
+`--last-affecting` for the newest deploy-affecting commit at or before matured `main`, and
+expects production to serve that - not simply the newest commit, which would make every
+deliberate skip look like a failed deployment.
 
 ## What Vercel builds (and why it is not `npm run build`)
 
