@@ -3,7 +3,7 @@
 The fourth area, and the first read under the owner's question from
 `docs/backlog/are-the-big-contracts-still-worth-loading.md`: not only "is this paragraph true", but
 "is it still worth anybody's first tokens". `src/components/AGENTS.md` was chosen for its
-multiplier - ten instruction chains load it, more than any other file left outside `src/ai`.
+multiplier: ten instruction chains load it, the largest one left after `src/ai`.
 
 | Metric | After `src/components/wizard` | After `src/components` |
 |---|---|---|
@@ -101,6 +101,16 @@ The rest:
 - **The component roll-call** - CommunityGallery, ModerationQueue, SyncStatus, SettingsDialog
   listed with an emoji each and nothing binding attached. The analytics sentence beside them IS
   migrated.
+
+## One rule that wants a mechanism
+
+`components/keep-packages-out-they-retired-every` is a contract rule doing a gate's job. The
+product retired packages in the student release, and three topbar tooltips were still offering
+them a month later - which is exactly the failure a rule in a file cannot catch and a check can.
+`docs/WORKFLOW_ARCHITECTURE.md` §5.3 already designs the mechanism, `contracts/retired.json` plus a
+freshness check that refuses a retired name, but it names contracts and workflows rather than UI
+copy, and neither the file nor the check exists yet. Building it is its own change; until then the
+rule carries `fires: contract`, which is what puts it on the compiler's mechanism-wanted report.
 
 ## What this says about the question
 
