@@ -93,6 +93,11 @@ stinger-sheets/
 # The bench dev server's own output (scripts/dev-bench.mjs) - a local trace of how the
 # server died, useful on this machine and meaningless anywhere else.
 dev-bench.log
+# The build log every contract in this repo tells you to write:
+#   npm run build > build.log 2>&1; echo $?
+# It was not ignored, so a `git add -A` committed 290 KB of it onto a branch and check:tree-shape
+# refused the whole build. An output the instructions name by filename has to be ignored by name.
+build.log
 
 # Catalog sweep taste screenshots (scripts/l3-sweep.mjs <shots-dir> <category>; multi-MB
 # PNGs, regenerated on demand - review them on disk, never commit them)
