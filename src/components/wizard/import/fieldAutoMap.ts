@@ -20,8 +20,8 @@
 // PICKERS - one per box on the screen, named by the recipe's role id and its row key - and the
 // two adapters at the bottom translate a behaviour draft to pickers and a fill back into it.
 
-import { BEHAVIOUR_WORDS, rolesOf, rowKeys, rowsOf, type RecipeRole } from '../../templates/behaviours/recipe';
-import { matchRole, withRowKey } from '../../templates/behaviours/naming';
+import { BEHAVIOUR_WORDS, rolesOf, rowKeys, rowsOf, type RecipeRole } from '../../../templates/behaviours/recipe';
+import { matchRole, withRowKey } from '../../../templates/behaviours/naming';
 import type { SvgBehaviourDraft, SvgRecipeRow } from './draft';
 
 /** One box on the mapping step: which role it binds, for which row, from which inventory. */

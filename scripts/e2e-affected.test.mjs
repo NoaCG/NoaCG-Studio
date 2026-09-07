@@ -563,6 +563,43 @@ test('the universal motion picker plans the wizard steps that MOUNT it, not just
   }
 });
 
+test('the Import-graphic folder plans the import road, and only the import road', () => {
+  const road = [
+    'import.spec.ts',
+    'import-graphic.spec.ts',
+    'import-prepare.spec.ts',
+    'import-stretch.spec.ts',
+    'import-canvas.spec.ts',
+    'import-analysis.spec.ts',
+    'import-svg.spec.ts',
+    'import-svg-corpus.spec.ts',
+    'import-svg-behaviour.spec.ts',
+    // Not named after the road, but they drive it through the import entry and assert on testids
+    // only these components render: the quiz and behaviour rows of MapSvgFieldsStep, the format
+    // and raster warnings of ImportDesignStep, the tool area and the font field of
+    // PlaceFieldsStep. The generic wizard rule reached them until the lookahead took this folder
+    // out of it, so the narrowing has to name them or it runs FEWER specs with no alarm.
+    'student-rehearsal.spec.ts',
+    'project-format.spec.ts',
+    'text-tools.spec.ts',
+    'google-fonts.spec.ts',
+  ];
+  const { mode, specs } = planFor(['src/components/wizard/import/MapSvgFieldsStep.tsx']);
+  assert.equal(mode, 'subset', 'the capability is mapped, so it must not escalate to the full suite');
+  assert.deepEqual(specs, [...road].sort(), 'a file under wizard/import/ plans exactly the import road');
+
+  // The narrowing is the point of the row, and it only holds while the generic wizard rule
+  // SKIPS this folder: the rules are union'd, so without the negative lookahead the capability
+  // would still pull the shell's 38. And it must stay one-way - a change to the shell or to
+  // any other capability still runs the import road, because the shell mounts these steps and
+  // the draft re-exports their state.
+  const shell = planFor(['src/components/wizard/CreationWizard.tsx']);
+  assert.ok(specs.length < shell.specs.length, 'a capability file must plan fewer specs than the shell');
+  for (const spec of road) {
+    assert.ok(shell.specs.includes(spec), `${spec} must still be planned by a shell change`);
+  }
+});
+
 // ── The ARGUMENT gate ───────────────────────────────────────────────────────
 //
 // THE RULE: an argument this CLI does not recognise stops it, and never falls through to the

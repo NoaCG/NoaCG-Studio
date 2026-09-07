@@ -225,6 +225,11 @@ continuation (mode 'import') keeps the old ImportStep -> TemplateStep flow and i
 catalog flow's later steps sit one index earlier (`animStep`), and FINISH follows Animation
 in every mode (`finishStep = animStep + 1`).
 
+**The whole capability lives in `wizard/import/`** - the five steps, `DesignPrepCanvas`,
+`fieldAutoMap`, its CSS and its draft slice - and `import/index.ts` is the ONLY door into it:
+`.dependency-cruiser.cjs` refuses a deep import from outside, `draft.ts` re-exports the slice
+through that index, and `scripts/e2e-affected.mjs` maps the folder to the nine import specs.
+
 **Import graphic** is a SETUP flow, not a second editor. Its one drop zone takes three MODES, never
 a branch: `design` (any raster - ImportDesignStep + PrepareDesignStep + PlaceFieldsStep + the shared
 AnimationStep, walked as Start -> Design -> Prepare -> Text -> Animation -> Create), `svg`
@@ -261,7 +266,7 @@ lit would write. Pinned by `e2e/motion-presets.spec.ts`.
 **Prepare's erase is an OFFER, never applied pixels.** `proposeEraseRect` scans on arrival so the
 strongest path is not opt-in, it re-runs on the CLEANED artwork after every accepted erase, and
 under its confidence bar it proposes NOTHING and names the rule that refused (`erase-scan-refusal`).
-Its overlay CSS is wizard-local (`prepProposal.css`), not `src/styles/`. **"It's meant to be there /
+Its overlay CSS is capability-local (`import/prepProposal.css`), not `src/styles/`. **"It's meant to be there /
 no baked text" is DRAFT state** (`designKeepBakedText`), cleared by "yes, mark it" and reset by a
 fresh drop; the Text step re-scans and says so when detected text remains un-erased
 (`placefields-baked-note` - a back-to-Prepare door plus the keep answer), and Next never blocks, the
@@ -286,7 +291,7 @@ switched on by it). The step has a measured HEIGHT BUDGET, e2e-pinned EXACTLY by
 `e2e/import-svg.spec.ts`: a copy change costing a checklist row fails, one buying a row updates the
 number. Editing a row's sample writes it into the PREVIEW exactly as `update()` does on air, so a
 real length is testable here. **The behaviour pickers explain themselves from the matcher, never
-from copy** (`wizard/fieldAutoMap.ts`): the name under an empty box, the unmatched-count notice
+from copy** (`wizard/import/fieldAutoMap.ts`): the name under an empty box, the unmatched-count notice
 (three empty boxes with unused layers) and "Fill them in" all read `words.json` through
 `matchRole`, a picker's label is the role's own `label`, and every fill pick carries a reason and
 one Undo - a silent fill is worse than an empty box.

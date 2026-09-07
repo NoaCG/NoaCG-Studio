@@ -29,11 +29,13 @@ import WizardPreview from './WizardPreview';
 import BrandLogo from '../BrandLogo';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import EntryStep from './steps/EntryStep';
-import ImportStep from './steps/ImportStep';
-import ImportDesignStep from './steps/ImportDesignStep';
-import PrepareDesignStep from './steps/PrepareDesignStep';
-import PlaceFieldsStep from './steps/PlaceFieldsStep';
-import MapSvgFieldsStep from './steps/MapSvgFieldsStep';
+import {
+  ImportStep,
+  ImportDesignStep,
+  PrepareDesignStep,
+  PlaceFieldsStep,
+  MapSvgFieldsStep,
+} from './import';
 import TemplateStep from './steps/TemplateStep';
 import BrowseStep, { type BuildMode } from './steps/BrowseStep';
 import { defaultFamilyFor, defaultSelectionFor } from './steps/KitPicker';

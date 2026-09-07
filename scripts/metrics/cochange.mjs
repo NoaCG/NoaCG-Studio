@@ -19,12 +19,15 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 /** The wizard as measured on 2026-09-06; phase 2a moves these files, and the prefixes follow. */
 export const WIZARD = {
   capabilities: {
+    // Where the Import-graphic capability lives, and where it lived: wizard row 2 moved the
+    // steps, the canvas, the auto-mapper and the draft slice under import/, and this window
+    // reads sixty days of history, most of which is on the old paths.
     import: [
+      'src/components/wizard/import/', 'src/templates/importedDesign/',
       'src/components/wizard/steps/MapSvgFieldsStep', 'src/components/wizard/steps/ImportDesignStep',
       'src/components/wizard/steps/PrepareDesignStep', 'src/components/wizard/steps/PlaceFieldsStep',
       'src/components/wizard/DesignPrepCanvas', 'src/components/wizard/fieldAutoMap',
-      'src/components/wizard/import/', 'src/components/wizard/draft/import.ts',
-      'src/templates/importedDesign/',
+      'src/components/wizard/draft/import.ts',
     ],
     ai: ['src/components/wizard/steps/AiStep', 'src/components/wizard/steps/ai/', 'src/components/wizard/ai/'],
     template: [
@@ -37,7 +40,7 @@ export const WIZARD = {
   // src/model/wizard.ts is the pre-row-1 path of the template contract (now
   // src/templates/contract.ts, with the vocabulary in src/model/templateVocabulary.ts). Both
   // are listed: the window this reads still holds commits that touched the old path.
-  shared: ['src/components/wizard/CreationWizard.tsx', 'src/components/wizard/draft.ts', 'src/components/wizard/draft/core.ts', 'src/model/wizard.ts', 'src/templates/contract.ts', 'src/model/templateVocabulary.ts'],
+  shared: ['src/components/wizard/CreationWizard.tsx', 'src/components/wizard/draft.ts', 'src/components/wizard/draft/core.ts', 'src/components/wizard/draft/format.ts', 'src/model/wizard.ts', 'src/templates/contract.ts', 'src/model/templateVocabulary.ts'],
 };
 
 function commits(days) {

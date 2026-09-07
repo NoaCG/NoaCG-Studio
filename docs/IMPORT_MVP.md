@@ -280,7 +280,7 @@ e2e/import-graphic.spec.ts.
 
 Text exported INTO the design file is pixels — it can never become a live field. The Prepare
 step (wizard step 3) removes it deterministically, offline, with no AI: the user drags a box
-over the text on a source-pixel artwork surface (`components/wizard/DesignPrepCanvas`), and
+over the text on a source-pixel artwork surface (`components/wizard/import/DesignPrepCanvas`), and
 `assets/eraseRegion.ts` rebuilds the background behind the type.
 
 **The erase fills the TYPE, not the lasso (2026-08-18).** The original model filled the whole

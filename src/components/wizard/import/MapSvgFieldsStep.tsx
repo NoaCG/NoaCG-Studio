@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { uuid } from '../../../model/id';
+import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
   DesignFieldSpec,
-  DraftPatch,
   SvgFollowerDraft,
   SvgFieldDraft,
   SvgFontDraft,
@@ -18,8 +18,7 @@ import type {
   SvgScoreDraft,
   SvgStretchMode,
   SvgTimerDraft,
-  WizardDraft,
-} from '../draft';
+} from './draft';
 import {
   armTimerClock,
   behaviourBindingGaps,
@@ -31,7 +30,7 @@ import {
   extraLayerName,
   pollDrivenLayers,
   scoreDrawnPool,
-} from '../draft';
+} from './draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import {
@@ -45,7 +44,7 @@ import {
   withFill,
   type FillLayer,
   type FillPick,
-} from '../fieldAutoMap';
+} from './fieldAutoMap';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { extOf, fileToDataUrl } from '../../../assets/assetUtils';

@@ -8,7 +8,7 @@ serves: NOW
 found: "surfaced by the top ten walk (docs/SVG_BEHAVIOUR_SHOWS.md §4b): the rank numerals a
   student types (`10.`, `9.`, ...) arrive as ten fields to untick, because nothing in the file can
   say `this text is not a field`."
-touches: src/assets/svgImport.ts, src/components/wizard/steps/MapSvgFieldsStep.tsx
+touches: src/assets/svgImport.ts, src/components/wizard/import/MapSvgFieldsStep.tsx
 covered-by: import-svg.spec.ts, import-svg-behaviour.spec.ts
 ---
 # Decorative numerals arrive as fields to untick

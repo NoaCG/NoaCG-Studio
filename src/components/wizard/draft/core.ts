@@ -5,12 +5,12 @@
 // This file is the SHARED part of the draft: the WizardDraft record itself, its patch and
 // merge, the project-format helpers, and the two mappers every capability calls
 // (draftToOptions, buildDraftTemplate). The template road's own pieces live in ./template.ts
-// and the Import-graphic road's in ./import.ts; ../draft.ts re-exports all three.
+// and the Import-graphic road's behind ../import (its own index); ../draft.ts re-exports all
+// three.
 
 import type { AssetFile, SpxTemplate } from '../../../model/types';
 import {
   DEFAULT_GRAPHICS_FORMAT,
-  projectFormatById,
   resolutionForSelection,
   type ProjectFormatSelection,
   type Resolution,
@@ -40,6 +40,7 @@ import type { EasingId } from '../../../model/easings';
 import { ensureFontFace, fontByStack, type CustomFont } from '../../../model/fonts';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import type { ProjectLegibility } from '../../../model/designRules';
+import { draftFormatSelection } from './format';
 import { brandMarkFor, withUniversalMotion } from './template';
 import {
   hiddenSvgLayers,
@@ -60,7 +61,7 @@ import {
   type SvgImageDraft,
   type SvgOutlineDraft,
   type SvgStretchDraft,
-} from './import';
+} from '../import';
 
 export interface WizardDraft {
   /** What the finished graphic is CALLED (the Finish step). Empty = fall back to the design's
@@ -275,18 +276,6 @@ export function initialDraft(): WizardDraft {
 
 export function draftResolution(draft: WizardDraft): Resolution {
   return resolutionForSelection(draftFormatSelection(draft));
-}
-
-export function draftFormatSelection(draft: WizardDraft): ProjectFormatSelection {
-  const preset = projectFormatById(draft.resolutionId);
-  if (preset?.aspectId === draft.aspectId) {
-    return { aspectId: draft.aspectId, resolutionId: preset.id, fps: draft.fps };
-  }
-  return DEFAULT_GRAPHICS_FORMAT;
-}
-
-export function formatDraftPatch(selection: ProjectFormatSelection): DraftPatch {
-  return { ...selection, formatTouched: true };
 }
 
 /** Map the draft onto WizardOptions (nulls fall back to the variant's defaults). */

@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { DesignArt } from '../../../model/wizard';
 import { uuid } from '../../../model/id';
 import { fontById } from '../../../model/fonts';
-import type { DraftPatch, WizardDraft } from '../draft';
+import type { DraftPatch, WizardDraft } from '../draft/core';
 import {
   downscaleForAnalysis,
   loadImportAnalysisStatus,

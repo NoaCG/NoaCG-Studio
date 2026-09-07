@@ -54,6 +54,25 @@ module.exports = {
       from: { path: '^src/', pathNot: '^src/ai/spike/' },
       to: { path: '^src/ai/spike/' },
     },
+    {
+      name: 'wizard-import-through-its-index',
+      severity: 'error',
+      comment:
+        'The Import-graphic capability (src/components/wizard/import/, ' +
+        'docs/WORKFLOW_ARCHITECTURE.md §5.5 wizard row 2) is reached through its own ' +
+        'index.ts and nothing else. The point of the folder is that a change inside it stops ' +
+        'touching files the other wizard capabilities share, and a deep import is how that ' +
+        'stops being true: it makes an internal file part of another capability contract, so ' +
+        'moving or splitting it becomes a cross-capability edit again. Two callers exist - ' +
+        'the shell (CreationWizard.tsx) for the step components, and the draft (draft.ts, ' +
+        'draft/core.ts) for the state and the build passes - and both take the index. Add an ' +
+        'export to index.ts rather than an allowance here.',
+      from: { path: '^src/', pathNot: '^src/components/wizard/import/' },
+      to: {
+        path: '^src/components/wizard/import/',
+        pathNot: '^src/components/wizard/import/index\\.ts$',
+      },
+    },
   ],
 
   allowed: [

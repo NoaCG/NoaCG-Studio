@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Which rules apply to a path - the on-demand half of the compiled contracts.
 //
-//   npm run rules -- src/components/wizard/steps/MapSvgFieldsStep.tsx
+//   npm run rules -- src/components/wizard/import/MapSvgFieldsStep.tsx
 //   npm run rules -- --area wizard
 //
 // Claude Code loads the path-scoped files under .claude/rules/ by itself when a matching file

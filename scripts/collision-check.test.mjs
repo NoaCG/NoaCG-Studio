@@ -16,7 +16,7 @@ test('parseOwns splits paths from specs and drops free text', () => {
 
 test('matchesOwned handles a directory prefix, a glob, and an exact path', () => {
   assert.equal(matchesOwned('src/components/home/Card.tsx', ['src/components/home/']), true);
-  assert.equal(matchesOwned('src/components/wizard/steps/ImportDesignStep.tsx', ['src/components/wizard/steps/*']), true);
+  assert.equal(matchesOwned('src/components/wizard/import/ImportDesignStep.tsx', ['src/components/wizard/import/*']), true);
   assert.equal(matchesOwned('src/model/shows.ts', ['src/model/shows.ts']), true);
   assert.equal(matchesOwned('src/model/other.ts', ['src/model/shows.ts']), false);
 });
@@ -26,7 +26,7 @@ const noSpecs = () => ({ mode: 'subset', specs: [] });
 test('a forecast that misses the running row\'s real files is CLEAR (the 2026-09-04 case)', () => {
   // C really changed svg.ts; a candidate that forecasts MapSvgFieldsStep is disjoint in reality.
   const entries = [{ branch: 'claude/c', files: ['src/templates/importedDesign/svg.ts'] }];
-  const verdict = collisions({ files: ['src/components/wizard/steps/MapSvgFieldsStep.tsx'] }, entries, noSpecs);
+  const verdict = collisions({ files: ['src/components/wizard/import/MapSvgFieldsStep.tsx'] }, entries, noSpecs);
   assert.equal(verdict.clear, true);
 });
 
@@ -55,7 +55,7 @@ test('a full-coverage side is a caution, not a collision', () => {
 });
 
 test('a candidate never collides with its own branch', () => {
-  const entries = [{ branch: 'claude/h', files: ['src/components/wizard/steps/ImportDesignStep.tsx'] }];
+  const entries = [{ branch: 'claude/h', files: ['src/components/wizard/import/ImportDesignStep.tsx'] }];
   const verdict = collisions({ files: ['src/components/wizard/steps/'], branch: 'claude/h' }, entries, noSpecs);
   assert.equal(verdict.clear, true);
 });
