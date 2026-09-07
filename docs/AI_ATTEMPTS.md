@@ -797,6 +797,53 @@ instrument against the SHIPPED CORPUS before concluding anything about the model
 faults here were the gate, the model diagnosed three of them correctly in its own words, and twice a
 first diagnosis of mine was wrong until the catalog was measured.
 
+### Both unclearable findings measured against the catalog, and both were the gate
+**2026-09-07 · no model spend · the nine cells the 2026-09-06 bank could never have passed.** The
+two instruments that took three whole types were reproduced first and fixed second, and in both
+cases the shipped corpus, not an argument, settled where the fault was.
+
+**`bench-field-unpainted` was not about the `noacg-data-source` class at all.** The refusal is
+narrower and more interesting than "the check ignores the declaration": the check requires the
+sentinel to appear VERBATIM, and a value a runtime COMPUTES with never survives verbatim. Measured
+on `gt01`: driving the minutes field to `900001` paints **`15000:00:58`** - the value reaches the
+screen, transformed, and no value of that field would ever make the sentinel appear. A credits
+scroll speed is worse: it changes no visible text at any value, only motion. So the check refused
+**all 6 shipped `game-timer` designs** and **7 of the 12 shipped `end-credits` designs**.
+
+The class alone cannot clear it, and the first fix that used it broke a standing test in the right
+way: a quiz board's audience percentages sit in a `noacg-data-source` holder and ARE painted, as row
+chips, so `e2e/lite-field-paint.spec.ts`'s mutation half went silent. **The pair that settles it is
+the class AND `ftype: "number"`** - a numeric input is the shape a runtime computes with. The
+catalog agrees without an exception: all **72** numeric holders it ships are a duration, a speed, a
+percentage, a 1-based index or a goal ("Countdown (minutes)" x15, "Scroll speed (%)" x6, "Spotlit
+player (1-based)" x4), and not one is a string meant to be echoed. The exclusion is asked at REPORT
+time, so a holder whose value IS painted still has to prove it - the quiz passes on the sentinel
+exactly as before, and hiding its chips still raises the finding. All 12 `end-credits` and all 6
+`game-timer` designs now report nothing; both halves are pinned in `e2e/lite-field-paint.spec.ts`.
+
+**`step-contract` was pressing `next()` once per operator action the BRIEF listed.** For a
+machine-driven type those actions are EVENTS, not default-path steps, and the type owns the
+ANIMATION region - so the model could not have answered whatever it wrote. Measured across the
+whole family: **all 12 shipped quiz boards answer exactly one press** (`spxSteps` 2; the reveal is a
+lifecycle call on the middle step, and Out is reached by `stop()`, not by Continue), so a brief
+listing three reveals refused every quiz cell at press 2 and would have refused every board in the
+catalog. The `podium-score` spine answers **none** at all. The press count now comes from the
+graphic's own default path (`spxSteps - 1`), which is what `revealNextStep` implements; `process-
+steps`, at `spxSteps` 5, answers exactly 4 and confirms the rule.
+
+**The half of the brief expectation the model CAN act on survives**, as its own finding: where the
+model owns the region (no machine), a graphic offering fewer path steps than the brief asked for has
+not been built to the brief, and the repair is a step in the ANIMATION region. It cannot fire on
+this bank - every brief with steps names a machine-driven type - which is exactly why removing the
+old check without it would have been a quiet loss of coverage rather than a calibration.
+
+**The 2026-09-06 round's own output did not survive its worktree.** `pro-harness-out-gemini-v3` -
+21 cells of code, frames and results, $1.444 of measurement - is gone with the comparison worktree,
+and nothing was archived (`C:/claude/noacg-archives/worktree-cleanup/2026-09-07` holds one unrelated
+folder). `pro-harness-out*/` is NOT on the cleanup script's rebuildable list, so the mechanism was
+right and was not what removed it. **The blind read of that bank is therefore no longer possible
+without buying it again**, and only the re-run cells can be read.
+
 ### Teaching the free-form coder its structure spine by example
 **Through 2026-07-17 · every result converted the moment a `-box` class was injected · FIXED by
 naming the contract.** The coder followed the authoring grammar perfectly and `parseTimeline` read
