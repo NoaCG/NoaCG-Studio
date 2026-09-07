@@ -4,14 +4,14 @@ source: owner
 kind: ask
 raised: 2026-09-07
 state: advanced
-note: "Three areas read under this question now. src/components (68381ada): 44 rules kept, 4
-  claims false, 17 retired - eight of them pointers to the subdirectory contracts.
-  src/ai (91166854), the area the owner named: 68 rules, nothing false, six sections
-  describing subdirectories that each have their own contract, 6,684 B across 8 chains.
-  src/blocks: 69 rules, 3 claims false, 13 retired, six of those the file's own refactor
-  history. Reports in docs/metrics/2026-09-07-{components,ai,blocks}-migrated.md. The ask
-  still stands because the owner has not ruled on any of the 47 retirements; the rows do not
-  wait for him, and nothing has been deleted."
+note: "Three areas read under this question. src/components (68381ada): 44 rules kept, 4 claims
+  false, 17 retired - eight of them pointers to the subdirectory contracts. src/ai (91166854),
+  the area the owner named: 68 rules, nothing false, six sections describing subdirectories that
+  each have their own contract. src/blocks: 69 rules, 3 claims false, 13 retired, six of those
+  the file's own refactor history. Reports in
+  docs/metrics/2026-09-07-{components,ai,blocks}-migrated.md. The ask still stands because the
+  owner has not ruled on any of the 34 retirements; the rows do not wait for him, and nothing
+  has been deleted."
 asked: "make a note that we need to look at what instructions the ai harness and the big files
   have, because everything might not be that useful anymore"
 ---
