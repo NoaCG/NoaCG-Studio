@@ -66,7 +66,7 @@ file. The engineering went into a keyframe editor, and "OGraf" went onto the but
 could still assemble a package after the fact, which is why this is stated as evidence rather than a
 verdict, but the client shows no sign of one. Meanwhile our exporter validates 1470 manifests
 against the EBU's published schemas on every CI pass and tests the Web Component MUSTs
-([ograf-conformance.spec.ts](e2e/ograf-conformance.spec.ts)). **On present evidence we are more
+([ograf-conformance.spec.ts](../e2e/ograf-conformance.spec.ts)). **On present evidence we are more
 OGraf-compliant than the company using OGraf as its product name.** Anyone repeating our "they write
 OGraf natively, we adapt to it" framing should stop until the probe below settles it.
 
