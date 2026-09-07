@@ -652,7 +652,16 @@ const SUITE_CRITICAL_SCRIPTS =
 // the wholesale `scripts/` ignore and escalated, which was an accident of the regex rather than a
 // decision anybody took. These files have a real gate that runs on every change: the
 // `node --test` block in `npm run build`, which names each of them.
-const IGNORE = [/^docs\/(?!svg-samples\/)/, /\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/];
+// A NESTED `.gitattributes` declares how git MERGES and checks out a file - a merge driver and
+// an end-of-line rule. Nothing it says reaches the browser, so no spec can observe it. It is
+// here because phase 2b writes one into every migrated area (scripts/compile-contracts.mjs), and
+// without this line each of the hundred-odd migration rows would run its area's whole spec map
+// for two lines of git metadata - `src/templates/versus/.gitattributes` alone planned 46 specs
+// plus the catalog gate. The ROOT `.gitattributes` is deliberately NOT ignored: it also carries
+// the eol rules for every generated artefact in the repository, and a mistake there is the kind
+// that makes a clean tree read as dirty.
+const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
+const IGNORE = [/^docs\/(?!svg-samples\/)/, /\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
