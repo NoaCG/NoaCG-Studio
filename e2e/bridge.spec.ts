@@ -20,7 +20,7 @@ type Bridge = {
   types(): Array<{ id: string; neutral: boolean; fields: unknown[]; events: unknown[] }>;
   scaffold(req: unknown): { template: Template; notes: string[] };
   validate(t: Template, o?: { bench?: boolean }): Promise<{ ok: boolean; benchSkipped: string | null; merged: { errors: { rule: string; message: string }[]; warnings: { rule: string }[] }; readiness: { id: string; state: string }[] }>;
-  normalize(t: Template): { template: Template; converted: boolean; dataRegion: boolean };
+  normalize(t: Template): { template: Template; converted: boolean; dataRegion: boolean; note: string };
   exportPackage(t: Template, o?: unknown): Promise<Uint8Array>;
   readPackage(b: Uint8Array, n: string): Promise<{ kind: string; imported: { template: Template; noacg: { type: string | null; stale: boolean } | null } | null; ograf: { errors: string[]; noacg: { type: string; source?: unknown } | null; stale: boolean } | null }>;
   inspect(i: unknown): { descriptors: unknown[]; buttons: unknown[] };
@@ -173,6 +173,17 @@ function buildOutTimeline() {
       converted: n.converted, dataRegion: n.dataRegion, hasData: /var NOACG_ANIM/.test(n.template.js), steps: n.template.settings.steps,
       ok: v.ok, errors: v.merged.errors.map((e) => `${e.rule}: ${e.message}`), benchSkipped: v.benchSkipped,
       bareConverted: bn.converted, bareOk: bv.ok, bareErrors: bv.merged.errors.map((e) => e.rule), bareWarnings: bv.merged.warnings.map((w) => w.rule),
+      bareNote: bn.note,
+      // The 2026-09-06 defect verbatim: a region in the authoring grammar with one declaration
+      // absent. The old note listed things this region does not contain, and a model reading it
+      // spent four rounds and $0.072 guessing (docs/AI_ATTEMPTS.md).
+      missingEaseNote: b.normalize({
+        ...template,
+        js: template.js.replace(
+          /\/\* == ANIMATION[\s\S]*?== END ANIMATION == \*\//,
+          region.replace("var easeIn = 'power3.out';", ''),
+        ),
+      }).note,
     };
   });
   expect(result.converted).toBe(true);
@@ -184,6 +195,12 @@ function buildOutTimeline() {
   expect(result.bareConverted).toBe(false);
   expect(result.bareErrors).not.toContain('bench-editability');
   expect(result.bareWarnings).toContain('bench-editability');
+  // A REFUSED REGION NAMES THE PRECONDITION IT MISSED. The agent CLI is the door a coding agent
+  // drives, and until 2026-09-07 it handed back the same generic sentence the Pro Harness had
+  // already stopped using - a list of constructs the converter cannot read, which says nothing
+  // to an author whose region contains none of them.
+  expect(result.bareNote).toContain('markers');
+  expect(result.missingEaseNote).toContain('easeIn');
 });
 
 test('a template the share-safety screen refuses is never benched', async ({ page }) => {

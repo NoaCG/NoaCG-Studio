@@ -97,6 +97,9 @@ function emitted(tail) {
 }
 const harness = await emitted('harness/agent.js');
 const patchModule = await emitted('harness/patch.js');
+// The region readers moved to blocks/ so `bridgeApi.normalize` could give the agent CLI the
+// same explanation this bench gives the model, instead of the generic sentence.
+const regionModule = await emitted('blocks/animationRegion.js');
 const findingsModule = await emitted('harness/findings.js');
 
 await mkdir(OUT, { recursive: true });
@@ -395,7 +398,7 @@ function createPlaywrightWorkbench({ proType, ticker, briefSteps, shotsDir, tag 
       // correct timeline (docs/AI_ATTEMPTS.md); `animationBreach` names the first unmet check in
       // the importer's own order, which is what makes this a repairable finding.
       if (!converted) {
-        const breach = patchModule.animationBreach(template.js);
+        const breach = regionModule.animationBreach(template.js);
         raw.push({
           source: 'harness',
           code: 'animation-unconvertible',

@@ -16,6 +16,7 @@
 
 import JSZip from 'jszip';
 import { parseAnimData } from '../blocks/animData';
+import { animationBreach } from '../blocks/animationRegion';
 import { publishGate } from '../community/gate';
 import { eventButtons, fieldDescriptors, machineStateGroups, type ControlButton } from '../control/controlModel';
 import { ografContract } from '../control/ografContract';
@@ -316,11 +317,19 @@ export function normalize(template: SpxTemplate): NormalizeResult {
       note: 'Converted the authored GSAP builders inside the ANIMATION markers into the NOACG_ANIM keyframe data block + interpreter (timeline-editable). Edit the DATA for different motion; never the interpreter.',
     };
   }
+  // NAME THE PRECONDITION, NEVER THE GRAMMAR. This used to hand back a list of things the
+  // converter cannot read, which is no help to an agent whose region contains none of them: on
+  // 2026-09-06 the identical sentence in the Pro Harness cost a correct timeline four rounds and
+  // $0.072, and the whole defect was two absent `var` lines (docs/AI_ATTEMPTS.md). `animationBreach`
+  // walks the importer's own checks in the importer's own order and quotes the first unmet one.
+  const breach = animationBreach(template.js);
   return {
     template,
     converted: false,
     dataRegion: false,
-    note: 'The ANIMATION region could not be converted to keyframe data (no markers, or GSAP the converter cannot read: DOM measurement, nested timelines, conditionals). The graphic still plays and exports; the studio timeline shows its motion read-only.',
+    note: breach
+      ? `The ANIMATION region could not be converted to keyframe data: ${breach} The graphic still plays and exports; the studio timeline shows its motion read-only.`
+      : 'The ANIMATION region met every declaration the importer requires, so what it cannot read is inside a tween - use literal values only, durations as N / animSpeed, and no DOM measurement. The graphic still plays and exports; the studio timeline shows its motion read-only.',
   };
 }
 

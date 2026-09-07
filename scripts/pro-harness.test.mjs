@@ -27,8 +27,11 @@ const runtime = await buildApiRuntime([
   'src/ai/pro/harness/patch.ts',
   'src/ai/pro/harness/knowledge.ts',
   // The REAL importer, compiled beside the harness so `animationBreach` can be pinned against the
-  // thing it explains rather than against a second copy of its rules (see the last test here).
+  // thing it explains rather than against a second copy of its rules (see the last test here) -
+  // and the breach reader itself, which lives beside that importer because the agent CLI door
+  // (`bridgeApi.normalize`) asks it the same question the harness does.
   'src/blocks/timelineModel.ts',
+  'src/blocks/animationRegion.ts',
 ]);
 after(async () => { await runtime.cleanup(); });
 
@@ -50,6 +53,7 @@ const knowledge = await emitted('harness/knowledge.js');
 const tools = await emitted('harness/tools.js');
 const agent = await emitted('harness/agent.js');
 const timelineModel = await emitted('blocks/timelineModel.js');
+const animationRegion = await emitted('blocks/animationRegion.js');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────────────────
 
@@ -550,7 +554,7 @@ const BREACHES = [
 
 test('animationBreach names the first unmet precondition, in the importer\'s own words', () => {
   for (const [what, js, expected] of BREACHES) {
-    const breach = patch.animationBreach(js);
+    const breach = animationRegion.animationBreach(js);
     if (expected === null) assert.equal(breach, null, `${what}: expected no breach, got ${breach}`);
     else assert.match(String(breach), expected, `${what}: the sentence must name what is missing`);
   }
@@ -567,7 +571,7 @@ test('animationBreach agrees with the importer on every case - null exactly when
   };
   for (const [what, js] of BREACHES) {
     const ok = converts(js);
-    const clean = patch.animationBreach(js) === null;
+    const clean = animationRegion.animationBreach(js) === null;
     assert.equal(clean, ok, `${what}: animationBreach says ${clean ? 'clean' : 'broken'} but the importer ${ok ? 'converts' : 'refuses'} it`);
   }
 });
