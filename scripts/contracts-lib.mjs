@@ -435,8 +435,10 @@ export function compileOutputs(rules, owned = new Set()) {
     outputs.set(`${OUTPUT_DIR}/${slug}.md`, lines.join('\n'));
   }
   for (const [dir, dirRules] of nestedContracts(rules, owned)) {
-    outputs.set(`${dir}/${NESTED_CONTRACT}`, renderNested(dir, dirRules));
-    outputs.set(`${dir}/${NESTED_ATTRIBUTES}`, renderAttributes());
+    // The root's files have no directory prefix; everything else is `<dir>/<name>`.
+    const at = (name) => (dir === '' ? name : `${dir}/${name}`);
+    outputs.set(at(NESTED_CONTRACT), renderNested(dir === '' ? '(the whole repository)' : dir, dirRules));
+    if (dir !== '') outputs.set(at(NESTED_ATTRIBUTES), renderAttributes());
   }
   outputs.set(INDEX_PATH, renderIndex(rules));
   return outputs;
@@ -474,7 +476,7 @@ export function nestedContracts(rules, owned) {
   for (const rule of rules) {
     if (rule.status !== 'active' || rule.carried) continue;
     const home = deepestOwner(scopeOwner(rule.scope), owned);
-    if (!home) continue;
+    if (home === null) continue;
     if (!byDir.has(home)) byDir.set(home, []);
     byDir.get(home).push(rule);
   }
@@ -489,7 +491,12 @@ export function nestedContracts(rules, owned) {
  * contract a rule is in.
  */
 export function deepestOwner(dir, owned) {
-  if (dir === '') return null;
+  // THE REPOSITORY ROOT IS A DIRECTORY LIKE ANY OTHER once it carries the marker. Kernel rules -
+  // the ones scoped `**` - reach Claude Code through `.claude/rules/everywhere.md`, which it loads
+  // at launch; Codex reads AGENTS.md files and nothing else, so without a generated root contract
+  // it would see none of them. That is the whole global rule set, including "never merge into main
+  // yourself" and "publishing past main needs the user".
+  if (dir === '') return owned.has('') ? '' : null;
   const parts = dir.split('/');
   for (let i = parts.length; i > 0; i -= 1) {
     const candidate = parts.slice(0, i).join('/');
