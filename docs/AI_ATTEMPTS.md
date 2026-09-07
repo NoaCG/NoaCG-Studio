@@ -837,6 +837,16 @@ not been built to the brief, and the repair is a step in the ANIMATION region. I
 this bank - every brief with steps names a machine-driven type - which is exactly why removing the
 old check without it would have been a quiet loss of coverage rather than a calibration.
 
+**The control run, free, says the floor question sharper than the bank did.** `--control` step 2
+inspects the UNTOUCHED neutral lower-third spine - the platform's own scaffold, before a model has
+written a line - and the only finding it raises is
+`readability-text-under-size-floor`: *"Lina Berg" (primary) is painted at 48px ... under the 50px
+broadcast floor*. The control already excuses it in its own words ("a valid scaffold measures clean,
+bar the owner size table"), which is the whole point: the floor is currently something our own
+scaffold is exempted from rather than something anything passes. Every other control assertion is
+green after the step-count change - the forced overlap still produces 9 blocking findings, the patch
+guard still refuses a `:root` rewrite, and the loop delivers.
+
 **The 2026-09-06 round's own output did not survive its worktree.** `pro-harness-out-gemini-v3` -
 21 cells of code, frames and results, $1.444 of measurement - is gone with the comparison worktree,
 and nothing was archived (`C:/claude/noacg-archives/worktree-cleanup/2026-09-07` holds one unrelated
