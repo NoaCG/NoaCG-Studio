@@ -623,3 +623,29 @@ What it changes, and what it deliberately does not:
 
 The horizon is "at least the next few years", so this is a ruling and not a permanent fact about
 the project. It stands until the owner says otherwise.
+
+## owner-decisions-2026-09-08
+
+**The broadcast text size floor becomes type-aware. It stops being a universal 50px blocker.**
+This answers the question §23.1 left open on 2026-08-30 and that two Pro Harness rounds ran into:
+the floor was never re-ratified for enforcement, and it was refusing correct work.
+
+> Make it type-aware, not a universal 50 px blocker.
+
+What was measured before the ruling, so a later session can test the why rather than the rule:
+
+- The floor refuses **all 12 shipped quiz boards** - 36-40px primary against a 49.68px floor, read
+  through the instrument itself rather than off the CSS.
+- It refuses the platform's own neutral lower-third scaffold at 48px, and the Pro Harness control
+  run excuses that in its own words ("bar the owner size table").
+- §23.1 measured it failing **312 of 489** shipped designs.
+- In the 2026-09-07 harness round it was the ONLY blocking finding on two of nine cells, and on
+  three of the previous round's.
+
+The cause is not the number. `roleFor` in `src/validation/readabilityCheck.ts` calls the LARGEST
+informational text "primary", so on a dense board the primary element is the one carrying the most
+words and therefore having the least room - a floor calibrated on a lower third's name strap
+landing on a question that has to sit above four answers.
+
+**The ruling is the outcome, not the mechanism.** "Type-aware" is what the floor must stop being
+blind to; which signal it keys on is an engineering question, answered from the shipped corpus.
