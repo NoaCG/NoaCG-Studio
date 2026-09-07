@@ -481,8 +481,14 @@ export function nestedContracts(rules, owned) {
   return [...byDir.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-/** The deepest directory in `owned` that is `dir` or an ancestor of it, or null. */
-function deepestOwner(dir, owned) {
+/**
+ * The deepest directory in `owned` that is `dir` or an ancestor of it, or null when none is.
+ *
+ * Exported because the compiler's `--report` asks the same question from the other side - which
+ * rules NO migrated directory owns - and two copies of this would eventually disagree about which
+ * contract a rule is in.
+ */
+export function deepestOwner(dir, owned) {
   if (dir === '') return null;
   const parts = dir.split('/');
   for (let i = parts.length; i > 0; i -= 1) {
