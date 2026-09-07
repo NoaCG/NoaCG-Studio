@@ -560,8 +560,8 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
   `LiteProfile`; resist adding capability negotiation until a third harness needs it.
 - **Consent UX friction** vs legal safety - one-time notice per account, not per call.
 - Open: where does the analysis button live exactly (Design vs Prepare vs Text step);
-  should post-create re-analysis exist at v1 (recommend: no); when do paid tiers exist at
-  all (out of scope here).
+  should post-create re-analysis exist at v1 (recommend: no). The "when do paid tiers exist"
+  question is CLOSED (owner, 2026-09-07): they do not, hosted AI is subsidised rather than sold.
 
 ## 14. Files likely added / modified
 

@@ -16,8 +16,10 @@ HTML broadcast graphics and exporting them to **many broadcast/streaming environ
 For TV channels, streamers, organizations and universities, technical and non-technical users alike
 - it is used in teaching, but it is a production tool, not a code tutorial.
 
-**Free forever for the core; the only paid surface is hosted AI without a BYO key; the current goal
-is users/adoption, not revenue.**
+**Free and open source (AGPL-3.0), with no paid surface and none planned.** Everything the product
+does is free to use and to self-host, hosted AI included - it is subsidised by the project rather
+than sold. The goal is users and adoption, and the ruling that settled it is in
+`docs/OWNER_RULINGS.md`.
 
 Brand: dark control-room, one amber "on-air" accent, restrained glow. `NoaCG-Brand-Kit/BRAND-MANUAL.md`
 owns the palette and records which shipped typefaces diverge from it, and why.

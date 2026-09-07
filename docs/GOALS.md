@@ -70,8 +70,9 @@ OGraf is the canonical interchange and playout contract (`docs/OGRAF_FIRST_REVIE
 
 ### Operating principles
 - **Free forever for the core.** Creating, editing, exporting, controlling, self-hosting.
-- **One paid surface, later: hosted AI** for users who will not bring their own key.
-  **Bring-your-own-key is always free.**
+- **No paid surface, and none planned** (owner, 2026-09-07). Hosted AI for users who will not
+  bring their own key is **subsidised by the project, not sold**, and bring-your-own-key is free
+  as it always was.
 - **Users, not revenue.** Money is a later consequence of a large, happy user base.
 - **No sign-in for its own sake.** An account is asked for only where it *buys* something.
 
