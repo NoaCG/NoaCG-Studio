@@ -159,3 +159,53 @@ was going to re-measure it can be closed by this number instead.
 unmeasured - `npm run metrics:conflicts` reads 45 days of history and every commit in that window
 predates the store. The first honest reading is weeks away, and until then the case for one file
 per rule rests on the `build`-line evidence rather than on this repository's contracts.
+
+## Re-measured 2026-09-07, after `src/components/wizard` migrated
+
+The third area, and the one the phase was really for: `src/components/wizard/AGENTS.md` was the
+tightest instruction chain in the repository, 102,879 bytes of a 110,000 ceiling with 7,121 free -
+inside the 4,096-byte reserve away from failing the build.
+
+| Metric | After `src/templates` | After `src/components/wizard` |
+|---|---|---|
+| Contract corpus | 548,519 B / 106 files | **521,467 B / 105** |
+| Hand-written bytes | 520,874 B / 104 files | **467,883 B / 102** |
+| `src/components/wizard/AGENTS.md` | 53,101 B | **25,608 B** |
+| Its chain | 102,879 B, 7,121 free | **75,604 B, 34,396 free** |
+| Tightest chain in the repository | `src/components/wizard`, 93.5% | **`src/ai/pro/harness`, 82.8%** |
+| Chains within the 4 KB reserve | 1 | **0** |
+| Compiled layer | 632 B launch, 33,824 B scoped | 632 B launch, **85,940 B scoped** |
+
+**Nothing is near the ceiling any more.** That is the number this phase existed to move: the
+build fails a chain with under 4,096 bytes free, and the wizard chain sat 3,000 bytes the safe side
+of that for weeks, which meant any lesson learned in the wizard had nowhere to go. It now has
+34,396.
+
+**The compiled layer is where the bytes went, and it is not a chain cost.** 85,940 bytes of scoped
+rules against 632 bytes that load at launch. A scoped file is read only when a session opens a file
+the rule names, so the wizard's 101 rules are not 101 rules' worth of tokens in any session - most
+of them name a single component and arrive only with it.
+
+## What three migrated areas say about the method
+
+**The byte win is real and it is concentrated.** `versus` cost 121 bytes MORE, `src/templates` saved
+26 KB, the wizard saved 53 KB. The fixed overhead of a generated contract is about 200 bytes, so the
+question is only ever how much prose an area has to amortise it - and the answer is not worth
+guessing per area, because the two big ones together took the corpus from 574,356 to 521,467 while
+the small one moved it the wrong way.
+
+**Extraction is cheap; verifying the prose is not.** Both large areas contained claims that were
+FALSE when they were migrated: a wizard toggle replaced months earlier by the brand chooser, a
+"starts at None" that a production overrides, a "resets on any result change" that brand context
+does not trigger. Prose nobody treats as binding can carry a false sentence for months; a rule
+cannot, because a rule is read as authoritative the moment it exists. **Checking each paragraph
+against the code is the expensive half of this work and it is not optional.**
+
+**A rule in somebody else's words loses the symbol names.** Writing rules from scratch dropped 206
+of the 293 backticked tokens the wizard contract carried - the CSS class you would grep for, the
+helper the mechanism lives in. Two answers, and both are needed: the record for an area keeps the
+replaced prose verbatim, and a rule names the symbol a reader would search for rather than
+describing it. `npm run contract:migrate -- audit` is what makes the loss visible - and it was itself
+reading only TRACKED files, so on a row whose rules were still unstaged it reported the whole store
+as missing. Fixed in the same change; an audit that is wrong in the alarming direction still costs
+an hour finding out.

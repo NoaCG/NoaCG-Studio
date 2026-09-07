@@ -113,9 +113,21 @@ function readIfPresent(file) {
 }
 
 /** Every file under a store folder, or nothing when the folder does not exist yet. */
+/**
+ * The store files for one area, INCLUDING the ones not yet staged.
+ *
+ * `git ls-files` alone lists only tracked files, and the rules a migration has just written
+ * are untracked until somebody stages them - so the audit answered as though the store were
+ * empty and reported every token as lost. Measured on the wizard row: 1 file found instead of
+ * 219, and a clean "232 tokens nothing now carries" that was pure artefact. An audit that is
+ * wrong in the alarming direction still costs an hour finding out.
+ *
+ * `--others` adds the untracked files; `--exclude-standard` keeps ignored ones out.
+ */
 function storeFiles(area) {
-  const out = git(['ls-files', `contracts/rules/${area}`, `contracts/records/${area}`]);
-  return (out ?? '').split('\n').map((f) => f.trim()).filter(Boolean);
+  const dirs = [`contracts/rules/${area}`, `contracts/records/${area}`];
+  const out = git(['ls-files', '--cached', '--others', '--exclude-standard', ...dirs]);
+  return [...new Set((out ?? '').split('\n').map((f) => f.trim()).filter(Boolean))];
 }
 
 function parseArgs(argv) {
