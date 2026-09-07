@@ -13,6 +13,24 @@
 //   TESTS GETTING SLOWER is the regression. That shows up as the mean per-test duration
 //   rising, independently of how many there are, and that is what this ENFORCES.
 //
+// THE SECOND SENTENCE WAS WRONG, and measuring it on 2026-09-07 is what found out. The whole-suite
+// mean is NOT independent of how many tests there are - it moves whenever the new ones differ from
+// the old ones, which they do, consistently. Measured across two ordinary nights, 2026-09-02 to
+// 2026-09-06: the 1,187 tests present in BOTH runs went 4.72 -> 4.54 s each, 780 of them faster,
+// while the 67 tests added in that window averaged 7.87 s - about 1.7x the suite. The existing
+// tests were getting FASTER and the headline mean still barely moved. A gate reading only that
+// number cannot tell "we added slow tests" from "the suite regressed", and it was telling us the
+// second while the first was true.
+//
+// SO `--against <previous-report.json>` COMPARES LIKE WITH LIKE: the mean over tests present in
+// both reports, which is the number the paragraph above was always trying to describe. It is
+// reported, and it is what a future enforcement should read. The whole-suite ceiling stays as a
+// coarse backstop for the case where nothing to compare against arrives.
+//
+// (The same comparison is what identified the failure it was written for. On the red night 968 of
+// 1,185 shared tests were slower by a near-uniform amount, which is the signature of a slow runner
+// rather than a change: no commit makes every unrelated spec slower by the same third of a second.)
+//
 // Measured 2026-07-31 on the first green nightly: 615 tests, 41.4 min aggregate, 4.04 s mean.
 // (591 tests / 45.5 min / 4.62 s the day before - more tests, less time, because the preview
 // debounce dropped from 350 ms to 50 ms under test.) The ceiling below sits ~24% above the
@@ -54,10 +72,12 @@ import { readFileSync } from 'node:fs';
 const args = process.argv.slice(2);
 const reportPath = args.find((a) => !a.startsWith('--'));
 const maxAvgArg = args.indexOf('--max-avg-ms');
+const againstArg = args.indexOf('--against');
+const againstPath = againstArg >= 0 ? args[againstArg + 1] : null;
 const maxAvg = maxAvgArg >= 0 ? Number(args[maxAvgArg + 1]) : DEFAULT_MAX_AVG_MS;
 
 if (!reportPath) {
-  console.error('usage: node scripts/e2e-budget.mjs <merged-report.json> [--max-avg-ms N]');
+  console.error('usage: node scripts/e2e-budget.mjs <merged-report.json> [--max-avg-ms N] [--against <previous-report.json>]');
   process.exit(2);
 }
 
@@ -76,6 +96,28 @@ function collect(report) {
   };
   for (const suite of report.suites ?? []) walk(suite, suite.file);
   return out;
+}
+
+/** file + title: stable across runs, so the same test can be found in two reports. */
+const keyOf = (t) => `${t.file} :: ${t.title}`;
+
+/**
+ * The mean over tests present in BOTH reports - the number that separates a regression from a
+ * change of composition. Returns null when there is nothing to compare, which is not a failure:
+ * the first run after this landed, and any run whose predecessor expired, simply has no previous.
+ */
+function likeForLike(now, before) {
+  const prev = new Map(before.map((t) => [keyOf(t), t.ms]));
+  const shared = now.filter((t) => prev.has(keyOf(t)));
+  if (shared.length === 0) return null;
+  const nowMs = shared.reduce((a, t) => a + t.ms, 0) / shared.length;
+  const thenMs = shared.reduce((a, t) => a + prev.get(keyOf(t)), 0) / shared.length;
+  const slower = shared.filter((t) => t.ms > prev.get(keyOf(t))).length;
+  const addedTests = now.filter((t) => !prev.has(keyOf(t)));
+  const addedMs = addedTests.length
+    ? addedTests.reduce((a, t) => a + t.ms, 0) / addedTests.length
+    : null;
+  return { shared: shared.length, nowMs, thenMs, slower, added: addedTests.length, addedMs };
 }
 
 const tests = collect(JSON.parse(readFileSync(reportPath, 'utf8')));
@@ -104,6 +146,24 @@ for (const base of BASELINES) {
   const pct = ((avgMs - base.avgMs) / base.avgMs) * 100;
   const dir = pct >= 0 ? 'above' : 'below';
   console.log(`  drift            ${Math.abs(pct).toFixed(0)}% ${dir} the ${(base.avgMs / 1000).toFixed(2)} s baseline of ${base.on} (${base.note})`);
+}
+// LIKE FOR LIKE, when a previous report was handed over. This is the honest answer to "did the
+// tests get slower", and it is deliberately printed above the slowest-files table: the table
+// answers "which files cost the most", which is a different and much less useful question when
+// what you want to know is whether anything regressed.
+if (againstPath) {
+  const before = collect(JSON.parse(readFileSync(againstPath, 'utf8')));
+  const cmp = likeForLike(tests, before);
+  if (cmp === null) {
+    console.log('  like-for-like    no test appears in both reports - nothing to compare');
+  } else {
+    const pct = ((cmp.nowMs - cmp.thenMs) / cmp.thenMs) * 100;
+    const dir = pct >= 0 ? 'slower' : 'faster';
+    console.log(`  like-for-like    ${(cmp.thenMs / 1000).toFixed(2)} -> ${(cmp.nowMs / 1000).toFixed(2)} s over ${cmp.shared} tests in both runs (${Math.abs(pct).toFixed(1)}% ${dir}, ${cmp.slower} of them slower)`);
+    if (cmp.addedMs !== null) {
+      console.log(`  new tests        ${cmp.added} added, ${(cmp.addedMs / 1000).toFixed(2)} s each - the suite mean moves with this, and that is not a regression`);
+    }
+  }
 }
 console.log('  slowest spec files:');
 for (const [file, v] of slowest) {
