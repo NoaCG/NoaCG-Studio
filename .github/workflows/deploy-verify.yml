@@ -60,22 +60,37 @@ jobs:
         if: ${{ github.event.deployment_status.state == 'success' }}
         run: |
           DEPLOY_SHA="${{ github.event.deployment.sha }}"
+          # WHAT PRODUCTION IS SUPPOSED TO SERVE FOR THIS COMMIT, which since the build skip landed
+          # is not always the commit itself. Vercel raises a `deployment_status: success` for a push
+          # whose build was skipped - it aliases the previous build - so production correctly goes on
+          # serving an OLDER commit, and the two checks below only ever accepted the same one or a
+          # newer one. That fired on 2026-09-07 for a docs-only landing and would have fired for every
+          # one after it; about half the landings here change only docs, contracts, tooling or tests.
+          #
+          # `--last-affecting` reads the same list the skip itself reads, which is the point: the
+          # mechanism that decides not to build and the mechanism that decides what "live" should be
+          # must not be able to disagree. The scheduled drift job below was taught this; this one was
+          # not, and it is the one that runs on every landing.
+          EXPECTED="$(node scripts/deploy-affecting-paths.mjs --last-affecting "$DEPLOY_SHA" || echo "$DEPLOY_SHA")"
+          if [ "$EXPECTED" != "$DEPLOY_SHA" ]; then
+            echo "::notice title=Build skipped::$DEPLOY_SHA changes nothing production serves, so the expected live commit is $EXPECTED."
+          fi
           echo "Deployment ready for $DEPLOY_SHA - verifying $PRODUCTION_URL"
           for i in $(seq 1 12); do
             LIVE_SHA="$(curl -sf "$PRODUCTION_URL/version.json" | jq -r '.commit // empty' || true)"
-            if [ "$LIVE_SHA" = "$DEPLOY_SHA" ]; then
-              echo "Live commit matches the deployment."
+            if [ "$LIVE_SHA" = "$DEPLOY_SHA" ] || [ "$LIVE_SHA" = "$EXPECTED" ]; then
+              echo "Live commit matches what this deployment should serve."
               break
             fi
             # Rapid successive merges: production may already serve a NEWER main commit
             # that contains this one. That is healthy, not a mismatch.
             if [ -n "$LIVE_SHA" ] && git cat-file -e "$LIVE_SHA" 2>/dev/null \
-               && git merge-base --is-ancestor "$DEPLOY_SHA" "$LIVE_SHA"; then
-              echo "Live commit $LIVE_SHA is a newer main commit containing $DEPLOY_SHA."
+               && git merge-base --is-ancestor "$EXPECTED" "$LIVE_SHA"; then
+              echo "Live commit $LIVE_SHA contains $EXPECTED, which is everything this deployment had to carry."
               break
             fi
             if [ "$i" = 12 ]; then
-              echo "::error title=Production verification failed::$PRODUCTION_URL/version.json serves '${LIVE_SHA:-nothing}', expected $DEPLOY_SHA (or a descendant). The deployment reported success but production did not take it."
+              echo "::error title=Production verification failed::$PRODUCTION_URL/version.json serves '${LIVE_SHA:-nothing}', expected $EXPECTED (or a descendant). The deployment reported success but production did not take it."
               exit 1
             fi
             sleep 10
