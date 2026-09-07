@@ -410,3 +410,41 @@ test('age promotes a branch past cheaper work, never past safer work', () => {
   const tied = rank([branch('wide', { files: 9, hours: 20 }), branch('narrow', { files: 1, hours: 20 })]);
   assert.deepEqual(tied.map((b) => b.branch), ['narrow', 'wide']);
 });
+
+test('a branch already landed on origin/main is not outstanding, however stale the local main is', async (t) => {
+  // THE MERGE QUEUE STOPPED FAST-FORWARDING THE LAPTOP. Every landing used to move the primary
+  // checkout's `main`; GitHub's queue never touches it, so the local ref stops dead while origin
+  // moves on. Measured at ten commits of drift, all of them merged. Read against the stale ref,
+  // `--no-merged main` answers with branches that have ALREADY LANDED - so a branch that takes
+  // origin/main in is told it "contains <landed branch>, which must land first", and refused.
+  const root = makeRepo(t);
+  branchWith(root, 'feature/landed', { 'docs/landed.md': 'this one lands\n' });
+  branchWith(root, 'feature/next', { 'docs/next.md': 'this one is being written\n' });
+
+  const origin = mkdtempSync(join(tmpdir(), 'noacg-merge-order-origin2-'));
+  t.after(() => rmSync(origin, { recursive: true, force: true }));
+  runGit(origin, 'init', '--bare', '--initial-branch=main', '.');
+  runGit(root, 'remote', 'add', 'origin', origin);
+  runGit(root, 'push', '-q', 'origin', 'main', 'feature/landed', 'feature/next');
+
+  // The queue lands feature/landed: origin/main moves, the local main does not.
+  runGit(origin, 'update-ref', 'refs/heads/main', 'refs/heads/feature/landed');
+  runGit(root, 'fetch', '-q', 'origin');
+  // And the branch still being written takes it in, the way every session does.
+  runGit(root, 'checkout', '-q', 'feature/next');
+  runGit(root, 'merge', '-q', '--no-edit', 'origin/main');
+  runGit(root, 'checkout', '-q', 'main');
+
+  const assessment = await assessMergeOrder(root);
+  assert.deepEqual(
+    assessment.branches.map((b) => b.branch),
+    ['feature/next'],
+    'the landed branch is not outstanding work, and the local main being ten commits behind does not make it so',
+  );
+  assert.ok(
+    !assessment.remoteOnly.includes('origin/main'),
+    'nor is origin/main itself a branch waiting to land',
+  );
+  const next = assessment.branches[0];
+  assert.deepEqual(next.stacked, [], 'containing a landed branch is not a stack');
+});
