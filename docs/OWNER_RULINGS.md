@@ -595,3 +595,31 @@ The method is the plan's own reuse test made real: find the graphic, draw it as 
 through the wizard, and report whether the shipped recipes and extras bind it, whether it needs a
 new field kind or recipe, or whether it breaks the model.
 
+
+## owner-decisions-2026-09-07
+
+**NoaCG pivots to free and open source, with no paid surface and none planned.** This retires
+"the only paid surface is hosted AI without a BYO key", which had stood since the project began.
+Hosted AI does not disappear; it stops being a product and becomes a subsidy the project carries.
+
+> we will pivot to open source and free, at least for the next few years
+>
+> yes we need to get all monetization texts out from our files and be clear about it being free
+> and open source on our landing page. we need to drop the word premium from our front page, its
+> free and the whole prosuction cycle from template/create to run the show through our online
+> client.
+
+What it changes, and what it deliberately does not:
+
+- The root `AGENTS.md` identity line, `docs/GOALS.md`'s operating principles and the open "when do
+  paid tiers exist" question in `docs/AI_PLATFORM_PLAN.md` §13 now all say the same thing.
+- The landing page leads with "Free & open source" and the no-lock-in section names the AGPL,
+  because open source is the strongest proof of the promise that section already made.
+- **"Premium" survives in `src/` on purpose.** Fifty-one occurrences in the AI prompts, the design
+  vocabulary and the template comments mean "high production value", not "the paid edition", and
+  they carry real weight in what the generator produces. Only the marketing copy lost the word.
+- `docs/GOALS_ARCHIVE.md` keeps its original wording. An archive records what was true at the
+  time; rewriting it would destroy the evidence that the direction ever changed.
+
+The horizon is "at least the next few years", so this is a ruling and not a permanent fact about
+the project. It stands until the owner says otherwise.

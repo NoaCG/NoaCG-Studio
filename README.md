@@ -1,6 +1,6 @@
 # NoaCG Studio
 
-**Premium broadcast graphics, built by choosing, then exported to whatever you already run.**
+**Free, open source broadcast graphics: built by choosing, then exported to whatever you already run.**
 
 Lower thirds, tickers, scoreboards, countdowns, alerts, credits and more: pick a design, set your
 fields, style it to your brand, animate it, and export a working template for **SPX**,
