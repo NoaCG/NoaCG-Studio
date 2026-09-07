@@ -309,6 +309,25 @@ async function cmdAdopt() {
 }
 
 /**
+ * A flag that takes a sentence a person wrote: `--unreviewed "<reason>"`, `--why "<reason>"`.
+ *
+ * Returns the sentence, or null when the flag is absent. `valueOf` answers undefined for an
+ * absent flag and undefined again for a flag with nothing after it, and a following flag is not a
+ * sentence either - all three mean the words are missing, which is refused rather than recorded as
+ * an empty reason. The whole point of these flags is that something readable ends up on the
+ * record, so an empty one is the failure they exist to prevent.
+ */
+function sentenceFlag(name, example) {
+  if (!flag(name)) return null;
+  const words = valueOf(name) ?? '';
+  if (words === '' || words.startsWith('-')) {
+    console.error(`add-merge refused: ${name} takes a sentence in words, e.g. ${name} "${example}".`);
+    process.exit(1);
+  }
+  return words;
+}
+
+/**
  * Queue a LANDING for one branch.
  *
  * `kind: 'merge'` is what makes it safe to queue several at once: a merge never runs beside
@@ -348,13 +367,7 @@ async function cmdAddMerge() {
   const tipForReview = branchTip(target);
   const stamp = readReviewStamp(dir, target);
   const gap = stampGap(stamp, tipForReview);
-  // `valueOf` answers undefined for an absent flag and undefined again for a flag with nothing
-  // after it; both mean "no reason given", and only a present flag is checked for shape.
-  const unreviewedReason = flag('--unreviewed') ? (valueOf('--unreviewed') ?? '') : null;
-  if (unreviewedReason !== null && (unreviewedReason === '' || unreviewedReason.startsWith('-'))) {
-    console.error('add-merge refused: --unreviewed takes a reason in words, e.g. --unreviewed "hotfix for the red main; reviewed by eye".');
-    process.exit(1);
-  }
+  const unreviewedReason = sentenceFlag('--unreviewed', 'hotfix for the red main; reviewed by eye');
   let review;
   if (!gap) {
     review = { stamp: 'reviewed', reviewedSha: stamp.reviewedSha, verdict: stamp.verdict ?? null };
@@ -386,12 +399,8 @@ async function cmdAddMerge() {
   // `--why` is the one thing the branch's commits cannot supply: the reason the change exists.
   // Optional on purpose - a description that names what changed and how it was checked is already
   // worth reading, and a required field nobody fills gets filled with noise.
-  const why = flag('--why') ? (valueOf('--why') ?? '') : '';
-  if (flag('--why') && (why === '' || why.startsWith('-'))) {
-    console.error('add-merge refused: --why takes a sentence in words, e.g. --why "the old field could not hold two scores".');
-    process.exit(1);
-  }
-  const queued = queueOnGitHub(target, tipForReview, description, why);
+  const why = sentenceFlag('--why', 'the old field could not hold two scores');
+  const queued = queueOnGitHub(target, tipForReview, description, why ?? '');
   // The local shadow: a merge job whose command only WATCHES the pull request (scripts/land-watch.mjs),
   // so the branch is frozen while it is queued, the tick reports QUEUED and LANDED, and the ledger
   // gets the landing with this checkout as its session - every local reader keeps its one shape.
@@ -426,7 +435,10 @@ function queueOnGitHub(branch, tip, description, why = '') {
   // The lander pushes its merge of main onto the branch. A session whose local branch lacks that
   // commit cannot push over it, and the refusal git gives ("non-fast-forward") reads like a
   // network fault - so say what it is and what to do.
-  spawnSync('git', ['fetch', '--no-tags', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
+  // `main` comes with it because the description below asks which commits are this branch's own,
+  // and a stale `origin/main` answers that with main's work in it - other people's commit
+  // subjects listed as this change's, on a branch that has integrated main.
+  spawnSync('git', ['fetch', '--no-tags', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`, '+refs/heads/main:refs/remotes/origin/main'], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
   const remoteAhead = spawnSync('git', ['merge-base', '--is-ancestor', `refs/remotes/origin/${branch}`, tip], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
   const remoteExists = spawnSync('git', ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true }).status === 0;
   if (remoteExists && remoteAhead.status !== 0) {
@@ -447,8 +459,13 @@ function queueOnGitHub(branch, tip, description, why = '') {
   }
   // WHAT THE PULL REQUEST SAYS. Oldest first, merges left out: these are the sentences the branch
   // already wrote about itself, and they are what a person reads (scripts/pr-description.mjs).
-  const subjects = spawnSync('git', ['log', '--no-merges', '--reverse', '--format=%s', `origin/main..${tip}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
+  const commitSubjects = (range) => spawnSync('git', ['log', '--no-merges', '--reverse', '--format=%s', range], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
     .stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  // With no reachable `origin/main` the range is unanswerable, and a description saying the branch
+  // has no commits of its own would be a lie. The tip's own subject is the honest floor - it is
+  // what the pull request was titled with before there was a description at all.
+  const subjects = commitSubjects(`origin/main..${tip}`);
+  if (subjects.length === 0) subjects.push(...commitSubjects(`${tip}~1..${tip}`));
   const body = pullRequestBody({ subjects, tested: description, why });
   if (!pr) {
     const url = ghRun(['pr', 'create', '--base', 'main', '--head', branch, '--title', pullRequestTitle(subjects, branch), '--body', body]);
