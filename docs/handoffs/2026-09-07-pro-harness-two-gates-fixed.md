@@ -70,12 +70,25 @@ its panel empty, every name and score jammed into a right-hand column. The deliv
 `pro-harness-out-rerun/review.html` is the blind sheet (9 cells, frames all shot under the
 entrance-derived settle), with `notes.md` to fill in before `key.json` is opened.
 
-## Verified
+## Verified, and the one gate that did NOT run here
 
-`npm run build` green, `npx tsc --noEmit`, `eslint`, `depcruise`, `node --test
-scripts/pro-harness.test.mjs` (25), `node --test scripts/e2e-affected.test.mjs` (46), and
-`npx playwright test e2e/bridge.spec.ts e2e/lite-field-paint.spec.ts` (14 passed). The free
-`--control` run is green end to end after the step-count change.
+Green after taking `origin/main` in (fork point `39835021`, merged clean, no conflicts):
+`npm run build`, `npx tsc --noEmit`, `eslint`, `depcruise`, `node --test
+scripts/pro-harness.test.mjs` (25 of 25), `node --test scripts/e2e-affected.test.mjs` (46), and
+`npx playwright test e2e/bridge.spec.ts e2e/lite-field-paint.spec.ts` (14 passed, re-run against the
+merged tree). The free `--control` run is green end to end.
+
+**The local integration plan did not run, and this is why.** `--integration --focus` from the fork
+point plans **104 specs plus the catalog gate** - a full local suite. The job queue could not
+schedule it: a `land-watch` on pull request 102 holds 0.15 of the machine's single suite-equivalent
+while that pull request cannot land (`check:tree-shape` refuses three unlisted root entries, filed
+in `docs/backlog/community-files-landing-is-stuck-on-tree-shape.md`), and a 1.0-weight job never
+fits beside it. The watcher caps at an hour and re-arms, so the starvation outlives any one wait.
+The queued job was cancelled rather than left to run unattended and report to nobody.
+
+**So CI is the gate for this branch**, which the root contract already says it should be: it does
+strictly more, in about ten minutes, on a clean checkout. **Read WHICH JOBS RAN** on the merge
+queue's run before trusting a green - an ordinary push plans from the previous push.
 
 ## The blind read of the 2026-09-06 bank is gone
 
