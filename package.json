@@ -103,6 +103,7 @@
     "test:auto-merge": "node --test scripts/auto-merge.test.mjs",
     "test:landing-gates": "node --test scripts/main-health.test.mjs scripts/ci-failure-set.test.mjs scripts/red-main-issue.test.mjs scripts/queue-pr.test.mjs scripts/e2e-quarantine.test.mjs scripts/e2e-retry.test.mjs scripts/revert-landing.test.mjs",
     "check:main-health": "node scripts/main-health.mjs",
+    "check:owner-setup": "node scripts/owner-preflight.mjs",
     "quarantine": "node scripts/e2e-quarantine.mjs",
     "test:prerender": "node --test scripts/prerender.test.mjs",
     "test:admin-security": "node --test scripts/admin-security-migration.test.mjs",

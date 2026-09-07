@@ -125,8 +125,19 @@ export function queuePullRequest({ branch, title, body, mechanism, runUrl = '', 
   let pr = pullRequestFor(branch, gh, 'open');
   let created = false;
   if (!pr) {
-    const url = gh(['pr', 'create', '--base', 'main', '--head', branch, '--title', String(title).slice(0, 120), '--body', body]).out;
-    pr = { number: Number(url.split('/').pop()), url };
+    // The one step that fails for a reason outside this repository: the organisation, or the
+    // repository, can forbid Actions opening a pull request, and GitHub says so in a sentence
+    // that reads like a bug in the caller. Name the command that answers it - the branch is
+    // pushed by now, so the next run reuses it (`alreadyQueued` calls that a stale branch).
+    const create = gh(['pr', 'create', '--base', 'main', '--head', branch, '--title', String(title).slice(0, 120), '--body', body], { allowFailure: true });
+    if (create.status !== 0) {
+      throw new Error(
+        `gh pr create failed for ${branch}: ${(create.err || create.out).split('\n')[0]}\n` +
+          '  If it says Actions may not create pull requests, that is an account-level setting, not this branch.\n' +
+          '  `npm run check:owner-setup` lists every such prerequisite and the command that fixes each.',
+      );
+    }
+    pr = { number: Number(create.out.split('/').pop()), url: create.out };
     created = true;
   }
 

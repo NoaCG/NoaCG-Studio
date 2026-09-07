@@ -76,6 +76,13 @@ contract is `supabase/AGENTS.md`.
     and every use of it shows in the ruleset's insights.
   - The local job queue (`npm run jobs`) still serializes browser work on this machine and lists
     recent landings; `scripts/landings.mjs` keeps that ledger fed from the merged pull requests.
+  - **What the machinery needs from the ACCOUNT, asked all at once:** `npm run check:owner-setup`
+    (`scripts/owner-preflight.mjs`). The two Actions-permission settings that let a quarantine
+    entry or a revert open its pull request, the ruleset and its two required checks, the
+    migration token in the `production` environment, the `land` label. It reports and changes
+    nothing, names the command that fixes each miss, and calls an answer it could not read
+    `unknown` rather than `missing`. Run it when a mechanical landing is refused - `queue-pr.mjs`
+    names it in that error - or before assuming a settings problem is a code problem.
 
 ## Production migrations, and cleanup
 

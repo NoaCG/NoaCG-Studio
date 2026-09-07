@@ -44,18 +44,22 @@ GitHub's merge queue landed every one of them.
    that assert on testids only these components render.
 7. **The measurements** (PRs 70 and 77) and **the build-exit-code rule** (PR 72).
 
-## Needs you
+## Needs you: nothing
 
-**`needs: account`** - the NoaCG organisation does not let GitHub Actions create pull requests, so
-a quarantine entry, a quarantine release or a revert will push its branch and be refused at
-`gh pr create`. The next run retries, so nothing is lost, but the mechanism cannot complete until
-this is on. One time, from your own terminal:
+Both account-level asks are closed, and `npm run check:owner-setup` is what says so from now on.
 
-    gh auth refresh -h github.com -s admin:org
-    node scripts/landing-ruleset.mjs --apply
+The organisation and the repository now let Actions open a pull request, which is what a
+quarantine entry, a quarantine release and a revert need in order to finish; default workflow
+permissions stay at `read`, so a workflow still asks for what it uses. The `production`
+environment holds SUPABASE_ACCESS_TOKEN, and `post-land.yml` has been applying with it: production
+and staging both hold all 54 migrations.
 
-The script sets it at the organisation and at the repository, and prints exactly this when it is
-refused. The Supabase token for `post-land.yml` from the previous handoff is still open too.
+The reason these arrived one at a time is that nothing asked all of them at once. `check:owner-setup`
+does: the two Actions-permission settings, the ruleset on `main` and its two required checks, the
+migration token, the `land` label. It reports and never changes anything, it names the command that
+fixes each miss, and an answer a login cannot obtain reads `unknown` rather than `missing`. When
+`scripts/queue-pr.mjs` is refused at `gh pr create`, its error names that command, so the mechanism
+that is blocked points at the list rather than at the branch.
 
 ## Open, in payoff order
 

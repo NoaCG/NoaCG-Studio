@@ -106,3 +106,23 @@ test('the origin branch probe and the pull-request probe read the tools, not ass
   assert.equal(pullRequestFor('x', () => ({ status: 0, out: 'not json', err: '' })), null);
   assert.equal(pullRequestFor('x', () => ({ status: 1, out: '', err: 'boom' })), null);
 });
+
+// The one failure that is not about the branch: an account-level setting. The message has to say
+// so and name the command that lists those, or the next reader debugs the wrong thing.
+test('a refused pull request names the prerequisite check rather than reading as a branch fault', () => {
+  const git = (args) => ({ status: 0, out: args[0] === 'rev-parse' ? 'f'.repeat(40) : '', err: '' });
+  const gh = (args) => {
+    if (args[0] === 'pr' && args[1] === 'list') return { status: 0, out: '[]', err: '' };
+    if (args[0] === 'pr' && args[1] === 'create') return { status: 1, out: '', err: 'GraphQL: GitHub Actions is not permitted to create or approve pull requests (createPullRequest)' };
+    return { status: 0, out: '', err: '' };
+  };
+  assert.throws(
+    () => queuePullRequest({ branch: 'quarantine/enter-1', title: 't', body: 'b', mechanism: 'm', git, gh }),
+    (error) => {
+      assert.match(error.message, /not permitted to create or approve pull requests/, 'the reason GitHub gave survives');
+      assert.match(error.message, /account-level setting, not this branch/);
+      assert.match(error.message, /npm run check:owner-setup/);
+      return true;
+    },
+  );
+});
