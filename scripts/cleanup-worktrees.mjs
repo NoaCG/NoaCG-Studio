@@ -269,9 +269,24 @@ function containedIn(ref, target, cwd) {
   return res.ok && res.stdout === '0';
 }
 
-/** Automatic deletion requires both local containment and remote backup. */
+/**
+ * Automatic deletion requires the work to be on ORIGIN's main. Nothing else.
+ *
+ * It used to require the local `main` as well, and while every landing fast-forwarded the primary
+ * checkout that cost nothing - the two refs agreed. GitHub's merge queue never touches the laptop,
+ * so the local ref stops moving and the AND turns into a refusal for exactly the worktrees this
+ * command exists to reclaim: measured with the local ref ten commits behind, three worktrees whose
+ * branches had landed were each reported as "has commits not in main". The worktrees then
+ * accumulate, and each one costs about a gigabyte.
+ *
+ * The remote is the right and sufficient test on its own. It is the published history the queue
+ * writes and nothing local can rewrite; a stale local `main` adds no safety, and the freshness
+ * guard above already refuses to treat an unfetched `origin/main` as evidence. The opposite case -
+ * contained locally but never pushed - keeps its own refusal below, which is the direction the
+ * pair was actually guarding.
+ */
 function safelyBackedUp(ref, cwd) {
-  return containedIn(ref, MAIN, cwd) && containedIn(ref, REMOTE_MAIN, cwd);
+  return containedIn(ref, REMOTE_MAIN, cwd);
 }
 
 /**
@@ -283,7 +298,10 @@ function safelyBackedUp(ref, cwd) {
  * branch that coincidentally matches main's tree without being merged) is possible.
  */
 function possiblySquashMerged(ref, cwd) {
-  const res = git(['diff', '--quiet', MAIN, ref], cwd);
+  // `REMOTE_MAIN` for the same reason `safelyBackedUp` uses it: the local ref no longer moves when
+  // the queue lands something, so a branch squash-merged today would be compared against a tree
+  // from ten landings ago and never match.
+  const res = git(['diff', '--quiet', REMOTE_MAIN, ref], cwd);
   return res.ok;
 }
 
@@ -490,7 +508,7 @@ export function assessSelf(cwd) {
     reasons.push(
       containedIn(self.branch, MAIN, primaryRoot)
         ? `${self.branch} is in local ${MAIN} but not in ${REMOTE_MAIN} - it is not backed up off this machine`
-        : `${self.branch} has commits that are not in ${MAIN}`,
+        : `${self.branch} has commits that are not in ${REMOTE_MAIN}`,
     );
   }
   if (self.branch && managedBranch(self.branch)) {
@@ -738,7 +756,7 @@ export function assess(cwd, { liveness = {} } = {}) {
     } else if (containedIn(info.branch, MAIN, primaryRoot)) {
       refuse(`branch ${info.branch} is only contained in local main, not origin/main`, { needsPerson: true });
     } else {
-      refuse(`branch ${info.branch} has commits not in main`, { needsPerson: true });
+      refuse(`branch ${info.branch} has commits not in ${REMOTE_MAIN}`, { needsPerson: true });
     }
 
     // Only a worktree git says is disposable is worth the two remaining questions: is somebody

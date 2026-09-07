@@ -556,7 +556,7 @@ test('self cleanup refuses a branch with commits that never landed', (t) => {
   const plan = assessSelf(worktree.path);
   assert.equal(plan.ok, false);
   assert.ok(
-    plan.reasons.some((reason) => /commits that are not in main/.test(reason)),
+    plan.reasons.some((reason) => /commits that are not in origin\/main/.test(reason)),
     `expected an unmerged refusal, got ${JSON.stringify(plan.reasons)}`,
   );
 });
@@ -752,7 +752,7 @@ test('a branch that is not on main is refused, however finished the worktree loo
   const plan = assess(primary);
   const entry = plan.worktrees.find((w) => w.branch === worktree.branch);
   assert.equal(entry.action, 'skip');
-  assert.match(entry.why, /has commits not in main/);
+  assert.match(entry.why, /has commits not in origin\/main/);
   assert.equal(plan.branches.find((b) => b.name === worktree.branch).action, 'skip');
 
   const result = applyPlan(plan, primary, { prunePorts: () => [] });
@@ -1441,4 +1441,43 @@ test('reattach gate never treats main itself as a fromBranch', (t) => {
   assert.equal(assessment.safe, false);
   assert.equal(assessment.onMain, true);
   assert.match(assessment.reason, /already on main/);
+});
+
+test('a landed worktree is reclaimable however far the local main has drifted behind origin', async (t) => {
+  // THE MERGE QUEUE STOPPED FAST-FORWARDING THE LAPTOP. Deletion used to require containment in
+  // BOTH the local `main` and `origin/main`, which cost nothing while every landing moved the
+  // local ref too. GitHub's queue never touches this machine: the local ref stops dead, the AND
+  // turns into a refusal, and the worktrees this command exists to reclaim are the exact ones it
+  // starts refusing. Measured with the local ref ten commits behind - three landed worktrees each
+  // reported as "has commits not in main", at about a gigabyte apiece.
+  const { primary } = makeRepo(t);
+  const worktree = addWorktree(primary, 'landed-work');
+  commitInWorktree(worktree.path, 'Work the queue has landed');
+  runGit(worktree.path, 'push', '-u', 'origin', worktree.branch);
+
+  // The queue lands it on origin. Nothing moves the local main, exactly as now.
+  runGit(primary, 'push', 'origin', `${worktree.branch}:main`);
+  runGit(primary, 'fetch', 'origin');
+  const behind = runGit(primary, 'rev-list', '--count', 'main..origin/main');
+  assert.equal(behind, '1', 'the local main is behind, which is the whole point of the case');
+
+  const plan = assess(primary);
+  const entry = plan.worktrees.find((w) => w.branch === worktree.branch);
+  assert.equal(entry.action, 'remove', entry.why);
+  assert.match(entry.why, /contained in main and origin\/main/);
+});
+
+test('work that exists only on the local main is still refused - the direction the pair was guarding', async (t) => {
+  // Dropping the local half of the test must not drop this: a branch merged into a local main
+  // that was never pushed is NOT backed up off this machine, and deleting its worktree loses it.
+  const { primary } = makeRepo(t);
+  const worktree = addWorktree(primary, 'local-only');
+  commitInWorktree(worktree.path, 'Merged locally, never pushed');
+  runGit(primary, 'merge', '--no-ff', '-m', 'Local merge', worktree.branch);
+  runGit(primary, 'fetch', 'origin');
+
+  const plan = assess(primary);
+  const entry = plan.worktrees.find((w) => w.branch === worktree.branch);
+  assert.equal(entry.action, 'skip');
+  assert.match(entry.why, /only contained in local main, not origin\/main/, entry.why);
 });
