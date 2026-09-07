@@ -442,7 +442,10 @@ offer site, in the same commit as the control.
 **THE BRAND CHOOSER** (footer, `data-testid="wz-brand"`; docs/BRAND_PLAN.md) replaced the
 "Colors & typeface from this project" checkbox, which copied a look off a graphic nobody chose.
 It lists SAVED brands by name (`loadLooks`) and is ABSENT with none - never a disabled control -
-and it starts at None even when one brand is the default: matching is explicit. `brandPatch`
+and it starts at None even when one brand is the default: matching is explicit. **Creating
+inside a PRODUCTION is the one exception** - a show that names a brand preselects it, and one
+that only captured a look is offered that look under a synthetic entry, so the chooser names
+what the graphic is being created in rather than reading None over a preselection. `brandPatch`
 writes palette, typeface and `brandLogo`; `brandClearPatch` clears the same four. **The mark is
 its own draft field, never one of `importedImages`** - that array means "artwork the person
 brought", and three other surfaces read it (the raster drop's own artwork, Browse's logo-first
