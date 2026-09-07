@@ -31,6 +31,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
+import { mainRef } from './main-ref.mjs';
 import { HOME_RELATIVE_PATH } from './orchestrator-home.mjs';
 import { normalize, samePath, worktreeEntries } from './worktree-cleanup-lib.mjs';
 
@@ -67,8 +68,9 @@ export async function scanActivity(cwd = process.cwd()) {
   const self = roots.filter((root) => isUnder(normalize(cwd), root)).sort((a, b) => b.length - a.length)[0];
 
   // Anything derivable for the whole checkout at once is read once, not per worktree.
-  const [hasMain, tips] = await Promise.all([
+  const [hasMain, landedRef, tips] = await Promise.all([
     git(['rev-parse', '--verify', '--quiet', 'main'], primary).then((res) => res.ok),
+    mainRef((args) => git(args, primary)),
     branchTips(primary),
   ]);
 
@@ -93,9 +95,9 @@ export async function scanActivity(cwd = process.cwd()) {
       // Branches share one object store, so anything history-only runs from the primary
       // checkout; the working-tree status is per-worktree and must run inside it.
       const [ahead, aheadFiles, uncommitted, tip] = await Promise.all([
-        hasMain && diffRef ? git(['rev-list', '--count', `main..${diffRef}`], primary).then((r) => count(r.stdout)) : 0,
+        hasMain && diffRef ? git(['rev-list', '--count', `${landedRef}..${diffRef}`], primary).then((r) => count(r.stdout)) : 0,
         hasMain && diffRef
-          ? git(['diff', '--name-only', `main...${diffRef}`], primary).then((r) => lines(r.stdout))
+          ? git(['diff', '--name-only', `${landedRef}...${diffRef}`], primary).then((r) => lines(r.stdout))
           : [],
         uncommittedPaths(entry.root),
         // for-each-ref covered every branch already; only a detached worktree still needs asking.
@@ -121,7 +123,7 @@ export async function scanActivity(cwd = process.cwd()) {
 
   return {
     worktrees: scanned.filter(Boolean),
-    branches: hasMain ? await worktreeLessBranches(primary, entries, tips) : [],
+    branches: hasMain ? await worktreeLessBranches(primary, entries, tips, landedRef) : [],
   };
 }
 
@@ -132,16 +134,16 @@ export async function scanActivity(cwd = process.cwd()) {
  * contained in `main` has nothing in flight by definition - so only the survivors cost
  * anything, and they are measured concurrently.
  */
-async function worktreeLessBranches(primary, entries, tips) {
+async function worktreeLessBranches(primary, entries, tips, landedRef) {
   const attached = new Set(entries.filter((entry) => entry.branch).map((entry) => entry.branch));
-  const res = await git(['branch', '--no-merged', 'main', '--format=%(refname:short)'], primary);
+  const res = await git(['branch', '--no-merged', landedRef, '--format=%(refname:short)'], primary);
   const names = lines(res.stdout).filter((branch) => branch !== 'main' && !attached.has(branch));
 
   const measured = await Promise.all(
     names.map(async (branch) => {
       const [ahead, files] = await Promise.all([
-        git(['rev-list', '--count', `main..${branch}`], primary).then((r) => count(r.stdout)),
-        git(['diff', '--name-only', `main...${branch}`], primary).then((r) => lines(r.stdout).sort()),
+        git(['rev-list', '--count', `${landedRef}..${branch}`], primary).then((r) => count(r.stdout)),
+        git(['diff', '--name-only', `${landedRef}...${branch}`], primary).then((r) => lines(r.stdout).sort()),
       ]);
       if (ahead === 0 && files.length === 0) return null;
       return { branch, ahead, files, lastCommit: tips.get(branch) ?? null };
