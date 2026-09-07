@@ -7,4 +7,4 @@ status: active
 since: 2026-09-07
 record: contracts/records/templates/2026-09-07-capture-project-brand-every-wizard-create.md
 ---
-Capture the project brand on every wizard Create. Leave the current-project colors-and-typeface toggle off by default, and apply the selected project palette and font through `brandPatch` when the user enables it.
+Capture the project brand on every wizard Create, so graphics made in one project read as siblings. Re-apply a saved brand's palette and typeface through `brandPatch`, and judge every new category variant against its lower-third counterpart.
