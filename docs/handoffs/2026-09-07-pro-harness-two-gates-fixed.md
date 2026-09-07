@@ -42,18 +42,40 @@ live on this checkout's `/bridge`: a region missing one ease declaration comes b
 region has no `var easeIn = 'expo.out';` - both `easeIn` and `easeOut` must be declared"*. Queued
 for a human read in `docs/acceptance/owner-queue/2026-09-07-refused-animation-region-says-why.md`.
 
-## What is queued and not yet answered
+## The re-run answered it: 0 of 9 became 4 of 9
 
-Both jobs sit behind other work holding the machine's RAM (`node scripts/jobs.mjs`):
+Nine cells, $0.714, out `pro-harness-out-rerun` (the €3 authorization now stands at $2.56 spent).
+Neither fixed finding appears as a false positive anywhere in the ledger.
 
-- **j-0733** - `--control`, free. The workbench end to end after the step-count change.
-- **j-0734** - the nine cells the two findings blocked, `--max-cost=0.70`, out
-  `pro-harness-out-rerun`. **This checkout's dev server must be running** (`npm run dev:worktree`,
-  port 5196) and nothing else may hold that port.
+| | delivered | cost |
+|---|---|---|
+| the nine cells, as measured | 4 of 9 | $0.714, $0.0794 per attempt |
+| the eight that reached a design verdict | 4 of 8 | $0.169 per delivered |
+| the same nine, this morning | **0 of 9** | - |
 
-Also unrun: `npx playwright test e2e/bridge.spec.ts e2e/lite-field-paint.spec.ts`. `lite-field-paint`
-passed locally (8 of 8) BEFORE the bridge commit; `bridge.spec.ts` has not run since its new
-assertions were added. Both need the port free, so they cannot share a slot with the two jobs above.
+`pd-grandfinal` hit the cost ceiling rather than a verdict, which is why the second row drops it.
+Its last round did carry a TRUE `bench-field-unpainted` - it declared "Player 4" (f7) and drew it
+nowhere - so the narrowed check is still sharp.
+
+The refusals: `qz-primetime` (40px) and `qz-campus` (47px) on the size floor ALONE, nothing else
+blocking in any round; `cd-launch` on `proportion-type-ratio-thin`, worked 0.15 -> 0.17 against 0.18
+over three rounds and ran out; `pd-medal` on `bench-stress`, the known negative result.
+
+**The human half is worse than 4 of 9 sounds.** `qz-arena` is a board worth airing. `cd-results` and
+`cd-show` are competent and nearly identical to each other, from briefs reading "newsroom-severe"
+and "playful, warm ... family show". `pd-seats` delivered CLEAN and is visibly wrong - about 60% of
+its panel empty, every name and score jammed into a right-hand column. The deliver-signal leak
+§23.1 drove to zero on lower thirds is back on the dense types.
+
+`pro-harness-out-rerun/review.html` is the blind sheet (9 cells, frames all shot under the
+entrance-derived settle), with `notes.md` to fill in before `key.json` is opened.
+
+## Verified
+
+`npm run build` green, `npx tsc --noEmit`, `eslint`, `depcruise`, `node --test
+scripts/pro-harness.test.mjs` (25), `node --test scripts/e2e-affected.test.mjs` (46), and
+`npx playwright test e2e/bridge.spec.ts e2e/lite-field-paint.spec.ts` (14 passed). The free
+`--control` run is green end to end after the step-count change.
 
 ## The blind read of the 2026-09-06 bank is gone
 
@@ -63,9 +85,21 @@ with the comparison worktree and was not archived (`C:/claude/noacg-archives/wor
 rebuildable list, so the mechanism was right and is not what removed it. Only the re-run's cells can
 be read blind now, and the rest costs $1.444 to have again.
 
-## The owner question, still open
+## The owner question, and it is now the deciding one
 
-`needs: alignment`. Three cells (`lt-caster`, `sb-esports`, `st-election`) were refused with nothing
-blocking but `readability-text-under-size-floor`, at 43-48px against the 50px primary floor -
-the floor `docs/NOACG_PRO_PLAN.md` §23.1 measured as failing **312 of 489 shipped designs**, and
-which he has not re-ratified for enforcement. Three cells of delivered rate turn on it.
+`needs: alignment`. The 50px primary floor is the last wall in front of this type. Measured today,
+through the instrument itself rather than from the CSS:
+
+- **all 12 shipped quiz boards are refused by it** - 36-40px primary against a 49.68px floor, not
+  one passes;
+- the platform's own neutral lower-third spine is refused at 48px, and the harness control run
+  excuses it in its own words ("bar the owner size table");
+- two of this round's nine cells carried it as their ONLY blocking finding, and three of the last
+  round's did.
+
+The mechanism is `roleFor` in `readabilityCheck.ts`: the LARGEST informational text is "primary", so
+on a dense type the primary element is the one carrying the most words and therefore having the
+least room. §23.1 already measured the floor failing 312 of 489 shipped designs.
+
+Should it block, warn, or become type-aware - a floor on a short strap line rather than on the
+largest text of a dense board? Five cells across two rounds turn on the answer.
