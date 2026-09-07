@@ -1,0 +1,5 @@
+# templates/combine-strict-facets-choices-within-each
+
+Rule: `templates/combine-strict-facets-choices-within-each`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 152-160. - **search.ts** - the Browse engine: strict facets AND, choices within a facet OR, programme   format RANKS ("Best for" / "Also works") and never hides, phrase-first alias expansion   (aliases may fan out across categories, and the table is ENGLISH + SWEDISH + FINNISH since   2026-08-28 - measured, 38 of 40 Nordic terms returned zero before it), field-weighted token   index, `mostRestrictiveFilter` for the zero-result escape.   **A token that reaches NO design is dropped from the AND rather than allowed to empty the   result**, and returned as `BrowseOutcome.ignored` so the step can name it: token-AND is   exact, so "big title" answered with an empty grid while "title" answered with 71.   `catalogVocabulary()` is the one place that knows what the catalog can be matched on.

@@ -1,0 +1,5 @@
+# templates/ship-staged-designs-type-size-their
+
+Rule: `templates/ship-staged-designs-type-size-their`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 468-475. - **A STAGED DESIGN SHIPS THE SIZE ITS CSS DECLARES - the shrink is the OPERATOR'S, never the   design's own words.** The stage puts no floor under a `line-height` (**a LINE MASK still does** -   `overflow: hidden` sized to the line box against a ~1.2em glyph box, so a tight leading clips   letters instead of shrinking them; lt64 at 1.05 loses 4px off the name. Different mechanism,   different instrument: `overflow-sweep`, not this one). That was not true until 2026-08-23; the   line-box/content-box failure and what it measured are recorded in `docs/FOOTPRINT_STABILITY.md`,   under "A LINE BOX IS NOT A CONTENT BOX". `scripts/stage-fit-sweep.mjs` is the   instrument, `e2e/catalog/stage-fit-honesty.spec.ts` the gate. A MULTICOL block is the one line the

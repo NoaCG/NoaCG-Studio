@@ -1,0 +1,5 @@
+# templates/drop-query-tokens-reach-design-result
+
+Rule: `templates/drop-query-tokens-reach-design-result`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 157-165.   **A token that reaches NO design is dropped from the AND rather than allowed to empty the   result**, and returned as `BrowseOutcome.ignored` so the step can name it: token-AND is   exact, so "big title" answered with an empty grid while "title" answered with 71.   `catalogVocabulary()` is the one place that knows what the catalog can be matched on.   **The design's id is indexed at name weight** ("sb08" finds sb08), and matching is   FORGIVING as a FALLBACK only (owner walk 2026-08-28): a token the catalog reaches exactly   keeps the exact contract; one that reaches nothing may match one edit away or mid-word at   half weight (`wordMatch`), and a one-edit miss on an alias key lands on that alias - never   under `briefTerm`, which keeps the strict AND throughout. Facet values without catalog mass are

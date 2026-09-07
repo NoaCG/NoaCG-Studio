@@ -1,0 +1,5 @@
+# templates/process-events-through-serial-queue-apply
+
+Rule: `templates/process-events-through-serial-queue-apply`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 274-281.   identical code it always did), and the engine adds three globals - `noacgDispatch(event,   payload?)` (one operator event through the SERIAL queue; the flat {field: value} payload is   applied only if the guard accepts), `noacgSnap(assignments, opts?)` (enter states INSTANTLY   by replaying the canonical path with suppressed callbacks; `null` = every group to its   initial, the VISUAL half of reset - the data half stays update()'s job), and   `noacgMachineState()`. The four SPX globals stay THE lifecycle surface and become   machine-aware INSIDE (play = reset-and-enter, next = the default-path walk, stop = the   built-in out legal from every state), which is why no export target, transport or preview
