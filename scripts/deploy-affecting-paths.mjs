@@ -72,7 +72,7 @@ export const DEPLOY_AFFECTING_SCRIPTS = new Set([
  * files sit in the most deploy-affecting directory in the tree and still change nothing.
  * Verified 2026-09-07: no .md exists under public/, and nothing in src/ or api/ imports one.
  */
-export function isMarkdown(file) {
+function isMarkdown(file) {
   return file.toLowerCase().endsWith('.md');
 }
 
@@ -92,10 +92,19 @@ export function anyAffectsDeployment(files) {
   return files.some((f) => affectsDeployment(f));
 }
 
-/** The files a commit range touched, or `null` when git cannot answer (a shallow clone). */
+/**
+ * The files a commit range touched, or `null` when git cannot answer (a shallow clone).
+ *
+ * `--no-renames` is load-bearing, not a preference. With rename detection on, `--name-only` prints
+ * ONLY the destination of a rename, so moving `src/Panel.tsx` to `docs/attic/Panel.md` - or into
+ * `cli/`, which is a plausible move - reports a single denied path and skips a build that removed a
+ * component from the bundle. Turning detection off lists both sides, so the deletion is always seen.
+ * check-line-endings.mjs learned the same thing about the same flag; this is that lesson, applied
+ * where getting it wrong costs a stale production rather than a missed warning.
+ */
 export function changedFiles(from, to, cwd = process.cwd()) {
   try {
-    const out = execFileSync('git', ['diff', '--name-only', `${from}`, `${to}`], {
+    const out = execFileSync('git', ['diff', '--no-renames', '--name-only', `${from}`, `${to}`], {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -112,18 +121,22 @@ export function changedFiles(from, to, cwd = process.cwd()) {
  * runs out, which the caller must treat as "nothing to compare", never as drift.
  */
 export function lastAffectingCommit(ref, cwd = process.cwd(), limit = 400) {
-  const shas = execFileSync('git', ['rev-list', `--max-count=${limit}`, ref], {
-    cwd,
-    encoding: 'utf8',
-  })
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  for (const sha of shas) {
-    const files = changedFiles(`${sha}^`, sha, cwd);
-    // An unreadable diff (the first commit, a shallow boundary) is treated as affecting, matching
-    // the fail-open rule the ignore step uses.
-    if (files === null || anyAffectsDeployment(files)) return sha;
+  // `--first-parent` because the deployment unit is a push to main, not a commit. Walking into a
+  // merged branch's own commits would judge changes that were never deployed separately: a branch
+  // that adds a file and removes it again lands as a docs-only merge, but carries a deploy-
+  // affecting commit inside it, and returning that commit would demand production serve something
+  // that was never a tip of main - a false drift alarm.
+  //
+  // One `git log` rather than a `git diff` per commit: the drift job walks until it finds an
+  // affecting commit, and a run of documentation landings is exactly when this is called.
+  const log = execFileSync(
+    'git',
+    ['log', '--first-parent', '-m', '--no-renames', '--name-only', '--format=%x00%H', `--max-count=${limit}`, ref],
+    { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  for (const block of log.split('\0').slice(1)) {
+    const [sha, ...files] = block.split('\n');
+    if (anyAffectsDeployment(files.map((f) => f.trim()).filter(Boolean))) return sha.trim();
   }
   return null;
 }
@@ -139,14 +152,10 @@ function main(argv) {
   if (mode === '--range') {
     const [from, to] = rest;
     const files = changedFiles(from, to ?? 'HEAD');
-    if (files === null) {
-      console.log(`cannot read ${from}..${to ?? 'HEAD'} - treating as deploy-affecting`);
-      return 0;
-    }
-    if (files.length === 0) {
-      // Same answer the ignore step gives: an empty range is a redeploy of the same tree, and
-      // Vercel only asks when it means to deploy something.
-      console.log(`${from}..${to ?? 'HEAD'} changes no files - treating as deploy-affecting`);
+    // Both answers the ignore step gives for a range it cannot judge: an unreadable diff and an
+    // empty one (a redeploy of the same tree) build.
+    if (files === null || files.length === 0) {
+      console.log(`${from}..${to ?? 'HEAD'} ${files === null ? 'cannot be read' : 'changes no files'} - treating as deploy-affecting`);
       return 0;
     }
     const affecting = files.filter((f) => affectsDeployment(f));

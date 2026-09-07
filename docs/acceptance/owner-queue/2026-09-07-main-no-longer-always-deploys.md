@@ -1,5 +1,5 @@
 ---
-kind: behaviour
+kind: walk-p
 date: 2026-09-07
 ---
 # `main` no longer deploys on every landing

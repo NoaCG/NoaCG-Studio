@@ -9,13 +9,18 @@
 // unrecognised builds.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import {
   DEPLOY_AFFECTING_SCRIPTS,
   NEVER_DEPLOYED_DIRS,
   affectsDeployment,
   anyAffectsDeployment,
+  lastAffectingCommit,
+  changedFiles,
 } from './deploy-affecting-paths.mjs';
 
 test('everything the bundle is built from is deploy-affecting', () => {
@@ -117,6 +122,87 @@ test('every denied directory entry ends in a slash', () => {
   // Without the slash the entry becomes a prefix match against sibling names.
   for (const dir of NEVER_DEPLOYED_DIRS) {
     assert.ok(dir.endsWith('/'), `${dir} must end in "/" or it matches sibling paths too`);
+  }
+});
+
+test('a rename out of the bundle is seen, not hidden behind the destination', () => {
+  // git's rename detection prints ONLY the destination for `--name-only`, so moving a component
+  // into docs/ or cli/ would report one denied path while genuinely removing code from the bundle.
+  // changedFiles passes --no-renames for exactly this; assert against a real repository rather
+  // than trusting the flag.
+  const repo = mkdtempSync(join(tmpdir(), 'noacg-rename-'));
+  try {
+    const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+    git('init', '-q', '.');
+    git('config', 'user.email', 'gate@noacg.studio');
+    git('config', 'user.name', 'gate');
+    mkdirSync(join(repo, 'src'));
+    mkdirSync(join(repo, 'docs'));
+    writeFileSync(join(repo, 'src/Panel.tsx'), 'export const Panel = () => null;\n');
+    writeFileSync(join(repo, 'docs/keep.md'), 'keep\n');
+    git('add', '-A');
+    git('commit', '-qm', 'one');
+    git('mv', 'src/Panel.tsx', 'docs/Panel.md');
+    git('commit', '-qm', 'move a component out of the bundle');
+
+    const files = changedFiles('HEAD~1', 'HEAD', repo);
+    assert.ok(files.includes('src/Panel.tsx'), `the deleted source must be listed, got ${JSON.stringify(files)}`);
+    assert.equal(anyAffectsDeployment(files), true, 'removing a component from the bundle must build');
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('lastAffectingCommit walks back over a run of docs-only landings', () => {
+  // What the drift alarm asks. Production is expected to serve the newest commit that was BUILT,
+  // so a run of documentation landings on top of a src change must resolve to the src change and
+  // not to the tip - otherwise every deliberate skip reads as a failed deployment.
+  const repo = mkdtempSync(join(tmpdir(), 'noacg-drift-'));
+  try {
+    const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+    const sha = (rev) => execFileSync('git', ['rev-parse', rev], { cwd: repo, encoding: 'utf8' }).trim();
+    git('init', '-q', '.');
+    git('config', 'user.email', 'gate@noacg.studio');
+    git('config', 'user.name', 'gate');
+    mkdirSync(join(repo, 'src'));
+    mkdirSync(join(repo, 'docs'));
+    writeFileSync(join(repo, 'src/app.ts'), 'export const v = 1;\n');
+    git('add', '-A');
+    git('commit', '-qm', 'ship the app');
+    const deployed = sha('HEAD');
+
+    for (const n of [1, 2, 3]) {
+      writeFileSync(join(repo, `docs/note-${n}.md`), `note ${n}\n`);
+      git('add', '-A');
+      git('commit', '-qm', `write note ${n}`);
+    }
+    assert.notEqual(sha('HEAD'), deployed, 'the tip must have moved past the deployed commit');
+    assert.equal(lastAffectingCommit('HEAD', repo), deployed, 'must walk back to the src commit');
+
+    // And once real code lands again, the tip is what production owes.
+    writeFileSync(join(repo, 'src/app.ts'), 'export const v = 2;\n');
+    git('add', '-A');
+    git('commit', '-qm', 'change the app');
+    assert.equal(lastAffectingCommit('HEAD', repo), sha('HEAD'));
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('lastAffectingCommit returns null when nothing in reach was ever deployable', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'noacg-drift-none-'));
+  try {
+    const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+    git('init', '-q', '.');
+    git('config', 'user.email', 'gate@noacg.studio');
+    git('config', 'user.name', 'gate');
+    writeFileSync(join(repo, 'README.md'), 'hello\n');
+    git('add', '-A');
+    git('commit', '-qm', 'docs only');
+    // The drift check must treat this as "nothing to compare", never as drift.
+    assert.equal(lastAffectingCommit('HEAD', repo), null);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
   }
 });
 
