@@ -218,11 +218,30 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+      # `!cancelled()`, NOT the default. The step above this pair is the time budget, and a failed
+      # step skips every later step in the job - so on the one night the report is worth having,
+      # the night the budget went red, neither of these was uploaded and the run left nothing but
+      # its own log. Triaging 2026-09-07 meant reading a ten-row table out of the log and being
+      # unable to say which of the other 130 spec files had moved.
       - name: Upload combined report
         uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
         with:
           name: nightly-playwright-report
           path: playwright-report/
+          retention-days: 14
+          if-no-files-found: error
+
+      # The JSON the budget itself reads. The HTML report beside it is for a person; this is the
+      # one a script can diff against another night, which is what a "tests got slower" verdict
+      # actually needs - per spec file, not the ten slowest. Merging the eight shard blobs by hand
+      # is the alternative, and it is why the comparison did not get done for a day.
+      - name: Upload the merged JSON report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: nightly-report-json
+          path: nightly-report.json
           retention-days: 14
           if-no-files-found: error
 
