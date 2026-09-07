@@ -64,6 +64,7 @@ Your artwork sets the size of the graphic. NoaCG never rescales your geometry be
 | `2 - 1`, `10 pts` | stays text. An SPX number box only holds digits |
 | an embedded picture - placed on its own, or filling a shape you drew (which is what Figma exports) | a **picture field**. The operator swaps it, and clearing it brings your drawing back |
 | a group of two or more glyph shapes | offered as **outlined text** (section 5), off by default |
+| a text layer named `static:` something (`static:Rank 10`) | **drawing.** The row is offered unticked and the words stay as you drew them |
 | everything else: panels, rules, gradients, masks, filters | rides along exactly as drawn |
 
 **One thing to say is one field.** A question, a headline, a paragraph of standfirst - one text
@@ -88,6 +89,12 @@ around it. Illustrator's escaping is decoded, so `Home_x20_team` arrives as "Hom
 layer labels are read too. A name the editor generated (`text123`, `layer1`) counts as no name, so
 the named layer above it wins.
 
+**Naming a layer after the words in it is what Figma does by itself**, so a text reading "Amsterdam"
+on a layer called "Amsterdam" is read as unnamed and takes the name of the group around it - but
+only when that group holds THAT ONE text layer. A group of eight slots cannot be the name of one of
+them, so a `Champion` slot reading "Champion" inside a `Words` group keeps "Champion". Where the
+group's name was used, the mapping step says so under the box.
+
 **Two kinds of layer are never offered as fields.** Both still ride into the graphic as drawn:
 
 - **A layer you switched off.** Hidden copy is a draft. A field for text nobody can see is worse
@@ -100,6 +107,13 @@ prefix is dropped from the label. Useful if your organisation wants one conventi
 required, and it switches nothing else off: every text layer is offered ticked either way. On a
 **picture** layer it does more, because a picture arrives unticked. Inside a design a picture is
 usually part of the artwork.
+
+**And its opposite:** start a text layer's name with `static:` (`static:Rank 10`) to say the layer is
+DRAWING, not a slot. The prefix is dropped from the label, the row is offered **unticked**, and the
+words stay exactly as you drew them. Use it for furniture you typed as text: a top ten's `10.` `9.`
+`8.`, the numbers on a bingo grid, a `1` `2` `3` beside three answer slots. Without it every one of
+them arrives as a field the operator has to untick - twenty-five of them on a bingo board. The row
+is still there, so a numeral that really is a field is one click away.
 
 ## 4. Fonts, and text that is too long
 

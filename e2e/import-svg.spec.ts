@@ -378,6 +378,72 @@ test('svg import: the f: layer-name prefix names a field without switching the o
   await expect(page.getByTestId('map-svg-row-t1').locator('input[type=checkbox]')).toBeChecked();
 });
 
+test('svg import: the static: prefix says a text layer is DRAWING, and its words stay drawn', async ({ page }) => {
+  // The opposite of `f:`, and the answer to the numerals trap: a top ten's ranks and a bingo
+  // grid's numbers are furniture a student typed, and every one of them used to arrive as a
+  // ticked field to untick, two clicks each
+  // (docs/backlog/decorative-numerals-arrive-as-fields.md). The row is still OFFERED - unticked,
+  // words kept - because the one numeral that really is a field is then a single click away.
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200">
+      <text id="static_x3A_Rank" data-name="static:Rank" x="20" y="60" font-size="30" fill="#8a8f98">10.</text>
+      <text id="Item" x="90" y="60" font-size="30" fill="#fff">The buzzer is a kazoo</text>
+    </svg>`,
+    'ranked.svg',
+  );
+  await page.locator('.wz-next').click();
+
+  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Rank');
+  await expect(page.getByTestId('map-svg-row-t0').locator('input[type=checkbox]')).not.toBeChecked();
+  await expect(page.getByTestId('map-svg-off-t0')).toHaveText('stays as drawn');
+  await expect(page.getByTestId('map-svg-row-t1').locator('input[type=checkbox]')).toBeChecked();
+
+  await createProject(page);
+
+  // ONE field, and the numeral is still on the artwork: drawn, unbound, its words intact.
+  const state = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const t = useTemplateStore.getState().template;
+    return { fields: t.fields.map((f) => `${f.field}:${f.title}`), html: t.html };
+  });
+  expect(state.fields).toEqual(['f0:Item']);
+  expect(state.html).toContain('>10.</text>');
+  expect(state.html).not.toMatch(/<text[^>]*id="f1"/);
+});
+
+test('svg import: a layer named after its own words keeps that name unless the group names it alone', async ({ page }) => {
+  // Figma auto-names every text layer after the words in it, so climbing to the group above is
+  // right there - and wrong for a designer who deliberately named a slot after its placeholder
+  // (docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). The evidence is how
+  // many text layers the group holds: exactly one, and the group's name is that layer's name;
+  // several, and a group of slots cannot be the name of one of them.
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300">
+      <g id="Answer A"><text id="Amsterdam" x="20" y="60" font-size="30" fill="#fff">Amsterdam</text></g>
+      <g id="Words">
+        <text id="Champion" x="20" y="140" font-size="30" fill="#fff">Champion</text>
+        <text id="Runner_x20_up" data-name="Runner up" x="20" y="220" font-size="30" fill="#fff">Espoo Eagles</text>
+      </g>
+    </svg>`,
+    'own-copy.svg',
+  );
+  await page.locator('.wz-next').click();
+
+  // The Figma shape: the wrapper holds this text and nothing else, so its name is the label -
+  // and the row says out loud why it is not called "Amsterdam".
+  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Answer A');
+  await expect(page.getByTestId('map-svg-named-by-group-t0')).toBeVisible();
+
+  // The bracket shape: "Words" holds two slots, so "Champion" keeps the name its author typed.
+  await expect(page.getByTestId('map-svg-title-t1')).toHaveValue('Champion');
+  await expect(page.getByTestId('map-svg-named-by-group-t1')).toHaveCount(0);
+
+  // Untouched by any of it: a layer whose name is not its own words.
+  await expect(page.getByTestId('map-svg-title-t2')).toHaveValue('Runner up');
+});
+
 test('svg import: an Inkscape file is labelled by its layer names, not its serial ids', async ({ page }) => {
   // Illustrator and Figma write the layer's NAME into `id`; Inkscape writes a serial number
   // there ("text123") and keeps the name in `inkscape:label`. Read the id first and every row
