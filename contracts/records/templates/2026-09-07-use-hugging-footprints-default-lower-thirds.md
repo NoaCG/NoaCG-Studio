@@ -1,0 +1,5 @@
+# templates/use-hugging-footprints-default-lower-thirds
+
+Rule: `templates/use-hugging-footprints-default-lower-thirds`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 432-441.  `width: fit-content` (DESIGN_LANGUAGE §5) is the catalog default and only HALF right. On a NAMEPLATE it is the convention - a strap cut to the guest's name. On a BOARD it is a defect: the panel is back all evening with different content, and an audience reads a graphic that re-sizes itself as a broken one. **Full contract, measurements and traps: `docs/FOOTPRINT_STABILITY.md`.**  - **HUG** (keeps `fit-content`): lower-third, corner-bug, end-credits, imported-design, ticker,   and the full-frame frame / transition / versus. **FIXED** (declares a stage): every other   category. Owner-ratified 2026-08-20, with the overflow answer - inside a stage text WRAPS, then   SHRINKS to the type floor, never widens the box.

@@ -1,0 +1,5 @@
+# templates/keep-name-cut-straps-hugging-but
+
+Rule: `templates/keep-name-cut-straps-hugging-but`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 442-451. - **THE CATEGORY LIST IS A DEFAULT, NOT A PROHIBITION** (owner-ratified 2026-08-23): *a lower   third may declare `stageWidth` when the composition genuinely needs a bounded stage; "leave it   unset" remains the default, not an absolute.* The test is whether the SHAPE is the design's or   the operator's. A strap cut to the guest's name is the convention and must keep hugging; a   design whose silhouette IS the point cannot let a long name redraw it. **`lt64` "Portrait   Column" and `lt66` "Top Corner" are the recorded exceptions** - a 380px portrait block and a   380px corner block, each of which stops being its shape the moment a hugging box widens to fit   a name, so both declare a stage and `e2e/catalog/footprint-stability.spec.ts` holds them there.   A new exception argues itself in its own source and gets added here; it does not need a   category flip.

@@ -1,0 +1,5 @@
+# templates/set-serif-figure-columns-all-caps
+
+Rule: `templates/set-serif-figure-columns-all-caps`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 640-649. - **`tabular-nums` is not `lining-nums`.** `font-variant-numeric: tabular-nums` holds a figure's   WIDTH and says nothing about its HEIGHT. The bundled text serifs (source-serif-4,   playfair-display) default to OLD-STYLE figures: 0, 1, 2 sit at x-height while 3, 4, 7, 9 hang   below the baseline. In a stat column that puts "42" lower than "18,400" beside it and breaks the   baseline each figure shares with its label; in a tracked all-caps label it makes "2026" read as   lowercase inside its own line. **`scripts/numerals.mjs` cannot catch it** - it measures whether a   number's box MOVES as digits change, and old-style figures are perfectly stable at the wrong   height, so it passes. Any figure column or caps label on a serif face writes both:   `font-variant-numeric: lining-nums tabular-nums;`. Found while drawing ig39 "Key Figures",   visible only in a high-DPI crop.

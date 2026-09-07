@@ -1,0 +1,5 @@
+# templates/declare-fixed-footprints-through-emit-them
+
+Rule: `templates/declare-fixed-footprints-through-emit-them`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 452-459. - **The mechanism.** A design declares `stageWidth` (px at 1080p). `stageBoxCss`   (shared/base.ts) emits the width, the `--stage-width` marker, `box-sizing` and where the slack   goes; `stageExtraJs` (shared/stageFit.ts) emits the runtime that holds each line - and the panel   itself - to the height it was drawn at. Omit it and the output is byte-identical to before. - **The instrument** is `scripts/footprint-stability-sweep.mjs`; **the gate** is   `e2e/catalog/footprint-stability.spec.ts`, which selects on the marker rather than a list, so a   category is covered the day it flips. **Measure BOTH axes** - a `min-width` floor does not   stabilise a board, it changes which dimension moves.

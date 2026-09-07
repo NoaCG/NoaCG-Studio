@@ -1,0 +1,5 @@
+# templates/make-graphics-project-read-siblings-through
+
+Rule: `templates/make-graphics-project-read-siblings-through`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 621-630. Graphics made in one project must read as siblings - DESIGN_LANGUAGE §8 holds the per-family cross-category tokens (minimal / sport / glass / **noacg house** shape, type, and motion values; noacg is the product's own on-air look, rebuilt from the brand-kit overlays). Two mechanisms enforce it: the **project brand** (model/brand.ts, captured on every wizard Create; the wizard's "Use current project's colors & typeface" toggle - off by default - re-applies palette + font via `brandPatch`) and **sibling judging** (every new category variant is judged against its lower-third counterpart). Custom colors enter through the wizard's Custom palette (hex/rgba + picker); imported fonts become template assets (`fonts/<file>` data-URL) with a visible `@font-face`, are registered via the FontFace API for the builder UI, and ship as real binaries in the export.

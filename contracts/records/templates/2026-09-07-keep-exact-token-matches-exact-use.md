@@ -1,0 +1,5 @@
+# templates/keep-exact-token-matches-exact-use
+
+Rule: `templates/keep-exact-token-matches-exact-use`. Recorded 2026-09-07 on `claude/templates-contract-migration` at 0e351ca6.
+
+The original contract records the rationale and constraints below. Source: src/templates/AGENTS.md, lines 161-169.   **The design's id is indexed at name weight** ("sb08" finds sb08), and matching is   FORGIVING as a FALLBACK only (owner walk 2026-08-28): a token the catalog reaches exactly   keeps the exact contract; one that reaches nothing may match one edit away or mid-word at   half weight (`wordMatch`), and a one-edit miss on an alias key lands on that alias - never   under `briefTerm`, which keeps the strict AND throughout. Facet values without catalog mass are   not offered (`offered*` helpers). `BrowseContext` is the second argument - ambient   RANKING input the user never chose (today: the saved brand's family, a deliberately small   boost that a genuine programme match always outranks), kept out of `BrowseFilters` so it   can never grow a chip or be cleared by Clear-all.
