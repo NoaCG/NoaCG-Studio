@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { activeRuns, nodeProcesses, orphanProcesses } from './e2e-runs.mjs';
 import { requiresRunningDevServer } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
+import { mainRef } from './main-ref.mjs';
 import { isGeneratedBody, pullRequestBody, pullRequestTitle } from './pr-description.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
 import { onlyMainIntegrationsBetween } from './safe-merge-preflight.mjs';
@@ -1264,13 +1265,19 @@ function elapsed(startedAt) {
  * this queue made.
  */
 function gitFacts() {
+  const gitOk = (args) => ({ ok: spawnSync('git', args, { encoding: 'utf8', windowsHide: true }).status === 0 });
   return {
     tipOf: branchTip,
     // The queue answers this rather than the landing script, because the landing script a retry
     // runs is the copy in the BRANCH's checkout - which may predate the rule. See
     // `retryLandingFor` for the measurement that made that the deciding argument.
     movedOnlyByItsOwnLanding: (pinned, tip) => onlyMainIntegrationsBetween(pinned, tip),
-    inMain: (sha) => spawnSync('git', ['merge-base', '--is-ancestor', sha, 'main'], {
+    // `mainRef`, not the literal 'main': the merge queue stopped fast-forwarding this machine, so
+    // a landing that SUCCEEDED reads as one that never happened when measured against the local
+    // ref - and that answer is the input to whether a dead landing job gets retried
+    // (`landedDespiteItsProcess`). Retrying a landing that already landed is the mirror of the
+    // failure the retry rules exist to prevent. See scripts/main-ref.mjs.
+    inMain: (sha) => spawnSync('git', ['merge-base', '--is-ancestor', sha, mainRef(gitOk)], {
       encoding: 'utf8',
       windowsHide: true,
     }).status === 0,
