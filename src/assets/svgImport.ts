@@ -271,14 +271,27 @@ function stripFieldPrefix(name: string): { label: string; marked: boolean; drawi
   return { label: name, marked: false, drawing: false };
 }
 
-/** How many of a kind's candidates one layer holds - the evidence `candidateName` weighs. With
- *  no list to count (the picture, outline and panel inventories, none of which can name their
- *  own copy: a shape has no words) it answers one, which keeps the climb. */
-function candidatesUnder(node: Element, peers?: readonly Element[]): number {
-  if (!peers) return 1;
-  let held = 0;
-  for (const peer of peers) if (node.contains(peer)) held++;
-  return held;
+/** The `<text>` a candidate belongs to - itself, or the one it is a run of. Several candidates
+ *  can come out of ONE text layer (two labels on a shared baseline, textCandidates), and they are
+ *  one LAYER for the purpose below: a group wrapping one text does not become a group of several
+ *  because the designer kerned it. */
+function textLayerOf(el: Element): Element {
+  return el.tagName.toLowerCase() === 'text' ? el : el.closest('text') ?? el;
+}
+
+/** Does this node hold MORE THAN ONE text layer, counted over the candidate inventory? That is
+ *  the whole of the evidence `candidateName` weighs, so it stops at the second one. With no
+ *  inventory to read (the picture, outline and panel roads, none of which can name their own
+ *  copy: a shape has no words) the answer is no, which keeps the climb. */
+function holdsSeveralTextLayers(node: Element, peers?: readonly Element[]): boolean {
+  let only: Element | null = null;
+  for (const peer of peers ?? []) {
+    if (!node.contains(peer)) continue;
+    const layer = textLayerOf(peer);
+    if (only === null) only = layer;
+    else if (layer !== only) return true;
+  }
+  return false;
 }
 
 /** The nearest named layer for a candidate: its own name, else the closest named ancestor
@@ -298,7 +311,7 @@ function candidateName(el: Element, root: Element, peers?: readonly Element[]): 
     const name = layerName(node);
     if (name) {
       if (!namesItsOwnCopy(node, name)) {
-        if (ownWords && candidatesUnder(node, peers) > 1) return { name: ownWords, fromGroup: false };
+        if (ownWords && holdsSeveralTextLayers(node, peers)) return { name: ownWords, fromGroup: false };
         return { name, fromGroup: ownWords !== '' };
       }
       if (!ownWords) ownWords = name;

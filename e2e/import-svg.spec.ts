@@ -444,6 +444,30 @@ test('svg import: a layer named after its own words keeps that name unless the g
   await expect(page.getByTestId('map-svg-title-t2')).toHaveValue('Runner up');
 });
 
+test('svg import: kerning a Figma text layer does not turn its wrapper into a group of many', async ({ page }) => {
+  // The evidence is TEXT LAYERS, not candidate rows, and one <text> can raise several rows: two
+  // labels far apart on one baseline are two fields (see the kerned-headline case above). Counting
+  // rows would read this wrapper as holding two layers, refuse the climb, and label both boxes
+  // "HelsinkiLive" - the very Figma defect the climb exists to prevent, brought back by kerning.
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300">
+      <g id="Venue"><text id="HelsinkiLive" font-size="24" fill="#fff"><tspan x="40" y="120">Helsinki</tspan><tspan x="300" y="120">Live</tspan></text></g>
+    </svg>`,
+    'kerned-figma.svg',
+  );
+  await page.locator('.wz-next').click();
+
+  // Two rows out of one text layer, and the group still names them both.
+  await expect(page.getByTestId('map-svg-sample-t0')).toHaveValue('Helsinki');
+  await expect(page.getByTestId('map-svg-sample-t1')).toHaveValue('Live');
+  // The <text> is named after its own words (Figma's default), so the wrapper names it - and it
+  // is ONE layer however many runs the kerning left, so the wrapper's name still wins.
+  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Venue');
+  await expect(page.getByTestId('map-svg-title-t1')).toHaveValue('Venue 2');
+  await expect(page.getByTestId('map-svg-named-by-group-t0')).toBeVisible();
+});
+
 test('svg import: an Inkscape file is labelled by its layer names, not its serial ids', async ({ page }) => {
   // Illustrator and Figma write the layer's NAME into `id`; Inkscape writes a serial number
   // there ("text123") and keeps the name in `inkscape:label`. Read the id first and every row
