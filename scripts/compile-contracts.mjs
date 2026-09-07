@@ -23,8 +23,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  compileOutputs, findDuplicates, loadRules, OUTPUT_DIR, reportOutputs,
+  compileOutputs, findDuplicates, GENERATED_MARKER, globDirectory, kernelBudget, loadRules,
+  NESTED_ATTRIBUTES, NESTED_CONTRACT, OUTPUT_DIR, reportOutputs,
 } from './contracts-lib.mjs';
+import { DRIVER_NAME, install as installMergeDriver, isInstalled } from './contracts-merge-driver.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LABEL = '[compile-contracts]';
@@ -42,42 +44,99 @@ export function plan(root = ROOT) {
         'keep one, and mark the other `status: retired` with `supersedes:` on the survivor',
     );
   }
-  return { rules, problems, outputs: compileOutputs(rules) };
+  const owned = ownedDirectories(root, candidateDirectories(rules));
+  const outputs = compileOutputs(rules, owned);
+  problems.push(...kernelBudget(outputs).problems);
+  return { rules, problems, outputs, owned };
 }
 
-/** Generated files on disk that the store no longer produces. */
-function staleOutputs(outputs, root) {
+/**
+ * The directories whose `AGENTS.md` the compiler writes.
+ *
+ * A directory is owned once its contract carries the generated marker - which is what MIGRATING
+ * an area does: the row replaces the hand-written file with a generated one, and from then on the
+ * compiler keeps it true. There is no second registry saying which areas are done, because a
+ * registry and the files would eventually disagree and the files are the thing that gets loaded.
+ *
+ * A directory that has rules and no `AGENTS.md` at all is owned too - there is nothing to clobber
+ * - which is how a brand-new area gets its first contract without a migration step.
+ */
+export function ownedDirectories(root, dirs) {
+  const owned = new Set();
+  for (const dir of dirs) {
+    const file = path.join(root, dir, NESTED_CONTRACT);
+    if (!existsSync(file) || readFileSync(file, 'utf8').includes(GENERATED_MARKER)) owned.add(dir);
+  }
+  return owned;
+}
+
+/** Every directory a rule's scope points at, and their ancestors - the only ones worth asking about. */
+function candidateDirectories(rules) {
+  const dirs = new Set();
+  for (const rule of rules) {
+    if (rule.status !== 'active') continue;
+    for (const glob of rule.scope) {
+      let dir = globDirectory(glob);
+      while (dir !== '') {
+        dirs.add(dir);
+        dir = dir.split('/').slice(0, -1).join('/');
+      }
+    }
+  }
+  return [...dirs];
+}
+
+/**
+ * Generated files on disk that the store no longer produces.
+ *
+ * Two kinds, found two ways. Under `.claude/rules/` every `.md` is generated, so the directory
+ * listing is the answer. A nested `AGENTS.md` sits among hand-written ones, so the only safe test
+ * is the marker in the file itself - and it is the same test `ownedDirectories` uses, so a file
+ * the compiler stopped producing is exactly a file it would still claim to own.
+ */
+function staleOutputs(outputs, root, owned = new Set()) {
+  const stale = [];
   const dir = path.join(root, OUTPUT_DIR);
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((name) => name.endsWith('.md'))
-    .map((name) => `${OUTPUT_DIR}/${name}`)
-    .filter((rel) => !outputs.has(rel));
+  if (existsSync(dir)) {
+    stale.push(...readdirSync(dir)
+      .filter((name) => name.endsWith('.md'))
+      .map((name) => `${OUTPUT_DIR}/${name}`)
+      .filter((rel) => !outputs.has(rel)));
+  }
+  for (const ownedDir of owned) {
+    for (const name of [NESTED_CONTRACT, NESTED_ATTRIBUTES]) {
+      const rel = `${ownedDir}/${name}`;
+      if (outputs.has(rel)) continue;
+      const file = path.join(root, rel);
+      if (existsSync(file) && readFileSync(file, 'utf8').includes(GENERATED_MARKER)) stale.push(rel);
+    }
+  }
+  return stale.sort();
 }
 
 /** The files whose content on disk differs from the plan (LF-normalised), and the stale ones. */
-export function drift(outputs, root = ROOT) {
+export function drift(outputs, root = ROOT, owned = new Set()) {
   const changed = [];
   for (const [rel, content] of outputs) {
     const file = path.join(root, rel);
     const current = existsSync(file) ? readFileSync(file, 'utf8').replace(/\r\n/g, '\n') : null;
     if (current !== content) changed.push(rel);
   }
-  return { changed, stale: staleOutputs(outputs, root) };
+  return { changed, stale: staleOutputs(outputs, root, owned) };
 }
 
-export function write(outputs, root = ROOT) {
+export function write(outputs, root = ROOT, owned = new Set()) {
   for (const [rel, content] of outputs) {
     const file = path.join(root, rel);
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, content, 'utf8');
   }
-  for (const rel of staleOutputs(outputs, root)) unlinkSync(path.join(root, rel));
+  for (const rel of staleOutputs(outputs, root, owned)) unlinkSync(path.join(root, rel));
 }
 
 function main() {
   const args = process.argv.slice(2);
-  const { rules, problems, outputs } = plan();
+  const { rules, problems, outputs, owned } = plan();
   if (problems.length > 0) {
     console.error(`${LABEL} ${problems.length} problem(s) in ${rules.length} rule file(s):`);
     for (const p of problems) console.error(`  - ${p}`);
@@ -85,13 +144,17 @@ function main() {
   }
   if (args.includes('--report')) {
     for (const { file, bytes } of reportOutputs(outputs)) console.log(`${String(bytes).padStart(7)}  ${file}`);
-    console.log(`${LABEL} ${rules.length} rule(s), ${outputs.size - 1} generated contract file(s)`);
+    const kernel = kernelBudget(outputs);
+    console.log(`${LABEL} ${rules.length} rule(s), ${outputs.size - 1} generated contract file(s); kernel ${kernel.bytes} of ${kernel.max} bytes`);
     return;
   }
   if (args.includes('--check')) {
-    const { changed, stale } = drift(outputs);
+    const { changed, stale } = drift(outputs, ROOT, owned);
     if (changed.length === 0 && stale.length === 0) {
       console.log(`${LABEL} OK - ${rules.length} rule(s), ${outputs.size - 1} generated file(s) current`);
+      // Reported, never failed. A missing merge driver costs nothing on a runner that never
+      // resolves a conflict; it costs a person their next merge of a generated contract.
+      if (!isInstalled()) console.log(`${LABEL} note: the ${DRIVER_NAME} merge driver is not registered in this clone - run \`npm run contracts:compile\` to register it.`);
       return;
     }
     console.error(`${LABEL} the generated contracts are stale. Run \`npm run contracts:compile\` and commit the result.`);
@@ -99,7 +162,11 @@ function main() {
     for (const rel of stale) console.error(`  - no longer produced: ${rel}`);
     process.exit(1);
   }
-  write(outputs);
+  write(outputs, ROOT, owned);
+  // Registered here rather than by a setup step nobody runs: this is the command every session
+  // already runs after touching a rule, git config is per clone so a fresh checkout has it
+  // missing, and registering it twice costs one `git config` write.
+  if (!isInstalled()) installMergeDriver();
   console.log(`${LABEL} wrote ${outputs.size} file(s) from ${rules.length} rule(s)`);
 }
 

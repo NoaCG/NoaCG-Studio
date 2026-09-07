@@ -173,7 +173,7 @@ function writeNewRule(verdict, input, ctx) {
     for (const p of compiled.problems) console.error(`  - ${p}`);
     process.exit(1);
   }
-  write(compiled.outputs, ROOT);
+  write(compiled.outputs, ROOT, compiled.owned);
   console.log(`${LABEL} wrote ${rulePath}${record ? ` and ${record}` : ''}, and recompiled the contracts.`);
   console.log('  Commit the rule, the record and the regenerated files together.');
 }

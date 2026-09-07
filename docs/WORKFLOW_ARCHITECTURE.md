@@ -235,6 +235,8 @@ What changes the shape: `main` stops running `--all` per landing (T3 is one run 
 
 ### 5.3 Contracts and the learning loop
 
+*Phase 2b, the first row, as landed.* The compiler writes a nested contract as well as the Claude layer. A directory is the compiler's once its `AGENTS.md` carries the generated marker - which is what migrating an area DOES, so there is no second registry saying which areas are done and no way for a registry and the files to disagree. A migrated directory has no sibling `CLAUDE.md`: Claude Code loads the same rules from `.claude/rules/` when it reads a file they scope to, so a wrapper would charge every Claude session for them twice, and `check-shared-instructions` now refuses one beside a generated contract instead of demanding it. A rule belongs to the deepest directory containing every glob in its scope, and one whose scope reaches the repository root is a KERNEL rule, capped at 8,192 bytes because every session pays for it before touching anything. Each migrated directory carries its own `.gitattributes` naming the `noacg-contracts` merge driver (`scripts/contracts-merge-driver.mjs`), which settles a conflict by regenerating from the merged store - per directory rather than in the root file, so two areas migrating at once edit two different files. `src/templates/versus` is the first migrated area; `docs/METRICS.md` carries what it cost, which was 121 bytes MORE, and why the byte win has to come from the large areas instead.
+
 **The store.** `contracts/rules/<area>/<slug>.md`:
 
 ```

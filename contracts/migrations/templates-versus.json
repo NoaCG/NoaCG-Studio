@@ -1,0 +1,5 @@
+{
+  "AGENTS.md": "The old file's preamble explained that Codex reads it and Claude reads it through a CLAUDE.md import. The compiler owns that now: it writes the header, and .claude/rules carries the same rules for Claude.",
+  "CLAUDE.md": "The sibling wrapper is gone. Claude Code loads these rules from .claude/rules/ when it reads a file they scope to, so a wrapper would charge every Claude session for them twice.",
+  "src/templates/AGENTS.md": "The preamble named the parent contract as part of the loading chain. Which files load together is the compiler's job to state, not each area's, and check-shared-instructions measures the chain."
+}
