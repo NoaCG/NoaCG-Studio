@@ -854,6 +854,56 @@ folder). `pro-harness-out*/` is NOT on the cleanup script's rebuildable list, so
 right and was not what removed it. **The blind read of that bank is therefore no longer possible
 without buying it again**, and only the re-run cells can be read.
 
+### The nine blocked cells, re-run: 4 delivered, and the floor is the last wall
+**2026-09-07 · `vercel:google/gemini-2.5-flash` · 9 cells, $0.714 of the same €3 authorization
+(total now $2.56).** The three types the two fixed instruments had made unwinnable, re-run on a
+fresh `--out`. **They were 0 of 9 by construction this morning; they are 4 of 9 now**, and neither
+`step-contract` nor `bench-field-unpainted` appears anywhere in the ledger as a false positive.
+
+| | delivered | cost |
+|---|---|---|
+| the nine cells, as measured | 4 of 9 | $0.714, $0.0794 per attempt |
+| the eight that reached a design verdict | 4 of 8 | $0.169 per delivered |
+| the same nine, before the fixes | **0 of 9** | - |
+| baseline (iterate loop, `gemini-3.7-flash`) | 19 of 21 | $0.118 per delivered |
+
+`pd-grandfinal` is excluded from the second row because the COST CEILING stopped it, not a verdict.
+
+**Every refusal is now a real one, and two of the four are one un-ratified number.**
+
+- `qz-primetime` (40px) and `qz-campus` (47px) each carried **exactly one** blocking finding across
+  every round: `readability-text-under-size-floor`. Nothing else. `qz-arena` cleared it and
+  delivered.
+- `cd-launch` fought `proportion-type-ratio-thin` down 0.15 -> 0.17 against a 0.18 floor over three
+  rounds and ran out. An honest near miss on a real composition rule.
+- `pd-medal`: `bench-stress`, `#f0`/`#f1` overlapping 52% once values double - the known negative
+  result, unchanged.
+- `pd-grandfinal`'s last round carried a **true** `bench-field-unpainted`: it declared "Player 4"
+  (f7) and drew it nowhere. The narrowed check is still sharp; it is a numeric data-source holder it
+  now stays quiet about, not a field the design forgot.
+
+**THE FLOOR REFUSES ALL 12 SHIPPED QUIZ BOARDS.** Measured through the instrument itself, not from
+the CSS: 36-40px primary against a 49.68px floor, every one. The mechanism is `roleFor` in
+`readabilityCheck.ts` - the LARGEST informational text is "primary", so on a dense type the primary
+element is the one carrying the most words and therefore having the least room. A floor calibrated
+on a lower third's name strap lands on a question that has to sit above four answers. That is the
+same signature as the two faults fixed this morning, and it is the third instrument in a row - but
+this one is not a session's to change: §23.1 measured it failing 312 of 489 shipped designs and the
+owner has not re-ratified it for enforcement. **Two cells of this round, and three of the last, turn
+on the answer.**
+
+**The human half, and it is worse than 4 of 9 sounds.** Of the four delivered frames, one -
+`qz-arena` - is a board worth airing. `cd-results` and `cd-show` are competent and NEARLY
+IDENTICAL to each other, though their briefs are "newsroom-severe" and "playful, warm ... family
+show". `pd-seats` is visibly wrong: roughly 60% of its panel is empty and every name and score is
+jammed into a right-hand column with the title stranded at the far left. **`pd-seats` delivered
+CLEAN**, so the deliver-signal leak §23.1 drove to zero on lower thirds is back on the dense types.
+The frames are all shot under the entrance-derived settle, so `pro-harness-out-rerun/review.html`
+is a fair blind sheet.
+
+**RETRY WHEN** the size floor is ruled on. Re-running these nine again before that buys the same two
+refusals; re-running the full 21 buys back the frames the last round lost, and costs $1.44.
+
 ### Teaching the free-form coder its structure spine by example
 **Through 2026-07-17 · every result converted the moment a `-box` class was injected · FIXED by
 naming the contract.** The coder followed the authoring grammar perfectly and `parseTimeline` read
