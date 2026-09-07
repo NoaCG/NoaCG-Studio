@@ -535,8 +535,8 @@ function placedInsertIndex(lines: string[], prefix: string): number {
  *
  * The new line lands stacked under the lowest existing line, inheriting its look; the first
  * line of a bare design starts in the artwork's lower-left, the lower-third convention.
- * Returns null when the template is not a placed-design shape (the caller falls back to the
- * definition-only add).
+ * Returns null when the template is not a placed-design shape, which sends the caller on to
+ * addCatalogLine and, failing that, to REFUSING the add with the reason.
  */
 export function addPlacedLine(
   template: SpxTemplate,
@@ -549,7 +549,7 @@ export function addPlacedLine(
   const fieldId = nextFieldId(template.fields);
   const wrapperId = `fw${fieldId.slice(1)}`;
   // A hand-edited template could already use this wrapper id for something else — a duplicate
-  // id would break the placement contract, so bail to the definition-only path instead.
+  // id would break the placement contract, so bail rather than write a broken placement.
   if (new RegExp(`\\bid=["']${wrapperId}["']`).test(template.html)) return null;
 
   // Where the line starts life, and what it looks like: stacked under the LOWEST existing

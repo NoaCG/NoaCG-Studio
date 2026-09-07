@@ -2,7 +2,7 @@
 
 > **STATUS 2026-07-22: COMPLETE — kept as the rationale record.** Every phase landed,
 > including Phase 8; every category creates as a `NOACG_ANIM` data block. The binding
-> contracts today: `src/blocks/CLAUDE.md` (the engine), `docs/TIMELINE_INTERACTION_MODEL.md`
+> contracts today: `src/blocks/AGENTS.md` (the engine), `docs/TIMELINE_INTERACTION_MODEL.md`
 > (interaction), `docs/STATE_MACHINE_SCHEMA.md` (the machine the block grew in v2 format).
 > Read on for the design decisions and the migration story.
 
