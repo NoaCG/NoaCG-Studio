@@ -1,10 +1,9 @@
 # Session - the two-row-set design, and two things read out of a layer name
 
 **Branch:** `claude/two-row-set-recipe-fcbe5e` (from `main` `39835021`). **Date:** 2026-09-07.
-**State:** finished and queued for landing. Three commits. `npm run build` green on the branch
-stamp (`claude/two-row-set-recipe-fcbe5e@c856a31319`), and the gate batch re-run green on the
-committed tree (1413 pass, 0 fail). **The local affected plan did NOT run** - see "What is not
-verified here".
+**State:** finished and queued for landing. `npm run build` green on the branch stamp, and the
+gate batch re-run green on the committed tree (1413 pass, 0 fail). **The local affected plan did
+NOT run** - see "What is not verified here".
 
 ## What landed
 
@@ -65,18 +64,38 @@ is exactly two files - the Figma corpus board still reads `Answer A`..`Answer D`
 `Champion` stops arriving as `Words`. Nothing else in the corpus has a text layer whose name is
 its own content.
 
+## What `/check` found
+
+Review and simplify both ran INLINE (each skill returned instructions rather than a delegated
+result), and review found one real defect in this branch's own code: the name climb weighed
+candidate ROWS, but one `<text>` can raise several rows - two labels far apart on one baseline
+are two fields - so a Figma wrapper holding one KERNED text layer read as a group of several,
+refused the climb, and labelled both boxes after the text's own words. That is the exact defect
+the climb exists to prevent, reintroduced by kerning. It now counts text LAYERS, and
+`e2e/import-svg.spec.ts` pins it.
+
+Then `main` arrived carrying the contract migration, and **the clean merge was wrong**: both
+sides regenerate `contracts/index.md` and `src/templates/AGENTS.md`, git merged them without a
+conflict, and forty-five lines of main's new rules vanished from the generated files. A
+recompile put all 350 rules back. Worth remembering the next time a branch and `main` both touch
+a generated file: `git merge` reporting no conflict says nothing about whether the result is
+what the generator would write.
+
 ## What is not verified here
 
 **The affected plan did not run.** `j-0731` (`node scripts/e2e-affected.mjs --focus`) has been
-queued since the start of the session and is still waiting on memory: the machine sits at about
-3.2 GB free against the queue's 4.0 GB floor, and `npm run reclaim` frees 0 MB net here - its only
-heavy target is the owner's Codex app, which was left alone. The runner is live and its own
-starvation handler will drain the job; SessionStart will report it.
+queued since the start of the session and never got a slot. Free memory fell from 3.2 GB to about
+1 GB across the session and the queue's budget reached `0/0`, because another session was running
+Playwright in the primary checkout - the machine's one browser slot, held outside the queue.
+`npm run reclaim` frees 0 MB net here; its only heavy target is the desktop app the owner keeps
+open, which was left alone. The runner is live and will drain the job once that run ends;
+SessionStart reports it.
 
-So **CI is the gate for this branch**, which is where the pre-merge gate belongs anyway. The two
-NEW specs in `e2e/import-svg.spec.ts` (the `static:` case and the own-copy naming case) have never
-been executed. If either is wrong, `CI gate` reds and the branch does not land, which is the
-mechanism working rather than a risk to `main` - but read those two first if CI comes back red.
+So **CI is the gate for this branch**, which is where the pre-merge gate belongs anyway. The three
+NEW specs in `e2e/import-svg.spec.ts` (the `static:` case, the own-copy naming case and the
+kerned-wrapper regression) have never been executed. If one of them is wrong, `CI gate` reds and
+the branch does not land, which is the mechanism working rather than a risk to `main` - but read
+those three first if CI comes back red.
 
 ## Traps that exist in no repo file
 
