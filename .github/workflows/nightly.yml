@@ -197,8 +197,34 @@ jobs:
       # run tests a subset - so the time budget lives here and nowhere else. It enforces the
       # MEAN per test, never the total: a pack shipping a spec should not fail a gate, while
       # tests getting slower should.
+      # FETCH THE PREVIOUS NIGHTLY'S REPORT, so the budget can compare like with like. Without it
+      # the gate reads only the whole-suite mean, which moves whenever the tests we ADD differ from
+      # the ones already there - measured at about 1.7x the suite average, consistently - and it
+      # then reports a composition change as a regression. It did exactly that on 2026-09-07.
+      #
+      # Best effort on purpose: a missing or expired artifact prints one line and the budget falls
+      # back to the ceiling. A gate that goes red because an ARTIFACT expired teaches people that
+      # red means nothing.
+      - name: Fetch the previous nightly's report
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PREV="$(gh run list --workflow nightly.yml --status completed --limit 10             --json databaseId,createdAt --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | .[0].databaseId")"
+          if [ -z "${PREV:-}" ] || [ "$PREV" = "null" ]; then
+            echo "No earlier nightly to compare against."
+            exit 0
+          fi
+          gh run download "$PREV" --name nightly-report-json --dir previous             && mv previous/nightly-report.json previous-report.json             && echo "Comparing against nightly run $PREV."             || echo "Run $PREV has no usable report artifact - the budget will fall back to the ceiling."
+
       - name: E2E time budget
-        run: node scripts/e2e-budget.mjs nightly-report.json
+        run: |
+          if [ -f previous-report.json ]; then
+            node scripts/e2e-budget.mjs nightly-report.json --against previous-report.json
+          else
+            node scripts/e2e-budget.mjs nightly-report.json
+          fi
 
       # Classify failures focus-vs-paused for the verdict job (docs/GOALS_ARCHIVE.md "Student
       # release"). Runs even when shards failed - a red night is exactly when the triage
