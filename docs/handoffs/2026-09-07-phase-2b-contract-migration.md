@@ -48,15 +48,22 @@ Already landed and working:
 
 Missing, and the first rows of 2b:
 
-1. **The symbol-survival audit.** The gate for every migration row: the set of backticked tokens
-   in the pre-migration contract must be a subset of the tokens in the rules plus records that
-   replaced it. Without it, a row that quietly drops a rule looks exactly like a row that moved it.
-   Build it as `scripts/contract-migrate.mjs audit <path> --since <ref>`, reusing the freshness
-   gate's extractor, and make it print what went missing rather than a count.
-2. **Nested `AGENTS.md` generation.** The compiler writes only the additive `.claude/rules/` layer
-   today. A migrated area needs its `AGENTS.md` GENERATED from the rules whose scope lives under
-   it, or the migration has nowhere to put what it took out. Generated files are committed, and
-   `.gitattributes` needs the merge driver that regenerates from the merged store.
+1. ~~The symbol-survival audit.~~ **Built and landed**: `npm run contract:migrate -- audit
+   --contract <path> --since <ref>`. The tokens a contract carried before the row must survive in
+   what replaced it - the file as it stands, every rule under `contracts/rules/<area>/`, every
+   record under `contracts/records/<area>/`, plus any `--also` file. A deliberate drop goes in an
+   `--allow` map with a reason, and an allowance for a token that did not drop is reported so the
+   list cannot rot. **Read its header before trusting it:** it sees only BACKTICKED tokens. The
+   smallest contract in the tree, `src/templates/versus/AGENTS.md`, carries three, and everything
+   that makes it a contract is prose. A green audit is a floor, not a verdict.
+2. **Nested `AGENTS.md` generation - this is the next row.** The compiler writes only the additive
+   `.claude/rules/` layer today, so a migrated area has nowhere to put what the migration took out
+   and no row can complete. It needs: one generated `AGENTS.md` per directory that owns rules,
+   listing only rules whose scope lives under it; the kernel file at 8 KB; the chain totals still
+   passing `check-shared-instructions`; the generated files committed, with the `.gitattributes`
+   merge driver that resolves a conflict by regenerating from the merged store. Do this before any
+   area migrates, and migrate `src/templates/versus/AGENTS.md` first - it is 998 bytes, its rules
+   are about one category, and nothing else loads it.
 3. **The near-duplicate threshold**, calibrated on the migrated corpus rather than on two rules,
    and then enabled in `--check`.
 4. **`contracts/retired.json` and its negative check**: a retired mechanism, its date and its
