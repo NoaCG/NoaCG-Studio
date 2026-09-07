@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { activeRuns, nodeProcesses, orphanProcesses } from './e2e-runs.mjs';
 import { requiresRunningDevServer } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
+import { isGeneratedBody, pullRequestBody, pullRequestTitle } from './pr-description.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
 import { onlyMainIntegrationsBetween } from './safe-merge-preflight.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
@@ -382,7 +383,15 @@ async function cmdAddMerge() {
   const description = review.stamp === 'reviewed'
     ? `reviewed by /check at ${String(review.reviewedSha).slice(0, 8)} (${review.verdict ?? 'pass'})`
     : `UNREVIEWED: ${review.reason}`;
-  const queued = queueOnGitHub(target, tipForReview, description);
+  // `--why` is the one thing the branch's commits cannot supply: the reason the change exists.
+  // Optional on purpose - a description that names what changed and how it was checked is already
+  // worth reading, and a required field nobody fills gets filled with noise.
+  const why = flag('--why') ? (valueOf('--why') ?? '') : '';
+  if (flag('--why') && (why === '' || why.startsWith('-'))) {
+    console.error('add-merge refused: --why takes a sentence in words, e.g. --why "the old field could not hold two scores".');
+    process.exit(1);
+  }
+  const queued = queueOnGitHub(target, tipForReview, description, why);
   // The local shadow: a merge job whose command only WATCHES the pull request (scripts/land-watch.mjs),
   // so the branch is frozen while it is queued, the tick reports QUEUED and LANDED, and the ledger
   // gets the landing with this checkout as its session - every local reader keeps its one shape.
@@ -405,7 +414,7 @@ async function cmdAddMerge() {
  * Push, open or reuse the pull request, post the reviewed status, add the label. Every step is
  * idempotent, so queueing twice is harmless. Returns { number, url }.
  */
-function queueOnGitHub(branch, tip, description) {
+function queueOnGitHub(branch, tip, description, why = '') {
   const ghRun = (ghArgs) => {
     const result = spawnSync('gh', ghArgs, { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
     if (result.status !== 0) {
@@ -432,14 +441,22 @@ function queueOnGitHub(branch, tip, description) {
   }
   let pr;
   try {
-    pr = JSON.parse(ghRun(['pr', 'list', '--head', branch, '--base', 'main', '--state', 'open', '--json', 'number,url', '--limit', '1']))[0] ?? null;
+    pr = JSON.parse(ghRun(['pr', 'list', '--head', branch, '--base', 'main', '--state', 'open', '--json', 'number,url,body', '--limit', '1']))[0] ?? null;
   } catch {
     pr = null;
   }
+  // WHAT THE PULL REQUEST SAYS. Oldest first, merges left out: these are the sentences the branch
+  // already wrote about itself, and they are what a person reads (scripts/pr-description.mjs).
+  const subjects = spawnSync('git', ['log', '--no-merges', '--reverse', '--format=%s', `origin/main..${tip}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
+    .stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const body = pullRequestBody({ subjects, tested: description, why });
   if (!pr) {
-    const subject = spawnSync('git', ['log', '-1', '--format=%s', tip], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true }).stdout.trim() || branch;
-    const url = ghRun(['pr', 'create', '--base', 'main', '--head', branch, '--title', subject.slice(0, 120), '--body', `Landed by the queue (\`npm run queue:merge\`). ${description}.`]);
+    const url = ghRun(['pr', 'create', '--base', 'main', '--head', branch, '--title', pullRequestTitle(subjects, branch), '--body', body]);
     pr = { number: Number(url.split('/').pop()), url };
+  } else if (isGeneratedBody(pr.body)) {
+    // Queueing again after a refusal: the commit list has moved, so the description has to move
+    // with it. A description somebody typed themselves is left exactly as it is.
+    ghRun(['pr', 'edit', String(pr.number), '--body', body]);
   }
   ghRun(['api', `repos/{owner}/{repo}/statuses/${tip}`, '-f', 'state=success', '-f', 'context=noacg/reviewed', '-f', `description=${description.slice(0, 140)}`]);
   // The label marks a queued pull request for the ledger sync and the listing; auto-merge is what

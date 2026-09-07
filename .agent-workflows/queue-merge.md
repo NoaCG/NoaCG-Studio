@@ -98,6 +98,14 @@ must be the sha `/check` reviewed, or `add-merge` refuses. Landing without a rev
 and visible, never silent: `npm run queue:merge -- --unreviewed "<reason>"` posts the reason where
 the lander and anyone reading the pull request see it.
 
+**The pull request is written for a person.** Its title is the branch's FIRST commit subject and
+its description lists every commit subject, the review verdict and one line saying CI runs the
+build and the affected tests before merging - all of it read off the branch, so nothing has to be
+typed. The one thing commits cannot supply is the reason the change exists, so add it if it is not
+obvious: `npm run queue:merge -- --why "the old field could not hold two scores"`. Queueing again
+after a refusal refreshes a description the queue wrote and never one a person typed
+(`scripts/pr-description.mjs`).
+
 **The queue is GitHub's merge queue** (`docs/WORKFLOW_ARCHITECTURE.md` §5.2). Queueing pushes the
 branch, opens or reuses its pull request against `main`, posts the review verdict as the
 `noacg/reviewed` commit status on the tip, adds the `land` label and turns auto-merge on. Once the
