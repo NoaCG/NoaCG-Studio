@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/blocks/animData.ts, src/blocks/animEdit.ts, src/blocks/machineEdit.ts
+scope: src/blocks/**
 kind: invariant
 fires: contract
 status: active
