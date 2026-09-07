@@ -125,9 +125,10 @@ export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } 
   const hasTarget = (await git(['rev-parse', '--verify', '--quiet', target], primary)).ok;
   if (!hasTarget) return empty(target);
 
+  const ref = await freshestTargetRef(primary, target);
   const self = entries.filter((entry) => isUnder(normalize(cwd), entry.root)).sort((a, b) => b.root.length - a.root.length)[0];
-  const names = await candidateBranches(primary, target);
-  const remoteOnly = await remoteOnlyBranches(primary, target, names);
+  const names = await candidateBranches(primary, ref);
+  const remoteOnly = await remoteOnlyBranches(primary, ref, names);
   if (names.length === 0) return { ...empty(target), self: self?.branch ?? null, remoteOnly };
 
   const byBranch = new Map(entries.filter((entry) => entry.branch).map((entry) => [entry.branch, entry]));
@@ -166,7 +167,7 @@ export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } 
 
   // ONE call for the whole run, not one per pair: what the target already holds is the same
   // answer for every branch, and it is the only thing the pairwise pass cannot work out alone.
-  const targetSequences = await targetSequenceNumbers(primary, target);
+  const targetSequences = await targetSequenceNumbers(primary, ref);
   for (const branch of branches) recordTakenSequences(branch, targetSequences, target);
 
   await measurePairs(primary, branches);
@@ -551,6 +552,30 @@ function parseNameStatus(stdout) {
     }
   }
   return { files: [...files].sort(), structural };
+}
+
+/**
+ * The ref to measure "has this landed?" against: `origin/main` whenever it is ahead of the local
+ * branch, otherwise the local one.
+ *
+ * WHAT IT COST. Until the merge queue, every landing fast-forwarded the primary checkout's `main`,
+ * so the local ref and the remote agreed and it did not matter which one this read. GitHub's queue
+ * never touches the laptop. The local ref stops moving, and `git branch --no-merged main` then
+ * answers with every branch that has ALREADY LANDED - so a branch that takes `origin/main` in is
+ * reported as "contains <landed branch>, which must land first", and refused. It gets worse with
+ * every landing: measured at ten commits of drift, every one of them merged, three of them named
+ * in a single refusal. `origin/main` is what the queue actually lands on, so it is the only ref
+ * that answers the question being asked.
+ *
+ * It also removes `origin/main` from the remote-only listing, where a stale local ref put it: not
+ * merged into a `main` ten commits behind, so it read as outstanding work of its own.
+ */
+async function freshestTargetRef(primary, target) {
+  const remote = `origin/${target}`;
+  const exists = (await git(['rev-parse', '--verify', '--quiet', remote], primary)).ok;
+  if (!exists) return target;
+  const localBehind = (await git(['merge-base', '--is-ancestor', target, remote], primary)).ok;
+  return localBehind ? remote : target;
 }
 
 async function candidateBranches(primary, target) {

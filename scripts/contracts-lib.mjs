@@ -513,10 +513,10 @@ function renderAttributes() {
     '# eol=lf keeps a Windows checkout from reading the compiler output as a modification.',
     `${NESTED_CONTRACT} merge=${MERGE_DRIVER}`,
     `${NESTED_CONTRACT} text eol=lf`,
-    // ITSELF TOO. This file is written by the compiler with LF like every other generated file,
-    // so without this line it is the one generated file that reads back phantom-dirty on a
-    // Windows checkout - and `check:line-endings` fails on the very file that exists to declare
-    // the rule. Found the first time a second area migrated.
+    // ITSELF TOO. This file is written by the compiler with LF like everything else it writes, so
+    // without this line it is the one generated file that reads back phantom-dirty on a Windows
+    // checkout - and `check:line-endings` then fails on the very file whose job is to declare the
+    // rule. It fails on every fresh worktree cut from main, not only on the branch that wrote it.
     `${NESTED_ATTRIBUTES} text eol=lf`,
     '',
   ].join('\n');
