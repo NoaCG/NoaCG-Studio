@@ -25,6 +25,8 @@ line per number. An option flips the order to 1 upwards, for an agenda.
 
 ## What to look at
 
-- The ten rank numerals ("10.", "9.") arrive as ten fields to untick, because nothing in a file
-  can say "this text is decoration". A finding, not a defect of the list.
+- The ten rank numerals ("10.", "9.") used to arrive as ten fields to untick, because nothing in
+  a file could say "this text is decoration". Since 2026-09-07 they are named `static:Rank 10` and
+  stay drawing, so the operator's boxes are Title and Entries - the prefix has its own walk,
+  `2026-09-07-static-prefix-for-drawn-text.md`.
 - Whether "line 1 is number 1" is the right way round for a list that reveals from ten.

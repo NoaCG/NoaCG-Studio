@@ -161,11 +161,21 @@ carried. The generic rowless draft held it with no wizard change.
 ### 4f. Bracket - binds with the extras; the model's limit found
 
 No recipe. Fifteen typed slots, a `choice:Match` frame, a `show:Crown`. FINDING: a bracket
-repeats along two keys (teams, matches) and a recipe carries one; and the winner's name moving
-up by itself is a cross-row lookup the doctrine allows as a kind derivation but the one-row-set
-shape cannot host. Recorded in §13 of the plan; the bracket ships as data, which is brief C6's
-own answer. A second import trap surfaced here: a layer named after its own sample text loses its
-name to its parent group.
+looked like a repetition along two keys (teams, matches) where a recipe carries one, and the
+winner's name moving up by itself is a cross-row lookup the doctrine allows as a kind derivation.
+The bracket ships as data, which is brief C6's own answer.
+
+**Designed 2026-09-07, and the second key was a mirage** (plan §13, "The two-row-set question,
+dissolved rather than answered"). This file's own fixture settles it: fifteen slots named `Team
+1`..`Team 8`, `Semi 1`..`Semi 4`, `Final 1`, `Final 2`, `Champion` are a FLAT key space in three
+role families, and a bracket's one repetition is its matches. What really blocks it is that a
+value the runtime WRITES is not a FIELD, so the lookup cannot chain past one round and a Reset
+cannot clear a slot it filled. The next question is whether a derived value can BE a field, not
+how two row sets are declared.
+
+A second import trap surfaced here: a layer named after its own sample text lost its name to its
+parent group. Fixed 2026-09-07 - the climb happens only where the group holds that one text
+layer, so `Champion` keeps its name and a Figma board still reads "Answer A".
 
 ### 4g. Bingo caller - needs a recipe and the `row-set` kind; built (later the same day)
 
@@ -178,4 +188,6 @@ the last number derive from the same field. Calling is the `add` control the puz
 asked for, Take back is its inverse, and the numerals a student draws are a per-row `write` role
 deriving the row's own key, so a numeral named `Number 7` stays drawing rather than becoming one
 of twenty-five fields to untick. The grid did not answer the two-row-set question: its cells are
-one keyed repetition, and the open case is two independent ones.
+one keyed repetition. Neither, it turned out, was anything else - the Jeopardy board's rows are
+its CLUE CELLS and the case board's are its CASES, both one keyed repetition on the shipped
+shape (plan §13, 2026-09-07).

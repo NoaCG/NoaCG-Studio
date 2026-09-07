@@ -28,6 +28,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 import { parseFrontmatter } from './owner-receipts.mjs';
 
@@ -254,7 +255,7 @@ export function mechanismPath(fires) {
  * Also settles `rule.carried` - whether a mechanism carries the rule, so the compiled contract
  * spends no bytes on it - once, here, rather than per use.
  */
-export function validateAgainstTree(rule, root) {
+export function validateAgainstTree(rule, root, files = []) {
   const problems = [];
   const mechanism = mechanismPath(rule.fires);
   rule.carried = Boolean(mechanism && existsSync(path.join(root, mechanism)));
@@ -264,7 +265,38 @@ export function validateAgainstTree(rule, root) {
   if (rule.record && !existsSync(path.join(root, rule.record))) {
     problems.push(`${rule.path}: record ${rule.record} does not exist`);
   }
+  // A SCOPE THAT MATCHES NOTHING IS A RULE THAT NEVER LOADS, and it fails silently: the store
+  // lists it, `contracts/index.md` prints it, and no session it was written for ever sees it.
+  // That is worse than a missing rule, because the store says the rule exists.
+  //
+  // Found on 2026-09-07 by auditing the migration against the tree rather than against itself:
+  // `root/make-every-state-enterable-two-ways` was scoped to `src/components/control/**`, a
+  // directory with zero files - the phase plan says `control/` gets its first contract later, and
+  // the rule was written against where the code is GOING rather than where it is. The compiler
+  // refused only an EMPTY scope, so nothing said a word.
+  // No listing means no checkout to check against - a test fixture, a tarball - and a gate that
+  // fires where it cannot see is worse than no gate. Stand down rather than refuse everything.
+  for (const glob of files.length === 0 ? [] : rule.scope) {
+    if (glob === '**') continue;
+    if (!files.some((file) => globMatches(glob, file))) {
+      problems.push(
+        `${rule.path}: scope \`${glob}\` matches no file in the repository, so this rule would never load. ` +
+          'Scope it to where the code IS, not where it is going.',
+      );
+    }
+  }
   return problems;
+}
+
+/**
+ * Every file git tracks, repo-relative and posix. Used to answer "does this scope match anything".
+ * Falls back to an empty list outside a git checkout, which makes the scope check stand down
+ * rather than refuse every rule - a gate that fires where it cannot see is worse than no gate.
+ */
+function trackedFiles(root) {
+  const res = spawnSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', windowsHide: true });
+  if (res.status !== 0) return [];
+  return res.stdout.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
 }
 
 function walk(dir, out = []) {
@@ -280,6 +312,8 @@ function walk(dir, out = []) {
 /** Every rule under contracts/rules, parsed and validated against the tree. */
 export function loadRules(root) {
   const files = walk(path.join(root, RULES_DIR)).sort();
+  // Every tracked file, once, so the scope check below is one listing rather than one per rule.
+  const tracked = trackedFiles(root);
   const rules = [];
   const problems = [];
   for (const file of files) {
@@ -287,7 +321,7 @@ export function loadRules(root) {
     const { rule, problems: own } = parseRule(rel, readFileSync(file, 'utf8'));
     problems.push(...own);
     if (rule) {
-      problems.push(...validateAgainstTree(rule, root));
+      problems.push(...validateAgainstTree(rule, root, tracked));
       rules.push(rule);
     }
   }
@@ -435,8 +469,10 @@ export function compileOutputs(rules, owned = new Set()) {
     outputs.set(`${OUTPUT_DIR}/${slug}.md`, lines.join('\n'));
   }
   for (const [dir, dirRules] of nestedContracts(rules, owned)) {
-    outputs.set(`${dir}/${NESTED_CONTRACT}`, renderNested(dir, dirRules));
-    outputs.set(`${dir}/${NESTED_ATTRIBUTES}`, renderAttributes());
+    // The root's files have no directory prefix; everything else is `<dir>/<name>`.
+    const at = (name) => (dir === '' ? name : `${dir}/${name}`);
+    outputs.set(at(NESTED_CONTRACT), renderNested(dir === '' ? '(the whole repository)' : dir, dirRules));
+    if (dir !== '') outputs.set(at(NESTED_ATTRIBUTES), renderAttributes());
   }
   outputs.set(INDEX_PATH, renderIndex(rules));
   return outputs;
@@ -474,7 +510,7 @@ export function nestedContracts(rules, owned) {
   for (const rule of rules) {
     if (rule.status !== 'active' || rule.carried) continue;
     const home = deepestOwner(scopeOwner(rule.scope), owned);
-    if (!home) continue;
+    if (home === null) continue;
     if (!byDir.has(home)) byDir.set(home, []);
     byDir.get(home).push(rule);
   }
@@ -489,7 +525,12 @@ export function nestedContracts(rules, owned) {
  * contract a rule is in.
  */
 export function deepestOwner(dir, owned) {
-  if (dir === '') return null;
+  // THE REPOSITORY ROOT IS A DIRECTORY LIKE ANY OTHER once it carries the marker. Kernel rules -
+  // the ones scoped `**` - reach Claude Code through `.claude/rules/everywhere.md`, which it loads
+  // at launch; Codex reads AGENTS.md files and nothing else, so without a generated root contract
+  // it would see none of them. That is the whole global rule set, including "never merge into main
+  // yourself" and "publishing past main needs the user".
+  if (dir === '') return owned.has('') ? '' : null;
   const parts = dir.split('/');
   for (let i = parts.length; i > 0; i -= 1) {
     const candidate = parts.slice(0, i).join('/');
