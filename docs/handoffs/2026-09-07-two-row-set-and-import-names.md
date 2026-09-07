@@ -81,21 +81,26 @@ recompile put all 350 rules back. Worth remembering the next time a branch and `
 a generated file: `git merge` reporting no conflict says nothing about whether the result is
 what the generator would write.
 
-## What is not verified here
+## What the affected plan said, and what is still open
 
-**The affected plan did not run.** `j-0731` (`node scripts/e2e-affected.mjs --focus`) has been
-queued since the start of the session and never got a slot. Free memory fell from 3.2 GB to about
-1 GB across the session and the queue's budget reached `0/0`, because another session was running
-Playwright in the primary checkout - the machine's one browser slot, held outside the queue.
-`npm run reclaim` frees 0 MB net here; its only heavy target is the desktop app the owner keeps
-open, which was left alone. The runner is live and will drain the job once that run ends;
-SessionStart reports it.
+`j-0731` (`e2e-affected --focus`) waited most of the session for a slot - free memory fell from
+3.2 GB to about 1 GB and the queue's budget reached `0/0`, because another session was running
+Playwright in the primary checkout, the machine's one browser slot, held outside the queue.
+(`npm run reclaim` frees 0 MB net here; its only heavy target is the desktop app the owner keeps
+open, which was left alone.) It then ran, and it earned the wait:
 
-So **CI is the gate for this branch**, which is where the pre-merge gate belongs anyway. The three
-NEW specs in `e2e/import-svg.spec.ts` (the `static:` case, the own-copy naming case and the
-kerned-wrapper regression) have never been executed. If one of them is wrong, `CI gate` reds and
-the branch does not land, which is the mechanism working rather than a risk to `main` - but read
-those three first if CI comes back red.
+- the stepped-list walk **passed** on the `static:` fixture, so the numerals stay drawing and the
+  entries box really is `f1`;
+- the own-copy naming case and the kerned-wrapper regression **passed**;
+- the `static:` case **failed**, and the feature was right while the test was wrong: the emitted
+  template is Prettier-printed, so a `<text>` with several attributes has its words on their own
+  line and `toContain('>10.</text>')` could never match. The captured HTML showed exactly what was
+  wanted - `f0:Item` the only field, the numeral still drawn as `static:Rank` - so the assertion
+  was rewritten to match across the line breaks and re-checked against that captured HTML.
+
+**Still not run:** `j-0737` (`e2e-affected --integration`), the plan that covers BOTH sides after
+`main` came in, is queued and RAM-blocked. The rest of `j-0731` had not finished either. So
+**CI is the gate for this branch**, which is where the pre-merge gate belongs anyway.
 
 ## Traps that exist in no repo file
 
