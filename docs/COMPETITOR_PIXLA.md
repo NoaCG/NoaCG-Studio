@@ -207,7 +207,9 @@ everyone called "the hard part, weeks" is written, commented and unreachable onl
 tab was removed. This is wiring an existing patcher to an existing gesture.
 
 **This read audited us harder than it audited them, and four public statements are wrong - one of
-them scripted for a stage on 12 September.** `docs/IBC_LISTING_CHECKLIST.md:207` still tells the
+them scripted for a stage on 12 September.** **All four were fixed in the commit that added this
+file; the paragraph is kept as the record of what was found and why.**
+`docs/IBC_LISTING_CHECKLIST.md:207` still told the
 owner to answer "is it really free?" with "the only paid surface is hosted AI", four days after the
 2026-09-07 ruling deleted every paid surface, and he reads that script at an open-source session on
 the EBU stand on the same day the students go on air. `index.html:993` claims the product is open
@@ -234,12 +236,13 @@ is an hour of text, an hour of writing and a rehearsal.
    walks, and the two graphics walked end to end as a student would. *Effort: days, already in
    flight. Unlocks: the only evidence that any of this works on a real person's graphic in a real
    room.*
-2. **Strike the six stale commercial statements before 11 September** -
-   `docs/IBC_LISTING_CHECKLIST.md:207`, the "for the core" hedge in `index.html:1084`,
-   `README.md:10` and GOALS.md's own operating-principles line, the Extreme-subscription row and the
-   parking-lot payments line in GOALS.md, and add the missing repository link to `index.html`.
-   *Effort: one hour, one commit, no code paths touched. Unlocks: the owner not contradicting his
-   own ruling out loud at an open-source session.*
+2. ~~**Strike the six stale commercial statements before 11 September.**~~ **DONE 2026-09-07, in the
+   commit that added this file.** The IBC script's "is it really free?" answer, the "for the core"
+   hedge in `index.html`, `README.md` and GOALS.md's own operating principles, the
+   Extreme-subscription row and the parking-lot payments line, and the missing repository link on
+   the landing page - all six. The footer now carries a `Source` link to the repository, verified
+   rendering identically to its siblings. `docs/GOALS_ARCHIVE.md` keeps the old wording on purpose:
+   it is the record of what was true then.
 3. **Rehearse the wifi-down fallback once and write the two-line procedure into the production's
    notes.** `relay.py:145` binds `ThreadingHTTPServer(('localhost', p))`, so the fallback the docs
    call "the one a show drops to when the network dies" is single-machine. Discovering that at 19:30

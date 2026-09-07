@@ -69,7 +69,8 @@ document that happens to satisfy the SPX contract. SPX is an adapter and the str
 OGraf is the canonical interchange and playout contract (`docs/OGRAF_FIRST_REVIEW.md`).
 
 ### Operating principles
-- **Free forever for the core.** Creating, editing, exporting, controlling, self-hosting.
+- **Free forever, all of it.** Creating, editing, exporting, controlling, self-hosting. There is no
+  "core" and no non-core; the hedge went when the paid surface did.
 - **No paid surface, and none planned** (owner, 2026-09-07). Hosted AI for users who will not
   bring their own key is **subsidised by the project, not sold**, and bring-your-own-key is free
   as it always was.
@@ -222,7 +223,7 @@ served inside its target changes ROUTE, never price.
 | **Lite** (us, free) | 100/€1; measured $0.00032 | gate FAILED 2026-08-14, REVIVED 2026-08-15; bar = the same §2 gate re-run (`docs/AI_LITE_BRAND_PLAN.md`); a second FAIL stands |
 | **Pro** (user, a little) | ~€10/100; measured ~$0.004 | LIVE since 2026-08-15; design-language tier, Phase A (`docs/NOACG_PRO_PLAN.md` §15) |
 | **BYO key** | provider price | shipped |
-| **Extreme** (subscription) | after income | not started; funded routes stay cheap-model on the managed transport until income |
+| **Extreme** (subsidised, not sold) | after income | not started; funded routes stay cheap-model on the managed transport until income. **Was "(subscription)" until the 2026-09-07 no-paid-surface ruling** - the tier is a spend ceiling we carry, never a price we charge |
 
 - [ ] **Lite: make it good, then re-run its gate** - quality, not budget; the catalog is the
       crutch AND the moat (`docs/ADAPT_FIRST_PLAN.md`). **The gate for every other AI goal.**
@@ -263,7 +264,8 @@ its programme activates).
 - **Cloud playout stages 2-4** (`docs/CLOUD_PLAYOUT.md`): versions + rollback, operator sharing,
   rate caps; the **Data Hub** (-> P4); professional automation (-> P4).
 - **Adapt-first paid proofs** (`docs/ADAPT_FIRST_PLAN.md` §6.2/§6.3) - explicit spend approval.
-- **Managed funded AI tier** - belongs with Extreme. **Payments/subscriptions** - long beta first.
+- **Managed funded AI tier** - belongs with Extreme, and subsidised rather than sold. Payments and
+  subscriptions are not parked, they are RULED OUT (owner, 2026-09-07): there is no paid surface.
 - **Nightly auto-generated graphics library** (`docs/NIGHTLY_AUTOMATION_PLAN.md`).
 - **Audience page per-show customisation** + **chat ingestion into the audience plane**
   (`docs/INTERACTIVE_PLAYOUT_PLAN.md`) - held while the plain join page is being accepted.
