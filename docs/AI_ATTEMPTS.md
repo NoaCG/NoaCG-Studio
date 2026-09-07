@@ -896,8 +896,25 @@ on the answer.**
 `qz-arena` - is a board worth airing. `cd-results` and `cd-show` are competent and NEARLY
 IDENTICAL to each other, though their briefs are "newsroom-severe" and "playful, warm ... family
 show". `pd-seats` is visibly wrong: roughly 60% of its panel is empty and every name and score is
-jammed into a right-hand column with the title stranded at the far left. **`pd-seats` delivered
-CLEAN**, so the deliver-signal leak §23.1 drove to zero on lower thirds is back on the dense types.
+jammed into a right-hand column with the title stranded at the far left.
+
+**AND "DELIVERED" DOES NOT MEAN THE SAME THING ACROSS THE THREE TYPES, which is the caveat these
+numbers must be read with.** `CALIBRATED` in the runner is `{ lower-third, countdown }`, and
+everything else runs its instruments as ADVISORY (`advisoryInstruments = !CALIBRATED[proType]`). So:
+
+- **countdown, 2 of 3** - instruments BLOCK. `cd-launch` was refused by one. A full-strength verdict.
+- **quiz-board and podium-score, 2 of 6** - instruments only ADVISE. `pd-seats` delivered carrying
+  EIGHT advisory findings, `spacing-padding-tight`, `spacing-padding-lopsided` and
+  `proportion-footprint-large` among them, on all three frames.
+
+That is the whole deliver-signal leak on these types, and it is not mysterious: the instruments saw
+it and were not allowed to stop it. The remedy is calibrating thresholds for the dense types, the
+same work §22.1/§23.1 did for lower thirds - not a new check.
+
+**One thing the instruments did NOT see**, worth its own line: `proportion-panel-oversized` never
+fired on `pd-seats`, at any severity. It measures the content's UNION RECT against the panel area
+(`proportionCheck.ts`), and a union cannot see a hole - a title pinned to the far left and a score
+column pinned to the far right span the panel between them while the middle stays empty.
 The frames are all shot under the entrance-derived settle, so `pro-harness-out-rerun/review.html`
 is a fair blind sheet.
 
