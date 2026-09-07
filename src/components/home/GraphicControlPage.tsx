@@ -553,7 +553,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
             back was previously a bare wordmark. */}
         <button
           onClick={() => navigate({ view: 'home', section: null })}
-          title="Back to Home — your graphics, packages, control panels, and videos"
+          title="Back to Home — your graphics, productions, control panels, and videos"
           data-testid="control-home"
         >
           ← Home

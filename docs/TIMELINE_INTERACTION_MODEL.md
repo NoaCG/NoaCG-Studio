@@ -111,4 +111,4 @@ The audit below is against the ten principles of the interaction brief.
 
 Deferred with their designs: step calls (plan §3b, drafted), quiz wrapper-steps, loop
 categories. (The early-exit `hides` list and the canvas scale/rotate keyframe handles were
-on this list and have both SHIPPED — see §2 and src/components/CLAUDE.md.)
+on this list and have both SHIPPED — see §2 and src/components/timeline/AGENTS.md.)

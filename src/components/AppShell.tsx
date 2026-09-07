@@ -350,7 +350,7 @@ export default function AppShell() {
           className="home-btn"
           onClick={() => navigate({ view: 'home', section: null })}
           data-testid="open-home"
-          title="Home — your graphics, packages, control panels, and videos"
+          title="Home — your graphics, productions, control panels, and videos"
         >
           Home
         </button>

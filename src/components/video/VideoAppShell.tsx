@@ -188,7 +188,7 @@ export default function VideoAppShell() {
           className="home-btn"
           onClick={() => useRouter.getState().navigate({ view: 'home', section: null })}
           data-testid="open-home"
-          title="Home — your graphics, packages, control panels, and videos"
+          title="Home — your graphics, productions, control panels, and videos"
         >
           Home
         </button>

@@ -1,0 +1,10 @@
+---
+v: 1
+scope: src/components/PreviewFrame.tsx, src/components/spaceKey.ts
+kind: rule
+fires: contract
+status: active
+since: 2026-09-07
+record: contracts/records/components/2026-09-07-over-stage-held-space-pans-tap.md
+---
+Over the stage a HELD Space pans and a TAP plays. `spacePansCanvas()` is true when the canvas is the active surface, the pointer is over the stage and nothing is being typed into; the tap is decided on the KEYUP from two facts the gesture itself produces, OS auto-repeat and whether a pan drag happened, never from a timer. `activeSurface` flips on a pointerdown on the stage or the timeline strip, and panels and dialogs leave it alone, so a trip to the Inspector keeps whichever surface you were in.
