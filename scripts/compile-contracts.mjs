@@ -72,7 +72,9 @@ export function ownedDirectories(root) {
   const owned = new Set();
   for (const file of contractsUnder(root)) {
     if (readFileSync(path.join(root, file), 'utf8').includes(GENERATED_MARKER)) {
-      owned.add(path.posix.dirname(file));
+      // `dirname` answers '.' for a file at the root; the scope vocabulary calls that ''.
+      const dir = path.posix.dirname(file);
+      owned.add(dir === '.' ? '' : dir);
     }
   }
   return owned;
@@ -87,7 +89,7 @@ function contractsUnder(root, dir = '', out = []) {
     const rel = dir ? `${dir}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
       if (!SKIP.has(entry.name)) contractsUnder(root, rel, out);
-    } else if (entry.name === NESTED_CONTRACT && dir !== '') out.push(rel);
+    } else if (entry.name === NESTED_CONTRACT) out.push(rel);
   }
   return out;
 }
@@ -111,7 +113,7 @@ function staleOutputs(outputs, root, owned = new Set()) {
   }
   for (const ownedDir of owned) {
     for (const name of [NESTED_CONTRACT, NESTED_ATTRIBUTES]) {
-      const rel = `${ownedDir}/${name}`;
+      const rel = ownedDir === '' ? name : `${ownedDir}/${name}`;
       if (outputs.has(rel)) continue;
       const file = path.join(root, rel);
       if (existsSync(file) && readFileSync(file, 'utf8').includes(GENERATED_MARKER)) stale.push(rel);
