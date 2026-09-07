@@ -437,7 +437,7 @@ function createPlaywrightWorkbench({ proType, ticker, briefSteps, shotsDir, tag 
       // at press 2 and could not have passed a single shipped board either. The type owns the
       // ANIMATION region, so the model could not have fixed it: unwinnable by construction
       // (docs/AI_ATTEMPTS.md, the fifth fault).
-      const path_ = await page.evaluate(async (js) => {
+      const defaultPath = await page.evaluate(async (js) => {
         const bust = '?t=' + Date.now();
         const { parseAnimData } = await import('/src/blocks/animData.ts' + bust);
         const { spxSteps } = await import('/src/blocks/animMachine.ts' + bust);
@@ -451,16 +451,22 @@ function createPlaywrightWorkbench({ proType, ticker, briefSteps, shotsDir, tag 
       // built to the brief, and the repair is a step in the ANIMATION region. Where the type owns
       // the region, the brief's actions are the machine's events and this is not the model's to
       // answer.
-      if (briefSteps && path_ && !path_.machine && path_.presses < briefSteps) {
+      if (briefSteps && defaultPath && !defaultPath.machine && defaultPath.presses < briefSteps) {
         raw.push({
           source: 'harness',
           code: 'step-count',
-          severity: 'block',
-          message: `the brief asks for ${briefSteps} operator step(s) but the graphic's default path offers ${path_.presses}: add the missing step(s) to the ANIMATION region - one next() press plays one step, and the last step is the exit`,
+          // ADVISORY UNTIL SOMETHING EXERCISES IT. Every brief in the bank that lists operator
+          // steps names a machine-driven type, so this has never fired, and it rests on a
+          // reading of the brief - that its first listed step follows the entrance rather than
+          // being it. A blocking finding nobody has watched fire is the shape this round was
+          // spent removing (docs/AI_ATTEMPTS.md); promote it once a run shows it landing on a
+          // graphic that genuinely missed a step.
+          severity: 'advise',
+          message: `the brief asks for ${briefSteps} operator step(s) but the graphic's default path offers ${defaultPath.presses}: add the missing step(s) to the ANIMATION region - one next() press plays one step, and the last step is the exit`,
         });
       }
       const shots = shotsDir ? { hold: path.join(shotsDir, `${tag}.hold.png`), long: path.join(shotsDir, `${tag}.long.png`) } : {};
-      const hold = await mountAndMeasure(normalized, sampleValues(normalized), { proType, ticker, steps: path_ ? path_.presses : 0, capture: options.capture, shotPath: shots.hold });
+      const hold = await mountAndMeasure(normalized, sampleValues(normalized), { proType, ticker, steps: defaultPath ? defaultPath.presses : 0, capture: options.capture, shotPath: shots.hold });
       if (hold.playError) raw.push({ source: 'runtime', code: 'play-threw', severity: 'block', frame: 'hold', message: `the template threw at play(): ${hold.playError}` });
       raw.push(...instrumentFindings(hold.measured, 'hold', advisoryInstruments));
       for (const s of hold.steps) {
