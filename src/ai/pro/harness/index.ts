@@ -17,7 +17,10 @@ export {
   NEARLY_CLEAN_BLOCKING,
 } from './findings.js';
 export type { Finding, FindingInput, FindingSeverity, FindingSource, FindingFrame, RoundRecord, Verdict, VerdictResult } from './findings.js';
-export { applyGraphicPatch, describeWritableRegions, boxInnerRange, animationRange, fieldIdsIn, withDesignCss, DESIGN_CSS_MARKER } from './patch.js';
+export { applyGraphicPatch, describeWritableRegions, boxInnerRange, fieldIdsIn, withDesignCss, DESIGN_CSS_MARKER } from './patch.js';
+// The ANIMATION region's bounds and the reason the importer refused one are blocks/, not this
+// lane's: `bridgeApi.normalize` asks the same question through the agent CLI door.
+export { animationBreach, animationRange } from '../../../blocks/animationRegion.js';
 export type { GraphicPatch, PatchResult } from './patch.js';
 export { KNOWLEDGE_CARDS, CORE_KNOWLEDGE, knowledgeCard, knowledgeIndex, knowledgeForRequest, renderKnowledge } from './knowledge.js';
 export type { KnowledgeCard, KnowledgeId, KnowledgeRequest } from './knowledge.js';

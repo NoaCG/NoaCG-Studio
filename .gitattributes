@@ -74,3 +74,13 @@ contracts/**/*.md text eol=lf
 # than both editing this one, which is the conflict phase 2b exists to remove.
 .claude/rules/*.md merge=noacg-contracts
 contracts/index.md merge=noacg-contracts
+
+# THE ROOT AREA IS THE ONE THAT CANNOT CARRY ITS OWN FILE. Every migrated area gets a
+# `.gitattributes` written by the compiler in its own directory (src/ai/, src/templates/, ...),
+# which is what keeps two areas migrating at once out of each other's way. The root area's
+# directory IS this file - hand-written, and full of lines no generator may overwrite - so the
+# compiler leaves it alone and its two lines are written here instead. Without them `npm run
+# build` leaves the root AGENTS.md phantom-dirty on every Windows checkout, and merge-order and
+# safe-merge-preflight then call the tree not landable over zero changed lines.
+/AGENTS.md merge=noacg-contracts
+/AGENTS.md text eol=lf

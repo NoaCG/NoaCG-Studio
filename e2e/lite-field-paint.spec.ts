@@ -191,3 +191,56 @@ test.describe('the drive asks the whole machine, not one state', () => {
       .toBeLessThan(out.cap);
   });
 });
+
+test.describe('a declared input-only holder is not a field that failed to paint', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/app');
+  });
+
+  test('every shipped game-timer passes, though its minutes field is never drawn', async ({ page }) => {
+    // The 2026-09-06 Pro Harness round refused every countdown it generated on
+    // `bench-field-unpainted`, for markup the root `AGENTS.md` prescribes verbatim:
+    // `<span id="f1" class="noacg-data-source">`, hidden by a stylesheet rule, read by the clock
+    // engine, never drawn. The whole shipped family does the same thing, so the check as written
+    // refused NoaCG's own work - the signature src/ai/pro/AGENTS.md names, an instrument whose
+    // false positives are the good designs.
+    const out = await page.evaluate(async () => {
+      const { CATALOG } = await import('/src/templates/catalog.ts');
+      const bench = await import('/src/validation/runtimeBench.ts');
+      const rows: Array<{ id: string; findings: string[] }> = [];
+      for (const variant of CATALOG['game-timer']) {
+        const result = await bench.benchTemplateRuntime(variant.create({}), { fieldPaints: true });
+        rows.push({
+          id: variant.id,
+          findings: [...result.errors, ...result.warnings]
+            .filter((f) => f.rule === 'bench-field-unpainted')
+            .map((f) => f.message),
+        });
+      }
+      return rows;
+    });
+    expect(out.length).toBeGreaterThan(0); // the family is still there to measure
+    expect(out.filter((r) => r.findings.length)).toEqual([]);
+  });
+
+  test('the same holder WITHOUT the class is still reported', async ({ page }) => {
+    // The mutation half: what clears the finding is the author's DECLARATION, not the fact that a
+    // value is hidden. Strip the class (keeping the element hidden by its own rule) and the field
+    // is an ordinary hidden holder again - which is the defect the check exists for.
+    const out = await page.evaluate(async () => {
+      const { CATALOG } = await import('/src/templates/catalog.ts');
+      const bench = await import('/src/validation/runtimeBench.ts');
+      const template = CATALOG['game-timer'][0].create({});
+      const stripped = {
+        ...template,
+        html: template.html.replace(/ class="noacg-data-source"/g, ''),
+        css: `${template.css}
+#f1 { display: none !important; }
+`,
+      };
+      const result = await bench.benchTemplateRuntime(stripped, { fieldPaints: true });
+      return [...result.errors, ...result.warnings].map((f) => f.rule);
+    });
+    expect(out).toContain('bench-field-unpainted');
+  });
+});
