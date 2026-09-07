@@ -22,6 +22,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { parseFrontmatter as parseFrontmatterText } from './owner-receipts.mjs';
+import { GENERATED_MARKER } from './contracts-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_WRAPPER_LINES = 25;
@@ -659,13 +660,30 @@ function checkRepositoryFile(file, label) {
   }
 }
 
-// 1. Every repository AGENTS.md has a thin sibling CLAUDE.md importing it.
+// 1. Every HAND-WRITTEN repository AGENTS.md has a thin sibling CLAUDE.md importing it.
+//
+// A contract compiled from the rule store (scripts/compile-contracts.mjs) has no sibling and must
+// not grow one: Claude Code already loads the same rules from `.claude/rules/` at the moment it
+// reads a file they scope to, so a wrapper here would charge every Claude session for them twice.
+// That saving is the whole point of migrating an area - the pair rule holds for the prose files
+// that have not migrated yet, which is still nearly all of them.
 const agentsFiles = findFilesNamed(ROOT, 'AGENTS.md').filter(
   (file) => rel(file) === 'AGENTS.md' || !rel(file).startsWith('.'),
 );
+const isGeneratedContract = (file) => existsSync(file) && text(file).includes(GENERATED_MARKER);
 for (const agentsFile of agentsFiles) {
-  const claudeFile = path.join(path.dirname(agentsFile), 'CLAUDE.md');
   checkRepositoryFile(agentsFile, 'authoritative project instructions');
+  const claudeFile = path.join(path.dirname(agentsFile), 'CLAUDE.md');
+  if (isGeneratedContract(agentsFile)) {
+    if (existsSync(claudeFile)) {
+      failures.push(
+        `${rel(claudeFile)} sits beside a GENERATED contract. Claude Code loads those rules from ` +
+          '.claude/rules/ already, so this wrapper makes every Claude session pay for them twice - ' +
+          'delete it.',
+      );
+    }
+    continue;
+  }
   checkRepositoryFile(claudeFile, 'Claude import');
   checkThinWrapper(claudeFile, '@AGENTS.md', 'AGENTS.md/CLAUDE.md pair');
 }

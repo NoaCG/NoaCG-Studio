@@ -15,6 +15,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { GENERATED_MARKER } from '../contracts-lib.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function git(args) {
@@ -26,8 +28,17 @@ function shaAt(date) {
   return git(['log', '-1', '--format=%H', `--before=${date} 23:59:59`, 'origin/main']).trim() || 'HEAD';
 }
 
+/**
+ * The tracked files matching `pattern`, from the same place their CONTENT is read.
+ *
+ * With no `--at` the content comes from the working tree, so the list has to come from the
+ * index (`ls-files`) rather than from the last commit: a row that deletes a contract leaves it
+ * in `ls-tree` and gone from disk, and the metric crashed on its own migration. For a past
+ * commit both halves come from that commit.
+ */
 function files(sha, pattern) {
-  return git(['ls-tree', '-r', '--name-only', sha]).split('\n').filter((f) => pattern.test(f));
+  const listing = sha === 'HEAD' ? git(['ls-files']) : git(['ls-tree', '-r', '--name-only', sha]);
+  return listing.split('\n').filter((f) => pattern.test(f));
 }
 
 /** The file's text at a commit; the working tree when no `--at` was asked, which needs no git. */
@@ -78,9 +89,13 @@ function main() {
     else launch += Buffer.byteLength(text, 'utf8');
   }
   const root = sizes.get('AGENTS.md') ?? 0;
+  // The number phase 2b is FOR: how much of the corpus is still prose somebody edits by hand.
+  const generated = contracts.filter((f) => textAt(sha, f).includes(GENERATED_MARKER));
+  const generatedBytes = generated.reduce((sum, f) => sum + sizes.get(f), 0);
 
   console.log(`[metrics:contracts] at ${at ?? 'HEAD'} (${sha.slice(0, 8)})`);
   console.log(`  corpus: ${contracts.length} files, ${corpus.toLocaleString()} bytes (LF)`);
+  console.log(`  hand-written: ${contracts.length - generated.length} files, ${(corpus - generatedBytes).toLocaleString()} bytes - the target is zero (${generated.length} generated)`);
   console.log(`  root AGENTS.md: ${root.toLocaleString()} bytes x ${agents.length} chains = ${(root * agents.length).toLocaleString()} (~${Math.round(root / 4).toLocaleString()} tokens per session)`);
   console.log(`  compiled layer: ${compiled.length} file(s); ${launch.toLocaleString()} bytes load at launch, ${scoped.toLocaleString()} bytes load on a matching read`);
   console.log('  tightest chains (bytes, files):');
