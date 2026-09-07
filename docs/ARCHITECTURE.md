@@ -22,8 +22,9 @@ first, then consume the seam.
 ## 2. Domain registry
 
 Layers are the mental model; the edge table in §3 is the law. Higher layers import lower ones,
-never the reverse. `*` = the domain carries its own `AGENTS.md` with the detailed contract and a
-thin `CLAUDE.md` import.
+never the reverse. `*` = the domain carries its own `AGENTS.md` with the detailed contract, plus a
+thin `CLAUDE.md` import unless that contract is COMPILED from `contracts/rules` - a compiled one
+has no wrapper, because Claude Code loads the same rules from `.claude/rules/` by scope.
 
 | Layer | Domain | Owns | Public seam (import these) |
 |---|---|---|---|
@@ -215,9 +216,9 @@ rather than enforcement; keep it in step with this doc when domains move.
 
 ## 8. Repository map
 
-What lives where, one line per directory. `*` marks a directory with its own `AGENTS.md` (and a
-thin `CLAUDE.md` importing it) carrying the binding per-area contract - read that file before
-editing the area. This map is reference; the law is §2 and §3 above.
+What lives where, one line per directory. `*` marks a directory with its own `AGENTS.md`
+carrying the binding per-area contract - read that file before editing the area. A hand-written
+one has a thin `CLAUDE.md` beside it; a COMPILED one has none. This map is reference; the law is §2 and §3 above.
 
 ```
 src/                     (* = has its own AGENTS.md; read it, this line is only the label)

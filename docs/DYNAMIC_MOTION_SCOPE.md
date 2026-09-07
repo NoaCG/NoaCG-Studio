@@ -154,8 +154,8 @@ As built (the builders live in `src/templates/tickers/tickerMotion.ts` and
   builder, open-ended, with a tooltip that it is edited in code. The §3b calls glyph (a `lifecycle`
   row of named pins) and the `loops` repeat tail shipped alongside it, on the same principle: the
   timeline surfaces every code-owned thing in the data so it never silently hides motion, and makes
-  none of them draggable so it never implies an affordance it doesn't have. See
-  src/components/CLAUDE.md, "the three read-only surfaces".
+  none of them draggable so it never implies an affordance it doesn't have. The three read-only
+  rows are src/components/timeline/AGENTS.md's.
 
 ## 7. Migration path
 

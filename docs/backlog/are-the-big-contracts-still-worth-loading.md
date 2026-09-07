@@ -2,7 +2,12 @@
 v: 1
 source: owner
 raised: 2026-09-07
-state: unstarted
+state: advanced
+note: "src/components read under this question and reported (68381ada): 44 rules kept, 4
+  claims false, 17 passages true but retired - eight of them pointers to the subdirectory
+  contracts, which is the finding. docs/metrics/2026-09-07-components-migrated.md. The ask
+  still stands: src/ai, the area the owner named, has not been read this way, and the owner
+  has not yet ruled on the seventeen."
 asked: "make a note that we need to look at what instructions the ai harness and the big files
   have, because everything might not be that useful anymore"
 ---

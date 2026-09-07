@@ -1,0 +1,10 @@
+---
+v: 1
+scope: src/components/CodeEditor.tsx, src/components/video/VideoCodeEditor.tsx
+kind: invariant
+fires: contract
+status: active
+since: 2026-09-07
+record: contracts/records/components/2026-09-07-render-comments-control-view-preference-normal.md
+---
+Render the Comments control from `src/editor/` as a VIEW preference: Normal, Dimmed and Hidden paint DECORATIONS over the spans Monaco's own tokenizer reports, so the code, the undo stack, the cursor and every export stay untouched and a hidden comment leaves its blank line where it was. Reapply on every model swap because a language's tokenizer loads lazily, and in Hidden temporarily reveal any comment holding the selection, a diagnostic marker or a find match. Persisted in `model/prefs.ts`.
