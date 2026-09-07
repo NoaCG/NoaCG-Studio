@@ -1688,9 +1688,10 @@ test('stepped list: Next reveals the entries from ten down to one, each staying 
   await intoProduction(page, 'Top ten', 'Late night');
   await settleDurableWrites(page);
 
-  // The entries are one box, line 1 being number 1; the title and the ten rank numerals are
-  // the artwork's own fields, so the box is the field after them.
-  await page.getByTestId('cue-field-f11').fill('One\nTwo\nThree\nFour\nFive\nSix\nSeven\nEight\nNine\nTen');
+  // The entries are one box, line 1 being number 1. The ten rank numerals are drawn
+  // `static:Rank 10`, so they stay drawing rather than arriving as ten boxes to untick, and the
+  // title is the artwork's only field - the box is the one after it.
+  await page.getByTestId('cue-field-f1').fill('One\nTwo\nThree\nFour\nFive\nSix\nSeven\nEight\nNine\nTen');
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const { layer, lit, dark } = onAir(page);

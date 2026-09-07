@@ -30,6 +30,16 @@ export interface SvgTextCandidate {
    *  every detected text defaults ON either way. For a PICTURE, which defaults OFF (inside a
    *  design a picture is usually the artwork), the prefix is what turns it on. */
   marked: boolean;
+  /** True when the layer name carried the `static:` prefix — the designer saying this text is
+   *  FURNITURE, not a slot. The row is still offered, unticked, and the words stay as drawn:
+   *  a top ten's rank numerals and a bingo grid's numbers are drawing the operator should
+   *  never be handed twenty-five boxes for
+   *  (docs/backlog/decorative-numerals-arrive-as-fields.md). */
+  drawing: boolean;
+  /** True when this layer's own name was its own words, so the label came from the group
+   *  around it. The mapping step says so under the box, because otherwise a slot the designer
+   *  deliberately named after its placeholder reads as mislabelled with nothing explaining it. */
+  namedByGroup: boolean;
   /** A numeric-looking sample proposes ftype "number" (a score, a count, a year). */
   numeric: boolean;
   /** A clock-shaped sample ("10:00", "1:05:00") can be bound as a COUNTDOWN instead of text:
@@ -240,33 +250,75 @@ function layerName(el: Element): string {
   return '';
 }
 
-/** A layer whose NAME IS ITS OWN COPY names nothing. Figma auto-names every text layer after the
- *  words in it, so a Figma quiz board arrives with `<text id="Amsterdam">` inside `<g id="Answer
- *  A">` - and the operator's field is then labelled "Amsterdam", the very thing they are about to
- *  retype, while the name the designer chose sits one level up unused. Nobody deliberately names a
- *  layer the sentence it contains, so this is read as unnamed and `candidateName` keeps climbing. */
+/** A layer whose NAME IS ITS OWN COPY may be naming nothing. Figma auto-names every text layer
+ *  after the words in it, so a Figma quiz board arrives with `<text id="Amsterdam">` inside `<g
+ *  id="Answer A">` - and the operator's field would be labelled "Amsterdam", the very thing they
+ *  are about to retype, while the name the designer chose sits one level up unused. `candidateName`
+ *  climbs past such a name, but only where the name it reaches is BETTER EVIDENCE (see there). */
 function namesItsOwnCopy(el: Element, name: string): boolean {
   const copy = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
   return copy.length > 0 && copy === name.replace(/\s+/g, ' ').trim();
 }
 
-/** The optional editable-by-name prefix (docs/SVG_IMPORT_PLAN.md §2): `f:` or `field:` on a
- *  layer name marks it editable and is stripped from the label. */
-function stripFieldPrefix(name: string): { label: string; marked: boolean } {
-  const m = /^(?:f|field):\s*(.*)$/i.exec(name);
-  return m ? { label: m[1].trim(), marked: true } : { label: name, marked: false };
+/** The layer-name prefixes (docs/SVG_AUTHORING.md §3): `f:` / `field:` marks a layer editable,
+ *  `static:` marks a text layer as DRAWING - offered unticked, its words left as drawn. Either
+ *  prefix is stripped from the label. */
+function stripFieldPrefix(name: string): { label: string; marked: boolean; drawing: boolean } {
+  const field = /^(?:f|field):\s*(.*)$/i.exec(name);
+  if (field) return { label: field[1].trim(), marked: true, drawing: false };
+  const drawn = /^static:\s*(.*)$/i.exec(name);
+  if (drawn) return { label: drawn[1].trim(), marked: false, drawing: true };
+  return { label: name, marked: false, drawing: false };
+}
+
+/** The `<text>` a candidate belongs to - itself, or the one it is a run of. Several candidates
+ *  can come out of ONE text layer (two labels on a shared baseline, textCandidates), and they are
+ *  one LAYER for the purpose below: a group wrapping one text does not become a group of several
+ *  because the designer kerned it. */
+function textLayerOf(el: Element): Element {
+  return el.tagName.toLowerCase() === 'text' ? el : el.closest('text') ?? el;
+}
+
+/** Does this node hold MORE THAN ONE text layer, counted over the candidate inventory? That is
+ *  the whole of the evidence `candidateName` weighs, so it stops at the second one. With no
+ *  inventory to read (the picture, outline and panel roads, none of which can name their own
+ *  copy: a shape has no words) the answer is no, which keeps the climb. */
+function holdsSeveralTextLayers(node: Element, peers?: readonly Element[]): boolean {
+  let only: Element | null = null;
+  for (const peer of peers ?? []) {
+    if (!node.contains(peer)) continue;
+    const layer = textLayerOf(peer);
+    if (only === null) only = layer;
+    else if (layer !== only) return true;
+  }
+  return false;
 }
 
 /** The nearest named layer for a candidate: its own name, else the closest named ancestor
- *  group inside the svg (Illustrator/Figma name GROUPS, and the text sits inside one). */
-function candidateName(el: Element, root: Element): string {
+ *  group inside the svg (Illustrator/Figma name GROUPS, and the text sits inside one).
+ *
+ *  CLIMBING PAST A LAYER NAMED AFTER ITS OWN WORDS IS EVIDENCE-LED, not automatic. Figma's
+ *  auto-name is worth leaving behind because the wrapper above it names that one text layer and
+ *  nothing else. A group holding EIGHT text layers cannot be the name of one of them, so a
+ *  bracket's `<text id="Champion">Champion</text>` inside `<g id="Words">` keeps the name its
+ *  author typed rather than arriving as "Words"
+ *  (docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). With nothing named above
+ *  it at all, its own words are the only name there is - better than "Text 7". */
+function candidateName(el: Element, root: Element, peers?: readonly Element[]): { name: string; fromGroup: boolean } {
   let node: Element | null = el;
+  let ownWords = '';
   while (node && node !== root) {
     const name = layerName(node);
-    if (name && !namesItsOwnCopy(node, name)) return name;
+    if (name) {
+      if (!namesItsOwnCopy(node, name)) {
+        if (ownWords && holdsSeveralTextLayers(node, peers)) return { name: ownWords, fromGroup: false };
+        return { name, fromGroup: ownWords !== '' };
+      }
+      if (!ownWords) ownWords = name;
+    }
     node = node.parentElement;
   }
-  return '';
+  return { name: ownWords, fromGroup: false };
 }
 
 /** Does this sample propose a number field? A PLAIN figure only — an SPX number input can
@@ -1413,9 +1465,10 @@ export function importSvgMarkup(source: string): SvgImportResult {
     el.setAttribute(SVG_CANDIDATE_ATTR, id);
     hoistRunPosition(el);
     // A tspan's own name is rarely set; the nearest named thing is usually its <text> or the
-    // group Illustrator made of the layer.
-    const name = candidateName(el, svg);
-    const { label, marked } = stripFieldPrefix(name);
+    // group Illustrator made of the layer. The whole inventory rides along, because whether a
+    // group's name belongs to ONE text layer is what decides the climb (candidateName).
+    const { name, fromGroup } = candidateName(el, svg, nodes);
+    const { label, marked, drawing } = stripFieldPrefix(name);
     const sample = candidateSample(el, fontSize);
     // A block that now reads as ONE wrapping field says so in the markup, so the runtime reads
     // one value off it rather than three runs. See markWrappedBlock for why it happens here.
@@ -1428,6 +1481,8 @@ export function importSvgMarkup(source: string): SvgImportResult {
       label: label || `Text ${i + 1}`,
       sample,
       marked,
+      drawing,
+      namedByGroup: fromGroup,
       numeric: looksNumeric(sample),
       clock: looksClock(sample),
     };
@@ -1456,7 +1511,7 @@ export function importSvgMarkup(source: string): SvgImportResult {
     .map((el, i) => {
       const id = `i${i}`;
       el.setAttribute(SVG_CANDIDATE_ATTR, id);
-      const { label, marked } = stripFieldPrefix(candidateName(el, svg));
+      const { label, marked } = stripFieldPrefix(candidateName(el, svg).name);
       return { id, label: label || `Picture ${i + 1}`, marked };
     });
 
@@ -1465,7 +1520,7 @@ export function importSvgMarkup(source: string): SvgImportResult {
   const outlines: SvgOutlineCandidate[] = outlineCandidates(svg).map((el, i) => {
     const id = `o${i}`;
     el.setAttribute(SVG_CANDIDATE_ATTR, id);
-    const { label, marked } = stripFieldPrefix(candidateName(el, svg));
+    const { label, marked } = stripFieldPrefix(candidateName(el, svg).name);
     return { id, label: label || `Shapes ${i + 1}`, marked };
   });
 
@@ -1569,7 +1624,7 @@ export function importSvgMarkup(source: string): SvgImportResult {
       // with no dual-role shape numbers exactly as it always did.
       const id = el.getAttribute(SVG_CANDIDATE_ATTR) ?? `s${minted++}`;
       el.setAttribute(SVG_CANDIDATE_ATTR, id);
-      const { label } = stripFieldPrefix(candidateName(el, svg));
+      const { label } = stripFieldPrefix(candidateName(el, svg).name);
       return {
         id,
         label: label || (el.tagName.toLowerCase() === 'path' ? `Panel ${i + 1}` : `Rectangle ${i + 1}`),

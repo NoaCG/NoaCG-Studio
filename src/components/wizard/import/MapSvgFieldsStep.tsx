@@ -1779,6 +1779,18 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                   {f.whenOff === 'remove' ? 'taken off the artwork' : 'stays as drawn'}
                 </span>
               )}
+              {/* WHY THIS ROW IS NOT CALLED WHAT THE LAYER IS CALLED. A text layer named after
+                  its own words is Figma's default naming, so the label came from the group
+                  around it - right for a Figma board, and baffling for a designer who named a
+                  slot after its placeholder on purpose
+                  (docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). The row
+                  says which happened rather than leaving them to guess; the field name is
+                  theirs to retype either way. */}
+              {textLayers.find((c) => c.id === f.candidateId)?.namedByGroup && (
+                <span className="map-svg-off-note" data-testid={`map-svg-named-by-group-${f.candidateId}`}>
+                  named after its own text, so the group&rsquo;s name was used
+                </span>
+              )}
             </div>
             );
           })}

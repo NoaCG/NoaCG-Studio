@@ -1897,11 +1897,14 @@ export default function CreationWizard() {
                     // EVERY detected text starts ON (plan §2, zero clicks). The `f:` prefix
                     // says "this is definitely a field" and names it — it never says "and
                     // nothing else is": one layer exported as `f:Competition` used to turn the
-                    // other six off, which reads as detection having missed them.
+                    // other six off, which reads as detection having missed them. The one
+                    // exception is the opposite prefix: `static:` is the designer saying this
+                    // text is furniture, so the row is offered UNTICKED with its words left as
+                    // drawn (a top ten's ten rank numerals, a bingo grid's numbers).
                     svgFields: armTimerClock(
                       result.candidates.map((c) => ({
                         candidateId: c.id,
-                        on: true,
+                        on: !c.drawing,
                         title: c.label,
                         sample: c.sample,
                         numeric: c.numeric,
