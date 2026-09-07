@@ -37,175 +37,22 @@ Three numbers in the plan were measured with one-off scripts (the change-class t
 sentence-level evidence split, the reverse closures); they are quoted in
 `docs/WORKFLOW_ARCHITECTURE.md` §2 with the method and are not repeated by an npm script.
 
-## Re-measured 2026-09-06, after phases 1c and 1d landed
+## Every re-measurement is its OWN FILE under `docs/metrics/`
 
-Taken on `origin/main` at `d283883b` (the merge of phase 1d), the same way as the column above.
-The 2a module rows were still in the queue, so the rows they move are unchanged here on purpose.
+**Add one; never append to this file.** Name it `<date>-<what-moved>.md`, say what you measured it
+against, and put the numbers in it. Nothing indexes them - `ls docs/metrics/` is the index, newest
+last by name - so a row that measures something touches exactly one file that nobody else is
+editing.
 
-| Metric | Baseline | Now | Reading |
-|---|---|---|---|
-| Contract corpus | 108 files, 569,309 B | 108 files, 572,533 B | +3,224 B: the two phases' own rules, written into `AGENTS.md` and `e2e/AGENTS.md` before the compiler owns them |
-| Root bytes × chains | 22,733 × 54 | 23,268 × 54 = 1,256,472 | same direction; phase 2b is what moves it |
-| Tightest chain (`src/components/wizard`) | 101,636 B | 102,171 B | unchanged in kind |
-| Compiled layer at launch | 0 B (store empty) | 384 B | the rule store has its first compiled rule; target is ≤ 8,192 |
-| `build` line edits / 30 days | 66 | 72 | measured over history that ends the day the line stopped naming tests; from `a83ad926` on, a new check or test edits its own header, so the line has no reason to change |
-| Files the map escalates to the full suite | 141 by `CORE`, 153 unmapped | 141 by `CORE`, 153 unmapped | unchanged: the module rows that move them are in the queue |
-| Gates that declare where they run and what they guard | n/a | 32 checks, 99 test files | `npm run gates -- audit`; the audit refuses a gate that declares nothing |
-| Quarantined specs | n/a | 0 | `npm run quarantine list` |
-| Mechanical landings (quarantine, revert) | n/a | 0 | none fired yet; the organisation setting that lets Actions open pull requests is still off |
+That is the point. This file was a single append target, so two migration rows running at once
+conflicted in it every time, and a conflict stops the landing job dead. It is the same fix, for the
+same reason, as one file per owner-queue item and one file per rule in `contracts/rules/`: the
+directories that absorbed 811 commits with 11 resolutions are the ones where an item is a file
+(`docs/WORKFLOW_ARCHITECTURE.md` §1.4).
 
-**What cannot be read yet.** `metrics:landing` and `metrics:ci` both look back 30 days, so they
-still describe the laptop-lander era: the queue-to-landed and runner-minute rows need days of
-history under the merge queue before they say anything about it. Re-run both after a week of
-landings and put the column beside the baseline; the rows worth watching first are runner minutes
-per landing (the `main` full run per landing is what phase 1c's retry and quarantine are meant to
-stop re-running) and red-`main` hours, which should fall to the time a revert takes to land.
+What stays here is the BASELINE and the commands, because those are read constantly and change
+rarely. A measurement is written once and read later; it does not belong in a file every row edits.
 
-## Re-measured 2026-09-07, after the four module rows of phase 2a landed
-
-Taken on `origin/main` at `38dc3286`. The rows below are the ones the module work moves; the rest
-of the table is unchanged from the section above.
-
-| Metric | Baseline | Now | Reading |
-|---|---|---|---|
-| Files the map escalates to the full suite | 141 by `CORE`, 153 unmapped | 145 by `CORE`, 153 unmapped | +4: `src/templates/contract.ts` and the three files the debts row moved into `src/model/`. The template contract is one file that legitimately reaches everything; what leaves `CORE` is the 617 designs around it, and only once selection is derived from the graph (phase 3) |
-| Specs planned for an Import-graphic file | 38 | 13 | the capability's own nine, plus the four that assert on testids only its components render |
-| Direct importers of `src/model/wizard.ts` | 621 | 619, all through the one-landing shim | the file is a fifteen-line re-export; the second half of domain row 1 rewrites the importers and deletes it |
-| Import-only commits forced into a wizard giant | 40% (54 of 134) | 40% (54 of 134) | unchanged, and it cannot change yet: this reads sixty days of history, and every commit in that window predates the split. The first honest reading is sixty days of commits made under the new layout |
-
-**The co-change rows are the ones to watch, and the trap in them.** They are what justifies the
-remaining wizard rows, and they measure the PAST. A reading taken this week says nothing about
-whether the split worked; a reading in October does. The buckets name the old paths beside the new
-ones for exactly that reason, so the window keeps measuring one capability across the move - if a
-later session prunes the old paths from `scripts/metrics/cochange.mjs`, the number falls for a
-reason that is bookkeeping rather than modularity.
-
-## Re-measured 2026-09-07, after the compiler learned to write a nested contract
-
-Taken on this branch against `origin/main` at `93001bc7`. The row built the generator and migrated
-one area with it: `src/templates/versus`, the smallest contract in the tree.
-
-| Metric | Before | Now | Reading |
-|---|---|---|---|
-| Contract corpus | 108 files, 574,356 B | 107 files, 574,477 B | one file fewer (the `CLAUDE.md` sibling is gone) and 121 bytes more |
-| `src/templates/versus` in the Codex chain | 981 B + 61 B sibling = 1,042 | 1,163 B generated | **+121 bytes. The migration made this chain BIGGER** |
-| `src/templates/versus` in a Claude session | 981 B, loaded whenever the directory is touched | 0 B in the chain; 1,093 B loaded only when a versus file is read | the bytes moved from always to on-demand |
-| Compiled layer | 1 file, 632 B at launch, 0 B scoped | 2 files, 632 B at launch, 1,093 B scoped | the kernel did not move; the new file is path-scoped |
-| Kernel against its ceiling | n/a | 632 of 8,192 B | `npm run contracts:compile -- --report` prints it, and the compiler refuses a kernel over it |
-| Hand-written contract files | 108 | 106 | `npm run metrics:contracts` now reports this row directly; the target is zero |
-
-**The row got BIGGER, and that is the honest reading of it.** A generated contract carries about
-200 bytes of fixed overhead - the marker the compiler, the edit guard and `check-shared-instructions`
-all read, a heading, and one line saying where to change a rule. `versus` was chosen first because
-it is the smallest contract in the tree, so it is the worst case for that overhead: three rules do
-not amortise it. The header was cut from five lines to one when this number was first measured,
-which is why it is +121 bytes rather than +300.
-
-**So the byte win is not what this phase buys, and the plan should stop implying it is.** What it
-buys is measurable in three other places, and those are the numbers the next rows should carry:
-
-- **Conflicts.** Three rules that were one paragraph in one file are now three files. The
-  `build`-line evidence in `WORKFLOW_ARCHITECTURE.md` §1.4 is that one-file-per-item directories
-  absorbed 811 commits with 11 resolutions, against 66 edits and 15 resolutions on a single line.
-  `npm run metrics:conflicts` is where this shows up, and not for weeks.
-- **Evidence out of the loaded chain.** The three records under `contracts/records/templates-versus/`
-  carry the why - the dropped `card05`, the symmetry argument for the field numbering - and nothing
-  loads them. In the prose version that reasoning either sat in the chain or was lost.
-- **Claude's load moved from always to on-demand.** 981 bytes left every session that touches the
-  directory; 1,093 arrive only when a versus file is actually read.
-
-**Where the byte win has to come from instead:** the areas where the prose is large. The tightest
-chain is `src/components/wizard` at 102,598 bytes and `src/templates/AGENTS.md` is 52,368 bytes
-across 24 chains - 1,256,832 bytes of multiplier from one file. A row that turns 50 KB of prose
-into 40 rules pays the 200-byte overhead forty times over. Re-measure this table after
-`src/templates` migrates; if the corpus has not fallen by then, the design is wrong and not merely
-early.
-
-## Re-measured 2026-09-07, after `src/templates` migrated
-
-The row above ended by saying the byte win had to come from the large areas, and that if the
-corpus had not fallen once `src/templates` migrated the design was wrong rather than early. This
-is that measurement. `src/templates/AGENTS.md` was 53,037 bytes read in full by every session
-touching any template.
-
-| Metric | Before `versus` | After `versus` | After `src/templates` |
-|---|---|---|---|
-| Contract corpus | 574,356 B / 108 files | 574,477 B / 107 | **548,519 B / 106** |
-| `src/templates/AGENTS.md` | 52,368 B | 52,368 B | **26,482 B** |
-| Its multiplier (bytes x chains) | 1,256,832 | 1,256,832 | **635,568** |
-| Tightest chains, top five | 3 of 5 were template chains | same | **none are** |
-| Compiled layer | 632 B launch, 0 scoped | 632 B, 1,093 scoped | 632 B launch, **33,824 B scoped** |
-| Hand-written contract files | 108 | 106 | **104** |
-
-**The design holds.** One area, 86 rules, and the corpus fell 25,958 bytes while the file's
-multiplier halved. `src/templates/importedDesign`, `infographics` and `types` were three of the
-five tightest chains in the repository before this row and none of them is in the top five now -
-they were tight because of the parent, not because of themselves.
-
-**Where the bytes actually went, because the corpus fell by less than the file did.** The contract
-lost 25,886 bytes and the corpus lost 25,958. The rules that replaced it are not in the corpus at
-all: 33,824 bytes of them are in `.claude/rules/`, loaded only when a session reads a file the rule
-scopes to. Forty-one rules are catalog-wide and 45 name the single file they bind, so most of that
-33 KB never loads in a given session. The reasoning - every incident, date and measurement the
-prose carried - is in 86 records under `contracts/records/templates/` that nothing loads at all.
-
-**The near-duplicate threshold is calibrated, and the answer is that it needs no change.**
-`DUPLICATE_THRESHOLD = 0.6` was set on a store of two rules and phase 2b lists recalibrating it as
-its own row. Across 86 rules written from one contract it refused nothing: zero `--distinct`
-overrides were needed. On its first real corpus it produced no false positives, so the row that
-was going to re-measure it can be closed by this number instead.
-
-**What this row does not prove.** The conflict argument (`WORKFLOW_ARCHITECTURE.md` §1.4) is still
-unmeasured - `npm run metrics:conflicts` reads 45 days of history and every commit in that window
-predates the store. The first honest reading is weeks away, and until then the case for one file
-per rule rests on the `build`-line evidence rather than on this repository's contracts.
-
-## Re-measured 2026-09-07, after `src/components/wizard` migrated
-
-The third area, and the one the phase was really for: `src/components/wizard/AGENTS.md` was the
-tightest instruction chain in the repository, 102,879 bytes of a 110,000 ceiling with 7,121 free -
-inside the 4,096-byte reserve away from failing the build.
-
-| Metric | After `src/templates` | After `src/components/wizard` |
-|---|---|---|
-| Contract corpus | 548,519 B / 106 files | **521,467 B / 105** |
-| Hand-written bytes | 520,874 B / 104 files | **467,883 B / 102** |
-| `src/components/wizard/AGENTS.md` | 53,101 B | **25,608 B** |
-| Its chain | 102,879 B, 7,121 free | **75,604 B, 34,396 free** |
-| Tightest chain in the repository | `src/components/wizard`, 93.5% | **`src/ai/pro/harness`, 82.8%** |
-| Chains within the 4 KB reserve | 1 | **0** |
-| Compiled layer | 632 B launch, 33,824 B scoped | 632 B launch, **85,940 B scoped** |
-
-**Nothing is near the ceiling any more.** That is the number this phase existed to move: the
-build fails a chain with under 4,096 bytes free, and the wizard chain sat 3,000 bytes the safe side
-of that for weeks, which meant any lesson learned in the wizard had nowhere to go. It now has
-34,396.
-
-**The compiled layer is where the bytes went, and it is not a chain cost.** 85,940 bytes of scoped
-rules against 632 bytes that load at launch. A scoped file is read only when a session opens a file
-the rule names, so the wizard's 101 rules are not 101 rules' worth of tokens in any session - most
-of them name a single component and arrive only with it.
-
-## What three migrated areas say about the method
-
-**The byte win is real and it is concentrated.** `versus` cost 121 bytes MORE, `src/templates` saved
-26 KB, the wizard saved 53 KB. The fixed overhead of a generated contract is about 200 bytes, so the
-question is only ever how much prose an area has to amortise it - and the answer is not worth
-guessing per area, because the two big ones together took the corpus from 574,356 to 521,467 while
-the small one moved it the wrong way.
-
-**Extraction is cheap; verifying the prose is not.** Both large areas contained claims that were
-FALSE when they were migrated: a wizard toggle replaced months earlier by the brand chooser, a
-"starts at None" that a production overrides, a "resets on any result change" that brand context
-does not trigger. Prose nobody treats as binding can carry a false sentence for months; a rule
-cannot, because a rule is read as authoritative the moment it exists. **Checking each paragraph
-against the code is the expensive half of this work and it is not optional.**
-
-**A rule in somebody else's words loses the symbol names.** Writing rules from scratch dropped 206
-of the 293 backticked tokens the wizard contract carried - the CSS class you would grep for, the
-helper the mechanism lives in. Two answers, and both are needed: the record for an area keeps the
-replaced prose verbatim, and a rule names the symbol a reader would search for rather than
-describing it. `npm run contract:migrate -- audit` is what makes the loss visible - and it was itself
-reading only TRACKED files, so on a row whose rules were still unstaged it reported the whole store
-as missing. Fixed in the same change; an audit that is wrong in the alarming direction still costs
-an hour finding out.
+**Reading them in order:** the filenames sort chronologically, and
+`docs/metrics/2026-09-07-what-the-method-says.md` is the one that draws conclusions across several
+rows rather than reporting one.
