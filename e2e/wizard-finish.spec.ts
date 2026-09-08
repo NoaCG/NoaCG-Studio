@@ -267,16 +267,12 @@ test('finish: the export door saves the graphic and opens the export window over
   await expect(page.locator('.lib-row')).toContainText('Match Day Strap');
 });
 
-test('finish: rewinding with ✕ makes the next graphic its own, not a write-over of the last', async ({
-  page,
-}) => {
-  // A SECOND PASS AND A SECOND GRAPHIC LOOK ALIKE AT THE SAVE, and only the walk tells them
-  // apart. Coming back into one walk to change something writes over the record that walk made;
-  // rewinding with ✕ ENDS the walk, so what the reader builds afterwards is a different graphic
-  // even when they pick the same design and never touch the name. The export door is what makes
-  // this reachable without leaving the wizard at all: it mints a record and stays open.
+/** Export a graphic under `name`, then rewind the wizard with ✕ and start a fresh catalog walk
+ *  as far as its Finish step. The export door is what makes this reachable without leaving the
+ *  wizard at all: it mints a record and stays open. */
+async function exportThenRewind(page: Page, name: string): Promise<void> {
   await toFinishStep(page);
-  await page.getByTestId('wz-finish-name').fill('Match Day Strap');
+  await page.getByTestId('wz-finish-name').fill(name);
   await page.getByTestId('wz-finish-export').click();
   const win = page.getByTestId('export-window');
   await expect(win).toBeVisible();
@@ -288,20 +284,61 @@ test('finish: rewinding with ✕ makes the next graphic its own, not a write-ove
   await page.locator('[data-entry="template"]').click();
   await pickDesign(page, 'Hairline');
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next →' }).click();
-  await page.getByTestId('wz-finish-name').fill('Match Day Strap');
+}
+
+async function libraryNames(page: Page): Promise<string[]> {
+  return (await page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    return loadGraphics().map((g) => g.name);
+  })) as string[];
+}
+
+test('finish: rewinding with ✕ makes the next graphic its own record', async ({ page }) => {
+  // A SECOND PASS AND A SECOND GRAPHIC LOOK ALIKE AT THE SAVE, and only the walk tells them
+  // apart. Coming back into one walk to change something writes over the record that walk made;
+  // rewinding with ✕ ENDS the walk, so what the reader builds afterwards is its own graphic.
+  await exportThenRewind(page, 'Match Day Strap');
+  await page.getByTestId('wz-finish-name').fill('Friday Strap');
   await page.getByTestId('wz-finish-production-pick').locator('select').selectOption('new');
   await page.getByTestId('wz-finish-production-name').fill('Friday Show');
   await addToProductionFromFinish(page);
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
   await settleDurableWrites(page);
 
-  // BOTH ARE STILL THERE. One record would mean the exported graphic was silently replaced by
-  // the one built after it — the first one gone, with nothing anywhere having said so.
-  const names = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    return loadGraphics().map((g) => g.name);
-  });
-  expect(names).toEqual(['Match Day Strap', 'Match Day Strap']);
+  expect(await libraryNames(page)).toEqual(['Match Day Strap', 'Friday Strap']);
+});
+
+test('finish: a second walk under a name the library holds saves over it, and says so first', async ({
+  page,
+}) => {
+  // SUPERSEDES the old half of the test above, which pinned TWO records under one name here.
+  // Its own reason for wanting two was that a write-over would happen "with nothing anywhere
+  // having said so" - and since 2026-09-08 two things on this very screen say so, because the
+  // twin it preferred was itself the defect: Home showed two rows nobody could tell apart, and
+  // a production silently moved its link from one to the other, detaching the graphic its cues
+  // were built on (e2e/import-name-collision.spec.ts reproduces that in full). A saved
+  // graphic's name is its identity, in the library exactly as it always was in the pool.
+  await exportThenRewind(page, 'Match Day Strap');
+  await page.getByTestId('wz-finish-name').fill('Match Day Strap');
+
+  // Said on the name field, which every door on this step shares - the export door beside the
+  // production one saves and leaves without asking anything.
+  await expect(page.getByTestId('wz-finish-name-taken')).toContainText(
+    'Your library already has a graphic called Match Day Strap',
+  );
+
+  await page.getByTestId('wz-finish-production-pick').locator('select').selectOption('new');
+  await page.getByTestId('wz-finish-production-name').fill('Friday Show');
+  // ...and again in the confirmation, which is the last thing read before the write.
+  await page.getByTestId('wz-finish-production-go').click();
+  await expect(page.getByTestId('wz-finish-production-confirm')).toContainText(
+    'is saved over the version in your library',
+  );
+  await page.getByTestId('wz-finish-production-confirm-go').click();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await settleDurableWrites(page);
+
+  expect(await libraryNames(page)).toEqual(['Match Day Strap']);
 });
 
 test('finish: the name reaches the exported package folder', async ({ page }) => {
