@@ -76,7 +76,7 @@ const RULE_ID = /`([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*)`/g;
 // `[dir/]AGENTS.md` followed by a quoted heading or a numbered item. The optional leading word
 // covers the "root AGENTS.md" form, where `root` is a word rather than a directory.
 const SECTION_CITATION =
-  /(?:\b(?<prefix>[\w.-]+(?:\/[\w.-]+)*)\/)?(?<bare>\broot\s+)?AGENTS\.md(?<sep>[,:]?\s*)(?:"(?<heading>[^"\n]{2,60})"|(?<kind>rule|principle|non-negotiable|§)\s*(?<number>\d+))/gi;
+  /(?:\b(?<prefix>[\w.-]+(?:\/[\w.-]+)*)\/)?(?:\broot\s+)?AGENTS\.md[,:]?\s*(?:"(?<heading>[^"\n]{2,60})"|(?<kind>rule|principle|non-negotiable|§)\s*(?<number>\d+))/gi;
 
 /** The rule ids the store defines: contracts/rules/<area>/<slug>.md -> `<area>/<slug>`. */
 export function ruleIds(root = ROOT) {

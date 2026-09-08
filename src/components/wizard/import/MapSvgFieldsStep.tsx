@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { parseCssColor } from '../../../model/cssVars';
 import { uuid } from '../../../model/id';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
@@ -196,6 +197,16 @@ function proposeFollowers(
 }
 
 /**
+ * HOW MUCH OF THE FRAME MAKES A SHAPE THE BOARD'S OWN BACKPLATE rather than a box on it.
+ *
+ * Written once because two measurements ask it - whether a shape can be one of a repeated ROW,
+ * and whether it can HEAD a group in the checklist - and a shape that is a backplate to one and a
+ * row to the other would put a graphic in two states at once. The thing a full-frame plate is a
+ * plate FOR is the graphic, not a row of it.
+ */
+const BACKPLATE_SHARE_OF_FRAME = 0.7;
+
+/**
  * IS THIS A GRAPHIC THE AUDIENCE SEES AGAIN WITH DIFFERENT CONTENT?
  *
  * The doctrine's third rule (docs/TEXT_BOX_BINDING.md, owner 2026-09-02): *"When we have a
@@ -253,7 +264,7 @@ function repeatsWithNewContent(stage: HTMLElement, holderIds: string[]): boolean
     .filter((r): r is { box: DOMRect; w: number; h: number } => !!r)
     // Not the board's own backplate: a shape covering most of the frame holds every line there
     // is, so it would pair with any other such shape and say "repeat" about a single graphic.
-    .filter((r) => r.box.width * r.box.height < frame.width * frame.height * 0.7);
+    .filter((r) => r.box.width * r.box.height < frame.width * frame.height * BACKPLATE_SHARE_OF_FRAME);
   const apart = (a: DOMRect, b: DOMRect) => {
     const over =
       Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
@@ -470,22 +481,19 @@ const COLOUR_WORDS: [string, number, number, number][] = [
   ['navy', 0x1b, 0x2b, 0x5a], ['purple', 0x7e, 0x4b, 0xc0], ['pink', 0xe8, 0x8f, 0xba],
 ];
 
-/** `rgb(198, 156, 109)` -> its three channels. A gradient, a pattern or `none` answers null:
- *  those have no one colour, so the caller names the box without one rather than guessing. */
-export function rgbChannels(fill: string): [number, number, number] | null {
-  const m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(fill.trim());
-  if (!m) return null;
-  const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  return [r, g, b].every((n) => Number.isFinite(n)) ? [r, g, b] : null;
-}
-
-/** The nearest plain word for a computed fill, or null where the fill is not one colour. */
-export function colourWord(fill: string): string | null {
-  const rgb = rgbChannels(fill);
-  if (!rgb) return null;
+/**
+ * The nearest plain word for a computed fill, or null where the fill is not one visible colour.
+ *
+ * `parseCssColor` does the reading, alpha included: a gradient, a pattern and `none` all answer
+ * null, and so does a fully transparent shape - a swatch nobody can see should not be described
+ * as black.
+ */
+function colourWord(fill: string): string | null {
+  const c = parseCssColor(fill);
+  if (!c || c.a === 0) return null;
   let best: { word: string; d: number } | null = null;
   for (const [word, r, g, b] of COLOUR_WORDS) {
-    const d = (rgb[0] - r) ** 2 + (rgb[1] - g) ** 2 + (rgb[2] - b) ** 2;
+    const d = (c.r - r) ** 2 + (c.g - g) ** 2 + (c.b - b) ** 2;
     if (!best || d < best.d) best = { word, d };
   }
   return best?.word ?? null;
@@ -500,7 +508,7 @@ export function colourWord(fill: string): string | null {
  * plate" must keep seeing that, so this refuses only two things: the labels the importer itself
  * minted when the layer had no name, and a name with no word long enough to read as a word.
  */
-export function isReadableBoxName(label: string): boolean {
+function isReadableBoxName(label: string): boolean {
   const trimmed = label.trim();
   if (trimmed === '' || /^(Panel|Rectangle)\s+\d+$/.test(trimmed)) return false;
   return /[A-Za-z]{4,}/.test(trimmed);
@@ -508,7 +516,7 @@ export function isReadableBoxName(label: string): boolean {
 
 /** What a box is called in the list: the designer's own name where they gave one, otherwise its
  *  colour and what it is. Capitalised because it heads a row. */
-export function boxName(label: string, fill: string): string {
+function boxName(label: string, fill: string): string {
   if (isReadableBoxName(label)) return label.trim();
   const word = colourWord(fill);
   return word ? `${word[0].toUpperCase()}${word.slice(1)} plate` : 'Plate';
@@ -519,9 +527,8 @@ export function boxName(label: string, fill: string): string {
  *
  * A shape covering most of the frame holds every line there is, and heading the whole checklist
  * with it - "Black plate", over all seven rows - is a heading, not a grouping. The thing that
- * plate is a plate FOR is the graphic, not a row of it: the same sentence `repeatsWithNewContent`
- * already acts on, at the same 0.7 of the frame, and deliberately the same number so a shape
- * cannot be a backplate to one measurement and a row to the other.
+ * plate is a plate FOR is the graphic, not a row of it: the same sentence
+ * `repeatsWithNewContent` already acts on, through the one `BACKPLATE_SHARE_OF_FRAME`.
  *
  * Dropping these leaves their lines in the "On the artwork" group, which is the honest answer -
  * a line whose only box is the whole frame has no box to grow.
@@ -532,7 +539,7 @@ function withoutBackplates(
 ): Record<string, string> {
   const frame = stage.querySelector('svg')?.getBoundingClientRect();
   if (!frame || !(frame.width > 0) || !(frame.height > 0)) return boxOfLine;
-  const limit = frame.width * frame.height * 0.7;
+  const limit = frame.width * frame.height * BACKPLATE_SHARE_OF_FRAME;
   const out: Record<string, string> = {};
   for (const [lineId, boxId] of Object.entries(boxOfLine)) {
     const box = markerEl(stage, boxId)?.getBoundingClientRect();
