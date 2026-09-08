@@ -37,6 +37,13 @@ run, so the number stays stable across restarts, reboots and branch switches.
   `C:/claude/NoaCG-Studio/.git/noacg-dev-ports/5228.json`. Every worktree of the repo sees the
   same directory, nothing outside the repo does, and it disappears with the repo. Each ticket
   records `{ port, livePort, root, preferred, createdAt }`.
+- **The claim lock (transient):** `claim-<digest of the checkout path>.lock`, in that same
+  directory, held only while one checkout is choosing its port. Two tools in one worktree
+  (vite and playwright, say) would otherwise each run the whole walk and each write a ticket,
+  and reconciling afterwards is too late - the first has already returned its number. Locks
+  are per checkout, so different worktrees still race for ports at full speed. One left behind
+  by a killed process is untouched for five seconds and the next allocation takes it over; you
+  can also just delete it.
 - **The published record (per worktree):** `.claude/dev-port.json`, rewritten from the
   reservation on every resolution. It is a *mirror* for tools and humans - the ticket decides.
 - **The preview launch config:** `.claude/launch.json`, generated with the same number so

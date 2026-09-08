@@ -230,7 +230,14 @@ describe('simultaneous allocation', () => {
     const registry = tempRegistry();
     const root = COLLIDING_A;
     const startAt = Date.now() + 1500;
-    const results = await Promise.all([0, 1, 2].map(() => allocateInChild({ registry, root, startAt })));
+    // EIGHT, not the two the name describes. The walk steps 7 slots at a time and wraps, so a
+    // process pushed far enough along it reaches a candidate NUMBERED BELOW the preferred port -
+    // and that is the shape that used to make two tools disagree about which of the root's
+    // tickets won. Three racers never walk that far: at three this case passed 100 runs in a row
+    // on a machine where eight failed 8 times in 30.
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => allocateInChild({ registry, root, startAt })),
+    );
     assert.equal(new Set(results.map((r) => r.port)).size, 1, 'a worktree must not end up with two ports');
     assert.equal(listTickets(registry).length, 1);
   });
