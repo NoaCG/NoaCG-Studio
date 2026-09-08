@@ -39,3 +39,10 @@ of the repo, in which case add it to ALLOWED_ROOT_ENTRIES in scripts/check-tree-
 
 Auto-merge is still on and `mergeStateStatus` is `BLOCKED`, so the watcher reads it as waiting and
 keeps its slot rather than exiting.
+
+## Resolved 2026-09-08
+
+Yes, at the root. `ALLOWED_ROOT_ENTRIES` in `scripts/check-tree-shape.mjs` now lists the three
+names with a comment saying why no other location works: GitHub reads community health files from
+the repository root or from `.github/`, and this repo keeps `.github/` for workflows. PR 102 is
+unchanged and re-queues once this lands.

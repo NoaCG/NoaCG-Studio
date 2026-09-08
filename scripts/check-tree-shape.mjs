@@ -39,7 +39,13 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   // (docs/AGENT_CLI.md "Distribution"). The marketplace manifest has to sit at the repository root
   // for `claude plugin marketplace add NoaCG/NoaCG-Studio` to find it; the plugins stay under cli/.
   '.agent-workflows', '.agents', '.claude', '.claude-plugin', '.codex', '.dependency-cruiser.cjs', '.env.bench',
-  '.env.example', '.gitattributes', '.github', '.gitignore', '.nvmrc', 'AGENTS.md', 'CLAUDE.md', 'LICENSE',
+  '.env.example', '.gitattributes', '.github', '.gitignore', '.nvmrc', 'AGENTS.md', 'CLAUDE.md',
+  // The three community health files an open source project is expected to carry. GitHub reads
+  // them from the repository root (or from `.github/`, which this repo reserves for workflows), so
+  // no other location works: a CONTRIBUTING.md elsewhere never appears in the "new issue" and
+  // "open a pull request" prompts, and SECURITY.md elsewhere never fills the Security tab.
+  'CODE_OF_CONDUCT.md', 'CONTRIBUTING.md', 'SECURITY.md',
+  'LICENSE',
   'NoaCG-Brand-Kit', 'README.md', 'admin.html', 'api', 'app.html', 'benchmarks', 'bridge.html', 'cli',
   // `contracts/` is the rule store the loaded contracts are compiled from (docs/WORKFLOW_ARCHITECTURE.md
   // §5.3): one rule per file, one record per incident, neither loaded into a session.
