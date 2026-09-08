@@ -13,6 +13,12 @@ files should never trip. So the right outcome has no vocabulary, and the next pl
 the same argument or deletes the file. The 2026-09-08 drain hit it again, on six files kept purely
 because a live backlog item cites them.
 
+**Third occurrence, 2026-09-09**, and it now has a cost in wave slots. The night wave could not
+inherit the previous drain's verdict, because `deferred` is all the plan could write and `deferred`
+means "keep, for now" rather than "keep, because something names it". So a row was spent re-walking
+seven files whose citations had not moved: the four OGraf and CI evidence files and the three the
+`guard-preview` and mistake-trigger hooks name. Same seven, same reason, second night in a row.
+
 ## What it would take
 Either a fifth class ("cited: <file> still names it as Evidence") that is never deleted and never
 goes stale, or make deletion the responsibility of the repoint, as `7fc1016a` did by hand,
