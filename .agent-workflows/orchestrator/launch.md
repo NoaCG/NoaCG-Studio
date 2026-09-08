@@ -47,7 +47,7 @@ each the row runs while the plan still reads as honoured. The first two were mea
 - **`isolation: worktree` MINTS the branch name, and the row's `BRANCH` line changes nothing.** The
   Agent tool generates `worktree-agent-<id>`; no parameter sets it and no check compares the two,
   so two of four rows in this wave committed on the generated name. After the first commit
-  `merge-order` and the morning report have already read the wrong name, so the row renames before
+  `npm run jobs` and the morning report have already read the wrong name, so the row renames before
   it - the rule and its sharp edge are a DO-step line rule in `prompts.md`, because this module
   loads long after the prompt that has to carry it was written.
 - **`isolation: remote` IS ACCEPTED AND RUNS ON THIS LAPTOP.** The call succeeds, the row works,

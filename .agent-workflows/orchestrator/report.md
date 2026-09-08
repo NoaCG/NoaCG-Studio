@@ -19,12 +19,16 @@ behind a link. Every number in it names the command it came from.
 4. **Handoffs, drained** - the output of `node scripts/handoff-drain.mjs`: every file with its
    class, and the one quoted "what is left" line for each `deferred` or `owner` file. Never the
    full text. A file still `UNCLASSIFIED` here is the report's own defect, fixed before it ships.
-5. **Refused, and WHICH KIND** - `auto-merge.mjs` refuses loudly with a reason, and the four are
-   four different mornings: a red gate, a conflict integrating `main`, a dirty worktree, and a
-   stale pin (the branch moved after it was queued). Name the kind, not just the failure - and
-   check the LANDING JOBS' own logs, not just the queue listing: a refused landing drops out of
-   `npm run jobs` by morning and reads as "never queued", which is a different (wrong) story.
-6. **Still holding** - `node scripts/merge-order.mjs` for anything ahead of `main`,
+5. **Refused, and WHICH KIND** - a refusal is written on the pull request (`gh pr view <n>`,
+   `gh pr checks <n>`), and the kinds are different mornings: a check red ON THE PULL REQUEST
+   (`CI gate` or `Reviewed`), so it never entered the queue; dropped FROM THE MERGE GROUP, `CI gate`
+   red on the temporary merge and auto-merge turned off; a CONFLICT with what landed, a pull
+   request that cannot merge; and no `noacg/reviewed` on the tip, the branch having moved after it
+   was queued. A stacked pull request also leaves the queue when its parent lands, with every check
+   green - `gh pr merge <n> --auto` puts it back. Name the kind, not just the failure, and read the
+   watcher job's log (`node scripts/jobs.mjs log <id>`), not only the listing: a refused landing
+   drops out of `npm run jobs` by morning and reads as "never queued", a different (wrong) story.
+6. **Still unqueued** - `npm run jobs` for every branch ahead of `main` with no landing,
    `node scripts/worktree-activity.mjs` for work a session left uncommitted.
 7. **Spend, on each pool's own meter** - `npm run harness:usage -- --wave`, pasted as it prints:
    which harnesses ran, the Codex window percentages where a snapshot exists, the Antigravity

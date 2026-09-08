@@ -99,7 +99,7 @@ Each tick, in this order, and nothing else:
    and stdout can be lost to compaction - the morning report reads that log, not the loop's
    memory. The script observes and never acts - launching, holding and every judgement stay in
    this session.
-2. Read the delta. What refused, and which of the four kinds; what landed; who is waiting. A
+2. Read the delta. What refused, and which kind (`report.md`); what landed; who is waiting. A
    stalled worker is REPORTED, never killed - but its slot counts as free when launching cohort
    rows, so one hung session cannot park the rest of the night behind it.
    **A branch tip that has stopped moving is NOT the stall signal**, and reading it as one has
@@ -170,33 +170,34 @@ and the queue refuses only an unlanded conflict, never a late one. **Never a fix
 never a fraction of the night**: the wake-up is the Monitor's events, the stop is the measured
 horizon, and both are readings rather than guesses.
 
-**A REFUSAL THE BRANCH DID NOT CAUSE IS REPAIRED BY THE LOOP, NOT REPORTED.** Read the landing job's
-log to a verdict and name which kind of refusal it is. An ordering block, a stale pin the landing
-itself made by merging `main` in, and a job killed at its own cap are all the machine's faults, and
-the branch's session has usually exited, so nobody else can act: put it back with
-`node scripts/jobs.mjs requeue <branch>`, which re-runs the declaration that session already made
-and refuses any commit that arrived after it. Only a RED GATE, a real conflict or a dirty tree
-reaches the user, with its command.
+**A REFUSAL THE BRANCH DID NOT CAUSE IS REPAIRED BY THE LOOP, NOT REPORTED.** Read the watcher job's
+log and the pull request to a verdict and name which kind it is (`report.md`). Two are the
+machine's: a watcher that reached no verdict inside its cap while the pull request is still queued
+(`node scripts/jobs.mjs requeue <branch>` re-arms the watcher and lands nothing itself; the store
+already retries that once), and a stacked pull request dropped from the queue when its parent
+landed with every check green (`gh pr merge <n> --auto` puts it back). A RED CHECK or a CONFLICT
+with what landed is the branch's, and only its own session may queue it again - it reaches the
+user, with its command, when that session is gone.
 
-**A BLOCKER WHOSE SESSION IS STILL ALIVE IS THE ONE THING THE LOOP MAY NOT SETTLE.** Queueing it
+**A BRANCH WHOSE SESSION IS STILL ALIVE IS THE ONE THING THE LOOP MAY NOT QUEUE.** Queueing it
 would be this session declaring another session's work done, which is the one rule landing has
-(root `AGENTS.md`, "Git"). It does not need to: the queue HOLDS a landing refused for ordering and
-releases it the moment the blocker lands or is queued, so the only branch to name is the blocker.
+(root `AGENTS.md`, "Git"). Nothing waits on it either: the queue holds no landing for another
+branch, so an unqueued live branch costs nobody anything until its own session queues it.
 
 **But a branch NOBODY CAN DECLARE is not that case, and the loop queues it itself** (owner,
 2026-09-05: *"You shouldn't need me for landing branches."*). No live session is in it, so there is
-no declaration being pre-empted - there is no declarer. **The test is `merge-order.mjs` saying
-`clear`, plus THREE liveness signals that must ALL be quiet - any one of them speaking means
-alive:** the harness's live-session inventory, the branch tip's age, and the mtime of the session's
-transcript. **The inventory ALONE is not enough and reading it that way is the trap**: it fails
-open for subagents, and on 2026-09-05 it reported a row idle while that row was committing every
-four minutes and about to queue itself (row Z's measurement, `incidents.md`). A tip that moved in
-the last half hour is alive whatever any inventory says. Then `node scripts/jobs.mjs add-merge <branch>`
-(with `--unreviewed "queued by the night loop: the session is gone"` when the tip carries no
-`/check` stamp - `add-merge` refuses an unstamped tip otherwise, and the reason lands on the job
-record), and the report says which branches the loop queued and why. **What protects a half-finished branch is
-the GATE, not the owner's attention**: `auto-merge` runs the full gate and refuses red, on a
-feature branch, behind a queue that lands one at a time. Asking him instead buys no safety and
+no declaration being pre-empted - there is no declarer. **The test is THREE liveness signals that
+must ALL be quiet - any one of them speaking means alive:** the harness's live-session inventory,
+the branch tip's age, and the mtime of the session's transcript. **The inventory ALONE is not
+enough and reading it that way is the trap**: it fails open for subagents, and on 2026-09-05 it
+reported a row idle while that row was committing every four minutes and about to queue itself
+(row Z's measurement, `incidents.md`). A tip that moved in the last half hour is alive whatever any
+inventory says. Then `npm run queue:merge -- <branch>` (with
+`--unreviewed "queued by the night loop: the session is gone"` when the tip carries no `/check`
+stamp - it refuses an unstamped tip otherwise, and the reason lands on the pull request), and the
+report says which branches the loop queued and why. **What protects a half-finished branch is the
+GATE, not the owner's attention**: the queue runs `ci.yml` on the pull request and again on the
+merge group, refuses red, and lands one group at a time. Asking him instead buys no safety and
 costs the landing. **Whatever is uncommitted stays uncommitted** - the landing takes the branch's
 gated state and the row's handoff describes the rest, which is what every prompt's QUEUE step
 already says to do.

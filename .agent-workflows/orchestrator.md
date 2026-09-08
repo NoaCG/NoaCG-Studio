@@ -1,8 +1,8 @@
 # orchestrator - plan and assign the day's work
 
 Shared canonical procedure, invoked as `/orchestrator` (alias `/o`) in Claude Code,
-`$orchestrator` (alias `$o`) in Codex. Cross-references use plain names ("the safe-merge
-workflow"); translate as `/safe-merge` or `$safe-merge`.
+`$orchestrator` (alias `$o`) in Codex. Cross-references use plain names ("the queue-merge
+workflow"); translate as `/queue-merge` or `$queue-merge`.
 
 **This file is the always-loaded core, capped at 200 lines, and the modules the routing table
 marks *every plan* load beside it every time** - `npm run check:shared-instructions` gates both and
@@ -40,9 +40,9 @@ it **never touches another worktree** - not to check something, not to merge, no
    landing queue**, which rewrites that tree at every integration, and a throwaway worktree is
    pinned at the commit it was cut from. The session and the wave-state file live there.
 
-**Landing authority belongs to the queue.** Never merge, and never push. A branch reaches `main`
-declared finished by its own session - but re-queueing a declared landing, and queueing a branch
-**NO LIVE SESSION HOLDS**, are neither, so this session DOES both (owner, 2026-09-04 and 09-05).
+**Landing authority belongs to GitHub's merge queue.** Never merge, and never push by hand. A branch
+reaches `main` declared finished by its own session - but re-arming a declared landing's watcher,
+and queueing a branch **NO LIVE SESSION HOLDS**, are neither, so this session DOES both (owner, 2026-09-04 and 09-05).
 
 ## Input, and the frontier
 
@@ -83,12 +83,12 @@ natural checkpoint and say which. **24 hours is the absolute ceiling of any unat
    the table row, the branch name `<tool>/<letter>-<name>`, the prompt's first line. Never
    re-letter, never reuse a letter.
 2. **What can run at once.** The collision pass. -> `orchestrator/collisions.md`
-3. **Landing.** Two things, never blended: branches already ahead of `main`, quoting
-   `node scripts/merge-order.mjs`'s own verdict words (`clear`, `caution`, `hold`); and today's new
-   sessions, which have no branches yet - **do not predict an order for them**, state the queue
-   policy instead. **Section 3 is a report, not a pick.** "Merge A" said here does not invoke the
-   safe-merge workflow - name the branch, its verdict, and WHERE that workflow has to run: the
-   branch's own worktree, the only place its gate can run.
+3. **Landing.** Two things, never blended: branches already ahead of `main`, each with its state
+   from `npm run jobs` (`QUEUED` with its pull request, `LANDED`, `LANDING FAILED` with the check
+   that failed, or `not queued`); and today's new sessions, which have no branches yet - **order is
+   the queue's, never predicted**. **Section 3 is a report, not a pick.** A refusal is on the pull
+   request (`gh pr view <n>`): name the branch, the failed check, and WHERE the fix runs - the
+   branch's own worktree, the only session that may queue it again.
 4. **What I would push back on.** -> `orchestrator/pushback.md`
 5. **The prompts, and every row's route.** -> `orchestrator/prompts.md`, `orchestrator/routing.md`
 6. **Open questions, then one pick.** **The ask-test is strict: a question reaches the user only
@@ -182,7 +182,7 @@ These fire while the wave table is being written, before any module is loaded.
 | [`orchestrator/incidents.md`](orchestrator/incidents.md) | the evidence behind a rule, or recording new evidence |
 
 **Specialist workflows this one routes to and never re-implements:** `queue-merge` (how work
-reaches `main`), `safe-merge` (the mechanical landing path), `check` (review, simplify, verify),
+reaches `main` - GitHub's merge queue lands it), `check` (review, simplify, verify),
 `so` (an independent second opinion on a big call), `handoff`, `walk`, `cleanup-worktrees`,
 `rescue` (delegation to Codex). Name the workflow in a prompt; never paste its procedure.
 

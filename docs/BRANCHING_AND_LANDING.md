@@ -5,9 +5,10 @@ same rules in full, with the incidents that produced each one, so a session can 
 reasoning without every other session paying for the words. Nothing here is optional reading
 when a landing behaves in a way the short form did not predict.
 
-The procedures themselves live in `.agent-workflows/queue-merge.md`,
-`.agent-workflows/safe-merge.md` and `.agent-workflows/cleanup-worktrees.md`; the migration
-contract is `supabase/AGENTS.md`.
+The procedures themselves live in `.agent-workflows/queue-merge.md` and
+`.agent-workflows/cleanup-worktrees.md`; the migration contract is `supabase/AGENTS.md`; the
+mechanisms the queue retired are listed in `contracts/retired.json`, and the build refuses an
+instruction that still names one.
 
 ## Where you stand: a worktree per session
 
@@ -39,20 +40,15 @@ contract is `supabase/AGENTS.md`.
 ## Landing is serialized, not permissioned
 
 - **Landing is SERIALIZED, not permissioned.** Merging never waits on the user; it waits on the
-  other branches. Two rules, both machine-checked, both in `/safe-merge` (Claude Code) or
-  `$safe-merge` (Codex) - use the flow rather than raw git, because that is where they live:
-  - **Order.** `node scripts/merge-order.mjs` ranks every branch ahead of `main` by what landing
-    it FIRST costs the other worktrees, measuring real conflicts with `git merge-tree` (read-only
-    - no working tree, no ref) and naming the collisions git merges cleanly and still gets wrong:
-    a rename over another branch's edits, two branches minting the same migration number, a
-    stacked branch jumping its ancestor. A **`clear`** verdict may land. **`caution` and `hold`
-    stop and ask** - those are the cases that historically went wrong.
-  - **One at a time.** Never merge while another merge is in flight. The flow re-fetches and
-    re-checks that `main` has not moved since the branch integrated it, and the final merge is
-    `--ff-only`, so git itself refuses if anything landed meanwhile. The gate must be green on the
-    INTEGRATED sha, never the pre-integration one. Once the job runner exists
-    (`docs/JOB_RUNNER_PLAN.md`), merge jobs are serialized by it and this becomes structural
-    rather than remembered.
+  other branches. GitHub's merge queue is the serialization: it lands pull requests in the order
+  they were queued, builds a temporary merge of the queued ones on `main`, runs `ci.yml` on that
+  group, and merges the group only when the gate is green on the INTEGRATED result. A pull request
+  that conflicts with what landed is marked conflicting and bounced to its session, which resolves
+  `main` in and queues again. Two names a reader still meets are history: `node scripts/merge-order.mjs`
+  used to rank the landing order and its `clear` / `caution` / `hold` verdicts used to gate a
+  landing; it is now a read-only instrument for which unqueued branches collide (a rename over
+  another branch's edits, two branches minting the same migration number), and the manual landing
+  workflow it served is retired (`contracts/retired.json`).
   - **`/queue-merge` is how work reaches `main`** (owner, 2026-08-25). Run it in the session that
     owns the branch, when that work is FINISHED - it does not merge anything itself, it puts the
     branch in the machine-wide queue, which lands it when its turn comes. **Nobody else queues your
@@ -69,7 +65,8 @@ contract is `supabase/AGENTS.md`.
     runs `ci.yml` on that group, and merges it in order; a group whose gate fails is dropped and
     auto-merge is turned off on the pull request, which the local watcher job reports. Until then
     the mechanical path ran as `scripts/auto-merge.mjs` on the owner's machine, one runner per
-    machine, dead when the lid closed; that script remains for `--dry-run` preflights.
+    machine, dead when the lid closed; that script is retired (`contracts/retired.json`) and waits
+    only for its importers to be unpicked before it is deleted.
   - **Nothing but the queue writes `main`.** The ruleset (`npm run land:ruleset -- --apply`,
     `scripts/landing-ruleset.mjs`) requires the merge queue and the two checks, and forbids
     deleting or rewriting the branch; the repository admin is the one bypass, for emergencies,

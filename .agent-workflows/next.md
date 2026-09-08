@@ -3,7 +3,7 @@
 Shared canonical procedure for the `next` workflow - invoked as `/next` in Claude Code, `$next`
 in Codex. Cross-references to other workflows below use their plain names (e.g. "the queue-merge
 workflow"); translate the same way: `/queue-merge` in Claude Code, `$queue-merge` in Codex, and
-likewise for "the handoff workflow" / "the safe-merge workflow".
+likewise for "the handoff workflow" / "the queue-merge workflow".
 
 Mid-session planning for **NoaCG Studio**. The user wants to decide what to do next in THIS
 session and expects real, choosable options - or an honest "we're done". This workflow only
@@ -46,12 +46,12 @@ quick scan, not an audit.
   worktree has checked out - unmerged work from a closed session, still a collision even though
   nobody is in it. This is what tells you an option is already someone else's job, and which
   files an option would collide on. Several worktrees are normally active at once.
-- **Merge ORDER, whenever landing this branch is a plausible option.** Run
+- **Collisions, whenever landing this branch is a plausible option.** Run
   `node scripts/merge-order.mjs --branch <this branch>` - read-only, a couple of seconds. The
-  worktree scan says who ELSE is in flight; this says who should go FIRST, measured with a real
-  three-way merge rather than a guess. It answers the one question that costs real time: does
-  landing this branch now force another branch into a large or dangerous re-merge? See section 2
-  for what to do with each verdict.
+  worktree scan says who ELSE is in flight; this says which of them this branch CONFLICTS with,
+  measured with a real three-way merge rather than a guess. Order is the queue's - pull requests
+  land in the order they were queued - so the only question is whether a conflict with `main` is
+  waiting, and section 2 says what to do with the answer.
 - **Verification gap.** Was `npm run build` run after the last code change? Is there observable
   behaviour that was never checked in the browser or with a focused `e2e/` spec? A green build
   alone does not close a UI-visible change. But absence of a test is a gap, not a bug - never
@@ -107,16 +107,16 @@ saying the work is FINISHED, because queueing is that declaration and a branch c
 clean while this session is still mid-conversation. So offer it, never queue off this workflow
 unasked - and once the user PICKS it, run it (section 2c).
 
-**Order the merge option by what `merge-order.mjs --branch <this branch>` said**, so this
-workflow never recommends a landing that makes another branch's landing much worse:
+**Say what `merge-order.mjs --branch <this branch>` found beside the queue option**, so the user
+picks it knowing the cost:
 
-- **`clear`** - offer it normally, no caveat.
-- **`caution`** - still offerable and still recommendable; append the cost in a fragment
-  (`costs <branch> N conflicted files`).
-- **`hold`** - do NOT offer this branch as a plain queueing option. The risk is large enough
-  that this session settles it first, so the option becomes that work - integrate `main` here,
-  resolve, re-run the build, then queue - and it says in the same line what forced it: the
-  rename, the duplicated migration number, the conflict count.
+- **no collision** - offer it normally, no caveat.
+- **a collision with an unqueued branch** - still offerable and still recommendable; append the
+  cost in a fragment (`costs <branch> N conflicted files`). Whichever lands second integrates
+  `main` - the queue bounces a conflicting pull request to its session, it never holds it.
+- **a conflict with `main` itself** - the option becomes that work first: integrate `main` here,
+  resolve, re-run the build, then queue - and it says in the same line what forced it: the rename,
+  the duplicated migration number, the conflict count.
 
 Never turn this into an option to go merge the OTHER branch: that is another worktree's
 business, and this workflow reports collisions rather than acting on them. Name it, and stop.
@@ -173,13 +173,9 @@ Mechanically: read `.agent-workflows/queue-merge.md` and follow it in full for t
 in the option. It hands the branch to the machine-wide queue, which does the merging; this
 session never merges into `main` itself.
 
-The manual safe-merge flow is a different thing and is not offered here - the queue runs its
-mechanical path already, and a session driving it by hand is outside the serialization. If the
-user explicitly asks for it anyway, read `.agent-workflows/safe-merge.md` and follow it. In
-Claude Code do NOT try to call the `/safe-merge` command as a tool - its adapter sets
-`disable-model-invocation: true` so the model can never invoke it on its own initiative, and
-that flag stays. Following the shared file directly is the same procedure with the same standing
-permissions, entered the one way that requires a human to have chosen it.
+There is no manual landing to offer. Nothing but GitHub's merge queue writes `main` - the ruleset
+refuses any other push - so a request to "just merge it" is answered with the queue option and the
+reason, never with git.
 
 The authorization is exactly as narrow as the option was: that branch, that turn. It does not
 extend to a second branch, to cleanup, or to a later turn - each needs its own invocation.
@@ -195,7 +191,7 @@ the natural close. No consolation backlog list.
 genuinely available, recommended one first:
 
 - **The queue-merge workflow** - only when this session's branch is committed, verified, and
-  actually landable, and `merge-order.mjs` did not return `hold`. Picking it is what declares the
+  actually landable, with no unresolved conflict against `main`. Picking it is what declares the
   work finished; never queue unasked, and always run it once picked (section 2c).
 - **The handoff workflow** - write the handoff note and close out.
 - **Stop here** - nothing further, leave the session as is.
