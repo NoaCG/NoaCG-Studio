@@ -88,6 +88,189 @@ export const NEEDS = Object.freeze(['account', 'money', 'identity', 'harness']);
  */
 export const NEEDS_REQUIRED_FROM = '2026-09-05';
 
+// ---------------------------------------------------------------------------
+// THE ROUTE, AND THE PLACE IT OPENS
+// ---------------------------------------------------------------------------
+//
+// A walk used to cost one route per item. On 2026-09-09 the queue held 75 files, 64 of them open,
+// and 28 of those began with the SAME four clicks - open the studio, Import graphic, drop a file.
+// The owner's own account of what this queue costs him is in OWNER_QUEUE.md: "the cost he is
+// protecting is not his attention, it is his TIME AT A MACHINE - a sentence costs him nothing, and
+// clicking through menus and drawing SVGs costs him a lot." Twenty-eight walks through the same
+// menu is that cost paid twenty-eight times over.
+//
+// So `/walk` groups by the PLACE an item's route opens, and the grouping is DERIVED from the route
+// line each item already wrote. No new front-matter key: a key sessions must remember to fill is a
+// key that is wrong on the day somebody forgets, and the 64 items already on disk would all carry
+// nothing. What they DO carry is a route - the queue's shape doc has demanded one since the
+// beginning, and all 59 open `walk`/`walk-p` items grouped on the day this landed.
+
+/**
+ * A route section's own heading - the shape most items use.
+ *
+ * The heading must OPEN with the word, not merely contain it. This change's own queue item is
+ * titled "A walk now covers a route, not an item", and a looser pattern read that TITLE as the
+ * route section, stopped at the next heading, and grouped the item on three words of prose.
+ * `\broutes?\b` rather than `route`, so "routing" and "routines" are not matched either.
+ */
+const ROUTE_HEADING = /^#{1,6}\s+(?:the\s+)?routes?\b/i;
+
+/**
+ * The other shape: a bold lead-in, sometimes mid-paragraph after the date -
+ * `**Date:** 2026-09-07. **Route:** open ...` is a real item. The lead-in must START a line or a
+ * sentence, because an unanchored pattern lets any earlier bold mention of the word hijack the
+ * route: a summary reading "The **route** each item writes is what groups it now" sits above a
+ * perfectly good `## The route` section, and matched first.
+ */
+const ROUTE_LEAD_IN = /(?:^|[.·]\s+)\*\*Routes?\b[^*\n]*\*\*|^Route:/i;
+
+/**
+ * A hard backstop on how much of an item is read as its route, in characters. It exists so a
+ * malformed item groups on its opening rather than on its whole text - never as the normal way a
+ * route ends, which is why it sits above the real range rather than inside it: on 2026-09-09 the
+ * longest of the 68 route sections on disk was 1,406 characters and none reached this.
+ */
+const ROUTE_MAX_CHARS = 1600;
+
+/**
+ * The text of an item's route section, or null when it has none.
+ *
+ * WHERE THE ROUTE ENDS MATTERS AS MUCH AS WHERE IT STARTS. What follows a route is "what to look
+ * at", and that paragraph names screens the route never opens - the receipts item is the proof:
+ * its route is one command in a terminal, and the paragraph under it mentions the editor and the
+ * studio while describing a BUG LIST. Read as one blob it grouped under "the studio", which would
+ * have sent the owner to the wrong screen.
+ *
+ * Read line by line rather than by regex offsets, for two reasons a single pattern got wrong:
+ * a `#` comment on the first line of a fenced command block is not a heading, and the plain
+ * `What to look at:` that the older one-paragraph template used is a boundary just as much as the
+ * bold `**What to look at.**` that replaced it.
+ *
+ * @param {string} text the item's full content
+ * @returns {string|null}
+ */
+export function routeTextOf(text) {
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  // A HEADING WINS OVER A LEAD-IN, wherever each one sits. An item with a real route section and a
+  // passing bold mention of the word above it has one obvious answer, and this is it.
+  let start = lines.findIndex((line) => ROUTE_HEADING.test(line));
+  if (start < 0) start = lines.findIndex((line) => ROUTE_LEAD_IN.test(line));
+  if (start < 0) return null;
+
+  const out = [];
+  let inFence = false;
+  let length = 0;
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/^\s*```/.test(line)) inFence = !inFence;
+    else if (!inFence && index > start && /^#{1,6}\s|^\*{0,2}What\b/i.test(line)) break;
+    out.push(line);
+    length += line.length + 1;
+    if (length > ROUTE_MAX_CHARS) break;
+  }
+  return out.join('\n');
+}
+
+/**
+ * The places a walk opens, MOST SPECIFIC FIRST - the first match wins, and the order is the whole
+ * rule. `/docs` is tested before the site that hosts it; the import wizard before the studio that
+ * contains it; the studio before the checkout, because half the studio routes start with
+ * `npm run dev` and grouping those as "a terminal" would send the owner to the wrong screen.
+ *
+ * Each entry is a place a person physically opens ONCE and then works from. That is the test for
+ * adding one: not "are these items similar" but "does one opening serve all of them".
+ */
+export const PLACES = Object.freeze([
+  {
+    id: 'github',
+    label: 'GitHub',
+    hint: 'the repository in a browser - pull requests, tabs, settings',
+    test: /github\.com/i,
+  },
+  {
+    id: 'docs',
+    label: 'The docs site',
+    hint: '/docs, hosted or local',
+    test: /(^|[\s(`<[])\/docs\b|noacg\.studio\/docs/i,
+  },
+  {
+    id: 'site',
+    label: 'The public site',
+    hint: 'noacg.studio - the landing page and what it publishes',
+    test: /noacg\.studio/i,
+  },
+  {
+    id: 'import',
+    label: 'Import graphic',
+    hint: 'the studio, Import graphic, then one file dropped per item',
+    test: /import graphic|import your own|\bimport\b[^\n]{0,20}\bsvg\b/i,
+  },
+  {
+    id: 'studio',
+    label: 'The studio',
+    hint: '/app - templates, browse, the editor, a production',
+    test: /\/app\b|#\/app|\bstudio\b|\bnew graphic\b|\bbrowse\b|\btemplates\b|\bthe editor\b|\bproduction\b|\binspector\b/i,
+  },
+  {
+    id: 'checkout',
+    label: 'A checkout',
+    hint: 'a command to run or a file to read, with no product on screen',
+    // A fenced block, a command, or a markdown file in the repository. Deliberately last: a route
+    // that opens a screen AND runs a command is a screen route, and every one of those starts by
+    // starting the dev server.
+    test: /```|\bnpm run\b|\bnode scripts\/|[\w-]+\/[\w./-]*\.md\b|\.claude\//i,
+  },
+]);
+
+/**
+ * The bucket for an item whose route matches no shared place. Two different things land here and
+ * both belong: a route nobody else shares (the Claude Code sidebar, a playout box), and a route
+ * that could not be found at all. Neither is a defect in the grouping - they are simply walked one
+ * at a time, the way every item was walked before this existed, and they go LAST so the batched
+ * places are cleared first.
+ */
+export const OWN_ROUTE = Object.freeze({
+  id: 'own',
+  label: 'On their own',
+  hint: 'one route each - walked one at a time, as before',
+});
+
+/**
+ * Which place this item's route opens.
+ *
+ * @param {string} text the item's full content
+ * @returns {{ id: string, label: string, hint: string }} a PLACES entry, or OWN_ROUTE
+ */
+export function placeOf(text) {
+  const route = routeTextOf(text);
+  if (!route) return OWN_ROUTE;
+  return PLACES.find((place) => place.test.test(route)) ?? OWN_ROUTE;
+}
+
+/**
+ * The date from which a `walk`, `walk-p` or `agent` item must carry a findable route section.
+ *
+ * Date-gated for the same reason `needs:` is: this gate's standing rule is that every change is a
+ * WIDENING, because sessions file items here while their branches are in flight and a tightening
+ * reds a build for a line the prompt never saw. Three open items filed before this date have no
+ * route section and none of them goes red.
+ *
+ * `owner-action` and `hardware` are exempt on purpose. A hardware item is blocked on a playout box
+ * and has nowhere to send anyone; an owner-action item's route is a console we do not hold, and its
+ * `needs:` key already says why it is his.
+ */
+export const ROUTE_REQUIRED_FROM = '2026-09-10';
+
+/** The kinds a walk actually opens something for, and therefore the kinds that need a route. */
+const ROUTED_KINDS = Object.freeze(['walk', 'walk-p', 'agent']);
+
+/**
+ * `parseFrontmatter` gives back the TEXT of each value, so `done: true` arrives as the string
+ * 'true' and `answered: false` as the string 'false'. Comparing either against the boolean is
+ * always false, which would present every settled item as open.
+ */
+const isTrue = (value) => value === true || value === 'true';
+
 /** True only when this file was RUN, not imported - the same guard the other checks carry. */
 const isEntrypoint =
   Boolean(process.argv[1]) &&
@@ -131,10 +314,172 @@ export function auditOwnerQueueItem(text) {
         'If none of them fits, it is not an owner action: do the work instead.',
     );
   }
+  // THE ROUTE. `/walk` groups the queue by the place a route opens, so an item with no route
+  // section is not only unreachable (which OWNER_QUEUE.md has always said), it also cannot join
+  // the group that would have carried it. The check is for a route SECTION, never for a route
+  // that matches a known place: a genuinely new place is legitimate, and a gate that pushed items
+  // into existing buckets would be inventing a fact about where the owner has to go.
+  if (
+    ROUTED_KINDS.includes(data.kind) &&
+    !isTrue(data.done) &&
+    String(data.date ?? '') >= ROUTE_REQUIRED_FROM &&
+    routeTextOf(text) === null
+  ) {
+    problems.push(
+      'no route section - add one, as a "## The route, under a minute" heading or a ' +
+        '"**Route, under a minute.**" line. An item with no route is not an item, and it cannot ' +
+        'be grouped with the items that open the same screen.',
+    );
+  }
   return problems;
 }
 
+/**
+ * Every item on disk, parsed once. `place` and `title` are derived here so the report and the
+ * gate's own measurement read the same numbers from the same pass.
+ *
+ * @param {string} dir absolute path to the queue directory
+ * @param {string[]} names file names, sorted
+ */
+function readQueue(dir, names) {
+  return names.map((name) => {
+    const text = readFileSync(path.join(dir, name), 'utf8');
+    const parsed = parseFrontmatter(text);
+    const data = parsed?.data ?? {};
+    // The H1 is what a human wrote for this item; the file name is the fallback for one that has
+    // no title yet, which nothing forbids. Matched against the BODY, because a whole-line comment
+    // in the front matter (`# filed by the night wave`) is a `#` line too, and would be printed to
+    // the owner as the item's name.
+    const title = (parsed?.body ?? text).match(/^#\s+(.+)$/m)?.[1].trim() ?? name;
+    return { name, text, data, title, place: placeOf(text) };
+  });
+}
+
+/**
+ * The order inside a group, and it is the same three keys `/walk` has always sorted by, so two
+ * sessions an hour apart show the owner the same list: `serves: now` first, then `answered: true`
+ * (the re-looks he is owed), then newest `date:` first.
+ */
+function byWalkOrder(a, b) {
+  const serves = (item) => (item.data.serves === SERVES ? 0 : 1);
+  const answered = (item) => (isTrue(item.data.answered) ? 0 : 1);
+  return (
+    serves(a) - serves(b) ||
+    answered(a) - answered(b) ||
+    String(b.data.date ?? '').localeCompare(String(a.data.date ?? '')) ||
+    a.name.localeCompare(b.name)
+  );
+}
+
+/**
+ * Group one list's items by place, biggest and most urgent first.
+ *
+ * A group holding a `serves: now` item leads, because the push outranks the saving. After that the
+ * order is by SIZE, since the whole point is that one opening settles many items - and "On their
+ * own" is always last, whatever its size, because those cost a route each and clearing the batched
+ * places first is what makes a walk short.
+ */
+function groupByPlace(items) {
+  const groups = new Map();
+  for (const item of items) {
+    if (!groups.has(item.place.id)) groups.set(item.place.id, { place: item.place, items: [] });
+    groups.get(item.place.id).items.push(item);
+  }
+  const order = PLACES.map((place) => place.id);
+  return [...groups.values()]
+    .map((group) => ({ ...group, items: group.items.sort(byWalkOrder) }))
+    .sort((a, b) => {
+      const own = (group) => (group.place.id === OWN_ROUTE.id ? 1 : 0);
+      const now = (group) => (group.items.some((item) => item.data.serves === SERVES) ? 0 : 1);
+      return (
+        own(a) - own(b) ||
+        now(a) - now(b) ||
+        b.items.length - a.items.length ||
+        order.indexOf(a.place.id) - order.indexOf(b.place.id)
+      );
+    });
+}
+
+/**
+ * The two kinds that are never grouped by route. An `owner-action` item is a console we do not
+ * hold, and no two of them are the same console; a `hardware` item is blocked on a playout box and
+ * names no route at all. Grouping either would print one bucket called "on their own" and call it
+ * a place.
+ */
+const UNGROUPED_KINDS = Object.freeze(['owner-action', 'hardware']);
+
+/** One item, one line, with what the reader needs in order to pick it. */
+function printItem(item, extra) {
+  const flags = [
+    item.data.serves === SERVES ? 'NOW' : null,
+    isTrue(item.data.answered) ? 'answered' : null,
+    extra,
+  ].filter(Boolean);
+  console.log(`    - ${item.title}${flags.length > 0 ? `  [${flags.join(', ')}]` : ''}`);
+  console.log(`      ${item.data.date ?? '(no date)'}  ${item.name}`);
+}
+
+/** One list, printed flat, for the kinds no route can batch. */
+function printFlatList(heading, items, extra = () => null) {
+  if (items.length === 0) return;
+  console.log(`\n${heading} - ${items.length} item(s)`);
+  for (const item of [...items].sort(byWalkOrder)) printItem(item, extra(item));
+}
+
+/** One list, printed as its groups. */
+function printList(heading, items) {
+  if (items.length === 0) return;
+  const groups = groupByPlace(items);
+  console.log(`\n${heading} - ${items.length} item(s) in ${groups.length} place(s)`);
+  for (const group of groups) {
+    const now = group.items.filter((item) => item.data.serves === SERVES).length;
+    console.log(`\n  ${group.place.label} (${group.items.length}${now ? `, ${now} serve NOW` : ''}) - ${group.place.hint}`);
+    for (const item of group.items) printItem(item);
+  }
+}
+
+/**
+ * `--routes` - the queue as a WALK sees it, grouped by the place each route opens.
+ *
+ * This exists as a script rather than as a paragraph telling a session to group by eye, for the
+ * reason the sort order is already mechanical: a judgement made at presentation time gives the
+ * owner a different list every session, and he cannot tell a re-ordering from new work.
+ *
+ * @param {ReturnType<typeof readQueue>} queue
+ * @param {string|undefined} filter a kind to show instead of the owner's own three lists
+ */
+function reportRoutes(queue, filter) {
+  const open = queue.filter((item) => !isTrue(item.data.done));
+  const of = (kind) => open.filter((item) => item.data.kind === kind);
+
+  if (filter) {
+    const items = of(filter);
+    if (items.length === 0) {
+      console.log(`No open kind: ${filter} item.`);
+      return 0;
+    }
+    if (UNGROUPED_KINDS.includes(filter)) printFlatList(`kind: ${filter}`, items);
+    else printList(`kind: ${filter}`, items);
+    return items.length;
+  }
+
+  printList('From your phone (walk-p)', of('walk-p'));
+  printList('At the computer (walk)', of('walk'));
+
+  // The `needs:` key is what is worth reading on an owner-action item, so it is printed beside the
+  // title: a wrong reason is then visible to HIM and not only to the gate.
+  printFlatList('Only you can do these (owner-action)', of('owner-action'), (item) => `needs: ${item.data.needs ?? '?'}`);
+
+  const hardware = of('hardware').length;
+  const agent = of('agent').length;
+  console.log(
+    `\nAlso open: ${agent} agent item(s) (--routes agent), ${hardware} blocked on hardware (--routes hardware).`,
+  );
+  return open.length;
+}
+
 function main() {
+  const routesFlag = process.argv.indexOf('--routes');
   const dir = path.join(ROOT, ...QUEUE_DIR.split('/'));
   let names;
   try {
@@ -154,6 +499,14 @@ function main() {
     return 1;
   }
 
+  const queue = readQueue(dir, names);
+
+  if (routesFlag >= 0) {
+    const shown = reportRoutes(queue, process.argv[routesFlag + 1]);
+    console.log(`\n${shown} open item(s). Full rules: ${QUEUE_DIR.replace('/owner-queue', '/OWNER_QUEUE.md')}`);
+    return 0;
+  }
+
   // The queue's CONTENTS may honestly be empty - the owner accepts items and they leave - so the
   // count is reported without being refused. The directory check above is what makes a zero here
   // mean "drained" rather than "the gate lost its subject".
@@ -163,11 +516,28 @@ function main() {
     'zero is honest when the queue has been drained: an accepted item is deleted, so an empty (but present) docs/acceptance/owner-queue/ means nothing is waiting on the owner.',
   );
 
+  // WHAT THE GROUPING RESOLVED TO, said out loud on every build. The route rule is a set of
+  // regexes over prose dozens of sessions wrote in their own words, which is exactly the shape
+  // `scripts/measured.mjs` exists to distrust: a pattern that quietly stops matching would leave
+  // `/walk` presenting one flat list again with nothing saying so. The count that matters is how
+  // many open items landed in a SHARED place rather than on their own - if that collapses towards
+  // zero, the grouping has stopped working even though every other rule here still passes.
+  //
+  // Counted over the ROUTED kinds only. An `owner-action` or `hardware` item is never grouped, so
+  // including them would move the ratio for reasons that have nothing to do with the grouping:
+  // filing four more hardware items would drag it down while every rule here still worked.
+  const routed = queue.filter((item) => !isTrue(item.data.done) && ROUTED_KINDS.includes(item.data.kind));
+  const grouped = routed.filter((item) => item.place.id !== OWN_ROUTE.id);
+  measured.optional(
+    grouped.length,
+    `queue items grouped by route (of ${routed.length} open walk/walk-p/agent; ${new Set(grouped.map((item) => item.place.id)).size} place(s))`,
+    'zero is honest for a drained queue, or for one whose every remaining item opens somewhere nobody else does.',
+  );
+
   const failures = [];
-  for (const name of names) {
-    const text = readFileSync(path.join(dir, name), 'utf8');
-    for (const problem of auditOwnerQueueItem(text)) {
-      failures.push(`${QUEUE_DIR}/${name}: ${problem}`);
+  for (const item of queue) {
+    for (const problem of auditOwnerQueueItem(item.text)) {
+      failures.push(`${QUEUE_DIR}/${item.name}: ${problem}`);
     }
   }
 

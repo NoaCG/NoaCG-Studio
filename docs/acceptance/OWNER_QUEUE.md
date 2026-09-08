@@ -6,9 +6,9 @@ LOOKED at it. Git knows what landed; only a person knows whether it was any good
 **The items are not in this file.** Each one is its own file in [`owner-queue/`](owner-queue/),
 named `<date>-<slug>.md`. This file holds the rules they follow and the log of what was dropped.
 
-Run **`/walk`** to go through them in one pass. It reads that directory, takes the owner to each
-thing, and records the tick or the feedback. No open `walk` item IS the confirmation that nothing
-is waiting.
+Run **`/walk`** to go through them in one pass. It reads that directory, groups the items by the
+place each one's route opens, takes the owner there once, and records the tick or the feedback per
+item. No open `walk` item IS the confirmation that nothing is waiting.
 
 ## Why one file per item
 
@@ -28,9 +28,14 @@ serves: now         # OPTIONAL - set it when the work serves docs/GOALS.md ## NO
 ---
 # Short title
 
-What changed, in one sentence a non-technical reader follows. Route: the URL, the branch or the
-exact command - under a minute to reach, or it will not get walked. What to look at: the thing
-that might be wrong, not a feature summary. The commit or branch it came from.
+What changed, in one sentence a non-technical reader follows.
+
+## The route, under a minute
+
+The URL, the branch or the exact command - under a minute to reach, or it will not get walked.
+
+**What to look at.** The thing that might be wrong, not a feature summary. Then the commit or
+branch it came from.
 ```
 
 - `kind: walk` - the owner, at the computer. Five minutes at the desk with the product open.
@@ -51,6 +56,15 @@ that might be wrong, not a feature summary. The commit or branch it came from.
   item's own front matter rather than in a ranked list here, for the same reason the items do: five
   sessions editing one ordered list at the same offset is a git conflict, and a conflict strands a
   landing. When the push changes, the items that no longer serve it lose the key.
+
+**The route is a SECTION, in one of two shapes**, because `/walk` groups the queue by the place a
+route opens and reads that grouping straight off this text. Either a `## The route ...` heading or a
+`**Route ...**` lead-in starts it; a heading or a `**What ...**` lead-in ends it. Open with the
+place itself - `/app`, `/docs`, `<https://noacg.studio>`, the command - so the item lands with the
+others that open the same screen. From 2026-09-10 `npm run check:owner-queue` refuses a `walk`,
+`walk-p` or `agent` item with no route section at all. It never asks the route to MATCH a known
+place: a new place is a fine answer, and a gate that pushed items into existing buckets would be
+inventing where the owner has to go.
 
 ## Which kind does an item get
 
@@ -201,6 +215,20 @@ costs him five minutes at the machine. Inside each of those two lists the order 
 first, then `answered: true`, then newest `date:`** - all three front-matter keys, defined once in
 the shape section above, so nothing here re-derives anything.
 
+**And inside each list the unit he picks is a PLACE, not an item.** On 2026-09-09 the queue held 63
+open items, and 28 of them - 22 on the NOW push - opened the same four clicks: the studio, Import
+graphic, drop a file. Walked one at a time that is 28 trips through one menu, and what this queue
+costs him is machine time. So `node scripts/check-owner-queue.mjs --routes` groups each list by the
+place its items' routes open, largest first with any place holding a `serves: now` item leading, and
+a walk opens a place once and settles everything on it. The place is DERIVED from the route text
+each item already wrote - there is no key for it, because a key sessions must remember to fill is
+wrong the first time somebody forgets, and every item already filed would carry nothing. The list of
+places, and why each one is a place rather than a category, is in `scripts/check-owner-queue.mjs`.
+
+Items whose route nobody else shares group as **"On their own"**, last, and that is not a failure -
+they are walked one at a time as every item used to be. `owner-action` is never grouped: each one is
+a different console we do not hold.
+
 **`owner-action` is presented too, as its own short list after the other two**, because every one
 of them is a real ask nobody else can do and there have never been more than a handful. Within it,
 an item naming a real-world date leads (the OGraf ecosystem listing is against IBC on 12
@@ -215,7 +243,8 @@ not a note.
 ## How this list stays honest
 
 - **An item goes in when the work lands**, with what to look at and how to reach it in under a
-  minute. No item without a route.
+  minute. No item without a route - and a route written in one of the two shapes above, so the item
+  joins the group that opens the same screen instead of costing a trip of its own.
 - **An item leaves when it is walked** - `/walk` deletes the file. Git holds the history, so
   nothing is lost by removing it.
 - **Feedback keeps the item open**, captured verbatim in the file, until the feedback is addressed.
