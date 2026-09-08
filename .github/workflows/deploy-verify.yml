@@ -51,12 +51,19 @@ jobs:
     #   vercel[bot]              - "Deployment has completed". This is the deployment, and by the
     #                              time it arrives the production alias is already promoted.
     #
-    # Verifying on the first one is verifying about three minutes before production has anything
-    # new to serve, so the check could only ever pass by luck. Measured over the 21 landings of
-    # 2026-09-07/08: the two statuses are 145-187 s apart (median 183 s), every run raised by the
-    # merge-queue status on a deploy-affecting landing polled its full window and went red, and
-    # every run raised by the vercel[bot] status matched on its FIRST poll (0-4 s). That is issue
-    # #159 and the eight false reds before it - the deployments were fine, the trigger was not.
+    # Verifying on the first one is verifying minutes before production has anything new to serve,
+    # so the check could only ever pass by outrunning the deployment. Measured over the 21 landings
+    # of 2026-09-07/08 (17 of them deploy-affecting): the two statuses are 80-192 s apart, median
+    # 182 s. 14 of those 17 runs polled their whole 120 s window and went red on a production that
+    # was healthy - issue #159 and the 13 before it. The three that passed did not verify anything
+    # the others did not: two caught the alias at 56 s and 72 s on the day's two fastest builds,
+    # and one only because the runner took 150 s to start. Every run raised by the vercel[bot]
+    # status matched within 4 seconds.
+    #
+    # THE WINDOW IS NOT THE LEVER, WHICH THAT 80-192 s SPREAD IS THE PROOF OF: it straddles the
+    # 120 s the job waits, so the same healthy deployment reds or greens on how fast Vercel felt
+    # that minute. Raising the number buys silence and leaves the alarm timing an event that has
+    # nothing to do with the deployment.
     #
     # Previews raise statuses too, and only production can page anyone, so the environment filter
     # stays. A merge-queue status now skips this job entirely rather than passing through it: a
@@ -85,11 +92,10 @@ jobs:
       - name: Verify the live site serves this commit
         if: ${{ github.event.deployment_status.state == 'success' }}
         env:
-          # 12 x 10 s = 120 s, unchanged, and now headroom rather than the lever. With the trigger
-          # above corrected, all 21 measured landings served the new commit on the first poll, so
-          # the measured need is zero; the window is what remains for a propagation tail nobody
-          # here has observed. It only ever elapses when something is actually wrong, where two
-          # minutes of extra certainty costs nothing.
+          # 12 x 10 s = 120 s, unchanged, and now headroom rather than the lever. Every run raised
+          # by the corrected trigger matched within 4 seconds, so the measured need is zero and
+          # what remains is room for a propagation tail nobody here has observed. It only elapses
+          # when something is actually wrong, where two more minutes of certainty cost nothing.
           POLL_SECONDS: 10
           POLL_COUNT: 12
         run: |

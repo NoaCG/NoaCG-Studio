@@ -413,14 +413,17 @@ Found 2026-09-08 as issue #159. `deploy-verify.yml` fired on every production `d
 and read the payload as "Vercel finished". Two bots post that status on the same deployment record:
 `vercel[bot]` when the deployment is complete, and `github-merge-queue[bot]` for `post-land.yml`'s
 migrate job, which declares `environment: production` and finishes about 25 seconds after the merge.
-The second one arrives **145-187 seconds before the first** (21 landings, 2026-09-07/08, median
-183 s), so the verifier polled its 120-second window against a production that had nothing new to
-serve yet and went red on nine of the ten deploy-affecting landings that day. The tenth passed
-because the runner took two and a half minutes to pick the job up.
+The second one arrives **80-192 seconds before the first** (17 deploy-affecting landings,
+2026-09-07/08, median 182 s), so the verifier polled its 120-second window against a production
+that had nothing new to serve yet. **14 of the 17 went red on a healthy production.** The three
+that passed prove the same point: two caught the alias at 56 and 72 seconds on the fastest builds
+in the sample, and one only because the runner took 150 seconds to start the job.
 
 **The shape to recognise: the check was right, the window was right, and the event was not.** The
-tempting fix is the number - raise the timeout until the red stops - which buys silence and leaves
-the alarm measuring something it was never about. Reading WHO raised the event separated the two
+tempting fix is the number - raise the timeout until the red stops - and the 80-to-192-second
+spread is what makes it wrong rather than merely crude. The distribution straddles the window, so
+the same healthy deployment reds or greens on how fast that build happened to run, and no
+threshold sits outside a distribution that moves. Reading WHO raised the event separated the two
 statuses immediately, and the fix is an `if:` rather than a longer wait. Before changing a
 threshold, check that the thing being timed starts when you think it starts.
 

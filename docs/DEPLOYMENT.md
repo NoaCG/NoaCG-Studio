@@ -88,12 +88,14 @@ The cost and capacity policy for the Pro account is
    **Only Vercel's own status starts a verification, and that filter is load-bearing.** GitHub
    raises a production `deployment_status` for `post-land.yml`'s migrate job as well, because
    that job declares `environment: production`; it lands about 25 seconds after the merge and
-   says nothing about Vercel. Vercel's own "Deployment has completed" arrives 145-187 seconds
-   later (21 landings, 2026-09-07/08), by which point the alias is promoted and the live check
-   passes on its first poll. Verifying on the earlier status meant checking production three
-   minutes before it had anything new to serve, which is issue #159 and the eight false reds on
-   `main` before it. A failed migrate job still reports itself - through post-land's own red run,
-   which is the workflow that actually ran it.
+   says nothing about Vercel. Vercel's own "Deployment has completed" arrives 80-192 seconds later
+   (median 182 s over the 17 deploy-affecting landings of 2026-09-07/08), by which point the alias
+   is promoted and the live check passes within four seconds. Verifying on the earlier status
+   meant checking production before it had anything new to serve: 14 of those 17 landings went red
+   on a healthy production, which is issue #159 and the 13 before it. **The spread is the reason
+   the fix is not a longer window** - it straddles the 120 seconds the job waits, so the same
+   healthy deployment reds or greens on how fast that particular build ran. A failed migrate job
+   still reports itself, through post-land's own red run, which is the workflow that ran it.
 
    When the live check does expire, the error says which of two things it saw: production pinned
    to one older commit for the whole window (the alias is stuck), or production moving but not yet
