@@ -487,7 +487,10 @@ order starts with credits.
   role from name; short and long variants; roles styled differently from names; side-by-side or
   stacked layouts. AMENDED 2026-08-28 (walk): operator SPEED control on anything scrolling;
   scrolls ALL THE WAY THROUGH by default (never parks names/logo mid-screen); an optional end
-  beat (logo/text) may follow. Repo copy: docs/backlog/scrolling-speed-and-through.md.
+  beat (logo/text) may follow. SERVED: end credits by `cde2a2da`, tickers by the change that
+  deleted `docs/backlog/scrolling-speed-and-through.md` (`git log --diff-filter=D` finds it). The
+  speed field is emitted in `src/templates/endCredits/shared.ts` and
+  `src/templates/tickers/shared.ts`, both keyed on the motion preset.
 - **Ticker/crawl**: one pasted list (one item per line), loops until Out; list editable
   mid-show, new items enter on the next pass.
 - **Scoreboard**: current model RIGHT - Goal A = flag + score in one press; +/- for corrections;

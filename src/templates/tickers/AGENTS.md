@@ -32,3 +32,16 @@ unchanged and still the only builder a design must provide. Pinned by
 **The value axis is still per-design and not portable**: tk04, tk06, tk14 and tk22 parse a
 price or a change out of the line by POSITION and tk13 an `n - n` score, each with its own
 rule. Leave them; folding a value into the kicker's grammar mints a second mark to learn.
+**THE SPEED IS THE OPERATOR'S on anything that moves.** A marquee or a
+flip design emits one appended `number` field - `Scroll speed (%)` / `Item speed (%)`, default
+`100` = the pace it ships at, clamped to 10-400 by `tickerSpeed()` - in a hidden
+`.noacg-data-source` holder, never drawn, read at `play()` because that is when the travel is
+measured. It is appended AFTER the optional second cap, so every field id already in use stays
+put (`f2` on a two-line design, `f3` on a three-line one). `motionSpeed()` is a DIFFERENT knob,
+the author's, from the `NOACG_ANIM` block; `tickerMotionSpeed()` is the product of the two, and
+the builders read that one function only. **A rotate design emits no speed field**: its cadence
+is a machine timer (`edge.after / NOACG_ANIM.speed`, in `templates/shared/animRuntime.ts`), so a
+percentage typed on the control page would move only the strip's fade-in, and a field the graphic
+cannot honour is a promise broken in front of an operator. Do not "finish the set" by adding one -
+`docs/backlog/a-rotating-ticker-holds-at-a-rate-nobody-can-change.md` says what has to change
+first. Pinned by `scripts/ticker-speed.test.mjs`, which runs the EMITTED builders.

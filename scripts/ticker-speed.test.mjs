@@ -1,0 +1,156 @@
+// guards: src/templates/tickers/tickerMotion.ts, src/templates/tickers/shared.ts
+//
+// THE OPERATOR'S SPEED FIELD HAS TO MOVE THE GRAPHIC, and this is what says it does.
+//
+// A number on a control page that changes nothing is worse than no number at all: it is a
+// promise the product breaks in front of someone on air, and nothing else in the build can
+// notice it. The emitted motion is plain JavaScript in a template literal, so a rule that reads
+// correctly in the .ts file can still ship broken - the same reason scripts/ticker-parser.
+// test.mjs exists.
+//
+// So this runs the REAL emitted code. Rolldown bundles tickerMotion.ts (its only import is
+// motionSpeedJs, and nothing in that graph touches the DOM at load time), the module hands back
+// the exact JavaScript a generated ticker ships, and it runs here against a stub GSAP that
+// records the tween it is given. The assertions are then durations in seconds, measured off the
+// builder rather than reasoned about.
+//
+// No browser: the builders only ever read `scrollWidth`, `querySelector` and `textContent`, all
+// of which a stub answers honestly. What needs a real Chromium is what a design LOOKS like once
+// laid out, which is not this question.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { rolldown } from 'rolldown';
+import { rawSuffix } from './rolldown-raw.mjs';
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const entry = path.join(projectRoot, 'src/templates/tickers/tickerMotion.ts');
+
+const bundle = await rolldown({
+  input: entry, platform: 'neutral', plugins: [rawSuffix], logLevel: 'silent',
+});
+const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+await bundle.close();
+const { tickerMotionJs } = await import(
+  `data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`
+);
+
+/** The measurements a run of the emitted code hands back. */
+const ONE_SET_WIDTH = 1400;   // px of items, rendered twice -> scrollWidth 2800
+const ITEM_COUNT = 4;
+
+/**
+ * Run the emitted motion for one design and return what its builders produce.
+ *
+ * `percent` is what the operator has typed into the speed field - `null` for a design that
+ * emits no field at all (the timed rotator), which is how the carve-out is exercised.
+ */
+function runMotion({ speedFieldId, percent, animSpeed = 1 }) {
+  // Every tween the builders hand to GSAP, in the order they were built. The POSITION argument
+  // is kept alongside the vars, because the flip's hold is expressed as one ('+=3.2').
+  const tweens = [];
+  const record = (vars, position) => { tweens.push({ ...vars, position }); return timeline; };
+  // GSAP's own signatures, argument for argument — a stub one slot out silently records the
+  // TARGET as the tween and every assertion below then passes on nothing.
+  const timeline = {
+    set: (_target, vars, position) => record(vars, position),
+    to: (_target, vars, position) => record(vars, position),
+    from: (_target, vars, position) => record(vars, position),
+    fromTo: (_target, _from, to, position) => record(to, position),
+    add: (child, position) => record(child, position),
+    call: (fn, params, position) => record({ fn }, position),
+  };
+  const gsap = {
+    timeline: () => timeline,
+    fromTo: (_target, _from, to) => { tweens.push(to); return to; },
+    getProperty: () => 0,
+  };
+
+  // The DOM the builders actually touch. A marquee measures the track's scrollWidth; a flip
+  // counts .ticker-item children; both read the speed holder's textContent.
+  const items = Array.from({ length: ITEM_COUNT }, () => ({}));
+  const track = { scrollWidth: ONE_SET_WIDTH * 2, querySelectorAll: () => items };
+  const document = {
+    querySelector: () => track,
+    getElementById: (id) =>
+      (id === speedFieldId && percent !== null ? { textContent: String(percent) } : null),
+  };
+
+  const js = tickerMotionJs(speedFieldId);
+  const run = new Function('gsap', 'document', 'NOACG_ANIM',
+    `${js}\nreturn { marquee: tickerMarquee('#ticker-track'), flip: tickerFlipCycle('#ticker-track'), speed: tickerMotionSpeed() };`);
+  const result = run(gsap, document, { speed: animSpeed });
+  return { ...result, tweens };
+}
+
+/** The marquee's travel time for one full set of items, in seconds. */
+function marqueeSeconds(percent, opts = {}) {
+  const { marquee } = runMotion({ speedFieldId: 'f2', percent, ...opts });
+  return marquee.duration;
+}
+
+/** The flip's hold between one item arriving and the next, in seconds. */
+function flipHoldSeconds(percent) {
+  const { tweens } = runMotion({ speedFieldId: 'f2', percent });
+  // The exit of the first item carries the hold, as a relative '+=' position.
+  const exit = tweens.find((t) => t.y === -18);
+  assert.ok(exit, 'the flip cycle built no exit tween');
+  return Number(String(exit.position ?? '').replace('+=', '')) || null;
+}
+
+// ── The marquee: 1400px of items at 140 px/s is exactly 10 seconds at the authored pace ──
+
+test('an untouched marquee runs at the pace the design ships at', () => {
+  assert.equal(marqueeSeconds(100), 10);
+});
+
+test('200% halves the marquee travel time, 50% doubles it', () => {
+  assert.equal(marqueeSeconds(200), 5);
+  assert.equal(marqueeSeconds(50), 20);
+});
+
+test('the operator percentage multiplies the template author speed, never replaces it', () => {
+  // The Animation panel's knob at 2x and the operator's at 50%: the strip runs as designed.
+  assert.equal(marqueeSeconds(50, { animSpeed: 2 }), 10);
+  assert.equal(marqueeSeconds(200, { animSpeed: 2 }), 2.5);
+});
+
+// ── Nothing an operator can type may stop the strip ──
+
+test('blank, zero and nonsense all mean "as designed" rather than "stop"', () => {
+  for (const typed of ['', '0', 'fast', '-40']) {
+    assert.equal(marqueeSeconds(typed), 10, `"${typed}" did not fall back to the design's pace`);
+  }
+});
+
+test('the clamp holds at both ends: 10% and 400%', () => {
+  assert.equal(marqueeSeconds(5), marqueeSeconds(10));      // 100s, not 200s
+  assert.equal(marqueeSeconds(10), 100);
+  assert.equal(marqueeSeconds(9000), marqueeSeconds(400));  // 2.5s, and never faster
+  assert.equal(marqueeSeconds(400), 2.5);
+});
+
+// ── The flip: the hold is what a speed means when nothing travels ──
+
+test('the flip hold is 3.2s as designed, and scales with the operator field', () => {
+  assert.equal(flipHoldSeconds(100), 3.2);
+  assert.equal(flipHoldSeconds(200), 1.6);
+  assert.equal(flipHoldSeconds(50), 6.4);
+});
+
+// ── The carve-out: a design with no field is exactly what it was ──
+
+test('a design that emits no speed field is unaffected by anything in the DOM', () => {
+  const { marquee, speed } = runMotion({ speedFieldId: null, percent: 300 });
+  assert.equal(speed, 1);
+  assert.equal(marquee.duration, 10);
+});
+
+test('the no-field emit still defines tickerSpeed(), so a builder can always call it', () => {
+  const js = tickerMotionJs(null);
+  assert.match(js, /function tickerSpeed\(\)/);
+  // It reads #f0 like every ticker does (the item source); what it must not do is read a
+  // speed field, which is what the parse is.
+  assert.ok(!js.includes('parseFloat'), 'a design with no speed field must not read one');
+});

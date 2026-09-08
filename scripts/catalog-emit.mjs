@@ -32,33 +32,14 @@
 //   node scripts/catalog-emit.mjs --json          # the full records as JSON on stdout
 //   import { emitCatalog, fingerprints } from './catalog-emit.mjs'
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 import { rolldown } from 'rolldown';
 import { parseOnly } from './catalog-scope.mjs';
+import { rawSuffix } from './rolldown-raw.mjs';
 
 const CATALOG_ENTRY = fileURLToPath(new URL('../src/templates/catalog.ts', import.meta.url));
-
-/**
- * Vite's `?raw` suffix, taught to Rolldown: import the file's text as the default export.
- * One module in the catalog's graph uses it (src/model/fonts.ts reads the bundled-font licence),
- * and without this the bundle fails to resolve rather than quietly emitting something different.
- */
-const rawSuffix = {
-  name: 'noacg-raw-suffix',
-  resolveId(source, importer) {
-    if (!source.endsWith('?raw') || !importer) return null;
-    const target = new URL(source.slice(0, -'?raw'.length), pathToFileURL(importer));
-    return `${fileURLToPath(target)}?raw`;
-  },
-  load(id) {
-    if (!id.endsWith('?raw')) return null;
-    const text = readFileSync(id.slice(0, -'?raw'.length), 'utf8');
-    return { code: `export default ${JSON.stringify(text)};`, moduleType: 'js' };
-  },
-};
 
 /** The 16-hex-char fingerprint the baseline is written in (e2e/catalog-baseline.spec.ts). */
 export const hash = (s) => createHash('sha256').update(s, 'utf8').digest('hex').slice(0, 16);

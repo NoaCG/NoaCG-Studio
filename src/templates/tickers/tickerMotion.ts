@@ -11,12 +11,58 @@
 // clock engine — so the timeline never rewrites them and you can edit the travel speed here.
 // Both builders ship in every ticker: the data names the live one, and swapping the motion
 // preset just swaps that name.
+//
+// THE PACE HAS TWO OWNERS, and they are different knobs (owner walk 2026-08-28: "anything with
+// scrolling graphics should have a speed setting in the control panel"). motionSpeed() is the
+// AUTHOR's: it comes from the NOACG_ANIM data block, the Animation panel moves it, and it is
+// baked into the template when the graphic is made. An operator sitting at a control page
+// cannot reach it — and a strip's readable speed depends on the room, the rundown and whatever
+// else is on air, so it is decided there. tickerSpeed() below is the operator's half, read
+// from a field on the control page, and the two multiply.
 
 import { motionSpeedJs } from '../shared/base';
 
-/** The ticker motion builders, emitted before the marked region in every ticker template. */
-export const TICKER_MOTION_JS = `// ---- Measured motion (the animation data references these by name) ----
+/**
+ * The ticker motion builders, emitted before the marked region in every ticker template.
+ *
+ * `speedFieldId` is the id of the operator's speed field (`f2`, or `f3` on a design that takes
+ * a second cap). It is `null` for a design whose pace this code does not set: the timed
+ * rotator, whose cadence is a machine timer rather than motion authored here. Such a design is
+ * given no speed field at all, because an operator control page must never offer a field the
+ * graphic cannot honour.
+ */
+export function tickerMotionJs(speedFieldId: string | null): string {
+  return `// ---- Measured motion (the animation data references these by name) ----
 ${motionSpeedJs}
+
+${speedFieldId
+      ? `// tickerSpeed(): the OPERATOR's speed, read from the "${speedFieldId}" field on the control
+// page. It is a PERCENTAGE of the pace this design ships at, so 100 is exactly the authored
+// speed, 150 is half again as fast and 60 is a slow, readable crawl. Input only: the value
+// lives in a hidden holder and is never drawn.
+//
+// Blank, non-numeric and zero all mean "as designed" rather than "stop": a strip frozen
+// mid-word because someone typed 0 is a graphic stuck on air, and the clamp below is what
+// keeps that from being one keystroke away.
+function tickerSpeed() {
+  var el = document.getElementById('${speedFieldId}');
+  var percent = el ? parseFloat(el.textContent) : NaN;
+  if (!isFinite(percent) || percent <= 0) return 1;      // blank or nonsense: the design's own speed
+  return Math.min(400, Math.max(10, percent)) / 100;     // 10%–400%, so the strip always moves
+}`
+      : `// This design's cadence is its state machine's timer, not motion measured here, so it
+// ships no speed field: there is nothing on this page for an operator percentage to scale,
+// and a control page must never offer a field the graphic cannot honour. The builders below
+// still read this, so it answers for the design.
+function tickerSpeed() {
+  return 1;
+}`}
+
+// The live pace: the design's authored speed multiplied by the operator's percentage. Both
+// builders read this one function, so the two knobs can never disagree.
+function tickerMotionSpeed() {
+  return motionSpeed() * tickerSpeed();
+}
 
 // tickerShowNext(): the ROTATOR's beat — put the next item in the track, on its own.
 //
@@ -60,8 +106,10 @@ function tickerShowCurrent() {
 function tickerMarquee(target) {
   var track = document.querySelector(target);
   if (!track) return null;
-  var oneSetWidth = track.scrollWidth / 2;      // the items are rendered twice
-  var pixelsPerSecond = 140 * motionSpeed();    // travel speed — raise for a faster ticker
+  var oneSetWidth = track.scrollWidth / 2;        // the items are rendered twice
+  // Travel speed. Edit the 140 to change what this design ships at; the operator's percentage
+  // rides on top of it and applies from the next play(), because that is when this is read.
+  var pixelsPerSecond = 140 * tickerMotionSpeed();
   if (oneSetWidth <= 0) return null;            // nothing to scroll yet
 
   return gsap.fromTo(track,
@@ -83,7 +131,10 @@ function tickerFlipCycle(target) {
   if (!track) return null;
   var items = track.querySelectorAll('.ticker-item');
   if (!items.length) return null;
-  var speed = motionSpeed();
+  // The hold IS this design's speed: nothing travels, so what an operator turns up is how
+  // long each item stays. The flips either side of it scale with it, exactly as the credits'
+  // paged preset does, so a faster strip is faster all through rather than snappy and patient.
+  var speed = tickerMotionSpeed();
   var holdSeconds = 3.2 / speed;                // reading time per item
 
   var cycle = gsap.timeline({ repeat: -1 });    // the endless item rotation
@@ -94,3 +145,4 @@ function tickerFlipCycle(target) {
   });
   return cycle;
 }`;
+}
