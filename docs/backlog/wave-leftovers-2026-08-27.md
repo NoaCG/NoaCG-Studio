@@ -3,7 +3,8 @@ v: 1
 source: handoff
 raised: 2026-08-27
 state: advanced
-note: "Two of the machinery items are closed by landings, and the list has never been pruned.
+note: >-
+  Two of the machinery items are closed by landings, and the list has never been pruned.
   Items 5b and 6, the auto-merge landing-path gaps, are moot: f3403668 moved landing onto
   GitHub's merge queue and nothing else writes main, and contracts/retired.json now retires
   auto-merge.mjs as the lander along with its flags and its red-main refusal. Item 5z is
@@ -12,7 +13,7 @@ note: "Two of the machinery items are closed by landings, and the list has never
   what changed - but its second part was tried and reverted, because the emit check needs a
   browser (8e8cdcd7, then 8b29e390). STILL OPEN and UNVERIFIED: everything else. The file
   says so itself - no line here has been re-checked since 2026-08-29 - so items 1 to 5a, 7
-  and 8 need a line-by-line pass against the log before any of them is planned."
+  and 8 need a line-by-line pass against the log before any of them is planned.
 ---
 # Leftovers from the 2026-08-27 wave
 

@@ -4,8 +4,9 @@ source: owner
 kind: ask
 raised: 2026-09-04
 state: unstarted
-asked: "if the behavior of the graphic changes, the text react maybe should be above the editable
-  text fields so you can start by choosing what the template is"
+asked: >-
+  if the behavior of the graphic changes, the text react maybe should be above the editable
+  text fields so you can start by choosing what the template is
 touches: src/components/wizard/import/MapSvgFieldsStep.tsx
 ---
 # Put the behaviour choice above the text fields on the mapping step

@@ -4,7 +4,8 @@ source: owner
 kind: ask
 raised: 2026-09-05
 state: advanced
-note: asks 1, 2 and 3 landed in cddb75be - every empty picker names the layer names that would
+note: >-
+  asks 1, 2 and 3 landed in cddb75be - every empty picker names the layer names that would
   have filled it, artwork that left pickers empty while unused layers remain says so, and one
   press fills them in with a per-box reason and a scoped undo. Ask 4, the CLI road for an agent,
   is untouched, and the owner has not walked what landed.

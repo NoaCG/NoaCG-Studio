@@ -4,8 +4,9 @@ source: derived
 kind: finding
 raised: 2026-09-05
 state: unstarted
-found: "claude auth status reports loggedIn: false, so headless workers do not exist on this
-  machine and every row dies with the session that launched it"
+found: >-
+  claude auth status reports loggedIn false, so headless workers do not exist on this
+  machine and every row dies with the session that launched it
 needs-owner: harness
 ---
 # The CLI is not logged in, so every worker dies with the session that launched it

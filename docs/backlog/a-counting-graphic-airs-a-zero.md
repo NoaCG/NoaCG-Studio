@@ -3,7 +3,8 @@ v: 1
 source: walk
 raised: 2026-09-04
 state: superseded
-note: "REFUTED. 5098bd92 drove the route again on 2026-09-05 - a cold take and a take after an
+note: >-
+  REFUTED. 5098bd92 drove the route again on 2026-09-05 - a cold take and a take after an
   out both count with their separators on and settle on the 124,213 that was typed - and named
   the reason this was honestly seen: a browser pane that is not being composited stops calling
   requestAnimationFrame, so every timeline freezes and a counting figure sits at the frame it
@@ -12,7 +13,7 @@ note: "REFUTED. 5098bd92 drove the route again on 2026-09-05 - a cold take and a
   could not have caught the fault it describes, is served: 2179f1aa takes each expected figure
   from the value the test typed rather than from the live data-target, adds a cold-take pass and
   three assertions including that a take may not rewrite a readout's own figure, and faa3e1f4
-  closed four more holes in the same oracle. Nothing here is standing work."
+  closed four more holes in the same oracle. Nothing here is standing work.
 asked: "a Rising Total taken to Program airs 0 and never counts, until an operator presses Update"
 ---
 # A counting graphic taken to air lands on zero, not on its figure - refuted
