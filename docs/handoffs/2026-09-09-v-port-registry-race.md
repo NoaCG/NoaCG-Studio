@@ -94,6 +94,11 @@ Three things worth knowing before touching it:
 - `--prune` does not sweep leftover `claim-*.lock` or `*.dead` files. Neither can wedge anything -
   a lock is taken over by the next allocation for that checkout, and a `.dead` file is ignored by
   every reader - so this is tidiness, not a defect.
+- **There is a second, unrelated intermittent still live in the E2E tier**, met on this branch's
+  own CI: `E2E 8/9` went red on `fc06fc2b` and green on a re-run of that exact sha, on
+  `import-svg-corpus.spec.ts:594` with `Frame was detached`. Not this race, and not fixed here -
+  filed as `docs/backlog/the-fit-ladder-spec-detaches-its-own-frame.md` with the stack and the
+  shape of the fix, because it can red a night branch whose session has already finished.
 - The lock is not held by `releaseReservation`. An earlier draft did hold it; the review was right
   that it bought only ordering, while adding a way for `dev-port.mjs --release`, the documented
   recovery command, to hang behind a long walk and then throw.
