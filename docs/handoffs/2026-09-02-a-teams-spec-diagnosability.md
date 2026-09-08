@@ -51,16 +51,21 @@ mechanically - `scripts/check-docs-index.mjs` exempts `docs/handoffs/` by design
   the file is deleted; this entry is kept so the third drain does not have to re-derive it.** It was
   cited by `docs/backlog/ograf-host-page-restyle.md:38` ("the two candidate fixes and their
   trade-offs"), and had already been restored once, on 2026-09-01, for exactly that reason
-  (`docs/handoffs/2026-09-01-c-svg-state-workflow.md:30-33` records the earlier thirteen-file list
-  as WRONG). Both halves are now gone: `claude/c-ograf-host-page` picked one of the two candidate
+  (the 2026-09-01 svg-state-workflow handoff recorded the earlier thirteen-file list as WRONG;
+  drained 2026-09-08). Both halves are now gone: `claude/c-ograf-host-page` picked one of the two candidate
   fixes and landed it, deleting that backlog item, and the defect is measured fixed - a built
   `graphic.mjs` carries zero selectors addressing the document on all six lower-third designs, and
   `GRAPHIC_BOX_CSS` is scoped to `:where([data-noacg-graphic="..."])`. Nothing cites the handoff
   any more, so it went with the other drained ones. `git show b0750116:docs/handoffs/2026-08-30-n-ograf-checker.md`
   still prints it.
-- `docs/handoffs/2026-09-02-h-orchestration-guardrails.md` - cited by
-  `docs/backlog/mistake-trigger-hooks.md:47` for the three hooks and how each was fed a real event,
-  which item 5 of that plan depends on. Also `state: unstarted`.
+- ~~`docs/handoffs/2026-09-02-h-orchestration-guardrails.md`~~ - **drained 2026-09-08.** It was
+  kept for `docs/backlog/mistake-trigger-hooks.md`, which cited it for the three hooks and how each
+  was fed a real event. What went with it is the VERIFICATION, not the reasoning: it enumerated 22
+  cases with observed exit codes for `guard-command.mjs`'s `branchCreations`, `warn-command.mjs`'s
+  stale-landing-pin notice and `warn-edit.mjs`'s migration-number notice, and none of those three
+  hooks has a test file. `docs/backlog/hook-tests-run-only-by-hand.md` is the standing item for
+  that gap. `git show b8d1f58f^:docs/handoffs/2026-09-02-h-orchestration-guardrails.md` prints the
+  22 cases.
 
 **`claude/d-mistake-trigger-hooks` is a LIVE session on the second of those two backlog items as of
 2026-09-02 12:57 UTC** - had that file gone, that session would have followed its Evidence line to

@@ -39,6 +39,6 @@ and the long-term plan run on their own and no plan asks him when.
 
 ## Evidence
 
-The review handoff `docs/handoffs/2026-09-05-orchestrator-review-next.md` item 6, and the ruling
+The 2026-09-05 orchestrator review, item 6 (handoff drained 2026-09-08), and the ruling
 text. Over a year of planned work exists (owner, 2026-09-05), so the constraint is direction, not
 supply.

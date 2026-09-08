@@ -2,15 +2,32 @@
 v: 1
 source: walk
 raised: 2026-09-04
-state: unstarted
+state: superseded
+note: >-
+  REFUTED. 5098bd92 drove the route again on 2026-09-05 - a cold take and a take after an
+  out both count with their separators on and settle on the 124,213 that was typed - and named
+  the reason this was honestly seen: a browser pane that is not being composited stops calling
+  requestAnimationFrame, so every timeline freezes and a counting figure sits at the frame it
+  reached. That trap is now written into .agent-workflows/walk.md. 2179f1aa had already reported
+  the same non-reproduction from the other side. The gate half of this file, the oracle that
+  could not have caught the fault it describes, is served: 2179f1aa takes each expected figure
+  from the value the test typed rather than from the live data-target, adds a cold-take pass and
+  three assertions including that a take may not rewrite a readout's own figure, and faa3e1f4
+  closed four more holes in the same oracle. Nothing here is standing work.
 asked: "a Rising Total taken to Program airs 0 and never counts, until an operator presses Update"
 ---
-# A counting graphic taken to air lands on zero, not on its figure
+# A counting graphic taken to air lands on zero, not on its figure - refuted
+
+**The claim below is wrong, and the file is kept for the two things in it that are not.** Read
+the `note:` above first. The on-air zero does not reproduce: `5098bd92` walked the same route on
+2026-09-05 and Rising Total counts and lands on the operator's figure, and what produced the
+reading was an uncomposited browser pane freezing every timeline rather than anything in the
+graphic. The gate weakness the file diagnoses further down was real and is closed (`2179f1aa`,
+`faa3e1f4`). What survives is the rAF trap, which is now in the walk procedure, and the record of
+how a mis-diagnosis reads when it is written up confidently.
 
 **Filed:** 2026-09-04, from the walk of the "Rising Total plays from zero" acceptance item on a
-local dev server. That item claimed the graphic *"still lands on exactly the text you typed"*. It
-does not, and the failure is worse than the flash it fixed: the old bug showed the right number
-for one frame, this one shows the wrong number for the whole time the graphic is on air.
+local dev server. Everything from here down is that filing as written, uncorrected.
 
 ## Why
 

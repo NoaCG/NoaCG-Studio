@@ -45,4 +45,5 @@ Map the spec in `scripts/e2e-affected.mjs` in the same commit.
   : {})`, beside the `id` and `layer` lines that DO carry forward.
 - `src/components/home/sections/ProductionsSection.tsx` `ProductionStats` - reports the linked
   subset separately when it differs from the size, which is the diagnosis rather than the fix.
-- `docs/handoffs/2026-09-04-l-browse-a-productions-graphics.md`.
+- Found on `claude/l-browse-a-productions-graphics`, 2026-09-04; that handoff was drained
+  2026-09-08 and the diagnosis above is the whole of what it held on this defect.

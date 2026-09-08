@@ -627,8 +627,9 @@ function branchCreationIn(git) {
  * push run and a dispatched run for the same branch cannot both live: whichever registers second
  * cancels the first, and the order two webhooks register in is not stable. Measured four times
  * over 2026-09-04 and 2026-09-05 ("Pushing and dispatching in one breath is a coin flip, and I
- * lost it once" - docs/handoffs/2026-09-04-a-refusals-say-why.md; also 2026-09-04-e, 2026-09-04-f
- * and 2026-09-05-h). When the dispatch loses, what survives is the push run, which plans only the
+ * lost it once" - four handoffs of those two days, all drained since;
+ * docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the dispatch loses,
+ * what survives is the push run, which plans only the
  * delta since the previous push - the narrow plan the dispatch was issued to avoid.
  *
  * Positional on both halves, like every matcher here: a `git push` INVOCATION and a `gh workflow

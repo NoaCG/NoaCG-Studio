@@ -45,11 +45,18 @@ different answers:
    against THAT branch as well as the launching checkout and `origin/main`. The prompt already
    states it; the guard just does not read it.
 
+The same matcher fails in the opposite direction, and the same fix closes it: `git commit -F <file>`
+bypasses the commit-message style scan entirely, because the scan reads the raw command text
+(`scripts/hooks/guard-command.mjs:23,160-190`) and a message in a file is not on the line. So the
+guard refuses a message that is only quoted and passes one that is really being committed. Asking
+the git parse for the message rather than scanning the line answers both. (Found 2026-09-05,
+carried here when that handoff was drained.)
+
 ## Evidence
 
 - The relay refusal, verbatim: *"Blocked: this commit command trips the commit-message style rules
   ... mentions Claude"*, on a `node scripts/relay.mjs write` call.
-- The launch refusal: *"READ names docs/handoffs/2026-09-05-s-more-behaviours.md"* and
+- The launch refusal, verbatim: *"READ names docs/handoffs/2026-09-05-s-more-behaviours.md"* and
   *"READ names src/templates/importedDesign/timerBehaviour.ts"* - both present on
   `claude/s-more-behaviours`, which is where the launched row was told to work.
 - The `pushesAndDispatches` quoted-string reproduction is in the same day's review reports.

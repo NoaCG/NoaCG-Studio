@@ -1,7 +1,7 @@
 # The Stop hook does not catch a turn ending on the session's own background jobs
 
 **Filed:** 2026-09-02. **Source:** measurement - three of five launched rows in the 2026-09-02 day
-wave (`docs/handoffs/2026-09-02-orchestrator-live-run.md`)
+wave (its live-run handoff has since been drained)
 
 **Updated the same evening, and the update is the finding: a prompt line does not fix this.**
 Rows A and C stopped this way in the first cohort. The second cohort's prompts therefore carried
@@ -56,7 +56,7 @@ that must pass - because a Stop hook that over-refuses blocks every session on t
 
 ## Evidence
 
-`docs/handoffs/2026-09-02-orchestrator-live-run.md`, "What caused friction" finding 1. The wave's
+The 2026-09-02 live-run handoff, "What caused friction" finding 1, drained 2026-09-08. The wave's
 own heartbeat with timestamps is in the orchestrator home at
 `docs/handoffs/2026-09-02-day-wave-plan.local.md` (gitignored). The hook is
 `scripts/hooks/stop-wait.mjs`, its matcher lives with the others in `scripts/command-match.mjs`,
