@@ -222,7 +222,8 @@
     .card .n {
       font-family: var(--mono); font-size: 12px; color: var(--amber); letter-spacing: 0.2em;
     }
-    .card code { font-family: var(--mono); font-size: 12.5px; color: var(--paper); background: rgba(232,237,242,0.06); padding: 1px 6px; border-radius: 4px; }
+    /* Inline code in a card or a feature tile: the OGraf tiles name two CLI verbs. */
+    .card code, .feat code { font-family: var(--mono); font-size: 12.5px; color: var(--paper); background: rgba(232,237,242,0.06); padding: 1px 6px; border-radius: 4px; }
 
     /* ── The agent door: real, installable commands, never a faked terminal session.
        Shown as the commands a user types, without invented output. ── */
@@ -239,8 +240,6 @@
     .agent-link a:hover { color: var(--glow); }
     .way p a, .sub a, .feat p a { color: var(--amber); }
     .way p a:hover, .sub a:hover, .feat p a:hover { color: var(--glow); }
-    /* The OGraf cards name two CLI verbs; same treatment as the code in a .card. */
-    .feat code { font-family: var(--mono); font-size: 12px; color: var(--paper); background: rgba(232,237,242,0.06); padding: 1px 5px; border-radius: 4px; }
 
     /* ── Bottom CTA ── */
     .bottom {
