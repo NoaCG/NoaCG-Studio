@@ -797,6 +797,130 @@ instrument against the SHIPPED CORPUS before concluding anything about the model
 faults here were the gate, the model diagnosed three of them correctly in its own words, and twice a
 first diagnosis of mine was wrong until the catalog was measured.
 
+### Both unclearable findings measured against the catalog, and both were the gate
+**2026-09-07 · no model spend · the nine cells the 2026-09-06 bank could never have passed.** The
+two instruments that took three whole types were reproduced first and fixed second, and in both
+cases the shipped corpus, not an argument, settled where the fault was.
+
+**`bench-field-unpainted` was not about the `noacg-data-source` class at all.** The refusal is
+narrower and more interesting than "the check ignores the declaration": the check requires the
+sentinel to appear VERBATIM, and a value a runtime COMPUTES with never survives verbatim. Measured
+on `gt01`: driving the minutes field to `900001` paints **`15000:00:58`** - the value reaches the
+screen, transformed, and no value of that field would ever make the sentinel appear. A credits
+scroll speed is worse: it changes no visible text at any value, only motion. So the check refused
+**all 6 shipped `game-timer` designs** and **7 of the 12 shipped `end-credits` designs**.
+
+The class alone cannot clear it, and the first fix that used it broke a standing test in the right
+way: a quiz board's audience percentages sit in a `noacg-data-source` holder and ARE painted, as row
+chips, so `e2e/lite-field-paint.spec.ts`'s mutation half went silent. **The pair that settles it is
+the class AND `ftype: "number"`** - a numeric input is the shape a runtime computes with. The
+catalog agrees without an exception: all **72** numeric holders it ships are a duration, a speed, a
+percentage, a 1-based index or a goal ("Countdown (minutes)" x15, "Scroll speed (%)" x6, "Spotlit
+player (1-based)" x4), and not one is a string meant to be echoed. The exclusion is asked at REPORT
+time, so a holder whose value IS painted still has to prove it - the quiz passes on the sentinel
+exactly as before, and hiding its chips still raises the finding. All 12 `end-credits` and all 6
+`game-timer` designs now report nothing; both halves are pinned in `e2e/lite-field-paint.spec.ts`.
+
+**`step-contract` was pressing `next()` once per operator action the BRIEF listed.** For a
+machine-driven type those actions are EVENTS, not default-path steps, and the type owns the
+ANIMATION region - so the model could not have answered whatever it wrote. Measured across the
+whole family: **all 12 shipped quiz boards answer exactly one press** (`spxSteps` 2; the reveal is a
+lifecycle call on the middle step, and Out is reached by `stop()`, not by Continue), so a brief
+listing three reveals refused every quiz cell at press 2 and would have refused every board in the
+catalog. The `podium-score` spine answers **none** at all. The press count now comes from the
+graphic's own default path (`spxSteps - 1`), which is what `revealNextStep` implements; `process-
+steps`, at `spxSteps` 5, answers exactly 4 and confirms the rule.
+
+**The half of the brief expectation the model CAN act on survives**, as its own finding: where the
+model owns the region (no machine), a graphic offering fewer path steps than the brief asked for has
+not been built to the brief, and the repair is a step in the ANIMATION region. It cannot fire on
+this bank - every brief with steps names a machine-driven type - which is exactly why removing the
+old check without it would have been a quiet loss of coverage rather than a calibration.
+
+**The control run, free, says the floor question sharper than the bank did.** `--control` step 2
+inspects the UNTOUCHED neutral lower-third spine - the platform's own scaffold, before a model has
+written a line - and the only finding it raises is
+`readability-text-under-size-floor`: *"Lina Berg" (primary) is painted at 48px ... under the 50px
+broadcast floor*. The control already excuses it in its own words ("a valid scaffold measures clean,
+bar the owner size table"), which is the whole point: the floor is currently something our own
+scaffold is exempted from rather than something anything passes. Every other control assertion is
+green after the step-count change - the forced overlap still produces 9 blocking findings, the patch
+guard still refuses a `:root` rewrite, and the loop delivers.
+
+**The 2026-09-06 round's own output did not survive its worktree.** `pro-harness-out-gemini-v3` -
+21 cells of code, frames and results, $1.444 of measurement - is gone with the comparison worktree,
+and nothing was archived (`C:/claude/noacg-archives/worktree-cleanup/2026-09-07` holds one unrelated
+folder). `pro-harness-out*/` is NOT on the cleanup script's rebuildable list, so the mechanism was
+right and was not what removed it. **The blind read of that bank is therefore no longer possible
+without buying it again**, and only the re-run cells can be read.
+
+### The nine blocked cells, re-run: 4 delivered, and the floor is the last wall
+**2026-09-07 · `vercel:google/gemini-2.5-flash` · 9 cells, $0.714 of the same €3 authorization
+(total now $2.56).** The three types the two fixed instruments had made unwinnable, re-run on a
+fresh `--out`. **They were 0 of 9 by construction this morning; they are 4 of 9 now**, and neither
+`step-contract` nor `bench-field-unpainted` appears anywhere in the ledger as a false positive.
+
+| | delivered | cost |
+|---|---|---|
+| the nine cells, as measured | 4 of 9 | $0.714, $0.0794 per attempt |
+| the eight that reached a design verdict | 4 of 8 | $0.169 per delivered |
+| the same nine, before the fixes | **0 of 9** | - |
+| baseline (iterate loop, `gemini-3.7-flash`) | 19 of 21 | $0.118 per delivered |
+
+`pd-grandfinal` is excluded from the second row because the COST CEILING stopped it, not a verdict.
+
+**Every refusal is now a real one, and two of the four are one un-ratified number.**
+
+- `qz-primetime` (40px) and `qz-campus` (47px) each carried **exactly one** blocking finding across
+  every round: `readability-text-under-size-floor`. Nothing else. `qz-arena` cleared it and
+  delivered.
+- `cd-launch` fought `proportion-type-ratio-thin` down 0.15 -> 0.17 against a 0.18 floor over three
+  rounds and ran out. An honest near miss on a real composition rule.
+- `pd-medal`: `bench-stress`, `#f0`/`#f1` overlapping 52% once values double - the known negative
+  result, unchanged.
+- `pd-grandfinal`'s last round carried a **true** `bench-field-unpainted`: it declared "Player 4"
+  (f7) and drew it nowhere. The narrowed check is still sharp; it is a numeric data-source holder it
+  now stays quiet about, not a field the design forgot.
+
+**THE FLOOR REFUSES ALL 12 SHIPPED QUIZ BOARDS.** Measured through the instrument itself, not from
+the CSS: 36-40px primary against a 49.68px floor, every one. The mechanism is `roleFor` in
+`readabilityCheck.ts` - the LARGEST informational text is "primary", so on a dense type the primary
+element is the one carrying the most words and therefore having the least room. A floor calibrated
+on a lower third's name strap lands on a question that has to sit above four answers. That is the
+same signature as the two faults fixed this morning, and it is the third instrument in a row - but
+this one is not a session's to change: §23.1 measured it failing 312 of 489 shipped designs and the
+owner has not re-ratified it for enforcement. **Two cells of this round, and three of the last, turn
+on the answer.**
+
+**The human half, and it is worse than 4 of 9 sounds.** Of the four delivered frames, one -
+`qz-arena` - is a board worth airing. `cd-results` and `cd-show` are competent and NEARLY
+IDENTICAL to each other, though their briefs are "newsroom-severe" and "playful, warm ... family
+show". `pd-seats` is visibly wrong: roughly 60% of its panel is empty and every name and score is
+jammed into a right-hand column with the title stranded at the far left.
+
+**AND "DELIVERED" DOES NOT MEAN THE SAME THING ACROSS THE THREE TYPES, which is the caveat these
+numbers must be read with.** `CALIBRATED` in the runner is `{ lower-third, countdown }`, and
+everything else runs its instruments as ADVISORY (`advisoryInstruments = !CALIBRATED[proType]`). So:
+
+- **countdown, 2 of 3** - instruments BLOCK. `cd-launch` was refused by one. A full-strength verdict.
+- **quiz-board and podium-score, 2 of 6** - instruments only ADVISE. `pd-seats` delivered carrying
+  EIGHT advisory findings, `spacing-padding-tight`, `spacing-padding-lopsided` and
+  `proportion-footprint-large` among them, on all three frames.
+
+That is the whole deliver-signal leak on these types, and it is not mysterious: the instruments saw
+it and were not allowed to stop it. The remedy is calibrating thresholds for the dense types, the
+same work §22.1/§23.1 did for lower thirds - not a new check.
+
+**One thing the instruments did NOT see**, worth its own line: `proportion-panel-oversized` never
+fired on `pd-seats`, at any severity. It measures the content's UNION RECT against the panel area
+(`proportionCheck.ts`), and a union cannot see a hole - a title pinned to the far left and a score
+column pinned to the far right span the panel between them while the middle stays empty.
+The frames are all shot under the entrance-derived settle, so `pro-harness-out-rerun/review.html`
+is a fair blind sheet.
+
+**RETRY WHEN** the size floor is ruled on. Re-running these nine again before that buys the same two
+refusals; re-running the full 21 buys back the frames the last round lost, and costs $1.44.
+
 ### Teaching the free-form coder its structure spine by example
 **Through 2026-07-17 · every result converted the moment a `-box` class was injected · FIXED by
 naming the contract.** The coder followed the authoring grammar perfectly and `parseTimeline` read

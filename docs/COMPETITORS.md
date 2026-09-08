@@ -5,6 +5,12 @@ match it, whether we beat it, and where the gap is. It is the standing answer to
 anything that matters", and its rows are candidate work for the orchestrator - a **GAP** row is a
 thing somebody could pick up tomorrow.
 
+**This file is per-VENDOR. [`LANDSCAPE.md`](LANDSCAPE.md) is the map above it** (added 2026-09-07):
+the whole market divided into its seven layers with the buyer and the price for each, one unified
+capability matrix across all of them, and the ordered requirements list for what NoaCG has to be.
+Read that one when the question is "what should we build"; read this one when the question is
+"how do we compare to X". Where the two disagree, LANDSCAPE.md is newer.
+
 **Refresh is TIME-driven, never commit-driven.** Nothing here changes because code changed; it
 changes when somebody re-reads the competitor's public material. Each block carries the date it was
 last read. Treat anything older than a quarter as stale rather than wrong.
@@ -101,6 +107,60 @@ Density announced AI-assisted HTML5 generative templates for IBC2026 (block belo
 that product, so it moves no verdict yet; it does make this a claim with a date on it rather than a
 standing fact. Full account:
 `docs/COMPETITOR_MXMZ.md` section 8. What it means for the CLI: `docs/backlog/cli-roadmap.md`.
+
+## Pixla - a control room in a box, with a designer inside it
+
+**Read 2026-09-07.** Full account, with the plan: [`COMPETITOR_PIXLA.md`](COMPETITOR_PIXLA.md).
+Sources: [pixla.graphics](https://pixla.graphics) home, `/features`, `/pricing`, `/downloads`, plus
+their **shipped client code**, which is served publicly without an account - the controller at
+`/controller` (a single 1,044,216-byte HTML file) and the designer bundle at
+`/Functions/ografDesigner.js` (272,341 bytes). That second grade of evidence is what makes this block
+worth more than the marketing, and it contradicts the marketing four times.
+
+A browser and Electron product that puts a rundown at the centre and hangs the whole room off it:
+prompter, stage timer, media library, video playout, TriCaster and (claimed) Blackmagic ATEM
+automation, a scheduler, a 3D studio designer, a Premiere Pro extension, and a separate free-forever
+local multiview for USB and NDI. EUR 19/month for one operator, EUR 89/month for a team, on-prem
+quoted; **the free tier renders demo data only, so nothing you make is yours until you subscribe.**
+They are primarily a **control-room** competitor and only secondarily a graphics one.
+
+| Capability | They have | Us | Verdict |
+|---|---|---|---|
+| A rundown as the operational centre | Rows with duration, show blocks, one production clock, notes | An ordered cue list over a graphic pool, ~40 tests; no durations, no blocks, no show clock | **Match on the list, GAP on time** |
+| Operator legality | A rundown, and whatever the operator remembers | Generated from each graphic's own state machine; a button greys because the machine has no arrow | **We beat** |
+| Recovery after a renderer reboot | Nothing public says | Log replay, gap-fill, a match clock that survives because the wire carries the instant a value was true | **We beat** (a claim about their silence) |
+| Drawing shapes on a canvas | Text, shapes and images on a 16:9 canvas | `select`, `text`, `area-text`. No rectangle. Shapes arrive only as imported SVG | **GAP** - the one that forces our user into another tool |
+| Keyframe timeline | Start/hold/end with keyframes and easing | Cue-segmented steps, 15 keyframable properties, per-keyframe ease, every gesture a readable code diff | **We beat** |
+| OGraf as the format | Sold as native, and the designer is named for it. Their bundle contains no `.ograf.json`, no `supportsRealTime`, no `stepCount`, no `renderRequirements`, no `customElements.define` - only `playAction`/`stopAction`/`updateAction` | 1470 manifests validated against the EBU schemas every CI pass; driven through SuperFly.tv's `ograf-server` | **We beat, pending the probe.** On present evidence we are more OGraf-compliant than the company using OGraf as its product name |
+| Interoperating with the open playout stack | Zero occurrences of CasparCG, vMix or SPX in the shipped controller. A closed loop: their renderer, NDI, TriCaster | One document, six adapters, SPX the strictest gate | **We beat** |
+| TriCaster control | Shipped and substantial - 111 occurrences, with an arm-then-go-live interlock | None | **GAP, wrong for us** - our graphic reaches air as a browser source, so a DSK button would key over a feed we did not produce |
+| ATEM control | In the page title, in the features copy, and **zero times in the shipped controller**. Plausibly Electron-only | None | **Unverified on their side** |
+| NDI in and out | 391 occurrences; their own comment confines the real NDI path to the Electron desktop build | None, and a browser cannot do it | **Different product** |
+| Prompter and stage timer | Info Notes to a reading display with WPM; a room-facing timer with speaker notes | A presenter page ships with its own slug, RPC and styling - and can only display an audience submission | **GAP**, and cheap: `control_shows.live_cue` already holds the live cue and the payload already carries every label and note |
+| Video clips in the rundown | Clips, timed windows, fallback playlists | Graphics and stills only; a cue is always a graphic, enforced at the write | **GAP**, with the unattended half **wrong for us** |
+| Media library | Synced from a TriCaster, ATEM or media server | Assets belong to one template; a Brand look carries a typeface and logo across graphics | **GAP** |
+| Scheduler and 3D studio designer | Day/week/timeline bookings; cameras, lights, screens, furniture | Nothing, and nothing intended | **GAP, wrong for us** - see the never-list in the full account |
+| Desktop apps | macOS DMG and Windows EXE, v1.0.24, plus a free 96 MB multiview | None. Everything is the browser plus a stdlib relay a student double-clicks | **GAP, wrong for us** |
+| Live graphics into post | A Premiere Pro CCX extension | ProRes 4444 with straight alpha for any NLE, plus OGraf non-real-time with deterministic seeks. Neither has been opened in an NLE | **Match, unproven** |
+| Free tier | Demo data only | Everything works free; publishing a hosted show costs a free signup | **We beat** |
+| Price and openness | EUR 19 / EUR 89 / quote | Free, AGPL-3.0, self-hostable, no paid surface and none planned | **We beat** |
+| A pricing page a buyer reads in 30 seconds | Yes, four tiers | None. The claim is a footer clause carrying a stale hedge | **GAP** |
+
+**The strategic read.** The reflex this block creates - start closing rundown rows - is the trap.
+Every surface in their controller is one any rundown vendor ships, none of it is in the OGraf spec,
+and a rival's next release erases the advantage. The part of the control room that decides whether a
+student can run their own drawing is already ours and already ahead. Three things actually follow.
+**One**: the only capability here that forces our own user out of the product is that they cannot
+draw a rectangle, and the verification pass found the expensive half already built -
+`src/blocks/registry.ts` holds shipped `box` and `accent-line` transforms, `src/model/types.ts`
+already declares `LayerType` `'rect'`, and a drag-a-box gesture ships in the import wizard.
+**Two**: their switcher story is not a cost problem for us, it is a signal-path problem - our graphic
+reaches air as a browser source, so the right answer is the inverse direction already registered as
+programme P4, a scoped playout-verb API plus a Bitfocus Companion module, which needs no device
+protocol and works for every switcher Companion drives. **Three**: whether Pixla is a distribution
+channel or only a rival turns on one unanswered question, and it is now sharper than "will they play
+our package" - it is whether their OGraf is a format or a name. One month of their Subscriber tier
+answers it (**needs: money**, **needs: account**).
 
 ## Singular.live
 

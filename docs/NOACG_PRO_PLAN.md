@@ -3009,6 +3009,16 @@ What was built (R1, all mutation-controlled in `pro-iterate-spike.mjs --control`
   positives / 0 false positives** on the sweep cells but fires on 21 shipped credits/ticker
   designs whose text legitimately crosses rules mid-travel; the 20px secondary floor is the
   one floor the catalog already meets.
+
+  **SETTLED 2026-09-08 by owner ruling** (`docs/OWNER_RULINGS.md`): the primary floor is now
+  type-aware and this question is closed. Re-measured through the instrument itself rather than
+  off the CSS, the universal 4.6% row refused **322 of 503** shipped designs - and it contradicted
+  `typeFloor.ts`, which had already ratified 16px for a corner bug while this row demanded 49.68px
+  of the same element. Three bands on reading time (persistent / card / statement) now refuse
+  **8 of 503**. The bullet above also needs one correction: "the 20px secondary floor is the one
+  floor the catalog already meets" was not true for the 18 shipped corner bugs whose supporting
+  line renders at 16px, which is why a category that names its own floor now governs every
+  informational role rather than only the lead line.
 - **The critic calibration** (`benchmarks/design-rules/CRITIC-CALIBRATION-2026-08-19.md`,
   $0.247 over the archived 49): only `lineOnText` calibrated (100% precision, 80% recall) and
   is wired as a once-per-round ADVISORY; logo/size/overflow/contrast/alignment questions sat

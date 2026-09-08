@@ -852,10 +852,85 @@ row's own key - which is what keeps a named numeral out of the operator's fields
 below, answered for this recipe by naming and still open in general).
 
 **The two-row-set question stays open.** The bingo grid did not answer it: twenty-five cells on a
-five-by-five grid are ONE keyed repetition (the number), so one row set holds them. What the
-bracket, the Jeopardy board and the case board need is two INDEPENDENT repetitions on one recipe
-(teams and matches, categories and values), and nothing in the row-set work makes the shape of
-that declaration obvious. Recorded, not designed.
+five-by-five grid are ONE keyed repetition (the number), so one row set holds them. The bracket,
+the Jeopardy board and the case board looked like two INDEPENDENT repetitions on one recipe
+(teams and matches, categories and values), and nothing in the row-set work made the shape of
+that declaration obvious. Recorded, not designed. **Designed the next day, and the answer was
+that the premise was wrong** - see "The two-row-set question, dissolved rather than answered"
+below.
 
 **The two import traps are filed** (`docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md`,
 `docs/backlog/decorative-numerals-arrive-as-fields.md`).
+
+### The two-row-set question, dissolved rather than answered (2026-09-07)
+
+Four independent designs for a two-row-set declaration, twelve adversarial reviews of them against
+the real compiler, runtime, wizard and gates. Every design was refused on at least two of three
+lenses, and the reviews converge on one conclusion: **two of the three graphics were never
+two-row-set graphics, the third is not one either, and what actually blocks the bracket is a
+different question entirely.** So the shape is not bent around the bracket; the question is
+renamed.
+
+**The Jeopardy board and the case board bind on the shipped one-row-set shape.** Two reviewers
+wrote both boards out as ordinary recipes while looking for reasons a second row set was needed,
+which is where the evidence came from. The Jeopardy board's rows are its CELLS, a keyed
+repetition of the twenty or thirty clue squares exactly like the bingo grid, with a `row-set`
+field for the ones already played and a `row-pick` for the one on air; the category is a
+per-column heading field, not a second key. The case board's rows are its CASES, with two
+`row-set` fields (opened, and the amounts gone) moved by one press carrying a two-entry `add`.
+Neither needs a declaration that does not exist. What the Jeopardy board would still like is a
+second row set for the CATEGORY AXIS - lighting a whole column, a button reading "Science 400" -
+and that is a convenience, not the prize.
+
+**The bracket is not a two-row-set graphic.** Its own fixture settles it: fifteen text slots named
+`Team 1`..`Team 8`, `Semi 1`..`Semi 4`, `Final 1`, `Final 2`, `Champion` - a FLAT key space in
+three role families, with no second coordinate drawn anywhere. A bracket's one repetition is its
+matches. The "fixed sub-shape" a match holds is two sibling roles, which is what the survey's
+`strike.1` / `strike.2` / `strike.3` and the quiz's `answer.selected` / `.correct` / `.wrong`
+already are, so declaring slots as a concept buys nothing that dotted sibling roles do not.
+
+**THE REAL BLOCKER: a value the runtime WRITES is not a FIELD, so a lookup cannot chain.** The
+bracket's prize needs the winner of match 1 to appear in match 5 and the winner of match 5 to
+appear in the final - three rounds, three hops. It dies after one, for four separate reasons, each
+of them load-bearing on its own:
+
+- `RecipeRole.kind` is exactly one of `field` or `layer`, and the compiler stamps only the layers
+  (`behaviour.ts`, `markLayers`). A slot cannot be the thing an operator types AND the thing the
+  runtime writes into.
+- Every derivation reads a field through `noacgFieldFor` and then `document.getElementById(fN)`.
+  A written value lives in `textContent` on a stamped artwork layer that kept the designer's own
+  id, so the next lookup finds nothing. Round two of a three-round bracket is already empty.
+- Binding one layer to both roles is refused by two shipped gates: `recipeBindingGaps` reports
+  "one layer is picked for two things" across layers and fields together, and `naming.ts` keys
+  `roleOf` by LAYER ID, so a layer takes exactly one role.
+- And if it were forced through, the artwork would show a name that the operator's own box, a
+  saved document and the OGraf return payload do not carry. That is the posture
+  `docs/OGRAF_STATE_IN_FIELDS.md` exists to forbid, so the workaround is not a workaround.
+
+There is a fifth, smaller one that would bite even a single hop: a write whose derived value is
+empty is deliberately SKIPPED, so that an empty round cannot blank a board the designer filled in.
+A slot the lookup filled therefore cannot be cleared by Reset - the previous tournament's winner
+stays drawn.
+
+**So the next design question is not how two row sets are declared. It is whether a DERIVED value
+can BE a field** - written into a real `fN` holder, so the operator sees it, an export carries it,
+a Reset clears it and the next derivation can read it. That touches
+`docs/OGRAF_STATE_IN_FIELDS.md` and "data updates never cause transitions" and is worth its own
+design, not a corner of this one. Named here, not answered.
+
+**What a second row set would cost, for whoever wants the category axis.** Below the declaration
+it is nearly free: the stored table's `rows` is ALREADY a map keyed by row role, the shape gate
+already loops over every entry, and the runtime resolves a set by NAME (`noacgRowsOf`) with row
+keys as opaque strings. The cost is all above it - `BehaviourRecipe.rows`, `RecipeContext.rows`,
+one line of the compiler (`table.rows = { [ns(recipe.rows.role)]: rows }`), the wizard draft, and
+NAMING. Naming is the hard half: `rowTokenOf` reads a key only when EXACTLY ONE token in the layer
+name is a letter or a whole number, so `Category 2 Value 400` binds to nothing and every cell of a
+crossing is a picker the student fills by hand. A four-by-five board is twenty pickers per crossing
+role. Nothing in the three graphics needs it yet, so building it now would be building for a use
+nobody has.
+
+**Two smaller findings, both worth having before the next recipe.** The mapping step renders the
+row-count select as every integer between the declaration's `min` and `max`, so a recipe whose
+legal counts are 3, 7 and 15 (a single-elimination tree) cannot say so. And a `WriteRule` carries
+only `write`, `rows` and `from` - there is no `when` - so a readout cannot be conditional, and a
+board that wants one clue panel to print whichever cell is live needs a rule per cell.

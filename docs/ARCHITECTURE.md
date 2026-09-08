@@ -104,7 +104,8 @@ here and not in §6 are wrong - fix the code, not the table.
   it builds real catalog templates, previews them through `preview/composeDocument` +
   `frameGraphic`, and packages them through the OGraf export target - the page's downloads ARE
   the exporter; it reads no store, no components, no backend)
-- `bridge` -> templates, blocks (`animData` - is the region data-shaped?), model, validation,
+- `bridge` -> templates, blocks (`animData` - is the region data-shaped? - and `animationRegion`,
+  which says WHY the importer refused one), model, validation,
   community (`gate` only), preview, export, packs, control (the headless bridge page,
   docs/AGENT_CLI.md: it composes the studio's OWN functions - the type registry and neutral
   scaffold, the authored-region converter, `publishGate` + the runtime bench + readiness + the

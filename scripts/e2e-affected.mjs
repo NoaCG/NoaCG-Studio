@@ -236,6 +236,11 @@ const MAP = [
   // changes the FIRST FRAME somebody judges a template by, and both specs that measure it
   // live here rather than under the timeline rule below.
   [/^src\/blocks\/animData\.ts$/, ['wizard-preview.spec.ts', 'end-credits.spec.ts', 'public-service.spec.ts']],
+  // The reason the importer refused a hand-authored ANIMATION region. It lives in blocks/ beside
+  // the reader it explains, but the sentence it produces is READ through the agent CLI door
+  // (bridgeApi.normalize) - and the blocks rule below selects no bridge spec, so the one test
+  // that pins the wording would otherwise only ever run at night.
+  [/^src\/blocks\/animationRegion\.ts$/, ['bridge.spec.ts']],
   // defaultTemplate.ts left src/model (CORE) for src/templates, so the specs that seed a graphic
   // from it by importing it directly are named here; the templates subset alone would miss
   // storage-full, which builds its own fixture off createDefaultTemplate().

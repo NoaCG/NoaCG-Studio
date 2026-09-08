@@ -141,6 +141,10 @@ export function designRulesWarnings(
     target: legibility.target,
     width,
     height,
+    // What the graphic is decides what its lead line must reach (owner ruling 2026-09-08). The
+    // template knows, so the product surface never has to guess - and a corner bug stops being
+    // told its 21px mark should be 50px.
+    category: template.type ?? null,
   });
   const issues: ValidationIssue[] = [];
   for (const finding of report.findings) {

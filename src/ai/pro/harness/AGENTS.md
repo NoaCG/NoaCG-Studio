@@ -45,7 +45,7 @@ prefix passed in, so it runs in Node; the DOM-bearing checks are the workbench's
 type whose machine lives in the region has a platform-owned region (the bench workbench refuses
 `animation` there).
 
-## The animation region (`patch.ts` `animationBreach`)
+## The animation region (`blocks/animationRegion.ts` `animationBreach`)
 
 **EXPERIMENT.** The region is the model's to write wherever the type's machine does not live in it,
 and it is the one region whose acceptance test is a SHAPE READER rather than a renderer:
@@ -60,6 +60,11 @@ on the first it cannot find. Two rules follow, both bought with real money on 20
   rule (a blocking finding carries its reading and one fix hint) applied to the one finding that
   did not obey it, and `docs/AI_ATTEMPTS.md` already carried the standing instruction: state a
   machine-checked precondition as a requirement rather than showing it in an example.
+- **It lives in `blocks/`, beside the importer it explains, because TWO doors ask it.** The Pro
+  Harness's `animation-unconvertible` finding is one; `bridgeApi.normalize` - what a coding agent
+  driving the `noacg` CLI hits - is the other, and it was still handing back the generic sentence
+  this lane had just stopped using. A refusal that reads differently through two doors is two
+  answers to one question.
 - **`animationBreach` is PINNED to the importer, not to a copy of its rules**
   (`scripts/pro-harness.test.mjs`): over a table of regions it returns `null` exactly when the
   region converts - and the predicate is the one `importAnimData` applies, not `parseTimeline`

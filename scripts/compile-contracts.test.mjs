@@ -11,6 +11,7 @@ import path from 'node:path';
 import {
   compileOutputs, findDuplicates, globDirectory, globMatches, groupSlug, idOf, KERNEL_MAX_BYTES,
   kernelBudget, loadRules, parseRule, rulesFor, scopeOwner, similarity, splitList, symbolsOf,
+  validateAgainstTree,
 } from './contracts-lib.mjs';
 import { drift, ownedDirectories, plan, write } from './compile-contracts.mjs';
 
@@ -290,4 +291,20 @@ test('the kernel has a byte ceiling, because every session pays for it before to
   assert.equal(kernelBudget(huge).problems.length, 1);
   assert.match(kernelBudget(huge).problems[0], /every session pays for it/);
   assert.deepEqual(kernelBudget(new Map()).problems, [], 'an empty store has no kernel and no problem');
+});
+
+test('a scope that matches no file is refused, because that rule would never load', () => {
+  // A dead scope fails SILENTLY: the store lists the rule, the index prints it, and no session it
+  // was written for ever sees it. Found on 2026-09-07 - a rule scoped to `src/components/control/**`
+  // when that directory had zero files, written against where the code was going.
+  const rule = GOOD.replace(/scope: .*/, 'scope: src/nowhere/**');
+  const withFiles = (files) => {
+    const { rule: parsed } = parseRule('contracts/rules/a/b.md', rule);
+    return validateAgainstTree(parsed, '/tmp/does-not-matter', files);
+  };
+  assert.match(withFiles(['src/real/thing.ts']).join('\n'), /matches no file in the repository/);
+  assert.deepEqual(withFiles(['src/nowhere/thing.ts']), [], 'a scope that matches is fine');
+  assert.deepEqual(withFiles([]), [], 'no listing means no checkout - the check stands down rather than refusing everything');
+  const everywhere = parseRule('contracts/rules/a/b.md', GOOD.replace(/scope: .*/, 'scope: **')).rule;
+  assert.deepEqual(validateAgainstTree(everywhere, '/tmp', ['anything.ts']), [], '** always matches');
 });

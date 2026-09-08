@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/templates/**, src/blocks/**, src/components/control/**
+scope: src/templates/**, src/blocks/**
 kind: invariant
 fires: contract
 status: active
