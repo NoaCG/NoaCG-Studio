@@ -472,7 +472,7 @@ function AccessTab({
               <input type="date" value={grantExpiry} onChange={(event) => setGrantExpiry(event.target.value)} />
             </Field>
             <Field label="Reason">
-              <input value={grantReason} onChange={(event) => setGrantReason(event.target.value)} placeholder="Support case, trial, abuse…" />
+              <input value={grantReason} onChange={(event) => setGrantReason(event.target.value)} placeholder="Support case, school grant, abuse…" />
             </Field>
             <button
               type="button"

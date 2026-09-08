@@ -5,9 +5,10 @@
 // checks are UX; the server always re-validates against the same table.
 //
 // Tiers: anonymous visitors get the basic formats with strict caps; signed-in users get
-// the full format set with sensible free limits; 'paid' is fully defined but unreachable
-// in v1 — introducing billing later means changing resolveTier() to read an entitlements
-// table, nothing else moves.
+// the full format set with sensible free limits; 'paid' is the widest cap table, reachable
+// only through a plan row an admin assigns (a school grant, a heavy-use exception). NoaCG
+// sells nothing and no billing is planned (docs/OWNER_RULINGS.md, 2026-09-07); the name is
+// kept because plan rows already refer to it.
 
 import {
   RENDER_FORMATS,
@@ -72,8 +73,8 @@ export const RENDER_LIMITS: Record<RenderTier, TierCaps> = {
   },
 };
 
-/** Formats that require at least a signed-in account (ProRes stays gated so a future
- *  paid tier can take it over without UI rework). */
+/** Formats that require at least a signed-in account (ProRes and the sequences cost real
+ *  compute, so an anonymous IP hash does not get them). */
 export function formatNeedsSignIn(format: RenderFormatId): boolean {
   return !RENDER_LIMITS.anonymous.formats.includes(format);
 }
@@ -219,7 +220,7 @@ export function validateRenderRequest(
     issues.push(
       tier === 'anonymous' && formatNeedsSignIn(format)
         ? { code: 'format-signin', message: `${RENDER_FORMATS[format].label} requires signing in.` }
-        : { code: 'format-tier', message: `${RENDER_FORMATS[format].label} is not available on your plan.` },
+        : { code: 'format-tier', message: `${RENDER_FORMATS[format].label} is not enabled for this account.` },
     );
   }
 
