@@ -344,6 +344,10 @@ export function draftToOptions(variant: TemplateVariant, draft: WizardDraft): Wi
               sample: f.sample,
               numeric: f.numeric,
               countdown: f.kind === 'countdown',
+              // Both ABSENT unless set, for the same reason `hidden` is: an untouched import
+              // must build the bytes it built before the alignment grid existed.
+              ...(f.align ? { align: f.align } : {}),
+              ...(f.keepNudge ? { nudge: true } : {}),
             })),
           images: draft.svgImages
             .filter((f) => f.on)

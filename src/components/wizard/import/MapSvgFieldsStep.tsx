@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { parseCssColor } from '../../../model/cssVars';
 import { uuid } from '../../../model/id';
 import type { DraftPatch, WizardDraft } from '../draft/core';
+import type { DesignSvgAlign } from '../../../templates/importedDesign/designTypes';
 import type {
   DesignFieldSpec,
   SvgFollowerDraft,
@@ -33,7 +34,7 @@ import {
   scoreDrawnPool,
 } from './draft';
 import { transformedBox } from '../../../assets/svgGeometry';
-import { SVG_ALIGN_TOL, SVG_LINE_HEIGHT } from '../../../templates/importedDesign/svg';
+import { SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT } from '../../../templates/importedDesign/svg';
 import type { PreviewBoxOverlay } from '../WizardPreview';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
@@ -521,11 +522,65 @@ function panelOfEachLine(
  * aligned to the side it was drawn nearer. The tolerance is imported rather than repeated, so
  * the word the overlay shows and the anchor the template emits cannot drift apart.
  */
+/**
+ * What the step measured about a line and its box: the overlay's own fields, plus what the
+ * alignment control needs - the alignment READ OFF THE DRAWING (kept apart from `align`, which
+ * the row swaps a declared answer into) and the nudge the file recorded.
+ */
+type BoxFit = Pick<PreviewBoxOverlay, 'box' | 'insetX' | 'insetY'> & {
+  /** How the designer aligned the block, in the reader's words. The grid's "read from your
+   *  drawing" answer, and the one the runtime derives when nobody declares otherwise. The
+   *  overlay's own `align` is this or the row's declared answer (`alignOf`). */
+  drawn: PreviewBoxOverlay['align'];
+  /** The offset from where the block was drawn to where its anchor snaps it, in the line's own
+   *  units - x rightwards, y downwards - and zero on an axis that does not snap. The runtime
+   *  measures the same two numbers (`svgAlignOf`, `align.nudge` and `align.nudgeY`); the step
+   *  only reads them out, to say what the checkbox hands back. */
+  nudge: { x: number; y: number };
+  /** The drawn type size, in the same units: the yardstick a nudge worth offering is measured
+   *  against. */
+  type: number;
+};
+
+const ALIGN_H = ['start', 'middle', 'end'] as const;
+const ALIGN_V = ['top', 'middle', 'bottom'] as const;
+
+/** How a row's block sits in its box right now: what the author set on the grid, else what the
+ *  drawing says. The caret on the preview and the grid's chosen dot both read this, so the two
+ *  cannot disagree. */
+function alignOf(declared: DesignSvgAlign | undefined, fit: BoxFit): PreviewBoxOverlay['align'] {
+  return declared ? { h: SVG_ALIGN_WORD[declared.h], v: declared.v } : fit.drawn;
+}
+
+/**
+ * IS THE NUDGE WORTH HANDING BACK. Nothing hand-placed sits exactly on a centre, so nearly every
+ * centred line records an offset of a unit or two, and a checkbox offering that back on every row
+ * would be noise about the hand's wobble rather than about a composition. A quarter of the drawn
+ * type is the smallest offset that reads as one: on the owner's board the question's 41 px
+ * sideways and 12 px up both clear it at a drawn 36, and a scorebug's figures a couple of units
+ * off their band's middle do not. Offered only while the alignment (`now`) is the drawn one on
+ * both axes, because the offset was measured from THAT anchor - moved to another edge, there is
+ * nothing of the designer's to keep.
+ */
+function nudgeOffered(now: PreviewBoxOverlay['align'], fit: BoxFit): boolean {
+  if (now.h !== fit.drawn.h || now.v !== fit.drawn.v) return false;
+  return Math.max(Math.abs(fit.nudge.x), Math.abs(fit.nudge.y)) >= fit.type / 4;
+}
+
+/** "36 px to the right, 9 px up" - the nudge in the reader's own px, an axis left out when it
+ *  has nothing to say. */
+function nudgeWords(nudge: { x: number; y: number }): string {
+  const parts: string[] = [];
+  if (Math.abs(nudge.x) >= 0.5) parts.push(`${Math.round(Math.abs(nudge.x))} px to the ${nudge.x > 0 ? 'right' : 'left'}`);
+  if (Math.abs(nudge.y) >= 0.5) parts.push(`${Math.round(Math.abs(nudge.y))} px ${nudge.y > 0 ? 'down' : 'up'}`);
+  return parts.join(', ');
+}
+
 function boxFitOf(
   stage: HTMLElement,
   textId: string,
   boxId: string,
-): Omit<PreviewBoxOverlay, 'selector'> | null {
+): BoxFit | null {
   const textEl = markerEl(stage, textId) as SVGGraphicsElement | null;
   const boxEl = markerEl(stage, boxId) as SVGGraphicsElement | null;
   if (!textEl?.getBBox || !textEl.getScreenCTM || !boxEl?.getBBox || !boxEl.getScreenCTM) return null;
@@ -546,7 +601,7 @@ function boxFitOf(
   const placed = Math.abs(cx - boxCx) <= box.width * SVG_ALIGN_TOL ? 'centred' : cx < boxCx ? 'left' : 'right';
   const stated = textEl.getAttribute('text-anchor');
   const align = {
-    h: (stated === 'middle' ? 'centred' : stated === 'end' ? 'right' : stated === 'start' ? 'left' : placed) as
+    h: (stated === 'middle' || stated === 'end' || stated === 'start' ? SVG_ALIGN_WORD[stated] : placed) as
       'left' | 'centred' | 'right',
     v: (Math.abs(cy - boxCy) <= box.height * SVG_ALIGN_TOL ? 'middle' : cy < boxCy ? 'top' : 'bottom') as
       'top' | 'middle' | 'bottom',
@@ -570,7 +625,16 @@ function boxFitOf(
       box.y + box.height - (own.y + own.height),
       align.v === 'top' ? null : (type * SVG_LINE_HEIGHT) / 2,
     ),
-    align,
+    drawn: align,
+    // The runtime's own two rules: sideways there is a snap only for a line both DRAWN and read
+    // as centred (a stated middle composed elsewhere stays where it was drawn), and downwards
+    // for any middle line. On the owner's board: 41 px to the left and 12 px up, in the line's
+    // own frame.
+    nudge: {
+      x: align.h === 'centred' && placed === 'centred' ? cx - boxCx : 0,
+      y: align.v === 'middle' ? cy - boxCy : 0,
+    },
+    type,
   };
 }
 
@@ -1246,7 +1310,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
   const [boxLooks, setBoxLooks] = useState<Record<string, { fill: string; name: string }>>({});
   /** Text row -> its box, the room round it and the alignment it was drawn with, all in the
    *  LINE's own units (`boxFitOf`). What the preview overlay draws while that row is hovered. */
-  const [boxFits, setBoxFits] = useState<Record<string, Omit<PreviewBoxOverlay, 'selector'>>>({});
+  const [boxFits, setBoxFits] = useState<Record<string, BoxFit>>({});
   /** Whether the per-layer answers are showing. Closed on arrival, always: the graphic-wide
    *  picker is the whole control for almost everybody. */
   const [perPanelOpen, setPerPanelOpen] = useState(false);
@@ -1266,7 +1330,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
     const grouped = withoutBackplates(stage, ofLine);
     setBoxOfRow(grouped);
     setBoxLooks(boxLooksOf(stage, svg, Object.values(grouped)));
-    const fits: Record<string, Omit<PreviewBoxOverlay, 'selector'>> = {};
+    const fits: Record<string, BoxFit> = {};
     for (const [lineId, boxId] of Object.entries(grouped)) {
       const fit = boxFitOf(stage, lineId, boxId);
       if (fit) fits[lineId] = fit;
@@ -1276,13 +1340,28 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
   // TEXT AND ITS BOX, for the hovered row. Only a row that HAS a box and that the step could
   // measure gets one: a line sitting straight on the artwork has no room to draw and nothing to
   // be aligned in, and the plain outline is the whole truthful answer there.
+  // THE CARET SAYS WHAT THE GRID SAYS. The insets stay the drawing's own - a margin the designer
+  // left is a margin whichever edge the block is sent to, and the runtime keeps exactly that one
+  // on a declared anchor - but the word under the block is the row's current answer.
+  // Keyed on the hovered row's DECLARED answer rather than on the field list, which is a fresh
+  // array on every keystroke in a Text box: a patch copies the row and keeps its `align` object,
+  // so the overlay is re-sent when the grid is clicked and not while the reader types.
+  const hoveredAlign = hoverId ? draft.svgFields.find((f) => f.candidateId === hoverId)?.align : undefined;
   useEffect(() => {
     const boxId = hoverId ? boxOfRow[hoverId] : undefined;
     const fit = hoverId ? boxFits[hoverId] : undefined;
     onBoxOverlay(
-      boxId && fit ? { selector: `[${SVG_CANDIDATE_ATTR}="${boxId}"]`, ...fit } : null,
+      boxId && fit
+        ? {
+            selector: `[${SVG_CANDIDATE_ATTR}="${boxId}"]`,
+            box: fit.box,
+            insetX: fit.insetX,
+            insetY: fit.insetY,
+            align: alignOf(hoveredAlign, fit),
+          }
+        : null,
     );
-  }, [hoverId, boxOfRow, boxFits, onBoxOverlay]);
+  }, [hoverId, boxOfRow, boxFits, onBoxOverlay, hoveredAlign]);
   useEffect(() => () => onBoxOverlay(null), [onBoxOverlay]);
 
   /** The shapes the picker offers. The measurement where it found any, every shape where it
@@ -2047,9 +2126,16 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
             // offered (docs/backlog/offer-nothing-that-cannot-work.md). The row stays, because the
             // reader still needs to see that their layer was recognised and by what.
             const driven = f.on && pollDriven.has(f.candidateId);
+            /** The box this line sits in and what was measured about it - absent for a line on
+             *  the bare artwork, which then gets no alignment control. A COUNTDOWN row gets none
+             *  either: its layer becomes the clock display and never carries the field id a
+             *  declaration would name, so a grid there could not change the graphic. */
+            const fit = f.kind === 'countdown' ? undefined : boxFits[f.candidateId];
+            /** How this row's block sits in its box right now - declared, else drawn. */
+            const now = fit ? alignOf(f.align, fit) : undefined;
             return (
+            <Fragment key={f.candidateId}>
             <div
-              key={f.candidateId}
               className={`map-svg-row ${f.on ? '' : 'off'}`}
               onMouseEnter={() => setHoverId(f.candidateId)}
               onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
@@ -2110,6 +2196,55 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
                       data-testid={`map-svg-sample-${f.candidateId}`}
                     />
                   </label>
+                  {fit && now && (
+                    /* HOW THE BLOCK SITS IN ITS BOX (docs/TEXT_BOX_BINDING.md, "Alignment"): the
+                       nine-dot reference-point grid every Illustrator user has already used, one
+                       click setting both axes. IN THE ROW rather than in a strip under it, because
+                       the step has a measured height budget and a strip's summary line would cost
+                       a row per row; a 3x3 of dots is no taller than the text box beside it. The
+                       ringed dot is the answer READ FROM THE DRAWING; a solid dot is one the reader
+                       set, and clicking the drawn dot hands the row back to the drawing. Only on a
+                       row whose line has a box - text on the artwork has nothing to be aligned in
+                       (`wizard/offer-control-can-change-graphic-front`). */
+                    <div className="save-field map-svg-align" data-testid={`map-svg-align-${f.candidateId}`}>
+                      <span>Aligned</span>
+                      <div className="map-svg-align-grid" role="radiogroup" aria-label="How the text sits in its box">
+                        {ALIGN_V.map((v) =>
+                          ALIGN_H.map((h) => {
+                            const chosen = now.h === SVG_ALIGN_WORD[h] && now.v === v;
+                            const drawn = fit.drawn.h === SVG_ALIGN_WORD[h] && fit.drawn.v === v;
+                            return (
+                              <button
+                                key={`${h}-${v}`}
+                                type="button"
+                                role="radio"
+                                aria-checked={chosen}
+                                className={chosen && f.align ? 'set' : undefined}
+                                disabled={!f.on}
+                                /* The words ride the DOT, because a child's title is the one
+                                   the pointer sees: on the grid itself they would show only in
+                                   the gaps between dots. */
+                                title={`${SVG_ALIGN_WORD[h]}, ${v}${
+                                  drawn ? ' - read from your drawing' : chosen ? ' - set by you' : ''
+                                }`}
+                                onFocus={() => setHoverId(f.candidateId)}
+                                onClick={() =>
+                                  patchField(f.candidateId, {
+                                    // The drawn dot IS "read from your drawing", so it clears the
+                                    // declaration rather than restating it - and a nudge kept on the
+                                    // drawn anchor survives only there.
+                                    align: drawn ? undefined : { h, v },
+                                    keepNudge: drawn ? f.keepNudge : undefined,
+                                  })
+                                }
+                                data-testid={`map-svg-align-${f.candidateId}-${h}-${v}`}
+                              />
+                            );
+                          }),
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
               {f.clock && !driven && (
@@ -2131,8 +2266,14 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
                     }
                     data-testid={`map-svg-kind-${f.candidateId}`}
                   >
+                    {/* ONE WORD, because a select is as wide as its longest option and never
+                        gives that width back: at "Countdown (operator sets minutes)" the two text
+                        boxes beside it on a clock row were squeezed to 34 and 29 px once the
+                        alignment grid joined the row, and at "Countdown (minutes)" their labels
+                        still wrapped. The title above says who sets the minutes, and the field
+                        the choice makes is titled "(minutes)" wherever the operator sees it. */}
                     <option value="text">Text</option>
-                    <option value="countdown">Countdown (operator sets minutes)</option>
+                    <option value="countdown">Countdown</option>
                   </select>
                 </label>
               )}
@@ -2158,6 +2299,31 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
                 </span>
               )}
             </div>
+            {/* THE NUDGE THE FILE RECORDED, handed back on request (owner, 2026-09-02: "what if
+                you want to have the text a little bit to the right, and it would fit the
+                design?"). Snapping onto the anchor is the default he ruled for, so the line is on
+                screen only where the drawing actually has an offset worth the name
+                (`nudgeOffered`) - nothing about it appears on a board drawn on the centres. Under
+                the row rather than in it: the row never wraps, so its countdown picker cannot
+                either. Hovering it keeps the row's box on the preview, so ticking it is watched. */}
+            {fit && now && !driven && nudgeOffered(now, fit) && (
+              <label
+                className="map-svg-nudge"
+                data-testid={`map-svg-nudge-${f.candidateId}`}
+                onMouseEnter={() => setHoverId(f.candidateId)}
+                onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!f.keepNudge}
+                  disabled={!f.on}
+                  onFocus={() => setHoverId(f.candidateId)}
+                  onChange={(e) => patchField(f.candidateId, { keepNudge: e.target.checked || undefined })}
+                />
+                <span>keep the nudge you drew: {nudgeWords(fit.nudge)}</span>
+              </label>
+            )}
+            </Fragment>
             );
           })}
           </div>

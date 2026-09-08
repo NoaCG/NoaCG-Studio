@@ -4,8 +4,9 @@
 axes, a graphic that comes up again keeps a fixed box, and unticking a text layer asks what to do
 with the words. STEP 2 IS FINISHED (2026-09-08): the checklist groups by box with a swatch, and
 hovering a row draws that box, its room, the block's bounds and the alignment caret on the
-artwork. What is left of the step's own surface - the alignment CONTROL and growth per box - is
-still DESIGN.** The owner's brief is the 2026-09-02 walk of his own quiz board;
+artwork. STEP 3 IS BUILT (2026-09-08, same day): a nine-dot grid in every row that has a box, and
+the checkbox that hands back the nudge. What is left of the step's own surface - growth per box -
+is still DESIGN.** The owner's brief is the 2026-09-02 walk of his own quiz board;
 the verbatim words are in `docs/acceptance/owner-queue/2026-08-28-student-rehearsal-walk.md` and
 they are the authority here, not this summary of them.
 
@@ -284,6 +285,56 @@ asked for this NOT to become a project - *"this is also something that is not br
 so I do not want to make a big issue out of this because we have bigger fish to fry"* - and it
 does not: one measured number per axis, one checkbox that appears only where it applies.
 
+**Built 2026-09-08, with four departures from the mock above, each measured on the owner's board
+and the shipped scorebug (`docs/metrics/2026-09-08-alignment-grid-in-the-row.md`):**
+
+- **The grid sits IN THE ROW, beside the Text box, not in a strip under it.** A checklist row is a
+  checkbox, two text boxes and nothing that expands; the strip the mock draws did not exist and
+  its summary line would have cost the step a row per row, against a height budget the scorebug
+  pins to the pixel. A 3x3 of 8 px dots sits in a 33 px box, the height a text box computes to, so it
+  costs no height at all. The seven scorebug rows still arrive whole at 1280x720, with 42 px to
+  spare, and the two text boxes went from 191 px to 160 px each to make room. The words live on
+  the caret the preview already draws while the row is hovered, and on the grid's own tooltip.
+- **"Read from your drawing" is a RING, and setting is a SOLID DOT.** The drawn answer is ringed
+  amber; a dot the reader sets fills; clicking the drawn dot again hands the row back to the
+  drawing rather than restating it, so a draft nobody touched and a draft touched and put back
+  are the same bytes. The tooltip says which: "centred, middle - read from your drawing." or
+  "left, top - set by you. The drawing reads centred, middle."
+- **The nudge line is under the row, and only where the offset clears a quarter of the drawn
+  type.** Nothing hand-placed sits exactly on a centre, so nearly every centred line records a
+  unit or two of offset, and a checkbox offering that back on every row would be noise about the
+  hand's wobble. A quarter of the type is the smallest offset that reads as a composition: the
+  question's 41 px sideways and 12 up at a drawn 36 clear it; the scorebug's figures, a couple
+  of units off their band's middle, do not, and that board shows no nudge line at all. It is
+  offered only while both axes are the drawn ones - moved to another edge, there is nothing of
+  the designer's to keep. (The sentence reads "to the left": the drawn insets are 209 and 280, so
+  the question sits LEFT of its plate's centre; the mock's "to the right" was illustrative.)
+- **A declared anchor keeps the margin the drawing has.** Sent to the left or right inside edge,
+  the block keeps the gap the designer left where the line was set against a side, and half the
+  drawn type where it was centred - the same substitution the derived road and the overlay make,
+  and never less room than a centred line gets. Declaring exactly what the file says takes the
+  file's own road, so it changes nothing, to the unit, on either axis; declaring an edge the line
+  was not drawn against moves the block to the drawn gap inside it, or half a line where it was
+  drawn centred. A countdown row offers no grid: its layer is the clock display and carries no
+  field id a declaration could name.
+
+What travels: `NOACG_LAYOUT` gains a `lines` list - `{ el: 'f0', h, v, nudge }` per line the reader
+touched - and is emitted on its own where no growth rule exists, without the growth runtime. Version
+1 survives; a line not listed is read off the drawing exactly as before, so an untouched import
+emits the bytes it always did. `svgAlignOf` reads the list and works the declared answer out FROM
+the same measurement the derived one uses, so everything downstream (the room, the snap, the growth
+from the middle) is computed from it rather than seeded.
+
+**Why step 3 was built before step 4, decided 2026-09-08 in this session and revertable by saying
+so.** Ruling 3 above sent CHANGING the alignment to the backlog, and step 4 has an owner receipt
+(`docs/backlog/svg-import-sweep-findings.md`, the sixth growth finding) where step 3 has none. But
+that receipt's defect - his board defaulting to growth - was answered by doctrine rule 3
+(`repeatsWithNewContent`), so step 4 now buys "one plate grows while its neighbours stay", which
+no class graphic has asked for. Step 3 buys the correction for the one thing that WILL go wrong on
+a student's own drawing before 2026-09-12: a line composed 6% off centre reads as left-aligned and
+fills one way, and the fix is one click on the row rather than a re-export. Correct-by-default
+stays the bar; the grid is what a student reaches for when the default read their drawing wrong.
+
 ### Growth, per box
 
 Growth sits on the box header row as one select: stays as drawn / gets wider / gets taller / gets
@@ -387,9 +438,10 @@ cap and followers.
    protocol gained two general capabilities to carry it: a CLASS going into the document (so the
    shape washes itself and wears its own rotation and outline) and an element's own FRAME coming
    out beside its rectangle (so a caller can draw in that element's space). **Step 2 is finished.**
-3. The alignment CONTROL: the nine-dot grid, the "read from your drawing" label, and the checkbox
-   that hands back the nudge the file recorded. `align.nudge` is measured already and nothing
-   reads it yet, which is deliberate - it is the whole cost of the wonky-on-purpose case.
+3. ~~The alignment CONTROL~~ - DONE 2026-09-08. The nine-dot grid in the row, the ring for the
+   drawn answer, and the nudge checkbox under the row where the file has one. `align.nudge` and
+   `align.nudgeY` are read for the first time by that checkbox. The four departures from the mock
+   are under "Alignment" above.
 4. Growth per box, with the cap line.
 5. The fit line and the too-long tag.
 
@@ -631,6 +683,8 @@ of A as approval of the unsnapped vertical, and do not treat this note as him ha
   `app.mxmz.com`. So the question can only be answered from inside their editor or by watching one
   of their live graphics take a long value. Worth one narrow look before step 3 is built, not a
   study.
+  **Not looked at (2026-09-08): step 3 was built without it.** The editor is behind a sign-in, so
+  the narrow look is a `needs: account` question for the owner - one line, and it blocks nothing.
 
 The full UX write-up this is condensed from was produced by Fable on 2026-09-02 at the owner's
 request ("here we should use Fable to really think about a UX/UI that would make it intuitive").
