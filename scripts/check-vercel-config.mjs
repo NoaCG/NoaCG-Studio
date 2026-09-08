@@ -32,6 +32,8 @@ import { fileURLToPath } from 'node:url';
 
 import { getTransformedRoutes, normalizeRoutes } from '@vercel/routing-utils';
 
+import { measured } from './measured.mjs';
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const configPath = path.join(repoRoot, 'vercel.json');
 
@@ -124,6 +126,15 @@ function main() {
     console.error(`Cannot read ${configPath}: ${error.message}`);
     process.exit(1);
   }
+
+  // The rules both halves of the check read: `getTransformedRoutes` takes these four keys, and
+  // `internalHtmlDestinations` walks two of them. Rename a key or move its rules elsewhere and
+  // this drops to zero while the config still parses and the gate still says "valid".
+  measured(
+    [config.redirects, config.rewrites, config.headers, config.routes]
+      .reduce((total, rules) => total + (rules?.length ?? 0), 0),
+    'route rules',
+  );
 
   const problems = validateVercelConfig(config);
   if (problems.length) {

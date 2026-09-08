@@ -18,6 +18,9 @@
 # Alerting is the weekly-audit pattern: ONE rolling issue ("Production is not running the
 # latest main commit"), one comment per newly failing commit - the same commit never alerts
 # twice - closed automatically by the next verified-healthy state.
+#
+# Which `deployment_status` counts as "Vercel reports" above is not obvious and is where this
+# workflow went wrong once - the `if:` on the verify job below carries that story.
 
 name: deploy-verify
 
@@ -38,10 +41,51 @@ env:
 jobs:
   verify:
     name: Verify production deployment
-    # Vercel raises statuses for previews too; only production can page anyone.
+    # WHO POSTED THE STATUS DECIDES WHETHER IT MEANS ANYTHING, and that is the whole trigger.
+    # Two different bots post `success` on the SAME production deployment record:
+    #
+    #   github-merge-queue[bot]  - GitHub's own bookkeeping for `post-land.yml`'s migrate job,
+    #                              which declares `environment: production`. It says "migrations
+    #                              ran", roughly 25 seconds after the merge. It says nothing at
+    #                              all about Vercel.
+    #   vercel[bot]              - "Deployment has completed". This is the deployment, and by the
+    #                              time it arrives the production alias is already promoted.
+    #
+    # Verifying on the first one is verifying minutes before production has anything new to serve,
+    # so the check could only ever pass by outrunning the deployment. Measured over the 21 landings
+    # of 2026-09-07/08 (17 of them deploy-affecting): the two statuses are 80-192 s apart, median
+    # 182 s. 14 of those 17 runs polled their whole 120 s window and went red on a production that
+    # was healthy - issue #159 and the 13 before it. The three that passed did not verify anything
+    # the others did not: two caught the alias at 56 s and 72 s on the day's two fastest builds,
+    # and one only because the runner took 150 s to start. Every run raised by the vercel[bot]
+    # status matched within 4 seconds.
+    #
+    # THE WINDOW IS NOT THE LEVER, WHICH THAT 80-192 s SPREAD IS THE PROOF OF: it straddles the
+    # 120 s the job waits, so the same healthy deployment reds or greens on how fast Vercel felt
+    # that minute. Raising the number buys silence and leaves the alarm timing an event that has
+    # nothing to do with the deployment.
+    #
+    # Previews raise statuses too, and only production can page anyone, so the environment filter
+    # stays. Bookkeeping statuses now skip this job entirely rather than passing through it: a
+    # green run here CLOSES the production alarm, and a status that measured nothing must not be
+    # able to withdraw an alarm that is still true.
+    #
+    # TWO ACCEPT CONDITIONS, BECAUSE THE WAYS THEY FAIL POINT OPPOSITE. Matching only the bot's
+    # login would stop this job silently the day the deploy provider is renamed or replaced -
+    # every event filtered out, every run reported as skipped, and per-landing verification gone
+    # with nothing saying so. `environment_url` is what the status MEANS rather than who sent it:
+    # over the last 100 production deployments, all 85 vercel[bot] statuses carry the deployment's
+    # URL and not one of the 126 bookkeeping statuses does (`github-merge-queue[bot]`, and
+    # `miwco` when a person dispatches a workflow that declares the environment). So a future
+    # provider under another name is still verified - loudly wrong beats silently absent. The
+    # login stays in as the belt for the reverse case: no failed production deployment appears
+    # anywhere in that history, so what Vercel puts in `environment_url` when a build FAILS is
+    # unmeasured here, and a failure is the one event this workflow must never drop.
     if: >-
       github.event_name == 'deployment_status' &&
       github.event.deployment_status.environment == 'Production' &&
+      (github.event.deployment_status.creator.login == 'vercel[bot]' ||
+       github.event.deployment_status.environment_url != '') &&
       contains(fromJSON('["success", "failure", "error"]'), github.event.deployment_status.state)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -58,6 +102,13 @@ jobs:
 
       - name: Verify the live site serves this commit
         if: ${{ github.event.deployment_status.state == 'success' }}
+        env:
+          # 12 x 10 s = 120 s, unchanged, and now headroom rather than the lever. Every run raised
+          # by the corrected trigger matched within 4 seconds, so the measured need is zero and
+          # what remains is room for a propagation tail nobody here has observed. It only elapses
+          # when something is actually wrong, where two more minutes of certainty cost nothing.
+          POLL_SECONDS: 10
+          POLL_COUNT: 12
         run: |
           DEPLOY_SHA="${{ github.event.deployment.sha }}"
           # WHAT PRODUCTION IS SUPPOSED TO SERVE FOR THIS COMMIT, which since the build skip landed
@@ -76,8 +127,21 @@ jobs:
             echo "::notice title=Build skipped::$DEPLOY_SHA changes nothing production serves, so the expected live commit is $EXPECTED."
           fi
           echo "Deployment ready for $DEPLOY_SHA - verifying $PRODUCTION_URL"
-          for i in $(seq 1 12); do
+          # What the verdict below is built from. FIRST_SEEN and LAST_SEEN record only the polls
+          # that ANSWERED, because a dropped request must not read as production changing commit -
+          # that turns a stuck alias into "something is still promoting, come back later", which is
+          # the wrong advice in exactly the case the alarm matters.
+          FIRST_SEEN=""
+          LAST_SEEN=""
+          MISSES=0
+          for i in $(seq 1 "$POLL_COUNT"); do
             LIVE_SHA="$(curl -sf "$PRODUCTION_URL/version.json" | jq -r '.commit // empty' || true)"
+            if [ -n "$LIVE_SHA" ]; then
+              if [ -z "$FIRST_SEEN" ]; then FIRST_SEEN="$LIVE_SHA"; fi
+              LAST_SEEN="$LIVE_SHA"
+            else
+              MISSES=$((MISSES + 1))
+            fi
             if [ "$LIVE_SHA" = "$DEPLOY_SHA" ] || [ "$LIVE_SHA" = "$EXPECTED" ]; then
               echo "Live commit matches what this deployment should serve."
               break
@@ -89,11 +153,27 @@ jobs:
               echo "Live commit $LIVE_SHA contains $EXPECTED, which is everything this deployment had to carry."
               break
             fi
-            if [ "$i" = 12 ]; then
-              echo "::error title=Production verification failed::$PRODUCTION_URL/version.json serves '${LIVE_SHA:-nothing}', expected $EXPECTED (or a descendant). The deployment reported success but production did not take it."
+            if [ "$i" = "$POLL_COUNT" ]; then
+              # SAY WHICH OF THE TWO FAILURES THIS IS. "Production did not take it" covered both
+              # a stuck alias and a verifier that stopped watching too early, and telling them
+              # apart took a person reading version.json by hand (issue #159). The evidence for
+              # the distinction is already in hand: what production served first, what it served
+              # last, and how long we watched.
+              WAITED=$(( (POLL_COUNT - 1) * POLL_SECONDS ))
+              if [ -z "$LAST_SEEN" ]; then
+                VERDICT="version.json answered none of the $POLL_COUNT requests over ${WAITED}s, so the live commit is unknown - production is unreachable, which is not a slow promotion."
+              elif [ "$FIRST_SEEN" = "$LAST_SEEN" ]; then
+                VERDICT="production served $LAST_SEEN for the whole ${WAITED}s and never moved - the alias is stuck on an older build and this deployment did not take."
+              else
+                VERDICT="production moved from $FIRST_SEEN to $LAST_SEEN inside ${WAITED}s but had not reached $EXPECTED when the window closed - a promotion is still in flight, so re-read version.json before treating this as broken."
+              fi
+              if [ "$MISSES" -gt 0 ] && [ -n "$LAST_SEEN" ]; then
+                VERDICT="$VERDICT ($MISSES of $POLL_COUNT requests went unanswered, so production is also flaky to reach.)"
+              fi
+              echo "::error title=Production verification failed::$PRODUCTION_URL/version.json serves '${LAST_SEEN:-nothing}', expected $EXPECTED (or a descendant). $VERDICT"
               exit 1
             fi
-            sleep 10
+            sleep "$POLL_SECONDS"
           done
           # The pages people actually load must answer, not just the version marker.
           curl -sf -o /dev/null "$PRODUCTION_URL/" || { echo "::error::The landing page does not answer."; exit 1; }

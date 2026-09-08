@@ -40,6 +40,7 @@ import { resolve, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ambientEnv } from './read-dotenv.mjs';
+import { measured } from './measured.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -99,6 +100,12 @@ for (const dir of SEARCH_ROOTS) {
   const text = readFileSync(settings, 'utf8');
   for (const [, provider, id] of text.matchAll(CATALOG_ENTRY)) pin(provider, id, 'src/ai/settings.ts');
 }
+
+// Both sets above come out of a REGEX over source text, which is the exact way a gate stops
+// measuring without saying so: a route literal reformatted past ROUTE_LITERAL, or a catalog entry
+// whose provider and id drift more than 400 characters apart, and this check would report a clean
+// run over nothing at all.
+measured(pinned.size, 'pinned model ids');
 
 /** The ambient environment: .env first, real environment last. See scripts/read-dotenv.mjs. */
 const env = ambientEnv(root);

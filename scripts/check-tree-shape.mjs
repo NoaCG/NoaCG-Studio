@@ -23,6 +23,8 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { measured } from './measured.mjs';
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
@@ -91,7 +93,9 @@ export function treeShapeProblems(paths, allowed = ALLOWED_ROOT_ENTRIES) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const problems = treeShapeProblems(trackedPaths());
+  const paths = trackedPaths();
+  measured(paths.length, 'tracked paths');
+  const problems = treeShapeProblems(paths);
   if (!problems.length) {
     console.log('Tree shape OK - no unexpected top-level entries, no flag-shaped path segments.');
   } else {

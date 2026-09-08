@@ -32,6 +32,7 @@ import { chromium } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 import { applyOnly, parseOnly, scopeNote } from './catalog-scope.mjs';
+import { measured } from './measured.mjs';
 
 // THE FLOORS — minimum rendered px at 1080p, per wizard category. 20 px is the working floor for
 // on-air secondary text; below that, text stops surviving both compression and a phone-sized
@@ -145,6 +146,7 @@ if (!targets.length) {
   await browser.close();
   process.exit(2);
 }
+measured(targets.length, 'catalog variants');
 
 // Renders a batch of variants off-screen at full size, plays them, then reads back every
 // text-bearing element whose computed size is under the floor.

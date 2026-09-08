@@ -407,6 +407,30 @@ something other than its verdict").
 `nightly-drift` going red on purpose because a schedule had not fired in 26 hours. Correct, and the
 repeat comment is already withheld while the red is not.
 
+### 9. WRONG-TRIGGER - one alarm, once per landing, all of them false
+
+Found 2026-09-08 as issue #159. `deploy-verify.yml` fired on every production `deployment_status`
+and read the payload as "Vercel finished". Two bots post that status on the same deployment record:
+`vercel[bot]` when the deployment is complete, and `github-merge-queue[bot]` for `post-land.yml`'s
+migrate job, which declares `environment: production` and finishes about 25 seconds after the merge.
+The second one arrives **80-192 seconds before the first** (17 deploy-affecting landings,
+2026-09-07/08, median 182 s), so the verifier polled its 120-second window against a production
+that had nothing new to serve yet. **14 of the 17 went red on a healthy production.** The three
+that passed prove the same point: two caught the alias at 56 and 72 seconds on the fastest builds
+in the sample, and one only because the runner took 150 seconds to start the job.
+
+**The shape to recognise: the check was right, the window was right, and the event was not.** The
+tempting fix is the number - raise the timeout until the red stops - and the 80-to-192-second
+spread is what makes it wrong rather than merely crude. The distribution straddles the window, so
+the same healthy deployment reds or greens on how fast that build happened to run, and no
+threshold sits outside a distribution that moves. Reading WHO raised the event separated the two
+statuses immediately, and the fix is an `if:` rather than a longer wait. Before changing a
+threshold, check that the thing being timed starts when you think it starts.
+
+**Mechanism (landed 2026-09-08):** the verify job runs only for statuses posted by the deployment
+provider, and its failure message now says which of the two failures happened - production pinned
+to an older commit for the whole window, or a promotion still moving when the window closed.
+
 ## Two reports checked and NOT acted on, with the receipts
 
 Both arrived from a sibling session on 2026-08-29 as CI friction. Both were checked against the

@@ -30,6 +30,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { measured } from './measured.mjs';
+
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 /** True only when this file was RUN, not imported - the same guard the other checks carry. */
@@ -112,6 +114,11 @@ function main() {
   const paths = allDocPaths();
   const topLevel = paths.filter((p) => !p.includes('/') && p !== 'README.md');
   const { missing, orphaned, duplicated } = auditDocsIndex(topLevel, paths, readme);
+  // Both sides of the comparison report, because either can empty on its own: a docs/ read that
+  // stopped matching would leave nothing to look for, and a README table that stopped parsing
+  // would leave nothing to look in - and either one alone still reads as a clean pass.
+  measured(topLevel.length, 'top-level docs');
+  measured(indexedDocs(readme).length, 'docs/README.md index rows');
 
   // A gate that fails closed is only as good as what it tells the person who trips it, and the
   // likeliest way to trip THIS one is a merge that brings in a doc written on another branch -

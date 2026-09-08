@@ -24,6 +24,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIGURED_TRIGGERS, FOCUS } from './e2e-lists.mjs';
+import { measured } from './measured.mjs';
 import {
   budgetMinutes,
   predictShardMinutes,
@@ -349,7 +350,7 @@ const MAP = [
   // - and none of them was mapped. Rewriting one line of the result card's copy on 2026-08-26
   // broke 21 assertions across seven AI specs, and the affected plan selected none of them.
   [/^src\/components\/wizard\/(?!import\/)/, ['ai.spec.ts', 'ai-lite.spec.ts', 'ai-more-control.spec.ts', 'adapt-first.spec.ts', 'image-purpose.spec.ts', 'project-format.spec.ts',
-    'motion-presets.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'library.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'text-tools.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts', 'google-fonts.spec.ts', 'design-rules-product.spec.ts', 'end-credits.spec.ts']],
+    'motion-presets.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'import-name-collision.spec.ts', 'library.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'text-tools.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts', 'google-fonts.spec.ts', 'design-rules-product.spec.ts', 'end-credits.spec.ts']],
   // WHAT HAPPENS WHEN A WRITE FAILS is its own contract (e2e/storage-full.spec.ts) and it cuts
   // across the storage layer, the two save paths over it, and the surface that announces the
   // failure. It is mapped separately because the failure mode it guards - a door that saves
@@ -1383,6 +1384,14 @@ function main() {
   const listOnly = asJson || has('--list');
   const baseArg = parsed.base;
   const log = asJson ? () => {} : console.log;
+
+  // THE POPULATION THIS PLANNER SELECTS FROM. The plan itself is allowed to be empty - a change
+  // touching nothing e2e covers honestly plans `mode: none` - but the suite on disk is not. If
+  // `specFilesOnDisk` ever stopped resolving, every plan would collapse to `mode: none` and every
+  // run would report green having run nothing, so the size of the suite is what gets said out
+  // loud, on every path including --json: `measured` writes to stderr precisely because ci.yml
+  // captures this script's stdout whole and hands it to `JSON.parse`.
+  measured(specFilesOnDisk().length, 'e2e spec files on disk');
 
   // --all is "the whole suite, with no diff at all" - what `main` and an unusable diff base both
   // want. It lived as a hand-written `{"mode":"full",...}` literal inside ci.yml, which meant the

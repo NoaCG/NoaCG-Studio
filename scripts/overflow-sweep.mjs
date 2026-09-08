@@ -49,6 +49,7 @@ import { chromium } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 import { applyOnly, parseOnly, scopeNote } from './catalog-scope.mjs';
+import { measured } from './measured.mjs';
 
 const FRAME_W = 1920;
 const FRAME_H = 1080;
@@ -158,6 +159,7 @@ if (!targets.length) {
   await browser.close();
   process.exit(2);
 }
+measured(targets.length, 'catalog variants');
 
 // Render a batch off-screen at full frame size, play them, then read back every visible element
 // that either escapes the frame or clips its own content.

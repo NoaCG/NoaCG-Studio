@@ -38,6 +38,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { measured } from '../../scripts/measured.mjs';
 
 const CLI = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = path.resolve(CLI, '..');
@@ -119,6 +120,12 @@ expected.set(
     if (json.metadata && typeof json.metadata === 'object') json.metadata.version = version;
   }),
 );
+
+// Every generated copy is now known. `expected` is built by walking the skill source and by
+// stamping manifests found through the marketplace, so an empty map is what a moved source folder
+// or an emptied marketplace list looks like - and a comparison over no files is a --check that
+// passes having compared nothing.
+measured(expected.size, 'skill files');
 
 // (cli/LICENSE is deliberately NOT generated - see the header. The package's licence differs from
 //  the repository's, so there is nothing to copy it from.)

@@ -1,4 +1,5 @@
 // gate: none - lists and waits for this machine's browser jobs, the queue wrapper; meaningless on a runner
+// measures: none - it reports whether a browser-driving run is in flight rather than measuring a set, so zero runs is the answer that grants the caller permission to start, not a resolution that came back empty
 // guards: scripts/command-match.mjs
 //
 // WHO ELSE IS RUNNING PLAYWRIGHT RIGHT NOW - across every checkout of this repo on this machine.

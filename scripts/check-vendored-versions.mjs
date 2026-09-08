@@ -23,6 +23,8 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { measured } from './measured.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
@@ -167,6 +169,8 @@ const findings = [];
 // added to `findings` - they must not decide the exit code.
 const notes = [];
 const report = { vendored: [], manual: [] };
+
+measured(VENDORED.length, 'vendored libraries');
 
 for (const entry of VENDORED) {
   const read = readVendored(entry);

@@ -27,6 +27,7 @@ import {
   NESTED_ATTRIBUTES, NESTED_CONTRACT, OUTPUT_DIR, reportOutputs, scopeOwner,
 } from './contracts-lib.mjs';
 import { DRIVER_NAME, install as installMergeDriver, isInstalled } from './contracts-merge-driver.mjs';
+import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LABEL = '[compile-contracts]';
@@ -150,6 +151,17 @@ function main() {
     for (const p of problems) console.error(`  - ${p}`);
     process.exit(1);
   }
+
+  // WHAT THIS COMPILER ACTUALLY RESOLVED, on every path - the report, `--check` and the write.
+  measured(rules.length, 'rules in the store');
+  // The second count is the one that matters. `ownedDirectories` finds a directory by looking for
+  // GENERATED_MARKER inside its AGENTS.md, so if that string ever changes, `owned` comes back
+  // empty: `compileOutputs` then writes no nested contract, `staleOutputs` finds none to remove,
+  // and `--check` reports "generated file(s) current" and exits 0 while every nested contract has
+  // silently stopped being maintained. The marker is exactly the kind of resolution measured.mjs
+  // exists for.
+  measured(owned.size, 'directories the compiler owns');
+
   if (args.includes('--report')) {
     for (const { file, bytes } of reportOutputs(outputs)) console.log(`${String(bytes).padStart(7)}  ${file}`);
     const kernel = kernelBudget(outputs);

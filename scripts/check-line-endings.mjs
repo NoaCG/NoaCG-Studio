@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // gate: after-build
+// measures: none - it looks for a DISAGREEMENT between two git reads rather than measuring a population, so there is no set here whose emptiness would be suspicious: agreement is the healthy answer.
 // guards: .gitattributes, scripts/**
 //
 // THE PHANTOM-DIRTY FILE, CAUGHT AND NAMED INSTEAD OF PUZZLED OVER.
