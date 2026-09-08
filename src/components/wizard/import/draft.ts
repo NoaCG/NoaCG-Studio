@@ -8,6 +8,7 @@ import type { SpxTemplate } from '../../../model/types';
 import { addPlacedLine } from '../../../blocks/designLayout';
 import { applyPlacedFieldSpecs } from '../../../blocks/designFields';
 import type {
+  DesignSvgAlign,
   DesignSvgBehaviour,
   DesignSvgExtra,
   DesignSvgGrowth,
@@ -124,6 +125,18 @@ export interface SvgFieldDraft {
    * row that was never unticked and a draft from before this existed both read the same.
    */
   whenOff?: 'keep' | 'remove';
+  /**
+   * HOW THE BLOCK SITS IN ITS BOX, set on the row's nine-dot grid (docs/TEXT_BOX_BINDING.md,
+   * "Alignment"). Absent = read from the drawing, which is what every row starts as and what a
+   * draft from before the grid existed still means. Held in the runtime's own words so the value
+   * travels to `DesignSvgField.align` unchanged; the row translates to left / centred / right.
+   */
+  align?: DesignSvgAlign;
+  /**
+   * KEEP THE NUDGE THE FILE RECORDED - the checkbox under the grid, offered only where the
+   * drawing has one. Absent = false: the block snaps onto its anchor, the owner's default.
+   */
+  keepNudge?: boolean;
 }
 
 /**
@@ -1088,8 +1101,8 @@ export function svgBehaviourOption(draft: WizardDraft): DesignSvgBehaviour | nul
  * THE NAME IS THE SCORE BOARD'S ONLY BECAUSE IT GOT HERE FIRST. The countdown's four pickers read
  * exactly this list too, and so would any behaviour after it: "every drawing in the file" is not
  * a score-board question. Left as it is rather than renamed in this pass, because the rename
- * would touch the mapping step in a dozen places while another session holds that file
- * (docs/handoffs/2026-09-05-s-more-behaviours.md).
+ * would touch the mapping step in a dozen places while another session held that file
+ * (2026-09-05; that session's handoff was drained on 2026-09-08).
  *
  * ONE POOL, READ BY BOTH DOORS. The mapping step's picker offers exactly this list and the
  * proposal above searches exactly this list, because a proposal that can pick something the

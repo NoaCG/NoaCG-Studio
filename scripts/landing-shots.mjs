@@ -294,7 +294,7 @@ async function seedProduction(page) {
       addGraphicToShow(show.id, template, { graphicId: doc.id });
     }
     // A durable write is accepted synchronously and lands a moment later - navigating before
-    // it commits loses the last graphic or two (root AGENTS.md "Verifying changes").
+    // it commits loses the last graphic or two (e2e/AGENTS.md "Gotchas when writing a spec").
     await commitDurableWrites();
     return show.id;
   }, SEED);

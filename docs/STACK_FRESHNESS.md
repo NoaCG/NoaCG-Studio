@@ -53,6 +53,26 @@ something you have consciously accepted trains you to ignore it. **`npm audit` c
 zero, and keeping it there is the point:** a clean run is only useful as a signal while nothing
 in it is routinely ignored.
 
+**The browserslist advisory, and the shape of a finding that is simply FIXED (2026-09-08).** The
+two entries below are overrides taken because no upgrade existed, which makes them the memorable
+cases and therefore the wrong template. This one was the ordinary kind and is written down so the
+ordinary kind has a precedent too: `browserslist <=4.28.6` (GHSA-c83g-rgw3-j3cx unbounded memory
+growth, GHSA-73wf-gq98-2v4g prototype write via untrusted `browserslist-stats.json`), high, one
+transitive dev dependency of `@babel/helper-compilation-targets`, patched in 4.28.7.
+
+Neither advisory could reach this build — we ship no `browserslist-stats.json` and run no
+long-lived browserslist process — but **the gate does not grade risk, and it should not.** A high
+advisory with a patch inside the range its parent already declares costs one lockfile bump, and
+arguing about reachability costs more than taking it. `npm update browserslist --package-lock-only`
+moved six lockfile entries, all of them browserslist's own data packages (`caniuse-lite`,
+`electron-to-chromium`, `node-releases`, `baseline-browser-mapping`, `update-browserslist-db`),
+touched no other file, and `npm run build` stayed green — which is the check that matters, because
+browserslist feeds autoprefixer.
+
+It was red for six days and cost the weekly alarm two consecutive Mondays. The reason it sat is
+worth more than the fix: **the audit does not gate the merge queue, which reads `ci.yml` alone**,
+so a red weekly survives every landing until a person reads it.
+
 **The `dompurify` override, and what it does NOT do (2026-08-04).** `package.json` pins
 `overrides: { "dompurify": "3.4.13" }`. Upgrading `monaco-editor` could never have closed those
 advisories — monaco pins dompurify exactly, so its version moves only when monaco's does (0.55.1
@@ -97,9 +117,11 @@ never a user's input, so the backtracking blowup had nothing to reach it with.
 what exercises the regex compiler — pass on 6.3.0. **Remove the override when routing-utils
 declares a patched `path-to-regexp` itself**, or it holds a future one back.
 
-Both overrides existing at once is the signal worth reading: two of the last three high
-advisories here were in build tooling that no user ever loads, and neither had an upgrade path.
-That is exactly the noise the step ordering below defends against.
+Both overrides existing at once is the signal worth reading: three of the last four high
+advisories here were in build tooling that no user ever loads. That is exactly the noise the step
+ordering below defends against. But only two of the four needed an override — browserslist above
+had a patch waiting — so **check for an upgrade path before reaching for one.** An override is
+what you take when there is nothing to take.
 
 **`npm audit` runs LAST in the job on purpose (2026-08-13).** It used to run first, and a step
 that exits non-zero ends the job — so from 2026-08-03 to 2026-08-13 two dev-only advisories
@@ -125,7 +147,8 @@ This is why this document exists.
 
 `src/assets/gsap.min.js` and `src/assets/lottie.min.js` are **committed files**, not
 dependencies. They are bundled locally because a generated template must play offline with no
-CDN reference (root AGENTS.md, principle 3) — which means they ship inside every graphic every
+CDN reference (`root/keep-generated-template-self-contained-runtime`) — which means they ship
+inside every graphic every
 user exports, and no dependency tool has ever had an opinion about them.
 
 The check reads each file's own version banner and compares it against the npm registry. It

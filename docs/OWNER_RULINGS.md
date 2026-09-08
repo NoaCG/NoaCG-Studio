@@ -595,3 +595,57 @@ The method is the plan's own reuse test made real: find the graphic, draw it as 
 through the wizard, and report whether the shipped recipes and extras bind it, whether it needs a
 new field kind or recipe, or whether it breaks the model.
 
+
+## owner-decisions-2026-09-07
+
+**NoaCG pivots to free and open source, with no paid surface and none planned.** This retires
+"the only paid surface is hosted AI without a BYO key", which had stood since the project began.
+Hosted AI does not disappear; it stops being a product and becomes a subsidy the project carries.
+
+> we will pivot to open source and free, at least for the next few years
+>
+> yes we need to get all monetization texts out from our files and be clear about it being free
+> and open source on our landing page. we need to drop the word premium from our front page, its
+> free and the whole prosuction cycle from template/create to run the show through our online
+> client.
+
+What it changes, and what it deliberately does not:
+
+- The root `AGENTS.md` identity line, `docs/GOALS.md`'s operating principles and the open "when do
+  paid tiers exist" question in `docs/AI_PLATFORM_PLAN.md` §13 now all say the same thing.
+- The landing page leads with "Free & open source" and the no-lock-in section names the AGPL,
+  because open source is the strongest proof of the promise that section already made.
+- **"Premium" survives in `src/` on purpose.** Fifty-one occurrences in the AI prompts, the design
+  vocabulary and the template comments mean "high production value", not "the paid edition", and
+  they carry real weight in what the generator produces. Only the marketing copy lost the word.
+- `docs/GOALS_ARCHIVE.md` keeps its original wording. An archive records what was true at the
+  time; rewriting it would destroy the evidence that the direction ever changed.
+
+The horizon is "at least the next few years", so this is a ruling and not a permanent fact about
+the project. It stands until the owner says otherwise.
+
+## owner-decisions-2026-09-08
+
+**The broadcast text size floor becomes type-aware. It stops being a universal 50px blocker.**
+This answers the question §23.1 left open on 2026-08-30 and that two Pro Harness rounds ran into:
+the floor was never re-ratified for enforcement, and it was refusing correct work.
+
+> Make it type-aware, not a universal 50 px blocker.
+
+What was measured before the ruling, so a later session can test the why rather than the rule:
+
+- The floor refuses **all 12 shipped quiz boards** - 36-40px primary against a 49.68px floor, read
+  through the instrument itself rather than off the CSS.
+- It refuses the platform's own neutral lower-third scaffold at 48px, and the Pro Harness control
+  run excuses that in its own words ("bar the owner size table").
+- §23.1 measured it failing **312 of 489** shipped designs.
+- In the 2026-09-07 harness round it was the ONLY blocking finding on two of nine cells, and on
+  three of the previous round's.
+
+The cause is not the number. `roleFor` in `src/validation/readabilityCheck.ts` calls the LARGEST
+informational text "primary", so on a dense board the primary element is the one carrying the most
+words and therefore having the least room - a floor calibrated on a lower third's name strap
+landing on a question that has to sit above four answers.
+
+**The ruling is the outcome, not the mechanism.** "Type-aware" is what the floor must stop being
+blind to; which signal it keys on is an engineering question, answered from the shipped corpus.

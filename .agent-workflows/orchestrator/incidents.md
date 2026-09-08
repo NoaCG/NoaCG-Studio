@@ -378,3 +378,43 @@ before it becomes text" clause exists to catch.
 is the acknowledgement and the only way past the gate, so a review can no longer be lost between the
 orchestrator and the row it was for. The alternative - re-enabling peer messaging - is the only
 option that makes the old sentence true as written, and it is transient where a file is durable.
+
+## the plan handed over to be pasted
+
+**2026-09-08, this contract's own wording.** A day wave was planned in full - table, collisions,
+landing report, pushback, five prompts, all checked - and then handed to the owner as five blocks to
+paste into five sessions he would open himself. He answered: *"This session orchestrates it all,
+merges everything at the end, and starts new work when old work is done. I should not be pasting
+anything in your sessions. I don't know where the confusion comes from."*
+
+The confusion came from here. `launch.md` has said since it was written that the Agent tool is the
+PRIMARY launch path, but it loads only after the plan check passes, and by then the reading is
+already set. The core's never-acts bullet list ended on a sentence about every command being the
+owner's to run and naming where he runs it, and `prompts.md` opened by calling each block
+pasteable into a fresh session. Two sentences that fire BEFORE `launch.md` loads, both true of the
+rare command the orchestrator genuinely cannot run, and together they read as the whole posture.
+Doing none of the work never meant making the owner start the rows.
+
+**Mechanism:** the core's bullet now says the orchestrator launches its own rows, and
+`check-shared-instructions.mjs` pins that sentence as a critical marker beside the never-acts one,
+so the two halves of the boundary cannot drift apart - removing either fails the build.
+`prompts.md` opens by saying a block is what gets handed to the Agent tool, with pasting named as
+the fallback for a classifier-refused row. Cost: one wave's planning round trip, and about forty
+minutes of the owner's evening.
+
+**And the first version of that mechanism pinned nothing**, caught by `/check` on the same branch
+and measured rather than argued. `checkCriticalWorkflowContract` collapses whitespace and searches
+the core CONCATENATED WITH ITS MODULES - deliberately, so a rule may move between modules without a
+gate edit. This entry had quoted both marker sentences verbatim, and a quote is byte-identical to
+the thing pinned, so each marker was satisfied by this narrative file alone: deleting the rule from
+the contract would still have built green. **A file that RECORDS a rule can satisfy the pin that
+was supposed to protect it.**
+
+**Mechanism for that, in the same commit:** the marker search now skips `NARRATIVE_MODULES`, which
+is `incidents.md` - the one module that describes rules instead of carrying them. Every marker was
+checked to still resolve outside it before the exclusion went in, and quoting a pinned sentence
+here is harmless again. The wider version - every gate that resolves a value by regex, by name or
+by optional lookup, and therefore PASSES WHEN IT FINDS NOTHING - is the sweep this wave earned:
+`type-floor.mjs` matched nothing after its constants moved and reported PASS over 502 unmeasured
+variants, and a rule declaring `fires: test:<spec>` vanishes from every loaded surface with no gate
+seeing it. Three instances, one evening, three different mechanisms.

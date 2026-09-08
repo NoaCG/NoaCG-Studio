@@ -147,7 +147,8 @@ listing, not an approval.
    A task with a free or anonymous tier can only be approved onto a funded-eligible
    route - cheap and reachable through the managed Vercel AI Gateway transport.
 3. If it writes `ai_generations` with a new `profile` value, ship the CHECK-constraint
-   migration in the same commit (root AGENTS.md non-negotiable 6) - and keep older
+   migration in the same commit (`root/version-every-persisted-format-ship-breaking`) - and
+   keep older
    deployments working: Lite deliberately stays on its 0010-era RPC names so the code
    deploy never depends on the migration being applied first (`aiLiteStoreSupabase.ts`).
 4. Rate-limit through `admitTaskIp(taskId, ipHash)` - per-task windows, pre-body, never

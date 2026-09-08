@@ -281,7 +281,8 @@ export const listingCardType: GraphicType = {
  *
  * THE HONEST PART, and the reason this type exists rather than a "generate a QR from a URL"
  * feature: NoaCG bundles no QR encoder, and generated templates take no runtime dependency
- * (root non-negotiable 3), so a template that drew its own code would need an encoder inlined
+ * (`root/keep-generated-template-self-contained-runtime`), so a template that drew its own code
+ * would need an encoder inlined
  * into every export or a call out to the network at playout. A graphic that silently renders an
  * unscannable code is worse than one that never claimed to. So the code is an ordinary SPX
  * image field — the operator makes the PNG once and picks it — and the ADDRESS beside it is

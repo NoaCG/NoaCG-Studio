@@ -6,8 +6,8 @@
 // Why this exists: `npm outdated` and `npm audit` only know about entries in package.json. The
 // two libraries that reach EVERY user's exported graphic are not entries — GSAP and the Lottie
 // player are committed files under src/assets/, bundled locally because a generated template
-// must play offline with no CDN reference (root AGENTS.md, principle 3). Nothing warns when
-// they go stale, and nothing did: GSAP sat at 3.10.4 while upstream reached 3.15.0, so every
+// must play offline with no CDN reference (`root/keep-generated-template-self-contained-runtime`).
+// Nothing warns when they go stale, and nothing did: GSAP sat at 3.10.4 while upstream reached 3.15.0, so every
 // exported template carried a five-minor-versions-old runtime.
 //
 // Usage:

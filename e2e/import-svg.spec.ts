@@ -378,6 +378,98 @@ test('svg import: the f: layer-name prefix names a field without switching the o
   await expect(page.getByTestId('map-svg-row-t1').locator('input[type=checkbox]')).toBeChecked();
 });
 
+test('svg import: the static: prefix says a text layer is DRAWING, and its words stay drawn', async ({ page }) => {
+  // The opposite of `f:`, and the answer to the numerals trap: a top ten's ranks and a bingo
+  // grid's numbers are furniture a student typed, and every one of them used to arrive as a
+  // ticked field to untick, two clicks each
+  // (docs/backlog/decorative-numerals-arrive-as-fields.md). The row is still OFFERED - unticked,
+  // words kept - because the one numeral that really is a field is then a single click away.
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200">
+      <text id="static_x3A_Rank" data-name="static:Rank" x="20" y="60" font-size="30" fill="#8a8f98">10.</text>
+      <text id="Item" x="90" y="60" font-size="30" fill="#fff">The buzzer is a kazoo</text>
+    </svg>`,
+    'ranked.svg',
+  );
+  await page.locator('.wz-next').click();
+
+  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Rank');
+  await expect(page.getByTestId('map-svg-row-t0').locator('input[type=checkbox]')).not.toBeChecked();
+  await expect(page.getByTestId('map-svg-off-t0')).toHaveText('stays as drawn');
+  await expect(page.getByTestId('map-svg-row-t1').locator('input[type=checkbox]')).toBeChecked();
+
+  await createProject(page);
+
+  // ONE field, and the numeral is still on the artwork: drawn, unbound, its words intact.
+  const state = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const t = useTemplateStore.getState().template;
+    return { fields: t.fields.map((f) => `${f.field}:${f.title}`), html: t.html };
+  });
+  expect(state.fields).toEqual(['f0:Item']);
+  // Matched across the formatter's line breaks: the emitted template is Prettier-printed, so a
+  // <text> with several attributes has its words on their own line.
+  expect(state.html).toMatch(/<text\b[^>]*data-name="static:Rank"[^>]*>\s*10\.\s*<\/text>/);
+  expect(state.html).not.toMatch(/<text[^>]*id="f1"/);
+});
+
+test('svg import: a layer named after its own words keeps that name unless the group names it alone', async ({ page }) => {
+  // Figma auto-names every text layer after the words in it, so climbing to the group above is
+  // right there - and wrong for a designer who deliberately named a slot after its placeholder
+  // (docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). The evidence is how
+  // many text layers the group holds: exactly one, and the group's name is that layer's name;
+  // several, and a group of slots cannot be the name of one of them.
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300">
+      <g id="Answer A"><text id="Amsterdam" x="20" y="60" font-size="30" fill="#fff">Amsterdam</text></g>
+      <g id="Words">
+        <text id="Champion" x="20" y="140" font-size="30" fill="#fff">Champion</text>
+        <text id="Runner_x20_up" data-name="Runner up" x="20" y="220" font-size="30" fill="#fff">Espoo Eagles</text>
+      </g>
+    </svg>`,
+    'own-copy.svg',
+  );
+  await page.locator('.wz-next').click();
+
+  // The Figma shape: the wrapper holds this text and nothing else, so its name is the label -
+  // and the row says out loud why it is not called "Amsterdam".
+  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Answer A');
+  await expect(page.getByTestId('map-svg-named-by-group-t0')).toBeVisible();
+
+  // The bracket shape: "Words" holds two slots, so "Champion" keeps the name its author typed.
+  await expect(page.getByTestId('map-svg-title-t1')).toHaveValue('Champion');
+  await expect(page.getByTestId('map-svg-named-by-group-t1')).toHaveCount(0);
+
+  // Untouched by any of it: a layer whose name is not its own words.
+  await expect(page.getByTestId('map-svg-title-t2')).toHaveValue('Runner up');
+});
+
+test('svg import: kerning a Figma text layer does not turn its wrapper into a group of many', async ({ page }) => {
+  // The evidence is TEXT LAYERS, not candidate rows, and one <text> can raise several rows: two
+  // labels far apart on one baseline are two fields (see the kerned-headline case above). Counting
+  // rows would read this wrapper as holding two layers, refuse the climb, and label both boxes
+  // "HelsinkiLive" - the very Figma defect the climb exists to prevent, brought back by kerning.
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300">
+      <g id="Venue"><text id="HelsinkiLive" font-size="24" fill="#fff"><tspan x="40" y="120">Helsinki</tspan><tspan x="300" y="120">Live</tspan></text></g>
+    </svg>`,
+    'kerned-figma.svg',
+  );
+  await page.locator('.wz-next').click();
+
+  // Two rows out of one text layer, and the group still names them both.
+  await expect(page.getByTestId('map-svg-sample-t0')).toHaveValue('Helsinki');
+  await expect(page.getByTestId('map-svg-sample-t1')).toHaveValue('Live');
+  // The <text> is named after its own words (Figma's default), so the wrapper names it - and it
+  // is ONE layer however many runs the kerning left, so the wrapper's name still wins.
+  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Venue');
+  await expect(page.getByTestId('map-svg-title-t1')).toHaveValue('Venue 2');
+  await expect(page.getByTestId('map-svg-named-by-group-t0')).toBeVisible();
+});
+
 test('svg import: an Inkscape file is labelled by its layer names, not its serial ids', async ({ page }) => {
   // Illustrator and Figma write the layer's NAME into `id`; Inkscape writes a serial number
   // there ("text123") and keeps the name in `inkscape:label`. Read the id first and every row
@@ -3716,4 +3808,359 @@ test('svg import: the step says what a control does, in a few lines', async ({ p
 
   await page.getByTestId('map-svg-why-fields').click();
   await expect(page.getByTestId('map-svg-why-fields-body').locator('p')).toHaveCount(2);
+});
+
+// ── THE GROUPING IS THE BINDING (docs/TEXT_BOX_BINDING.md step 2) ──
+// "Every text field lives in a box: the shape drawn under it." The step has decided which box
+// holds which line since the per-box growth answers were added, and it decided it SILENTLY: the
+// checklist was one flat list, so a reader could not see that their question and its four answers
+// had been read as five separate boxes rather than one board. That is the fact every per-box
+// answer rests on, and the owner walked straight past it because nothing on screen claimed it.
+//
+// Shown with no new control: a heading per box, its swatch in the shape's own fill, and the rows
+// indented under it.
+test('svg import: the checklist groups each line under the box it was drawn in', async ({ page }) => {
+  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+
+  // FIVE BOXES on a board that draws five plates - the question's and one per answer - and not
+  // one heading over the whole list. The board is the case the whole feature exists for.
+  const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
+  await expect(heads).toHaveCount(5);
+
+  // NAMED BY COLOUR AND KIND, because the designer's own layer names here are `q bg` and friends
+  // - a private shorthand that tells a student nothing. The question's plate is the tan one, and
+  // the four answer plates are one colour, so they are numbered rather than four identical rows.
+  await expect(heads.nth(0)).toContainText('Tan plate');
+  for (let i = 1; i <= 4; i += 1) await expect(heads.nth(i)).toContainText(`Orange plate ${i}`);
+
+  // AND THE SWATCH CARRIES THE SHAPE'S OWN FILL, which is what makes the heading checkable
+  // against the artwork beside it rather than a claim the reader has to take on trust.
+  const fills = await heads.locator('.map-svg-swatch').evaluateAll((els) =>
+    els.map((el) => getComputedStyle(el).backgroundColor));
+  expect(fills[0]).toBe('rgb(198, 156, 109)'); // #c69c6d, the tan question plate
+  expect(new Set(fills.slice(1)).size).toBe(1); // the four answers share one orange
+  expect(fills[1]).not.toBe(fills[0]);
+
+  // The question row sits INSIDE the tan plate's group rather than merely after its heading -
+  // an ordering that happened to look right is the failure this whole step is about.
+  const tan = page.getByTestId('map-svg-fields').locator('.map-svg-box-group').first();
+  await expect(tan.locator('.map-svg-row')).toHaveCount(1);
+  const tanRowId = ((await tan.locator('.map-svg-row').first().getAttribute('data-testid')) ?? '')
+    .replace('map-svg-row-', '');
+  await expect(page.getByTestId(`map-svg-sample-${tanRowId}`)).toHaveValue(/Question 1/);
+});
+
+// ── TEXT AND ITS BOX, ON THE ARTWORK (docs/TEXT_BOX_BINDING.md step 2, the preview overlay) ──
+// The checklist SAYS which box a line lives in; this is the same sentence drawn on the canvas, so
+// a reader can check it against the artwork instead of taking the list's word for it. It replaces
+// an axis-aligned amber rectangle, which on this board - every plate tilted a few degrees on
+// purpose - drew a box around the wrong thing: a rectangle big enough to contain a tilted plate
+// contains a good deal that is not the plate.
+test('svg import: hovering a line draws its box, its room and its alignment on the artwork', async ({
+  page,
+}) => {
+  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+  // The overlay is drawn on the PREVIEW, which commits its document on a debounce and starts
+  // answering with rects and frames on that document's own animation frame.
+  const frame = page.frameLocator('.wz-side iframe');
+  await expect(frame.locator('#f0')).toContainText('Question 1');
+
+  const groupRow = async (n: number) =>
+    ((await page
+      .getByTestId('map-svg-fields')
+      .locator('.map-svg-box-group')
+      .nth(n)
+      .locator('.map-svg-row')
+      .first()
+      .getAttribute('data-testid')) ?? '').replace('map-svg-row-', '');
+  await page.getByTestId(`map-svg-row-${await groupRow(0)}`).hover();
+
+  // THE BOX IS PAINTED BY THE SHAPE ITSELF, through the canvas channel's 'mark' command - one
+  // shape, the tan question plate, wearing a filter that washes its own pixels amber. Nothing is
+  // drawn around it from the app side, which is what makes the rotation free: the wash is the
+  // plate, whichever way it was turned and whatever outline it was given.
+  const lit = frame.locator('.noacg-canvas-lit');
+  await expect(lit).toHaveCount(1);
+  const shape = await lit.evaluate((el) => ({
+    fill: getComputedStyle(el).fill,
+    filter: getComputedStyle(el).filter,
+  }));
+  expect(shape.fill).toBe('rgb(198, 156, 109)'); // #c69c6d, the question's own plate
+  expect(shape.filter).toContain('url(');
+
+  // THE TWO FIGURES, in the artwork's own px: the room at the sides and the room above.
+  await expect(page.getByTestId('wz-preview-inside')).toBeVisible();
+  await expect(page.getByTestId('wz-preview-inset-x')).toHaveText(/^\d+$/);
+  await expect(page.getByTestId('wz-preview-inset-y')).toHaveText(/^\d+$/);
+
+  // THE ALIGNMENT CARET, with the word. He centred the question in its plate on both axes, and
+  // that is what the file says - docs/TEXT_BOX_BINDING.md's own table for this fixture.
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('centred, middle');
+
+  // ── AND NOW AN ANSWER, WHICH IS WHERE THE ROTATION SHOWS ──
+  // The question's own text was drawn level inside a plate rotated 88.68 degrees, so the room
+  // round it - measured in the LINE's frame, the frame the ladder fits in - is level too. Each
+  // answer was drawn ON its plate's angle, so its room and its bounds are drawn on that angle.
+  await page.getByTestId(`map-svg-row-${await groupRow(1)}`).hover();
+  await expect(page.getByTestId('wz-preview-inside')).toBeVisible();
+  const turn = (testid: string) =>
+    page.getByTestId(testid).evaluate((el) => Math.abs(new DOMMatrix(getComputedStyle(el).transform).b));
+  // A non-zero `b` in the resolved matrix is the whole fix in one number: the rectangle this
+  // replaces could only ever be square to the screen.
+  expect(await turn('wz-preview-inside')).toBeGreaterThan(0.01);
+  expect(await turn('wz-preview-highlight')).toBeGreaterThan(0.01);
+
+  // THE GAP IS THE ROOM THAT IS LEFT, so the block stands inside the dashed line rather than on
+  // it - this answer was drawn short in a plate with room to its right.
+  const [inside, bounds] = await Promise.all([
+    page.getByTestId('wz-preview-inside').boundingBox(),
+    page.getByTestId('wz-preview-highlight').boundingBox(),
+  ]);
+  expect(inside!.width * inside!.height).toBeGreaterThan(bounds!.width * bounds!.height);
+
+  // …and the word says how it was drawn. The two rows together are the reason alignment and
+  // growth are per box rather than per graphic.
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('left,');
+  await expect(frame.locator('.noacg-canvas-lit')).toHaveCount(1);
+
+  // Off the list, the artwork is left alone: nothing lit, nothing drawn.
+  await page.getByTestId('map-svg-fields').locator('h3').hover();
+  await expect(frame.locator('.noacg-canvas-lit')).toHaveCount(0);
+  await expect(page.getByTestId('wz-preview-inside')).toHaveCount(0);
+});
+
+// A LINE WITH NO BOX HAS NO ROOM TO SHOW. Text sitting straight on the artwork is not inside
+// anything, so there is nothing to tint, no insets to mirror and nothing to be aligned in - and
+// the honest answer is the plain outline the step has always drawn, not an invented box.
+test('svg import: a line with no box under it gets the outline and nothing else', async ({ page }) => {
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+      <text id="Home" x="20" y="60" font-size="30" fill="#fff">Rovers</text>
+      <text id="Away" x="20" y="150" font-size="30" fill="#fff">City</text>
+    </svg>`,
+    'nobox.svg',
+  );
+  await page.locator('.wz-next').click();
+  await expect(page.frameLocator('.wz-side iframe').locator('#f1')).toHaveText('City');
+
+  await page.getByTestId('map-svg-row-t0').hover();
+  await expect(page.getByTestId('wz-preview-highlight')).toBeVisible();
+  await expect(page.getByTestId('wz-preview-inside')).toHaveCount(0);
+  await expect(page.getByTestId('wz-preview-caret')).toHaveCount(0);
+  await expect(page.frameLocator('.wz-side iframe').locator('.noacg-canvas-lit')).toHaveCount(0);
+});
+
+// ── THE ALIGNMENT CONTROL (docs/TEXT_BOX_BINDING.md step 3) ──
+// The row's nine-dot grid sets both axes with one click, the caret on the preview says the same
+// words, and the checkbox under the grid hands back the nudge the file recorded. The runtime is
+// read INSIDE the preview document for every claim, because that is where the answer is spent:
+// a grid that changed the draft and not the graphic would have changed nothing.
+test('svg import: the nine-dot grid sets how a line sits in its box, and the nudge checkbox hands back what was drawn', async ({
+  page,
+}) => {
+  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+  const frame = page.frameLocator('.wz-side iframe');
+  await expect(frame.locator('#f0')).toContainText('Question 1');
+
+  type Align = { h: string; v: string; derived: boolean; anchor?: number; nudge?: number; snapY?: number; nudgeY?: number };
+  type Layout = { lines?: { el: string; h?: string; v?: string; nudge?: boolean }[] };
+  /** The runtime's own answer for the question, and where its block stands, in the artwork's units. */
+  const runtime = () =>
+    frame.locator('#f0').evaluate((el) => {
+      const w = el.ownerDocument.defaultView as unknown as { svgFitAlign: Record<string, Align>; NOACG_LAYOUT?: Layout };
+      const bb = (el as unknown as SVGGraphicsElement).getBBox();
+      return {
+        align: w.svgFitAlign.f0,
+        lines: w.NOACG_LAYOUT?.lines ?? null,
+        anchor: el.getAttribute('text-anchor'),
+        cx: bb.x + bb.width / 2,
+        cy: bb.y + bb.height / 2,
+      };
+    });
+  /** Act, then wait out the debounced rebuild on the stage's own stamps (the idiom the other
+   *  wizard walks in this file use): pending is set the moment the template changes and cleared
+   *  when the new document has LOADED, and its fit runs on that document's DOMContentLoaded. */
+  const stage = page.locator('.wz-side .wz-stage');
+  const rebuilt = async (action: () => Promise<unknown>) => {
+    const before = await stage.getAttribute('data-doc-rev');
+    await action();
+    await expect(stage).not.toHaveAttribute('data-doc-rev', before ?? '', { timeout: 20_000 });
+    await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
+    await expect(frame.locator('#f0')).toContainText('Question 1');
+  };
+
+  const row = page.getByTestId('map-svg-row-t0');
+  const dot = (h: string, v: string) => page.getByTestId(`map-svg-align-t0-${h}-${v}`);
+
+  // READ FROM THE DRAWING. He centred the question on both axes; the drawn dot is the ringed
+  // one, nothing is declared, and the runtime derived the same two words.
+  await row.hover();
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('centred, middle');
+  await expect(dot('middle', 'middle')).toHaveAttribute('aria-checked', 'true');
+  await expect(dot('middle', 'middle')).not.toHaveClass(/set/);
+  await expect(dot('middle', 'middle')).toHaveAttribute('title', 'centred, middle - read from your drawing');
+  const drawn = await runtime();
+  expect(drawn.align).toMatchObject({ h: 'middle', v: 'middle', derived: true });
+  expect(drawn.lines).toBeNull();
+
+  // THE NUDGE THE FILE RECORDED, in words. The question was composed off its plate's centre -
+  // 36 px sideways by the drawn insets, a dozen up - and the snap moved it on. The sentence says
+  // what the checkbox would hand back, in the artwork's own px, and the runtime holds the same
+  // two numbers (align.nudge, align.nudgeY): the step measures on its own render, so the two
+  // agree to the units a fallback face costs, never to the sign or the tens.
+  const nudgeLine = page.getByTestId('map-svg-nudge-t0');
+  await expect(nudgeLine).toContainText(/keep the nudge you drew: (\d+) px to the left, (\d+) px up/);
+  const [, said, saidUp] = /(\d+) px to the left, (\d+) px up/.exec((await nudgeLine.textContent())!)!;
+  expect(Math.abs(Number(said) + drawn.align.nudge!)).toBeLessThanOrEqual(3);
+  expect(Math.abs(Number(saidUp) + drawn.align.nudgeY!)).toBeLessThanOrEqual(4);
+
+  // ONE CLICK, BOTH AXES. The caret changes its words, the dot fills, the document is rebuilt
+  // with the declaration in its own table, and the runtime anchors the block on the plate's
+  // left inside edge and lifts it to the top: the block's centre moves left of where it stood,
+  // and up.
+  await rebuilt(() => dot('start', 'top').click());
+  await row.hover();
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('left, top');
+  await expect(dot('start', 'top')).toHaveAttribute('aria-checked', 'true');
+  await expect(dot('start', 'top')).toHaveClass(/set/);
+  await expect(dot('middle', 'middle')).toHaveAttribute('aria-checked', 'false');
+  await expect(dot('start', 'top')).toHaveAttribute('title', 'left, top - set by you');
+  await expect(dot('middle', 'middle')).toHaveAttribute('title', 'centred, middle - read from your drawing');
+  // Declared away from the drawn anchor, the nudge has nothing of the designer's to keep.
+  await expect(nudgeLine).toHaveCount(0);
+  const leftTop = await runtime();
+  expect(leftTop.lines).toEqual([{ el: 'f0', h: 'start', v: 'top' }]);
+  expect(leftTop.align).toMatchObject({ h: 'start', v: 'top', derived: false });
+  expect(leftTop.anchor).toBe('start');
+  expect(leftTop.cx).toBeLessThan(drawn.cx - 100);
+  expect(leftTop.cy).toBeLessThan(drawn.cy - 20);
+
+  // AND THE OPPOSITE CORNER, to show it is the grid and not a coincidence of the first click.
+  await rebuilt(() => dot('end', 'bottom').click());
+  const rightBottom = await runtime();
+  expect(rightBottom.lines).toEqual([{ el: 'f0', h: 'end', v: 'bottom' }]);
+  expect(rightBottom.anchor).toBe('end');
+  expect(rightBottom.cx).toBeGreaterThan(drawn.cx + 100);
+  expect(rightBottom.cy).toBeGreaterThan(drawn.cy + 20);
+
+  // THE DRAWN DOT HANDS THE ROW BACK TO THE DRAWING: no declaration, no table, the derived
+  // answer again - and the nudge line is back, because the anchor is the one it was measured
+  // from.
+  await rebuilt(() => dot('middle', 'middle').click());
+  await expect(dot('middle', 'middle')).not.toHaveClass(/set/);
+  const back = await runtime();
+  expect(back.lines).toBeNull();
+  expect(back.align.derived).toBe(true);
+  expect(Math.abs(back.cx - drawn.cx)).toBeLessThan(0.5);
+  await expect(nudgeLine).toBeVisible();
+
+  // KEEP THE NUDGE. The table carries only the flag, the runtime moves the anchor by the offset
+  // it measured, and the block stands where he drew it: the snapped centre plus the nudge,
+  // sideways and up. The word under the block is still "centred": the offset rides the anchor.
+  await rebuilt(() => nudgeLine.locator('input').check());
+  const kept = await runtime();
+  expect(kept.lines).toEqual([{ el: 'f0', nudge: true }]);
+  expect(Math.abs(kept.cx - (drawn.cx + drawn.align.nudge!))).toBeLessThan(0.5);
+  expect(Math.abs(kept.cy - (drawn.cy + drawn.align.nudgeY!))).toBeLessThan(1);
+  await row.hover();
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('centred, middle');
+});
+
+// A LINE WITH NO BOX GETS NO GRID. There is nothing to align it in, so the control is absent
+// rather than greyed (`wizard/offer-control-can-change-graphic-front`).
+test('svg import: a line with no box under it offers no alignment grid', async ({ page }) => {
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+      <text id="Home" x="20" y="60" font-size="30" fill="#fff">Rovers</text>
+    </svg>`,
+    'nobox.svg',
+  );
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-row-t0')).toBeVisible();
+  await expect(page.getByTestId('map-svg-align-t0')).toHaveCount(0);
+});
+
+// A ROW KEEPS ITS BOX WHEN IT IS UNTICKED. Which box a line sits in is a fact about where it was
+// DRAWN, not about whether the operator may retype it - so the measurement runs over every text
+// row rather than the bound ones. Read the other way the list would reshuffle under the reader's
+// cursor as they worked down the checkboxes, which is the one thing a checklist must not do.
+test('svg import: unticking a line leaves it in its own box', async ({ page }) => {
+  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
+  await page.locator('.wz-next').click();
+  const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
+  await expect(heads).toHaveCount(5);
+  const before = await heads.allTextContents();
+
+  const firstId = ((await page.getByTestId('map-svg-fields').locator('.map-svg-row').first()
+    .getAttribute('data-testid')) ?? '').replace('map-svg-row-', '');
+  await untickTextRow(page, firstId);
+
+  await expect(heads).toHaveCount(5);
+  expect(await heads.allTextContents()).toEqual(before);
+  await expect(
+    page.getByTestId('map-svg-fields').locator('.map-svg-box-group').first().locator('.map-svg-row'),
+  ).toHaveCount(1);
+});
+
+// A BACKPLATE IS NOT A BOX. A shape covering most of the frame holds every line there is, so
+// heading the whole checklist with it is a heading rather than a grouping - the same sentence
+// `repeatsWithNewContent` already acts on, at the same 0.7 of the frame. The Inkscape bumper is
+// the case: one full-bleed rectangle behind a headline and a subtitle. Grouping by it would have
+// filed both lines under "Black plate" and told the reader nothing, and grouping by it PARTLY -
+// one line inside, one not - reordered the checklist away from the order the file draws in.
+test('svg import: a full-frame backplate does not become a box to group by', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg2(page, fileURLToPath(
+    new URL('fixtures/svg-corpus/inkscape-text-on-path-bumper.svg', import.meta.url),
+  ));
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+
+  // No headings at all, and the two rows stand in the order the file draws them.
+  await expect(page.getByTestId('map-svg-fields').locator('.map-svg-box-head')).toHaveCount(0);
+  const rows = page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-row-"]');
+  await expect(rows).toHaveCount(2);
+  await expect(page.getByTestId('map-svg-sample-t0')).toHaveValue('CHAMPIONS');
+
+});
+
+// The other side of the same rule: the scorebug's plates are 2.5% of the SAME 1920x1080 frame, so
+// they are boxes and the file groups into two. The rule is about a shape's size against the
+// artwork, never about how many shapes a file happens to draw.
+test('svg import: plates well inside the frame are boxes, and group the checklist', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg2(page, SCOREBUG_SVG);
+  const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
+  await expect(heads).toHaveCount(2);
+  await expect(heads.nth(0)).toContainText('plate');
+  await expect(heads.nth(1)).toContainText('plate');
+});
+
+// AND THE CHECKLIST NEVER RE-SORTS ITSELF. A group is a run of consecutive rows, so showing which
+// box a row is in cannot move it: the Affinity board's backplate is 73% of the frame, which makes
+// its question loose while its four answers sit on plates of their own. Collected by box, the
+// question would be filed after all four answers it is asked above.
+test('svg import: grouping never moves a row out of the order the file draws it in', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg2(page, fileURLToPath(
+    new URL('fixtures/svg-corpus/origin-shifted-quiz-board.svg', import.meta.url),
+  ));
+  const rows = page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-row-"]');
+  await expect(rows).toHaveCount(5);
+  const names = await rows.locator('[data-testid^="map-svg-title-"]').evaluateAll((els) =>
+    els.map((el) => (el as HTMLInputElement).value));
+  expect(names).toEqual(['Question', 'Answer A', 'Answer B', 'Answer C', 'Answer D']);
+
+  // The question heads the list under its own group, which says it has no box rather than naming
+  // the whole-board plate it happens to sit on.
+  const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
+  await expect(heads.first()).toContainText('On the artwork');
+  await expect(heads.first()).toContainText('no box of their own');
 });

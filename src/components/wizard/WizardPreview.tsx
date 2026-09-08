@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { composeDocument } from '../../preview/composeDocument';
 import { postPreviewCmd, PREVIEW_BOX_TYPE, type PreviewCmd } from '../../preview/previewProtocol';
 import {
+  CANVAS_MARK,
   CANVAS_RECTS_TYPE,
   postCanvasCmd,
+  type CanvasFrame,
   type CanvasRect,
   type CanvasRectsMessage,
 } from '../../preview/canvasControlProtocol';
@@ -12,6 +14,52 @@ import { hasMeasuredMotion, parseAnimData } from '../../blocks/animData';
 
 /** Screen px of breathing room between a highlighted layer and its box. */
 const HL_PAD = 4;
+
+/**
+ * TEXT AND ITS BOX, SHOWN ON THE CANVAS (docs/TEXT_BOX_BINDING.md, "the preview overlay").
+ *
+ * The mapping step's checklist says which box a line lives in; this is the same sentence drawn
+ * on the artwork, so a reader can see it rather than take the checklist's word for it. Four
+ * parts, and each one answers a different question a student would ask out loud:
+ *
+ *  - THE BOX, washed amber - "which shape is this?" Painted by the shape itself, through the
+ *    canvas channel's `'mark'` command, so it lights up as the shape the designer drew however
+ *    they turned it. Nothing here draws it.
+ *  - THE INSIDE, a dashed rectangle at the margins the fit keeps, with the two figures - "how
+ *    much room is there?"
+ *  - THE TEXT BOUNDS, a thin line round the block as it stands right now - and the gap between
+ *    that line and the dashed one is how much room is left.
+ *  - THE ALIGNMENT CARET under the block at its anchor, with the word - "which way does a
+ *    longer value fill?"
+ *
+ * EVERYTHING BUT THE WASH IS DRAWN IN THE LINE'S OWN FRAME, which is the frame the runtime
+ * measures the fit in (`svgAlignOf` and `svgLocalBox`, importedDesign/svg.ts). Text and plate
+ * almost always carry the same rotation, so that frame IS the plate turned; where they differ it
+ * is the reading direction, which is the direction a longer value fills. Drawing the room square
+ * to the plate instead would show a rectangle the ladder is not using.
+ *
+ * The box, the insets and the alignment are MEASURED BY THE STEP on its own render of the
+ * artwork, because they are facts about the drawing rather than about whatever value is on air
+ * here this second (`MapSvgFieldsStep.boxFitOf`). They arrive in the line's own units, and land
+ * on this canvas unchanged: `getBBox` leaves out every transform and the mapping between two
+ * elements is a ratio of their matrices, so a uniform page scale cancels and one canvas can
+ * measure what the other draws.
+ */
+export interface PreviewBoxOverlay {
+  /** The shape the hovered line lives in - a selector inside the running document. The only
+   *  part of this the app does not draw: the shape washes ITSELF, through the canvas channel's
+   *  `'mark'` command, so the wash is the shape whatever the designer did to it. */
+  selector: string;
+  /** That shape's room, in the LINE's own units. */
+  box: { x: number; y: number; width: number; height: number };
+  /** The margin the fit keeps on each axis, in the same units - the gap the designer left,
+   *  mirrored, except on an axis the block is centred on, where that gap is half the centring
+   *  rather than a margin and a typographic one stands in for it (`MapSvgFieldsStep.boxFitOf`). */
+  insetX: number;
+  insetY: number;
+  /** How they aligned the block in that box, in the words the reader is shown. */
+  align: { h: 'left' | 'centred' | 'right'; v: 'top' | 'middle' | 'bottom' };
+}
 
 /** How long the demo holds the settled graphic before taking it off, and how long it stays off
  *  before coming back. Viewing rhythm rather than motion, so these stay fixed: the MOTION is
@@ -53,6 +101,13 @@ interface Props {
    * the iframe (it carries no allow-same-origin, like every other preview surface).
    */
   highlightSelector?: string | null;
+  /**
+   * TEXT AND ITS BOX (see `PreviewBoxOverlay`): the box the highlighted line lives in, with the
+   * room the designer left round it and the alignment they drew. Null for a line with no box -
+   * text sitting straight on the artwork has no room to show and nothing to be aligned in, so
+   * the plain outline is the whole truthful answer there.
+   */
+  boxOverlay?: PreviewBoxOverlay | null;
   /**
    * ADD A FIELD BY DRAWING ONE (docs/SVG_IMPORT_PLAN.md §6a step 3). A selector inside the
    * running document: the space a drawn box is reported IN, as fractions of that element's own
@@ -119,6 +174,7 @@ export default function WizardPreview({
   demoOut = false,
   demoText = null,
   highlightSelector,
+  boxOverlay = null,
   drawIn,
   drawing = false,
   onDraw,
@@ -128,8 +184,15 @@ export default function WizardPreview({
   rehearse = false,
 }: Props) {
   // A surface that never asks for a highlight pays nothing: the rect channel is installed only
-  // for one that does (the prop present at all, even as null, is the step saying so).
+  // for one that does (the prop present at all, even as null, is the step saying so). The box
+  // overlay is deliberately NOT one of these: it is drawn in the highlighted line's own frame,
+  // so a surface asking for one is already asking for the other - and a prop that changes on
+  // every hover must never decide what the DOCUMENT is composed with, or pointing at a row
+  // would rebuild the graphic underneath it.
   const tracking = highlightSelector !== undefined || drawIn !== undefined || pickable !== undefined;
+  // The box overlay's own selector, as a stable value to depend on (the object is fresh each
+  // render of the step above, exactly like `pickable`).
+  const boxSel = boxOverlay?.selector ?? '';
   // The pickable set as a stable KEY: the prop is a fresh array on every render of the step
   // above, and depending on the array itself would re-post the `track` command each time.
   const pickKey = (pickable ?? []).join('|');
@@ -213,6 +276,10 @@ export default function WizardPreview({
   // for it (see the highlight block below). Two things want one: the hover highlight, and the
   // draw marquee, which needs the ARTWORK's box to report a drag relative to it.
   const [rects, setRects] = useState<Record<string, CanvasRect | null>>({});
+  // And the FRAME of the one selector the box overlay draws in - that element's own box and the
+  // matrix that puts it on the canvas. Asked for separately from the rects because the editor
+  // canvas tracks hundreds of selectors and wants none of them (canvasControlProtocol.ts).
+  const [frames, setFrames] = useState<Record<string, CanvasFrame | null>>({});
   // The layer under the pointer while picking (plan §6a step 5), and the grab a drag started
   // from. Declared here with the other rect state because the highlight below reads them.
   const [pickHover, setPickHover] = useState<string | null>(null);
@@ -220,6 +287,15 @@ export default function WizardPreview({
   // What the highlight box is drawn around. A layer under the POINTER wins over one a checklist
   // row is pointing at: the reader's hand is the more recent statement of what they mean.
   const hoverRect = pickHover ? rects[pickHover] ?? null : highlightSelector ? rects[highlightSelector] ?? null : null;
+  // THE OUTLINE IN THE LAYER'S OWN FRAME, whenever the document has answered with one: the same
+  // box, turned the way the artwork is turned. A pointer on the canvas is answered with the
+  // rectangle instead - it names WHICH layer is under the hand, and no frame is asked for the
+  // fifty selectors that would need.
+  const outlineFrame = pickHover ? null : highlightSelector ? frames[highlightSelector] ?? null : null;
+  // The box the highlighted line lives in, carried WITH the frame it is stated in - the line's
+  // own. There is nothing to draw until that frame has arrived, and nothing to say while a
+  // pointer is picking, so the canvas makes one statement at a time.
+  const room = boxOverlay && outlineFrame ? { ...boxOverlay, frame: outlineFrame } : null;
   const drawRect = drawIn ? rects[drawIn] ?? null : null;
   // The marquee being dragged, in canvas px; null when no drag is in flight.
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -257,6 +333,7 @@ export default function WizardPreview({
       // The old document's last rects describe a layout that no longer exists — drop them
       // rather than leaving a box hanging over the new one until its first frame arrives.
       setRects({});
+      setFrames({});
       setSrcdoc(doc);
     }, 220);
     return () => clearTimeout(t);
@@ -290,6 +367,7 @@ export default function WizardPreview({
       const msg = ev.data as CanvasRectsMessage | undefined;
       if (!msg || msg.type !== CANVAS_RECTS_TYPE) return;
       setRects(msg.rects);
+      setFrames(msg.frames ?? {});
     };
     window.addEventListener('message', onRects);
     return () => window.removeEventListener('message', onRects);
@@ -302,11 +380,25 @@ export default function WizardPreview({
     const selectors = [...new Set([highlightSelector, drawIn, ...pickKey.split('|')])].filter(
       (s): s is string => !!s,
     );
-    postCanvasCmd(frameRef.current?.contentWindow, { cmd: 'track', selectors });
+    // Only the highlighted LINE wants a frame - the box overlay is stated in that line's units
+    // and the wash is painted by the shape itself, so no second frame is asked for. Everything
+    // else is hit-tested and outlined from a rectangle, which is what a rectangle is good for.
+    const framed = [highlightSelector].filter((f): f is string => !!f);
+    postCanvasCmd(frameRef.current?.contentWindow, { cmd: 'track', selectors, frames: framed });
+    // THE BOX IS PAINTED BY THE SHAPE ITSELF. A rect coming out of the document is axis-aligned,
+    // so a wash drawn from one would sit over the wrong thing on a plate drawn on an angle -
+    // which is the defect this overlay exists to fix. Sent every time the tracking is, including
+    // after a rebuild, because a fresh document wears no marks.
+    postCanvasCmd(frameRef.current?.contentWindow, {
+      cmd: 'mark',
+      className: CANVAS_MARK.LIT,
+      selectors: boxSel ? [boxSel] : [],
+    });
     if (selectors.length === 0) setRects({});
+    if (framed.length === 0) setFrames({});
     // The pickable set is depended on as a KEY, not as the array: a fresh array identity every
     // render would re-post `track` on every render of the step above.
-  }, [tracking, highlightSelector, drawIn, pickKey]);
+  }, [tracking, highlightSelector, boxSel, drawIn, pickKey]);
   useEffect(trackSelector, [trackSelector]);
 
   const playIn = useCallback(() => {
@@ -514,6 +606,57 @@ export default function WizardPreview({
     ty = height / 2 - (box.y + box.h / 2);
   }
 
+  // ── DRAWING IN A LAYER'S OWN FRAME ──
+  // Both helpers hand the element's matrix to CSS rather than doing the trigonometry here: a
+  // rectangle stated in the layer's own units, transformed by the layer's own matrix, lands
+  // exactly where that layer is however the artwork was turned. `transform-origin: 0 0` and
+  // `box-sizing: border-box` come from the stylesheet, so these only ever compute geometry.
+  //
+  // ONE LOCAL UNIT IS `k` CANVAS PX, and the stage scales canvas px by `z`. So anything drawn
+  // FOR THE READER rather than for the artwork - the rule's own thickness, the breathing room
+  // round a block - is divided back out of both, exactly as the plain highlight divides out the
+  // zoom: at the default fit a 2px rule would otherwise paint a fraction of a pixel.
+  const inFrame = (f: CanvasFrame, r: { x: number; y: number; w: number; h: number }, pad: number) => {
+    const k = Math.hypot(f.m[0], f.m[1]) || 1;
+    const p = pad / (k * z);
+    return {
+      left: 0,
+      top: 0,
+      width: r.w + 2 * p,
+      height: r.h + 2 * p,
+      borderWidth: Math.max(1, 2 / z) / k,
+      transform: `matrix(${f.m.join(',')}) translate(${r.x - p}px, ${r.y - p}px)`,
+    };
+  };
+  /**
+   * A point in a layer's own units, as canvas px - for a label, which must stay level and stay
+   * the same size whatever the artwork does.
+   *
+   * `place` says which side of the point the label hangs on, and every value here keeps it OFF
+   * THE WORDS: a margin on real artwork is a few units wide and a legible chip is a dozen
+   * screen px, so a figure centred in the gap it measures would cover the line it is measuring
+   * (seen on this board's answer plates, whose margins are 34 units at a third of a px each).
+   * So the two figures sit just outside the box on the side they belong to, and only the caret
+   * hangs inside - it is pointing at a place in the block, which is the one thing that has to be
+   * read against the words themselves.
+   */
+  const atPoint = (
+    f: CanvasFrame,
+    x: number,
+    y: number,
+    place: 'under' | 'left-of' | 'above' = 'under',
+  ) => ({
+    left: f.m[0] * x + f.m[2] * y + f.m[4],
+    top: f.m[1] * x + f.m[3] * y + f.m[5],
+    transform:
+      place === 'left-of'
+        ? `translate(calc(-100% - 5px), -50%) scale(${1 / z})`
+        : place === 'above'
+          ? `translate(-50%, calc(-100% - 5px)) scale(${1 / z})`
+          : `translate(-50%, 3px) scale(${1 / z})`,
+    transformOrigin: place === 'left-of' ? 'right center' : place === 'above' ? 'bottom center' : 'top center',
+  });
+
   return (
     <div className="wz-preview">
       {/* The stage is the PROJECT's own frame, not whatever space is left over: a 16:9 (or
@@ -559,12 +702,66 @@ export default function WizardPreview({
             room around the layer are the two things corrected back OUT of that scale, because
             they are drawn for the reader rather than for the artwork: at the default fit a 2px
             rule would paint half a pixel and a 4px gap would close to one. */}
-        {(hoverRect || drawing || picking) && (
+        {(hoverRect || outlineFrame || drawing || picking) && (
           <div
             className="wz-stage-overlay"
             style={{ width, height, transform: `translate(-50%, -50%) scale(${z}) translate(${tx}px, ${ty}px)` }}
           >
-            {hoverRect && (
+            {/* THE INSIDE: the room the designer left, at the drawn insets mirrored, with the
+                two figures. Drawn in the LINE's own frame, which is the frame the ladder measures
+                the fit in - so on a plate turned three degrees under text turned with it, this is
+                the plate's inside rather than a rectangle around it. The gap between this line
+                and the text bounds below is how much room is left. */}
+            {room && (
+              <>
+                <div
+                  className="wz-stage-framed wz-stage-inside"
+                  data-testid="wz-preview-inside"
+                  style={inFrame(
+                    room.frame,
+                    {
+                      x: room.box.x + room.insetX,
+                      y: room.box.y + room.insetY,
+                      w: Math.max(0, room.box.width - 2 * room.insetX),
+                      h: Math.max(0, room.box.height - 2 * room.insetY),
+                    },
+                    0,
+                  )}
+                />
+                {/* The two figures, each just outside the edge it measures, level and the same
+                    size at any zoom - a number turned three degrees is a number nobody reads. */}
+                <div
+                  className="wz-stage-figure"
+                  data-testid="wz-preview-inset-x"
+                  style={atPoint(room.frame, room.box.x, room.box.y + room.box.height / 2, 'left-of')}
+                >
+                  {Math.round(room.insetX)}
+                </div>
+                <div
+                  className="wz-stage-figure"
+                  data-testid="wz-preview-inset-y"
+                  style={atPoint(room.frame, room.box.x + room.box.width / 2, room.box.y, 'above')}
+                >
+                  {Math.round(room.insetY)}
+                </div>
+              </>
+            )}
+            {/* THE TEXT BOUNDS: the block as it stands right now, in its own frame where the
+                document has answered with one and as a plain rectangle where it has not (a
+                pointer on the canvas, an entrance still mid-flight). One element either way, so
+                every surface that reads this box reads the same one. */}
+            {outlineFrame ? (
+              <div
+                className="wz-stage-framed wz-stage-highlight"
+                data-testid="wz-preview-highlight"
+                style={inFrame(outlineFrame, {
+                  x: outlineFrame.box.x,
+                  y: outlineFrame.box.y,
+                  w: outlineFrame.box.width,
+                  h: outlineFrame.box.height,
+                }, HL_PAD)}
+              />
+            ) : hoverRect ? (
               <div
                 className="wz-stage-highlight"
                 data-testid="wz-preview-highlight"
@@ -576,6 +773,33 @@ export default function WizardPreview({
                   borderWidth: Math.max(1, 2 / z),
                 }}
               />
+            ) : null}
+            {/* THE ALIGNMENT CARET, under the block at the anchor a longer value fills from,
+                with the word. Placed off the BLOCK rather than off the box, because the anchor
+                is where the text actually stands - which is the thing the reader is checking. */}
+            {room && (
+              <div
+                className="wz-stage-caret"
+                data-testid="wz-preview-caret"
+                style={atPoint(
+                  room.frame,
+                  room.frame.box.x +
+                    (room.align.h === 'left'
+                      ? 0
+                      : room.align.h === 'centred'
+                        ? room.frame.box.width / 2
+                        : room.frame.box.width),
+                  room.frame.box.y + room.frame.box.height,
+                  'under',
+                )}
+              >
+                <span className="wz-stage-caret-mark" aria-hidden="true">
+                  ▲
+                </span>
+                <span>
+                  {room.align.h}, {room.align.v}
+                </span>
+              </div>
             )}
             {/* THE PICK SURFACE. Drawing wins when both are armed: a reader who just asked to
                 draw a box means the drag to make one, not to pick what is under it. */}

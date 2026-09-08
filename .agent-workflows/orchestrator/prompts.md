@@ -1,7 +1,9 @@
 # Section 5 - the prompts
 
-One fenced block per session, in START order, each pasteable into a fresh session. Compact -
-target ~20 lines. The pool decision each block rests on is `routing.md`.
+One fenced block per session, in START order, and **each is what THIS SESSION hands the Agent tool**
+(`launch.md`) - printed too, so the owner reads what was started; pasting one into a session he
+opens is the fallback for a row the classifier refused, never the plan. Compact - target ~20 lines.
+The pool decision each block rests on is `routing.md`.
 
 Open the section with a **one-line run order** naming the letters and nothing else, so the user sees
 the shape before reading a prompt: *"Start now: A, B, C, D. E follows on A landing. F held."*
@@ -35,20 +37,18 @@ QUEUE  Then, as your LAST THREE actions and in this order:
 - **`SESSION <letter>` is the first line, always**, before the branch and before anything else.
   Same letter as the wave table, same letter as the branch name. This line exists for the user
   scrolling back at 4pm, not for the session reading it.
-- **There is no `WAIT` line, because a wave is order-free.** `START` is `now` for every session
-  the user starts. The only other value is `on <branch> landing`, and that belongs to a follow-on
-  this workflow launches itself - never to a prompt the user is asked to hold.
+- **There is no `WAIT` line, because a wave is order-free.** `START` is `now` for every row this
+  session launches at once; `on <branch> landing` and `on slot free` are fired by the loop itself.
 - **No prompt ever contains a step for the user, and no session blocks on a question.** Not "ask
   the owner", not "wait for approval". A session that stops to ask does nothing all night: it
   decides with the WHY, or writes the question into its handoff and does the rest. The owner
   dropping in to talk to a running session is always welcome and never required - a wave must
   finish identically with or without it. Anything that genuinely needs the user is a note in
   section 4, never a line in a prompt.
-- **Claude Code prompts the USER starts open with a Remote Control reminder** while the
-  auto-connect bug stands: the session's first output tells the user to type `/remote-control` (a
-  session cannot invoke terminal built-ins itself). An auto-launched subagent has no terminal, so
-  it gets no reminder. Temporary - drop this bullet when new sessions reach the phone on their
-  own; the memory `remote-control-every-session` carries the exit test.
+- **Only a prompt the USER opens carries a Remote Control reminder** - its first output tells him
+  to type `/remote-control`, since a session cannot invoke a terminal built-in. A launched subagent
+  has no terminal and gets none, so this now covers only a classifier-refused row. Temporary; the
+  memory `remote-control-every-session` carries the exit test.
 - **`<tool>` is whichever tool will run it** - `claude/…` or `codex/…`. Never hardcode one.
 - **GOAL is a DEFINITION OF DONE, and the session self-checks against it before the handoff.**
   Write it as a claim a reader could test by observation - never "improve X". Before the handoff,

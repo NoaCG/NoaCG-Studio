@@ -4,7 +4,7 @@
 > literal-patching architecture this plan is written around was then retired by
 > **Timeline v2** (`docs/TIMELINE_V2_PLAN.md` - the migration is complete; the patchers are
 > deleted). The binding interaction contract today is `docs/TIMELINE_INTERACTION_MODEL.md`;
-> the engine contracts live in `src/blocks/CLAUDE.md`. Kept as the rationale record for the
+> the engine contracts live in `src/blocks/AGENTS.md`. Kept as the rationale record for the
 > segment-chain model and the competitive research (Loopic / SPX steps).
 
 The timeline's job: make **complex broadcast animation sequencing controllable and

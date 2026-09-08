@@ -97,6 +97,9 @@ function emitted(tail) {
 }
 const harness = await emitted('harness/agent.js');
 const patchModule = await emitted('harness/patch.js');
+// The region readers moved to blocks/ so `bridgeApi.normalize` could give the agent CLI the
+// same explanation this bench gives the model, instead of the generic sentence.
+const regionModule = await emitted('blocks/animationRegion.js');
 const findingsModule = await emitted('harness/findings.js');
 
 await mkdir(OUT, { recursive: true });
@@ -217,6 +220,8 @@ async function mountAndMeasure(template, data, opts) {
     if (opts.shotPath) await writeFile(opts.shotPath, png);
   }
   const steps = [];
+  // `opts.steps` is how many presses THIS GRAPHIC answers (its default path minus the exit), set
+  // by the caller from the template's own data - not how many operator actions the brief listed.
   for (let k = 1; k <= (opts.steps ?? 0); k += 1) {
     const press = await page.evaluate(async () => {
       const win = document.getElementById('harness-frame')?.contentWindow;
@@ -304,7 +309,7 @@ function instrumentFindings(measured, frame, advisoryInstruments) {
   return out;
 }
 
-function createPlaywrightWorkbench({ proType, ticker, steps, shotsDir, tag }) {
+function createPlaywrightWorkbench({ proType, ticker, briefSteps, shotsDir, tag }) {
   const advisoryInstruments = !CALIBRATED[proType ?? ''];
   return {
     async listTypes() {
@@ -393,7 +398,7 @@ function createPlaywrightWorkbench({ proType, ticker, steps, shotsDir, tag }) {
       // correct timeline (docs/AI_ATTEMPTS.md); `animationBreach` names the first unmet check in
       // the importer's own order, which is what makes this a repairable finding.
       if (!converted) {
-        const breach = patchModule.animationBreach(template.js);
+        const breach = regionModule.animationBreach(template.js);
         raw.push({
           source: 'harness',
           code: 'animation-unconvertible',
@@ -419,8 +424,49 @@ function createPlaywrightWorkbench({ proType, ticker, steps, shotsDir, tag }) {
         const block = w.rule === 'bench-field-unpainted' || w.rule.startsWith('pro-plate-');
         raw.push({ source: w.rule.startsWith('bench-') ? 'runtime' : 'static', code: w.rule, severity: block ? 'block' : 'advise', message: w.message, locus: locus(w.message) });
       }
+      // HOW MANY `next()` PRESSES THIS GRAPHIC ANSWERS - read off its own default path, never off
+      // the brief. `revealNextStep` advances the path once per press and returns null when only
+      // Out remains, so the legal count is `spxSteps - 1`; asking for more is asking a question
+      // the contract answers with "nothing happens".
+      //
+      // It used to press once per operator step the BRIEF listed, and that is a category error for
+      // a machine-driven type, whose operator actions are EVENTS rather than path steps. Measured
+      // 2026-09-07: all 12 shipped quiz boards answer exactly one press (In -> Reveal; the reveal
+      // is a lifecycle call on the middle step, and Out is reached by stop()), and the shipped
+      // podium-score spine answers none - so a brief listing three reveals refused every quiz cell
+      // at press 2 and could not have passed a single shipped board either. The type owns the
+      // ANIMATION region, so the model could not have fixed it: unwinnable by construction
+      // (docs/AI_ATTEMPTS.md, the fifth fault).
+      const defaultPath = await page.evaluate(async (js) => {
+        const bust = '?t=' + Date.now();
+        const { parseAnimData } = await import('/src/blocks/animData.ts' + bust);
+        const { spxSteps } = await import('/src/blocks/animMachine.ts' + bust);
+        const data = parseAnimData(js);
+        if (!data) return null;
+        const n = spxSteps(data);
+        return { presses: Number.isFinite(n) ? Math.max(n - 1, 0) : 0, machine: Boolean(data.machine) };
+      }, normalized.js);
+      // The half of the brief expectation the model CAN act on: where it owns the region (no
+      // machine), a graphic that offers fewer path steps than the brief asked for has not been
+      // built to the brief, and the repair is a step in the ANIMATION region. Where the type owns
+      // the region, the brief's actions are the machine's events and this is not the model's to
+      // answer.
+      if (briefSteps && defaultPath && !defaultPath.machine && defaultPath.presses < briefSteps) {
+        raw.push({
+          source: 'harness',
+          code: 'step-count',
+          // ADVISORY UNTIL SOMETHING EXERCISES IT. Every brief in the bank that lists operator
+          // steps names a machine-driven type, so this has never fired, and it rests on a
+          // reading of the brief - that its first listed step follows the entrance rather than
+          // being it. A blocking finding nobody has watched fire is the shape this round was
+          // spent removing (docs/AI_ATTEMPTS.md); promote it once a run shows it landing on a
+          // graphic that genuinely missed a step.
+          severity: 'advise',
+          message: `the brief asks for ${briefSteps} operator step(s) but the graphic's default path offers ${defaultPath.presses}: add the missing step(s) to the ANIMATION region - one next() press plays one step, and the last step is the exit`,
+        });
+      }
       const shots = shotsDir ? { hold: path.join(shotsDir, `${tag}.hold.png`), long: path.join(shotsDir, `${tag}.long.png`) } : {};
-      const hold = await mountAndMeasure(normalized, sampleValues(normalized), { proType, ticker, steps, capture: options.capture, shotPath: shots.hold });
+      const hold = await mountAndMeasure(normalized, sampleValues(normalized), { proType, ticker, steps: defaultPath ? defaultPath.presses : 0, capture: options.capture, shotPath: shots.hold });
       if (hold.playError) raw.push({ source: 'runtime', code: 'play-threw', severity: 'block', frame: 'hold', message: `the template threw at play(): ${hold.playError}` });
       raw.push(...instrumentFindings(hold.measured, 'hold', advisoryInstruments));
       for (const s of hold.steps) {
@@ -466,7 +512,7 @@ if (control) {
   let failed = false;
   const shotsDir = path.join(OUT, 'control');
   await mkdir(shotsDir, { recursive: true });
-  const wb = createPlaywrightWorkbench({ proType: 'lower-third', ticker: false, steps: 0, shotsDir, tag: 'control' });
+  const wb = createPlaywrightWorkbench({ proType: 'lower-third', ticker: false, briefSteps: 0, shotsDir, tag: 'control' });
 
   console.log('control 1: scaffold the lower third on its neutral spine');
   const scaffold = await wb.scaffold({ typeId: 'lower-third', name: 'Control strap' });
@@ -534,7 +580,7 @@ span#f1 { font-size: calc(26px * var(--scale) * var(--type-scale)); color: var(-
       };
     },
   });
-  const loopWb = createPlaywrightWorkbench({ proType: 'lower-third', ticker: false, steps: 0, shotsDir, tag: 'control-loop' });
+  const loopWb = createPlaywrightWorkbench({ proType: 'lower-third', ticker: false, briefSteps: 0, shotsDir, tag: 'control-loop' });
   const result = await harness.runProHarness({
     workbench: loopWb,
     models: { cheap: mock },
@@ -578,7 +624,7 @@ for (const entry of briefs) {
     entry.brief.steps?.length ? `Operator steps, in order: ${entry.brief.steps.join(' -> ')}.` : '',
   ].filter(Boolean).join('\n');
   const tag = `${entry.id}.${route.model.replace(/[^a-z0-9.-]/gi, '_')}`;
-  const wb = createPlaywrightWorkbench({ proType: CALIBRATED[entry.type] ?? null, ticker: entry.type === 'ticker', steps: Math.min(entry.brief.steps?.length ?? 0, 6), shotsDir: path.join(OUT, 'shots'), tag });
+  const wb = createPlaywrightWorkbench({ proType: CALIBRATED[entry.type] ?? null, ticker: entry.type === 'ticker', briefSteps: Math.min(entry.brief.steps?.length ?? 0, 6), shotsDir: path.join(OUT, 'shots'), tag });
   console.log(`\n== ${entry.id} (${entry.type}) ==`);
   const started = Date.now();
   const result = await harness.runProHarness({

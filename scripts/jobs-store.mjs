@@ -172,7 +172,7 @@ export function stampGap(stamp, tip) {
 export function addJob(dir, {
   command, checkout, branch = null, kind = 'gate', after = [], capMinutes = POLICY.capMinutes,
   retryOf = null, retryCount = 0, orderHold = null, blockedSince = null,
-  retryReason = null, repinnedRetry = false, ciDispatched = false, review = null, now,
+  retryReason = null, ciDispatched = false, review = null, now,
 }) {
   if (!KINDS.includes(kind)) throw new Error(`unknown job kind: ${kind}`);
   if (typeof command !== 'string' || command.trim() === '') throw new Error('a job needs a command');
@@ -208,7 +208,6 @@ export function addJob(dir, {
       ...(orderHold ? { orderHold } : {}),
       ...(blockedSince ? { blockedSince } : {}),
       ...(retryReason ? { retryReason } : {}),
-      ...(repinnedRetry ? { repinnedRetry } : {}),
       // This landing has already been handed a full CI run by the queue. Kept on the record so a
       // second gate-proved-nothing refusal escalates rather than asking for another.
       ...(ciDispatched ? { ciDispatched } : {}),
@@ -520,16 +519,16 @@ export function declaredCommitOf(job) {
 /**
  * Did this landing put its branch on main, whatever became of its process?
  *
- * GIT IS THE RECEIPT, and it outranks the job record. `auto-merge.mjs` pushes the integrated
- * commit and only then returns, so a landing killed between the push and the exit has done its
- * whole job - and the proof is durable, in a ref, long after the process is gone. `inMain` is the
- * one `git merge-base --is-ancestor` call that reads it, and it is the same instrument wave-tick
- * uses, which is why containment reporting stayed correct on 2026-09-04 while job status did not.
+ * GIT IS THE RECEIPT, and it outranks the job record. The merge queue merges the group and the
+ * watcher only then sees it, so a watcher killed between the merge and its own exit has missed a
+ * landing that already happened - and the proof is durable, in a ref, long after the process is
+ * gone. `inMain` is the one `git merge-base --is-ancestor` call that reads it, and it is the same
+ * instrument wave-tick uses, which is why containment reporting stayed correct on 2026-09-04 while
+ * job status did not.
  *
- * NOT `movedOnlyByItsOwnLanding`, which is next door and answers a different question. That one
- * asks whether the BRANCH tip moved only by its own integration merges, so that a retry may be
- * re-pinned forward; it says nothing about whether main contains the branch, and a landing can
- * satisfy it having landed nothing at all. Two questions, two predicates.
+ * It answers from a ref this checkout can already see, so a fetch it did not make can leave it
+ * saying "not landed" about a branch that landed. That is the safe direction: the fallback is
+ * re-running the watcher, which asks GitHub and costs a poll rather than a CI run.
  *
  * An unpinned landing (queued before pinning existed) answers false: with no declared commit there
  * is nothing to look for, and reading the branch tip instead would call a branch landed on the
@@ -765,7 +764,7 @@ export function devServerPrecheck(job, { port = null, busy = false } = {}) {
 
 // -- An ordering block is a WAIT, not a death ---------------------------------------------------
 //
-// `auto-merge.mjs` refuses a branch whose blocker is still ahead of main with no landing queued
+// The retired laptop lander refused a branch whose blocker was still ahead of main with no landing queued
 // for it, on the sound reasoning that deferring is a bet the queue will land that blocker, and a
 // bet that cannot pay just burns the deferral budget. The refusal is right. What happened AFTER it
 // was not: the job went `failed`, and nothing ever brought it back - so when the blocker was
@@ -816,9 +815,10 @@ export const SHARDS_SKIPPED_REFUSAL = 'shards-skipped';
  * queue's own recoveries are marked `byQueue`; the rest are commands the session runs itself, and
  * none of them can land work a session never declared finished.
  *
- * Kinds this does not know return null, which is not a gap to fix by guessing: a landing runs the
- * copy of `auto-merge.mjs` in its own branch's checkout, so a branch cut before a kind existed
- * refuses without one, and the generic sentence is the honest answer for it.
+ * Kinds this does not know return null, which is not a gap to fix by guessing. The kinds come from
+ * job records, and records outlive the tooling that wrote them - a landing refused by the retired
+ * laptop lander carries a kind nothing prints any more, and the generic sentence is the honest
+ * answer for it.
  */
 export function refusalGuidance(refusal, branch = '<branch>') {
   const kind = refusal?.kind;
@@ -849,8 +849,11 @@ function refusalSentence(kind, branch, blockers) {
       return { summary: `blocked by ${blockers || 'another branch'} - held until one lands or is queued`, recovery: null };
     case STALE_PIN_REFUSAL:
       return {
-        summary: 'the pin had moved past the commit it was queued at - the previous landing\'s own integration',
-        recovery: `node scripts/jobs.mjs requeue ${branch}`,
+        // NOT `requeue`: that verb re-runs the declaration this branch has already moved past, so
+        // it refuses on the same pin. Only the branch's own session can declare the new commits
+        // finished, and `/check` has to see them first.
+        summary: 'the branch was pushed after it was declared finished, so the queued declaration no longer covers it',
+        recovery: `run /check on ${branch}, then npm run queue:merge from its own session`,
       };
     case SHARDS_SKIPPED_REFUSAL:
       return {
@@ -892,7 +895,7 @@ function refusalSentence(kind, branch, blockers) {
 }
 
 /**
- * The line `auto-merge.mjs` prints so the queue can tell WHICH refusal it just made.
+ * The line a landing prints so the queue can tell WHICH refusal it just made.
  *
  * An exit code carries one integer and this needs a payload - which branches blocked it - so the
  * landing script states its refusal in one machine-readable line and the runner reads it back out
@@ -907,12 +910,11 @@ export const REFUSAL_MARKER = 'auto-merge REFUSAL-KIND:';
  * Read once, by the runner, at the moment the process exits - everything downstream reads the
  * structured field it writes onto the job rather than reading the log again.
  *
- * THE PROSE FALLBACKS ARE NOT BELT AND BRACES, they are the whole mechanism for a fortnight. A
- * landing runs the copy of `auto-merge.mjs` in the BRANCH's own checkout (the limit
- * `retryLandingFor` documents), so every branch cut before the marker existed refuses in words and
- * nothing else. Those are exactly the branches queued tonight, so the sentences they already print
- * are matched too. `scripts/auto-merge.test.mjs` asserts the live script still says them: a
- * fallback nobody checks is a fallback that has already rotted.
+ * THE PROSE FALLBACKS ARE NOT BELT AND BRACES. The marker was added to a landing script that ran
+ * from the BRANCH's own checkout, so every branch cut before it refused in words and nothing else,
+ * and those were the branches queued that fortnight. Both readings are kept because the same is
+ * true of any refusal wording: this reads a LOG, and a log is written by whatever tooling that job
+ * ran, which is never guaranteed to be the copy standing here.
  */
 export function classifyRefusal(logText, { attemptMark = null } = {}) {
   const whole = String(logText ?? '');
@@ -930,7 +932,7 @@ export function classifyRefusal(logText, { attemptMark = null } = {}) {
   }
   const ordered = /blocked by (.+?) - still ahead of main, and NO landing is queued/.exec(text);
   if (ordered) return { kind: ORDER_BLOCKED_REFUSAL, blockers: splitBranches(ordered[1]) };
-  if (/has moved since it was queued/.test(text)) return { kind: STALE_PIN_REFUSAL, blockers: [] };
+  if (/moved after it was declared finished/.test(text)) return { kind: STALE_PIN_REFUSAL, blockers: [] };
   return null;
 }
 
@@ -1099,44 +1101,47 @@ export const MAX_LANDING_RETRIES = 1;
  * carries the `--expect-sha` pin from the original queueing, so if the session woke up and
  * pushed another commit, the retry refuses instead of landing work nobody declared.
  *
- * ONE LIMIT WORTH KNOWING. The retry runs in the branch's OWN checkout, so it executes that
- * branch's copy of `auto-merge.mjs` - the queue has always worked this way, and it is why a
- * landing gates itself with its own tooling. It means a branch that predates a fix to the landing
- * path retries with the old behaviour. A branch old enough for that is settled with a fresh
- * `add-merge` from its worktree instead, which re-pins to the current tip.
- *
- * WHAT DOES NOT RETRY, and this is the whole safety of it: anything CI actually judged. A red
- * gate, a conflict, a dirty tree, a preflight refusal (exit 1) are verdicts, and retrying a
- * verdict is how a queue lands something that was refused. `blocked` (exit 3) already has its own
- * deferral loop, and a red main (exit 4) is fixed by a person, not by trying again. What is left
- * is exactly the set where the machine failed to answer: killed at the cap, reaped after its
- * runner died, or `no-verdict` from the CI wait.
+ * WHAT DOES NOT RETRY, and this is the whole safety of it: anything the landing actually judged. A
+ * red check, a conflict with main, a pull request that fell out of the queue are verdicts, and
+ * retrying a verdict is how a queue lands something that was refused. What is left is exactly the
+ * set where the machine failed to answer: killed at the cap, reaped after its runner died, or
+ * `no-verdict` from the watcher's own hour.
  */
 /**
- * The job's own landing command, re-pinned to the branch's current tip - or null if it may not be.
+ * The job's own landing command if the branch still stands where it was declared, else null.
  *
  * Shared by the automatic retry and the by-hand `requeue`, because the safety argument is the same
- * one and it must not exist twice: the pin may only move over commits that are provably the
- * previous landing's own integration of main, so neither path can ever land a commit the session
- * did not declare finished. A branch that really moved, or one whose tip cannot be read, gets null
- * and no landing at all.
+ * one and it must not exist twice: neither path may re-run a declaration over a commit the session
+ * did not declare finished. A branch that moved, or one whose tip cannot be read, gets null and no
+ * landing at all.
+ *
+ * THE PIN NEVER MOVES NOW, and that is a simplification the retired laptop lander paid for. It
+ * used to be allowed to move over commits that were provably the previous landing's own
+ * integration of `main`, because that lander merged `main` into the branch and pushed the result
+ * before it gated - so its own first attempt moved the tip out from under the pin, and a verbatim
+ * retry refused for a commit the queue itself had made (j-0519, 2026-09-04). GitHub's merge queue
+ * builds its temporary merge on GitHub and never writes the branch, so the only thing that can
+ * move a tip now is a session pushing to it, and that is exactly what the pin exists to refuse.
  */
-function repinnedCommand(job, { tipOf = () => null, movedOnlyByItsOwnLanding = () => false } = {}) {
+function repinnedCommand(job, { tipOf = () => null } = {}) {
   const pinned = declaredCommitOf(job);
-  if (!pinned) return job.command; // Queued before pinning existed; nothing to re-pin.
+  if (!pinned) return job.command; // Queued before pinning existed; nothing to check it against.
   const tip = tipOf(job.branch);
   if (!tip) return null; // A branch we cannot read is not one to queue a landing for.
-  if (tip === pinned) return job.command;
-  if (!movedOnlyByItsOwnLanding(pinned, tip)) return null;
-  return job.command.replace(pinned, tip);
+  return tip === pinned ? job.command : null;
 }
 
 export function retryLandingFor(job, {
   tipOf = () => null,
-  movedOnlyByItsOwnLanding = () => false,
   inMain = () => false,
 } = {}) {
   if (!job || job.kind !== 'merge' || !job.branch || !job.command) return null;
+  // A COMMAND THIS BUILD CAN STILL RUN. The queue keeps records for a fortnight, so records written
+  // by the retired laptop lander outlive it - and a retry copies the command VERBATIM, which is
+  // what makes it a re-run rather than a new declaration. Copying one that names a deleted script
+  // would spend a serialised merge slot and the branch's single retry on a module-not-found, with
+  // no refusal kind to name it. The branch is not stranded: its own session queues it afresh.
+  if (!/\bland-watch\.mjs\b/.test(job.command)) return null;
   // NOTHING LEFT TO LAND. A landing that pushed and was then reaped or killed at its cap has the
   // best verdict there is sitting in a ref, and re-running it spends a whole serialised slot to
   // refuse. This is checked FIRST, ahead of every other reason to retry, because it is the one
@@ -1147,29 +1152,10 @@ export function retryLandingFor(job, {
     || job.reapedAsDead === true
     || job.exitCode === NO_VERDICT_EXIT;
 
-  // A BUDGET SPENT BY A BUG IS NOT A BUDGET. Before 67374b59 a retry carried the original pin
-  // verbatim, and every landing pushes an integrated commit before it gates - so a retry of a
-  // landing that died mid-gate was refused for the FIRST attempt's own merge commit, and the
-  // branch's single retry went on nothing at all. `claude/d-queue-walks-itself`,
-  // `claude/f-contracts-point` and `claude/m-counting-graphic-airs-zero` each lost theirs that way
-  // on the night of 2026-09-03, and each landed unchanged the next morning.
-  //
-  // So a stale-pin refusal ON A RETRY is treated as an attempt that never happened: it is retryable
-  // even though it is an exit-1 refusal, and it does not count against the budget. Narrow in the
-  // one way that matters - `retryOf` must be set. A stale pin on a landing a SESSION queued means
-  // that session pushed after declaring the work finished, which is the pin doing exactly its job,
-  // and that refusal stands however often it is asked.
-  // `!job.repinnedRetry` bounds it to ONE free re-run per chain. Without it the arithmetic below
-  // hands the successor the same `retryCount` it started with, so `spent >= MAX_LANDING_RETRIES`
-  // could never trip and a branch that kept being re-pinned would cycle for ever looking busy.
-  const budgetSpentByABug = job.retryOf != null
-    && job.refusal?.kind === STALE_PIN_REFUSAL
-    && !job.repinnedRetry;
-
   // AN ORDERING BLOCK THAT WAS ALREADY FAILED, which is the sweep doing what a hook cannot. The
   // runner parks an ordering block as it happens, but only a runner running THIS code does - and
-  // the landing that refuses is the copy of `auto-merge.mjs` in the branch's own checkout, so for a
-  // fortnight most of them refuse the old way and die. Adopting a dead one puts the same landing
+  // for a fortnight most landings ran an older copy of the tooling and died the old way instead.
+  // Adopting a dead one puts the same landing
   // back ALREADY HELD, so it costs nothing until a blocker lands or is queued, and the hold's clock
   // runs from when it first refused rather than from now.
   //
@@ -1197,29 +1183,19 @@ export function retryLandingFor(job, {
   // It then dispatches its own, which carries `diff_base` and plans the same empty subset, and
   // refuses identically. The branch is not stuck: the second refusal escalates with the command
   // on it, and a person runs the one line. Fixing it properly means the LANDING asking for its
-  // own full run, and that lives in the branch's own copy of `auto-merge.mjs` - which is exactly
+  // own full run, and that lived in the branch's own copy of the landing script - which is exactly
   // the copy an old branch does not have.
   const gatedNothing = job.refusal?.kind === SHARDS_SKIPPED_REFUSAL && !job.ciDispatched;
 
-  if (!noVerdict && !budgetSpentByABug && !orderBlocked && !gatedNothing) return null;
-  const spent = Math.max(0, (job.retryCount ?? 0) - (budgetSpentByABug ? 1 : 0));
+  if (!noVerdict && !orderBlocked && !gatedNothing) return null;
+  const spent = job.retryCount ?? 0;
   if (spent >= MAX_LANDING_RETRIES) return null;
 
-  // RE-PIN, RATHER THAN COPYING THE PIN, and this is the part measured the hard way. A landing
-  // pushes an integrated commit before it gates, so one killed mid-gate has already moved the
-  // branch past the sha it was queued at - and a verbatim retry then refuses with "commits
-  // arrived after it was queued", naming commits the FIRST ATTEMPT made. j-0519 did exactly that
-  // on 2026-09-04, having been queued to prove this mechanism worked.
-  //
-  // The fix has to live HERE and not in `auto-merge.mjs`, even though that script checks the pin:
-  // a retry runs in the branch's own checkout, so it executes THAT branch's copy of the landing
-  // script, and a branch cut before the rule existed cannot honour it. The queue is the one party
-  // that is always current, so the queue decides and hands over a pin the old script accepts too.
-  //
-  // Only movement that is provably the previous landing's own integration is re-pinned; anything
-  // else refuses the retry outright, because a branch whose session really did push has not
-  // declared THAT work finished and nobody may land it.
-  const command = repinnedCommand(job, { tipOf, movedOnlyByItsOwnLanding });
+  // THE PIN IS RE-CHECKED, NEVER MOVED. A branch whose session pushed after declaring the work
+  // finished has not declared THAT work, and nobody may land it - so the retry is refused outright
+  // rather than re-aimed at the new tip. See `repinnedCommand` for why the queue no longer has to
+  // forgive movement it made itself.
+  const command = repinnedCommand(job, { tipOf });
   if (!command) return null;
   return {
     command,
@@ -1235,7 +1211,6 @@ export function retryLandingFor(job, {
     // The review verdict rides along: a retry lands the same declared work, so what `/check`
     // said about it (or that nothing did) stays on the record.
     ...(job.review ? { review: job.review } : {}),
-    ...(budgetSpentByABug ? { repinnedRetry: true } : {}),
     // Carried onto the new job so a second refusal for the same reason escalates instead of
     // asking for a third full suite, and stated as `recovery` so the caller knows to run it.
     ...(gatedNothing
@@ -1253,9 +1228,7 @@ export function retryLandingFor(job, {
       ? `was blocked by ${orderBlockers.join(', ')}`
       : gatedNothing
         ? 'was gated by a CI run that skipped every shard'
-        : budgetSpentByABug
-          ? 'was refused for a pin its own previous landing had moved'
-          : 'reached no verdict',
+        : 'reached no verdict',
   };
 }
 
@@ -1312,8 +1285,9 @@ export function adoptOrphanedLandings(jobs, git = {}) {
  *     would be exactly the "somebody else declared my work finished" this whole rule prevents.
  *   - It copies the dead job's own command, so whatever a person once weighed with `--accept`
  *     carries forward and nothing new can be added.
- *   - It re-pins by `repinnedCommand`, so a commit that arrived after the declaration refuses.
- *     That is the property that makes it safe: it can only ever re-run work already declared.
+ *   - It re-checks the pin by `repinnedCommand`, so a commit that arrived after the declaration
+ *     refuses. That is the property that makes it safe: it can only ever re-run work already
+ *     declared.
  *
  * What it can do is spend a CI run on a branch that will refuse again. That is the whole cost, and
  * it is the cost of a prompt nobody was awake to answer.
@@ -1355,8 +1329,7 @@ export function requeueDecision(branch, jobs, git = {}) {
     return {
       action: 'refuse',
       message:
-        `${branch} has moved past the commit ${landing.job.id} was queued at, and not by that landing's own `
-        + 'integration of main.\n'
+        `${branch} has moved past the commit ${landing.job.id} was queued at.\n`
         + `  Commits arrived after the work was declared finished, so re-running the old declaration would land\n`
         + `  something nobody declared. Its own session queues the new work: ${declareCommand(branch)}`,
     };
@@ -1401,11 +1374,11 @@ export function giveUpReason(job) {
   if (job.state === 'timed-out') return `killed at its ${job.capMinutes ?? '?'} min cap - probably still waiting on CI`;
   if (job.reapedAsDead) return 'its process vanished - the runner died or the machine slept';
   if (job.exitCode === 3) return 'still blocked by another branch after every deferral';
-  // Named rather than left as "exit 1", because this one is the queue refusing its own edit and
-  // reads as a fault in the branch otherwise. 67374b59 made it impossible for a retry the queue
-  // mints; a job recorded before that fix still says it, and the sweep now puts those back.
+  // Named rather than left as "exit 1", because the branch is not broken and the line must not
+  // read as though it were: the work is fine, it is just newer than the declaration that was made
+  // about it.
   if (job.refusal?.kind === STALE_PIN_REFUSAL) {
-    return 'the pin had moved past the commit it was queued at - the previous landing\'s own integration';
+    return 'the branch was pushed after it was declared finished - /check the new tip and queue again';
   }
   // NOT a verdict on the branch, and the line must not read like one. `waitForCi` leaves through
   // 'judge' the moment any run concludes either way, so everything that exits 5 is the machine
@@ -1415,7 +1388,7 @@ export function giveUpReason(job) {
   // Not this branch's fault, and the listing must say so: five landings queued against a red main
   // all stop here, and five identical lines are how a person sees the fault is upstream of all of
   // them rather than opening five logs looking for five different causes.
-  if (job.exitCode === 4) return 'main itself is red - fix main first (node scripts/main-health.mjs)';
+  if (job.exitCode === 4) return 'main itself is red - fix main first (gh run list --workflow ci.yml --branch main --limit 5)';
   if (typeof job.exitCode === 'number') return `auto-merge refused it (exit ${job.exitCode})`;
   return 'it stopped without recording why';
 }

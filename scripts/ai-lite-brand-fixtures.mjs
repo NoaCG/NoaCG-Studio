@@ -3,7 +3,7 @@
 // It lives in the repo rather than in `lite-eval-out/` because everything under that directory
 // is gitignored and dies with its worktree - and a paid round whose inputs are gone cannot be
 // re-read, which is exactly what happened to the 2026-08-08 Pro round's twelve interpretations
-// (src/ai/AGENTS.md, "NoaCG Pro").
+// (src/ai/AGENTS.md).
 //
 // Two consumers, deliberately sharing one bank:
 //   - `scripts/ai-lite-brand-audit.mjs` - the FREE geometry/contrast audit. Spends nothing.

@@ -70,8 +70,8 @@ session is SEEN is `launch.md`; that it must be planned out of existence is deci
 
 ## The two files every session appends to
 
-These are append-only lists, so N sessions writing at one offset is a git conflict and
-`auto-merge.mjs` stops until a person looks. Both are solved by giving each session its own FILE:
+These are append-only lists, so N sessions writing at one offset is a git conflict, and the merge
+queue bounces the conflicting pull request to its session. Both are solved by one FILE per session:
 
 - **the owner queue** - one file per item under `docs/acceptance/owner-queue/`, named
   `<date>-<letter>-<slug>.md`. Never a shared list (root `AGENTS.md` rule 7).

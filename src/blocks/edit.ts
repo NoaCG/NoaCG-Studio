@@ -68,7 +68,8 @@ export interface CatalogLineAdd {
  * vocabulary, which is what keeps fixed contracts out: a scoreboard's cells share the mask
  * wrapper but are `{p}-team`/`{p}-score`, a quiz's rows are their own shape, and data-driven
  * categories (tickers, credits) keep their hidden textarea sources. All of those return null
- * here and the caller falls back to the definition-only add.
+ * here, and the caller REFUSES the add with the reason - there is no definition-only fallback
+ * (components/SampleDataPanel.tsx addField).
  */
 export function addCatalogLine(
   template: SpxTemplate,

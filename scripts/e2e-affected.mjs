@@ -236,6 +236,11 @@ const MAP = [
   // changes the FIRST FRAME somebody judges a template by, and both specs that measure it
   // live here rather than under the timeline rule below.
   [/^src\/blocks\/animData\.ts$/, ['wizard-preview.spec.ts', 'end-credits.spec.ts', 'public-service.spec.ts']],
+  // The reason the importer refused a hand-authored ANIMATION region. It lives in blocks/ beside
+  // the reader it explains, but the sentence it produces is READ through the agent CLI door
+  // (bridgeApi.normalize) - and the blocks rule below selects no bridge spec, so the one test
+  // that pins the wording would otherwise only ever run at night.
+  [/^src\/blocks\/animationRegion\.ts$/, ['bridge.spec.ts']],
   // defaultTemplate.ts left src/model (CORE) for src/templates, so the specs that seed a graphic
   // from it by importing it directly are named here; the templates subset alone would miss
   // storage-full, which builds its own fixture off createDefaultTemplate().
@@ -661,7 +666,8 @@ const SUITE_CRITICAL_SCRIPTS =
 // the eol rules for every generated artefact in the repository, and a mistake there is the kind
 // that makes a clean tree read as dirty.
 const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
-const IGNORE = [/^docs\/(?!svg-samples\/)/, /\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
+// `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
+const IGNORE = [/^docs\/(?!svg-samples\/)/, /\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
@@ -1296,8 +1302,8 @@ function usage() {
  * `npx playwright test` with NO spec arguments - which is not "no tests", it is all 1179 of
  * them - plus the 25-minute catalog gate. It happened twice in one day, once beside another
  * session's live run on a laptop where one browser job per machine is the standing rule
- * (AGENTS.md "Verifying changes" rule 3). A typo must not be able to start the most expensive
- * thing this repository can do.
+ * (`root/enqueue-browser-driving-work-rather-than`). A typo must not be able to start the most
+ * expensive thing this repository can do.
  *
  * Single-dash arguments are flags too, so `-h` is a named error rather than being taken as a
  * base ref and handed to git (no git ref may begin with `-`). A SECOND positional is refused

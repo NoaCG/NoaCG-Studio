@@ -337,6 +337,27 @@ export interface DesignSvgField {
    *  length in minutes, held in a hidden data source. The first such field wins - the
    *  shared runtime drives one clock; any later one binds as plain text. */
   countdown?: boolean;
+  /**
+   * HOW THE BLOCK SITS IN ITS BOX, where the author SAID so (docs/TEXT_BOX_BINDING.md,
+   * "Alignment"). Absent = read off the drawing at play time, which is every import before the
+   * control existed and every row nobody touched. The runtime's own vocabulary - `text-anchor`
+   * sideways - so the emitted attribute and the declared value are one word.
+   */
+  align?: DesignSvgAlign;
+  /**
+   * KEEP THE OFFSET THE FILE RECORDED between where the block was drawn and where its anchor
+   * puts it - the "wonky on purpose" case (owner, 2026-09-02: "what if you want to have the text
+   * a little bit to the right, and it would fit the design?"). The number itself is measured at
+   * play time and never stored; this only says to spend it. Absent = false, the snap he ruled for.
+   */
+  nudge?: boolean;
+}
+
+/** A declared block alignment: which edge a longer value fills from, and where a wrapped block
+ *  sits in a fixed box. Both axes at once, because the step's nine-dot grid sets both at once. */
+export interface DesignSvgAlign {
+  h: 'start' | 'middle' | 'end';
+  v: 'top' | 'middle' | 'bottom';
 }
 
 /** How one referenced font family resolves (plan §4). Exactly one of the two sources is

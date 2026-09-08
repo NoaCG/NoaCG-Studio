@@ -30,9 +30,11 @@ test('reference size is the short side, whatever the orientation', () => {
   assert.equal(rules.referenceSize(1080, 1080), 1080);
 });
 
-test('standard mode floors at 1080p match the ratified table (~50px primary, ~20px secondary)', () => {
+test('standard mode floors at 1080p match the ratified table (~28px unnamed primary, ~20px secondary)', () => {
+  // The primary row became TYPE-AWARE on 2026-09-08 (owner ruling). An unnamed graphic takes the
+  // CARD band - the middle of three - because absent must never mean exempt.
   const primary = rules.sizeFloorPx('primary', 'standard', TV, HD.width, HD.height);
-  assert.ok(Math.abs(primary.hardPx - 49.68) < 0.01);
+  assert.ok(Math.abs(primary.hardPx - 27.97) < 0.05, `unnamed primary floor was ${primary.hardPx}`);
   assert.equal(primary.warnPx, null);
   const secondary = rules.sizeFloorPx('secondary', 'standard', TV, HD.width, HD.height);
   assert.ok(Math.abs(secondary.hardPx - 19.98) < 0.01);
@@ -108,7 +110,7 @@ test('contrast floor relaxes to 3:1 only for large (or large-bold) text', () => 
 
 test('the prompt block is generated from the table, not hand-written', () => {
   const block = rules.designRulesPromptBlock(TV, 'standard', HD);
-  assert.match(block, /50px or larger/);                 // primary floor, computed
+  assert.match(block, /28px or larger/);                 // primary floor, computed
   assert.match(block, /20px or larger/);                 // secondary floor, computed
   assert.match(block, /96px from the left\/right/);      // safe area, computed
   assert.match(block, /collision is never acceptable/i); // the owner ruling rides every prompt
@@ -128,7 +130,7 @@ test('the prompt block is generated from the table, not hand-written', () => {
 
 test('a mobile-profile prompt block carries the multiplied floors', () => {
   const block = rules.designRulesPromptBlock({ profile: 'mobile' }, 'standard', HD);
-  assert.match(block, /62px or larger/); // 49.68 * 1.25 = 62.1
+  assert.match(block, /35px or larger/); // 49.68 * 1.25 = 62.1
   assert.match(block, /25px or larger/); // 19.98 * 1.25 = 24.975
 });
 
@@ -174,8 +176,80 @@ test('legibilityPromptBlock: relaxed keeps the rules as guidance and states the 
   const relaxed = rules.legibilityPromptBlock(rules.resolveLegibility({ floors: 'relaxed' }), HD);
   assert.match(relaxed, /SIZE FLOORS RELAXED BY THE CUSTOMER/);
   assert.match(relaxed, /keep it as legible as you can at their scale/);
-  assert.match(relaxed, /50px or larger/); // the guidance numbers still ride along
+  assert.match(relaxed, /28px or larger/); // the guidance numbers still ride along
   const safe = rules.legibilityPromptBlock(rules.resolveLegibility({ floors: 'safe' }), HD);
   assert.match(safe, /GUARANTEED-READABLE MODE/);
   assert.doesNotMatch(safe, /RELAXED/);
+});
+
+// ── The type-aware primary floor (owner ruling 2026-09-08) ───────────────────────────────
+//
+// The universal 4.6% row was measured on 2026-09-08 refusing 322 of 503 shipped designs - the
+// 64th percentile of our own catalog, including 52 of 101 lower thirds and ALL 37 corner bugs,
+// whose 16px this repo had already ratified in the same breath. These tests pin the three bands
+// and, more importantly, the two properties that make them safe.
+
+test('a persistent graphic answers to its own legibility floor and no prominence floor on top', () => {
+  // The contradiction the ruling resolves: typeFloor says a corner bug may render at 16px
+  // because it is "read over minutes rather than in four seconds"; the old primary row demanded
+  // 49.68px of the same element.
+  const bug = rules.sizeFloorPx('primary', 'standard', TV, HD.width, HD.height, 'corner-bug');
+  assert.ok(Math.abs(bug.hardPx - 16) < 0.01, `corner-bug primary floor was ${bug.hardPx}`);
+  assert.equal(bug.hardPx, rules.typeFloorFor('corner-bug'), 'must BE the ratified number, not a copy of it');
+  const ticker = rules.sizeFloorPx('primary', 'standard', TV, HD.width, HD.height, 'ticker');
+  assert.ok(Math.abs(ticker.hardPx - 20) < 0.01, `ticker primary floor was ${ticker.hardPx}`);
+});
+
+test('a statement graphic keeps a high floor, and a card graphic sits between the two', () => {
+  const versus = rules.sizeFloorPx('primary', 'standard', TV, HD.width, HD.height, 'versus');
+  const card = rules.sizeFloorPx('primary', 'standard', TV, HD.width, HD.height, 'lower-third');
+  const bug = rules.sizeFloorPx('primary', 'standard', TV, HD.width, HD.height, 'corner-bug');
+  assert.ok(Math.abs(versus.hardPx - 42) < 0.2, `statement floor was ${versus.hardPx}`);
+  assert.ok(Math.abs(card.hardPx - 28) < 0.2, `card floor was ${card.hardPx}`);
+  assert.ok(versus.hardPx > card.hardPx && card.hardPx > bug.hardPx, 'the three bands must stay ordered');
+});
+
+test('a category that names its own floor governs every informational role, not just the lead line', () => {
+  // The second half of the same contradiction: a corner bug's SUPPORTING line at 16px was refused
+  // by the universal 19.98px secondary row while TYPE_FLOOR_PX said 16 was right for it. What a
+  // bug may go down to is a property of being a bug, not of which line you are looking at.
+  for (const role of ['primary', 'secondary', 'fine']) {
+    const { hardPx } = rules.sizeFloorPx(role, 'standard', TV, HD.width, HD.height, 'corner-bug');
+    assert.ok(Math.abs(hardPx - 16) < 0.01, `corner-bug ${role} floor was ${hardPx}`);
+  }
+  // A category with no entry of its own is untouched - the table still answers for it.
+  const quiz = rules.sizeFloorPx('secondary', 'standard', TV, HD.width, HD.height, 'quiz');
+  assert.ok(Math.abs(quiz.hardPx - 19.98) < 0.01, `quiz secondary floor moved to ${quiz.hardPx}`);
+});
+
+test('an unknown category is never exempt - it takes the card band', () => {
+  // typeFloor.ts's doctrine, applied here: "a new category must be readable before it is special".
+  for (const unknown of [null, undefined, '', 'a-type-nobody-has-added-yet']) {
+    const floor = rules.sizeFloorPx('primary', 'standard', TV, HD.width, HD.height, unknown);
+    assert.ok(floor, `${String(unknown)} returned no floor at all`);
+    assert.ok(Math.abs(floor.hardPx - 27.97) < 0.05, `${String(unknown)} got ${floor.hardPx}`);
+  }
+});
+
+test('no band can fall below the legibility floor that a graphic already answers to', () => {
+  // This is what closes the flat-set hole. When every line on a board renders at one size, roleFor
+  // calls them ALL primary and none secondary, so the primary floor is the only floor there is.
+  // If a band could sit under the secondary floor, that board would have no floor at all.
+  const secondary = rules.sizeFloorPx('secondary', 'standard', TV, HD.width, HD.height).hardPx;
+  for (const cat of [null, 'corner-bug', 'ticker', 'audience', 'lower-third', 'quiz', 'versus', 'nonesuch']) {
+    const primary = rules.sizeFloorPx('primary', 'standard', TV, HD.width, HD.height, cat).hardPx;
+    const legibility = rules.typeFloorFor(cat);
+    assert.ok(primary >= legibility - 0.01,
+      `${String(cat)}: lead line floor ${primary} is under its own legibility floor ${legibility}`);
+    assert.ok(primary >= Math.min(secondary, legibility) - 0.01,
+      `${String(cat)}: lead line floor ${primary} is under every other floor on the graphic`);
+  }
+});
+
+test('safe mode keeps the three ratified flat floors, whatever the category', () => {
+  // Safe is the deliberately conservative mode: a caller asking for it is asking for one number.
+  for (const cat of [null, 'corner-bug', 'versus']) {
+    const { hardPx } = rules.sizeFloorPx('primary', 'safe', TV, HD.width, HD.height, cat);
+    assert.ok(Math.abs(hardPx - 64.8) < 0.01, `safe primary for ${String(cat)} was ${hardPx}`);
+  }
 });

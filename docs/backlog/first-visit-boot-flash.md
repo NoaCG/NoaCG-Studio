@@ -7,8 +7,8 @@ asked: "a first-ever visit to /app still paints the canvas editor for a frame on
 ---
 # A first-ever visit to `/app` still flashes the editor on its way to the wizard
 
-**Filed:** 2026-09-02, from the route-transition-flash branch
-(`docs/handoffs/2026-09-02-g-route-transition-flash.md`), which closed the same defect for every
+**Filed:** 2026-09-02, from the route-transition-flash branch `claude/g-route-transition-flash`
+(handoff since drained), which closed the same defect for every
 other boot. This is the one case left, and it is left deliberately.
 
 ## Why

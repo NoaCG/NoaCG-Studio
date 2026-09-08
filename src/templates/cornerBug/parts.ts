@@ -4,7 +4,8 @@
 //
 // This is authoring-side reuse only. The EMITTED code stays exactly what a hand-written
 // variant emits — commented CSS, one declaration per line — because generated code is the
-// product (root non-negotiable 2). A design that wants a bespoke slot still hand-authors one,
+// product (`root/emit-clean-commented-code-person-can`). A design that wants a bespoke slot
+// still hand-authors one,
 // exactly like bug01 and bug02 do.
 //
 // The contract every slot follows (setFieldValue in shared/base.ts does the toggling):

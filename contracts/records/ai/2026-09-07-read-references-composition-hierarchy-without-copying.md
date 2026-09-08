@@ -1,0 +1,5 @@
+# ai/read-references-composition-hierarchy-without-copying
+
+Rule: `ai/read-references-composition-hierarchy-without-copying`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 58 (zero-based blank-line inventory). Checked against code: attachmentSections has purpose-specific instruction blocks and REFERENCE_TAG; imagePurpose.ts owns the vocabulary. Source prose (historical evidence; only the rule above is authoritative): - **`asset`** - "use it as it is". The ONLY purpose that bundles: a real file, referenced by path,   exported. Rides `GenerateContext.images`. `fixedAssetPaths` says the operator gets NO field for it -   permanent brand furniture rather than content. - **`layout`** - "make one like this": composition, hierarchy, density, shape language; never the   artwork. A SKETCH is a diagram of what to build, not a look to imitate. - **`mood`** - "take the look and feel": colour, texture, weight, motion energy; layout ignored. - **`plate`** - "make it work over this": the REAL background the graphic will sit on - never placed,   never imitated, read for legibility and safe placement.

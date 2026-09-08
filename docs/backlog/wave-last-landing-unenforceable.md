@@ -1,7 +1,7 @@
 # `MINTS: LAST landing` is a comment - nothing can honour it
 
-**Filed:** 2026-09-02. **Source:** measurement - the 2026-09-02 day wave
-(`docs/handoffs/2026-09-02-orchestrator-live-run.md`)
+**Filed:** 2026-09-02. **Source:** measurement - the 2026-09-02 day wave (its live-run handoff has
+since been drained)
 
 ## Why
 
@@ -50,7 +50,7 @@ means option 2 above becomes the only remaining escape unless the queue learns a
 
 ## Evidence
 
-`docs/handoffs/2026-09-02-orchestrator-live-run.md`, "What caused friction" finding 3. The wave's
+The 2026-09-02 live-run handoff, "What caused friction" finding 3, drained 2026-09-08. The wave's
 heartbeat with timestamps is in the orchestrator home at
 `docs/handoffs/2026-09-02-day-wave-plan.local.md` (gitignored). The rule lives in
 `.agent-workflows/orchestrator.md` ("The rules that are never module-deep") and in

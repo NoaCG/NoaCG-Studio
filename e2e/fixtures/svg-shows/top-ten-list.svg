@@ -6,7 +6,9 @@
      The base look     -> the backplate, the title, ten numbered rows with the entry text drawn
                           AS IT LOOKS REVEALED (NoaCG hides each until its number comes up).
      "Mark 1..10"      -> hidden: the amber rail on the row that just arrived.
-     The rank numerals -> plain text a student would type; they arrive as fields to untick.
+     "static:Rank N"   -> the rank numerals. Text a student typed, marked as DRAWING by the
+                          prefix, so they are offered unticked and stay exactly as drawn
+                          instead of arriving as ten fields to untick.
 
      Full-frame 1920x1080. Words last. -->
 <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
@@ -76,25 +78,25 @@
 </g>
 <g id="Words">
 	<text id="Title" data-name="Title" transform="matrix(1 0 0 1 200 136)" class="st3 st4 st5">Top ten signs your quiz show is in trouble</text>
-	<text id="Rank_x20_10" data-name="Rank 10" transform="matrix(1 0 0 1 250 252)" class="st9 st4 st10" text-anchor="end">10.</text>
+	<text id="static_x3A_Rank_x20_10" data-name="static:Rank 10" transform="matrix(1 0 0 1 250 252)" class="st9 st4 st10" text-anchor="end">10.</text>
 	<text id="Item_x20_10" data-name="Item 10" transform="matrix(1 0 0 1 280 252)" class="st3 st7 st8">The buzzer is a kazoo</text>
-	<text id="Rank_x20_9" data-name="Rank 9" transform="matrix(1 0 0 1 250 344)" class="st9 st4 st10" text-anchor="end">9.</text>
+	<text id="static_x3A_Rank_x20_9" data-name="static:Rank 9" transform="matrix(1 0 0 1 250 344)" class="st9 st4 st10" text-anchor="end">9.</text>
 	<text id="Item_x20_9" data-name="Item 9" transform="matrix(1 0 0 1 280 344)" class="st3 st7 st8">The host asks the audience for the answers</text>
-	<text id="Rank_x20_8" data-name="Rank 8" transform="matrix(1 0 0 1 250 436)" class="st9 st4 st10" text-anchor="end">8.</text>
+	<text id="static_x3A_Rank_x20_8" data-name="static:Rank 8" transform="matrix(1 0 0 1 250 436)" class="st9 st4 st10" text-anchor="end">8.</text>
 	<text id="Item_x20_8" data-name="Item 8" transform="matrix(1 0 0 1 280 436)" class="st3 st7 st8">The prize is a firm handshake</text>
-	<text id="Rank_x20_7" data-name="Rank 7" transform="matrix(1 0 0 1 250 528)" class="st9 st4 st10" text-anchor="end">7.</text>
+	<text id="static_x3A_Rank_x20_7" data-name="static:Rank 7" transform="matrix(1 0 0 1 250 528)" class="st9 st4 st10" text-anchor="end">7.</text>
 	<text id="Item_x20_7" data-name="Item 7" transform="matrix(1 0 0 1 280 528)" class="st3 st7 st8">Round two is a nap</text>
-	<text id="Rank_x20_6" data-name="Rank 6" transform="matrix(1 0 0 1 250 620)" class="st9 st4 st10" text-anchor="end">6.</text>
+	<text id="static_x3A_Rank_x20_6" data-name="static:Rank 6" transform="matrix(1 0 0 1 250 620)" class="st9 st4 st10" text-anchor="end">6.</text>
 	<text id="Item_x20_6" data-name="Item 6" transform="matrix(1 0 0 1 280 620)" class="st3 st7 st8">The scoreboard is a whiteboard</text>
-	<text id="Rank_x20_5" data-name="Rank 5" transform="matrix(1 0 0 1 1070 252)" class="st9 st4 st10" text-anchor="end">5.</text>
+	<text id="static_x3A_Rank_x20_5" data-name="static:Rank 5" transform="matrix(1 0 0 1 1070 252)" class="st9 st4 st10" text-anchor="end">5.</text>
 	<text id="Item_x20_5" data-name="Item 5" transform="matrix(1 0 0 1 1100 252)" class="st3 st7 st8">Nobody knows the rules, including the host</text>
-	<text id="Rank_x20_4" data-name="Rank 4" transform="matrix(1 0 0 1 1070 344)" class="st9 st4 st10" text-anchor="end">4.</text>
+	<text id="static_x3A_Rank_x20_4" data-name="static:Rank 4" transform="matrix(1 0 0 1 1070 344)" class="st9 st4 st10" text-anchor="end">4.</text>
 	<text id="Item_x20_4" data-name="Item 4" transform="matrix(1 0 0 1 1100 344)" class="st3 st7 st8">The lifeline is your mum</text>
-	<text id="Rank_x20_3" data-name="Rank 3" transform="matrix(1 0 0 1 1070 436)" class="st9 st4 st10" text-anchor="end">3.</text>
+	<text id="static_x3A_Rank_x20_3" data-name="static:Rank 3" transform="matrix(1 0 0 1 1070 436)" class="st9 st4 st10" text-anchor="end">3.</text>
 	<text id="Item_x20_3" data-name="Item 3" transform="matrix(1 0 0 1 1100 436)" class="st3 st7 st8">Every question is about the host</text>
-	<text id="Rank_x20_2" data-name="Rank 2" transform="matrix(1 0 0 1 1070 528)" class="st9 st4 st10" text-anchor="end">2.</text>
+	<text id="static_x3A_Rank_x20_2" data-name="static:Rank 2" transform="matrix(1 0 0 1 1070 528)" class="st9 st4 st10" text-anchor="end">2.</text>
 	<text id="Item_x20_2" data-name="Item 2" transform="matrix(1 0 0 1 1100 528)" class="st3 st7 st8">The sponsor is the host's cousin</text>
-	<text id="Rank_x20_1" data-name="Rank 1" transform="matrix(1 0 0 1 1070 620)" class="st9 st4 st10" text-anchor="end">1.</text>
+	<text id="static_x3A_Rank_x20_1" data-name="static:Rank 1" transform="matrix(1 0 0 1 1070 620)" class="st9 st4 st10" text-anchor="end">1.</text>
 	<text id="Item_x20_1" data-name="Item 1" transform="matrix(1 0 0 1 1100 620)" class="st3 st7 st8">It is filmed in the host's garage</text>
 </g>
 </svg>

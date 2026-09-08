@@ -1,8 +1,9 @@
 # The Pro Harness now hands a model what the shipped designs of its kind actually measure
 
 Branch `claude/b-pro-harness-exemplars`, from `main` at `8c1b39ba`, five commits, never pushed -
-the orchestrator integrates it. Item 3 of `docs/handoffs/2026-09-05-pro-harness.md`'s "what's
-next": exemplar retrieval per type, as measured numbers, never code.
+the orchestrator integrates it. Item 3 of the 2026-09-05 Pro Harness round's "what's next"
+(handoff drained 2026-09-08; the standing list is `docs/PRO_HARNESS_PLAN.md`, "Not built, in
+order"): exemplar retrieval per type, as measured numbers, never code.
 
 ## What is there now
 

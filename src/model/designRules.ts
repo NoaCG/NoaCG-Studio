@@ -30,7 +30,7 @@ export type TextRole = 'primary' | 'secondary' | 'fine' | 'decorative';
 /** 'standard' is the default; 'safe' is the "Guaranteed readable size" checkbox (default OFF).
  *  In safe mode the AI designs FOR big type - fewer fields, simpler composition - it never
  *  inflates a small layout. Persisted per project as an additive optional field (no version
- *  bump - AGENTS.md §5). */
+ *  bump - `root/version-every-persisted-format-ship-breaking`). */
 export type LegibilityMode = 'standard' | 'safe';
 
 /** Where the graphic will be WATCHED. Multiplies the size floors. 'venue' is a stub (alias of
@@ -88,6 +88,82 @@ export const SIZE_TABLE: Readonly<
   },
 };
 
+/**
+ * Floors in CSS pixels at 1920x1080, keyed by `AssemblerId`.
+ *
+ * `corner-bug` is lower on purpose and is not a relaxation: a corner bug is a persistent
+ * station mark read over minutes rather than a line read in four seconds, and the catalog's own
+ * bugs are authored at that size. Everything else answers to the default.
+ */
+export const TYPE_FLOOR_PX: Readonly<Record<string, number>> = {
+  'corner-bug': 16,
+  default: 20,
+};
+
+/** The floor for a category. An unknown category takes the default rather than opting out -
+ *  a new category must be readable before it is special. */
+export function typeFloorFor(category: string | null | undefined): number {
+  return (category && TYPE_FLOOR_PX[category]) || TYPE_FLOOR_PX.default;
+}
+
+/**
+ * WHAT THE LEAD LINE MUST REACH, BY WHAT THE GRAPHIC IS FOR (owner ruling 2026-09-08:
+ * "make it type-aware, not a universal 50px blocker").
+ *
+ * The 4.6% primary row above is the size a NAME STRAP must reach, and applying it to every
+ * graphic's largest text was measured on 2026-09-08 as refusing **322 of 503 shipped designs** -
+ * the 64th percentile of our own catalog, including 52 of 101 lower thirds, the category it was
+ * written for. It also contradicted a floor this repo had already ratified: `typeFloor.ts` says a
+ * corner bug may render at 16px because it "is a persistent station mark read over minutes rather
+ * than a line read in four seconds", while this row demanded 49.68px of the same element. All 37
+ * shipped bugs failed.
+ *
+ * The axis is `typeFloor.ts`'s own, and it is not identity but READING TIME:
+ *
+ * - PERSISTENT - a bug, a ticker, a dense board, an audience panel. Nothing leads it, by design;
+ *   the viewer reads it over minutes or scans it. There is no prominence floor at all here, only
+ *   the legibility floor the category already answers to (`typeFloorFor`), which is the number
+ *   with the July 2026 catalog audit behind it.
+ * - CARD - a lower third, an info card, a quiz board, an alert. Read in a few seconds, so its lead
+ *   line clears a name-sized minimum. 28px @1080; the shipped p05 across these categories is
+ *   27-38px and the lowest passing design is card64 at 29px.
+ * - STATEMENT - a versus card, a holding screen, a transition, a clock. The whole graphic exists to
+ *   land one line. 42px @1080; the shipped p05 across these is 45-120px.
+ *
+ * Measured against the catalog these three refuse **8 of 503** (1.6%), and each one is arguable:
+ * a person's name at 12px on an imported design, "PRESENTED BY" at 20px, "Back shortly" at 30px on
+ * a category whose designs run 64-280px. A floor that certifies the shipped work and still fires
+ * is the point; `docs/OWNER_RULINGS.md` 2026-09-08 carries the ruling and the measurement.
+ *
+ * AN UNLISTED CATEGORY TAKES THE CARD BAND, never an exemption - the same doctrine `typeFloor.ts`
+ * states as "a new category must be readable before it is special". Nothing here may return null.
+ *
+ * WHY THIS IS NOT KEYED ON HOW LONG THE STRING IS, which is the first idea anyone has here and was
+ * the one this change started from. The reasoning that kills it: a quiz question is authored
+ * smaller than a name strap because it must FIT, not because it may be less legible - and
+ * READING A SENTENCE DEMANDS MORE LEGIBILITY PER GLYPH THAN CATCHING A NAME, not less, because the
+ * viewer must track across it rather than take it in at one fixation. A floor that drops as the
+ * string grows has the physics backwards.
+ *
+ * It is not a theoretical objection. Scaling the floor by word count drops `al06` - a
+ * civil-protection alert whose hazard line "Chemical release - industrial estate" is four words,
+ * authored at 64px and commented "the loudest text in the pack" - from a 49.68px floor to 19.98px,
+ * and every one of the 14 shipped alerts has a 4+ word headline. The category with the strongest
+ * claim to a large floor is the one such a rule exempts first. Measured 2026-09-08 by an
+ * adversarial read of the proposal, before it was written.
+ */
+export const PERSISTENT_CATEGORIES: readonly string[] = [
+  'corner-bug', 'ticker', 'audience', 'infographic', 'esports-score', 'public-info', 'scoreboard',
+  'imported-design',
+];
+
+export const STATEMENT_CATEGORIES: readonly string[] = [
+  'game-timer', 'versus', 'starting-soon', 'transition', 'reveal', 'matchup',
+];
+
+/** Ratios of the reference size: 28px and 42px at a 1080 short side. */
+export const PRIMARY_BAND_RATIO = { card: 0.0259, statement: 0.0389 } as const;
+
 /** Safe mode's primary band tops out here - guidance for the prompt, never a violation. */
 export const SAFE_PRIMARY_TARGET_MAX_RATIO = 0.1;
 
@@ -103,15 +179,47 @@ export function sizeFloorPx(
   target: ViewingTarget,
   width: number,
   height: number,
+  category?: string | null,
 ): SizeFloorPx | null {
   if (role === 'decorative') return null;
   const ref = referenceSize(width, height);
   const spec = SIZE_TABLE[mode][role];
   const multiplier = PROFILE_MULTIPLIER[target.profile];
+  // WHERE A CATEGORY NAMES ITS OWN NUMBER, THAT NUMBER GOVERNS EVERY INFORMATIONAL ROLE. A corner
+  // bug's supporting line at 16px was refused by the universal 19.98% secondary row while
+  // `TYPE_FLOOR_PX` said 16 was right for it - the same contradiction the primary row carried, and
+  // the same argument settles it: what a bug may go down to is a property of being a bug, not of
+  // which line in it you are looking at. Measured 2026-09-08: this is 18 of the 26 designs the
+  // type-aware primary row alone still refused, and every one is a shipped corner bug.
+  //
+  // Safe mode keeps the owner's three flat floors as ratified - it is the deliberately
+  // conservative mode, and a caller that asks for it is asking for one number.
+  const named = category && Object.prototype.hasOwnProperty.call(TYPE_FLOOR_PX, category)
+    ? TYPE_FLOOR_PX[category] / ref
+    : null;
+  const hard = mode !== 'standard'
+    ? spec.hard
+    : role === 'primary'
+      ? primaryFloorRatio(category, ref)
+      : named ?? spec.hard;
   return {
-    hardPx: spec.hard * ref * multiplier,
+    hardPx: hard * ref * multiplier,
     warnPx: spec.warn === null ? null : spec.warn * ref * multiplier,
   };
+}
+
+/**
+ * The lead line's floor for one category, as a ratio of the reference size.
+ *
+ * A PERSISTENT graphic gets its own legibility floor and no prominence floor on top - expressed
+ * as a ratio of `ref` so it composes with the rest of the table, and read from the same
+ * `TYPE_FLOOR_PX` the bench and the adjuster read so the two can never drift apart.
+ */
+function primaryFloorRatio(category: string | null | undefined, ref: number): number {
+  const key = category ?? '';
+  if (PERSISTENT_CATEGORIES.includes(key)) return typeFloorFor(key) / ref;
+  if (STATEMENT_CATEGORIES.includes(key)) return PRIMARY_BAND_RATIO.statement;
+  return PRIMARY_BAND_RATIO.card;
 }
 
 export type SizeStatus = 'pass' | 'warn' | 'fail' | 'exempt';
@@ -128,8 +236,9 @@ export function checkTextSize(
   target: ViewingTarget,
   width: number,
   height: number,
+  category?: string | null,
 ): SizeVerdict {
-  const floor = sizeFloorPx(role, mode, target, width, height);
+  const floor = sizeFloorPx(role, mode, target, width, height, category);
   if (!floor) return { status: 'exempt', floor: null };
   if (fontPx < floor.hardPx) return { status: 'fail', floor };
   if (floor.warnPx !== null && fontPx < floor.warnPx) return { status: 'warn', floor };
@@ -287,9 +396,15 @@ export function designRulesPromptBlock(
   target: ViewingTarget,
   mode: LegibilityMode,
   format: { width: number; height: number },
+  category?: string | null,
 ): string {
   const { width, height } = format;
-  const primary = sizeFloorPx('primary', mode, target, width, height);
+  // THE MODEL IS TOLD THIS GRAPHIC'S OWN FLOOR, not the lowest one in the table. A floor a model
+  // is told about becomes a target, so quoting the card band at a `versus` card would pull it from
+  // 120px to 28px - the ruling that made the floor type-aware would then have cost quality
+  // everywhere it did not need to. A caller with no category gets the card band, which is what
+  // the gate will hold it to anyway.
+  const primary = sizeFloorPx('primary', mode, target, width, height, category);
   const secondary = sizeFloorPx('secondary', mode, target, width, height);
   const fine = sizeFloorPx('fine', mode, target, width, height);
   if (!primary || !secondary || !fine) throw new Error('size table incomplete');

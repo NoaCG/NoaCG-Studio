@@ -36,8 +36,8 @@ repo (`scripts/migration-drift.mjs` says the same about reading the ledger).
 **There are TWO hosted projects, and both get every migration.** Production is whatever
 `VITE_SUPABASE_URL` names; `noacg-staging` is the separate free project the `hosted-latency`
 workflow runs against, declared in `scripts/supabase-projects.mjs` because nothing in the app
-derives it. The drift check reports both and `scripts/auto-merge.mjs` pushes both after a landing,
-production first. By hand, staging needs the ref: `npm run db:push -- --ref <ref>`. Before that was
+derives it. The drift check reports both and `.github/workflows/post-land.yml` pushes both after a
+landing, production first. By hand, staging needs the ref: `npm run db:push -- --ref <ref>`. Before that was
 a mechanism, staging drifted silently - 0053/0054 sat unapplied there for a day and the suite went
 red on `PGRST205 Could not find the table 'public.teams'`, which reads like a latency regression
 rather than like a database nobody pushed to.
@@ -114,7 +114,7 @@ grants are right; 0035's self-check asserted all of that and passed. Only callin
 ## Apply migrations with `npm run db:push`, never the MCP tool
 
 **You should not have to run this at all.** A branch landing through `npm run queue:merge` applies
-whatever production is missing as soon as it is on `origin/main` (`scripts/auto-merge.mjs`). Reach
+whatever production is missing as soon as it is on `origin/main` (`.github/workflows/post-land.yml`). Reach
 for the command by hand only when a push refused, or when a migration arrived some other way.
 
 Applying to the hosted project needs no permission and no waiting: `npm run db:push` classifies

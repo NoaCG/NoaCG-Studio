@@ -13,12 +13,42 @@
 
 import { parseAnimData } from '../blocks/animData';
 import type { SpxTemplate } from '../model/types';
+import { DATA_SOURCE_CLASS } from '../templates/shared/base';
 
 /** The field types whose value becomes VISIBLE TEXT, so driving them can be observed on the
  *  screen. A `filelist` points at a picture that does not exist here, and a colour or a
  *  checkbox moves a style rather than a string - none of the three can be measured this way,
  *  so none is reported. Honest silence beats a finding the method cannot support. */
 export const TEXT_FTYPES = new Set(['textfield', 'textarea', 'number', 'hidden']);
+
+/**
+ * A NUMBER the author declared input-only: a value the runtime COMPUTES with, never echoes.
+ *
+ * `class="noacg-data-source"` on the field's own element is the root `AGENTS.md` contract for a
+ * holder SPX writes and a runtime reads without ever drawing it. On its own that says nothing
+ * about whether the VALUE reaches the screen - a quiz board's audience percentages sit in exactly
+ * such a holder and are painted verbatim as row chips - so the declaration alone must not silence
+ * this check. Paired with `ftype: 'number'` it does say it, and the catalog agrees without an
+ * exception: all 72 numeric holders it ships are a duration, a speed, a percentage, a 1-based
+ * index or a goal ("Countdown (minutes)" x15, "Scroll speed (%)" x6, "Spotlit player (1-based)"
+ * x4). A runtime turns those into a DIFFERENT string, so the sentinel can never appear - `900001`
+ * minutes paints "15000:00:58" - and no value of the field would make it appear either.
+ *
+ * That is the fault the 2026-09-06 Pro Harness round hit from the other side: every countdown it
+ * generated was refused on `bench-field-unpainted` for markup the root contract prescribes
+ * verbatim, and all 6 shipped `game-timer` designs plus 7 of the 12 `end-credits` designs fail the
+ * same way (docs/AI_ATTEMPTS.md, the sixth fault). A numeric holder is not measurable by "is this
+ * string on screen", and honest silence beats a finding the method cannot support - the same
+ * reason `filelist`, `color` and `checkbox` are absent from TEXT_FTYPES above.
+ *
+ * It is asked at REPORT time, so a holder whose value IS painted still has to prove it: the quiz's
+ * percentages pass on the sentinel exactly as before, and hiding the chips still raises the
+ * finding.
+ */
+function declaredNumericInput(doc: Document, field: SpxTemplate['fields'][number]): boolean {
+  if (field.ftype !== 'number') return false;
+  return doc.getElementById(field.field)?.classList.contains(DATA_SOURCE_CLASS) ?? false;
+}
 
 /** A value that will be ACCEPTED for the field's type and is unmistakable on screen. */
 export function sentinelFor(field: SpxTemplate['fields'][number], i: number): string {
@@ -197,5 +227,7 @@ export async function unreachableFields(
     }
   }
 
-  return missing.map((d) => `${d.field.title || d.field.field} (${d.field.field})`);
+  return missing
+    .filter((d) => !declaredNumericInput(doc, d.field))
+    .map((d) => `${d.field.title || d.field.field} (${d.field.field})`);
 }

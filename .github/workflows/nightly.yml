@@ -156,13 +156,35 @@ jobs:
           # 117 today, and the features above it (relative colour 119, the unprefixed mask
           # shorthand 120, light-dark 123) drop silently on air, so nothing else would catch a
           # new template reaching for one.
-          status=0
-          node scripts/type-floor.mjs || status=1
-          node scripts/overflow-sweep.mjs --baseline || status=1
-          node scripts/field-coverage.mjs || status=1
-          node scripts/numerals.mjs || status=1
-          node scripts/engine-floor.mjs --fail || status=1
-          exit "$status"
+          #
+          # EACH GATE NAMES ITSELF, and the job ends with the list of the ones that failed.
+          # Before this, the job's only signal was `exit 1` at the bottom: on 2026-09-08
+          # type-floor.mjs crashed at module load, four gates printed PASS after it, and working
+          # out which of the five was red meant grepping a stack trace out of ~900 log lines. The
+          # summary line is also what the verdict job's reader wants - a gate that fails by
+          # CRASHING prints no report of its own, so without this the log says nothing at all.
+          failed=""
+          gate() {
+            name="$1"
+            shift
+            echo "--- GATE: $name ---"
+            if "$@"; then
+              echo "GATE PASS - $name"
+            else
+              echo "GATE FAIL - $name"
+              failed="$failed $name"
+            fi
+          }
+          gate type-floor     node scripts/type-floor.mjs
+          gate overflow-sweep node scripts/overflow-sweep.mjs --baseline
+          gate field-coverage node scripts/field-coverage.mjs
+          gate numerals       node scripts/numerals.mjs
+          gate engine-floor   node scripts/engine-floor.mjs --fail
+          if [ -n "$failed" ]; then
+            echo "CATALOG GATES FAILED:$failed"
+            exit 1
+          fi
+          echo "CATALOG GATES: all five passed."
 
   report:
     name: Combined nightly report
@@ -197,8 +219,34 @@ jobs:
       # run tests a subset - so the time budget lives here and nowhere else. It enforces the
       # MEAN per test, never the total: a pack shipping a spec should not fail a gate, while
       # tests getting slower should.
+      # FETCH THE PREVIOUS NIGHTLY'S REPORT, so the budget can compare like with like. Without it
+      # the gate reads only the whole-suite mean, which moves whenever the tests we ADD differ from
+      # the ones already there - measured at about 1.7x the suite average, consistently - and it
+      # then reports a composition change as a regression. It did exactly that on 2026-09-07.
+      #
+      # Best effort on purpose: a missing or expired artifact prints one line and the budget falls
+      # back to the ceiling. A gate that goes red because an ARTIFACT expired teaches people that
+      # red means nothing.
+      - name: Fetch the previous nightly's report
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PREV="$(gh run list --workflow nightly.yml --status completed --limit 10             --json databaseId,createdAt --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | .[0].databaseId")"
+          if [ -z "${PREV:-}" ] || [ "$PREV" = "null" ]; then
+            echo "No earlier nightly to compare against."
+            exit 0
+          fi
+          gh run download "$PREV" --name nightly-report-json --dir previous             && mv previous/nightly-report.json previous-report.json             && echo "Comparing against nightly run $PREV."             || echo "Run $PREV has no usable report artifact - the budget will fall back to the ceiling."
+
       - name: E2E time budget
-        run: node scripts/e2e-budget.mjs nightly-report.json
+        run: |
+          if [ -f previous-report.json ]; then
+            node scripts/e2e-budget.mjs nightly-report.json --against previous-report.json
+          else
+            node scripts/e2e-budget.mjs nightly-report.json
+          fi
 
       # Classify failures focus-vs-paused for the verdict job (docs/GOALS_ARCHIVE.md "Student
       # release"). Runs even when shards failed - a red night is exactly when the triage
@@ -268,7 +316,11 @@ jobs:
           failed=""
           [ "$E2E_RESULT" = "success" ] || failed="${failed}- Full E2E suite: ${E2E_RESULT}\n"
           [ "$CATALOG_RESULT" = "success" ] || failed="${failed}- Catalog calibration tripwire: ${CATALOG_RESULT}\n"
-          [ "$GATES_RESULT" = "success" ] || failed="${failed}- Type floor / overflow sweep: ${GATES_RESULT}\n"
+          # Name all FIVE gates this job carries, for the same reason the report line below names
+          # both of its halves. It used to read "Type floor / overflow sweep", which sent the
+          # 2026-09-08 triage looking at those two while the log said which gate it actually was.
+          # The step log now prints `CATALOG GATES FAILED: <names>`; this line says where to look.
+          [ "$GATES_RESULT" = "success" ] || failed="${failed}- Catalog gates (type floor, overflow, field coverage, numerals, engine floor - the log names which): ${GATES_RESULT}\n"
           # This job also carries the time budget, so name both - a reader who sees only
           # "report failed" would go looking for a broken merge rather than a slower suite.
           [ "$REPORT_RESULT" = "success" ] || failed="${failed}- Combined report / E2E time budget: ${REPORT_RESULT}\n"

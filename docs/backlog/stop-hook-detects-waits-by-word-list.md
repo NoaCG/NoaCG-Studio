@@ -46,10 +46,21 @@ Three options, cheapest first, and the first may well be enough:
    section 3, item 5 rejected exactly that for the neighbouring "green but unqueued" shape, and
    `wave-tick.mjs` covers the crashed session the hook cannot see. Re-argue it only with numbers.
 
+## One more miss, in the cheap direction
+
+`declaresWait` strips fenced blocks, inline code spans and blockquote lines before matching,
+because quoting the queue's own sentence for a capped landing ("killed at its 45 min cap - probably
+still waiting on CI") otherwise reads as the session declaring a wait. That covers every marked-up
+paste and nothing else. A session that pastes a bare night report or a job log into its wrap-up
+still gets one extra turn. It is the cheap direction of the failure, which is why it shipped, and
+option 1 above decides whether it is worth anything: have the hook record its misses for a week
+before writing a stripper for unmarked report-shaped lines. (Found 2026-09-04, carried here when
+that handoff was drained.)
+
 ## Evidence
 
-- `scripts/stop-wait.mjs` - the patterns, and the header recording the four sessions on 2026-08-30
-  and 2026-09-01 that produced the hook.
+- `scripts/stop-wait.mjs` - the patterns, the quoted-span stripper, and the header recording the
+  four sessions on 2026-08-30 and 2026-09-01 that produced the hook.
 - `scripts/stop-wait.test.mjs` - "declaresWait catches every observer a session believes will wake
   it, not only watcher" is the case that failed, and the person tests are the false positives that
   were live and unnoticed until the widening forced them into view.

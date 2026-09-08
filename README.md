@@ -1,14 +1,14 @@
 # NoaCG Studio
 
-**Premium broadcast graphics, built by choosing, then exported to whatever you already run.**
+**Free, open source broadcast graphics: built by choosing, then exported to whatever you already run.**
 
 Lower thirds, tickers, scoreboards, countdowns, alerts, credits and more: pick a design, set your
 fields, style it to your brand, animate it, and export a working template for **SPX**,
 **CasparCG**, **OGraf**, **H2R**, **LiveOS**, or a plain **HTML overlay** for OBS and vMix. Or skip
 the export and render finished **MP4 / transparent WebM / ProRes / PNG** media instead.
 
-**No account needed to create, preview, or export.** Free forever for the core, self-hostable in
-full, AGPL-3.0.
+**No account needed to create, preview, or export.** Free forever, with no paid surface and none
+planned, self-hostable in full, AGPL-3.0.
 
 **[noacg.studio](https://noacg.studio)** - the app · **[noacg.studio/docs](https://noacg.studio/docs)** - the guides
 

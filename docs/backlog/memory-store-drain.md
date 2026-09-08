@@ -96,3 +96,16 @@ not arrive expecting to find bad memories.
 - `C:\claude\memory-archive-2026-08-25\` - 203 files, the cleanup that did not hold.
 - `docs/MISTAKE_TRIGGERS.md` "Memory: the weakest trigger" - the charter, the precedence order and
   the chip-rule incident that showed a recorded, loaded, agreed-with rule can still never fire.
+
+## Trend
+
+- 2026-09-03, before: 182 KB / 49 entries, index 61 lines.
+- 2026-09-03, after phase 1: 97 KB / 30 entries, index 59 lines.
+- 2026-09-08: **109 KB / 33 entries, index 61 lines** - over both ceilings again (40 KB, 60 lines)
+  and 12 KB above where phase 1 left it five days ago, at roughly 2.4 KB a day. One entry
+  (`dont-wield-the-owners-deadline.md`) declares no `exit:`. The refill rate is lower than the
+  ~5-a-day that followed the 2026-08-25 archive, so the new rules are doing something, but the
+  store is still growing and phases 2 to 5 have not run. The `AGENTS.md` half of the routing is
+  unblocked; the orchestrator half is blocked on
+  `docs/backlog/instruction-files-need-a-shrinking-mechanism.md`, whose common path has since
+  reached its line ceiling exactly.

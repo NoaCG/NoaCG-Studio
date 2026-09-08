@@ -3,7 +3,8 @@
 // headline, the written-out address, and one supporting line.
 //
 // WHAT THIS DESIGN DOES NOT DO, on purpose: it does not GENERATE the QR code. NoaCG bundles no
-// encoder and generated templates take no runtime dependency (root non-negotiable 3), so a
+// encoder and generated templates take no runtime dependency
+// (`root/keep-generated-template-self-contained-runtime`), so a
 // template that drew its own code would either need an encoder inlined into every export or a
 // CDN call at playout — and a graphic that silently renders an unscannable code is worse than
 // one that never claims to. So the code is an ordinary SPX image field ("filelist"): the

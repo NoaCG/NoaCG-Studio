@@ -88,8 +88,8 @@ assembly runs `DOMParser` - so the derivation needs a **browser**, not just Node
 `scripts/prerender.mjs` already hit this wall and documents the decision it forced: it reads the
 *declared* variant descriptors rather than `templateMeta()`, precisely because "templateMeta
 derives a field schema by actually BUILDING each template, which runs `DOMParser` and therefore
-needs a browser… The alternative was a DOM dependency (against root AGENTS.md non-negotiable 3)
-or a headless browser in the build."
+needs a browser… The alternative was a DOM dependency (against
+`root/keep-generated-template-self-contained-runtime`) or a headless browser in the build."
 
 That rules out the obvious fix. A build-time manifest generated in Node cannot contain the
 derived half, and adding a headless browser to `npm run build` re-opens a question this repo has

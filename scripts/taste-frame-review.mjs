@@ -39,7 +39,8 @@
 //
 // The out-dir defaults to ./shots-taste, which the repo's `shots-*/` ignore rule already covers.
 // It drives Chromium over the app, so it is BROWSER WORK: `npm run queue -- "<command>"`, never a
-// foreground run beside a suite (AGENTS.md "Verifying changes" rule 3, scripts/command-match.mjs).
+// foreground run beside a suite (`root/enqueue-browser-driving-work-rather-than`,
+// scripts/command-match.mjs).
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';

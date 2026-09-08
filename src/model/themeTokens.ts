@@ -194,8 +194,8 @@ export const FAMILY_TOKENS: Record<StyleTag, ThemeTokens> = {
     panelKeyline: 'inset 0 0 0 1px rgba(255, 255, 255, 0.18)',
     accentWeight: 'calc(4px * var(--scale))',
     accentGlow: NO_SHADOW,
-    // The ONE family that cannot express its ink as `var(--panel-bg)`. The other three panel
-    // on a near-black, so their panel colour doubles as the dark ink for text sitting ON an
+    // The ONE family that cannot express its ink as `var(--panel-bg)`. Every other family panels
+    // on a near-black, so its panel colour doubles as the dark ink for text sitting ON an
     // accent fill. A glass panel is `rgba(255,255,255,0.10)` — a translucent WHITE — so
     // `var(--panel-bg)` resolved to 10%-alpha white here and any glass design putting text on
     // an accent chip rendered it invisible (qz03's flooded answer chip, and the guest chip on

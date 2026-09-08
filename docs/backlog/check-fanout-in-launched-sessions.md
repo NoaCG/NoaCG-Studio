@@ -1,7 +1,7 @@
 # A launched session gets either a shallow check or one the orchestrator has to relay by hand
 
-**Filed:** 2026-09-02. **Source:** measurement - the 2026-09-02 day wave
-(`docs/handoffs/2026-09-02-orchestrator-live-run.md`)
+**Filed:** 2026-09-02. **Source:** measurement - the 2026-09-02 day wave (its live-run handoff has
+since been drained)
 
 ## Why
 
@@ -49,7 +49,7 @@ reports truthful, and it should stay.
 
 ## Evidence
 
-`docs/handoffs/2026-09-02-orchestrator-live-run.md`, "What caused friction" finding 2. The six
+The 2026-09-02 live-run handoff, "What caused friction" finding 2, drained 2026-09-08. The six
 relays and the rulings taken on each are in the orchestrator home's
 `docs/handoffs/2026-09-02-day-wave-plan.local.md` (gitignored).
 

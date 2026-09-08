@@ -3,7 +3,13 @@ v: 2
 source: derived
 kind: finding
 raised: 2026-09-06
-state: unstarted
+state: advanced
+note: "the `static:` prefix landed 2026-09-07 on claude/two-row-set-recipe-fcbe5e - a text layer
+  named `static:Rank 10` is offered unticked with its words kept, taught in docs/SVG_AUTHORING.md
+  section 3, and the top ten show fixture uses it. What is STILL missing is the second half: a
+  file drawn before anyone read that page has no prefix, so its numerals still arrive as fields.
+  The bulk untick for a run of plain numerals is unbuilt, deliberately - it guesses, and a bare
+  figure on a scorebug IS the field."
 serves: NOW
 found: "surfaced by the top ten walk (docs/SVG_BEHAVIOUR_SHOWS.md §4b): the rank numerals a
   student types (`10.`, `9.`, ...) arrive as ten fields to untick, because nothing in the file can
@@ -33,9 +39,9 @@ with no behaviour at all has none either.
 
 ## What would settle it
 
-- **A convention the docs teach**, the way `f:` already marks a layer editable: a prefix such as
-  `d:` or `static:` that marks a text layer as drawing, offered unticked with its words kept. One
-  line in `stripFieldPrefix`'s neighbourhood and one row in `docs/SVG_AUTHORING.md` §3.
+- ~~**A convention the docs teach**, the way `f:` already marks a layer editable: a prefix such as
+  `d:` or `static:` that marks a text layer as drawing, offered unticked with its words kept.~~
+  **LANDED 2026-09-07** as `static:`, in `stripFieldPrefix` and `docs/SVG_AUTHORING.md` §3.
 - **A bulk untick on the mapping step** for rows the names or the samples make plainly decorative
   (a bare numeral with a trailing dot, a run of consecutive integers), with the same "keep the
   words" answer applied once for all of them. Offered, never applied by itself: a bare `7` on a
@@ -46,6 +52,7 @@ the file that was drawn before anyone read it.
 
 ## Where it is pinned
 
-`e2e/import-svg.spec.ts` (the `f:` prefix case) is the shape a `static:` case would follow; the
-stepped-list walk in `e2e/import-svg-behaviour.spec.ts` reads its entries box as `f11` today
-because ten numerals sit in front of it, and would move when this lands.
+`e2e/import-svg.spec.ts` carries the `static:` case beside the `f:` one. The stepped-list walk in
+`e2e/import-svg-behaviour.spec.ts` used to read its entries box as `f11` because ten numerals sat
+in front of it; the show fixture now names them `static:Rank N` and the box is `f1`. What is left
+on this item is the second bullet above, for the file drawn before anyone read the page.

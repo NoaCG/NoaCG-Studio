@@ -13,8 +13,9 @@
 // and that is deliberate: templateMeta derives a field schema by actually BUILDING each
 // template, which runs `DOMParser` and therefore needs a browser. Everything a marketing
 // page needs - name, description, category, style, line capacity, logo support, motion - is
-// declared on the variant already. The alternative was a DOM dependency (against root
-// AGENTS.md non-negotiable 3) or a headless browser in the build; a page does not need
+// declared on the variant already. The alternative was a DOM dependency (against
+// `root/keep-generated-template-self-contained-runtime`) or a headless browser in the build; a
+// page does not need
 // either to be true.
 
 import { mkdir, rm, writeFile } from 'node:fs/promises';

@@ -3,12 +3,13 @@
 //
 //  1. Dev servers go through the Claude preview tools, never a raw shell command - a stray
 //     server on this checkout's port is exactly the "reuseExistingServer picks up the wrong
-//     env" e2e trap documented in AGENTS.md.
+//     env" e2e trap documented in e2e/AGENTS.md ("Gotchas when writing a spec").
 //  1b. Branches are never created in the primary checkout - it is the tree the landing queue
 //     checks out, merges, builds and resets, so a feature branch parked there breaks landing in
 //     both directions, silently.
-//  2. Commit messages follow the house rules (AGENTS.md "Git"): no Co-Authored-By trailers,
-//     no AI/agent/chat-session language, no internal plan codenames.
+//  2. Commit messages follow the house rules (`root/write-commit-message-outside-developer-reading`
+//     and `root/work-feature-branch-own-worktree-made`): no Co-Authored-By trailers, no
+//     AI/agent/chat-session language, no internal plan codenames.
 //  3. Commits never include dist/ or the generated .claude/launch.json.
 //  3b. Nobody polls the job queue in the foreground.
 //  3c. A push and a workflow dispatch never share one command - ci.yml's concurrency group makes
@@ -69,7 +70,7 @@ if (startsDevServer(command)) {
   deny(
     "Blocked: this starts a dev server on a checkout's port without anything owning it - " +
       'the e2e suite runs with reuseExistingServer:true and would silently adopt it along with ' +
-      'whatever env it was started with (see AGENTS.md "Verifying changes" gotchas).\n' +
+      'whatever env it was started with (see e2e/AGENTS.md "Gotchas when writing a spec").\n' +
       'Start it the sanctioned way instead:\n' +
       '  npm run dev:worktree   works in ANY checkout, and is the ONLY thing that works in a ' +
       'linked worktree. It serves the checkout its own file sits in, on that checkout\'s reserved ' +
@@ -86,11 +87,13 @@ if (startsDevServer(command)) {
 
 // --- 1b. A feature branch is never created in the PRIMARY checkout ---------------------------
 //
-// That checkout is shared infrastructure: `scripts/auto-merge.mjs` finds it with
-// `worktreeFor('main')` and checks it out, merges, builds and RESETS it during every integration.
-// A feature branch sitting there breaks landing in both directions, and both halves are silent -
-// see `branchCreations` in command-match.mjs for the 2026-08-28 measurement. Hence a refusal:
-// a warning is only as good as somebody reading it, and neither failure announces itself.
+// That checkout is shared infrastructure: it is where `main` lives, and a build run there gates
+// `main` rather than your branch while still reporting green (root/never-occupy-checkout). It is
+// also where every session goes to read what has landed. A feature branch sitting there breaks
+// both, and both halves are silent - see `branchCreations` in command-match.mjs for the 2026-08-28
+// measurement, made when the laptop lander also merged and RESET that checkout on every landing.
+// Hence a refusal: a warning is only as good as somebody reading it, and neither failure
+// announces itself.
 const creations = branchCreations(command);
 if (creations.length > 0) {
   const inPrimary = creations
@@ -105,7 +108,8 @@ if (creations.length > 0) {
     deny(
       `Blocked: this creates a branch in the PRIMARY checkout (${inPrimary}), which is shared ` +
         'infrastructure rather than a place to work - the landing queue checks it out, merges, ' +
-        'builds and resets it on every integration (AGENTS.md "Git").\n' +
+        'builds and resets it on every integration ' +
+        '(`root/never-occupy-checkout-holds-feature-branch`).\n' +
         'On 2026-08-28 that cost both halves at once: a branch parked there made every landing of ' +
         'the wave refuse with "main is checked out nowhere", and when the runner took the tree back ' +
         "mid-build, that session's `npm run build` gated `main` instead of its own branch and still " +
@@ -134,7 +138,8 @@ if (isCommit) {
   if (/co-authored-by/i.test(command) || /🤖/u.test(command)) {
     deny(
       'Blocked: commit messages in this repo never carry Co-Authored-By trailers or ' +
-        '"Generated with" footers (user rule in AGENTS.md "Git"). Rewrite the message without them.',
+        '"Generated with" footers (`root/work-feature-branch-own-worktree-made`). Rewrite the ' +
+        'message without them.',
     );
   }
 
@@ -179,7 +184,8 @@ if (isCommit) {
     const hits = STYLE_VIOLATIONS.filter(([pattern]) => pattern.test(command)).map(([, why]) => why);
     if (hits.length > 0) {
       deny(
-        `Blocked: this commit command trips the commit-message style rules (AGENTS.md "Git"): ${hits.join('; ')}.\n` +
+        'Blocked: this commit command trips the commit-message style rules ' +
+          `(\`root/write-commit-message-outside-developer-reading\`): ${hits.join('; ')}.\n` +
           'Messages must read as written by a human developer for an outside reader - no AI/agent/chat ' +
           'language, no internal codenames. If a mention is deliberate because the commit is genuinely ' +
           'about AI tooling, include ALLOW_AI_MENTION=1 in the command to bypass this check.',
@@ -227,8 +233,9 @@ if (pollsQueue(command)) {
 // `ci.yml` keeps every run of one ref in one concurrency group with cancel-in-progress, so the
 // push's run and the dispatched run cannot both live: the one that registers second cancels the
 // first, and the order two webhooks register in is not stable ("Pushing and dispatching in one
-// breath is a coin flip, and I lost it once" - docs/handoffs/2026-09-04-a-refusals-say-why.md, and
-// three more handoffs over the same two days). When the dispatch loses, the push run survives and
+// breath is a coin flip, and I lost it once" - measured on 2026-09-04 across four handoffs, all
+// drained since; docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the
+// dispatch loses, the push run survives and
 // plans only the delta since the previous push - the narrow plan the dispatch was issued to avoid -
 // and it reports green. A refusal because the check is exact: no reading of the pair in one
 // command is reliable, and the sanctioned shape is two commands. The matcher is positional
@@ -274,7 +281,7 @@ if (invokesE2e(command) || invokesSweep(command)) {
     deny(
       `Blocked: browser-driving work is already running on this machine:\n${describeRuns(others)}\n` +
         'A suite, a catalog sweep and a bench all cost the same memory, and two at once exhaust it ' +
-        'rather than sharing it (see AGENTS.md "Verifying changes" gotchas).\n' +
+        'rather than sharing it (see `root/enqueue-browser-driving-work-rather-than`).\n' +
         'Wait for it with `node scripts/e2e-runs.mjs --wait` (it blocks until clear, then exits 0), ' +
         'or queue an e2e run behind it with `npm run test:e2e:queued` / `npm run test:e2e:focus:queued`.\n' +
         'If the overlap is genuinely wanted, include NOACG_ALLOW_PARALLEL_E2E=1 in the command.',
@@ -296,7 +303,7 @@ if (invokesE2e(command)) {
         `of the checkout this command runs in (${targetRoot()}).\n` +
         'Playwright runs with reuseExistingServer:true, so it would reuse that server with ' +
         `whatever env it was started with, and the ${live ? 'configured-mode' : 'offline-pinned'} specs ` +
-        'fail confusingly (see AGENTS.md "Verifying changes" gotchas).\n' +
+        'fail confusingly (see e2e/AGENTS.md "Gotchas when writing a spec").\n' +
         'Stop that server first (preview_stop if it was started with the preview tools), then re-run. ' +
         'If a killed run left it behind, nothing owns it and there is nothing to stop it FROM - ' +
         '`node scripts/e2e-runs.mjs --orphans` says whether that is the case, and `--kill-orphans` ' +

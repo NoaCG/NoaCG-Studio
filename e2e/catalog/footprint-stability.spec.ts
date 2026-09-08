@@ -162,6 +162,6 @@ test(`a staged graphic keeps its width whatever the operator types${SCOPE_NOTE}`
       + 'the room the design was drawn for; something inside it is pushing the panel wider instead '
       + 'of fitting. Run `node scripts/footprint-stability-sweep.mjs <category>` to see which '
       + 'element carries the move, then give that element the room rather than taking it from the '
-      + 'panel (see src/templates/AGENTS.md, "THE STAGE").',
+      + 'panel (see `templates/declare-fixed-footprints-through-emit-them`).',
   ).toEqual([]);
 });

@@ -1,0 +1,5 @@
+# ai/keep-injected-run-routed-results-surface
+
+Rule: `ai/keep-injected-run-routed-results-surface`. Recorded 2026-09-07 on `claude/ai-contract-migration` at 31caedac.
+
+Migrated from src/ai/AGENTS.md, paragraph 40 (zero-based blank-line inventory). Checked against code: withStructuralFindings partitions structural-kind on grounded paths; groundedResult returns assembled.diversity.variantId. Source prose (historical evidence; only the rule above is authoritative): Browser-only, injected as `GenerateOptions.structuralCheck`. PARTS findings land as WARNINGS (rule `structural-intent`) - they measure presence, not quality. KIND findings (`structural-kind`) land as blocking ERRORS on grounded results (owner decision 2026-07-31): a wrong-kind assembly fails closed and is surfaced for refine/regenerate, never delivered as a success. Grounded assemblies have no repair loop, so blocking there changes no repair rounds. `groundedResult` reports the RESOLVED chassis (`pickVariant` clamps an unknown one), which is also what makes a spec-level `modify` refine the graphic the user is looking at. Free coverage: `e2e/creative-routing.spec.ts`.

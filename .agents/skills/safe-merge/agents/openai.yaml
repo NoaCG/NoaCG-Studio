@@ -1,7 +1,0 @@
-interface:
-  display_name: "Safe merge"
-  short_description: "Verify, fast-forward, and push a branch safely"
-  default_prompt: "Use $safe-merge to verify and merge a feature branch into main."
-
-policy:
-  allow_implicit_invocation: false

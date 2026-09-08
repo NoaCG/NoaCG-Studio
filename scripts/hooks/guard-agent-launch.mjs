@@ -4,7 +4,8 @@
 // WHY A HOOK. On 2026-09-01 a row was launched on a plausible path nobody had grepped - the
 // prompt named the images step beside the SVG drop zone - and ran on it ("the row that named the
 // wrong step", .agent-workflows/orchestrator/incidents.md). On 2026-09-05 dictation lost a letter
-// and a row's TOUCHES line went to the wrong file (docs/handoffs/2026-09-05-i-offer-nothing-dead.md).
+// and a row's TOUCHES line went to the wrong file (the row that landed as `e6bdabce`; its handoff
+// was drained on 2026-09-08).
 // `scripts/wave-plan-check.mjs` checks the PLAN's table for exactly this and both prompts were
 // wrong anyway: the plan is one file and the prompt a session is handed is another, edited after
 // the check or launched by hand. TOUCHES is also what the collision pass reasons from, so two rows

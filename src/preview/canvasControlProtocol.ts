@@ -29,6 +29,15 @@
  * an element's live text content — go through `queryCanvas`, a correlated request/reply pair.
  * These only fire at GESTURE START (once per drag) or on a low-frequency gesture (double-click),
  * never per pointermove, so the round trip costs nothing observable.
+ *
+ * AND TWO THINGS A RECTANGLE IS THE WRONG SHAPE FOR, both added for the wizard's box overlay
+ * (docs/TEXT_BOX_BINDING.md) and both general: a rect that comes out of the document is
+ * axis-aligned, so on artwork drawn on an angle it describes a box around the wrong thing.
+ * `CanvasFrame` sends the element's OWN box and its matrix instead, which lets a caller draw in
+ * the element's space and let CSS do the turning; `'mark'` sends a CLASS the other way, so the
+ * element paints itself and the shape is exactly whatever the designer drew. Nothing about
+ * either is specific to that overlay - the frame is what any caller drawing ON a rotated layer
+ * needs, and the mark is how any surface says "this one" without a rectangle.
  */
 
 export const CANVAS_CMD_TYPE = 'spx-canvas-cmd';
@@ -51,12 +60,48 @@ export interface CanvasRect {
   depth: number;
 }
 
+/**
+ * THE ELEMENT'S OWN FRAME - its untransformed box, and the matrix that puts that box on the
+ * document. What a `CanvasRect` cannot say: a plate turned three degrees has a bounding
+ * rectangle bigger than the plate, so anything drawn from that rectangle is drawn around the
+ * wrong thing (docs/TEXT_BOX_BINDING.md, "the preview overlay"). A caller with the frame can
+ * place any rectangle IN the element's own space - an inset, a caret, an outline that hugs the
+ * tilt - by handing `m` straight to a CSS `matrix()`.
+ *
+ * `box` is `getBBox()`: the element's own user units, with every transform above it left out,
+ * which is why the SAME numbers describe it on any canvas rendering the same markup. `m` is
+ * `getScreenCTM()` - that space to document px, the space `CanvasRect` already reports in.
+ *
+ * An element with neither (any plain HTML node) answers with its client rect and the identity
+ * matrix, which is exactly true for it and needs no branch in the caller.
+ *
+ * Pushed only for the selectors the `'track'` command names in `frames`, because the editor
+ * canvas tracks hundreds and wants none of them: it hit-tests with rectangles.
+ */
+export interface CanvasFrame {
+  box: { x: number; y: number; width: number; height: number };
+  m: [number, number, number, number, number, number];
+}
+
+/**
+ * THE CLASSES THE DOCUMENT KNOWS HOW TO PAINT, for the `'mark'` command below. A caller may
+ * mark with any class name it likes; these are the ones composeDocument ships a rule for.
+ *
+ * `LIT` is a 12% amber wash over the marked element's own pixels - the box under a text field,
+ * lit while the reader points at that field. It is a class rather than an app-side box because
+ * the wash then rides the element's own transform and its own outline: a rotated plate, a
+ * rounded one, a freehand path all light up as the shape the designer drew.
+ */
+export const CANVAS_MARK = { LIT: 'noacg-canvas-lit' } as const;
+
 /** Fire-and-forget commands into the document — no reply, safe to send on every pointermove. */
 export type CanvasCmd =
   /** Which selectors to measure and push every frame (composeDocument's `canvasControl` rAF
    *  loop). Re-sent whenever the app's set of trackable selectors changes (a template edit adds/
-   *  removes parts, fields, or placed lines). */
-  | { cmd: 'track'; selectors: string[] }
+   *  removes parts, fields, or placed lines). `frames` is the subset that ALSO wants a
+   *  `CanvasFrame`; it need not be a subset of `selectors`, and a caller that only draws in an
+   *  element's own space may name it here and nowhere else. */
+  | { cmd: 'track'; selectors: string[]; frames?: string[] }
   /** Live GSAP preview during a keyframe/layer-transform drag — `gsap.set(selector, vars)`. */
   | { cmd: 'gsap-set'; selector: string; vars: Record<string, number> }
   /** Live inline style preview during a placement/line-size drag, or its Escape/cancel revert
@@ -67,7 +112,17 @@ export type CanvasCmd =
   | { cmd: 'set-scale-var'; value: number | null }
   /** Type-on-canvas: mirror the inline editor's live value into the rendered element (or, on
    *  cancel, restore the field's original text). */
-  | { cmd: 'set-text'; selector: string; text: string };
+  | { cmd: 'set-text'; selector: string; text: string }
+  /** CARRY A CLASS IN. Every element wearing `className` loses it and every element matching
+   *  `selectors` gains it, so one command is the whole state of that mark and a caller never
+   *  has to remember what it lit last. An empty `selectors` clears it.
+   *
+   *  This is the one thing the rect stream structurally cannot do. A rect comes OUT of the
+   *  document axis-aligned, so anything the app draws from it is a rectangle on the screen's
+   *  axes; a class goes IN and is painted by the element itself, so it follows the rotation,
+   *  the corner radius and the outline of whatever the designer actually drew. See
+   *  `CANVAS_MARK` for the classes composeDocument paints. */
+  | { cmd: 'mark'; className: string; selectors: string[] };
 
 export function postCanvasCmd(win: Window | null | undefined, msg: CanvasCmd): void {
   win?.postMessage({ type: CANVAS_CMD_TYPE, ...msg }, '*');
@@ -90,6 +145,8 @@ interface CanvasReplyMessage {
 export interface CanvasRectsMessage {
   type: typeof CANVAS_RECTS_TYPE;
   rects: Record<string, CanvasRect | null>;
+  /** Only the selectors the last `'track'` named in `frames`; absent where none were asked for. */
+  frames?: Record<string, CanvasFrame | null>;
 }
 
 let nextReqId = 0;

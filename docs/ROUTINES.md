@@ -4,86 +4,124 @@ Scheduled Claude Code tasks that run on TIME, not on a commit - the whole point,
 a push and so never notices that a week went by, a dependency aged, a competitor shipped, or
 somebody left feedback nobody read.
 
-They are **reports, never gates**: none edits a file, commits, or starts work - a routine that finds
-something says what to do and stops. They live per machine, not in this repo, under
-`~/.claude/scheduled-tasks/<id>/SKILL.md`, and run while Claude Code is open.
+They live per machine, not in this repo, under `~/.claude/scheduled-tasks/<id>/SKILL.md`, and run
+while Claude Code is open.
 
-| Routine | Cadence | Task id |
-|---|---|---|
-| Feedback + freshness | Mondays 09:45 | `weekly-feedback-and-freshness` |
-| Orchestrator week | Tuesdays 09:15 | `weekly-orchestrator-review` |
-| Competitor review | 1st of the month, 10:00 | `monthly-competitor-review` |
-| Quality / refactor review | 15th of the month, 10:00 | `monthly-quality-review` |
-| Morning CI verdict, alert-only | daily, before the morning wave | `nightly-ci-morning-report` |
-| Night report - what the queue did | daily, just before the CI verdict | `nightly-queue-night-report` |
-| Delegation tooling freshness | daily | `codex-update-check` |
-| Configured-suite schedule check | daily | `configured-suite-cron-check` |
+| Routine | Cadence | Task id | Reaches the owner |
+|---|---|---|---|
+| Morning brief | daily 07:00, before the wave is planned | `daily-morning-brief` | only when something needs him |
+| Delegation tooling update | daily 09:17 | `codex-update-check` | only when an update broke |
+| **Weekly owner session** | **Tuesdays 09:15** | `weekly-owner-session` | **every week - this is his gate** |
+| Competitor review | 1st of the month, 10:00 | `monthly-competitor-review` | monthly |
+| Quality / refactor review | 15th of the month, 10:00 | `monthly-quality-review` | monthly |
 
-Three of the daily ones were on this machine before this table named them (found 2026-09-02). The
-night report is the exception and the table is ahead of the machine for it: the script and its
-schedule are described below, and `nightly-queue-night-report` still has to be created under
-`~/.claude/scheduled-tasks/`, which is outside this repository and therefore outside what a branch
-can land. Until it is, `npm run night:report` on demand gives the same answer.
+Five routines, and he attends one of them. That is the shape to keep.
 
-The morning verdict is the one the orchestrator reads: on a red morning it writes
-`docs/handoffs/ci-morning-report.local.md` in the PRIMARY checkout - gitignored, so no other
-checkout ever has it - and on a green morning it deletes that file and says nothing.
+## The two rules
 
-## Daily - the night report
+**Routines report; sessions write.** A routine that finds something says what to do and stops. It
+does not start the work, and it never edits a tracked file in the primary checkout - `auto-merge.mjs`
+refuses every queued landing while `git status --porcelain` is non-empty there, so one stray
+untracked file jams the merge queue for the whole morning. The three files routines are allowed to
+write all end in `.local.md`, which `.gitignore` carries for exactly this reason.
 
-`npm run night:report -- --write` in the MAIN checkout, run just before the morning CI verdict so
-the two arrive together. It reads the job store and `landed.jsonl` for the last twelve hours and
-prints what landed, what refused grouped by refusal kind, what the queue repaired by itself, and
-what still needs a person - with the command that answers each one, and who runs it.
+**The one exception, written here so it cannot widen quietly:** the monthly quality review files its
+findings under `docs/backlog/` on a BRANCH, through the ordinary landing flow, and only when the
+primary checkout is clean and on `main`. It is an exception because a ranked finding that exists
+only in a chat log is gone by Tuesday, and because the shelf is how `/orchestrator` picks up spare
+capacity. No other routine may write a tracked file, and this one may not write anything outside
+`docs/backlog/`.
 
-**Why a report and not the queue's own listing.** `npm run jobs` answers "what is happening now",
-which is the wrong tense at 08:00. The four facts the owner actually wanted on the morning of
-2026-09-04 - what landed, what refused and why, what recovered, what is stuck - were each on disk
-and none of them were together, so the morning began with GitHub failure mail and 560 job records.
-It groups by the kinds `refusalGuidance` (`scripts/jobs-store.mjs`) already owns rather than
-classifying anything itself: a second vocabulary would drift from the one the queue acts on.
+**Silence is the default on a daily.** A routine that speaks every morning is a routine that gets
+skimmed and then ignored. The morning brief says nothing on a clean night, and that is not a bug to
+be helpfully fixed later.
 
-**It writes `docs/handoffs/night-report.local.md`** in the checkout it runs in, which is where the
-morning report reads it. The name ends in `.local.md` so it is gitignored and a dirty main checkout
-never stops a landing - the same rule the CI morning verdict and the orchestrator week are written
-under. It exits 0 whatever it finds, including a bad night: a morning report that can fail is a
-morning report that sometimes does not arrive.
+## Daily - the morning brief
 
-Run it by hand over any window: `npm run night:report -- --hours 24`, `-- --since 2026-09-04T18:00`,
-`-- --json`.
+`daily-morning-brief`, 07:00 Helsinki, so the verdict is in hand **before the morning wave is
+planned** (owner, 2026-08-29). A report that lands after the wave has started cannot change what the
+wave does.
 
-## Weekly - feedback and freshness
+It answers three questions that arrive at the same moment and used to be three separate routines:
 
-Runs `npm run feedback:count` and `npm run check:freshness` in the main checkout and reads both out
-in chat: how much feedback arrived in the last 168 hours, how much is negative, how much carried a
-written note, how much is still untriaged - then the one action, *open `/admin` and read what they
-wrote*. Freshness rides along because `docs/STACK_FRESHNESS.md` is time-driven and nothing else
-mentions it.
+1. **What is still broken now**, after the night's noise settled - the CI verdict. GitHub already
+   emails when a run fails, so a break that went red at 21:00 and was fixed by 04:00 is never
+   repeated here. Resolved is silent.
+2. **What the queue did overnight** - `npm run night:report -- --write` over the last twelve hours:
+   what landed, what refused and under which refusal kind, what the queue repaired by itself, and
+   what still needs a person, each with the command that answers it. It groups by the kinds
+   `refusalGuidance` (`scripts/jobs-store.mjs`) already owns rather than inventing a second
+   vocabulary that would drift from the one the queue acts on.
+3. **What did not run at all** - silence never sends an email, so a cron that stopped firing is
+   invisible everywhere else. That covers `nightly.yml` and `configured-suite.yml`.
 
-**Why a reminder and not a mail.** The owner's ruling, 2026-08-26: *"I will not remember to go to
-the admin page."* `docs/ADMIN.md` §10 has why an unread inbox is worse than no feedback button.
+**Why these three are one routine.** They were written separately and the seams showed. The night
+report was documented to run "just before" the CI verdict so the two would arrive together, which is
+an admission that they are one answer to one question: *does this morning need me?* The
+configured-suite cron check was a standing task created for a specific investigation in August 2026;
+its finding has long since resolved and what remains of it is one line inside silence detection. Two
+of the three had also drifted out of existence - see "What the table used to claim" below.
 
-**Counts travel, words do not.** `--count` never asks the database for the message column
-(`COUNT_SELECT_COLUMNS`), and the one fact it wants about written notes comes back as a row count
-with zero rows attached. What a person wrote stays behind the admin login, as a property of the
-query rather than of the printing.
+It writes `docs/handoffs/night-report.local.md` every run and
+`docs/handoffs/ci-morning-report.local.md` only when it speaks, deleting that second file on a clean
+morning. Deleting is what keeps it honest: the file's whole meaning is *this was true at 07:00
+today*, so yesterday's must never survive into today. `npm run night:report` on demand answers the
+same question over any window (`-- --hours 24`, `-- --since 2026-09-04T18:00`, `-- --json`).
 
-## Weekly - the orchestrator's own week
+## Daily - delegation tooling
 
-Runs `.agent-workflows/orchestrator-week.md` in the main checkout: `node scripts/orchestrator-week.mjs`
-for the numbers (tokens by model and per harness, the Codex snapshot, Antigravity calls, the
-delegation outcomes, the waves' rows by pool, decisions taken against asks made, the commits that
-touched the orchestration system and the common-path line count), then the judgement the script
-does not make - which asks were the machine's to decide, which commit added text where a mechanism
-was available, and at most three ideas from other orchestrator skills on GitHub, each classified
-against a measured failure. Owner, 2026-09-03: a loop one level above the per-wave lesson.
+`codex-update-check` upgrades the Codex CLI, the Codex plugin and the Antigravity `agy` CLI on
+sight, verifies each one, and rolls back automatically if verification fails. **It is the only
+routine that acts rather than reports**, which is exactly why it is not folded into the morning
+brief: an alert-only brief that quietly installs things is a brief nobody can trust. It speaks only
+when something changed or a rollback happened.
+
+## Weekly - the owner session
+
+`weekly-owner-session`, Tuesdays 09:15. It runs `.agent-workflows/orchestrator-week.md`, which is
+the canonical procedure, shared with the `/orchestrator-week` command and the Codex skill of the
+same name.
+
+**This is the only standing gate that needs the owner**, and it exists because of his ruling on
+2026-09-05: *"We need to have the agents aligned with my thoughts about NoaCG and we could have
+weekly alignment checks so we make sure that we have the same plan and vision. The rest we can
+automate."* The same ruling removed him from every technical and design question. So the session's
+first half is the alignment check - the week's plan in five minutes, and at most three questions.
+
+**The questions use the ask-test the repo already has, not a second one.** The invariant
+`root/question-owner-names-reason-own-text` gives a question to the owner five reasons - account,
+money, identity, harness, alignment - and this page owns `alignment` alone; the other four reach him
+when they arise and never wait for Tuesday. Narrowed to that reason the test reads: *would his
+answer change what we build or in which order, in a way no model can derive from the docs?* A
+technical question, a merge conflict, a "which first" the plan already answers, and anything of the
+form "is this okay?" all fail it and are decided by the strongest available model, recorded where he
+can revert them.
+
+**Unanswered is not a stop.** If he does not answer, the plan stands and the queue keeps working
+toward it. Nothing in NoaCG waits on this page. That is the property that makes "the rest we can
+automate" safe rather than merely optimistic.
+
+The session's second half is the machine reviewing itself - spend by model and harness, decisions
+taken against asks made, what the orchestrator skill changed about itself, what other orchestrators
+do now, and at most three improvements as candidate wave rows. That half is written to the file and
+not read out.
+
+Feedback and freshness ride here too, and they used to be their own Monday routine. Feedback,
+because `/admin` has a real inbox that only works for somebody who opens it - the owner's ruling,
+2026-08-26: *"I will not remember to go to the admin page."* Counts travel and words do not:
+`--count` never asks the database for the message column, so what a person wrote stays behind the
+admin login as a property of the query rather than of the printing. Freshness, because
+`docs/STACK_FRESHNESS.md` is time-driven and nothing else mentions it; it reports weekly and nothing
+auto-upgrades.
 
 **It writes one gitignored file**, `docs/handoffs/<date>-orchestrator-week.local.md` in the main
-checkout, the same rule as the morning CI verdict: the name ends in `.local.md` so a dirty main
-checkout never stops a landing. The next `/orchestrator` invocation reads it with the rest of the
-handoff folder and turns its candidate rows into a wave, or says why not. Tuesday, not Monday,
-by the owner's ruling (2026-09-03): his weekly allowance can be spent by Monday, and he reads the
-weekly percentage off his account page himself, so the routine never computes or asks for it.
+checkout, and prints only the owner-facing sections in chat. The next `/orchestrator` invocation
+reads the file with the rest of the handoff folder and turns its candidate rows into a wave, or says
+why not.
+
+Tuesday and not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday, and
+he reads the weekly percentage off his account page himself, so the routine never computes or asks
+for it.
 
 ## Monthly - competitor review
 
@@ -98,20 +136,49 @@ OGraf-leads bet is decided by OTHER PEOPLE's adoption accumulating over months, 
 chat and nowhere else is gone when the session closes - which is what had been happening. The ledger
 is `docs/backlog/ograf-ecosystem-watch.md`, and the routine's job is to end its run by printing the
 block to append: a date heading, one bullet per item with a date, what it means for us, and a source
-URL, or the words for a quiet month. **The append itself is made by a session working on a branch**,
-because this routine runs unattended in the main checkout, and a dirty main checkout stops every
-landing on the machine (`scripts/auto-merge.mjs` refuses on an unclean tree - root `AGENTS.md`,
-"Git"). So the rule above holds without an exception: routines report, sessions write.
+URL, or the words for a quiet month. The append itself is made by a session working on a branch.
 
 ## Monthly - quality and refactor review
 
-Three to seven ranked proposals about the SOURCE: the grandfathered-debt list in
-`docs/ARCHITECTURE.md`, lint suppressions, oversized modules, duplication, dead code, verification
-gaps, the month's churn - each with a measured cost, a size, and what would prove it did not break.
+Three to seven ranked proposals about the SOURCE, plus the Supabase advisor baseline, CI and e2e
+cost, and context-window cost: the grandfathered-debt list in `docs/ARCHITECTURE.md`, lint
+suppressions, oversized modules, duplication, dead code, verification gaps, the month's churn - each
+with a measured cost, a size, and what would prove it did not break. Every run covers all four
+areas, because the point of a fixed set is that a quiet area proves itself quiet.
 
-**Deliberately NOT the coherence session.** That one (`.agent-workflows/orchestrator/coherence.md`) owns the
-written surface - cold-read test, contract contradictions, the byte ratchet, GOALS drift. This one
-owns code and hands any doc defect over. Two reviews that overlap get read as one, then neither.
+**Deliberately NOT the coherence session.** That one (`.agent-workflows/orchestrator/coherence.md`)
+owns the written surface - cold-read test, contract contradictions, the byte ratchet, GOALS drift.
+This one owns code and hands any doc defect over. Two reviews that overlap get read as one, then
+neither.
+
+It is also deliberately not merged with the competitor review, though both are monthly and both
+produce ranked findings. They keep different write permissions - the competitor review prints a
+block for a session to append, this one files to `docs/backlog/` on a branch - and fusing two
+permission regimes into one prompt is how a routine quietly gains access it should not have.
+
+## What the table used to claim
+
+Recorded because it is the failure mode this file exists to prevent, and it took a direct question
+from the owner on 2026-09-08 to surface it. A table that describes routines nobody has checked
+against the scheduler is worse than no table: it reads as a verified inventory.
+
+- **`nightly-queue-night-report` was listed and never existed.** The table said so in its own text
+  and the note was six days old. The night report now runs as part of the morning brief.
+- **`configured-suite-cron-check` had a task directory but was never registered**, so it had never
+  run once. Its live remnant is one line of silence detection inside the morning brief.
+- **`monthly-quality-review` was scheduled weekly**, cron `0 10 * * 2`, and its own description
+  called it weekly while this file called it monthly. It had been running four times a month. Now
+  `0 10 15 * *`, as documented.
+
+The check that catches this next time is cheap and belongs to the weekly owner session: list the
+scheduler, compare it to this table, and say which side is wrong.
+
+The three superseded tasks - `nightly-ci-morning-report`, `weekly-feedback-and-freshness`,
+`weekly-orchestrator-review` - are **disabled, not deleted**, and their descriptions say what
+replaced them. They are years of tuning that took real incidents to earn, and a disabled task costs
+nothing; if a merged routine turns out worse than the pair it replaced, the old prompt is still
+there. Listing the scheduler therefore shows eight tasks, five of them enabled, which is why the
+table above is the one that counts.
 
 ## The parked mail digest
 

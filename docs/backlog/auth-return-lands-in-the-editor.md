@@ -7,8 +7,8 @@ asked: "coming back from Google sign-in or a password-reset link boots the canva
 ---
 # An auth return boots the editor instead of Home
 
-**Filed:** 2026-09-03, from the code review on `claude/g-route-transition-flash`
-(`docs/handoffs/2026-09-02-g-route-transition-flash.md`). Deliberately not fixed there: it is a
+**Filed:** 2026-09-03, from the code review on `claude/g-route-transition-flash` (its handoff has
+since been drained; the branch is in the log). Deliberately not fixed there: it is a
 question about which surface a boot lands on, and that branch was blocked on a different defect.
 
 ## What happens

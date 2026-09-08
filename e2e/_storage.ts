@@ -68,7 +68,8 @@ export async function freeStorage(page: Page): Promise<void> {
  *
  * Going through the raw database rather than a module export also sidesteps the ghost-instance
  * trap: a dynamic import in an evaluate can resolve a SECOND, unhydrated copy of the store
- * (AGENTS.md "Verifying changes" gotchas), whose answer would be an empty and very convincing lie.
+ * (e2e/AGENTS.md "Gotchas when writing a spec"), whose answer would be an empty and very
+ * convincing lie.
  */
 export async function durableValue(page: Page, key: string): Promise<string | null> {
   return page.evaluate(

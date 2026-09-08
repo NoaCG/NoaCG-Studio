@@ -143,3 +143,18 @@ the compaction ships in the same commit.** Waiting for the answer is the failure
 - Row H's handoff, 2026-09-02: spent 244 bytes and filed its contract elsewhere.
 - Owner receipts `agents-md-byte-headroom` and `agents-md-warning-fails-at-99`, both closed by
   2026-09-04; `node scripts/owner-receipts.mjs --closed` reads them back out of git.
+
+## Trend
+
+- 2026-09-03: root `AGENTS.md` gave up 11,343 bytes; chains over 80% of the byte budget went from
+  ten to one. The orchestrator's always-loaded common path sat at **638 of 640 lines**.
+- 2026-09-08: the byte half is still healthy - the three tightest chains are
+  `src/components/wizard` (71,767 of 110,000, 65%), `src/ai/pro/harness` (64.8%) and
+  `src/templates/importedDesign` (62.3%), none near the 4,096-byte failure margin. **The LINE half
+  has run out.** `npm run check:shared-instructions` reports the orchestrator core at **198 of 200
+  lines** and the common path at **640 of 640**. Zero headroom, down from two lines in five days.
+  The next sentence added to `.agent-workflows/orchestrator.md` or to any of its five every-plan
+  modules fails the build, and the modules already carry 107 KB across eleven files against the
+  15 KB core. This is now the blocking item, not a background one: `docs/backlog/memory-store-drain.md`
+  names it as the reason ten routed memory rules still have nowhere to go, so two backlog items are
+  waiting on these two lines.

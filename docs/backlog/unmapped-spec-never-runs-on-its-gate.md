@@ -10,9 +10,9 @@ files against a directory.
 source path to the full suite - the safe direction. A new SPEC has no such safety: written and
 committed without a line in `scripts/e2e-lists.mjs` or the map, it runs only at night, and the
 branch that added it lands on a gate that never ran it. Three handoffs in five days carry the same
-finding: `docs/handoffs/2026-09-02-g-route-transition-flash.md` ("the spec would not have run on
-the merge gate"), `docs/handoffs/2026-09-04-l-browse-a-productions-graphics.md` ("the spec was
-mapped but not in `FOCUS`"), `docs/handoffs/2026-09-04-n-panel-pairs-with-import.md` ("the new
+finding, all three since drained: route-transition-flash, 2026-09-02 ("the spec would not have run
+on the merge gate"); browse-a-production's-graphics, 2026-09-04 ("the spec was mapped but not in
+`FOCUS`"); panel-pairs-with-import, 2026-09-04 ("the new
 walks not mapped ... so editing the export files they guard would never schedule them"). The root
 `AGENTS.md` already says "add a spec for any new flow plus its mapping in the same commit", which
 is the proof prose does not fire here.

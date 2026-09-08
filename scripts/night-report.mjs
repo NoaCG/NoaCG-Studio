@@ -98,9 +98,9 @@ export function nightReport({ jobs = [], landings = [], since, until = Date.now(
         branch: job.branch ?? '<no branch>',
         at: at(job),
         state: job.state,
-        // An unnamed refusal is not a hole to plug with a guess: a landing runs the copy of
-        // auto-merge.mjs in its own branch's checkout, so a branch cut before a kind existed
-        // refuses without one, forever. It is reported as what it is.
+        // An unnamed refusal is not a hole to plug with a guess: this reads a job record, and a
+        // record written by tooling that predates a kind carries no kind, forever. It is reported
+        // as what it is.
         kind: job.refusal?.kind ?? null,
         blockers: job.refusal?.blockers ?? [],
         summary: said?.summary ?? giveUpReason(job),
@@ -220,9 +220,8 @@ export function renderReport(report) {
     lines.push('');
     lines.push(`### ${group.kind} - ${group.count}`);
     if (group.kind === UNNAMED) {
-      lines.push('A landing runs the copy of auto-merge.mjs in its OWN branch, so a branch cut');
-      lines.push('before the refusal kinds existed refuses in prose and nothing else. This group');
-      lines.push('shrinks as old branches land; it is not a fault to chase.');
+      lines.push('A landing refused before the refusal kinds existed says so in prose and nothing');
+      lines.push('else. This group shrinks as old branches land; it is not a fault to chase.');
     }
     for (const r of group.items) {
       // A refusal that is already answered says SO and offers nothing. Printing a re-queue command

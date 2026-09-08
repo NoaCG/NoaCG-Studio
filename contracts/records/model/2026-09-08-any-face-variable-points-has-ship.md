@@ -1,0 +1,5 @@
+# model/any-face-variable-points-has-ship
+
+Rule: `model/any-face-variable-points-has-ship`. Recorded 2026-09-08 on `claude/a-model-contract` at 684e2bf2.
+
+Extracted from `src/model/AGENTS.md`, corrected against the code. The contract listed `templates/shared/base.ts` at build as one of the four callers of `ensureFontFace`. It is not a caller - `ensureFontFace` has no reference anywhere under `src/templates/`; `base.ts` imports `fontFaceCss` and returns the face CSS with the stack, which covers the build's own faces by emitting them rather than by registering them. The other three paths are real: `ensureNumericFontFace` in `src/components/StylePanel.tsx` and `src/model/packets.ts`, the `cssVarOverrides` loop in `src/components/wizard/draft/core.ts`, and `setVar` in `src/components/StylePanel.tsx`. The distinction matters to anyone adding a fifth retargeting path: the guarantee is needed where a variable is changed AFTER the build, which is exactly why the wizard's overrides are on the list.

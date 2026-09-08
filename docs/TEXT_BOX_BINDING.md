@@ -2,7 +2,10 @@
 
 **Status: all three measured defects are FIXED, the ALIGNMENT model is built and now snaps BOTH
 axes, a graphic that comes up again keeps a fixed box, and unticking a text layer asks what to do
-with the words. The step's own surface - grouping, the swatch, the overlay, the alignment control -
+with the words. STEP 2 IS FINISHED (2026-09-08): the checklist groups by box with a swatch, and
+hovering a row draws that box, its room, the block's bounds and the alignment caret on the
+artwork. STEP 3 IS BUILT (2026-09-08, same day): a nine-dot grid in every row that has a box, and
+the checkbox that hands back the nudge. What is left of the step's own surface - growth per box -
 is still DESIGN.** The owner's brief is the 2026-09-02 walk of his own quiz board;
 the verbatim words are in `docs/acceptance/owner-queue/2026-08-28-student-rehearsal-walk.md` and
 they are the authority here, not this summary of them.
@@ -143,8 +146,25 @@ the same thing.
 ### Rows grouped by box
 
 The flat Editable text list becomes one group per box, the box as a header row and its fields
-indented under it. Text with no shape under it sits in a final "On the artwork" group. The
-grouping IS the binding.
+indented under it. Text with no shape under it sits in an "On the artwork" group. The grouping IS
+the binding.
+
+**Two amendments, measured 2026-09-08 while building it, both against the corpus:**
+
+- **A group is a RUN of consecutive rows, and that group is not always "final".** Collecting every
+  row that shares a box re-sorts the checklist, which is the order the reader drew in and the
+  order they scan in. On the Affinity board (`origin-shifted-quiz-board`) it moved the question
+  BELOW its own four answers; on `inkscape-text-on-path-bumper` it swapped the two lines. So the
+  box a row is in is SHOWN and where the row sits is never touched. A file that genuinely
+  interleaves two boxes gets two headings for one box, which is honest; the number is per box, so
+  a box a reader returns to keeps the number it had.
+- **The board's own backplate is not a box.** A shape covering most of the frame holds every line
+  there is, so heading the whole checklist with it is a heading rather than a grouping - the same
+  sentence this document already makes for `repeatsWithNewContent`, at the same 0.7 of the frame
+  and deliberately the same number, so a shape cannot be a backplate to one measurement and a row
+  to the other. Its lines fall into "On the artwork", whose line reads "no box of their own, so
+  nothing grows around them" - true both of a line with nothing under it and of one with nothing
+  under it but the backplate.
 
 ```
 Editable text                              5 of 5 editable on air
@@ -175,6 +195,45 @@ rectangle, which reads as a box around the wrong thing on rotated artwork:
 - **the text bounds**, a thin line around the current block. The gap between it and the dashed
   line is how much room is left;
 - **the alignment caret** under the block at its anchor, with the word.
+
+**Three amendments, measured 2026-09-08 while building it, all against the owner's own board:**
+
+- **The room is drawn in the LINE's frame, not the box's.** The doctrine section below says every
+  measurement is taken in the box's local coordinate system, and the runtime does not: `svgAlignOf`
+  maps the plate INTO the line's system through `svgLocalBox` and measures there. Where text and
+  plate carry the same rotation - almost always, because the designer turned them together - the
+  two frames are one answer, and all four answer plates on this board are that case. The question
+  is not: its plate is a portrait rectangle rotated 88.68 degrees and its text is drawn level, so
+  the two frames stand a quarter turn apart, and the two measurements are then about different
+  axes. What that cost, measured: built in the box's frame, the text bounds round the question
+  came out turned 88.68 degrees away from the words they were meant to hug. The alignment words
+  survived it here only because the question is centred on BOTH axes, which makes the swap
+  invisible - a line centred on one axis and not the other would have been described about the
+  wrong one. So the code's frame wins, as the code always does
+  (`root/treat-code-single-source-truth-canonical`), and the doctrine paragraph should be read as
+  "in the artwork's own frame, never the screen's" - which is the point it was making.
+- **On an axis the block is CENTRED on, the margin drawn is TYPOGRAPHIC, not the gap the designer
+  left.** "The drawn insets mirrored" was true of the ladder when this section was written; the
+  centred-line rules of 2026-09-02 and 2026-09-04 changed it. On a centred axis both gaps are half
+  the leftover by construction, so mirroring one hands the line back its own drawn size and the box
+  goes unread - `svgAlignOf` substitutes half the drawn type sideways, and `measureSvgRoom`
+  substitutes half a line vertically. The overlay makes the same two substitutions, from the same
+  two exported constants, or it would draw the owner's question with no room left inside a plate
+  that will give it two more lines. On a top-aligned axis the gap really is margin and is drawn as
+  it was measured. The table above still records the DRAWN insets, which is a different fact and
+  still the right one for it.
+- **The step measures, the preview draws, and neither converts.** `getBBox` leaves out every
+  transform and the mapping between two elements is a ratio of their matrices, so a uniform page
+  scale cancels: the numbers taken off the step's hidden render land unchanged on the preview's
+  canvas at any zoom. That is what lets the room be measured on the canvas that has the artwork as
+  drawn and drawn on the canvas that runs the fit, without the two being able to disagree
+  (`wizard/make-mapsvgfieldsstep-mapping-step-mode-over`).
+
+The box is the one part the app does not draw at all: the shape washes itself, through a `mark`
+command carrying a class into the document (`preview/canvasControlProtocol.ts`). That is the whole
+reason rotation is free - a rectangle coming OUT of the document is axis-aligned, so anything drawn
+from one is square to the screen, and it was a box around the wrong thing on every plate on this
+board.
 
 ### Correcting a wrong box
 
@@ -225,6 +284,56 @@ the offset rides the anchor rather than the value. Untouched, nothing about it i
 asked for this NOT to become a project - *"this is also something that is not breaking our system,
 so I do not want to make a big issue out of this because we have bigger fish to fry"* - and it
 does not: one measured number per axis, one checkbox that appears only where it applies.
+
+**Built 2026-09-08, with four departures from the mock above, each measured on the owner's board
+and the shipped scorebug (`docs/metrics/2026-09-08-alignment-grid-in-the-row.md`):**
+
+- **The grid sits IN THE ROW, beside the Text box, not in a strip under it.** A checklist row is a
+  checkbox, two text boxes and nothing that expands; the strip the mock draws did not exist and
+  its summary line would have cost the step a row per row, against a height budget the scorebug
+  pins to the pixel. A 3x3 of 8 px dots sits in a 33 px box, the height a text box computes to, so it
+  costs no height at all. The seven scorebug rows still arrive whole at 1280x720, with 42 px to
+  spare, and the two text boxes went from 191 px to 160 px each to make room. The words live on
+  the caret the preview already draws while the row is hovered, and on the grid's own tooltip.
+- **"Read from your drawing" is a RING, and setting is a SOLID DOT.** The drawn answer is ringed
+  amber; a dot the reader sets fills; clicking the drawn dot again hands the row back to the
+  drawing rather than restating it, so a draft nobody touched and a draft touched and put back
+  are the same bytes. The tooltip says which: "centred, middle - read from your drawing." or
+  "left, top - set by you. The drawing reads centred, middle."
+- **The nudge line is under the row, and only where the offset clears a quarter of the drawn
+  type.** Nothing hand-placed sits exactly on a centre, so nearly every centred line records a
+  unit or two of offset, and a checkbox offering that back on every row would be noise about the
+  hand's wobble. A quarter of the type is the smallest offset that reads as a composition: the
+  question's 41 px sideways and 12 up at a drawn 36 clear it; the scorebug's figures, a couple
+  of units off their band's middle, do not, and that board shows no nudge line at all. It is
+  offered only while both axes are the drawn ones - moved to another edge, there is nothing of
+  the designer's to keep. (The sentence reads "to the left": the drawn insets are 209 and 280, so
+  the question sits LEFT of its plate's centre; the mock's "to the right" was illustrative.)
+- **A declared anchor keeps the margin the drawing has.** Sent to the left or right inside edge,
+  the block keeps the gap the designer left where the line was set against a side, and half the
+  drawn type where it was centred - the same substitution the derived road and the overlay make,
+  and never less room than a centred line gets. Declaring exactly what the file says takes the
+  file's own road, so it changes nothing, to the unit, on either axis; declaring an edge the line
+  was not drawn against moves the block to the drawn gap inside it, or half a line where it was
+  drawn centred. A countdown row offers no grid: its layer is the clock display and carries no
+  field id a declaration could name.
+
+What travels: `NOACG_LAYOUT` gains a `lines` list - `{ el: 'f0', h, v, nudge }` per line the reader
+touched - and is emitted on its own where no growth rule exists, without the growth runtime. Version
+1 survives; a line not listed is read off the drawing exactly as before, so an untouched import
+emits the bytes it always did. `svgAlignOf` reads the list and works the declared answer out FROM
+the same measurement the derived one uses, so everything downstream (the room, the snap, the growth
+from the middle) is computed from it rather than seeded.
+
+**Why step 3 was built before step 4, decided 2026-09-08 in this session and revertable by saying
+so.** Ruling 3 above sent CHANGING the alignment to the backlog, and step 4 has an owner receipt
+(`docs/backlog/svg-import-sweep-findings.md`, the sixth growth finding) where step 3 has none. But
+that receipt's defect - his board defaulting to growth - was answered by doctrine rule 3
+(`repeatsWithNewContent`), so step 4 now buys "one plate grows while its neighbours stay", which
+no class graphic has asked for. Step 3 buys the correction for the one thing that WILL go wrong on
+a student's own drawing before 2026-09-12: a line composed 6% off centre reads as left-aligned and
+fills one way, and the fix is one click on the row rather than a re-export. Correct-by-default
+stays the bar; the grid is what a student reaches for when the default read their drawing wrong.
 
 ### Growth, per box
 
@@ -299,7 +408,8 @@ wrapping to two or three lines in the tan plate with the answers exactly where h
 ## What it costs the formats
 
 `NOACG_LAYOUT` gains an alignment pair per line and a cap per rule, and the growth rows become
-per-box rather than one per graphic - all additive, so version 1 survives (root principle 6). The
+per-box rather than one per graphic - all additive, so version 1 survives
+(`root/version-every-persisted-format-ship-breaking`). The
 draft holds, per field, a box id or none plus alignment with an `authored` flag; per box, growth,
 cap and followers.
 
@@ -316,11 +426,22 @@ cap and followers.
    The three rulings given after step 1 was walked. Each is written up in its own section below.
    None of them stores anything either: the snap is a `dy`, the repeat rule is a measurement of the
    artwork, and the untick answer is a wizard choice that emits one CSS rule.
-2. The derived box binding, shown: grouping, the swatch, the overlay. No new controls - just the
-   step admitting what it already decided.
-3. The alignment CONTROL: the nine-dot grid, the "read from your drawing" label, and the checkbox
-   that hands back the nudge the file recorded. `align.nudge` is measured already and nothing
-   reads it yet, which is deliberate - it is the whole cost of the wonky-on-purpose case.
+2. The derived box binding, shown. ~~Grouping and the swatch~~ - DONE 2026-09-08: the checklist
+   is one group per box, headed by a swatch in the shape's own fill and a name, with the rows
+   indented under it. No control was added; `panelOfEachLine` already decided this and decided it
+   silently. It now runs over EVERY text row rather than the bound ones, so a row keeps its place
+   when it is unticked. A box with no readable layer name is named by its colour and numbered
+   where the colour repeats (`q bg` -> "Tan plate"), which is the fixture's own case. What is left
+   of this step is THE OVERLAY: the tinted shape, the dashed insets, the text bounds and the
+   alignment caret, replacing the axis-aligned amber rectangle that sits outside rotated artwork.
+   ~~The overlay~~ - DONE 2026-09-08. All four parts, with the three amendments above. The canvas
+   protocol gained two general capabilities to carry it: a CLASS going into the document (so the
+   shape washes itself and wears its own rotation and outline) and an element's own FRAME coming
+   out beside its rectangle (so a caller can draw in that element's space). **Step 2 is finished.**
+3. ~~The alignment CONTROL~~ - DONE 2026-09-08. The nine-dot grid in the row, the ring for the
+   drawn answer, and the nudge checkbox under the row where the file has one. `align.nudge` and
+   `align.nudgeY` are read for the first time by that checkbox. The four departures from the mock
+   are under "Alignment" above.
 4. Growth per box, with the cap line.
 5. The fit line and the too-long tag.
 
@@ -562,6 +683,8 @@ of A as approval of the unsnapped vertical, and do not treat this note as him ha
   `app.mxmz.com`. So the question can only be answered from inside their editor or by watching one
   of their live graphics take a long value. Worth one narrow look before step 3 is built, not a
   study.
+  **Not looked at (2026-09-08): step 3 was built without it.** The editor is behind a sign-in, so
+  the narrow look is a `needs: account` question for the owner - one line, and it blocks nothing.
 
 The full UX write-up this is condensed from was produced by Fable on 2026-09-02 at the owner's
 request ("here we should use Fable to really think about a UX/UI that would make it intuitive").

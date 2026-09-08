@@ -66,7 +66,8 @@
 //
 //   - a write must run in a LINKED WORKTREE. The primary checkout is the landing queue's tree -
 //     it is checked out, merged, built and reset during every integration, so a delegate writing
-//     there can lose work that is not its own (root AGENTS.md, "Git");
+//     there can lose work that is not its own
+//     (`root/never-occupy-checkout-holds-feature-branch`);
 //   - a write must run on a BRANCH that is not `main`, and never on a detached HEAD. That is the
 //     whole of "it lands the same way everything else does": whatever it writes sits on a feature
 //     branch some Claude row gates, reviews and queues, and reaches `main` through the queue;
@@ -283,7 +284,8 @@ export function ledgerRecord({ args, result, verdict, at, cwd, branch, exitCode,
     at: new Date(at).toISOString(),
     harness: 'antigravity',
     // Additive fields (2026-09-01): pool and write. Additive optional fields never bump the
-    // version (root AGENTS.md rule 6) - a v1 reader that ignores them reads the line correctly.
+    // version (`root/version-every-persisted-format-ship-breaking`) - a v1 reader that ignores
+    // them reads the line correctly.
     pool: poolForModel(args.model),
     write: args.write === true,
     model: args.model,

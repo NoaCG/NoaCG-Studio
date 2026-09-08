@@ -444,12 +444,13 @@ round is `gemini-2.5-flash`, the route hosted Pro actually spends on. Two variab
 
 **Not built, in order:**
 
-1. **Fix the two unclearable findings, then re-run the three types they blocked.** `step-contract`
-   asks a machine-driven type the wrong question (a quiz's reveal is an EVENT, not step keyframes -
-   all 12 shipped quiz boards have the same empty middle step), and `unreachableFields` does not
-   honour `noacg-data-source`, so a countdown built exactly to the root contract is refused. Between
-   them they took 9 of 21 cells - every quiz-board, countdown and podium-score - and no rate on
-   those types means anything until they are fixed.
+1. ~~Fix the two unclearable findings, then re-run the three types they blocked~~ - **DONE
+   2026-09-07.** `step-contract` asked a machine-driven type the wrong question (a quiz's reveal is
+   an EVENT, not step keyframes - all 12 shipped quiz boards have the same empty middle step), and
+   `unreachableFields` did not honour `noacg-data-source`, so a countdown built exactly to the root
+   contract was refused. Between them they took 9 of 21 cells - every quiz-board, countdown and
+   podium-score. Both gates are fixed and 4 of the 9 blocked cells were re-run; the ledger is in
+   `docs/AI_ATTEMPTS.md`, "The nine blocked cells, re-run", with the retry conditions for the rest.
 2. The bridge workbench, so the harness runs off the same door the CLI uses and can be hosted.
 3. ~~Exemplar retrieval per type~~ - **DONE 2026-09-06**, §3.4: the shipped designs' measured
    type sizes, paddings and gaps as a card, never their code. Unmeasured against a model: the

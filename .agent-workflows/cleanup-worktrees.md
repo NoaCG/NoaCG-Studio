@@ -2,8 +2,8 @@
 
 Shared canonical procedure for the `cleanup-worktrees` workflow - invoked as
 `/cleanup-worktrees` in Claude Code, `$cleanup-worktrees` in Codex. Cross-references to other
-workflows below use their plain names (e.g. "the safe-merge workflow"); translate as
-`/safe-merge` in Claude Code, `$safe-merge` in Codex.
+workflows below use their plain names (e.g. "the queue-merge workflow"); translate as
+`/queue-merge` in Claude Code, `$queue-merge` in Codex.
 
 Clean up the leftovers from finished coding sessions: stale git worktrees, managed
 `claude/*` / `codex/*` / `worktree-agent-*` local and GitHub branches that are already fully

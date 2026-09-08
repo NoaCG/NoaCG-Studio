@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { parseCssColor } from '../../../model/cssVars';
 import { uuid } from '../../../model/id';
 import type { DraftPatch, WizardDraft } from '../draft/core';
+import type { DesignSvgAlign } from '../../../templates/importedDesign/designTypes';
 import type {
   DesignFieldSpec,
   SvgFollowerDraft,
@@ -31,6 +33,9 @@ import {
   pollDrivenLayers,
   scoreDrawnPool,
 } from './draft';
+import { transformedBox } from '../../../assets/svgGeometry';
+import { SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT } from '../../../templates/importedDesign/svg';
+import type { PreviewBoxOverlay } from '../WizardPreview';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import {
@@ -66,6 +71,14 @@ interface Props {
   /** Which layer the checklist is pointing at, for the PREVIEW's highlight (the step's one
    *  canvas — CreationWizard owns the state because the canvas is beside the step, not in it). */
   onHover: (candidateId: string | null) => void;
+  /**
+   * TEXT AND ITS BOX, on the preview (docs/TEXT_BOX_BINDING.md, "the preview overlay"). Reported
+   * beside the hover rather than folded into it because the two are different statements: the
+   * hover says WHICH layer a row names, and this says which box that layer lives in, how much
+   * room the designer left round it and how they aligned it. Null while nothing is hovered, and
+   * for a line with no box of its own - text on the artwork has no room to show.
+   */
+  onBoxOverlay: (overlay: PreviewBoxOverlay | null) => void;
   /**
    * ADD A FIELD BY DRAWING ONE (docs/SVG_IMPORT_PLAN.md §6a step 3). Arming reports a HANDLER
    * rather than a flag: the preview gives back a box in fractions of the artwork's rect, and
@@ -196,6 +209,16 @@ function proposeFollowers(
 }
 
 /**
+ * HOW MUCH OF THE FRAME MAKES A SHAPE THE BOARD'S OWN BACKPLATE rather than a box on it.
+ *
+ * Written once because two measurements ask it - whether a shape can be one of a repeated ROW,
+ * and whether it can HEAD a group in the checklist - and a shape that is a backplate to one and a
+ * row to the other would put a graphic in two states at once. The thing a full-frame plate is a
+ * plate FOR is the graphic, not a row of it.
+ */
+const BACKPLATE_SHARE_OF_FRAME = 0.7;
+
+/**
  * IS THIS A GRAPHIC THE AUDIENCE SEES AGAIN WITH DIFFERENT CONTENT?
  *
  * The doctrine's third rule (docs/TEXT_BOX_BINDING.md, owner 2026-09-02): *"When we have a
@@ -253,7 +276,7 @@ function repeatsWithNewContent(stage: HTMLElement, holderIds: string[]): boolean
     .filter((r): r is { box: DOMRect; w: number; h: number } => !!r)
     // Not the board's own backplate: a shape covering most of the frame holds every line there
     // is, so it would pair with any other such shape and say "repeat" about a single graphic.
-    .filter((r) => r.box.width * r.box.height < frame.width * frame.height * 0.7);
+    .filter((r) => r.box.width * r.box.height < frame.width * frame.height * BACKPLATE_SHARE_OF_FRAME);
   const apart = (a: DOMRect, b: DOMRect) => {
     const over =
       Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
@@ -448,6 +471,280 @@ function panelOfEachLine(
       if (!best || area < best.area) best = { id: plate.id, area };
     }
     if (best) out[id] = best.id;
+  }
+  return out;
+}
+
+/**
+ * THE ROOM ROUND A LINE, AND HOW THE DESIGNER ALIGNED IT, IN THE LINE'S OWN FRAME.
+ *
+ * What the preview overlay draws (docs/TEXT_BOX_BINDING.md, "the preview overlay"): the dashed
+ * inside line sits at these insets, the two figures ARE these numbers, and the caret carries
+ * these words. Measured here, on the step's own render, because they are facts about the
+ * DRAWING - the room the designer left and the way they placed the block in it - rather than
+ * about whatever value happens to be on air in the preview this second
+ * (`wizard/make-mapsvgfieldsstep-mapping-step-mode-over`).
+ *
+ * IN THE LINE'S OWN COORDINATES, never the screen's, and never the box's either. This is the
+ * runtime's own frame: `svgAlignOf` maps the plate INTO the line's system through `svgLocalBox`
+ * (importedDesign/svg.ts), takes the axis-aligned extent of the quad that comes out, and
+ * measures the margins and the centring against that. Text and plate almost always carry the
+ * same rotation - the designer turned them together - and then that extent IS the plate, turned;
+ * where they differ, the extent is the room the ladder actually gets, because the reading
+ * direction is the direction a longer value fills. Doing it in the BOX's frame instead puts the
+ * two frames a quarter turn apart on this fixture's own question plate - a portrait rectangle
+ * rotated 88.68 degrees under level text - and the measurements are then about different axes:
+ * built that way, the bounds drawn round the question came out turned 88.68 degrees off the
+ * words they were meant to hug.
+ *
+ * So `box` comes back in the LINE's units and the preview draws it with the LINE's matrix.
+ * `getBBox` leaves out every transform and the mapping between two elements is a ratio of their
+ * two matrices, so a uniform page scale cancels: the numbers measured on this hidden stage are
+ * the same numbers on the preview's canvas, which is what lets one canvas measure and the other
+ * draw without the two being able to disagree.
+ *
+ * MIRRORED, because that is what the room IS: the runtime keeps the margin the designer left on
+ * the tighter side and keeps it on both, so a line drawn hard against one edge is not told it
+ * has the whole of the other side to fill. Clamped at zero for a line drawn past its own box,
+ * which is artwork rather than an error.
+ *
+ * EXCEPT ON AN AXIS THE BLOCK IS CENTRED ON, where the gap the designer left is not a margin at
+ * all - it is half the centring, and mirroring it hands the line back its own drawn size while
+ * the box around it goes unread. `svgAlignOf` and `measureSvgRoom` both replace it there with a
+ * TYPOGRAPHIC margin - half the drawn type sideways, half a line vertically - and so does this,
+ * with the same two numbers, or the picture would show the owner's question with no room left in
+ * a plate the ladder will happily give it two more lines of. Only where the composition really
+ * is centring: a line drawn against the top of its box was composed against that edge, and the
+ * space above it is margin exactly as it looks.
+ *
+ * THE ALIGNMENT IS THE RUNTIME'S RULE, read here: a stated `text-anchor` is believed, otherwise
+ * the block is centred when its centre sits within `SVG_ALIGN_TOL` of the box's centre and
+ * aligned to the side it was drawn nearer. The tolerance is imported rather than repeated, so
+ * the word the overlay shows and the anchor the template emits cannot drift apart.
+ */
+/**
+ * What the step measured about a line and its box: the overlay's own fields, plus what the
+ * alignment control needs - the alignment READ OFF THE DRAWING (kept apart from `align`, which
+ * the row swaps a declared answer into) and the nudge the file recorded.
+ */
+type BoxFit = Pick<PreviewBoxOverlay, 'box' | 'insetX' | 'insetY'> & {
+  /** How the designer aligned the block, in the reader's words. The grid's "read from your
+   *  drawing" answer, and the one the runtime derives when nobody declares otherwise. The
+   *  overlay's own `align` is this or the row's declared answer (`alignOf`). */
+  drawn: PreviewBoxOverlay['align'];
+  /** The offset from where the block was drawn to where its anchor snaps it, in the line's own
+   *  units - x rightwards, y downwards - and zero on an axis that does not snap. The runtime
+   *  measures the same two numbers (`svgAlignOf`, `align.nudge` and `align.nudgeY`); the step
+   *  only reads them out, to say what the checkbox hands back. */
+  nudge: { x: number; y: number };
+  /** The drawn type size, in the same units: the yardstick a nudge worth offering is measured
+   *  against. */
+  type: number;
+};
+
+const ALIGN_H = ['start', 'middle', 'end'] as const;
+const ALIGN_V = ['top', 'middle', 'bottom'] as const;
+
+/** How a row's block sits in its box right now: what the author set on the grid, else what the
+ *  drawing says. The caret on the preview and the grid's chosen dot both read this, so the two
+ *  cannot disagree. */
+function alignOf(declared: DesignSvgAlign | undefined, fit: BoxFit): PreviewBoxOverlay['align'] {
+  return declared ? { h: SVG_ALIGN_WORD[declared.h], v: declared.v } : fit.drawn;
+}
+
+/**
+ * IS THE NUDGE WORTH HANDING BACK. Nothing hand-placed sits exactly on a centre, so nearly every
+ * centred line records an offset of a unit or two, and a checkbox offering that back on every row
+ * would be noise about the hand's wobble rather than about a composition. A quarter of the drawn
+ * type is the smallest offset that reads as one: on the owner's board the question's 41 px
+ * sideways and 12 px up both clear it at a drawn 36, and a scorebug's figures a couple of units
+ * off their band's middle do not. Offered only while the alignment (`now`) is the drawn one on
+ * both axes, because the offset was measured from THAT anchor - moved to another edge, there is
+ * nothing of the designer's to keep.
+ */
+function nudgeOffered(now: PreviewBoxOverlay['align'], fit: BoxFit): boolean {
+  if (now.h !== fit.drawn.h || now.v !== fit.drawn.v) return false;
+  return Math.max(Math.abs(fit.nudge.x), Math.abs(fit.nudge.y)) >= fit.type / 4;
+}
+
+/** "36 px to the right, 9 px up" - the nudge in the reader's own px, an axis left out when it
+ *  has nothing to say. */
+function nudgeWords(nudge: { x: number; y: number }): string {
+  const parts: string[] = [];
+  if (Math.abs(nudge.x) >= 0.5) parts.push(`${Math.round(Math.abs(nudge.x))} px to the ${nudge.x > 0 ? 'right' : 'left'}`);
+  if (Math.abs(nudge.y) >= 0.5) parts.push(`${Math.round(Math.abs(nudge.y))} px ${nudge.y > 0 ? 'down' : 'up'}`);
+  return parts.join(', ');
+}
+
+function boxFitOf(
+  stage: HTMLElement,
+  textId: string,
+  boxId: string,
+): BoxFit | null {
+  const textEl = markerEl(stage, textId) as SVGGraphicsElement | null;
+  const boxEl = markerEl(stage, boxId) as SVGGraphicsElement | null;
+  if (!textEl?.getBBox || !textEl.getScreenCTM || !boxEl?.getBBox || !boxEl.getScreenCTM) return null;
+  const toText = textEl.getScreenCTM();
+  const fromBox = boxEl.getScreenCTM();
+  if (!toText || !fromBox) return null;
+  const own = textEl.getBBox();
+  const drawn = boxEl.getBBox();
+  if (!(own.width > 0) || !(own.height > 0) || !(drawn.width > 0) || !(drawn.height > 0)) return null;
+  // The plate's four corners, moved into the line's space and taken as their extent - the one
+  // spelling of that in the repo (assets/svgGeometry.ts), and the same answer `svgLocalBox`
+  // reaches in the runtime.
+  const box = transformedBox(drawn, toText.inverse().multiply(fromBox));
+  const cx = own.x + own.width / 2;
+  const cy = own.y + own.height / 2;
+  const boxCx = box.x + box.width / 2;
+  const boxCy = box.y + box.height / 2;
+  const placed = Math.abs(cx - boxCx) <= box.width * SVG_ALIGN_TOL ? 'centred' : cx < boxCx ? 'left' : 'right';
+  const stated = textEl.getAttribute('text-anchor');
+  const align = {
+    h: (stated === 'middle' || stated === 'end' || stated === 'start' ? SVG_ALIGN_WORD[stated] : placed) as
+      'left' | 'centred' | 'right',
+    v: (Math.abs(cy - boxCy) <= box.height * SVG_ALIGN_TOL ? 'middle' : cy < boxCy ? 'top' : 'bottom') as
+      'top' | 'middle' | 'bottom',
+  };
+  // Half the drawn type, in the artwork's own units. `font-size` inside an SVG computes in user
+  // units - the viewBox scale is a transform above it, not part of the computed value - so this
+  // is comparable with the bbox numbers above, on this stage and on the preview's canvas alike.
+  // The block's own height stands in where the file styles the type some other way, which is the
+  // runtime's own fallback.
+  const type = parseFloat(getComputedStyle(textEl).fontSize) || own.height;
+  /** The margin kept on one axis: the tighter of the two gaps, and no wider than the typographic
+   *  one where that axis is centring rather than margin. `cap` is null on an axis where the gap
+   *  really is a margin, and the mirror is the whole answer. */
+  const keep = (before: number, after: number, cap: number | null) =>
+    Math.max(0, cap === null ? Math.min(before, after) : Math.min(before, after, cap));
+  return {
+    box,
+    insetX: keep(own.x - box.x, box.x + box.width - (own.x + own.width), align.h === 'centred' ? type * 0.5 : null),
+    insetY: keep(
+      own.y - box.y,
+      box.y + box.height - (own.y + own.height),
+      align.v === 'top' ? null : (type * SVG_LINE_HEIGHT) / 2,
+    ),
+    drawn: align,
+    // The runtime's own two rules: sideways there is a snap only for a line both DRAWN and read
+    // as centred (a stated middle composed elsewhere stays where it was drawn), and downwards
+    // for any middle line. On the owner's board: 41 px to the left and 12 px up, in the line's
+    // own frame.
+    nudge: {
+      x: align.h === 'centred' && placed === 'centred' ? cx - boxCx : 0,
+      y: align.v === 'middle' ? cy - boxCy : 0,
+    },
+    type,
+  };
+}
+
+/**
+ * PLAIN COLOUR WORDS, for naming a box a reader is looking at.
+ *
+ * Sixteen words and nothing between them: a swatch is already on screen carrying the exact
+ * colour, so this only has to be close enough that "the tan plate" and "the blue plate" pick out
+ * different shapes on a board. Nearest by straight RGB distance, which is coarse and entirely
+ * sufficient at this resolution - a perceptual space would change no answer on any real artwork
+ * and would need explaining to whoever edits the list next.
+ */
+const COLOUR_WORDS: [string, number, number, number][] = [
+  ['black', 0x11, 0x11, 0x11], ['grey', 0x88, 0x88, 0x88], ['white', 0xfa, 0xfa, 0xfa],
+  ['cream', 0xef, 0xe6, 0xc8], ['tan', 0xd2, 0xb4, 0x8c], ['brown', 0x8b, 0x5a, 0x2b],
+  ['red', 0xd0, 0x32, 0x2d], ['orange', 0xef, 0x8a, 0x22], ['amber', 0xf5, 0xbf, 0x3f],
+  ['yellow', 0xf2, 0xe5, 0x4b], ['pale green', 0xc5, 0xe1, 0xa5], ['green', 0x3f, 0xa5, 0x50],
+  ['teal', 0x2b, 0x9c, 0x9c], ['pale blue', 0xa9, 0xd2, 0xe6], ['blue', 0x2f, 0x6f, 0xd0],
+  ['navy', 0x1b, 0x2b, 0x5a], ['purple', 0x7e, 0x4b, 0xc0], ['pink', 0xe8, 0x8f, 0xba],
+];
+
+/**
+ * The nearest plain word for a computed fill, or null where the fill is not one visible colour.
+ *
+ * `parseCssColor` does the reading, alpha included: a gradient, a pattern and `none` all answer
+ * null, and so does a fully transparent shape - a swatch nobody can see should not be described
+ * as black.
+ */
+function colourWord(fill: string): string | null {
+  const c = parseCssColor(fill);
+  if (!c || c.a === 0) return null;
+  let best: { word: string; d: number } | null = null;
+  for (const [word, r, g, b] of COLOUR_WORDS) {
+    const d = (c.r - r) ** 2 + (c.g - g) ** 2 + (c.b - b) ** 2;
+    if (!best || d < best.d) best = { word, d };
+  }
+  return best?.word ?? null;
+}
+
+/**
+ * IS THIS LAYER NAME SOMETHING A READER WOULD RECOGNISE, or the designer's private shorthand?
+ *
+ * The owner's own board names its question plate `q bg`, and a row headed "q bg" tells a student
+ * nothing at all - which is the whole reason the box gets named by its COLOUR instead
+ * (docs/TEXT_BOX_BINDING.md, "the grouping IS the binding"). A designer who wrote "Question
+ * plate" must keep seeing that, so this refuses only two things: the labels the importer itself
+ * minted when the layer had no name, and a name with no word long enough to read as a word.
+ */
+function isReadableBoxName(label: string): boolean {
+  const trimmed = label.trim();
+  if (trimmed === '' || /^(Panel|Rectangle)\s+\d+$/.test(trimmed)) return false;
+  return /[A-Za-z]{4,}/.test(trimmed);
+}
+
+/** What a box is called in the list: the designer's own name where they gave one, otherwise its
+ *  colour and what it is. Capitalised because it heads a row. */
+function boxName(label: string, fill: string): string {
+  if (isReadableBoxName(label)) return label.trim();
+  const word = colourWord(fill);
+  return word ? `${word[0].toUpperCase()}${word.slice(1)} plate` : 'Plate';
+}
+
+/**
+ * THE BOARD'S OWN BACKPLATE IS NOT A BOX, so grouping by it says nothing.
+ *
+ * A shape covering most of the frame holds every line there is, and heading the whole checklist
+ * with it - "Black plate", over all seven rows - is a heading, not a grouping. The thing that
+ * plate is a plate FOR is the graphic, not a row of it: the same sentence
+ * `repeatsWithNewContent` already acts on, through the one `BACKPLATE_SHARE_OF_FRAME`.
+ *
+ * Dropping these leaves their lines in the "On the artwork" group, which is the honest answer -
+ * a line whose only box is the whole frame has no box to grow.
+ */
+function withoutBackplates(
+  stage: HTMLElement,
+  boxOfLine: Record<string, string>,
+): Record<string, string> {
+  const frame = stage.querySelector('svg')?.getBoundingClientRect();
+  if (!frame || !(frame.width > 0) || !(frame.height > 0)) return boxOfLine;
+  const limit = frame.width * frame.height * BACKPLATE_SHARE_OF_FRAME;
+  const out: Record<string, string> = {};
+  for (const [lineId, boxId] of Object.entries(boxOfLine)) {
+    const box = markerEl(stage, boxId)?.getBoundingClientRect();
+    if (box && box.width * box.height >= limit) continue;
+    out[lineId] = boxId;
+  }
+  return out;
+}
+
+/**
+ * WHAT EACH BOX LOOKS LIKE, measured off the rendered stage.
+ *
+ * The fill is read from the LAID-OUT element rather than the markup because a fill arrives by
+ * class as often as by attribute (every Illustrator export writes `.cls-10 { fill: #c69c6d }`),
+ * and `getComputedStyle` is the one reading that is right for all of them. Measured here beside
+ * the containment for the same reason that lives here: two spellings of what a box is is how the
+ * grouping and the growth picker drift into two different answers.
+ */
+function boxLooksOf(
+  stage: HTMLElement,
+  svg: SvgImportResult,
+  boxIds: string[],
+): Record<string, { fill: string; name: string }> {
+  const out: Record<string, { fill: string; name: string }> = {};
+  for (const id of new Set(boxIds)) {
+    const el = markerEl(stage, id);
+    if (!el) continue;
+    const fill = getComputedStyle(el).fill || '';
+    const label = svg.shapes.find((s) => s.id === id)?.label ?? '';
+    out[id] = { fill, name: boxName(label, fill) };
   }
   return out;
 }
@@ -784,7 +1081,7 @@ function measureOutline(
  * channel the editor canvas already uses (`preview/canvasControlProtocol.ts`) — the wizard
  * preview iframe deliberately carries no allow-same-origin, so nothing reaches into it.
  */
-export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, onArmPick }: Props) {
+export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay, onArmDraw, onArmPick }: Props) {
   const svg = draft.designSvg;
   const stageRef = useRef<HTMLDivElement>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -933,6 +1230,14 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
     () => (boundLineKey ? boundLineKey.split('|') : []),
     [boundLineKey],
   );
+  // AND EVERY TEXT ROW, ticked or not, for the checklist's grouping. Which box a line sits in is
+  // a fact about where it was DRAWN, so an unticked row keeps its place in the list rather than
+  // jumping to "On the artwork" and back as somebody works down the checkboxes.
+  const allLineKey = [
+    ...draft.svgFields.map((f) => f.candidateId),
+    ...draft.svgOutlines.filter((f) => f.box).map((f) => f.candidateId),
+  ].join('|');
+  const allMarkerIds = useMemo(() => (allLineKey ? allLineKey.split('|') : []), [allLineKey]);
   const placedLines = useMemo(
     () => draft.designFields.map((f) => ({ x: f.x, y: f.y, fontSize: f.fontSize ?? 0 })),
     [draft.designFields],
@@ -998,6 +1303,14 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
   const [panelIds, setPanelIds] = useState<string[]>([]);
   /** Bound line -> the plate it sits on, for the per-layer answers below. */
   const [panelOfLine, setPanelOfLine] = useState<Record<string, string>>({});
+  /** Text row -> the box the CHECKLIST groups it under: the plate it sits on, minus the board's
+   *  own backplate, which is a heading over everything rather than a grouping of anything. */
+  const [boxOfRow, setBoxOfRow] = useState<Record<string, string>>({});
+  /** Plate -> its swatch colour and the name the checklist heads it with. */
+  const [boxLooks, setBoxLooks] = useState<Record<string, { fill: string; name: string }>>({});
+  /** Text row -> its box, the room round it and the alignment it was drawn with, all in the
+   *  LINE's own units (`boxFitOf`). What the preview overlay draws while that row is hovered. */
+  const [boxFits, setBoxFits] = useState<Record<string, BoxFit>>({});
   /** Whether the per-layer answers are showing. Closed on arrival, always: the graphic-wide
    *  picker is the whole control for almost everybody. */
   const [perPanelOpen, setPerPanelOpen] = useState(false);
@@ -1006,11 +1319,50 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
     if (!svg || !stage) {
       setPanelIds([]);
       setPanelOfLine({});
+      setBoxOfRow({});
+      setBoxLooks({});
+      setBoxFits({});
       return;
     }
     setPanelIds(panelsHoldingText(stage, svg, boundMarkerIds, placedLines));
-    setPanelOfLine(panelOfEachLine(stage, svg, boundMarkerIds));
-  }, [svg, boundMarkerIds, placedLines]);
+    const ofLine = panelOfEachLine(stage, svg, allMarkerIds);
+    setPanelOfLine(ofLine);
+    const grouped = withoutBackplates(stage, ofLine);
+    setBoxOfRow(grouped);
+    setBoxLooks(boxLooksOf(stage, svg, Object.values(grouped)));
+    const fits: Record<string, BoxFit> = {};
+    for (const [lineId, boxId] of Object.entries(grouped)) {
+      const fit = boxFitOf(stage, lineId, boxId);
+      if (fit) fits[lineId] = fit;
+    }
+    setBoxFits(fits);
+  }, [svg, boundMarkerIds, allMarkerIds, placedLines]);
+  // TEXT AND ITS BOX, for the hovered row. Only a row that HAS a box and that the step could
+  // measure gets one: a line sitting straight on the artwork has no room to draw and nothing to
+  // be aligned in, and the plain outline is the whole truthful answer there.
+  // THE CARET SAYS WHAT THE GRID SAYS. The insets stay the drawing's own - a margin the designer
+  // left is a margin whichever edge the block is sent to, and the runtime keeps exactly that one
+  // on a declared anchor - but the word under the block is the row's current answer.
+  // Keyed on the hovered row's DECLARED answer rather than on the field list, which is a fresh
+  // array on every keystroke in a Text box: a patch copies the row and keeps its `align` object,
+  // so the overlay is re-sent when the grid is clicked and not while the reader types.
+  const hoveredAlign = hoverId ? draft.svgFields.find((f) => f.candidateId === hoverId)?.align : undefined;
+  useEffect(() => {
+    const boxId = hoverId ? boxOfRow[hoverId] : undefined;
+    const fit = hoverId ? boxFits[hoverId] : undefined;
+    onBoxOverlay(
+      boxId && fit
+        ? {
+            selector: `[${SVG_CANDIDATE_ATTR}="${boxId}"]`,
+            box: fit.box,
+            insetX: fit.insetX,
+            insetY: fit.insetY,
+            align: alignOf(hoveredAlign, fit),
+          }
+        : null,
+    );
+  }, [hoverId, boxOfRow, boxFits, onBoxOverlay, hoveredAlign]);
+  useEffect(() => () => onBoxOverlay(null), [onBoxOverlay]);
 
   /** The shapes the picker offers. The measurement where it found any, every shape where it
    *  found none, and ALWAYS whatever is currently chosen - a shape picked by dragging on the
@@ -1051,6 +1403,64 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
     return [...byPanel.values()];
   }, [draft.svgFields, draft.svgOutlines, panelOfLine]);
   const perPanelSet = perPanelRows.filter((r) => perPanel[r.panelId] != null).length;
+
+  // ── THE CHECKLIST, GROUPED BY THE BOX EACH LINE SITS IN ──
+  // "Every text field lives in a box: the shape drawn under it", and THE GROUPING IS THE BINDING
+  // (docs/TEXT_BOX_BINDING.md, step 2). The step already decided which box holds which line -
+  // `panelOfEachLine` is what the per-box growth answers are keyed on - and until now it decided
+  // it silently. A reader could not see that the question and its four answers were understood as
+  // five separate boxes rather than one board, which is the first thing that has to be true
+  // before any per-box answer means anything.
+  //
+  // ORDERED BY WHERE EACH BOX FIRST APPEARS, and document order kept inside it, so a board reads
+  // top-to-bottom the way it is drawn. Text inside no shape comes last under its own heading: it
+  // has no box to grow, and saying so is more useful than heading it with a shape it is not in.
+  const fieldGroups = useMemo(() => {
+    type Group = { boxId: string | null; label: string; fields: SvgFieldDraft[] };
+    // A GROUP IS A RUN OF CONSECUTIVE ROWS, never every row sharing a box gathered together.
+    // Document order is the order the reader drew in and the order they scan in, and a checklist
+    // that quietly re-sorts it is worse than one that repeats a heading: measured twice on the
+    // corpus, where collecting rows by box moved a question BELOW its own four answers on the
+    // Affinity board (whose backplate is 73% of the frame, so the question is loose while the
+    // answers are not) and swapped the two lines of the Inkscape bumper. So the box a row is in
+    // is shown, and where a row sits is never touched.
+    const groups: Group[] = [];
+    for (const f of draft.svgFields) {
+      const boxId = boxOfRow[f.candidateId] ?? null;
+      const last = groups[groups.length - 1];
+      if (last && last.boxId === boxId) last.fields.push(f);
+      else groups.push({ boxId, label: '', fields: [f] });
+    }
+    // NUMBERED WHERE THE NAME REPEATS, and only there. A quiz board draws four answer plates in
+    // one colour, so four headings reading "Orange plate" name nothing - while a board with one
+    // orange plate should not be told it is orange plate 1 of 1. Numbered per BOX rather than per
+    // run, so a box a reader returns to keeps the number it had.
+    const nameOf = (g: Group) => (g.boxId ? boxLooks[g.boxId]?.name ?? 'Plate' : 'On the artwork');
+    const boxesPerName = new Map<string, Set<string>>();
+    for (const g of groups) {
+      if (!g.boxId) continue;
+      const set = boxesPerName.get(nameOf(g)) ?? new Set<string>();
+      set.add(g.boxId);
+      boxesPerName.set(nameOf(g), set);
+    }
+    const numberOf = new Map<string, number>();
+    const used = new Map<string, number>();
+    for (const g of groups) {
+      if (!g.boxId || (boxesPerName.get(nameOf(g))?.size ?? 0) < 2) continue;
+      if (numberOf.has(g.boxId)) continue;
+      const n = (used.get(nameOf(g)) ?? 0) + 1;
+      used.set(nameOf(g), n);
+      numberOf.set(g.boxId, n);
+    }
+    for (const g of groups) {
+      const n = g.boxId ? numberOf.get(g.boxId) : undefined;
+      g.label = n === undefined ? nameOf(g) : `${nameOf(g)} ${n}`;
+    }
+    return groups;
+  }, [draft.svgFields, boxOfRow, boxLooks]);
+  /** One box holding every line is not a grouping, it is a heading over the whole list - so the
+   *  headings only appear once the artwork actually has more than one place to put text. */
+  const showBoxGroups = fieldGroups.length > 1;
   /** Give one plate its own answer, or hand it back to the graphic-wide one. Touching this is
    *  AUTHORING, like every other growth control: the measured default stops re-deriving. */
   const setPanelMode = (panelId: string, mode: StretchMode | null) => {
@@ -1672,7 +2082,42 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
             </p>
             <p>The Text box is live. Type a long value and the preview shows what airs.</p>
           </SectionHead>
-          {draft.svgFields.map((f) => {
+          {fieldGroups.map((group) => (
+          <div
+            /* KEYED ON THE GROUP'S FIRST ROW, not on its box: a group is a RUN, so one box can
+               head two of them on a file that interleaves, and keying on the box id then hands
+               React two children with the same key. The first row's candidate id is unique per
+               group and stable across renders, where an index is not. */
+            key={group.fields[0].candidateId}
+            className={showBoxGroups ? 'map-svg-box-group' : undefined}
+            data-testid={`map-svg-box-${group.fields[0].candidateId}`}
+          >
+            {showBoxGroups && (
+              /* THE HEADING IS THE CLAIM: "these lines live in this shape". The swatch carries
+                 the shape's own fill, which is the cheapest trust device there is - a reader who
+                 has never heard the word binding still checks a colour against the picture beside
+                 them in under a second. `aria-hidden` because the NAME already says the colour;
+                 read aloud, the swatch would be a second copy of it. */
+              <p className="map-svg-box-head" data-testid={`map-svg-box-head-${group.fields[0].candidateId}`}>
+                {group.boxId && (
+                  <span
+                    className="map-svg-swatch"
+                    style={{ background: boxLooks[group.boxId]?.fill || 'transparent' }}
+                    aria-hidden="true"
+                  />
+                )}
+                <strong>{group.label}</strong>
+                {/* The lines are listed directly underneath, so counting them for the reader is
+                    noise on a board where every plate holds exactly one. The leftover group is
+                    the one that has something to say, because "no box" is not visible on the
+                    artwork the way a plate is. */}
+                {/* TRUE OF BOTH WAYS A LINE ENDS UP HERE: nothing drawn under it at all, and
+                    nothing under it but the board's own backplate. Either way there is no box
+                    around it that could grow, which is the consequence the reader needs. */}
+                {!group.boxId && <span>no box of their own, so nothing grows around them</span>}
+              </p>
+            )}
+            {group.fields.map((f) => {
             // A LAYER THE VOTE WRITES IS NOT A FIELD, so this row does not offer the two boxes
             // that would pretend it is (owner walk, 2026-09-03: he selected a percentage, watched
             // it highlight in the preview, typed, and nothing happened). `draftToOptions` drops
@@ -1681,9 +2126,16 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
             // offered (docs/backlog/offer-nothing-that-cannot-work.md). The row stays, because the
             // reader still needs to see that their layer was recognised and by what.
             const driven = f.on && pollDriven.has(f.candidateId);
+            /** The box this line sits in and what was measured about it - absent for a line on
+             *  the bare artwork, which then gets no alignment control. A COUNTDOWN row gets none
+             *  either: its layer becomes the clock display and never carries the field id a
+             *  declaration would name, so a grid there could not change the graphic. */
+            const fit = f.kind === 'countdown' ? undefined : boxFits[f.candidateId];
+            /** How this row's block sits in its box right now - declared, else drawn. */
+            const now = fit ? alignOf(f.align, fit) : undefined;
             return (
+            <Fragment key={f.candidateId}>
             <div
-              key={f.candidateId}
               className={`map-svg-row ${f.on ? '' : 'off'}`}
               onMouseEnter={() => setHoverId(f.candidateId)}
               onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
@@ -1744,6 +2196,55 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                       data-testid={`map-svg-sample-${f.candidateId}`}
                     />
                   </label>
+                  {fit && now && (
+                    /* HOW THE BLOCK SITS IN ITS BOX (docs/TEXT_BOX_BINDING.md, "Alignment"): the
+                       nine-dot reference-point grid every Illustrator user has already used, one
+                       click setting both axes. IN THE ROW rather than in a strip under it, because
+                       the step has a measured height budget and a strip's summary line would cost
+                       a row per row; a 3x3 of dots is no taller than the text box beside it. The
+                       ringed dot is the answer READ FROM THE DRAWING; a solid dot is one the reader
+                       set, and clicking the drawn dot hands the row back to the drawing. Only on a
+                       row whose line has a box - text on the artwork has nothing to be aligned in
+                       (`wizard/offer-control-can-change-graphic-front`). */
+                    <div className="save-field map-svg-align" data-testid={`map-svg-align-${f.candidateId}`}>
+                      <span>Aligned</span>
+                      <div className="map-svg-align-grid" role="radiogroup" aria-label="How the text sits in its box">
+                        {ALIGN_V.map((v) =>
+                          ALIGN_H.map((h) => {
+                            const chosen = now.h === SVG_ALIGN_WORD[h] && now.v === v;
+                            const drawn = fit.drawn.h === SVG_ALIGN_WORD[h] && fit.drawn.v === v;
+                            return (
+                              <button
+                                key={`${h}-${v}`}
+                                type="button"
+                                role="radio"
+                                aria-checked={chosen}
+                                className={chosen && f.align ? 'set' : undefined}
+                                disabled={!f.on}
+                                /* The words ride the DOT, because a child's title is the one
+                                   the pointer sees: on the grid itself they would show only in
+                                   the gaps between dots. */
+                                title={`${SVG_ALIGN_WORD[h]}, ${v}${
+                                  drawn ? ' - read from your drawing' : chosen ? ' - set by you' : ''
+                                }`}
+                                onFocus={() => setHoverId(f.candidateId)}
+                                onClick={() =>
+                                  patchField(f.candidateId, {
+                                    // The drawn dot IS "read from your drawing", so it clears the
+                                    // declaration rather than restating it - and a nudge kept on the
+                                    // drawn anchor survives only there.
+                                    align: drawn ? undefined : { h, v },
+                                    keepNudge: drawn ? f.keepNudge : undefined,
+                                  })
+                                }
+                                data-testid={`map-svg-align-${f.candidateId}-${h}-${v}`}
+                              />
+                            );
+                          }),
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
               {f.clock && !driven && (
@@ -1765,8 +2266,14 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                     }
                     data-testid={`map-svg-kind-${f.candidateId}`}
                   >
+                    {/* ONE WORD, because a select is as wide as its longest option and never
+                        gives that width back: at "Countdown (operator sets minutes)" the two text
+                        boxes beside it on a clock row were squeezed to 34 and 29 px once the
+                        alignment grid joined the row, and at "Countdown (minutes)" their labels
+                        still wrapped. The title above says who sets the minutes, and the field
+                        the choice makes is titled "(minutes)" wherever the operator sees it. */}
                     <option value="text">Text</option>
-                    <option value="countdown">Countdown (operator sets minutes)</option>
+                    <option value="countdown">Countdown</option>
                   </select>
                 </label>
               )}
@@ -1779,9 +2286,48 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
                   {f.whenOff === 'remove' ? 'taken off the artwork' : 'stays as drawn'}
                 </span>
               )}
+              {/* WHY THIS ROW IS NOT CALLED WHAT THE LAYER IS CALLED. A text layer named after
+                  its own words is Figma's default naming, so the label came from the group
+                  around it - right for a Figma board, and baffling for a designer who named a
+                  slot after its placeholder on purpose
+                  (docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). The row
+                  says which happened rather than leaving them to guess; the field name is
+                  theirs to retype either way. */}
+              {textLayers.find((c) => c.id === f.candidateId)?.namedByGroup && (
+                <span className="map-svg-off-note" data-testid={`map-svg-named-by-group-${f.candidateId}`}>
+                  named after its own text, so the group&rsquo;s name was used
+                </span>
+              )}
             </div>
+            {/* THE NUDGE THE FILE RECORDED, handed back on request (owner, 2026-09-02: "what if
+                you want to have the text a little bit to the right, and it would fit the
+                design?"). Snapping onto the anchor is the default he ruled for, so the line is on
+                screen only where the drawing actually has an offset worth the name
+                (`nudgeOffered`) - nothing about it appears on a board drawn on the centres. Under
+                the row rather than in it: the row never wraps, so its countdown picker cannot
+                either. Hovering it keeps the row's box on the preview, so ticking it is watched. */}
+            {fit && now && !driven && nudgeOffered(now, fit) && (
+              <label
+                className="map-svg-nudge"
+                data-testid={`map-svg-nudge-${f.candidateId}`}
+                onMouseEnter={() => setHoverId(f.candidateId)}
+                onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!f.keepNudge}
+                  disabled={!f.on}
+                  onFocus={() => setHoverId(f.candidateId)}
+                  onChange={(e) => patchField(f.candidateId, { keepNudge: e.target.checked || undefined })}
+                />
+                <span>keep the nudge you drew: {nudgeWords(fit.nudge)}</span>
+              </label>
+            )}
+            </Fragment>
             );
           })}
+          </div>
+          ))}
         </div>
       )}
 

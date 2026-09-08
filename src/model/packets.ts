@@ -55,7 +55,8 @@ export interface SavedGraphic {
    * It is both the SPX/CasparCG playout layer an export declares and the browser output's paint
    * order (higher = in front).
    *
-   * ADDITIVE OPTIONAL (root AGENTS.md rule 6): absent means "never chosen", read as the default,
+   * ADDITIVE OPTIONAL (`root/version-every-persisted-format-ship-breaking`): absent means
+   * "never chosen", read as the default,
    * so every production saved before this field keeps working and no migration is needed. It is
    * meaningful only inside a `Show.graphics` pool; a library copy simply carries it along.
    *

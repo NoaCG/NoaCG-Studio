@@ -644,14 +644,13 @@ by a route that is not `db push` (supabase/AGENTS.md) - and it snapshots the gra
 policies and ledger before and after, printing the difference. For a grants-only migration the
 expected diff is a named set of privileges and exactly one ledger row; anything else is a finding.
 
-**Nothing triggers it by hand any more.** `scripts/auto-merge.mjs` calls the push immediately after
-a branch reaches `origin/main` - the moment a new migration exists and nothing has applied it, on a
-machine whose `.env` carries the token, with nobody watching. It asks the drift check rather than
-diffing the branch, so it also catches a migration that landed earlier and was never applied, which
-is the case the manual step kept losing. A push that refuses does NOT fail the landing: the merge is
-already pushed, the refusal is reported, and `scripts/auto-merge.test.mjs` pins both that ordering
-and the rule that nothing in the push can turn a successful landing into a failed job. `--no-db-push`
-opts a machine out.
+**Nothing triggers it by hand any more.** `.github/workflows/post-land.yml` calls the push on every
+push to `main` - the moment a new migration exists and nothing has applied it, on a
+runner holding the `production` environment's token, with nobody watching. It asks the drift check
+rather than diffing the branch, so it also catches a migration that landed earlier and was never
+applied, which is the case the manual step kept losing. A push that refuses does NOT fail the
+landing: the merge already happened, the refusal is reported, and nothing in the push can turn a
+landing that happened into one that did not. `--no-db-push` opts a machine out.
 
 The drift check stays, because a migration can still reach `main` without going through the queue on
 this machine: the safe-merge preflight REPORTS whether either hosted project is behind, and
@@ -714,9 +713,9 @@ code:
 gh run view <id> --json jobs -q '.jobs[] | "\(.conclusion)\t\(.name)"'
 ```
 
-or let `node scripts/safe-merge-preflight.mjs --branch <b> --phase 3 --verified-sha <sha>` do it,
-which also applies the two checks a green tick hides - whether the shards actually ran, and
-whether a failing job is damaged rather than failing.
+and read the job list yourself. The two checks a green tick hides are made by eye now that the
+landing preflight that made them is retired: whether the shards actually ran, and whether a failing
+job is damaged rather than failing. Both are described just below.
 
 **A damaged run is not a red run - it is NO run.** GitHub Actions can return `failure` with none
 of this repository's code having executed, and the two are indistinguishable in `gh run list`.

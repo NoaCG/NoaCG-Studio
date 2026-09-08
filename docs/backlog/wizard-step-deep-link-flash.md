@@ -7,7 +7,8 @@ asked: "the wizard paints its Entry step for one frame before jumping to the ste
 ---
 # A wizard deep link paints Entry first, then jumps to the step it was asked for
 
-**Filed:** 2026-09-02, from the route-transition-flash work (`docs/handoffs/2026-09-02-g-route-transition-flash.md`).
+**Filed:** 2026-09-02, from the route-transition-flash work on `claude/g-route-transition-flash`
+(handoff since drained).
 The owner's own report (2026-08-28) is CLOSED by that branch; this is a second instance of the
 same mistake, found by sweeping for its shape rather than by anyone walking it.
 

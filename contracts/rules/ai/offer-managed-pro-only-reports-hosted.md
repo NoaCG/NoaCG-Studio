@@ -1,0 +1,10 @@
+---
+v: 1
+scope: src/ai/settings.ts, src/ai/pro/session.ts
+kind: rule
+fires: contract
+status: active
+since: 2026-09-07
+record: contracts/records/ai/2026-09-07-offer-managed-pro-only-reports-hosted.md
+---
+Offer managed Pro only when `GET /api/ai/pro-status` reports hosted availability and `isBackendConfigured()` holds; preserve `proOffered = proHosted && isBackendConfigured()`. Keep unavailable Pro absent, add no client Pro flag, and never substitute a customer-key request for managed service.

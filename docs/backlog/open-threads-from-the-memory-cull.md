@@ -2,7 +2,16 @@
 v: 1
 source: handoff
 raised: 2026-08-25
-state: unstarted
+state: advanced
+note: >-
+  The 50px design rule under 'Owed a human look' was re-ratified and replaced on
+  2026-09-08: 98dcf896 records the ruling, c8f3fe2d makes the broadcast floor answer to what
+  the graphic is for after measuring that the flat 4.6% rule refused 322 of 503 shipped
+  designs, and 3257bfaf moves the product's legibility pins onto the type-aware bands. That
+  line should come out of the list. STILL OPEN: everything else, and the file warns why - no
+  line here has been re-checked since 2026-08-25, so each is a claim about that date. The
+  dompurify override is still in package.json, so that one is confirmed open. The rest needs a
+  line-by-line pass against the log before any of it is planned.
 ---
 # Open threads left by the 2026-08-25 memory cull
 
