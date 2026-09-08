@@ -85,10 +85,14 @@ The cost and capacity policy for the Pro account is
    - a **drift check** four times a day alerts when production does not contain the newest
      `main` commit older than 90 minutes - the belt for "no deployment was even created".
 
-   **Only Vercel's own status starts a verification, and that filter is load-bearing.** GitHub
-   raises a production `deployment_status` for `post-land.yml`'s migrate job as well, because
-   that job declares `environment: production`; it lands about 25 seconds after the merge and
-   says nothing about Vercel. Vercel's own "Deployment has completed" arrives 80-192 seconds later
+   **Only a status about a real deployment starts a verification, and that filter is
+   load-bearing.** GitHub raises a production `deployment_status` for `post-land.yml`'s migrate
+   job as well, because that job declares `environment: production` - as does any workflow a
+   person dispatches with that environment. It lands about 25 seconds after the merge and says
+   nothing about Vercel. The job takes a status that came from `vercel[bot]` or that carries an
+   `environment_url`, which no bookkeeping status does; two conditions rather than one because
+   matching the bot's name alone would stop verification silently the day the deploy provider
+   changes name. Vercel's own "Deployment has completed" arrives 80-192 seconds later
    (median 182 s over the 17 deploy-affecting landings of 2026-09-07/08), by which point the alias
    is promoted and the live check passes within four seconds. Verifying on the earlier status
    meant checking production before it had anything new to serve: 14 of those 17 landings went red
