@@ -69,10 +69,8 @@ document that happens to satisfy the SPX contract. SPX is an adapter and the str
 OGraf is the canonical interchange and playout contract (`docs/OGRAF_FIRST_REVIEW.md`).
 
 ### Operating principles
-- **NoaCG competes on accessibility** (owner, 2026-09-07): free and open source, no licence per
-  seat and no monthly bill to make broadcast graphics and play them out. The landing page says
-  so first, and every claim it makes has a graded row in **`docs/PROMISE_AUDIT.md`** - the page
-  never outranks its grade, and a NOT YET IMPLEMENTED row is worded on the page as direction.
+- **NoaCG competes on accessibility** (owner, 2026-09-07; the ruling is `docs/OWNER_RULINGS.md`).
+  The landing page says so first, and what it may claim is graded in **`docs/PROMISE_AUDIT.md`**.
 - **Free forever, all of it.** Creating, editing, exporting, controlling, self-hosting. No "core".
 - **No paid surface, and none planned** (owner, 2026-09-07). Hosted AI for users who will not
   bring their own key is **subsidised by the project, not sold**, and bring-your-own-key is free
@@ -215,10 +213,11 @@ hosts their strict network blocks. Answer it when they report it.
 measured 25-cell round: all airable, skill stays contract-only (`benchmarks/agent/rounds/
 2026-08-22/VERDICT.md`). **Programme P5**; the direction pool is `docs/backlog/cli-roadmap.md`.
 
-- [ ] **Releasing is a workflow, not a hand publish.** `@noacg/cli` 0.3.0 is on npm (by hand,
-      2026-09-05) and the marketplace entry is live; what is left is the owner's one-time
-      trusted-publisher setting on npmjs.com (`docs/AGENT_CLI.md` "Releasing to npm") so
-      `npm run release:cli` can ship the next version.
+- [ ] **Publish - past `main`, so the owner's.** `@noacg/cli` 0.3.0 is on npm (published by hand,
+      2026-09-05) and the marketplace entry is live. `npm run release:cli` is the road for every
+      later version and a session may run it (owner, 2026-09-05, `docs/AGENT_CLI.md` "Releasing
+      to npm"), but it cannot publish until the owner adds the trusted publisher on npmjs.com -
+      **needs: account**. Until then nothing publishes by hand; a failed run waits for him.
 - [ ] **Agent-authored machines - the owner gate is armed.** Decide whether the skill blesses an
       authored machine when no type fits, and what extra validation that path needs.
 - [ ] **What the funded tiers can borrow** - diff the round's winning cells against Lite/Pro.

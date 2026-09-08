@@ -5,10 +5,13 @@
 // checks are UX; the server always re-validates against the same table.
 //
 // Tiers: anonymous visitors get the basic formats with strict caps; signed-in users get
-// the full format set with sensible free limits; 'paid' is the widest cap table, reachable
-// only through a plan row an admin assigns (a school grant, a heavy-use exception). NoaCG
-// sells nothing and no billing is planned (docs/OWNER_RULINGS.md, 2026-09-07); the name is
-// kept because plan rows already refer to it.
+// the full format set with sensible free limits; 'paid' is the widest cap table, reachable only
+// through a plan row whose render_tier names it - assigned by an admin, or auto-assigned by
+// e-mail domain (migration 0045) - for a school grant or a heavy-use exception. NoaCG sells
+// nothing and no billing is planned (docs/OWNER_RULINGS.md, 2026-09-07). The tier's name is
+// wrong for what it is; renaming it touches RenderTier, the check constraints in 0007 and
+// 0018, and AiTaskTier in api/_lib/aiTaskRegistry.ts with one migration, so it waits for a
+// change of its own.
 
 import {
   RENDER_FORMATS,

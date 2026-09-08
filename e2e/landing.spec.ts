@@ -67,12 +67,16 @@ test('the landing says the four things a stranger has to meet', async ({ page })
   await expect(agents).toContainText('npx @noacg/cli');
   await expect(agents.locator('a[href="/docs#claude-code"]')).toHaveCount(1);
 
-  // OGraf has its own section, reachable from the nav, linking the starters page, and its
-  // direction cards are marked as direction rather than shown as shipped.
+  // OGraf has its own section, reachable from the nav, linking the starters page, and every
+  // direction card is marked as direction rather than shown as shipped. The number of dashed
+  // cards is not pinned: a card turns solid in the commit that lands its rung (docs/GOALS.md).
   const ograf = page.locator('#ograf');
   await expect(page.locator('header nav a[href="#ograf"]')).toHaveCount(1);
   await expect(ograf.locator('a[href="/ograf"]')).toHaveCount(1);
-  await expect(ograf.locator('.feat.planned .soon')).toHaveCount(3);
+  const planned = await ograf.locator('.feat.planned').count();
+  expect(planned).toBeGreaterThan(0);
+  await expect(ograf.locator('.feat.planned .soon')).toHaveCount(planned);
+  await expect(ograf.locator('.feat:not(.planned) .soon')).toHaveCount(0);
 
   // And the docs home is reachable from the page chrome.
   await expect(page.locator('header nav a[href="/docs"]')).toHaveCount(1);

@@ -9,7 +9,7 @@
        what kind of product this is. -->
   <meta
     name="description"
-    content="Live graphics, made simple. NoaCG Studio is a free, open source browser tool for making broadcast graphics from a template, with AI, from your own artwork, or with a coding agent, then running them live from an online playout dashboard or exporting them as OGraf, CasparCG, SPX, OBS and vMix packages."
+    content="Live graphics, made simple. NoaCG Studio is a free, open source browser tool for making broadcast graphics from a template, with AI, from your own artwork, or with a coding agent, then running them live from an online playout dashboard or exporting them as OGraf, CasparCG, OBS and vMix packages."
   />
   <meta name="theme-color" content="#0a0c10" />
   <link rel="canonical" href="https://noacg.studio/" />
@@ -260,8 +260,14 @@
 
     @media (max-width: 640px) {
       .hero { padding-top: 48px; }
+    }
+    /* The anchor links leave the header before it would wrap: six items fit from about 730px
+       up (measured 2026-09-08), so the cut is at 720px rather than the phone breakpoint. */
+    @media (max-width: 720px) {
       header nav a.gh { display: none; }
     }
+    /* A fact strip directly under a section's prose (the free and no-lock-in sections). */
+    section > .walk-facts { margin-top: 22px; }
 
     /* ═══ Product screenshots ═══
        Every picture below is a REAL capture of the running app, produced by
@@ -577,7 +583,7 @@
              row in docs/PROMISE_AUDIT.md. -->
         <p class="lede">
           NoaCG Studio makes broadcast graphics (lower thirds, tickers, scoreboards, timers,
-          title cards) in your browser: from a template, a description, your own artwork, or a
+          title cards) in your browser, from a template, a description, your own artwork, or a
           coding agent. Collect them into a production and run it live, or export a package for
           the playout system you already use. It is free and open source, with no edition to
           buy.
@@ -681,20 +687,23 @@
       <!-- ── Free and open source: the positioning, said once and plainly, before the product
            tour. The owner's 2026-09-07 ruling (docs/OWNER_RULINGS.md) is that NoaCG competes on
            accessibility; this section is where a stranger learns that nothing here is sold. The
-           account line is the honest scope from docs/PROMISE_AUDIT.md rows 6, 13 and 21: an
-           account is asked for only where a hosted service is doing work. ── -->
+           account sentence states the RULE the code follows (an account only where a hosted
+           service does work for you) and the cases a visitor meets first - never a count, because
+           the code asks in more places than any hand count keeps up with (the "Create with AI",
+           "productions", "video" and "CLI" rows of docs/PROMISE_AUDIT.md). ── -->
       <section id="free">
         <p class="kicker" data-reveal>Free and open source</p>
         <h2 data-reveal>No seat licence. No monthly bill. No edition above this one.</h2>
         <p class="sub" data-reveal>
           Creating, editing, exporting and running the show are free, all of it, for a school,
-          a stream or a channel alike. The studio is open source under the AGPL-3.0: read it,
-          change it, run your own copy on your own server. You do not need an account to make a
-          graphic and export it. A free account is asked for in two places only, because a
-          hosted service is doing the work there: publishing a production to its online output
-          URL, and AI that runs on our service rather than your own key.
+          a stream or a channel alike. The studio is open source under the AGPL-3.0, so you can
+          read it, change it and run your own copy on your own server. You do not need an
+          account to make a graphic and export it. A free account is asked for only where a
+          hosted service does work for you. The cases you will meet are publishing a production
+          to its online output URL, AI that runs on our service, saving from the CLI into your
+          library, and rendering a video past the short anonymous limits.
         </p>
-        <div class="walk-facts" data-reveal-group style="margin-top: 22px;">
+        <div class="walk-facts" data-reveal-group>
           <span>Free, all of it</span>
           <span>AGPL-3.0 source</span>
           <span>No account to create &amp; export</span>
@@ -737,7 +746,8 @@
                 graphic, checked in a live playout test before you can create it. NoaCG Lite
                 makes a single graphic and NoaCG Pro designs your channel its own on-air look
                 and builds the whole package in it; both run on our service, free, with a free
-                account. Bring your own key and no account is needed. Or hand the brief to
+                account. Bring your own key and it runs on your provider's account instead, at
+                that provider's prices. Or hand the brief to
                 <a href="#agents">your coding agent</a>. Always clean, editable code, never a
                 black box.
               </p>
@@ -867,8 +877,9 @@
                 <p>
                   Preview and program monitors, a cue rundown, the verbs an operator actually
                   uses: select a cue, check it on preview, TAKE. Load the production's output
-                  URL as a browser source in OBS or vMix, or put it on a CasparCG channel from
-                  the same page, and that is your on-air layer.
+                  URL as a browser source in OBS or vMix, or, through a small connector on the
+                  playout machine, put it on a CasparCG channel from the same page, and that is
+                  your on-air layer.
                 </p>
                 <div class="walk-facts"><span>PVW / PGM</span><span>Keyboard verbs</span><span>Drive it from anywhere</span></div>
                 <figure class="walk-inline screen">
@@ -1020,20 +1031,21 @@
 
       <!-- ── The open standard. OGraf is the EBU's format and the direction of the product
            (docs/GOALS.md "OGraf-first"). Three cards are what works today, each with a row in
-           docs/PROMISE_AUDIT.md (25, 28, 29); the three dashed cards are direction (rows 26 and
-           27) and are marked as such - a dashed card is never presented as shipped. ── -->
+           docs/PROMISE_AUDIT.md (the "reads any OGraf package", "exports as OGraf" and "/ograf
+           starters" rows); the three dashed cards are direction (the two NOT YET IMPLEMENTED
+           rows) and are marked as such - a dashed card is never presented as shipped. ── -->
       <section id="ograf">
         <p class="kicker" data-reveal>The open standard</p>
         <h2 data-reveal>Built on OGraf, and going further into it.</h2>
         <p class="sub" data-reveal>
           <a href="https://ograf.ebu.io/" target="_blank" rel="noopener noreferrer">OGraf</a> is
-          the EBU's open format for HTML broadcast graphics: one package any renderer that speaks
-          the standard can load. Every graphic NoaCG exports is an OGraf v1 package, checked
-          against the schema before it downloads. The door opens the other way too: the NoaCG
+          the EBU's open format for HTML broadcast graphics, one package any renderer that speaks
+          the standard can load. Any graphic made here exports as an OGraf v1 package, checked
+          against the schema before it downloads. The door opens the other way too. The NoaCG
           CLI reads any OGraf package, derives the operator's inputs and buttons from its
           manifest, and drives its whole lifecycle in a host, so a graphic NoaCG has never seen
-          gets a control panel from the standard alone. That is where NoaCG is going: the
-          standard as the way graphics move between tools, and NoaCG as a place to make them,
+          gets a control panel from the standard alone. That is where NoaCG is going. The
+          standard becomes the way graphics move between tools, and NoaCG a place to make them,
           operate them and hand them on.
         </p>
         <div class="feats" data-reveal-group>
@@ -1054,12 +1066,12 @@
             <p>Into your library and your production, operated from the same dashboard as everything else.</p>
           </div>
           <div class="feat planned">
-            <h4>Foreign packages on the output URL <span class="soon">Direction</span></h4>
-            <p>An OGraf graphic from anywhere, playing on a NoaCG production's own output layer.</p>
+            <h4>Play foreign packages <span class="soon">Direction</span></h4>
+            <p>An OGraf graphic from anywhere, playing on a NoaCG production's own output URL.</p>
           </div>
           <div class="feat planned">
-            <h4>The output URL speaks the OGraf Server API <span class="soon">Direction</span></h4>
-            <p>So any OGraf controller can drive a NoaCG production, and NoaCG can drive an OGraf renderer.</p>
+            <h4>Speak the OGraf Server API <span class="soon">Direction</span></h4>
+            <p>The output URL as a standard endpoint, so any OGraf controller can drive a NoaCG production, and NoaCG can drive an OGraf renderer.</p>
           </div>
         </div>
         <p class="note" data-reveal>Solid cards are built and measured. Dashed cards are the direction, not a feature yet.</p>
@@ -1075,29 +1087,29 @@
         <p class="sub" data-reveal>
           Your graphics are not tenants in our cloud. Every one is real HTML, CSS and JavaScript:
           clean, commented, and yours to edit. Every package NoaCG builds is self-contained:
-          relative paths, fonts and images bundled, nothing phoning home. The CasparCG, OBS,
-          vMix and SPX packages run from a local file on your own machine with no account and no
-          internet, and the overlay and CasparCG packages carry their own control panel to drive
-          them; the OGraf package wants an ordinary web server, because the standard is a web
-          component.
-          A show you built here keeps going out whether or not we are still in the picture, and
-          the studio itself is open source under the AGPL, so you can read it, change it, and
-          run your own copy of the whole thing.
+          relative paths, fonts and images bundled, nothing phoning home. The packages for
+          CasparCG, OBS, vMix and SPX
+          run on your own machine with no account and no internet, and the overlay and CasparCG
+          packages carry their own control panel to drive them; the OGraf package wants an
+          ordinary web server, because the standard is a web component. A show you built here
+          keeps going out whether or not we are still in the picture, and because the studio is
+          <a href="#free">open source</a>, so does the studio.
         </p>
-        <div class="walk-facts" data-reveal-group style="margin-top: 22px;">
-          <span>Runs from a local file</span>
+        <div class="walk-facts" data-reveal-group>
+          <span>Runs on your own machine</span>
           <span>No account</span>
           <span>No internet</span>
-          <span>Open source, AGPL-3.0</span>
+          <span>Fonts and images bundled</span>
           <span>No dependency on us</span>
         </div>
       </section>
 
       <!-- The agent door (docs/AGENT_CLI.md): coding agents make NoaCG graphics directly
-           through the published @noacg/cli (docs/PROMISE_AUDIT.md row 22: on npm, built and
-           tested here). Real and installable: the commands below are the actual CLI, never a
-           mocked terminal, and validation is the studio's own gate. The plugin road is linked,
-           not sold, because this audit did not re-run the install (row 23). -->
+           through the published @noacg/cli (docs/PROMISE_AUDIT.md, the "NoaCG CLI" row: on npm,
+           built and tested). Real and installable: the commands below are the actual CLI, never
+           a mocked terminal, and validation is the studio's own gate. The plugin road is linked,
+           not sold, because the audit did not re-run the install (the "plugin install lines"
+           row). -->
       <section id="agents">
         <p class="kicker" data-reveal>For developers</p>
         <h2 data-reveal>Your coding agent can make these too.</h2>

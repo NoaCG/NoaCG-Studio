@@ -75,8 +75,8 @@ const ALLOWED = [
   { file: 'index.html', line: '<img src="/landing/shot-export.png" alt="The export dialog listing packages for SPX, OBS and vMix overlays, H2R, CasparCG, OGraf and LiveOS" loading="lazy" />', why: 'alt text describing a screenshot of the target list' },
   { file: 'app.html', line: 'content="The NoaCG Studio app: create on-air lower thirds, tickers, scoreboards and more without code, run them live from your browser, and export to OGraf, CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix."', why: 'target list in the page description' },
   { file: 'app.html', line: '<meta property="og:description" content="Create live graphics. Run the show. Premium on-air graphics, driven live from your browser or exported for OGraf, CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix." />', why: 'target list in the share description' },
-  { file: 'index.html', line: 'content="Live graphics, made simple. NoaCG Studio is a free, open source browser tool for making broadcast graphics from a template, with AI, from your own artwork, or with a coding agent, then running them live from an online playout dashboard or exporting them as OGraf, CasparCG, SPX, OBS and vMix packages."', why: 'target list in the page description' },
-  { file: 'index.html', line: 'vMix and SPX packages run from a local file on your own machine with no account and no', why: 'the single-file targets named beside each other in the no-lock-in section' },
+  // Kept on a source line of its own so a reflow of the prose around it cannot move the match.
+  { file: 'index.html', line: 'CasparCG, OBS, vMix and SPX', why: 'the local-file targets named beside each other in the no-lock-in section' },
   { file: 'ograf.html', line: '<li>Free and open source · also exports to SPX, CasparCG, OBS, vMix</li>', why: 'target list on the OGraf starters page' },
   { file: 'ograf.html', line: 'the same graphics exist for SPX, CasparCG, OBS and vMix.', why: 'target list on the OGraf starters page' },
   { file: 'src/components/wizard/steps/EntryStep.tsx', line: 'CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix.', why: 'target list in the entry hero' },

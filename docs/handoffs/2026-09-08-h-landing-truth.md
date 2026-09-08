@@ -1,8 +1,8 @@
 # Session H - the page we can hand someone
 
-**Branch** `claude/h-landing-truth`, from `032678a2` (main after PR #156). Three commits: the
-audit and the page, the direction docs and the wording sweep, then the check's cleanup with this
-handoff. Queued through `/queue-merge`.
+**Branch** `claude/h-landing-truth`, from `032678a2` (main after PR #156). Four commits: the
+audit and the page, the direction docs and the wording sweep, the check's first cleanup with this
+handoff, then the fixes the relayed review demanded. Queued through `/queue-merge`.
 
 The owner changed the positioning on 2026-09-07: NoaCG competes on being free and open source.
 This row decided how a stranger meets that, and the rule it leaves behind is that the landing page
@@ -18,7 +18,7 @@ it.
 | 3 | Exports to SPX, CasparCG, OBS/vMix overlay, H2R, LiveOS, OGraf | LIMITATION: LiveOS is the OGraf package with instructions; OGraf and LiveOS need an http server |
 | 4 | Validated before export; an invalid graphic cannot export or publish | WORKS NOW |
 | 5 | Template catalog with live previews, filters, kits | WORKS NOW |
-| 6 | Create with AI, Lite and Pro free, live playout check | LIMITATION: both hosted tiers need a free account; BYO key needs none |
+| 6 | Create with AI, Lite and Pro free, live playout check | LIMITATION: on the hosted studio every tier sits behind a free account, BYO key included |
 | 7 | Your own SVG: text layers become fields, on air as drawn | LIMITATION: text must stay text; outlined type gets a stand-in line |
 | 8 | Behaviour on your own artwork without code (quiz, scoreboard) | WORKS NOW (owner walk still owed) |
 | 9 | Photos and flattened images with fields on top | WORKS NOW |
@@ -34,13 +34,13 @@ it.
 | 19 | Live data API over HTTPS | LIMITATION: needs a published production and its key |
 | 20 | No lock-in, runs from a local file | LIMITATION: true of the single-file targets and SPX; not of OGraf |
 | 21 | Video to MP4 or WebM | LIMITATION: AI authoring needs an account; anonymous renders capped |
-| 22 | The NoaCG CLI on npm, `npx @noacg/cli ...`, `mcp` | WORKS NOW (0.3.0 on the registry; built and tested here) |
+| 22 | The NoaCG CLI on npm, `npx @noacg/cli ...`, `mcp` | LIMITATION: `save` needs a login; the rest runs without one (0.3.0 on the registry; built and tested here) |
 | 23 | Claude Code and Codex plugin install lines | LIMITATION: last executed 2026-08-22 / 2026-08-27, not re-run tonight |
 | 24 | An agent-made graphic imports with its type | WORKS NOW |
 | 25 | NoaCG reads any OGraf package (validate, derive controls, drive) | WORKS NOW, through the CLI |
 | 26 | A third-party OGraf graphic in the library, production, output URL, dashboard | NOT YET IMPLEMENTED |
 | 27 | NoaCG controlling a production on an OGraf renderer; `/output` as OGraf Server API | NOT YET IMPLEMENTED |
-| 28 | Every export is an OGraf v1 Graphic; the catalog conforms | WORKS NOW |
+| 28 | Any graphic exports as an OGraf v1 Graphic; the catalog's manifests conform | WORKS NOW |
 | 29 | `/ograf`: six starters, real exporter, schema-checked on download | LIMITATION: our transcription of the schema, checked weekly against the EBU's files |
 
 The evidence column, one file, spec or run per row, is in `docs/PROMISE_AUDIT.md`.
@@ -95,12 +95,40 @@ here decided:
 
 ## The check
 
-- review: `inline`. The code-review skill forked and returned "finder angles are running" with
-  no findings; a launched session never receives that completion, so the diff was reviewed here
-  against the landing contract (`src/landing/AGENTS.md`: roadmap features tagged, never shown as
-  shipped), the copy gate, the client-neutral gate and the pinned specs. No defects found.
-- simplify: `inline`. The simplify skill returned fan-out instructions. One cleanup applied: the
-  new `.feat code` rule duplicated `.card code` and was merged into it.
+- review: `delegated`, by way of the relay. The code-review skill forked, its finder subagents'
+  completions went to the night orchestrator, and the orchestrator relayed eight verbatim reports
+  to this branch's relay mailbox, where `queue:merge` refused to queue until they were read. They
+  were read and acted on. The findings that changed the page, all confirmed against the source
+  before the edit: "Every graphic NoaCG exports is an OGraf v1 package" was false for four of six
+  targets and was also carried in the audit's own row 28 (both now say any graphic *exports as*
+  one); "a free account in two places only" was a hand count the code beats (the sentence now
+  states the rule and the cases, no count, and the audit and owner-queue item say so); "bring your
+  own key and no account is needed" was wrong on the hosted studio, where every AI tier sits
+  behind sign-in (row 6 corrected, the card reworded); the CasparCG button lost its limitation on
+  the page (the connector is named again); the no-lock-in chips still said "runs from a local
+  file" unscoped and the section duplicated the licence sentence from `#free` (chips rescoped,
+  the sentence now points at `#free`); the `/ograf` badge still said "EBU schema validated" after
+  the hero stopped; `docs.html` still listed "open the vote" as a button; the sixth nav link
+  overflowed the header between 641 and 720px, measured on a dev server (the anchor links now
+  hide from 720px down); two dashed-card titles wrapped to three lines at four columns (shortened);
+  the GOALS.md release item had dropped the owner's gate on publishing past `main` (restored, with
+  `needs: account`); the limits.ts header claimed a plan row is only admin-assigned when 0045
+  auto-assigns by e-mail domain (corrected, and the stale "future paid tier" wording in
+  `src/render/AGENTS.md` and `docs/RENDER.md` with it); the em-dash sweep on `ograf.html` had
+  turned nine dashes into mid-sentence colons (rewritten as sentences and commas); the
+  client-neutral allowlist keyed a wrapped prose fragment and the whole meta description (SPX is
+  now on a source line of its own, and out of the description); `landing.spec.ts` pinned the
+  number of direction cards (it now pins that every dashed card carries the tag and no solid one
+  does); the audit preamble carried delegation narrative (moved here); the HTML comments cited
+  audit rows by number (they cite the promise now). Declined: renaming the `paid` render tier
+  (a persisted-format change with a migration, noted in the header as a change of its own);
+  building a `check-promise-audit` gate (row F is landing the wave's gate mechanism tonight, and
+  no architecture was to be built for copy); rewriting the client-neutral gate to key on
+  sentences; de-duplicating the amber link rule.
+- simplify: `delegated`, the same relay. Its cleanups applied: the duplicated `.feat code` rule
+  merged into `.card code`; the inline `margin-top` on both fact strips replaced by one
+  `section > .walk-facts` rule; the GOALS.md accessibility bullet cut to one clause and a link so
+  it no longer restates the two bullets under it.
 - verify: `npm run build` exit 0 on the final tree (1325 tests across 100 gate files;
   `check:copy`, `check:client-neutral`, `check:docs-index` green after two fixes: an allowlist
   that followed the reworded target lists, and the audit's row in `docs/README.md`). The push ran
