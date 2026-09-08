@@ -46,6 +46,8 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { measured } from './measured.mjs';
+
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = path.join(projectRoot, 'scripts', 'copy-baseline.json');
 
@@ -330,14 +332,15 @@ function listFiles() {
 function scanRepo() {
   const actual = {};
   const findings = {};
-  for (const file of listFiles()) {
+  const files = listFiles();
+  for (const file of files) {
     const source = readFileSync(path.join(projectRoot, file), 'utf8');
     const found = scanSource(source, { html: file.endsWith('.html'), plain: file.endsWith('.md'), file });
     if (found.length === 0) continue;
     findings[file] = found;
     actual[file] = tally(found);
   }
-  return { actual, findings };
+  return { actual, findings, scanned: files.length };
 }
 
 function readBaseline() {
@@ -363,7 +366,9 @@ function writeBaseline(actual) {
 const LABEL = 'Copy tells - user-facing text must not read as machine-written';
 
 function main(argv) {
-  const { actual, findings } = scanRepo();
+  const { actual, findings, scanned } = scanRepo();
+  // A SCANNED entry that stopped matching empties the sweep, and every count then reads as zero.
+  measured(scanned, 'source files scanned');
 
   if (argv.includes('--update')) {
     writeBaseline(actual);
@@ -375,7 +380,12 @@ function main(argv) {
     return 0;
   }
 
-  const drift = compare(readBaseline(), actual);
+  // The other half, and the one that hides: `readBaseline` turns an unreadable or renamed
+  // baseline into `{}`, and an empty baseline agrees with an empty scan about everything.
+  const baseline = readBaseline();
+  measured(Object.keys(baseline).length, 'copy baseline rows');
+
+  const drift = compare(baseline, actual);
   if (drift.length === 0) {
     console.log(`${LABEL}\n\nPASS - no new tells, and the baseline still matches the tree.`);
     return 0;

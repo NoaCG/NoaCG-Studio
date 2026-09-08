@@ -32,6 +32,8 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { measured } from './measured.mjs';
+
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** The client names the product must not adopt as its own vocabulary. */
@@ -137,10 +139,13 @@ function scan() {
       findings.push({ file, line: i + 1, text: original.slice(0, 150) });
     });
   }
-  return findings;
+  return { findings, scanned: listed.length };
 }
 
-const findings = scan();
+// A SCANNED entry that stopped matching - a renamed directory, a moved file - empties `listed`
+// and this gate then passes having read nothing, which is the shape it was written to catch.
+const { findings, scanned } = scan();
+measured(scanned, 'user-readable source files scanned');
 const label = `Client-neutral copy - ${CLIENTS.join(', ')} may be named as a TARGET, never as the product's own vocabulary`;
 
 if (findings.length === 0) {

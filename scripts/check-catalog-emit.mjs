@@ -31,6 +31,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { EMIT_IN_PAGE, INDEX_IN_PAGE, fingerprints, withCatalogPage } from './catalog-emit.mjs';
 import { parseOnly } from './catalog-scope.mjs';
+import { measured } from './measured.mjs';
 
 const BASELINE = fileURLToPath(new URL('../e2e/catalog-baseline.json', import.meta.url));
 const UPDATE = process.env.UPDATE_CATALOG_BASELINE === '1';
@@ -57,6 +58,8 @@ const { emitted, index } = await withCatalogPage(async (page) => ({
   // second whole-catalog walk is only worth paying for when a slice made the emit narrow.
   index: only ? await page.evaluate(INDEX_IN_PAGE) : null,
 }));
+
+measured(emitted.length, 'catalog variants emitted');
 
 const allDesigns = index ?? emitted;
 const scope = only ? `${emitted.length} of ${allDesigns.length} designs` : `${emitted.length} designs`;
@@ -109,6 +112,11 @@ if (UPDATE || !existsSync(BASELINE)) {
 }
 
 const baseline = JSON.parse(readFileSync(BASELINE, 'utf8')).variants;
+// THE OTHER HALF OF THE COMPARISON, and the half that can go missing without a word: the branch
+// above re-records whatever the tree emits whenever the baseline file is absent, so a deleted or
+// renamed `variants` key would leave this gate comparing 502 designs against nothing and exiting
+// green. Reported here on the comparison path only - the bootstrap has no baseline to report.
+measured(Object.keys(baseline ?? {}).length, 'baseline variants');
 
 if (!only) {
   const was = Object.keys(baseline).sort();

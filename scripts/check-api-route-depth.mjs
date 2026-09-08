@@ -42,11 +42,16 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { apiFunctionTable, clientApiPaths, resolveApiRoute } from './apiRouteTable.mjs';
+import { measured } from './measured.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const table = apiFunctionTable(repoRoot, 'api');
 const { paths, fileCount } = clientApiPaths(repoRoot);
+// Both sides of the comparison, because either one going empty makes the whole gate vacuous: no
+// client path means nothing is checked, and no function means nothing could serve anything.
+measured(paths.length, 'client /api paths');
+measured(table.exact.size + table.catchAlls.length, 'api functions');
 const problems = [];
 const served = new Set();
 

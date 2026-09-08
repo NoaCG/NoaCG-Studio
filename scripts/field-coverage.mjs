@@ -23,6 +23,7 @@ import { chromium } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 import { applyOnly, parseOnly, scopeNote } from './catalog-scope.mjs';
+import { measured } from './measured.mjs';
 
 /**
  * Categories this gate cannot speak for. `imported-design` renders the USER'S artwork with
@@ -107,6 +108,7 @@ if (!targets.length) {
   await browser.close();
   process.exit(2);
 }
+measured(targets.length, 'catalog variants');
 
 await page.evaluate(() => {
   // A sentinel per field, typed so the value is ACCEPTED rather than rejected or coerced:

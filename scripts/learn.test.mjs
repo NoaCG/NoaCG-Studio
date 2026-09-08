@@ -82,13 +82,24 @@ test('every missing field is named in one refusal, with the same words the compi
   assert.match(verdict.problems.join('\n'), /kind must be one of/);
 });
 
-test('a fires: target must exist in the tree; a present one passes', () => {
-  const dir = root({ 'scripts/hooks/guard-edit.mjs': '// exists' });
-  assert.equal(decide(input({ fires: 'hook:guard-edit' }), [], dir).action, 'new');
-  const missing = decide(input({ fires: 'gate:check-nothing' }), [], dir);
+// `fires:` DELETES the rule from every loaded contract, on the understanding that the mechanism
+// says the sentence instead. Recording one is therefore refused twice over: when the mechanism is
+// not there, and when it is there but never prints the rule - which is how four rules disappeared
+// from every surface on 2026-09-08 with no gate saying a word.
+test('a fires: target must exist in the tree AND print the rule; a mechanism that only exists is refused', () => {
+  const id = 'wizard/wizard-step-never-writes-draft-render';
+  const carries = root({ 'scripts/hooks/guard-edit.mjs': `console.error(rules.text('${id}'));` });
+  assert.equal(decide(input({ fires: 'hook:guard-edit' }), [], carries).action, 'new');
+  const missing = decide(input({ fires: 'gate:check-nothing' }), [], carries);
   assert.equal(missing.action, 'refuse');
   assert.match(missing.problems[0], /scripts\/check-nothing\.mjs does not exist/);
-  rmSync(dir, { recursive: true, force: true });
+  rmSync(carries, { recursive: true, force: true });
+
+  const silent = root({ 'scripts/hooks/guard-edit.mjs': '// exists, and says nothing about the rule' });
+  const unproven = decide(input({ fires: 'hook:guard-edit' }), [], silent);
+  assert.equal(unproven.action, 'refuse');
+  assert.match(unproven.problems[0], /never prints the rule/);
+  rmSync(silent, { recursive: true, force: true });
 });
 
 test('--supersedes skips the duplicate check and must name a real rule', () => {

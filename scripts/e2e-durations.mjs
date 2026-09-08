@@ -61,6 +61,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { measured } from './measured.mjs';
 
 const TABLE = fileURLToPath(new URL('./e2e-durations.json', import.meta.url));
 const E2E_DIR = fileURLToPath(new URL('../e2e/', import.meta.url));
@@ -405,6 +406,10 @@ function main() {
 
   if (args.includes('--check') || args.length === 0) {
     const files = specFilesOnDisk();
+    // The suite this report is ABOUT. An e2e directory that stopped resolving would leave every
+    // table entry looking stale and nothing on disk looking unmeasured, which reads as a clean
+    // report; saying the count out loud turns that into a refusal instead.
+    measured(files.length, 'e2e spec files');
     const { unmeasured, stale } = drift(table.minutes, files);
     const total = Object.values(table.minutes).reduce((a, b) => a + b, 0);
     console.log(

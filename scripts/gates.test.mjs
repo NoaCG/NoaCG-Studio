@@ -15,12 +15,17 @@ import { ROOT, audit, auditGates, discoverChecks, discoverTests, entryPointsOf, 
 const workflows = (map) => (name) => (Object.hasOwn(map, name) ? map[name] : null);
 const WIRED = { buildLine: 'node scripts/gates.mjs run && tsc && node scripts/gates.mjs run --gate after-build', ci: 'run: node scripts/gates.mjs run --gate factory\n' };
 const mk = (name, entry, header) => ({ kind: 'check', name, names: [name], entry, exists: true, header: parseHeader(header) });
+// The audit fixtures below are about TIERS and GUARDS. Each hands the audit a gate body that
+// already reports what it measured, and one test file, so the measurement rules stay out of their
+// counts; those rules have their own tests in scripts/measured.test.mjs.
+const REPORTS = () => "import { measured } from './measured.mjs';\nmeasured(files.length, 'files');";
+const oneTest = (guard) => [{ kind: 'test', name: 'scripts/b.test.mjs', entry: 'scripts/b.test.mjs', exists: true, header: { ...parseHeader(''), gate: 'build' }, derivedGuards: [guard] }];
 
 test('a header is read for its tier, its workflow, its reason, its guards and its needs - from the leading comment block only', () => {
   const h = parseHeader(['#!/usr/bin/env node', '// gate: workflow weekly-audit.yml', '// guards: src/assets/**, docs/X.md', '// needs: browser', '//', '// prose'].join('\n'));
-  assert.deepEqual(h, { gate: 'workflow', workflow: 'weekly-audit.yml', reason: null, guards: ['src/assets/**', 'docs/X.md'], needs: ['browser'] });
+  assert.deepEqual(h, { gate: 'workflow', workflow: 'weekly-audit.yml', reason: null, guards: ['src/assets/**', 'docs/X.md'], needs: ['browser'], measures: null });
   assert.deepEqual(parseHeader('// gate: none - reports, never gates\n').reason, 'reports, never gates');
-  assert.deepEqual(parseHeader('import x from "y";\n'), { gate: null, workflow: null, reason: null, guards: [], needs: [] });
+  assert.deepEqual(parseHeader('import x from "y";\n'), { gate: null, workflow: null, reason: null, guards: [], needs: [], measures: null });
   // A `gate:` after the first line of code is prose, however long the header before it.
   assert.equal(parseHeader(`${'// prose\n'.repeat(100)}// gate: build\n`).gate, 'build', 'a long header is still the header');
   assert.equal(parseHeader('import a from "b";\n// gate: build\n').gate, null, 'a declaration below the code is not honoured');
@@ -87,7 +92,7 @@ test('the audit refuses a missing tier, an unknown tier, a browser need in the b
     mk('check:e', 'scripts/check-e.mjs', '// gate: build\n'),
     mk('check:c', 'scripts/check-c.mjs', '// gate: build\n// needs: browser\n// guards: src/**\n'),
   ];
-  const problems = auditGates({ checks, tests: [], tracked, workflowText: workflows({ 'ci.yml': `run: npm run check:other\n${WIRED.ci}` }), buildLine: WIRED.buildLine });
+  const problems = auditGates({ checks, tests: oneTest('package.json'), tracked, read: REPORTS, workflowText: workflows({ 'ci.yml': `run: npm run check:other\n${WIRED.ci}` }), buildLine: WIRED.buildLine });
   const has = (re) => assert.ok(problems.some((p) => re.test(p)), `expected a problem matching ${re}\n${problems.join('\n')}`);
   has(/"check:x".*declares no tier/);
   has(/"check:y".*gate: nightly.*not one of/);
@@ -108,13 +113,12 @@ test('an honest declaration passes, in every tier, and a composite\'s second nam
     mk('check:n', 'scripts/n.mjs', '// gate: none - reports what a design costs and never gates\n// guards: **\n'),
     mk('check:l', 'scripts/l.mjs', '// gate: after-build\n// guards: package.json\n'),
   ];
-  const tests = [{ kind: 'test', name: 'scripts/b.test.mjs', entry: 'scripts/b.test.mjs', exists: true, header: { ...parseHeader(''), gate: 'build' }, derivedGuards: ['scripts/b.mjs'] }];
-  const problems = auditGates({ checks, tests, tracked, workflowText: workflows({ 'ci.yml': `run: npm run check:all\n${WIRED.ci}` }), buildLine: WIRED.buildLine });
+  const problems = auditGates({ checks, tests: oneTest('scripts/b.mjs'), tracked, read: REPORTS, workflowText: workflows({ 'ci.yml': `run: npm run check:all\n${WIRED.ci}` }), buildLine: WIRED.buildLine });
   assert.deepEqual(problems, []);
 });
 
 test('a script with no file must be named by a workflow, and a header no script reaches is refused', () => {
-  const base = { checks: [], tests: [], tracked: ['scripts/orphan.mjs'], workflowText: workflows({ 'ci.yml': WIRED.ci }), buildLine: WIRED.buildLine };
+  const base = { checks: [], tests: oneTest('scripts/orphan.mjs'), tracked: ['scripts/orphan.mjs', 'scripts/b.test.mjs'], workflowText: workflows({ 'ci.yml': WIRED.ci }), buildLine: WIRED.buildLine };
   const unnamed = auditGates({ ...base, entryless: [{ kind: 'script', name: 'test:e2e:catalog', command: 'playwright test --config=x' }], allWorkflowText: 'run: npm run test:e2e\n' });
   assert.equal(unnamed.length, 1);
   assert.match(unnamed[0], /"test:e2e:catalog" runs no script file.*none does/);

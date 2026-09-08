@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 
 import { isInstructionFile } from './check-retired-names.mjs';
 import { repositoryFiles } from './gates.mjs';
+import { measured } from './measured.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -146,6 +147,7 @@ function main() {
     const refs = extractRefs(readFileSync(resolve(ROOT, file), 'utf8'));
     for (const stale of staleRefs(refs, { tracked, trackedDirs, definedScripts })) candidates.push({ file, ...stale });
   }
+  measured(scanned, 'contract files');
   // A generated or local path git IGNORES is legitimately named though absent from a clean
   // checkout (`.claude/launch.json`, the gitignored `example_projects/` reference pack). A
   // directory is passed WITH its trailing slash so check-ignore matches a `dir/` rule even when the

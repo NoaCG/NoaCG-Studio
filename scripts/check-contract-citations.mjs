@@ -39,6 +39,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { GENERATED_MARKER } from './contracts-lib.mjs';
+import { measured } from './measured.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -191,6 +192,7 @@ function trackedFiles() {
 function main() {
   const files = trackedFiles();
   const { ids, areas } = ruleIds();
+  measured(ids.size, 'rule ids in contracts/rules');
   const contracts = new Map();
   for (const file of files.filter((f) => /(^|\/)AGENTS\.md$/.test(f))) {
     const text = readFileSync(resolve(ROOT, file), 'utf8');
@@ -209,6 +211,7 @@ function main() {
       failures.push(`${file}:${stale.line}: ${stale.kind} \`${stale.citation}\` - ${stale.why}`);
     }
   }
+  measured(scanned, 'text files scanned for citations');
 
   if (failures.length) {
     console.error(`Contract citations FAILED - ${failures.length} dangling citation(s) across ${scanned} file(s):`);
