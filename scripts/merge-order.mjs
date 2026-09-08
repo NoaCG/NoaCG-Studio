@@ -138,8 +138,15 @@ export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } 
     names.map(async (branch) => {
       const worktree = byBranch.get(branch) ?? null;
       const [ahead, status, uncommitted, tip] = await Promise.all([
-        git(['rev-list', '--count', `${target}..${branch}`], primary).then((r) => count(r.stdout)),
-        git(['diff', '--name-status', '--find-renames', `${target}...${branch}`], primary),
+        // `ref`, NOT `target`. `target` is the NAME of the branch being landed onto and belongs in
+        // the report; the revision that says what has landed is `ref` (see scripts/main-ref.mjs).
+        // These two lines read the stale local `main` until 2026-09-09, while the candidate list
+        // three lines up already asked `ref` - so the branches were chosen correctly and then each
+        // one was MEASURED against a repository 43 commits old. A branch was credited with the
+        // files six other rows had landed, and one of those phantom files carried a migration
+        // number, which is a `hold` verdict for work that was already on main.
+        git(['rev-list', '--count', `${ref}..${branch}`], primary).then((r) => count(r.stdout)),
+        git(['diff', '--name-status', '--find-renames', `${ref}...${branch}`], primary),
         worktree ? uncommittedPaths(worktree.root) : Promise.resolve([]),
         // `%ct` rides along for the aging rule in `rank` - the relative string is for reading,
         // and a comparison cannot be made out of "2 hours ago".
@@ -176,6 +183,9 @@ export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } 
 
   return {
     target,
+    // The revision every count and diff above was actually measured against. Reported rather than
+    // implied: `target` and `ref` disagreeing is the whole defect, so the answer says which it used.
+    ref,
     primary,
     self: self?.branch ?? null,
     branches,
@@ -612,7 +622,7 @@ async function git(args, cwd, { raw = false } = {}) {
 }
 
 function empty(target) {
-  return { target, primary: null, self: null, branches: [], order: [], notReady: [], remoteOnly: [] };
+  return { target, ref: null, primary: null, self: null, branches: [], order: [], notReady: [], remoteOnly: [] };
 }
 
 function count(stdout) {
@@ -634,12 +644,15 @@ function isUnder(path, root) {
  * block is the whole point of the output; the ranked list underneath is the supporting detail.
  */
 export function formatOrder(assessment) {
-  const { branches, order, notReady, target, primary, remoteOnly = [] } = assessment;
+  const { branches, order, notReady, target, ref, primary, remoteOnly = [] } = assessment;
   if (branches.length === 0) {
     return [`Nothing is ahead of ${target} - no ordering question to answer.`, ...remoteOnlyLines(remoteOnly, target)];
   }
 
   const out = [];
+  // Say which revision answered. `origin/main` is the normal one here and the reader can ignore it;
+  // seeing the bare local branch named is the signal that the fetch is stale and so is this report.
+  if (ref && ref !== `origin/${target}`) out.push(`Measured against ${ref} - there is no ${`origin/${target}`} in this checkout.`);
 
   if (order.length === 0) {
     // Every candidate is mid-session. Saying so beats printing an empty ranked list and

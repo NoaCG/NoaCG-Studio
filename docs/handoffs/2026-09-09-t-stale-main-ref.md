@@ -9,8 +9,13 @@ the last hand-merge did and the lag only grows. It was 33 commits on the night o
 worktree cut that same night.
 
 `scripts/main-ref.mjs` exists to answer which ref means "landed", and four scripts already used it.
-`owner-receipts.mjs` was the fifth. Two rows found it independently the same night, which is why
-this row exists rather than a chip.
+`owner-receipts.mjs` was the fifth. **Four rows hit this independently in one night** - Q and P on
+the code review, S on three advisors at once, and this row on the receipts - which is why it is a
+row rather than a chip.
+
+Row S's relay arrived after the first commit and made the sweep bigger than the brief: enumerate by
+asking **which advisors a session consults before it queues**, not by grepping for the string
+`main`. That is what found the sixth defect below, in `merge-order.mjs`, which my grep had cleared.
 
 ## The reproduction
 
@@ -60,7 +65,33 @@ private answer to the question `main-ref.mjs` exists to answer.
 
 Every `main` in `scripts/`, `cli/` and `.github/`, by hand, then again by the scanner below.
 
-**Fixed** - the four rows in the table above, all in `scripts/owner-receipts.mjs`.
+**Fixed** - the four rows in the table above in `scripts/owner-receipts.mjs`, plus one more that
+only the advisor question found.
+
+### `merge-order.mjs` was wired to `mainRef` HALFWAY, which is worse than not at all
+
+It resolves the landed ref at line 129 and asks it for the candidate list. Then it measured each of
+those candidates against the raw stale `target`:
+
+```
+git rev-list --count  main..<branch>       # how far ahead this branch is
+git diff --name-status main...<branch>     # THE FILE LIST every verdict is built from
+```
+
+So the branches were chosen correctly and each one was then judged against a repository 43 commits
+old. That is precisely what row S saw: a branch credited with 38 files belonging to six other rows,
+and a phantom migration number among them producing a `hold` for work already on `main`.
+
+My own grep had cleared this file - the import was there, so it read as done. `${target}...${branch}`
+carries no `main` token, so the new gate cannot see it either; it is blind spot two, "a ref built at
+a distance", named in the gate's own header. **What found it was the relay, not a tool.**
+
+Both revisions now use `ref`. `target` stays as the NAME of the branch being landed onto, which is
+what belongs in the report. The assessment also returns the `ref` it measured against and says so
+in the output when it is not `origin/main`, so a stale reading announces itself instead of being
+inferred. The existing test covered the candidate list only; the new assertions pin the measurement
+half, and I checked they fail without the fix - `docs/landed.md` is credited to a branch that merely
+merged it in.
 
 **Deliberate, with the reason:**
 
@@ -68,6 +99,7 @@ Every `main` in `scripts/`, `cli/` and `.github/`, by hand, then again by the sc
 | --- | --- |
 | `cleanup-worktrees.mjs` (`MAIN` + `REMOTE_MAIN`, containment in both) | asks a different question - "is this work backed up off this machine?" - and the wrong answer deletes a gigabyte of work. `main-ref.mjs`'s own header says it must never use the helper. Untouched. |
 | `e2e-affected.mjs:1087` `mainRefs`, local first | its question is a **merge-base**, not a landing. A stale ref is an ancestor of a fresh one, so it can only push the base earlier and widen the plan - a slower suite, never a missed test. The comment now says so; it did not before. |
+| `merge-order.mjs` `target` in every report string, `empty()`, `recordTakenSequences` | the NAME of the branch being landed onto, which is what a reader wants to see. Only the two revisions were wrong. |
 | `worktree-activity.mjs:72` `rev-parse --verify --quiet main` | asks only whether a local `main` branch EXISTS, to decide whether a comparison is possible. It reads the landed ref through `mainRef` on the next line. The single entry in the new gate's allowlist. |
 | `check-shared-instructions.mjs:187-188` | string markers pinning the handoff workflow's archive test, which requires containment in BOTH refs. Not git calls. |
 | `reattach-main.mjs`, `agy-run.mjs:380`, `ci-watch.mjs:91`, `jobs.mjs:346/768`, `jobs-store.mjs:1296`, `wave-tick.mjs:258`, `worktree-activity.mjs:86/140`, `vercel-ignore-build.mjs:49`, `red-main-issue.mjs:57`, `metrics/ci-minutes.mjs`, the `hooks/*` guards | all compare the CURRENT branch name to the string `main`, or name the branch to switch to. A name comparison has no stale answer. |
@@ -110,7 +142,8 @@ use left.** The first test is the three lines `owner-receipts.mjs` actually ship
 verbatim - the gate is worth its build seconds only if it would have caught the bug that caused it.
 
 It says its blind spots out loud rather than implying completeness: an **absent** ref (no token to
-match - that is how `closedReceipts` and `orchestrator-week` hid), a ref built at a distance, and
+match - that is how `closedReceipts` and `orchestrator-week` hid), a ref built at a distance (that
+is how `merge-order` hid, and a relay found it rather than a tool), and
 `merge`/`rebase`/`checkout`/`switch`/`reset`, left out on purpose because naming the local branch to
 those is usually the point and flagging correct code teaches the next reader to skim.
 
@@ -175,3 +208,13 @@ local ref and using `origin/main`. So the failure is not constant, which makes i
 - `docs/backlog/the-weekly-report-walks-head-not-what-landed.md` - the sixth instance, filed.
 - `docs/handoffs/2026-09-08-q-oss-community-files.md`, "The thing underneath all ten" - row Q's
   original account.
+- `scripts/merge-order.mjs:129-149` - the resolved ref, and the two lines that ignored it.
+
+## The one thing I would tell the next reader
+
+The grep is the weaker half of this row. It cleared `merge-order.mjs` because the import was
+present, and the file was still wrong in the two lines that decide every verdict. The question that
+worked was row S's: **which advisors does a session consult before it queues, and what does each of
+them measure against?** There are five - `/check`'s scope, `owner-receipts --serves`, `merge-order`,
+the `jobs.mjs` preflight, and `worktree-activity` - and all five now answer from `origin/main`.
+Anything added to that set should be checked by asking it that question, not by grepping it.
