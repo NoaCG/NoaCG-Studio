@@ -42,8 +42,13 @@ const REPO_ROOT = path.resolve(HERE, '..');
 export const HANDOFF_DIR = path.join('docs', 'handoffs');
 export const RULINGS_FILE = 'docs/OWNER_RULINGS.md';
 
-/** `ALIGN-<yyyy>-<mm>-<dd>-<n>` - the date the question was asked, and its number that morning. */
-const HEADING = /^###\s+(ALIGN-\d{4}-\d{2}-\d{2}-\d+)\s*$/;
+// `ALIGN-<yyyy>-<mm>-<dd>-<n>` - the date the question was asked, and its number that morning.
+// The heading is read LENIENTLY: any level from `##` to `####`, and anything after the id, because
+// the procedure asks each question to name its `needs: alignment` reason in its own text and a
+// session that puts that on the heading line must not have its question silently dropped. A
+// question the parser cannot see is a ruling nobody records, which is the failure this file exists
+// to prevent - so every doubtful case parses rather than vanishes.
+const HEADING = /^#{2,4}\s+(ALIGN-\d{4}-\d{2}-\d{2}-\d+)\b.*$/;
 const FIELD = /^\*\*(Question|Answer):\*\*\s*(.*)$/;
 const WEEKLY_FILE = /^\d{4}-\d{2}-\d{2}-orchestrator-week\.local\.md$/;
 
@@ -70,12 +75,17 @@ export function parseAlignmentQuestions(text) {
   return questions.map((entry) => ({ ...entry, answered: entry.answer.length > 0 }));
 }
 
-/** The newest `<date>-orchestrator-week.local.md`, by filename, so a stale week never speaks over this one. */
-export function newestWeeklyFile(root = REPO_ROOT) {
+/** Every `<date>-orchestrator-week.local.md`, oldest first, so the newest is always last. */
+export function weeklyFiles(root = REPO_ROOT) {
   const dir = path.join(root, HANDOFF_DIR);
-  if (!existsSync(dir)) return null;
-  const files = readdirSync(dir).filter((name) => WEEKLY_FILE.test(name)).sort();
-  return files.length ? path.join(dir, files[files.length - 1]) : null;
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((name) => WEEKLY_FILE.test(name)).sort().map((name) => path.join(dir, name));
+}
+
+/** The newest one - whose OPEN questions are the only ones still live. */
+export function newestWeeklyFile(root = REPO_ROOT) {
+  const files = weeklyFiles(root);
+  return files.length ? files[files.length - 1] : null;
 }
 
 /**
@@ -84,18 +94,29 @@ export function newestWeeklyFile(root = REPO_ROOT) {
  * does, because the file is gitignored per machine.
  */
 export function alignmentState(root = REPO_ROOT) {
-  const source = newestWeeklyFile(root);
-  if (!source) return { source: null, open: [], pending: [], recorded: [] };
-  const questions = parseAlignmentQuestions(readFileSync(source, 'utf8'));
+  const files = weeklyFiles(root);
+  if (files.length === 0) return { source: null, open: [], pending: [], recorded: [] };
+  const newest = files[files.length - 1];
   const rulingsPath = path.join(root, ...RULINGS_FILE.split('/'));
   const rulings = existsSync(rulingsPath) ? readFileSync(rulingsPath, 'utf8') : '';
-  const relative = path.relative(root, source).split(path.sep).join('/');
-  const state = { source: relative, open: [], pending: [], recorded: [] };
-  for (const entry of questions) {
-    const row = { ...entry, source: relative };
-    if (!entry.answered) state.open.push(row);
-    else if (rulings.includes(entry.id)) state.recorded.push(row);
-    else state.pending.push(row);
+  const relative = (file) => path.relative(root, file).split(path.sep).join('/');
+  const state = { source: relative(newest), open: [], pending: [], recorded: [] };
+  // ANSWERS are read from EVERY week, because an answer given a month ago and never written down is
+  // precisely the ruling this file promises not to lose - reading only the newest week would drop
+  // it the following Tuesday, quietly, which is the failure wearing a different hat.
+  // OPEN questions come from the newest week alone: by the procedure a question is carried forward
+  // once and then dropped, so an old unanswered one is settled by the decision taken instead.
+  const seen = new Set();
+  for (const file of [...files].reverse()) {
+    for (const entry of parseAlignmentQuestions(readFileSync(file, 'utf8'))) {
+      if (seen.has(entry.id)) continue;
+      seen.add(entry.id);
+      const row = { ...entry, source: relative(file) };
+      if (!entry.answered) {
+        if (file === newest) state.open.push(row);
+      } else if (rulings.includes(entry.id)) state.recorded.push(row);
+      else state.pending.push(row);
+    }
   }
   return state;
 }
@@ -126,6 +147,9 @@ function report(state) {
     lines.push('', `  ANSWERED AND NOT RECORDED (${state.pending.length}) - a wave plan is refused until each is mentioned:`);
     for (const entry of state.pending) {
       lines.push('', `    ${entry.id}`, `      Q: ${entry.question}`, `      A: ${entry.answer}`);
+      // Name the week it came from when it is not this one, so a month-old ruling nobody wrote
+      // down does not read as something the owner said on Tuesday.
+      if (entry.source !== state.source) lines.push(`      from ${entry.source}`);
     }
     lines.push(
       '',

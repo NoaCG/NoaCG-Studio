@@ -67,7 +67,7 @@ test('an open question is never pending - his to answer, and nothing waits on it
   assert.deepEqual(state.open.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
 });
 
-test('only the newest weekly file speaks, so last week never reopens a settled question', () => {
+test('every week is read for answers, newest first, and source names the newest week', () => {
   const state = alignmentState(checkout({
     weekly: {
       '2026-09-08-orchestrator-week.local.md': question('ALIGN-2026-09-08-1', 'Old one?', 'Old answer.'),
@@ -75,7 +75,11 @@ test('only the newest weekly file speaks, so last week never reopens a settled q
     },
   }));
   assert.equal(state.source, 'docs/handoffs/2026-09-15-orchestrator-week.local.md');
-  assert.deepEqual(state.pending.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
+  assert.deepEqual(
+    state.pending.map((entry) => entry.id),
+    ['ALIGN-2026-09-15-1', 'ALIGN-2026-09-08-1'],
+    'an unrecorded ruling survives however many Tuesdays pass, newest first',
+  );
 });
 
 test('a checkout with no weekly file is not a fault - CI never has one', () => {
@@ -100,4 +104,33 @@ test('the appendable block carries the id the plan check looks for', () => {
   assert.match(block, /^## ALIGN-2026-09-15-1$/m);
   assert.match(block, /Still the top\?/);
   assert.match(block, /^> Yes\.$/m);
+});
+
+test('a heading that names its reason after the id still parses - a lost question is a lost ruling', () => {
+  const parsed = parseAlignmentQuestions('### ALIGN-2026-09-15-1 - needs: alignment\n**Question:** Q?\n**Answer:** A.\n');
+  assert.deepEqual(parsed.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
+  assert.equal(parsed[0].answered, true);
+});
+
+test('an answer from an older week stays pending - reading only the newest file would lose it', () => {
+  const state = alignmentState(checkout({
+    weekly: {
+      '2026-09-08-orchestrator-week.local.md': question('ALIGN-2026-09-08-1', 'Asked a week ago?', 'Answered a week ago.'),
+      '2026-09-15-orchestrator-week.local.md': question('ALIGN-2026-09-15-1', 'Asked today?'),
+    },
+  }));
+  assert.deepEqual(state.pending.map((entry) => entry.id), ['ALIGN-2026-09-08-1']);
+  assert.equal(state.pending[0].source, 'docs/handoffs/2026-09-08-orchestrator-week.local.md');
+  assert.deepEqual(state.open.map((entry) => entry.id), ['ALIGN-2026-09-15-1'], 'only this week is still open');
+});
+
+test('an unanswered question from an older week is dropped, per the carry-forward-once rule', () => {
+  const state = alignmentState(checkout({
+    weekly: {
+      '2026-09-08-orchestrator-week.local.md': question('ALIGN-2026-09-08-1', 'Never answered?'),
+      '2026-09-15-orchestrator-week.local.md': question('ALIGN-2026-09-15-1', 'This week?'),
+    },
+  }));
+  assert.deepEqual(state.open.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
+  assert.deepEqual(state.pending, []);
 });
