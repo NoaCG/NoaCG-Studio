@@ -32,6 +32,9 @@ import {
   pollDrivenLayers,
   scoreDrawnPool,
 } from './draft';
+import { transformedBox } from '../../../assets/svgGeometry';
+import { SVG_ALIGN_TOL, SVG_LINE_HEIGHT } from '../../../templates/importedDesign/svg';
+import type { PreviewBoxOverlay } from '../WizardPreview';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import {
@@ -67,6 +70,14 @@ interface Props {
   /** Which layer the checklist is pointing at, for the PREVIEW's highlight (the step's one
    *  canvas — CreationWizard owns the state because the canvas is beside the step, not in it). */
   onHover: (candidateId: string | null) => void;
+  /**
+   * TEXT AND ITS BOX, on the preview (docs/TEXT_BOX_BINDING.md, "the preview overlay"). Reported
+   * beside the hover rather than folded into it because the two are different statements: the
+   * hover says WHICH layer a row names, and this says which box that layer lives in, how much
+   * room the designer left round it and how they aligned it. Null while nothing is hovered, and
+   * for a line with no box of its own - text on the artwork has no room to show.
+   */
+  onBoxOverlay: (overlay: PreviewBoxOverlay | null) => void;
   /**
    * ADD A FIELD BY DRAWING ONE (docs/SVG_IMPORT_PLAN.md §6a step 3). Arming reports a HANDLER
    * rather than a flag: the preview gives back a box in fractions of the artwork's rect, and
@@ -461,6 +472,106 @@ function panelOfEachLine(
     if (best) out[id] = best.id;
   }
   return out;
+}
+
+/**
+ * THE ROOM ROUND A LINE, AND HOW THE DESIGNER ALIGNED IT, IN THE LINE'S OWN FRAME.
+ *
+ * What the preview overlay draws (docs/TEXT_BOX_BINDING.md, "the preview overlay"): the dashed
+ * inside line sits at these insets, the two figures ARE these numbers, and the caret carries
+ * these words. Measured here, on the step's own render, because they are facts about the
+ * DRAWING - the room the designer left and the way they placed the block in it - rather than
+ * about whatever value happens to be on air in the preview this second
+ * (`wizard/make-mapsvgfieldsstep-mapping-step-mode-over`).
+ *
+ * IN THE LINE'S OWN COORDINATES, never the screen's, and never the box's either. This is the
+ * runtime's own frame: `svgAlignOf` maps the plate INTO the line's system through `svgLocalBox`
+ * (importedDesign/svg.ts), takes the axis-aligned extent of the quad that comes out, and
+ * measures the margins and the centring against that. Text and plate almost always carry the
+ * same rotation - the designer turned them together - and then that extent IS the plate, turned;
+ * where they differ, the extent is the room the ladder actually gets, because the reading
+ * direction is the direction a longer value fills. Doing it in the BOX's frame instead puts the
+ * two frames a quarter turn apart on this fixture's own question plate - a portrait rectangle
+ * rotated 88.68 degrees under level text - and the measurements are then about different axes:
+ * built that way, the bounds drawn round the question came out turned 88.68 degrees off the
+ * words they were meant to hug.
+ *
+ * So `box` comes back in the LINE's units and the preview draws it with the LINE's matrix.
+ * `getBBox` leaves out every transform and the mapping between two elements is a ratio of their
+ * two matrices, so a uniform page scale cancels: the numbers measured on this hidden stage are
+ * the same numbers on the preview's canvas, which is what lets one canvas measure and the other
+ * draw without the two being able to disagree.
+ *
+ * MIRRORED, because that is what the room IS: the runtime keeps the margin the designer left on
+ * the tighter side and keeps it on both, so a line drawn hard against one edge is not told it
+ * has the whole of the other side to fill. Clamped at zero for a line drawn past its own box,
+ * which is artwork rather than an error.
+ *
+ * EXCEPT ON AN AXIS THE BLOCK IS CENTRED ON, where the gap the designer left is not a margin at
+ * all - it is half the centring, and mirroring it hands the line back its own drawn size while
+ * the box around it goes unread. `svgAlignOf` and `measureSvgRoom` both replace it there with a
+ * TYPOGRAPHIC margin - half the drawn type sideways, half a line vertically - and so does this,
+ * with the same two numbers, or the picture would show the owner's question with no room left in
+ * a plate the ladder will happily give it two more lines of. Only where the composition really
+ * is centring: a line drawn against the top of its box was composed against that edge, and the
+ * space above it is margin exactly as it looks.
+ *
+ * THE ALIGNMENT IS THE RUNTIME'S RULE, read here: a stated `text-anchor` is believed, otherwise
+ * the block is centred when its centre sits within `SVG_ALIGN_TOL` of the box's centre and
+ * aligned to the side it was drawn nearer. The tolerance is imported rather than repeated, so
+ * the word the overlay shows and the anchor the template emits cannot drift apart.
+ */
+function boxFitOf(
+  stage: HTMLElement,
+  textId: string,
+  boxId: string,
+): Omit<PreviewBoxOverlay, 'selector'> | null {
+  const textEl = markerEl(stage, textId) as SVGGraphicsElement | null;
+  const boxEl = markerEl(stage, boxId) as SVGGraphicsElement | null;
+  if (!textEl?.getBBox || !textEl.getScreenCTM || !boxEl?.getBBox || !boxEl.getScreenCTM) return null;
+  const toText = textEl.getScreenCTM();
+  const fromBox = boxEl.getScreenCTM();
+  if (!toText || !fromBox) return null;
+  const own = textEl.getBBox();
+  const drawn = boxEl.getBBox();
+  if (!(own.width > 0) || !(own.height > 0) || !(drawn.width > 0) || !(drawn.height > 0)) return null;
+  // The plate's four corners, moved into the line's space and taken as their extent - the one
+  // spelling of that in the repo (assets/svgGeometry.ts), and the same answer `svgLocalBox`
+  // reaches in the runtime.
+  const box = transformedBox(drawn, toText.inverse().multiply(fromBox));
+  const cx = own.x + own.width / 2;
+  const cy = own.y + own.height / 2;
+  const boxCx = box.x + box.width / 2;
+  const boxCy = box.y + box.height / 2;
+  const placed = Math.abs(cx - boxCx) <= box.width * SVG_ALIGN_TOL ? 'centred' : cx < boxCx ? 'left' : 'right';
+  const stated = textEl.getAttribute('text-anchor');
+  const align = {
+    h: (stated === 'middle' ? 'centred' : stated === 'end' ? 'right' : stated === 'start' ? 'left' : placed) as
+      'left' | 'centred' | 'right',
+    v: (Math.abs(cy - boxCy) <= box.height * SVG_ALIGN_TOL ? 'middle' : cy < boxCy ? 'top' : 'bottom') as
+      'top' | 'middle' | 'bottom',
+  };
+  // Half the drawn type, in the artwork's own units. `font-size` inside an SVG computes in user
+  // units - the viewBox scale is a transform above it, not part of the computed value - so this
+  // is comparable with the bbox numbers above, on this stage and on the preview's canvas alike.
+  // The block's own height stands in where the file styles the type some other way, which is the
+  // runtime's own fallback.
+  const type = parseFloat(getComputedStyle(textEl).fontSize) || own.height;
+  /** The margin kept on one axis: the tighter of the two gaps, and no wider than the typographic
+   *  one where that axis is centring rather than margin. `cap` is null on an axis where the gap
+   *  really is a margin, and the mirror is the whole answer. */
+  const keep = (before: number, after: number, cap: number | null) =>
+    Math.max(0, cap === null ? Math.min(before, after) : Math.min(before, after, cap));
+  return {
+    box,
+    insetX: keep(own.x - box.x, box.x + box.width - (own.x + own.width), align.h === 'centred' ? type * 0.5 : null),
+    insetY: keep(
+      own.y - box.y,
+      box.y + box.height - (own.y + own.height),
+      align.v === 'top' ? null : (type * SVG_LINE_HEIGHT) / 2,
+    ),
+    align,
+  };
 }
 
 /**
@@ -906,7 +1017,7 @@ function measureOutline(
  * channel the editor canvas already uses (`preview/canvasControlProtocol.ts`) — the wizard
  * preview iframe deliberately carries no allow-same-origin, so nothing reaches into it.
  */
-export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, onArmPick }: Props) {
+export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay, onArmDraw, onArmPick }: Props) {
   const svg = draft.designSvg;
   const stageRef = useRef<HTMLDivElement>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -1133,6 +1244,9 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
   const [boxOfRow, setBoxOfRow] = useState<Record<string, string>>({});
   /** Plate -> its swatch colour and the name the checklist heads it with. */
   const [boxLooks, setBoxLooks] = useState<Record<string, { fill: string; name: string }>>({});
+  /** Text row -> its box, the room round it and the alignment it was drawn with, all in the
+   *  LINE's own units (`boxFitOf`). What the preview overlay draws while that row is hovered. */
+  const [boxFits, setBoxFits] = useState<Record<string, Omit<PreviewBoxOverlay, 'selector'>>>({});
   /** Whether the per-layer answers are showing. Closed on arrival, always: the graphic-wide
    *  picker is the whole control for almost everybody. */
   const [perPanelOpen, setPerPanelOpen] = useState(false);
@@ -1143,6 +1257,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
       setPanelOfLine({});
       setBoxOfRow({});
       setBoxLooks({});
+      setBoxFits({});
       return;
     }
     setPanelIds(panelsHoldingText(stage, svg, boundMarkerIds, placedLines));
@@ -1151,7 +1266,24 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
     const grouped = withoutBackplates(stage, ofLine);
     setBoxOfRow(grouped);
     setBoxLooks(boxLooksOf(stage, svg, Object.values(grouped)));
+    const fits: Record<string, Omit<PreviewBoxOverlay, 'selector'>> = {};
+    for (const [lineId, boxId] of Object.entries(grouped)) {
+      const fit = boxFitOf(stage, lineId, boxId);
+      if (fit) fits[lineId] = fit;
+    }
+    setBoxFits(fits);
   }, [svg, boundMarkerIds, allMarkerIds, placedLines]);
+  // TEXT AND ITS BOX, for the hovered row. Only a row that HAS a box and that the step could
+  // measure gets one: a line sitting straight on the artwork has no room to draw and nothing to
+  // be aligned in, and the plain outline is the whole truthful answer there.
+  useEffect(() => {
+    const boxId = hoverId ? boxOfRow[hoverId] : undefined;
+    const fit = hoverId ? boxFits[hoverId] : undefined;
+    onBoxOverlay(
+      boxId && fit ? { selector: `[${SVG_CANDIDATE_ATTR}="${boxId}"]`, ...fit } : null,
+    );
+  }, [hoverId, boxOfRow, boxFits, onBoxOverlay]);
+  useEffect(() => () => onBoxOverlay(null), [onBoxOverlay]);
 
   /** The shapes the picker offers. The measurement where it found any, every shape where it
    *  found none, and ALWAYS whatever is currently chosen - a shape picked by dragging on the

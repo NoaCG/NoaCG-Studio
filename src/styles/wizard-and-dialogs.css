@@ -572,6 +572,50 @@
   border-radius: 3px;
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
 }
+/* TEXT AND ITS BOX (docs/TEXT_BOX_BINDING.md, "the preview overlay"). Anything wearing this is
+   positioned in its LAYER'S OWN units and turned by that layer's own matrix, so it hugs artwork
+   drawn on an angle instead of boxing the rectangle around it. The two rules are what make the
+   maths in WizardPreview's `inFrame` come out: the matrix turns the element about its top-left
+   corner, and the border is drawn inside the box rather than added to it. */
+.wz-stage-framed {
+  transform-origin: 0 0;
+  box-sizing: border-box;
+}
+/* The room: the box's inside, at the margins the fit keeps. Dashed, because it is a line nothing
+   was drawn on - it says where the text may go, not where anything is. */
+.wz-stage-inside {
+  position: absolute;
+  border-style: dashed;
+  border-color: rgba(246, 166, 35, 0.85);
+  /* A dark ring outside the dashes, for the same reason the solid outline carries one: amber on
+     an orange plate is nearly invisible, and half this board's boxes are orange. */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+/* The two figures, and the alignment caret. Both are read rather than looked at, so both stay
+   level and the same size at any zoom (the `scale(1/z)` WizardPreview hands them) and both sit
+   on their own dark chip so a figure over pale artwork is still legible. */
+.wz-stage-figure,
+.wz-stage-caret {
+  position: absolute;
+  padding: 0 4px 1px;
+  border-radius: 3px;
+  background: rgba(12, 14, 18, 0.78);
+  color: var(--accent, #f6a623);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.wz-stage-caret {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* The caret itself points UP at the anchor the block fills from, so the chip under it reads as
+   a label for that point rather than for the whole block. */
+.wz-stage-caret-mark {
+  font-size: 9px;
+  line-height: 0.9;
+}
 /* Drawing a NEW field on the artwork (WizardPreview's `drawIn`). The layer takes pointer
    events back from the overlay above — it is the one thing on this stage meant to be dragged
    on — and covers the whole canvas so a field may be drawn anywhere on it. */

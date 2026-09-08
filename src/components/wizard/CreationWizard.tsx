@@ -25,7 +25,7 @@ import { commitStagedSelection } from '../../ai/preferences';
 import { formatTemplate } from '../../format/formatCode';
 import { paletteById } from '../../model/wizard';
 import { SVG_CANDIDATE_ATTR } from '../../assets/svgImport';
-import WizardPreview from './WizardPreview';
+import WizardPreview, { type PreviewBoxOverlay } from './WizardPreview';
 import BrandLogo from '../BrandLogo';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import EntryStep from './steps/EntryStep';
@@ -319,6 +319,10 @@ export default function CreationWizard() {
   // the step because the highlight is drawn on the PREVIEW — the step's one canvas, and the
   // only one carrying the fit runtime (docs/SVG_IMPORT_PLAN.md §6a step 1).
   const [svgHoverId, setSvgHoverId] = useState<string | null>(null);
+  // And the BOX that layer lives in, with the room round it and the alignment the file drew -
+  // what the preview's box overlay draws (docs/TEXT_BOX_BINDING.md). Held beside the hover for
+  // the same reason and measured by the step, which is the one holding the artwork.
+  const [svgBoxOverlay, setSvgBoxOverlay] = useState<PreviewBoxOverlay | null>(null);
   // The mapping step's "draw a field" handler while it is armed (plan §6a step 3). The handler
   // itself lives in a REF and only the armed/not-armed answer is state: the step re-reports it
   // on every render (its closure reads the draft, so its identity changes with every keystroke),
@@ -2129,7 +2133,14 @@ export default function CreationWizard() {
             )}
             {/* The SVG walk's one setup step: which text layers the operator can edit. */}
             {step === 2 && mode === 'svg' && draft.designSvg && (
-              <MapSvgFieldsStep draft={draft} onDraft={patch} onHover={setSvgHoverId} onArmDraw={armSvgDraw} onArmPick={armSvgPick} />
+              <MapSvgFieldsStep
+                draft={draft}
+                onDraft={patch}
+                onHover={setSvgHoverId}
+                onBoxOverlay={setSvgBoxOverlay}
+                onArmDraw={armSvgDraw}
+                onArmPick={armSvgPick}
+              />
             )}
             {step === 3 && mode === 'svg' && variant && (
               <AnimationStep
@@ -2340,6 +2351,7 @@ export default function CreationWizard() {
                 {...(mode === 'svg' && step === 2
                   ? {
                       highlightSelector: svgHoverId ? `[${SVG_CANDIDATE_ATTR}="${svgHoverId}"]` : null,
+                      boxOverlay: svgBoxOverlay,
                       // The ARTWORK's own rect is the space a drawn box is reported in — the one
                       // the step turns into design px (plan §6a step 3). Tracked for the whole
                       // step, so the first drag after arming has a rect to measure against.

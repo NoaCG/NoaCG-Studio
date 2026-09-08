@@ -3852,6 +3852,109 @@ test('svg import: the checklist groups each line under the box it was drawn in',
   await expect(page.getByTestId(`map-svg-sample-${tanRowId}`)).toHaveValue(/Question 1/);
 });
 
+// ── TEXT AND ITS BOX, ON THE ARTWORK (docs/TEXT_BOX_BINDING.md step 2, the preview overlay) ──
+// The checklist SAYS which box a line lives in; this is the same sentence drawn on the canvas, so
+// a reader can check it against the artwork instead of taking the list's word for it. It replaces
+// an axis-aligned amber rectangle, which on this board - every plate tilted a few degrees on
+// purpose - drew a box around the wrong thing: a rectangle big enough to contain a tilted plate
+// contains a good deal that is not the plate.
+test('svg import: hovering a line draws its box, its room and its alignment on the artwork', async ({
+  page,
+}) => {
+  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+  // The overlay is drawn on the PREVIEW, which commits its document on a debounce and starts
+  // answering with rects and frames on that document's own animation frame.
+  const frame = page.frameLocator('.wz-side iframe');
+  await expect(frame.locator('#f0')).toContainText('Question 1');
+
+  const groupRow = async (n: number) =>
+    ((await page
+      .getByTestId('map-svg-fields')
+      .locator('.map-svg-box-group')
+      .nth(n)
+      .locator('.map-svg-row')
+      .first()
+      .getAttribute('data-testid')) ?? '').replace('map-svg-row-', '');
+  await page.getByTestId(`map-svg-row-${await groupRow(0)}`).hover();
+
+  // THE BOX IS PAINTED BY THE SHAPE ITSELF, through the canvas channel's 'mark' command - one
+  // shape, the tan question plate, wearing a filter that washes its own pixels amber. Nothing is
+  // drawn around it from the app side, which is what makes the rotation free: the wash is the
+  // plate, whichever way it was turned and whatever outline it was given.
+  const lit = frame.locator('.noacg-canvas-lit');
+  await expect(lit).toHaveCount(1);
+  const shape = await lit.evaluate((el) => ({
+    fill: getComputedStyle(el).fill,
+    filter: getComputedStyle(el).filter,
+  }));
+  expect(shape.fill).toBe('rgb(198, 156, 109)'); // #c69c6d, the question's own plate
+  expect(shape.filter).toContain('url(');
+
+  // THE TWO FIGURES, in the artwork's own px: the room at the sides and the room above.
+  await expect(page.getByTestId('wz-preview-inside')).toBeVisible();
+  await expect(page.getByTestId('wz-preview-inset-x')).toHaveText(/^\d+$/);
+  await expect(page.getByTestId('wz-preview-inset-y')).toHaveText(/^\d+$/);
+
+  // THE ALIGNMENT CARET, with the word. He centred the question in its plate on both axes, and
+  // that is what the file says - docs/TEXT_BOX_BINDING.md's own table for this fixture.
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('centred, middle');
+
+  // ── AND NOW AN ANSWER, WHICH IS WHERE THE ROTATION SHOWS ──
+  // The question's own text was drawn level inside a plate rotated 88.68 degrees, so the room
+  // round it - measured in the LINE's frame, the frame the ladder fits in - is level too. Each
+  // answer was drawn ON its plate's angle, so its room and its bounds are drawn on that angle.
+  await page.getByTestId(`map-svg-row-${await groupRow(1)}`).hover();
+  await expect(page.getByTestId('wz-preview-inside')).toBeVisible();
+  const turn = (testid: string) =>
+    page.getByTestId(testid).evaluate((el) => Math.abs(new DOMMatrix(getComputedStyle(el).transform).b));
+  // A non-zero `b` in the resolved matrix is the whole fix in one number: the rectangle this
+  // replaces could only ever be square to the screen.
+  expect(await turn('wz-preview-inside')).toBeGreaterThan(0.01);
+  expect(await turn('wz-preview-highlight')).toBeGreaterThan(0.01);
+
+  // THE GAP IS THE ROOM THAT IS LEFT, so the block stands inside the dashed line rather than on
+  // it - this answer was drawn short in a plate with room to its right.
+  const [inside, bounds] = await Promise.all([
+    page.getByTestId('wz-preview-inside').boundingBox(),
+    page.getByTestId('wz-preview-highlight').boundingBox(),
+  ]);
+  expect(inside!.width * inside!.height).toBeGreaterThan(bounds!.width * bounds!.height);
+
+  // …and the word says how it was drawn. The two rows together are the reason alignment and
+  // growth are per box rather than per graphic.
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('left,');
+  await expect(frame.locator('.noacg-canvas-lit')).toHaveCount(1);
+
+  // Off the list, the artwork is left alone: nothing lit, nothing drawn.
+  await page.getByTestId('map-svg-fields').locator('h3').hover();
+  await expect(frame.locator('.noacg-canvas-lit')).toHaveCount(0);
+  await expect(page.getByTestId('wz-preview-inside')).toHaveCount(0);
+});
+
+// A LINE WITH NO BOX HAS NO ROOM TO SHOW. Text sitting straight on the artwork is not inside
+// anything, so there is nothing to tint, no insets to mirror and nothing to be aligned in - and
+// the honest answer is the plain outline the step has always drawn, not an invented box.
+test('svg import: a line with no box under it gets the outline and nothing else', async ({ page }) => {
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+      <text id="Home" x="20" y="60" font-size="30" fill="#fff">Rovers</text>
+      <text id="Away" x="20" y="150" font-size="30" fill="#fff">City</text>
+    </svg>`,
+    'nobox.svg',
+  );
+  await page.locator('.wz-next').click();
+  await expect(page.frameLocator('.wz-side iframe').locator('#f1')).toHaveText('City');
+
+  await page.getByTestId('map-svg-row-t0').hover();
+  await expect(page.getByTestId('wz-preview-highlight')).toBeVisible();
+  await expect(page.getByTestId('wz-preview-inside')).toHaveCount(0);
+  await expect(page.getByTestId('wz-preview-caret')).toHaveCount(0);
+  await expect(page.frameLocator('.wz-side iframe').locator('.noacg-canvas-lit')).toHaveCount(0);
+});
+
 // A ROW KEEPS ITS BOX WHEN IT IS UNTICKED. Which box a line sits in is a fact about where it was
 // DRAWN, not about whether the operator may retype it - so the measurement runs over every text
 // row rather than the bound ones. Read the other way the list would reshuffle under the reader's
