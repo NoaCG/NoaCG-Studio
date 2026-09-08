@@ -83,12 +83,42 @@ export function graphicById(id: string): GraphicDoc | null {
   return loadGraphics().find((g) => g.id === id) ?? null;
 }
 
-/** Every live graphic's name, in library order - the same derive-from-the-data shape as
- *  `graphicFolders` below. The wizard's Finish step reads it to say whether the door about to
- *  be pressed mints a record or writes over one; `graphicHoldingName` is what the save itself
- *  then resolves, so the two answers come from one list. */
-export function graphicNames(): string[] {
-  return loadGraphics().map((g) => g.name);
+/** As much of a live record as the name question needs: who holds a name, and what a save
+ *  written over that record would stop carrying. Cheap enough to re-read on every library
+ *  change, which is what keeps the wizard's answer live (`librarySaveEffect`). */
+export interface LibraryNameEntry {
+  id: string;
+  name: string;
+  updatedAt: string;
+  /** Its operator fields, so a replacement can NAME the cue values it strands. */
+  fields: { field: string; title: string }[];
+}
+
+/** Every live graphic, reduced to that. In library order - the same derive-from-the-data shape
+ *  as `graphicFolders` below. */
+export function graphicNameIndex(): LibraryNameEntry[] {
+  return loadGraphics().map((g) => ({
+    id: g.id,
+    name: g.name,
+    updatedAt: g.updatedAt,
+    fields: g.template.fields.map((f) => ({ field: f.field, title: f.title || f.field })),
+  }));
+}
+
+/**
+ * WHAT A NAME ALREADY MEANS, over any list that carries a name and a timestamp.
+ *
+ * NEWEST WINS where a library already holds twins: that is the record the pool's back-link
+ * points at after a re-import, so later saves converge on one record instead of writing to
+ * whichever happened to be stored first. It is a tie-break, not a discriminator - if a
+ * production pooled the OLDER twin, this picks the newer one and that production keeps airing
+ * the old artwork. The tie-break is only ever consulted when twins ALREADY EXIST:
+ * docs/backlog/two-doors-still-mint-a-twin-under-a-taken-name.md names the doors that make them.
+ */
+function holderIn<T extends { name: string; updatedAt: string }>(list: T[], name: string): T | undefined {
+  const wanted = name.trim();
+  if (!wanted) return undefined;
+  return list.filter((g) => g.name === wanted).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 }
 
 /**
@@ -101,21 +131,55 @@ export function graphicNames(): string[] {
  * the first from the production that pooled it, and made the name ambiguous for
  * `resolveSavedGraphicDoc` below. Measured 2026-09-08 (e2e/import-name-collision.spec.ts);
  * this lookup is what makes the two halves agree.
- *
- * NEWEST WINS where a library already holds twins: that is the record the pool's back-link
- * points at after a re-import, so later saves converge on one record instead of writing to
- * whichever happened to be stored first. It is a tie-break, not a discriminator - if a
- * production pooled the OLDER twin, this writes the newer one and that production keeps airing
- * the old artwork. The tie-break is only ever consulted when twins ALREADY EXIST, so the answer
- * is to close the doors that still make them rather than to make this cleverer:
- * docs/backlog/two-doors-still-mint-a-twin-under-a-taken-name.md names both.
  */
 export function graphicHoldingName(name: string): GraphicDoc | undefined {
+  return holderIn(loadGraphics(), name);
+}
+
+/**
+ * WHAT PRESSING A FINISH DOOR DOES TO THE LIBRARY, under the name now in the field.
+ *
+ * ONE answer, for both the save and the sentence the reader gets before pressing. The two used
+ * to be separate lookups over separate snapshots, and a disclosure that can disagree with the
+ * write is worse than none: it is a promise.
+ *
+ * THE WALK'S OWN RECORD DECIDES WHENEVER IT EXISTS. A name lookup cannot tell "this is my
+ * graphic, renamed" from "this name is somebody else's graphic", so before 2026-09-09 a rename
+ * mid-walk resolved to the stranger and wrote today's artwork into a graphic the walk had never
+ * opened - destroying it, with no undo and no history (reproduced in
+ * e2e/import-name-collision.spec.ts). Renaming the walk's own record instead can leave two
+ * graphics sharing a name, which Home's own rename has always allowed and which one rename
+ * puts right; the destruction had nothing that put it right. Only a walk that owns NOTHING
+ * resolves its name against the library, which is exactly the case that rule was written for.
+ */
+export type LibrarySaveEffect =
+  /** Nothing holds this name and this walk holds nothing: a new record. */
+  | { kind: 'mint'; targetId: null }
+  /** The record this walk already made, kept under whatever the field now says. */
+  | { kind: 'update'; targetId: string; renamedFrom: string | null }
+  /** The record this walk made, renamed onto a name a DIFFERENT graphic already carries. */
+  | { kind: 'twin'; targetId: string; renamedFrom: string; holder: LibraryNameEntry }
+  /** No record of this walk's own, so the name is the identity and it is written over. */
+  | { kind: 'over'; targetId: string; holder: LibraryNameEntry };
+
+export function librarySaveEffect(
+  index: LibraryNameEntry[],
+  name: string,
+  /** The record this stretch of wizard has already made, if it still exists. */
+  made: { id: string; name: string } | null,
+): LibrarySaveEffect {
   const wanted = name.trim();
-  if (!wanted) return undefined;
-  return loadGraphics()
-    .filter((g) => g.name === wanted)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  const mine = made ? index.find((g) => g.id === made.id) : undefined;
+  if (mine) {
+    if (mine.name === wanted) return { kind: 'update', targetId: mine.id, renamedFrom: null };
+    // A twin ALREADY under this name is the tie-break's territory, not a twin this press makes.
+    const other = holderIn(index.filter((g) => g.id !== mine.id), wanted);
+    return other
+      ? { kind: 'twin', targetId: mine.id, renamedFrom: mine.name, holder: other }
+      : { kind: 'update', targetId: mine.id, renamedFrom: mine.name };
+  }
+  const holder = holderIn(index, wanted);
+  return holder ? { kind: 'over', targetId: holder.id, holder } : { kind: 'mint', targetId: null };
 }
 
 /** Insert or replace a whole graphic by id (the storage seam's put('graphic'), incl. tombstones). */

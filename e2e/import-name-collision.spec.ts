@@ -259,3 +259,104 @@ test('a re-import into a DIFFERENT production still says it saves over the libra
   expect(shows).toHaveLength(2);
   for (const show of shows) expect(show.pooled).toEqual([before.library[0].id]);
 });
+
+// ── A RENAME MID-WALK, AND WHAT IT IS ALLOWED TO REACH ───────────────────────────────────────
+//
+// Everything above answers "what does this name already mean" for a walk that has saved NOTHING
+// yet - the student coming back with a second version of their own artwork. The two cases below
+// are the other half: a walk that has ALREADY made a record, and then types a different name.
+
+/** Last week's graphic, and today's - different artwork, different operator field, and the
+ *  student is about to type one of the names while the other is on screen. */
+const AWAY = foreignHtml('Away Team', 'zz', 'Sponsor name');
+const SPONSOR = foreignHtml('Sponsor', 'f0', 'Home team');
+
+/** Walk an imported file as far as the Finish step, in an already-open wizard. */
+async function importToFinish(
+  page: Page,
+  file: { name: string; mimeType: string; buffer: Buffer },
+): Promise<void> {
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles(file);
+  await expect(page.getByTestId('import-template-card')).toBeVisible();
+  await page.locator('button.wz-next').click();
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+}
+
+/** Press the EXPORT door and close the window it opens - the one door that saves and leaves the
+ *  wizard standing on Finish, which is what makes a second press reachable at all. */
+async function exportFromFinish(page: Page): Promise<void> {
+  await page.getByTestId('wz-finish-export').click();
+  const win = page.getByTestId('export-window');
+  await expect(win).toBeVisible();
+  await win.locator('.gallery-close').click();
+  await expect(win).toBeHidden();
+  await settleDurableWrites(page);
+}
+
+test('a rename mid-walk never writes over a graphic this walk did not make', async ({ page }) => {
+  // LAST WEEK: "Away Team", its own artwork (field `zz`), pooled into a production.
+  await firstImport(page, htmlFile('away-team.html', AWAY));
+  const before = await snapshot(page);
+  expect(before.library).toHaveLength(1);
+  const stranger = before.library[0];
+  expect(stranger.name).toBe('Away Team');
+  expect(stranger.fields).toEqual(['zz']);
+
+  // TODAY: a different graphic entirely, saved under its own name by the export door.
+  await returnForAnotherImport(page);
+  await importToFinish(page, htmlFile('sponsor.html', SPONSOR));
+  await page.getByTestId('wz-finish-name').fill('Sponsor');
+  await exportFromFinish(page);
+
+  // ...and then renamed, in the SAME walk, onto a name that means somebody else's graphic. The
+  // step says which of the two graphics moves before any door is pressed.
+  await page.getByTestId('wz-finish-name').fill('Away Team');
+  await expect(page.getByTestId('wz-finish-name-twin')).toContainText(
+    'A different graphic in your library is already called Away Team',
+  );
+  await expect(page.getByTestId('wz-finish-name-taken')).toBeHidden();
+  await exportFromFinish(page);
+
+  const after = await snapshot(page);
+  // THE WHOLE TEST. Last week's artwork is still last week's artwork. A save that reaches
+  // across to it because the two share a name destroys work this walk never opened, and no
+  // student gets it back.
+  const kept = after.library.find((g) => g.id === stranger.id);
+  expect(kept?.fields).toEqual(['zz']);
+  expect(kept?.name).toBe('Away Team');
+  // The production built on it still points at it, and its cue still addresses a real field.
+  expect(after.pool[0].graphicId).toBe(stranger.id);
+  expect(after.cues[0].values).toEqual({ zz: 'Sponsor name value' });
+
+  // The record THIS WALK made is what moved: renamed, not duplicated, and not left orphaned
+  // under the name the reader abandoned.
+  expect(after.library).toHaveLength(2);
+  const mine = after.library.find((g) => g.id !== stranger.id);
+  expect(mine?.name).toBe('Away Team');
+  expect(mine?.fields).toEqual(['f0']);
+});
+
+test('a name taken while Finish is open is still disclosed before the door writes', async ({ page }) => {
+  // The Finish step read the library when it OPENED. A record that appears afterwards - another
+  // tab, another door press in this same walk - left the step saying nothing while the save
+  // wrote over that record anyway, which is exactly the case the disclosure exists for.
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await importToFinish(page, htmlFile('sponsor.html', SPONSOR));
+  await page.getByTestId('wz-finish-name').fill('Away Team');
+  await expect(page.getByTestId('wz-finish-name-taken')).toBeHidden();
+
+  // Somewhere else, "Away Team" becomes a graphic.
+  await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Away Team' });
+    if (error || !doc) throw new Error(error ?? 'seed failed');
+  });
+  await settleDurableWrites(page);
+
+  await expect(page.getByTestId('wz-finish-name-taken')).toContainText(
+    'Your library already has a graphic called Away Team',
+  );
+});

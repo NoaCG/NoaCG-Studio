@@ -70,7 +70,7 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
 import NewGraphicButton from '../NewGraphicButton';
 import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
-import { graphicById, graphicHoldingName, graphicNames } from '../../model/library';
+import { graphicById, graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
 import WizardConfirm, { wizardConfirmOpen } from './WizardConfirm';
 import { recordLiteOutcome } from '../../ai/lite/client';
 import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
@@ -706,9 +706,35 @@ export default function CreationWizard() {
     () => (onFinish ? loadShows() : []),
     [onFinish],
   );
-  // The library names Finish needs to answer one question: does the door about to be pressed
-  // MINT a record or write over one? Read on the same terms as the productions above.
-  const finishLibraryNames: string[] = useMemo(() => (onFinish ? graphicNames() : []), [onFinish]);
+  // WHAT THE FINISH STEP HAS TO RE-READ, and why it is not a one-shot snapshot.
+  //
+  // The step answers one question - what does the name in the field already mean? - and both
+  // halves of that answer move with NO render behind them: the library (another tab, or this
+  // walk's own door press, both of which announce `spx-data-changed`) and `madeThisOpen`, a ref
+  // so it survives the closed wizard's null render. Read once when the step opened, the answer
+  // went stale the moment either moved, and the step then said nothing while the save wrote
+  // over a record anyway - the exact case the disclosure exists for. Refreshing on the same
+  // event Home refreshes on is what closes it (e2e/import-name-collision.spec.ts).
+  //
+  // The index is the library reduced to names, ids and fields - never the templates - so this
+  // stays cheap enough to re-read on every change while the step is on screen.
+  const [finishLibrary, setFinishLibrary] = useState<LibraryNameEntry[]>([]);
+  /** Re-read it now: after a door press, which changes the library AND the ref together. */
+  const rereadFinish = () => setFinishLibrary(graphicNameIndex());
+  useEffect(() => {
+    if (!onFinish) {
+      setFinishLibrary([]);
+      return;
+    }
+    const onData = () => setFinishLibrary(graphicNameIndex());
+    onData();
+    window.addEventListener('spx-data-changed', onData);
+    return () => window.removeEventListener('spx-data-changed', onData);
+  }, [onFinish]);
+  const finishMade = madeThisOpen.current;
+  const finishMadeRecord = finishMade?.graphicId
+    ? { id: finishMade.graphicId, name: finishMade.name }
+    : null;
 
   if (!open) return null;
 
@@ -858,11 +884,14 @@ export default function CreationWizard() {
     };
     if (finishedWalk.current) finishedWalk.current.made = made;
     madeThisOpen.current = made;
+    // A REF the Finish step reads: nothing re-renders on its own, and the step is still on
+    // screen after the export door (the production door routes away instead).
+    rereadFinish();
   };
 
   /**
-   * Save the built graphic — as a NEW library record, or OVER the record that already carries
-   * this name.
+   * Save the built graphic — into the record THIS WALK already made, over the record that
+   * already carries this name, or as a new one.
    *
    * A saved graphic's name is its identity. `saveGraphicAs` always mints, so without this the
    * wizard is a duplicate factory: the walk that made "Match Score" and the walk that
@@ -873,26 +902,38 @@ export default function CreationWizard() {
    * its id, so every production pooling it keeps pointing at the same graphic.
    *
    * It is NOT a silent overwrite: the production door confirms every press, and the Finish
-   * step's dialog says which of the two things this one does before it happens (FinishStep's
-   * `savingOver`, from the same `graphicHoldingName` lookup). A RENAME is a different graphic
-   * and takes the mint. `madeThisOpen` is checked first because it holds an id: it still
-   * answers correctly for a graphic RENAMED mid-walk, which a name lookup cannot.
+   * step's warning says which of the four things this one does before it happens — both read
+   * `librarySaveEffect`, so the sentence and the write cannot disagree.
+   *
+   * A RENAME mid-walk moves the record THIS WALK MADE onto the new name. It never resolves the
+   * new name against the library, because that reaches across to whatever graphic already
+   * carries it and overwrites artwork this walk never opened (`librarySaveEffect` carries the
+   * reasoning and the measurement). Ending the walk with the ✕ is what says "a different
+   * graphic": `forgetWalk` drops the record, and the next save resolves by name again.
    */
   const saveBuiltGraphic = async (name: string): Promise<{ ok: boolean; error: string | null }> => {
     const again = madeThisOpen.current;
-    const over =
-      again?.graphicId && again.name === name && graphicById(again.graphicId)
-        ? again.graphicId
-        : graphicHoldingName(name)?.id ?? null;
+    const effect = librarySaveEffect(
+      graphicNameIndex(),
+      name,
+      again?.graphicId ? { id: again.graphicId, name: again.name } : null,
+    );
+    const over = effect.targetId;
     if (over) {
       useTemplateStore.getState().setSaved({ graphicId: over, dirty: true, status: 'idle' });
-      const result = await saveCurrentGraphic();
+      const result = await saveCurrentGraphic({ name });
       if (result === 'saved') return { ok: true, error: null };
       // 'needs-name' means the record went between the check above and the write (deleted on
       // another device or tab). Minting is then the right answer, not an error - the work is
       // what matters, and there is no longer anything to write over.
       if (result === 'needs-name') return saveGraphicAs(name, { kind: 'standalone' });
-      return { ok: false, error: `The graphic could not be saved over the “${name}” already in your library.` };
+      return {
+        ok: false,
+        error:
+          effect.kind === 'over'
+            ? `The graphic could not be saved over the “${name}” already in your library.`
+            : `“${name}” could not be saved to your library.`,
+      };
     }
     return saveGraphicAs(name, { kind: 'standalone' });
   };
@@ -2267,10 +2308,10 @@ export default function CreationWizard() {
                 onName={(name) => patch({ name })}
                 summary={importedSummaryRows(importedFile)}
                 productions={finishProductions}
-                libraryNames={finishLibraryNames}
+                libraryIndex={finishLibrary}
                 fields={importedFile.template.fields.map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                alreadyMadeName={madeThisOpen.current?.name ?? null}
+                made={finishMadeRecord}
                 onAddToProduction={createFromFileAndAddToProduction}
                 onOpenEditor={createFromFile}
                 showEditorDoor={advanced}
@@ -2287,10 +2328,10 @@ export default function CreationWizard() {
                 summary={catalogSummaryRows(variant, draft)}
                 onEditStep={editSummaryStep}
                 productions={finishProductions}
-                libraryNames={finishLibraryNames}
+                libraryIndex={finishLibrary}
                 fields={(previewTemplate?.fields ?? []).map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                alreadyMadeName={madeThisOpen.current?.name ?? null}
+                made={finishMadeRecord}
                 onAddToProduction={createAndAddToProduction}
                 onOpenEditor={create}
                 showEditorDoor={advanced}
@@ -2333,10 +2374,10 @@ export default function CreationWizard() {
                 onName={(name) => patch({ name })}
                 summary={aiSummaryRows(aiResult.template, aiResult.valid)}
                 productions={finishProductions}
-                libraryNames={finishLibraryNames}
+                libraryIndex={finishLibrary}
                 fields={aiResult.template.fields.map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                alreadyMadeName={madeThisOpen.current?.name ?? null}
+                made={finishMadeRecord}
                 onAddToProduction={createFromAiAndAddToProduction}
                 onOpenEditor={createFromAi}
                 showEditorDoor={advanced}

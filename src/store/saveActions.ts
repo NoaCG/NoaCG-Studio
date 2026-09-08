@@ -44,11 +44,20 @@ export type SaveDestination = { kind: 'standalone' };
  * same decision it always did, one await later, rather than being told 'saved' and corrected
  * by a dialog afterwards.
  */
-export async function saveCurrentGraphic(): Promise<'saved' | 'needs-name' | 'failed'> {
+export async function saveCurrentGraphic(opts?: {
+  /** Write the record's NAME too. The wizard passes the name in its Finish field, which the
+   *  reader may have changed since the record was made: without this the record would keep the
+   *  old name while its template carried the new one, so Home, the topbar and the exported
+   *  folder would disagree. ONE write, not two - `updateGraphic` sets `template.name` from it. */
+  name?: string;
+}): Promise<'saved' | 'needs-name' | 'failed'> {
   const s = useTemplateStore.getState();
   if (!s.saved.graphicId) return 'needs-name';
   s.setSaved({ ...s.saved, status: 'saving' });
-  const { doc, error } = updateGraphic(s.saved.graphicId, { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility });
+  // The key is ADDED rather than set to undefined: `updateGraphic` copies the patch with
+  // Object.assign, which would write an undefined name straight onto the record.
+  const patch = { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility };
+  const { doc, error } = updateGraphic(s.saved.graphicId, opts?.name ? { ...patch, name: opts.name } : patch);
   const failure = error ?? (await commitDurableWrites());
   if (!doc || failure) {
     // The record vanished (deleted on another device): fall back to naming it fresh.
