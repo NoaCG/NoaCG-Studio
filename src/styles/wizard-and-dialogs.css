@@ -581,8 +581,8 @@
   transform-origin: 0 0;
   box-sizing: border-box;
 }
-/* The room the designer left: the box's inside, at the drawn insets mirrored. Dashed, because
-   it is a line nothing was drawn on - it says where the text may go, not where anything is. */
+/* The room: the box's inside, at the margins the fit keeps. Dashed, because it is a line nothing
+   was drawn on - it says where the text may go, not where anything is. */
 .wz-stage-inside {
   position: absolute;
   border-style: dashed;
@@ -609,7 +609,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 4px 1px;
 }
 /* The caret itself points UP at the anchor the block fills from, so the chip under it reads as
    a label for that point rather than for the whole block. */

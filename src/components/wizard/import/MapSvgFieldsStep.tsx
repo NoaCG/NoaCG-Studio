@@ -32,6 +32,7 @@ import {
   pollDrivenLayers,
   scoreDrawnPool,
 } from './draft';
+import { transformedBox } from '../../../assets/svgGeometry';
 import { SVG_ALIGN_TOL, SVG_LINE_HEIGHT } from '../../../templates/importedDesign/svg';
 import type { PreviewBoxOverlay } from '../WizardPreview';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
@@ -532,34 +533,22 @@ function boxFitOf(
   const fromBox = boxEl.getScreenCTM();
   if (!toText || !fromBox) return null;
   const own = textEl.getBBox();
-  const drawnBox = boxEl.getBBox();
-  if (!(own.width > 0) || !(own.height > 0) || !(drawnBox.width > 0) || !(drawnBox.height > 0)) return null;
-  const m = toText.inverse().multiply(fromBox);
-  const xs: number[] = [];
-  const ys: number[] = [];
-  for (const [px, py] of [
-    [drawnBox.x, drawnBox.y],
-    [drawnBox.x + drawnBox.width, drawnBox.y],
-    [drawnBox.x + drawnBox.width, drawnBox.y + drawnBox.height],
-    [drawnBox.x, drawnBox.y + drawnBox.height],
-  ]) {
-    xs.push(m.a * px + m.c * py + m.e);
-    ys.push(m.b * px + m.d * py + m.f);
-  }
-  const left = Math.min(...xs);
-  const right = Math.max(...xs);
-  const top = Math.min(...ys);
-  const bottom = Math.max(...ys);
+  const drawn = boxEl.getBBox();
+  if (!(own.width > 0) || !(own.height > 0) || !(drawn.width > 0) || !(drawn.height > 0)) return null;
+  // The plate's four corners, moved into the line's space and taken as their extent - the one
+  // spelling of that in the repo (assets/svgGeometry.ts), and the same answer `svgLocalBox`
+  // reaches in the runtime.
+  const box = transformedBox(drawn, toText.inverse().multiply(fromBox));
   const cx = own.x + own.width / 2;
   const cy = own.y + own.height / 2;
-  const boxCx = (left + right) / 2;
-  const boxCy = (top + bottom) / 2;
-  const drawn = Math.abs(cx - boxCx) <= (right - left) * SVG_ALIGN_TOL ? 'centred' : cx < boxCx ? 'left' : 'right';
+  const boxCx = box.x + box.width / 2;
+  const boxCy = box.y + box.height / 2;
+  const placed = Math.abs(cx - boxCx) <= box.width * SVG_ALIGN_TOL ? 'centred' : cx < boxCx ? 'left' : 'right';
   const stated = textEl.getAttribute('text-anchor');
   const align = {
-    h: (stated === 'middle' ? 'centred' : stated === 'end' ? 'right' : stated === 'start' ? 'left' : drawn) as
+    h: (stated === 'middle' ? 'centred' : stated === 'end' ? 'right' : stated === 'start' ? 'left' : placed) as
       'left' | 'centred' | 'right',
-    v: (Math.abs(cy - boxCy) <= (bottom - top) * SVG_ALIGN_TOL ? 'middle' : cy < boxCy ? 'top' : 'bottom') as
+    v: (Math.abs(cy - boxCy) <= box.height * SVG_ALIGN_TOL ? 'middle' : cy < boxCy ? 'top' : 'bottom') as
       'top' | 'middle' | 'bottom',
   };
   // Half the drawn type, in the artwork's own units. `font-size` inside an SVG computes in user
@@ -567,20 +556,19 @@ function boxFitOf(
   // is comparable with the bbox numbers above, on this stage and on the preview's canvas alike.
   // The block's own height stands in where the file styles the type some other way, which is the
   // runtime's own fallback.
-  const drawnType = parseFloat(getComputedStyle(textEl).fontSize) || own.height;
+  const type = parseFloat(getComputedStyle(textEl).fontSize) || own.height;
+  /** The margin kept on one axis: the tighter of the two gaps, and no wider than the typographic
+   *  one where that axis is centring rather than margin. `cap` is null on an axis where the gap
+   *  really is a margin, and the mirror is the whole answer. */
+  const keep = (before: number, after: number, cap: number | null) =>
+    Math.max(0, cap === null ? Math.min(before, after) : Math.min(before, after, cap));
   return {
-    box: { x: left, y: top, width: right - left, height: bottom - top },
-    insetX: Math.max(
-      0,
-      align.h === 'centred'
-        ? Math.min(own.x - left, right - (own.x + own.width), drawnType * 0.5)
-        : Math.min(own.x - left, right - (own.x + own.width)),
-    ),
-    insetY: Math.max(
-      0,
-      align.v === 'top'
-        ? Math.min(own.y - top, bottom - (own.y + own.height))
-        : Math.min(own.y - top, bottom - (own.y + own.height), (drawnType * SVG_LINE_HEIGHT) / 2),
+    box,
+    insetX: keep(own.x - box.x, box.x + box.width - (own.x + own.width), align.h === 'centred' ? type * 0.5 : null),
+    insetY: keep(
+      own.y - box.y,
+      box.y + box.height - (own.y + own.height),
+      align.v === 'top' ? null : (type * SVG_LINE_HEIGHT) / 2,
     ),
     align,
   };

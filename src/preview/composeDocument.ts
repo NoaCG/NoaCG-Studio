@@ -564,8 +564,16 @@ window.addEventListener('unhandledrejection', function (ev) {
           frames[fsel] = null;
           continue;
         }
-        var bb = fel.getBBox ? fel.getBBox() : null;
-        var ctm = fel.getScreenCTM ? fel.getScreenCTM() : null;
+        // Read PER ELEMENT, because the whole push shares one try: getBBox throws on a handful
+        // of shapes an imported file can contain, and an unguarded one would take the rects down
+        // with it - every frame, for every selector, so the hover box, the pick hit-test and the
+        // draw marquee would all go quiet at once and say nothing about why.
+        var bb = null;
+        var ctm = null;
+        try {
+          bb = fel.getBBox ? fel.getBBox() : null;
+          ctm = fel.getScreenCTM ? fel.getScreenCTM() : null;
+        } catch (e) {}
         if (bb && ctm) {
           frames[fsel] = {
             box: { x: bb.x, y: bb.y, width: bb.width, height: bb.height },
