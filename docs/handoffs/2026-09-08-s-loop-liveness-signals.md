@@ -155,11 +155,27 @@ e2e leg. `taste: not applicable` - nothing here can move what a graphic looks li
   2026-09-07, tip moved twice on 09-08, no stamp on `c68f2a92`. It needs `/check` and a re-queue
   from a session that can declare it, or the night loop's own queueing path for a branch nobody can
   declare. The new ci-watch line now says this out loud on every poll.
-- **Local `main` in the shared checkout is stale** - it sits at `03aa732d` while `origin/main` is at
-  `2a0d4b85`. `git merge-base main HEAD` therefore answers with a base six landings old and reports
-  38 files as "this branch's diff". I used `origin/main` throughout after a fetch. Worth a `git
-  fetch` in whatever creates worktrees, because any check run against local `main` in that checkout
-  reviews other rows' work as if it were its own.
+- **The local `main` ref is 43 commits behind `origin/main`, and three local advisors read it.**
+  This is the most useful thing this row found by accident, because it is silent and it misreports
+  as CONFIDENTLY as it reports. The shared checkout sits at `03aa732d` while `origin/main` is at
+  `2a0d4b85` - the merge queue moves `origin/main` and nothing local ever pulls. Measured on this
+  branch, which touches four scripts and two docs and no backlog file whatsoever:
+  - `git merge-base main HEAD` answers with a base 43 landings old, so `/check`'s phase-1 scope came
+    back as **38 files** belonging to six other rows. Anyone following check.md literally reviews
+    other sessions' landed work as this branch's.
+  - `node scripts/owner-receipts.mjs --serves <branch>` said this branch "closes
+    exported-panel-does-not-pair-with-an-imported-design and edits 2 receipt(s) it never claimed".
+    It closes nothing. `servesVerdict` diffs `main...<branch>` (`scripts/owner-receipts.mjs:612`),
+    and that file was already deleted on `origin/main` by row H.
+  - `node scripts/merge-order.mjs --branch <branch>` returned `VERDICT: hold` for the same phantom
+    deletion, and told three other rows to land last for colliding with a file none of them shares.
+  I used `origin/main` after an explicit fetch throughout, and checked the truth directly:
+  `git diff <fork-point>..HEAD -- docs/backlog/` is empty and `git merge-tree --write-tree
+  origin/main <branch>` exits 0 clean. **The fix is a `git fetch` where worktrees are created, or
+  these three reading `origin/main` with local `main` as the fallback rather than the other way
+  round** - `recentCommits` in the same file already prefers `main` and falls back to `origin/main`,
+  which is the wrong order for a repo whose `main` only ever moves on the remote. Worth its own row;
+  it costs every session that queues a wrong answer from three gates at once.
 - **`session-liveness.mjs` re-implements `blocked-sessions.mjs`'s transcript scan**, already filed
   in `docs/backlog/cleanup-worktrees-dedup-and-speed.md`. `isUnder` and `sessionState` shrink the
   gap slightly; the scan itself is still duplicated.
