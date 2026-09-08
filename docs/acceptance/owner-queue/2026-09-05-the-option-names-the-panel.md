@@ -54,8 +54,11 @@ keep their panel height are correct - they shrink, and nothing spills.
 
 That is almost certainly the same fault as the preview-versus-program disagreement you reported on
 2026-09-04 (*"the answer texts don't get contained in their boxes"*). It is filed with the full
-table in `docs/backlog/the-panel-that-never-gets-taller.md`, and the gate PINS the broken behaviour
-on purpose so the fix is visible when it lands rather than silent.
+table, and the gate PINS the broken behaviour on purpose so the fix is visible when it lands
+rather than silent.
+
+**Fixed on 2026-09-08** - `docs/acceptance/owner-queue/2026-09-08-the-panel-that-gets-taller.md`
+carries the measurement and the route.
 
 ## Also worth a look while you are here: text that is too long now SHRINKS, never condenses
 

@@ -2009,13 +2009,44 @@ function svgGrowCap(rule, el, frame, dir) {
     : frame.bottom - Math.max(box.top - frame.top, frame.height * rule.safe);
 }
 
+/** EVERYTHING THAT MOVES WHEN THIS PANEL GROWS, as one screen rectangle: the panel and every
+ *  layer that travels with it. The room measurement is taken from THIS box rather than from the
+ *  panel's own edge, because the margin the cap keeps has to be kept by whatever ends up nearest
+ *  the frame - and on a board where four answer plates are declared followers of the question,
+ *  that is an answer plate, not the question.
+ *
+ *  MEASURED 2026-09-08 on the owner's quiz board: the question's plate had 384px of room to its
+ *  own mirrored margin and 49px to the margin its lowest follower would have to keep. The offer
+ *  read the first number, so the fit wrapped into 384px of height the apply could only deliver
+ *  by pushing the bottom answer 48px off the board.
+ *
+ *  The followers are read once at rest (svgRestOneRule), so this is arithmetic on the same
+ *  settled list the apply moves - never a second opinion about who travels. */
+function svgMovingBox(rest, box) {
+  var out = { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+  var list = (rest && rest.followers) || [];
+  for (var i = 0; i < list.length; i++) {
+    var r = list[i].el.getBoundingClientRect();
+    if (!(r.width > 0) || !(r.height > 0)) continue;
+    if (r.left < out.left) out.left = r.left;
+    if (r.right > out.right) out.right = r.right;
+    if (r.top < out.top) out.top = r.top;
+    if (r.bottom > out.bottom) out.bottom = r.bottom;
+  }
+  return out;
+}
+
 /** How much room the cap still leaves this element, in screen px - never negative.
  *
  *  For a panel widening from its MIDDLE this is the TOTAL width it may gain, half spent on each
  *  side, and the bound is the NEARER of its two margins so the offset the designer drew survives
- *  the growth instead of being flattened onto the frame's centre. */
-function svgGrowRoom(rule, el, frame, dir) {
-  var box = el.getBoundingClientRect();
+ *  the growth instead of being flattened onto the frame's centre.
+ *
+ *  The resting reading is optional for one caller only: svgGrowDir asks this while it is
+ *  still DECIDING which way the panel grows, which is what settles who the followers are. Every caller that grows - or offers height to the fit - passes it, so the
+ *  offer and the apply read the same number by construction. */
+function svgGrowRoom(rule, el, frame, dir, rest) {
+  var box = svgMovingBox(rest, el.getBoundingClientRect());
   if (dir === 0) {
     var nearer = Math.min(box.left - frame.left, frame.right - box.right);
     return Math.max(0, 2 * (nearer - frame.width * rule.safe));
@@ -2378,7 +2409,7 @@ function growOneRule(rule, index) {
   // never negative, so this can never permit growth past the frame; anything the cap withholds
   // is what fitSvgText() answers by shrinking.
   var frame = art.getBoundingClientRect();
-  var grant = Math.min(need, svgGrowRoom(rule, panel, frame, rest.dir));
+  var grant = Math.min(need, svgGrowRoom(rule, panel, frame, rest.dir, rest));
   if (!(grant > 0)) return;
 
   svgApplyGrowth(rule, panel, rest, grant);
@@ -2489,7 +2520,7 @@ function svgOfferHeights() {
     var el = svgLayoutEl(rule.el);
     var rest = svgGrowRest[r];
     if (!el || !rest) continue;
-    var most = svgGrowRoom(rule, el, frame, rest.dir);
+    var most = svgGrowRoom(rule, el, frame, rest.dir, rest);
     var texts = rest.texts.length ? rest.texts : svgLinesInside(el);
     for (var i = 0; i < texts.length; i++) {
       svgFitExtraH[texts[i].id] = most / svgUserScale(texts[i]);
@@ -2497,19 +2528,49 @@ function svgOfferHeights() {
   }
 }
 
-/** HOW MUCH EXTRA HEIGHT EACH LINE OF A PANEL TOOK, top line first, in screen px: how far the
- *  settled block runs past the room the design gave it. Measured in the artwork's own units
- *  through getBBox, which ignores transforms - so an entrance in flight cannot change it. */
+/** HOW MUCH EXTRA HEIGHT EACH LINE OF A PANEL TOOK, top line first, in screen px: how much
+ *  TALLER the settled block is than the room the design gave it. Measured in the artwork's own
+ *  units through getBBox, which ignores transforms - so an entrance in flight cannot change it.
+ *
+ *  IT IS A HEIGHT, NOT A FLOOR CROSSING, and that distinction is the whole of the defect this
+ *  replaced (docs/backlog, 2026-09-05: "the panel gets taller" never grew the panel). The old
+ *  reading asked how far the block ran past its room's top plus its room's height, which is
+ *  where the room ends only for a block composed against the TOP of its box. A block the designer CENTRED grows
+ *  both ways from its middle (svgRecentre), so on the owner's quiz board a question wrapped to
+ *  342 units inside 216 units of room stood 63 units above the plate and 13 units short of that
+ *  floor - and reported that it needed nothing. Measured as a height the same block asks for the
+ *  126 units it is actually over by, whichever edge it is composed against.
+ *
+ *  A PLACED line asks for nothing: its room is a slot with no height at all (measureSvgRoom), it
+ *  never wraps, and the ladder answers it by shrinking. */
 function svgBlockExtras(rest) {
   var out = [];
   for (var i = 0; i < rest.texts.length; i++) {
     var t = rest.texts[i];
     var room = svgFitRoom[t.id];
-    if (!room || !t.getBBox) { out.push(0); continue; }
-    var bottom = t.getBBox().y + t.getBBox().height;
-    out.push(Math.max(0, (bottom - (room.top + room.height)) * svgUserScale(t)));
+    if (!room || !t.getBBox || svgFitPlaced(t)) { out.push(0); continue; }
+    out.push(Math.max(0, (t.getBBox().height - room.height) * svgUserScale(t)));
   }
   return out;
+}
+
+/** HOW MUCH OF ITS OWN EXTRA HEIGHT A BLOCK TRAVELS BY, as a fraction, when the panel grows.
+ *
+ *  One law, read off where the block is composed in its box. The panel grows on one edge, so the
+ *  room's TOP edge, its MIDDLE and its BOTTOM edge each move by a different share of what was
+ *  granted: growing downwards the top edge does not move, the middle moves half and the bottom
+ *  moves all of it. A block stays where it was composed by travelling with the edge it is
+ *  composed against - so a top line stays put, a centred one takes half, a bottom one takes all.
+ *  Growing upwards is the same sentence upside down.
+ *
+ *  Before this the answer was the TOP one on both directions, which is right for every stacked
+ *  block the runtime had ever actually grown and wrong for a centred one: it would have left the
+ *  owner's question standing where it was while the plate grew away underneath it. */
+function svgGrowShare(room, dir) {
+  var v = room && room.align ? room.align.v : 'top';
+  if (v === 'middle') return 0.5;
+  if (dir < 0) return v === 'top' ? 1 : 0;
+  return v === 'top' ? 0 : 1;
 }
 
 function growSvgHeights() {
@@ -2525,7 +2586,7 @@ function growSvgHeights() {
     var extras = svgBlockExtras(rest);
     var total = 0;
     for (var e = 0; e < extras.length; e++) total += extras[e];
-    var most = svgGrowRoom(rule, el, frame, rest.dir);
+    var most = svgGrowRoom(rule, el, frame, rest.dir, rest);
     var grant = Math.min(total, most);
     if (!(grant > 0)) continue;
 
@@ -2539,16 +2600,25 @@ function growSvgHeights() {
     // panel's drawn bottom padding survives untouched.
     // Growing DOWN (a board hung from the top): a line descends by the extra taken ABOVE it, so
     // the top line never moves. Either way the drawn gaps between the lines are exactly kept.
+    // Both sentences are the TOP-composed case of one law (svgGrowShare): a block travels with
+    // the edge of its own box it is composed against, and a CENTRED block therefore takes half.
+    //
+    // AND EVERY BLOCK TRAVELS BY A SHARE OF WHAT WAS ACTUALLY GRANTED, never by what it asked
+    // for. Where the cap could only pay part of the bill each block gets the same fraction of
+    // its own extra, so the stack keeps its shape inside a panel that grew less than it needed
+    // and the ladder's shrink answers the rest - the alternative moved the first block by the
+    // whole grant and stood the ones under it on top of each other.
+    var share = total > 0 ? grant / total : 0;
     var running = 0;
     for (var k = 0; k < rest.texts.length; k++) {
       var idx = rest.dir < 0 ? rest.texts.length - 1 - k : k;
       var line = rest.texts[idx];
-      if (rest.dir < 0) running += extras[idx];
-      var travel = Math.min(running, most);
+      var got = extras[idx] * share;
+      var travel = running + svgGrowShare(svgFitRoom[line.id], rest.dir) * got;
       if (!svgFitPlaced(line) && travel > 0) {
         svgTravel(line, 'y', (rest.dir * travel) / svgUserScale(line), rest.textBase[idx].base);
       }
-      if (rest.dir > 0) running += extras[idx];
+      running += got;
     }
     svgApplyGrowth(rule, el, rest, grant);
   }
