@@ -149,8 +149,12 @@ test('a plan that exists but sits outside the window is named as such, not as a 
   assert.ok(!/GONE/.test(block), 'a plan that is merely outside the window has not been lost');
 });
 
-test('a run that could not resolve a checkout admits it searched nowhere', () => {
-  assert.match(noPlansBlock(undefined).join('\n'), /nowhere - this run could not resolve the primary checkout/);
+test('a run that could not resolve a checkout admits it searched nowhere, and concludes nothing', () => {
+  const block = noPlansBlock(undefined).join('\n');
+  assert.match(block, /Looked NOWHERE - this run could not resolve the primary checkout or the store/);
+  assert.match(block, /Nothing was searched, so nothing can be concluded/);
+  // Searching nowhere must not come out as "no plan of any date is on disk" - it read no disk.
+  assert.ok(!/on disk/.test(block), 'a run that searched nothing cannot report on what is on disk');
 });
 
 test('a busy week lists the first commits and counts the rest', () => {

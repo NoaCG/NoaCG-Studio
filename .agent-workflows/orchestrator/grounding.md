@@ -41,7 +41,7 @@ It produces the wave table, so if the window later runs short the routing alread
   (`collisions.md`, "Consuming the handoff folder").
 - `npm run harness:usage` - the capacity snapshot the routing is decided on (`routing.md`).
 - The unwalked count - `ls docs/acceptance/owner-queue/` - a capacity input, plus any live
-  `docs/handoffs/*-wave-plan.local.md` from a wave that never reported. **The morning CI verdict and
+  plan the store still holds from a wave that never reported. **The morning CI verdict and
   the weekly review are written into the PRIMARY checkout, gitignored, so the home never has them**
   (`docs/ROUTINES.md`, its routine table, owns when each is written and deleted). Read them there:
   the verdict is a claim like any handoff, so re-check the run it names

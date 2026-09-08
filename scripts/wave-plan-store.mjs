@@ -31,11 +31,12 @@
 // and a plan in the legacy `docs/handoffs/` location, which is what lets the weekly review read
 // across the move without a second pattern to keep in step.
 
-import { existsSync, mkdirSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { jobsDir } from './jobs-store.mjs';
+import { samePath } from './worktree-cleanup-lib.mjs';
 
 /** The store's folder name inside the job store, beside `logs/` and `relay/`. */
 export const WAVE_PLANS_DIR = 'wave-plans';
@@ -63,25 +64,17 @@ export function wavePlanName(date, kind) {
 }
 
 /**
- * One comparable spelling of a path. Windows gives back both separators and either case for the
- * same file, and a location check that says "not in the store" about a file that IS in the store
- * would refuse every plan on this machine.
+ * Is `file` inside the store? The refusal in the plan check and the launch ledger asks this.
+ *
+ * Compared against the store path REBUILT from the file's own basename, so a path in a
+ * subdirectory of the store is not in the store either. `samePath` is the repo's Windows-safe
+ * comparison (separators and case both vary for one file), and a check that answered "not in the
+ * store" about a file that is in it would refuse every plan on this machine.
  */
-function comparable(file) {
-  let resolved = path.resolve(file);
-  try {
-    resolved = realpathSync(resolved);
-  } catch {
-    // Not on disk yet, or a link we may not follow: the resolved spelling is still the right answer.
-  }
-  return resolved.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
-}
-
-/** Is `file` inside the store? The refusal in the plan check and the launch ledger asks this. */
 export function inStore(file, dir = jobsDir()) {
   const folder = wavePlansDir(dir);
   if (!folder || !file) return false;
-  return comparable(file) === comparable(path.join(folder, path.basename(file)));
+  return samePath(file, path.join(folder, path.basename(file)));
 }
 
 /** Every plan in the store, newest name first. Names sort by date because the date leads them. */

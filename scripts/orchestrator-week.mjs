@@ -33,12 +33,13 @@
 // truth about judgement; "questions asked" is a heading match. They move in the right direction
 // when the system improves, which is what a weekly loop needs from them.
 //
-// AN ABSENT SOURCE IS NEVER A ZERO. The wave plans are the one input that can vanish - they are
-// gitignored and live in a checkout - so when none is found the page says so loudly, names every
-// directory it searched and what was in it, and marks the rows, pools and DECIDED: counts
-// UNMEASURED. The first real run of this script (2026-09-08) printed 0 waves and 0 decisions for a
-// week in which nine lettered rows landed on one day, and the reader had no way to tell that apart
-// from an idle machine.
+// AN ABSENT SOURCE IS NEVER A ZERO. The wave plans are the one input git does not archive - they
+// are gitignored - so when none is found the page says so loudly, names every directory it
+// searched and what was in it, and marks the rows, pools and DECIDED: counts UNMEASURED. The first
+// real run of this script (2026-09-08) printed 0 waves and 0 decisions for a week in which nine
+// lettered rows landed on one day, and the reader had no way to tell that apart from an idle
+// machine. Plans have lived in the store since 2026-09-09, so an empty store now means no wave
+// wrote one rather than that a worktree took the record with it.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -154,27 +155,33 @@ export function questionsIn(handoffText) {
 export function noPlansBlock(search) {
   const dirs = search?.dirs ?? [];
   const lines = ['- **NO WAVE PLAN FOUND. The rows, pools and decisions below are UNMEASURED, not zero.**'];
-  lines.push('  Looked in:');
-  if (!dirs.length) lines.push('  - nowhere - this run could not resolve the primary checkout, so it searched no directory at all');
+  lines.push(dirs.length
+    ? '  Looked in:'
+    : '  Looked NOWHERE - this run could not resolve the primary checkout or the store.');
   for (const entry of dirs) {
     if (!entry.exists) lines.push(`  - \`${entry.dir}\` - the directory does not exist`);
     else if (!entry.planFiles) lines.push(`  - \`${entry.dir}\` - exists, holds no \`*-wave-plan.local.md\` at all`);
     else lines.push(`  - \`${entry.dir}\` - holds ${entry.planFiles} plan${entry.planFiles === 1 ? '' : 's'}, ${entry.inWindow} of them inside the window`);
   }
-  // Two very different stories end in an empty result, and the fix is different for each: a plan
-  // outside the window is a reading error the reader can correct, a plan nowhere on disk is a
-  // record that is gone for good.
-  if (search?.outsideWindow) {
+  // Three different stories end in an empty result and each wants a different next move, so the
+  // page says which one it is rather than leaving the reader to guess.
+  if (!dirs.length) {
+    lines.push(
+      '  Nothing was searched, so nothing can be concluded. Run this from inside the checkout, and',
+      '  say in the recap that the week was not measured rather than that it was empty.',
+    );
+  } else if (search?.outsideWindow) {
     lines.push(
       `  ${search.outsideWindow} plan file${search.outsideWindow === 1 ? ' is' : 's are'} on disk but older than the window,`,
       '  so this is a window that missed them and NOT a lost record - widen it with `--days` and read again.',
     );
   } else {
     lines.push(
-      '  No plan of any date is on disk. A wave plan is gitignored and lives only in the checkout that',
-      '  wrote it, so a plan written in a worktree that has since been removed leaves nothing behind.',
-      '  Read the week\'s waves off the landed branches and the handoffs instead, and record that the',
-      '  routing evidence is GONE for this window rather than that the machine sat idle.',
+      '  No plan of any date is on disk. Since 2026-09-09 a plan is written to the store above, which',
+      '  outlives every worktree, so an empty store means no wave wrote one - not that a checkout took',
+      '  the record with it, which is how the plans before that date were lost. Read the week\'s waves',
+      '  off the landed branches and the handoffs, and record that the routing evidence is GONE for',
+      '  this window rather than that the machine sat idle.',
     );
   }
   return lines;
@@ -332,7 +339,10 @@ function usageJson(days) {
 function wavePlans(dirs, since) {
   const seen = new Map();
   const searched = [];
-  let outsideWindow = 0;
+  // By NAME, not by file: during the move a plan can sit in the store and in its old directory at
+  // once, and "2 plan files are older than the window" for one plan is exactly the kind of count
+  // this block exists to make trustworthy.
+  const olderNames = new Set();
   for (const dir of dirs) {
     if (!dir) continue;
     if (!existsSync(dir)) {
@@ -346,7 +356,7 @@ function wavePlans(dirs, since) {
       entry.planFiles += 1;
       const file = path.join(dir, name);
       if (statSync(file).mtimeMs < since) {
-        outsideWindow += 1;
+        olderNames.add(name);
         continue;
       }
       entry.inWindow += 1;
@@ -359,7 +369,7 @@ function wavePlans(dirs, since) {
   }
   return {
     plans: [...seen.values()].sort((a, b) => a.name.localeCompare(b.name)),
-    search: { dirs: searched, outsideWindow },
+    search: { dirs: searched, outsideWindow: olderNames.size },
   };
 }
 

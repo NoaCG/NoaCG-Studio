@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // THE WAVE PLAN CHECK - is this wave-state file ready to launch from?
 //
-//   node scripts/wave-plan-check.mjs                 # the newest fresh plan in docs/handoffs/
+//   node scripts/wave-plan-check.mjs                 # the newest fresh plan in the wave-plan store
 //   node scripts/wave-plan-check.mjs --plan <path>
 //   node scripts/wave-plan-check.mjs --json
 //
@@ -11,8 +11,9 @@
 // so at the moment it failed. Two of the failures were the kind a file diff cannot see: a row that
 // named the wrong file (so two rows called disjoint were unanalysed), and ten rows that all went to
 // one worker pool because no rule asked the planner to choose. This script asks. It reads the plan
-// the orchestrator writes anyway (`docs/handoffs/<date>-<day|night>-wave-plan.local.md`) and
-// refuses the shapes the contract forbids, so readiness is a verdict rather than a feeling.
+// the orchestrator writes anyway (`wave-plan-store.mjs`) and refuses the shapes the contract
+// forbids, so readiness is a verdict rather than a feeling. It also refuses a plan written OUTSIDE
+// the store, because that plan dies with its checkout and takes the wave's whole record with it.
 //
 // WHAT IT CHECKS, each a named problem in the output:
 //   - a `## Wave table` with the columns L, goal, START, TOUCHES, MINTS, POOL, browser;
