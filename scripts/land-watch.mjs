@@ -32,6 +32,12 @@ const CAP_MS = 60 * 60_000;
 export function watchVerdict(pr, checks = []) {
   if (!pr) return { verdict: 'waiting' };
   if (pr.state === 'MERGED' || pr.merged || pr.mergedAt) return { verdict: 'landed', sha: pr.mergeCommit?.oid ?? pr.headRefOid };
+  // A pull request that conflicts with `main` keeps its auto-merge request and never enters the
+  // queue, so without this it would read as waiting until the cap, be retried once, and read as
+  // waiting again - for ever, on a branch only its own session can fix. The conflict is the verdict.
+  if (pr.state === 'OPEN' && pr.mergeable === 'CONFLICTING') {
+    return { verdict: 'refused', reason: 'the pull request conflicts with main and cannot enter the queue - integrate main, resolve, and queue again' };
+  }
   // Auto-merge is the request; once the queue takes the pull request the request reads null and
   // the queue entry carries the state (AWAITING_CHECKS, MERGEABLE, ...). Either one is waiting.
   if (pr.state === 'OPEN' && (pr.autoMergeRequest || pr.mergeQueueEntry)) return { verdict: 'waiting' };
@@ -60,7 +66,7 @@ function viewPr(number) {
   const slug = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { encoding: 'utf8', windowsHide: true, timeout: 20_000 }).stdout?.trim();
   if (!slug) return null;
   const [owner, name] = slug.split('/');
-  const query = `{ repository(owner:"${owner}",name:"${name}"){ pullRequest(number:${Number(number)}){ state merged url headRefOid mergeCommit{ oid } autoMergeRequest{ enabledAt } mergeQueueEntry{ state position } } } }`;
+  const query = `{ repository(owner:"${owner}",name:"${name}"){ pullRequest(number:${Number(number)}){ state merged mergeable url headRefOid mergeCommit{ oid } autoMergeRequest{ enabledAt } mergeQueueEntry{ state position } } } }`;
   return gh(['api', 'graphql', '-f', `query=${query}`])?.data?.repository?.pullRequest ?? null;
 }
 

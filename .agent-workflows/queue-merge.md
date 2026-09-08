@@ -66,9 +66,10 @@ owner-queue walk filed for it - and every wave plan in between spent judgement r
   `note:` to say what this landing added, so the next session reads it rather than the diff.
 - **This branch serves none** - nothing to do; the command says so and passes.
 
-The landing preflight runs the same check and REFUSES a branch that a receipt names in `branch:` and
-that the branch does not touch. It never guesses from a branch name, so a receipt nobody marked
-`active` is invisible to it - which is the argument for marking one `active` when you pick it up.
+Nothing downstream runs this check again. The laptop lander used to refuse a branch that a receipt
+named in `branch:` and that the branch did not touch; the merge queue reads no receipts, so this
+command, run here, is the whole mechanism - which is the argument for marking a receipt `active`
+when you pick it up, and for answering it before you queue rather than after.
 
 ## 2. Look before you queue
 
@@ -80,6 +81,12 @@ If the merge-tree reports conflicted paths, integrate `main` here, resolve with 
 the build, then queue. `node scripts/merge-order.mjs --branch <branch>` says which OTHER unqueued
 branches this one collides with - advisory, because order is the queue's: whichever lands second
 integrates `main` (owner ruling 2026-09-05: a merge question never reaches him).
+
+**A branch cut from another branch does not queue.** `merge-order.mjs --branch <branch>` reports
+when this branch CONTAINS another branch that has not landed, and exits 3. Queueing it would land
+that other session's commits without its declaration, and the queue cannot tell: the pull request
+is opened against `main` and carries both. Rebase onto `origin/main` first, or wait for that branch
+to land, then queue.
 
 ## 3. Queue it
 
@@ -154,9 +161,12 @@ pushed branch; no local worktree is part of the path.
 
 The local merge job (`scripts/land-watch.mjs`) only WATCHES the pull request, so `npm run jobs`
 prints, for every branch ahead of main, either `QUEUED <id>`, `not queued`, or a loud row saying
-the landing FAILED - with the lander's refusal, copied from the pull request. **The refusal is on
-the pull request** (`gh pr view <number>`): a conflict integrating `main`, a red run, no
-`noacg/reviewed` status, no verdict inside the cap. Fix it, run `/check`, and queue again:
+the landing FAILED - with the queue's refusal, copied from the pull request. **The refusal is on
+the pull request** (`gh pr view <number>`), and it is one of four kinds: a check red on the pull
+request (`CI gate` or `Reviewed`), a drop from the merge group (`CI gate` red on the temporary
+merge), a conflict with what landed, or no `noacg/reviewed` on a tip that moved after it was
+queued. A watcher reaching no verdict inside its cap is not a refusal; the store retries it once.
+Fix it, run `/check`, and queue again:
 
     npm run queue:merge
 
@@ -166,9 +176,10 @@ the pull request** (`gh pr view <number>`): a conflict integrating `main`, a red
 **`requeue` re-arms a watcher; `add-merge` makes a declaration.** That is the whole difference, and
 it is why any session may run the first without a permission prompt while the second stays behind
 one (`docs/AGENT_WORKFLOWS.md`, "Permissions"). `requeue` takes a branch name and refuses every
-flag, it refuses a branch with no landing to re-run, and it re-pins only over commits that are
-provably the queue's own merge - so a commit that arrived after the work was declared finished
-refuses and is sent back to `add-merge`, which only that branch's own session may run.
+flag, it refuses a branch with no landing to re-run, and it re-arms the watcher on the pull request
+as it stands. A tip that moved after the declaration is refused by the pull request itself:
+`noacg/reviewed` was posted on the declared sha, so the new tip fails `Reviewed` until its own
+session runs `/check` and queues again through `add-merge`, which only that session may run.
 
 **Nothing is held for another branch.** The queue has no order to protect: pull requests land in
 the order they were queued, and the one that conflicts with what landed is marked conflicting and
@@ -180,9 +191,9 @@ then reads `QUEUED <id> (automatic retry of <id>, which reached no verdict)`. On
 qualify, and all three are the machine failing to answer rather than anything about the branch: the
 job was killed at its cap, its process vanished with the runner or the laptop, or the CI wait ended
 with no verdict (exit 5 - a run still going, only cancelled shells, no run at all, or a run whose
-jobs were killed by their own `timeout-minutes`). **Anything CI or the preflight actually decided is
-never retried** - a red gate, a conflict, a dirty tree, a red main. Retrying a verdict is how a
-queue lands work that was refused.
+jobs were killed by their own `timeout-minutes`). **Anything the queue actually decided is never
+retried** - a red check, a conflict with `main`. Retrying a verdict is how a queue lands work that
+was refused.
 
 This is not another session queueing your branch. The declaration was made when the branch was
 first queued and nothing about it has changed; the retry re-runs that declaration rather than making
@@ -190,8 +201,8 @@ a second one, and it re-runs the command VERBATIM, `--expect-sha` and all - so a
 up and pushed gets a refusal, not a landing. The mechanism exists because on 2026-09-03 two
 landings were killed at their cap with both owning sessions already finished, and since only a
 branch's own session may queue it, two green branches became unlandable. Then it spread: a branch
-still ahead of main with no landing queued makes `merge-order` refuse everything that collides with
-it, so one dead landing stranded four more branches inside an hour.
+still ahead of main with no landing queued used to make `merge-order` refuse everything that
+collided with it, so one dead landing stranded four more branches inside an hour.
 
 A landing that SUCCEEDED normally makes its branch vanish from this listing, which only shows what
 is ahead of main. So `LANDED <id>, and this branch is ahead of main AGAIN` means exactly what it

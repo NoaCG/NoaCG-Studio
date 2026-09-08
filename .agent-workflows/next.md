@@ -108,15 +108,20 @@ clean while this session is still mid-conversation. So offer it, never queue off
 unasked - and once the user PICKS it, run it (section 2c).
 
 **Say what `merge-order.mjs --branch <this branch>` found beside the queue option**, so the user
-picks it knowing the cost:
+picks it knowing the cost. It measures this branch against the OTHER branches ahead of `main`,
+never against `main` itself - that probe is `git merge-tree --write-tree origin/main <branch>`,
+section 2 of the queue-merge workflow:
 
 - **no collision** - offer it normally, no caveat.
-- **a collision with an unqueued branch** - still offerable and still recommendable; append the
-  cost in a fragment (`costs <branch> N conflicted files`). Whichever lands second integrates
+- **conflicted files with an unqueued branch** - still offerable and still recommendable; append
+  the cost in a fragment (`costs <branch> N conflicted files`). Whichever lands second integrates
   `main` - the queue bounces a conflicting pull request to its session, it never holds it.
-- **a conflict with `main` itself** - the option becomes that work first: integrate `main` here,
-  resolve, re-run the build, then queue - and it says in the same line what forced it: the rename,
-  the duplicated migration number, the conflict count.
+- **this branch contains another branch that has not landed** (the tool exits 3) - do NOT offer
+  queueing: the pull request would carry that session's commits without its declaration. The
+  option becomes rebasing onto `origin/main`, or waiting for that branch to land.
+- **a conflict with `main` itself**, from the merge-tree probe - the option becomes that work
+  first: integrate `main` here, resolve, re-run the build, then queue - and it says in the same
+  line what forced it: the rename, the duplicated migration number, the conflict count.
 
 Never turn this into an option to go merge the OTHER branch: that is another worktree's
 business, and this workflow reports collisions rather than acting on them. Name it, and stop.

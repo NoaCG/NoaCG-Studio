@@ -666,7 +666,8 @@ const SUITE_CRITICAL_SCRIPTS =
 // the eol rules for every generated artefact in the repository, and a mistake there is the kind
 // that makes a clean tree read as dirty.
 const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
-const IGNORE = [/^docs\/(?!svg-samples\/)/, /\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
+// `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
+const IGNORE = [/^docs\/(?!svg-samples\/)/, /\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as

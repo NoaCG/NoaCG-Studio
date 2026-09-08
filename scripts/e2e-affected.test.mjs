@@ -290,7 +290,8 @@ test('the agent harness plans nothing at all', () => {
     '.claude/settings.json',
     '.codex/config.toml',
     '.codex/environments/environment.toml',
-    '.agents/skills/safe-merge/agents/openai.yaml',
+    '.agents/skills/cleanup-worktrees/agents/openai.yaml',
+    'contracts/retired.json',
     '.agent-workflows/queue-merge.md',
   ]) {
     const plan = planFor([file], { sprintFocus: true });

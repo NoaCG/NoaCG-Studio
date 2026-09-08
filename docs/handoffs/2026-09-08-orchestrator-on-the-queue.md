@@ -55,6 +55,23 @@ does. What changed was the meaning of the name.
 green on this tree; `npm run build` exit code read from its own file. Nothing here is observable in
 the product, so no owner-queue item.
 
+## What the review changed
+
+`/check` ran four finder passes over the diff and they found real things. The gate now judges a
+SENTENCE rather than a paragraph, because "never" is this repository's ordinary word and a
+paragraph grain hid the compiled rule lists entirely (one injected stale bullet in `AGENTS.md`
+produced no finding; it does now). `scripts/land-watch.mjs` reads `mergeable` and treats a
+conflicting pull request as a refusal instead of waiting on it for ever. `queue-merge.md` regained
+the stop on a branch cut from another unlanded branch, stopped claiming an owner-receipt refusal
+the queue never runs, and says what `requeue` really does; `next.md` maps `merge-order` to what it
+prints. `contracts/` is classified as never product code in the e2e map, and the freshness gate
+now shares the gate's file set, so the two cannot disagree. Two more backlog items:
+`a-stacked-branch-queues-its-parents-commits.md` (the mechanism, a pull request base) and two
+unenforced claims folded into the laptop-lander item.
+
+The full e2e suite did not run here: `scripts/e2e-affected.mjs` changed, and the selector
+escalates its own files to the full suite by design, which CI runs on the pull request.
+
 ## The orchestrator can run now
 
 Nothing in its contract names a retired mechanism, and the gate keeps it that way. The two rules

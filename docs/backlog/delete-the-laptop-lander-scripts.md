@@ -40,3 +40,9 @@ the scripts is the only mechanism that makes the description disappear with the 
    `--accept`, `--after` and `--attempts` flags `add-merge` accepts as ignored.
 4. `npm run build`, then the hook tests, because `guard-command.mjs` and `warn-command.mjs` match
    command shapes by name.
+5. Two claims the lander used to enforce and nothing enforces now, found while retiring it: the
+   owner-receipt refusal (`servesVerdict` in `scripts/owner-receipts.mjs`, called only from the
+   preflight) belongs in `cmdAddMerge`; and the `--expect-sha` pin that `requeue` re-checks is
+   never written for a cloud job, so `requeueDecision` cannot refuse a moved tip - either write the
+   pin into the `land-watch` command or delete the pin machinery and say the pull request's
+   `Reviewed` check is the pin.

@@ -29,6 +29,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { isInstructionFile } from './check-retired-names.mjs';
+import { repositoryFiles } from './gates.mjs';
+
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 /** Top-level directories a backticked path may name. A token outside these is not treated as a path. */
@@ -92,10 +95,8 @@ export function staleRefs({ paths, dirs, npmScripts }, { tracked, trackedDirs, d
   return stale;
 }
 
-/** Every tracked file, plus the set of directories any tracked file lives under. */
-function trackedFiles() {
-  const out = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' });
-  const files = out.split('\n').map((line) => line.trim().replace(/\\/g, '/')).filter(Boolean);
+/** Every repository file as a set, plus the set of directories any of them lives under. */
+function trackedFiles(files) {
   const dirs = new Set();
   for (const file of files) {
     const parts = file.split('/');
@@ -121,26 +122,26 @@ function ignoredRefs(refs) {
 }
 
 /**
- * The contract files to scan: every AGENTS.md / CLAUDE.md, every workflow markdown, the rule
- * store and what it compiles to. A rule under contracts/rules/ is what the generated
- * .claude/rules/ files are made of, so a stale path there rots in every session that reads a
- * matching file - the same failure this gate exists for. contracts/records/ is NOT scanned: a
- * record is frozen evidence of a moment, and a path it named may rightly be gone.
+ * The contract files to scan: the instruction surface `check-retired-names.mjs` defines, so the
+ * two gates never disagree about what an instruction file is - every AGENTS.md / CLAUDE.md, every
+ * workflow markdown, the rule store and what it compiles to, the agent definitions and the command
+ * adapters. A rule under contracts/rules/ is what the generated .claude/rules/ files are made of,
+ * so a stale path there rots in every session that reads a matching file - the same failure this
+ * gate exists for. contracts/records/ is NOT scanned: a record is frozen evidence of a moment, and
+ * a path it named may rightly be gone.
  */
-function contractFiles() {
-  const out = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' });
-  return out.split('\n').map((line) => line.trim().replace(/\\/g, '/')).filter(Boolean).filter((file) =>
-    /(^|\/)(AGENTS|CLAUDE)\.md$/.test(file) || file.startsWith('.agent-workflows/')
-    || (file.startsWith('contracts/') && !file.startsWith('contracts/records/') && file.endsWith('.md'))
-    || file.startsWith('.claude/rules/'));
+function contractFiles(files) {
+  return files.filter(isInstructionFile);
 }
 
 function main() {
-  const { tracked, trackedDirs } = trackedFiles();
+  // One `git ls-files` for both the existence set and the files to scan.
+  const files = repositoryFiles();
+  const { tracked, trackedDirs } = trackedFiles(files);
   const definedScripts = new Set(Object.keys(JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).scripts ?? {}));
   const candidates = [];
   let scanned = 0;
-  for (const file of contractFiles()) {
+  for (const file of contractFiles(files)) {
     scanned += 1;
     const refs = extractRefs(readFileSync(resolve(ROOT, file), 'utf8'));
     for (const stale of staleRefs(refs, { tracked, trackedDirs, definedScripts })) candidates.push({ file, ...stale });

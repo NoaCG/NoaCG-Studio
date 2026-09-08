@@ -192,7 +192,11 @@ the branch tip's age, and the mtime of the session's transcript. **The inventory
 enough and reading it that way is the trap**: it fails open for subagents, and on 2026-09-05 it
 reported a row idle while that row was committing every four minutes and about to queue itself
 (row Z's measurement, `incidents.md`). A tip that moved in the last half hour is alive whatever any
-inventory says. Then `npm run queue:merge -- <branch>` (with
+inventory says. **Then the queue-merge workflow's section 2 probe** - `git merge-tree --write-tree
+origin/main <branch>`, and `merge-order.mjs --branch <branch>` for a branch that contains another
+unlanded one - because a conflicting or stacked pull request never enters the queue and the session
+that could fix it is gone: either is a candidate row in the report, never a queueing. Then
+`npm run queue:merge -- <branch>` (with
 `--unreviewed "queued by the night loop: the session is gone"` when the tip carries no `/check`
 stamp - it refuses an unstamped tip otherwise, and the reason lands on the pull request), and the
 report says which branches the loop queued and why. **What protects a half-finished branch is the

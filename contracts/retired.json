@@ -1,6 +1,6 @@
 {
   "v": 1,
-  "_about": "Mechanisms this repository has RETIRED. scripts/check-retired-names.mjs fails the build when a contract, a workflow or an agent definition still names one as an instruction. A paragraph that names one as history passes only when it says so in its own words (retired, no longer, until <year>, used to, never). Add an entry in the same change that retires the mechanism, never later.",
+  "_about": "Mechanisms this repository has RETIRED. scripts/check-retired-names.mjs fails the build when a contract, a workflow or an agent definition still names one as an instruction. A sentence that names one as history passes only when it says so in its own words (retired, no longer, until <year>, used to, never). Add an entry in the same change that retires the mechanism, never later.",
   "retired": [
     {
       "name": "safe-merge",
@@ -18,9 +18,9 @@
     },
     {
       "name": "merge-order verdicts as a landing gate",
-      "pattern": "merge-order[^\\n]*\\b(clear|caution|hold)\\b|\\b(clear|caution|hold)\\b[^\\n]*merge-order",
+      "pattern": "merge-order[^\\n]*`(clear|caution|hold)`|`(clear|caution|hold)`[^\\n]*merge-order",
       "since": "2026-09-06",
-      "replacement": "order is queue order; `node scripts/merge-order.mjs` stays a read-only instrument for which unqueued branches collide with each other",
+      "replacement": "order is queue order; `node scripts/merge-order.mjs` stays a read-only instrument for which unqueued branches collide with each other, and for a branch that contains another unlanded branch",
       "why": "The verdict used to decide whether a landing could start and in what order. The queue lands pull requests in the order they were queued and bounces the one that conflicts with what landed."
     },
     {

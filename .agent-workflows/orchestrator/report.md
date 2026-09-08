@@ -20,7 +20,7 @@ behind a link. Every number in it names the command it came from.
    class, and the one quoted "what is left" line for each `deferred` or `owner` file. Never the
    full text. A file still `UNCLASSIFIED` here is the report's own defect, fixed before it ships.
 5. **Refused, and WHICH KIND** - a refusal is written on the pull request (`gh pr view <n>`,
-   `gh pr checks <n>`), and the kinds are different mornings: a check red ON THE PULL REQUEST
+   `gh pr checks <n>`), and the four kinds `queue-merge.md` names are different mornings: red ON THE PULL REQUEST
    (`CI gate` or `Reviewed`), so it never entered the queue; dropped FROM THE MERGE GROUP, `CI gate`
    red on the temporary merge and auto-merge turned off; a CONFLICT with what landed, a pull
    request that cannot merge; and no `noacg/reviewed` on the tip, the branch having moved after it
