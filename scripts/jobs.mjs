@@ -29,6 +29,7 @@ import { activeRuns, nodeProcesses, orphanProcesses } from './e2e-runs.mjs';
 import { requiresRunningDevServer } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
+import { changedBacklogFiles, receiptsFor, servesVerdict } from './owner-receipts.mjs';
 import { isGeneratedBody, pullRequestBody, pullRequestTitle } from './pr-description.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
@@ -365,6 +366,19 @@ async function cmdAddMerge() {
   // cover is queueing unreviewed work, so it is refused - with the one honest way past named:
   // `--unreviewed "<reason>"`, which lands with the reason on the job record where the report and
   // the landing ledger can see it, instead of silently.
+  // OWNER RECEIPTS THIS BRANCH OWNS ARE ANSWERED BEFORE IT LANDS. A receipt in docs/backlog/ that
+  // names this branch is a claim on a piece of work, and the landing is the last moment the session
+  // that knows what happened to it is still here: after that the shelf says a branch owns something
+  // it never touched, and every wave plan after it spends judgement re-deriving what the shelf
+  // should have known. The four ways out are all one line, and the message names them.
+  //
+  // It lived in the retired landing preflight until now, which is why nothing has enforced it since
+  // 2026-09-06. Here it sits with the other two refusals that mean "this branch is not finished
+  // yet" - unread relay mail and a missing /check stamp - because that is the same claim.
+  //
+  // A question git cannot answer is skipped rather than refused: this must never stop a landing
+  // because a diff would not run.
+  refuseUnansweredReceipts(target);
   const tipForReview = branchTip(target);
   const stamp = readReviewStamp(dir, target);
   const gap = stampGap(stamp, tipForReview);
@@ -432,6 +446,30 @@ async function cmdAddMerge() {
   console.log(`queued on GitHub: ${queued.url}${review.stamp === 'unreviewed' ? ` (UNREVIEWED: ${review.reason})` : ''}`);
   console.log('  auto-merge is on: GitHub\'s merge queue takes it once CI gate and Reviewed pass, and merges it in turn.');
   console.log(`  ${job.id} watches it here:  node scripts/jobs.mjs log ${job.id}   |   gh pr view ${queued.number}`);
+}
+
+/**
+ * Refuse the landing while an owner receipt this branch claims goes unanswered.
+ *
+ * `receiptsFor` reads the shelf as it stands here PLUS the receipts this branch deleted, recovered
+ * from `main` - without that second half a branch that correctly CLOSED its receipt has no file
+ * left to read, and its success reads as somebody else's file.
+ */
+function refuseUnansweredReceipts(branch) {
+  let verdict;
+  try {
+    const changed = changedBacklogFiles(branch);
+    if (changed === null) return;
+    verdict = servesVerdict({ branch, receipts: receiptsFor(changed), changed });
+  } catch {
+    console.log('  note: the owner receipts could not be read, so they were not checked.');
+    return;
+  }
+  if (verdict.problems.length === 0) return;
+  console.error(`add-merge refused: ${branch} owns an owner receipt this landing does not answer.`);
+  for (const problem of verdict.problems) console.error(`  ${problem}`);
+  console.error('  Answer it in the same commit, then queue again - it is one line in one file.');
+  process.exit(1);
 }
 
 /**
