@@ -237,7 +237,7 @@ test('undersized primary text warns in the editor in plain language and still ex
   // the viewing context it was computed under.
   await page.getByTestId('dock-tab-export').click();
   const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
-  await expect(warning.first()).toContainText('smaller than the ~50px we recommend for TV viewing distance', {
+  await expect(warning.first()).toContainText('smaller than the ~28px we recommend for TV viewing distance', {
     timeout: 15_000,
   });
   await expect(warning.first()).toContainText('may be hard to read from a couch');
@@ -252,13 +252,15 @@ test('undersized primary text warns in the editor in plain language and still ex
 });
 
 test('a shipped catalog design warns under the same rule and is not blocked', async ({ page }) => {
-  // lt14 is one of the audit's named rows (primary at 38px against the ~50px floor,
-  // benchmarks/design-rules/AUDIT-2026-08-19.md) - it stays shipped and simply warns.
+  // lt48 is one of the EIGHT shipped designs the type-aware floor still warns about (its name
+  // renders at 26px against the card band's 28px). It used to be one of 322, which is why this
+  // test named lt14 at 38px until 2026-09-08 - under the new bands lt14 passes clean, and a test
+  // that proves "shipped work warns" is only worth anything when warning is the exception.
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const name = await page.evaluate(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');
-    return variantById('lt14')?.name ?? null;
+    return variantById('lt48')?.name ?? null;
   });
   expect(name).toBeTruthy();
   await createProject(page, name!);
@@ -297,11 +299,15 @@ test('the computed floors scale off the template frame: 16:9 = 9:16, 720p smalle
       hd720: await at(1280, 720),
     };
   }, SMALL_TEMPLATE);
-  // One table serves 16:9 and 9:16 - the short side is 1080 in both - while a 720p frame
-  // composes a proportionally smaller floor (4.6% of 720 ≈ 33px).
-  expect(floors.landscape).toBe('50');
-  expect(floors.portrait).toBe('50');
-  expect(floors.hd720).toBe('33');
+  // One table serves 16:9 and 9:16 - the short side is 1080 in both. The floor is 28px there
+  // since it became type-aware (2026-09-08): a project with no category takes the CARD band.
+  expect(floors.landscape).toBe('28');
+  expect(floors.portrait).toBe('28');
+  // The SAME 24px line passes at 720p, and that is the scaling this test exists to pin: the floor
+  // composes off the frame's short side (0.0259 * 720 = 18.6px), so what is undersized on a 1080
+  // frame is not on a 720 one. Asserting the absence is stronger than asserting a number, because
+  // a floor that stopped scaling would keep warning here.
+  expect(floors.hd720).toBeNull();
 });
 
 test('the editor can change the viewing target of an already-saved project', async ({ page }) => {
@@ -312,7 +318,7 @@ test('the editor can change the viewing target of an already-saved project', asy
   await page.keyboard.press('Escape');
   const name = await page.evaluate(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');
-    return variantById('lt14')?.name ?? null;
+    return variantById('lt48')?.name ?? null;
   });
   expect(name).toBeTruthy();
   await createProject(page, name!);
