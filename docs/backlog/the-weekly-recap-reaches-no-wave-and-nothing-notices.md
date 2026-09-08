@@ -1,8 +1,9 @@
 # The weekly review's candidate rows reached no wave, and nothing anywhere says so
 
-**Filed:** 2026-09-09. **Source:** measurement, while draining the handoff folder - this is the
-judgement `docs/handoffs/2026-09-03-orchestrator-week-routine.md` asked somebody to make about the
-routine's first real run, made once and then deleted with the file it came from.
+**Filed:** 2026-09-09. **Source:** measurement, while draining the handoff folder. The routine that
+built the weekly review (branch `claude/orchestrator-weekly-review`, 2026-09-03) left one condition
+on its own handoff - delete it once somebody has judged the first real run. This is that judgement,
+recorded here because the handoff it came from is drained.
 
 ## Why
 
@@ -29,13 +30,27 @@ dying with its worktree - is the reason that same review could report 0 waves an
 lines for a week in which nine lettered rows landed on 2026-09-05 alone. The measurement failure
 it named is now on its second week.
 
-**Two mechanisms that would have surfaced the file both skip it.**
+**Three mechanisms that should surface the file all miss it, and the third is one shipped for
+exactly this purpose.**
 
 - `scripts/handoff-drain.mjs:75` filters the folder to `.md` that is not `.local.md`, so the
   weekly recap never appears in the listing the plan check enforces a classification for. Every
   other handoff owes the plan a line; this one owes nothing.
-- `scripts/wave-plan-check.mjs` has no notion of the weekly file. Its only matches on the word
-  "weekly" are the Codex rate-limit parsing at lines 259-279.
+- `scripts/wave-plan-check.mjs` has no notion of the weekly file's candidate rows. Its only matches
+  on the word "weekly" are the Codex rate-limit parsing at lines 259-279.
+- **The alignment refusal added on 2026-09-08 cannot fire where the orchestrator runs.**
+  `alignmentState()` in `scripts/alignment-answers.mjs` reads `docs/handoffs/` under `REPO_ROOT`,
+  which is the checkout the script sits in. The weekly file is written to the primary checkout by
+  absolute path (`.agent-workflows/orchestrator-week.md:155`) and is gitignored (`.gitignore:237`),
+  so no other working tree has a copy - while `orchestrator-home.mjs` pins every orchestrator
+  session to `.claude/worktrees/orchestrator` and `grounding.md:14` states outright that "the tick,
+  the drain and the plan check all read the checkout they run in". So the refusal that was built to
+  replace somebody remembering returns `{ source: null, pending: [] }` every time, and the plan
+  passes without ever mentioning an answered ruling. Found by the `/check` review of the drain
+  branch and verified against the landed code.
+
+That third one is the whole argument in miniature. The obligation keeps being written into prose,
+the mechanism keeps being pointed at the wrong directory, and nothing measures either.
 
 `.agent-workflows/orchestrator/grounding.md:45-49` does name it - "the weekly file's candidate rows
 are frontier input" - and `docs/ROUTINES.md` says the next `/orchestrator` "turns its candidate rows
@@ -45,10 +60,15 @@ somebody remembering.
 
 ## What it would take
 
-The narrow fix is a plan-check rule: when a `*-orchestrator-week.local.md` exists in the primary
-checkout dated inside the window the plan covers, the plan owes each of its candidate rows a line -
-planned as row X, or rejected with a reason. That is one file read and one heading check, the same
-shape as the `## Handoffs` rule the check already enforces.
+**First, resolve the weekly file from the primary checkout rather than from `REPO_ROOT`**, in
+`scripts/alignment-answers.mjs` and anywhere else that reads it. The git common directory names the
+primary checkout from inside any worktree, and `scripts/orchestrator-home.mjs` already knows the
+path. Without that, everything below is built on a read that returns nothing.
+
+Then the narrow fix is a plan-check rule: when a `*-orchestrator-week.local.md` exists dated inside
+the window the plan covers, the plan owes each of its candidate rows a line - planned as row X, or
+rejected with a reason. That is one file read and one heading check, the same shape as the
+`## Handoffs` rule the check already enforces.
 
 The cheaper half, worth doing whether or not the check lands, is making `handoff-drain.mjs` list the
 weekly file rather than filter it out. It is a handoff by name and location; excluding it because it

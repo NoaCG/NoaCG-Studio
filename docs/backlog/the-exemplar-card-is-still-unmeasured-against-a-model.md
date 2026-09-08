@@ -1,7 +1,7 @@
 # The Pro harness exemplar card has never been measured against a model, and the round that ran cannot settle it
 
-**Filed:** 2026-09-09, carried out of `docs/handoffs/2026-09-06-b-pro-harness-exemplars.md` during
-the handoff drain. **Source:** the row's own statement of what its work does not prove.
+**Filed:** 2026-09-09, out of the drained handoff for `c2829edd` (`claude/b-pro-harness-exemplars`).
+**Source:** that row's own statement of what its work does not prove.
 
 ## Why
 

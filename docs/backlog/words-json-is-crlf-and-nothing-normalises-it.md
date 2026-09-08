@@ -1,7 +1,7 @@
 # `words.json` is CRLF and unnormalised, so a splice into it writes a mixed-endings file
 
-**Filed:** 2026-09-09, carried out of `docs/handoffs/2026-09-06-add-control-row-set.md` during the
-handoff drain.
+**Filed:** 2026-09-09, out of the drained handoff for `47b7b1dc` (the add and remove controls, the
+row-set field kind and the bingo caller), which named it and never filed it.
 
 ## Why
 

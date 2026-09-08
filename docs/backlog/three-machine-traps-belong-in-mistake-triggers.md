@@ -1,8 +1,8 @@
 # Three machine traps that have cost real time and live only in a handoff
 
-**Filed:** 2026-09-09, while draining `docs/handoffs/2026-09-07-two-row-set-and-import-names.md`,
-whose author titled the section holding them "Traps that exist in no repo file". He was right, and
-they are copied here verbatim so the handoff can go.
+**Filed:** 2026-09-09, out of the drained handoff for `667ac776` (PR #122), whose author titled the
+section holding them "Traps that exist in no repo file". He was right, and they are copied here
+verbatim so the handoff could go.
 
 ## Why
 

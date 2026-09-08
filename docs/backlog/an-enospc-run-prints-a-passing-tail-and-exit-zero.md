@@ -41,3 +41,7 @@ happens next.
 Measured 2026-09-06 on `claude/f-growth-question`, landed as `856f8792`. A repo-wide grep for
 `ENOSPC` during the 2026-09-09 drain found it in the handoff and nowhere else - not in
 `e2e/AGENTS.md`, `docs/VERIFICATION.md` or `docs/CI_STABILITY.md`.
+
+The same family on the CI side is `docs/backlog/ci-plans-from-a-run-that-never-finished.md`: a run
+covering less than it appears to and reporting green. Different mechanism, same reason it survives -
+nothing compares what a run was asked to cover against what it actually got through.
