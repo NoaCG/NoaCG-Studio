@@ -1363,7 +1363,10 @@ test('imported board: the EXPORTED CONTROLLER carries the same warning, in the s
 // as "an imported design's panel does not pair", which it was not - the same target failed a
 // catalog graphic identically, and the same imported board paired immediately out of the SPX
 // package. The design and the target had moved together, so the difference could be attributed to
-// either; commit 3ed7793a carries the four-cell measurement that separated them, and the fix.
+// either. Running both decisive designs against both targets separated them: the answer flipped on
+// the TARGET every time and never on the design - both designs paired out of the SPX package, and
+// neither could pair out of a CasparCG package, because that package contained no panel to open.
+// Commit 3ed7793a carries the fix.
 //
 // Both boards are walked, because "it pairs" is not the claim - the claim is that every verb the
 // student needs arrives at the graphic. A test that only proves pairing proves the class can see

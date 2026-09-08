@@ -72,45 +72,75 @@ after every phase, and the tracked file is where it belongs.
 
 The tracked file also has an unpaired set. Lines 124-128 allow `PowerShell(git status *)`,
 `PowerShell(git log *)`, `PowerShell(git diff *)`, `PowerShell(git show *)` and
-`PowerShell(git fetch *)` with no Bash twin, while `Bash(git fetch)` allows no arguments at all.
-The doctrine says an entry is paired Bash and PowerShell or it leaves the prompt it was written to
-remove; here the unpaired half is the one most sessions actually use.
+`PowerShell(git fetch *)` with no Bash twin, while `Bash(git fetch)` allows no arguments at all -
+and the doctrine says an entry is paired Bash and PowerShell or it leaves the prompt it was written
+to remove. The obvious repair is to add the five Bash twins. **Do not**, and the next section is
+why: four of those five patterns do not hold up when they are tried, so the pairing rule is not the
+only thing they are failing.
 
 ## What it would take
 
-The owner pastes this into the `allow` array of the tracked `.claude/settings.json`, in a session he
-opens himself. Each line is the narrowest shape the matcher supports and carries its reason.
+Two entries, which is fewer than this row set out to write, because most of the obvious ones fail
+the repo's own test the moment they are tried. `docs/AGENT_WORKFLOWS.md` asks whether a command,
+with ANY arguments that match the pattern, could destroy or exfiltrate something, and says a prefix
+cannot exclude a trailing argument within one segment. Run against git 2.55.0 in a worktree:
 
-```jsonc
-// Read-only git reporters, paired with the PowerShell entries already above. They print and
-// exit: no working tree is touched, nothing leaves the machine.
+| pattern | what a trailing argument reaches | verdict |
+|---|---|---|
+| `git diff *` | `--output=<path>` writes the diff over any file on disk, exit 0, no output | **fails** |
+| `git log *` | `--output=<path>`, the same | **fails** |
+| `git show *` | `--output=<path>`, the same | **fails** |
+| `git fetch *` | a `+refs/heads/x:refs/heads/main` refspec force-updates a local branch; `--prune` deletes tracking refs | **fails** |
+| `git status *` | it has no `--output`, and nothing else it takes writes | passes |
+| `git add *` | no flag writes anywhere but the index (`--pathspec-from-file` only reads one) | passes |
+
+The three failures were measured, not reasoned: a file holding the word PRECIOUS was replaced by
+`git diff --output=`, then again by `git log -1 --output=`, then again by `git show --output=`,
+while `git status --output=` and `git add --output=` were both rejected with `unknown option`. The
+fetch row is read off git's refspec documentation instead, because measuring it means
+force-updating a branch on this machine.
+
+**Which makes four entries already in the tracked file unsafe by that same test.**
+`.claude/settings.json` lines 125-128 allow `PowerShell(git log *)`, `PowerShell(git diff *)`,
+`PowerShell(git show *)` and `PowerShell(git fetch *)`, and a trailing `--output=` walks through
+every one of them. Nothing suggests anybody has ever done it. The point is narrower and worse: the
+test the doc states and the entries the file carries have drifted apart, and pairing those four
+onto Bash - which is exactly what this row was launched to do - would have doubled the drift rather
+than noticing it. That is the argument for measuring an entry instead of reasoning about it, made
+against this row's own first draft.
+
+So the entries worth adding are the two that nothing can turn into something else. The owner pastes
+them into the `allow` array of the tracked `.claude/settings.json`, in a session he opens himself:
+
+```json
 "Bash(git status *)",
-"Bash(git log *)",
-"Bash(git diff *)",
-"Bash(git show *)",
-// `git fetch` is already allowed bare; the argument form is the one sessions write.
-"Bash(git fetch *)",
-"PowerShell(git add *)",
-// `git add` writes the index and nothing else. It has no destructive flag, so unlike `git push`
-// there is no trailing argument a prefix would have to exclude, and no network path at all.
 "Bash(git add *)",
+"PowerShell(git add *)",
 ```
 
-**Deliberately left out, each for a reason a prefix pattern cannot fix** - trailing arguments still
-match within one segment, which is the same reasoning that keeps `git push` out
-(`docs/AGENT_WORKFLOWS.md`, "Permissions"):
+They go in without comments, because that file is strict JSON and carries none today; the reason
+for an entry lives in `docs/AGENT_WORKFLOWS.md` prose, which is where these two belong. `git status`
+prints and exits. `git add` writes the index and nothing else - unlike `git push` there is no
+trailing argument a prefix would have to exclude, and no network path at all. `PowerShell(git
+status *)` is already on line 124, which is why only the Bash twin is listed.
+
+**Deliberately left out, each for a reason a prefix pattern cannot fix:**
 
 - `git commit` - a trailing `--no-verify` skips the repo's own hooks and a trailing `--amend`
   rewrites the commit under them. No prefix excludes either, and "the gates ran" stops being true.
 - `git push` - the owner's own parked receipt, `docs/backlog/git-push-allow-hook.md`. Untouched.
-- `git checkout`, `git reset`, `git stash`, `git clean` - every one of them discards uncommitted
-  work through a trailing argument, and uncommitted work is the only thing on this machine with no
-  copy anywhere else.
+- `git checkout`, `git reset`, `git stash`, `git clean` - every one discards uncommitted work
+  through a trailing argument, and uncommitted work is the only thing on this machine with no copy
+  anywhere else.
+- `git log`, `git diff`, `git show`, `git fetch` - the `--output=` table above. If these are wanted,
+  they want the shape `git push` wants: a hook that parses the command, the one
+  `docs/backlog/git-push-allow-hook.md` describes, extended to refuse an output redirect. That is a
+  different and larger piece of work, and it would let the four entries already in the file be
+  tightened at the same time.
 
 ## What would actually buy the night back
 
-Nothing in the list above would have saved a single minute in the last five days, and that is the
-finding. If a row is to stop stopping, the lever is the classifier, and the repo's only honest reach
+None of this would have saved a single minute in the last five days, and that is the finding. If a row is to stop stopping, the lever is the classifier, and the repo's only honest reach
 into it is the shape of the commands it writes: plain, separate, short commands rather than a
 compound one-liner carrying a `cd`, a heredoc, a redirect and three `;` chains. Two of the three
 wrongly-refused reads above were that shape. `scripts/hooks/guard-command.mjs` already refuses the
