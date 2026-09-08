@@ -56,6 +56,17 @@
  * All three want the same answer from the loop - REPORT IT, never kill it (orchestrator.md,
  * "The watch loop"). A stalled worker's slot counts as free; its work does not continue.
  *
+ * WHAT THIS IS NOT, and the reason the human output now says so in its own words. This is not an
+ * inventory of live sessions, and it never was: a row exists only where a CALL has no RESULT and
+ * has had none for `--minutes`, so a session that is working - results arriving, turns closing -
+ * cannot qualify. An empty list is therefore silence about every session, not an all-clear about
+ * any. On 2026-09-08 a night loop read the empty list as "nothing is alive", diagnosed a row as
+ * dead while it was committing and about to queue itself, and came within one instrument of
+ * queueing a live session's branch - the 2026-09-05 row Z incident repeating against a different
+ * signal. The header was already careful and the reader still went wrong, which is what moved the
+ * sentence from here into what the script PRINTS, alongside the live-session inventory it already
+ * imports. See `printLiveness` at the bottom.
+ *
  * A session that died days ago keeps being reported until its transcript ages past the lookback
  * window. That is deliberate rather than noise: nothing on disk distinguishes a dead session from
  * a stuck one, and quietly dropping the oldest would drop the worst first.
@@ -74,7 +85,14 @@ import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { describeLiveness, inventoryIndex, livenessFor, sessionIdFromTranscript } from './claude-agents.mjs';
+import {
+  describeLiveness,
+  inventory,
+  inventoryIndex,
+  livenessFor,
+  normalisePath,
+  sessionIdFromTranscript,
+} from './claude-agents.mjs';
 
 const PROJECTS = join(homedir(), '.claude', 'projects');
 /** How much of a transcript's tail to read. Entries are large; a few hundred KB is many turns. */
@@ -110,6 +128,14 @@ const repoRoot = (() => {
   // tool like this must never do.
   return dir.replaceAll('\\', '/');
 })();
+
+/**
+ * The same root spelled the way the inventory spells a `cwd` - resolved, forward slashes, lower
+ * case. The prefix test above compares two strings this script produced itself and can stay as it
+ * is; the inventory's rows come from another process, so a drive letter cased differently there
+ * would silently drop every row and print "no live session" on a machine full of them.
+ */
+const repoRootKey = normalisePath(repoRoot);
 
 /** Every *.jsonl under the projects tree, one level of `subagents/` included. */
 async function transcripts() {
@@ -303,6 +329,48 @@ for (const row of found) {
 const waits = found.filter((f) => f.wrote !== 'moved-on');
 const leftovers = found.filter((f) => f.wrote === 'moved-on');
 
+/**
+ * WHAT IS ACTUALLY RUNNING - printed under every human answer, empty or not.
+ *
+ * This script answers "who is HELD on a call". The question its readers keep asking it instead is
+ * "who is alive", and the two have no overlap: a working session never appears above, so neither
+ * an empty list nor a short one carries any claim about the sessions it does not name. Warning
+ * against the substitution did not work (the header has said it since the file was written and the
+ * loop still made it on 2026-09-08), so the output now ANSWERS the other question rather than
+ * declining it - the live-session inventory this file already reads for each row, printed whole.
+ *
+ * It is not a complete liveness answer either, and says so: the inventory never lists an Agent-tool
+ * subagent, a Codex session or a session on another machine. Deciding a row is gone still takes all
+ * three signals of `.agent-workflows/orchestrator/night.md`, where any one speaking means alive.
+ */
+function printLiveness() {
+  const read = inventory();
+  console.log('\nWHO IS ALIVE is a different question, and this script does not answer it: only a session');
+  console.log('HELD on a call appears above. A working session has results arriving and never qualifies,');
+  console.log('so the list above is silent about it rather than clearing it. What the harness lists:\n');
+  if (!read.available) {
+    console.log(`  unknown - the live-session inventory did not answer (${read.why}).`);
+  } else {
+    const mine = read.rows.filter((row) => {
+      if (everywhere) return true;
+      const at = normalisePath(row?.cwd);
+      return Boolean(at && (at === repoRootKey || at.startsWith(`${repoRootKey}/`)));
+    });
+    const scope = everywhere ? '' : ' in this repo';
+    if (mine.length === 0) {
+      console.log(`  no live session${scope}. Treat that as unknown rather than as none.`);
+    } else {
+      for (const row of mine) {
+        console.log(`  ${row.name ?? row.sessionId ?? 'unnamed'}  pid ${row.pid ?? '?'}  ${row.cwd ?? 'no working directory recorded'}`);
+      }
+    }
+  }
+  console.log('\nThe inventory never lists an Agent-tool subagent, a Codex session or another machine, so it');
+  console.log('is not a liveness verdict on its own. Deciding a row is gone takes all three signals of');
+  console.log('`.agent-workflows/orchestrator/night.md` - inventory, branch-tip age, transcript mtime -');
+  console.log('and any one of them speaking means alive.');
+}
+
 function printRow(f) {
   const who = f.agentId ? `agent ${f.agentId}` : f.cwd.split('/').pop();
   console.log(`  ${who}${f.branch ? ` (${f.branch})` : ''}`);
@@ -312,10 +380,14 @@ function printRow(f) {
   console.log(`    ${f.wroteDetail}`);
 }
 
+// `--json` keeps its shape exactly: a TOP-LEVEL ARRAY of the rows and nothing else. `wave-tick.mjs`
+// parses it and refuses anything that is not an array, and the liveness note below is prose for a
+// person - the tick reads each row's own `liveness` field for the same fact.
 if (asJson) {
   console.log(JSON.stringify(found, null, 2));
 } else if (found.length === 0) {
   console.log(`No session has been waiting on a tool call for ${minutes}+ minutes.`);
+  printLiveness();
 } else {
   if (waits.length === 0) {
     console.log(`No session has been waiting on a tool call for ${minutes}+ minutes.`);
@@ -339,4 +411,5 @@ if (asJson) {
     for (const f of leftovers) printRow(f);
     console.log('\nNobody has to answer these. They are listed because a row that qualified is never dropped.');
   }
+  printLiveness();
 }

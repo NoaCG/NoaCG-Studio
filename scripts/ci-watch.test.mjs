@@ -4,7 +4,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { DEFAULT_EVERY_SECONDS, baseline, errorLines, parseArgs, redLine, step } from './ci-watch.mjs';
+import {
+  DEFAULT_EVERY_SECONDS,
+  REVIEWED_ONLY,
+  baseline,
+  describeRun,
+  errorLines,
+  fetchPr,
+  parseArgs,
+  queuedFromPr,
+  redLine,
+  step,
+} from './ci-watch.mjs';
 
 const T0 = Date.parse('2026-09-05T20:00:00Z');
 const minutes = (n) => new Date(T0 - n * 60_000).toISOString();
@@ -91,6 +102,45 @@ test('a re-run red main run is still red until a run at least as new answers', (
   const passed = { ...red, conclusion: 'success' };
   const after = step(during.state, [passed, olderGreen]);
   assert.deepEqual(after.lines, ['CI GREEN - main is green again on CI (10abcdef) - https://github.com/o/r/actions/runs/10']);
+});
+
+test('a Reviewed-only red says which of the two shapes it is, and never disappears', () => {
+  const queued = describeRun({ items: [REVIEWED_ONLY] }, true);
+  const loose = describeRun({ items: [REVIEWED_ONLY] }, false);
+  const unknown = describeRun({ items: [REVIEWED_ONLY] }, null);
+  assert.match(queued, /IS queued.*runs \/check and queues again/);
+  assert.match(loose, /never queued.*stopped after opening it/);
+  assert.match(unknown, /open the pull request/);
+  // Three different sentences, and every one of them still produces a line: the 2026-09-08
+  // measurement was that all three Reviewed reds of that night were true.
+  assert.equal(new Set([queued, loose, unknown]).size, 3);
+  for (const what of [queued, loose, unknown]) {
+    assert.match(redLine(run(1, { conclusion: 'failure' }), what), /^CI RED - /);
+  }
+});
+
+test('a set with anything besides Reviewed is described by its members as before', () => {
+  assert.equal(describeRun({ items: ['e2e/ai.spec.ts'] }, false), 'e2e/ai.spec.ts');
+  assert.equal(describeRun({ items: [REVIEWED_ONLY, 'e2e/ai.spec.ts'] }, false), `${REVIEWED_ONLY}, e2e/ai.spec.ts`);
+  assert.equal(describeRun({ items: [] }, null), null);
+  assert.equal(describeRun(null, null), null);
+});
+
+test('a pull request is queued when auto-merge is on or the land label is present', () => {
+  assert.equal(queuedFromPr({ autoMergeRequest: { enabledAt: 'now' }, labels: [] }), true);
+  assert.equal(queuedFromPr({ autoMergeRequest: null, labels: [{ name: 'land' }] }), true);
+  assert.equal(queuedFromPr({ autoMergeRequest: null, labels: [{ name: 'docs' }] }), false);
+  assert.equal(queuedFromPr({ autoMergeRequest: null }), false);
+  // No answer stays no answer - it must never harden into one of the two definite sentences.
+  assert.equal(queuedFromPr(null), null);
+  assert.equal(describeRun({ items: [REVIEWED_ONLY] }, queuedFromPr(null)), describeRun({ items: [REVIEWED_ONLY] }, null));
+});
+
+test('fetchPr answers null when gh fails, prints nothing usable, or there is no branch', () => {
+  assert.equal(fetchPr(''), null);
+  assert.equal(fetchPr('claude/x', { run: () => ({ status: 1, stdout: '' }) }), null);
+  assert.equal(fetchPr('claude/x', { run: () => ({ status: 0, stdout: 'not json' }) }), null);
+  assert.deepEqual(fetchPr('claude/x', { run: () => ({ status: 0, stdout: '{"labels":[]}' }) }), { labels: [] });
 });
 
 test('a failed poll prints WATCH ERROR once until gh recovers, then RECOVERED once', () => {

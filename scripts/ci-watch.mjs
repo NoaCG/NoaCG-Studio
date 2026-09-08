@@ -18,6 +18,11 @@
 // not a verdict (`docs/VERIFICATION.md`) and prints nothing. The first poll is a BASELINE: reds
 // older than `--since` minutes at arming are history, not events.
 //
+// NOTHING IS EVER SUPPRESSED, and one class is spelled out instead. A run whose only failing job is
+// `Reviewed` used to print as `job: Reviewed`, which reads like a procedural hiccup and is not one:
+// it means a queued pull request cannot land, or a `/queue-merge` that stopped half-way. It now
+// says which, read off the pull request. See `describeReviewedOnly` for the measurement.
+//
 // Silence is not success (the Monitor rule): a poll that FAILS prints a `WATCH ERROR` line, the
 // same error at most once until `gh` answers again, and the recovery prints once too. Every line
 // is also appended to `<git-common-dir>/noacg-jobs/ci-watch-events.log`, because stdout can be
@@ -37,6 +42,66 @@ export const DEFAULT_LIMIT = 40;
 
 /** Conclusions that are a verdict against the code. `cancelled` is deliberately absent. */
 export const RED = new Set(['failure', 'timed_out']);
+
+/**
+ * The single member a failure set has when the ONLY failing job is ci.yml's `Reviewed` - the check
+ * that reads the `noacg/reviewed` commit status `/queue-merge` posts on a tip. `failureSet` gives a
+ * failing job with no file annotations its own name, and that job annotates nothing with a path.
+ */
+export const REVIEWED_ONLY = 'job: Reviewed';
+
+/**
+ * WHY THIS IS NAMED RATHER THAN SUPPRESSED.
+ *
+ * The night of 2026-09-08 read `CI RED - CI on <branch> - job: Reviewed` as procedural noise: the
+ * pre-queue window every branch passes through, because the stamp only exists once a session
+ * queues. It measured false. `reviewed` does not run on `push` at all (ci.yml: pull_request,
+ * merge_group, or a dispatch asking for it), and a pull request exists only because `/queue-merge`
+ * opened one - and that posts the status within seconds of `pr create`, well before a runner picks
+ * the job up. The same wave queued two more pull requests minutes apart and neither went red.
+ *
+ * All three of that night's `Reviewed` reds were TRUE, and both branches are still unlanded:
+ * a pull request queued the day before whose tip moved twice with no fresh stamp (queue-merge.md,
+ * "a tip that moved after the declaration"), and one whose `/queue-merge` opened the pull request
+ * and then stopped - no status on the tip, no `land` label, no auto-merge, three hours later.
+ * Suppressing on "not queued" would have hidden the second, which is the worse of the two.
+ *
+ * So the fix is the line, not the alarm. `job: Reviewed` names a job and sends the reader to a
+ * dashboard; what they need is which of the two shapes it is, which is one `gh pr view` away.
+ */
+export function describeReviewedOnly(queued) {
+  const head = 'no /check stamp on this tip';
+  if (queued === true) {
+    return `${head} and the pull request IS queued - it cannot land until its own session runs /check and queues again`;
+  }
+  if (queued === false) {
+    return `${head} and the pull request was never queued - the queueing stopped after opening it`;
+  }
+  return `${head} - open the pull request for whether it is queued`;
+}
+
+/**
+ * The `what` half of a red line: the failing spec files, or the review check said in full.
+ * `queued` is only consulted for a `Reviewed`-only set and may be null (GitHub did not answer).
+ */
+export function describeRun(set, queued = null) {
+  const items = set?.items ?? [];
+  if (items.length === 1 && items[0] === REVIEWED_ONLY) return describeReviewedOnly(queued);
+  return items.length > 0 ? describeFailureSet(items) : null;
+}
+
+/**
+ * Is this pull request in the landing queue? `/queue-merge` posts the review status, adds the
+ * `land` label and turns auto-merge on (`scripts/jobs.mjs`, `queueOnGitHub`), so either mark means
+ * a session declared the branch finished. `null` is "GitHub did not say", and null never becomes
+ * one of the two definite sentences above - an alarm may be vague, never wrong.
+ */
+export function queuedFromPr(pr) {
+  if (!pr || typeof pr !== 'object') return null;
+  if (pr.autoMergeRequest) return true;
+  const labels = Array.isArray(pr.labels) ? pr.labels : [];
+  return labels.some((label) => label?.name === 'land');
+}
 
 export function parseArgs(argv) {
   const args = { every: DEFAULT_EVERY_SECONDS, since: DEFAULT_SINCE_MINUTES, limit: DEFAULT_LIMIT, once: false, help: false };
@@ -150,10 +215,32 @@ function repoSlug() {
   return res.status === 0 ? String(res.stdout).trim() || null : null;
 }
 
+/**
+ * The pull request for a branch, or null. Only asked for a `Reviewed`-only red, so the extra call
+ * costs nothing on a normal poll and nothing at all on a quiet one. A merge-group branch
+ * (`gh-readonly-queue/...`) has no pull request of its own and answers null, which is right: that
+ * red is the queue's own gate and wants no queue-state gloss.
+ */
+export function fetchPr(branch, { run = spawnSync } = {}) {
+  if (!branch) return null;
+  const res = run('gh', ['pr', 'view', branch, '--json', 'autoMergeRequest,labels'], {
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 30_000,
+  });
+  if (res?.status !== 0) return null;
+  try {
+    return JSON.parse(res.stdout);
+  } catch {
+    return null;
+  }
+}
+
 function describeFor(repo) {
   return (run) => {
     const set = fetchFailureSet(run.databaseId, { repo });
-    return set.items.length > 0 ? describeFailureSet(set.items) : null;
+    const reviewedOnly = set.items.length === 1 && set.items[0] === REVIEWED_ONLY;
+    return describeRun(set, reviewedOnly ? queuedFromPr(fetchPr(run.headBranch)) : null);
   };
 }
 
