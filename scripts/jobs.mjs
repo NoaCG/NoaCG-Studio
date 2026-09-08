@@ -31,7 +31,6 @@ import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
 import { isGeneratedBody, pullRequestBody, pullRequestTitle } from './pr-description.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
-import { onlyMainIntegrationsBetween } from './safe-merge-preflight.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
 import {
@@ -405,8 +404,14 @@ async function cmdAddMerge() {
   // The local shadow: a merge job whose command only WATCHES the pull request (scripts/land-watch.mjs),
   // so the branch is frozen while it is queued, the tick reports QUEUED and LANDED, and the ledger
   // gets the landing with this checkout as its session - every local reader keeps its one shape.
+  // `--expect-sha` is the DECLARED COMMIT, written here and nowhere else. It is what `requeue`
+  // re-reads to refuse a branch that has moved: that verb takes a branch name and nothing else, it
+  // skips the `/check` stamp gate above because it re-runs a declaration rather than making one,
+  // and the pin is the only thing that keeps it from re-running that declaration over commits
+  // nobody declared. The watcher below verifies it against the pull request's head too, so the
+  // refusal arrives on the first tick instead of an hour later.
   const job = addJob(dir, {
-    command: `node scripts/land-watch.mjs --pr ${queued.number} --branch ${target}`,
+    command: `node scripts/land-watch.mjs --pr ${queued.number} --branch ${target} --expect-sha ${tipForReview}`,
     checkout: process.cwd(),
     branch: target,
     kind: 'merge',
@@ -1258,20 +1263,11 @@ function elapsed(startedAt) {
 /** The commit a branch points at, or null if git cannot say. */
 /**
  * The git questions the queue asks about a landing, in one object so every caller asks the same ones.
- *
- * `main` and not `origin/main` for containment, matching `onlyMainIntegrationsBetween`: the landing
- * merged the LOCAL main and pushed from it, that ref is shared by every worktree of this repo, and
- * it only moves forward - so it answers without needing a fetch and can never be behind a landing
- * this queue made.
  */
 function gitFacts() {
   const gitOk = (args) => ({ ok: spawnSync('git', args, { encoding: 'utf8', windowsHide: true }).status === 0 });
   return {
     tipOf: branchTip,
-    // The queue answers this rather than the landing script, because the landing script a retry
-    // runs is the copy in the BRANCH's checkout - which may predate the rule. See
-    // `retryLandingFor` for the measurement that made that the deciding argument.
-    movedOnlyByItsOwnLanding: (pinned, tip) => onlyMainIntegrationsBetween(pinned, tip),
     // `mainRef`, not the literal 'main': the merge queue stopped fast-forwarding this machine, so
     // a landing that SUCCEEDED reads as one that never happened when measured against the local
     // ref - and that answer is the input to whether a dead landing job gets retried

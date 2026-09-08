@@ -149,7 +149,7 @@ test('a landing REAPED after it pushed produces LANDED and nothing else', () => 
   const reaped = [{
     id: 'j-0533', kind: 'merge', branch: 'claude/a-thing', state: 'failed', finishedAt: NOW,
     exitCode: null, reapedAsDead: true,
-    command: 'node scripts/auto-merge.mjs --branch claude/a-thing --expect-sha e5ace753',
+    command: 'node scripts/land-watch.mjs --pr 12 --branch claude/a-thing --expect-sha e5ace753',
   }];
   const landing = landingStateFor('claude/a-thing', reaped, { inMain: (sha) => sha === 'e5ace753' });
   assert.equal(landing.state, 'landed');

@@ -79,7 +79,7 @@ test('a refusal the SESSION must answer carries the command, and one a person de
     ...window,
   });
   assert.equal(report.counts.needsAPerson, 2);
-  assert.match(report.needsAPerson[0].action, /requeue claude\/a/);
+  assert.match(report.needsAPerson[0].action, /queue:merge/);
   assert.equal(report.needsAPerson[1].action, 'a person decides this one');
 });
 

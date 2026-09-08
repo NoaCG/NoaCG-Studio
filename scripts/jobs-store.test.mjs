@@ -7,7 +7,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -77,7 +76,7 @@ function job(id, over = {}) {
 
 /** A landing job - the cheap, network-bound kind that the weighting exists to let through. */
 function merge(id, over = {}) {
-  return job(id, { kind: 'merge', command: `node scripts/auto-merge.mjs --branch b-${id}`, ...over });
+  return job(id, { kind: 'merge', command: `node scripts/land-watch.mjs --pr 12 --branch b-${id}`, ...over });
 }
 
 function tempQueue() {
@@ -197,7 +196,7 @@ test('cost is read from the command, and an unrecognised command is assumed expe
   assert.equal(costOf({ command: 'node scripts/l3-sweep.mjs scoreboard', kind: 'sweep' }), COST.browser);
   assert.equal(costOf({ command: 'npm run build', kind: 'gate' }), COST.other);
   assert.equal(costOf({ command: 'node --test scripts/x.test.mjs', kind: 'gate' }), COST.other);
-  assert.equal(costOf({ command: 'node scripts/auto-merge.mjs --branch x', kind: 'merge' }), COST.merge);
+  assert.equal(costOf({ command: 'node scripts/land-watch.mjs --pr 12 --branch x', kind: 'merge' }), COST.merge);
   // The asymmetry that matters: undercharging an expensive job puts two dev servers and eight
   // browser workers on a 16 GB laptop; overcharging a cheap one costs some wall clock at night.
   assert.equal(costOf({ command: 'some-tool-nobody-listed', kind: 'gate' }), COST.browser);
@@ -298,12 +297,12 @@ test('a running job whose process is gone is reaped, not left holding a slot', (
 // Both orders are covered, because they are two different lies. Reaping BEFORE the record is
 // written is the writer's job; a record already on disk that says failed is the reader's.
 
-/** A landing that pushed `sha` and was then reaped, exactly as the runner wrote j-0533. */
+/** A landing whose `sha` reached main and was then reaped, exactly as the runner wrote j-0533. */
 const reapedAfterLanding = (sha, over = {}) => merge('j-0533', {
   branch: 'claude/f-contracts-point',
   state: 'running',
   pid: 46044,
-  command: `node scripts/auto-merge.mjs --branch claude/f-contracts-point --expect-sha ${sha}`,
+  command: `node scripts/land-watch.mjs --pr 58 --branch claude/f-contracts-point --expect-sha ${sha}`,
   ...over,
 });
 /** Git's answer: main contains e5ace753 and nothing else. */
@@ -327,9 +326,9 @@ test('a landing reaped after it pushed is recorded done, not failed', () => {
   assert.equal(reapDead([reapedAfterLanding('e5ace753')], () => false, 1_000)[0].state, 'failed');
 });
 
-test('a landing killed at its cap after it pushed is recorded done too', () => {
-  // Same lie, other killer. A landing that pushed and then sat in a `gh run watch` nobody needed
-  // is killed at its 45 minutes having already succeeded.
+test('a landing killed at its cap after it landed is recorded done too', () => {
+  // Same lie, other killer. A watcher whose pull request merged and which then polled on for a
+  // verdict it already had is killed at its cap having already succeeded.
   const job = reapedAfterLanding('e5ace753', { state: 'running', capMinutes: 45 });
   const record = timedOutRecord(job, 1_000, mainHas('e5ace753'));
   assert.equal(record.state, 'done');
@@ -586,7 +585,7 @@ test('a landing that gave up says WHY and hands back the command that re-queues 
 /** A landing killed at its cap, pinned at `sha`, exactly as `add-merge` writes one. */
 const killedLanding = (sha, over = {}) => merge('j-0438', {
   branch: 'claude/d', state: 'timed-out', finishedAt: 100, capMinutes: 45,
-  command: `node scripts/auto-merge.mjs --branch claude/d --expect-sha ${sha}`,
+  command: `node scripts/land-watch.mjs --pr 12 --branch claude/d --expect-sha ${sha}`,
   ...over,
 });
 
@@ -607,32 +606,17 @@ test('a landing killed at its cap is put back, once', () => {
   assert.equal(retryLandingFor({ ...dead, retryCount: MAX_LANDING_RETRIES }, { tipOf: () => 'a878b17' }), null);
 });
 
-test('a retry is RE-PINNED past the previous landing\'s own integration commit', () => {
-  // Measured the hard way as j-0519 on 2026-09-04, queued to prove this mechanism worked. A
-  // landing pushes an integrated commit before it gates, so one killed mid-gate has already moved
-  // the branch past its own pin - and a verbatim retry refuses with "commits arrived after it was
-  // queued", naming commits the first attempt made.
+test('a moved branch is never re-pinned, and is not retried at all', () => {
+  // The safety the pin exists for. A session that woke up and committed has not declared THAT work
+  // finished, so nobody may land it - not a person, and certainly not a sweep running at four in
+  // the morning.
   //
-  // The queue re-pins rather than leaving it to the landing script, because a retry runs the copy
-  // of that script in the BRANCH's checkout, and a branch cut before the rule cannot honour it.
-  const next = retryLandingFor(killedLanding('a878b17'), {
-    tipOf: () => '8a06da8a',
-    movedOnlyByItsOwnLanding: (pinned, tip) => pinned === 'a878b17' && tip === '8a06da8a',
-  });
-  assert.equal(next.command, 'node scripts/auto-merge.mjs --branch claude/d --expect-sha 8a06da8a');
-});
-
-test('a branch that really moved is NOT re-pinned, and is not retried at all', () => {
-  // The safety the pin exists for, and re-pinning must not quietly spend it. A session that woke
-  // up and committed has not declared THAT work finished, so nobody may land it - not a person,
-  // and certainly not a sweep running at four in the morning.
-  assert.equal(
-    retryLandingFor(killedLanding('a878b17'), {
-      tipOf: () => 'cafe1234',
-      movedOnlyByItsOwnLanding: () => false,
-    }),
-    null,
-  );
+  // The pin used to be allowed to MOVE, over commits that were provably the previous landing's own
+  // integration of main (j-0519, 2026-09-04), because the laptop lander merged main into the branch
+  // and pushed the result before it gated - so its own first attempt moved the tip out from under
+  // the pin. GitHub's merge queue builds its temporary merge on GitHub and never writes the branch,
+  // so any movement now is a session's own push and there is nothing left to forgive.
+  assert.equal(retryLandingFor(killedLanding('a878b17'), { tipOf: () => 'cafe1234' }), null);
   // A branch whose tip cannot be read is not one to queue a landing for either.
   assert.equal(retryLandingFor(killedLanding('a878b17'), { tipOf: () => null }), null);
   // With no answer available at all, the default is the safe one.
@@ -756,29 +740,7 @@ test('exit 5 reads as the machine failing to answer, never as a refusal', () => 
   assert.doesNotMatch(reason, /refused/, 'a refusal is a judgement, and this is the absence of one');
 });
 
-test('auto-merge and the queue agree on what exit 5 means', async () => {
-  // The constant is duplicated rather than imported - importing auto-merge pulls the whole
-  // landing script into every reader of the queue - so the two are pinned together here.
-  const src = await readFile(new URL('./auto-merge.mjs', import.meta.url), 'utf8');
-  assert.match(src, new RegExp(`const NO_VERDICT_EXIT = ${NO_VERDICT_EXIT};`));
-});
 
-test('every refusal kind the landing script can print is one this queue has a sentence for', async () => {
-  // The same duplication, for the same reason, and with a sharper failure: a kind auto-merge
-  // prints that `refusalGuidance` does not know falls back to "read the log for which check said
-  // no" - which is the exact sentence this row exists to remove, reappearing silently.
-  const src = await readFile(new URL('./auto-merge.mjs', import.meta.url), 'utf8');
-  const declared = src.slice(src.indexOf('export const REFUSAL = {'), src.indexOf('};', src.indexOf('export const REFUSAL = {')));
-  const kinds = [...declared.matchAll(/:\s*'([a-z-]+)'/g)].map((m) => m[1]);
-  assert.ok(kinds.length >= 15, `expected the landing script's kinds - found ${kinds.length}`);
-  for (const kind of kinds) {
-    assert.ok(refusalGuidance({ kind }, 'claude/c'), `the queue has no sentence for "${kind}"`);
-  }
-  // And the three the queue acts on by name are spelled the same on both sides.
-  for (const shared of [ORDER_BLOCKED_REFUSAL, STALE_PIN_REFUSAL, SHARDS_SKIPPED_REFUSAL]) {
-    assert.ok(kinds.includes(shared), `auto-merge no longer prints "${shared}"`);
-  }
-});
 
 test('a fresh queue after a dead landing wins - the branch is queued again', () => {
   const jobs = [
@@ -907,7 +869,10 @@ test('a landing refusal names its kind, whether the script marks it or only says
     classifyRefusal('auto-merge REFUSED: blocked by claude/f - still ahead of main, and NO landing is queued for it'),
     { kind: 'order-blocked', blockers: ['claude/f'] },
   );
-  assert.equal(classifyRefusal('auto-merge REFUSED: claude/d has moved since it was queued (a -> b)').kind, 'stale-pin');
+  assert.equal(
+    classifyRefusal('land-watch: the landing of claude/d was refused: the branch moved after it was declared finished (a -> b)').kind,
+    'stale-pin',
+  );
   // Everything else is an ordinary refusal and must stay one. A null here is what keeps a red gate
   // or a conflict failing exactly as it always did.
   assert.equal(classifyRefusal('auto-merge REFUSED: the gate is red'), null);
@@ -921,10 +886,10 @@ test('a refusal is read from the LAST attempt, never from one the job already re
   // the attempt header, a landing released from a hold and then refused for a red main reads as
   // blocked again and is parked for another twelve hours on a refusal that will never resolve.
   const twoAttempts = [
-    '=== j-0600 node scripts/auto-merge.mjs --branch claude/j',
+    '=== j-0600 node scripts/land-watch.mjs --pr 12 --branch claude/j',
     'auto-merge REFUSAL-KIND: order-blocked claude/f',
     'auto-merge REFUSED: blocked by claude/f - still ahead of main, and NO landing is queued for it',
-    '=== j-0600 node scripts/auto-merge.mjs --branch claude/j',
+    '=== j-0600 node scripts/land-watch.mjs --pr 12 --branch claude/j',
     'auto-merge REFUSED: main itself is red',
   ].join('\n');
   assert.equal(classifyRefusal(twoAttempts, { attemptMark: '=== j-0600 ' }), null, 'the second attempt refused plainly');
@@ -1057,58 +1022,18 @@ test('a landing held on a branch that is RUNNING its own landing is released', (
   assert.match(waiting[0].reason, /another landing is in flight/);
 });
 
-// ── A budget spent by a bug is not a budget ──────────────────────────────────────────────────────
-
-test('a retry refused by the STALE PIN does not spend the branch\'s one try', () => {
-  // The same night. Before 67374b59 a retry carried the original pin verbatim, and every landing
-  // pushes an integrated commit before it gates - so the retry was refused for the FIRST attempt's
-  // own merge commit. `claude/d-queue-walks-itself`, `claude/f-contracts-point` and
-  // `claude/m-counting-graphic-airs-zero` each lost their single automatic retry that way. Nine
-  // preflight checks passed and the tenth rejected the job for the job's own edit.
-  const refusedRetry = merge('j-0519', {
-    branch: 'claude/d',
-    state: 'failed',
-    exitCode: 1,
-    finishedAt: 100,
-    retryOf: 'j-0438',
-    retryCount: 1,
-    refusal: { kind: 'stale-pin', blockers: [] },
-    command: 'node scripts/auto-merge.mjs --branch claude/d --expect-sha a878b17',
-  });
-  const next = retryLandingFor(refusedRetry, { tipOf: () => '8a06da8a', movedOnlyByItsOwnLanding: () => true });
-  assert.ok(next, 'an attempt that never happened does not count as the attempt');
-  assert.equal(next.retryCount, 1, 'still the first real try, not the second');
-  assert.equal(next.command, 'node scripts/auto-merge.mjs --branch claude/d --expect-sha 8a06da8a');
-  // And it is not unbounded: a stale-pin refusal of THAT retry is the same one try over again.
-  // And it is bounded to exactly one free re-run. The arithmetic hands the successor the same
-  // `retryCount` it started with, so without `repinnedRetry` marking it the budget check could
-  // never trip and a branch that kept being re-pinned would cycle for ever looking busy.
-  assert.equal(next.repinnedRetry, true);
-  assert.equal(
-    retryLandingFor({
-      ...next,
-      id: 'j-0520',
-      state: 'failed',
-      exitCode: 1,
-      retryOf: 'j-0519',
-      refusal: { kind: 'stale-pin', blockers: [] },
-    }, { tipOf: () => '8a06da8a', movedOnlyByItsOwnLanding: () => true }),
-    null,
-    'twice is not the queue refusing its own edit any more - it surfaces for a person',
-  );
-});
-
-test('a stale pin on a landing a SESSION queued still refuses, and always will', () => {
-  // The carve-out is for the queue refusing its own edit. A stale pin on a job with no `retryOf`
-  // means that session committed after declaring the work finished, which is the pin doing exactly
-  // what it exists for - and no sweep may land work nobody declared.
+test('a stale pin still refuses, and always will', () => {
+  // A stale pin means the session committed after declaring the work finished, which is the pin
+  // doing exactly what it exists for - and no sweep may land work nobody declared. It is a verdict
+  // like any other exit-1 refusal, retried never rather than once: the branch is not stuck, it is
+  // ahead of its own declaration, and only its session can make a new one.
   const sessionQueued = merge('j-0438', {
     branch: 'claude/d',
     state: 'failed',
     exitCode: 1,
     finishedAt: 100,
     refusal: { kind: 'stale-pin', blockers: [] },
-    command: 'node scripts/auto-merge.mjs --branch claude/d --expect-sha a878b17',
+    command: 'node scripts/land-watch.mjs --pr 12 --branch claude/d --expect-sha a878b17',
   });
   assert.equal(retryLandingFor(sessionQueued, { tipOf: () => 'cafe1234' }), null);
   // And a refusal kind is not a skeleton key: an ordinary exit-1 refusal carrying neither kind is
@@ -1150,7 +1075,7 @@ test('an ordering block failed by an OLD runner is adopted back, already held', 
     exitCode: 1,
     finishedAt: NOW - 60 * 60_000,
     refusal: { kind: 'order-blocked', blockers: ['claude/f'] },
-    command: 'node scripts/auto-merge.mjs --branch claude/j --expect-sha a878b17',
+    command: 'node scripts/land-watch.mjs --pr 12 --branch claude/j --expect-sha a878b17',
   });
   const next = retryLandingFor(refused, { tipOf: () => 'a878b17' });
   assert.deepEqual(next.orderHold.blockers, ['claude/f']);
@@ -1174,37 +1099,37 @@ test('requeue puts back a landing that gave up, at the commit that was declared'
     finishedAt: 100,
     capMinutes: 45,
     checkout: '/wt/f',
-    command: 'node scripts/auto-merge.mjs --branch claude/f --accept shared-registry --expect-sha a878b17',
+    command: 'node scripts/land-watch.mjs --pr 31 --branch claude/f --expect-sha a878b17',
   });
   const decision = requeueDecision('claude/f', [dead], { tipOf: () => 'a878b17' });
   assert.equal(decision.action, 'queue');
   assert.equal(decision.job.branch, 'claude/f');
   assert.equal(decision.job.retryOf, 'j-0445');
   assert.equal(decision.job.checkout, '/wt/f');
-  // The original command, VERBATIM apart from the pin. That is what makes this a re-run rather than
-  // a new declaration: a judgement a person once made carries forward, and this command cannot add
-  // one - it takes a branch name and refuses every flag.
-  assert.match(decision.job.command, /--accept shared-registry/);
+  // The original command, VERBATIM. That is what makes this a re-run rather than a new
+  // declaration: it watches the pull request the declaration opened, and this command cannot name
+  // another - it takes a branch name and refuses every flag.
+  assert.equal(decision.job.command, dead.command);
   // A fresh automatic budget, because a person put it back rather than the sweep spending its try.
   assert.equal(decision.job.retryCount, 0);
 });
 
-test('requeue re-pins over the previous landing\'s own integration, and over nothing else', () => {
+test('requeue re-runs the declaration at its own commit, and refuses over any other', () => {
   const dead = merge('j-0445', {
     branch: 'claude/f',
     state: 'failed',
     exitCode: 1,
     finishedAt: 100,
-    command: 'node scripts/auto-merge.mjs --branch claude/f --expect-sha a878b17',
+    command: 'node scripts/land-watch.mjs --pr 31 --branch claude/f --expect-sha a878b17',
   });
   assert.match(
-    requeueDecision('claude/f', [dead], { tipOf: () => '8a06da8a', movedOnlyByItsOwnLanding: () => true }).job.command,
-    /--expect-sha 8a06da8a/,
+    requeueDecision('claude/f', [dead], { tipOf: () => 'a878b17' }).job.command,
+    /--expect-sha a878b17/,
   );
-  // A branch that really moved is the whole safety of this being allowlistable: commits arrived
-  // after the work was declared finished, so re-running the old declaration would land something
-  // nobody declared. It refuses, and names the command that CAN say the new work is finished.
-  const moved = requeueDecision('claude/f', [dead], { tipOf: () => 'cafe1234', movedOnlyByItsOwnLanding: () => false });
+  // A branch that moved is the whole safety of this being allowlistable: commits arrived after the
+  // work was declared finished, so re-running the old declaration would land something nobody
+  // declared. It refuses, and names the command that CAN say the new work is finished.
+  const moved = requeueDecision('claude/f', [dead], { tipOf: () => 'cafe1234' });
   assert.equal(moved.action, 'refuse');
   assert.match(moved.message, /nobody declared/);
   assert.match(moved.message, /add-merge claude\/f/);
@@ -1235,7 +1160,7 @@ test('a gate that skipped every shard is recovered by asking for a full run, ONC
     exitCode: 1,
     finishedAt: 100,
     refusal: { kind: 'shards-skipped', blockers: [] },
-    command: 'node scripts/auto-merge.mjs --branch claude/c --expect-sha a878b17',
+    command: 'node scripts/land-watch.mjs --pr 12 --branch claude/c --expect-sha a878b17',
   });
   const next = retryLandingFor(gatedNothing, { tipOf: () => 'a878b17' });
   assert.ok(next, 'a run that proved nothing is not a verdict on the branch');
@@ -1293,11 +1218,12 @@ test('a kind is only marked as the queue\'s to recover if the queue really adopt
       `${kind} claims the queue recovers it, but the queue does not adopt it`,
     );
   }
-  // Stale pin is deliberately NOT claimed, although the queue does adopt some: it adopts only a
-  // stale pin on a RETRY, and the banner reads a job it cannot tell that from. Under-promising is
-  // the safe direction - `requeue` is right either way.
+  // Stale pin is never the queue's to recover, and its recovery must not name `requeue`: that verb
+  // re-runs the declaration the branch has already moved past, so it refuses on the same pin. Only
+  // the branch's own session can declare the new commits finished.
   assert.equal(refusalGuidance({ kind: 'stale-pin' }, 'claude/c').byQueue, false);
-  assert.match(refusalGuidance({ kind: 'stale-pin' }, 'claude/c').recovery, /requeue claude\/c/);
+  assert.match(refusalGuidance({ kind: 'stale-pin' }, 'claude/c').recovery, /queue:merge/);
+  assert.doesNotMatch(refusalGuidance({ kind: 'stale-pin' }, 'claude/c').recovery, /requeue/);
 });
 
 test('a refusal is addressed to the session that owns the branch', () => {
