@@ -54,3 +54,4 @@ the gate rather than landing. Then the wizard e2e specs for behaviour.
 ## Trend
 
 - 2026-08-28: 1,049 lines vs 430 recorded in `ARCHITECTURE.md` §5 (2.4x), 30 commits/month
+- 2026-09-08: **split, not moved, and now larger.** `draft.ts` is a 4-line re-export barrel; the logic sits in `components/wizard/draft/` (`core.ts` 449, `template.ts` 157, `format.ts` 30 = 636 lines) plus a second no-JSX module, `components/wizard/import/draft.ts`, at **1,285 lines**. Total no-JSX draft logic under `components/`: **1,921 lines, up from 1,049**. None of it has JSX; none of it left `components/`

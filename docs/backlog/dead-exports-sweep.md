@@ -59,3 +59,4 @@ at e2e time, so run the affected plan too.
 ## Trend
 
 - 2026-08-28: 22 dead of 814 exports (2.7%)
+- 2026-09-08: 20 of the 24 named symbols still dead; `CONTROL_POLL_MS` (13 references), `CONTROL_TAIL_PAGE` (6), `timerTransition` (2) and `stepOffsets` (2) have since acquired callers and should come off the list when the sweep runs
