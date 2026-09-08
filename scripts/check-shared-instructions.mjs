@@ -147,9 +147,14 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       // The whole workflow rests on this: it assigns work and does none of it, and it never
       // reaches into another worktree - not to merge, not to check, not to tidy. Printing a merge
       // order reads like an offer to merge, so the boundary is pinned in both directions. The
-      // second marker is the OTHER half, added 2026-09-08 after the first reading of "every
-      // command is for the USER to run" produced a plan handed over to be pasted: doing none of
-      // the work never meant making the owner start the rows.
+      // second marker is the OTHER half, added 2026-09-08 after the first reading of the bullet it
+      // replaced produced a plan handed to the owner to paste: doing none of the work never meant
+      // making him start the rows.
+      // WRITING A MARKER INTO PROSE DISARMS IT. The search below is over the core CONCATENATED
+      // with its modules, so a marker quoted word-for-word in a narrative module - an incident
+      // write-up describing the very rule - satisfies itself and the rule can then be deleted from
+      // the contract with a green build. That happened to both markers below on the day the second
+      // was added; the write-up now paraphrases. Quote a pinned sentence nowhere but where it binds.
       'THIS SESSION NEVER ACTS',
       'This session LAUNCHES its own rows',
       'Section 3 is a report, not a pick.',
@@ -537,12 +542,23 @@ function checkNamedAgents(workflowFile, moduleFiles) {
   }
 }
 
+/** Modules that RECORD rather than BIND. A marker may not resolve here - see below. */
+const NARRATIVE_MODULES = new Set(['incidents.md']);
+
 function checkCriticalWorkflowContract(name, workflowFile, moduleFiles) {
   const files = [workflowFile, ...moduleFiles];
   // One contract, however many files it is spread across: a marker satisfied by a module is
   // satisfied, so splitting the file cannot silently drop a pinned rule - and moving a rule
   // between modules needs no gate edit.
-  const normalizedContent = files
+  //
+  // EXCEPT a narrative module, which describes rules instead of carrying them. An incident
+  // write-up quotes the rule it is about, and a quote is byte-identical to the thing pinned - so
+  // searching it lets a marker satisfy ITSELF, and the rule can then be deleted from the contract
+  // with a green build. Measured 2026-09-08, on the marker added that day to stop exactly this
+  // class of drift: both markers of that pair resolved in the write-up alone. Excluding these
+  // files is the fix; quoting a pinned sentence in one is then harmless.
+  const searched = files.filter((file) => !NARRATIVE_MODULES.has(path.basename(file)));
+  const normalizedContent = searched
     .map((file) => text(file))
     .join('\n')
     .replace(/\s+/g, ' ');

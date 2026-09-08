@@ -64,8 +64,8 @@ case and stays the default. Nothing here licenses discarding work that merely ha
 
 - **A session may rewind its OWN unlanded work without asking anyone.** It is inside its own
   branch; that is what a branch is for.
-- **The orchestrator may direct a rewind for a row it launched**, and this stays inside "THIS
-  SESSION NEVER ACTS" because the action is the only verb this session has: write a corrected
+- **The orchestrator may direct a rewind for a row it launched**, and this stays inside the core's
+  never-acts rule because the action is the only verb this session has: write a corrected
   assignment and launch a fresh row in a fresh worktree. **It never reaches into the failed
   worktree** - not to reset it, not to rename its branch, not to remove it. The abandoned branch
   is reported in the morning; the person or the cleanup workflow disposes of it.
