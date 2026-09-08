@@ -1,9 +1,9 @@
 // Import an EXISTING template to edit or convert: a single .html file, or an SPX-style
 // zip (index.html + css/ + js/ + images/ + fonts/). The file is split into the editor's
 // three panes; the SPX definition (if any) stays in the HTML, exactly like generated
-// templates. Foreign templates rarely follow the house contracts — the Style/Motion
-// panels degrade gracefully, validation shows what's missing, and the AI panel's
-// "Make SPX-ready" is the guided fix path. Converting to SPX / CasparCG / OGraf after
+// templates. Foreign templates rarely follow the house contracts — the Style panel and the
+// Inspector's motion side degrade gracefully, validation shows what's missing, and the AI
+// panel's "Make it playout-ready" is the guided fix path. Converting to SPX / CasparCG / OGraf after
 // import is just the normal Export tab.
 
 import JSZip from 'jszip';
