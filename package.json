@@ -103,7 +103,7 @@
     "test:sample-names": "node --test scripts/sample-names.test.mjs",
     "test:local-relay": "node --test scripts/local-relay.test.mjs",
     "test:merge-order": "node --test scripts/merge-order.test.mjs",
-    "test:landing-gates": "node --test scripts/ci-failure-set.test.mjs scripts/red-main-issue.test.mjs scripts/queue-pr.test.mjs scripts/e2e-quarantine.test.mjs scripts/e2e-retry.test.mjs scripts/revert-landing.test.mjs",
+    "test:landing-gates": "node --test scripts/ci-failure-set.test.mjs scripts/red-main-issue.test.mjs scripts/queue-pr.test.mjs scripts/e2e-quarantine.test.mjs scripts/e2e-retry.test.mjs scripts/revert-landing.test.mjs scripts/landing-ruleset.test.mjs",
     "check:owner-setup": "node scripts/owner-preflight.mjs",
     "quarantine": "node scripts/e2e-quarantine.mjs",
     "test:prerender": "node --test scripts/prerender.test.mjs",

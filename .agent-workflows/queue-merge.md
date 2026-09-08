@@ -116,6 +116,20 @@ workflow: the ruleset (`scripts/landing-ruleset.mjs`) requires the queue. Watch 
     gh pr view <number>
     gh run list --workflow ci.yml --limit 5
 
+**Your branch lands as ONE merge commit, and that is settled** (2026-09-09). The queue is pinned to
+`MERGE` rather than squash because five scripts decide "this work is on main" by asking git whether
+the branch's commits are reachable from `origin/main`: `cleanup-worktrees.mjs` reclaims a worktree
+on it, `jobs.mjs` calls a branch unqueued while it is false, and `merge-order.mjs` both ranks by it
+and holds a branch that contains another until that one lands. A squashed branch never satisfies
+it, so under squash every landed branch would stay "ahead of main" forever - worktrees never
+reclaimed, `npm run jobs` filling with finished work, and a stacked child held by a parent that
+already landed. It is not about preserving what CI saw: the queue re-runs `ci.yml` on the merge
+group, so the gate judges a tree, and squash and merge land the same tree. Two things a session
+notices: your fixup commits stay in the history, though `git log --first-parent` still shows one
+line per landing, and a revert of your landing is `git revert -m 1 <sha>`, which
+`scripts/revert-landing.mjs` already writes for you. The argument and the measurements are in
+`scripts/landing-ruleset.mjs`; `npm run land:ruleset` says whether GitHub still agrees with it.
+
 **A refusal shows on the pull request**: a check that failed on the pull request keeps it out
 of the queue, and a group whose `CI gate` failed is dropped from the queue with auto-merge turned
 off. The local watcher job names the failed check. Fix it, run `/check`, and queue again. A

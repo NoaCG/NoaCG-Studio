@@ -39,8 +39,31 @@ export function desiredRuleset({ withReview = true } = {}) {
       {
         type: 'merge_queue',
         parameters: {
-          // A merge commit keeps every landed commit as it was verified; squashing would rewrite
-          // what CI saw. Up to five pull requests are built and merged as one group.
+          // MERGE, BECAUSE FIVE SCRIPTS DEFINE "LANDED" AS COMMIT CONTAINMENT, and only a merge
+          // commit makes a branch an ancestor of `origin/main`. `cleanup-worktrees.mjs` reclaims a
+          // worktree when `rev-list --count <branch> --not origin/main` is 0; `jobs.mjs` calls a
+          // branch unlanded while `origin/main..<branch>` is non-empty, twice; `merge-order.mjs`
+          // ranks by that same count and holds a branch that CONTAINS another until the other
+          // lands. Under SQUASH none of those ever becomes true: the branch's commits are not on
+          // main, its tree stops matching main's the moment the next landing arrives, so
+          // `possiblySquashMerged` misses too, and every landed branch stays "ahead of main"
+          // forever - no worktree reclaimed on a disk-bound laptop, `npm run jobs` filling with
+          // finished work, and a stacked child held by a parent that already landed.
+          //
+          // NOT because of what CI saw: that reason was here until 2026-09-09 and it is false. The
+          // queue re-runs `ci.yml` on the merge group (`merge_group`, on
+          // `gh-readonly-queue/main/pr-N-<sha>`), so `CI gate` judges the TREE of a temporary merge
+          // - and squash and merge both land exactly that tree. Squash discards commit objects, not
+          // bytes. Measured before deciding: `e2e-affected.mjs`'s fork-point planner, the piece
+          // that looked most at risk, gives an identical file plan under both, because main having
+          // no merge commits is the same answer as its stop-line finding one.
+          //
+          // Squash would buy two real things and neither pays for the above: `git revert <sha>`
+          // instead of `revert -m 1 <sha>`, and no agent fixup commits on main. The second is
+          // already had - `git log --first-parent` shows one line per landing, which is what
+          // `revert-landing.mjs`, `deploy-affecting-paths.mjs` and `red-main-issue.mjs` all read.
+          //
+          // Up to five pull requests are built and merged as one group.
           merge_method: 'MERGE',
           max_entries_to_build: 5,
           min_entries_to_merge: 1,
@@ -99,6 +122,49 @@ export function findExisting(rulesets, name = RULESET_NAME) {
   return (rulesets ?? []).find((r) => r.name === name) ?? null;
 }
 
+/**
+ * The fields a landing depends on, flattened to name -> value so a difference can be NAMED.
+ *
+ * A deep comparison is the wrong instrument: GitHub's copy carries `id`, `node_id`, timestamps and
+ * `_links` that this file neither sets nor cares about, and rules arrive in whatever order the API
+ * feels like. Flattening first means the answer is about landing behaviour rather than about JSON.
+ */
+export function rulesetFacts(ruleset) {
+  const rules = new Map((ruleset?.rules ?? []).map((r) => [r.type, r.parameters ?? {}]));
+  const queue = rules.get('merge_queue') ?? {};
+  const checks = rules.get('required_status_checks')?.required_status_checks ?? [];
+  return {
+    enforcement: ruleset?.enforcement ?? '',
+    branches: (ruleset?.conditions?.ref_name?.include ?? []).join(', '),
+    rules: [...rules.keys()].sort().join(', '),
+    'merge method': queue.merge_method ?? '',
+    'group size': String(queue.max_entries_to_merge ?? ''),
+    grouping: queue.grouping_strategy ?? '',
+    'required checks': checks.map((c) => c.context).join(', '),
+    bypass: (ruleset?.bypass_actors ?? []).map((a) => `${a.actor_type}:${a.actor_id}:${a.bypass_mode}`).join(', '),
+  };
+}
+
+/**
+ * Every fact GitHub disagrees with this file about, as lines somebody can act on.
+ *
+ * This is the question the script exists to answer and until 2026-09-09 it did not: a plain run
+ * printed the ruleset's id and then dumped the WANTED JSON, leaving a person to compare two
+ * structures by eye - and the summary it printed came from the list endpoint, which carries no
+ * `rules` at all, so the merge method was not even on screen to compare. `main` therefore reads the
+ * detail and prints a verdict.
+ *
+ * @param {object|null} held the ruleset GitHub holds, read from `repos/{slug}/rulesets/{id}`
+ */
+export function rulesetDrift(held, wanted) {
+  if (!held) return ['no ruleset of this name exists on GitHub'];
+  const there = rulesetFacts(held);
+  const here = rulesetFacts(wanted);
+  return Object.keys(here)
+    .filter((key) => there[key] !== here[key])
+    .map((key) => `${key}: GitHub has ${there[key] || '(nothing)'}, this file wants ${here[key] || '(nothing)'}`);
+}
+
 function main() {
   const apply = process.argv.includes('--apply');
   const withReview = !process.argv.includes('--without-review');
@@ -106,8 +172,17 @@ function main() {
   const existing = findExisting(JSON.parse(gh(['api', `repos/${slug}/rulesets`])));
   const wanted = desiredRuleset({ withReview });
   if (!apply) {
-    console.log(`[landing-ruleset] ${slug}: ${existing ? `ruleset ${existing.id} "${existing.name}" (${existing.enforcement})` : 'no ruleset named as wanted'}`);
-    console.log(JSON.stringify(wanted, null, 2));
+    // The list endpoint answers "does one exist"; only the detail endpoint carries the rules the
+    // drift is about, so a found ruleset costs one more call.
+    const held = existing ? JSON.parse(gh(['api', `repos/${slug}/rulesets/${existing.id}`])) : null;
+    const drift = rulesetDrift(held, wanted);
+    console.log(`[landing-ruleset] ${slug}: ${held ? `ruleset ${held.id} "${held.name}" (${held.enforcement})` : 'no ruleset named as wanted'}`);
+    for (const [key, value] of Object.entries(rulesetFacts(wanted))) console.log(`  wanted ${key}: ${value || '(nothing)'}`);
+    if (drift.length === 0) {
+      console.log('GitHub matches this file on every field a landing depends on. Nothing to apply.');
+      return;
+    }
+    for (const line of drift) console.log(`  DRIFT ${line}`);
     console.log('Run with --apply to create or update it.');
     return;
   }
