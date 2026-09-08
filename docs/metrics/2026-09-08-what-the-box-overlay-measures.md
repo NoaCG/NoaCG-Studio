@@ -29,6 +29,9 @@ sideways, half a line vertically. The overlay makes the same two substitutions.
 | Answer | sideways (left) | 34 | 34, unchanged | 452 of a 520 plate |
 | Answer | vertical (middle) | 47 | **17** | 42 |
 
+The two substituted figures also check out against the file: 18 is half of the 36 px the question
+is drawn at (the size D3's table records), and 22 is half a 1.2-em line of it.
+
 **215 is the confirmation worth keeping.** The 2026-09-02 ruling note records the runtime measuring
 "216 units of room rather than 198" on this same plate after the vertical snap was built. The
 overlay, which shares no code with it and measures on a different canvas, draws 215. That agreement
