@@ -89,9 +89,11 @@ import {
   describeLiveness,
   inventory,
   inventoryIndex,
+  isUnder,
   livenessFor,
   normalisePath,
   sessionIdFromTranscript,
+  sessionState,
 } from './claude-agents.mjs';
 
 const PROJECTS = join(homedir(), '.claude', 'projects');
@@ -130,10 +132,14 @@ const repoRoot = (() => {
 })();
 
 /**
- * The same root spelled the way the inventory spells a `cwd` - resolved, forward slashes, lower
- * case. The prefix test above compares two strings this script produced itself and can stay as it
- * is; the inventory's rows come from another process, so a drive letter cased differently there
- * would silently drop every row and print "no live session" on a machine full of them.
+ * The same root, spelled the one way `isUnder` compares paths.
+ *
+ * EVERY `cwd` THIS SCRIPT FILTERS ON CAME FROM ANOTHER PROCESS - the inventory's rows from the
+ * harness, and a transcript's `cwd` from the session that wrote it. Neither is this script's own
+ * spelling, so neither may be compared with a bare `startsWith`: one lower-case drive letter drops
+ * a genuinely blocked session and prints "No session has been waiting", which is the one answer
+ * the fallback above already says a tool like this must never manufacture. The same test also puts
+ * a `/` on the boundary, so a sibling checkout at `NoaCG-Studio-old` stops counting as this repo.
  */
 const repoRootKey = normalisePath(repoRoot);
 
@@ -284,7 +290,7 @@ for (const file of await transcripts()) {
   if (!Number.isFinite(since)) continue;
   const waited = Math.round((now - since) / 60_000);
   if (waited < minutes) continue;
-  if (!everywhere && !w.cwd.startsWith(repoRoot)) continue;
+  if (!everywhere && !isUnder(w.cwd, repoRootKey)) continue;
   const stamps = entries.map((e) => Date.parse(e?.timestamp)).filter(Number.isFinite);
   const lastEntryMs = stamps.length ? Math.max(...stamps) : NaN;
   // STAT AFTER READING, and this is not the redundant call it looks like - `transcripts()` also
@@ -305,7 +311,11 @@ for (const file of await transcripts()) {
 }
 found.sort((a, b) => b.waitedMinutes - a.waitedMinutes);
 
-// The third signal, read once for the whole run and only when there is something to say about.
+// The third signal, ANNOTATING THE ROWS - so it is read here only when there are rows to annotate.
+// `printLiveness` reads it unconditionally further down, and the two do not conflict: `inventory()`
+// caches per process, so the second reader costs nothing when the first already ran, and the
+// `--json` path never calls `printLiveness` at all. That last part is what keeps the tick free:
+// `wave-tick.mjs` runs this with `--json` every tick and still spawns nothing on a quiet one.
 // A machine whose inventory does not answer produces `unknown` on every row, which is exactly
 // what this script reported before the signal existed.
 const live = found.length ? inventoryIndex() : { available: false, index: null };
@@ -343,32 +353,50 @@ const leftovers = found.filter((f) => f.wrote === 'moved-on');
  * subagent, a Codex session or a session on another machine. Deciding a row is gone still takes all
  * three signals of `.agent-workflows/orchestrator/night.md`, where any one speaking means alive.
  */
+/**
+ * One inventory row as a line. `status` and `waitingFor` are printed WHENEVER the build publishes
+ * them, because they carry the distinction this whole file is about: a listed session that is
+ * itself sitting at an unanswered prompt is live and stuck, not live and working, and a reader
+ * given only a pid cannot tell those apart.
+ */
+function describeRow(row) {
+  const { status, waitingFor } = sessionState(row);
+  const state = status ? `  ${status}${waitingFor ? ` (${waitingFor})` : ''}` : '';
+  return `${row.name ?? row.sessionId ?? 'unnamed'}  pid ${row.pid ?? '?'}${state}  `
+    + `${row.cwd ?? 'no working directory recorded'}`;
+}
+
 function printLiveness() {
   const read = inventory();
-  console.log('\nWHO IS ALIVE is a different question, and this script does not answer it: only a session');
-  console.log('HELD on a call appears above. A working session has results arriving and never qualifies,');
-  console.log('so the list above is silent about it rather than clearing it. What the harness lists:\n');
+  console.log(
+    '\nWHO IS ALIVE is a different question, and this script does not answer it: only a session\n'
+      + 'HELD on a call appears above. A working session has results arriving and never qualifies,\n'
+      + 'so the list above is silent about it rather than clearing it. What the harness lists:\n',
+  );
   if (!read.available) {
     console.log(`  unknown - the live-session inventory did not answer (${read.why}).`);
   } else {
-    const mine = read.rows.filter((row) => {
-      if (everywhere) return true;
-      const at = normalisePath(row?.cwd);
-      return Boolean(at && (at === repoRootKey || at.startsWith(`${repoRootKey}/`)));
-    });
+    const mine = read.rows.filter((row) => everywhere || isUnder(row?.cwd, repoRootKey));
+    const elsewhere = read.rows.length - mine.length;
     const scope = everywhere ? '' : ' in this repo';
     if (mine.length === 0) {
-      console.log(`  no live session${scope}. Treat that as unknown rather than as none.`);
+      // SAY WHAT WAS FILTERED OUT. An inventory that answered with rows and a filter that matched
+      // none of them look identical to a reader unless the count is printed - and this line is
+      // read by somebody deciding whether a row is gone, so a mis-scoped filter must be visible
+      // rather than quietly indistinguishable from a quiet machine.
+      const held = elsewhere > 0 ? ` The inventory holds ${elsewhere} elsewhere.` : '';
+      console.log(`  no live session${scope}. Treat that as unknown rather than as none.${held}`);
     } else {
-      for (const row of mine) {
-        console.log(`  ${row.name ?? row.sessionId ?? 'unnamed'}  pid ${row.pid ?? '?'}  ${row.cwd ?? 'no working directory recorded'}`);
-      }
+      for (const row of mine) console.log(`  ${describeRow(row)}`);
+      if (elsewhere > 0) console.log(`  (${elsewhere} more outside this repo - \`--all\` lists them)`);
     }
   }
-  console.log('\nThe inventory never lists an Agent-tool subagent, a Codex session or another machine, so it');
-  console.log('is not a liveness verdict on its own. Deciding a row is gone takes all three signals of');
-  console.log('`.agent-workflows/orchestrator/night.md` - inventory, branch-tip age, transcript mtime -');
-  console.log('and any one of them speaking means alive.');
+  console.log(
+    '\nThe inventory never lists an Agent-tool subagent, a Codex session or another machine, so it\n'
+      + 'is not a liveness verdict on its own. Deciding a row is gone takes all three signals of\n'
+      + '`.agent-workflows/orchestrator/night.md` - inventory, branch-tip age, transcript mtime -\n'
+      + 'and any one of them speaking means alive.',
+  );
 }
 
 function printRow(f) {

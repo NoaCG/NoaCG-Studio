@@ -140,7 +140,18 @@ test('fetchPr answers null when gh fails, prints nothing usable, or there is no 
   assert.equal(fetchPr(''), null);
   assert.equal(fetchPr('claude/x', { run: () => ({ status: 1, stdout: '' }) }), null);
   assert.equal(fetchPr('claude/x', { run: () => ({ status: 0, stdout: 'not json' }) }), null);
-  assert.deepEqual(fetchPr('claude/x', { run: () => ({ status: 0, stdout: '{"labels":[]}' }) }), { labels: [] });
+  assert.equal(fetchPr('claude/x', { run: () => ({ status: 0, stdout: '[]' }) }), null);
+  assert.deepEqual(fetchPr('claude/x', { run: () => ({ status: 0, stdout: '[{"labels":[]}]' }) }), { labels: [] });
+});
+
+test('fetchPr asks for OPEN pull requests by head branch, never `pr view`', () => {
+  // `pr view` answers with a MERGED pull request when a branch has no open one, and the `land`
+  // label outlives the landing - so the state filter is what stops "it cannot land" being printed
+  // about a pull request that already did.
+  let argv = null;
+  fetchPr('claude/x', { run: (_cmd, args) => { argv = args; return { status: 0, stdout: '[]' }; } });
+  assert.equal(argv[1], 'list');
+  assert.deepEqual(argv.slice(2, 8), ['--head', 'claude/x', '--base', 'main', '--state', 'open']);
 });
 
 test('a failed poll prints WATCH ERROR once until gh recovers, then RECOVERED once', () => {

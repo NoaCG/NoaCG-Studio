@@ -86,8 +86,18 @@ export function describeReviewedOnly(queued) {
  */
 export function describeRun(set, queued = null) {
   const items = set?.items ?? [];
-  if (items.length === 1 && items[0] === REVIEWED_ONLY) return describeReviewedOnly(queued);
+  if (isReviewedOnly(set)) return describeReviewedOnly(queued);
   return items.length > 0 ? describeFailureSet(items) : null;
+}
+
+/**
+ * Did this run fail on the review check and NOTHING else? The one place the test is written, so
+ * the caller that decides whether to look the pull request up and the one that words the line
+ * cannot drift apart about what "only Reviewed" means.
+ */
+export function isReviewedOnly(set) {
+  const items = set?.items ?? [];
+  return items.length === 1 && items[0] === REVIEWED_ONLY;
 }
 
 /**
@@ -216,21 +226,30 @@ function repoSlug() {
 }
 
 /**
- * The pull request for a branch, or null. Only asked for a `Reviewed`-only red, so the extra call
- * costs nothing on a normal poll and nothing at all on a quiet one. A merge-group branch
- * (`gh-readonly-queue/...`) has no pull request of its own and answers null, which is right: that
- * red is the queue's own gate and wants no queue-state gloss.
+ * The OPEN pull request for a branch, or null. Only asked for a `Reviewed`-only red, so the extra
+ * call costs nothing on a normal poll and nothing at all on a quiet one.
+ *
+ * The lookup is `pr list --head --base --state open`, the form `jobs.mjs` and `queue-pr.mjs`
+ * already use, and the state filter is the load-bearing part. `gh pr view <branch>` answers with a
+ * MERGED pull request when the branch has no open one, and nothing in this repo ever removes the
+ * `land` label - so a landed branch still carries it, and reading that would print "it cannot land"
+ * about a pull request that landed hours ago. The list form also cannot mistake a branch name for a
+ * pull request number, which `pr view` does for a numeric one.
+ *
+ * Null is "no open pull request, or GitHub did not answer", and null keeps the vague sentence: a
+ * merge-group branch (`gh-readonly-queue/...`) has none of its own and lands there correctly, since
+ * that red is the queue's own gate and wants no queue-state gloss.
  */
 export function fetchPr(branch, { run = spawnSync } = {}) {
   if (!branch) return null;
-  const res = run('gh', ['pr', 'view', branch, '--json', 'autoMergeRequest,labels'], {
-    encoding: 'utf8',
-    windowsHide: true,
-    timeout: 30_000,
-  });
+  const res = run(
+    'gh',
+    ['pr', 'list', '--head', branch, '--base', 'main', '--state', 'open', '--json', 'autoMergeRequest,labels', '--limit', '1'],
+    { encoding: 'utf8', windowsHide: true, timeout: 30_000 },
+  );
   if (res?.status !== 0) return null;
   try {
-    return JSON.parse(res.stdout);
+    return JSON.parse(res.stdout)[0] ?? null;
   } catch {
     return null;
   }
@@ -239,8 +258,7 @@ export function fetchPr(branch, { run = spawnSync } = {}) {
 function describeFor(repo) {
   return (run) => {
     const set = fetchFailureSet(run.databaseId, { repo });
-    const reviewedOnly = set.items.length === 1 && set.items[0] === REVIEWED_ONLY;
-    return describeRun(set, reviewedOnly ? queuedFromPr(fetchPr(run.headBranch)) : null);
+    return describeRun(set, isReviewedOnly(set) ? queuedFromPr(fetchPr(run.headBranch)) : null);
   };
 }
 
