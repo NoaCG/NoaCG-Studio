@@ -257,7 +257,8 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
 - **easings.ts** - the easing catalog; the doctrine is in src/templates/AGENTS.md +
   DESIGN_LANGUAGE §4.
 - **cssVars.ts** - `:root` variable read/write helpers plus the colour model (`parseCssColor` /
-  `formatCssColor` / `contrastRatio`); the doctrine is in src/blocks/AGENTS.md.
+  `formatCssColor` / `contrastRatio`) and `cssPaintsWith`; the doctrine is two rules in the
+  contract store - `npm run rules -- src/model/cssVars.ts` prints them.
 - **slug.ts** - the folder/zip/channel slug, shared by control and export (in the kernel so
   neither imports the other).
 - **externalRefs.ts** - `ensureExternalRefs`: an imported template's HTML references the css/js/

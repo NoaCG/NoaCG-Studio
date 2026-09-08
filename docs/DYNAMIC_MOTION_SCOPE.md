@@ -9,7 +9,7 @@ deliberately cannot express (`docs/PRESET_MODEL_REVIEW.md` gap 6, and gap 3's sp
 Status: **BUILT AND SHIPPED.** The `dynamics` primitive is in the model, the interpreter, the
 importer, validation, and the timeline; tickers and end credits create as data blocks on it. The
 open questions in §8 are ratified below. This document is now the *rationale* record — the
-binding contracts live in `src/blocks/CLAUDE.md` (the engine) and `src/templates/CLAUDE.md` (the
+binding contracts live in `src/blocks/AGENTS.md` (the engine) and `src/templates/AGENTS.md` (the
 category runtimes).
 
 **The one design change from the sketch below:** the region does not need a new "reference a
@@ -216,7 +216,7 @@ turned out to be the purest case of all: every one of their motions is measured 
 the operator's figure, each bar grows to its own `data-value`, the ring draws to that percent, the
 cascade runs one row per line they wrote), so all four presets became a keyframed panel entrance plus
 one named builder (`igMotion.ts`). Two things the infographic pass taught, both now in
-src/templates/CLAUDE.md: a builder may COMPOSE another (count-up adds the bar growth once the figure
+src/templates/AGENTS.md: a builder may COMPOSE another (count-up adds the bar growth once the figure
 lands), and a `tl.add()` needs an EXPLICIT position whenever a phase has more than one — a segment is
 zero-advance on the importer's clock but a real child on GSAP's, so a bare `'-=N'` after one resolves
 differently in the two.
