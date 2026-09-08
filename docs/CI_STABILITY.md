@@ -98,6 +98,32 @@ behaviour: `gh run list` reports each run at its latest attempt, so a red run so
 reads as green, which is the right answer to "is `main` green *now*". The two uses are consistent -
 a historical sweep must walk the attempts, a live health check must not.
 
+**A sub-shape worth naming: THE GATE ITSELF BROKE (2026-09-08).** Every class above assumes the
+gate works and the code does not. The nightly's `catalog-gates` job went red with all 504 designs
+fine: `scripts/type-floor.mjs` read its floors by running a **regex over the declaration** in
+`src/validation/typeFloor.ts`, that file became a re-export when the numbers moved to
+`src/model/designRules.ts`, the regex matched nothing, and the script threw at module load. Nothing
+was measured that night, and the run said "red" in exactly the tone it uses for a real finding.
+
+Two things made it expensive out of proportion to the fix, and both are mechanisms rather than
+opinions:
+
+- **A gate must read its subject the way the product does.** The script drove a live dev server
+  already, and three sibling scripts already import a `/src/*.ts` module through it - so parsing the
+  source text was a second reading of a shape that only ever had one owner. It now imports the
+  module, and the numbers can move again behind that name without the gate noticing. A gate that
+  parses is a gate that a refactor can silently disarm.
+- **A job that runs N tools must say WHICH one failed.** The step ran five scripts under
+  `|| status=1` and exited once at the bottom; four printed PASS *after* the one that died. Naming
+  the failure took a stack-trace grep through ~900 log lines, because a gate that fails by
+  CRASHING prints no report of its own. Each gate now prints `GATE PASS/FAIL - <name>` and the step
+  ends with `CATALOG GATES FAILED: <names>`.
+
+The reason it survived the landing at all: this tier runs nightly and **the merge queue gates on
+`ci.yml` alone**, which is the same gap the weekly audit sits in (`docs/STACK_FRESHNESS.md`).
+Breakage here is invisible to landing by design; the alarm is the only reader, so it has to be
+legible.
+
 ### 2. CANCELLED-BY-PUSH - 99 runs, 93 on feature branches
 
 `cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}` collapsing a branch's older run when a

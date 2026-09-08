@@ -156,13 +156,35 @@ jobs:
           # 117 today, and the features above it (relative colour 119, the unprefixed mask
           # shorthand 120, light-dark 123) drop silently on air, so nothing else would catch a
           # new template reaching for one.
-          status=0
-          node scripts/type-floor.mjs || status=1
-          node scripts/overflow-sweep.mjs --baseline || status=1
-          node scripts/field-coverage.mjs || status=1
-          node scripts/numerals.mjs || status=1
-          node scripts/engine-floor.mjs --fail || status=1
-          exit "$status"
+          #
+          # EACH GATE NAMES ITSELF, and the job ends with the list of the ones that failed.
+          # Before this, the job's only signal was `exit 1` at the bottom: on 2026-09-08
+          # type-floor.mjs crashed at module load, four gates printed PASS after it, and working
+          # out which of the five was red meant grepping a stack trace out of ~900 log lines. The
+          # summary line is also what the verdict job's reader wants - a gate that fails by
+          # CRASHING prints no report of its own, so without this the log says nothing at all.
+          failed=""
+          gate() {
+            name="$1"
+            shift
+            echo "--- GATE: $name ---"
+            if "$@"; then
+              echo "GATE PASS - $name"
+            else
+              echo "GATE FAIL - $name"
+              failed="$failed $name"
+            fi
+          }
+          gate type-floor     node scripts/type-floor.mjs
+          gate overflow-sweep node scripts/overflow-sweep.mjs --baseline
+          gate field-coverage node scripts/field-coverage.mjs
+          gate numerals       node scripts/numerals.mjs
+          gate engine-floor   node scripts/engine-floor.mjs --fail
+          if [ -n "$failed" ]; then
+            echo "CATALOG GATES FAILED:$failed"
+            exit 1
+          fi
+          echo "CATALOG GATES: all five passed."
 
   report:
     name: Combined nightly report
