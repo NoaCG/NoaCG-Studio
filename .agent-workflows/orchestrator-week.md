@@ -64,18 +64,25 @@ outsider could not follow is a line he cannot check.
 
 ### The two or three questions, and nothing else
 
-End Part A with **at most three questions**, and hold each one to a single test:
+End Part A with **at most three questions**, and apply the ask-test the repo already has rather than
+a second one. The invariant `root/question-owner-names-reason-own-text` gives a question to the
+owner five possible reasons - `needs: account`, `money`, `identity`, `harness`, `alignment` - and
+this page owns exactly one of them. **Every question here is a `needs: alignment` question, and it
+must say so in its own text.** The other four reach him when they arise, through whatever session
+hits them; they do not wait for Tuesday.
+
+So the filter is the orchestrator's §6 ask-test narrowed to that one reason:
 
 > Would his answer change WHAT we build or IN WHICH ORDER, in a way no model can derive from the
 > docs?
 
-That is the whole filter. A question about direction, taste, what NoaCG is for, or whether an item
-still deserves its place in `NOW` passes it. **A technical question, a design question, a merge
-conflict, a "which first" the plan already answers, and anything of the form "is this okay?" all
-fail it** - those were removed from him by the 2026-09-05 ruling, and putting one here reintroduces
-the gate through the back door. Decide them, record the decision where he can revert it, keep
-working. If a week has no such question, say *"nothing needs you this week"* and mean it - a
-manufactured question is worse than none, because it teaches him the page is padding.
+A question about direction, taste, what NoaCG is for, or whether an item still deserves its place in
+`NOW` passes. **A technical question, a design question, a merge conflict, a "which first" the plan
+already answers, and anything of the form "is this okay?" all fail** - those were removed from him
+by the 2026-09-05 ruling, and putting one here reintroduces the gate through the back door. Decide
+them, record the decision where he can revert it, keep working. If a week has no such question, say
+*"nothing needs you this week"* and mean it - a manufactured question is worse than none, because it
+teaches him the page is padding.
 
 Where the plan and the vision could differ is usually one of these, and they are worth looking for
 by name: an item in `NOW` that has been there for weeks without moving, and may no longer be what he
@@ -102,8 +109,9 @@ the same session that reads it. Routines report; sessions write.
   finding (`docs/MISTAKE_TRIGGERS.md`, the four places a lesson can live).
 - `.agent-workflows/orchestrator/incidents.md`: the entries dated this week, read for repeats -
   the same shape in a new costume is a mechanism that did not fire, never a new incident.
-- The last morning brief's alignment questionnaire (the newest `*-wave-plan.local.md`): which
-  `DECIDED:` items were the machine's to take, and which asks in the week's handoffs were not.
+- The last wave plan's alignment questionnaire (the newest `*-wave-plan.local.md`, written by
+  `orchestrator/report.md` item 10 - NOT by the morning brief, which writes no questionnaire):
+  which `DECIDED:` items were the machine's to take, and which asks in the week's handoffs were not.
 - **The routines against the scheduler.** List the scheduled tasks and compare them to the table in
   `docs/ROUTINES.md`: every row has a registered task, every registered task has a row, and the
   cadences match on both sides. Say which side is wrong when they disagree - usually the doc, but on

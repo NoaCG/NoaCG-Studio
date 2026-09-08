@@ -86,11 +86,16 @@ same name.
 2026-09-05: *"We need to have the agents aligned with my thoughts about NoaCG and we could have
 weekly alignment checks so we make sure that we have the same plan and vision. The rest we can
 automate."* The same ruling removed him from every technical and design question. So the session's
-first half is the alignment check - the week's plan in five minutes, and at most three questions,
-each of which must pass one test: *would his answer change what we build or in which order, in a way
-no model can derive from the docs?* A technical question, a merge conflict, a "which first" the plan
-already answers, and anything of the form "is this okay?" all fail that test and are decided by the
-strongest available model, recorded where he can revert them.
+first half is the alignment check - the week's plan in five minutes, and at most three questions.
+
+**The questions use the ask-test the repo already has, not a second one.** The invariant
+`root/question-owner-names-reason-own-text` gives a question to the owner five reasons - account,
+money, identity, harness, alignment - and this page owns `alignment` alone; the other four reach him
+when they arise and never wait for Tuesday. Narrowed to that reason the test reads: *would his
+answer change what we build or in which order, in a way no model can derive from the docs?* A
+technical question, a merge conflict, a "which first" the plan already answers, and anything of the
+form "is this okay?" all fail it and are decided by the strongest available model, recorded where he
+can revert them.
 
 **Unanswered is not a stop.** If he does not answer, the plan stands and the queue keeps working
 toward it. Nothing in NoaCG waits on this page. That is the property that makes "the rest we can
@@ -172,8 +177,8 @@ The three superseded tasks - `nightly-ci-morning-report`, `weekly-feedback-and-f
 `weekly-orchestrator-review` - are **disabled, not deleted**, and their descriptions say what
 replaced them. They are years of tuning that took real incidents to earn, and a disabled task costs
 nothing; if a merged routine turns out worse than the pair it replaced, the old prompt is still
-there. Listing the scheduler therefore shows eight tasks and five schedules, which is why this table
-is the one that counts.
+there. Listing the scheduler therefore shows eight tasks, five of them enabled, which is why the
+table above is the one that counts.
 
 ## The parked mail digest
 
