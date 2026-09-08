@@ -24,7 +24,6 @@
       "Bash(npm run check:models)",
       "Bash(npm run check:freshness)",
       "Bash(npm run check:migration-drift)",
-      "Bash(npm run check:main-health)",
       "Bash(npm run check:e2e-durations)",
       "Bash(npm run catalog:affected)",
       "Bash(npm run catalog:affected *)",

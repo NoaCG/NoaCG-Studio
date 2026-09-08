@@ -330,10 +330,11 @@ function sentenceFlag(name, example) {
 /**
  * Queue a LANDING for one branch.
  *
- * `kind: 'merge'` is what makes it safe to queue several at once: a merge never runs beside
- * anything, so they drain strictly one at a time whatever the clock allows. `auto-merge.mjs`
- * refuses anything that is not a `clear` verdict with clean trees and a green gate, so a queue
- * of these lands the boring ones and leaves the interesting ones for a person.
+ * `kind: 'merge'` is what makes it safe to queue several at once: a merge job never runs beside
+ * anything, so the local watchers drain strictly one at a time whatever the clock allows. The
+ * landing itself is GitHub's, and its gates are the pull request's required checks - so a queue of
+ * these lands the boring ones and leaves the interesting ones sitting on their pull requests for
+ * a person.
  */
 async function cmdAddMerge() {
   // No branch given means THIS worktree's - the overwhelmingly common case, and the safe default.
@@ -341,7 +342,7 @@ async function cmdAddMerge() {
   // still working on a branch must never have it landed out from under the conversation.
   const target = args[1] && !args[1].startsWith('-') ? args[1] : currentBranch();
   if (!target || target === 'main' || target === 'HEAD') {
-    console.error('Usage: node scripts/jobs.mjs add-merge [branch] [--after <id>] [--accept <kind>] [--attempts <n>] [--onto-red-main]');
+    console.error('Usage: node scripts/jobs.mjs add-merge [branch] [--why "<reason>"] [--unreviewed "<reason>"]');
     console.error('  With no branch it queues this worktree\'s. It refuses main and a detached HEAD.');
     process.exit(1);
   }
@@ -381,13 +382,21 @@ async function cmdAddMerge() {
   }
   // THE QUEUE IS ON GITHUB (2026-09-06, docs/WORKFLOW_ARCHITECTURE.md §5.2). Queueing means:
   // push the branch, open (or reuse) its pull request, post the review verdict as the
-  // `noacg/reviewed` commit status on the tip, and add the `land` label. The Land workflow
-  // (.github/workflows/land.yml, scripts/land.mjs) does the rest, one landing at a time, on
-  // GitHub's runners - nothing on this machine holds the landing any more, so a closed lid
-  // stops nothing. The flags the laptop lander took are accepted and named as ignored rather
-  // than refused, so an old habit does not strand a landing.
-  for (const old of ['--after', '--accept', '--attempts', '--cap', '--onto-red-main']) {
-    if (flag(old)) console.log(`  note: ${old} means nothing to the cloud lander and is ignored (a conflict or a red run is written on the pull request).`);
+  // `noacg/reviewed` commit status on the tip, add the `land` label and turn auto-merge on.
+  // GitHub's merge queue does the rest, one group at a time, on GitHub's runners - nothing on this
+  // machine holds the landing any more, so a closed lid stops nothing.
+  //
+  // The flags the retired laptop lander took are REFUSED rather than ignored. Each one was a
+  // person's judgement about a gate, and a command that reads as though it waived something and
+  // did not is the worse failure of the two: `requeue` next door refuses its own flags for exactly
+  // this reason. There is nothing left for them to mean - order is queue order, a red run and a
+  // conflict are written on the pull request, and there is no local landing to cap or re-attempt.
+  const retired = ['--after', '--accept', '--attempts', '--cap', '--onto-red-main'].filter((old) => flag(old));
+  if (retired.length > 0) {
+    console.error(`add-merge refused: ${retired.join(' ')} belonged to the laptop lander, which is retired.`);
+    console.error('  Order is queue order, and a conflict or a red run is written on the pull request itself.');
+    console.error(`  Queue it as it stands:  npm run queue:merge${args[1] && !args[1].startsWith('-') ? ` ${target}` : ''}`);
+    process.exit(1);
   }
   if (!tipForReview) {
     console.error(`add-merge refused: ${target} has no local tip to push.`);
@@ -495,9 +504,9 @@ function queueOnGitHub(branch, tip, description, why = '') {
  * Put a dead landing back - re-running a declaration that was already made.
  *
  * The narrow, allowlistable half of `add-merge` (docs/AGENT_WORKFLOWS.md "Permissions"). It takes
- * a branch name and refuses everything else, including its own flags: no `--accept`, no
- * `--onto-red-main`, nothing that could waive a gate. `requeueDecision` holds the reasoning and
- * the refusals; this only reads the arguments and writes the job.
+ * a branch name and refuses everything else, including its own flags: nothing that could make a
+ * declaration or waive a gate. `requeueDecision` holds the reasoning and the refusals; this only
+ * reads the arguments and writes the job.
  */
 async function cmdRequeue() {
   const target = args[1] && !args[1].startsWith('-') ? args[1] : currentBranch();
