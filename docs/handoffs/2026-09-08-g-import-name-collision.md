@@ -178,6 +178,34 @@ Named, not fixed, because I did not reproduce those doors:
   both confirmation shapes fit inside 768px with the stranded cue field named by its TITLE
   ("Role") rather than its id.
 
+## The shared-registry collision with row F, reconciled before queueing
+
+The night orchestrator relayed a ruling: row F (`claude/f-gates-that-measure-nothing`, commit
+`ec90f2cd` "Make every gate report how much it measured, and refuse a count of zero") also edits
+`scripts/e2e-affected.mjs`, git merges the two of us cleanly, and a clean union of a registry can
+describe a selection neither of us built - which no gate can see, because it just quietly stops
+running a spec. F queued first, so reconciling is mine.
+
+**What the two sides actually do.** F adds two things at the top and inside `main()`: an
+`import { measured } from './measured.mjs'`, and one `measured(specFilesOnDisk().length, 'e2e spec
+files on disk')` call that asserts the suite population is not zero. Mine, after the check pass
+removed a dead row, is a SINGLE array entry - `'import-name-collision.spec.ts'` added to the
+`src/components/wizard/` MAP row. Different regions, different intents, and F's call reads the spec
+DIRECTORY rather than `MAP`, so neither edit can weaken the other.
+
+**Re-derived, not read.** I built the real merged tree
+(`git merge-tree --write-tree origin/claude/f-gates-that-measure-nothing HEAD` ->
+`e00c2b2a`, clean), extracted the merged `scripts/e2e-affected.mjs` and F's `scripts/measured.mjs`
+from it into this worktree, and RAN the merged planner over this branch's diff. It produced a valid
+plan (`mode: full`, 9 shards, `changed: 12`) with `import-name-collision.spec.ts` present in shard
+8, and F's `measured` call did not disturb the JSON on stdout - it writes to stderr, which is the
+whole reason F put it there. Then I restored the tree; `git status` was clean before I queued.
+
+So the merged file means both things at once and neither side lost: the plan still escalates the
+way F's mechanism requires, and the spec this row adds is still selected for a wizard change. If
+`main` moves under this branch before it lands, that is the file to re-read - it is the one place
+where a clean merge is evidence of nothing.
+
 ## Pointers
 
 - `src/model/library.ts` - `graphicNames`, `graphicHoldingName`, and the comment that explains why
