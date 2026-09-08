@@ -23,9 +23,14 @@
 //
 //   - a range or path suffix inside the literal: `main...${branch}`, 'main..HEAD', `main:${file}`,
 //     'main^', 'main~2' - git reads all of these as revisions and nothing else does;
-//   - the exact literal 'main' in an argv within two lines of a revision-consuming git verb
-//     (`rev-parse`, `merge-base`, `rev-list`, `log`, `diff`, `show`, `--contains`, `--merged`, …),
-//     which is the `gitRead([...args, 'main'])` shape the receipts bug was written in.
+//   - the exact literal 'main' in an argv, on the hit line or within the two lines ABOVE it,
+//     alongside a revision-consuming git verb (`rev-parse`, `merge-base`, `rev-list`, `log`,
+//     `diff`, `show`, `--contains`, `--merged`, …). That is the `gitRead([...args, 'main'])` shape
+//     the receipts bug was written in, where the verb sits in the argv built on the line before.
+//
+// Both shapes also read `refs/heads/main`, which is the same branch spelled in full - except in a
+// fetch or push REFSPEC (`+refs/heads/main:refs/remotes/origin/main`), which names main on the
+// SERVER and is the line that keeps `origin/main` fresh.
 //
 // A comparison - `branch === 'main'` - is never a hit. Asking whether the CURRENT branch is called
 // main is a different question with no stale answer, and it is the commonest use of the word here.
@@ -33,8 +38,13 @@
 // WHAT IT CANNOT SEE, stated because a gate that hides its blind spots is worse than none:
 //   - an ABSENT ref. `git log --format=… -- docs/backlog` with no revision walks HEAD, which on a
 //     feature branch stops at the fork point. `closedReceipts` had exactly that bug and no
-//     scanner can catch it, because there is no token to match. Only a reader finds those.
+//     scanner can catch it, because there is no token to match. Only a reader finds those, and one
+//     did: `docs/backlog/the-weekly-report-walks-head-not-what-landed.md`.
 //   - a ref built at a distance: `const ref = 'main'` twenty lines above the git call.
+//   - `merge`, `rebase`, `checkout`, `switch` and `reset`, deliberately left out of the verb list.
+//     They take a revision, but naming the local branch to them is usually the point - `git merge
+//     main` integrates the branch you have - so including them would flag correct code and teach
+//     the next reader to skim the failures.
 //   - `.md` workflows and `.github/` YAML. The workflows in `.github/` were swept by hand on
 //     2026-09-09 and every one of them already reads `origin/main` or `github.ref`; CI checks out
 //     fresh, so a stale local ref cannot arise there.
@@ -44,7 +54,7 @@
 //
 // It fails CLOSED, naming the file, the line, the literal and what to do instead.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -74,17 +84,29 @@ const SELF = 'scripts/check-landed-ref.mjs';
 /** A single- double- or back-quoted literal, escapes tolerated, on one line. */
 const LITERAL = /(['"`])((?:[^'"`\\\n]|\\.)*?)\1/g;
 
-/** `main` carrying a suffix only git reads: `main...`, `main..`, `main:path`, `main^`, `main~2`. */
-const REVISION_SUFFIX = /(?:^|[^\w./-])main(\.\.\.?|:\S|\^|~\d)/;
+/**
+ * `main` carrying a suffix only git reads: `main...`, `main..`, `main:path`, `main^`, `main~2`.
+ * `refs/heads/main` counts - it is the same local branch spelled in full - while `origin/main` and
+ * any other path ending in the word do not.
+ */
+const REVISION_SUFFIX = /(?:^|[^\w./-]|\brefs\/heads\/)main(\.\.\.?|:\S|\^|~\d)/;
 
-/** The whole literal is the bare name. */
-const BARE = /^main$/;
+/** The whole literal is the bare name, in either spelling of the local branch. */
+const BARE = /^(refs\/heads\/)?main$/;
 
 /** A git subcommand or flag that takes a revision. Searched over the hit line and the two above it. */
 const REVISION_VERB = /(merge-base|rev-parse|rev-list|cat-file|ls-tree|describe|--contains|--merged|--is-ancestor|['"](log|diff|show)['"])/;
 
 /** The literal is being compared, not passed: `branch === 'main'`. Never a revision. */
 const COMPARISON = /(===?|!==?)\s*$/;
+
+/**
+ * A fetch or push REFSPEC, which is the opposite of this bug: `+refs/heads/main:refs/remotes/…`
+ * names main ON THE SERVER, and it is the line that keeps `origin/main` fresh in the first place.
+ * A refspec is recognisable because it maps one ref onto another, and `:refs/` occurs nowhere
+ * else - a revision-and-path like `main:docs/backlog/x.md` never has it.
+ */
+const REFSPEC = /^\+|:refs\//;
 
 /** How many lines above the hit are searched for the verb, because an argv is often split. */
 const WINDOW = 2;
@@ -113,15 +135,17 @@ export function findBareMainRevisions(rel, text) {
   lines.forEach((line, index) => {
     // A comment explaining the bug must be able to name it.
     if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
-    const window = lines.slice(Math.max(0, index - WINDOW), index + 1).join('\n');
+    // Only the bare-name shape needs the surrounding lines, and it is by far the rarer of the two,
+    // so the window is joined on demand rather than for all ~70,000 lines the gate reads.
+    const nearVerb = () => REVISION_VERB.test(lines.slice(Math.max(0, index - WINDOW), index + 1).join('\n'));
     let match;
     LITERAL.lastIndex = 0;
     while ((match = LITERAL.exec(line))) {
       const body = match[2];
-      const before = line.slice(0, match.index);
+      if (REFSPEC.test(body)) continue;
       let shape = null;
       if (REVISION_SUFFIX.test(body)) shape = 'a revision range or path';
-      else if (BARE.test(body) && !COMPARISON.test(before) && REVISION_VERB.test(window)) shape = 'a bare revision in a git argv';
+      else if (BARE.test(body) && !COMPARISON.test(line.slice(0, match.index)) && nearVerb()) shape = 'a bare revision in a git argv';
       if (shape) found.push({ file: rel, line: index + 1, text: line.trim(), literal: match[0], shape });
     }
   });
@@ -142,7 +166,12 @@ export function judge(found, allowed = ALLOWED) {
 }
 
 function main() {
-  const files = repositoryFiles().filter((f) => SCANNED.test(f) && !IS_TEST.test(f) && f !== SELF);
+  // `repositoryFiles` lists what git TRACKS, so a script deleted from the working tree but not yet
+  // staged is still named. Reading it would throw and the build would die with a stack trace
+  // instead of a verdict - `check-retired-names.mjs` guards the same case for the same reason.
+  const files = repositoryFiles().filter(
+    (f) => SCANNED.test(f) && !IS_TEST.test(f) && f !== SELF && existsSync(path.join(ROOT, f)),
+  );
   // Zero files means the layout moved and this gate is scanning nothing at all.
   measured(files.length, 'scripts scanned for a bare local `main` revision');
 

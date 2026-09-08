@@ -34,14 +34,24 @@
  * a clone with a different remote name - because a ref that does not exist answers nothing.
  * The caller's own freshness guard decides whether an unfetched `origin/main` is evidence;
  * this only decides which ref to point at.
+ *
+ * NEITHER HALF EVER RETURNS A REF THAT IS NOT THERE, and the symmetric case is real: a CI checkout
+ * of a feature branch has NO local `main`, because `actions/checkout` creates a branch only for the
+ * ref it checked out (`scripts/e2e-affected.mjs` says the same in its own words). The containment
+ * test then fails for the boring reason that one side does not exist, and answering `main` would
+ * hand the caller a name every git command refuses. `origin/main` is the only ref there is on such
+ * a checkout, and it is also the right answer.
  */
 export function mainRef(run, local = 'main') {
   const remote = `origin/${local}`;
-  const exists = run(['rev-parse', '--verify', '--quiet', remote]);
-  const decide = (existsResult) => {
-    if (!existsResult.ok) return local;
-    const behind = run(['merge-base', '--is-ancestor', local, remote]);
-    return behind instanceof Promise ? behind.then((r) => (r.ok ? remote : local)) : (behind.ok ? remote : local);
-  };
-  return exists instanceof Promise ? exists.then(decide) : decide(exists);
+  // The runner may be sync or async and the answer follows it, so each step is chained through
+  // this rather than written twice. Three questions, in order, and the first `no` ends it.
+  const then = (value, next) => (value instanceof Promise ? value.then(next) : next(value));
+  return then(run(['rev-parse', '--verify', '--quiet', remote]), (hasRemote) => {
+    if (!hasRemote.ok) return local;
+    return then(run(['rev-parse', '--verify', '--quiet', local]), (hasLocal) => {
+      if (!hasLocal.ok) return remote;
+      return then(run(['merge-base', '--is-ancestor', local, remote]), (behind) => (behind.ok ? remote : local));
+    });
+  });
 }

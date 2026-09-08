@@ -52,6 +52,15 @@ test('a bare argv main is a hit only near a verb that consumes a revision', () =
   assert.deepEqual(shapes("gh(['pr', 'create', '--base', 'main']);"), []);
 });
 
+test('the local branch spelled in full is the same branch, and a refspec is not', () => {
+  assert.deepEqual(shapes('const d = git([`refs/heads/main...${b}`]);'), ['a revision range or path']);
+  assert.deepEqual(shapes("const r = git(['merge-base', 'HEAD', 'refs/heads/main']);"), ['a bare revision in a git argv']);
+  // A fetch refspec names main ON THE SERVER; it is what keeps origin/main fresh.
+  assert.deepEqual(shapes("git(['fetch', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main']);"), []);
+  // A revision-and-path is still a hit, and looks superficially similar.
+  assert.deepEqual(shapes('const t = git([`main:refs.md`]);'), ['a revision range or path']);
+});
+
 test('a comment may name the bug it explains', () => {
   assert.deepEqual(shapes('// never diff `main...${branch}` here - read the landed ref\nconst r = 1;'), []);
   assert.deepEqual(shapes(' * `changed` is `git diff --name-status main...<branch>`\nconst r = 1;'), []);
