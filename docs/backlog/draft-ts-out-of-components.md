@@ -32,6 +32,14 @@ that outlives its debt is the defect this review keeps finding.
 **Risk: it drags a `components/` import along with it.** That inverts the graph and is the one way
 this move makes things worse rather than better.
 
+**Two findings to take while the file is open**, both from reviews that declined them as
+out-of-scope and neither filed anywhere else. Eight helpers in `draft/core.ts` became public
+because they cross the row-1 boundary and could collapse into two functions owned by the import
+slice. And `pickersOf`, `withFill` and `clearFill` in `import/fieldAutoMap.ts:450, 463, 469` walk
+the same five draft shapes that `proposeSvgBehaviour` walks in `import/draft.ts:1132` - two copies
+of one walk, which drift silently because nothing compares them. Moving the module is the moment
+both become cheap.
+
 **Proof it did not break:** `npm run build` catches exactly that - eslint Stage A pins "nothing
 imports `components/`" and `depcruise` is default-deny over the §3 edge table, so a bad edge fails
 the gate rather than landing. Then the wizard e2e specs for behaviour.
