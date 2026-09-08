@@ -1136,6 +1136,12 @@ export function retryLandingFor(job, {
   inMain = () => false,
 } = {}) {
   if (!job || job.kind !== 'merge' || !job.branch || !job.command) return null;
+  // A COMMAND THIS BUILD CAN STILL RUN. The queue keeps records for a fortnight, so records written
+  // by the retired laptop lander outlive it - and a retry copies the command VERBATIM, which is
+  // what makes it a re-run rather than a new declaration. Copying one that names a deleted script
+  // would spend a serialised merge slot and the branch's single retry on a module-not-found, with
+  // no refusal kind to name it. The branch is not stranded: its own session queues it afresh.
+  if (!/\bland-watch\.mjs\b/.test(job.command)) return null;
   // NOTHING LEFT TO LAND. A landing that pushed and was then reaped or killed at its cap has the
   // best verdict there is sitting in a ref, and re-running it spends a whole serialised slot to
   // refuse. This is checked FIRST, ahead of every other reason to retry, because it is the one

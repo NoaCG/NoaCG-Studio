@@ -41,21 +41,26 @@ the 26 after it.
 
 **Mechanism (landed):** none needed for detection - the gate already works.
 
-**Mechanism (LANDED 2026-08-30): *the landing queue refuses to land onto a red `main`.***
-`scripts/main-health.mjs` reads `main`'s own recent `ci.yml` runs and `scripts/auto-merge.mjs`
-consults it before touching anything, refusing with `main is red on <spec> since <time> - N
-consecutive red runs` and the way out. It is a **refusal kind of its own** (exit 4), so
-`npm run jobs` prints "main itself is red - fix main first" rather than a generic refusal: five
-landings queued against a red `main` all stop with the same line, which is how a person sees the
-fault is upstream of all five. It is deliberately **not** a deferral like exit 3 - a red `main` is
+**Mechanism (LANDED 2026-08-30, RETIRED 2026-09-08): *the landing queue refused to land onto a red
+`main`.*** `scripts/main-health.mjs` read `main`'s own recent `ci.yml` runs and the laptop lander
+consulted it before touching anything, refusing with `main is red on <spec> since <time> - N
+consecutive red runs` and the way out. It was a **refusal kind of its own** (exit 4), so
+`npm run jobs` printed "main itself is red - fix main first" rather than a generic refusal: five
+landings queued against a red `main` all stopped with the same line, which is how a person saw the
+fault was upstream of all five. It was deliberately **not** a deferral like exit 3 - a red `main` is
 fixed by a person, and a job cycling in the queue would hide the fault it just detected.
 
-Three things it will not do, each a way this gate could have made the queue worse than the noise:
-no completed run, an unreachable `gh`, or a run still in flight all **proceed** (no answer is never
-red); a `cancelled` run is never read as a verdict (`docs/VERIFICATION.md`); and the branch's own
-green gate on the integrated sha is unchanged - nothing here relaxes it. The one escape is
-`--onto-red-main`, passed by hand and forwarded by `jobs.mjs add-merge`, because otherwise the
-branch that FIXES `main` is the one branch the gate can never let land.
+Three things it would not do, each a way this gate could have made the queue worse than the noise:
+no completed run, an unreachable `gh`, or a run still in flight all **proceeded** (no answer is
+never red); a `cancelled` run was never read as a verdict (`docs/VERIFICATION.md`); and the branch's
+own green gate on the integrated sha was unchanged. The one escape was `--onto-red-main`, because
+otherwise the branch that FIXES `main` is the one branch the gate can never let land.
+
+**Why it went.** GitHub's merge queue lands every branch now (`contracts/retired.json`), and it
+gates each group on that group's own run rather than on `main`'s last one - so a branch queued
+behind a red `main` is judged on the tree it would create, which is the question the refusal was
+approximating. The 27 emails this gate was built to stop are held by the alarm below, which dedupes
+by WHAT is failing and reports each distinct fault once.
 
 **Mechanism (LANDED 2026-08-30): *a red-main run withholds its rolling-issue comment when the
 failing spec set is unchanged.*** `scripts/ci-failure-set.mjs` builds the set from the run's own
@@ -444,12 +449,12 @@ times, not 27 bugs.**
 
 | Gate | Where | Refuses / withholds |
 |---|---|---|
-| Never land onto a red `main` | `scripts/main-health.mjs`, called by `scripts/auto-merge.mjs` | exit 4, named in `npm run jobs`; `--onto-red-main` is the one escape |
+| Never land onto a red `main` | RETIRED 2026-09-08 with the laptop lander that asked. A red `main` answers itself now: `ci.yml` re-runs the failed specs, quarantines a flake and reverts a batch that stays red | nothing refuses; the alarm below is what says `main` is red |
 | Say each distinct failure once | `scripts/ci-failure-set.mjs` + `scripts/red-main-issue.mjs`, called by `ci.yml` | withholds only a byte-identical repeat of the latest reported set |
 | A branch cannot raise a `main` alarm | `hosted-latency.yml`, `nightly.yml` (and `configured-suite.yml` since `13f057fa`) | issue steps scoped to `schedule` or `refs/heads/main` |
 
-Unit-tested in `scripts/main-health.test.mjs`, `scripts/ci-failure-set.test.mjs` and
-`scripts/red-main-issue.test.mjs`, all three in the `npm run build` gate.
+Unit-tested in `scripts/ci-failure-set.test.mjs` and `scripts/red-main-issue.test.mjs`, both in the
+`npm run build` gate.
 
 ## Reproducing this
 

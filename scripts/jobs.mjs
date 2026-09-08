@@ -456,6 +456,15 @@ async function cmdAddMerge() {
  * left to read, and its success reads as somebody else's file.
  */
 function refuseUnansweredReceipts(branch) {
+  // ONLY THIS WORKTREE'S OWN BRANCH. `receiptsFor` reads the shelf as it stands in this working
+  // tree, which is the branch's shelf only while the branch is the one checked out here. Queueing
+  // somebody else's branch would judge it against a shelf it never carried - refusing it for a
+  // receipt only this tree holds, and missing one only that branch holds. Skipping says so rather
+  // than answering from the wrong tree.
+  if (branch !== currentBranch()) {
+    console.log(`  note: owner receipts were not checked - ${branch} is not this worktree's branch, so its shelf is not the one here.`);
+    return;
+  }
   let verdict;
   try {
     const changed = changedBacklogFiles(branch);

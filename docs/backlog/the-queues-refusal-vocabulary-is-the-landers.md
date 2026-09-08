@@ -37,3 +37,15 @@ sentences and their retry arms in one commit.
 Nothing lies to a reader. An unrecognised refusal classifies as null and gets the generic sentence,
 which is the honest answer for a job record written by tooling that no longer exists - and old
 records on disk still carry these kinds, so their sentences are still read.
+
+## The shelf's own share of this
+
+Eight rows under `docs/backlog/` still name `auto-merge.mjs`, `safe-merge-preflight.mjs` or
+`main-health.mjs`. Two whose whole premise was a landing refusing on this machine were closed with
+the deletion (`a-dirty-worktree-blocks-a-landing-that-never-uses-it`,
+`a-reporting-job-can-red-main-and-stop-every-landing`). The rest need a read rather than a sweep:
+`merge-conflicts-are-resolved-by-a-consult-never-the-owner` is an OWNER ask whose `touches:` and
+`covered-by:` point at deleted files but whose ask stands; `cloud-sessions-for-stateless-rows` cites
+the temporary-worktree machinery as something already built, and it is not; `one-gh-run-list-helper`
+counts six private `gh run list` copies, of which three went with the lander. `check-retired-names`
+cannot see any of it - `docs/` is deliberately outside the files it scans.

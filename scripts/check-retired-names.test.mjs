@@ -24,7 +24,9 @@ test('a sentence instructing a retired mechanism is a finding on the line of the
     'When the queue refuses, read the reason and then',
     'run the safe-merge workflow in the branch worktree.',
     '',
-    'The preflight is `scripts/safe-merge-preflight.mjs`, which still exists.',
+    // A pattern may carve a name out with a lookahead. Nothing in `contracts/retired.json` does
+    // since the preflight was deleted, so the support is pinned here rather than by a live entry.
+    'The preflight is `scripts/safe-merge-preflight.mjs`, and this line must stay quiet.',
   ].join('\n');
   const findings = findRetired(text, loadRetired(list));
   assert.equal(findings.length, 1);

@@ -4,7 +4,7 @@
   "retired": [
     {
       "name": "safe-merge",
-      "pattern": "safe-merge(?!-preflight)",
+      "pattern": "safe-merge",
       "since": "2026-09-06",
       "replacement": "the queue-merge workflow: `npm run queue:merge` puts the branch in GitHub's merge queue, and nothing but the queue writes `main`",
       "why": "The manual landing procedure merged `main` on a laptop with `--ff-only` and pushed it; the ruleset now refuses every push to `main` that is not the merge queue's, so the procedure cannot run."
@@ -35,7 +35,7 @@
       "pattern": "--onto-red-main|--accept <kind>|--accept\\b",
       "since": "2026-09-06",
       "replacement": "`npm run queue:merge` takes `--unreviewed \"<reason>\"` and `--why \"<reason>\"` and nothing about gates; a conflict or a red run is written on the pull request",
-      "why": "The flags waived a laptop lander's refusal kinds. `add-merge` now names them as ignored."
+      "why": "The flags waived a laptop lander's refusal kinds. `add-merge` refuses them, because a command that reads as though it waived a gate and did not is worse than one that stops."
     },
     {
       "name": "a red main refusing landings",
