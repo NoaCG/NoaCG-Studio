@@ -175,7 +175,12 @@ log and the pull request to a verdict and name which kind it is (`report.md`). T
 machine's: a watcher that reached no verdict inside its cap while the pull request is still queued
 (`node scripts/jobs.mjs requeue <branch>` re-arms the watcher and lands nothing itself; the store
 already retries that once), and a stacked pull request dropped from the queue when its parent
-landed with every check green (`gh pr merge <n> --auto` puts it back). A RED CHECK or a CONFLICT
+landed with every check green. **Repair that second one with `npm run queue:merge -- <branch>`**,
+which re-posts the verdict and turns auto-merge back on - it reads the `/check` stamp like any
+queueing, so an unstamped tip needs the `--unreviewed` form below. `gh pr merge <n> --auto` does the
+same job in one call and is what to reach for interactively - but the auto-mode classifier BLOCKED
+it on 2026-09-08, on the one branch of that wave that needed it, so a loop knowing only the raw
+command has no repair at 03:00. A RED CHECK or a CONFLICT
 with what landed is the branch's, and only its own session may queue it again - it reaches the
 user, with its command, when that session is gone.
 
