@@ -16,7 +16,8 @@
 // WHAT IT READS.
 //   - `scripts/harness-usage.mjs --json` over the window: tokens by model, Codex tokens and its
 //     rate-limit snapshot, Antigravity calls, the delegation outcomes, the capability standings.
-//   - every `*-wave-plan.local.md` in the primary checkout's and the orchestrator home's
+//   - every `*-wave-plan.local.md` in the wave-plan store (`wave-plan-store.mjs`) and, for the
+//     window that spans the 2026-09-09 move, in the primary checkout's and the orchestrator home's
 //     `docs/handoffs/` written inside the window: rows per pool from the wave table, and the
 //     decisions the master took on the owner's behalf, one `DECIDED:` line each
 //     (`.agent-workflows/orchestrator/report.md` item 10; older plans wrote "taken on the owner's
@@ -31,12 +32,21 @@
 // Every count is a proxy and the output says which. "Decisions taken" is the marker count, not the
 // truth about judgement; "questions asked" is a heading match. They move in the right direction
 // when the system improves, which is what a weekly loop needs from them.
+//
+// AN ABSENT SOURCE IS NEVER A ZERO. The wave plans are the one input git does not archive - they
+// are gitignored - so when none is found the page says so loudly, names every directory it
+// searched and what was in it, and marks the rows, pools and DECIDED: counts UNMEASURED. The first
+// real run of this script (2026-09-08) printed 0 waves and 0 decisions for a week in which nine
+// lettered rows landed on one day, and the reader had no way to tell that apart from an idle
+// machine. Plans have lived in the store since 2026-09-09, so an empty store now means no wave
+// wrote one rather than that a worktree took the record with it.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parseWaveTable } from './wave-plan-check.mjs';
+import { wavePlansDir } from './wave-plan-store.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
@@ -52,6 +62,7 @@ export const SYSTEM_PATHS = Object.freeze([
   '.claude/agents',
   'scripts/hooks',
   'scripts/wave-plan-check.mjs',
+  'scripts/wave-plan-store.mjs',
   'scripts/wave-tick.mjs',
   'scripts/agy-run.mjs',
   'scripts/codex-rescue.mjs',
@@ -131,6 +142,51 @@ export function questionsIn(handoffText) {
   return asks;
 }
 
+/**
+ * The paragraph the page prints when it found NO wave plan in the window. It exists because the
+ * first run of this script over a real week printed "Wave plans in the window: 0", "Rows planned:
+ * 0" and "Decisions taken: 0" for a week in which nine lettered rows landed on one day - the plans
+ * had been written into throwaway worktrees, are gitignored, and died with the folder. Zero is a
+ * measurement; an absent file is not one, and a page that prints the first when it means the second
+ * is lying to the only reader who cannot check it.
+ *
+ * `search` is `{ dirs: [{ dir, exists, planFiles, inWindow }], outsideWindow }` from `wavePlans`.
+ */
+export function noPlansBlock(search) {
+  const dirs = search?.dirs ?? [];
+  const lines = ['- **NO WAVE PLAN FOUND. The rows, pools and decisions below are UNMEASURED, not zero.**'];
+  lines.push(dirs.length
+    ? '  Looked in:'
+    : '  Looked NOWHERE - this run could not resolve the primary checkout or the store.');
+  for (const entry of dirs) {
+    if (!entry.exists) lines.push(`  - \`${entry.dir}\` - the directory does not exist`);
+    else if (!entry.planFiles) lines.push(`  - \`${entry.dir}\` - exists, holds no \`*-wave-plan.local.md\` at all`);
+    else lines.push(`  - \`${entry.dir}\` - holds ${entry.planFiles} plan${entry.planFiles === 1 ? '' : 's'}, ${entry.inWindow} of them inside the window`);
+  }
+  // Three different stories end in an empty result and each wants a different next move, so the
+  // page says which one it is rather than leaving the reader to guess.
+  if (!dirs.length) {
+    lines.push(
+      '  Nothing was searched, so nothing can be concluded. Run this from inside the checkout, and',
+      '  say in the recap that the week was not measured rather than that it was empty.',
+    );
+  } else if (search?.outsideWindow) {
+    lines.push(
+      `  ${search.outsideWindow} plan file${search.outsideWindow === 1 ? ' is' : 's are'} on disk but older than the window,`,
+      '  so this is a window that missed them and NOT a lost record - widen it with `--days` and read again.',
+    );
+  } else {
+    lines.push(
+      '  No plan of any date is on disk. Since 2026-09-09 a plan is written to the store above, which',
+      '  outlives every worktree, so an empty store means no wave wrote one - not that a checkout took',
+      '  the record with it, which is how the plans before that date were lost. Read the week\'s waves',
+      '  off the landed branches and the handoffs, and record that the routing evidence is GONE for',
+      '  this window rather than that the machine sat idle.',
+    );
+  }
+  return lines;
+}
+
 /** Rows per pool from a wave table; a row naming two pools counts once for each. */
 export function poolCounts(rows) {
   const counts = {};
@@ -196,11 +252,17 @@ export function summarise(facts) {
   lines.push(`- Capability observations unverified on the installed builds: ${unverified.length}${unverified.length ? ` (${unverified.join(', ')})` : ''}.`, '');
 
   lines.push('## Waves and rows', '');
-  lines.push(`- Wave plans in the window: ${waves.length} (${waves.map((wave) => wave.name).join(', ') || 'none'}).`);
-  const pools = poolCounts(waves.flatMap((wave) => wave.rows));
-  const totalRows = waves.reduce((sum, wave) => sum + wave.rows.length, 0);
-  lines.push(`- Rows planned: ${totalRows}; by pool: ${Object.entries(pools).map(([pool, count]) => `${pool} ${count}`).join(', ') || 'none'}.`);
-  lines.push(`- Rows planned off Claude (codex, agy-gemini, agy-claude-gpt): ${(pools.codex ?? 0) + (pools['agy-gemini'] ?? 0) + (pools['agy-claude-gpt'] ?? 0)} of ${totalRows}.`);
+  // Everything read off a wave plan is unmeasured when no plan survived, so the whole block is
+  // gated on that one fact rather than each number being separately excused.
+  if (!waves.length) {
+    lines.push(...noPlansBlock(facts.planSearch));
+  } else {
+    lines.push(`- Wave plans in the window: ${waves.length} (${waves.map((wave) => wave.name).join(', ')}).`);
+    const pools = poolCounts(waves.flatMap((wave) => wave.rows));
+    const totalRows = waves.reduce((sum, wave) => sum + wave.rows.length, 0);
+    lines.push(`- Rows planned: ${totalRows}; by pool: ${Object.entries(pools).map(([pool, count]) => `${pool} ${count}`).join(', ') || 'none'}.`);
+    lines.push(`- Rows planned off Claude (codex, agy-gemini, agy-claude-gpt): ${(pools.codex ?? 0) + (pools['agy-gemini'] ?? 0) + (pools['agy-claude-gpt'] ?? 0)} of ${totalRows}.`);
+  }
   lines.push(`- Branches the queue landed: ${landed.count}.`);
   if (landed.count && usage?.claudeCode?.tokens?.total) {
     lines.push(`- Claude tokens per landed branch: ${fmt(Math.round(usage.claudeCode.tokens.total / landed.count))} (the whole machine's Claude spend over the queue's landings - a ceiling, not a cost per row).`);
@@ -208,9 +270,13 @@ export function summarise(facts) {
   lines.push('');
 
   lines.push('## Decisions and questions', '');
-  const decided = waves.reduce((sum, wave) => sum + wave.decisions.decided, 0);
-  const legacy = waves.reduce((sum, wave) => sum + wave.decisions.legacy, 0);
-  lines.push(`- Decisions taken on the owner's behalf (DECIDED: lines in the wave plans): ${decided}${legacy ? `, plus ${legacy} in the older inline wording` : ''}.`);
+  if (!waves.length) {
+    lines.push('- Decisions taken on the owner\'s behalf: **UNMEASURED** - the `DECIDED:` marker lives in the wave plan and no plan survived the window (see above). This is not "no decisions were taken".');
+  } else {
+    const decided = waves.reduce((sum, wave) => sum + wave.decisions.decided, 0);
+    const legacy = waves.reduce((sum, wave) => sum + wave.decisions.legacy, 0);
+    lines.push(`- Decisions taken on the owner's behalf (DECIDED: lines in the wave plans): ${decided}${legacy ? `, plus ${legacy} in the older inline wording` : ''}.`);
+  }
   const asking = handoffs.filter((file) => file.asks > 0);
   lines.push(`- Handoffs added: ${handoffs.length}; carrying an ask for the owner: ${asking.length} (${asking.reduce((sum, file) => sum + file.asks, 0)} items)${asking.length ? ` - ${asking.map((file) => path.basename(file.name)).join(', ')}` : ''}.`);
   const kinds = {};
@@ -265,14 +331,35 @@ function usageJson(days) {
   }
 }
 
+/**
+ * The wave plans in the window, AND a record of where the search went. The record is not
+ * bookkeeping: an empty result means either "no wave ran" or "the plans died with their worktree",
+ * and only the list of directories with what each held tells the reader which (see `noPlansBlock`).
+ */
 function wavePlans(dirs, since) {
   const seen = new Map();
+  const searched = [];
+  // By NAME, not by file: during the move a plan can sit in the store and in its old directory at
+  // once, and "2 plan files are older than the window" for one plan is exactly the kind of count
+  // this block exists to make trustworthy.
+  const olderNames = new Set();
   for (const dir of dirs) {
-    if (!dir || !existsSync(dir)) continue;
+    if (!dir) continue;
+    if (!existsSync(dir)) {
+      searched.push({ dir, exists: false, planFiles: 0, inWindow: 0 });
+      continue;
+    }
+    const entry = { dir, exists: true, planFiles: 0, inWindow: 0 };
+    searched.push(entry);
     for (const name of readdirSync(dir)) {
       if (!name.endsWith('-wave-plan.local.md')) continue;
+      entry.planFiles += 1;
       const file = path.join(dir, name);
-      if (statSync(file).mtimeMs < since) continue;
+      if (statSync(file).mtimeMs < since) {
+        olderNames.add(name);
+        continue;
+      }
+      entry.inWindow += 1;
       const text = readText(file) ?? '';
       const previous = seen.get(name);
       // Two checkouts can hold the same plan name; the larger copy is the one the wave wrote to.
@@ -280,7 +367,10 @@ function wavePlans(dirs, since) {
       seen.set(name, { name, file, text, rows: parseWaveTable(text).rows, decisions: decisionsIn(text) });
     }
   }
-  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    plans: [...seen.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    search: { dirs: searched, outsideWindow: olderNames.size },
+  };
 }
 
 function addedInWindow(sinceIso, pathspec) {
@@ -346,10 +436,19 @@ export function gather({ now = Date.now(), days = 7 } = {}) {
   const home = primary ? path.join(primary, '.claude', 'worktrees', 'orchestrator') : null;
   const startRev = git(['rev-list', '-1', `--before=${sinceIso}`, 'HEAD'])?.trim() || null;
   const log = git(['log', `--since=${sinceIso}`, '--no-merges', '--format=%h%x09%s', '--', ...SYSTEM_PATHS]) ?? '';
+  // The store first, then the two places plans were written before it existed. The legacy pair is
+  // the ARCHIVE half of the move and nothing else: `wave-tick.mjs` resolves the store alone, so no
+  // new plan can land in either. Drop them once no window can still reach 2026-09-09.
+  const plans = wavePlans([
+    wavePlansDir(),
+    primary && path.join(primary, 'docs', 'handoffs'),
+    home && path.join(home, 'docs', 'handoffs'),
+  ], since);
   return {
     window: { since: sinceIso, until: new Date(now).toISOString(), days },
     usage: usageJson(days),
-    waves: wavePlans([primary && path.join(primary, 'docs', 'handoffs'), home && path.join(home, 'docs', 'handoffs')], since),
+    waves: plans.plans,
+    planSearch: plans.search,
     handoffs: handoffsAdded(sinceIso),
     queueItems: queueItemsAdded(sinceIso),
     landed: landedInWindow(since),
