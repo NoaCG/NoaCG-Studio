@@ -7,9 +7,11 @@
 
 A capability re-probe row ran every UNVERIFIED entry in `scripts/harness-capabilities.json`
 against the installed builds (Claude Code 2.1.263, Codex 0.154.0-alpha.6, Antigravity 1.1.27) and
-deleted five entries the probes refuted. Four of those five are cited in `docs/HARNESS_ROUTING.md`
-as settled fact, and the prose there was not updated - deleting the JSON entry does not fix the
-doc that quotes it. A reader of `HARNESS_ROUTING.md` today is reading claims a measurement just
+found five of them refuted. Per the file's own rule ("Append; never delete - a lapsed observation
+gets re-measured and its measuredOn moves"), those five entries were kept and their `claim` field
+was rewritten to record both what the probe found now and what was true before - but
+`docs/HARNESS_ROUTING.md`'s prose, which several of these entries cite as `source`, was not
+updated to match. A reader of `HARNESS_ROUTING.md` today is reading claims a measurement just
 disproved:
 
 1. "Codex: there is no model choice, only effort" / "gpt-5.6-sol is the only model the ChatGPT
@@ -45,4 +47,5 @@ different ways (2026-08-29, cited in `check.md` itself).
 ## Evidence
 
 `docs/handoffs/2026-09-09-x-capability-reprobe.md` (the full probe table and commit message);
-`scripts/harness-capabilities.json` (the four entries are gone, not just re-dated).
+`scripts/harness-capabilities.json` (each entry's `claim` field now opens with `REFUTED as of
+<version>:` and states what the probe found, with the previous claim kept below it).
