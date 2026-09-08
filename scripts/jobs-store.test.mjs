@@ -603,6 +603,19 @@ test('a landing killed at its cap is put back, once', () => {
   assert.equal(retryLandingFor({ ...dead, retryCount: MAX_LANDING_RETRIES }, { tipOf: () => 'a878b17' }), null);
 });
 
+test('a landing whose command this build cannot run is never put back', () => {
+  // Records live a fortnight and a retry copies the command VERBATIM, so records written by the
+  // retired laptop lander outlive it. Copying one would spend a serialised merge slot and the
+  // branch's single retry on a module-not-found, with no refusal kind to name it.
+  const old = killedLanding('a878b17', {
+    command: 'node scripts/auto-merge.mjs --branch claude/d --expect-sha a878b17',
+  });
+  assert.equal(retryLandingFor(old, { tipOf: () => 'a878b17' }), null);
+  assert.deepEqual(adoptOrphanedLandings([old], { tipOf: () => 'a878b17' }), []);
+  // The control: the same job watching its pull request is put back exactly as before.
+  assert.equal(retryLandingFor(killedLanding('a878b17'), { tipOf: () => 'a878b17' }).retryOf, 'j-0438');
+});
+
 test('a moved branch is never re-pinned, and is not retried at all', () => {
   // The safety the pin exists for. A session that woke up and committed has not declared THAT work
   // finished, so nobody may land it - not a person, and certainly not a sweep running at four in

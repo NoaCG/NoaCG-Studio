@@ -341,7 +341,8 @@ async function cmdAddMerge() {
   // No branch given means THIS worktree's - the overwhelmingly common case, and the safe default.
   // Naming someone else's branch still works, but it has to be deliberate: a session that is
   // still working on a branch must never have it landed out from under the conversation.
-  const target = args[1] && !args[1].startsWith('-') ? args[1] : currentBranch();
+  const named = Boolean(args[1] && !args[1].startsWith('-'));
+  const target = named ? args[1] : currentBranch();
   if (!target || target === 'main' || target === 'HEAD') {
     console.error('Usage: node scripts/jobs.mjs add-merge [branch] [--why "<reason>"] [--unreviewed "<reason>"]');
     console.error('  With no branch it queues this worktree\'s. It refuses main and a detached HEAD.');
@@ -378,7 +379,7 @@ async function cmdAddMerge() {
   //
   // A question git cannot answer is skipped rather than refused: this must never stop a landing
   // because a diff would not run.
-  refuseUnansweredReceipts(target);
+  refuseUnansweredReceipts(target, named);
   const tipForReview = branchTip(target);
   const stamp = readReviewStamp(dir, target);
   const gap = stampGap(stamp, tipForReview);
@@ -409,7 +410,7 @@ async function cmdAddMerge() {
   if (retired.length > 0) {
     console.error(`add-merge refused: ${retired.join(' ')} belonged to the laptop lander, which is retired.`);
     console.error('  Order is queue order, and a conflict or a red run is written on the pull request itself.');
-    console.error(`  Queue it as it stands:  npm run queue:merge${args[1] && !args[1].startsWith('-') ? ` ${target}` : ''}`);
+    console.error(`  Queue it as it stands:  npm run queue:merge${named ? ` ${target}` : ''}`);
     process.exit(1);
   }
   if (!tipForReview) {
@@ -455,13 +456,14 @@ async function cmdAddMerge() {
  * from `main` - without that second half a branch that correctly CLOSED its receipt has no file
  * left to read, and its success reads as somebody else's file.
  */
-function refuseUnansweredReceipts(branch) {
+function refuseUnansweredReceipts(branch, named) {
   // ONLY THIS WORKTREE'S OWN BRANCH. `receiptsFor` reads the shelf as it stands in this working
   // tree, which is the branch's shelf only while the branch is the one checked out here. Queueing
   // somebody else's branch would judge it against a shelf it never carried - refusing it for a
   // receipt only this tree holds, and missing one only that branch holds. Skipping says so rather
-  // than answering from the wrong tree.
-  if (branch !== currentBranch()) {
+  // than answering from the wrong tree. `named` is the caller's own answer, so this asks git
+  // nothing: an unnamed target IS this worktree's branch, because that is where it came from.
+  if (named && branch !== currentBranch()) {
     console.log(`  note: owner receipts were not checked - ${branch} is not this worktree's branch, so its shelf is not the one here.`);
     return;
   }
