@@ -28,34 +28,26 @@
 // still fails). What it is for is the other question: which lines sit so close to the floor
 // that one step down puts them under it, and whether any design's type moves with the ladder
 // in a way its author did not intend.
-import { readFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 import { applyOnly, parseOnly, scopeNote } from './catalog-scope.mjs';
 
-/**
- * Minimum rendered px at 1080p, per wizard category.
- *
- * 20 px is the working floor for on-air secondary text — below that, text stops surviving
- * both compression and a phone-sized viewport. Corner bugs are the one honest exception:
- * a persistent station mark is small by construction, so it gets 16, which still reads.
- */
-// The floors come from src/validation/typeFloor.ts, read through the dev server this script
+// THE FLOORS — minimum rendered px at 1080p, per wizard category. 20 px is the working floor for
+// on-air secondary text; below that, text stops surviving both compression and a phone-sized
+// viewport. Corner bugs are the one honest exception: a persistent station mark is small by
+// construction, so it gets 16, which still reads.
+//
+// They come from src/validation/typeFloor.ts, IMPORTED through the dev server this script
 // already drives, so this gate and the live bench that re-measures the ADJUSTED result cannot
-// hold two different numbers. Parsed rather than imported because this is .mjs and that is .ts:
-// one regex over one tiny declaration, and it fails loudly if the shape ever moves.
-const FLOOR = (() => {
-  const source = readFileSync(new URL('../src/validation/typeFloor.ts', import.meta.url), 'utf8');
-  const body = source.match(/TYPE_FLOOR_PX[^=]*=\s*{([^}]*)}/)?.[1];
-  const table = {};
-  for (const [, key, value] of (body ?? '').matchAll(/'?([a-z-]+)'?\s*:\s*(\d+)/g)) table[key] = Number(value);
-  if (!table.default) {
-    throw new Error('could not read TYPE_FLOOR_PX from src/validation/typeFloor.ts - has its shape changed?');
-  }
-  return table;
-})();
-const floorFor = (cat) => FLOOR[cat] ?? FLOOR.default;
+// hold two different numbers. See `window.__floor` below, next to the other module imports.
+//
+// It used to be a regex over the declaration, on the reasoning that this is .mjs and that is .ts.
+// That reasoning did not hold: the dev server already serves the .ts, three sibling scripts
+// already import through it, and the regex was a SECOND reading of the shape - so on
+// 2026-09-08 the table moved to src/model/designRules.ts behind a re-export, the regex matched
+// nothing, and the gate CRASHED at module load instead of measuring anything. A gate that reads
+// its own subject through the product cannot be broken by moving a declaration.
 
 /**
  * Categories the floor cannot speak for. `imported-design` renders the USER'S artwork with
@@ -100,7 +92,28 @@ await page.evaluate(async () => {
   window.__comp = await import('/src/preview/composeDocument.ts');
   window.__wiz = await import('/src/model/wizard.ts');
   window.__style = await import('/src/model/styleVocabulary.ts');
+  // The floors themselves. Imported by the name every caller already uses, so the numbers can
+  // move again behind that name without this gate noticing.
+  window.__floor = await import('/src/validation/typeFloor.ts');
 });
+
+// The table, for the report line only. The floor each variant is MEASURED against comes from the
+// module's own `typeFloorFor` where the targets are built, so this script never re-implements the
+// unknown-category fallback that decides it.
+const FLOOR = await page.evaluate(() => ({ ...window.__floor.TYPE_FLOOR_PX }));
+
+// STILL FAIL LOUDLY ON A SHAPE CHANGE. Importing instead of parsing removed the crash, and the
+// crash was the good half of the old code: the next drift here is `default` being renamed or
+// dropped, `typeFloorFor` returning undefined, and `px < undefined` being false for every element
+// in the catalog - so the gate would print PASS over 502 designs having measured none of them. A
+// gate that disarms silently is worse than one that dies noisily, which is the whole reason this
+// script was being repaired.
+if (!(FLOOR.default > 0)) {
+  throw new Error(
+    'TYPE_FLOOR_PX has no usable `default` (src/validation/typeFloor.ts -> src/model/designRules.ts). ' +
+      'Every category would fall through to an undefined floor and this gate would pass without measuring.',
+  );
+}
 
 // The step, read off the ladder the wizard offers rather than typed in again here. `null` means
 // "no option passed at all", so the gate run composes exactly the document it always did.
@@ -116,7 +129,12 @@ const allTargets = (
   await page.evaluate(
     (only) =>
       window.__wiz.CATEGORIES.filter((c) => !only || c.id === only).flatMap((c) =>
-        (window.__cat.CATALOG[c.id] || []).map((v) => ({ id: v.id, cat: c.id, name: v.name })),
+        (window.__cat.CATALOG[c.id] || []).map((v) => ({
+          id: v.id,
+          cat: c.id,
+          name: v.name,
+          floor: window.__floor.typeFloorFor(c.id),
+        })),
       ),
     only,
   )
@@ -189,9 +207,9 @@ for (let i = 0; i < targets.length; i += 12) {
   const slice = targets.slice(i, i + 12);
   const res = await page.evaluate(
     ({ batch, ts }) => window.__scan(batch, ts),
-    { batch: slice.map((t) => ({ id: t.id, floor: floorFor(t.cat) })), ts: typeScale },
+    { batch: slice.map((t) => ({ id: t.id, floor: t.floor })), ts: typeScale },
   );
-  res.forEach((r, k) => rows.push({ ...slice[k], floor: floorFor(slice[k].cat), ...r }));
+  res.forEach((r, k) => rows.push({ ...slice[k], ...r }));
 }
 await browser.close();
 
@@ -227,7 +245,12 @@ for (const r of bad) {
 console.log(
   `\nType floor — ${rows.length} variants checked${scopeNote(onlyIds, targets.length, allTargets.length)}${only ? ` (${only})` : ''}`,
 );
-console.log(`  floors: corner-bug ${FLOOR['corner-bug']} px · everything else ${FLOOR.default} px`);
+// Printed off the table itself, so a category added to it shows up here without a code change.
+console.log(
+  `  floors: ${Object.entries(FLOOR)
+    .map(([cat, px]) => `${cat === 'default' ? 'everything else' : cat} ${px} px`)
+    .join(' · ')}`,
+);
 console.log(`  text size: ${STEP ?? 'M'}${STEP ? ` (--type-scale ${typeScale}) — REPORT ONLY, the gate is M` : ' (the default) — this is the gate'}`);
 console.log(`  exempt categories: ${[...EXEMPT_CATEGORIES].join(', ') || 'none'}\n`);
 if (excused.length) {
