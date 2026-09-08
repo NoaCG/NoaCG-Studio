@@ -43,8 +43,8 @@ import { applyOnly, parseOnly, scopeNote } from './catalog-scope.mjs';
 // hold two different numbers. See `window.__floor` below, next to the other module imports.
 //
 // It used to be a regex over the declaration, on the reasoning that this is .mjs and that is .ts.
-// That reasoning was wrong twice over. The dev server already serves the .ts, three sibling
-// scripts already import through it, and the regex was a SECOND reading of the shape - so on
+// That reasoning did not hold: the dev server already serves the .ts, three sibling scripts
+// already import through it, and the regex was a SECOND reading of the shape - so on
 // 2026-09-08 the table moved to src/model/designRules.ts behind a re-export, the regex matched
 // nothing, and the gate CRASHED at module load instead of measuring anything. A gate that reads
 // its own subject through the product cannot be broken by moving a declaration.
@@ -101,6 +101,19 @@ await page.evaluate(async () => {
 // module's own `typeFloorFor` where the targets are built, so this script never re-implements the
 // unknown-category fallback that decides it.
 const FLOOR = await page.evaluate(() => ({ ...window.__floor.TYPE_FLOOR_PX }));
+
+// STILL FAIL LOUDLY ON A SHAPE CHANGE. Importing instead of parsing removed the crash, and the
+// crash was the good half of the old code: the next drift here is `default` being renamed or
+// dropped, `typeFloorFor` returning undefined, and `px < undefined` being false for every element
+// in the catalog - so the gate would print PASS over 502 designs having measured none of them. A
+// gate that disarms silently is worse than one that dies noisily, which is the whole reason this
+// script was being repaired.
+if (!(FLOOR.default > 0)) {
+  throw new Error(
+    'TYPE_FLOOR_PX has no usable `default` (src/validation/typeFloor.ts -> src/model/designRules.ts). ' +
+      'Every category would fall through to an undefined floor and this gate would pass without measuring.',
+  );
+}
 
 // The step, read off the ladder the wizard offers rather than typed in again here. `null` means
 // "no option passed at all", so the gate run composes exactly the document it always did.

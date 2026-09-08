@@ -316,7 +316,11 @@ jobs:
           failed=""
           [ "$E2E_RESULT" = "success" ] || failed="${failed}- Full E2E suite: ${E2E_RESULT}\n"
           [ "$CATALOG_RESULT" = "success" ] || failed="${failed}- Catalog calibration tripwire: ${CATALOG_RESULT}\n"
-          [ "$GATES_RESULT" = "success" ] || failed="${failed}- Type floor / overflow sweep: ${GATES_RESULT}\n"
+          # Name all FIVE gates this job carries, for the same reason the report line below names
+          # both of its halves. It used to read "Type floor / overflow sweep", which sent the
+          # 2026-09-08 triage looking at those two while the log said which gate it actually was.
+          # The step log now prints `CATALOG GATES FAILED: <names>`; this line says where to look.
+          [ "$GATES_RESULT" = "success" ] || failed="${failed}- Catalog gates (type floor, overflow, field coverage, numerals, engine floor - the log names which): ${GATES_RESULT}\n"
           # This job also carries the time budget, so name both - a reader who sees only
           # "report failed" would go looking for a broken merge rather than a slower suite.
           [ "$REPORT_RESULT" = "success" ] || failed="${failed}- Combined report / E2E time budget: ${REPORT_RESULT}\n"
