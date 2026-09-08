@@ -3,7 +3,15 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-03
-state: unstarted
+state: advanced
+note: "The mechanism this ask needs landed: 0040657c compiled a behaviour from a declaration
+  through one binding table and runtime, and eea00820, 1908b7a4, 19285fd7 and 47b7b1dc took the
+  registry to fourteen recipes (src/templates/behaviours/registry.ts), so imported artwork now
+  gets the logic of a score board, a countdown, a vote, a lineup, a puzzle or a bingo caller
+  rather than fields that only accept text. STILL OPEN, and it is the whole of what he asked
+  for: level 1, a ranking that reorders its rows and renumbers its positions when a score moves.
+  Nothing in src/templates/behaviours/ reorders anything - grep for reorder or sort returns
+  nothing - so the reordering half is untouched, as are levels 2 and 3."
 asked: "when we have a ranking, we should be able to reorder them by their position ... it would be quite amazing if we could have a ranking that would also reorder the names and the position number just by adding or subtracting points. That is the future we want to come to."
 ---
 # A graphic needs the logic its kind implies, not just fields that accept text

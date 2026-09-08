@@ -3,7 +3,16 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-03
-state: unstarted
+state: advanced
+note: "Two behaviours became fourteen recipes. 0040657c compiled the quiz through one binding
+  table and runtime, eea00820 ported the score tracker, the live vote and the countdown onto it,
+  1908b7a4 gave imported artwork a real countdown, 19285fd7 added five game-show recipes and the
+  field kinds they need, and 47b7b1dc added the add/remove controls, the row-set field kind and a
+  bingo caller. src/templates/behaviours/registry.ts is the list. The method the ask names is
+  served too: 182e79bc wrote the seventeen-product survey (docs/BEHAVIOUR_SURVEY.md), and the
+  layer-name tables are generated from the declarations into docs/SVG_AUTHORING.md. STILL OPEN:
+  the survey's gaps are not all built - adjust-a-running-clock.md is the clearest one - and a
+  ranking that reorders itself, which graphics-need-their-own-logic.md carries, has no recipe."
 asked: "I know that we only have a poll and quiz right now, but we need to add more. That needs to be on the to-do list ... We just need to follow how other programs do them"
 ---
 # More behaviours than the quiz and the live vote
