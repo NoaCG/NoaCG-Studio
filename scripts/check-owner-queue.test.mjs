@@ -210,6 +210,42 @@ test('the most specific place wins - that ordering IS the rule', () => {
   assert.equal(place('Open the newest merged pull request on https://github.com/NoaCG/x/pulls.'), 'github');
 });
 
+// A route section's HEADING beats a bold mention of the word anywhere else in the item. Without
+// that rule, an item summarising this very change - "The **route** each item writes is what groups
+// it now" - had its summary read as the route and grouped on its own.
+test('a passing bold mention of the word does not outrank a real route section', () => {
+  const text =
+    '# T\n\nThe **route** each item writes is what groups it now.\n\n' +
+    '## The route, under a minute\n\n`/app` -> **Import graphic** -> drop a board.\n';
+  assert.equal(placeOf(text).id, 'import');
+});
+
+test('a bold lead-in still works mid-sentence, which is where half of them are', () => {
+  const text = '# T\n\n**Date:** 2026-09-07. **Route:** open `/app` and hover Home.\n';
+  assert.equal(placeOf(text).id, 'studio');
+});
+
+// The one-paragraph template the queue used before this change wrote "What to look at:" as plain
+// prose, and `Route:` as a plain lead-in. Both shapes are still on disk, so the boundary has to
+// hold without any bold at all.
+test('a plain "What to look at:" ends the route, exactly as the bold one does', () => {
+  const text =
+    '# T\n\nRoute: run `node scripts/owner-receipts.mjs` in a checkout.\n' +
+    'What to look at: the rows where the editor and the studio disagree.\n';
+  assert.doesNotMatch(routeTextOf(text), /the editor/);
+  assert.equal(placeOf(text).id, 'checkout');
+});
+
+// A `#` comment on the first line of a fenced block is not a heading, and reading it as one used
+// to truncate the route to its opening fence - which grouped an import route as a checkout.
+test('a comment inside a fenced block does not end the route', () => {
+  const text =
+    '# T\n\n## The route, under a minute\n\n```bash\n# start the studio first\nnpm run dev\n```\n\n' +
+    'Then open `/app` and click **Import graphic**.\n';
+  assert.match(routeTextOf(text), /Import graphic/);
+  assert.equal(placeOf(text).id, 'import');
+});
+
 test('an item whose route matches no place is on its own, never forced into one', () => {
   assert.equal(placeOf('# T\n\n## The route\n\nOpen the Scheduled panel in the sidebar.\n').id, OWN_ROUTE.id);
   assert.equal(placeOf('# T\n\nNo route here.\n').id, OWN_ROUTE.id);

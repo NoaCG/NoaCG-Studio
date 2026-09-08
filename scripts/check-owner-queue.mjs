@@ -92,7 +92,7 @@ export const NEEDS_REQUIRED_FROM = '2026-09-05';
 // THE ROUTE, AND THE PLACE IT OPENS
 // ---------------------------------------------------------------------------
 //
-// A walk used to cost one route per item. On 2026-09-09 the queue held 74 files, 63 of them open,
+// A walk used to cost one route per item. On 2026-09-09 the queue held 75 files, 64 of them open,
 // and 28 of those began with the SAME four clicks - open the studio, Import graphic, drop a file.
 // The owner's own account of what this queue costs him is in OWNER_QUEUE.md: "the cost he is
 // protecting is not his attention, it is his TIME AT A MACHINE - a sentence costs him nothing, and
@@ -101,46 +101,74 @@ export const NEEDS_REQUIRED_FROM = '2026-09-05';
 //
 // So `/walk` groups by the PLACE an item's route opens, and the grouping is DERIVED from the route
 // line each item already wrote. No new front-matter key: a key sessions must remember to fill is a
-// key that is wrong on the day somebody forgets, and the 63 items already on disk would all carry
+// key that is wrong on the day somebody forgets, and the 64 items already on disk would all carry
 // nothing. What they DO carry is a route - the queue's shape doc has demanded one since the
-// beginning, and 60 of the 63 open items have a findable one.
+// beginning, and all 59 open `walk`/`walk-p` items grouped on the day this landed.
 
 /**
- * Where an item's route section starts. Two shapes are in use and both are honoured, because the
- * queue was written by dozens of sessions and neither shape is wrong:
+ * A route section's own heading - the shape most items use.
  *
- *   ## The route, under a minute          - a heading (the majority)
- *   **Route, under a minute.** Open ...   - a bold lead-in, sometimes mid-paragraph after the date
- *
- * The heading must OPEN with the word, not merely contain it - this item's own title is "A walk now
- * covers a route, not an item", and a looser pattern read the title as the route section and then
- * stopped at the next heading, leaving the item with a route of three words. `\broutes?\b` rather
- * than `route`, so "routing" and "routines" are not matched either.
+ * The heading must OPEN with the word, not merely contain it. This change's own queue item is
+ * titled "A walk now covers a route, not an item", and a looser pattern read that TITLE as the
+ * route section, stopped at the next heading, and grouped the item on three words of prose.
+ * `\broutes?\b` rather than `route`, so "routing" and "routines" are not matched either.
  */
-const ROUTE_MARKER = /^#{1,6}\s+(?:the\s+)?routes?\b[^\n]*$|\*\*Routes?\b[^*]*\*\*|^Route:/im;
+const ROUTE_HEADING = /^#{1,6}\s+(?:the\s+)?routes?\b/i;
 
 /**
- * How much text after the marker is read as the route. The route is the first thing in its own
- * section, and what follows it ("what to look at", the commit trail) names screens too - so a whole
- * file read as one blob would group half the queue by a word in its footnotes.
+ * The other shape: a bold lead-in, sometimes mid-paragraph after the date -
+ * `**Date:** 2026-09-07. **Route:** open ...` is a real item. The lead-in must START a line or a
+ * sentence, because an unanchored pattern lets any earlier bold mention of the word hijack the
+ * route: a summary reading "The **route** each item writes is what groups it now" sits above a
+ * perfectly good `## The route` section, and matched first.
+ */
+const ROUTE_LEAD_IN = /(?:^|[.·]\s+)\*\*Routes?\b[^*\n]*\*\*|^Route:/i;
+
+/**
+ * A hard backstop on how much of an item is read as its route, in characters. It exists so a
+ * malformed item groups on its opening rather than on its whole text - never as the normal way a
+ * route ends, which is why it sits above the real range rather than inside it: on 2026-09-09 the
+ * longest of the 68 route sections on disk was 1,406 characters and none reached this.
+ */
+const ROUTE_MAX_CHARS = 1600;
+
+/**
+ * The text of an item's route section, or null when it has none.
+ *
+ * WHERE THE ROUTE ENDS MATTERS AS MUCH AS WHERE IT STARTS. What follows a route is "what to look
+ * at", and that paragraph names screens the route never opens - the receipts item is the proof:
+ * its route is one command in a terminal, and the paragraph under it mentions the editor and the
+ * studio while describing a BUG LIST. Read as one blob it grouped under "the studio", which would
+ * have sent the owner to the wrong screen.
+ *
+ * Read line by line rather than by regex offsets, for two reasons a single pattern got wrong:
+ * a `#` comment on the first line of a fenced command block is not a heading, and the plain
+ * `What to look at:` that the older one-paragraph template used is a boundary just as much as the
+ * bold `**What to look at.**` that replaced it.
  *
  * @param {string} text the item's full content
- * @returns {string|null} the route text, or null when the item has no route section at all
+ * @returns {string|null}
  */
 export function routeTextOf(text) {
-  const match = ROUTE_MARKER.exec(text);
-  if (!match) return null;
-  const after = text.slice(match.index);
-  // WHERE THE ROUTE ENDS, and it matters more than it looks. What follows a route is "what to
-  // look at", and that paragraph names screens the route never opens - the receipts item is the
-  // proof: its route is one command in a terminal, and the paragraph under it mentions the editor
-  // and the studio while describing a BUG LIST. Read as one blob it grouped under "the studio",
-  // which would have sent the owner to the wrong screen. So the route stops at the next section,
-  // in both shapes the queue uses: a heading, or a line-start `**What ...**` lead-in.
-  const boundaries = [after.search(/\n#{1,6}\s/), after.search(/\n\*\*What/i)]
-    .filter((index) => index > 0)
-    .concat(900);
-  return after.slice(0, Math.min(...boundaries));
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  // A HEADING WINS OVER A LEAD-IN, wherever each one sits. An item with a real route section and a
+  // passing bold mention of the word above it has one obvious answer, and this is it.
+  let start = lines.findIndex((line) => ROUTE_HEADING.test(line));
+  if (start < 0) start = lines.findIndex((line) => ROUTE_LEAD_IN.test(line));
+  if (start < 0) return null;
+
+  const out = [];
+  let inFence = false;
+  let length = 0;
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/^\s*```/.test(line)) inFence = !inFence;
+    else if (!inFence && index > start && /^#{1,6}\s|^\*{0,2}What\b/i.test(line)) break;
+    out.push(line);
+    length += line.length + 1;
+    if (length > ROUTE_MAX_CHARS) break;
+  }
+  return out.join('\n');
 }
 
 /**
@@ -316,10 +344,13 @@ export function auditOwnerQueueItem(text) {
 function readQueue(dir, names) {
   return names.map((name) => {
     const text = readFileSync(path.join(dir, name), 'utf8');
-    const data = parseFrontmatter(text)?.data ?? {};
+    const parsed = parseFrontmatter(text);
+    const data = parsed?.data ?? {};
     // The H1 is what a human wrote for this item; the file name is the fallback for one that has
-    // no title yet, which nothing forbids.
-    const title = text.match(/^#\s+(.+)$/m)?.[1].trim() ?? name;
+    // no title yet, which nothing forbids. Matched against the BODY, because a whole-line comment
+    // in the front matter (`# filed by the night wave`) is a `#` line too, and would be printed to
+    // the owner as the item's name.
+    const title = (parsed?.body ?? text).match(/^#\s+(.+)$/m)?.[1].trim() ?? name;
     return { name, text, data, title, place: placeOf(text) };
   });
 }
@@ -390,15 +421,14 @@ function printItem(item, extra) {
 
 /** One list, printed flat, for the kinds no route can batch. */
 function printFlatList(heading, items, extra = () => null) {
-  if (items.length === 0) return 0;
+  if (items.length === 0) return;
   console.log(`\n${heading} - ${items.length} item(s)`);
   for (const item of [...items].sort(byWalkOrder)) printItem(item, extra(item));
-  return items.length;
 }
 
-/** One list, printed as its groups. Returns the number of items printed. */
+/** One list, printed as its groups. */
 function printList(heading, items) {
-  if (items.length === 0) return 0;
+  if (items.length === 0) return;
   const groups = groupByPlace(items);
   console.log(`\n${heading} - ${items.length} item(s) in ${groups.length} place(s)`);
   for (const group of groups) {
@@ -406,7 +436,6 @@ function printList(heading, items) {
     console.log(`\n  ${group.place.label} (${group.items.length}${now ? `, ${now} serve NOW` : ''}) - ${group.place.hint}`);
     for (const item of group.items) printItem(item);
   }
-  return items.length;
 }
 
 /**
@@ -493,11 +522,15 @@ function main() {
   // `/walk` presenting one flat list again with nothing saying so. The count that matters is how
   // many open items landed in a SHARED place rather than on their own - if that collapses towards
   // zero, the grouping has stopped working even though every other rule here still passes.
-  const open = queue.filter((item) => !isTrue(item.data.done));
-  const grouped = open.filter((item) => item.place.id !== OWN_ROUTE.id);
+  //
+  // Counted over the ROUTED kinds only. An `owner-action` or `hardware` item is never grouped, so
+  // including them would move the ratio for reasons that have nothing to do with the grouping:
+  // filing four more hardware items would drag it down while every rule here still worked.
+  const routed = queue.filter((item) => !isTrue(item.data.done) && ROUTED_KINDS.includes(item.data.kind));
+  const grouped = routed.filter((item) => item.place.id !== OWN_ROUTE.id);
   measured.optional(
     grouped.length,
-    `open queue items grouped by route (of ${open.length} open; ${new Set(grouped.map((item) => item.place.id)).size} place(s))`,
+    `queue items grouped by route (of ${routed.length} open walk/walk-p/agent; ${new Set(grouped.map((item) => item.place.id)).size} place(s))`,
     'zero is honest for a drained queue, or for one whose every remaining item opens somewhere nobody else does.',
   );
 

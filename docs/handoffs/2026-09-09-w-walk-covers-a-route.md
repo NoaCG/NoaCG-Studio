@@ -7,7 +7,8 @@ change itself, and nothing in the queue was walked, closed or edited.
 
 ## What the queue actually looked like, before designing anything for it
 
-75 files on disk, 64 open (11 carry `done: true` and are records, not work). The route lines were
+75 files on disk, 64 open (11 carry `done: true` and are records, not work), counted with this
+change's own item already filed. The route lines were
 written by dozens of sessions over three weeks in their own words, so the first question was whether
 there is enough shape in them to group by at all. There is, and it is lopsided:
 
@@ -32,8 +33,9 @@ says why it is the right axis - *"the cost he is protecting is not his attention
 A MACHINE"* (`OWNER_QUEUE.md`, closing section).
 
 The phrasing worry in the row's prompt did not survive contact with the files: this was never a
-normalisation problem. The route sections are consistent enough that 60 of the 64 open items land in
-a shared place with no editing at all, and the four that do not are the hardware ones.
+normalisation problem. The route sections are consistent enough that all 59 open `walk` and `walk-p`
+items land in a shared place with no editing at all; the only open items that group nowhere are the
+four hardware ones, which carry no route by design.
 
 ## The grouping rule, and why it is derivable
 
@@ -52,16 +54,33 @@ a shared place with no editing at all, and the four that do not are the hardware
 somebody forgets, and all 64 existing items would carry nothing. The route is a thing the contract
 has demanded since the beginning, so the grouping rides on an obligation that already exists.
 
-Two bugs in that rule were found by reading its own output rather than by reasoning, and both are
-now pinned by tests:
+Finding where a route starts and stops turned out to be the whole difficulty, and every bug in it
+was silent - a misgrouped item is never reported, it just costs the trip this change exists to save.
+Six were found: two by reading the report's own output, four by the code review. All are pinned by
+tests.
 
 - **The route stopped too late.** The receipts item's route is one command in a terminal, and the
   "what to look at" paragraph under it mentions the editor and the studio while describing a list of
-  bugs. Read as one blob it grouped as "the studio". Hence the `**What ...**` boundary.
+  bugs. Read as one blob it grouped as "the studio". Hence the boundary at a `What ...` lead-in.
 - **The route started too early.** This change's own queue item is titled *"A walk now covers a
   route, not an item"*, and a heading pattern that merely CONTAINED the word read the title as the
   route section, stopped at the next heading, and grouped the item on three words of prose. The
   heading now has to OPEN with the word.
+- **A bold mention anywhere hijacked the route.** `**Route ...**` was unanchored, so a sentence
+  reading "The **route** each item writes is what groups it now" outranked a perfectly good
+  `## The route` section below it. A heading now beats a lead-in wherever each sits, and a lead-in
+  must start a line or a sentence - which still admits the real `**Date:** ... **Route:** open ...`
+  shape.
+- **The plain-text boundary was missing.** The queue's older one-paragraph template wrote
+  `Route: ...` and `What to look at: ...` with no bold at all, and those items are still on disk.
+  The boundary now matches with or without the asterisks.
+- **A `#` comment inside a fenced block ended the route.** A route opening with
+  ```` ```bash / # start the studio first ```` was truncated to its opening fence and grouped as a
+  checkout instead of the import wizard. The scan now tracks fences, which is why it reads line by
+  line instead of by regex offsets.
+- **The character cap was doing the boundary's job.** It fired before the section boundary on 10 of
+  the 75 items. It is now 1,600 - above the longest real section, which is 1,406 - so it is a
+  backstop for a malformed item and never the normal way a route ends.
 
 ## What a walk looks like now
 
@@ -93,8 +112,10 @@ It never asks a route to MATCH a known place. A genuinely new place is a fine an
 that pushed items into existing buckets would be inventing where the owner has to go.
 
 Per row F's rule, the new mechanism reports what it measured:
-`[measured] 60 open queue items grouped by route (of 64 open; 6 place(s))`. If the regexes ever stop
-matching, that number collapses and the build says so instead of quietly presenting one flat list.
+`[measured] 59 queue items grouped by route (of 59 open walk/walk-p/agent; 6 place(s))`. If the
+patterns ever stop matching, that number collapses and the build says so instead of quietly
+presenting one flat list. It counts the ROUTED kinds only - an `owner-action` or `hardware` item is
+never grouped, so including them would move the ratio for reasons unrelated to the grouping.
 
 ## What was traded out of the instruction chain
 
@@ -117,9 +138,9 @@ moment of filing.
 
 - `scripts/check-owner-queue.mjs` - `PLACES` (the list and the ordering argument), `routeTextOf`,
   `placeOf`, `ROUTE_REQUIRED_FROM`, and `--routes`.
-- `scripts/check-owner-queue.test.mjs` - 40 tests, 11 of them new, including both route-boundary
-  regressions and the date gate in both directions. Discovered by `scripts/gates.mjs` from disk, so
-  it runs in `npm run build` with no wiring.
+- `scripts/check-owner-queue.test.mjs` - 44 tests, 15 of them new: every route-boundary bug above,
+  the place ordering, and the date gate in both directions. Discovered by `scripts/gates.mjs` from
+  disk, so it runs in `npm run build` with no wiring.
 - `docs/acceptance/OWNER_QUEUE.md` - "The shape of an item" (the route section rule) and "The order
   the owner sees them in" (the grouping).
 - `docs/acceptance/owner-queue/2026-09-09-a-walk-now-covers-a-route.md` - the item asking him
