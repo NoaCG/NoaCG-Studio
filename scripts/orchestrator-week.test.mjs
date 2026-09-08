@@ -8,6 +8,7 @@ import {
   commonPathLines,
   decisionsIn,
   improvementsFrom,
+  noPlansBlock,
   parseArgs,
   poolCounts,
   questionsIn,
@@ -105,6 +106,51 @@ test('the page prints every section from the facts, with absent meters named rat
   assert.match(page, /unverified on the installed builds: 1 \(claude-launched-session-gets-no-subagent-notifications\)/);
   assert.match(page, /640 lines now, 639 at the window's start; core 198 lines/);
   assert.match(page, /9daf5b28 Refuse a bad delegation/);
+});
+
+// The defect this pins is the one the 2026-09-08 review hit: the page printed "Rows planned: 0"
+// and "Decisions taken: 0" for a week whose plans had died with their worktrees, and nothing in it
+// distinguished an idle machine from a lost record.
+test('a week with no surviving plan says so loudly instead of printing zeros', () => {
+  const page = summarise({
+    window: { since: '2026-09-01T00:00:00.000Z', until: '2026-09-08T00:00:00.000Z', days: 7 },
+    usage: null,
+    waves: [],
+    planSearch: {
+      dirs: [
+        { dir: 'C:/repo/docs/handoffs', exists: true, planFiles: 0, inWindow: 0 },
+        { dir: 'C:/repo/.claude/worktrees/orchestrator/docs/handoffs', exists: false, planFiles: 0, inWindow: 0 },
+      ],
+      outsideWindow: 0,
+    },
+    handoffs: [], queueItems: [], landed: { count: 189, branches: [] },
+    skill: { commits: [], commonPathNow: { core: 1, marked: [], total: 1 }, commonPathThen: null },
+  }).join('\n');
+  assert.match(page, /NO WAVE PLAN FOUND\. The rows, pools and decisions below are UNMEASURED, not zero\./);
+  assert.match(page, /`C:\/repo\/docs\/handoffs` - exists, holds no `\*-wave-plan\.local\.md` at all/);
+  assert.match(page, /`C:\/repo\/\.claude\/worktrees\/orchestrator\/docs\/handoffs` - the directory does not exist/);
+  assert.match(page, /Decisions taken on the owner's behalf: \*\*UNMEASURED\*\*/);
+  // The counts that do NOT come off a plan still print - the loss is bounded to what it really hit.
+  assert.match(page, /Branches the queue landed: 189/);
+  // And nothing anywhere claims a measured zero.
+  assert.ok(!/Rows planned: 0/.test(page), 'a zero row count must never appear when nothing was measured');
+  assert.ok(!/wave plans\): 0/.test(page), 'a zero decision count must never appear when nothing was measured');
+  assert.match(page, /No plan of any date is on disk/);
+});
+
+test('a plan that exists but sits outside the window is named as such, not as a missing plan', () => {
+  const block = noPlansBlock({
+    dirs: [{ dir: 'C:/repo/docs/handoffs', exists: true, planFiles: 3, inWindow: 0 }],
+    outsideWindow: 3,
+  }).join('\n');
+  assert.match(block, /holds 3 plans, 0 of them inside the window/);
+  assert.match(block, /3 plan files are on disk but older than the window/);
+  assert.match(block, /NOT a lost record - widen it with `--days`/);
+  assert.ok(!/GONE/.test(block), 'a plan that is merely outside the window has not been lost');
+});
+
+test('a run that could not resolve a checkout admits it searched nowhere', () => {
+  assert.match(noPlansBlock(undefined).join('\n'), /nowhere - this run could not resolve the primary checkout/);
 });
 
 test('a busy week lists the first commits and counts the rest', () => {

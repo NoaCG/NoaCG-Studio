@@ -31,6 +31,13 @@
 // Every count is a proxy and the output says which. "Decisions taken" is the marker count, not the
 // truth about judgement; "questions asked" is a heading match. They move in the right direction
 // when the system improves, which is what a weekly loop needs from them.
+//
+// AN ABSENT SOURCE IS NEVER A ZERO. The wave plans are the one input that can vanish - they are
+// gitignored and live in a checkout - so when none is found the page says so loudly, names every
+// directory it searched and what was in it, and marks the rows, pools and DECIDED: counts
+// UNMEASURED. The first real run of this script (2026-09-08) printed 0 waves and 0 decisions for a
+// week in which nine lettered rows landed on one day, and the reader had no way to tell that apart
+// from an idle machine.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -131,6 +138,45 @@ export function questionsIn(handoffText) {
   return asks;
 }
 
+/**
+ * The paragraph the page prints when it found NO wave plan in the window. It exists because the
+ * first run of this script over a real week printed "Wave plans in the window: 0", "Rows planned:
+ * 0" and "Decisions taken: 0" for a week in which nine lettered rows landed on one day - the plans
+ * had been written into throwaway worktrees, are gitignored, and died with the folder. Zero is a
+ * measurement; an absent file is not one, and a page that prints the first when it means the second
+ * is lying to the only reader who cannot check it.
+ *
+ * `search` is `{ dirs: [{ dir, exists, planFiles, inWindow }], outsideWindow }` from `wavePlans`.
+ */
+export function noPlansBlock(search) {
+  const dirs = search?.dirs ?? [];
+  const lines = ['- **NO WAVE PLAN FOUND. The rows, pools and decisions below are UNMEASURED, not zero.**'];
+  lines.push('  Looked in:');
+  if (!dirs.length) lines.push('  - nowhere - this run could not resolve the primary checkout, so it searched no directory at all');
+  for (const entry of dirs) {
+    if (!entry.exists) lines.push(`  - \`${entry.dir}\` - the directory does not exist`);
+    else if (!entry.planFiles) lines.push(`  - \`${entry.dir}\` - exists, holds no \`*-wave-plan.local.md\` at all`);
+    else lines.push(`  - \`${entry.dir}\` - holds ${entry.planFiles} plan${entry.planFiles === 1 ? '' : 's'}, ${entry.inWindow} of them inside the window`);
+  }
+  // Two very different stories end in an empty result, and the fix is different for each: a plan
+  // outside the window is a reading error the reader can correct, a plan nowhere on disk is a
+  // record that is gone for good.
+  if (search?.outsideWindow) {
+    lines.push(
+      `  ${search.outsideWindow} plan file${search.outsideWindow === 1 ? ' is' : 's are'} on disk but older than the window,`,
+      '  so this is a window that missed them and NOT a lost record - widen it with `--days` and read again.',
+    );
+  } else {
+    lines.push(
+      '  No plan of any date is on disk. A wave plan is gitignored and lives only in the checkout that',
+      '  wrote it, so a plan written in a worktree that has since been removed leaves nothing behind.',
+      '  Read the week\'s waves off the landed branches and the handoffs instead, and record that the',
+      '  routing evidence is GONE for this window rather than that the machine sat idle.',
+    );
+  }
+  return lines;
+}
+
 /** Rows per pool from a wave table; a row naming two pools counts once for each. */
 export function poolCounts(rows) {
   const counts = {};
@@ -196,11 +242,17 @@ export function summarise(facts) {
   lines.push(`- Capability observations unverified on the installed builds: ${unverified.length}${unverified.length ? ` (${unverified.join(', ')})` : ''}.`, '');
 
   lines.push('## Waves and rows', '');
-  lines.push(`- Wave plans in the window: ${waves.length} (${waves.map((wave) => wave.name).join(', ') || 'none'}).`);
-  const pools = poolCounts(waves.flatMap((wave) => wave.rows));
-  const totalRows = waves.reduce((sum, wave) => sum + wave.rows.length, 0);
-  lines.push(`- Rows planned: ${totalRows}; by pool: ${Object.entries(pools).map(([pool, count]) => `${pool} ${count}`).join(', ') || 'none'}.`);
-  lines.push(`- Rows planned off Claude (codex, agy-gemini, agy-claude-gpt): ${(pools.codex ?? 0) + (pools['agy-gemini'] ?? 0) + (pools['agy-claude-gpt'] ?? 0)} of ${totalRows}.`);
+  // Everything read off a wave plan is unmeasured when no plan survived, so the whole block is
+  // gated on that one fact rather than each number being separately excused.
+  if (!waves.length) {
+    lines.push(...noPlansBlock(facts.planSearch));
+  } else {
+    lines.push(`- Wave plans in the window: ${waves.length} (${waves.map((wave) => wave.name).join(', ')}).`);
+    const pools = poolCounts(waves.flatMap((wave) => wave.rows));
+    const totalRows = waves.reduce((sum, wave) => sum + wave.rows.length, 0);
+    lines.push(`- Rows planned: ${totalRows}; by pool: ${Object.entries(pools).map(([pool, count]) => `${pool} ${count}`).join(', ') || 'none'}.`);
+    lines.push(`- Rows planned off Claude (codex, agy-gemini, agy-claude-gpt): ${(pools.codex ?? 0) + (pools['agy-gemini'] ?? 0) + (pools['agy-claude-gpt'] ?? 0)} of ${totalRows}.`);
+  }
   lines.push(`- Branches the queue landed: ${landed.count}.`);
   if (landed.count && usage?.claudeCode?.tokens?.total) {
     lines.push(`- Claude tokens per landed branch: ${fmt(Math.round(usage.claudeCode.tokens.total / landed.count))} (the whole machine's Claude spend over the queue's landings - a ceiling, not a cost per row).`);
@@ -208,9 +260,13 @@ export function summarise(facts) {
   lines.push('');
 
   lines.push('## Decisions and questions', '');
-  const decided = waves.reduce((sum, wave) => sum + wave.decisions.decided, 0);
-  const legacy = waves.reduce((sum, wave) => sum + wave.decisions.legacy, 0);
-  lines.push(`- Decisions taken on the owner's behalf (DECIDED: lines in the wave plans): ${decided}${legacy ? `, plus ${legacy} in the older inline wording` : ''}.`);
+  if (!waves.length) {
+    lines.push('- Decisions taken on the owner\'s behalf: **UNMEASURED** - the `DECIDED:` marker lives in the wave plan and no plan survived the window (see above). This is not "no decisions were taken".');
+  } else {
+    const decided = waves.reduce((sum, wave) => sum + wave.decisions.decided, 0);
+    const legacy = waves.reduce((sum, wave) => sum + wave.decisions.legacy, 0);
+    lines.push(`- Decisions taken on the owner's behalf (DECIDED: lines in the wave plans): ${decided}${legacy ? `, plus ${legacy} in the older inline wording` : ''}.`);
+  }
   const asking = handoffs.filter((file) => file.asks > 0);
   lines.push(`- Handoffs added: ${handoffs.length}; carrying an ask for the owner: ${asking.length} (${asking.reduce((sum, file) => sum + file.asks, 0)} items)${asking.length ? ` - ${asking.map((file) => path.basename(file.name)).join(', ')}` : ''}.`);
   const kinds = {};
@@ -265,14 +321,32 @@ function usageJson(days) {
   }
 }
 
+/**
+ * The wave plans in the window, AND a record of where the search went. The record is not
+ * bookkeeping: an empty result means either "no wave ran" or "the plans died with their worktree",
+ * and only the list of directories with what each held tells the reader which (see `noPlansBlock`).
+ */
 function wavePlans(dirs, since) {
   const seen = new Map();
+  const searched = [];
+  let outsideWindow = 0;
   for (const dir of dirs) {
-    if (!dir || !existsSync(dir)) continue;
+    if (!dir) continue;
+    if (!existsSync(dir)) {
+      searched.push({ dir, exists: false, planFiles: 0, inWindow: 0 });
+      continue;
+    }
+    const entry = { dir, exists: true, planFiles: 0, inWindow: 0 };
+    searched.push(entry);
     for (const name of readdirSync(dir)) {
       if (!name.endsWith('-wave-plan.local.md')) continue;
+      entry.planFiles += 1;
       const file = path.join(dir, name);
-      if (statSync(file).mtimeMs < since) continue;
+      if (statSync(file).mtimeMs < since) {
+        outsideWindow += 1;
+        continue;
+      }
+      entry.inWindow += 1;
       const text = readText(file) ?? '';
       const previous = seen.get(name);
       // Two checkouts can hold the same plan name; the larger copy is the one the wave wrote to.
@@ -280,7 +354,10 @@ function wavePlans(dirs, since) {
       seen.set(name, { name, file, text, rows: parseWaveTable(text).rows, decisions: decisionsIn(text) });
     }
   }
-  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    plans: [...seen.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    search: { dirs: searched, outsideWindow },
+  };
 }
 
 function addedInWindow(sinceIso, pathspec) {
@@ -346,10 +423,12 @@ export function gather({ now = Date.now(), days = 7 } = {}) {
   const home = primary ? path.join(primary, '.claude', 'worktrees', 'orchestrator') : null;
   const startRev = git(['rev-list', '-1', `--before=${sinceIso}`, 'HEAD'])?.trim() || null;
   const log = git(['log', `--since=${sinceIso}`, '--no-merges', '--format=%h%x09%s', '--', ...SYSTEM_PATHS]) ?? '';
+  const plans = wavePlans([primary && path.join(primary, 'docs', 'handoffs'), home && path.join(home, 'docs', 'handoffs')], since);
   return {
     window: { since: sinceIso, until: new Date(now).toISOString(), days },
     usage: usageJson(days),
-    waves: wavePlans([primary && path.join(primary, 'docs', 'handoffs'), home && path.join(home, 'docs', 'handoffs')], since),
+    waves: plans.plans,
+    planSearch: plans.search,
     handoffs: handoffsAdded(sinceIso),
     queueItems: queueItemsAdded(sinceIso),
     landed: landedInWindow(since),
