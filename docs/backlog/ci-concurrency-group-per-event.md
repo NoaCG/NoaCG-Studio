@@ -9,7 +9,8 @@ build-gate change, so its own row: a gate lands alone.
 `main`. A push run and a `workflow_dispatch` run for the same branch therefore cannot both live,
 and which survives depends on the order two webhooks register, which is not stable: "Pushing and
 dispatching in one breath is a coin flip, and I lost it once"
-(`docs/handoffs/2026-09-04-a-refusals-say-why.md`, and three more handoffs the same two days). When
+(the 2026-09-04 refusals-say-why handoff and three more the same two days, all since drained;
+the rule it produced is the trap `root/read-which-jobs-ran-before-believing`). When
 the dispatch loses, the push run survives with the narrow plan the dispatch was issued to avoid.
 `scripts/hooks/guard-command.mjs` now refuses the pair in ONE shell command, which is the shape
 the matcher can see; two back-to-back commands, two sessions, or `auto-merge.mjs`'s own stand-in

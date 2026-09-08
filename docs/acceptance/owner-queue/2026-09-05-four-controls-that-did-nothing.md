@@ -51,4 +51,5 @@ The typeface panel's **🔎 Find a typeface**, **⬆ Upload** and **💻 Install
 and it needs the font's bytes to travel with the role, so it is filed rather than rushed:
 `docs/backlog/typeface-search-ignores-apply-to.md`.
 
-Branch `claude/i-offer-nothing-dead`. Build green; e2e run recorded in the handoff.
+Branch `claude/i-offer-nothing-dead`, landed as `e6bdabce` and `8b5a8706`. Build green; the e2e
+run was recorded in that session's handoff, drained on 2026-09-08.

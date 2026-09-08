@@ -64,6 +64,8 @@ against a real launched row, both directions, per `docs/MISTAKE_TRIGGERS.md`.
 
 The night-wave plan of 2026-09-01 (row E, verbatim in the orchestrator home's
 `docs/handoffs/2026-09-01-night-wave.local.md`);
-`docs/handoffs/2026-09-02-h-orchestration-guardrails.md` for the first three guardrails;
-`docs/handoffs/2026-09-02-d-mistake-trigger-hooks.md` for the 2026-09-02 round;
-`docs/handoffs/2026-09-05-r-mistake-triggers.md` for the two measurements that reshaped this item.
+the 2026-09-02 orchestration-guardrails handoff for the first three guardrails (drained
+2026-09-08, and each guardrail's reasoning now sits in its own hook header);
+`docs/handoffs/2026-09-02-d-mistake-trigger-hooks.md` for the 2026-09-02 round; the 2026-09-05
+mistake-triggers handoff for the two measurements that reshaped this item, restated in full above
+(drained 2026-09-08).

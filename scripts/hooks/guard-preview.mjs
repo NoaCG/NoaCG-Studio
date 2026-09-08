@@ -7,8 +7,8 @@
 // work - which is what makes the failure silent. Measured 2026-09-01 (docs/DEV_PORTS.md
 // "Starting a dev server"); between 2026-09-02 and 2026-09-04 four sessions each spent ten to
 // thirty minutes reading a stale page from another checkout as their own
-// (docs/handoffs/2026-09-02-b-queue-walks-itself.md, 2026-09-02-g-docs-a-person-wrote.md,
-// 2026-09-02-d-leaving-the-wizard.md, 2026-09-02-l-picture-backplate-grows.md). The shell guard
+// (docs/handoffs/2026-09-02-b-queue-walks-itself.md and 2026-09-02-d-leaving-the-wizard.md still
+// carry two of the four; the other two handoffs were drained on 2026-09-08). The shell guard
 // next door already refuses `npm run dev` with a message naming this trap, and a session reaching
 // for preview_start never sees it, because it is not typing a shell command. That is the routing
 // rule in docs/MISTAKE_TRIGGERS.md: the call's own arguments plus one stat decide it, the failure
