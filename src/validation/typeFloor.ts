@@ -11,20 +11,12 @@
 // SAME one. A second copy is how the gate and the thing it gates come to disagree - the
 // unsafeJsConstructs precedent (one question, one answer, one place to update).
 
-/**
- * Floors in CSS pixels at 1920x1080, keyed by `AssemblerId`.
- *
- * `corner-bug` is lower on purpose and is not a relaxation: a corner bug is a persistent
- * station mark read over minutes rather than a line read in four seconds, and the catalog's own
- * bugs are authored at that size. Everything else answers to the default.
- */
-export const TYPE_FLOOR_PX: Readonly<Record<string, number>> = {
-  'corner-bug': 16,
-  default: 20,
-};
-
-/** The floor for a category. An unknown category takes the default rather than opting out -
- *  a new category must be readable before it is special. */
-export function typeFloorFor(category: string | null | undefined): number {
-  return (category && TYPE_FLOOR_PX[category]) || TYPE_FLOOR_PX.default;
-}
+// MOVED 2026-09-08. The numbers themselves now live in `src/model/designRules.ts`, which its own
+// header calls "the one canonical module for on-air legibility constraints ... nothing copies its
+// numbers" - and these are legibility numbers. The move happened because the PRIMARY floor became
+// type-aware (owner ruling 2026-09-08) and had to read the same per-category floor a persistent
+// graphic already answers to; a model-layer rule cannot import validation, and copying the table
+// would have produced exactly the second source of truth this file was created to prevent.
+//
+// This file stays as the name every caller already imports.
+export { TYPE_FLOOR_PX, typeFloorFor } from '../model/designRules';
