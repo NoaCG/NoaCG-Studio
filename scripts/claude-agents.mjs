@@ -99,8 +99,8 @@ export function agentsCapability(rows) {
   const list = Array.isArray(rows) ? rows : [];
   return {
     rows: list.length,
-    status: list.some((row) => typeof row?.status === 'string' && row.status),
-    waitingFor: list.some((row) => typeof row?.waitingFor === 'string' && row.waitingFor),
+    status: list.some((row) => sessionState(row).status !== null),
+    waitingFor: list.some((row) => sessionState(row).waitingFor !== null),
   };
 }
 
@@ -117,6 +117,33 @@ export function sessionIdFromTranscript(file) {
   if (index > 0) return parts[index - 1] || null;
   const name = parts.at(-1);
   return name?.endsWith('.jsonl') ? name.slice(0, -'.jsonl'.length) : null;
+}
+
+/**
+ * Is this directory the same as that one, or inside it? Both sides go through `normalisePath`, so a
+ * drive letter cased differently, a backslash or a trailing slash cannot decide the answer - and
+ * the boundary is a `/`, so a sibling checkout called `NoaCG-Studio-old` is not inside
+ * `NoaCG-Studio`.
+ *
+ * Here rather than at each call site because the cost of getting it wrong is one-directional: every
+ * caller is deciding something about live sessions from a path, and a test that matches nothing
+ * prints a confident all-clear on a machine full of them.
+ */
+export function isUnder(cwd, root) {
+  const at = normalisePath(cwd);
+  const under = normalisePath(root);
+  if (!at || !under) return false;
+  return at === under || at.startsWith(`${under}/`);
+}
+
+/**
+ * A row's `status` and `waitingFor` as either a non-empty string or null - the one guard, written
+ * once. The field varies by build and by session kind (see `agentsCapability`), so every reader has
+ * to make the same check, and four copies of it was three too many.
+ */
+export function sessionState(row) {
+  const text = (value) => (typeof value === 'string' && value ? value : null);
+  return { status: text(row?.status), waitingFor: text(row?.waitingFor) };
 }
 
 /** The rows indexed both ways a caller can ask for them. */
@@ -149,12 +176,9 @@ export function livenessFor({ sessionId = null, cwd = null } = {}, index, { avai
   if (sessionId && index.bySession.has(sessionId)) {
     return { verdict: 'live', row: index.bySession.get(sessionId), why: 'the harness lists this session' };
   }
-  const here = normalisePath(cwd);
-  if (here) {
-    for (const [at, rows] of index.byCwd) {
-      if (at !== here && !at.startsWith(`${here}/`)) continue;
-      return { verdict: 'live', row: rows[0], why: `a session is running in ${rows[0].cwd}` };
-    }
+  for (const [at, rows] of index.byCwd) {
+    if (!isUnder(at, cwd)) continue;
+    return { verdict: 'live', row: rows[0], why: `a session is running in ${rows[0].cwd}` };
   }
   return {
     verdict: 'absent',
@@ -166,8 +190,7 @@ export function livenessFor({ sessionId = null, cwd = null } = {}, index, { avai
 /** One clause a report can print. Never the words "died" or "crashed" - see the header. */
 export function describeLiveness({ verdict, row }) {
   if (verdict === 'live') {
-    const status = typeof row?.status === 'string' && row.status ? row.status : null;
-    const waitingFor = typeof row?.waitingFor === 'string' && row.waitingFor ? row.waitingFor : null;
+    const { status, waitingFor } = sessionState(row);
     if (status && waitingFor) return `its process is running (pid ${row.pid}, ${status}: ${waitingFor})`;
     if (status) return `its process is running (pid ${row.pid}, ${status})`;
     return `its process is running (pid ${row?.pid ?? '?'})`;
@@ -280,8 +303,9 @@ function report(argv) {
   }
   process.stdout.write(`${read.rows.length} live session(s) the harness knows about:\n\n`);
   for (const row of read.rows) {
-    const status = row.status ? `  ${row.status}${row.waitingFor ? ` (${row.waitingFor})` : ''}` : '';
-    process.stdout.write(`  ${row.name ?? row.sessionId ?? 'unnamed'}  ${row.kind ?? '?'}  pid ${row.pid ?? '?'}${status}\n`);
+    const { status, waitingFor } = sessionState(row);
+    const state = status ? `  ${status}${waitingFor ? ` (${waitingFor})` : ''}` : '';
+    process.stdout.write(`  ${row.name ?? row.sessionId ?? 'unnamed'}  ${row.kind ?? '?'}  pid ${row.pid ?? '?'}${state}\n`);
     process.stdout.write(`    ${row.cwd ?? 'no working directory recorded'}\n`);
   }
   const missing = read.capability.status ? '' : '\nNo row carried a status; this build or these session kinds do not publish one.\n';
