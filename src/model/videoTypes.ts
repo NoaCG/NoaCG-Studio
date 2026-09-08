@@ -269,7 +269,8 @@ export interface VideoProject {
    * REFERENCE material: read by the AI, but never reachable as `assets.<name>`, never in the
    * Content panel's picker, and never uploaded with the render manifest.
    *
-   * ADDITIVE OPTIONAL, so it never bumps the format version (root AGENTS.md rule 6) and needs
+   * ADDITIVE OPTIONAL, so it never bumps the format version
+   * (`root/version-every-persisted-format-ship-breaking`) and needs
    * no migration: an absent map - every project saved before this existed - means every asset
    * is composition material, which is exactly the old behaviour. It lives on the project
    * rather than in the wizard because the video wizard creates INSTANTLY and the first

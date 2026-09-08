@@ -50,7 +50,8 @@ export interface ProjectBrand {
    * and accent weight. Those became editable in the Style surfaces before they could travel;
    * this is what lets a saved look carry them.
    *
-   * ADDITIVE OPTIONAL, so no version bumps and nothing migrates (root AGENTS.md rule 6): a
+   * ADDITIVE OPTIONAL, so no version bumps and nothing migrates
+   * (`root/version-every-persisted-format-ship-breaking`): a
    * brand written before this existed simply carries no shape and applies none. Only tokens
    * the RECEIVING design declares are written, so a look never grafts a variable onto a
    * design that reads no such thing.

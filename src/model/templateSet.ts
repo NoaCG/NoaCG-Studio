@@ -4,7 +4,7 @@
 // way: every graphic saved to the library, all of them pooled into one production, nothing
 // opened in the editor. This lives in the model layer so the wizard and the pack importer run
 // literally the same claimed-write path — two copies would be two chances for one of them to
-// forget the durable-write claim (src/components/AGENTS.md, "Save + Home").
+// forget the durable-write claim (`components/never-report-save-storage-layer-has`).
 
 import { commitDurableWrites } from './durableStore';
 import { createGraphic } from './library';

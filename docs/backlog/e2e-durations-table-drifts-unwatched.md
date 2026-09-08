@@ -9,8 +9,8 @@
 32412658565 with **131 specs / 70.5 minutes**, while the real suite had grown to **147 specs /
 99.7 minutes**. Sixteen spec files had no entry at all. `npm run check:e2e-durations` reported this
 correctly the whole time - it only runs inside `check:freshness`, which is a weekly REPORT and not
-a gate (AGENTS.md "Verifying changes" rule 6), and a report that nobody acts on for a fortnight is
-indistinguishable from no report.
+a gate (`root/drive-freshness-time-never-commit-freshness`), and a report that nobody acts on for
+a fortnight is indistinguishable from no report.
 
 **The cost of staleness went up on 2026-09-04.** Until then the table only decided HOW MANY runners
 a plan asked for, and `shardsFor` caps at 9, so a full run asked for nine either way and drift
@@ -45,7 +45,8 @@ Three shapes worth weighing instead:
 - **Report it where it is read.** Print the drift in the plan job's own output, so it appears in
   every CI run that depends on it rather than in a weekly digest.
 
-A build gate lands alone (AGENTS.md, Git), so whichever shape wins is its own branch.
+A build gate lands alone (`root/work-feature-branch-own-worktree-made`), so whichever shape wins
+is its own branch.
 
 ## Evidence
 

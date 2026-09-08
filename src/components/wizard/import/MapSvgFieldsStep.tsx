@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { parseCssColor } from '../../../model/cssVars';
 import { uuid } from '../../../model/id';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
@@ -196,6 +197,16 @@ function proposeFollowers(
 }
 
 /**
+ * HOW MUCH OF THE FRAME MAKES A SHAPE THE BOARD'S OWN BACKPLATE rather than a box on it.
+ *
+ * Written once because two measurements ask it - whether a shape can be one of a repeated ROW,
+ * and whether it can HEAD a group in the checklist - and a shape that is a backplate to one and a
+ * row to the other would put a graphic in two states at once. The thing a full-frame plate is a
+ * plate FOR is the graphic, not a row of it.
+ */
+const BACKPLATE_SHARE_OF_FRAME = 0.7;
+
+/**
  * IS THIS A GRAPHIC THE AUDIENCE SEES AGAIN WITH DIFFERENT CONTENT?
  *
  * The doctrine's third rule (docs/TEXT_BOX_BINDING.md, owner 2026-09-02): *"When we have a
@@ -253,7 +264,7 @@ function repeatsWithNewContent(stage: HTMLElement, holderIds: string[]): boolean
     .filter((r): r is { box: DOMRect; w: number; h: number } => !!r)
     // Not the board's own backplate: a shape covering most of the frame holds every line there
     // is, so it would pair with any other such shape and say "repeat" about a single graphic.
-    .filter((r) => r.box.width * r.box.height < frame.width * frame.height * 0.7);
+    .filter((r) => r.box.width * r.box.height < frame.width * frame.height * BACKPLATE_SHARE_OF_FRAME);
   const apart = (a: DOMRect, b: DOMRect) => {
     const over =
       Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
@@ -448,6 +459,117 @@ function panelOfEachLine(
       if (!best || area < best.area) best = { id: plate.id, area };
     }
     if (best) out[id] = best.id;
+  }
+  return out;
+}
+
+/**
+ * PLAIN COLOUR WORDS, for naming a box a reader is looking at.
+ *
+ * Sixteen words and nothing between them: a swatch is already on screen carrying the exact
+ * colour, so this only has to be close enough that "the tan plate" and "the blue plate" pick out
+ * different shapes on a board. Nearest by straight RGB distance, which is coarse and entirely
+ * sufficient at this resolution - a perceptual space would change no answer on any real artwork
+ * and would need explaining to whoever edits the list next.
+ */
+const COLOUR_WORDS: [string, number, number, number][] = [
+  ['black', 0x11, 0x11, 0x11], ['grey', 0x88, 0x88, 0x88], ['white', 0xfa, 0xfa, 0xfa],
+  ['cream', 0xef, 0xe6, 0xc8], ['tan', 0xd2, 0xb4, 0x8c], ['brown', 0x8b, 0x5a, 0x2b],
+  ['red', 0xd0, 0x32, 0x2d], ['orange', 0xef, 0x8a, 0x22], ['amber', 0xf5, 0xbf, 0x3f],
+  ['yellow', 0xf2, 0xe5, 0x4b], ['pale green', 0xc5, 0xe1, 0xa5], ['green', 0x3f, 0xa5, 0x50],
+  ['teal', 0x2b, 0x9c, 0x9c], ['pale blue', 0xa9, 0xd2, 0xe6], ['blue', 0x2f, 0x6f, 0xd0],
+  ['navy', 0x1b, 0x2b, 0x5a], ['purple', 0x7e, 0x4b, 0xc0], ['pink', 0xe8, 0x8f, 0xba],
+];
+
+/**
+ * The nearest plain word for a computed fill, or null where the fill is not one visible colour.
+ *
+ * `parseCssColor` does the reading, alpha included: a gradient, a pattern and `none` all answer
+ * null, and so does a fully transparent shape - a swatch nobody can see should not be described
+ * as black.
+ */
+function colourWord(fill: string): string | null {
+  const c = parseCssColor(fill);
+  if (!c || c.a === 0) return null;
+  let best: { word: string; d: number } | null = null;
+  for (const [word, r, g, b] of COLOUR_WORDS) {
+    const d = (c.r - r) ** 2 + (c.g - g) ** 2 + (c.b - b) ** 2;
+    if (!best || d < best.d) best = { word, d };
+  }
+  return best?.word ?? null;
+}
+
+/**
+ * IS THIS LAYER NAME SOMETHING A READER WOULD RECOGNISE, or the designer's private shorthand?
+ *
+ * The owner's own board names its question plate `q bg`, and a row headed "q bg" tells a student
+ * nothing at all - which is the whole reason the box gets named by its COLOUR instead
+ * (docs/TEXT_BOX_BINDING.md, "the grouping IS the binding"). A designer who wrote "Question
+ * plate" must keep seeing that, so this refuses only two things: the labels the importer itself
+ * minted when the layer had no name, and a name with no word long enough to read as a word.
+ */
+function isReadableBoxName(label: string): boolean {
+  const trimmed = label.trim();
+  if (trimmed === '' || /^(Panel|Rectangle)\s+\d+$/.test(trimmed)) return false;
+  return /[A-Za-z]{4,}/.test(trimmed);
+}
+
+/** What a box is called in the list: the designer's own name where they gave one, otherwise its
+ *  colour and what it is. Capitalised because it heads a row. */
+function boxName(label: string, fill: string): string {
+  if (isReadableBoxName(label)) return label.trim();
+  const word = colourWord(fill);
+  return word ? `${word[0].toUpperCase()}${word.slice(1)} plate` : 'Plate';
+}
+
+/**
+ * THE BOARD'S OWN BACKPLATE IS NOT A BOX, so grouping by it says nothing.
+ *
+ * A shape covering most of the frame holds every line there is, and heading the whole checklist
+ * with it - "Black plate", over all seven rows - is a heading, not a grouping. The thing that
+ * plate is a plate FOR is the graphic, not a row of it: the same sentence
+ * `repeatsWithNewContent` already acts on, through the one `BACKPLATE_SHARE_OF_FRAME`.
+ *
+ * Dropping these leaves their lines in the "On the artwork" group, which is the honest answer -
+ * a line whose only box is the whole frame has no box to grow.
+ */
+function withoutBackplates(
+  stage: HTMLElement,
+  boxOfLine: Record<string, string>,
+): Record<string, string> {
+  const frame = stage.querySelector('svg')?.getBoundingClientRect();
+  if (!frame || !(frame.width > 0) || !(frame.height > 0)) return boxOfLine;
+  const limit = frame.width * frame.height * BACKPLATE_SHARE_OF_FRAME;
+  const out: Record<string, string> = {};
+  for (const [lineId, boxId] of Object.entries(boxOfLine)) {
+    const box = markerEl(stage, boxId)?.getBoundingClientRect();
+    if (box && box.width * box.height >= limit) continue;
+    out[lineId] = boxId;
+  }
+  return out;
+}
+
+/**
+ * WHAT EACH BOX LOOKS LIKE, measured off the rendered stage.
+ *
+ * The fill is read from the LAID-OUT element rather than the markup because a fill arrives by
+ * class as often as by attribute (every Illustrator export writes `.cls-10 { fill: #c69c6d }`),
+ * and `getComputedStyle` is the one reading that is right for all of them. Measured here beside
+ * the containment for the same reason that lives here: two spellings of what a box is is how the
+ * grouping and the growth picker drift into two different answers.
+ */
+function boxLooksOf(
+  stage: HTMLElement,
+  svg: SvgImportResult,
+  boxIds: string[],
+): Record<string, { fill: string; name: string }> {
+  const out: Record<string, { fill: string; name: string }> = {};
+  for (const id of new Set(boxIds)) {
+    const el = markerEl(stage, id);
+    if (!el) continue;
+    const fill = getComputedStyle(el).fill || '';
+    const label = svg.shapes.find((s) => s.id === id)?.label ?? '';
+    out[id] = { fill, name: boxName(label, fill) };
   }
   return out;
 }
@@ -933,6 +1055,14 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
     () => (boundLineKey ? boundLineKey.split('|') : []),
     [boundLineKey],
   );
+  // AND EVERY TEXT ROW, ticked or not, for the checklist's grouping. Which box a line sits in is
+  // a fact about where it was DRAWN, so an unticked row keeps its place in the list rather than
+  // jumping to "On the artwork" and back as somebody works down the checkboxes.
+  const allLineKey = [
+    ...draft.svgFields.map((f) => f.candidateId),
+    ...draft.svgOutlines.filter((f) => f.box).map((f) => f.candidateId),
+  ].join('|');
+  const allMarkerIds = useMemo(() => (allLineKey ? allLineKey.split('|') : []), [allLineKey]);
   const placedLines = useMemo(
     () => draft.designFields.map((f) => ({ x: f.x, y: f.y, fontSize: f.fontSize ?? 0 })),
     [draft.designFields],
@@ -998,6 +1128,11 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
   const [panelIds, setPanelIds] = useState<string[]>([]);
   /** Bound line -> the plate it sits on, for the per-layer answers below. */
   const [panelOfLine, setPanelOfLine] = useState<Record<string, string>>({});
+  /** Text row -> the box the CHECKLIST groups it under: the plate it sits on, minus the board's
+   *  own backplate, which is a heading over everything rather than a grouping of anything. */
+  const [boxOfRow, setBoxOfRow] = useState<Record<string, string>>({});
+  /** Plate -> its swatch colour and the name the checklist heads it with. */
+  const [boxLooks, setBoxLooks] = useState<Record<string, { fill: string; name: string }>>({});
   /** Whether the per-layer answers are showing. Closed on arrival, always: the graphic-wide
    *  picker is the whole control for almost everybody. */
   const [perPanelOpen, setPerPanelOpen] = useState(false);
@@ -1006,11 +1141,17 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
     if (!svg || !stage) {
       setPanelIds([]);
       setPanelOfLine({});
+      setBoxOfRow({});
+      setBoxLooks({});
       return;
     }
     setPanelIds(panelsHoldingText(stage, svg, boundMarkerIds, placedLines));
-    setPanelOfLine(panelOfEachLine(stage, svg, boundMarkerIds));
-  }, [svg, boundMarkerIds, placedLines]);
+    const ofLine = panelOfEachLine(stage, svg, allMarkerIds);
+    setPanelOfLine(ofLine);
+    const grouped = withoutBackplates(stage, ofLine);
+    setBoxOfRow(grouped);
+    setBoxLooks(boxLooksOf(stage, svg, Object.values(grouped)));
+  }, [svg, boundMarkerIds, allMarkerIds, placedLines]);
 
   /** The shapes the picker offers. The measurement where it found any, every shape where it
    *  found none, and ALWAYS whatever is currently chosen - a shape picked by dragging on the
@@ -1051,6 +1192,64 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
     return [...byPanel.values()];
   }, [draft.svgFields, draft.svgOutlines, panelOfLine]);
   const perPanelSet = perPanelRows.filter((r) => perPanel[r.panelId] != null).length;
+
+  // ── THE CHECKLIST, GROUPED BY THE BOX EACH LINE SITS IN ──
+  // "Every text field lives in a box: the shape drawn under it", and THE GROUPING IS THE BINDING
+  // (docs/TEXT_BOX_BINDING.md, step 2). The step already decided which box holds which line -
+  // `panelOfEachLine` is what the per-box growth answers are keyed on - and until now it decided
+  // it silently. A reader could not see that the question and its four answers were understood as
+  // five separate boxes rather than one board, which is the first thing that has to be true
+  // before any per-box answer means anything.
+  //
+  // ORDERED BY WHERE EACH BOX FIRST APPEARS, and document order kept inside it, so a board reads
+  // top-to-bottom the way it is drawn. Text inside no shape comes last under its own heading: it
+  // has no box to grow, and saying so is more useful than heading it with a shape it is not in.
+  const fieldGroups = useMemo(() => {
+    type Group = { boxId: string | null; label: string; fields: SvgFieldDraft[] };
+    // A GROUP IS A RUN OF CONSECUTIVE ROWS, never every row sharing a box gathered together.
+    // Document order is the order the reader drew in and the order they scan in, and a checklist
+    // that quietly re-sorts it is worse than one that repeats a heading: measured twice on the
+    // corpus, where collecting rows by box moved a question BELOW its own four answers on the
+    // Affinity board (whose backplate is 73% of the frame, so the question is loose while the
+    // answers are not) and swapped the two lines of the Inkscape bumper. So the box a row is in
+    // is shown, and where a row sits is never touched.
+    const groups: Group[] = [];
+    for (const f of draft.svgFields) {
+      const boxId = boxOfRow[f.candidateId] ?? null;
+      const last = groups[groups.length - 1];
+      if (last && last.boxId === boxId) last.fields.push(f);
+      else groups.push({ boxId, label: '', fields: [f] });
+    }
+    // NUMBERED WHERE THE NAME REPEATS, and only there. A quiz board draws four answer plates in
+    // one colour, so four headings reading "Orange plate" name nothing - while a board with one
+    // orange plate should not be told it is orange plate 1 of 1. Numbered per BOX rather than per
+    // run, so a box a reader returns to keeps the number it had.
+    const nameOf = (g: Group) => (g.boxId ? boxLooks[g.boxId]?.name ?? 'Plate' : 'On the artwork');
+    const boxesPerName = new Map<string, Set<string>>();
+    for (const g of groups) {
+      if (!g.boxId) continue;
+      const set = boxesPerName.get(nameOf(g)) ?? new Set<string>();
+      set.add(g.boxId);
+      boxesPerName.set(nameOf(g), set);
+    }
+    const numberOf = new Map<string, number>();
+    const used = new Map<string, number>();
+    for (const g of groups) {
+      if (!g.boxId || (boxesPerName.get(nameOf(g))?.size ?? 0) < 2) continue;
+      if (numberOf.has(g.boxId)) continue;
+      const n = (used.get(nameOf(g)) ?? 0) + 1;
+      used.set(nameOf(g), n);
+      numberOf.set(g.boxId, n);
+    }
+    for (const g of groups) {
+      const n = g.boxId ? numberOf.get(g.boxId) : undefined;
+      g.label = n === undefined ? nameOf(g) : `${nameOf(g)} ${n}`;
+    }
+    return groups;
+  }, [draft.svgFields, boxOfRow, boxLooks]);
+  /** One box holding every line is not a grouping, it is a heading over the whole list - so the
+   *  headings only appear once the artwork actually has more than one place to put text. */
+  const showBoxGroups = fieldGroups.length > 1;
   /** Give one plate its own answer, or hand it back to the graphic-wide one. Touching this is
    *  AUTHORING, like every other growth control: the measured default stops re-deriving. */
   const setPanelMode = (panelId: string, mode: StretchMode | null) => {
@@ -1672,7 +1871,42 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
             </p>
             <p>The Text box is live. Type a long value and the preview shows what airs.</p>
           </SectionHead>
-          {draft.svgFields.map((f) => {
+          {fieldGroups.map((group) => (
+          <div
+            /* KEYED ON THE GROUP'S FIRST ROW, not on its box: a group is a RUN, so one box can
+               head two of them on a file that interleaves, and keying on the box id then hands
+               React two children with the same key. The first row's candidate id is unique per
+               group and stable across renders, where an index is not. */
+            key={group.fields[0].candidateId}
+            className={showBoxGroups ? 'map-svg-box-group' : undefined}
+            data-testid={`map-svg-box-${group.fields[0].candidateId}`}
+          >
+            {showBoxGroups && (
+              /* THE HEADING IS THE CLAIM: "these lines live in this shape". The swatch carries
+                 the shape's own fill, which is the cheapest trust device there is - a reader who
+                 has never heard the word binding still checks a colour against the picture beside
+                 them in under a second. `aria-hidden` because the NAME already says the colour;
+                 read aloud, the swatch would be a second copy of it. */
+              <p className="map-svg-box-head" data-testid={`map-svg-box-head-${group.fields[0].candidateId}`}>
+                {group.boxId && (
+                  <span
+                    className="map-svg-swatch"
+                    style={{ background: boxLooks[group.boxId]?.fill || 'transparent' }}
+                    aria-hidden="true"
+                  />
+                )}
+                <strong>{group.label}</strong>
+                {/* The lines are listed directly underneath, so counting them for the reader is
+                    noise on a board where every plate holds exactly one. The leftover group is
+                    the one that has something to say, because "no box" is not visible on the
+                    artwork the way a plate is. */}
+                {/* TRUE OF BOTH WAYS A LINE ENDS UP HERE: nothing drawn under it at all, and
+                    nothing under it but the board's own backplate. Either way there is no box
+                    around it that could grow, which is the consequence the reader needs. */}
+                {!group.boxId && <span>no box of their own, so nothing grows around them</span>}
+              </p>
+            )}
+            {group.fields.map((f) => {
             // A LAYER THE VOTE WRITES IS NOT A FIELD, so this row does not offer the two boxes
             // that would pretend it is (owner walk, 2026-09-03: he selected a percentage, watched
             // it highlight in the preview, typed, and nothing happened). `draftToOptions` drops
@@ -1794,6 +2028,8 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onArmDraw, o
             </div>
             );
           })}
+          </div>
+          ))}
         </div>
       )}
 

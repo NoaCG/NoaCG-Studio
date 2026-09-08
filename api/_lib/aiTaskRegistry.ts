@@ -87,7 +87,7 @@ export interface TaskProfile {
   /** Which ledger the task writes and the row discriminator it writes there. The
    *  ai_generations `profile` column pins its allowed values with a CHECK constraint
    *  (migration 0010), so a task introducing a new value ships that migration in the
-   *  same commit (root AGENTS.md non-negotiable 6). */
+   *  same commit (`root/version-every-persisted-format-ship-breaking`). */
   ledger: { kind: TaskLedgerKind; profile: string };
 }
 

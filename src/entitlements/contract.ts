@@ -29,7 +29,8 @@
 
 // ── features ───────────────────────────────────────────────────────────────────────────
 
-/** Every gateable surface. These are the ACCOUNT features (root AGENTS.md "Auth posture"):
+/** Every gateable surface. These are the ACCOUNT features
+ *  (`root/keep-studio-open-there-login-wall`):
  *  the editor, the catalog, local preview and the six local export targets are free-forever
  *  core and deliberately absent from this union - there is no key here that can paywall
  *  them, which is the point. Cloud rendering appears because it costs real compute. */

@@ -61,7 +61,8 @@ async function openAiSettings(page: Page) {
   await page.goto('/app');
   // WAIT for the cold-boot auto-open explicitly, the way `_svg-import.ts` does, rather than
   // leaning on the 7 s default. `/app` boots through a watchdog and a durable-store hydration
-  // that falls back to localStorage only after 4 s (root AGENTS.md, "Gotchas"), so on a slow
+  // that falls back to localStorage only after 4 s
+  // (`root/keep-boot-watchdog-connection-check-working`), so on a slow
   // machine the wizard mounts uncomfortably close to the deadline. That is what made this
   // helper fail a DIFFERENT random subset of the file on every run in a cloud container on
   // 2026-09-06, always here, always before anything the tests are about (e2e/AGENTS.md).

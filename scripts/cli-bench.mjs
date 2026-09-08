@@ -2,8 +2,8 @@
 //
 // `cli/test/smoke.test.mjs` drives the built CLI - which launches a headless Chromium and opens
 // the deployment's /bridge - so it is a BROWSER-DRIVING job by every measure the one-job-per-
-// machine guard cares about (root AGENTS.md "Verifying changes"). It is named `*bench*` on
-// purpose: that puts it inside `SWEEP_SCRIPTS` (scripts/command-match.mjs), so the guard hook
+// machine guard cares about (`root/enqueue-browser-driving-work-rather-than`). It is named
+// `*bench*` on purpose: that puts it inside `SWEEP_SCRIPTS` (scripts/command-match.mjs), so the guard hook
 // and the process detector both know about it, and `npm run bench:cli` queues behind a live
 // suite instead of running beside one.
 //

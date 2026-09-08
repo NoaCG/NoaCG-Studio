@@ -11,7 +11,7 @@
 //
 // The avatar is a real SPX image field declared as a PICTURE slot, like ls25's cover artwork
 // and unlike a brand mark: a portrait is CONTENT, so cropping it round is correct, where
-// cropping a logo would destroy it (src/templates/AGENTS.md, "A MARK IS NOT A PICTURE").
+// cropping a logo would destroy it (src/templates/AGENTS.md).
 // Without a file the circle holds a drawn accent ring, so the strap is complete before anyone
 // has uploaded anything.
 //

@@ -396,8 +396,8 @@ export function planPreconditions({
   }
 
   // NO WORKTREE IS NOT A REFUSAL ANY MORE - it is the temporary-worktree carve-out the human flow
-  // has always had (AGENTS.md "Git"). A closed session leaves its branch behind with nowhere to
-  // integrate main and run the gate, and refusing meant that branch could never land through the
+  // has always had (`root/work-feature-branch-own-worktree-made`). A closed session leaves its
+  // branch behind with nowhere to integrate main and run the gate, and refusing meant that branch could never land through the
   // queue at all: `editor-blank-stage-note` sat stuck behind exactly this on 2026-08-28, and the
   // outstanding listing said "not queued" for work that was finished. The carve-out is narrow on
   // purpose - the run makes ONE worktree, at a path it computes and nobody else owns, and removes

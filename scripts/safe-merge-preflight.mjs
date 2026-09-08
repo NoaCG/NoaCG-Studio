@@ -260,9 +260,9 @@ export function onlyMainIntegrationsBetween(pinned, current, { cwd = ROOT } = {}
  * own, or a cancelled job that ran a step of THIS REPO's, executed something. `skipped` never
  * counts - a skipped job is the plan being believed, not work being done.
  *
- * An exhausted run is still NOT A VERDICT (AGENTS.md "Verifying changes" rule 4: a job that stops
- * at its own `timeout-minutes` answers nothing about the code). It is a reason to stop and say so,
- * never a reason to judge the branch red.
+ * An exhausted run is still NOT A VERDICT (`root/read-which-jobs-ran-before-believing`: a job
+ * that stops at its own `timeout-minutes` answers nothing about the code). It is a reason to stop
+ * and say so, never a reason to judge the branch red.
  */
 export function cancelledRunDidWork(run) {
   return (run?.jobs ?? []).some(jobDidWork);

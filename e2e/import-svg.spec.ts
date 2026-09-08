@@ -3809,3 +3809,122 @@ test('svg import: the step says what a control does, in a few lines', async ({ p
   await page.getByTestId('map-svg-why-fields').click();
   await expect(page.getByTestId('map-svg-why-fields-body').locator('p')).toHaveCount(2);
 });
+
+// ── THE GROUPING IS THE BINDING (docs/TEXT_BOX_BINDING.md step 2) ──
+// "Every text field lives in a box: the shape drawn under it." The step has decided which box
+// holds which line since the per-box growth answers were added, and it decided it SILENTLY: the
+// checklist was one flat list, so a reader could not see that their question and its four answers
+// had been read as five separate boxes rather than one board. That is the fact every per-box
+// answer rests on, and the owner walked straight past it because nothing on screen claimed it.
+//
+// Shown with no new control: a heading per box, its swatch in the shape's own fill, and the rows
+// indented under it.
+test('svg import: the checklist groups each line under the box it was drawn in', async ({ page }) => {
+  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+
+  // FIVE BOXES on a board that draws five plates - the question's and one per answer - and not
+  // one heading over the whole list. The board is the case the whole feature exists for.
+  const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
+  await expect(heads).toHaveCount(5);
+
+  // NAMED BY COLOUR AND KIND, because the designer's own layer names here are `q bg` and friends
+  // - a private shorthand that tells a student nothing. The question's plate is the tan one, and
+  // the four answer plates are one colour, so they are numbered rather than four identical rows.
+  await expect(heads.nth(0)).toContainText('Tan plate');
+  for (let i = 1; i <= 4; i += 1) await expect(heads.nth(i)).toContainText(`Orange plate ${i}`);
+
+  // AND THE SWATCH CARRIES THE SHAPE'S OWN FILL, which is what makes the heading checkable
+  // against the artwork beside it rather than a claim the reader has to take on trust.
+  const fills = await heads.locator('.map-svg-swatch').evaluateAll((els) =>
+    els.map((el) => getComputedStyle(el).backgroundColor));
+  expect(fills[0]).toBe('rgb(198, 156, 109)'); // #c69c6d, the tan question plate
+  expect(new Set(fills.slice(1)).size).toBe(1); // the four answers share one orange
+  expect(fills[1]).not.toBe(fills[0]);
+
+  // The question row sits INSIDE the tan plate's group rather than merely after its heading -
+  // an ordering that happened to look right is the failure this whole step is about.
+  const tan = page.getByTestId('map-svg-fields').locator('.map-svg-box-group').first();
+  await expect(tan.locator('.map-svg-row')).toHaveCount(1);
+  const tanRowId = ((await tan.locator('.map-svg-row').first().getAttribute('data-testid')) ?? '')
+    .replace('map-svg-row-', '');
+  await expect(page.getByTestId(`map-svg-sample-${tanRowId}`)).toHaveValue(/Question 1/);
+});
+
+// A ROW KEEPS ITS BOX WHEN IT IS UNTICKED. Which box a line sits in is a fact about where it was
+// DRAWN, not about whether the operator may retype it - so the measurement runs over every text
+// row rather than the bound ones. Read the other way the list would reshuffle under the reader's
+// cursor as they worked down the checkboxes, which is the one thing a checklist must not do.
+test('svg import: unticking a line leaves it in its own box', async ({ page }) => {
+  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
+  await page.locator('.wz-next').click();
+  const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
+  await expect(heads).toHaveCount(5);
+  const before = await heads.allTextContents();
+
+  const firstId = ((await page.getByTestId('map-svg-fields').locator('.map-svg-row').first()
+    .getAttribute('data-testid')) ?? '').replace('map-svg-row-', '');
+  await untickTextRow(page, firstId);
+
+  await expect(heads).toHaveCount(5);
+  expect(await heads.allTextContents()).toEqual(before);
+  await expect(
+    page.getByTestId('map-svg-fields').locator('.map-svg-box-group').first().locator('.map-svg-row'),
+  ).toHaveCount(1);
+});
+
+// A BACKPLATE IS NOT A BOX. A shape covering most of the frame holds every line there is, so
+// heading the whole checklist with it is a heading rather than a grouping - the same sentence
+// `repeatsWithNewContent` already acts on, at the same 0.7 of the frame. The Inkscape bumper is
+// the case: one full-bleed rectangle behind a headline and a subtitle. Grouping by it would have
+// filed both lines under "Black plate" and told the reader nothing, and grouping by it PARTLY -
+// one line inside, one not - reordered the checklist away from the order the file draws in.
+test('svg import: a full-frame backplate does not become a box to group by', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg2(page, fileURLToPath(
+    new URL('fixtures/svg-corpus/inkscape-text-on-path-bumper.svg', import.meta.url),
+  ));
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+
+  // No headings at all, and the two rows stand in the order the file draws them.
+  await expect(page.getByTestId('map-svg-fields').locator('.map-svg-box-head')).toHaveCount(0);
+  const rows = page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-row-"]');
+  await expect(rows).toHaveCount(2);
+  await expect(page.getByTestId('map-svg-sample-t0')).toHaveValue('CHAMPIONS');
+
+});
+
+// The other side of the same rule: the scorebug's plates are 2.5% of the SAME 1920x1080 frame, so
+// they are boxes and the file groups into two. The rule is about a shape's size against the
+// artwork, never about how many shapes a file happens to draw.
+test('svg import: plates well inside the frame are boxes, and group the checklist', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg2(page, SCOREBUG_SVG);
+  const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
+  await expect(heads).toHaveCount(2);
+  await expect(heads.nth(0)).toContainText('plate');
+  await expect(heads.nth(1)).toContainText('plate');
+});
+
+// AND THE CHECKLIST NEVER RE-SORTS ITSELF. A group is a run of consecutive rows, so showing which
+// box a row is in cannot move it: the Affinity board's backplate is 73% of the frame, which makes
+// its question loose while its four answers sit on plates of their own. Collected by box, the
+// question would be filed after all four answers it is asked above.
+test('svg import: grouping never moves a row out of the order the file draws it in', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg2(page, fileURLToPath(
+    new URL('fixtures/svg-corpus/origin-shifted-quiz-board.svg', import.meta.url),
+  ));
+  const rows = page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-row-"]');
+  await expect(rows).toHaveCount(5);
+  const names = await rows.locator('[data-testid^="map-svg-title-"]').evaluateAll((els) =>
+    els.map((el) => (el as HTMLInputElement).value));
+  expect(names).toEqual(['Question', 'Answer A', 'Answer B', 'Answer C', 'Answer D']);
+
+  // The question heads the list under its own group, which says it has no box rather than naming
+  // the whole-board plate it happens to sit on.
+  const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
+  await expect(heads.first()).toContainText('On the artwork');
+  await expect(heads.first()).toContainText('no box of their own');
+});

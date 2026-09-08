@@ -24,7 +24,7 @@ canonical procedure to point at (docs/AGENT_WORKFLOWS.md).
    `cli/` (`npm run build` once, then `node cli/dist/index.js <command>`), or `npx @noacg/cli` for
    the published build against `https://noacg.studio`.
 3. The CLI launches a headless Chromium - a browser-driving job. Respect the one-job-per-machine
-   rule (root AGENTS.md "Verifying changes"): `npm run bench:cli` is the queued, guard-known
-   entry for the CLI smoke; do not run it beside a live e2e suite.
+   rule (`root/enqueue-browser-driving-work-rather-than`): `npm run bench:cli` is the queued,
+   guard-known entry for the CLI smoke; do not run it beside a live e2e suite.
 4. Never put design doctrine into the default skill; `references/design-notes.md` is the one
    place for house taste and it stays optional (docs/AGENT_CLI.md, the WHY).

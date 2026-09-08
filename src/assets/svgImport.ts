@@ -349,7 +349,8 @@ export function clockSampleMinutes(sample: string): number | null {
 const isEventAttr = (name: string) => /^on/i.test(name);
 
 /** External reference: an absolute URL or protocol-relative — anything that would make the
- *  emitted graphic reach the network (root AGENTS.md non-negotiable 3). A local `#id` ref
+ *  emitted graphic reach the network (`root/keep-generated-template-self-contained-runtime`).
+ *  A local `#id` ref
  *  and a `data:` URL are fine. */
 function isExternalRef(value: string): boolean {
   return /^(?:https?:)?\/\//i.test(value.trim());

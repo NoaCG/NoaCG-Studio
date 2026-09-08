@@ -19,6 +19,7 @@
     "check:tree-shape": "node scripts/check-tree-shape.mjs",
     "check:line-endings": "node scripts/check-line-endings.mjs",
     "check:contract-freshness": "node scripts/check-contract-freshness.mjs",
+    "check:contract-citations": "node scripts/check-contract-citations.mjs",
     "check:workflows": "node scripts/check-workflows.mjs",
     "check:docs-index": "node scripts/check-docs-index.mjs",
     "check:client-secrets": "node scripts/check-client-secrets.mjs",

@@ -128,7 +128,8 @@ export function specCustomFonts(spec: GenerationSpec | null | undefined): Custom
 // ── The spec ─────────────────────────────────────────────────────────────────
 
 export interface GenerationSpec {
-  /** Additive-optional versioning (root AGENTS.md rule 6): bump only on a breaking shape
+  /** Additive-optional versioning (`root/version-every-persisted-format-ship-breaking`): bump
+   *  only on a breaking shape
    *  change, migrating on read in loadSpecDraft/normalizeSpec. */
   version: 1;
   /** 'auto' = let the design stage infer the category from the brief (surfaced editable). */
