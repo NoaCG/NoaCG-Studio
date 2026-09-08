@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { ROOT, measuresNothing, parseHeader } from './gates.mjs';
+import { ROOT, auditGates, measuresNothing, parseHeader } from './gates.mjs';
 
 // A file:// URL, because the throwaway gate is written to the temp directory and imports the
 // helper by absolute path - which Windows will not accept as a bare `C:\...` specifier.
@@ -94,8 +94,7 @@ test('`measures: none` is read off the header, and only as an exemption with a r
   assert.ok(!measuresNothing(parseHeader('// measures: catalog variants')), 'the line may only say none - <why>');
 });
 
-test('the audit refuses a gate that neither reports nor declares why it cannot', async () => {
-  const { auditGates } = await import('./gates.mjs');
+test('the audit refuses a gate that neither reports nor declares why it cannot', () => {
   const wired = {
     buildLine: 'node scripts/gates.mjs run && tsc && node scripts/gates.mjs run --gate after-build',
     workflowText: (name) => (name === 'ci.yml' ? 'run: node scripts/gates.mjs run --gate factory\n' : null),
@@ -110,7 +109,12 @@ test('the audit refuses a gate that neither reports nor declares why it cannot',
   const blind = auditGates({ ...wired, checks: check('// gate: build\n// guards: scripts/blind.mjs'), read: () => 'console.log("ok");' });
   assert.equal(blind.filter((p) => p.includes('never says how much it measured')).length, 1);
 
-  const reports = auditGates({ ...wired, checks: check('// gate: build\n// guards: scripts/blind.mjs'), read: () => "import { measured } from './measured.mjs';" });
+  // An import is not a call: a gate can name the helper and never reach it, and for the checks at
+  // `workflow` and `none` tiers nothing runs the receipt half of the rule.
+  const imported = auditGates({ ...wired, checks: check('// gate: build\n// guards: scripts/blind.mjs'), read: () => "import { measured } from './measured.mjs';\nconsole.log('ok');" });
+  assert.equal(imported.filter((p) => p.includes('never says how much it measured')).length, 1);
+
+  const reports = auditGates({ ...wired, checks: check('// gate: build\n// guards: scripts/blind.mjs'), read: () => "import { measured } from './measured.mjs';\nmeasured(files.length, 'files');" });
   assert.deepEqual(reports, []);
 
   const exempt = auditGates({
@@ -124,8 +128,7 @@ test('the audit refuses a gate that neither reports nor declares why it cannot',
   assert.equal(thin.filter((p) => p.includes('without a reason a reader can act on')).length, 1);
 });
 
-test('an empty test population is a problem, because the runner used to answer it with exit 0', async () => {
-  const { auditGates } = await import('./gates.mjs');
+test('an empty test population is a problem, because the runner used to answer it with exit 0', () => {
   const problems = auditGates({
     checks: [], tests: [], tracked: ['package.json'],
     buildLine: 'node scripts/gates.mjs run && tsc && node scripts/gates.mjs run --gate after-build',

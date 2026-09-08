@@ -41,11 +41,7 @@ import { appendFileSync } from 'node:fs';
 /** Where the runner asks for the receipt, so it can tell "measured zero" from "never reported". */
 const RECEIPT = 'GATE_MEASURED_FILE';
 
-/** Every measurement this process has reported, in order. Exported for the runner's own tests. */
-export const reported = [];
-
 function record(count, subject, optional) {
-  reported.push({ count, subject, optional });
   // STDERR, because a gate's STDOUT can be data. `.github/workflows/ci.yml` runs
   // `PLAN="$(node scripts/e2e-affected.mjs --json ...)"` and hands the result to `JSON.parse`,
   // and half a dozen gates have a `--json` mode of their own. A diagnostic line on the data
@@ -63,6 +59,21 @@ function record(count, subject, optional) {
 }
 
 /**
+ * End the gate, loudly, with the exit code a failed gate has.
+ *
+ * A THROW rather than `process.exit()`. Forcing exit while an in-flight handle is still closing
+ * trips a libuv assertion on Windows and the run reports 127 instead of the verdict, which is why
+ * `scripts/check-ograf-schema.mjs` already sets `process.exitCode` and never calls `process.exit`
+ * - and that gate is one of the callers. `exitCode` is set FIRST, so a caller that swallows the
+ * throw in a `catch` still fails: a gate cannot accidentally pass by catching its own refusal.
+ */
+function refuse(message) {
+  process.exitCode = 1;
+  process.stderr.write(`\n${message}\n\n`);
+  throw new Error(message.split('\n')[0]);
+}
+
+/**
  * Report what this gate resolved its subject to. A count of zero ENDS THE PROCESS with exit 1:
  * a gate that found nothing to look at has not passed, it has failed to run.
  *
@@ -71,20 +82,18 @@ function record(count, subject, optional) {
  */
 export function measured(count, subject) {
   if (!Number.isInteger(count) || count < 0) {
-    process.stderr.write(`\n[measured] ${subject}: the count is ${JSON.stringify(count)}, which is not a whole number of things. A gate that cannot say how much it looked at has not passed.\n\n`);
-    process.exit(1);
+    refuse(`[measured] ${subject}: the count is ${JSON.stringify(count)}, which is not a whole number of things. A gate that cannot say how much it looked at has not passed.`);
   }
   record(count, subject, false);
   if (count === 0) {
-    process.stderr.write(
-      `\nMEASURED NOTHING: this gate resolved 0 ${subject}, so it would have passed without ` +
+    refuse(
+      `MEASURED NOTHING: this gate resolved 0 ${subject}, so it would have passed without ` +
         'looking at anything.\n' +
         'Something the gate resolves its subject by has moved: a constant, a file name, a marker ' +
         'string, a glob, or a directory that is now empty.\n' +
         'Fix the resolution rather than the count. If zero is genuinely honest here, say so in ' +
-        'the code with `measured.optional(n, subject, why)`.\n\n',
+        'the code with `measured.optional(n, subject, why)`.',
     );
-    process.exit(1);
   }
 }
 
@@ -96,12 +105,10 @@ export function measured(count, subject) {
  */
 measured.optional = function optional(count, subject, why) {
   if (typeof why !== 'string' || why.trim().length < 20) {
-    process.stderr.write(`\n[measured] ${subject}: measured.optional needs a reason a reader can act on, saying WHEN zero is honest here.\n\n`);
-    process.exit(1);
+    refuse(`[measured] ${subject}: measured.optional needs a reason a reader can act on, saying WHEN zero is honest here.`);
   }
   if (!Number.isInteger(count) || count < 0) {
-    process.stderr.write(`\n[measured] ${subject}: the count is ${JSON.stringify(count)}, which is not a whole number of things.\n\n`);
-    process.exit(1);
+    refuse(`[measured] ${subject}: the count is ${JSON.stringify(count)}, which is not a whole number of things.`);
   }
   record(count, subject, true);
 };

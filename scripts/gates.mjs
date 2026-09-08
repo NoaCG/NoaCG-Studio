@@ -294,7 +294,11 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
       }
       return;
     }
-    if (!(read(gate.entry) ?? '').includes('measured.mjs')) {
+    // An IMPORT is not a call. A gate can name the helper in a comment, or import it and never
+    // reach it, and for the 12 checks at `workflow` and `none` tiers nothing runs the second half
+    // of this rule - so a mention would be the whole enforcement. Both halves are required.
+    const text = read(gate.entry) ?? '';
+    if (!(text.includes('measured.mjs') && /\bmeasured(\.optional)?\s*\(/.test(text))) {
       problems.push(
         `${label} never says how much it measured - import { measured } from './measured.mjs' and report the size of the set it resolved, ` +
           'so a moved constant or an emptied directory fails the gate instead of passing it. ' +

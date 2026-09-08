@@ -155,6 +155,40 @@ Fix the resolution rather than the count. If zero is genuinely honest here, say 
 
 The break was applied and reverted in the working tree, never committed.
 
+## What the review caught
+
+`review: delegated` at level `high`, into this session, scope-checked against this worktree's
+branch. Five findings, all real, all fixed:
+
+1. **`check:owner-queue` would have failed a fresh clone the day the queue drained.** Git cannot
+   store an empty directory, `docs/acceptance/owner-queue/` had no keeper file, and every one of
+   its 70 entries is deleted on acceptance - so the new missing-directory refusal turned "the owner
+   accepted the last item" into a red build-tier gate for a reason nobody caused. Fixed with a
+   tracked `.gitkeep`, in the same commit as the refusal. This is the best finding of the five: my
+   own fix for a blind gate would have created a landmine with a delay fuse.
+2. **`supabase-advisors` refused a zero one line after arguing zero is honest.** An empty baseline
+   is the state the project is trying to REACH. It now asserts the `entries` key exists - which is
+   the distinguishable failure - and reports the count with `measured.optional`.
+3. **`migration-drift`'s documented skip had become unreachable.** `measured(local.length)` exited
+   before `if (local.length === 0) return { status: 'skipped' }` could run, so a report quietly
+   became a hard failure. It is `measured.optional` now, and the crash that branch carried is fixed
+   with it: it returned an object with no `staging` key, and the printer read `.status` off
+   `undefined` after the production line had already printed.
+4. **`measured()` called `process.exit()`, which one of its callers exists to forbid.**
+   `check-ograf-schema.mjs`'s last line documents `process.exitCode`, never `process.exit()` -
+   forcing exit while a fetch handle is closing trips a libuv assertion on Windows and the run
+   reports 127 instead of the verdict. The helper sets `process.exitCode` and throws.
+5. **The static rule matched a substring.** `text.includes('measured.mjs')` is satisfied by a
+   comment or an unused import, and for the 12 checks at `workflow` and `none` tiers nothing runs
+   the receipt half - a mention would have been the whole enforcement. Both an import and an actual
+   call are required now, and `check-ograf-schema`'s network-outage path (which exits 0 by design)
+   reports through `measured.optional` rather than reporting nothing.
+
+`simplify: inline` - the skill returned fan-out instructions, so the leg ran here over the same
+diff. Two cleanups in my own code: `measured.mjs` exported a `reported` array nothing read, and
+`measured.test.mjs` re-imported `auditGates` dynamically inside two tests that had no other reason
+to be async.
+
 ## What is left
 
 - `docs/backlog/catalog-gates-do-not-assert-they-measured-an-element.md` - the three catalog gates
@@ -168,15 +202,6 @@ The break was applied and reverted in the working tree, never committed.
   under `src/validation` return an empty finding list when their subject fails to resolve, which is
   what a clean graphic returns. `readiness.ts` is the counter-example and the model. Includes the
   one rule written down and enforced nowhere: `plateLegibility.ts` has no importer under `src/`.
-- **`scripts/migration-drift.mjs` has a live crash on its empty path.**
-  `if (local.length === 0) return { status: 'skipped', ... }` returns an object with no `staging`
-  key, and the printer then reads `.status` off `undefined`. `post-land.yml` runs it as
-  `|| true`, so nobody would see it. The `measured(local.length, ...)` call now exits before that
-  line is reached, which hides the crash rather than fixing it - it comes back the moment anybody
-  relaxes that to `measured.optional`.
-- **`check:ograf-schema` reports no measurement on its network-outage path**, where it prints
-  "NOT CHECKED" and exits 0. It is a `workflow` gate, so the runner's "exited 0 having reported
-  nothing" rule never judges it - but that is where the rule would fire if it ever did.
 - **`scripts/run-ai-gateway-tests.mjs` keeps two hand-maintained parallel lists** of 22 sources and
   22 emitted paths with nothing tying them together. A file added to one and not the other still
   compiles-and-never-runs.

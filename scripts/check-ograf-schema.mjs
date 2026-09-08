@@ -229,6 +229,17 @@ try {
   report.reason = String(err.message ?? err);
 }
 
+// SAID ON BOTH PATHS. The not-checked path exits 0 by design - "could not check" is a report, not
+// a verdict - and a gate that exits 0 having reported no measurement at all is exactly what the
+// runner refuses. The count is zero there and honestly so, which is what `optional` is for.
+if (!report.checked) {
+  measured.optional(
+    schemas.size,
+    'ograf schema files',
+    'zero when the published spec could not be fetched at all; this gate then prints NOT CHECKED and exits 0, because "could not check" is not "clean" but it is not a failure either.',
+  );
+}
+
 if (report.checked) {
   // The crawl follows `$ref`s from one root URL, so a spec revision that moves that root would
   // leave this holding nothing to compare digests against.

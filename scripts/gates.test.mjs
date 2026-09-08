@@ -18,7 +18,7 @@ const mk = (name, entry, header) => ({ kind: 'check', name, names: [name], entry
 // The audit fixtures below are about TIERS and GUARDS. Each hands the audit a gate body that
 // already reports what it measured, and one test file, so the measurement rules stay out of their
 // counts; those rules have their own tests in scripts/measured.test.mjs.
-const REPORTS = () => "import { measured } from './measured.mjs';";
+const REPORTS = () => "import { measured } from './measured.mjs';\nmeasured(files.length, 'files');";
 const oneTest = (guard) => [{ kind: 'test', name: 'scripts/b.test.mjs', entry: 'scripts/b.test.mjs', exists: true, header: { ...parseHeader(''), gate: 'build' }, derivedGuards: [guard] }];
 
 test('a header is read for its tier, its workflow, its reason, its guards and its needs - from the leading comment block only', () => {

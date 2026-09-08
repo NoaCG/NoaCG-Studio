@@ -127,8 +127,21 @@ async function drift() {
   // The set both projects are compared against. `localVersions` swallows a missing directory and
   // its filename rule is a regex, so an empty list is what a moved migrations folder or a renamed
   // file convention looks like - and comparing nothing to a remote ledger always says "no drift".
-  measured(local.length, 'local migrations');
-  if (local.length === 0) return { status: 'skipped', detail: 'no migrations found on disk' };
+  // Reported rather than refused, because this file is a REPORT and never fails its caller: the
+  // skip below is the answer it is supposed to give, and turning it into a hard exit would make
+  // this the one place a report kills post-land.yml.
+  measured.optional(
+    local.length,
+    'local migrations',
+    'zero is honest in a checkout with no supabase/migrations yet; this file reports and never fails its caller, so the skip below is the answer rather than a refusal.',
+  );
+  // Both keys, because the printer destructures `staging` off the result and then reads `.status`
+  // from it. Returning the bare object left `staging` undefined and crashed after the production
+  // line had already printed - under `|| true` in post-land.yml, where nobody would see it.
+  if (local.length === 0) {
+    const skipped = { status: 'skipped', detail: 'no migrations found on disk' };
+    return { ...skipped, staging: skipped };
+  }
 
   const token = env.SUPABASE_ACCESS_TOKEN || '';
   const production = await driftFor(productionRef(env), token, local);

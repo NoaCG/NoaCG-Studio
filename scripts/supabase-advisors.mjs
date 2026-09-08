@@ -190,11 +190,19 @@ if (lints === null) {
       process.exitCode = 2;
     } else {
       const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
-      const accepted = new Set(Object.keys(baseline.entries ?? {}));
-      // A baseline that parsed but holds no entries would accept nothing and report every
-      // standing finding as new - or, read the other way round, a renamed `entries` key would
-      // make this compare against an empty set and say so nowhere.
-      measured(accepted.size, 'accepted baseline findings');
+      // THE KEY, NOT THE COUNT. An empty baseline is the state this project is trying to reach -
+      // fix every standing advisory, re-record, and `entries` is legitimately `{}` - so refusing
+      // a zero here would fail the gate for succeeding. What is never honest is `entries` having
+      // been renamed away, which would silently compare every live finding against nothing.
+      if (!baseline || typeof baseline.entries !== 'object' || baseline.entries === null) {
+        throw new Error(`${BASELINE} has no \`entries\` object - the baseline's shape changed, and every live finding would read as new against nothing.`);
+      }
+      const accepted = new Set(Object.keys(baseline.entries));
+      measured.optional(
+        accepted.size,
+        'accepted baseline findings',
+        'zero is honest once every standing advisory has been fixed and the baseline re-recorded; the shape check above is what makes a zero here mean "clean" rather than "renamed away".',
+      );
       const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
       const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
 
