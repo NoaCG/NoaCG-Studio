@@ -303,6 +303,9 @@ export interface TasteReport {
 export interface TasteOptions {
   /** The brand mark's field id. Rules 1, 2 and 5 are about the mark and report null without it. */
   markFieldId?: string | null;
+  /** What the graphic is - passed straight through to the readability instrument, whose primary
+   *  floor is type-aware since the 2026-09-08 ruling. Absent takes the CARD band, never exempt. */
+  category?: string | null;
   /** Reuse a readability report the caller already measured, rather than measuring twice - the
    *  same "one number, one place" rule `gate.ts` follows when it reads the composer's notes. */
   readability?: ReadabilityReport | null;
@@ -516,6 +519,7 @@ export function measureTaste(doc: Document, options: TasteOptions = {}): TasteRe
     mode: options.mode ?? 'standard',
     target: options.target ?? { profile: 'tv' },
     markFieldId: options.markFieldId ?? null,
+    category: options.category ?? null,
   });
 
   // Rule 3: THE SMALLEST INFORMATIONAL LINE, not "the second line".

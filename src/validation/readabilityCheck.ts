@@ -84,6 +84,16 @@ export interface ReadabilityOptions {
   height?: number;
   /** The brand mark's field id, when the graphic carries one - held to the safe area. */
   markFieldId?: string | null;
+  /**
+   * What the graphic IS, which decides what its lead line must reach (owner ruling 2026-09-08;
+   * the bands are `PRIMARY_BAND_RATIO` and the two category lists in designRules).
+   *
+   * Absent is not exempt: an unnamed graphic takes the CARD band, the middle of the three. A
+   * caller that knows the category should pass it - `template.type` on the AI lanes, the wizard
+   * category on the product ones - because a persistent graphic held to a card's floor is the
+   * false positive this ruling exists to remove.
+   */
+  category?: string | null;
 }
 
 export interface ReadabilityReport {
@@ -279,7 +289,7 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
     }
 
     // ── Size (the owner table, composed for this mode and profile) ────────────────────
-    const size = checkTextSize(c.fontPx, role, mode, target, width, height);
+    const size = checkTextSize(c.fontPx, role, mode, target, width, height, options.category);
     if (size.status === 'fail' && size.floor) {
       findings.push({
         code: 'text-under-size-floor',
