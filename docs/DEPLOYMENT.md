@@ -85,6 +85,21 @@ The cost and capacity policy for the Pro account is
    - a **drift check** four times a day alerts when production does not contain the newest
      `main` commit older than 90 minutes - the belt for "no deployment was even created".
 
+   **Only Vercel's own status starts a verification, and that filter is load-bearing.** GitHub
+   raises a production `deployment_status` for `post-land.yml`'s migrate job as well, because
+   that job declares `environment: production`; it lands about 25 seconds after the merge and
+   says nothing about Vercel. Vercel's own "Deployment has completed" arrives 145-187 seconds
+   later (21 landings, 2026-09-07/08), by which point the alias is promoted and the live check
+   passes on its first poll. Verifying on the earlier status meant checking production three
+   minutes before it had anything new to serve, which is issue #159 and the eight false reds on
+   `main` before it. A failed migrate job still reports itself - through post-land's own red run,
+   which is the workflow that actually ran it.
+
+   When the live check does expire, the error says which of two things it saw: production pinned
+   to one older commit for the whole window (the alias is stuck), or production moving but not yet
+   there (something is still promoting - re-read `version.json` before acting). Telling those
+   apart used to need a person with `curl`.
+
    The drift check is a belt, not the alarm: it found the 2026-08-07 config refusal about seven
    hours after it started, because it runs four times a day and GitHub dispatches a schedule
    1-2 h late. So CI's **`Vercel accepted the commit`** job (`ci.yml`, `main` only) asks the
