@@ -12,6 +12,7 @@ import {
   receiptFrom,
   servesVerdict,
   sortReceipts,
+  wrapAfter,
 } from './owner-receipts.mjs';
 
 const NOW = Date.parse('2026-09-02T12:00:00');
@@ -40,6 +41,74 @@ test('a quoted ask keeps its hash, a byte order mark is tolerated, and a future 
   const future = receiptFrom('f.md', ask({ v: 3 }), { now: NOW });
   assert.ok(future.problems.some((p) => p.startsWith('v: 3')));
   assert.deepEqual(receiptFrom('c.md', ask({}), { now: NOW }).problems, []);
+});
+
+test('a quoted value runs on to its closing quote instead of losing every continuation line', () => {
+  // Verbatim shape from docs/backlog/playout-lag-when-working-the-queue.md, which is how eleven
+  // other receipts are written too. The old parser kept the opening quote and dropped lines 2-4.
+  const parsed = parseFrontmatter([
+    '---',
+    'state: unstarted',
+    'asked: "I noticed some lag when I was playing out the quiz graphics, moving around the queue,',
+    '  and playing and stopping graphics. It\'s very important that our layout system is lag-free.',
+    '  The lag happened when I tried to play out the graphic (#42)."',
+    'raised: 2026-09-05',
+    '---',
+    '# Lag working the queue',
+    '',
+  ].join('\n'));
+  assert.equal(parsed.data.state, 'unstarted');
+  assert.equal(
+    parsed.data.asked,
+    'I noticed some lag when I was playing out the quiz graphics, moving around the queue, and ' +
+      "playing and stopping graphics. It's very important that our layout system is lag-free. " +
+      'The lag happened when I tried to play out the graphic (#42).',
+  );
+  // The key AFTER the run-on value is still read, and the body still starts after the block.
+  assert.equal(parsed.data.raised, '2026-09-05');
+  assert.equal(parsed.body, '# Lag working the queue\n');
+  // Single quotes fold the same way.
+  const single = parseFrontmatter("---\nnote: 'landed on claude/x;\n  the ask still stands'\n---\n");
+  assert.equal(single.data.note, 'landed on claude/x; the ask still stands');
+  // A quote that never closes gives back what it read rather than swallowing the next key: front
+  // matter that is merely malformed must not silently delete a receipt's state.
+  const unclosed = parseFrontmatter('---\nasked: "it never closes\n  and runs on\nstate: unstarted\n---\n');
+  assert.equal(unclosed.data.asked, 'it never closes and runs on');
+  assert.equal(unclosed.data.state, 'unstarted');
+});
+
+test('the listing prints a quote whole, wrapped, and never cut mid-sentence', () => {
+  const long =
+    'when we have a ranking, we should be able to reorder them by their position, and it would be ' +
+    'quite amazing if we could have a ranking that would also reorder the names and the position ' +
+    'number just by adding or subtracting points. That is the future we want to come to.';
+  const split = long.lastIndexOf(' ', 90);
+  const record = receiptFrom('r.md', ask({ asked: `"${long.slice(0, split)}\n  ${long.slice(split + 1)}"` }), { now: NOW });
+  const lines = formatReceipts([record]);
+  const printed = lines.slice(2).join(' ').replace(/\s+/g, ' ').trim().replace(/^asked: /, '');
+  assert.equal(printed, long);
+  // No ellipsis, no stray opening quote, and every line inside the width.
+  assert.ok(!lines.some((line) => line.includes('...')));
+  assert.ok(!lines.some((line) => /asked: ["']/.test(line)));
+  assert.ok(lines.every((line) => line.length <= 100));
+  // Continuation lines hang under the quote rather than starting in column one.
+  assert.ok(lines.slice(3).every((line) => line.startsWith('                    ')));
+  // A word wider than the whole line sits alone instead of looping forever.
+  assert.deepEqual(wrapAfter('x: ', 'a'.repeat(140), '  ', 40), ['x: ' + 'a'.repeat(140)]);
+});
+
+test('a trailing hash comment on a PROSE field is read as YAML and said out loud', () => {
+  const parsed = parseFrontmatter('---\nstate: unstarted   # still\nnote: landed abc1234 # and the rest\n---\n');
+  assert.deepEqual(parsed.commented, ['state', 'note']);
+  assert.equal(parsed.data.note, 'landed abc1234');
+  // Kept as the YAML rule, because that is what the format is - but a prose field losing half of
+  // itself to it is reported, so the fix (quote the value) is visible to whoever reads the report.
+  const record = receiptFrom('n.md', ask({ state: 'advanced', note: 'landed abc1234 # and the rest' }), { now: NOW });
+  assert.deepEqual(record.problems, []);
+  assert.equal(record.note, 'landed abc1234');
+  assert.ok(record.notes.some((n) => n.startsWith('note: lost a trailing')));
+  // A token field's comment is a comment and nothing is said about it.
+  assert.deepEqual(receiptFrom('m.md', ask({ state: 'unstarted   # still' }), { now: NOW }).notes, []);
 });
 
 test('a version 1 receipt migrates on read and is NOTED, never refused', () => {

@@ -95,12 +95,21 @@ export const OWNER_TELL =
   /\*\*Source:\*\*[^\n]*\bowner\b(?![-/])|\*\*Why \(owner|\bOwner (?:ruling|walk|accepted|ask|sketch)|\bowner (?:ruling|sketch|feedback|walk)\b|Reported by the owner|Owner-asked/i;
 
 /**
- * Front matter as `{ data, body }`, or null when the text does not open with a `---` block.
+ * Front matter as `{ data, body, commented }`, or null when the text does not open with a `---`
+ * block. `commented` names the keys whose value lost a trailing ` # ...` to the comment rule.
  *
  * The one front-matter parser for the repo's own markdown (receipts, and the skill adapters that
  * `check-shared-instructions.mjs` validates). A UTF-8 byte order mark is tolerated because
  * Windows PowerShell 5.1 writes one; a trailing ` # comment` is stripped only from an UNQUOTED
  * value, because a quoted owner ask may legitimately carry a `#tag` or an issue number.
+ *
+ * A QUOTED value runs on until its closing quote, joining continuation lines with a single space
+ * the way YAML folds them. Before 2026-09-08 it did not: a value that opened with a quote and
+ * closed on a later line fell through to the plain-scalar branch, kept its opening quote, and lost
+ * every continuation line. Twelve receipts were written that way and all twelve printed truncated
+ * mid-sentence - including the `note:` of an `advanced` receipt, which is the field that says what
+ * STILL STANDS. The report a wave plan reads was therefore hiding the open half of the work while
+ * the file on disk was perfectly correct. The files were right and the reader was wrong.
  */
 export function parseFrontmatter(text) {
   const lines = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').split('\n');
@@ -108,6 +117,7 @@ export function parseFrontmatter(text) {
   const end = lines.indexOf('---', 1);
   if (end < 0) return null;
   const data = {};
+  const commented = [];
   for (let index = 1; index < end; index += 1) {
     const match = lines[index].match(/^([A-Za-z0-9_-]+):(?:\s*(.*))?$/);
     if (!match) continue;
@@ -122,11 +132,26 @@ export function parseFrontmatter(text) {
       data[key] = folded.join(value.startsWith('>') ? ' ' : '\n').trim();
     } else if (/^(['"]).*\1$/.test(value)) {
       data[key] = value.slice(1, -1).trim();
+    } else if (value.startsWith('"') || value.startsWith("'")) {
+      // Opened and did not close on this line. Continuation lines are INDENTED, exactly as in a
+      // folded block, so an unclosed quote can never swallow the next key: it stops at the first
+      // line in column one and gives back what it read, opening quote removed.
+      const quote = value[0];
+      const parts = [value.slice(1)];
+      let closed = false;
+      while (!closed && index + 1 < end && /^\s+/.test(lines[index + 1])) {
+        index += 1;
+        parts.push(lines[index].trim());
+        closed = parts[parts.length - 1].endsWith(quote);
+      }
+      const joined = parts.join(' ').trim();
+      data[key] = (closed ? joined.slice(0, -1) : joined).trim();
     } else {
       data[key] = value.replace(/\s+#.*$/, '').trim();
+      if (data[key] !== value) commented.push(key);
     }
   }
-  return { data, body: lines.slice(end + 1).join('\n') };
+  return { data, body: lines.slice(end + 1).join('\n'), commented };
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -207,6 +232,15 @@ export function receiptFrom(name, text, { now = Date.now(), historical = false }
   }
   const quoteKey = QUOTE_KEY[kind] ?? 'asked';
   const quote = data[quoteKey] ?? '';
+  // ` # ...` at the end of an unquoted value is a YAML comment, and this parser reads it as one.
+  // That is right for `state:` or `raised:`, and it silently eats prose on a field that carries
+  // his words. Kept as the YAML rule, and SAID OUT LOUD when it fires on a prose field - a reader
+  // who sees the note quotes the value, and nothing is lost without anyone noticing. It fires on
+  // nothing in the tree today (measured 2026-09-08 across every receipt).
+  for (const key of parsed.commented ?? []) {
+    if (key !== 'note' && key !== 'asked' && key !== 'found') continue;
+    notes.push(`${key}: lost a trailing " # ..." to the YAML comment rule - quote the whole value if that was prose`);
+  }
   if (!quote) {
     problems.push(kind === 'finding'
       ? 'found: is required - what was actually observed, in the reporter\'s words or a marked paraphrase'
@@ -274,16 +308,45 @@ export function isStanding(receipt) {
   return stillOpen(receipt) && receipt.kind === 'ask';
 }
 
+const WRAP_WIDTH = 100;
+const HANGING = ' '.repeat(20);
+
+/**
+ * `prefix` verbatim, then `rest` broken on word boundaries, continuation lines indented by
+ * `indent`. Nothing is ever cut: a long quote runs onto the next line instead of ending in an
+ * ellipsis mid-sentence. The report is what a planner steers by, and half a sentence of the
+ * owner's words is the half that reads as the whole ask.
+ *
+ * A word longer than the whole width sits alone on its line rather than looping forever.
+ */
+export function wrapAfter(prefix, rest, indent = HANGING, width = WRAP_WIDTH) {
+  const out = [];
+  let line = prefix;
+  let empty = true;
+  for (const word of String(rest).split(/\s+/).filter(Boolean)) {
+    if (!empty && line.length + 1 + word.length > width) {
+      out.push(line.trimEnd());
+      line = indent;
+      empty = true;
+    }
+    line = empty ? line + word : `${line} ${word}`;
+    empty = false;
+  }
+  out.push(line.trimEnd());
+  return out;
+}
+
 function receiptLines(receipts, compact) {
   const lines = [];
   for (const receipt of sortReceipts(receipts)) {
     const age = receipt.ageDays === null ? '?' : `${receipt.ageDays}d`;
     const owner = receipt.branch ?? receipt.programme;
-    const where = receipt.state === 'active' && owner ? ` on ${owner}` : receipt.note ? ` - ${receipt.note}` : '';
-    lines.push(`  ${receipt.state.padEnd(10)} ${age.padStart(4)}  ${receipt.slug}${compact ? '' : where}`);
+    const where = receipt.state === 'active' && owner ? `on ${owner}` : receipt.note ? `- ${receipt.note}` : '';
+    const head = `  ${receipt.state.padEnd(10)} ${age.padStart(4)}  ${receipt.slug} `;
+    lines.push(...(compact ? [head.trimEnd()] : wrapAfter(head, where)));
     if (!compact) {
       const label = QUOTE_KEY[receipt.kind] ?? 'asked';
-      lines.push(`             ${label}: ${receipt.quote.length > 140 ? `${receipt.quote.slice(0, 137)}...` : receipt.quote}`);
+      lines.push(...wrapAfter(`             ${label}: `, receipt.quote));
     }
   }
   return lines;
