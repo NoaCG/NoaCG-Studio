@@ -15,12 +15,13 @@ files, re-gated against a root that now expects them.
 
 On your phone, open <https://github.com/NoaCG/NoaCG-Studio> after this lands.
 
-**What to look at.** Three things, all on that one page.
+**What to look at.** The **Security** tab now exists and carries the policy. Start a new issue and
+GitHub shows a contributing prompt above the box; that is `CONTRIBUTING.md` doing its job.
 
-The **Security** tab now exists and carries the policy. Open a new issue or start a pull request
-and GitHub shows a contributing prompt above the box; that is `CONTRIBUTING.md` doing its job.
-The repository's "Community Standards" page, under Insights, goes from three missing checks to
-none missing.
+Then Insights, "Community Standards". That checklist goes from five missing to two: an issue
+template and a pull request template are still absent, and this change deliberately does not add
+them. Templates shape how strangers file things, which is worth deciding on its own rather than
+smuggling in behind three files that only state policy.
 
 ## The sentence I need from you
 
