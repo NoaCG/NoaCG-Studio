@@ -46,6 +46,7 @@ import {
 import type { PresetConfig } from '../lowerThirds/animPresets';
 import type { AnimData } from '../../blocks/animData';
 import { convertToDataRegion } from '../shared/standard';
+import { SPEED_FIELD_TITLES } from '../meta';
 import { tickerPresetById } from './tickerPresets';
 import { tickerMotionJs } from './tickerMotion';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
@@ -222,6 +223,10 @@ function update(data) {
     if (el) setFieldValue(el, fields[key]);
   }
   rebuildTicker();
+  // A new SPEED reaches a strip that is already travelling, rather than waiting for the next
+  // take. The dashboard's ± live-number buttons send exactly this update and say they act on
+  // air, so the field has to mean it (see tickerApplySpeed).
+  tickerApplySpeed();
 }
 
 // play(): rebuild (fresh measurements), then start the loop.
@@ -326,8 +331,8 @@ const SPEED_DEFAULT = '100';
  * and not for this file.
  */
 const SPEED_FIELD_TITLE: Partial<Record<AnimPresetId, string>> = {
-  'ticker-marquee': 'Scroll speed (%)',
-  'ticker-flip': 'Item speed (%)',
+  'ticker-marquee': SPEED_FIELD_TITLES.scroll,
+  'ticker-flip': SPEED_FIELD_TITLES.item,
 };
 
 /**

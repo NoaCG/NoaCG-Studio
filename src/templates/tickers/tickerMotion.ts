@@ -64,6 +64,27 @@ function tickerMotionSpeed() {
   return motionSpeed() * tickerSpeed();
 }
 
+// tickerApplySpeed(): make a speed change land on a strip that is ALREADY RUNNING.
+//
+// Both builders below measure once, at play(), because that is when the operator's text has a
+// width. So a new speed arriving through update() would otherwise sit in the holder and change
+// nothing until the next take, and the surfaces an operator actually uses promise better than
+// that. The production dashboard's "± LIVE NUMBERS act on air" row picks up every number field
+// a graphic has, this one included, and says one press changes the figure on the live graphic.
+//
+// A timeScale is what makes that true without a seam. Restarting the tween would honour the
+// number and snap a half-scrolled strip back to its start, which is worse than ignoring it;
+// scaling the running tween changes the pace from this frame on and never moves the strip.
+// The ratio is against the speed the tween was BUILT at, so repeated changes compose correctly
+// rather than each one measuring from the design's own rate.
+var tickerMotionLive = null;   // the running travel or cycle, or null between takes
+var tickerMotionBuiltAt = 1;   // the speed it was built at
+
+function tickerApplySpeed() {
+  if (!tickerMotionLive || !tickerMotionBuiltAt) return;
+  tickerMotionLive.timeScale(tickerMotionSpeed() / tickerMotionBuiltAt);
+}
+
 // tickerShowNext(): the ROTATOR's beat — put the next item in the track, on its own.
 //
 // This is deliberately NOT measured motion. A marquee's travel has to be measured because its
@@ -108,11 +129,13 @@ function tickerMarquee(target) {
   if (!track) return null;
   var oneSetWidth = track.scrollWidth / 2;        // the items are rendered twice
   // Travel speed. Edit the 140 to change what this design ships at; the operator's percentage
-  // rides on top of it and applies from the next play(), because that is when this is read.
-  var pixelsPerSecond = 140 * tickerMotionSpeed();
+  // multiplies it, and a later change to that percentage reaches this tween through
+  // tickerApplySpeed() rather than waiting for the next take.
+  var speed = tickerMotionSpeed();
+  var pixelsPerSecond = 140 * speed;
   if (oneSetWidth <= 0) return null;            // nothing to scroll yet
 
-  return gsap.fromTo(track,
+  var travel = gsap.fromTo(track,
     { x: 0 },
     {
       x: -oneSetWidth,                          // one full set = a perfect loop point
@@ -121,6 +144,9 @@ function tickerMarquee(target) {
       repeat: -1,                               // loop until stop()
     }
   );
+  tickerMotionBuiltAt = speed;
+  tickerMotionLive = travel;
+  return travel;
 }
 
 // tickerFlipCycle(): items take turns — flip up in, hold long enough to read, flip out.
@@ -143,6 +169,8 @@ function tickerFlipCycle(target) {
     cycle.fromTo(item, { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4 / speed, ease: 'power3.out' });
     cycle.to(item, { y: -18, opacity: 0, duration: 0.35 / speed, ease: 'power2.in' }, '+=' + holdSeconds);
   });
+  tickerMotionBuiltAt = speed;
+  tickerMotionLive = cycle;
   return cycle;
 }`;
 }

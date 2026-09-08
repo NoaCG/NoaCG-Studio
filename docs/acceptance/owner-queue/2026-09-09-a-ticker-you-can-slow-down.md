@@ -12,14 +12,19 @@ finishes them. Fifteen of the twenty-two ticker designs now carry the field. Bra
 
 ## The route (under a minute)
 
-1. `/app` → **Templates** → the **Tickers** category → **News Strip** → through to the editor.
-2. **Rehearse** tab (the in-editor operator view): there is a **Scroll speed (%)** stepper at
-   **100**, under the ticker items and the label. Press **▶ Play** and watch the strip travel.
-3. Press **■ Stop**, set the speed to **200**, **▶ Play** again: the same strip at twice the
-   pace. Then **50** for a slow read. It applies from the next play, not to a strip already
-   running, because the travel is measured when the graphic starts.
-4. Type **0**, or the word **fast**, and play: it falls back to 100 rather than to a strip frozen
-   mid-word. Same for an empty field.
+Walked on 2026-09-08 in the studio, so these are the screens as they are, not as they ought to be.
+
+1. `/app` → **+ New graphic** → **Start from a template** → search **News Strip** → pick it →
+   **Finish** → **Add to the production — go live** → **Add it and go there**.
+2. You land on the production dashboard. Under **EDITING PREVIEW CUE** are three fields:
+   `F0 · Ticker items`, `F1 · Label`, and the new **`F2 · Scroll speed (%)`** as a stepper at
+   **100**. Press **TAKE** and the strip runs.
+3. Now the part worth your eye. At the bottom, **± LIVE NUMBERS act on air** carries a
+   **Scroll speed (%)** pair. Hold **+** down: the strip speeds up **under your finger**, with no
+   re-take and no jump back to the start. Hold **−** and it slows. That is the control doing what
+   the row above it promises.
+4. Type **0**, or the word **fast**, into the field and **Update**: it returns to 100 rather than
+   freezing the strip mid-word. Same for an empty field. The range is 10 to 400.
 5. **Glass Flip** (tk03) shows what a speed means when nothing travels: its field is called
    **Item speed (%)** and it changes how long each story stays up.
 
@@ -50,7 +55,19 @@ scheduled.
 
 ## The numbers, if you want them
 
-Measured off the emitted builders (`scripts/ticker-speed.test.mjs`, which runs the real
-generated code): a 1400px set of items travels in **10.0s** at 100%, **5.0s** at 200% and
-**20.0s** at 50%. The flip's hold is **3.2s / 1.6s / 6.4s** for the same three. Blank, `0`,
-`fast` and `-40` all come back as the 10.0s timing.
+Measured in Chromium on the generated News Strip, driving `play()` then `update()` the way the
+dashboard does: the strip travels at **139.8 px/s** at 100%, **560.8 px/s** the moment 400% is
+sent to the running graphic, and **69.9 px/s** at 50%. Exactly 140 times the percentage, applied
+without restarting the travel.
+
+Off the emitted builders (`scripts/ticker-speed.test.mjs`): a 1400px set travels in **10.0s** at
+100%, **5.0s** at 200%, **20.0s** at 50%, **100.0s** at the 10% floor and **2.5s** at the 400%
+ceiling. The flip's hold is **3.2s / 1.6s / 6.4s**. Blank, `0`, `fast` and `-40` all come back as
+the 10.0s timing.
+
+**One thing the same walk found and did not fix.** End credits shipped this field first, on
+2026-09-06, and its `Scroll speed (%)` also appears in that ± live-numbers row - but a credits
+roll measures its travel at Take and nothing tells the running roll about a new percentage, so
+those buttons do nothing until the next take. The tickers now do it properly; the credits do not,
+and giving them the same treatment is written up in
+`docs/backlog/a-live-number-that-does-not-move-a-credit-roll.md`.
