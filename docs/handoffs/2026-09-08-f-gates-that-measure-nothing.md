@@ -224,13 +224,24 @@ fan-out instructions, so the leg ran here over the same diff - two cleanups). `v
 `taste: not applicable` - nothing here can move what a graphic looks like.
 
 **`test:e2e:affected` was NOT run on this laptop, deliberately.** The change touches
-`scripts/e2e-affected.mjs`, which is in `SUITE_CRITICAL_SCRIPTS`, so the planner escalates to the
-FULL suite - `core/unmapped change detected - running the FULL suite (53 changed files)`, 1289
-tests plus the catalog suite. That is browser work on a RAM-bound machine that the queue exists to
-serialize, and CI runs it on push, which is where the pre-merge gate belongs. Its result is read
-before this branch queues.
+`scripts/e2e-affected.mjs`, which is in `SUITE_CRITICAL_SCRIPTS`, so the planner escalates: locally
+`core/unmapped change detected - running the FULL suite (53 changed files)`, 1289 tests. That is
+browser work on a RAM-bound machine that the queue exists to serialize, and CI is where the
+pre-merge gate belongs.
 
-Running the planner did prove one thing worth having, in the exact command CI uses:
+**CI ran it, and its plan reads `mode: subset` rather than `full` - which is not a disagreement.**
+`ci.yml` sets `E2E_SPRINT_FOCUS=1`, and that turns a core/unmapped escalation into the 57-spec
+student-critical set instead of the whole suite. Same decision, documented switch, and worth
+knowing before somebody reads a `subset` label on a change that escalated. The nine shards ran 57
+specs from base `032678a2` over the same 53 changed files, and all nine passed.
+
+Run `34279453757`, every job: `E2E plan` success, `Build` success, `Factory gates` success, `E2E
+1..9/9` all success, `Combined E2E report` success, `CI gate` success. Skipped: `Vercel accepted the
+commit`, `Reviewed`, `Catalog calibration gate`, `E2E retry`, `After the gate`. `Factory gates` is
+the one worth naming - it is the tier whose five test files run through the new counting reporter,
+so the reporter is proved on a clean Linux checkout and not only here.
+
+Running the planner also proved the stdout hazard fixed, in the exact command CI uses:
 `node scripts/e2e-affected.mjs --json` prints `[measured] 149 e2e spec files on disk` on stderr and
 a single clean JSON document on stdout, which `JSON.parse` still accepts.
 
