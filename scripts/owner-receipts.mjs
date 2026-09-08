@@ -382,6 +382,125 @@ export function formatReceipts(receipts, { compact = false } = {}) {
 }
 
 /**
+ * A RECEIPT WHOSE WORK MAY ALREADY BE DONE - asked as a question, never answered as a fact.
+ *
+ * Row D measured on 2026-09-08 that 6 of 51 unstarted receipts were wrong after four days, and one
+ * of them, `the-mapping-step-should-explain-and-offer-to-do-it`, had three of its four asks served
+ * by a commit two days earlier. That evening's wave nearly planned it a second time. Nothing in the
+ * repository connects a landed commit back to the receipt it served, because the session that knew
+ * had already ended.
+ *
+ * So this looks for the only trace that survives: the receipt's own distinctive words turning up in
+ * a commit subject on `main` raised after it. That is EVIDENCE OF A WORD MATCH AND NOTHING ELSE. It
+ * never changes a receipt's state, never fails a build, and the report says out loud that a person
+ * has to settle it - because a false positive that reads as a verdict would retire a live ask, and
+ * the receipts report is what a wave plan trusts.
+ *
+ * The tuning, measured over 1427 commits since 2026-08-20 (2026-09-08):
+ *   - Words are stemmed, and a word must be four letters or longer and not a stopword to count.
+ *   - Half the receipt's distinctive words must match, at least two of them.
+ *   - The match is scored by how RARE those words are in the log, because `catalog` or `step`
+ *     appearing in a subject says nothing and `mapping` or `taller` says something.
+ *   - The commit that FILED the receipt is skipped - it names the receipt by construction.
+ * At a score of 8 that flags one receipt today, the mapping step, on the commit that really did
+ * serve it (9.4). The two nearest misses are 7.9 and 6.8, both checked by hand and both wrong
+ * (a quiz-behaviour refactor, and two commits sharing the words `first` and `catalog`). A gap of
+ * 1.5 over three examples is a guess, not a calibration: expect to move this number, and prefer
+ * moving it UP, since a quiet check that misses one is worth more than a loud one nobody reads.
+ */
+export const SUSPECT_SCORE = 8;
+
+/** Words that distinguish nothing here: grammar, plus the vocabulary every commit subject uses. */
+const SUSPECT_STOPWORDS = new Set([
+  'that', 'than', 'their', 'they', 'them', 'this', 'these', 'those', 'there', 'here', 'with',
+  'from', 'into', 'over', 'under', 'about', 'when', 'what', 'have', 'has', 'was', 'were', 'been',
+  'does', 'should', 'could', 'would', 'must', 'can', 'never', 'only', 'still', 'more', 'most',
+  'much', 'many', 'some', 'each', 'every', 'other', 'own', 'also', 'just', 'very', 'even', 'like',
+  'make', 'made', 'take', 'want', 'need', 'work', 'thing', 'stuff',
+]);
+
+const suspectWords = (text) =>
+  text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((word) => word.replace(/ies$/, 'y').replace(/(?:es|s)$/, ''));
+
+/** The words in a slug that could identify it in a sentence somebody else wrote. */
+export function distinctiveWords(slug) {
+  return [...new Set(suspectWords(slug).filter((word) => word.length >= 4 && !SUSPECT_STOPWORDS.has(word)))];
+}
+
+/**
+ * Unstarted receipts whose distinctive words turn up in a commit subject raised after them, worst
+ * offender first. `commits` is `{ sha, date, subject, paths }`, newest first, from `recentCommits`.
+ * Pure, so the tuning is testable without a repository.
+ */
+export function suspectMatches(receipts, commits, { threshold = SUSPECT_SCORE } = {}) {
+  const frequency = new Map();
+  for (const commit of commits) {
+    for (const word of new Set(suspectWords(commit.subject))) frequency.set(word, (frequency.get(word) ?? 0) + 1);
+  }
+  const rarity = (word) => Math.log(commits.length / ((frequency.get(word) ?? 0) + 1));
+  const suspects = [];
+  for (const receipt of receipts) {
+    if (!receipt.receipt || receipt.state !== 'unstarted' || !receipt.raised) continue;
+    const keys = distinctiveWords(receipt.slug);
+    if (keys.length === 0) continue;
+    const hits = [];
+    for (const commit of commits) {
+      if (commit.date < receipt.raised) continue;
+      // The commit that filed the receipt names it by construction, and proves nothing.
+      if (commit.paths?.includes(`${BACKLOG_DIR}/${receipt.slug}.md`)) continue;
+      const words = new Set(suspectWords(commit.subject));
+      const matched = keys.filter((key) => words.has(key));
+      if (matched.length < 2 || matched.length / keys.length < 0.5) continue;
+      const score = matched.reduce((sum, word) => sum + rarity(word), 0);
+      if (score >= threshold) hits.push({ sha: commit.sha, date: commit.date, subject: commit.subject, matched, score });
+    }
+    if (hits.length === 0) continue;
+    // Oldest first, and at most two: the commit that did the work lands before the one that
+    // writes it up, and a third line adds noise rather than evidence.
+    hits.reverse(); // `commits` arrives newest first, and a stable sort keeps that order within a day
+    hits.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    suspects.push({ slug: receipt.slug, score: Math.max(...hits.map((hit) => hit.score)), commits: hits.slice(0, 2) });
+  }
+  return suspects.sort((a, b) => b.score - a.score);
+}
+
+/** Commit subjects and touched paths on `main` since a date, newest first. */
+export function recentCommits(root = REPO_ROOT, since = '2026-01-01') {
+  const format = '%x00%h|%cs|%s';
+  const args = ['log', '--no-merges', `--since=${since}`, '--name-only', `--format=${format}`];
+  const log = gitRead([...args, 'main'], root) ?? gitRead([...args, 'origin/main'], root);
+  if (log === null) return [];
+  return log
+    .split('\0')
+    .filter((chunk) => chunk.trim())
+    .map((chunk) => {
+      const [head, ...paths] = chunk.split('\n');
+      const [sha, date, ...rest] = head.split('|');
+      return { sha, date, subject: rest.join('|'), paths: paths.filter(Boolean) };
+    });
+}
+
+/** The suspect section of the report: a question with its evidence, never a conclusion. */
+export function formatSuspects(suspects) {
+  if (suspects.length === 0) return [];
+  const lines = [
+    '',
+    `Unstarted receipts whose own words appear in a commit on main (${suspects.length}) - a WORD MATCH,`,
+    'not a verdict. Nothing here has been reclassified. Read the receipt and the commit, then close it,',
+    'set it advanced with a note, or leave it exactly where it is.',
+  ];
+  for (const suspect of suspects) {
+    lines.push(`  ${suspect.slug}`);
+    for (const commit of suspect.commits) lines.push(`    ${commit.sha}  ${commit.date}  ${commit.subject}`);
+  }
+  return lines;
+}
+
+/**
  * WHAT THIS BRANCH DOES TO THE RECEIPTS IT OWNS, from its own diff against `main`.
  *
  * "Landed is not a state" only stays true if the file is deleted by the change that lands the work,
@@ -556,6 +675,12 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
   const broken = receipts.filter((receipt) => receipt.problems.length > 0);
   if (broken.length > 0) {
     console.log(`  ${broken.length} file(s) fail --check: ${broken.map((r) => r.slug).join(', ')}`);
+  }
+  // Read-only and advisory. It runs only on the listing a person reads, never on `--check`, so a
+  // word match can never fail a build or hold up a landing.
+  const oldest = receipts.filter((receipt) => receipt.raised).map((receipt) => receipt.raised).sort()[0];
+  if (oldest) {
+    for (const line of formatSuspects(suspectMatches(receipts, recentCommits(root, oldest)))) console.log(line);
   }
   return 0;
 }

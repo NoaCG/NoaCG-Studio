@@ -10,8 +10,10 @@ import {
   isStanding,
   parseFrontmatter,
   receiptFrom,
+  formatSuspects,
   servesVerdict,
   sortReceipts,
+  suspectMatches,
   wrapAfter,
 } from './owner-receipts.mjs';
 
@@ -234,6 +236,49 @@ test('sortReceipts puts unstarted, then advanced, oldest first; the listing sepa
   const compact = formatReceipts(rows, { compact: true });
   assert.equal(compact.length, 8);
   assert.ok(compact.every((line) => !line.includes('asked:') && !line.includes('found:')));
+});
+
+test('a receipt whose words turn up in a commit is a SUSPECT, and only a rare word carries it', () => {
+  // A log the way this repository's really looks: `catalog` and `step` in a tenth of the subjects,
+  // `kicker` and `waterfall` in one. Rarity is what separates a real hit from a coincidence, so the
+  // corpus has to be big enough for that to mean anything.
+  const commits = [];
+  for (let index = 0; index < 400; index += 1) {
+    commits.push({
+      sha: `c${index}`,
+      date: '2026-09-06',
+      subject: index % 10 === 0 ? `Count the catalog in the import step, take ${index}` : `Some other change ${index}`,
+      paths: ['src/app.ts'],
+    });
+  }
+  commits.unshift({ sha: 'rare1', date: '2026-09-06', subject: 'Draw the kicker waterfall on every plate', paths: ['src/x.ts'] });
+  commits.unshift({ sha: 'filed', date: '2026-09-04', subject: 'Pin the kicker waterfall finding', paths: ['docs/backlog/kicker-waterfall-entry.md'] });
+
+  const rare = receiptFrom('kicker-waterfall-entry.md', ask({ raised: '2026-09-03' }), { now: NOW });
+  const common = receiptFrom('catalog-import-step.md', ask({ raised: '2026-09-03' }), { now: NOW });
+  const served = receiptFrom('kicker-waterfall-entry.md', ask({ raised: '2026-09-03', state: 'advanced', note: 'n' }), { now: NOW });
+  const suspects = suspectMatches([rare, common, served], commits);
+
+  // The rare pair clears the bar; the same number of common words does not.
+  assert.deepEqual(suspects.map((s) => s.slug), ['kicker-waterfall-entry']);
+  assert.deepEqual(suspects[0].commits.map((c) => c.sha), ['rare1']);
+  // The commit that FILED the receipt names it by construction and is never evidence of anything.
+  assert.ok(!suspects[0].commits.some((c) => c.sha === 'filed'));
+  // A commit that predates the ask cannot have served it.
+  assert.deepEqual(suspectMatches([receiptFrom('kicker-waterfall-entry.md', ask({ raised: '2026-09-07' }), { now: NOW })], commits), []);
+  // Only unstarted receipts are in reach: an advanced one already carries a human's note saying
+  // what landed, so guessing at it from a commit subject adds nothing.
+  assert.equal(served.state, 'advanced');
+  assert.deepEqual(suspectMatches([served], commits), []);
+
+  // It says what it measured and refuses to say more. No word here decides anything, and the
+  // receipt's own state is untouched - a false positive that read as fact would retire a live ask.
+  const printed = formatSuspects(suspects).join('\n');
+  assert.match(printed, /WORD MATCH/);
+  assert.match(printed, /not a verdict/);
+  assert.match(printed, /Nothing here has been reclassified/);
+  assert.equal(rare.state, 'unstarted');
+  assert.deepEqual(formatSuspects([]), []);
 });
 
 test('a branch that owns a receipt and leaves it alone is refused; deleting or advancing it answers', () => {
