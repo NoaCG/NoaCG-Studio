@@ -17,7 +17,13 @@ import {
   PREVIEW_CMD_ERROR_TYPE,
 } from './previewProtocol';
 import { killAllTimelines, resetGraphicInline, runSimCommand } from './simulatorRuntime';
-import { CANVAS_CMD_TYPE, CANVAS_QUERY_TYPE, CANVAS_REPLY_TYPE, CANVAS_RECTS_TYPE } from './canvasControlProtocol';
+import {
+  CANVAS_CMD_TYPE,
+  CANVAS_QUERY_TYPE,
+  CANVAS_REPLY_TYPE,
+  CANVAS_RECTS_TYPE,
+  CANVAS_MARK,
+} from './canvasControlProtocol';
 import type { SpxTemplate } from '../model/types';
 
 /** Remove <link>/<script> tags that point at local template files we will inline instead.
@@ -416,13 +422,49 @@ window.addEventListener('unhandledrejection', function (ev) {
 </script>`
     : '';
 
+  // WHAT A MARK LOOKS LIKE (canvasControlProtocol.ts's `CANVAS_MARK` and its 'mark' command).
+  // Shipped with the channel rather than pushed by the caller, because a class the document
+  // cannot paint is a class that does nothing - so the document owning the paint is what makes
+  // the command's contract complete.
+  //
+  // The wash is an SVG FILTER rather than a fill, because it has to sit OVER the shape's own
+  // colour and an element has one fill: feFlood makes a sheet of amber, feComposite cuts it to
+  // the shape's own alpha, and feMerge lays that over the shape unchanged. So a rounded plate, a
+  // freehand path and a plate turned three degrees all light up as the shape the designer drew,
+  // which is the whole reason this is a class going IN rather than a box drawn on top from a
+  // rect coming out (docs/TEXT_BOX_BINDING.md, "the preview overlay").
+  //
+  // THE FILTER REGION IS LEFT AT SVG'S OWN DEFAULT (-10% to 120% of the bounding box) rather than
+  // pinned to the box, because a plate with a stroke paints outside its bounding box and pinning
+  // the region would CLIP that stroke - the artwork visibly changing because somebody pointed at
+  // a checklist row, which is the one thing a preview of an import must never do. The price is
+  // that a marked element's `getBoundingClientRect` grows by the region's margin while it is lit,
+  // and nothing reads it there: a mark only exists while the pointer is on the CHECKLIST, and the
+  // pointer reaching the canvas is the same event that clears it.
+  const canvasMarkTag = `
+<svg id="spx-canvas-mark-defs" width="0" height="0" aria-hidden="true" style="position:absolute">
+  <filter id="spx-canvas-lit-tint">
+    <feFlood flood-color="#f6a623" flood-opacity="0.12" result="wash" />
+    <feComposite in="wash" in2="SourceAlpha" operator="in" result="onShape" />
+    <feMerge>
+      <feMergeNode in="SourceGraphic" />
+      <feMergeNode in="onShape" />
+    </feMerge>
+  </filter>
+</svg>
+<style id="spx-canvas-mark-style">
+.${CANVAS_MARK.LIT} { filter: url(#spx-canvas-lit-tint); }
+</style>`;
+
   // The editor canvas's direct-manipulation channel (see ComposeOptions.canvasControl and
   // preview/canvasControlProtocol.ts). `tracked` starts empty until the parent's first 'track'
   // command arrives (right after load), so the rect push is a no-op until then.
   const canvasControlTag = options.canvasControl
-    ? `\n<script id="spx-canvas-control">
+    ? `\n${canvasMarkTag}
+<script id="spx-canvas-control">
 (function () {
   var tracked = [];
+  var framed = [];
   function elDepth(el) {
     var n = 0;
     for (var q = el.parentElement; q; q = q.parentElement) n++;
@@ -435,6 +477,21 @@ window.addEventListener('unhandledrejection', function (ev) {
     if (msg.type === ${JSON.stringify(CANVAS_CMD_TYPE)}) {
       if (msg.cmd === 'track') {
         tracked = msg.selectors || [];
+        framed = msg.frames || [];
+      } else if (msg.cmd === 'mark') {
+        // ONE COMMAND IS THE WHOLE STATE OF A MARK: everything wearing the class loses it, then
+        // every named selector gains it. So a caller never has to remember what it lit last, and
+        // an empty list is how it clears.
+        try {
+          var wearing = document.querySelectorAll('.' + msg.className);
+          for (var w = 0; w < wearing.length; w++) wearing[w].classList.remove(msg.className);
+          var want = msg.selectors || [];
+          for (var s = 0; s < want.length; s++) {
+            var marked = [];
+            try { marked = document.querySelectorAll(want[s]); } catch (e) {}
+            for (var q = 0; q < marked.length; q++) marked[q].classList.add(msg.className);
+          }
+        } catch (e) {}
       } else if (msg.cmd === 'gsap-set') {
         try {
           var gEl = document.querySelector(msg.selector);
@@ -493,7 +550,39 @@ window.addEventListener('unhandledrejection', function (ev) {
           rects[sel] = null;
         }
       }
-      parent.postMessage({ type: ${JSON.stringify(CANVAS_RECTS_TYPE)}, rects: rects }, '*');
+      // THE ELEMENT'S OWN FRAME, for the selectors that asked for one (CanvasFrame). getBBox
+      // leaves out every transform above the element, so those numbers are the same on any
+      // canvas rendering the same markup; getScreenCTM carries the whole chain, so a caller can
+      // draw a rectangle in the element's space and let CSS do the turning. A plain HTML node
+      // has neither and answers with its rect and the identity, which is exactly true for it.
+      var frames = {};
+      for (var j = 0; j < framed.length; j++) {
+        var fsel = framed[j];
+        var fel = null;
+        try { fel = document.querySelector(fsel); } catch (e) {}
+        if (!fel || fel.getClientRects().length === 0) {
+          frames[fsel] = null;
+          continue;
+        }
+        var bb = fel.getBBox ? fel.getBBox() : null;
+        var ctm = fel.getScreenCTM ? fel.getScreenCTM() : null;
+        if (bb && ctm) {
+          frames[fsel] = {
+            box: { x: bb.x, y: bb.y, width: bb.width, height: bb.height },
+            m: [ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f],
+          };
+        } else {
+          var fr = fel.getBoundingClientRect();
+          frames[fsel] = {
+            box: { x: fr.left, y: fr.top, width: fr.width, height: fr.height },
+            m: [1, 0, 0, 1, 0, 0],
+          };
+        }
+      }
+      parent.postMessage(
+        { type: ${JSON.stringify(CANVAS_RECTS_TYPE)}, rects: rects, frames: frames },
+        '*',
+      );
     } catch (e) {}
   })();
 })();

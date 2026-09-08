@@ -2,8 +2,9 @@
 
 **Status: all three measured defects are FIXED, the ALIGNMENT model is built and now snaps BOTH
 axes, a graphic that comes up again keeps a fixed box, and unticking a text layer asks what to do
-with the words. The checklist now GROUPS BY BOX with a swatch (2026-09-08), so the binding is on
-screen; the rest of the step's own surface - the preview overlay and the alignment control - is
+with the words. STEP 2 IS FINISHED (2026-09-08): the checklist groups by box with a swatch, and
+hovering a row draws that box, its room, the block's bounds and the alignment caret on the
+artwork. What is left of the step's own surface - the alignment CONTROL and growth per box - is
 still DESIGN.** The owner's brief is the 2026-09-02 walk of his own quiz board;
 the verbatim words are in `docs/acceptance/owner-queue/2026-08-28-student-rehearsal-walk.md` and
 they are the authority here, not this summary of them.
@@ -194,6 +195,45 @@ rectangle, which reads as a box around the wrong thing on rotated artwork:
   line is how much room is left;
 - **the alignment caret** under the block at its anchor, with the word.
 
+**Three amendments, measured 2026-09-08 while building it, all against the owner's own board:**
+
+- **The room is drawn in the LINE's frame, not the box's.** The doctrine section below says every
+  measurement is taken in the box's local coordinate system, and the runtime does not: `svgAlignOf`
+  maps the plate INTO the line's system through `svgLocalBox` and measures there. Where text and
+  plate carry the same rotation - almost always, because the designer turned them together - the
+  two frames are one answer, and all four answer plates on this board are that case. The question
+  is not: its plate is a portrait rectangle rotated 88.68 degrees and its text is drawn level, so
+  the two frames stand a quarter turn apart, and the two measurements are then about different
+  axes. What that cost, measured: built in the box's frame, the text bounds round the question
+  came out turned 88.68 degrees away from the words they were meant to hug. The alignment words
+  survived it here only because the question is centred on BOTH axes, which makes the swap
+  invisible - a line centred on one axis and not the other would have been described about the
+  wrong one. So the code's frame wins, as the code always does
+  (`root/treat-code-single-source-truth-canonical`), and the doctrine paragraph should be read as
+  "in the artwork's own frame, never the screen's" - which is the point it was making.
+- **On an axis the block is CENTRED on, the margin drawn is TYPOGRAPHIC, not the gap the designer
+  left.** "The drawn insets mirrored" was true of the ladder when this section was written; the
+  centred-line rules of 2026-09-02 and 2026-09-04 changed it. On a centred axis both gaps are half
+  the leftover by construction, so mirroring one hands the line back its own drawn size and the box
+  goes unread - `svgAlignOf` substitutes half the drawn type sideways, and `measureSvgRoom`
+  substitutes half a line vertically. The overlay makes the same two substitutions, from the same
+  two exported constants, or it would draw the owner's question with no room left inside a plate
+  that will give it two more lines. On a top-aligned axis the gap really is margin and is drawn as
+  it was measured. The table above still records the DRAWN insets, which is a different fact and
+  still the right one for it.
+- **The step measures, the preview draws, and neither converts.** `getBBox` leaves out every
+  transform and the mapping between two elements is a ratio of their matrices, so a uniform page
+  scale cancels: the numbers taken off the step's hidden render land unchanged on the preview's
+  canvas at any zoom. That is what lets the room be measured on the canvas that has the artwork as
+  drawn and drawn on the canvas that runs the fit, without the two being able to disagree
+  (`wizard/make-mapsvgfieldsstep-mapping-step-mode-over`).
+
+The box is the one part the app does not draw at all: the shape washes itself, through a `mark`
+command carrying a class into the document (`preview/canvasControlProtocol.ts`). That is the whole
+reason rotation is free - a rectangle coming OUT of the document is axis-aligned, so anything drawn
+from one is square to the screen, and it was a box around the wrong thing on every plate on this
+board.
+
 ### Correcting a wrong box
 
 The field's strip opens with the box: a dropdown of every shape that contains or touches the
@@ -343,6 +383,10 @@ cap and followers.
    where the colour repeats (`q bg` -> "Tan plate"), which is the fixture's own case. What is left
    of this step is THE OVERLAY: the tinted shape, the dashed insets, the text bounds and the
    alignment caret, replacing the axis-aligned amber rectangle that sits outside rotated artwork.
+   ~~The overlay~~ - DONE 2026-09-08. All four parts, with the three amendments above. The canvas
+   protocol gained two general capabilities to carry it: a CLASS going into the document (so the
+   shape washes itself and wears its own rotation and outline) and an element's own FRAME coming
+   out beside its rectangle (so a caller can draw in that element's space). **Step 2 is finished.**
 3. The alignment CONTROL: the nine-dot grid, the "read from your drawing" label, and the checkbox
    that hands back the nudge the file recorded. `align.nudge` is measured already and nothing
    reads it yet, which is deliberate - it is the whole cost of the wonky-on-purpose case.

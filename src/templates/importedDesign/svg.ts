@@ -52,6 +52,31 @@ import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
 import { PREFIX } from './shared';
 
+/**
+ * HOW NEAR THE MIDDLE COUNTS AS CENTRED, as a fraction of the box on the axis being asked about.
+ *
+ * A fraction rather than a constant because "near enough to be centred" scales with the thing it
+ * is centred in, and it has to absorb the hand-placed wobble in a home-made file, where nothing
+ * is ever exactly on the middle.
+ *
+ * EXPORTED because the wizard's mapping step reads the same answer off its own render of the
+ * artwork, to show the reader which alignment was read from their drawing
+ * (`MapSvgFieldsStep.boxFitOf`). Two numbers would be two answers, and the overlay would then
+ * say "centred" over a line the runtime had left-aligned. It is interpolated into the runtime
+ * source below, so the emitted template carries the value rather than a reference to it.
+ */
+export const SVG_ALIGN_TOL = 0.05;
+
+/**
+ * A WRAPPED LINE'S STEP, IN EMS - the leading the ladder assumes where the file gives it none.
+ *
+ * EXPORTED for the same reason `SVG_ALIGN_TOL` is: the mapping step's overlay draws the room a
+ * centred block has, and on that axis the room is HALF A LINE from each edge rather than the gap
+ * the designer left, because that gap is half the centring rather than a margin
+ * (`measureSvgRoom` below, owner 2026-09-02). Two spellings of half a line would be two rooms.
+ */
+export const SVG_LINE_HEIGHT = 1.2;
+
 /** Stand-in used only when a preview (or the catalog baseline) renders the variant before an
  *  SVG exists. Deterministic on purpose - the baselines hash the emitted panes. */
 const NO_SVG: DesignSvg = {
@@ -389,7 +414,7 @@ var svgFitOwed = {};                            // id -> this line still needs m
 var SVG_FIT_FLOOR = 0.55;                       // REPORTED as too long below 55% of the drawn size
 var SVG_FIT_HARD_FLOOR = 0.3;                   // …but it keeps shrinking to 30% rather than condensing
 var SVG_SQUEEZE_FLOOR = 0.7;                    // never narrower than 70% of the glyphs' own width
-var SVG_LINE_HEIGHT = 1.2;                      // a wrapped line's step, in ems
+var SVG_LINE_HEIGHT = ${SVG_LINE_HEIGHT};                      // a wrapped line's step, in ems
 
 // EVERY line this design fits, of both kinds. The layers the DESIGNER drew are <text>/<tspan>
 // inside the artwork; a PLACED line is an HTML span the design got afterwards - a stand-in for
@@ -778,7 +803,7 @@ function svgLocalBox(panelEl, textEl) {
  *  a longer value fills and where wrapped lines start. Vertically it decides whether the room
  *  below the line is the whole of the room (a line drawn against the top of its box) or only half
  *  of it (a line drawn in the middle, with as much space above it as below). */
-var SVG_ALIGN_TOL = 0.05;
+var SVG_ALIGN_TOL = ${SVG_ALIGN_TOL};
 
 function svgAlignOf(el, panelEl) {
   if (svgFitAlign[el.id]) return svgFitAlign[el.id];
