@@ -8,8 +8,10 @@ import {
   isolatedTestEnvironment,
   projectRoot,
 } from './api-runtime-build.mjs';
+import { measured } from './measured.mjs';
 
-const runtime = await buildApiRuntime([
+/** The sources compiled below, and the one list the count is taken from. */
+const sources = [
   'api/_lib/aiGateway.test.ts',
   'api/_lib/aiGenerate.test.ts',
   'api/_lib/aiModelDiscovery.test.ts',
@@ -32,7 +34,13 @@ const runtime = await buildApiRuntime([
   'api/_lib/admin/usage.test.ts',
   'api/_lib/me/agentKeys.test.ts',
   'api/_lib/me/graphics.test.ts',
-]);
+];
+
+// The suite this runner is. `node --test` with an empty file list runs nothing and exits 0, so a
+// list that stopped resolving would report a passing AI-gateway suite having run no test at all.
+measured(sources.length, 'ai gateway test files');
+
+const runtime = await buildApiRuntime(sources);
 
 try {
   const testFiles = [

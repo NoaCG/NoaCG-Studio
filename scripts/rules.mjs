@@ -15,6 +15,29 @@ import { loadRules, rulesFor } from './contracts-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/** The store, read once per process - `text()` is called from a gate's failure path. */
+let cached = null;
+
+/**
+ * ONE RULE'S SENTENCE, for the mechanism that carries it.
+ *
+ * A rule whose `fires:` names a hook, a gate or a spec is CARRIED: the compiler omits it from
+ * every loaded contract, because the mechanism is supposed to say it at the moment it matters.
+ * That only works if the mechanism actually prints the sentence, and until 2026-09-08 nothing
+ * checked - so four rules were deleted from every surface by a `fires:` line and reappeared
+ * nowhere. `scripts/contracts-lib.mjs` now proves the claim by looking for this call in the
+ * mechanism's source, which is why the id goes in as a literal.
+ *
+ * Throws on an unknown id rather than returning an empty string: a gate printing nothing where
+ * its rule should be is the failure this exists to prevent.
+ */
+export function text(id) {
+  cached ??= loadRules(ROOT);
+  const rule = cached.rules.find((r) => r.id === id);
+  if (!rule) throw new Error(`[rules] no rule \`${id}\` in the store - the mechanism names a rule that is not there`);
+  return rule.body.replace(/\s*\n\s*/g, ' ');
+}
+
 function main() {
   const args = process.argv.slice(2);
   const { rules, problems } = loadRules(ROOT);
@@ -36,4 +59,6 @@ function main() {
   }
 }
 
-main();
+// Only when a person runs it. `text()` above is imported by the gates that carry a rule, and an
+// import must not print the whole contract as a side effect.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

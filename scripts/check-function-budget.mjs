@@ -23,6 +23,8 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { measured } from './measured.mjs';
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const apiDir = path.join(repoRoot, 'api');
 
@@ -64,6 +66,11 @@ function main() {
     console.error(`Cannot read ${apiDir}: ${error.message}`);
     process.exit(1);
   }
+
+  // Required rather than optional even though this is a ceiling and zero is trivially under it:
+  // the way zero would appear is RUNTIME_EXTENSIONS no longer matching the tree, which is this
+  // gate breaking rather than api/ shrinking.
+  measured(functions.length, 'serverless functions under api/');
 
   if (functions.length > FUNCTION_CAP) {
     console.error(

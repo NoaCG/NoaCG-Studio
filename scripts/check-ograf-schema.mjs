@@ -55,6 +55,8 @@ import { fileURLToPath } from 'node:url';
 import Ajv from 'ajv/dist/2020.js';
 import { transform } from 'sucrase';
 
+import { measured } from './measured.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE = join(root, 'scripts', 'ograf-schema-baseline.json');
 
@@ -228,6 +230,10 @@ try {
 }
 
 if (report.checked) {
+  // The crawl follows `$ref`s from one root URL, so a spec revision that moves that root would
+  // leave this holding nothing to compare digests against.
+  measured(schemas.size, 'ograf schema files');
+
   // 1. drift against the recorded baseline
   const digests = Object.fromEntries([...schemas].map(([url, text]) => [url, { sha256: sha256(text), bytes: text.length }]));
   if (record) {
@@ -271,6 +277,13 @@ if (report.checked) {
 
   // 4. the corpus
   const manifests = [...new Set([root, ...extraRoots].flatMap((dir) => findManifests(dir)))];
+  measured.optional(
+    manifests.length,
+    'ograf manifests',
+    'A checkout that ships no *.ograf.json still has the published schemas to compare digests ' +
+      'against, and the corpus and the mutation battery are skipped rather than answered from an ' +
+      'empty set - pass --from <dir> to check an exported package.',
+  );
   for (const file of manifests) {
     const manifest = JSON.parse(readFileSync(file, 'utf8'));
     const where = relative(root, file).replaceAll('\\', '/');

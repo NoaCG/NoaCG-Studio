@@ -39,6 +39,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ambientEnv } from './read-dotenv.mjs';
+import { measured } from './measured.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const env = ambientEnv(root);
@@ -150,6 +151,13 @@ if (lints === null) {
   // the human-facing detail, which a hash of the message would not.
   const seen = new Map();
   for (const l of lints) seen.set(l.cache_key, { name: l.name, level: l.level, detail: l.detail });
+  measured.optional(
+    seen.size,
+    'advisor findings',
+    'A project the advisors have nothing to say about reports zero, and that is the answer this ' +
+      'check hopes for rather than a sign it stopped looking. The baseline count below is the ' +
+      'report that would notice a comparison against nothing.',
+  );
 
   if (updating) {
     const entries = {};
@@ -183,6 +191,10 @@ if (lints === null) {
     } else {
       const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
       const accepted = new Set(Object.keys(baseline.entries ?? {}));
+      // A baseline that parsed but holds no entries would accept nothing and report every
+      // standing finding as new - or, read the other way round, a renamed `entries` key would
+      // make this compare against an empty set and say so nowhere.
+      measured(accepted.size, 'accepted baseline findings');
       const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
       const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
 

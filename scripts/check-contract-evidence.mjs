@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 
 import { trackedPaths } from './check-tree-shape.mjs';
 import { EVIDENCE_PATTERNS } from './contracts-lib.mjs';
+import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'contract-evidence-baseline.json');
@@ -70,6 +71,9 @@ export function compare(baseline, actual) {
 
 function main() {
   const actual = measure();
+  // Before the --write branch on purpose. A `contractFiles` glob that stopped matching prints OK
+  // over nothing AND offers the command that would bank that emptiness as the new baseline.
+  measured(Object.keys(actual).length, 'contracts measured');
   if (process.argv.includes('--write')) {
     writeFileSync(BASELINE_PATH, `${JSON.stringify(actual, null, 2)}\n`, 'utf8');
     console.log(`${LABEL} baseline written: ${Object.keys(actual).length} file(s) carry evidence lines`);

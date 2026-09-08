@@ -27,9 +27,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { audit } from './gates.mjs';
+import { measured } from './measured.mjs';
 
 function main() {
   const { problems, checks, tests } = audit();
+  // The set this audit judged. Zero means the discovery stopped finding gates, not that every
+  // gate is well formed.
+  measured(checks.length + tests.length, 'gates audited');
   if (problems.length > 0) {
     console.error(`\ncheck-gate-coverage: ${problems.length} problem(s):\n`);
     for (const problem of problems) console.error(`  - ${problem}`);

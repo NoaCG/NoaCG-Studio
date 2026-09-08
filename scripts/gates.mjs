@@ -22,6 +22,13 @@
 //   // gate: none - <why>               deliberately unautomated; the reason is required
 //   // guards: <glob>, <glob>, ...      the paths whose change this gate can catch
 //   // needs: browser                   (a test) needs Chromium, so it runs in the factory tier
+//   // measures: none - <why>           it has no countable subject; the reason is required
+//
+// AND EVERY GATE SAYS HOW MUCH IT LOOKED AT. On 2026-09-08 three mechanisms passed while
+// measuring nothing (scripts/measured.mjs carries all three). A gate reports the size of the set
+// it resolved with `measured(n, subject)`, that helper refuses a count of zero whoever runs the
+// gate, this runner refuses a check that exits 0 having reported NOTHING, and the audit refuses
+// a gate that neither reports nor writes down why it has no countable subject.
 //
 // CHECKS are the entry files of the `check:*` and `test:*` scripts of package.json - each file
 // judged once, however many scripts name it; the script is how a person runs the check, the
@@ -39,7 +46,8 @@
 // factory tier), so a guard that names a path that no longer exists fails the build the way a
 // stale exemption did.
 import { spawnSync } from 'node:child_process';
-import { existsSync, globSync, readFileSync } from 'node:fs';
+import { existsSync, globSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -70,14 +78,19 @@ export function entryPointsOf(command) {
  * down is never mistaken for a declaration, and a declaration below the code is never honoured.
  */
 export function parseHeader(text) {
-  const out = { gate: null, workflow: null, reason: null, guards: [], needs: [] };
+  const out = { gate: null, workflow: null, reason: null, guards: [], needs: [], measures: null };
   for (const line of String(text ?? '').split(/\r?\n/)) {
     if (line.startsWith('#!') || line.trim() === '') continue;
     if (!line.trimStart().startsWith('//')) break;
-    const m = line.match(/^\s*\/\/\s*(gate|guards|needs):\s*(.+?)\s*$/);
+    const m = line.match(/^\s*\/\/\s*(gate|guards|needs|measures):\s*(.+?)\s*$/);
     if (!m) continue;
     const [, key, value] = m;
-    if (key === 'gate') {
+    if (key === 'measures') {
+      // Kept raw; the audit judges it. The only thing this line may say is `none - <why>`, because
+      // a gate that DOES have a countable subject reports the number from the code, where the
+      // number is - a header cannot know it.
+      out.measures = value;
+    } else if (key === 'gate') {
       const gate = value.match(/^(\S+)(?:\s+(.*))?$/);
       out.gate = gate[1];
       const rest = (gate[2] ?? '').trim();
@@ -175,6 +188,15 @@ export function guardsOf(gate) {
   return [...new Set([...(gate.header.guards ?? []), ...(gate.derivedGuards ?? [])])];
 }
 
+/**
+ * Is this gate exempt from saying how much it measured? Only a header reading `measures: none -
+ * <why>` exempts it, and the audit is what holds that line to a reason. One reader, so the runner
+ * and the audit cannot disagree about who is exempt.
+ */
+export function measuresNothing(header) {
+  return /^none\s*-\s*\S/.test(header.measures ?? '');
+}
+
 /** Does one guard reach one path? `**` alone reaches everything. The one matcher every question uses. */
 export function matchesGuard(file, guard) {
   return guard === '**' || file === guard || path.matchesGlob(file, guard);
@@ -252,6 +274,35 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
     }
   };
 
+  /**
+   * DOES THIS GATE SAY HOW MUCH IT LOOKED AT? The static half of the measurement rule: the gate
+   * either reaches for `scripts/measured.mjs` - and that helper refuses a count of zero at run
+   * time, whoever runs the gate - or its header writes down why it has no countable subject.
+   *
+   * Static, because the alternative is discovering the omission on the one run where it would
+   * have mattered. This is the rule that makes the NEXT blind gate fail to land rather than pass
+   * for a month: three of them did, on 2026-09-08, and each was found by a person reading a log.
+   */
+  const judgeMeasurement = (gate, label) => {
+    const declared = gate.header.measures;
+    if (declared !== null) {
+      const none = declared.match(/^none\s*-\s*(.+)$/);
+      if (!none) {
+        problems.push(`${label} declares \`measures: ${declared}\` - that line may only say \`none - <why>\`, because a gate that does measure something reports the NUMBER from the code, where the number is`);
+      } else if (none[1].trim().length < 20) {
+        problems.push(`${label} declares \`measures: none\` without a reason a reader can act on - say WHY this gate has no countable subject`);
+      }
+      return;
+    }
+    if (!(read(gate.entry) ?? '').includes('measured.mjs')) {
+      problems.push(
+        `${label} never says how much it measured - import { measured } from './measured.mjs' and report the size of the set it resolved, ` +
+          'so a moved constant or an emptied directory fails the gate instead of passing it. ' +
+          'If it truly has no countable subject, add `// measures: none - <why>` to its header',
+      );
+    }
+  };
+
   for (const check of checks) {
     const label = `"${check.name}" (${check.entry})`;
     if (!check.exists) {
@@ -260,11 +311,20 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
     }
     judgeTier(check, label);
     judgeGuards(check, label);
+    judgeMeasurement(check, label);
   }
   for (const test of tests) {
     const label = `test ${test.name}`;
     judgeTier(test, label);
     judgeGuards(test, label);
+  }
+
+  // A test file reports its own size to the runner (one `node --test` summary per file), so it
+  // carries no `measured` call. What no test file can report is the whole population vanishing:
+  // `testFilesOnDisk` is a glob, and a glob that stops matching leaves `runTests` with an empty
+  // list, which it used to answer with exit 0.
+  if (tests.length === 0) {
+    problems.push('scripts/**/*.test.mjs matches no file, so `npm run build` would run no tests at all and still pass - the glob or the tests moved');
   }
 
   // A gate-shaped script with no script file (a bare Playwright suite) has no header to carry,
@@ -338,35 +398,120 @@ export function audit() {
 }
 
 /** Run one check's command: `node <file> [args]` directly, anything else through the shell. */
-function runCommand(command) {
+function runCommand(command, env) {
   const plain = command.match(/^node\s+((?:cli\/)?scripts\/\S+\.mjs)((?:\s+[A-Za-z0-9_./=-]+)*)\s*$/);
   if (plain) {
     const args = plain[2].trim() ? plain[2].trim().split(/\s+/) : [];
-    return spawnSync(process.execPath, [plain[1], ...args], { cwd: ROOT, stdio: 'inherit', windowsHide: true });
+    return spawnSync(process.execPath, [plain[1], ...args], { cwd: ROOT, stdio: 'inherit', env, windowsHide: true });
   }
-  return spawnSync(command, { cwd: ROOT, stdio: 'inherit', shell: true, windowsHide: true });
+  return spawnSync(command, { cwd: ROOT, stdio: 'inherit', shell: true, env, windowsHide: true });
+}
+
+/**
+ * The receipts a check wrote through `scripts/measured.mjs`: one row per `measured(...)` call.
+ * A check that never called it leaves no file at all, which is the case this exists to tell
+ * apart from "measured zero" - the helper already fails the latter on its own.
+ */
+function readReceipts(file) {
+  if (!existsSync(file)) return [];
+  return readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean).map((line) => {
+    const [count, subject, kind] = line.split('\t');
+    return { count: Number(count), subject, optional: kind === 'optional' };
+  });
+}
+
+/**
+ * THE RUNNER'S HALF OF THE MEASUREMENT RULE. `measured()` refuses a count of zero inside the
+ * gate, whoever ran it. What only the runner can see is a check that reported NOTHING: the call
+ * was deleted, or the code path carrying it stopped being reached. A green exit with no receipt
+ * is the same claim as `PASS` over an empty set, so it is the same verdict.
+ */
+function measurementProblem(check, receipts) {
+  if (measuresNothing(check.header)) return null;
+  if (receipts.length === 0) {
+    return `${check.name} exited 0 without saying how much it measured - it must call measured(n, subject) from scripts/measured.mjs on the set it resolved`;
+  }
+  return null;
 }
 
 function runChecks(checks) {
   const failed = [];
-  for (const check of checks) {
-    const started = Date.now();
-    process.stdout.write(`\n[gates] ${check.name}: ${check.command}\n`);
-    const res = runCommand(check.command);
-    const seconds = ((Date.now() - started) / 1000).toFixed(1);
-    if (res.status !== 0) {
-      failed.push(check.name);
-      process.stdout.write(`[gates] ${check.name} FAILED (exit ${res.status}, ${seconds}s)\n`);
-    } else process.stdout.write(`[gates] ${check.name} ok (${seconds}s)\n`);
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'noacg-gates-'));
+  try {
+    for (const check of checks) {
+      const started = Date.now();
+      const receiptFile = path.join(dir, `${check.name.replace(/[^A-Za-z0-9]+/g, '-')}.tsv`);
+      process.stdout.write(`\n[gates] ${check.name}: ${check.command}\n`);
+      const res = runCommand(check.command, { ...process.env, GATE_MEASURED_FILE: receiptFile });
+      const seconds = ((Date.now() - started) / 1000).toFixed(1);
+      if (res.status !== 0) {
+        failed.push(check.name);
+        process.stdout.write(`[gates] ${check.name} FAILED (exit ${res.status}, ${seconds}s)\n`);
+        continue;
+      }
+      const receipts = readReceipts(receiptFile);
+      const blind = measurementProblem(check, receipts);
+      if (blind) {
+        failed.push(check.name);
+        process.stdout.write(`[gates] ${check.name} MEASURED NOTHING (${seconds}s): ${blind}\n`);
+        continue;
+      }
+      const what = receipts.map((r) => `${r.count} ${r.subject}`).join(', ');
+      process.stdout.write(`[gates] ${check.name} ok (${seconds}s)${what ? ` - ${what}` : ''}\n`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
   return failed;
 }
 
-function runTests(files) {
-  if (files.length === 0) return 0;
+/** The reporter that counts each test file's tests, next to the one a person reads. */
+const TEST_COUNT_REPORTER = './scripts/gates-test-count.mjs';
+
+/**
+ * `node --test` over the tier's files, and then the same question the checks answer: did each
+ * file actually run any tests? A test file whose cases are generated from a list - a catalog, a
+ * directory, a registry - registers ZERO tests when that list resolves to nothing, and node
+ * reports the file itself as one passing test. The build used to read that as 99 files green.
+ */
+function runTests(files, tier) {
+  if (files.length === 0) {
+    // A TIER may honestly hold no tests - `after-build` holds one check and nothing else. The
+    // BUILD tier holding none is a different claim: that is where every `scripts/**/*.test.mjs`
+    // lands by default, so zero there means the glob or the tests moved. The whole population
+    // going empty is the audit's rule, in `auditGates`, and it runs in this same build.
+    if (tier !== 'build') {
+      process.stdout.write(`\n[gates] the ${tier} tier holds no test files.\n`);
+      return 0;
+    }
+    process.stderr.write('\n[gates] the build tier holds no test files - `scripts/**/*.test.mjs` matched nothing, which is a broken glob, not a pass.\n');
+    return 1;
+  }
   process.stdout.write(`\n[gates] node --test over ${files.length} file(s)\n`);
-  const res = spawnSync(process.execPath, ['--test', ...files], { cwd: ROOT, stdio: 'inherit', windowsHide: true });
-  return res.status ?? 1;
+  const countsAt = path.join(os.tmpdir(), `noacg-test-counts-${process.pid}.tsv`);
+  const args = [
+    '--test',
+    `--test-reporter=${process.stdout.isTTY ? 'spec' : 'tap'}`, '--test-reporter-destination=stdout',
+    `--test-reporter=${TEST_COUNT_REPORTER}`, `--test-reporter-destination=${countsAt}`,
+    ...files,
+  ];
+  const res = spawnSync(process.execPath, args, { cwd: ROOT, stdio: 'inherit', windowsHide: true });
+  const status = res.status ?? 1;
+  try {
+    if (status !== 0) return status;
+    const counted = new Map(readReceipts(countsAt).map((r) => [r.subject, r.count]));
+    const silent = files.filter((file) => !(counted.get(file) > 0));
+    if (silent.length === 0) {
+      process.stdout.write(`[gates] ${files.length} test file(s) ran ${[...counted.values()].reduce((a, b) => a + b, 0)} test(s)\n`);
+      return 0;
+    }
+    process.stderr.write(`\n[gates] ${silent.length} test file(s) registered NO tests, so they passed having measured nothing:\n`);
+    for (const file of silent) process.stderr.write(`  - ${file}\n`);
+    process.stderr.write('  A test file whose cases come from a resolved list registers none when that list resolves to nothing.\n\n');
+    return 1;
+  } finally {
+    rmSync(countsAt, { force: true });
+  }
 }
 
 function main(argv) {
@@ -427,7 +572,7 @@ function main(argv) {
       return 1;
     }
     if (only === 'checks') return 0;
-    const status = runTests(tierTests.map((t) => t.entry));
+    const status = runTests(tierTests.map((t) => t.entry), tier);
     if (status !== 0) console.error(`\n[gates] tests failed (exit ${status})`);
     return status;
   }

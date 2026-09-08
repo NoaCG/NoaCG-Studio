@@ -36,6 +36,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { repositoryFiles } from './gates.mjs';
+import { measured } from './measured.mjs';
+import * as rules from './rules.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const RETIRED_FILE = 'contracts/retired.json';
@@ -157,10 +159,22 @@ function main() {
       );
     }
   }
+  // Both axes, because the gate is a cross product and either one going empty makes it vacuous:
+  // an `isInstructionFile` that stopped matching reads exactly like a clean instruction surface,
+  // and an empty `retired` list reads exactly like a repository that retired nothing.
+  measured(scanned, 'instruction files');
+  measured(retired.length, 'retired mechanisms');
   if (failures.length) {
     console.error(`Retired names FAILED - ${failures.length} sentence(s) across ${scanned} instruction file(s) still instruct a retired mechanism (${RETIRED_FILE}):`);
     for (const failure of failures) console.error(`  - ${failure}`);
     console.error('  A sentence that names one as history says so in its own words: retired, no longer, used to, until <year>, never.');
+    // THE RULE ITSELF, said where it applies. This gate is the `fires:` mechanism for
+    // `landing/retire-mechanism-same-change-replaces-naming`, which means the compiler leaves the
+    // sentence out of every contract on the understanding that this line puts it back at the
+    // moment somebody needs it. Until 2026-09-08 nothing checked that understanding and the
+    // sentence appeared nowhere at all; `scripts/contracts-lib.mjs` now proves the claim by
+    // looking for exactly this call.
+    console.error(`\n  ${rules.text('landing/retire-mechanism-same-change-replaces-naming')}`);
     process.exit(1);
   }
   console.log(`Retired names OK: ${scanned} instruction file(s), ${retired.length} retired mechanism(s), none instructed.`);

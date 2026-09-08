@@ -36,6 +36,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { measured } from './measured.mjs';
 import { ambientEnv } from './read-dotenv.mjs';
 import { productionRef, stagingRef } from './supabase-projects.mjs';
 
@@ -123,6 +124,10 @@ async function driftFor(ref, token, local) {
  */
 async function drift() {
   const local = localVersions();
+  // The set both projects are compared against. `localVersions` swallows a missing directory and
+  // its filename rule is a regex, so an empty list is what a moved migrations folder or a renamed
+  // file convention looks like - and comparing nothing to a remote ledger always says "no drift".
+  measured(local.length, 'local migrations');
   if (local.length === 0) return { status: 'skipped', detail: 'no migrations found on disk' };
 
   const token = env.SUPABASE_ACCESS_TOKEN || '';
