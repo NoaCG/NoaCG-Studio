@@ -15,10 +15,12 @@ store.
 
 ## What is there
 
-`moveShowGraphic(show, id, delta)` in `src/model/shows.ts` swaps a pool entry with its neighbour.
-Nothing calls it: the only references in the repository are its own definition and a comment
-upstream in the same file. `src/components/home/ProductionPage.tsx` imports `removeShowGraphic` and
-not this one.
+`moveShowGraphic(showId: string, graphicId: string, dir: -1 | 1)` in `src/model/shows.ts` swaps a
+pool entry with its neighbour. Nothing calls it: the only references in the repository are its own
+definition and a comment upstream in the same file. `src/components/home/ProductionPage.tsx` imports
+`removeShowGraphic` and not this one. Its lookup also omits the `!s.deleted` filter that
+`setShowGraphicLayer` and `removeShowGraphic` both apply, so it would act on a tombstoned show -
+one more reason to delete it rather than revive it as it stands.
 
 It is dead because the model it belonged to was replaced. A pool graphic now airs on a layer NUMBER
 carried on its own entry (`DEFAULT_PLAYOUT_LAYER`, `nextFreeLayer`, read through `graphicLayer`),
