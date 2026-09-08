@@ -25,6 +25,9 @@
 //   - every tracked handoff file classified under `## Handoffs` (scripts/handoff-drain.mjs);
 //   - every STANDING owner ask mentioned by slug somewhere in the plan (scripts/owner-receipts.mjs)
 //     - a plan may hold or defer one, never fail to see it. A FINDING is not one of these.
+//   - every ANSWERED alignment question mentioned by id (scripts/alignment-answers.mjs) - what he
+//     said on Tuesday, still not in docs/OWNER_RULINGS.md. Unlike an ask this one is not deferrable:
+//     it is a ruling already given, and it repeats every morning until a branch records it.
 //
 // And it prints ECONOMY NOTES, which refuse nothing: a snapshot line that gives Claude a percentage
 // it does not have, and Codex headroom left idle by a plan with no codex row (`economyNotes`).
@@ -36,6 +39,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { alignmentState } from './alignment-answers.mjs';
 import { drain, handoffFiles, newestWavePlan, parseHandoffSection } from './handoff-drain.mjs';
 import { isStanding, readReceipts } from './owner-receipts.mjs';
 import { parseWindowEnd } from './wave-horizon.mjs';
@@ -283,9 +287,10 @@ export function economyNotes(text, rows) {
 
 /**
  * The whole verdict, from the plan text plus injected facts so the pure part is testable.
- * `exists(relativePath)`, `handoffs` (from handoff-drain), `receipts` (from owner-receipts).
+ * `exists(relativePath)`, `handoffs` (from handoff-drain), `receipts` (from owner-receipts),
+ * `alignment` (the pending answers from alignment-answers).
  */
-export function checkPlan(text, { exists, handoffs = [], receipts = [], now = Date.now(), night = false } = {}) {
+export function checkPlan(text, { exists, handoffs = [], receipts = [], alignment = [], now = Date.now(), night = false } = {}) {
   const problems = [];
   const table = parseWaveTable(text);
   problems.push(...table.problems);
@@ -346,6 +351,15 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], now = Da
       problems.push(`standing owner ask ${receipt.slug} (${receipt.ageDays ?? '?'} days) is not mentioned - plan it, hold it or defer it, in writing`);
     }
   }
+  // An answered alignment question is a ruling he has already given, so the plan may not hold or
+  // defer it the way it may an ask - it plans the row that writes it into docs/OWNER_RULINGS.md.
+  // Mentioning the id is what passes here; the answer stops being pending when the ruling lands,
+  // so an unrecorded one comes back tomorrow and the morning after that.
+  for (const entry of alignment) {
+    if (!text.includes(entry.id)) {
+      problems.push(`alignment answer ${entry.id} is not in docs/OWNER_RULINGS.md and this plan does not mention it - plan the row that records what he said`);
+    }
+  }
   return { problems, notes: economyNotes(text, table.rows), rows: table.rows.length, pools: [...new Set(table.rows.flatMap(rowPools))] };
 }
 
@@ -360,6 +374,7 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     exists: (relative) => existsSync(path.join(root, ...relative.split('/'))),
     handoffs: handoffFiles(root),
     receipts: readReceipts(root, { now }),
+    alignment: alignmentState(root).pending,
     now,
     night: /-night-/.test(path.basename(planPath)),
   });
@@ -374,7 +389,7 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     console.error('');
     return 1;
   }
-  console.log(`Wave plan OK: ${path.basename(planPath)} - ${verdict.rows} row(s), pools ${verdict.pools.join(', ') || 'none'}; every handoff classified, every standing owner ask mentioned.`);
+  console.log(`Wave plan OK: ${path.basename(planPath)} - ${verdict.rows} row(s), pools ${verdict.pools.join(', ') || 'none'}; every handoff classified, every standing owner ask and alignment answer mentioned.`);
   return 0;
 }
 
