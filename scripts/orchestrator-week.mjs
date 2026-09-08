@@ -16,7 +16,8 @@
 // WHAT IT READS.
 //   - `scripts/harness-usage.mjs --json` over the window: tokens by model, Codex tokens and its
 //     rate-limit snapshot, Antigravity calls, the delegation outcomes, the capability standings.
-//   - every `*-wave-plan.local.md` in the primary checkout's and the orchestrator home's
+//   - every `*-wave-plan.local.md` in the wave-plan store (`wave-plan-store.mjs`) and, for the
+//     window that spans the 2026-09-09 move, in the primary checkout's and the orchestrator home's
 //     `docs/handoffs/` written inside the window: rows per pool from the wave table, and the
 //     decisions the master took on the owner's behalf, one `DECIDED:` line each
 //     (`.agent-workflows/orchestrator/report.md` item 10; older plans wrote "taken on the owner's
@@ -44,6 +45,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parseWaveTable } from './wave-plan-check.mjs';
+import { wavePlansDir } from './wave-plan-store.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
@@ -59,6 +61,7 @@ export const SYSTEM_PATHS = Object.freeze([
   '.claude/agents',
   'scripts/hooks',
   'scripts/wave-plan-check.mjs',
+  'scripts/wave-plan-store.mjs',
   'scripts/wave-tick.mjs',
   'scripts/agy-run.mjs',
   'scripts/codex-rescue.mjs',
@@ -423,7 +426,14 @@ export function gather({ now = Date.now(), days = 7 } = {}) {
   const home = primary ? path.join(primary, '.claude', 'worktrees', 'orchestrator') : null;
   const startRev = git(['rev-list', '-1', `--before=${sinceIso}`, 'HEAD'])?.trim() || null;
   const log = git(['log', `--since=${sinceIso}`, '--no-merges', '--format=%h%x09%s', '--', ...SYSTEM_PATHS]) ?? '';
-  const plans = wavePlans([primary && path.join(primary, 'docs', 'handoffs'), home && path.join(home, 'docs', 'handoffs')], since);
+  // The store first, then the two places plans were written before it existed. The legacy pair is
+  // the ARCHIVE half of the move and nothing else: `wave-tick.mjs` resolves the store alone, so no
+  // new plan can land in either. Drop them once no window can still reach 2026-09-09.
+  const plans = wavePlans([
+    wavePlansDir(),
+    primary && path.join(primary, 'docs', 'handoffs'),
+    home && path.join(home, 'docs', 'handoffs'),
+  ], since);
   return {
     window: { since: sinceIso, until: new Date(now).toISOString(), days },
     usage: usageJson(days),

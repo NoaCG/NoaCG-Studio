@@ -11,9 +11,8 @@ into the wave-state file - a plan grounded in yesterday's numbers is grounded in
 `.claude/worktrees/orchestrator`, detached at `origin/main`, created if absent and fast-forwarded
 if behind (exception 4). Everything below is then read from the path it prints, so the plan is
 made against what actually landed rather than against whatever commit this session started from.
-Run every later command of the session from that directory, and write the wave-state file there:
-the tick, the drain and the plan check all read the checkout they run in, so a session that plans
-from a branch worktree leaves its state where the next orchestrator will not look.
+Run every later command of the session from that directory. The wave-state file goes to the store,
+not here - the tick, the drain and the plan check all resolve it there, from any checkout.
 
 It is idempotent and refuses rather than clobbers: a dirty home is left alone and reported (reads
 there are stale), and a path git does not know as a worktree, a home holding a branch, or any git

@@ -41,6 +41,7 @@ import { fileURLToPath } from 'node:url';
 
 import { alignmentState } from './alignment-answers.mjs';
 import { drain, handoffFiles, newestWavePlan, parseHandoffSection } from './handoff-drain.mjs';
+import { inStore, wavePlansDir } from './wave-plan-store.mjs';
 import { isStanding, readReceipts } from './owner-receipts.mjs';
 import { parseWindowEnd } from './wave-horizon.mjs';
 
@@ -367,7 +368,19 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
   const planFlag = argv.indexOf('--plan');
   const planPath = planFlag >= 0 ? path.resolve(root, argv[planFlag + 1] ?? '') : newestWavePlan(root, now);
   if (!planPath || !existsSync(planPath)) {
-    console.error('No fresh wave plan found in docs/handoffs/ (expected <date>-<day|night>-wave-plan.local.md); pass --plan <path>.');
+    console.error(`No fresh wave plan found in the store ${wavePlansDir() ?? '(no git checkout)'} (expected <date>-<day|night>-wave-plan.local.md); pass --plan <path>.`);
+    console.error('The path to write is what `node scripts/wave-plan-store.mjs --path <date> <day|night>` prints.');
+    return 1;
+  }
+  // WHERE the plan lives is checked before WHAT it says, because a perfect plan in a worktree is
+  // still gone next week: that is how 2026-09-05 to 09-07 lost every row and every DECIDED: line.
+  // This check gates every launch, so it is the place the location becomes a fact and not a hope.
+  if (!inStore(planPath)) {
+    console.error(`Wave plan NOT ready - ${planPath} is outside the wave-plan store.\n`);
+    console.error(`  - a plan in a checkout dies with that checkout, and it holds the only record of the wave's`);
+    console.error('    routing and of every decision taken on the owner\'s behalf. Move it to the store:');
+    console.error(`      ${wavePlansDir() ?? '(no git checkout)'}`);
+    console.error('    whose exact path for today `node scripts/wave-plan-store.mjs --path <date> <day|night>` prints.\n');
     return 1;
   }
   const verdict = checkPlan(readFileSync(planPath, 'utf8'), {

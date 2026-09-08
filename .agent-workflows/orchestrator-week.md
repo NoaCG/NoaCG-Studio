@@ -24,8 +24,9 @@ Tuesday, not Monday, by his ruling (2026-09-03): his weekly allowance can be spe
 
 ## 1. Measure - three commands, nothing recalled
 
-Work from the PRIMARY checkout, `C:\claude\NoaCG-Studio`, so the wave plans in `docs/handoffs/`,
-the orchestrator home and the `.env` the feedback count needs are all in reach.
+Work from the PRIMARY checkout, `C:\claude\NoaCG-Studio`, so the orchestrator home and the `.env`
+the feedback count needs are in reach. The wave plans live in the store, not in a checkout
+(`node scripts/wave-plan-store.mjs --list`), and are reachable from anywhere.
 
     node scripts/orchestrator-week.mjs
     npm run feedback:count
@@ -37,6 +38,12 @@ their rows by pool, and what the queue landed; the `DECIDED:` count against the 
 handoffs and the owner-queue items by kind; and the commits that touched the orchestration system,
 with the common-path line count now against the window's start. Every number names its source in the
 script's header; do not restate a number the page does not carry.
+
+**If the waves section says NO WAVE PLAN FOUND, that is not a quiet week.** It names every
+directory it searched and what each held; a page in that state has lost the week's routing and its
+`DECIDED:` record, so section 6 says the evidence is gone rather than reporting zeroes. Say which
+directory was empty and whether the store itself is missing - the plans went missing exactly this
+way in the 2026-09-01 window, before the store existed.
 
 `feedback:count` counts the last 168 hours - total, negative against positive, how many carried a
 written note, how many are still at status `new`. **It never reads the message column**, so what
@@ -130,7 +137,7 @@ is outstanding and the block to append.
   finding (`docs/MISTAKE_TRIGGERS.md`, the four places a lesson can live).
 - `.agent-workflows/orchestrator/incidents.md`: the entries dated this week, read for repeats -
   the same shape in a new costume is a mechanism that did not fire, never a new incident.
-- The last wave plan's alignment questionnaire (the newest `*-wave-plan.local.md`, written by
+- The last wave plan's alignment questionnaire (the newest plan the store holds, written by
   `orchestrator/report.md` item 10 - NOT by the morning brief, which writes no questionnaire):
   which `DECIDED:` items were the machine's to take, and which asks in the week's handoffs were not.
 - **The routines against the scheduler.** List the scheduled tasks and compare them to the table in

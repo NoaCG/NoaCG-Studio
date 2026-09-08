@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { jobsDir, ensureJobsDir, readJobs, readLandings } from './jobs-store.mjs';
+import { inStore, wavePlansDir } from './wave-plan-store.mjs';
 
 export const LEDGER_VERSION = 1;
 export const LEDGER_FILE = 'wave-launches.jsonl';
@@ -117,6 +118,17 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
   const command = argv[0];
   const json = argv.includes('--json');
   if (command === 'record') {
+    // The plan check is the contract's choke point and this is the code one. A row can be launched
+    // without anybody running the check, but nothing is launched without being recorded here, so a
+    // plan sitting outside the store is refused twice rather than once (2026-09-08: three days of
+    // wave plans were written into throwaway worktrees and are gone).
+    const planArg = argValue(argv, '--plan');
+    if (planArg && !inStore(planArg, dir)) {
+      process.stderr.write(`wave-launch: --plan ${planArg} is outside the wave-plan store ${wavePlansDir(dir)}.\n`
+        + 'A plan in a checkout dies with that checkout. Write it at the path '
+        + '`node scripts/wave-plan-store.mjs --path <date> <day|night>` prints.\n');
+      return 2;
+    }
     try {
       const row = recordLaunch(dir, {
         letter: argValue(argv, '--letter'),
