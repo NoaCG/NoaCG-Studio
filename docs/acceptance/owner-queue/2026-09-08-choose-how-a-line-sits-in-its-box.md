@@ -41,6 +41,11 @@ ALIGNED.
   you type a long value, say so; the alternative is the strip, paid for out of the budget.
 - **The quarter-of-the-type rule** for offering the nudge line. Any threshold is a judgement. If
   you want the line on every centred row, or never, it is one number.
+- **How far from the edge a moved line stands.** Your question was drawn centred, with 209 px on
+  one side and 280 on the other. Sent to the left, it keeps half its type size (18 px) from the
+  plate's inside edge, because the gaps you drew were centring rather than margins - and it reads
+  tight against the edge on your plate. A line you drew against a side keeps the gap you drew when
+  it is sent to the other side. If a moved line should keep a bigger margin, say which.
 
 **What is deliberately NOT here.** Growth is still answered in the control lower down, not on the
 box headings - that is the next piece. And line alignment inside a wrapped block (every line

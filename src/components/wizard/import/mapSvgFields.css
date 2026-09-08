@@ -395,10 +395,10 @@
 }
 .map-svg-align-grid {
   display: grid;
-  grid-template-columns: repeat(3, 9px);
-  gap: 4px;
+  grid-template-columns: repeat(3, 8px);
+  gap: 3px;                 /* three dots and two gaps are 30px, inside the 31px the box leaves */
   box-sizing: border-box;
-  height: 32px;             /* the height a text box beside it computes to (6px padding, 1px border) */
+  height: 33px;             /* the height a text box beside it computes to (6px padding, 1px border) */
   padding: 0 6px;
   align-content: center;
   border: 1px solid var(--border);
@@ -409,8 +409,8 @@
    dot is one the reader SET - so a glance says whether a row was touched, and the drawn dot stays
    findable while another is chosen. */
 .map-svg-align-grid button {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   padding: 0;
   border: 1.5px solid var(--text-dim);
   border-radius: 50%;

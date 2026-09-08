@@ -291,8 +291,8 @@ and the shipped scorebug (`docs/metrics/2026-09-08-alignment-grid-in-the-row.md`
 - **The grid sits IN THE ROW, beside the Text box, not in a strip under it.** A checklist row is a
   checkbox, two text boxes and nothing that expands; the strip the mock draws did not exist and
   its summary line would have cost the step a row per row, against a height budget the scorebug
-  pins to the pixel. A 3x3 of 9 px dots is 32 px tall, the height a text box computes to, so it
-  costs no height at all: the seven scorebug rows still arrive whole at 1280x720, with 42 px to
+  pins to the pixel. A 3x3 of 8 px dots sits in a 33 px box, the height a text box computes to, so it
+  costs no height at all. The seven scorebug rows still arrive whole at 1280x720, with 42 px to
   spare, and the two text boxes went from 191 px to 160 px each to make room. The words live on
   the caret the preview already draws while the row is hovered, and on the grid's own tooltip.
 - **"Read from your drawing" is a RING, and setting is a SOLID DOT.** The drawn answer is ringed
@@ -311,9 +311,12 @@ and the shipped scorebug (`docs/metrics/2026-09-08-alignment-grid-in-the-row.md`
   the question sits LEFT of its plate's centre; the mock's "to the right" was illustrative.)
 - **A declared anchor keeps the margin the drawing has.** Sent to the left or right inside edge,
   the block keeps the gap the designer left where the line was set against a side, and half the
-  drawn type where it was centred - the same substitution the derived road and the overlay make.
-  Declaring exactly what was drawn therefore changes nothing, to the unit, on either axis;
-  declaring an edge the line was not drawn against moves the block to half a line inside it.
+  drawn type where it was centred - the same substitution the derived road and the overlay make,
+  and never less room than a centred line gets. Declaring exactly what the file says takes the
+  file's own road, so it changes nothing, to the unit, on either axis; declaring an edge the line
+  was not drawn against moves the block to the drawn gap inside it, or half a line where it was
+  drawn centred. A countdown row offers no grid: its layer is the clock display and carries no
+  field id a declaration could name.
 
 What travels: `NOACG_LAYOUT` gains a `lines` list - `{ el: 'f0', h, v, nudge }` per line the reader
 touched - and is emitted on its own where no growth rule exists, without the growth runtime. Version

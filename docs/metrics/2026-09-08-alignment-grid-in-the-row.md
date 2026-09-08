@@ -30,8 +30,8 @@ At 1366x768 the seven rows end at 609 against a port bottom of 699.
 
 | | Value |
 |---|---|
-| Dots | 3 x 3, 9 px each, 4 px apart |
-| Grid box | 32 px tall - the height a text box beside it computes to (6 px padding, 1 px border) |
+| Dots | 3 x 3, 8 px each, 3 px apart - 30 px, inside the 31 px the box leaves |
+| Grid box | 33 px tall - the height a text box beside it computes to (6 px padding, 1 px border) |
 | Column the row gives it | 52 px, label included |
 | Owner's board, five rows, last row's bottom | 613 (with the question's nudge line), port 651 |
 

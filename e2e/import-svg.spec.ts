@@ -3969,7 +3969,7 @@ test('svg import: the nine-dot grid sets how a line sits in its box, and the nud
   const frame = page.frameLocator('.wz-side iframe');
   await expect(frame.locator('#f0')).toContainText('Question 1');
 
-  type Align = { h: string; v: string; anchor?: number; nudge?: number; snapY?: number; nudgeY?: number; said?: boolean };
+  type Align = { h: string; v: string; derived: boolean; anchor?: number; nudge?: number; snapY?: number; nudgeY?: number };
   type Layout = { lines?: { el: string; h?: string; v?: string; nudge?: boolean }[] };
   /** The runtime's own answer for the question, and where its block stands, in the artwork's units. */
   const runtime = () =>
@@ -3984,17 +3984,15 @@ test('svg import: the nine-dot grid sets how a line sits in its box, and the nud
         cy: bb.y + bb.height / 2,
       };
     });
-  /** Act, then wait for the preview to be running a document whose table says `lines`. The
-   *  wizard's iframe carries no revision stamp, so the rebuild is waited for by its effect: the
-   *  runtime's own table, read again until it is the one the action wrote (null while the frame
-   *  is between documents). */
-  const rebuilt = async (action: () => Promise<unknown>, lines: Layout['lines'] | null) => {
+  /** Act, then wait out the debounced rebuild on the stage's own stamps (the idiom the other
+   *  wizard walks in this file use): pending is set the moment the template changes and cleared
+   *  when the new document has LOADED, and its fit runs on that document's DOMContentLoaded. */
+  const stage = page.locator('.wz-side .wz-stage');
+  const rebuilt = async (action: () => Promise<unknown>) => {
+    const before = await stage.getAttribute('data-doc-rev');
     await action();
-    await expect
-      .poll(async () => JSON.stringify((await runtime().catch(() => ({ lines: undefined }))).lines), {
-        timeout: 15_000,
-      })
-      .toBe(JSON.stringify(lines));
+    await expect(stage).not.toHaveAttribute('data-doc-rev', before ?? '', { timeout: 20_000 });
+    await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
     await expect(frame.locator('#f0')).toContainText('Question 1');
   };
 
@@ -4007,14 +4005,10 @@ test('svg import: the nine-dot grid sets how a line sits in its box, and the nud
   await expect(page.getByTestId('wz-preview-caret')).toContainText('centred, middle');
   await expect(dot('middle', 'middle')).toHaveAttribute('aria-checked', 'true');
   await expect(dot('middle', 'middle')).not.toHaveClass(/set/);
-  await expect(page.getByTestId('map-svg-align-t0').locator('.map-svg-align-grid')).toHaveAttribute(
-    'title',
-    'centred, middle - read from your drawing.',
-  );
+  await expect(dot('middle', 'middle')).toHaveAttribute('title', 'centred, middle - read from your drawing');
   const drawn = await runtime();
-  expect(drawn.align).toMatchObject({ h: 'middle', v: 'middle' });
+  expect(drawn.align).toMatchObject({ h: 'middle', v: 'middle', derived: true });
   expect(drawn.lines).toBeNull();
-  expect(drawn.align.said).toBeUndefined();
 
   // THE NUDGE THE FILE RECORDED, in words. The question was composed off its plate's centre -
   // 36 px sideways by the drawn insets, a dozen up - and the snap moved it on. The sentence says
@@ -4031,27 +4025,25 @@ test('svg import: the nine-dot grid sets how a line sits in its box, and the nud
   // with the declaration in its own table, and the runtime anchors the block on the plate's
   // left inside edge and lifts it to the top: the block's centre moves left of where it stood,
   // and up.
-  await rebuilt(() => dot('start', 'top').click(), [{ el: 'f0', h: 'start', v: 'top' }]);
+  await rebuilt(() => dot('start', 'top').click());
   await row.hover();
   await expect(page.getByTestId('wz-preview-caret')).toContainText('left, top');
   await expect(dot('start', 'top')).toHaveAttribute('aria-checked', 'true');
   await expect(dot('start', 'top')).toHaveClass(/set/);
   await expect(dot('middle', 'middle')).toHaveAttribute('aria-checked', 'false');
-  await expect(page.getByTestId('map-svg-align-t0').locator('.map-svg-align-grid')).toHaveAttribute(
-    'title',
-    'left, top - set by you. The drawing reads centred, middle.',
-  );
+  await expect(dot('start', 'top')).toHaveAttribute('title', 'left, top - set by you');
+  await expect(dot('middle', 'middle')).toHaveAttribute('title', 'centred, middle - read from your drawing');
   // Declared away from the drawn anchor, the nudge has nothing of the designer's to keep.
   await expect(nudgeLine).toHaveCount(0);
   const leftTop = await runtime();
   expect(leftTop.lines).toEqual([{ el: 'f0', h: 'start', v: 'top' }]);
-  expect(leftTop.align).toMatchObject({ h: 'start', v: 'top', said: true });
+  expect(leftTop.align).toMatchObject({ h: 'start', v: 'top', derived: false });
   expect(leftTop.anchor).toBe('start');
   expect(leftTop.cx).toBeLessThan(drawn.cx - 100);
   expect(leftTop.cy).toBeLessThan(drawn.cy - 20);
 
   // AND THE OPPOSITE CORNER, to show it is the grid and not a coincidence of the first click.
-  await rebuilt(() => dot('end', 'bottom').click(), [{ el: 'f0', h: 'end', v: 'bottom' }]);
+  await rebuilt(() => dot('end', 'bottom').click());
   const rightBottom = await runtime();
   expect(rightBottom.lines).toEqual([{ el: 'f0', h: 'end', v: 'bottom' }]);
   expect(rightBottom.anchor).toBe('end');
@@ -4061,18 +4053,18 @@ test('svg import: the nine-dot grid sets how a line sits in its box, and the nud
   // THE DRAWN DOT HANDS THE ROW BACK TO THE DRAWING: no declaration, no table, the derived
   // answer again - and the nudge line is back, because the anchor is the one it was measured
   // from.
-  await rebuilt(() => dot('middle', 'middle').click(), null);
+  await rebuilt(() => dot('middle', 'middle').click());
   await expect(dot('middle', 'middle')).not.toHaveClass(/set/);
   const back = await runtime();
   expect(back.lines).toBeNull();
-  expect(back.align.said).toBeUndefined();
+  expect(back.align.derived).toBe(true);
   expect(Math.abs(back.cx - drawn.cx)).toBeLessThan(0.5);
   await expect(nudgeLine).toBeVisible();
 
   // KEEP THE NUDGE. The table carries only the flag, the runtime moves the anchor by the offset
   // it measured, and the block stands where he drew it: the snapped centre plus the nudge,
   // sideways and up. The word under the block is still "centred": the offset rides the anchor.
-  await rebuilt(() => nudgeLine.locator('input').check(), [{ el: 'f0', nudge: true }]);
+  await rebuilt(() => nudgeLine.locator('input').check());
   const kept = await runtime();
   expect(kept.lines).toEqual([{ el: 'f0', nudge: true }]);
   expect(Math.abs(kept.cx - (drawn.cx + drawn.align.nudge!))).toBeLessThan(0.5);
