@@ -12,7 +12,8 @@
 //      for exactly this reason (src/ai/AGENTS.md).
 //
 // AUTH IS OPTIONAL, and this is the route where that matters most. The editor has no login wall
-// (root AGENTS.md, "Auth posture") and on this instance 114 browsers have visited against six
+// (`root/keep-studio-open-there-login-wall`) and on this instance 114 browsers have visited
+// against six
 // accounts - a feedback channel only signed-in users could reach would be a channel almost
 // nobody reaches. The account, when there is one, comes from the TOKEN and never from the body:
 // a caller cannot file feedback as somebody else.

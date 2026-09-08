@@ -67,7 +67,8 @@ export interface Show {
   name: string;
   /** Format stamp. Absent = a pre-stamp record, normalized to 2 on read and written on every
    *  save. A no-op today - it exists so a FUTURE breaking change has a field to bump and
-   *  migrate on (AGENTS.md rule 6); 2 matches the packet lineage this store follows. */
+   *  migrate on (`root/version-every-persisted-format-ship-breaking`); 2 matches the packet
+   *  lineage this store follows. */
   version?: 2;
   /** The production's LOOK (palette + font + style family) - the unified brand its graphics
    *  share. Set when a kit creates the production or from the first graphic added; the wizard
@@ -82,8 +83,8 @@ export interface Show {
    *  It sits BESIDE `look` rather than replacing it, and when both exist the REFERENCE wins: a
    *  reference stays right when the brand is edited, while `look` is a copy taken from whichever
    *  graphic happened to be added first. `look` remains the fallback for every production that
-   *  never chose a brand - which is all of them until somebody does. ADDITIVE OPTIONAL (root
-   *  AGENTS.md rule 6): absent = no brand chosen, an older build reads and rewrites the record
+   *  never chose a brand - which is all of them until somebody does. ADDITIVE OPTIONAL
+   *  (`root/version-every-persisted-format-ship-breaking`): absent = no brand chosen, an older build reads and rewrites the record
    *  untouched. */
   brandId?: string;
   /** The graphic POOL, in layer order — which templates the production can air, each once. */
@@ -793,7 +794,7 @@ export const MIN_PLAYOUT_LAYER = 1;
 export const MAX_PLAYOUT_LAYER = 100;
 
 /** A pool graphic's layer — the stored number, or the default for a record saved before the
- *  field existed (additive-optional read, root AGENTS.md rule 6). */
+ *  field existed (additive-optional read, `root/version-every-persisted-format-ship-breaking`). */
 export function graphicLayer(graphic: Pick<SavedGraphic, 'layer'>): number {
   const n = Number(graphic.layer);
   return Number.isFinite(n) && n >= MIN_PLAYOUT_LAYER && n <= MAX_PLAYOUT_LAYER

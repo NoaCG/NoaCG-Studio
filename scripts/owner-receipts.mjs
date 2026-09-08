@@ -75,7 +75,8 @@ export const KINDS = Object.freeze(['ask', 'finding']);
 export const STANDING = Object.freeze(['unstarted', 'advanced']);
 /** The quote key each kind carries. A finding's words never sit under `asked:`. */
 export const QUOTE_KEY = Object.freeze({ ask: 'asked', finding: 'found' });
-/** The receipt's persisted-format version (root AGENTS.md principle 6). A missing `v` reads as 1. */
+/** The receipt's persisted-format version (`root/version-every-persisted-format-ship-breaking`).
+ *  A missing `v` reads as 1. */
 export const RECEIPT_VERSION = 2;
 
 /**
@@ -174,7 +175,8 @@ export function receiptFrom(name, text, { now = Date.now(), historical = false }
   const problems = [];
   const notes = [];
   const version = data.v === undefined ? 1 : Number(data.v);
-  // A NEWER version degrades honestly: reported, never guessed at (root AGENTS.md principle 6).
+  // A NEWER version degrades honestly: reported, never guessed at
+  // (`root/version-every-persisted-format-ship-breaking`).
   //
   // An OLDER one MIGRATES ON READ and is reported as a note, never as a build failure. That is
   // deliberate and it is the same rule `check-owner-queue.mjs` states for its own directory: a

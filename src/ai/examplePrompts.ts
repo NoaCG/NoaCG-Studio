@@ -83,7 +83,8 @@ export const EXAMPLE_PROMPTS: ExamplePrompt[] = [
 //   - Every LITE brief has a catalog starting point (a lower third the retrieval can anchor
 //     on), because Lite ADAPTS a proven design and never invents a layout. Lite briefs name NO
 //     colours and NO zone: a model-invented palette is dropped by design (colour belongs to the
-//     brand input - src/ai/AGENTS.md "A REQUESTED palette") and placement follows the chassis,
+//     brand input - `ai/assemble-catalog-fit-values-through-clamp`) and placement follows the
+//     chassis,
 //     so a colour or position word here is a promise the render will break - measured, not
 //     assumed (the first draft asked for a navy panel and got the house dark). And a Lite
 //     brief states its two lines as an explicit STACK ("name over a smaller role line", "tag

@@ -21,7 +21,7 @@ const FONT = "'Inter', system-ui, sans-serif";
 /** A photographic-ish backdrop built from gradients: an imported graphic is usually
  *  flattened over content, and a model that only ever sees flat panels never has to
  *  separate the graphic from what is behind it. No external asset - exports and benches
- *  stay offline (root AGENTS.md, non-negotiable 3). */
+ *  stay offline (`root/keep-generated-template-self-contained-runtime`). */
 const PHOTO = `
   background:
     radial-gradient(1200px 600px at 20% 25%, #4a6b8a 0%, transparent 60%),

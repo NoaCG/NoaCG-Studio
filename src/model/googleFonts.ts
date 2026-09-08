@@ -10,8 +10,9 @@
 // THE SHAPE OF IT, and the rule it must never break: the file is fetched HERE, at design
 // time, and embedded in `template.assets` exactly like an uploaded one. The emitted template
 // keeps NO reference to fonts.googleapis.com — an exported package must play out on a machine
-// with no internet, and a CDN reference inside generated code is forbidden outright (root
-// AGENTS.md, non-negotiable 3). So the network is the STUDIO's, never the graphic's.
+// with no internet, and a CDN reference inside generated code is forbidden outright
+// (`root/keep-generated-template-self-contained-runtime`). So the network is the STUDIO's, never
+// the graphic's.
 //
 // PRIVACY, stated to the user rather than buried here: fetching a family sends the browser's
 // IP address to Google, as loading any Google-hosted font always has. It happens only when

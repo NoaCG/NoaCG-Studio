@@ -52,7 +52,8 @@
 // to be reasoned about after the fact to find out what it measured.
 //
 // It drives Chromium over the app, so it is BROWSER WORK: run it through `npm run queue` like a
-// suite, never beside one (AGENTS.md "Verifying changes" rule 3, scripts/command-match.mjs).
+// suite, never beside one (`root/enqueue-browser-driving-work-rather-than`,
+// scripts/command-match.mjs).
 import { chromium } from '@playwright/test';
 import { readFileSync, writeFileSync, readdirSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

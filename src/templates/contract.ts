@@ -405,8 +405,8 @@ export interface TemplateVariant {
    * to its own shape.
    *
    * ADDITIVE OPTIONAL and absent means `mark`, so every existing variant reads exactly as it
-   * did. Nothing persists a variant, so there is no migration to write (root AGENTS.md rule 6
-   * is about SAVED formats).
+   * did. Nothing persists a variant, so there is no migration to write
+   * (`root/version-every-persisted-format-ship-breaking` is about SAVED formats).
    */
   imageSlot?: 'mark' | 'picture';
   /**

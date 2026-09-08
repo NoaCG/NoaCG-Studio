@@ -30,7 +30,7 @@ export type TextRole = 'primary' | 'secondary' | 'fine' | 'decorative';
 /** 'standard' is the default; 'safe' is the "Guaranteed readable size" checkbox (default OFF).
  *  In safe mode the AI designs FOR big type - fewer fields, simpler composition - it never
  *  inflates a small layout. Persisted per project as an additive optional field (no version
- *  bump - AGENTS.md §5). */
+ *  bump - `root/version-every-persisted-format-ship-breaking`). */
 export type LegibilityMode = 'standard' | 'safe';
 
 /** Where the graphic will be WATCHED. Multiplies the size floors. 'venue' is a stub (alias of

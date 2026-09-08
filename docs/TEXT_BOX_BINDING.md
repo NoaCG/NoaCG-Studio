@@ -299,7 +299,8 @@ wrapping to two or three lines in the tan plate with the answers exactly where h
 ## What it costs the formats
 
 `NOACG_LAYOUT` gains an alignment pair per line and a cap per rule, and the growth rows become
-per-box rather than one per graphic - all additive, so version 1 survives (root principle 6). The
+per-box rather than one per graphic - all additive, so version 1 survives
+(`root/version-every-persisted-format-ship-breaking`). The
 draft holds, per field, a box id or none plus alignment with an `authored` flag; per box, growth,
 cap and followers.
 

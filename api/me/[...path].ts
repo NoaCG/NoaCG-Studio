@@ -12,7 +12,8 @@
 // the URL must never reach a module specifier.
 //
 // AUTH IS OPTIONAL ON THE FIRST TWO ROUTES, and that is the point of grouping them. The editor
-// has no login wall (root AGENTS.md, "Auth posture"), so "what may I do" and "here is what I
+// has no login wall (`root/keep-studio-open-there-login-wall`), so "what may I do" and "here is
+// what I
 // think of it" both have to answer for someone who never signs in. Each handler decides what an
 // anonymous caller gets; neither refuses one.
 //

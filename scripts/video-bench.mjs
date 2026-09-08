@@ -578,7 +578,7 @@ outer: for (const example of selected) {
 
       // Duration and summary come from the DOM (always the running app's truth); the module
       // and plan come from the store. After an HMR-touched dev server the eval-context store
-      // can be a GHOST instance (see AGENTS.md "Verifying changes") - detect that by
+      // can be a GHOST instance (see e2e/AGENTS.md "Gotchas when writing a spec") - detect that by
       // cross-checking the store's chat against the visible assistant bubble and fail the
       // run loudly instead of silently benching the starter module.
       const summary = (await page.locator('.ai-msg.assistant').last().innerText()).trim();

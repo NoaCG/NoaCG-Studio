@@ -3,7 +3,8 @@
 NoaCG Studio uses [Prettier](https://prettier.io) to tidy the template code an editor or the AI
 produces. The whole layer is `src/format/formatCode.ts` - a small, house-aware wrapper, **not** a
 blanket reformatter. Prettier and its plugins are bundled locally (no CDN) and loaded lazily via
-dynamic `import()`, so they stay out of the initial app bundle (root non-negotiable 3).
+dynamic `import()`, so they stay out of the initial app bundle
+(`root/keep-generated-template-self-contained-runtime`).
 
 ## What is safe to format, and what is protected
 

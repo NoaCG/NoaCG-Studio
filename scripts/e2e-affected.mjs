@@ -1301,8 +1301,8 @@ function usage() {
  * `npx playwright test` with NO spec arguments - which is not "no tests", it is all 1179 of
  * them - plus the 25-minute catalog gate. It happened twice in one day, once beside another
  * session's live run on a laptop where one browser job per machine is the standing rule
- * (AGENTS.md "Verifying changes" rule 3). A typo must not be able to start the most expensive
- * thing this repository can do.
+ * (`root/enqueue-browser-driving-work-rather-than`). A typo must not be able to start the most
+ * expensive thing this repository can do.
  *
  * Single-dash arguments are flags too, so `-h` is a named error rather than being taken as a
  * base ref and handed to git (no git ref may begin with `-`). A SECOND positional is refused

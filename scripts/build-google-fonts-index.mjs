@@ -4,7 +4,8 @@
 // Why a checked-in index rather than a live query: the picker has to answer a keystroke, and
 // an offline build has to keep working. The index is names, so it is small; the FILE for the
 // one family a user picks is fetched at design time and embedded in the template, which is
-// what keeps playout free of any network dependency (root AGENTS.md, non-negotiable 3).
+// what keeps playout free of any network dependency
+// (`root/keep-generated-template-self-contained-runtime`).
 //
 // Time-driven, never commit-driven (docs/STACK_FRESHNESS.md): re-run it when the library has
 // visibly moved on. A family that appears after the last run is still reachable - the picker

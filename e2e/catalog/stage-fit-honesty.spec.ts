@@ -132,6 +132,7 @@ test(`a staged graphic ships the font size its CSS declares${SCOPE_NOTE}`, async
       + 'with no operator input at all - so the size a designer typed is not the size that airs. '
       + 'Run `node scripts/stage-fit-sweep.mjs <category> --all` to see the line and the axis. The '
       + 'usual cause is the stage fit measuring the reserve in one box and the excess in another '
-      + '(see src/templates/AGENTS.md, "THE STAGE", and the header of shared/stageFit.ts).',
+      + '(see `templates/measure-stage-reserves-layout-dimensions-never` and the header of '
+      + 'shared/stageFit.ts).',
   ).toEqual([]);
 });

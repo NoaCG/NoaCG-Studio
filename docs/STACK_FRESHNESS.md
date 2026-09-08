@@ -125,7 +125,8 @@ This is why this document exists.
 
 `src/assets/gsap.min.js` and `src/assets/lottie.min.js` are **committed files**, not
 dependencies. They are bundled locally because a generated template must play offline with no
-CDN reference (root AGENTS.md, principle 3) — which means they ship inside every graphic every
+CDN reference (`root/keep-generated-template-self-contained-runtime`) — which means they ship
+inside every graphic every
 user exports, and no dependency tool has ever had an opinion about them.
 
 The check reads each file's own version banner and compares it against the npm registry. It
