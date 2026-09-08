@@ -3,21 +3,11 @@
   "_why": "Capability OBSERVATIONS about the three harnesses, each pinned to the version it was measured on. Codex and Antigravity ship almost daily, so a sentence like 'this flag does not exist' is evidence about one build, never a ruling. npm run harness:usage compares measuredOn with the installed version and prints every observation that is now UNVERIFIED, with the probe that re-settles it. A CONSTRAINT is different: it comes from our own rules or a contract we own, does not lapse with a release, and is listed here only so a reader can tell the two apart. Append; never delete - a lapsed observation gets re-measured and its measuredOn moves.",
   "observations": [
     {
-      "id": "agy-headless-auto-denies-ungranted-tools",
-      "harness": "Antigravity",
-      "kind": "observation",
-      "measuredOn": "1.1.25",
-      "measuredAt": "2026-09-03",
-      "claim": "Headless agy auto-denies any tool with no grant and still returns status SUCCESS with an empty response; only read_file, command and write_file are real grant actions (list_dir, grep_search, codebase_search are accepted into settings.json and dropped as invalid).",
-      "reprobe": "npm run agy:read -- --model gemini-3.7-flash-high --label reprobe-grants \"List the files in <an absolute worktree dir>\" with no command grant; an empty response confirms it, a listing refutes it.",
-      "source": "docs/HARNESS_ROUTING.md, \"Three facts about this machine that were not true when this file last said them\""
-    },
-    {
       "id": "agy-claude-models-reject-effort",
       "harness": "Antigravity",
       "kind": "observation",
-      "measuredOn": "1.1.25",
-      "measuredAt": "2026-09-02",
+      "measuredOn": "1.1.27",
+      "measuredAt": "2026-09-09",
       "claim": "claude-sonnet-4-6 and claude-opus-4-6-thinking reject --effort outright (status ERROR, 0 s, 0 tokens); the Gemini and GPT-OSS ids carry their tier in the model name.",
       "reprobe": "Any --effort call on those ids: scripts/agy-run.mjs downgrades its refusal to a warning on a version other than measuredOn, so the next such call IS the probe. Update EFFORTLESS_MODELS there and measuredOn here with the result.",
       "source": "docs/HARNESS_ROUTING.md, \"Task B - the SECOND POOL\""
@@ -26,8 +16,8 @@
       "id": "agy-no-usage-surface",
       "harness": "Antigravity",
       "kind": "observation",
-      "measuredOn": "1.1.25",
-      "measuredAt": "2026-08-30",
+      "measuredOn": "1.1.27",
+      "measuredAt": "2026-09-09",
       "claim": "agy keeps no cumulative usage on disk and has no usage or quota subcommand; per-run usage exists once on stdout, which is why scripts/agy-run.mjs is the only record of Antigravity spend.",
       "reprobe": "agy --help for a usage/quota subcommand, and a text scan of ~/.gemini/antigravity-cli/ for a token field after one run.",
       "source": "scripts/agy-run.mjs header; docs/HARNESS_ROUTING.md \"Cost, and what a usage meter can read\""
@@ -36,28 +26,18 @@
       "id": "agy-model-inventory",
       "harness": "Antigravity",
       "kind": "observation",
-      "measuredOn": "1.1.25",
-      "measuredAt": "2026-09-03",
+      "measuredOn": "1.1.27",
+      "measuredAt": "2026-09-09",
       "claim": "Fourteen models in two pools: eleven Gemini ids (3.8/3.7/3.6 flash at three tiers, 3.1 pro at two) on the Gemini meter; claude-sonnet-4-6, claude-opus-4-6-thinking and gpt-oss-120b-medium on the second meter. gemini-3.7-flash-high remains the measured default for comprehension (3.8 tied on correctness and was 5.3x slower).",
       "reprobe": "agy models; then the 3.8-vs-3.7 recheck in docs/HARNESS_ROUTING.md if the list changed.",
       "source": "docs/HARNESS_ROUTING.md, \"The Antigravity model inventory, measured 2026-09-03\""
     },
     {
-      "id": "codex-one-model-on-the-subscription",
-      "harness": "Codex",
-      "kind": "observation",
-      "measuredOn": "0.153.0-alpha.5.1",
-      "measuredAt": "2026-08-30",
-      "claim": "gpt-5.6-sol is the only model the ChatGPT subscription exposes through Codex; ten other names were probed and refused, so effort is the only knob.",
-      "reprobe": "codex --model <candidate> on a one-line task; a refusal confirms it.",
-      "source": "docs/HARNESS_ROUTING.md, \"Codex: there is no model choice, only effort\""
-    },
-    {
       "id": "codex-agents-has-no-json",
       "harness": "Codex",
       "kind": "observation",
-      "measuredOn": "0.153.0-alpha.5.1",
-      "measuredAt": "2026-09-03",
+      "measuredOn": "0.154.0-alpha.6",
+      "measuredAt": "2026-09-09",
       "claim": "codex agents is a TUI with no --json or list-and-exit mode, so Codex jobs cannot join the third liveness signal the way claude agents --json does; codex queue is fire-and-forget into a thread you already hold.",
       "reprobe": "codex agents --help for a --json flag.",
       "source": "docs/HARNESS_ROUTING.md, \"The two unmeasured Codex surfaces, probed 2026-09-03\""
@@ -66,8 +46,8 @@
       "id": "codex-rate-limits-only-when-it-runs",
       "harness": "Codex",
       "kind": "observation",
-      "measuredOn": "0.153.0-alpha.5.1",
-      "measuredAt": "2026-09-01",
+      "measuredOn": "0.154.0-alpha.6",
+      "measuredAt": "2026-09-09",
       "claim": "Codex writes a rate_limits snapshot into its rollout only when one of its own sessions runs, so the capacity reading can be absent or stale; availability is three-valued (headroom / low / UNKNOWN) and is never probed with a paid call.",
       "reprobe": "npm run harness:usage after a Codex session; the snapshot line names its own timestamp.",
       "source": "docs/HARNESS_ROUTING.md, \"Owner ruling 2026-09-01: route by pool capacity\""
@@ -76,41 +56,11 @@
       "id": "claude-remote-isolation-silently-runs-local",
       "harness": "Claude Code",
       "kind": "observation",
-      "measuredOn": "2.1.251",
-      "measuredAt": "2026-09-04",
+      "measuredOn": "2.1.263",
+      "measuredAt": "2026-09-09",
       "claim": "An Agent call with isolation: \"remote\" is ACCEPTED and runs on this laptop anyway, in an ordinary local worktree (hostname Legion-001, win32, .claude/worktrees/agent-<id>). The launch reports success and nothing says the isolation was dropped, so a wave routing rows to \"cloud\" spends the local RAM it meant to save while the plan still reads as honoured.",
       "reprobe": "Launch any agent with isolation: \"remote\" whose first step is `node scripts/agent-isolation.mjs --expect remote`. Exit 1 with ISOLATION MISMATCH confirms it; exit 0 refutes it and this entry moves.",
       "source": "docs/backlog/cloud-sessions-for-stateless-rows.md, \"The blocker found by probe\""
-    },
-    {
-      "id": "claude-no-permission-prompts-flag",
-      "harness": "Claude Code",
-      "kind": "observation",
-      "measuredOn": "2.1.251",
-      "measuredAt": "2026-09-03",
-      "claim": "claude --help offers --permission-mode and no --permission-prompts; the flag that would turn a headless stall into a recorded denial lands in 2.1.259.",
-      "reprobe": "claude --help | grep permission-prompts",
-      "source": "docs/handoffs/2026-09-03-b-harness-followups.md (consumed); docs/acceptance/owner-queue/2026-09-03-upgrade-claude-code-and-clear-the-stale-binary.md"
-    },
-    {
-      "id": "claude-launched-session-gets-no-subagent-notifications",
-      "harness": "Claude Code",
-      "kind": "observation",
-      "measuredOn": "2.1.240",
-      "measuredAt": "2026-08-29",
-      "claim": "A session launched by another session never receives its own subagents' completion notifications; they route to the launcher. Hence fan-outs collect results via files at agreed paths.",
-      "reprobe": "From a launched row, spawn one background subagent that writes a file, and see whether a completion notification arrives before the file does.",
-      "source": ".agent-workflows/orchestrator/incidents.md, \"the fan-out that waited on notifications that could not arrive\""
-    },
-    {
-      "id": "claude-agents-json-liveness",
-      "harness": "Claude Code",
-      "kind": "observation",
-      "measuredOn": "2.1.251",
-      "measuredAt": "2026-09-03",
-      "claim": "claude agents --json answers in under a second with pid, cwd and status, and is the third liveness signal beside the two transcript-based ones.",
-      "reprobe": "node scripts/claude-agents.mjs; it probes the command's shape on every run and degrades to unknown by itself.",
-      "source": ".agent-workflows/orchestrator/incidents.md, \"the third liveness signal\""
     },
     {
       "id": "no-permission-skipping-flag-is-ever-forwarded",
