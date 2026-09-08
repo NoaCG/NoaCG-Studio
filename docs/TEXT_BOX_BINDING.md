@@ -2,8 +2,9 @@
 
 **Status: all three measured defects are FIXED, the ALIGNMENT model is built and now snaps BOTH
 axes, a graphic that comes up again keeps a fixed box, and unticking a text layer asks what to do
-with the words. The step's own surface - grouping, the swatch, the overlay, the alignment control -
-is still DESIGN.** The owner's brief is the 2026-09-02 walk of his own quiz board;
+with the words. The checklist now GROUPS BY BOX with a swatch (2026-09-08), so the binding is on
+screen; the rest of the step's own surface - the preview overlay and the alignment control - is
+still DESIGN.** The owner's brief is the 2026-09-02 walk of his own quiz board;
 the verbatim words are in `docs/acceptance/owner-queue/2026-08-28-student-rehearsal-walk.md` and
 they are the authority here, not this summary of them.
 
@@ -143,8 +144,25 @@ the same thing.
 ### Rows grouped by box
 
 The flat Editable text list becomes one group per box, the box as a header row and its fields
-indented under it. Text with no shape under it sits in a final "On the artwork" group. The
-grouping IS the binding.
+indented under it. Text with no shape under it sits in an "On the artwork" group. The grouping IS
+the binding.
+
+**Two amendments, measured 2026-09-08 while building it, both against the corpus:**
+
+- **A group is a RUN of consecutive rows, and that group is not always "final".** Collecting every
+  row that shares a box re-sorts the checklist, which is the order the reader drew in and the
+  order they scan in. On the Affinity board (`origin-shifted-quiz-board`) it moved the question
+  BELOW its own four answers; on `inkscape-text-on-path-bumper` it swapped the two lines. So the
+  box a row is in is SHOWN and where the row sits is never touched. A file that genuinely
+  interleaves two boxes gets two headings for one box, which is honest; the number is per box, so
+  a box a reader returns to keeps the number it had.
+- **The board's own backplate is not a box.** A shape covering most of the frame holds every line
+  there is, so heading the whole checklist with it is a heading rather than a grouping - the same
+  sentence this document already makes for `repeatsWithNewContent`, at the same 0.7 of the frame
+  and deliberately the same number, so a shape cannot be a backplate to one measurement and a row
+  to the other. Its lines fall into "On the artwork", whose line reads "no box of their own, so
+  nothing grows around them" - true both of a line with nothing under it and of one with nothing
+  under it but the backplate.
 
 ```
 Editable text                              5 of 5 editable on air
@@ -317,8 +335,14 @@ cap and followers.
    The three rulings given after step 1 was walked. Each is written up in its own section below.
    None of them stores anything either: the snap is a `dy`, the repeat rule is a measurement of the
    artwork, and the untick answer is a wizard choice that emits one CSS rule.
-2. The derived box binding, shown: grouping, the swatch, the overlay. No new controls - just the
-   step admitting what it already decided.
+2. The derived box binding, shown. ~~Grouping and the swatch~~ - DONE 2026-09-08: the checklist
+   is one group per box, headed by a swatch in the shape's own fill and a name, with the rows
+   indented under it. No control was added; `panelOfEachLine` already decided this and decided it
+   silently. It now runs over EVERY text row rather than the bound ones, so a row keeps its place
+   when it is unticked. A box with no readable layer name is named by its colour and numbered
+   where the colour repeats (`q bg` -> "Tan plate"), which is the fixture's own case. What is left
+   of this step is THE OVERLAY: the tinted shape, the dashed insets, the text bounds and the
+   alignment caret, replacing the axis-aligned amber rectangle that sits outside rotated artwork.
 3. The alignment CONTROL: the nine-dot grid, the "read from your drawing" label, and the checkbox
    that hands back the nudge the file recorded. `align.nudge` is measured already and nothing
    reads it yet, which is deliberate - it is the whole cost of the wonky-on-purpose case.
