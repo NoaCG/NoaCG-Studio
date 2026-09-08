@@ -64,7 +64,13 @@ function tickerMotionSpeed() {
   return motionSpeed() * tickerSpeed();
 }
 
-// tickerApplySpeed(): make a speed change land on a strip that is ALREADY RUNNING.
+// The running travel or cycle, and the speed it was built at. Both builders below set them, so
+// tickerApplySpeed() can reach whichever one is live.
+var tickerMotionLive = null;
+var tickerMotionBuiltAt = 1;
+
+${speedFieldId
+      ? `// tickerApplySpeed(): make a speed change land on a strip that is ALREADY RUNNING.
 //
 // Both builders below measure once, at play(), because that is when the operator's text has a
 // width. So a new speed arriving through update() would otherwise sit in the holder and change
@@ -77,13 +83,14 @@ function tickerMotionSpeed() {
 // scaling the running tween changes the pace from this frame on and never moves the strip.
 // The ratio is against the speed the tween was BUILT at, so repeated changes compose correctly
 // rather than each one measuring from the design's own rate.
-var tickerMotionLive = null;   // the running travel or cycle, or null between takes
-var tickerMotionBuiltAt = 1;   // the speed it was built at
-
 function tickerApplySpeed() {
   if (!tickerMotionLive || !tickerMotionBuiltAt) return;
   tickerMotionLive.timeScale(tickerMotionSpeed() / tickerMotionBuiltAt);
-}
+}`
+      : `// This design has no speed field (see tickerSpeed above), so there is nothing for an
+// update() to change about its pace. update() calls this either way, so it exists and does
+// nothing rather than being guarded at every call site.
+function tickerApplySpeed() {}`}
 
 // tickerShowNext(): the ROTATOR's beat — put the next item in the track, on its own.
 //
