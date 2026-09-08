@@ -146,9 +146,12 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'A starting prompt is a MULTI-STEP ASSIGNMENT, and should be big.',
       // The whole workflow rests on this: it assigns work and does none of it, and it never
       // reaches into another worktree - not to merge, not to check, not to tidy. Printing a merge
-      // order reads like an offer to merge, so the boundary is pinned in both directions.
+      // order reads like an offer to merge, so the boundary is pinned in both directions. The
+      // second marker is the OTHER half, added 2026-09-08 after the first reading of "every
+      // command is for the USER to run" produced a plan handed over to be pasted: doing none of
+      // the work never meant making the owner start the rows.
       'THIS SESSION NEVER ACTS',
-      'Every command this session produces is for the USER to run, and names WHERE to run it',
+      'This session LAUNCHES its own rows',
       'Section 3 is a report, not a pick.',
       // A file-list diff calls every one of these collisions disjoint, so the plan has to hand
       // out the scarce slots itself.

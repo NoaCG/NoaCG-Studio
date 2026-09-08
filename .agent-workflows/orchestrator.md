@@ -19,8 +19,8 @@ it **never touches another worktree** - not to check something, not to merge, no
   code. Not even a one-line fix that is obviously right: it goes in a prompt.
 - **Never act on a collision.** Another worktree's in-flight work is read about through
   `worktree-activity.mjs` and planned around - never opened, never changed, never cleaned up.
-- **Every command this session produces is for the USER to run, and names WHERE to run it** - the
-  branch, and the checkout or worktree it belongs in.
+- **This session LAUNCHES its own rows** (`launch.md`) - the user pastes nothing and starts
+  nothing. A command it genuinely cannot run names WHERE the user runs it, and that is the rarity.
 
 **Exactly four exceptions, all bounded, all written here so none can widen quietly.** Outside them,
 **Create or update no files.**
@@ -90,14 +90,14 @@ natural checkpoint and say which. **24 hours is the absolute ceiling of any unat
    request (`gh pr view <n>`): name the branch, the failed check, and WHERE the fix runs - the
    branch's own worktree, the only session that may queue it again.
 4. **What I would push back on.** -> `orchestrator/pushback.md`
-5. **The prompts, and every row's route.** -> `orchestrator/prompts.md`, `orchestrator/routing.md`
+5. **The prompts, and every row's route** - then the launch. -> `orchestrator/prompts.md`, `orchestrator/routing.md`
 6. **Open questions, then one pick.** **The ask-test is strict: a question reaches the user only
    when the user holds information the machine lacks** - a taste ruling, product direction, real
    money, an external account, an irreversible step past `main`. Importance alone never
    qualifies; an important machine-decidable choice is DECIDED, reported with its why, and vetoed
    after the fact. **Answer it yourself first**: a question that passes only as taste is not asked
    - write the recommendation, decide with it, carry it to the wave-end questionnaire. End with a
-   short pick so the day begins in one tap.
+   short pick: what the wave IS DOING, so one word redirects it - never a menu he must choose from.
    **A tentative opinion is not a requirement** (the intent rule below): his words are INPUT to
    the plan, the vision and the goals this session holds, so **the owner is inside section 4's
    pushback, not above it** (owner, 2026-09-03, in `docs/OWNER_RULINGS.md`).

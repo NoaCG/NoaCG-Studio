@@ -378,3 +378,26 @@ before it becomes text" clause exists to catch.
 is the acknowledgement and the only way past the gate, so a review can no longer be lost between the
 orchestrator and the row it was for. The alternative - re-enabling peer messaging - is the only
 option that makes the old sentence true as written, and it is transient where a file is durable.
+
+## the plan handed over to be pasted
+
+**2026-09-08, this contract's own wording.** A day wave was planned in full - table, collisions,
+landing report, pushback, five prompts, all checked - and then handed to the owner as five blocks to
+paste into five sessions he would open himself. He answered: *"This session orchestrates it all,
+merges everything at the end, and starts new work when old work is done. I should not be pasting
+anything in your sessions. I don't know where the confusion comes from."*
+
+The confusion came from here. `launch.md` has said since it was written that the Agent tool is the
+PRIMARY launch path, but it loads only after the plan check passes, and by then the reading is
+already set: the core's `THIS SESSION NEVER ACTS` section said **"Every command this session
+produces is for the USER to run, and names WHERE to run it"**, and `prompts.md` opened with "each
+pasteable into a fresh session". Two sentences that fire BEFORE `launch.md` loads, both true of the
+rare command this session genuinely cannot run, and together they read as the whole posture. Doing
+none of the work never meant making the owner start the rows.
+
+**Mechanism:** the core now carries **"This session LAUNCHES its own rows"** in that same bullet
+list, and `check-shared-instructions.mjs` pins that sentence as a critical marker beside
+`THIS SESSION NEVER ACTS`, so the two halves of the boundary cannot drift apart again -
+removing either fails the build. `prompts.md` opens by saying a block is what this session hands
+the Agent tool, with pasting named as the fallback for a classifier-refused row. Cost: one wave's
+planning round trip, and about forty minutes of the owner's evening.
