@@ -28,10 +28,25 @@ const CAP_MS = 60 * 60_000;
 /**
  * Pure: what the pull request's state means for the watcher.
  * { verdict: 'landed' | 'refused' | 'waiting', sha?, reason? }
+ *
+ * `expectSha` is the commit the session declared finished when it queued (`--expect-sha`, written
+ * by `add-merge`). A pull request whose head has moved off it is carrying commits that were never
+ * declared - the branch was pushed after queueing - and the queue must not watch that to a landing
+ * as though it were the declared work. GitHub refuses it too, because `noacg/reviewed` is a
+ * required check posted on the exact tip and a commit status cannot follow a new commit; this says
+ * so on the first tick instead of leaving a reader to work out which check went missing and why.
+ * A MERGED pull request is answered before the pin: what landed, landed.
  */
-export function watchVerdict(pr, checks = []) {
+export function watchVerdict(pr, checks = [], { expectSha = null } = {}) {
   if (!pr) return { verdict: 'waiting' };
   if (pr.state === 'MERGED' || pr.merged || pr.mergedAt) return { verdict: 'landed', sha: pr.mergeCommit?.oid ?? pr.headRefOid };
+  if (expectSha && pr.headRefOid && pr.headRefOid !== expectSha) {
+    return {
+      verdict: 'refused',
+      reason: `the branch moved after it was declared finished (${String(expectSha).slice(0, 8)} -> ${String(pr.headRefOid).slice(0, 8)})`
+        + ' - run /check on the new tip and queue again',
+    };
+  }
   // A pull request that conflicts with `main` keeps its auto-merge request and never enters the
   // queue, so without this it would read as waiting until the cap, be retried once, and read as
   // waiting again - for ever, on a branch only its own session can fix. The conflict is the verdict.
@@ -76,15 +91,16 @@ async function main() {
   const args = process.argv.slice(2);
   const pr = args[args.indexOf('--pr') + 1];
   const branch = args[args.indexOf('--branch') + 1];
+  const expectSha = args.indexOf('--expect-sha') >= 0 ? args[args.indexOf('--expect-sha') + 1] : null;
   if (!pr || args.indexOf('--pr') < 0) {
-    console.error('Usage: node scripts/land-watch.mjs --pr <number> --branch <name>');
+    console.error('Usage: node scripts/land-watch.mjs --pr <number> --branch <name> [--expect-sha <commit>]');
     return 2;
   }
   const started = Date.now();
   let lastSaid = '';
   while (Date.now() - started < CAP_MS) {
     const view = viewPr(pr);
-    const { verdict, sha } = watchVerdict(view, []);
+    const { verdict, sha } = watchVerdict(view, [], { expectSha });
     if (verdict === 'landed') {
       const dir = jobsDir();
       if (dir) {
@@ -95,7 +111,7 @@ async function main() {
     }
     if (verdict === 'refused') {
       const checks = gh(['pr', 'view', String(pr), '--json', 'statusCheckRollup'])?.statusCheckRollup ?? [];
-      const detail = watchVerdict(view, checks);
+      const detail = watchVerdict(view, checks, { expectSha });
       console.error(`land-watch: the landing of ${branch} was refused: ${detail.reason}`);
       console.error(`  ${view?.url ?? ''} - fix it, run /check, and npm run queue:merge again.`);
       return 1;

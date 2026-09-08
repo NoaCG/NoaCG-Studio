@@ -29,9 +29,9 @@ import { activeRuns, nodeProcesses, orphanProcesses } from './e2e-runs.mjs';
 import { requiresRunningDevServer } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
+import { changedBacklogFiles, receiptsFor, servesVerdict } from './owner-receipts.mjs';
 import { isGeneratedBody, pullRequestBody, pullRequestTitle } from './pr-description.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
-import { onlyMainIntegrationsBetween } from './safe-merge-preflight.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
 import {
@@ -94,8 +94,8 @@ const MAX_DEFERRALS = 6;
 /**
  * The header `spawnJob` writes before each attempt, and the boundary `readRefusal` reads back from.
  *
- * DECLARED ABOVE THE COMMAND DISPATCH, for the reason `auto-merge.mjs` spells out over
- * `DISPATCH_GRACE_TICKS`: the dispatch below runs mid-module-evaluation, so a `const` after it is
+ * DECLARED ABOVE THE COMMAND DISPATCH: the dispatch below runs mid-module-evaluation, so a
+ * `const` after it is
  * still in its temporal dead zone when `requeue` reaches `readRefusal` - a crash only direct
  * execution can see, because a test import evaluates the whole module first.
  */
@@ -331,18 +331,20 @@ function sentenceFlag(name, example) {
 /**
  * Queue a LANDING for one branch.
  *
- * `kind: 'merge'` is what makes it safe to queue several at once: a merge never runs beside
- * anything, so they drain strictly one at a time whatever the clock allows. `auto-merge.mjs`
- * refuses anything that is not a `clear` verdict with clean trees and a green gate, so a queue
- * of these lands the boring ones and leaves the interesting ones for a person.
+ * `kind: 'merge'` is what makes it safe to queue several at once: a merge job never runs beside
+ * anything, so the local watchers drain strictly one at a time whatever the clock allows. The
+ * landing itself is GitHub's, and its gates are the pull request's required checks - so a queue of
+ * these lands the boring ones and leaves the interesting ones sitting on their pull requests for
+ * a person.
  */
 async function cmdAddMerge() {
   // No branch given means THIS worktree's - the overwhelmingly common case, and the safe default.
   // Naming someone else's branch still works, but it has to be deliberate: a session that is
   // still working on a branch must never have it landed out from under the conversation.
-  const target = args[1] && !args[1].startsWith('-') ? args[1] : currentBranch();
+  const named = Boolean(args[1] && !args[1].startsWith('-'));
+  const target = named ? args[1] : currentBranch();
   if (!target || target === 'main' || target === 'HEAD') {
-    console.error('Usage: node scripts/jobs.mjs add-merge [branch] [--after <id>] [--accept <kind>] [--attempts <n>] [--onto-red-main]');
+    console.error('Usage: node scripts/jobs.mjs add-merge [branch] [--why "<reason>"] [--unreviewed "<reason>"]');
     console.error('  With no branch it queues this worktree\'s. It refuses main and a detached HEAD.');
     process.exit(1);
   }
@@ -365,6 +367,19 @@ async function cmdAddMerge() {
   // cover is queueing unreviewed work, so it is refused - with the one honest way past named:
   // `--unreviewed "<reason>"`, which lands with the reason on the job record where the report and
   // the landing ledger can see it, instead of silently.
+  // OWNER RECEIPTS THIS BRANCH OWNS ARE ANSWERED BEFORE IT LANDS. A receipt in docs/backlog/ that
+  // names this branch is a claim on a piece of work, and the landing is the last moment the session
+  // that knows what happened to it is still here: after that the shelf says a branch owns something
+  // it never touched, and every wave plan after it spends judgement re-deriving what the shelf
+  // should have known. The four ways out are all one line, and the message names them.
+  //
+  // It lived in the retired landing preflight until now, which is why nothing has enforced it since
+  // 2026-09-06. Here it sits with the other two refusals that mean "this branch is not finished
+  // yet" - unread relay mail and a missing /check stamp - because that is the same claim.
+  //
+  // A question git cannot answer is skipped rather than refused: this must never stop a landing
+  // because a diff would not run.
+  refuseUnansweredReceipts(target, named);
   const tipForReview = branchTip(target);
   const stamp = readReviewStamp(dir, target);
   const gap = stampGap(stamp, tipForReview);
@@ -382,13 +397,21 @@ async function cmdAddMerge() {
   }
   // THE QUEUE IS ON GITHUB (2026-09-06, docs/WORKFLOW_ARCHITECTURE.md §5.2). Queueing means:
   // push the branch, open (or reuse) its pull request, post the review verdict as the
-  // `noacg/reviewed` commit status on the tip, and add the `land` label. The Land workflow
-  // (.github/workflows/land.yml, scripts/land.mjs) does the rest, one landing at a time, on
-  // GitHub's runners - nothing on this machine holds the landing any more, so a closed lid
-  // stops nothing. The flags the laptop lander took are accepted and named as ignored rather
-  // than refused, so an old habit does not strand a landing.
-  for (const old of ['--after', '--accept', '--attempts', '--cap', '--onto-red-main']) {
-    if (flag(old)) console.log(`  note: ${old} means nothing to the cloud lander and is ignored (a conflict or a red run is written on the pull request).`);
+  // `noacg/reviewed` commit status on the tip, add the `land` label and turn auto-merge on.
+  // GitHub's merge queue does the rest, one group at a time, on GitHub's runners - nothing on this
+  // machine holds the landing any more, so a closed lid stops nothing.
+  //
+  // The flags the retired laptop lander took are REFUSED rather than ignored. Each one was a
+  // person's judgement about a gate, and a command that reads as though it waived something and
+  // did not is the worse failure of the two: `requeue` next door refuses its own flags for exactly
+  // this reason. There is nothing left for them to mean - order is queue order, a red run and a
+  // conflict are written on the pull request, and there is no local landing to cap or re-attempt.
+  const retired = ['--after', '--accept', '--attempts', '--cap', '--onto-red-main'].filter((old) => flag(old));
+  if (retired.length > 0) {
+    console.error(`add-merge refused: ${retired.join(' ')} belonged to the laptop lander, which is retired.`);
+    console.error('  Order is queue order, and a conflict or a red run is written on the pull request itself.');
+    console.error(`  Queue it as it stands:  npm run queue:merge${named ? ` ${target}` : ''}`);
+    process.exit(1);
   }
   if (!tipForReview) {
     console.error(`add-merge refused: ${target} has no local tip to push.`);
@@ -405,8 +428,14 @@ async function cmdAddMerge() {
   // The local shadow: a merge job whose command only WATCHES the pull request (scripts/land-watch.mjs),
   // so the branch is frozen while it is queued, the tick reports QUEUED and LANDED, and the ledger
   // gets the landing with this checkout as its session - every local reader keeps its one shape.
+  // `--expect-sha` is the DECLARED COMMIT, written here and nowhere else. It is what `requeue`
+  // re-reads to refuse a branch that has moved: that verb takes a branch name and nothing else, it
+  // skips the `/check` stamp gate above because it re-runs a declaration rather than making one,
+  // and the pin is the only thing that keeps it from re-running that declaration over commits
+  // nobody declared. The watcher below verifies it against the pull request's head too, so the
+  // refusal arrives on the first tick instead of an hour later.
   const job = addJob(dir, {
-    command: `node scripts/land-watch.mjs --pr ${queued.number} --branch ${target}`,
+    command: `node scripts/land-watch.mjs --pr ${queued.number} --branch ${target} --expect-sha ${tipForReview}`,
     checkout: process.cwd(),
     branch: target,
     kind: 'merge',
@@ -418,6 +447,40 @@ async function cmdAddMerge() {
   console.log(`queued on GitHub: ${queued.url}${review.stamp === 'unreviewed' ? ` (UNREVIEWED: ${review.reason})` : ''}`);
   console.log('  auto-merge is on: GitHub\'s merge queue takes it once CI gate and Reviewed pass, and merges it in turn.');
   console.log(`  ${job.id} watches it here:  node scripts/jobs.mjs log ${job.id}   |   gh pr view ${queued.number}`);
+}
+
+/**
+ * Refuse the landing while an owner receipt this branch claims goes unanswered.
+ *
+ * `receiptsFor` reads the shelf as it stands here PLUS the receipts this branch deleted, recovered
+ * from `main` - without that second half a branch that correctly CLOSED its receipt has no file
+ * left to read, and its success reads as somebody else's file.
+ */
+function refuseUnansweredReceipts(branch, named) {
+  // ONLY THIS WORKTREE'S OWN BRANCH. `receiptsFor` reads the shelf as it stands in this working
+  // tree, which is the branch's shelf only while the branch is the one checked out here. Queueing
+  // somebody else's branch would judge it against a shelf it never carried - refusing it for a
+  // receipt only this tree holds, and missing one only that branch holds. Skipping says so rather
+  // than answering from the wrong tree. `named` is the caller's own answer, so this asks git
+  // nothing: an unnamed target IS this worktree's branch, because that is where it came from.
+  if (named && branch !== currentBranch()) {
+    console.log(`  note: owner receipts were not checked - ${branch} is not this worktree's branch, so its shelf is not the one here.`);
+    return;
+  }
+  let verdict;
+  try {
+    const changed = changedBacklogFiles(branch);
+    if (changed === null) return;
+    verdict = servesVerdict({ branch, receipts: receiptsFor(changed), changed });
+  } catch {
+    console.log('  note: the owner receipts could not be read, so they were not checked.');
+    return;
+  }
+  if (verdict.problems.length === 0) return;
+  console.error(`add-merge refused: ${branch} owns an owner receipt this landing does not answer.`);
+  for (const problem of verdict.problems) console.error(`  ${problem}`);
+  console.error('  Answer it in the same commit, then queue again - it is one line in one file.');
+  process.exit(1);
 }
 
 /**
@@ -490,9 +553,9 @@ function queueOnGitHub(branch, tip, description, why = '') {
  * Put a dead landing back - re-running a declaration that was already made.
  *
  * The narrow, allowlistable half of `add-merge` (docs/AGENT_WORKFLOWS.md "Permissions"). It takes
- * a branch name and refuses everything else, including its own flags: no `--accept`, no
- * `--onto-red-main`, nothing that could waive a gate. `requeueDecision` holds the reasoning and
- * the refusals; this only reads the arguments and writes the job.
+ * a branch name and refuses everything else, including its own flags: nothing that could make a
+ * declaration or waive a gate. `requeueDecision` holds the reasoning and the refusals; this only
+ * reads the arguments and writes the job.
  */
 async function cmdRequeue() {
   const target = args[1] && !args[1].startsWith('-') ? args[1] : currentBranch();
@@ -945,7 +1008,7 @@ function giveUpReasonFor(code, refusal, branch = '<branch>') {
   // NOT this branch. Deliberately not a deferral like exit 3: a red main is fixed by a person, not
   // by the queue draining, so waiting cannot resolve it and a job that sat there cycling would hide
   // the very fault it detected.
-  if (code === RED_MAIN_EXIT) return 'main itself is red - fix main first, then queue again (node scripts/main-health.mjs)';
+  if (code === RED_MAIN_EXIT) return 'main itself is red - fix main first, then queue again (gh run list --workflow ci.yml --branch main --limit 5)';
   // The machine failed to answer - the run was still going, every run was a cancelled shell, none
   // appeared, or one did its work and a job hit its own timeout. None of those is about the branch,
   // and the sweep puts it straight back.
@@ -1219,7 +1282,7 @@ function resolveRef(branch) {
 /**
  * Is `branch` still unmerged - is the branch blocking a held landing actually still in the running?
  *
- * The same question `auto-merge.mjs` asks, asked here because the queue is what holds the job.
+ * Asked here because the queue is what holds the job.
  * `origin/main` rather than local main: the landing pushes, so a branch that has landed is behind
  * the remote whether or not this checkout has fetched. Answering "yes, still ahead" when git cannot
  * say is the safe direction - it keeps a landing held rather than releasing it on an unanswered
@@ -1258,20 +1321,11 @@ function elapsed(startedAt) {
 /** The commit a branch points at, or null if git cannot say. */
 /**
  * The git questions the queue asks about a landing, in one object so every caller asks the same ones.
- *
- * `main` and not `origin/main` for containment, matching `onlyMainIntegrationsBetween`: the landing
- * merged the LOCAL main and pushed from it, that ref is shared by every worktree of this repo, and
- * it only moves forward - so it answers without needing a fetch and can never be behind a landing
- * this queue made.
  */
 function gitFacts() {
   const gitOk = (args) => ({ ok: spawnSync('git', args, { encoding: 'utf8', windowsHide: true }).status === 0 });
   return {
     tipOf: branchTip,
-    // The queue answers this rather than the landing script, because the landing script a retry
-    // runs is the copy in the BRANCH's checkout - which may predate the rule. See
-    // `retryLandingFor` for the measurement that made that the deciding argument.
-    movedOnlyByItsOwnLanding: (pinned, tip) => onlyMainIntegrationsBetween(pinned, tip),
     // `mainRef`, not the literal 'main': the merge queue stopped fast-forwarding this machine, so
     // a landing that SUCCEEDED reads as one that never happened when measured against the local
     // ref - and that answer is the input to whether a dead landing job gets retried

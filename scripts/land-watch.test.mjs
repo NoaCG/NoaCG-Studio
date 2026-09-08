@@ -33,3 +33,26 @@ test('auto-merge off without a merge is a refusal, naming the failed checks when
   assert.match(watchVerdict(open({ autoMergeRequest: null }), []).reason, /open and no longer queued for auto-merge/);
   assert.match(watchVerdict(open({ state: 'CLOSED', autoMergeRequest: null }), []).reason, /closed and no longer queued/);
 });
+
+test('a branch pushed after it was declared finished is refused, and a merge still outranks the pin', () => {
+  // The pin is written by `add-merge` as `--expect-sha <tip>`, and it is what `requeue` re-reads to
+  // refuse a declaration the branch has moved past. GitHub refuses the same pull request anyway,
+  // because `noacg/reviewed` is a required check posted on the exact tip and a commit status cannot
+  // follow a new commit - this only says so on the first tick rather than leaving a reader to work
+  // out which check went missing and why.
+  const moved = watchVerdict(open({ headRefOid: 'def' }), [], { expectSha: 'abc' });
+  assert.equal(moved.verdict, 'refused');
+  assert.match(moved.reason, /moved after it was declared finished/);
+  assert.match(moved.reason, /abc -> def/);
+
+  // The pin holding is not a verdict of its own - the watcher goes on waiting.
+  assert.deepEqual(watchVerdict(open(), [], { expectSha: 'abc' }), { verdict: 'waiting' });
+  // An unpinned job (queued before the pin was written) is unaffected.
+  assert.deepEqual(watchVerdict(open({ headRefOid: 'def' })), { verdict: 'waiting' });
+  // WHAT LANDED, LANDED. A merged pull request is answered before the pin, or a landing that raced
+  // a push would be reported as a refusal and re-queued.
+  assert.equal(
+    watchVerdict(open({ state: 'MERGED', mergedAt: 'x', headRefOid: 'def' }), [], { expectSha: 'abc' }).verdict,
+    'landed',
+  );
+});

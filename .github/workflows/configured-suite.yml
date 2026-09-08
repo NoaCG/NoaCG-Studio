@@ -58,11 +58,11 @@
 # standing a Supabase stack up inside the gate jobs, minutes on every change, to reach a surface
 # a landing-time run reaches once.
 #
-# So: `push` on main. The queue lands one branch at a time (docs/BRANCHING_AND_LANDING.md), so a
-# run here covers one landing and names it. It cannot block that landing - `scripts/auto-merge.mjs`
-# gates on `ci.yml` alone (scripts/main-health.mjs reads no other workflow) - which is the point:
-# an infrastructure fault in a Docker pull must not freeze the queue. The verdict arrives minutes
-# after the landing, on the rolling issue this file already owns.
+# So: `push` on main. The merge queue lands one group at a time (docs/BRANCHING_AND_LANDING.md), so
+# a run here covers one landing and names it. It cannot block that landing - this workflow is not
+# among the pull request's required checks, and the queue gates on `ci.yml` alone - which is the
+# point: an infrastructure fault in a Docker pull must not freeze the queue. The verdict arrives
+# minutes after the landing, on the rolling issue this file already owns.
 #
 # WHAT IT COSTS, MEASURED. Run 33841739638 (2026-09-04, green): 39 tests in 4.2 minutes of
 # Playwright, no retries, inside a 14.3-minute job - of which `npm ci` alone was 7.7 minutes. The

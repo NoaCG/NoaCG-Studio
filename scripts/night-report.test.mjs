@@ -79,7 +79,7 @@ test('a refusal the SESSION must answer carries the command, and one a person de
     ...window,
   });
   assert.equal(report.counts.needsAPerson, 2);
-  assert.match(report.needsAPerson[0].action, /requeue claude\/a/);
+  assert.match(report.needsAPerson[0].action, /queue:merge/);
   assert.equal(report.needsAPerson[1].action, 'a person decides this one');
 });
 
@@ -94,7 +94,7 @@ test('refusals group by kind, and an unnamed one is grouped as unnamed rather th
     ...window,
   });
   assert.deepEqual(report.kinds.map((k) => [k.kind, k.count]), [['ci-red', 2], [UNNAMED, 1]]);
-  assert.match(renderReport(report), /A landing runs the copy of auto-merge\.mjs in its OWN branch/);
+  assert.match(renderReport(report), /refused before the refusal kinds existed says so in prose/);
 });
 
 test('a landing killed at its cap is ONE person-item, and asks to be re-queued', () => {

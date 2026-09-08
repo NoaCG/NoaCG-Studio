@@ -109,7 +109,7 @@ test('a landing that gave up is announced once, with the queue\'s own reason and
   const after = snapshot({
     branches: [branch({
       landingState: 'gave-up',
-      landingReason: 'main itself is red - fix main first (node scripts/main-health.mjs)',
+      landingReason: 'main itself is red - fix main first (gh run list --workflow ci.yml --branch main --limit 5)',
       requeue: 'node scripts/jobs.mjs add-merge claude/a-thing',
       lastCommitMs: NOW - MINUTE,
     })],
@@ -149,7 +149,7 @@ test('a landing REAPED after it pushed produces LANDED and nothing else', () => 
   const reaped = [{
     id: 'j-0533', kind: 'merge', branch: 'claude/a-thing', state: 'failed', finishedAt: NOW,
     exitCode: null, reapedAsDead: true,
-    command: 'node scripts/auto-merge.mjs --branch claude/a-thing --expect-sha e5ace753',
+    command: 'node scripts/land-watch.mjs --pr 12 --branch claude/a-thing --expect-sha e5ace753',
   }];
   const landing = landingStateFor('claude/a-thing', reaped, { inMain: (sha) => sha === 'e5ace753' });
   assert.equal(landing.state, 'landed');

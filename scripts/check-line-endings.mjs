@@ -22,10 +22,11 @@
 // status, an empty diff, and a gate that said everything was fine. The disagreement BETWEEN the
 // two commands is the signal - neither one carries it alone.
 //
-// WHY IT IS A GATE. `merge-order.mjs` and `safe-merge-preflight.mjs` both refuse to act on a dirty
-// worktree, correctly - they cannot tell a phantom from real uncommitted work, and neither can a
-// person reading `git status`. On 2026-08-21 that marked two branches NOT LANDABLE over zero
-// changed lines and stopped a safe-merge run mid-flight. `.gitattributes` fixes each case as it is
+// WHY IT IS A GATE. `merge-order.mjs` refuses to act on a dirty worktree, correctly - it cannot
+// tell a phantom from real uncommitted work, and neither can a person reading `git status`. On
+// 2026-08-21 that marked two branches NOT LANDABLE over zero changed lines and stopped a landing
+// mid-flight. Queueing is no safer: the commit a phantom leaves out is the one the pull request
+// was supposed to carry. `.gitattributes` fixes each case as it is
 // found; this is what stops the list going stale, because a generator nobody thought to declare
 // announces itself the first time somebody runs it.
 //
@@ -99,7 +100,7 @@ function main() {
   for (const path of phantoms) console.error(`  ${unquote(path)}`);
   console.error(
     '\nThe tree is not really dirty, but every tool that asks "is this clean?" - merge-order and\n' +
-      'safe-merge-preflight included - will say it is. Declare each path in .gitattributes:\n\n' +
+      'your own `git status` included - will say it is. Declare each path in .gitattributes:\n\n' +
       '  <path> text eol=lf\n\n' +
       'then clear the phantom with `git checkout -- <path>`. If the file is NOT generated, work out\n' +
       'what rewrote it before adding an attribute that would hide the next one.',

@@ -45,16 +45,18 @@ on:
   # written during, only the next one.
   workflow_dispatch:
     inputs:
-      # NOT everybody who dispatches wants everything. `auto-merge.mjs` dispatches when the push
-      # webhook is late, as a STAND-IN for the push run - and on 2026-09-03 that stand-in was the
-      # thing that killed two landings (j-0438, j-0445): the full suite it escalated to cannot
-      # finish inside a landing's 45-minute cap, so both were killed with no verdict at all,
+      # NOT everybody who dispatches wants everything. The laptop lander used to dispatch when the
+      # push webhook was late, as a STAND-IN for the push run - and on 2026-09-03 that stand-in was
+      # the thing that killed two landings (j-0438, j-0445): the full suite it escalated to could
+      # not finish inside a landing's 45-minute cap, so both were killed with no verdict at all,
       # after their push runs had already planned a subset correctly.
       #
-      # So a dispatch may say what to measure from. A landing passes the main sha it just
-      # integrated, which is the same base that run's own fork-point recovery would find - the
-      # two plan identically. Empty is the default and what the button gives, and empty still
-      # means the full suite, so the manual door is exactly as wide as it was.
+      # So a dispatch may say what to measure from. Nothing passes one now that the merge queue
+      # lands every branch - the queue runs `ci.yml` on the merge group itself, which is a push-like
+      # event with a real diff base. The input stays because the reasoning is about any caller that
+      # knows its own base, and because removing it would take the fix out with the caller.
+      # Empty is the default and what the button gives, and empty still means the full suite, so
+      # the manual door is exactly as wide as it was.
       diff_base:
         description: 'Plan from this commit instead of running everything. Empty (the default) runs the full suite.'
         required: false
@@ -238,8 +240,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # `actions: write` is for one thing: a main run that finds main already past its own commit
-    # cancels itself (the "superseded" exit below). Cancelling is how it stays out of
-    # main-health's verdicts - that script skips cancelled runs by design.
+    # cancels itself (the "superseded" exit below). Cancelling rather than passing is what keeps it
+    # out of every verdict about main - a cancelled run is not one (docs/VERIFICATION.md), and
+    # `scripts/red-main-issue.mjs` skips it by design.
     permissions:
       contents: read
       actions: write
@@ -287,10 +290,11 @@ jobs:
           # 512 main runs in the 30 days to 2026-09-06 re-tested a commit that was already green
           # on its branch, 42% of all runner minutes. A run whose commit main has already moved
           # past answers a question nobody is asking - the newer run covers it - so it cancels
-          # itself. Cancelled, not skipped-as-success: main-health and red-main-issue skip a
-          # cancelled run rather than reading it as a verdict about that commit.
-          # Both a push to main and a dispatch on main count: since the lander pushes main with
-          # the workflow's token, main's runs arrive by dispatch. If the cancel itself fails, the
+          # itself. Cancelled, not skipped-as-success: red-main-issue skips a cancelled run rather
+          # than reading it as a verdict about that commit.
+          # Both a push to main and a dispatch on main count. The dispatch arm is history now that
+          # the merge queue pushes main, and it is kept because a run that arrives either way must
+          # answer the same question. If the cancel itself fails, the
           # run simply carries on - a superseded run that completes costs minutes, a plan step
           # that fails would read as red main.
           if [ "$REF" = "refs/heads/main" ] && { [ "$EVENT" = "push" ] || [ "$EVENT" = "workflow_dispatch" ]; }; then
@@ -316,13 +320,14 @@ jobs:
             echo "::warning title=E2E plan::No origin/main to measure a merge against - running the FULL suite."
             BASE=""
           fi
-          # A DISPATCH THAT WAS TOLD WHAT TO MEASURE FROM. Only `auto-merge.mjs` passes one, and
-          # only because its dispatch stands in for a push run the webhook was late delivering;
-          # planning the full suite there asks for about three times the work with minutes left
-          # on the landing's clock, which is how j-0438 and j-0445 died on 2026-09-03. The base
-          # it passes is the main sha it integrated, so `--integration` below moves to the same
-          # fork point the push run would have used and the two runs plan identically. A base
-          # that is empty or unreachable falls through to the escalation below, unchanged: this
+          # A DISPATCH THAT WAS TOLD WHAT TO MEASURE FROM. Nothing passes one today; the laptop
+          # lander did, because its dispatch stood in for a push run the webhook was late
+          # delivering, and planning the full suite there asked for about three times the work with
+          # minutes left on the landing's clock - which is how j-0438 and j-0445 died on
+          # 2026-09-03. The base it passed was the main sha it had integrated, so `--integration`
+          # below moved to the same fork point the push run would have used and the two runs
+          # planned identically. A base that is empty or unreachable falls through to the
+          # escalation below, unchanged: this
           # can only ever make a dispatch narrower ON PURPOSE, never by accident.
           #
           # It carries the same `origin/main` condition as the fork-point recovery below, and for
