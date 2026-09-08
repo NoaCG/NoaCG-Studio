@@ -41,6 +41,23 @@ not a line in the ticker assembler. Once it exists, `SPEED_FIELD_TITLE` in
 `src/templates/tickers/shared.ts` gains `'ticker-rotate': 'Item speed (%)'` and the carve-out
 comment beside it goes away.
 
+## The neighbouring hazard, found while measuring this
+
+A rotate-built ticker can be re-pointed at **Marquee loop** or **Item flip** from the Inspector.
+`ticker-rotate` is `structural: true` so it is withheld as a swap TARGET
+(`swappablePresetsForType`), but nothing withholds the other two from a template that was built
+as a rotator. That swap is already broken before any speed field enters the picture:
+`TICKER_ROTATE` and `TICKER_DOUBLE_ITEMS` are emitted OUTSIDE the marked region, so
+`rebuildTicker()` still short-circuits to `tickerShowCurrent()` and the strip holds a single
+item that never travels. The speed field only adds a second symptom - such a template also
+carries no speed field, so the marquee it has become has no operator control.
+
+Both are the same missing rule: a preset whose behaviour lives partly in create-time code cannot
+be swapped in EITHER direction. `structural` says "not a target" today; it needs to also say
+"a template built from me takes no swaps". That is one predicate in
+`swappablePresetsForTemplate`, and it is worth doing whether or not the timer work above ever
+happens.
+
 ## Evidence
 
 `scripts/ticker-speed.test.mjs` measures what the field does where it exists: a marquee's

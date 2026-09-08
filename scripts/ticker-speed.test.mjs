@@ -1,4 +1,5 @@
-// guards: src/templates/tickers/tickerMotion.ts, src/templates/tickers/shared.ts
+// guards: src/templates/tickers/tickerMotion.ts, src/templates/tickers/shared.ts,
+// guards: src/templates/tickers/tk01.ts, src/templates/tickers/tk11.ts
 //
 // THE OPERATOR'S SPEED FIELD HAS TO MOVE THE GRAPHIC, and this is what says it does.
 //
@@ -8,33 +9,41 @@
 // correctly in the .ts file can still ship broken - the same reason scripts/ticker-parser.
 // test.mjs exists.
 //
-// So this runs the REAL emitted code. Rolldown bundles tickerMotion.ts (its only import is
-// motionSpeedJs, and nothing in that graph touches the DOM at load time), the module hands back
-// the exact JavaScript a generated ticker ships, and it runs here against a stub GSAP that
-// records the tween it is given. The assertions are then durations in seconds, measured off the
-// builder rather than reasoned about.
+// So this runs the REAL emitted code. Rolldown bundles the two ticker modules (nothing in that
+// graph touches the DOM at load time), tickerMotion.ts hands back the exact JavaScript a
+// generated ticker ships, and it runs here against a stub GSAP that records the tween it is
+// given. The assertions are then durations in seconds, measured off the builder rather than
+// reasoned about. shared.ts is bundled for one pure function, the rule that decides which id
+// the appended speed field takes.
 //
 // No browser: the builders only ever read `scrollWidth`, `querySelector` and `textContent`, all
 // of which a stub answers honestly. What needs a real Chromium is what a design LOOKS like once
 // laid out, which is not this question.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rolldown } from 'rolldown';
 import { rawSuffix } from './rolldown-raw.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const entry = path.join(projectRoot, 'src/templates/tickers/tickerMotion.ts');
+const ticker = (file) => path.join(projectRoot, 'src/templates/tickers', file);
 
-const bundle = await rolldown({
-  input: entry, platform: 'neutral', plugins: [rawSuffix], logLevel: 'silent',
-});
-const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
-await bundle.close();
-const { tickerMotionJs } = await import(
-  `data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`
-);
+/** One TypeScript module of the app's graph, importable here. */
+async function load(entry) {
+  const bundle = await rolldown({
+    input: entry, platform: 'neutral', plugins: [rawSuffix], logLevel: 'silent',
+  });
+  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+  await bundle.close();
+  return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
+}
+
+const [{ tickerMotionJs }, { appendedFieldId }] = await Promise.all([
+  load(ticker('tickerMotion.ts')),
+  load(ticker('shared.ts')),
+]);
 
 /** The measurements a run of the emitted code hands back. */
 const ONE_SET_WIDTH = 1400;   // px of items, rendered twice -> scrollWidth 2800
@@ -51,8 +60,8 @@ function runMotion({ speedFieldId, percent, animSpeed = 1 }) {
   // is kept alongside the vars, because the flip's hold is expressed as one ('+=3.2').
   const tweens = [];
   const record = (vars, position) => { tweens.push({ ...vars, position }); return timeline; };
-  // GSAP's own signatures, argument for argument — a stub one slot out silently records the
-  // TARGET as the tween and every assertion below then passes on nothing.
+  // GSAP's own signatures, argument for argument. A stub one slot out silently records the
+  // TARGET as the tween, and every assertion below then passes on nothing.
   const timeline = {
     set: (_target, vars, position) => record(vars, position),
     to: (_target, vars, position) => record(vars, position),
@@ -145,6 +154,26 @@ test('a design that emits no speed field is unaffected by anything in the DOM', 
   const { marquee, speed } = runMotion({ speedFieldId: null, percent: 300 });
   assert.equal(speed, 1);
   assert.equal(marquee.duration, 10);
+});
+
+// ── Where the field SITS: never on an id the design already drew ──
+//
+// A design that declares three lines draws its second cap whether or not the operator supplied
+// a third line, so the field count and the markup disagree exactly when a three-line design is
+// built from two lines. The catalog only ever builds designs with their own line count, so the
+// emit baseline cannot see this case at all.
+
+test('a three-line design built from two lines does not hand the speed field its cap id', () => {
+  // tk11 Headline Crawl's real markup, read from the design itself so this cannot drift from it.
+  const tk11 = readFileSync(ticker('tk11.ts'), 'utf8');
+  assert.match(tk11, /\bid="f2"/, 'tk11 no longer draws a second cap; this test needs a new subject');
+  assert.equal(appendedFieldId(tk11, 2), 'f3');   // two fields pushed, but f2 is on screen
+  assert.equal(appendedFieldId(tk11, 3), 'f3');   // three fields pushed: the same id, as before
+});
+
+test('a two-line design still gets f2, so nothing that shipped moves', () => {
+  const tk01 = readFileSync(ticker('tk01.ts'), 'utf8');
+  assert.equal(appendedFieldId(tk01, 2), 'f2');
 });
 
 test('the no-field emit still defines tickerSpeed(), so a builder can always call it', () => {

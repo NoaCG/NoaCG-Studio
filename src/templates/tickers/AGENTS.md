@@ -44,4 +44,11 @@ is a machine timer (`edge.after / NOACG_ANIM.speed`, in `templates/shared/animRu
 percentage typed on the control page would move only the strip's fade-in, and a field the graphic
 cannot honour is a promise broken in front of an operator. Do not "finish the set" by adding one -
 `docs/backlog/a-rotating-ticker-holds-at-a-rate-nobody-can-change.md` says what has to change
-first. Pinned by `scripts/ticker-speed.test.mjs`, which runs the EMITTED builders.
+first. **The field's id comes from the design's MARKUP, not from the field count**
+(`nextFreeFieldId`): a `maxLines: 3` design draws its `id="f2"` cap whether or not a third line
+was supplied, so counting fields hands the speed control an id that is already on screen and the
+operator's number prints across the strip. Pinned by `scripts/ticker-speed.test.mjs`, which runs
+the EMITTED builders. Known and accepted: the field's TITLE is baked at create time, so
+re-pointing a marquee at Item flip in the Inspector leaves a control that still says "Scroll
+speed" - the value keeps working and only the word is stale. Every category with more than one
+titled preset has this; fix it in the swap, not here.

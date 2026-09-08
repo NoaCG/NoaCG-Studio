@@ -330,6 +330,41 @@ const SPEED_FIELD_TITLE: Partial<Record<AnimPresetId, string>> = {
   'ticker-flip': 'Item speed (%)',
 };
 
+/**
+ * The first `fN` id an appended field may take, given the design's own markup and how many
+ * fields have been pushed so far.
+ *
+ * IT IS THE MARKUP THAT DECIDES, not the field count, because the two disagree. A design that
+ * declares `maxLines: 3` draws its second cap unconditionally - `<span id="f2">` with a sample
+ * of its own when the operator supplied only two lines (tk11's "Newsdesk") - while the f2 FIELD
+ * is pushed only when that third line exists. Take the id from the field count and a two-line
+ * Headline Crawl emits `id="f2"` twice: the definition calls f2 the speed, `update()` finds the
+ * visible cap first and prints "150" across the strip, and `tickerSpeed()` parses "Newsdesk" to
+ * NaN and quietly falls back to 100. That is precisely the broken promise the speed field
+ * exists to avoid, and it is reachable from the AI path, which routinely builds a three-line
+ * chassis from a two-line spec.
+ *
+ * So: scan what the design actually drew and start after its highest id. A design that grows a
+ * cap tomorrow is handled by the same line, with nothing to remember.
+ *
+ * NOT `blocks/edit.ts` `nextFieldId(fields)`, which reads the FIELD LIST - the source that is
+ * wrong here. That one is right for a template being edited, where the definition and the markup
+ * already agree; this one is for the moment before they do.
+ *
+ * The deeper fix, if this ever needs one, is to make them agree: emit the third cap's FIELD
+ * whenever the design draws the cap. That is a real behaviour change - a two-line Headline Crawl
+ * would gain a "Source" control it does not have today - so it belongs to whoever decides that a
+ * drawn cap should always be editable, not to a speed field.
+ *
+ * Exported for `scripts/ticker-speed.test.mjs`: the collision only appears on a line count the
+ * catalog never builds with, so the emit baseline cannot see it and this is where it is pinned.
+ */
+export function appendedFieldId(designHtml: string, fieldCount: number): string {
+  let highest = -1;
+  for (const m of designHtml.matchAll(/\bid="f(\d+)"/g)) highest = Math.max(highest, Number(m[1]));
+  return `f${Math.max(fieldCount, highest + 1)}`;
+}
+
 /** Build the complete ticker SpxTemplate. */
 export function assembleTicker(meta: TickerMeta, design: TickerDesign, o: ResolvedOptions,
   /** Refine the converted animation data — the seam a graphic TYPE injects its machine
@@ -360,13 +395,14 @@ export function assembleTicker(meta: TickerMeta, design: TickerDesign, o: Resolv
 
   // The SPEED field, the operator's rather than the author's. A percentage of the pace the
   // design ships at, defaulted to 100 so an untouched graphic plays exactly as it always did
-  // and there is one obvious number to come back to. Appended LAST, after the optional second
-  // cap, so every field id a template already uses stays where it is. Input only: tickerSpeed()
-  // reads it and nothing draws it, so it lives in a hidden holder like the item source.
+  // and there is one obvious number to come back to. Appended LAST, so every field id a
+  // template already uses stays where it is. Input only: tickerSpeed() reads it and nothing
+  // draws it, so it lives in a hidden holder like the item source.
   // Which presets get one, and why the rotator does not, is on SPEED_FIELD_TITLE above.
   const speedTitle = SPEED_FIELD_TITLE[o.animation.presetId];
-  const speedField = speedTitle ? `f${fields.length}` : null;
-  if (speedField && speedTitle) {
+  let speedField: string | null = null;
+  if (speedTitle) {
+    speedField = appendedFieldId(design.html, fields.length);
     fields.push({ field: speedField, ftype: 'number', title: speedTitle, value: SPEED_DEFAULT });
   }
 
