@@ -154,10 +154,11 @@ local ref and using `origin/main`. So the failure is not constant, which makes i
 - **verify: green.** `npm run build` exit 0, read from the build's own exit code. 30 tests across
   `check-landed-ref`, `main-ref` and `owner-receipts`. `npm run check:owner-receipts` OK.
   `check:gate-coverage` accepts the new gate (35 checks, 107 test files) and the build runner runs
-  it. CI run 34287397482 on the first commit was green, and I read the job list rather than the
-  badge: Build, Factory gates, E2E plan, nine E2E shards, Combined E2E report and CI gate all
-  success; Reviewed, Vercel, catalog calibration, E2E retry and After-the-gate skipped on their
-  conditions.
+  it. Both CI runs green, and I read the job lists rather than the badges - 34287397482 on the
+  first commit and **34289690234 on `e058e8b6`, the commit this branch queues**: Factory gates,
+  Build, E2E plan, nine E2E shards, Combined E2E report and CI gate all success in each; Reviewed,
+  Vercel, catalog calibration, E2E retry and After-the-gate skipped on their conditions. The one
+  commit after that run is this line and the check stamp it required.
 - **taste: not applicable.** Nothing here can move what a graphic looks like - four scripts, a
   workflow instruction and two backlog receipts.
 - No `docs/acceptance/owner-queue/` item: the change is developer tooling with no route in the
