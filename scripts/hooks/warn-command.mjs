@@ -186,9 +186,10 @@ const landing = landingStateFor(branch, readJobs(dir));
 if (landing.state !== 'queued') say();
 
 // WHAT THE JOB PINNED, in the job's own words. `jobs.mjs add-merge` records the tip as
-// `--expect-sha <sha>` in the queued command, and `auto-merge.mjs` compares it there - so reading
-// it back from the same place is what makes this notice agree with the refusal it predicts. A job
-// carrying no pin (git could not answer when it was queued) has nothing to go stale.
+// `--expect-sha <sha>` in the queued command, and both `land-watch.mjs` and `requeue` compare it
+// there - so reading it back from the same place is what makes this notice agree with the refusal
+// it predicts. A job carrying no pin (queued before the pin was written, or git could not answer)
+// has nothing to go stale.
 const pinned = /--expect-sha\s+([0-9a-f]{7,40})\b/.exec(landing.job.command)?.[1];
 const tip = git(root, ['rev-parse', branch]);
 if (!pinned || !tip || pinned === tip) say();
@@ -233,9 +234,9 @@ function git(cwd, args) {
  * with it. Run in the checkout so gh resolves the repository the way the push did.
  *
  * This is one more private copy of "spawn `gh run list --json`, parse, fail to null" - review
- * counted five others in scripts/ (main-health, ci-watch, safe-merge-preflight twice, e2e-durations,
- * auto-merge). A shared `listCiRuns` beside ci-failure-set.mjs is the right home; it is a change
- * across six files and is filed, not smuggled in here.
+ * counted five others in scripts/ when it was written, three of which went with the laptop lander.
+ * A shared `listCiRuns` beside ci-failure-set.mjs is still the right home; it is filed, not
+ * smuggled in here.
  */
 function ciRuns(cwd, branch, sha) {
   const scope = sha ? ['--commit', sha] : ['--branch', branch, '--limit', '10'];

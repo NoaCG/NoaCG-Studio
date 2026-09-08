@@ -109,7 +109,7 @@ test('a landing that gave up is announced once, with the queue\'s own reason and
   const after = snapshot({
     branches: [branch({
       landingState: 'gave-up',
-      landingReason: 'main itself is red - fix main first (node scripts/main-health.mjs)',
+      landingReason: 'main itself is red - fix main first (gh run list --workflow ci.yml --branch main --limit 5)',
       requeue: 'node scripts/jobs.mjs add-merge claude/a-thing',
       lastCommitMs: NOW - MINUTE,
     })],

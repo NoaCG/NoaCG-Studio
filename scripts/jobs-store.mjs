@@ -764,7 +764,7 @@ export function devServerPrecheck(job, { port = null, busy = false } = {}) {
 
 // -- An ordering block is a WAIT, not a death ---------------------------------------------------
 //
-// `auto-merge.mjs` refuses a branch whose blocker is still ahead of main with no landing queued
+// The retired laptop lander refused a branch whose blocker was still ahead of main with no landing queued
 // for it, on the sound reasoning that deferring is a bet the queue will land that blocker, and a
 // bet that cannot pay just burns the deferral budget. The refusal is right. What happened AFTER it
 // was not: the job went `failed`, and nothing ever brought it back - so when the blocker was
@@ -815,9 +815,10 @@ export const SHARDS_SKIPPED_REFUSAL = 'shards-skipped';
  * queue's own recoveries are marked `byQueue`; the rest are commands the session runs itself, and
  * none of them can land work a session never declared finished.
  *
- * Kinds this does not know return null, which is not a gap to fix by guessing: a landing runs the
- * copy of `auto-merge.mjs` in its own branch's checkout, so a branch cut before a kind existed
- * refuses without one, and the generic sentence is the honest answer for it.
+ * Kinds this does not know return null, which is not a gap to fix by guessing. The kinds come from
+ * job records, and records outlive the tooling that wrote them - a landing refused by the retired
+ * laptop lander carries a kind nothing prints any more, and the generic sentence is the honest
+ * answer for it.
  */
 export function refusalGuidance(refusal, branch = '<branch>') {
   const kind = refusal?.kind;
@@ -894,7 +895,7 @@ function refusalSentence(kind, branch, blockers) {
 }
 
 /**
- * The line `auto-merge.mjs` prints so the queue can tell WHICH refusal it just made.
+ * The line a landing prints so the queue can tell WHICH refusal it just made.
  *
  * An exit code carries one integer and this needs a payload - which branches blocked it - so the
  * landing script states its refusal in one machine-readable line and the runner reads it back out
@@ -909,12 +910,11 @@ export const REFUSAL_MARKER = 'auto-merge REFUSAL-KIND:';
  * Read once, by the runner, at the moment the process exits - everything downstream reads the
  * structured field it writes onto the job rather than reading the log again.
  *
- * THE PROSE FALLBACKS ARE NOT BELT AND BRACES, they are the whole mechanism for a fortnight. A
- * landing runs the copy of `auto-merge.mjs` in the BRANCH's own checkout (the limit
- * `retryLandingFor` documents), so every branch cut before the marker existed refuses in words and
- * nothing else. Those are exactly the branches queued tonight, so the sentences they already print
- * are matched too. `scripts/auto-merge.test.mjs` asserts the live script still says them: a
- * fallback nobody checks is a fallback that has already rotted.
+ * THE PROSE FALLBACKS ARE NOT BELT AND BRACES. The marker was added to a landing script that ran
+ * from the BRANCH's own checkout, so every branch cut before it refused in words and nothing else,
+ * and those were the branches queued that fortnight. Both readings are kept because the same is
+ * true of any refusal wording: this reads a LOG, and a log is written by whatever tooling that job
+ * ran, which is never guaranteed to be the copy standing here.
  */
 export function classifyRefusal(logText, { attemptMark = null } = {}) {
   const whole = String(logText ?? '');
@@ -1148,8 +1148,8 @@ export function retryLandingFor(job, {
 
   // AN ORDERING BLOCK THAT WAS ALREADY FAILED, which is the sweep doing what a hook cannot. The
   // runner parks an ordering block as it happens, but only a runner running THIS code does - and
-  // the landing that refuses is the copy of `auto-merge.mjs` in the branch's own checkout, so for a
-  // fortnight most of them refuse the old way and die. Adopting a dead one puts the same landing
+  // for a fortnight most landings ran an older copy of the tooling and died the old way instead.
+  // Adopting a dead one puts the same landing
   // back ALREADY HELD, so it costs nothing until a blocker lands or is queued, and the hold's clock
   // runs from when it first refused rather than from now.
   //
@@ -1177,7 +1177,7 @@ export function retryLandingFor(job, {
   // It then dispatches its own, which carries `diff_base` and plans the same empty subset, and
   // refuses identically. The branch is not stuck: the second refusal escalates with the command
   // on it, and a person runs the one line. Fixing it properly means the LANDING asking for its
-  // own full run, and that lives in the branch's own copy of `auto-merge.mjs` - which is exactly
+  // own full run, and that lived in the branch's own copy of the landing script - which is exactly
   // the copy an old branch does not have.
   const gatedNothing = job.refusal?.kind === SHARDS_SKIPPED_REFUSAL && !job.ciDispatched;
 
@@ -1382,7 +1382,7 @@ export function giveUpReason(job) {
   // Not this branch's fault, and the listing must say so: five landings queued against a red main
   // all stop here, and five identical lines are how a person sees the fault is upstream of all of
   // them rather than opening five logs looking for five different causes.
-  if (job.exitCode === 4) return 'main itself is red - fix main first (node scripts/main-health.mjs)';
+  if (job.exitCode === 4) return 'main itself is red - fix main first (gh run list --workflow ci.yml --branch main --limit 5)';
   if (typeof job.exitCode === 'number') return `auto-merge refused it (exit ${job.exitCode})`;
   return 'it stopped without recording why';
 }

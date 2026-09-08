@@ -113,8 +113,8 @@ jobs:
       # TO ASSERT IT.
       #
       # Since 2026-09-02 that is a mechanism rather than a memory: `scripts/migration-drift.mjs`
-      # reports staging's ledger beside production's, and `scripts/auto-merge.mjs` pushes both once
-      # a branch reaches `origin/main`. Before that, staging was current only while somebody
+      # reports staging's ledger beside production's, and `.github/workflows/post-land.yml` pushes
+      # both on every push to `main`. Before that, staging was current only while somebody
       # remembered - the teams migrations sat unapplied here for a day and this job went red on
       # `PGRST205 Could not find the table 'public.teams'`, which reads exactly like the hosted-only
       # latency regression it exists to catch. Neither mechanism lives in Actions, for the reason

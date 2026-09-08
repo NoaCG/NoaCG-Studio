@@ -87,11 +87,13 @@ if (startsDevServer(command)) {
 
 // --- 1b. A feature branch is never created in the PRIMARY checkout ---------------------------
 //
-// That checkout is shared infrastructure: `scripts/auto-merge.mjs` finds it with
-// `worktreeFor('main')` and checks it out, merges, builds and RESETS it during every integration.
-// A feature branch sitting there breaks landing in both directions, and both halves are silent -
-// see `branchCreations` in command-match.mjs for the 2026-08-28 measurement. Hence a refusal:
-// a warning is only as good as somebody reading it, and neither failure announces itself.
+// That checkout is shared infrastructure: it is where `main` lives, and a build run there gates
+// `main` rather than your branch while still reporting green (root/never-occupy-checkout). It is
+// also where every session goes to read what has landed. A feature branch sitting there breaks
+// both, and both halves are silent - see `branchCreations` in command-match.mjs for the 2026-08-28
+// measurement, made when the laptop lander also merged and RESET that checkout on every landing.
+// Hence a refusal: a warning is only as good as somebody reading it, and neither failure
+// announces itself.
 const creations = branchCreations(command);
 if (creations.length > 0) {
   const inPrimary = creations

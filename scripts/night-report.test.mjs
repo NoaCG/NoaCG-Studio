@@ -94,7 +94,7 @@ test('refusals group by kind, and an unnamed one is grouped as unnamed rather th
     ...window,
   });
   assert.deepEqual(report.kinds.map((k) => [k.kind, k.count]), [['ci-red', 2], [UNNAMED, 1]]);
-  assert.match(renderReport(report), /A landing runs the copy of auto-merge\.mjs in its OWN branch/);
+  assert.match(renderReport(report), /refused before the refusal kinds existed says so in prose/);
 });
 
 test('a landing killed at its cap is ONE person-item, and asks to be re-queued', () => {

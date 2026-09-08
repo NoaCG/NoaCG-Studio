@@ -93,8 +93,8 @@ const MAX_DEFERRALS = 6;
 /**
  * The header `spawnJob` writes before each attempt, and the boundary `readRefusal` reads back from.
  *
- * DECLARED ABOVE THE COMMAND DISPATCH, for the reason `auto-merge.mjs` spells out over
- * `DISPATCH_GRACE_TICKS`: the dispatch below runs mid-module-evaluation, so a `const` after it is
+ * DECLARED ABOVE THE COMMAND DISPATCH: the dispatch below runs mid-module-evaluation, so a
+ * `const` after it is
  * still in its temporal dead zone when `requeue` reaches `readRefusal` - a crash only direct
  * execution can see, because a test import evaluates the whole module first.
  */
@@ -959,7 +959,7 @@ function giveUpReasonFor(code, refusal, branch = '<branch>') {
   // NOT this branch. Deliberately not a deferral like exit 3: a red main is fixed by a person, not
   // by the queue draining, so waiting cannot resolve it and a job that sat there cycling would hide
   // the very fault it detected.
-  if (code === RED_MAIN_EXIT) return 'main itself is red - fix main first, then queue again (node scripts/main-health.mjs)';
+  if (code === RED_MAIN_EXIT) return 'main itself is red - fix main first, then queue again (gh run list --workflow ci.yml --branch main --limit 5)';
   // The machine failed to answer - the run was still going, every run was a cancelled shell, none
   // appeared, or one did its work and a job hit its own timeout. None of those is about the branch,
   // and the sweep puts it straight back.
@@ -1233,7 +1233,7 @@ function resolveRef(branch) {
 /**
  * Is `branch` still unmerged - is the branch blocking a held landing actually still in the running?
  *
- * The same question `auto-merge.mjs` asks, asked here because the queue is what holds the job.
+ * Asked here because the queue is what holds the job.
  * `origin/main` rather than local main: the landing pushes, so a branch that has landed is behind
  * the remote whether or not this checkout has fetched. Answering "yes, still ahead" when git cannot
  * say is the safe direction - it keeps a landing held rather than releasing it on an unanswered
