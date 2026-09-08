@@ -269,3 +269,20 @@ test('a READ block ends at a blank line, an unindented line, a prompt key or a k
   ].join('\n');
   assert.deepEqual(promptPathProblems(prompt, inTree), []);
 });
+
+test('an answered alignment question the plan never mentions is refused', () => {
+  const alignment = [{ id: 'ALIGN-2026-09-15-1', question: 'Still the top of NOW?', answer: 'Yes.' }];
+  const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], alignment, now: NOW });
+  assert.ok(problems.some((p) => /alignment answer ALIGN-2026-09-15-1 is not in docs\/OWNER_RULINGS\.md/.test(p)));
+
+  const mentions = checkPlan(`${GOOD}
+
+Row D records ALIGN-2026-09-15-1.
+`, { exists, handoffs, receipts: [], alignment, now: NOW });
+  assert.ok(!mentions.problems.some((p) => /alignment answer/.test(p)), 'naming the id is what clears it');
+});
+
+test('no pending alignment answers means no alignment problem at all', () => {
+  const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], now: NOW });
+  assert.ok(!problems.some((p) => /alignment answer/.test(p)));
+});

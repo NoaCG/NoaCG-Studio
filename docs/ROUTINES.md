@@ -101,6 +101,22 @@ can revert them.
 toward it. Nothing in NoaCG waits on this page. That is the property that makes "the rest we can
 automate" safe rather than merely optimistic.
 
+**What he answers gets recorded, and not by remembering to.** This is the half that makes the check
+worth having: an answer that stays in a chat window is a ruling the repository never learned. The
+routine writes each question into its own gitignored file under an id (`ALIGN-<date>-<n>`) and fills
+the answer in beside it when he gives one, which is capture a routine is allowed to do. From there
+`scripts/alignment-answers.mjs` compares those answers against `docs/OWNER_RULINGS.md`, and
+`wave-plan-check.mjs` **refuses a wave plan that does not mention an answered id which is not yet
+recorded**. So the next `/orchestrator` plans the row that writes the ruling, and the refusal comes
+back every morning until it has landed. `npm run alignment:pending` prints what is outstanding and
+the exact block to append.
+
+**Why the plan check and not `npm run build`.** The weekly file is gitignored and per-machine, so a
+build gate would be blind in CI and, on this laptop, would block every unrelated feature branch over
+a ruling that belongs to the orchestrator. The plan check is where the actor who can fix it already
+stands. An alignment answer is also the one thing a plan may not defer: an owner ask can be held or
+deferred in writing, but a ruling he has already given only has to be written down.
+
 The session's second half is the machine reviewing itself - spend by model and harness, decisions
 taken against asks made, what the orchestrator skill changed about itself, what other orchestrators
 do now, and at most three improvements as candidate wave rows. That half is written to the file and

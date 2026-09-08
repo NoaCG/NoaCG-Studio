@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-09-05
 state: advanced
-note: "2026-09-08 - the check SHIPPED as the weekly owner session: `.agent-workflows/orchestrator-week.md` part A (the week's plan, the at-most-three questions and the test each must pass), the `weekly-owner-session` scheduled task on Tuesdays 09:15, and the routine set consolidated around it in `docs/ROUTINES.md`. What is still open is the recording half - his answers have to reach `docs/OWNER_RULINGS.md` and the affected doc through a session, and nothing yet makes that automatic - plus three or four weeks of runs to see whether the three-question cap holds."
+note: "2026-09-08 - SERVED in full. The check shipped as the weekly owner session (`.agent-workflows/orchestrator-week.md` part A, the `weekly-owner-session` task on Tuesdays 09:15, the routine set consolidated in `docs/ROUTINES.md`), and the recording half shipped the same day: `scripts/alignment-answers.mjs` reads the answers out of the session's own file and `wave-plan-check.mjs` refuses a wave plan that does not mention an answered ruling still missing from `docs/OWNER_RULINGS.md`. Kept as a receipt only until the first real run on 2026-09-15 proves the round trip; delete it then."
 asked: "we could have weekly alignment checks so we make sure that we have the same plan and vision for NoaCG. The rest we can automate. Once a week we look at the job queue and our long-term plan and then we can just automatically work toward it"
 serves: NOW
 size: standard
@@ -41,16 +41,22 @@ asks him when.
 - **The `weekly-owner-session` scheduled task**, Tuesdays 09:15, replacing the separate Monday
   feedback routine and Tuesday orchestrator review. Chat gets sections 1 to 4 - the plan, what needs
   him, feedback, freshness. The orchestration review stays in the file.
+- **The recording half.** Each question is written into the session's own gitignored file under an
+  id (`ALIGN-<date>-<n>`) and the answer is filled in beside it, which is capture a routine is
+  allowed to do. `scripts/alignment-answers.mjs` then compares the answers against
+  `docs/OWNER_RULINGS.md`, and `wave-plan-check.mjs` refuses a wave plan that does not mention an
+  answered id still missing from it - so the next `/orchestrator` plans the row that writes the
+  ruling, and the refusal returns every morning until it lands. It is the plan check rather than
+  `npm run build` because the weekly file is gitignored and per-machine: a build gate would be blind
+  in CI and would block unrelated feature branches on this laptop.
 
 ## What is still open
 
-- **The recording half.** His answers belong in `docs/OWNER_RULINGS.md` and in whichever of
-  `GOALS.md` / `PROGRAMMES.md` / a backlog entry the answer moves. Routines cannot write tracked
-  files, so today that depends on a session picking the answer up out of chat, which is exactly the
-  shape of a missing mechanism. The obvious fix is for the next `/orchestrator` invocation to treat
-  an answered alignment question as a mandatory row.
-- **Whether three questions is the right cap.** It is a guess. Three or four weeks of runs will say
-  whether it forces real questions out or lets padding in.
+- **Whether three questions is the right cap**, and whether the page reads like directions rather
+  than a sprint board. Both are guesses. Three or four weeks of runs will say.
+- **The first round trip is unproven.** The parser, the plan-check refusal and the appendable block
+  all have tests, but no real Tuesday has run through them yet. Read
+  `npm run alignment:pending` after the 2026-09-15 session before trusting the chain.
 
 ## Evidence
 

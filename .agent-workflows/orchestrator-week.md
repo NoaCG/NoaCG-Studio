@@ -97,9 +97,30 @@ queue keeps working toward it - that is the point of the ruling, not a fallback.
 carries the question forward once, then drops it and records the decision it took instead. Nothing
 in NoaCG ever waits on this page.
 
-**His answers are recorded by a session, not by this routine.** When he answers, the answer goes to
-`docs/OWNER_RULINGS.md` and to the affected doc (`GOALS.md`, `PROGRAMMES.md`, the backlog entry) in
-the same session that reads it. Routines report; sessions write.
+### Write every question down in the shape the machine reads
+
+**A question said only in chat is gone when the session closes**, and so is his answer. So each
+question is written into this session's own file (step 5) under a stable id, and when he answers -
+in this session, or in a later one that opens the same file - the answer is filled in beside it.
+From that moment the answer is on disk and nobody's memory is load-bearing.
+
+The id is `ALIGN-<the date>-<n>`, and the shape is exactly this, because
+`scripts/alignment-answers.mjs` parses it:
+
+    ### ALIGN-2026-09-15-1
+    **Question:** Does the SVG road still deserve the top of NOW, six weeks in?
+    **Answer:**
+
+An empty `**Answer:**` is an open question. Fill that one line in when he answers, faithfully enough
+that the ruling can be written from it, and change nothing else in the block.
+
+**His answers are then recorded by a session, not by this routine.** The answer belongs in
+`docs/OWNER_RULINGS.md` under its id, and in whichever doc it moves (`GOALS.md`, `PROGRAMMES.md`, a
+backlog entry). Routines report; sessions write. What makes that happen rather than being hoped for:
+`node scripts/wave-plan-check.mjs` refuses a wave plan that does not mention an answered id which is
+not yet in `OWNER_RULINGS.md`, so the next `/orchestrator` plans the row that writes it, and the
+refusal returns every morning until the ruling has landed. `npm run alignment:pending` prints what
+is outstanding and the block to append.
 
 ## 3. Part B - the skill's own week
 
@@ -137,7 +158,11 @@ checkout stops every landing on the machine (`docs/ROUTINES.md`, the morning bri
 Overwrite the same date's file if it exists. Seven short sections, numbers from step 1:
 
 1. **The week's plan** - the five-minute list from step 2, in order.
-2. **What needs you** - the at-most-three questions, or the words "nothing needs you this week".
+2. **What needs you** - the at-most-three questions, each as an `### ALIGN-<date>-<n>` block in the
+   shape step 2 gives, with an empty `**Answer:**` line; or the words "nothing needs you this week"
+   and no blocks at all. **This heading is where the answers get written**, so keep it verbatim and
+   check the round trip before you print: `npm run alignment:pending` must list every question you
+   just wrote as open. A block the parser cannot see is a question that will be lost.
 3. **Feedback** - the counts in one or two lines. If anything arrived at all, the one action:
    *open <https://noacg.studio/admin> and read what they wrote* - the count cannot tell you what
    they said, only that they said something. Zero is one line, unpadded.
