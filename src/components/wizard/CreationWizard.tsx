@@ -70,7 +70,7 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
 import NewGraphicButton from '../NewGraphicButton';
 import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
-import { graphicById } from '../../model/library';
+import { graphicById, graphicHoldingName, loadGraphics } from '../../model/library';
 import WizardConfirm, { wizardConfirmOpen } from './WizardConfirm';
 import { recordLiteOutcome } from '../../ai/lite/client';
 import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
@@ -706,6 +706,12 @@ export default function CreationWizard() {
     () => (onFinish ? loadShows() : []),
     [onFinish],
   );
+  // The library names Finish needs to answer one question: does the door about to be pressed
+  // MINT a record or write over one? Read on the same terms as the productions above.
+  const finishLibraryNames: string[] = useMemo(
+    () => (onFinish ? loadGraphics().map((g) => g.name) : []),
+    [onFinish],
+  );
 
   if (!open) return null;
 
@@ -858,19 +864,31 @@ export default function CreationWizard() {
   };
 
   /**
-   * Save the built graphic — as a NEW library record, or over the one this same walk already
-   * made when the reader has come back to change it.
+   * Save the built graphic — as a NEW library record, or OVER the record that already carries
+   * this name.
    *
-   * Without the second half, re-entering the wizard would be a duplicate factory: `saveGraphicAs`
-   * always mints, so one graphic walked twice would leave two records under one name. The
-   * production pool needs no such care — `addGraphicToShow` replaces by name and keeps the
-   * cues prepared against the entry. A RENAME is a different graphic and takes the mint,
-   * which is also what makes the pool's by-name replacement agree with the library.
+   * A saved graphic's name is its identity. `saveGraphicAs` always mints, so without this the
+   * wizard is a duplicate factory: the walk that made "Match Score" and the walk that
+   * re-imports the student's second version of it left TWO records under one name, and the
+   * production's pool copy — which replaces by name — quietly re-pointed its back-link at the
+   * new one, detaching the graphic the cues were prepared against. Measured 2026-09-08 through
+   * all four import doors (e2e/import-name-collision.spec.ts). Writing over the record keeps
+   * its id, so every production pooling it keeps pointing at the same graphic.
+   *
+   * It is NOT a silent overwrite: the production door confirms every press, and the Finish
+   * step's dialog says which of the two things this one does before it happens (FinishStep's
+   * `savingOver`, from the same `graphicHoldingName` lookup). A RENAME is a different graphic
+   * and takes the mint. `madeThisOpen` is checked first because it holds an id: it still
+   * answers correctly for a graphic RENAMED mid-walk, which a name lookup cannot.
    */
   const saveBuiltGraphic = async (name: string): Promise<{ ok: boolean; error: string | null }> => {
     const again = madeThisOpen.current;
-    if (again?.graphicId && again.name === name && graphicById(again.graphicId)) {
-      useTemplateStore.getState().setSaved({ graphicId: again.graphicId, dirty: true, status: 'idle' });
+    const over =
+      again?.graphicId && again.name === name && graphicById(again.graphicId)
+        ? again.graphicId
+        : graphicHoldingName(name)?.id ?? null;
+    if (over) {
+      useTemplateStore.getState().setSaved({ graphicId: over, dirty: true, status: 'idle' });
       const result = await saveCurrentGraphic();
       if (result === 'saved') return { ok: true, error: null };
       // 'needs-name' means the record went between the check above and the write (deleted on
@@ -2252,6 +2270,8 @@ export default function CreationWizard() {
                 onName={(name) => patch({ name })}
                 summary={importedSummaryRows(importedFile)}
                 productions={finishProductions}
+                libraryNames={finishLibraryNames}
+                fields={importedFile.template.fields.map((f) => f.field)}
                 defaultProductionId={contextProductionId}
                 alreadyMadeName={madeThisOpen.current?.name ?? null}
                 onAddToProduction={createFromFileAndAddToProduction}
@@ -2270,6 +2290,8 @@ export default function CreationWizard() {
                 summary={catalogSummaryRows(variant, draft)}
                 onEditStep={editSummaryStep}
                 productions={finishProductions}
+                libraryNames={finishLibraryNames}
+                fields={(previewTemplate?.fields ?? []).map((f) => f.field)}
                 defaultProductionId={contextProductionId}
                 alreadyMadeName={madeThisOpen.current?.name ?? null}
                 onAddToProduction={createAndAddToProduction}
@@ -2314,6 +2336,8 @@ export default function CreationWizard() {
                 onName={(name) => patch({ name })}
                 summary={aiSummaryRows(aiResult.template, aiResult.valid)}
                 productions={finishProductions}
+                libraryNames={finishLibraryNames}
+                fields={aiResult.template.fields.map((f) => f.field)}
                 defaultProductionId={contextProductionId}
                 alreadyMadeName={madeThisOpen.current?.name ?? null}
                 onAddToProduction={createFromAiAndAddToProduction}

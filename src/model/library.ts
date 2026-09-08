@@ -83,6 +83,29 @@ export function graphicById(id: string): GraphicDoc | null {
   return loadGraphics().find((g) => g.id === id) ?? null;
 }
 
+/**
+ * The live record a save under `name` writes OVER, or undefined when the name is free.
+ *
+ * A saved graphic's name is its identity — the production pool has always worked that way
+ * (`addGraphicToShow` replaces by name so the cues prepared against the entry survive), and
+ * the library did not: every wizard save minted a fresh id, so re-importing your own artwork
+ * under the name you already use left TWO indistinguishable rows on Home, silently detached
+ * the first from the production that pooled it, and made the name ambiguous for
+ * `resolveSavedGraphicDoc` below. Measured 2026-09-08 (e2e/import-name-collision.spec.ts);
+ * this lookup is what makes the two halves agree.
+ *
+ * NEWEST WINS where a library already holds twins from before this landed: that is the record
+ * the pool's back-link points at after a re-import, so later saves converge on one record
+ * instead of writing to whichever happened to be stored first.
+ */
+export function graphicHoldingName(name: string): GraphicDoc | undefined {
+  const wanted = name.trim();
+  if (!wanted) return undefined;
+  return loadGraphics()
+    .filter((g) => g.name === wanted)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+}
+
 /** Insert or replace a whole graphic by id (the storage seam's put('graphic'), incl. tombstones). */
 export function upsertGraphic(doc: GraphicDoc): void {
   const all = rawGraphics();

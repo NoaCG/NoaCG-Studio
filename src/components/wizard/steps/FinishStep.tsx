@@ -62,6 +62,13 @@ interface Props {
    *  name saves OVER it instead of minting a second record, and the confirmation has to say so
    *  - which production is picked cannot answer that question. Null on a first pass. */
   alreadyMadeName?: string | null;
+  /** Every LIVE library name (the wizard reads them when Finish shows). A save under a name
+   *  already in here writes over that record rather than minting a second one under it
+   *  (model/library.ts `graphicHoldingName`), and this dialog is where that is said. */
+  libraryNames?: string[];
+  /** The field ids the graphic about to be created carries. Compared against the pool copy
+   *  being replaced, so the dialog can name the cue values that stop addressing a field. */
+  fields?: string[];
 }
 
 /**
@@ -213,6 +220,8 @@ export default function FinishStep({
   onExport,
   busy,
   alreadyMadeName = null,
+  libraryNames = [],
+  fields = [],
 }: Props) {
   // The picker's selection: an existing production's id, or 'new'. Preselect the context
   // production (opened FOR one, or walked back into), else the first saved one, else a new one
@@ -244,10 +253,23 @@ export default function FinishStep({
   // entry's id so its cues survive). It is the ordinary case for anyone who walked back into
   // the wizard to change one thing, and a confirmation that said "adding" would be lying to
   // exactly the reader this dialog was built for.
-  const replacing = !!pendingShow?.graphics.some((g) => g.name === graphicName);
+  const replacedCopy = pendingShow?.graphics.find((g) => g.name === graphicName);
+  const replacing = !!replacedCopy;
   // The LIBRARY half of the same question, and it is not the same lookup: walking back in and
-  // then picking a DIFFERENT production still saves over the record the first pass made.
-  const savingOver = alreadyMadeName !== null && alreadyMadeName === graphicName;
+  // then picking a DIFFERENT production still saves over the record the first pass made, and a
+  // name the library ALREADY holds is that graphic whoever made it and whenever
+  // (model/library.ts `graphicHoldingName` - the save writes over it rather than minting a
+  // second row nobody can tell from the first).
+  const savingOver =
+    (alreadyMadeName !== null && alreadyMadeName === graphicName) || libraryNames.includes(graphicName);
+  // WHAT THE REPLACEMENT DOES TO THE CUES ALREADY PREPARED. A cue's values are a flat map by
+  // field id, and the payload a take sends is exactly that map: a key the new version has no
+  // field for is ignored on air, and a field it adds starts from its own default. So the cues
+  // survive - and are partially addressed - and a student who is told only that they "stay"
+  // would find out on air. Named, because a count is not something anyone can act on.
+  const strandedFields = (replacedCopy?.template.fields ?? [])
+    .filter((f) => !fields.includes(f.field))
+    .map((f) => f.title || f.field);
 
   return (
     <div className="wz-finish">
@@ -267,6 +289,18 @@ export default function FinishStep({
         {/* One line. The field already SHOWS what an empty name falls back to, as its
             placeholder, so spending a second line to say so again cost the doors below. */}
         <p className="hint">Used in the library, on the topbar, and as the exported folder name.</p>
+        {/* WHAT THIS NAME ALREADY MEANS. Every door below saves under it, and only the
+            production one raises a dialog that can say so - the export door saves and leaves
+            for the export window without asking anything. So the fact belongs on the field all
+            three share, stated once, blocking nobody: the reader who meant a second graphic is
+            one keystroke from one, and the reader iterating on their own artwork reads a
+            sentence and presses the door they were going to press. */}
+        {savingOver && (
+          <p className="status-warn" data-testid="wz-finish-name-taken">
+            Your library already has a graphic called <strong>{graphicName}</strong>. Finishing
+            saves over it. Change the name above to keep both.
+          </p>
+        )}
       </div>
 
       <div className="panel-section">
@@ -395,8 +429,20 @@ export default function FinishStep({
 
       {pendingDest && (
         <WizardConfirm
-          title={replacing ? 'Replace it in this production?' : 'Add it to this production?'}
-          confirmLabel={replacing ? 'Replace it and go there' : 'Add it and go there'}
+          title={
+            replacing
+              ? 'Replace it in this production?'
+              : savingOver
+              ? `Save over ${graphicName} and add it here?`
+              : 'Add it to this production?'
+          }
+          confirmLabel={
+            replacing
+              ? 'Replace it and go there'
+              : savingOver
+              ? 'Save over it and go there'
+              : 'Add it and go there'
+          }
           cancelLabel="Cancel"
           onConfirm={() => {
             setPendingDest(null);
@@ -425,17 +471,27 @@ export default function FinishStep({
           <ul>
             <li>
               {savingOver
-                ? `${graphicName} is saved over the version in your library.`
+                ? `${graphicName} is saved over the version in your library. Its data rows stay.`
                 : `${graphicName} is saved to your library.`}
             </li>
             <li>
               {replacing
                 ? 'The copy in the production is replaced. Its cues and its playout layer stay.'
                 : 'A copy joins the production, with its first cue ready to take.'}
+              {replacing && strandedFields.length > 0 && (
+                <>
+                  {' '}
+                  Cue values for {strandedFields.join(', ')} no longer match a field in this
+                  version and are ignored on air; new fields start from their defaults.
+                </>
+              )}
             </li>
             <li>The wizard closes and you land on that production, ready to run it.</li>
           </ul>
-          <p className="hint">Wrong production? Cancel and pick another one before you go.</p>
+          <p className="hint">
+            Wrong production? Cancel and pick another one before you go.
+            {savingOver && ' Meant a NEW graphic? Cancel and give it its own name above.'}
+          </p>
         </WizardConfirm>
       )}
     </div>
