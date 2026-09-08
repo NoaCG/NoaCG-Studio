@@ -352,9 +352,29 @@ jobs:
           # rather than only the earliest. They ask different questions: type-floor about SIZE,
           # overflow-sweep about the BOX, field-coverage about whether an operator can reach the
           # words at all, numerals about whether a graphic holds still while its numbers change.
-          status=0
-          node scripts/type-floor.mjs $ONLY || status=1
-          node scripts/overflow-sweep.mjs --baseline $ONLY || status=1
-          node scripts/field-coverage.mjs $ONLY || status=1
-          node scripts/numerals.mjs $ONLY || status=1
-          exit "$status"
+          # EACH GATE NAMES ITSELF, same as nightly.yml's copy of this battery and for the same
+          # measured reason: on 2026-09-08 type-floor.mjs crashed at module load, the three gates
+          # after it printed PASS, and the job's only signal was `exit 1` at the bottom. A gate
+          # that fails by CRASHING prints no report of its own, so the log said nothing about
+          # which of the four was red.
+          failed=""
+          gate() {
+            name="$1"
+            shift
+            echo "--- GATE: $name ---"
+            if "$@"; then
+              echo "GATE PASS - $name"
+            else
+              echo "GATE FAIL - $name"
+              failed="$failed $name"
+            fi
+          }
+          gate type-floor     node scripts/type-floor.mjs $ONLY
+          gate overflow-sweep node scripts/overflow-sweep.mjs --baseline $ONLY
+          gate field-coverage node scripts/field-coverage.mjs $ONLY
+          gate numerals       node scripts/numerals.mjs $ONLY
+          if [ -n "$failed" ]; then
+            echo "CATALOG GATES FAILED:$failed"
+            exit 1
+          fi
+          echo "CATALOG GATES: all four passed."

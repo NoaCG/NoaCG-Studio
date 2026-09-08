@@ -372,9 +372,19 @@ three now read `github.event_name == 'schedule' || github.ref == 'refs/heads/mai
 file/update and the close step - a rolling alarm is a statement about `main`, so a
 `workflow_dispatch` from a branch being debugged must be able to neither raise it nor withdraw it.
 
+**`weekly-audit.yml` joined them on 2026-09-08, and the way its exemption failed is the
+interesting part.** It was left unguarded on the reasoning that its alarm is "about the
+repository", which a branch dispatch does not misstate. The failure is not spam - it is the
+opposite. Dispatched from the branch that FIXED the browserslist advisory, which is the likeliest
+branch anyone runs it from, the run is green, so the CLOSE step fires and posts "Audit green again
+at `<a branch sha>`" against an alarm that is still true of `main`. **The exemption was argued from
+the alarm's SUBJECT and the hole was in its verb.** Raising and withdrawing want the same guard,
+because a withdrawal is a claim about `main` whatever the run was measuring.
+
 Still unguarded, deliberately: `nightly-drift.yml` (its alarm is about the schedule itself, not
-about code on a branch), `deploy-verify.yml` and `weekly-audit.yml` (about production and about the
-repository, neither of which a branch dispatch misstates). Revisit if one of them ever spams.
+about code on a branch) and `deploy-verify.yml` (about production, which a branch dispatch does not
+misstate - and which has no green-on-a-branch shape, because it reads what is deployed). Revisit if
+one of them ever closes something a branch cannot speak for.
 
 ### 7. INFRA - 6 runs
 

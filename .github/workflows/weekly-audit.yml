@@ -93,8 +93,17 @@ jobs:
         run: npm audit --audit-level=high
 
       # Fail-loud: one rolling tracking issue, updated per red run.
+      #
+      # BRANCH-GUARDED, like the three siblings (docs/CI_STABILITY.md class 6). This file was the
+      # deliberate exception, on the reasoning that a dispatch from a branch cannot misstate
+      # something "about the repository". Measured 2026-09-08 on the branch that FIXED the
+      # browserslist advisory, which is the likeliest branch anyone dispatches this from: the run
+      # is green, so the close step fires and posts "Audit green again at <a branch sha>" while
+      # `main` is still red and the alarm is still true. A rolling alarm is a statement about
+      # `main`, so nothing else may raise or withdraw it. A schedule run's ref IS main; the event
+      # test says so explicitly rather than depending on it.
       - name: File / update the failure issue
-        if: failure()
+        if: ${{ failure() && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -114,7 +123,7 @@ jobs:
       # …and self-closing, like every rolling issue here (docs/DEPLOYMENT.md): a green run
       # means the advisories are cleared, so the alarm must not stay latched.
       - name: Close the failure issue
-        if: success()
+        if: ${{ success() && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
