@@ -87,7 +87,9 @@ export interface Show {
    *  (`root/version-every-persisted-format-ship-breaking`): absent = no brand chosen, an older build reads and rewrites the record
    *  untouched. */
   brandId?: string;
-  /** The graphic POOL, in layer order — which templates the production can air, each once. */
+  /** The graphic POOL — which templates the production can air, each once. The order here is
+   *  authoring order, NOT the layer stack: a graphic airs on the layer NUMBER its own entry
+   *  carries (`graphicLayer`), which is what every z-order consumer reads. */
   graphics: SavedGraphic[];
   /** The cue rundown, in playout order (docs/CLOUD_PLAYOUT.md). ADDITIVE OPTIONAL — an older
    *  build reads and rewrites the record untouched; absent = no cues authored. */
