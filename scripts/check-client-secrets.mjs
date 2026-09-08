@@ -4,6 +4,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { measured } from './measured.mjs';
+
 const root = process.cwd();
 const requested = process.argv[2] ? [process.argv[2]] : ['src', 'e2e', 'scripts', 'docs'];
 const skip = new Set(['node_modules', '.git', '.vercel', 'bench-out', 'compare-out', 'video-bench-out']);
@@ -30,8 +32,13 @@ async function files(directory) {
 }
 
 const findings = [];
+// How many files were actually OPENED, not how many directories were asked for. `files()` answers
+// an unreadable directory with an empty list, so a mistyped or moved target used to end in an OK
+// line naming directories this scan never looked inside.
+let scanned = 0;
 for (const target of requested) {
   for (const file of await files(target)) {
+    scanned += 1;
     const source = await readFile(path.resolve(root, file), 'utf8');
     for (const pattern of [publicKeyName, providerSecret]) {
       pattern.lastIndex = 0;
@@ -40,6 +47,8 @@ for (const target of requested) {
     }
   }
 }
+
+measured(scanned, 'source files scanned');
 
 if (findings.length) {
   console.error('Client secret scan failed:\n' + findings.map((finding) => `- ${finding}`).join('\n'));

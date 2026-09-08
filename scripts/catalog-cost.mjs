@@ -40,6 +40,8 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { mkdtempSync } from 'node:fs';
 
+import { measured } from './measured.mjs';
+
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 const distDir = path.join(projectRoot, 'dist');
 
@@ -209,6 +211,9 @@ async function builtFrom() {
 async function main() {
   const { entries, loadSeconds, pagesSeconds } = await measurePrerender();
   const n = entries.length;
+  // Every number below is per design, so an empty catalog does not report a cost of nothing - it
+  // divides by zero and prints "design 1 costs NaN ms" as if that were an answer.
+  measured(n, 'catalog designs');
   const ids = entries.map((e) => e.variant.id);
   const perPageMs = (pagesSeconds * 1000) / n;
 

@@ -107,11 +107,11 @@ test('similarity is high for a paraphrase about the same symbols and low for unr
   assert.equal(symbolsOf(c).length, 0);
 });
 
-test('loadRules refuses a fires: target that is not in the tree, accepts one that is, and marks it carried', () => {
+test('a fires: target must exist AND print the rule before the rule counts as carried', () => {
   const root = store({
     'contracts/rules/a/hooked.md': GOOD.replace('fires: contract', 'fires: hook:guard-edit'),
     'contracts/rules/a/gated.md': GOOD.replace('fires: contract', 'fires: gate:check-copy').replace('holder', 'panel'),
-    'scripts/check-copy.mjs': '// exists',
+    'scripts/check-copy.mjs': "console.error(rules.text('a/gated'));",
   });
   const { rules, problems } = loadRules(root);
   assert.equal(rules.length, 2);
@@ -119,6 +119,20 @@ test('loadRules refuses a fires: target that is not in the tree, accepts one tha
   assert.match(problems[0], /scripts\/hooks\/guard-edit\.mjs does not exist/);
   assert.equal(rules.find((r) => r.id === 'a/gated').carried, true);
   assert.equal(rules.find((r) => r.id === 'a/hooked').carried, false);
+  rmSync(root, { recursive: true, force: true });
+});
+
+// A CARRIED RULE IS DELETED FROM EVERY LOADED SURFACE, so a mechanism that merely EXISTS is not
+// enough - four rules vanished that way on 2026-09-08 and reappeared nowhere.
+test('a mechanism that exists but never prints the rule is refused, and the rule stays in the contracts', () => {
+  const root = store({
+    'contracts/rules/a/gated.md': GOOD.replace('fires: contract', 'fires: gate:check-copy'),
+    'scripts/check-copy.mjs': '// exists, and says nothing about the rule',
+  });
+  const { rules, problems } = loadRules(root);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /never prints the rule - it must call `rules\.text\('a\/gated'\)`/);
+  assert.equal(rules[0].carried, false, 'an unproven claim leaves the sentence in the contract, where a reader can still find it');
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -142,7 +156,7 @@ test('the compiler groups by scope set, writes paths-scoped files, and spends no
     'contracts/rules/wizard/other.md': GOOD.replace('kind: trap', 'kind: taste').replace(/^An input.*$/m, 'Prefer the plain word in wizard copy.'),
     'contracts/rules/root/version.md': GOOD.replace(/scope: .*/, 'scope: **').replace('kind: trap', 'kind: invariant').replace(/^An input.*$/m, 'Every persisted format carries a version.'),
     'contracts/rules/e2e/carried.md': GOOD.replace(/scope: .*/, 'scope: e2e/**').replace('fires: contract', 'fires: gate:check-copy').replace(/^An input.*$/m, 'A commit message never carries an em dash.'),
-    'scripts/check-copy.mjs': '// exists',
+    'scripts/check-copy.mjs': "console.error(rules.text('e2e/carried'));",
   });
   const { rules, problems } = loadRules(root);
   assert.deepEqual(problems, []);

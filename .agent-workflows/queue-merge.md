@@ -116,6 +116,19 @@ workflow: the ruleset (`scripts/landing-ruleset.mjs`) requires the queue. Watch 
     gh pr view <number>
     gh run list --workflow ci.yml --limit 5
 
+**Your branch lands as ONE merge commit, and the question is settled** (2026-09-09). Squash was
+weighed against this repository's own machinery and lost, because four scripts decide "this work is
+on main" by asking git whether the branch's commits are reachable from main, and a squashed branch
+never satisfies that - every landed branch would read as ahead of main forever, so no worktree is
+ever reclaimed and `npm run jobs` fills with finished work. The argument, the measurements and what
+squash WOULD have bought are on the `merge_method` parameter in `scripts/landing-ruleset.mjs`; read
+it there before reopening this, and do not restate it here. `npm run land:ruleset` says whether
+GitHub still agrees with that file and exits non-zero when it does not.
+
+What it costs you here is small: your fixup commits stay in main's history, though
+`git log --first-parent` still shows one line per landing, and a revert of your landing needs
+`git revert -m 1 <sha>`, which `scripts/revert-landing.mjs` already writes for you.
+
 **A refusal shows on the pull request**: a check that failed on the pull request keeps it out
 of the queue, and a group whose `CI gate` failed is dropped from the queue with auto-merge turned
 off. The local watcher job names the failed check. Fix it, run `/check`, and queue again. A

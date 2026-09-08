@@ -63,6 +63,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { measured } from './measured.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
@@ -645,7 +646,24 @@ export function closedReceipts(root = REPO_ROOT, { limit = 50 } = {}) {
 
 export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Date.now() } = {}) {
   const json = argv.includes('--json');
+  // AN EMPTY BACKLOG IS HONEST; A MISSING ONE IS NOT. `readReceipts` answers `[]` for both, so a
+  // renamed or moved directory would report "0 receipt(s), OK" for as long as nobody looked.
+  // The directory itself is therefore checked here, and only its CONTENTS are allowed to be empty.
+  const backlog = path.join(root, ...BACKLOG_DIR.split('/'));
+  if (!existsSync(backlog)) {
+    console.error(`\nowner-receipts: ${BACKLOG_DIR} does not exist, so there is nothing to validate.`);
+    console.error('Every owner ask lives in that directory; with it gone this check would report OK forever');
+    console.error('while no receipt was read at all. Restore the directory, or update BACKLOG_DIR to where it moved.\n');
+    return 1;
+  }
   const receipts = readReceipts(root, { now });
+  // The receipts themselves may honestly be none - see the reason below - so this reports the
+  // count without refusing it. The directory check above is what makes a zero here believable.
+  measured.optional(
+    receipts.length,
+    'backlog items',
+    'zero is honest once every receipt has been drained: a landed receipt is deleted from the tree, so an empty (but present) docs/backlog/ means nothing is outstanding.',
+  );
   if (argv.includes('--check')) {
     const failures = receipts.flatMap((receipt) => receipt.problems.map((problem) => `${BACKLOG_DIR}/${receipt.slug}.md: ${problem}`));
     if (failures.length > 0) {

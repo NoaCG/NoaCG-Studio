@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 import { parseFrontmatter as parseFrontmatterText } from './owner-receipts.mjs';
 import { GENERATED_MARKER } from './contracts-lib.mjs';
+import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_WRAPPER_LINES = 25;
@@ -672,6 +673,7 @@ function checkRepositoryFile(file, label) {
 const agentsFiles = findFilesNamed(ROOT, 'AGENTS.md').filter(
   (file) => rel(file) === 'AGENTS.md' || !rel(file).startsWith('.'),
 );
+measured(agentsFiles.length, 'AGENTS.md contracts');
 const isGeneratedContract = (file) => existsSync(file) && text(file).includes(GENERATED_MARKER);
 for (const agentsFile of agentsFiles) {
   checkRepositoryFile(agentsFile, 'authoritative project instructions');
@@ -724,6 +726,30 @@ const workflowNames = existsSync(workflowsDir)
       .map((file) => file.slice(0, -3))
       .sort()
   : [];
+measured(workflowNames.length, 'workflow definitions');
+
+// A TABLE KEYED BY NAME IS A GATE THAT STOPS FIRING WHEN THE NAME MOVES. Each of these four is
+// consulted as `TABLE.get(name)` while walking the workflows below, and a miss is a `?? []` or an
+// early `return` - so renaming `orchestrator.md` would drop its critical markers, its 200-line
+// core limit and its 640-byte common-path budget in one edit, and this check would print OK.
+// Counting the workflows does not catch that: the population is intact, it is the lookup that
+// stopped resolving. A key naming no workflow is a stale declaration, exactly like a `guards:`
+// glob that matches no file.
+const declaredWorkflows = new Set(workflowNames);
+for (const [table, keys] of [
+  ['CRITICAL_WORKFLOW_MARKERS', CRITICAL_WORKFLOW_MARKERS.keys()],
+  ['MODULAR_WORKFLOW_LINE_LIMITS', MODULAR_WORKFLOW_LINE_LIMITS.keys()],
+  ['MODULAR_WORKFLOW_PATH_LIMITS', MODULAR_WORKFLOW_PATH_LIMITS.keys()],
+  ['EXPLICIT_ONLY_WORKFLOWS', EXPLICIT_ONLY_WORKFLOWS.values()],
+]) {
+  for (const key of keys) {
+    if (declaredWorkflows.has(key)) continue;
+    failures.push(
+      `${table} has a row for "${key}", and .agent-workflows/${key}.md does not exist - `
+      + 'the workflow was renamed or removed, and everything that row enforces stopped applying silently',
+    );
+  }
+}
 
 for (const name of workflowNames) {
   const canonical = `.agent-workflows/${name}.md`;

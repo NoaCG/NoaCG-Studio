@@ -258,9 +258,24 @@ export function mechanismPath(fires) {
 export function validateAgainstTree(rule, root, files = []) {
   const problems = [];
   const mechanism = mechanismPath(rule.fires);
-  rule.carried = Boolean(mechanism && existsSync(path.join(root, mechanism)));
-  if (mechanism && !rule.carried) {
+  const mechanismFile = mechanism ? path.join(root, mechanism) : null;
+  const mechanismExists = Boolean(mechanismFile && existsSync(mechanismFile));
+  if (mechanism && !mechanismExists) {
     problems.push(`${rule.path}: fires ${rule.fires}, but ${mechanism} does not exist - land the mechanism first, or set fires: contract`);
+  }
+  // A CARRIED RULE IS DELETED FROM EVERY LOADED SURFACE, so "carried" has to be PROVEN and not
+  // assumed. It used to mean nothing more than "a file with that name exists", and the assumption
+  // behind it - that the mechanism prints the sentence through `rules.text(id)` - was never
+  // checked. On 2026-09-08 four rules written with `fires: test:<spec>` vanished from the
+  // directory contracts and from `.claude/rules/` because their specs pin the behaviour without
+  // ever printing the rule; they were found by diffing the store against the compiled contract,
+  // not by any gate (docs/handoffs/2026-09-08-a-model-contract.md). The proof is the call itself.
+  rule.carried = mechanismExists && readFileSync(mechanismFile, 'utf8').includes(`rules.text('${rule.id}')`);
+  if (mechanismExists && !rule.carried) {
+    problems.push(
+      `${rule.path}: fires ${rule.fires}, but ${mechanism} never prints the rule - it must call \`rules.text('${rule.id}')\`, ` +
+        'or the sentence disappears from the contracts without appearing anywhere else. Carry it there, or set fires: contract',
+    );
   }
   if (rule.record && !existsSync(path.join(root, rule.record))) {
     problems.push(`${rule.path}: record ${rule.record} does not exist`);

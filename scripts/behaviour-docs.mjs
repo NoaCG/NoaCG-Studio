@@ -24,6 +24,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { measured } from './measured.mjs';
+
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const WORDS = resolve(ROOT, 'src/templates/behaviours/words.json');
 const PAGE = resolve(ROOT, 'docs/SVG_AUTHORING.md');
@@ -99,6 +101,9 @@ export function render(page, words) {
 function main() {
   const mode = process.argv.includes('--write') ? 'write' : 'check';
   const words = JSON.parse(readFileSync(WORDS, 'utf8'));
+  // `_` is the shared header of the JSON rather than a behaviour, so it is not one of the entries
+  // this pins - the same exclusion `problems()` and `render()` make.
+  measured(Object.keys(words).filter((id) => id !== '_').length, 'behaviour words');
   const found = problems(words);
   if (found.length > 0) {
     console.error('behaviour-docs: the words disagree with themselves:');

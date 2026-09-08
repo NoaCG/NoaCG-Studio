@@ -25,6 +25,8 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { measured } from './measured.mjs';
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workflowDir = path.join(repoRoot, '.github', 'workflows');
 const actionDir = path.join(repoRoot, '.github', 'actions');
@@ -66,6 +68,7 @@ if (files.length === 0) {
   console.error(`No workflow files found in ${workflowDir} - expected at least one.`);
   process.exit(1);
 }
+measured(files.length, 'workflow files');
 
 // COMPOSITE ACTIONS COUNT TOO. `.github/actions/*/action.yml` is workflow code by another name -
 // the jobs that `uses:` one cannot run without it - and it was outside this gate until a step

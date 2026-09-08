@@ -26,6 +26,8 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { measured } from './measured.mjs';
+
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 /** `${something.toString()}` inside a template literal — the shape that ships the hazard. */
@@ -98,7 +100,11 @@ export function findViolations(files) {
 // path that never compares equal to `import.meta.url`, so the naive form is always false here and
 // silently relies on whatever fallback sits beside it.
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const violations = findViolations(sourceFiles(join(root, 'src')));
+  const files = sourceFiles(join(root, 'src'));
+  // The walk is the whole reach of this gate: an empty src/ tree, or one no longer holding .ts
+  // files, would pass it without a single body having been looked at.
+  measured(files.length, 'source files scanned');
+  const violations = findViolations(files);
   if (violations.length === 0) {
     console.log('[check:preview-serialization] ok - every serialized helper goes through serializeHelper');
     process.exit(0);

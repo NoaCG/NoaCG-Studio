@@ -24,6 +24,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { measured } from './measured.mjs';
 
 /** The checks whose answer is a fact about GitHub, not about this tree. */
 export const CHECK_IDS = ['org-actions-pr', 'repo-actions-pr', 'ruleset', 'required-checks', 'migration-token', 'land-label'];
@@ -36,8 +37,12 @@ export const CHECK_IDS = ['org-actions-pr', 'repo-actions-pr', 'ruleset', 'requi
  * the wording of a miss must be the command that fixes it rather than a description of the
  * problem.
  *
+ * `rows` rides along with the report because it is the only place the table's size is known, and
+ * the caller says it out loud (`measured`): the rows are hardcoded here, so an edit that emptied
+ * them would leave a report that judged nothing and still read as "everything is in place".
+ *
  * @param {Record<string, boolean|null>} facts
- * @returns {{ lines: string[], missing: string[], unknown: string[] }}
+ * @returns {{ lines: string[], missing: string[], unknown: string[], rows: number }}
  */
 export function preflightReport(facts = {}) {
   const rows = [
@@ -96,7 +101,7 @@ export function preflightReport(facts = {}) {
       lines.push(`           fix: ${row.fix}`);
     }
   }
-  return { lines, missing, unknown };
+  return { lines, missing, unknown, rows: rows.length };
 }
 
 /** `gh api` as JSON, or null when the call fails - a refusal is "could not read", never a crash. */
@@ -148,7 +153,10 @@ export function gather({ repo = 'NoaCG/NoaCG-Studio', rulesetName = 'main is lan
 
 function main(argv) {
   const facts = gather();
-  const { lines, missing, unknown } = preflightReport(facts);
+  const { lines, missing, unknown, rows } = preflightReport(facts);
+  // How many prerequisites were actually judged. This file never fails, so the count is the only
+  // thing standing between "everything is in place" and a table an edit emptied.
+  measured(rows, 'preflight rows');
   if (argv.includes('--json')) {
     process.stdout.write(`${JSON.stringify({ facts, missing, unknown }, null, 2)}\n`);
     return 0;

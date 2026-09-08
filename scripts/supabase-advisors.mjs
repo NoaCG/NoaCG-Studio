@@ -39,6 +39,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ambientEnv } from './read-dotenv.mjs';
+import { measured } from './measured.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const env = ambientEnv(root);
@@ -150,6 +151,13 @@ if (lints === null) {
   // the human-facing detail, which a hash of the message would not.
   const seen = new Map();
   for (const l of lints) seen.set(l.cache_key, { name: l.name, level: l.level, detail: l.detail });
+  measured.optional(
+    seen.size,
+    'advisor findings',
+    'A project the advisors have nothing to say about reports zero, and that is the answer this ' +
+      'check hopes for rather than a sign it stopped looking. The baseline count below is the ' +
+      'report that would notice a comparison against nothing.',
+  );
 
   if (updating) {
     const entries = {};
@@ -182,7 +190,19 @@ if (lints === null) {
       process.exitCode = 2;
     } else {
       const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
-      const accepted = new Set(Object.keys(baseline.entries ?? {}));
+      // THE KEY, NOT THE COUNT. An empty baseline is the state this project is trying to reach -
+      // fix every standing advisory, re-record, and `entries` is legitimately `{}` - so refusing
+      // a zero here would fail the gate for succeeding. What is never honest is `entries` having
+      // been renamed away, which would silently compare every live finding against nothing.
+      if (!baseline || typeof baseline.entries !== 'object' || baseline.entries === null) {
+        throw new Error(`${BASELINE} has no \`entries\` object - the baseline's shape changed, and every live finding would read as new against nothing.`);
+      }
+      const accepted = new Set(Object.keys(baseline.entries));
+      measured.optional(
+        accepted.size,
+        'accepted baseline findings',
+        'zero is honest once every standing advisory has been fixed and the baseline re-recorded; the shape check above is what makes a zero here mean "clean" rather than "renamed away".',
+      );
       const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
       const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
 

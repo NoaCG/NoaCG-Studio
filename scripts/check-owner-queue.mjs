@@ -29,6 +29,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { measured } from './measured.mjs';
 import { parseFrontmatter } from './owner-receipts.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
@@ -140,14 +141,27 @@ function main() {
     names = readdirSync(dir).filter((name) => name.endsWith('.md')).sort();
   } catch (error) {
     if (error.code === 'ENOENT') {
-      // An empty or missing queue is a real answer, not a failure - "no open item" is exactly
-      // what OWNER_QUEUE.md says the absence of a file means.
-      console.log(`check-owner-queue: OK - ${QUEUE_DIR} does not exist (nothing queued).`);
-      return 0;
+      // AN EMPTY QUEUE IS A REAL ANSWER; A MISSING DIRECTORY IS NOT. "No open item" is what
+      // OWNER_QUEUE.md says the absence of a FILE means - it says nothing about the absence of
+      // the directory, and treating the two the same is how a rename would leave this gate
+      // reporting OK forever over a queue nobody could file into any more.
+      console.error(`\ncheck-owner-queue: ${QUEUE_DIR} does not exist, so no queued item could be read.`);
+      console.error('Every observable change files an item there, and with the directory gone this gate would pass');
+      console.error('for as long as nobody looked. Restore it, or update QUEUE_DIR to where it moved.\n');
+      return 1;
     }
     console.error(`Cannot read ${QUEUE_DIR}: ${error.message}`);
     return 1;
   }
+
+  // The queue's CONTENTS may honestly be empty - the owner accepts items and they leave - so the
+  // count is reported without being refused. The directory check above is what makes a zero here
+  // mean "drained" rather than "the gate lost its subject".
+  measured.optional(
+    names.length,
+    'owner queue items',
+    'zero is honest when the queue has been drained: an accepted item is deleted, so an empty (but present) docs/acceptance/owner-queue/ means nothing is waiting on the owner.',
+  );
 
   const failures = [];
   for (const name of names) {
