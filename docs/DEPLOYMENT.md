@@ -85,6 +85,27 @@ The cost and capacity policy for the Pro account is
    - a **drift check** four times a day alerts when production does not contain the newest
      `main` commit older than 90 minutes - the belt for "no deployment was even created".
 
+   **Only a status about a real deployment starts a verification, and that filter is
+   load-bearing.** GitHub raises a production `deployment_status` for `post-land.yml`'s migrate
+   job as well, because that job declares `environment: production` - as does any workflow a
+   person dispatches with that environment. It lands about 25 seconds after the merge and says
+   nothing about Vercel. The job takes a status that came from `vercel[bot]` or that carries an
+   `environment_url`, which no bookkeeping status does; two conditions rather than one because
+   matching the bot's name alone would stop verification silently the day the deploy provider
+   changes name. Vercel's own "Deployment has completed" arrives 80-192 seconds later
+   (median 182 s over the 17 deploy-affecting landings of 2026-09-07/08), by which point the alias
+   is promoted and the live check passes within four seconds. Verifying on the earlier status
+   meant checking production before it had anything new to serve: 14 of those 17 landings went red
+   on a healthy production, which is issue #159 and the 13 before it. **The spread is the reason
+   the fix is not a longer window** - it straddles the 120 seconds the job waits, so the same
+   healthy deployment reds or greens on how fast that particular build ran. A failed migrate job
+   still reports itself, through post-land's own red run, which is the workflow that ran it.
+
+   When the live check does expire, the error says which of two things it saw: production pinned
+   to one older commit for the whole window (the alias is stuck), or production moving but not yet
+   there (something is still promoting - re-read `version.json` before acting). Telling those
+   apart used to need a person with `curl`.
+
    The drift check is a belt, not the alarm: it found the 2026-08-07 config refusal about seven
    hours after it started, because it runs four times a day and GitHub dispatches a schedule
    1-2 h late. So CI's **`Vercel accepted the commit`** job (`ci.yml`, `main` only) asks the
