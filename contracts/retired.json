@@ -1,0 +1,48 @@
+{
+  "v": 1,
+  "_about": "Mechanisms this repository has RETIRED. scripts/check-retired-names.mjs fails the build when a contract, a workflow or an agent definition still names one as an instruction. A sentence that names one as history passes only when it says so in its own words (retired, no longer, until <year>, used to, never). Add an entry in the same change that retires the mechanism, never later.",
+  "retired": [
+    {
+      "name": "safe-merge",
+      "pattern": "safe-merge(?!-preflight)",
+      "since": "2026-09-06",
+      "replacement": "the queue-merge workflow: `npm run queue:merge` puts the branch in GitHub's merge queue, and nothing but the queue writes `main`",
+      "why": "The manual landing procedure merged `main` on a laptop with `--ff-only` and pushed it; the ruleset now refuses every push to `main` that is not the merge queue's, so the procedure cannot run."
+    },
+    {
+      "name": "auto-merge.mjs as the lander",
+      "pattern": "auto-merge\\.mjs|`auto-merge`",
+      "since": "2026-09-06",
+      "replacement": "GitHub's merge queue runs `ci.yml` on the pull request and again on the merge group; a refusal is written on the pull request, and `scripts/land-watch.mjs` is the local watcher",
+      "why": "The laptop lander integrated, gated and pushed one branch at a time on the owner's machine and stopped when the lid closed. The queue does the same on GitHub's runners."
+    },
+    {
+      "name": "merge-order verdicts as a landing gate",
+      "pattern": "merge-order[^\\n]*`(clear|caution|hold)`|`(clear|caution|hold)`[^\\n]*merge-order",
+      "since": "2026-09-06",
+      "replacement": "order is queue order; `node scripts/merge-order.mjs` stays a read-only instrument for which unqueued branches collide with each other, and for a branch that contains another unlanded branch",
+      "why": "The verdict used to decide whether a landing could start and in what order. The queue lands pull requests in the order they were queued and bounces the one that conflicts with what landed."
+    },
+    {
+      "name": "the ordering hold",
+      "pattern": "held for <branch>|order-blocked|twelve-hour hold|written off with the reason",
+      "since": "2026-09-06",
+      "replacement": "nothing holds for another branch: a pull request that conflicts with what landed is marked conflicting and bounced to its own session",
+      "why": "The laptop lander parked a landing behind an unqueued branch that collided with it and wrote it off after twelve hours. The queue has no order to protect."
+    },
+    {
+      "name": "the laptop lander's flags",
+      "pattern": "--onto-red-main|--accept <kind>|--accept\\b",
+      "since": "2026-09-06",
+      "replacement": "`npm run queue:merge` takes `--unreviewed \"<reason>\"` and `--why \"<reason>\"` and nothing about gates; a conflict or a red run is written on the pull request",
+      "why": "The flags waived a laptop lander's refusal kinds. `add-merge` now names them as ignored."
+    },
+    {
+      "name": "a red main refusing landings",
+      "pattern": "red `?main`? refuses",
+      "since": "2026-09-06",
+      "replacement": "a red `main` answers itself: `ci.yml` re-runs the failed specs once, quarantines a flake through the queue and reverts a batch that stays red (`docs/VERIFICATION.md`)",
+      "why": "The laptop lander refused every landing while `main` was red, which stranded green branches for hours."
+    }
+  ]
+}

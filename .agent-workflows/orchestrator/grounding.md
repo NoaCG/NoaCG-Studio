@@ -27,11 +27,12 @@ It produces the wave table, so if the window later runs short the routing alread
 
 - `node scripts/worktree-activity.mjs` - every other worktree's uncommitted and unmerged files.
   This is the collision input, and how a "finished" session is caught still holding work.
-- `node scripts/merge-order.mjs` - the measured order for branches already ahead of `main`.
-- **The landing path's preconditions are whatever `node scripts/auto-merge.mjs --branch <b>
-  --dry-run` refuses** - run it for any branch a retry or landing is planned for, never recall them
-  from memory: they changed twice in a week (a branch with no worktree now lands through a
-  temporary one; a red `main` refuses everything). `incidents.md` "the landing path's two refusals".
+- `npm run jobs` - where every branch ahead of `main` stands: `QUEUED <id>` with its pull request,
+  `LANDED`, `LANDING FAILED` with the failed check copied from the pull request, or `not queued`.
+  **A refusal lives on the pull request** (`gh pr view <n>`), never in a local log; the kinds are in
+  `report.md`, and the queue's only preconditions are `CI gate` and `Reviewed` green on the tip.
+- `node scripts/merge-order.mjs` - which unqueued branches ahead of `main` collide with each other,
+  measured by a real three-way merge. A collision input, never a landing order: order is the queue's.
 - `git log --oneline -5`, `git branch --show-current`, `git status --porcelain=v1 --branch`.
 - `node scripts/owner-receipts.mjs` - every owner-raised task with its state and age. A STANDING
   ask (unstarted or advanced) is on the frontier above the backlog and the plan check refuses a plan
@@ -79,5 +80,4 @@ contract pulls that contract in too (a second file in the same area is then free
 reference images (name the path in the prompt), or a memory file browsed for background rather
 than consulted for one fact.
 
-Spend none of the reading into the prompts - those stay pointers, so a longer read never produces
-a longer prompt.
+Spend none of the reading into the prompts: they stay pointers, so a longer read never lengthens one.

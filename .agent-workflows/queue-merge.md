@@ -8,20 +8,20 @@ its turn comes, one branch at a time, gated on CI.
 
 Optional argument: another branch name. Read "Landing someone else's branch" before using it.
 
-## Why this exists rather than running safe-merge
+## Why queueing is a declaration
 
 Landing is serialized, not permissioned (root `AGENTS.md`, "Git"). But serialization alone left a
 real problem: **the queue knew a branch was landable long before its author knew it was finished.**
-A branch can be green, clean and `clear` while the session that owns it is still mid-conversation
-about what to do next - and nothing in a verdict can tell the difference.
+A branch can be green and clean while the session that owns it is still mid-conversation about
+what to do next - and nothing in a verdict can tell the difference.
 
 So the authority to land sits where the knowledge is. Queueing IS the declaration that the work is
 done, made by the only party who can make it. Nobody else queues your branch; you queue it when you
 mean it, and then it lands without you waiting for anything.
 
-That also removes the last reason to sit through a merge. `safe-merge` run by hand is outside the
-queue, races the other sessions, and costs a full re-verification every time it loses - five
-branches landing in a hundred minutes against a ten-minute gate meant a near coin-flip each time.
+Nobody merges by hand any more, either. Until 2026-09-06 a manual landing procedure existed for
+when the laptop queue could not do the job; the ruleset now refuses every push to `main` that is
+not the merge queue's, so that door is gone and `contracts/retired.json` says so.
 
 ## 1. Be finished
 
@@ -66,28 +66,27 @@ owner-queue walk filed for it - and every wave plan in between spent judgement r
   `note:` to say what this landing added, so the next session reads it rather than the diff.
 - **This branch serves none** - nothing to do; the command says so and passes.
 
-The landing preflight runs the same check and REFUSES a branch that a receipt names in `branch:` and
-that the branch does not touch. It never guesses from a branch name, so a receipt nobody marked
-`active` is invisible to it - which is the argument for marking one `active` when you pick it up.
+Nothing downstream runs this check again. The laptop lander used to refuse a branch that a receipt
+named in `branch:` and that the branch did not touch; the merge queue reads no receipts, so this
+command, run here, is the whole mechanism - which is the argument for marking a receipt `active`
+when you pick it up, and for answering it before you queue rather than after.
 
 ## 2. Look before you queue
 
-    node scripts/auto-merge.mjs --branch <branch> --dry-run
+    git fetch origin && git merge-tree --write-tree origin/main <branch>
 
-It runs the whole assessment - merge-order verdict, both worktrees clean, the merge preview - and
-stops before the first state change. Two minutes here saves a refusal later.
+A conflict with `main` is the one refusal you can see from here, and the queue only tells you after
+a CI run: a pull request that cannot merge sits outside the queue until its session resolves it.
+If the merge-tree reports conflicted paths, integrate `main` here, resolve with a consult, re-run
+the build, then queue. `node scripts/merge-order.mjs --branch <branch>` says which OTHER unqueued
+branches this one collides with - advisory, because order is the queue's: whichever lands second
+integrates `main` (owner ruling 2026-09-05: a merge question never reaches him).
 
-**If it refuses, read which kind it is.** The queue lands only what it can settle mechanically:
-
-- **`clear`** - queue it.
-- **`caution`** - queue it. The queue lands a plain caution in queue order and the later branch
-  integrates `main` (owner ruling 2026-09-05: a merge question never reaches him).
-- **`hold`** - the risk is large (five or more files, or a stacked branch) and THIS session settles
-  it, never a person: integrate `main` here, resolve with a consult, re-run the build, then queue;
-  or, once you have read the reasons, `--accept <kind>` records that per KIND - it never waves
-  through a different risk in the same verdict. `docs/JOB_RUNNER_PLAN.md` and the note beside
-  `SILENT_MERGE_FILES` in `scripts/merge-order.mjs` explain how to test whether a collision is real.
-- **a conflict integrating `main`** - resolve it here, commit, then queue.
+**A branch cut from another branch does not queue.** `merge-order.mjs --branch <branch>` reports
+when this branch CONTAINS another branch that has not landed, and exits 3. Queueing it would land
+that other session's commits without its declaration, and the queue cannot tell: the pull request
+is opened against `main` and carries both. Rebase onto `origin/main` first, or wait for that branch
+to land, then queue.
 
 ## 3. Queue it
 
@@ -162,29 +161,29 @@ pushed branch; no local worktree is part of the path.
 
 The local merge job (`scripts/land-watch.mjs`) only WATCHES the pull request, so `npm run jobs`
 prints, for every branch ahead of main, either `QUEUED <id>`, `not queued`, or a loud row saying
-the landing FAILED - with the lander's refusal, copied from the pull request. **The refusal is on
-the pull request** (`gh pr view <number>`): a conflict integrating `main`, a red run, no
-`noacg/reviewed` status, no verdict inside the cap. Fix it, run `/check`, and queue again:
+the landing FAILED - with the queue's refusal, copied from the pull request. **The refusal is on
+the pull request** (`gh pr view <number>`), and it is one of four kinds: a check red on the pull
+request (`CI gate` or `Reviewed`), a drop from the merge group (`CI gate` red on the temporary
+merge), a conflict with what landed, or no `noacg/reviewed` on a tip that moved after it was
+queued. A watcher reaching no verdict inside its cap is not a refusal; the store retries it once.
+Fix it, run `/check`, and queue again:
 
     npm run queue:merge
 
 `node scripts/jobs.mjs requeue <branch>` only puts the watcher back; it lands nothing by itself.
 "Not queued" never describes a branch that was queued.
 
-**`requeue` re-runs a declaration; `add-merge` makes one.** That is the whole difference, and it is
-why any session may run the first without a permission prompt while the second stays behind one
-(`docs/AGENT_WORKFLOWS.md`, "Permissions"). `requeue` takes a branch name and refuses every flag, it
-refuses a branch with no landing to re-run, it copies the dead job's own command so a `--accept` a
-person once weighed carries forward and none can be added, and it re-pins only over commits that
-are provably the previous landing's own integration of `main` - so a commit that arrived after the
-work was declared finished refuses and is sent back to `add-merge`, which only that branch's own
-session may run.
+**`requeue` re-arms a watcher; `add-merge` makes a declaration.** That is the whole difference, and
+it is why any session may run the first without a permission prompt while the second stays behind
+one (`docs/AGENT_WORKFLOWS.md`, "Permissions"). `requeue` takes a branch name and refuses every
+flag, it refuses a branch with no landing to re-run, and it re-arms the watcher on the pull request
+as it stands. A tip that moved after the declaration is refused by the pull request itself:
+`noacg/reviewed` was posted on the declared sha, so the new tip fails `Reviewed` until its own
+session runs `/check` and queues again through `add-merge`, which only that session may run.
 
-**A landing blocked by an unqueued branch is HELD, not failed.** Its row in the waiting list reads
-`held for <branch> to land or be queued`, and it releases itself the moment that blocker lands or is
-queued for landing - there is nothing to re-queue by hand. A hold nothing answers within twelve
-hours is written off with the reason on it, which is the point at which it is genuinely a person's
-call: only that blocker's own session can declare it finished.
+**Nothing is held for another branch.** The queue has no order to protect: pull requests land in
+the order they were queued, and the one that conflicts with what landed is marked conflicting and
+bounced to its own session, which resolves `main` in and queues again.
 
 **A landing nobody JUDGED is put back automatically, once, and you do not have to be there.** The
 runner sweeps for those on every poll (`node scripts/jobs.mjs adopt` asks for it now), and the row
@@ -192,9 +191,9 @@ then reads `QUEUED <id> (automatic retry of <id>, which reached no verdict)`. On
 qualify, and all three are the machine failing to answer rather than anything about the branch: the
 job was killed at its cap, its process vanished with the runner or the laptop, or the CI wait ended
 with no verdict (exit 5 - a run still going, only cancelled shells, no run at all, or a run whose
-jobs were killed by their own `timeout-minutes`). **Anything CI or the preflight actually decided is
-never retried** - a red gate, a conflict, a dirty tree, a red main. Retrying a verdict is how a
-queue lands work that was refused.
+jobs were killed by their own `timeout-minutes`). **Anything the queue actually decided is never
+retried** - a red check, a conflict with `main`. Retrying a verdict is how a queue lands work that
+was refused.
 
 This is not another session queueing your branch. The declaration was made when the branch was
 first queued and nothing about it has changed; the retry re-runs that declaration rather than making
@@ -202,13 +201,8 @@ a second one, and it re-runs the command VERBATIM, `--expect-sha` and all - so a
 up and pushed gets a refusal, not a landing. The mechanism exists because on 2026-09-03 two
 landings were killed at their cap with both owning sessions already finished, and since only a
 branch's own session may queue it, two green branches became unlandable. Then it spread: a branch
-still ahead of main with no landing queued makes `merge-order` refuse everything that collides with
-it, so one dead landing stranded four more branches inside an hour.
-
-**A branch moved by its own failed landing still satisfies its pin.** Every landing pushes an
-integrated commit before it gates, so one killed mid-gate leaves the tip one merge past the sha it
-was queued at. The pin allows exactly that shape - a merge whose other side is already in main -
-and nothing else, so real session work still refuses.
+still ahead of main with no landing queued used to make `merge-order` refuse everything that
+collided with it, so one dead landing stranded four more branches inside an hour.
 
 A landing that SUCCEEDED normally makes its branch vanish from this listing, which only shows what
 is ahead of main. So `LANDED <id>, and this branch is ahead of main AGAIN` means exactly what it

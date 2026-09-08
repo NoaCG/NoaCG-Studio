@@ -31,7 +31,7 @@ const DEFAULT_PROJECT_DOC_MAX_BYTES = 32 * 1024;
 // disable-model-invocation requirement below. `handoff` briefly joined while it removed its own
 // worktree; it no longer touches cleanup at all, so it left again rather than diluting what this
 // set means.
-const EXPLICIT_ONLY_WORKFLOWS = new Set(['safe-merge', 'cleanup-worktrees']);
+const EXPLICIT_ONLY_WORKFLOWS = new Set(['cleanup-worktrees']);
 // Short invocation aliases: <alias> => <canonical workflow>. An alias owns adapters in BOTH
 // tools, exactly as thin as a normal adapter, pointing at the target's canonical workflow -
 // so a shortcut can never grow a second copy of the procedure. Never alias a destructive
@@ -97,7 +97,7 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       // landing - both were paid for before this line existed.
       'node scripts/orchestrator-home.mjs',
       'the main checkout belongs to the landing queue',
-      'Never merge, and never push.',
+      'Never merge, and never push by hand.',
       'follow-on that was not planned is never launched',
       // A night wave that plans follow-ons and then goes to sleep has planned nothing: the loop
       // is the half that fires them. Entering it is automatic, and a quiet tick must stay quiet.
@@ -141,7 +141,7 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'node scripts/wave-plan-check.mjs',
       'node scripts/handoff-drain.mjs',
       'node scripts/owner-receipts.mjs',
-      'Landing authority belongs to the queue',
+      "Landing authority belongs to GitHub's merge queue",
       // Big prompts are the point: one branch, one gate, one landing instead of three.
       'A starting prompt is a MULTI-STEP ASSIGNMENT, and should be big.',
       // The whole workflow rests on this: it assigns work and does none of it, and it never
@@ -183,23 +183,6 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       // pinned handoff's own cleanup report, removed 2026-08-08.
       "Read, don't write.",
       'Never remove a worktree, and never offer to.',
-    ],
-  ],
-  [
-    'safe-merge',
-    [
-      'git pull --ff-only origin main',
-      'git merge --ff-only <branch>',
-      'git push origin main',
-      // The removal rule has exactly TWO carve-outs, both temporary worktrees this flow creates
-      // itself: one for a source branch that has none, and one for `main` when the root cannot
-      // host it (added 2026-08-04, after four runs improvised the second). Widening it further -
-      // to any worktree this run did not create - or letting a `--force` past the refusal, still
-      // has to edit this list to land, which is the whole point of pinning it here.
-      'never remove a worktree you did not create in this run',
-      'Remove ONLY the worktrees this run\n   created, and never the branch.',
-      'Never delete a branch,',
-      'Never use\n   `git merge --no-commit` as a preview',
     ],
   ],
   [

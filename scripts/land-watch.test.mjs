@@ -19,6 +19,14 @@ test('a merged pull request landed, at its merge commit or its head', () => {
   assert.deepEqual(watchVerdict(open({ state: 'MERGED', mergedAt: 'x' })), { verdict: 'landed', sha: 'abc' });
 });
 
+test('a conflicting pull request is a refusal even while its auto-merge request stands', () => {
+  const verdict = watchVerdict(open({ mergeable: 'CONFLICTING' }));
+  assert.equal(verdict.verdict, 'refused');
+  assert.match(verdict.reason, /conflicts with main/);
+  assert.deepEqual(watchVerdict(open({ mergeable: 'MERGEABLE' })), { verdict: 'waiting' });
+  assert.deepEqual(watchVerdict(open({ mergeable: 'UNKNOWN' })), { verdict: 'waiting' }, 'GitHub has not computed it yet');
+});
+
 test('auto-merge off without a merge is a refusal, naming the failed checks when there are any', () => {
   const checks = [{ name: 'CI gate', conclusion: 'FAILURE' }, { name: 'Build', conclusion: 'SUCCESS' }, { context: 'noacg/reviewed', state: 'SUCCESS' }];
   assert.deepEqual(watchVerdict(open({ autoMergeRequest: null }), checks), { verdict: 'refused', reason: 'CI gate failed on the pull request' });

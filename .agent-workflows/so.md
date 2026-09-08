@@ -1,8 +1,8 @@
 # so - second opinion
 
 Shared canonical procedure for the `so` workflow - invoked as `/so` in Claude Code, `$so` in
-Codex. Cross-references to other workflows below use their plain names (e.g. "the safe-merge
-workflow"); translate as `/safe-merge` in Claude Code, `$safe-merge` in Codex.
+Codex. Cross-references to other workflows below use their plain names (e.g. "the queue-merge
+workflow"); translate as `/queue-merge` in Claude Code, `$queue-merge` in Codex.
 
 An **independent second opinion** on work another session produced in **NoaCG Studio**: a plan,
 an implementation, a benchmark round, or a decision. This workflow runs in a FRESH session on
@@ -45,7 +45,7 @@ other session's chat transcript or any tool-private memory.
   edges, `docs/DESIGN_LANGUAGE.md` and `docs/GOALS.md` where taste or priority is in question,
   and the relevant `docs/` reference for the format it changes.
 - **The surroundings** - does the change collide with other in-flight worktrees
-  (`node scripts/worktree-activity.mjs`), and would landing it be expensive
+  (`node scripts/worktree-activity.mjs`), and does it conflict with another unqueued branch
   (`node scripts/merge-order.mjs`)?
 
 ## Judge
