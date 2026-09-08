@@ -165,6 +165,17 @@ locally, and `check-catalog-emit` confirms the metadata work changed no emitted 
   the studio and in Chromium, which is where the live-numbers gap came from. Local e2e was NOT
   run: the affected planner escalates this diff to the full suite, nine shards of ~12 minutes on a
   RAM-bound laptop, so it went to CI, which does strictly more on a clean checkout.
+
+  **Which jobs ran, since a colour is not a verdict.** Run `34285254590` (workflow_dispatch, so a
+  FULL plan) on the first source state: Build, Catalog calibration and all nine `E2E n/9 (full)`
+  shards green, Factory gates red on the taxonomy assertion - that is the failure written up two
+  sections above, and it is the only thing that has gone red on this branch. Run `34287962005`
+  after the fix: Factory gates, Build, Catalog calibration, nine E2E shards, Combined E2E report
+  and CI gate all green. The final run is named below.
+
+  One thing to know if you read the run list: the first two pushes each cancelled the run before
+  them through the concurrency group, so two runs show `cancelled`. Those are not verdicts. Every
+  delta on this branch has a run that FINISHED over it.
 - `taste: not applicable` - nothing here moves what a graphic looks like at rest. The change adds
   an input-only hidden holder, one field in the SPX definition, and a timeScale on a tween; the
   strip's geometry, type and colour are untouched, and `check-catalog-emit` confirms every
