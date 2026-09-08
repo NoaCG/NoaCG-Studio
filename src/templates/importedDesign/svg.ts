@@ -2042,9 +2042,12 @@ function svgMovingBox(rest, box) {
  *  side, and the bound is the NEARER of its two margins so the offset the designer drew survives
  *  the growth instead of being flattened onto the frame's centre.
  *
- *  The resting reading is optional for one caller only: svgGrowDir asks this while it is
- *  still DECIDING which way the panel grows, which is what settles who the followers are. Every caller that grows - or offers height to the fit - passes it, so the
- *  offer and the apply read the same number by construction. */
+ *  The resting reading is optional for one caller only: svgGrowDir asks this while it is still
+ *  DECIDING which way the panel grows, which is what settles who the followers are. Every caller
+ *  that grows - or offers height to the fit - passes it, so the offer and the apply read one law
+ *  rather than two. They read it at different moments on purpose: the offer at rest, before any
+ *  rule has grown (growSvgLayout), and the apply live, so a rule running after another has moved
+ *  these layers sees where they now are. */
 function svgGrowRoom(rule, el, frame, dir, rest) {
   var box = svgMovingBox(rest, el.getBoundingClientRect());
   if (dir === 0) {
@@ -2522,8 +2525,23 @@ function svgOfferHeights() {
     if (!el || !rest) continue;
     var most = svgGrowRoom(rule, el, frame, rest.dir, rest);
     var texts = rest.texts.length ? rest.texts : svgLinesInside(el);
-    for (var i = 0; i < texts.length; i++) {
-      svgFitExtraH[texts[i].id] = most / svgUserScale(texts[i]);
+    // THE PANEL'S GROWTH IS ONE POT, AND THE BLOCKS INSIDE IT SHARE. Offered whole to each of
+    // them, two wrapping blocks in one panel can between them wrap into twice the height the
+    // panel will ever have - and the apply can then only pay each of them half of what it
+    // spent, which is the second line of a name printing over the role under it. The pot is
+    // split evenly because nothing at this point knows who will need it: the offer is read
+    // BEFORE the fit, deliberately (one measure, one fit, one apply), so a share by need would
+    // be a measurement of an answer that does not exist yet. One block in a panel - every board
+    // and every lower third in the corpus - is the whole pot, exactly as before.
+    //
+    // A PLACED line is not a sharer and is offered nothing: its room is a slot with no height
+    // (measureSvgRoom), it is one line filled and then shrunk, and it can neither claim the
+    // growth (svgBlockExtras) nor wrap into it.
+    var sharers = 0;
+    for (var i = 0; i < texts.length; i++) if (!svgFitPlaced(texts[i])) sharers++;
+    var each = sharers > 0 ? most / sharers : 0;
+    for (var j = 0; j < texts.length; j++) {
+      svgFitExtraH[texts[j].id] = svgFitPlaced(texts[j]) ? 0 : each / svgUserScale(texts[j]);
     }
   }
 }
