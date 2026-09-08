@@ -41,7 +41,8 @@ same change:
 npm run test:e2e:affected
 ```
 
-That maps your changed files to the specs that cover them, so you do not have to run all 149.
+That maps your changed files to the specs that cover them, so you do not have to run the whole
+suite.
 
 ## What good looks like here
 
