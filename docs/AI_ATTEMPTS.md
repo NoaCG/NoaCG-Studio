@@ -921,6 +921,34 @@ is a fair blind sheet.
 **RETRY WHEN** the size floor is ruled on. Re-running these nine again before that buys the same two
 refusals; re-running the full 21 buys back the frames the last round lost, and costs $1.44.
 
+### Scaling the legibility floor by how long the string is
+**2026-09-08 · killed by an adversarial read BEFORE it was written · no tokens spent on building
+it.** When the owner ruled the 50px floor should become type-aware, the first design considered was
+to key it on the text's shape rather than on the graphic: a one-to-three-word strap gets the full
+floor, a longer string gets less, because "catching a name is a different reading task from reading
+a sentence". It needs no table, works on a typeless graphic and an imported SVG, and explains itself
+to a model in one sentence. Three hostile reviewers were asked to break each candidate design, and
+this one came back FATAL on the first lens.
+
+**The premise is inverted.** A quiz question is authored smaller than a name strap because it must
+FIT, not because it may be less legible - and reading a sentence demands MORE legibility per glyph
+than catching a name, since the viewer tracks across it instead of taking it in at one fixation.
+
+**The case that proves it** is the one such a rule exempts first: `al06`, a civil-protection alert
+whose hazard line "Chemical release - industrial estate" is four words, authored at 64px with the
+comment "the loudest text in the pack". Under a length-scaled floor it classes as READ and drops
+from 49.68px to 19.98px, so an evacuation alert authored at 20px would emit no size finding at all.
+All 14 shipped alerts carry a 4+ word headline, so the rule cannot fire on that category at any
+size. Two more escapes came with it: a flat board where every line ties for primary, and the house
+tracked-caps names (`lt33` sets a person's name at `letter-spacing: 0.22em`), 24 designs whose
+largest line would class as a label.
+
+**What shipped instead** keys on READING TIME per category, which is `typeFloor.ts`'s own axis -
+`src/model/designRules.ts` carries the bands and this reasoning beside them.
+**RETRY WHEN** never for the floor. The general lesson is worth more than the instance: when a rule
+is about legibility, check which direction the physics runs before keying it on convenience. The
+proposal was mine and it sounded right for a day.
+
 ### Teaching the free-form coder its structure spine by example
 **Through 2026-07-17 · every result converted the moment a `-box` class was injected · FIXED by
 naming the contract.** The coder followed the authoring grammar perfectly and `parseTimeline` read

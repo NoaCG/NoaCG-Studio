@@ -137,6 +137,20 @@ export function typeFloorFor(category: string | null | undefined): number {
  *
  * AN UNLISTED CATEGORY TAKES THE CARD BAND, never an exemption - the same doctrine `typeFloor.ts`
  * states as "a new category must be readable before it is special". Nothing here may return null.
+ *
+ * WHY THIS IS NOT KEYED ON HOW LONG THE STRING IS, which is the first idea anyone has here and was
+ * the one this change started from. The reasoning that kills it: a quiz question is authored
+ * smaller than a name strap because it must FIT, not because it may be less legible - and
+ * READING A SENTENCE DEMANDS MORE LEGIBILITY PER GLYPH THAN CATCHING A NAME, not less, because the
+ * viewer must track across it rather than take it in at one fixation. A floor that drops as the
+ * string grows has the physics backwards.
+ *
+ * It is not a theoretical objection. Scaling the floor by word count drops `al06` - a
+ * civil-protection alert whose hazard line "Chemical release - industrial estate" is four words,
+ * authored at 64px and commented "the loudest text in the pack" - from a 49.68px floor to 19.98px,
+ * and every one of the 14 shipped alerts has a 4+ word headline. The category with the strongest
+ * claim to a large floor is the one such a rule exempts first. Measured 2026-09-08 by an
+ * adversarial read of the proposal, before it was written.
  */
 export const PERSISTENT_CATEGORIES: readonly string[] = [
   'corner-bug', 'ticker', 'audience', 'infographic', 'esports-score', 'public-info', 'scoreboard',
