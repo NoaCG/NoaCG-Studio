@@ -18,16 +18,20 @@ Be concise with all of your responses.
 
 ## What this is
 
-**NoaCG Studio** - an **AI-assisted, multi-platform** browser tool for creating modern, premium
+**NoaCG Studio** - a **free, open source** browser tool for creating modern, high-production-value
 HTML broadcast graphics and exporting them to **many broadcast/streaming environments**
-("anything-goes export": SPX Graphics, CasparCG, OGraf, OBS/vMix overlays today; more over time).
-For TV channels, streamers, organizations and universities, technical and non-technical users alike
-- it is used in teaching, but it is a production tool, not a code tutorial.
+("anything-goes export": OGraf, CasparCG, SPX Graphics, OBS/vMix overlays today; more over time).
+A graphic comes from a template, a description, the user's own SVG artwork, or a coding agent
+through the NoaCG CLI. For TV channels, streamers, organizations and universities, technical and
+non-technical users alike - it is used in teaching, but it is a production tool, not a code
+tutorial.
 
-**Free and open source (AGPL-3.0), with no paid surface and none planned.** Everything the product
-does is free to use and to self-host, hosted AI included - it is subsidised by the project rather
-than sold. The goal is users and adoption, and the ruling that settled it is in
-`docs/OWNER_RULINGS.md`.
+**It competes on accessibility: free and open source (AGPL-3.0), with no paid surface and none
+planned** (owner, 2026-09-07). Everything the product does is free to use and to self-host, hosted
+AI included - it is subsidised by the project rather than sold. The goal is users and adoption, and
+the ruling that settled it is in `docs/OWNER_RULINGS.md`. **OGraf**, the EBU's open format, is the
+interchange and playout contract the product is heading into (`docs/GOALS.md` "OGraf-first"). What
+the public page may claim about any of this is graded, row by row, in `docs/PROMISE_AUDIT.md`.
 
 Brand: dark control-room, one amber "on-air" accent, restrained glow. `NoaCG-Brand-Kit/BRAND-MANUAL.md`
 owns the palette and records which shipped typefaces diverge from it, and why.

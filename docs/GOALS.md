@@ -69,10 +69,12 @@ document that happens to satisfy the SPX contract. SPX is an adapter and the str
 OGraf is the canonical interchange and playout contract (`docs/OGRAF_FIRST_REVIEW.md`).
 
 ### Operating principles
+- **NoaCG competes on accessibility** (owner, 2026-09-07; the ruling is `docs/OWNER_RULINGS.md`).
+  The landing page says so first, and what it may claim is graded in **`docs/PROMISE_AUDIT.md`**.
 - **Free forever, all of it.** Creating, editing, exporting, controlling, self-hosting. No "core".
 - **No paid surface, and none planned** (owner, 2026-09-07). Hosted AI for users who will not
   bring their own key is **subsidised by the project, not sold**, and bring-your-own-key is free
-  as it always was.
+  as it always was. Lite / Pro / BYO are AI tiers about who runs the model, never editions.
 - **Users, not revenue.** Money is a later consequence of a large, happy user base.
 - **No sign-in for its own sake.** An account is asked for only where it *buys* something.
 
@@ -173,6 +175,12 @@ worked example). **The LADDER below is what stays parked** - import, foreign-pac
 Server API facade and outreach are each a NEW surface rather than a contract honoured in an
 existing one. They are ORDERED after the push rather than blocked by it - owner 2026-09-03: a date is a forecast of when work matters, never permission to wait; the test to start is a clear vision and no fire burning.
 
+**The public statement of this direction is the landing page's `#ograf` section (2026-09-08).**
+What is built is on solid cards - export, the six starters, reading a stranger's package through
+the CLI (`src/export/targets/ografImport.ts`, `src/control/ografContract.ts`) - and the three
+ladder rungs below it are dashed cards marked as direction. When a rung lands, its card turns
+solid in the same commit, and its row in `docs/PROMISE_AUDIT.md` changes grade first.
+
 - [ ] CasparCG Stage 1 accepted on real hardware (owner-queue, 2026-08-25)
 - [ ] GDD alignment: emit standard `gddType`, honest `stepCount` 0/-1, one step-walk
 - [ ] the interop suite: scripted external-renderer round + foreign-fixture corpus
@@ -205,7 +213,11 @@ hosts their strict network blocks. Answer it when they report it.
 measured 25-cell round: all airable, skill stays contract-only (`benchmarks/agent/rounds/
 2026-08-22/VERDICT.md`). **Programme P5**; the direction pool is `docs/backlog/cli-roadmap.md`.
 
-- [ ] **Publish** - `npm publish` of `noacg`, the marketplace entry live. Owner's call.
+- [ ] **Publish - past `main`, so the owner's.** `@noacg/cli` 0.3.0 is on npm (published by hand,
+      2026-09-05) and the marketplace entry is live. `npm run release:cli` is the road for every
+      later version and a session may run it (owner, 2026-09-05, `docs/AGENT_CLI.md` "Releasing
+      to npm"), but it cannot publish until the owner adds the trusted publisher on npmjs.com -
+      **needs: account**. Until then nothing publishes by hand; a failed run waits for him.
 - [ ] **Agent-authored machines - the owner gate is armed.** Decide whether the skill blesses an
       authored machine when no type fits, and what extra validation that path needs.
 - [ ] **What the funded tiers can borrow** - diff the round's winning cells against Lite/Pro.

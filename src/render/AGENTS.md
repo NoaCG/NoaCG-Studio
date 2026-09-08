@@ -48,7 +48,8 @@ measure, buildManifest, config) may use anything the app uses.
   frame grid. Imported templates without builder globals only render with outMode 'none'.
 - **limits.ts** - RENDER_LIMITS tiers (anonymous/free/paid) + RENDER_CONFIG: every
   configurable number lives here; UI checks are UX, api/ re-validates authoritatively.
-  `resolveTier()` is the single seam a future paid tier changes. Every tier number is
+  `resolveTier()` is the single seam a plan row's `render_tier` enters through; the `paid` name
+  is a cap table for grants, not a product - NoaCG sells nothing (`docs/OWNER_RULINGS.md`). Every tier number is
   PER PRINCIPAL and is only checked once a request is parsed; the flood guards in front of
   them are `RENDER_CONFIG.startRateLimit` (the burst gate, api/_lib/rateLimit.ts) and
   `RENDER_CONFIG.globalConcurrency` (the fleet ceiling, api/_lib/admission.ts), both with

@@ -119,15 +119,16 @@ lives in process memory (dev/self-host).
 
 ### Tiers & limits (src/render/limits.ts — every number lives there)
 
-| | anonymous | free (signed in) | paid (defined, not yet reachable) |
+| | anonymous | free (signed in) | paid (the widest cap table; a grant, never a purchase) |
 |---|---|---|---|
 | formats | mp4, webm, png-still | + png-sequence, prores4444 | all |
 | max output / fps | 1920×1080 / 30 | 1920×1080 / 60 | 4096×2304 / 60 |
 | max duration | 15 s | 60 s (prores/seq 30 s) | 300 s |
 | concurrent / hour / day | 1 / 2 / 6 | 2 / 10 / 40 | 4 / 30 / 150 |
 
-Client checks are UX; the server re-validates everything. Introducing a paid tier =
-changing `resolveTier()` to read an entitlements source; nothing else moves.
+Client checks are UX; the server re-validates everything. A plan row's `render_tier` reaches
+`resolveTier()` through the entitlements resolver; nothing is sold, and no billing is planned
+(owner, 2026-09-07, `docs/OWNER_RULINGS.md`).
 
 ### Flood protection: three layers, three different jobs
 

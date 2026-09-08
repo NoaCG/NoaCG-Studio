@@ -44,22 +44,39 @@ test('the landing CTA opens the wizard even for a visitor with work in progress'
   await expect(page.locator('iframe.preview-frame')).toBeVisible();
 });
 
-test('the landing says the two things that used to be invisible', async ({ page }) => {
-  // Two shipped capabilities the page previously never mentioned (a capability nobody can
-  // discover does not exist): SVG import as THE way to bring your own graphic in, and the
-  // agent door — coding agents making NoaCG graphics through the published @noacg/cli.
+test('the landing says the four things a stranger has to meet', async ({ page }) => {
+  // The four claims docs/PROMISE_AUDIT.md says the page must make early and plainly: free and
+  // open source, your own artwork becomes fields and controls, a coding agent can drive it, and
+  // OGraf is where it is going. A capability nobody can discover does not exist, and a claim
+  // without a row in the audit is not allowed on the page.
   await page.goto('/');
 
-  // The import card leads with SVG and links to the authoring guide.
-  const importCard = page.locator('.way', { hasText: 'Import your own graphic' });
+  // Free and open source, before the product tour, with the licence named.
+  const free = page.locator('#free');
+  await expect(free).toContainText('AGPL-3.0');
+  await expect(page.locator('.hero .lede')).toContainText('free and open source');
+
+  // The artwork card leads with SVG and links to the authoring guide.
+  const importCard = page.locator('.way', { hasText: 'Bring your own artwork' });
   await expect(importCard).toContainText('SVG');
   await expect(importCard.locator('a[href="/docs#svg"]')).toHaveCount(1);
 
-  // The agent-door section shows the real, installable command — never a mocked terminal.
+  // The agent-door section shows the real, installable command - never a mocked terminal.
   const agents = page.locator('#agents');
   await expect(agents).toContainText('Claude Code');
   await expect(agents).toContainText('npx @noacg/cli');
   await expect(agents.locator('a[href="/docs#claude-code"]')).toHaveCount(1);
+
+  // OGraf has its own section, reachable from the nav, linking the starters page, and every
+  // direction card is marked as direction rather than shown as shipped. The number of dashed
+  // cards is not pinned: a card turns solid in the commit that lands its rung (docs/GOALS.md).
+  const ograf = page.locator('#ograf');
+  await expect(page.locator('header nav a[href="#ograf"]')).toHaveCount(1);
+  await expect(ograf.locator('a[href="/ograf"]')).toHaveCount(1);
+  const planned = await ograf.locator('.feat.planned').count();
+  expect(planned).toBeGreaterThan(0);
+  await expect(ograf.locator('.feat.planned .soon')).toHaveCount(planned);
+  await expect(ograf.locator('.feat:not(.planned) .soon')).toHaveCount(0);
 
   // And the docs home is reachable from the page chrome.
   await expect(page.locator('header nav a[href="/docs"]')).toHaveCount(1);

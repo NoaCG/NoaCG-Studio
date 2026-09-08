@@ -5,9 +5,13 @@
 // checks are UX; the server always re-validates against the same table.
 //
 // Tiers: anonymous visitors get the basic formats with strict caps; signed-in users get
-// the full format set with sensible free limits; 'paid' is fully defined but unreachable
-// in v1 — introducing billing later means changing resolveTier() to read an entitlements
-// table, nothing else moves.
+// the full format set with sensible free limits; 'paid' is the widest cap table, reachable only
+// through a plan row whose render_tier names it - assigned by an admin, or auto-assigned by
+// e-mail domain (migration 0045) - for a school grant or a heavy-use exception. NoaCG sells
+// nothing and no billing is planned (docs/OWNER_RULINGS.md, 2026-09-07). The tier's name is
+// wrong for what it is; renaming it touches RenderTier, the check constraints in 0007 and
+// 0018, and AiTaskTier in api/_lib/aiTaskRegistry.ts with one migration, so it waits for a
+// change of its own.
 
 import {
   RENDER_FORMATS,
@@ -72,8 +76,8 @@ export const RENDER_LIMITS: Record<RenderTier, TierCaps> = {
   },
 };
 
-/** Formats that require at least a signed-in account (ProRes stays gated so a future
- *  paid tier can take it over without UI rework). */
+/** Formats that require at least a signed-in account (ProRes and the sequences cost real
+ *  compute, so an anonymous IP hash does not get them). */
 export function formatNeedsSignIn(format: RenderFormatId): boolean {
   return !RENDER_LIMITS.anonymous.formats.includes(format);
 }
@@ -219,7 +223,7 @@ export function validateRenderRequest(
     issues.push(
       tier === 'anonymous' && formatNeedsSignIn(format)
         ? { code: 'format-signin', message: `${RENDER_FORMATS[format].label} requires signing in.` }
-        : { code: 'format-tier', message: `${RENDER_FORMATS[format].label} is not available on your plan.` },
+        : { code: 'format-tier', message: `${RENDER_FORMATS[format].label} is not enabled for this account.` },
     );
   }
 
