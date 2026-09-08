@@ -17,9 +17,10 @@ one was found by a person reading a log.
 catalog gates the discovery cannot see, two compiler steps and 17 validators.
 
 Of the 34 check entry files: **8 red** on an empty subject, **21 green**, **5 declared reporters**
-that cannot fail at all. Only three gates in the whole tree carried a non-emptiness assertion
-before this branch - `check-workflows.mjs`, `cli/scripts/build-skill.mjs`, and the three catalog
-gates repaired the same night. Where a gate was red it was almost always red by accident: a
+that cannot fail at all. Five gates in the whole tree carried a non-emptiness assertion before this
+branch: `check-workflows.mjs` ("a run that validates nothing must say so loudly rather than exit
+0"), `cli/scripts/build-skill.mjs`, and the three catalog gates repaired the same night. Where a
+gate was red it was almost always red by accident: a
 committed baseline compared in both directions happens to force a comparison against a non-empty
 set. That is a side effect of the baseline design, not a floor anybody chose.
 
@@ -48,8 +49,11 @@ them, and `check:gate-coverage` never audits them.
 `scripts/measured.mjs` and three enforcement points around it, all beside `scripts/gates.mjs` where
 the discovery they judge lives.
 
-1. **In the gate.** `measured(n, subject)` prints `[measured] N subject` and exits 1 when the count
-   is zero, whoever ran the gate - the build, a workflow, or a person at a prompt. That placement is
+1. **In the gate.** `measured(n, subject)` prints `[measured] N subject` and fails the gate with
+   exit 1 when the count is zero - it sets `process.exitCode` and throws rather than calling
+   `process.exit()`, so a caller that swallows the throw still fails and no in-flight handle trips
+   the libuv assertion `check-ograf-schema.mjs` documents. It fires whoever ran the gate: the build,
+   a workflow, or a person at a prompt. That placement is
    deliberate and it is the finding above: a rule enforced only by the runner would not have covered
    `type-floor.mjs`. `measured.optional(n, subject, why)` is the escape hatch, and `why` must be a
    sentence of at least 20 characters saying when zero is honest.
@@ -211,6 +215,24 @@ to be async.
   `team_join`, `team_production_save`, `team_rotate_code`) plus two `unindexed_foreign_keys` on
   `team_productions`. Pre-existing, unrelated to this branch, and somebody has to decide whether
   they are real rather than bank them.
+
+## `/check`
+
+`review: delegated` (code-review at level `high`, returned into this session, scope-checked against
+this worktree's branch - five findings, five fixed, above). `simplify: inline` (the skill returned
+fan-out instructions, so the leg ran here over the same diff - two cleanups). `verify: build green`.
+`taste: not applicable` - nothing here can move what a graphic looks like.
+
+**`test:e2e:affected` was NOT run on this laptop, deliberately.** The change touches
+`scripts/e2e-affected.mjs`, which is in `SUITE_CRITICAL_SCRIPTS`, so the planner escalates to the
+FULL suite - `core/unmapped change detected - running the FULL suite (53 changed files)`, 1289
+tests plus the catalog suite. That is browser work on a RAM-bound machine that the queue exists to
+serialize, and CI runs it on push, which is where the pre-merge gate belongs. Its result is read
+before this branch queues.
+
+Running the planner did prove one thing worth having, in the exact command CI uses:
+`node scripts/e2e-affected.mjs --json` prints `[measured] 149 e2e spec files on disk` on stderr and
+a single clean JSON document on stdout, which `JSON.parse` still accepts.
 
 ## Pointers
 
