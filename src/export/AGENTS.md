@@ -110,8 +110,8 @@ export-time reflow, stretching, or cropping.
   bundled (`inlineAssets`, because the package is one file). **It carried neither until
   2026-09-04**, so the standalone panel could not pair with a CasparCG package for ANY graphic -
   the file it looked for was not in the zip. That read as an imported-design defect because the
-  imported board was measured against a catalog graphic exported to a DIFFERENT target
-  (docs/backlog/exported-panel-does-not-pair-with-an-imported-design.md). A CasparCG server drives
+  imported board was measured against a catalog graphic exported to a DIFFERENT target; commit
+  3ed7793a carries both the correction and the fix. A CasparCG server drives
   through its own client and needs none of this; the panel is what a room falls back to when the
   playout machine is not there, which is the whole reason the package carries it.
 - **targets/ografSchema.ts** - THE CONFORMANCE GATE, and the reason "we export to the EBU's open

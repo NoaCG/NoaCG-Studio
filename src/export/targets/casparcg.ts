@@ -9,8 +9,10 @@
 // its own client and needs none of that — but the package is also what a room falls back to when
 // the playout machine or the network is gone, and served over one http address in one browser
 // the panel is then the only operator surface left. It was missing until 2026-09-04, which made
-// the standalone panel unreachable from a CasparCG package for EVERY graphic, imported or catalog
-// (docs/backlog/exported-panel-does-not-pair-with-an-imported-design.md).
+// the standalone panel unreachable from a CasparCG package for EVERY graphic, imported or catalog.
+// It was first written up as an imported-design defect, because the imported board was measured
+// against a catalog graphic exported to a DIFFERENT target; commit 3ed7793a carries both the
+// correction and the fix.
 
 import JSZip from 'jszip';
 import type { SpxTemplate } from '../../model/types';

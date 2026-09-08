@@ -331,8 +331,8 @@ test('imported score board: NEW GAME zeroes the scores on the EXPORTED controlle
   // THE THIRD OPERATOR SURFACE IS DRIVEN BY ITS OWN WALK, below ("the CasparCG package's
   // standalone panel drives the imported score board"). It was withdrawn when this test was
   // written, because the panel never paired: the CasparCG package did not contain one, which
-  // read as a pairing defect on imported artwork and was neither
-  // (docs/backlog/exported-panel-does-not-pair-with-an-imported-design.md).
+  // read as a pairing defect on imported artwork and was neither. The section below tells the
+  // whole story.
 
   await ctl.close();
   await air.close();
@@ -1362,7 +1362,8 @@ test('imported board: the EXPORTED CONTROLLER carries the same warning, in the s
 // them was a control panel, so the panel a student went looking for was not in the zip. Measured
 // as "an imported design's panel does not pair", which it was not - the same target failed a
 // catalog graphic identically, and the same imported board paired immediately out of the SPX
-// package (docs/backlog/exported-panel-does-not-pair-with-an-imported-design.md).
+// package. The design and the target had moved together, so the difference could be attributed to
+// either; commit 3ed7793a carries the four-cell measurement that separated them, and the fix.
 //
 // Both boards are walked, because "it pairs" is not the claim - the claim is that every verb the
 // student needs arrives at the graphic. A test that only proves pairing proves the class can see
