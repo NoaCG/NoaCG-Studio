@@ -52,3 +52,6 @@ Measured 2026-09-01 on `claude/a-coherence-round` after merging `main`: `wc -l d
 `docs/README.md` and `.agent-workflows/orchestrator.md`. The 2026-08-30 round's own commit
 `79d01415` recorded the same defect at 460 lines and moved 104 lines of shipped work to
 `GOALS_ARCHIVE.md` without closing the gap.
+
+## Trend
+- 2026-09-08: **284 lines** against the ~200 cap, up from 212 after the 2026-09-01 condense. The file drifted back by 72 lines in a week, which is precisely what step 3 exists to stop; steps 1 and 2 have now been done twice and held for days each time. Step 3 is no longer optional maintenance - it is the only part that has never been tried

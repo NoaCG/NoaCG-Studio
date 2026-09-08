@@ -54,3 +54,6 @@ A build gate lands alone (AGENTS.md, Git), so whichever shape wins is its own br
 - `docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md` - how the drift reached four
   cancelled runs and, through them, a misfiled issue and two dead landings.
 - `scripts/e2e-durations.mjs` header - why the table exists and how a refresh is meant to happen.
+
+## Trend
+- 2026-09-08: table recorded 2026-09-04 from run 33905531739 - 147 specs, 102.8 min, 2 spec files unmeasured (`library-productions.spec.ts`, `wizard-brand.spec.ts`), overhead 0.5 min/job at p90. Four days old and materially accurate, so the leak is slow this week; the mechanism that lets it drift is untouched

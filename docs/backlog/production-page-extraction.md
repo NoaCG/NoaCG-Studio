@@ -65,3 +65,4 @@ layer.
 
 - 2026-08-28: 2,968 lines, 1 export, 77 hooks (30 `useState`), 66 commits/month
 - 2026-08-28, after phase 0: 2,541 lines, 4 exports across 4 files, 77 hooks (30 `useState`)
+- 2026-09-08: 2,635 lines, 1 export, 66 hooks (31 `useState`), 43 commits/month. Regained 94 lines since phase 0 and churn nearly halved; still one export and one scope
