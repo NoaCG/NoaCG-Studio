@@ -2,7 +2,8 @@ import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { settleDurableWrites } from './_durable';
 
-// IMPORTING UNDER A NAME THE LIBRARY ALREADY HOLDS (docs/handoffs/2026-09-08-g-import-name-collision.md).
+// IMPORTING UNDER A NAME THE LIBRARY ALREADY HOLDS
+// (docs/acceptance/owner-queue/2026-09-08-importing-your-artwork-twice-keeps-one-graphic.md).
 //
 // The student sequence this protects: build a production on an imported graphic, iterate on the
 // artwork in Illustrator, import it again under the name you naturally reuse. Before 2026-09-08

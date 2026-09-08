@@ -50,10 +50,14 @@ I did not make it ask every time. The door you press already confirms on every p
 sentence goes there and costs an extra click to nobody. If you meant a genuinely new graphic, the
 dialog says so too: cancel and give it its own name in the field one line above the door.
 
-Two things I deliberately left alone, so you can see them and rule differently:
+Three things I deliberately left alone, so you can see them and rule differently. All three are
+written up in `docs/backlog/two-doors-still-mint-a-twin-under-a-taken-name.md`:
 
 - The plain **Save** dialog (Ctrl+S on an unsaved graphic) still mints a twin under a taken name,
   with no warning at all. Same defect, a door I did not reproduce tonight.
+- The **kit / Pro package** save does too, and it pools straight into a production afterwards, so
+  running the same kit into the same production twice reproduces the exact shape I fixed.
 - A library that ALREADY holds twins from before today keeps them. The newest one wins from now
   on, so later saves converge on one record - the stale one stays until somebody deletes it. Home
-  shows a date on each row, which is how you tell them apart.
+  shows a date on each row, which is how you tell them apart. The one case where that tie-break
+  can be wrong is a production pooling the OLDER twin; closing the two doors above removes it.

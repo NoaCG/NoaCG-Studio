@@ -70,7 +70,7 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
 import NewGraphicButton from '../NewGraphicButton';
 import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
-import { graphicById, graphicHoldingName, loadGraphics } from '../../model/library';
+import { graphicById, graphicHoldingName, graphicNames } from '../../model/library';
 import WizardConfirm, { wizardConfirmOpen } from './WizardConfirm';
 import { recordLiteOutcome } from '../../ai/lite/client';
 import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
@@ -708,10 +708,7 @@ export default function CreationWizard() {
   );
   // The library names Finish needs to answer one question: does the door about to be pressed
   // MINT a record or write over one? Read on the same terms as the productions above.
-  const finishLibraryNames: string[] = useMemo(
-    () => (onFinish ? loadGraphics().map((g) => g.name) : []),
-    [onFinish],
-  );
+  const finishLibraryNames: string[] = useMemo(() => (onFinish ? graphicNames() : []), [onFinish]);
 
   if (!open) return null;
 
@@ -895,7 +892,7 @@ export default function CreationWizard() {
       // another device or tab). Minting is then the right answer, not an error - the work is
       // what matters, and there is no longer anything to write over.
       if (result === 'needs-name') return saveGraphicAs(name, { kind: 'standalone' });
-      return { ok: false, error: 'The graphic could not be saved over the one you already made.' };
+      return { ok: false, error: `The graphic could not be saved over the “${name}” already in your library.` };
     }
     return saveGraphicAs(name, { kind: 'standalone' });
   };

@@ -40,7 +40,10 @@ export const FOCUS = [
   // A DATA-LOSS shape on the road every student walks in the class: import your own
   // artwork, build a production on it, then import your next version under the same name.
   // Until 2026-09-08 the second import minted a twin library record and quietly detached
-  // the graphic the production's cues were built on. Four import doors, one rule.
+  // the graphic the production's cues were built on. Four import doors, one rule - and the
+  // rule's two halves live in `model/library.ts` and `model/shows.ts`, which are CORE in
+  // e2e-affected.mjs, so a change to either escalates to the full suite and reaches it that
+  // way. The `src/components/wizard/` MAP row is what runs it for a change to the doors.
   'import-name-collision.spec.ts',
   'landing.spec.ts',
   'layout.spec.ts',

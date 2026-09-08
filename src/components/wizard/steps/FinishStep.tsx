@@ -374,7 +374,8 @@ export default function FinishStep({
             <strong>Add to the production — go live</strong>
           </span>
           <span className="hint">
-            Saves it to your library, pools it into the production with its first cue ready.
+            {savingOver ? `Saves over ${graphicName} in your library` : 'Saves it to your library'},
+            pools it into the production with its first cue ready.
           </span>
         </button>
         <button
@@ -389,7 +390,10 @@ export default function FinishStep({
           </span>
           <span className="hint">
             Just the files — OGraf, CasparCG, SPX, LiveOS, an OBS/vMix overlay
-            {isRenderConfigured() ? ', or a rendered video' : ''}. Saved to your library first.
+            {isRenderConfigured() ? ', or a rendered video' : ''}.{' '}
+            {/* This door asks NOTHING before it writes - it saves and opens the export window -
+                so the one place the save can be described accurately is the door's own face. */}
+            {savingOver ? `Saves over ${graphicName} in your library first.` : 'Saved to your library first.'}
           </span>
         </button>
         {showEditorDoor && (
@@ -490,7 +494,7 @@ export default function FinishStep({
           </ul>
           <p className="hint">
             Wrong production? Cancel and pick another one before you go.
-            {savingOver && ' Meant a NEW graphic? Cancel and give it its own name above.'}
+            {savingOver && ' Meant a separate graphic? Cancel and give it its own name.'}
           </p>
         </WizardConfirm>
       )}

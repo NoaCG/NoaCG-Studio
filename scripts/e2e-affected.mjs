@@ -355,12 +355,6 @@ const MAP = [
   // failure. It is mapped separately because the failure mode it guards - a door that saves
   // nothing and says nothing - reads as "worked" to every other spec in the suite.
   [/^src\/(model\/(library|shows|prefs|storageHealth)|store\/(saveActions|storageAlert)|ai\/settings)/, ['storage-full.spec.ts']],
-  // WHAT A NAME MEANS, in the library and in the production pool at once. The pool has always
-  // replaced by name; the library used to mint a twin instead, so a re-import under a held name
-  // detached the graphic a production's cues were built on (docs/handoffs/2026-09-08-g-import-
-  // name-collision.md). Both halves of that rule live in these two modules and the wizard save
-  // above them, so a change to either has to run the spec that measures them together.
-  [/^src\/model\/(library|shows)\.ts$/, ['import-name-collision.spec.ts']],
   [/^src\/components\/save\/StorageAlertDialog/, ['storage-full.spec.ts']],
   // The AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5). Its whole workflow runs on
   // the local provider, so the offline suite really does cover it - which is why the seam was
