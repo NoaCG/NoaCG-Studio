@@ -13,7 +13,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { ROOT, auditGates, measuresNothing, parseHeader } from './gates.mjs';
+import { ROOT, auditGates, emptyPopulation, measuredArguments, measuresNothing, parseHeader, runTests } from './gates.mjs';
+import { parseReceipts, receiptRow } from './measured-receipt.mjs';
 
 // A file:// URL, because the throwaway gate is written to the temp directory and imports the
 // helper by absolute path - which Windows will not accept as a bare `C:\...` specifier.
@@ -94,13 +95,20 @@ test('`measures: none` is read off the header, and only as an exemption with a r
   assert.ok(!measuresNothing(parseHeader('// measures: catalog variants')), 'the line may only say none - <why>');
 });
 
+// A repository that is honest about everything except what the test at hand is asking: one test
+// file in each tier that has to hold some, and a gate body that reports what it measured.
+const WIRED = {
+  buildLine: 'node scripts/gates.mjs run && tsc && node scripts/gates.mjs run --gate after-build',
+  workflowText: (name) => (name === 'ci.yml' ? 'run: node scripts/gates.mjs run --gate factory\n' : null),
+  tracked: ['scripts/blind.mjs', 'scripts/x.test.mjs', 'scripts/f.test.mjs'],
+  tests: [
+    { kind: 'test', name: 'scripts/x.test.mjs', entry: 'scripts/x.test.mjs', header: parseHeader('// gate: build'), derivedGuards: ['scripts/blind.mjs'] },
+    { kind: 'test', name: 'scripts/f.test.mjs', entry: 'scripts/f.test.mjs', header: { ...parseHeader('// needs: browser'), gate: 'factory' }, derivedGuards: ['scripts/blind.mjs'] },
+  ],
+};
+
 test('the audit refuses a gate that neither reports nor declares why it cannot', () => {
-  const wired = {
-    buildLine: 'node scripts/gates.mjs run && tsc && node scripts/gates.mjs run --gate after-build',
-    workflowText: (name) => (name === 'ci.yml' ? 'run: node scripts/gates.mjs run --gate factory\n' : null),
-    tracked: ['scripts/blind.mjs', 'scripts/x.test.mjs'],
-    tests: [{ kind: 'test', name: 'scripts/x.test.mjs', entry: 'scripts/x.test.mjs', header: parseHeader('// gate: build'), derivedGuards: ['scripts/blind.mjs'] }],
-  };
+  const wired = WIRED;
   const check = (text) => [{
     kind: 'check', name: 'check:blind', names: ['check:blind'], entry: 'scripts/blind.mjs', exists: true,
     header: parseHeader(text),
@@ -135,6 +143,104 @@ test('an empty test population is a problem, because the runner used to answer i
     workflowText: (name) => (name === 'ci.yml' ? 'run: node scripts/gates.mjs run --gate factory\n' : null),
   });
   assert.equal(problems.filter((p) => p.includes('would run no tests at all and still pass')).length, 1);
+});
+
+// ---------------------------------------------------------------------------------------------
+// The holes four reviews found in the mechanism the night it landed. Each test below is the
+// reproduction first: the shape that passed on 2026-09-08, asserted to fail now.
+// ---------------------------------------------------------------------------------------------
+
+/** One check with the given header and body, audited in an otherwise honest repository. */
+const auditOne = (header, body) => auditGates({
+  ...WIRED,
+  checks: [{ kind: 'check', name: 'check:blind', names: ['check:blind'], entry: 'scripts/blind.mjs', exists: true, header: parseHeader(header) }],
+  read: () => body,
+});
+const HONEST = '// gate: build\n// guards: scripts/blind.mjs';
+
+test('the runner and the audit read an exemption with ONE reader, so a thin reason exempts nobody', () => {
+  // The hole: the audit wanted 20 characters of reason, `measuresNothing` wanted one. A gate
+  // carrying `measures: none - x` was exempt to the runner and a failure to the audit - and three
+  // gates (type-floor, overflow-sweep, field-coverage) run straight from workflows, where only the
+  // weaker of the two readings is in force.
+  const thin = parseHeader('// measures: none - x');
+  assert.equal(measuresNothing(thin), false, 'a reason too thin for the audit cannot exempt the gate from the receipt');
+  assert.equal(auditOne(`${HONEST}\n// measures: none - x`, 'console.log("ok");').filter((p) => p.includes('without a reason a reader can act on')).length, 1);
+
+  // A malformed line exempts nothing either: the failure direction is always "still measured".
+  assert.equal(measuresNothing(parseHeader('// measures: catalog variants')), false);
+  const malformed = auditOne(`${HONEST}\n// measures: catalog variants`, 'console.log("ok");');
+  assert.equal(malformed.filter((p) => p.includes('may only say')).length, 1);
+  assert.equal(malformed.filter((p) => p.includes('never says how much it measured')).length, 0, 'one problem per gate, naming the line that is wrong');
+
+  const real = '// measures: none - it compares two reads of the same table for a disagreement';
+  assert.equal(measuresNothing(parseHeader(real)), true);
+  assert.deepEqual(auditOne(`${HONEST}\n${real}`, 'console.log("ok");'), []);
+});
+
+test('a tier that holds no gates is refused by property, not by being called `build`', () => {
+  // The hole: the refusal was `if (tier !== 'build') return 0`. The factory tier holds five
+  // browser test files and is run by CI; one header rename would have emptied it, printed a
+  // notice and exited 0 - the type-floor bug, one tier over.
+  assert.equal(runTests([], 'factory'), 1, 'an empty factory tier is a broken filter, not a pass');
+  assert.equal(runTests([], 'build'), 1);
+  assert.equal(runTests([], 'after-build'), 0, 'after-build holds checks over dist/, and says so in EMPTY_TIERS');
+  assert.equal(emptyPopulation('factory', 'checks', 0).fatal, false, 'no check: script declares the factory tier, and that is written down');
+  assert.equal(emptyPopulation('build', 'checks', 0).fatal, true);
+  assert.equal(emptyPopulation('factory', 'tests', 5), null);
+
+  // And the audit asks it at build time, where an emptied factory tier is otherwise invisible
+  // until a CI job on another machine runs the tier that no longer exists.
+  const audited = (tests) => auditGates({ ...WIRED, tests, checks: [], read: () => '' });
+  assert.equal(audited(WIRED.tests.filter((t) => t.header.gate === 'build')).filter((p) => /no test file declares `gate: factory`/.test(p)).length, 1);
+  assert.deepEqual(audited(WIRED.tests), []);
+  const stale = audited([...WIRED.tests, { ...WIRED.tests[0], name: 'scripts/late.test.mjs', header: { ...parseHeader(''), gate: 'after-build' } }]);
+  assert.equal(stale.filter((p) => /EMPTY_TIERS says the after-build tier/.test(p)).length, 1, 'an exemption that has stopped being true is itself a problem');
+});
+
+test('the static scan wants an import and a call outside a comment, and refuses a count that cannot be zero', () => {
+  const blind = (body) => auditOne(HONEST, body).filter((p) => p.includes('never says how much it measured')).length;
+  // The hole: the audit tested for the SUBSTRING `measured.mjs` and a `measured(` anywhere in the
+  // file, so a sentence about the helper, in a comment, with no import, satisfied both halves.
+  assert.equal(blind("// measured.mjs: we should call measured( ) on the variants here one day\nconsole.log('ok');"), 1);
+  assert.equal(blind("import { measured } from './measured.mjs';\n// measured(files.length, 'files') - once this reads the catalog\n"), 1, 'a call written only in a comment is not a call');
+  assert.equal(blind("measured(files.length, 'files');\n"), 1, 'a call to something this file never imported measures nothing');
+  assert.equal(blind("import { measured } from './measured.mjs';\nmeasured(files.length, 'files');"), 0);
+
+  // A count that cannot come out zero is not a measurement, however honestly it is reported.
+  const counts = (arg) => auditOne(HONEST, `import { measured } from './measured.mjs';\nmeasured(${arg}, 'files');`).filter((p) => p.includes('measured('));
+  assert.match(counts('items.length || 1')[0], /fallback to a non-zero count/);
+  assert.match(counts('items.length ?? 1')[0], /fallback to a non-zero count/);
+  assert.match(counts('Math.max(1, items.length)')[0], /flooring the count at one/);
+  assert.match(counts('1')[0], /literal count is not a measurement/);
+  assert.deepEqual(counts('items.length'), []);
+  // `?? 0` is the honest form of the same reach, and keeps the empty case failing.
+  assert.deepEqual(counts('[a, b].reduce((total, rules) => total + (rules?.length ?? 0), 0)'), []);
+  assert.deepEqual(measuredArguments("measured(a.length, 'a');\nmeasured.optional(b.length, 'b', why);"), ['a.length', 'b.length']);
+
+  // WHAT REMAINS OPEN, on the record rather than in a claim the code does not keep: no reading of
+  // the text can say whether a call is REACHED. This one passes the audit, and the runner sees a
+  // receipt of 1 rather than the zero that would have failed. Both halves together catch a gate
+  // that reports NOTHING; neither catches a gate that reports something it did not look at.
+  assert.equal(blind("import { measured } from './measured.mjs';\nif (nothing) measured(items.length, 'items');"), 0);
+});
+
+test('one module owns the receipt format, so both writers and the reader cannot drift apart', () => {
+  // The hole: `measured.mjs` and `gates-test-count.mjs` each spelled `\t` themselves and
+  // `gates.mjs` split on it, so a subject holding a tab quietly became a fourth column - and a
+  // receipt the reader drops reads to the runner as a gate that measured nothing.
+  const rows = parseReceipts(receiptRow(3, 'rules\tin\nthe store') + receiptRow(0, 'items', true));
+  assert.deepEqual(rows, [
+    { count: 3, subject: 'rules in the store', optional: false },
+    { count: 0, subject: 'items', optional: true },
+  ]);
+  assert.deepEqual(parseReceipts('7\ttoo\tmany\tcolumns\nnot a receipt at all\n'), [], 'a row that is not a receipt is dropped, which fails the gate rather than inventing a count');
+
+  // Both writers are this function, which is the only reason the reader can be one function.
+  const written = readFileSync(path.join(ROOT, 'scripts', 'gates-test-count.mjs'), 'utf8');
+  assert.match(written, /receiptRow\(/);
+  assert.doesNotMatch(written, /\\t/, 'the reporter no longer spells the delimiter');
+  assert.doesNotMatch(readFileSync(path.join(ROOT, 'scripts', 'measured.mjs'), 'utf8'), /appendFileSync/, 'the helper no longer writes the row itself');
 });
 
 test('the test-count reporter counts each file, and a file that registered no tests is absent from its receipt', () => {
