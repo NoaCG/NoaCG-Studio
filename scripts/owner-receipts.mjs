@@ -130,28 +130,42 @@ export function parseFrontmatter(text) {
         folded.push(lines[index].trim());
       }
       data[key] = folded.join(value.startsWith('>') ? ' ' : '\n').trim();
-    } else if (/^(['"]).*\1$/.test(value)) {
-      data[key] = value.slice(1, -1).trim();
     } else if (value.startsWith('"') || value.startsWith("'")) {
-      // Opened and did not close on this line. Continuation lines are INDENTED, exactly as in a
-      // folded block, so an unclosed quote can never swallow the next key: it stops at the first
-      // line in column one and gives back what it read, opening quote removed.
+      // A quoted scalar runs until its closing quote, however many lines that takes. Continuation
+      // lines are INDENTED, exactly as in a folded block, so an unclosed quote can never swallow
+      // the next key: it stops at the first line in column one and gives back what it read.
       const quote = value[0];
       const parts = [value.slice(1)];
-      let closed = false;
+      let closed = closesQuote(parts[0], quote);
       while (!closed && index + 1 < end && /^\s+/.test(lines[index + 1])) {
         index += 1;
         parts.push(lines[index].trim());
-        closed = parts[parts.length - 1].endsWith(quote);
+        closed = closesQuote(parts[parts.length - 1], quote);
       }
       const joined = parts.join(' ').trim();
-      data[key] = (closed ? joined.slice(0, -1) : joined).trim();
+      data[key] = unquote((closed ? joined.slice(0, -1) : joined).trim(), quote);
     } else {
       data[key] = value.replace(/\s+#.*$/, '').trim();
       if (data[key] !== value) commented.push(key);
     }
   }
   return { data, body: lines.slice(end + 1).join('\n'), commented };
+}
+
+/**
+ * Does this text end in the quote that CLOSES a scalar, rather than one written inside it? YAML
+ * escapes a quote as `\"` in a double-quoted scalar and as `''` in a single-quoted one, and a
+ * value that ends a line on an escape runs on to the next line.
+ */
+function closesQuote(text, quote) {
+  if (!text.endsWith(quote)) return false;
+  if (quote === '"') return (/(\\*)$/.exec(text.slice(0, -1))[1].length % 2) === 0;
+  return (/('*)$/.exec(text)[1].length % 2) === 1;
+}
+
+/** The text inside a quoted scalar, with YAML's escapes read back as the characters they mean. */
+function unquote(text, quote) {
+  return quote === '"' ? text.replace(/\\(["\\])/g, '$1') : text.replace(/''/g, "'");
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -410,23 +424,36 @@ export function formatReceipts(receipts, { compact = false } = {}) {
  */
 export const SUSPECT_SCORE = 8;
 
+/**
+ * A plural read back as its singular, so `states` in a slug meets `state` in a subject. `es` comes
+ * off only after a sibilant, because stripping it from every word turns `names` into `nam` and
+ * `templates` into `templat` - neither of which can ever meet the singular they came from.
+ */
+const stem = (word) =>
+  word
+    .replace(/ies$/, 'y')
+    .replace(/(s|x|z|ch|sh)es$/, '$1')
+    .replace(/([^s])s$/, '$1');
+
 /** Words that distinguish nothing here: grammar, plus the vocabulary every commit subject uses. */
-const SUSPECT_STOPWORDS = new Set([
-  'that', 'than', 'their', 'they', 'them', 'this', 'these', 'those', 'there', 'here', 'with',
-  'from', 'into', 'over', 'under', 'about', 'when', 'what', 'have', 'has', 'was', 'were', 'been',
-  'does', 'should', 'could', 'would', 'must', 'can', 'never', 'only', 'still', 'more', 'most',
-  'much', 'many', 'some', 'each', 'every', 'other', 'own', 'also', 'just', 'very', 'even', 'like',
-  'make', 'made', 'take', 'want', 'need', 'work', 'thing', 'stuff',
-]);
+const SUSPECT_STOPWORDS = new Set(
+  [
+    'that', 'than', 'their', 'they', 'them', 'this', 'these', 'those', 'there', 'here', 'with',
+    'from', 'into', 'over', 'under', 'about', 'when', 'what', 'have', 'has', 'was', 'were', 'been',
+    'does', 'should', 'could', 'would', 'must', 'can', 'never', 'only', 'still', 'more', 'most',
+    'much', 'many', 'some', 'each', 'every', 'other', 'own', 'also', 'just', 'very', 'even', 'like',
+    'make', 'made', 'take', 'want', 'need', 'work', 'thing', 'stuff',
+    // Stemmed, because that is the form they are compared against.
+  ].map(stem),
+);
 
-const suspectWords = (text) =>
-  text
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean)
-    .map((word) => word.replace(/ies$/, 'y').replace(/(?:es|s)$/, ''));
+const suspectWords = (text) => text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map(stem);
 
-/** The words in a slug that could identify it in a sentence somebody else wrote. */
+/**
+ * The words in a slug that could identify it in a sentence somebody else wrote. The four-letter
+ * floor applies to the STEM, so `boxes` drops out with `box`. That is the quiet side of the trade
+ * and it is deliberate: this can miss a receipt, and it must not invent one.
+ */
 export function distinctiveWords(slug) {
   return [...new Set(suspectWords(slug).filter((word) => word.length >= 4 && !SUSPECT_STOPWORDS.has(word)))];
 }
@@ -437,31 +464,37 @@ export function distinctiveWords(slug) {
  * Pure, so the tuning is testable without a repository.
  */
 export function suspectMatches(receipts, commits, { threshold = SUSPECT_SCORE } = {}) {
+  // Read each subject once: a thousand commits against a dozen receipts is a lot of re-reading.
+  const scanned = commits.map((commit) => ({
+    ...commit,
+    words: new Set(suspectWords(commit.subject)),
+    touched: new Set(commit.paths ?? []),
+  }));
   const frequency = new Map();
-  for (const commit of commits) {
-    for (const word of new Set(suspectWords(commit.subject))) frequency.set(word, (frequency.get(word) ?? 0) + 1);
+  for (const commit of scanned) {
+    for (const word of commit.words) frequency.set(word, (frequency.get(word) ?? 0) + 1);
   }
-  const rarity = (word) => Math.log(commits.length / ((frequency.get(word) ?? 0) + 1));
+  const rarity = (word) => Math.log(scanned.length / ((frequency.get(word) ?? 0) + 1));
   const suspects = [];
   for (const receipt of receipts) {
     if (!receipt.receipt || receipt.state !== 'unstarted' || !receipt.raised) continue;
     const keys = distinctiveWords(receipt.slug);
     if (keys.length === 0) continue;
     const hits = [];
-    for (const commit of commits) {
+    for (const commit of scanned) {
       if (commit.date < receipt.raised) continue;
       // The commit that filed the receipt names it by construction, and proves nothing.
-      if (commit.paths?.includes(`${BACKLOG_DIR}/${receipt.slug}.md`)) continue;
-      const words = new Set(suspectWords(commit.subject));
-      const matched = keys.filter((key) => words.has(key));
+      if (commit.touched.has(`${BACKLOG_DIR}/${receipt.slug}.md`)) continue;
+      const matched = keys.filter((key) => commit.words.has(key));
       if (matched.length < 2 || matched.length / keys.length < 0.5) continue;
       const score = matched.reduce((sum, word) => sum + rarity(word), 0);
       if (score >= threshold) hits.push({ sha: commit.sha, date: commit.date, subject: commit.subject, matched, score });
     }
     if (hits.length === 0) continue;
-    // Oldest first, and at most two: the commit that did the work lands before the one that
-    // writes it up, and a third line adds noise rather than evidence.
-    hits.reverse(); // `commits` arrives newest first, and a stable sort keeps that order within a day
+    // Oldest first, and at most two, because the commit that did the work lands before the one
+    // that writes it up and a third line is noise. `commits` arrives newest first, so reversing
+    // puts the day's earliest ahead of the rest and the stable date sort keeps it there.
+    hits.reverse();
     hits.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     suspects.push({ slug: receipt.slug, score: Math.max(...hits.map((hit) => hit.score)), commits: hits.slice(0, 2) });
   }
@@ -495,7 +528,9 @@ export function formatSuspects(suspects) {
   ];
   for (const suspect of suspects) {
     lines.push(`  ${suspect.slug}`);
-    for (const commit of suspect.commits) lines.push(`    ${commit.sha}  ${commit.date}  ${commit.subject}`);
+    for (const commit of suspect.commits) {
+      lines.push(...wrapAfter(`    ${commit.sha}  ${commit.date}  `, commit.subject));
+    }
   }
   return lines;
 }

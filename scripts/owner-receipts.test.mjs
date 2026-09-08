@@ -6,11 +6,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  distinctiveWords,
   formatReceipts,
   isStanding,
   parseFrontmatter,
-  receiptFrom,
   formatSuspects,
+  receiptFrom,
   servesVerdict,
   sortReceipts,
   suspectMatches,
@@ -77,6 +78,15 @@ test('a quoted value runs on to its closing quote instead of losing every contin
   const unclosed = parseFrontmatter('---\nasked: "it never closes\n  and runs on\nstate: unstarted\n---\n');
   assert.equal(unclosed.data.asked, 'it never closes and runs on');
   assert.equal(unclosed.data.state, 'unstarted');
+  // An ESCAPED quote at the end of a line does not close the scalar, and reaches the report as the
+  // character it means. Receipts really are written this way, and truncating there would be the
+  // same silent loss in a new place.
+  const escaped = parseFrontmatter('---\nfound: "he said \\"it never gets taller\\"\n  and the rest MUST survive"\n---\n');
+  assert.equal(escaped.data.found, 'he said "it never gets taller" and the rest MUST survive');
+  // The single-quoted spelling of the same thing: `\'\'` is one literal quote, not the end.
+  const doubled = parseFrontmatter("---\nnote: 'it''s not done\n  yet'\n---\n");
+  assert.equal(doubled.data.note, "it's not done yet");
+  assert.equal(parseFrontmatter('---\nasked: "\\\\ and \\"quoted\\""\n---\n').data.asked, '\\ and "quoted"');
 });
 
 test('the listing prints a quote whole, wrapped, and never cut mid-sentence', () => {
@@ -277,6 +287,13 @@ test('a receipt whose words turn up in a commit is a SUSPECT, and only a rare wo
   assert.match(printed, /WORD MATCH/);
   assert.match(printed, /not a verdict/);
   assert.match(printed, /Nothing here has been reclassified/);
+  // A plural in a slug has to be able to meet its singular in a subject, or a receipt whose work
+  // really landed is never flagged. Stripping `es` from everything made `names` into `nam`, which
+  // the four-letter floor then threw away entirely.
+  assert.deepEqual(distinctiveWords('the-template-names-should-be-editable'), ['template', 'name', 'editable']);
+  // A word whose STEM falls under the four-letter floor drops out, `boxes` included. That is the
+  // quiet side of the trade on purpose: it can miss a receipt, and it cannot invent one.
+  assert.deepEqual(distinctiveWords('quiz-states-and-boxes'), ['quiz', 'state']);
   assert.equal(rare.state, 'unstarted');
   assert.deepEqual(formatSuspects([]), []);
 });
