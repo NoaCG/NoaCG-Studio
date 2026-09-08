@@ -805,6 +805,25 @@ function svgLocalBox(panelEl, textEl) {
  *  of it (a line drawn in the middle, with as much space above it as below). */
 var SVG_ALIGN_TOL = ${SVG_ALIGN_TOL};
 
+/** WHAT THE AUTHOR SAID about how a line sits in its box (NOACG_LAYOUT.lines, written by the
+ *  Fields step's nine-dot grid), or null - which is every line of every design from before the
+ *  grid existed, and every row nobody touched. Read at fit time rather than at load, because the
+ *  table is emitted after this runtime in the file. */
+function svgSaidAlign(id) {
+  var said = typeof NOACG_LAYOUT === 'object' && NOACG_LAYOUT ? NOACG_LAYOUT.lines : null;
+  if (!said) return null;
+  for (var i = 0; i < said.length; i++) if (said[i].el === id) return said[i];
+  return null;
+}
+
+/** The run a line gets when a margin of m is kept on both sides of its box: twice the shorter
+ *  reach for a line that fills BOTH ways, the reach to the far margin for one that fills one
+ *  way. Written once because it is asked with two different margins, and by two roads. */
+function svgReach(h, anchor, box, m) {
+  if (h === 'middle') return 2 * Math.min(anchor - (box.left + m), (box.right - m) - anchor);
+  return h === 'end' ? anchor - (box.left + m) : (box.right - m) - anchor;
+}
+
 function svgAlignOf(el, panelEl) {
   if (svgFitAlign[el.id]) return svgFitAlign[el.id];
   var align = { h: 'start', v: 'top', derived: false };
@@ -824,9 +843,65 @@ function svgAlignOf(el, panelEl) {
     // statement when somebody is reading the sweep's table (scripts/svg-import-sweep.mjs).
     align.derived = !stated;
     var cy = own.y + own.height / 2;
-    align.v = Math.abs(cy - box.cy) <= (box.bottom - box.top) * SVG_ALIGN_TOL
+    var placedV = Math.abs(cy - box.cy) <= (box.bottom - box.top) * SVG_ALIGN_TOL
       ? 'middle'
       : (cy < box.cy ? 'top' : 'bottom');
+    align.v = placedV;
+    // WHAT THE AUTHOR SAID WINS OVER BOTH, where they said anything. The drawing is still
+    // measured first, because a declared answer is worked out FROM it: the margin a declared
+    // anchor keeps is the gap the designer left where they set the line against a side, and the
+    // nudge the checkbox hands back is the distance from where they drew it to that anchor.
+    var said = svgSaidAlign(el.id);
+    if (said && said.h) {
+      align.h = said.h;
+      align.v = said.v;
+      align.derived = false;
+      align.said = true;
+    }
+    if (said) {
+      // A DECLARED ANCHOR IS THE BOX'S OWN LANDMARK: its middle, or its inside edge less a
+      // margin. The margin is the gap the designer left where the line was set against a side
+      // (so declaring what was drawn changes nothing, to the unit) and half the drawn type where
+      // it was centred, because a centred line's gaps are half the centring and not a margin -
+      // the same substitution the derived road makes below, and the mapping step's overlay draws.
+      // A line that fills rightwards gets an anchor only when the author SAID so: keeping the
+      // nudge alone on a left-set line has nothing sideways to keep (its nudge is zero by
+      // construction), and writing its own x back onto it would move it by a side bearing.
+      if (said.h || align.h !== 'start') {
+        var side = placed === 'middle'
+          ? (svgFitSizes[el.id] || own.height || 0) * 0.5
+          : Math.max(0, Math.min(own.x - box.left, box.right - (own.x + own.width)));
+        align.anchor = align.h === 'middle' ? box.cx : (align.h === 'end' ? box.right - side : box.left + side);
+        align.nudge = own.x + (align.h === 'middle' ? own.width / 2 : (align.h === 'end' ? own.width : 0)) - align.anchor;
+        // KEEPING THE NUDGE puts the anchor where the block was drawn. It rides the anchor
+        // rather than the value, which is what makes it survive wrapping, shrinking and growth:
+        // the room below is spent from the nudged anchor, so a longer value still stops at the
+        // nearer margin.
+        if (said.nudge) align.anchor += align.nudge;
+        align.width = Math.max(0, svgReach(align.h, align.anchor, box, side));
+      }
+      // AND THE SAME DOWNWARDS. The block's centre is put on the box's middle, or half a line
+      // inside its top or bottom edge - half a line being the margin measureSvgRoom keeps on a
+      // centred axis - or exactly where it was drawn where the line was set against that edge.
+      var half = (svgFitStep[el.id] || (svgFitSizes[el.id] || own.height || 0) * SVG_LINE_HEIGHT) / 2;
+      var gap = placedV === 'middle'
+        ? half
+        : Math.max(0, Math.min(own.y - box.top, box.bottom - (own.y + own.height)));
+      var target = align.v === 'middle'
+        ? box.cy
+        : (align.v === 'top' ? box.top + gap + own.height / 2 : box.bottom - gap - own.height / 2);
+      // Declaring the edge a line was DRAWN against moves nothing, exactly as the derived road
+      // moves nothing but a centred line: the designer composed it against that edge.
+      if (align.v !== 'middle' && align.v === placedV) target = cy;
+      align.snapY = target - cy;
+      align.nudgeY = -align.snapY;
+      if (said.nudge) align.snapY = 0;
+      // Where a shrunk block is put back (svgRecentre): the box's middle, or the drawn centre
+      // when the nudge is kept.
+      if (align.v === 'middle') align.boxCy = said.nudge ? cy : box.cy;
+      svgFitAlign[el.id] = align;
+      return align;
+    }
     // WHERE THE ANCHOR GOES, measured HERE because here is the one place the DRAWN value is
     // standing on the node (measureSvgRoom restores it before measuring). Asked later, with an
     // operator's value in place, "the middle of the text" would be the middle of whatever was
@@ -863,14 +938,9 @@ function svgAlignOf(el, panelEl) {
       // fills both ways, so it may reach the nearer margin twice over; an end-anchored one fills
       // leftwards until it meets the other margin. For a line whose anchor IS the landmark this
       // is arithmetically the old mirror, to the unit - it just no longer needs that to be true.
-      // The run a line gets when a margin of m is kept on both sides of its box: twice the
-      // shorter reach for a line that fills BOTH ways, the reach to the far margin for one that
-      // fills leftwards. Written once because it is asked twice, with two different margins.
-      var reach = function (m) {
-        return align.h === 'middle'
-          ? 2 * Math.min(align.anchor - (box.left + m), (box.right - m) - align.anchor)
-          : align.anchor - (box.left + m);
-      };
+      // The run a line gets when a margin of m is kept on both sides of its box (svgReach),
+      // asked twice here, with two different margins.
+      var reach = function (m) { return svgReach(align.h, align.anchor, box, m); };
       var pad = Math.min(own.x - box.left, box.right - (own.x + own.width));
       if (pad > 0) align.width = reach(pad);
       // A CENTRED LINE HAS NO SIDE MARGINS TO READ.
@@ -1174,6 +1244,11 @@ function measureSvgRoom() {
         box.height * scale,
         (svgFitCeiling(el, panel, svgPanelTopPad(panel, nodes)) - box.top) * scale,
       );
+      // A LINE THE AUTHOR PUT AGAINST THE TOP OF ITS BOX stands higher than it was drawn, by
+      // the snap svgAlignOf worked out, and what it gains above is room below. Only for a
+      // declared top: a middle line's room is measured about its middle further down, and a
+      // derived top line carries no snap at all.
+      if (align.v === 'top' && align.snapY) room.height = Math.max(box.height * scale, room.height - align.snapY);
       // Where the drawn line starts, in the artwork's own units - the datum the painted block's
       // height is checked against. getBBox() answers in user units and ignores transforms, so
       // the check holds while an entrance is mid-flight.
@@ -1205,9 +1280,12 @@ function measureSvgRoom() {
         // there). Measured about the drawn centre instead, a block drawn a few units off the
         // middle was granted only twice its SHORTER side - room the design has and the ladder
         // could not see, for no reason once the block no longer sits there.
+        // A declared alignment may have moved the block (align.snapY): a centred block keeps
+        // its middle where svgRecentre keeps it, which is the drawn centre when the nudge is
+        // kept, and a bottom block stands where the snap put it.
         var mid = align.v === 'middle'
-          ? localBox.cy
-          : room.top + (el.getBBox ? el.getBBox().height : 0) / 2;
+          ? (align.boxCy != null ? align.boxCy : localBox.cy)
+          : room.top + (el.getBBox ? el.getBBox().height : 0) / 2 + (align.snapY || 0);
         var symmetric = align.v === 'middle'
           ? 2 * Math.min(mid - inside.top, inside.bottom - mid)
           : mid + (el.getBBox ? el.getBBox().height : 0) / 2 - inside.top;
@@ -1364,7 +1442,10 @@ function svgRecentre(el, room) {
  *  anchored where SVG's default puts it. */
 function svgApplyAnchor(el, room) {
   var align = room && room.align;
-  if (!align || align.h === 'start' || align.anchor == null) return;
+  // A start-anchored line has an anchor only when the author DECLARED it (svgAlignOf), which is
+  // the one time a line that fills rightwards has to be moved - onto the box's left inside edge
+  // - or told so, over a stated middle the author overrode.
+  if (!align || align.anchor == null) return;
   if (el.getAttribute('text-anchor') !== align.h) el.setAttribute('text-anchor', align.h);
   // The anchor is measured at rest, and a panel that grew ONE way has moved its box since - so
   // the anchor travels with it (svgFitShift). Still one measurement rather than an iteration:
@@ -1605,6 +1686,30 @@ function layoutDataJs(svg: DesignSvg, labelOf: (candidateId: string) => string):
     return `    // "${labelOf(rule.candidateId)}" grows ${way}; ${note}.
     { el: '${growToken(i)}', axis: '${axis}', safe: ${PANEL_SAFE}${followers} }`;
   });
+  // HOW A LINE SITS IN ITS BOX, for the lines the author SAID it about (docs/TEXT_BOX_BINDING.md,
+  // "Alignment"). Every other line is read off the drawing at play time, so the list is left out
+  // entirely where nobody touched the grid - an untouched import emits the bytes it always did.
+  // ADDITIVE to version 1: a runtime from before this list existed simply never looks for it.
+  const said = svg.fields
+    .map((f, i) => ({ f, i }))
+    .filter(({ f }) => f.align || f.nudge)
+    .map(({ f, i }) => {
+      const h = f.align?.h ?? 'start';
+      const v = f.align?.v ?? 'top';
+      const word = h === 'middle' ? 'centred' : h === 'end' ? 'right' : 'left';
+      const kept = f.nudge ? '; keeps the nudge it was drawn with' : '';
+      return `    // "${f.title}" - ${f.align ? `${word}, ${v}` : 'as drawn'}${kept}.
+    { el: 'f${i}'${f.align ? `, h: '${h}', v: '${v}'` : ''}${f.nudge ? ', nudge: true' : ''} }`;
+    });
+  const lines = said.length
+    ? `,
+  // Which edge each of these lines fills from and where its block sits in its box, as the author
+  // set it on the Fields step. A line not listed is aligned the way it was drawn. \`nudge: true\`
+  // keeps the offset the designer left between the block and its anchor.
+  lines: [
+${said.join(',\n')}
+  ]`
+    : '';
   return `
 // ── Layout relationships (SVG) ────────────────────────────────────────────────
 // WHICH ELEMENT MAY GROW, WHICH WAY, HOW FAR, AND WHAT TRAVELS WITH IT.
@@ -1627,7 +1732,7 @@ var NOACG_LAYOUT = {
   version: ${LAYOUT_VERSION},
   rules: [
 ${rows.join(',\n')}
-  ]
+  ]${lines}
 };
 `;
 }
@@ -2578,9 +2683,11 @@ ${behaviour.css}
       `${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}`,
     ) +
     SVG_FIT_JS +
-    // The relationship TABLE and the runtime that loops it ride together, and only for a design
-    // that declares one: a board emits neither and cannot move (plan §6c).
-    (layoutRules(svg).length > 0
+    // The relationship TABLE rides only for a design that declares something in it - a growth
+    // rule, or a line's alignment - and the growth runtime that loops the rules only with a rule
+    // to loop: a board emits neither and cannot move (plan §6c). A board whose author aligned one
+    // line gets the table and no growth runtime, and still cannot move.
+    (layoutRules(svg).length > 0 || svg.fields.some((f) => f.align || f.nudge)
       ? `\n${layoutDataJs(
           svg,
           // The comment above each rule names the element the way the reader knows it: a bound
@@ -2588,7 +2695,7 @@ ${behaviour.css}
           // layer name the designer gave it in their own file.
           (id) =>
             svg.fields.find((f) => f.candidateId === id)?.title ?? candidateLabel(svg, id) ?? 'Layer',
-        )}${growthRuntimeJs()}`
+        )}${layoutRules(svg).length > 0 ? growthRuntimeJs() : ''}`
       : '') +
     '\n' +
     (clockField ? `\n${clockRuntimeJs(PREFIX, clockField.field)}\n` : '') +

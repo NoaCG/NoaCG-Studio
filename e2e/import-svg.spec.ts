@@ -3955,6 +3955,147 @@ test('svg import: a line with no box under it gets the outline and nothing else'
   await expect(page.frameLocator('.wz-side iframe').locator('.noacg-canvas-lit')).toHaveCount(0);
 });
 
+// ── THE ALIGNMENT CONTROL (docs/TEXT_BOX_BINDING.md step 3) ──
+// The row's nine-dot grid sets both axes with one click, the caret on the preview says the same
+// words, and the checkbox under the grid hands back the nudge the file recorded. The runtime is
+// read INSIDE the preview document for every claim, because that is where the answer is spent:
+// a grid that changed the draft and not the graphic would have changed nothing.
+test('svg import: the nine-dot grid sets how a line sits in its box, and the nudge checkbox hands back what was drawn', async ({
+  page,
+}) => {
+  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+  const frame = page.frameLocator('.wz-side iframe');
+  await expect(frame.locator('#f0')).toContainText('Question 1');
+
+  type Align = { h: string; v: string; anchor?: number; nudge?: number; snapY?: number; nudgeY?: number; said?: boolean };
+  type Layout = { lines?: { el: string; h?: string; v?: string; nudge?: boolean }[] };
+  /** The runtime's own answer for the question, and where its block stands, in the artwork's units. */
+  const runtime = () =>
+    frame.locator('#f0').evaluate((el) => {
+      const w = el.ownerDocument.defaultView as unknown as { svgFitAlign: Record<string, Align>; NOACG_LAYOUT?: Layout };
+      const bb = (el as unknown as SVGGraphicsElement).getBBox();
+      return {
+        align: w.svgFitAlign.f0,
+        lines: w.NOACG_LAYOUT?.lines ?? null,
+        anchor: el.getAttribute('text-anchor'),
+        cx: bb.x + bb.width / 2,
+        cy: bb.y + bb.height / 2,
+      };
+    });
+  /** Act, then wait for the preview to be running a document whose table says `lines`. The
+   *  wizard's iframe carries no revision stamp, so the rebuild is waited for by its effect: the
+   *  runtime's own table, read again until it is the one the action wrote (null while the frame
+   *  is between documents). */
+  const rebuilt = async (action: () => Promise<unknown>, lines: Layout['lines'] | null) => {
+    await action();
+    await expect
+      .poll(async () => JSON.stringify((await runtime().catch(() => ({ lines: undefined }))).lines), {
+        timeout: 15_000,
+      })
+      .toBe(JSON.stringify(lines));
+    await expect(frame.locator('#f0')).toContainText('Question 1');
+  };
+
+  const row = page.getByTestId('map-svg-row-t0');
+  const dot = (h: string, v: string) => page.getByTestId(`map-svg-align-t0-${h}-${v}`);
+
+  // READ FROM THE DRAWING. He centred the question on both axes; the drawn dot is the ringed
+  // one, nothing is declared, and the runtime derived the same two words.
+  await row.hover();
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('centred, middle');
+  await expect(dot('middle', 'middle')).toHaveAttribute('aria-checked', 'true');
+  await expect(dot('middle', 'middle')).not.toHaveClass(/set/);
+  await expect(page.getByTestId('map-svg-align-t0').locator('.map-svg-align-grid')).toHaveAttribute(
+    'title',
+    'centred, middle - read from your drawing.',
+  );
+  const drawn = await runtime();
+  expect(drawn.align).toMatchObject({ h: 'middle', v: 'middle' });
+  expect(drawn.lines).toBeNull();
+  expect(drawn.align.said).toBeUndefined();
+
+  // THE NUDGE THE FILE RECORDED, in words. The question was composed off its plate's centre -
+  // 36 px sideways by the drawn insets, a dozen up - and the snap moved it on. The sentence says
+  // what the checkbox would hand back, in the artwork's own px, and the runtime holds the same
+  // two numbers (align.nudge, align.nudgeY): the step measures on its own render, so the two
+  // agree to the units a fallback face costs, never to the sign or the tens.
+  const nudgeLine = page.getByTestId('map-svg-nudge-t0');
+  await expect(nudgeLine).toContainText(/keep the nudge you drew: (\d+) px to the left, (\d+) px up/);
+  const [, said, saidUp] = /(\d+) px to the left, (\d+) px up/.exec((await nudgeLine.textContent())!)!;
+  expect(Math.abs(Number(said) + drawn.align.nudge!)).toBeLessThanOrEqual(3);
+  expect(Math.abs(Number(saidUp) + drawn.align.nudgeY!)).toBeLessThanOrEqual(4);
+
+  // ONE CLICK, BOTH AXES. The caret changes its words, the dot fills, the document is rebuilt
+  // with the declaration in its own table, and the runtime anchors the block on the plate's
+  // left inside edge and lifts it to the top: the block's centre moves left of where it stood,
+  // and up.
+  await rebuilt(() => dot('start', 'top').click(), [{ el: 'f0', h: 'start', v: 'top' }]);
+  await row.hover();
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('left, top');
+  await expect(dot('start', 'top')).toHaveAttribute('aria-checked', 'true');
+  await expect(dot('start', 'top')).toHaveClass(/set/);
+  await expect(dot('middle', 'middle')).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByTestId('map-svg-align-t0').locator('.map-svg-align-grid')).toHaveAttribute(
+    'title',
+    'left, top - set by you. The drawing reads centred, middle.',
+  );
+  // Declared away from the drawn anchor, the nudge has nothing of the designer's to keep.
+  await expect(nudgeLine).toHaveCount(0);
+  const leftTop = await runtime();
+  expect(leftTop.lines).toEqual([{ el: 'f0', h: 'start', v: 'top' }]);
+  expect(leftTop.align).toMatchObject({ h: 'start', v: 'top', said: true });
+  expect(leftTop.anchor).toBe('start');
+  expect(leftTop.cx).toBeLessThan(drawn.cx - 100);
+  expect(leftTop.cy).toBeLessThan(drawn.cy - 20);
+
+  // AND THE OPPOSITE CORNER, to show it is the grid and not a coincidence of the first click.
+  await rebuilt(() => dot('end', 'bottom').click(), [{ el: 'f0', h: 'end', v: 'bottom' }]);
+  const rightBottom = await runtime();
+  expect(rightBottom.lines).toEqual([{ el: 'f0', h: 'end', v: 'bottom' }]);
+  expect(rightBottom.anchor).toBe('end');
+  expect(rightBottom.cx).toBeGreaterThan(drawn.cx + 100);
+  expect(rightBottom.cy).toBeGreaterThan(drawn.cy + 20);
+
+  // THE DRAWN DOT HANDS THE ROW BACK TO THE DRAWING: no declaration, no table, the derived
+  // answer again - and the nudge line is back, because the anchor is the one it was measured
+  // from.
+  await rebuilt(() => dot('middle', 'middle').click(), null);
+  await expect(dot('middle', 'middle')).not.toHaveClass(/set/);
+  const back = await runtime();
+  expect(back.lines).toBeNull();
+  expect(back.align.said).toBeUndefined();
+  expect(Math.abs(back.cx - drawn.cx)).toBeLessThan(0.5);
+  await expect(nudgeLine).toBeVisible();
+
+  // KEEP THE NUDGE. The table carries only the flag, the runtime moves the anchor by the offset
+  // it measured, and the block stands where he drew it: the snapped centre plus the nudge,
+  // sideways and up. The word under the block is still "centred": the offset rides the anchor.
+  await rebuilt(() => nudgeLine.locator('input').check(), [{ el: 'f0', nudge: true }]);
+  const kept = await runtime();
+  expect(kept.lines).toEqual([{ el: 'f0', nudge: true }]);
+  expect(Math.abs(kept.cx - (drawn.cx + drawn.align.nudge!))).toBeLessThan(0.5);
+  expect(Math.abs(kept.cy - (drawn.cy + drawn.align.nudgeY!))).toBeLessThan(1);
+  await row.hover();
+  await expect(page.getByTestId('wz-preview-caret')).toContainText('centred, middle');
+});
+
+// A LINE WITH NO BOX GETS NO GRID. There is nothing to align it in, so the control is absent
+// rather than greyed (`wizard/offer-control-can-change-graphic-front`).
+test('svg import: a line with no box under it offers no alignment grid', async ({ page }) => {
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+      <text id="Home" x="20" y="60" font-size="30" fill="#fff">Rovers</text>
+    </svg>`,
+    'nobox.svg',
+  );
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-row-t0')).toBeVisible();
+  await expect(page.getByTestId('map-svg-align-t0')).toHaveCount(0);
+});
+
 // A ROW KEEPS ITS BOX WHEN IT IS UNTICKED. Which box a line sits in is a fact about where it was
 // DRAWN, not about whether the operator may retype it - so the measurement runs over every text
 // row rather than the bound ones. Read the other way the list would reshuffle under the reader's
