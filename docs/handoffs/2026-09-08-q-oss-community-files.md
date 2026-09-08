@@ -113,6 +113,27 @@ open branch, which is why they are here rather than fixed. The ones worth someon
 I have not verified those ten myself beyond reading the review's evidence, and they are somebody
 else's files, so treat them as leads rather than confirmed defects.
 
+## The thing underneath all ten, which IS worth a gate
+
+**Two independent tools mis-scoped this branch the same way, and both did it because the local
+`main` ref is stale.** `git fetch` updates `origin/main`; it does not move the local `main` branch,
+which sits wherever the checkout last left it. Here that was `03aa732d`, two commits behind. So
+`git merge-base main HEAD` answers for a `main` that no longer exists, and anything built on it
+attributes main's own landed commits to the branch under test:
+
+- the code review read `37bc74af` and `31dd12ea` as this branch's work and produced ten findings
+  about files this branch never opened;
+- `node scripts/owner-receipts.mjs --serves` reported that this branch "edits 1 receipt(s) it never
+  claimed", naming `docs/backlog/weekly-alignment-check-is-the-only-owner-gate.md`. It does not.
+  That file was changed by `37bc74af`, which `git merge-base --is-ancestor 37bc74af origin/main`
+  confirms is already on main.
+
+Neither is a wrong answer about the repo; both are right answers to the wrong question. The failure
+mode is quiet in the bad direction: a stale local `main` makes a branch look like it changed MORE
+than it did, so the review spends its attention elsewhere and can report the real diff as clean.
+It cost this row an entire review pass. Anything that scopes a branch should diff against
+`origin/main`, or fetch and say out loud which ref it used. Row F, this is one of yours.
+
 ## Pointers
 
 - The gate that was red: `scripts/check-tree-shape.mjs`, `ALLOWED_ROOT_ENTRIES` around line 47.
