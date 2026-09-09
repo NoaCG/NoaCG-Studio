@@ -44,3 +44,9 @@ and a second implementation that keeps fewer of them is worse than none.
 - `.github/workflows/configured-suite.yml` - no retry, no quarantine, no release path.
 - `scripts/e2e-quarantine.mjs` and `e2e/quarantine.json` - the machinery, wired to `ci.yml` only.
 - GitHub issue #94 - the flake that made this concrete.
+
+**Not the same item as `repeat-failures-across-shas-go-unseen.md`**, which is about what the
+`ci.yml` quarantine admits: a fail-then-pass on the SAME sha, so a spec that fails on several
+different commits never enters. That one narrows an existing mechanism; this one is a tier with no
+mechanism. Whoever takes either should read the other - the second half of this file (what a
+non-blocking tier should carry) is easier to answer once that admission rule is settled.

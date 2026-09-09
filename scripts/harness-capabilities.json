@@ -90,7 +90,7 @@
       "measuredAt": "2026-09-09",
       "claim": "REFUTED as of 2.1.263: `claude --help` now lists --permission-prompts, with the description of who answers a permission prompt (a person, a configured tool, or \"none\" for auto-deny recorded). Previously measured true on 2.1.251 (2026-09-03): claude --help offered --permission-mode and no --permission-prompts; the flag that would turn a headless stall into a recorded denial was said to land in 2.1.259.",
       "reprobe": "claude --help | grep permission-prompts; no match confirms the original claim, a match confirms the refutation.",
-      "source": "docs/handoffs/2026-09-03-b-harness-followups.md (consumed); docs/acceptance/owner-queue/2026-09-03-upgrade-claude-code-and-clear-the-stale-binary.md; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
+      "source": "the 2026-09-03 harness-followups handoff, drained (git show 0c8941bd^:docs/handoffs/2026-09-03-b-harness-followups.md); docs/acceptance/owner-queue/2026-09-03-upgrade-claude-code-and-clear-the-stale-binary.md; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
     },
     {
       "id": "claude-launched-session-gets-no-subagent-notifications",

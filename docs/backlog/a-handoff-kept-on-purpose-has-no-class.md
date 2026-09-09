@@ -20,13 +20,16 @@ seven files whose citations had not moved: the four OGraf and CI evidence files 
 `guard-preview` and mistake-trigger hooks name. Same seven, same reason, second night in a row.
 
 **Fourth occurrence, 2026-09-09 - and the second option below was taken, at a measured price.** The
-drain that emptied the folder repointed **34 citation sites across 20 files** before deleting the
-handoffs that held them: seventeen backlog files, five `source` fields in
-`scripts/harness-capabilities.json`, two script headers, `docs/CI_STABILITY.md`, `docs/BRAND_PLAN.md`
-and a metrics record. Two of those were prose rather than paths ("the landed row <1> handoff",
-"the handoff, which carries the measured numbers"), which a path grep cannot find at all. So the
-manual route works and it is not cheap: about a third of that row went on it, and the next drain
-pays it again from zero.
+drain that emptied the folder repointed every citation into the folder before deleting the files
+that held them. Counted off its own diff: **35 citations written as a path, plus two written
+without one, across 27 files** - 21 backlog items, six `source` fields in
+`scripts/harness-capabilities.json`, two script headers, `docs/CI_STABILITY.md`,
+`docs/BRAND_PLAN.md` and a metrics record. The two without a path are why a path grep alone never
+finishes this job: one was prose in a binding plan's READ line ("the landed row <1> handoff") and
+one cited three handoffs by bare filename and line number.
+
+So the manual route works and it is not cheap: about a third of that row went on it, and the next
+drain pays it again from zero.
 
 ## What it would take
 Either a fifth class ("cited: <file> still names it as Evidence") that is never deleted and never

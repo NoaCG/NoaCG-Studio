@@ -45,15 +45,19 @@ compared, so a `rulesetFacts` that returned an empty table would report no drift
 Both were deferred by row J for the same reason this file was - one row, one mechanism - and both
 are about the same ruleset state:
 
-- **`owner-preflight.mjs` cannot see the merge method.** `gather()` (lines 124-137) walks the same
-  list, find-by-name and detail path that `landing-ruleset.mjs` already exports, hardcodes the
-  ruleset name and the two check contexts, and inspects `enforcement` and the presence of
-  `merge_queue` - but never `merge_method`. So if GitHub is flipped to SQUASH,
+- **`owner-preflight.mjs` cannot see the merge method.** `gather()` reads the ruleset and calls
+  `rulesetVerdict`, which answers about `enforcement`, the required checks and the PRESENCE of
+  `merge_queue` - never about `merge_method`. So if GitHub is flipped to SQUASH,
   `npm run check:owner-setup` reports OK while `npm run land:ruleset` reports DRIFT: two checkers
-  over one state, able to disagree. The fix is one import - have `owner-preflight` call
-  `rulesetFacts`/`rulesetDrift` and add a `merge-method` fact - which also deletes the duplicated
-  walk. Row J left it alone because `owner-preflight.mjs` is gate-shaped and a sibling row was
-  sweeping gate-shaped scripts that night.
+  over one state, able to disagree, on the setting the repository deliberately chose. The fix is a
+  `merge-method` fact and a `CHECK_IDS` entry beside the others.
+
+  Row J filed this on 2026-09-08 as "one import, which also deletes the duplicated walk", and
+  **that half is now stale**: `owner-preflight.mjs` already imports `RULESET_NAME`,
+  `REQUIRED_CHECKS`, `findExisting` and `rulesetVerdict` from `landing-ruleset-reader.mjs` and
+  takes the first two as defaulted parameters, so there is no walk left to de-duplicate. Only the
+  missing fact is real. Checked 2026-09-09 against the file rather than against the report, which
+  is the rule this shelf's README asks for.
 - **Nothing schedules `land:ruleset`.** It exits non-zero on drift, so it CAN be consumed, but no
   workflow, routine or gate runs it. A weekly routine is the natural home, per the repository's own
   freshness rule that this kind of check is driven by time and never by commit

@@ -928,9 +928,8 @@ export { specFilterArg };
  * `cancelled`, which makes the whole RUN cancelled and poisons every instrument downstream
  * (measured on the shard-cap row, whose handoff was drained on 2026-09-09 and prints from
  * `git show ba427e57:docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md`).
- * Longest-processing-time-first
- * packing pulls every shard to within a few percent of the balanced 11.1 min, which turns shard
- * 2's 2.6 minutes of headroom into about eight.
+ * Longest-processing-time-first packing pulls every shard to within a few percent of the balanced
+ * 11.1 min, which turns shard 2's 2.6 minutes of headroom into about eight.
  *
  * WHAT MAKES IT SAFE, and it is the objection ci.yml raised for three weeks: an explicit per-shard
  * file list means a spec missing from the assignment is a spec nobody runs, where a missing

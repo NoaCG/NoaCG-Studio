@@ -14,17 +14,17 @@ first reported on 2026-09-02.
 `.wz-confirm-body` (`WizardConfirm.tsx:107`), `.save-dialog-body` (`SaveDialogs.tsx:82` and `:166`,
 `StorageAlertDialog.tsx:83`) and `.team-dialog-body` (`JoinTeamDialog.tsx:101`,
 `ShareWithTeamDialog.tsx:234`), defined in three stylesheets. The storage alert then overrides its
-own copy four more times to get `overflow-y` and a tighter gap. When the row that extracted
-`WizardConfirm` reported this there were four sites; there are six now, in three files that did not
-exist in that count.
+own copy three more times to get `overflow-y`, a tighter gap and two child rules. When the row that
+extracted `WizardConfirm` reported this there were four sites; there are six now, in three files
+that did not exist in that count.
 
 **The backdrop-press guard.** The same handler shape - press on the backdrop closes, but only if
 the press STARTED there, so a text-selection drag that ends outside does not dismiss the dialog.
-Twelve components under `src/components/` pair an `onMouseDown` with an `onClick` this way. Four of
-them spell the reasoning out in their own comment (`InsertTemplateDialog.tsx:40`,
-`SaveDialogs.tsx:45`, `WizardConfirm.tsx:81`, and the storage alert); the other eight leave it
-implicit, which is the worse half - a reader who does not know why the pair exists is a reader who
-simplifies it away.
+Twelve components under `src/components/` pair an `onMouseDown` with an `onClick` this way. Three
+of them spell the reasoning out in their own comment (`InsertTemplateDialog.tsx:40`,
+`SaveDialogs.tsx:45`, `WizardConfirm.tsx:81`); the other nine, the storage alert among them, carry
+the same `pressedOnBackdrop` ref with nothing saying why. That is the worse half - a reader who
+does not know why the pair exists is a reader who simplifies it away.
 
 Neither is a bug. What makes it worth a file is the rate: the body count grew by half in a week
 without anyone deciding to, and each new dialog costs its author the same rediscovery of why the
@@ -53,9 +53,9 @@ this wants a quiet window and its own branch.
 
 ## Evidence
 
-- `src/styles/wizard-and-dialogs.css:226`, `src/styles/save-controls.css:96` (plus the four
-  `[data-testid='storage-alert']` overrides at `:109-125`), `src/styles/teams.css:45` - the three
-  definitions.
+- `src/styles/wizard-and-dialogs.css:226`, `src/styles/save-controls.css:96` (plus the three
+  `[data-testid='storage-alert']` overrides at `:109`, `:115` and `:125`) and
+  `src/styles/teams.css:45` - the three definitions.
 - The six body sites and twelve guard sites listed above, all present on 2026-09-09.
 - `src/components/wizard/WizardConfirm.tsx` - the extracted version, and the shape the others would
   adopt.
