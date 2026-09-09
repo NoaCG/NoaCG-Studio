@@ -7,8 +7,8 @@ file, `docs/DEMO_2026-09-25.md`, three edits to `docs/GOALS.md`, one index row i
 ## What was written, and the five calls in it
 
 `docs/DEMO_2026-09-25.md` is the session script for students and YLE people trying NoaCG on
-2026-09-25: 33 beats in six sections, each with who drives, the exact route in the product, and a
-status of WORKS, WORKS-UNSEEN or GAP with the evidence beside it (a spec name, a dated owner walk,
+2026-09-25: 30 beats in six sections, each with who drives, the exact route in the product, and a
+status of WORKS, UNSEEN (eyes or box) or GAP with the evidence beside it (a spec name, a dated owner walk,
 an acceptance item, or the audit row). §7 is the costed gap list, ordered by what would sink the
 day. §0 records the five shape decisions, which are the judgement this row was launched for:
 
@@ -20,8 +20,8 @@ day. §0 records the five shape decisions, which are the judgement this row was 
    until publish; the CLI road second.
 4. **"Their systems" is four targets prepared in advance and picked on the day.** OBS on their own
    laptop is the one every student can do and the one the evidence is strongest on. CasparCG 2.3
-   with the output URL has never been ticked on a real box; CasparCG with a package has (2026-08-05,
-   the owner's server); an OGraf renderer is proven for catalog and agent packages and not for an
+   with the output URL has never been ticked on a real box; CasparCG with a package has (the
+   acceptance §2 box, round 2, on the owner's server); an OGraf renderer is proven for catalog and agent packages and not for an
    imported-SVG graphic with behaviour.
 5. **The step-by-step guide is `/docs`**, with a one-page printed index into it, because a second
    guide drifts and the two live-vote guides already do.
@@ -45,32 +45,23 @@ Two things the evidence forced that the brief did not say:
 - **One line in `## North star`**, above the section the prompt named: "The binding deadline:
   students run a real production with their OWN graphics by 2026-09-12. Work that does not serve
   that date is not current work." Left alone it would have contradicted `## NOW` in the same file,
-  and it is the line a session grepping for "deadline" finds first. It now names the 25th and calls
-  the 12th its rehearsal. NEXT, THEN and the parking lot are untouched.
+  and it is the line a session grepping for "deadline" finds first. It now names the 25th. NEXT, THEN and the parking lot are untouched.
 
 `docs/README.md` gained the index row `check:docs-index` refuses to build without.
 
 `docs/GOALS.md` states a ~200-line budget in its own opening paragraph and was 296 lines on
-`main` before this row; it is 309 after. The breach is not this row's to fix (the sections over
+`main` before this row; it is 307 after. The breach is not this row's to fix (the sections over
 budget are NEXT, THEN and the parking lot, which the prompt kept off limits), but a condensing row
 is owed and should be planned rather than left to the next person who adds a line.
 
-## What is a gap, and what it costs (§7, compressed)
+## What is a gap, and what it costs
 
-| # | gap | cost |
-|---|---|---|
-| 1 | the venue network never proved to boot the app | one owner message |
-| 2 | the output URL on a real CasparCG 2.3 box | free on the 12th |
-| 3 | "in minutes" has no number | row A, today |
-| 4 | no end-to-end SVG guide page | row D, today |
-| 5 | install lines not executed since 2026-08-27; Codex side of the `noacg-mcp` split never re-verified | half a day, clean profile |
-| 6 | imported-SVG graphic with behaviour never driven in an external OGraf renderer | half a day, no hardware |
-| 7 | the live save spec has no recorded run date | minutes, main checkout |
-| 8 | CasparCG Connect never on hardware | one hour on the box |
-| 9 | the owner's walk of his fixed quiz board, and the eyes-on hosted quiz walk | ten minutes each, his |
-| 10 | the printed index and the deck | one afternoon each, last |
-
-Nothing needs money, an account we do not hold, or a publish past `main`.
+§7 of the script is the list and it is derived from the status column, so it is not copied here.
+Twelve rows: three are the day's real risks and the rest are the fortnight's work. The three:
+the venue network has never been proved to boot the app (one owner message, `needs: identity`);
+the output URL on a real CasparCG 2.3 box has never been ticked (free on the 12th, and the
+package road is the proven fallback); and "in minutes" has no number (row A, today). Nothing in
+the list needs money, an account we do not hold, or a publish past `main`.
 
 ## Verification
 
@@ -82,21 +73,40 @@ in the browser; the owner-queue item routes to the document on GitHub, readable 
 
 `/check`:
 
-- `review: inline`. The code-review skill answered with one finding and a promise that "the
-  finders are still running", which under `check.md`'s rule means the leg did not run. Its one
-  finding was real and is fixed: "row A" and "row D" were named after a wave plan that lives under
-  `.git/noacg-jobs/`, which a reader of `main` cannot resolve. §0 now defines both rows by their
-  goal and by the handoff files they will land. The same reference in `GOALS.md` step 1 got the
-  same fix. The rest of the diff was read here against the angles: every spec name, anchor,
-  audit row number and date in the script was checked against the tree (`e2e/docs.spec.ts` pins
-  `#svg`, `#svg-fonts`, `#claude-code`, `#casparcg`, `#dashboard`, `#export`; the audit rows 2, 8,
-  13, 14, 15, 22, 23, 26, 27 carry the text cited; 47 corpus fixtures; `cli-v0.3.0` on the
-  registry 2026-09-05 with five `cli/` or `src/bridge/` commits on `main` since).
-- `simplify: inline`. The skill returned fan-out instructions. On a documents-only diff the angles
-  reduced to one citation that named a repo doc for a claim that lives on the `/docs` page
-  (`#casparcg-versions`), corrected.
+- `review: inline`, then the delegated findings arrived by relay and were acted on. The
+  code-review skill answered in this context with one finding and a promise that "the finders are
+  still running", which under `check.md`'s rule means the leg did not run here, so the diff was
+  read against the angles inline first (every spec name, anchor, audit row number and date checked
+  against the tree: `e2e/docs.spec.ts` pins `#svg`, `#svg-fonts`, `#claude-code`, `#casparcg`,
+  `#dashboard`, `#export`; the audit rows cited carry the text cited; 47 corpus fixtures;
+  `cli-v0.3.0` on the registry 2026-09-05 with five `cli/` or `src/bridge/` commits since). The
+  skill's finders then reported to the launcher, exactly as `check.md` predicts for a fan-out, and
+  the orchestrator relayed both reports (`node scripts/relay.mjs read --branch
+  claude/g-demo-25-september`, twelve findings). What was done with them:
+  - **Acted on, all of them except one.** Row letters defined by goal and handoff file (a `.git/`
+    plan is not readable from `main`); A3 and A4 now cite the acceptance boxes the 12th ticks
+    (`CLOUD_PLAYOUT.md` §8 step 7, `STUDENT_RELEASE_ACCEPTANCE.md` §1 and §8.7) rather than
+    restating them; A5 points at the §2 box instead of carrying its own date, since two sources
+    already disagree on it; B2, A1 and A2 quote the audit's own grade words; R1.1 cites
+    `#svg-rules` by anchor rather than paraphrasing a rule that already has two copies; the
+    install-line dates live in B5 only; §7 is now derived from the status column (every GAP or
+    UNSEEN beat has one row, no WORKS beat does, twelve rows); the deck is one beat; every table
+    has the same six columns; §8 is one rule; the GOALS paragraph on the 12th is one sentence and
+    the north-star clause is gone; the index row is one line.
+  - **Not done: folding §7 into `GOALS.md`.** The reviewer read §7 as a second roadmap. The
+    prompt's WHY says the demo script IS the fortnight's gap list, and a list of what a session
+    still lacks is not a roadmap when GOALS points at it and holds nothing of its own. The
+    duplication that was real (the 12th's role stated five times, GOALS step 1 restating two §7
+    rows) is removed; the list stays where the owner will read it.
+  - **The status vocabulary stays three words, with UNSEEN split.** The audit's grades answer
+    "may the landing page claim it"; this column answers "can the beat run on the day and has a
+    person seen it". UNSEEN now says whether it wants eyes or a box, which is the queue's own
+    walk/hardware split and was the blur the reviewer found.
+- `simplify: inline`. The skill returned fan-out instructions; its angles are covered by the list
+  above, and its own late report is the second half of the relay.
 - `taste: not applicable`. Nothing in the change can move what a graphic looks like.
-- No em dashes, en dashes or curly quotes in the new text (grepped).
+- No em dashes, en dashes or curly quotes in the new text (grepped; the three hits in `GOALS.md`
+  are pre-existing lines this row did not touch).
 
 ## For the next planner
 

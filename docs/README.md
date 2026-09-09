@@ -121,7 +121,7 @@ Layers of documentation, top to bottom:
 
 | Doc | State |
 |---|---|
-| `DEMO_2026-09-25.md` | THE 2026-09-25 SESSION SCRIPT, written 2026-09-09: students and YLE people trying NoaCG hands on. The ordered beats over the two named capabilities (SVG import ending on their systems; the CLI from Codex or Claude Code to the NoaCG player), each with who drives, the route, and WORKS / WORKS-UNSEEN / GAP with evidence. §7 is the costed gap list the fortnight is planned from; §8 says which rows change which rows. |
+| `DEMO_2026-09-25.md` | The 25 September session for students and YLE people as ordered beats with a route and status evidence per beat; §7 is the gap list the fortnight is planned from. Written 2026-09-09. |
 | `TEXT_BOX_BINDING.md` | Text and its box: every field lives in the shape drawn under it, the text owns its alignment, the box owns its growth. Owner walk 2026-09-02; three measured defects, one fixed. Design only. |
 | `GROWTH_EXECUTION_PLAN.md` | The adoption push. Locked 2026-07-08; only open signup done. The §9 backlog is the work queue when growth resumes. |
 | `NIGHTLY_AUTOMATION_PLAN.md` | Era 7. Job A (CI/health gates) built; generation jobs B/C plan-only, waiting on the §10 decisions (they spend real money nightly). |

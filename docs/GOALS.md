@@ -46,8 +46,7 @@ keeps full control through **Advanced mode** - the editor, one toggle away, neve
 generated HTML/CSS/JS is the single source of truth and stays clean and readable.
 
 **The binding date is 2026-09-25: students and YLE people try NoaCG hands on, and their own
-graphics play on their systems.** Work that does not serve that date is not current work. The
-2026-09-12 student production is its rehearsal (`## NOW`).
+graphics play on their systems.** Work that does not serve that date is not current work.
 
 **The year beyond this file**: [`NORTH_STAR_2027.md`](NORTH_STAR_2027.md) (ratified 2026-09-01)
 is the one-year north star and evidence model; [`PROGRAMMES.md`](PROGRAMMES.md) is the live
@@ -106,12 +105,11 @@ graphic playing on their systems**, and **the CLI taking a graphic from Codex or
 NoaCG player in minutes**. The ordered beats, the route to each, and whether it works today or is
 a gap: **`docs/DEMO_2026-09-25.md`**. Its gap list (§7) is what the fortnight is planned from.
 
-**2026-09-12 still happens; it is no longer the pressure** (owner, 2026-09-09: *"you don't have to
-stress about that"*). A real production with real students, two graphics: a **QUIZ** (lock /
-reveal) and a **SCOREBOARD** (score + / -). **The student draws the graphic; we supply the
-behaviour.** It is the dress rehearsal for the SVG half of the 25th, and it is where several of
-the demo's unseen hardware beats get their first tick. The student release before this is CLOSED
-(archive).
+**2026-09-12 still happens, as the rehearsal** (owner, 2026-09-09: *"you don't have to stress
+about that"*): a real production with real students, a **QUIZ** (lock / reveal) and a
+**SCOREBOARD** (score + / -), the student drawing the graphic and NoaCG supplying the behaviour.
+What it rehearses and which beats it ticks is the demo script's §0 and §7. The student release
+before this is CLOSED (archive).
 
 **A WALK THAT IS OWED NEVER BLOCKS WORK** (owner, 2026-08-30, unprompted and twice): *"It's up to
 me to test what I need to test. You don't have to block any work just because I haven't tested
