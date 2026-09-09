@@ -3,7 +3,14 @@ v: 2
 source: derived
 kind: finding
 raised: 2026-09-09
-state: unstarted
+state: advanced
+note: "Measurement landed in 10b6f05b (claude/ae-cli-0-3-1); the ask itself is untouched. The
+  reproduction rules the template CSS out: the stress screenshot shows no overflow, and driving
+  the exported package through the bench's own stress sequence keeps #f1 23.2px INSIDE
+  .scoreboard-box at its worst sample, against a +2px threshold. So the fault is in the bench, and
+  the item now points at check (a2) in src/validation/runtimeBench.ts. What is still missing is the
+  one measurement that needs the studio's own bridge: instrument the bench where it measures and
+  print the two rectangles it compares."
 found: "three of six neutral scaffolds hand the author a bench WARNING they did not cause - and the
   overflow the warning describes is not in the render, so the fault is in the bench's own check"
 size: standard
