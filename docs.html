@@ -54,6 +54,7 @@
         <a href="#getting-started">Getting started</a>
         <p class="group">Make a graphic</p>
         <a href="#graphics">Graphics</a>
+        <a href="#first-graphic">Your first graphic, step by step</a>
         <a href="#svg">Import your own SVG graphic</a>
         <a href="#artwork">Pictures, logos &amp; Lottie</a>
         <p class="group">Connect playout</p>
@@ -92,6 +93,12 @@
             <li>Finish, then either export a package straight away, or collect graphics into a
               production and <a href="#dashboard">run the show</a>.</li>
           </ol>
+          <p>
+            Those three lines are the whole product in outline.
+            <a href="#first-graphic">Your first graphic, step by step</a> is the same road walked
+            slowly, from a file you drew to a cue an operator takes to air, and it is the page to
+            read first if you have a design waiting.
+          </p>
           <p>
             The guides below cover the rest: what each kind of graphic asks you to type, bringing
             your own design in as an SVG, connecting playout systems, live data, and letting a
@@ -478,6 +485,143 @@ Full results at https://example.org</code></pre>
           </p>
         </section>
 
+        <!-- ═══════════════════════ THE WALK ═══════════════════════ -->
+        <!-- Written by walking the road on 2026-09-09 with an SVG drawn for the walk, from the
+             Import door to a cue taken to air on a production dashboard. Every quoted string
+             below was read off the running app that day, not off a plan document. Re-walk it
+             before editing: the wizard's step rail and the Finish doors have both changed
+             shape since the first draft of this page. -->
+        <section id="first-graphic">
+          <h2>Your first graphic, step by step</h2>
+          <p>
+            This is the whole road: a file you drew, and a graphic an operator takes to air. It
+            takes about ten minutes. No account is needed until you publish the production at the
+            end.
+          </p>
+          <p>
+            The walk uses an SVG, because that is what a design app hands you and it is the file
+            that brings your own text in as fields an operator can retype. A picture takes the same
+            road with one extra step, and <a href="#artwork">pictures, logos and Lottie</a> covers
+            that. What the SVG itself has to contain is <a href="#svg-rules">five rules</a> long,
+            and it is worth reading before you export.
+          </p>
+          <p>
+            Where to start: <a href="/app#/new">the studio</a> &rarr;
+            <strong>Import graphic</strong>.
+          </p>
+          <div class="doc-table"><table>
+            <tr><th>Step</th><th>The one thing it asks</th></tr>
+            <tr><td>1. Start</td><td>Which door you came in. Import graphic.</td></tr>
+            <tr><td>2. Design</td><td>The canvas, then your file.</td></tr>
+            <tr><td>3. Fields</td><td>Which layers the operator retypes, and what the graphic does.</td></tr>
+            <tr><td>4. Animation</td><td>How it comes on and goes off.</td></tr>
+            <tr><td>5. Finish</td><td>Its name, and where it goes.</td></tr>
+          </table></div>
+          <p>
+            The rail down the left starts with six steps and becomes five the moment an SVG lands.
+            Two go, <strong>Prepare</strong> and <strong>Text</strong>, which erase a picture's
+            baked-in words and place new ones over the gap. One arrives in their place,
+            <strong>Fields</strong>. An SVG has nothing to erase and its text is already exactly
+            where you set it, so those two jobs become one and everything after them renumbers.
+          </p>
+
+          <h3 id="first-format">Set the canvas before you drop the file</h3>
+          <p>
+            The Design step opens on <strong>Project format</strong>: aspect ratio, resolution and
+            frame rate, starting at 16:9, 1920&times;1080, 25&nbsp;fps. Change it first if you need
+            something else. Once artwork is in, that row reads
+            <em>"Remove the current artwork before changing its authored canvas"</em>, so a vertical
+            graphic means picking 9:16 before the drop rather than after it.
+          </p>
+          <p>
+            Drop the file and the step reads back what it found: the artwork's size, how many text
+            layers it saw, and every typeface the file names. Check the layer count against what
+            you drew. A number lower than yours means some of that type is outlines rather than
+            text. Re-exporting with live text is the better answer, and it is
+            <a href="#svg-rules">rule 2</a>. If you cannot, the next step offers those shapes back
+            as an <strong>Outlined text</strong> group;
+            <a href="#svg-layers">what each layer becomes</a> says what you get for ticking one.
+          </p>
+
+          <h3 id="first-fields">Fields is where the graphic is decided</h3>
+          <p>
+            This is the step that turns a drawing into something an operator can drive. Every group
+            writes its current answer beside its own heading, so you can read the whole step without
+            opening anything. A group appears only when your file has something for it, so a file
+            carrying a logo or outlined type shows more groups than the five below.
+          </p>
+          <ul>
+            <li><strong>Editable text.</strong> One row per text layer, ticked, apart from any
+              layer you named with a <code>static:</code> prefix to say the words are furniture. A
+              row carries the layer's name, the words you drew, and a small grid saying how the
+              text sits in its box. The name is the label the operator reads, so it is worth fixing
+              here if your file said "Rectangle_3". The words are what the field starts as, not a
+              caption. Untick a row and that layer goes back to being part of the drawing.</li>
+            <li><strong>Add a field.</strong> Draws a new box on the artwork, for a line you did
+              not draw as live text.</li>
+            <li><strong>What it does.</strong> The default is "Nothing. It comes on and off." The
+              rest of the list is the behaviours NoaCG's own graphics run on, offered on your
+              artwork instead: a quiz, a live vote, a score tracker, a countdown, a meter, an
+              alert. See <a href="#behaviour">graphics with behaviour</a>.</li>
+            <li><strong>When the text is too long.</strong> Four answers, from "the panel gets
+              wider" to "the panel stays the size you drew". NoaCG reads one off your geometry and
+              tells you which shape it picked, by the name you gave that layer
+              (<em>"Backplate is the shape that grows"</em>). That sentence is the reason to name
+              the panel as well as the text.</li>
+            <li><strong>Typefaces.</strong> One row per family the file asks for, each with what
+              NoaCG can do about it. <a href="#svg-fonts">Fonts</a> covers what the answers
+              mean.</li>
+          </ul>
+          <p>
+            The alignment grid matters more than it looks. It is read from your drawing, and it
+            decides which edge holds still when the operator's words are a different length from
+            the ones you typed.
+          </p>
+
+          <h3 id="first-finish">Finish, and the two doors</h3>
+          <p>
+            Finish has two name boxes and they are not the same box. The first names the graphic.
+            The second names a new production, and it only appears while the production picker is
+            on <strong>New production</strong>. Leave both empty and both take the same default
+            name, which is confusing a week later.
+          </p>
+          <ul>
+            <li><strong>Add to the production.</strong> Saves the graphic to your library, puts a
+              copy into the production with its first cue ready, and lands you on that production.
+              A dialog names the production it is about to write to before anything happens.</li>
+            <li><strong>Export it.</strong> The files on their own, saved to your library first.
+              <a href="#export">Which package do I want</a> is the next question.</li>
+          </ul>
+          <p>
+            A third door, <strong>Open in the editor</strong>, appears here only when
+            <strong>Advanced mode</strong> is on in Settings. Nothing on this road needs it.
+          </p>
+          <p>
+            <strong>Create project</strong>, which sits beside Next from the Design step on, is not
+            a fourth ending. It builds the graphic with the defaults for everything you have not
+            reached and hands it to the code editor, and it does not save. Saving there is your own
+            press. Take Finish's doors unless you know you want the canvas.
+          </p>
+
+          <h3 id="first-air">Take it to air</h3>
+          <p>
+            You land on the production. <strong>Preview</strong> on the left is what you are
+            checking, <strong>program</strong> on the right is what the audience sees, and your cue
+            is already in the rundown. Press <strong>Take</strong>.
+          </p>
+          <p>
+            Now type into the fields under the monitors. Preview changes and program does not, and
+            the panel says so: <em>"1 change not on air yet"</em>. <strong>Update</strong> pushes
+            what you typed to air. <strong>Out</strong> plays the graphic off. Nothing you type
+            reaches the picture on its own.
+          </p>
+          <p>
+            Getting that picture into OBS, vMix or CasparCG is the next step, and it is about the
+            production's output URL rather than about this graphic:
+            <a href="#dashboard">the playout dashboard</a>.
+          </p>
+        </section>
+
         <!-- ═══════════════════════ SVG IMPORT ═══════════════════════ -->
         <section id="svg">
           <h2>Import your own SVG graphic</h2>
@@ -489,7 +633,8 @@ Full results at https://example.org</code></pre>
           </p>
           <p>
             Where to drop it: <a href="/app#/new">the studio</a> &rarr; <strong>New graphic</strong>
-            &rarr; <strong>Import graphic</strong>.
+            &rarr; <strong>Import graphic</strong>. This page is about the file. What happens after
+            you drop it is <a href="#first-graphic">your first graphic, step by step</a>.
           </p>
           <!-- The screenshots on this page come from `node scripts/docs-shots.mjs`, which drives
                the running app. Re-run it when a surface below changes; never hand-capture one. -->
@@ -1112,7 +1257,9 @@ CG 1-20 STOP</code></pre>
           <ol>
             <li>In your library, press <strong>+ Production</strong> on a graphic's row. The menu
               lists the productions you already have, and has a <strong>New production&hellip;</strong>
-              field at the bottom. Naming a new one creates it and puts that graphic in it.</li>
+              field at the bottom. Naming a new one creates it and puts that graphic in it. A
+              graphic you are still making does this from the wizard's own Finish step instead,
+              in one press: <a href="#first-finish">Finish, and the two doors</a>.</li>
             <li>Add the show's other graphics the same way.</li>
             <li>Build the rundown on the production page. A cue is a graphic plus the values it
               airs with.</li>

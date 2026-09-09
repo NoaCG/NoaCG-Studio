@@ -21,5 +21,6 @@ describes. Its material is layer names and spellings, which a picture carries be
 vote sample to drop yet, so do that one first.
 
 ## Evidence
-`scripts/docs-shots.mjs:109,118,130` - three blocks, no dashboard, OBS, quiz or vote;
-`docs/backlog/docs-guides-to-write.md` covers the guides, never the shots.
+`scripts/docs-shots.mjs:109,118,130` - three blocks, no dashboard, OBS, quiz or vote. The guides
+themselves are written; the list that ordered them (`docs-guides-to-write.md`, deleted 2026-09-09
+when its last item landed) never covered the shots, and neither does anything else.
