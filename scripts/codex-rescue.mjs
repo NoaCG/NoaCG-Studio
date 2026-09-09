@@ -231,10 +231,21 @@ export function labelProcess(command = '', name = '') {
  */
 export const SNAPSHOT_AT_MS = [0, 1_000, 2_500, 5_000, 10_000, 20_000, 40_000];
 
-/** The next snapshot due at `elapsed`, or null when the schedule has nothing left to say. */
-export function snapshotDue(elapsedMs, taken) {
+/**
+ * And once the family is built, a slow heartbeat for as long as anybody is watching.
+ *
+ * A SECOND DELEGATION IN THE SAME WORKSPACE ADDS TO THE SAME FAMILY, minutes later - measured,
+ * two jobs 100 s apart sharing one `codex.exe` and one broker. The backoff above is spent inside
+ * the first forty seconds, so without this the record would stop growing exactly where the
+ * comment on the poll recorder says it keeps up. A minute apart costs one process listing per
+ * minute of watching.
+ */
+export const SNAPSHOT_TAIL_MS = 60_000;
+
+/** Is a snapshot due - on the backoff while it lasts, on the heartbeat afterwards? */
+export function snapshotDue(elapsedMs, taken, sinceLastMs = Infinity) {
   const next = SNAPSHOT_AT_MS[taken];
-  return next === undefined ? false : elapsedMs >= next;
+  return next === undefined ? sinceLastMs >= SNAPSHOT_TAIL_MS : elapsedMs >= next;
 }
 
 // ── The plugin, and its on-disk job state ────────────────────────────────────────────────────────
@@ -341,6 +352,17 @@ const OWNERSHIP_VERSION = 1;
  */
 export const GRACE_MS = 5_000;
 
+/** A process table by pid - the lookup every identity check in this section starts from. */
+function indexByPid(table) {
+  return new Map(table.map((entry) => [entry.pid, entry]));
+}
+
+/** The ownership record on disk. One writer, so a reader never meets half a shape. */
+function writeOwnership(dir, record) {
+  writeFileSync(path.join(dir, OWNERSHIP_FILE), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  return record;
+}
+
 /** The broker session the plugin records per workspace: its endpoint, its pid, its files. */
 function brokerSession(dir) {
   const file = path.join(dir, 'broker.json');
@@ -402,49 +424,69 @@ export function mergeOwned(previous = [], observed = [], live = new Map()) {
  */
 export function recordOwnership(dir, { table = allProcesses(), jobIds = [], now = () => new Date().toISOString() } = {}) {
   if (table.length === 0) return null;
+  const byPid = indexByPid(table);
+  const previous = readOwnership(dir);
   const session = brokerSession(dir);
   const brokerPid = Number(session?.pid);
-  if (!Number.isFinite(brokerPid)) return null;
-  const byPid = new Map(table.map((p) => [p.pid, p]));
-  const broker = byPid.get(brokerPid);
-  if (!broker || !BROKER_COMMAND.test(broker.command)) return null;
+  const claimed = Number.isFinite(brokerPid) ? byPid.get(brokerPid) : null;
+  // The broker is identified TWICE: the plugin's note says which pid, and the process itself has
+  // to look like a broker. A pid alone would let a reused number into the record, and the record
+  // is what every later kill is allowed by.
+  const broker = claimed && BROKER_COMMAND.test(claimed.command) ? claimed : null;
 
-  const observed = [broker, ...descendantsOf([brokerPid], table)].map((p) => ({
+  // EVERY ROOT, NOT JUST THE BROKER. The broker is the first thing recorded and often the first
+  // thing to exit - it is what a graceful shutdown closes - and expanding only from it would
+  // leave the app-server and its MCP servers, the expensive half, unrecorded the moment the
+  // broker was gone. Growing from everything already recorded keeps the family in the record
+  // even after its root has left it.
+  const roots = broker ? [broker] : [];
+  for (const entry of previous?.owned ?? []) {
+    const live = byPid.get(entry.pid);
+    if (live && live.createdMs === entry.createdMs && live !== broker) roots.push(live);
+  }
+  if (roots.length === 0) return null;
+
+  const observed = [...roots, ...descendantsOf(roots.map((p) => p.pid), table)].map((p) => ({
     pid: p.pid,
     createdMs: p.createdMs,
     what: labelProcess(p.command, p.name),
   }));
-  const previous = readOwnership(dir);
   const self = byPid.get(process.pid);
   const record = {
     version: OWNERSHIP_VERSION,
-    workspace: workspaceOfBroker(broker.command) ?? previous?.workspace ?? dir,
+    workspace: (broker && workspaceOfBroker(broker.command)) ?? previous?.workspace ?? dir,
     stateDir: dir,
-    endpoint: session.endpoint ?? previous?.endpoint ?? null,
-    broker: { pid: brokerPid, createdMs: broker.createdMs },
+    endpoint: session?.endpoint ?? previous?.endpoint ?? null,
+    broker: broker ? { pid: brokerPid, createdMs: broker.createdMs } : previous?.broker ?? null,
     // Only ever consulted for a record that names NO delegation - a launch that never got a job
     // id back. A finished session is not evidence about a running delegation: this wrapper
     // detaches the launch on purpose so the work survives the session that asked for it.
-    launcher: previous?.launcher ?? (self ? { pid: self.pid, createdMs: self.createdMs } : null),
+    //
+    // An EXPLICIT null is a decision (`abandonLaunch`) and is kept; a missing field is not.
+    launcher: previous && 'launcher' in previous
+      ? previous.launcher
+      : (self ? { pid: self.pid, createdMs: self.createdMs } : null),
     jobs: [...new Set([...(previous?.jobs ?? []), ...jobIds])],
     recordedAt: now(),
     owned: mergeOwned(previous?.owned, observed, byPid),
   };
-  writeFileSync(path.join(dir, OWNERSHIP_FILE), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
-  return record;
+  return writeOwnership(dir, record);
 }
 
 /**
- * How long a launch keeps looking for the family it just asked for.
+ * How long a launch keeps looking for the family it just asked for before handing the job id
+ * back and leaving the rest to the poll.
  *
  * A JOB ID IS NOT A FAMILY. Measured on this machine: the launcher answers with the job still
  * `queued`, and the broker is only started when the job actually begins - so the record written
- * at the moment the id arrives names nothing at all, which is what happened on the first live
- * run of this code. Twenty seconds covers the ordinary queue wait without holding the caller up
- * when nothing is coming; a delegation that waits longer than that is recorded by the first poll
- * instead, and the family's links were measured still intact minutes later.
+ * at the moment the id arrives names nothing at all, which is what the first live run of this
+ * code did. Ten seconds covered every launch measured here (the broker appeared within five),
+ * and it is a CAP, not a wait: the loop leaves as soon as it has the family. A job that queues
+ * for longer than that is recorded by the first poll instead, and the family's links were
+ * measured still intact minutes later - so the caller is not made to sit through somebody
+ * else's delegation to buy something the next command gets for free.
  */
-const RECORD_WINDOW_MS = 20_000;
+const RECORD_WINDOW_MS = 10_000;
 
 /** Write the record for a launch, waiting for the broker the job will be served by. */
 async function recordLaunchedTree(dir, jobId) {
@@ -457,8 +499,10 @@ async function recordLaunchedTree(dir, jobId) {
       const record = recordOwnership(dir, { jobIds: [jobId] });
       // Twice: the first record catches the broker, the second the MCP servers it starts a
       // second or two later, while every link is still there to be walked.
-      if (record && first) return record;
-      if (record) first = record;
+      if (record) {
+        if (first) return record;
+        first = record;
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, first ? 2_000 : 500));
   }
@@ -477,7 +521,7 @@ async function recordLaunchedTree(dir, jobId) {
 export function forgetOwnership(dir, table = allProcesses()) {
   const record = readOwnership(dir);
   if (!record || table.length === 0) return false;
-  const byPid = new Map(table.map((p) => [p.pid, p]));
+  const byPid = indexByPid(table);
   const stillOurs = (record.owned ?? []).some((entry) => byPid.get(entry.pid)?.createdMs === entry.createdMs);
   if (stillOurs) return false;
   rmSync(path.join(dir, OWNERSHIP_FILE), { force: true });
@@ -492,23 +536,29 @@ export function forgetOwnership(dir, table = allProcesses()) {
 export function abandonLaunch(dir) {
   const record = readOwnership(dir);
   if (!record || (record.jobs ?? []).length > 0) return null;
-  const abandoned = { ...record, launcher: null, abandonedAt: new Date().toISOString() };
-  writeFileSync(path.join(dir, OWNERSHIP_FILE), `${JSON.stringify(abandoned, null, 2)}\n`, 'utf8');
-  return abandoned;
+  return writeOwnership(dir, { ...record, launcher: null, abandonedAt: new Date().toISOString() });
 }
 
 /**
- * A recorder that respects `SNAPSHOT_AT_MS`: call `note()` as often as you like and it reads the
- * process table only when the schedule says a snapshot is due.
+ * A recorder that respects the snapshot schedule: call `note()` as often as you like and it reads
+ * the process table only when `SNAPSHOT_AT_MS` - or, past it, the `SNAPSHOT_TAIL_MS` heartbeat -
+ * says a snapshot is due.
  */
 export function ownershipRecorder(dir, { started = Date.now(), jobIds = [] } = {}) {
   let taken = 0;
+  let lastAt = -Infinity;
   const ids = new Set(jobIds);
   return {
     add: (id) => id && ids.add(id),
     note() {
-      if (!existsSync(dir) || !snapshotDue(Date.now() - started, taken)) return null;
+      if (!snapshotDue(Date.now() - started, taken, Date.now() - lastAt)) return null;
+      // NOTHING TO RECORD IS ANSWERED FROM DISK, not from the process table. Reading the table
+      // costs a PowerShell process every time, and until the job leaves the queue there is no
+      // broker and no record - which is the majority of the calls on this path, on the machine
+      // this whole mechanism exists to keep memory free on.
+      if (!existsSync(path.join(dir, 'broker.json')) && !readOwnership(dir)) return null;
       taken += 1;
+      lastAt = Date.now();
       try {
         return recordOwnership(dir, { jobIds: [...ids] });
       } catch {
@@ -533,17 +583,31 @@ export function stateRoots() {
   // them (`codex-inline`, then `codex-openai-codex`). Whatever the env says today, every sibling
   // state root is still a place a delegation can be recorded in.
   const pluginData = path.join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.claude', 'plugins', 'data');
-  if (existsSync(pluginData)) {
-    for (const entry of readdirSync(pluginData, { withFileTypes: true })) {
-      if (entry.isDirectory()) roots.push(path.join(pluginData, entry.name, 'state'));
-    }
+  for (const entry of dirEntries(pluginData)) {
+    if (entry.isDirectory()) roots.push(path.join(pluginData, entry.name, 'state'));
   }
   return [...new Set(roots)].filter((root) => existsSync(root));
 }
 
+/**
+ * A directory's entries, or none.
+ *
+ * These directories belong to another program, on a machine where sessions come and go: one can
+ * be deleted between the `existsSync` and the read, or refuse a read outright. THE QUEUE RUNNER
+ * CALLS ALL OF THIS from its poll loop, and a scheduler that dies because somebody else's
+ * temporary directory moved is a worse failure than the memory this reclaims.
+ */
+function dirEntries(dir) {
+  try {
+    return readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+}
+
 /** Every workspace the plugin has state for, so a job orphaned in a closed session is still found. */
 function allStateDirs() {
-  return stateRoots().flatMap((root) => readdirSync(root, { withFileTypes: true })
+  return stateRoots().flatMap((root) => dirEntries(root)
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(root, entry.name)));
 }
@@ -552,8 +616,14 @@ function allStateDirs() {
  * What the orphan detector judges: one record per workspace that has an ownership record, with
  * every delegation in that workspace and whether it has reached an outcome.
  *
- * The job statuses are read from the plugin's own state and RECONCILED first, so a delegation
+ * The job statuses are read from the plugin's own state and reconciled IN MEMORY, so a delegation
  * whose process is gone counts as finished rather than holding its family for ever.
+ *
+ * READ-ONLY, DELIBERATELY. `reconciledJobs` persists what it works out, and this function is
+ * called from the QUEUE RUNNER's poll loop as well as from here - two unlocked read-modify-writes
+ * of the same `state.json`, from two processes, is a lost update or a half-written file. The
+ * commands that own a job (`status`, `poll`, `cancel`, `reap`) still persist their verdict; a
+ * sweep only needs to know, not to say.
  */
 export function delegationRecords() {
   const records = [];
@@ -562,7 +632,10 @@ export function delegationRecords() {
     if (!owned) continue;
     let jobs;
     try {
-      jobs = reconciledJobs(dir).map((job) => ({ id: job.id, finished: TERMINAL.has(job.status) }));
+      jobs = readState(dir).jobs.map((job) => ({
+        id: job.id,
+        finished: TERMINAL.has(reconcileJob(job)?.status ?? job.status),
+      }));
     } catch {
       // A job store this wrapper cannot read (a future version, a half-written file) is not a
       // licence to close anything: an unreadable status is treated as work in progress.
@@ -602,6 +675,30 @@ export function brokerShutdown(endpoint, timeoutMs = GRACE_MS) {
   });
 }
 
+/** One line per kept pid, whichever pass reported it: the same tree is judged twice per reap. */
+function namedOnce(trees) {
+  const byPid = new Map();
+  for (const tree of trees) for (const entry of tree.kept) byPid.set(entry.pid, entry);
+  return [...byPid.values()];
+}
+
+/**
+ * Add the family a reap has just resolved to the record, so what is about to be closed is
+ * written down before anything is closed. Needs no broker: the entries have already been proved
+ * against this table by the detector.
+ */
+function rememberExpanded(dir, entries, table) {
+  const record = readOwnership(dir);
+  if (!record) return;
+  const byPid = indexByPid(table);
+  const owned = mergeOwned(record.owned, entries.map((entry) => ({
+    pid: entry.pid,
+    createdMs: entry.createdMs,
+    what: entry.what,
+  })), byPid);
+  writeOwnership(dir, { ...record, owned });
+}
+
 /** Wait for pids to go, up to `ms`. Signal 0 only - cheap, and identity is re-checked after. */
 async function waitForExit(pids, ms) {
   const deadline = Date.now() + ms;
@@ -628,37 +725,54 @@ export async function reapTrees({ log = console.log } = {}) {
   const table = allProcesses();
   const before = orphanedCodexTrees(table, records);
   const collecting = before.filter((tree) => tree.kill.length > 0);
-  const kept = before.flatMap((tree) => tree.kept);
   if (collecting.length === 0) {
     // Nothing to close, but a record whose family has gone some other way - a cancel that took
     // the tree with it, a machine that was restarted - is finished with, and saying so here is
     // what stops every later sweep re-reading it.
     for (const tree of before) if (tree.stateDir) forgetOwnership(tree.stateDir, table);
-    return { closed: 0, trees: [], kept };
+    return { closed: 0, trees: [], kept: namedOnce(before) };
   }
 
-  for (const tree of collecting) {
+  // WRITE THE FAMILY DOWN BEFORE CLOSING ANY OF IT. The kill list is wider than the record - it
+  // includes everything running below what was recorded - and the broker is usually the first to
+  // go. If the reap stopped here, or the broker exited on its own before the next sweep, a
+  // record still naming only the broker would be forgotten as dead while the app-server and its
+  // MCP servers, the expensive half, went on running with nothing left that could ever claim
+  // them. Recording the expansion first is what keeps that from becoming permanent.
+  for (const tree of collecting) if (tree.stateDir) rememberExpanded(tree.stateDir, tree.kill, table);
+
+  // Every broker is asked at once. Sequentially, a machine with three leaked families - the
+  // number measured on 2026-09-09 - would put half a minute in front of the launch that swept it.
+  await Promise.all(collecting.map(async (tree) => {
     const said = await brokerShutdown(tree.endpoint);
     const quiet = await waitForExit(tree.kill.map((p) => p.pid), GRACE_MS);
     log(`  ${tree.workspace}: asked the broker to shut down - ${said}${quiet ? ', and the family went with it' : ''}`);
-  }
+  }));
 
   // Re-derive from the machine as it is NOW: the graceful step has changed it, and every kill
   // below is allowed by a record that was checked against this table, not the earlier one.
-  const after = orphanedCodexTrees(allProcesses(), records);
+  const settled = allProcesses();
+  const after = orphanedCodexTrees(settled, records);
   let closed = 0;
+  let refused = 0;
   for (const tree of after) {
     for (const target of tree.kill) {
       const plan = killPlan(target.pid);
       const run = spawnSync(plan.command, plan.args, { encoding: 'utf8', shell: false, windowsHide: true });
-      if (run.status === 0) closed += 1;
-      log(`    closed pid ${target.pid} (${target.what})${run.status === 0 ? '' : ` - taskkill said: ${(run.stderr || run.stdout || '').trim()}`}`);
+      if (run.status === 0) {
+        closed += 1;
+        log(`    closed pid ${target.pid} (${target.what})`);
+      } else {
+        refused += 1;
+        log(`    could NOT close pid ${target.pid} (${target.what}) - taskkill said: ${(run.stderr || run.stdout || '').trim()}`);
+      }
     }
-    // A record that names nothing of ours any more has nothing left to say, and leaving it behind
-    // would have every later sweep re-read a list of dead pids.
-    if (tree.stateDir) forgetOwnership(tree.stateDir);
   }
-  return { closed, trees: collecting, kept: [...kept, ...after.flatMap((tree) => tree.kept)] };
+  // One table read for the whole loop: `forgetOwnership` would otherwise enumerate the machine
+  // again per tree, and the kills above have already happened.
+  const settledAfterKills = closed > 0 ? allProcesses() : settled;
+  for (const tree of after) if (tree.stateDir) forgetOwnership(tree.stateDir, settledAfterKills);
+  return { closed, refused, trees: collecting, kept: namedOnce([...before, ...after]) };
 }
 
 // ── Commands ─────────────────────────────────────────────────────────────────────────────────────
@@ -769,8 +883,14 @@ async function launch(argv, cwd) {
           const payload = JSON.parse(raw.slice(start, end + 1));
           if (payload.jobId) {
             // Not `recorder.note()`: the schedule may not be due, and a record that does not name
-            // the delegation can never be judged finished later.
-            await recordLaunchedTree(dir, payload.jobId);
+            // the delegation can never be judged finished later. Wrapped, because a delegation
+            // that is already RUNNING must never be lost to a bookkeeping error - an unreported
+            // job id is a leak this code cannot even see, which is the defect it exists to fix.
+            try {
+              await recordLaunchedTree(dir, payload.jobId);
+            } catch (error) {
+              process.stderr.write(`Could not record the delegation's process family: ${error.message}\n`);
+            }
             console.log(JSON.stringify({ ...payload, promptBytes: Buffer.byteLength(text) }, null, 2));
             return 0;
           }
@@ -955,15 +1075,17 @@ async function reap(argv, cwd) {
   return 0;
 }
 
-/** What a reap did, in the lines the row's TRAPS ask for: what closed, and what stayed and why. */
-async function reportReap(result) {
+/** What a reap did: what closed, what would not close, and what stayed and why. */
+function reportReap(result) {
   if (!result) return;
-  if (result.closed > 0) {
-    console.log(`Closed ${result.closed} process(es) from ${result.trees.length} finished delegation tree(s).`);
-  } else if (result.trees.length > 0) {
-    console.log(`${result.trees.length} finished delegation tree(s) closed themselves when the broker shut down.`);
+  const { closed = 0, refused = 0, trees = [], kept = [] } = result;
+  if (closed > 0 || refused > 0) {
+    const stubborn = refused > 0 ? `, and ${refused} would not close` : '';
+    console.log(`Closed ${closed} process(es) from ${trees.length} finished delegation tree(s)${stubborn}.`);
+  } else if (trees.length > 0) {
+    console.log(`${trees.length} finished delegation tree(s) closed themselves when the broker shut down.`);
   }
-  for (const { pid, why } of result.kept) console.log(`  kept pid ${pid} - ${why}`);
+  for (const { pid, why } of kept) console.log(`  kept pid ${pid} - ${why}`);
 }
 
 // ── Entry ────────────────────────────────────────────────────────────────────────────────────────

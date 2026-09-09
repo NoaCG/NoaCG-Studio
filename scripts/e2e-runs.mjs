@@ -45,6 +45,11 @@ function normalize(path) {
   return resolve(path).replaceAll('\\', '/');
 }
 
+/** A process table by pid - what every walk up or down the tree starts from. */
+function indexByPid(processes) {
+  return new Map(processes.map((entry) => [entry.pid, entry]));
+}
+
 /** Case-insensitive checkout-path equality (Windows filesystems are case-insensitive). */
 export function sameRoot(a, b) {
   return normalize(a).toLowerCase() === normalize(b).toLowerCase();
@@ -409,7 +414,7 @@ function chainIsOrphaned(server, byPid) {
  * against real tables captured from both cases.
  */
 export function orphanedDevServers(processes, root = repoRoot) {
-  const byPid = new Map(processes.map((p) => [p.pid, p]));
+  const byPid = indexByPid(processes);
   const repo = normalize(root).toLowerCase();
   return processes
     .filter((p) => DEV_SERVER.test(p.command))
@@ -485,7 +490,7 @@ function believableParent(parent, child) {
 
 /** A pid's ancestors, outward from its parent, stopping at a link that cannot be real. */
 export function ancestorsOf(pid, processes) {
-  const byPid = new Map(processes.map((p) => [p.pid, p]));
+  const byPid = indexByPid(processes);
   const chain = [];
   const seen = new Set([pid]);
   for (let at = byPid.get(pid); at; ) {
@@ -559,7 +564,7 @@ export function descendantsOf(pids, processes) {
  * candidate and cannot be tested any other way.
  */
 export function orphanedCodexTrees(processes, records = []) {
-  const byPid = new Map(processes.map((p) => [p.pid, p]));
+  const byPid = indexByPid(processes);
   return records.map((record) => {
     const kept = [];
     const keep = (pid, why) => kept.push({ pid, why });

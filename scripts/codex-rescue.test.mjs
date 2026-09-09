@@ -279,12 +279,16 @@ test('an entry with no start time is not an identity, so it is dropped', async (
   assert.deepEqual(mergeOwned([{ pid: 10, createdMs: null, what: '?' }], [], live), []);
 });
 
-test('the snapshot schedule brackets the seconds a family is built in, then stops', async () => {
-  const { snapshotDue, SNAPSHOT_AT_MS } = await import('./codex-rescue.mjs');
+test('the snapshot schedule brackets the seconds a family is built in, then beats slowly', async () => {
+  const { snapshotDue, SNAPSHOT_AT_MS, SNAPSHOT_TAIL_MS } = await import('./codex-rescue.mjs');
   assert.equal(snapshotDue(0, 0), true, 'the first look is immediate');
   assert.equal(snapshotDue(500, 1), false, 'the second is not due yet');
   assert.equal(snapshotDue(1_200, 1), true);
-  assert.equal(snapshotDue(10 * 60_000, SNAPSHOT_AT_MS.length), false, 'the schedule ends rather than polling for ever');
+  // Past the backoff the record still has to keep up - a second delegation joins the same family
+  // minutes later - but a minute apart, not on every poll.
+  const past = SNAPSHOT_AT_MS.length;
+  assert.equal(snapshotDue(10 * 60_000, past, 10_000), false, 'ten seconds after the last look is too soon');
+  assert.equal(snapshotDue(10 * 60_000, past, SNAPSHOT_TAIL_MS), true);
 });
 
 test('an ownership record this code cannot read is not a proof of anything', async () => {
@@ -301,6 +305,46 @@ test('an ownership record this code cannot read is not a proof of anything', asy
   assert.equal(readOwnership(dir), null);
   writeFileSync(file, '{ half a file', 'utf8');
   assert.equal(readOwnership(dir), null);
+});
+
+test('the record keeps growing from what is left of the family when the broker has gone', async () => {
+  // THE BROKER IS THE FIRST THING RECORDED AND USUALLY THE FIRST TO EXIT - a graceful shutdown
+  // closes it by name. If the record could only grow from the broker, the app-server and its MCP
+  // servers, which are the expensive half, would stop being recorded the moment it left, and a
+  // sweep would then read a record of one dead pid, forget it, and leave 450 MB nothing can ever
+  // claim again.
+  const { recordOwnership } = await import('./codex-rescue.mjs');
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'codex-grow-'));
+  writeFileSync(join(dir, 'owned-tree.json'), JSON.stringify({
+    version: 1,
+    jobs: ['task-one'],
+    launcher: null,
+    owned: [{ pid: 5320, createdMs: 300, what: 'the codex app-server' }],
+  }), 'utf8');
+
+  // No broker.json at all: the broker is gone, and what it started is not.
+  const table = [
+    { pid: 5320, ppid: 1, name: 'node.exe', command: '"node" C:/npm/@openai/codex/bin/codex.js app-server', createdMs: 300 },
+    { pid: 31132, ppid: 5320, name: 'codex.exe', command: 'C:/npm/codex.exe app-server', createdMs: 600 },
+    { pid: 26952, ppid: 31132, name: 'node.exe', command: '"node" ./mcp/server.mjs', createdMs: 2_000 },
+  ];
+  const record = recordOwnership(dir, { table, now: () => 'T' });
+  assert.deepEqual(record.owned.map((entry) => entry.pid), [5320, 31132, 26952]);
+  assert.equal(record.launcher, null, 'an abandoned launch stays abandoned when the record is rewritten');
+  assert.equal(record.broker, null);
+});
+
+test('with no broker and nothing recorded there is nothing to write down', async () => {
+  const { recordOwnership } = await import('./codex-rescue.mjs');
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'codex-empty-'));
+  assert.equal(recordOwnership(dir, { table: [{ pid: 1, ppid: 0, name: 'x.exe', command: 'x', createdMs: 1 }] }), null);
+  assert.equal(recordOwnership(dir, { table: [] }), null, 'and a table that could not be read records nothing');
 });
 
 test('a record is finished with when the machine stops recognising any of it', async () => {
