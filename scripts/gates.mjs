@@ -59,7 +59,7 @@ import { fileURLToPath } from 'node:url';
 
 import { parseArgs } from './e2e-quarantine.mjs';
 import { REASON_MIN } from './measured.mjs';
-import { parseReceipts } from './measured-receipt.mjs';
+import { parseReceipts, RECEIPT_ENV } from './measured-receipt.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -312,9 +312,17 @@ function importsMeasured(code) {
 }
 
 /**
- * The first argument of every `measured(...)` / `measured.optional(...)` call, as written. A
- * bracket walk rather than a regex, because the counts in this repository are expressions that
+ * The first argument of every `measured(...)` / `measured.optional(...)` call, as written - or
+ * `null` for a call whose argument this cannot read with confidence. One entry per call either
+ * way, because "is there a call at all" is a different question from "is the count fabricated".
+ *
+ * A bracket walk rather than a regex, because the counts in this repository are expressions that
  * span lines and nest parentheses (`[a, b].reduce((total, rules) => total + (rules?.length ?? 0), 0)`).
+ * A walk that counts brackets cannot see that `text.split('(')` holds a quoted one, so anything
+ * ambiguous comes back as `null` rather than as a guess: an unbalanced walk, a statement that
+ * ended without a second argument, or an argument holding a quote at all. Reading nothing costs
+ * one narrowing rule on one call; reading it wrong fails an honest gate with three lines of
+ * unrelated code quoted back at its author.
  */
 export function measuredArguments(text) {
   const code = codeLines(text);
@@ -325,17 +333,26 @@ export function measuredArguments(text) {
     const start = found.index + found[0].length;
     let depth = 1;
     let i = start;
+    let readable = false;
     while (i < code.length) {
       const ch = code[i];
-      if (ch === ',' && depth === 1) break;
+      if (ch === ';' && depth === 1) break;
+      if (ch === ',' && depth === 1) {
+        readable = true;
+        break;
+      }
       if (ch === '(' || ch === '[' || ch === '{') depth += 1;
       else if (ch === ')' || ch === ']' || ch === '}') {
         depth -= 1;
-        if (depth === 0) break;
+        if (depth === 0) {
+          readable = true;
+          break;
+        }
       }
       i += 1;
     }
-    args.push(code.slice(start, i).trim());
+    const arg = code.slice(start, i).trim();
+    args.push(readable && !/['"`]/.test(arg) ? arg : null);
   }
   return args;
 }
@@ -387,7 +404,7 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
         problems.push(`${label} declares \`gate: workflow ${header.workflow}\`, but that workflow names neither \`npm run ${gate.name}\` nor ${gate.entry}`);
       }
     }
-    if (header.gate === 'none' && !(header.reason && header.reason.trim().length >= 20)) {
+    if (header.gate === 'none' && !(header.reason && header.reason.trim().length >= REASON_MIN)) {
       problems.push(`${label} declares \`gate: none\` without a reason a reader can act on ("not wired yet" is the defect this audit exists to catch)`);
     }
   };
@@ -430,9 +447,9 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
     const { exempt, problem } = measuresDeclaration(gate.header);
     if (problem) problems.push(`${label} ${problem}`);
     if (exempt || problem) return;
-    const code = codeLines(gate.text ?? read(gate.entry) ?? '');
-    const args = measuredArguments(code);
-    if (!(importsMeasured(code) && args.length > 0)) {
+    const text = gate.text ?? read(gate.entry) ?? '';
+    const args = measuredArguments(text);
+    if (!(importsMeasured(codeLines(text)) && args.length > 0)) {
       problems.push(
         `${label} never says how much it measured - import { measured } from './measured.mjs' and report the size of the set it resolved, ` +
           'so a moved constant or an emptied directory fails the gate instead of passing it. ' +
@@ -441,6 +458,7 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
       return;
     }
     for (const arg of args) {
+      if (arg === null) continue;
       const fabricated = FABRICATED_COUNTS.find(([shape]) => shape.test(arg));
       if (fabricated) problems.push(`${label} reports \`measured(${arg}, ...)\`, and ${fabricated[1]}`);
     }
@@ -477,17 +495,23 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
   // long after the laptop called the build green - so it is judged here, in the build that
   // emptied it.
   //
-  // Checks are not judged here on purpose: this audit IS a check in the build tier, so a build
-  // tier holding no checks is a build in which this code never runs. That one belongs to the
-  // runner, which reaches it whether or not any check exists.
+  // An EMPTY check population is not judged here, on purpose: this audit IS a check in the build
+  // tier, so a build tier holding no checks is a build in which this code never runs. That
+  // direction belongs to the runner, which reaches it whether or not any check exists. A STALE
+  // exemption is a different question and is judged for both kinds - an entry in EMPTY_TIERS that
+  // has quietly stopped being true is the next reader's false reassurance, and would let the
+  // runner print a written reason over a tier that a rename had emptied for real.
+  const inTier = (gates, tier) => gates.filter((g) => g.header.gate === tier).length;
   for (const tier of RUNNABLE) {
-    const declared = emptyTierReason(tier, 'tests');
-    const count = tests.filter((t) => t.header.gate === tier).length;
-    if (count === 0 && !declared) {
+    const held = { tests: inTier(tests, tier), checks: inTier(checks, tier) };
+    if (held.tests === 0 && !emptyTierReason(tier, 'tests')) {
       problems.push(`no test file declares \`gate: ${tier}\`, so \`gates.mjs run --gate ${tier}\` would run none and still pass - a header, a rename or the glob stopped matching, or zero is honest here and belongs in EMPTY_TIERS with a reason`);
     }
-    if (count > 0 && declared) {
-      problems.push(`EMPTY_TIERS says the ${tier} tier holds no test files ("${declared}"), and ${count} now declare it - the written reason is out of date, so drop it and let the tier be held to a real population`);
+    for (const kind of ['tests', 'checks']) {
+      const reason = emptyTierReason(tier, kind);
+      if (held[kind] > 0 && reason) {
+        problems.push(`EMPTY_TIERS says the ${tier} tier holds no ${kind === 'tests' ? 'test files' : 'checks'} ("${reason}"), and ${held[kind]} now declare it - the written reason is out of date, so drop it and let the tier be held to a real population`);
+      }
     }
   }
 
@@ -605,7 +629,7 @@ function runChecks(checks) {
       const started = Date.now();
       const receiptFile = path.join(dir, `${check.name.replace(/[^A-Za-z0-9]+/g, '-')}.tsv`);
       process.stdout.write(`\n[gates] ${check.name}: ${check.command}\n`);
-      const res = runCommand(check.command, { ...process.env, GATE_MEASURED_FILE: receiptFile });
+      const res = runCommand(check.command, { ...process.env, [RECEIPT_ENV]: receiptFile });
       const seconds = ((Date.now() - started) / 1000).toFixed(1);
       if (res.status !== 0) {
         failed.push(check.name);

@@ -196,6 +196,15 @@ test('a tier that holds no gates is refused by property, not by being called `bu
   assert.deepEqual(audited(WIRED.tests), []);
   const stale = audited([...WIRED.tests, { ...WIRED.tests[0], name: 'scripts/late.test.mjs', header: { ...parseHeader(''), gate: 'after-build' } }]);
   assert.equal(stale.filter((p) => /EMPTY_TIERS says the after-build tier/.test(p)).length, 1, 'an exemption that has stopped being true is itself a problem');
+
+  // Both kinds, both directions - a stale exemption over CHECKS would otherwise sit unread until
+  // a rename emptied that tier for real and the runner printed the stale reason as a notice.
+  const factoryCheck = auditGates({
+    ...WIRED,
+    checks: [{ kind: 'check', name: 'check:f', names: ['check:f'], entry: 'scripts/blind.mjs', exists: true, header: parseHeader('// gate: factory\n// guards: scripts/blind.mjs\n// measures: none - it drives a browser and asserts on one rendered page') }],
+    read: () => '',
+  });
+  assert.equal(factoryCheck.filter((p) => /EMPTY_TIERS says the factory tier holds no checks/.test(p)).length, 1);
 });
 
 test('the static scan wants an import and a call outside a comment, and refuses a count that cannot be zero', () => {
@@ -217,6 +226,13 @@ test('the static scan wants an import and a call outside a comment, and refuses 
   // `?? 0` is the honest form of the same reach, and keeps the empty case failing.
   assert.deepEqual(counts('[a, b].reduce((total, rules) => total + (rules?.length ?? 0), 0)'), []);
   assert.deepEqual(measuredArguments("measured(a.length, 'a');\nmeasured.optional(b.length, 'b', why);"), ['a.length', 'b.length']);
+
+  // A COUNT THIS CANNOT READ IS NOT A COUNT IT GUESSES AT. A bracket walk cannot see that
+  // `split('(')` holds a quoted bracket, so the walk would run past the call and quote unrelated
+  // lines back at an honest gate. An unreadable argument is `null` - still a call, never judged.
+  assert.deepEqual(measuredArguments("measured(text.split('(').length, 'segments');\nconst n = Math.max(1, other.length);\n"), [null]);
+  assert.deepEqual(counts("text.split('(').length"), [], 'a quoted bracket fails no gate');
+  assert.equal(blind("import { measured } from './measured.mjs';\nmeasured(text.split('(').length, 'segments');"), 0, 'and it still counts as a call');
 
   // WHAT REMAINS OPEN, on the record rather than in a claim the code does not keep: no reading of
   // the text can say whether a call is REACHED. This one passes the audit, and the runner sees a
@@ -241,6 +257,11 @@ test('one module owns the receipt format, so both writers and the reader cannot 
   assert.match(written, /receiptRow\(/);
   assert.doesNotMatch(written, /\\t/, 'the reporter no longer spells the delimiter');
   assert.doesNotMatch(readFileSync(path.join(ROOT, 'scripts', 'measured.mjs'), 'utf8'), /appendFileSync/, 'the helper no longer writes the row itself');
+  // The name of the variable the receipt travels through is part of that format: the runner sets
+  // it and the writer reads it, so the two have to be the same string by construction.
+  const runner = readFileSync(path.join(ROOT, 'scripts', 'gates.mjs'), 'utf8');
+  assert.match(runner, /\[RECEIPT_ENV]: receiptFile/);
+  assert.doesNotMatch(runner, /GATE_MEASURED_FILE/, 'only measured-receipt.mjs names the variable');
 });
 
 test('the test-count reporter counts each file, and a file that registered no tests is absent from its receipt', () => {
