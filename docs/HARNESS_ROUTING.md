@@ -591,10 +591,15 @@ changed it to `medium`**, on his own ruling that medium is the minimum; a sessio
 machine-global config and did not. Recorded here so nobody reads the old value out of an earlier
 handoff and believes it.
 
-**It has drifted back. Read on 2026-09-09: `model_reasoning_effort = "low"`,** in a file the Codex
-CLI rewrote that morning (`model` moved to `gpt-6-astra` in the same rewrite). Nobody chose this; the
-tool reset a value the owner had set, which is the failure mode of putting a ruling in a file the
-vendor owns.
+**It has drifted back. Read on 2026-09-09: `model_reasoning_effort = "low"`.** What was measured is
+that value and the file's modification time, which was that same morning; `model` also reads
+`gpt-6-astra` rather than the `gpt-5.6-sol` recorded above. **Who or what rewrote it was NOT
+measured** - the CLI updating its own config is the likeliest explanation and it is a guess, and the
+owner setting it back deliberately would look identical from here. Ask him before repeating the guess
+as a cause.
+
+Either way the value is not what the ruling above says it is, which is the point: **a setting in a
+file this repo does not own drifts, and nothing here notices.**
 
 **It does not reach repo delegations, and that is not luck.** `scripts/codex-rescue.mjs` injects
 `--effort high` when a launch names none, exactly so the machine config cannot govern what this repo
@@ -615,7 +620,7 @@ the floor for anything unpinned, and it governs the owner's own interactive sess
 delegation names its effort in the command so the intent is visible there rather than inherited
 invisibly from a file nobody is looking at.
 
-### The Codex delegate cannot make its own branch here, and that is why the ledger reads zero
+### A Codex delegation can only WRITE inside the session that launched it
 
 **Measured 2026-09-09 on 0.154.0-alpha.6.** Handed an ordinary row prompt - one that opens, as every
 row prompt here does, with "make a feature branch in its own worktree before the work starts" - the
@@ -633,33 +638,48 @@ reported was **the launching session's own worktree**.
 > target files and analysed them correctly. Only writes are pinned, and they are pinned to wherever
 > the caller happens to be sitting.
 
-So a linked worktree fails twice over: its git metadata lives in the main checkout's shared `.git`,
-AND the worktree itself is outside the root unless the launcher is already in it. **Pre-creating the
-worktree does not help**, which is the thing worth knowing, because it is the first workaround
-anyone reaches for and it costs a full round trip to discover.
+So a linked worktree fails twice over - its git metadata lives in the main checkout's shared `.git`,
+and the worktree itself is outside the root. **Pre-creating the worktree does not help**, which is
+worth saying because it is the first workaround anyone reaches for and it costs a round trip to learn.
 
-**This is the mechanical half of "Codex sat idle all night".** The routing step was blamed for not
-choosing Codex, and it deserved some of that. But a row routed to Codex under the standard recipe
-would have failed at its first command anyway, which means the delegation ledger reading zero was
-never only a routing failure - it was a recipe that asks this harness for the one thing it cannot do.
-Fixing the routing step alone would have produced failed delegations instead of missing ones.
+**This is the mechanical half of "Codex sat idle all night".** A row routed here under the standard
+recipe would have failed at its first command, so fixing the routing step alone would have turned
+missing delegations into failed ones.
 
-**The shape that works** follows straight from where the root is. There are two, and they differ only
-in who is sitting in the right directory:
+**The shape that works** follows from where the root is. Two options, differing only in who is
+sitting in the right directory:
 
-1. **Delegate from the row that owns the work.** The launching session is already in the feature
-   worktree, so that worktree IS the writable root and the delegate can edit it. This is the normal
-   case and it needs no preparation at all - what it needs is that the row delegating is the row whose
-   branch the work belongs on, rather than an orchestrator delegating from somewhere else.
+1. **Delegate from the row that owns the work** - the launching session is already sitting in the
+   feature worktree, so that worktree IS the writable root. **Measured working on 2026-09-09**, third
+   attempt of the same task: launched from a session whose own directory was the target, the delegate
+   created a new module and edited three existing files there. It needs no preparation at all. What it
+   needs is that the row delegating is the row whose branch the work belongs on, rather than an
+   orchestrator delegating from somewhere else - which is what the first two attempts got wrong.
 2. **Or let it edit the launcher's own checkout** and move the result onto the right branch afterwards.
    Uglier, and only worth it when the launcher cannot be where the work goes.
 
 In both cases the prompt says, in as many words, **run no git at all** - a denied git command is
 expected and is not the delegate's problem to route around - and the launching row reads the diff and
-commits it. That last step is not a concession; it is the routing rule this repo already has -
-**whoever delegates verifies by re-deriving the result, never by checking the worker did as told.**
-Reading the diff before committing it IS that verification, so putting the commit on the launcher
-costs nothing that was not already owed.
+commits it. That is not a concession; it is the routing rule this repo already has - **whoever
+delegates verifies by re-deriving the result, never by checking the worker did as told** - and reading
+the diff before committing IS that verification.
+
+**So do not also ask it for `npm run build`. Split the verification.** The delegate honours "run no
+git" by blocking git subprocesses outright, and **twelve of this repo's gates shell out to git**
+(`check:shared-instructions`, `check:tree-shape`, `check:contract-freshness`,
+`check:contract-citations`, `check:docs-index`, `check:gate-coverage`, `check:client-neutral`,
+`check:copy`, `check:contracts`, `check:contract-evidence`, `check:retired-names`,
+`check:landed-ref`). All twelve failed with `Git subprocess blocked: the caller prohibited all git
+operations`, the build exited 1, and the build-tier tests never ran. **The exit code was real and
+meant nothing about the code** - which is worse than no signal, because it looks like one.
+
+Ask the delegate for the **focused tests** covering what it touched; those need no git and are the
+ones that can actually fail on its work. **The launching row runs the build**, after taking the
+changes onto the branch.
+
+**One contamination to plan for** with shape 2: the delegate builds the launcher's whole working
+tree, so the launcher's own uncommitted work sits inside everything it measures. Commit before
+delegating, or read every failure twice to work out whose it is.
 
 ### Compose every `agy` prompt out of ABSOLUTE paths
 

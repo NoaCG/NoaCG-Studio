@@ -16,10 +16,10 @@ scope is the whole branch diff.
 another session and so must not spawn background subagents of its own. The line that matters is
 not "does this delegate" but **where the result comes back**: a BLOCKING delegation that hands
 its result straight back in the tool result is fine everywhere, because nothing has to be waited
-on; a BACKGROUND fan-out is not, because its completion notification is delivered at a TURN
-BOUNDARY, and a phase that waits for it inside one tool call ends the turn only when it gives up
-(re-measured 2026-09-09 on 2.1.263 - see phase 2; the older reason, that the notification goes to
-the launcher and never arrives at all, was true on 2.1.240 and no longer holds).
+on; a BACKGROUND fan-out is not. Its completion notification arrives only at a TURN BOUNDARY, so a
+phase that sits and waits for one inside a single tool call cannot see it. Waiting is the one thing
+that does not work (re-measured 2026-09-09 on 2.1.263 - see phase 2; the older reason, that such a
+notification goes to the launcher and never arrives at all, was true on 2.1.240 and no longer holds).
 So no phase here requires a fan-out - every one has a path
 that completes in one context, and phase 5 says out loud which path each leg took. A gate that
 cannot run where the work happens is not a gate.
