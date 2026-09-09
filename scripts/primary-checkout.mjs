@@ -13,12 +13,17 @@
 // because `orchestrator-home.mjs` pins the orchestrator to `.claude/worktrees/orchestrator` and
 // the weekly file only ever exists one directory up and two across. Nothing said so for a week.
 //
-// HOW. A linked worktree's `.git` is a POINTER FILE - `gitdir: <common>/worktrees/<name>` - while
-// the primary checkout's `.git` is a directory. Two `dirname` calls off the pointer give the
-// common git directory, and its parent is the primary checkout. No subprocess: this is read on
-// paths that run inside a plan check and a CLI, and `spawnSync('git')` costs more than the whole
-// question is worth. When there is no `.git` at all - a tarball, or a test's temporary directory -
-// the answer is the root that was asked about, so callers and tests behave identically.
+// HOW. A linked worktree's `.git` is a POINTER FILE - `gitdir: <the worktree's admin directory>` -
+// while the primary checkout's `.git` is a directory. Git writes a `commondir` file inside that
+// admin directory naming the shared git directory, and READING IT is what makes this exact rather
+// than a guess: a pointer file also appears for a `--separate-git-dir` clone and for a submodule,
+// where the target is the repository's own git directory and no `commondir` sits beside it. Taking
+// two `dirname`s off every pointer would put those two cases two levels above the truth and hand
+// back a path like `C:\docs\handoffs` - the failure this module exists to kill, wearing a hat.
+//
+// No subprocess: this is read inside a plan check and a CLI, and `spawnSync('git')` costs more than
+// the whole question is worth. When there is no `.git` at all - a tarball, or a test's temporary
+// directory - the answer is the root that was asked about, so callers and tests behave identically.
 //
 // The three other resolutions of this same fact in the repo are deliberate and stay: `dev-port.mjs`
 // normalises for the port registry and sits on a hook that runs for every shell command, while
@@ -29,36 +34,56 @@ import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 /**
+ * What `<root>/.git` says: the shared git directory, and whether `root` is a LINKED WORKTREE of
+ * some other checkout. Only a linked worktree has a primary checkout somewhere else.
+ *
+ * @returns {{ commonDir: string, linked: boolean }|null} null when `root` is not a checkout
+ */
+function readGitLink(root) {
+  const dotGit = path.join(root, '.git');
+  let text;
+  try {
+    if (statSync(dotGit).isDirectory()) return { commonDir: dotGit, linked: false };
+    text = readFileSync(dotGit, 'utf8');
+  } catch {
+    return null;
+  }
+  const pointer = /^gitdir:\s*(.+)$/m.exec(text);
+  if (!pointer) return null;
+  // Resolved against `root` because the pointer may be relative - `git worktree add
+  // --relative-paths` writes one.
+  const gitDir = path.resolve(root, pointer[1].trim());
+  try {
+    const commonDir = path.resolve(gitDir, readFileSync(path.join(gitDir, 'commondir'), 'utf8').trim());
+    return { commonDir, linked: true };
+  } catch {
+    // No `commondir` beside the pointer's target: this is not a linked worktree but a checkout
+    // whose git directory lives elsewhere - `--separate-git-dir`, or a submodule. Its own working
+    // tree is `root`, so there is no other checkout to reach for.
+    return { commonDir: gitDir, linked: false };
+  }
+}
+
+/**
  * The repository's shared git directory as seen from `root`, or null when `root` is not a checkout.
  *
  * @param {string} root any checkout of the repository - the primary one or a linked worktree
  * @returns {string|null}
  */
 export function gitCommonDir(root) {
-  const dotGit = path.join(root, '.git');
-  let stat;
-  try {
-    stat = statSync(dotGit);
-  } catch {
-    return null;
-  }
-  if (stat.isDirectory()) return dotGit;
-  const pointer = /^gitdir:\s*(.+)$/m.exec(readFileSync(dotGit, 'utf8'));
-  if (!pointer) return null;
-  // `<common>/worktrees/<name>` -> `<common>`. Resolved against `root` because the pointer may be
-  // relative, which `git worktree add --relative-paths` writes.
-  return path.dirname(path.dirname(path.resolve(root, pointer[1].trim())));
+  return readGitLink(root)?.commonDir ?? null;
 }
 
 /**
- * The primary checkout of the repository containing `root` - the working tree whose `.git` is a
- * real directory. Falls back to `root` itself when nothing here is a git checkout, so a caller
- * never has to branch on null and a test can pass a bare temporary directory.
+ * The primary checkout of the repository containing `root`. From a linked worktree that is the
+ * directory holding the shared git directory; from anything else it is `root` itself - which also
+ * covers a directory that is no checkout at all, so a caller never has to branch on null and a
+ * test can pass a bare temporary directory.
  *
  * @param {string} root any checkout of the repository
  * @returns {string} an absolute path
  */
 export function primaryCheckout(root) {
-  const common = gitCommonDir(root);
-  return common ? path.dirname(common) : path.resolve(root);
+  const link = readGitLink(root);
+  return link?.linked ? path.dirname(link.commonDir) : path.resolve(root);
 }

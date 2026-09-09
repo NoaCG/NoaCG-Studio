@@ -130,7 +130,11 @@ test('the weekly file is read from the primary checkout while the rulings come f
   // every orchestrator session, which is pinned to .claude/worktrees/orchestrator - read an empty
   // folder and reported "no weekly file". The refusal passed every plan for a week.
   const primary = mkdtempSync(path.join(tmpdir(), 'align-primary-'));
-  mkdirSync(path.join(primary, '.git', 'worktrees', 'w'), { recursive: true });
+  const admin = path.join(primary, '.git', 'worktrees', 'w');
+  mkdirSync(admin, { recursive: true });
+  // A linked worktree is a pointer file PLUS a `commondir` in the directory it points at, which is
+  // what tells it apart from a checkout whose git directory merely lives elsewhere.
+  writeFileSync(path.join(admin, 'commondir'), '../..\n');
   mkdirSync(path.join(primary, 'docs', 'handoffs'), { recursive: true });
   writeFileSync(
     path.join(primary, 'docs', 'handoffs', '2026-09-15-orchestrator-week.local.md'),
@@ -140,7 +144,7 @@ test('the weekly file is read from the primary checkout while the rulings come f
 
   const worktree = path.join(primary, '.claude', 'worktrees', 'w');
   mkdirSync(path.join(worktree, 'docs', 'handoffs'), { recursive: true });
-  writeFileSync(path.join(worktree, '.git'), `gitdir: ${path.join(primary, '.git', 'worktrees', 'w')}\n`);
+  writeFileSync(path.join(worktree, '.git'), `gitdir: ${admin}\n`);
   writeFileSync(path.join(worktree, 'docs', 'OWNER_RULINGS.md'), '# Owner rulings\n');
 
   const before = alignmentState(worktree);

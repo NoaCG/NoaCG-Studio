@@ -25,6 +25,13 @@
 // has no new syntax to remember. The file is overwritten per date and read newest-first, so the
 // numbering is stable for as long as anything consults it.
 //
+// The cost of a POSITIONAL id, stated rather than hidden: a review re-run on the same date that
+// reorders or inserts a row moves every later id, and a plan that already classified one binds its
+// reason to a different candidate. A content hash would be immune and unreadable; `WEEK-2026-09-08-2`
+// says which week and which row at a glance, and matches the one other id family here
+// (`ALIGN-<date>-<n>`). The mitigation is that every report and every refusal prints the row's TITLE
+// beside its id, so a moved reason reads as obviously wrong the first time anybody looks.
+//
 // THE SECTION A PLAN WRITES, the same shape as `## Handoffs` (scripts/handoff-drain.mjs):
 //
 //   ## Weekly review
@@ -37,7 +44,7 @@
 // carries a reason a person can argue with. Read-only: this edits nothing and refuses nothing on
 // its own - `wave-plan-check.mjs` is where the refusal happens.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -156,19 +163,25 @@ export function weeklyCandidates(root = REPO_ROOT, date = null) {
   }
   state.source = path.basename(file);
   state.date = WEEKLY_DATE.exec(state.source)?.[1] ?? null;
-  state.rows = state.date ? parseCandidateRows(readFileSync(file, 'utf8'), state.date) : [];
   if (!state.date) {
     state.reason = `${state.source} carries no date, so its rows cannot be identified`;
     return state;
   }
+  state.rows = parseCandidateRows(readFileSync(file, 'utf8'), state.date);
   if (state.rows.length === 0) {
     state.reason = `${state.source} proposes no candidate rows`;
     return state;
   }
-  if (!date) {
-    state.owed = state.rows;
+  // No date, no window, and therefore nothing owed. A plan whose name carries no date is not a
+  // plan the store holds, and demanding rows from one would be a refusal a reader cannot place.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date ?? ''))) {
+    state.reason = 'this plan carries no date, so the window cannot be measured against it';
     return state;
   }
+  // Dates only, so a review written LATER on the plan's own day still counts as owed. That is the
+  // right way round: a plan being checked after the review landed is a plan still in flight, and
+  // the rows are exactly what it should be reconsidering. Not `daysSince` from owner-receipts.mjs,
+  // which clamps at zero and so cannot say that a review is NEWER than the plan reading it.
   state.ageDays = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${state.date}T00:00:00Z`)) / DAY_MS);
   if (state.ageDays < 0) state.reason = `${state.source} was written after this plan`;
   else if (state.ageDays > WINDOW_DAYS) state.reason = `${state.source} is ${state.ageDays} days older than this plan, past the ${WINDOW_DAYS}-day window`;
@@ -205,34 +218,53 @@ export function candidateProblems(owed, classified, letters = null) {
   return problems;
 }
 
-/** One line for the plan check to print whatever it found, because a silent read is the defect. */
+/**
+ * One line for the plan check to print whatever it found, because a silent read is the defect.
+ * Every path that leaves `owed` empty sets `reason` first, so this always says why.
+ */
 export function summaryLine(state) {
-  if (state.owed.length === 0) return `weekly recap: nothing owed - ${state.reason || 'no candidate rows in the window'} (searched ${state.dir})`;
+  if (state.owed.length === 0) return `weekly recap: nothing owed - ${state.reason} (searched ${state.dir})`;
   return `weekly recap: ${state.source} proposes ${state.owed.length} candidate row(s), each owed a line under "## Weekly review" (searched ${state.dir})`;
 }
 
 function report(state, classified, planPath) {
   const lines = [summaryLine(state)];
   if (state.rows.length === 0) return lines;
+  // A row the plan owes nothing for is listed with a dash rather than UNCLASSIFIED: outside the
+  // window every row is unclassified and none is owed, and printing both halves loudly on one
+  // screen is how a reader learns to stop believing the screen.
+  const owed = new Set(state.owed.map((row) => row.id));
   lines.push('', planPath ? `Against ${path.basename(planPath)}:` : 'No fresh wave plan found - every row reads as unclassified:');
   for (const row of state.rows) {
     const entry = classified.get(row.id);
-    const cls = (entry?.cls ?? 'UNCLASSIFIED').padEnd(13);
-    lines.push(`  ${cls} ${row.id}  ${row.title}`);
+    const cls = entry?.cls ?? (owed.has(row.id) ? 'UNCLASSIFIED' : '-');
+    lines.push(`  ${cls.padEnd(13)} ${row.id}  ${row.title}`);
     if (entry?.trace) lines.push(`${' '.repeat(16)}${entry.trace}`);
   }
   const problems = candidateProblems(state.owed, classified, null);
-  lines.push('', problems.length === 0
-    ? '  Every candidate row in the window is accounted for.'
-    : `  ${problems.length} row(s) the plan still owes a line:`);
+  lines.push('');
+  if (state.owed.length === 0) lines.push(`  Nothing owed: ${state.reason}.`);
+  else if (problems.length === 0) lines.push('  Every candidate row in the window is accounted for.');
+  else lines.push(`  ${problems.length} row(s) the plan still owes a line:`);
   for (const problem of problems) lines.push(`    - ${problem}`);
   return lines;
 }
 
 export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Date.now() } = {}) {
   const planFlag = argv.indexOf('--plan');
-  const plan = planFlag >= 0 ? path.resolve(root, argv[planFlag + 1] ?? '') : newestWavePlan(root, now);
-  const usable = plan && existsSync(plan) ? plan : null;
+  const named = planFlag >= 0 ? String(argv[planFlag + 1] ?? '').trim() : null;
+  if (planFlag >= 0 && named === '') {
+    console.error('weekly-candidates: --plan needs a path.\n\n  node scripts/weekly-candidates.mjs [--plan <wave plan>] [--json]');
+    return 2;
+  }
+  const plan = named ? path.resolve(root, named) : newestWavePlan(root, now);
+  // A directory would pass `existsSync` and then throw EISDIR out of `readFileSync`, which is a
+  // stack trace where a sentence belongs.
+  const usable = plan && existsSync(plan) && statSync(plan).isFile() ? plan : null;
+  if (named && !usable) {
+    console.error(`weekly-candidates: ${plan} is not a file.`);
+    return 2;
+  }
   const state = weeklyCandidates(root, planDate(usable) ?? new Date(now).toISOString().slice(0, 10));
   const classified = usable ? parseCandidateSection(readFileSync(usable, 'utf8')) : new Map();
   if (argv.includes('--json')) console.log(JSON.stringify({ plan: usable, ...state, classified: [...classified] }, null, 2));

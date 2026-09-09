@@ -112,17 +112,19 @@ export function newestWeeklyFile(root = REPO_ROOT) {
  * does, because the file is gitignored per machine.
  */
 export function alignmentState(root = REPO_ROOT) {
-  const dir = weeklyDir(root);
-  const files = weeklyFiles(root);
   // TWO ROOTS, on purpose. The questions come from the PRIMARY checkout, because that is the only
   // tree the weekly file is ever written into; the rulings come from THIS checkout, because
   // `docs/OWNER_RULINGS.md` is tracked and the branch that records a ruling is the one that must
-  // clear it. Reading both from one root is what broke this on 2026-09-08.
+  // clear it. Reading both from one root is what broke this on 2026-09-08. Both roots are resolved
+  // once here, so the `.git` link is read once per call rather than once per file.
+  const primary = primaryCheckout(root);
+  const dir = path.join(primary, HANDOFF_DIR);
+  const files = weeklyFiles(root);
   const rulingsPath = path.join(root, ...RULINGS_FILE.split('/'));
   const rulings = existsSync(rulingsPath) ? readFileSync(rulingsPath, 'utf8') : '';
   if (files.length === 0) return { dir, source: null, open: [], pending: [], recorded: [] };
   const newest = files[files.length - 1];
-  const relative = (file) => path.relative(primaryCheckout(root), file).split(path.sep).join('/');
+  const relative = (file) => path.relative(primary, file).split(path.sep).join('/');
   const state = { dir, source: relative(newest), open: [], pending: [], recorded: [] };
   // ANSWERS are read from EVERY week, because an answer given a month ago and never written down is
   // precisely the ruling this file promises not to lose - reading only the newest week would drop

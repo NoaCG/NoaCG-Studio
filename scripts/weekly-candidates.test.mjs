@@ -11,6 +11,7 @@ import test from 'node:test';
 import {
   WINDOW_DAYS,
   candidateProblems,
+  main,
   parseCandidateRows,
   parseCandidateSection,
   planDate,
@@ -39,18 +40,25 @@ Three candidate rows for the next \`/orchestrator\`.
 - **POOL** - opus
 `;
 
-/** A primary checkout holding one weekly file, plus a linked worktree pointing at its git dir. */
+/**
+ * A primary checkout holding one weekly file, plus a linked worktree of it - built the way git
+ * builds one: a `.git` POINTER FILE at the worktree, and a `commondir` in the admin directory it
+ * points at. Both halves matter, because the pointer alone is also what a `--separate-git-dir`
+ * clone has, and that one has no other checkout to reach for.
+ */
 function machine(weekly = { '2026-09-08-orchestrator-week.local.md': REAL }) {
   const primary = mkdtempSync(path.join(tmpdir(), 'weekly-'));
-  mkdirSync(path.join(primary, '.git', 'worktrees', 'w'), { recursive: true });
+  const admin = path.join(primary, '.git', 'worktrees', 'w');
+  mkdirSync(admin, { recursive: true });
+  writeFileSync(path.join(admin, 'commondir'), '../..\n');
   mkdirSync(path.join(primary, 'docs', 'handoffs'), { recursive: true });
   for (const [name, text] of Object.entries(weekly)) {
     writeFileSync(path.join(primary, 'docs', 'handoffs', name), text);
   }
   const worktree = path.join(primary, '.claude', 'worktrees', 'w');
   mkdirSync(path.join(worktree, 'docs', 'handoffs'), { recursive: true });
-  writeFileSync(path.join(worktree, '.git'), `gitdir: ${path.join(primary, '.git', 'worktrees', 'w')}\n`);
-  return { primary, worktree };
+  writeFileSync(path.join(worktree, '.git'), `gitdir: ${admin}\n`);
+  return { primary, worktree, admin };
 }
 
 test('a candidate row is identified by its week and its position, and keeps its written title', () => {
@@ -170,4 +178,18 @@ test('a plan file name gives the date the window is measured from', () => {
   assert.equal(planDate('/store/2026-09-09-day-wave-plan.local.md'), '2026-09-09');
   assert.equal(planDate('notes.md'), null);
   assert.equal(planDate(null), null);
+});
+
+test('a plan with no date in its name owes nothing, and says that is why', () => {
+  const { worktree } = machine();
+  const state = weeklyCandidates(worktree, planDate('notes.md'));
+  assert.deepEqual(state.owed, [], 'no window can be measured, so no row can be demanded');
+  assert.match(state.reason, /carries no date/);
+});
+
+test('--plan refuses a missing path and a directory instead of throwing at the reader', () => {
+  const { primary, worktree } = machine();
+  assert.equal(main(['--plan'], { root: worktree }), 2);
+  assert.equal(main(['--plan', primary], { root: worktree }), 2, 'a directory is not a plan');
+  assert.equal(main(['--plan', path.join(primary, 'nope.md')], { root: worktree }), 2);
 });
