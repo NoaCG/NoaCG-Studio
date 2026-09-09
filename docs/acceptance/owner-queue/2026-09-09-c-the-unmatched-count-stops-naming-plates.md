@@ -46,6 +46,10 @@ every layer the step could measure, which is what a reader points at when they s
 2. In **What it does**, pick **Live vote** from the behaviour dropdown.
 3. Read the amber notice. It counts everything drawn on the board and not the board.
 
+Measured on that board through the real step, before and after: **"11 boxes … and the file has 15
+layers nothing is using"** became **"11 boxes … and the file has 14 layers nothing is using"**. The
+one that went is the plate.
+
 ## What to look at
 
 - **Is 95% the line you would draw?** The distribution is in the comment beside
