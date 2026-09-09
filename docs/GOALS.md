@@ -45,8 +45,9 @@ ever seeing code; organizations, channels, streamers and universities follow. A 
 keeps full control through **Advanced mode** - the editor, one toggle away, never required. The
 generated HTML/CSS/JS is the single source of truth and stays clean and readable.
 
-**The binding deadline: students run a real production with their OWN graphics by 2026-09-12.**
-Work that does not serve that date is not current work.
+**The binding date is 2026-09-25: students and YLE people try NoaCG hands on, and their own
+graphics play on their systems.** Work that does not serve that date is not current work. The
+2026-09-12 student production is its rehearsal (`## NOW`).
 
 **The year beyond this file**: [`NORTH_STAR_2027.md`](NORTH_STAR_2027.md) (ratified 2026-09-01)
 is the one-year north star and evidence model; [`PROGRAMMES.md`](PROGRAMMES.md) is the live
@@ -99,9 +100,18 @@ and per gap, is [`COMPETITORS.md`](COMPETITORS.md):
 > A student draws **their own graphic** - any graphic, not a lower third - gives it **the behaviour
 > their show needs**, and plays it out from the dashboard. **Without writing a line of code.**
 
-**The date is 2026-09-12** - a real production with real students. Two graphics decide it: a
-**QUIZ** (lock / reveal) and a **SCOREBOARD** (score + / -). **The student draws the graphic; we
-supply the behaviour.** The student release before this is CLOSED (archive).
+**The date is 2026-09-25** - students and YLE people trying NoaCG, hands on. We owe them **one
+presentation and one step-by-step guide** over two capabilities: **SVG import, ending in their own
+graphic playing on their systems**, and **the CLI taking a graphic from Codex or Claude Code to the
+NoaCG player in minutes**. The ordered beats, the route to each, and whether it works today or is
+a gap: **`docs/DEMO_2026-09-25.md`**. Its gap list (§7) is what the fortnight is planned from.
+
+**2026-09-12 still happens; it is no longer the pressure** (owner, 2026-09-09: *"you don't have to
+stress about that"*). A real production with real students, two graphics: a **QUIZ** (lock /
+reveal) and a **SCOREBOARD** (score + / -). **The student draws the graphic; we supply the
+behaviour.** It is the dress rehearsal for the SVG half of the 25th, and it is where several of
+the demo's unseen hardware beats get their first tick. The student release before this is CLOSED
+(archive).
 
 **A WALK THAT IS OWED NEVER BLOCKS WORK** (owner, 2026-08-30, unprompted and twice): *"It's up to
 me to test what I need to test. You don't have to block any work just because I haven't tested
@@ -110,8 +120,11 @@ is a record of what is waiting to be SEEN, never a gate on what may be STARTED; 
 expires. Keep building; he catches up when he catches up.
 
 - [ ] **1. Prove the SVG road, with eyes on it.** SVG import v1 is merged
-      (`docs/SVG_IMPORT_PLAN.md`) and nobody has walked it. The owner walks it first, because
-      whether the workflow is CLEAR is the half no test can answer. Everything below assumes it.
+      (`docs/SVG_IMPORT_PLAN.md`). The owner has walked it five times (2026-08-25 to 2026-09-03),
+      each walk landing fixes; what is still owed is the walk as a STRANGER, because whether the
+      workflow is CLEAR to someone who has never seen it is the half no test can answer. A
+      2026-09-09 row walks it that way and writes the end-to-end `/docs` page
+      (`docs/handoffs/2026-09-09-d-*.md` when it lands; `docs/DEMO_2026-09-25.md` G1).
 - [ ] **2. Attach BEHAVIOUR to a graphic somebody else drew.** Both cases work - pinned by
       `e2e/import-svg-behaviour.spec.ts`, designed in `docs/GRAPHIC_BEHAVIOUR_PLAN.md` §10,
       shipped detail in the archive. **What is left is the OWNER WALK.**
