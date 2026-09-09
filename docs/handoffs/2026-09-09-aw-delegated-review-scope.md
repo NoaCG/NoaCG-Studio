@@ -1,11 +1,17 @@
 # Row AW - stop paying for a review of the wrong files
 
 **Branch:** `claude/aw-delegated-review-scope`, queued. **Gate:** `npm run build` green twice, the
-second time over the final state (1513 tests across 110 files); CI run 34416344954 on `9e2dcaf9`
-green with Build, Factory gates, E2E plan and CI gate all success and the E2E shards skipped by
-CI's own plan job, since no product code changed. **check: run in full** - `review: delegated`,
-`simplify: inline`, `verify: inline`, `taste: not applicable`. Stamp written at `d20a6e30` and
-verified readable by `readReviewStamp`.
+second time over the final state (1513 tests across 110 files); CI runs 34416344954 and 34417809085
+both green with Build, Factory gates, E2E plan and CI gate success, and the E2E shards skipped by
+CI's own plan job since no product code changed. **check: run in full** - `review: delegated`,
+`simplify: inline`, `verify: inline`, `taste: not applicable`.
+
+One caveat, stated because the repo's own hook raised it: pushing the handoff cancelled the
+in-progress run for `d20a6e30`, and the run that replaced it plans its E2E from `d20a6e30` onward,
+so no finished run planned E2E over that commit's delta. It does not leave a hole here. Build and
+Factory gates run over the whole checked-out tip rather than a delta, so they gated `d20a6e30`'s
+content inside the final run, and the delta itself is `scripts/` and a workflow file - nothing the
+E2E plan would have sharded anyway. The local `npm run build` over that same state was green too.
 
 ## The measurement the row was sent to get
 
@@ -86,6 +92,9 @@ careful.
   across as one plain command. Nothing documents this and it costs a few minutes to rediscover.
 - **The Bash guard also refuses a heredoc whose *content* contains the word `git`**, and any
   command combining `$(git ...)` with a pipe. Split those into plain separate calls.
+- **Pushing a docs commit after the check invalidates the stamp.** `reviewedSha` must be the tip or
+  the queue refuses the branch, so either write the handoff before the stamp, or re-stamp at the
+  new tip and say in the stamp what the extra commit contained. This branch did the latter.
 
 ## What is left
 
