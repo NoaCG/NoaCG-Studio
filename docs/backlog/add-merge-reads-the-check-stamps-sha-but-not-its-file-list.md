@@ -18,10 +18,11 @@ review say so - "What is left" in
 `git show a2ab4097:docs/handoffs/2026-09-09-r-review-scope-is-checked.md`. That row placed it with
 the stamp work of `claude/k-reviewed-gate-race` rather than in its own branch.
 
-`/check` writes `checks/<branch>.json` carrying `{ v, branch, mergeBase, reviewedSha, files,
-legs }` (`.agent-workflows/check.md:210`). `scripts/jobs.mjs add-merge` reads two of those fields:
-it takes `reviewedSha` and refuses a tip the stamp does not name (`jobs.mjs:364-394`). `mergeBase`
-and `files` are written and never read.
+`/check` writes `checks/<branch>.json` carrying `{ v, branch, mergeBase, reviewedSha, files, legs,
+verdict, at }` (`.agent-workflows/check.md:210`). `scripts/jobs.mjs add-merge` reads it through
+`readReviewStamp` and `stampGap` in `scripts/jobs-store.mjs:140` and `:160`, which between them use
+`reviewedSha` and `verdict`: a tip the stamp does not name is refused, and so is a stamp whose
+verdict is not a pass. **`mergeBase` and `files` are written by every check and read by nothing.**
 
 ## Why
 
@@ -41,8 +42,8 @@ a different branch's commits".
 
 ## What it would take
 
-One comparison beside the existing `stampGap` call in `jobs.mjs`, plus a case in
-`scripts/jobs.mjs`'s test neighbours. The verdict wants care rather than code:
+One comparison inside `stampGap` or beside its call, plus cases in `scripts/jobs-store.test.mjs`,
+which already covers that function from line 1312. The verdict wants care rather than code:
 
 - an exact match is not the bar. A review legitimately reads files it does not report on, and a row
   legitimately edits a file after the review and re-stamps;
@@ -58,8 +59,10 @@ descriptive state is the cheap shape.
 ## Evidence
 
 - `.agent-workflows/check.md:210` - the stamp's fields, `files` and `mergeBase` among them.
-- `scripts/jobs.mjs:364-394` - the existing stamp read, and the comment recording that 68 stamps
-  sat on disk on 2026-09-06 with nothing reading one.
+- `scripts/jobs.mjs:364-394` - the `add-merge` gate, and the comment recording that 68 stamps sat
+  on disk on 2026-09-06 with nothing reading one.
+- `scripts/jobs-store.mjs:140` and `:160` - `readReviewStamp` and `stampGap`, the two functions
+  that would carry the comparison.
 - `.agent-workflows/check.md`, phase 2 - the hand comparison this would mechanise.
 - `docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md` - the underlying tool defect
   and its three 2026-09-09 instances.

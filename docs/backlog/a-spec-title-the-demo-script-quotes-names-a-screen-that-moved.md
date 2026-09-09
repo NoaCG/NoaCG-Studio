@@ -25,6 +25,11 @@ CreationWizard.tsx:125`), and `Create project` is a door on Finish rather than a
 
 `docs/DEMO_2026-09-25.md:112`, the R1.5 row, quotes that title verbatim in its evidence column.
 
+**And the product source says it too.** `src/components/wizard/steps/FinishStep.tsx:133` carries a
+comment reading "The last screen before Create is ...", about the code that builds the very summary
+the test asserts against. That one is not a citation of the test; it is the same stale mental model
+written a third time, in the file a reader goes to when they want to know what the screen does.
+
 ## Why
 
 The deck-repair row spent its whole step 2 removing exactly this sentence from the 25 September
@@ -39,20 +44,23 @@ first cells, not quoted strings - so the two must move in one commit or not at a
 
 ## What it would take
 
-One commit touching both files: retitle the case to name the Finish step, and update the quoted
-string in R1.5's evidence cell to match. Grep the repo for the old string first; on 2026-09-09 it
-was in exactly these two places plus one owner-queue item that describes the correction and should
-keep its historical wording.
+One commit touching three files: retitle the case to name the Finish step, update the quoted string
+in R1.5's evidence cell to match, and reword the `FinishStep.tsx` comment. Grep the repo for the
+old string first, and grep `.tsx` as well as `.md` and `.ts` - a grep that missed the extension is
+how the third site went unlisted when this was filed. One owner-queue item also carries the phrase,
+describing the correction; that one keeps its historical wording.
 
 ## Evidence
 
 - `e2e/import-svg.spec.ts:886` - the title and the `.wz-finish-summary` assertion under it.
 - `docs/DEMO_2026-09-25.md:112` - the R1.5 evidence cell quoting it.
+- `src/components/wizard/steps/FinishStep.tsx:133` - the same phrase in a source comment.
 - `src/components/wizard/CreationWizard.tsx:125` - `STEP_TITLES_SVG`, the five-step road.
 - `docs/backlog/create-project-is-a-door-that-saves-nothing.md` - the open question about the
   button this wording points at.
-- `docs/acceptance/owner-queue/2026-09-09-aa-slide-4-no-longer-sends-the-room-through-create-project.md:29`
-  - the deck's half of the same correction, already landed.
+- The deck's half of the same correction is already landed: `docs/presentation-2026-09-25/
+  make-deck.mjs` step 05 names the Finish step and the Typefaces row on the Fields step, and no
+  slide names "Create project" at all.
 
 **Not taken on the night it was filed:** `claude/ag-ograf-external-renderer` held
 `docs/DEMO_2026-09-25.md` that evening, and `e2e/import-svg.spec.ts` was off limits with it.

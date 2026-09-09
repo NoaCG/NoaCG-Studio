@@ -8,7 +8,7 @@ found: "A repo-wide citation sweep routed to Antigravity spends ~9 s and 18 K to
 serves: NOW
 size: small
 touches: scripts/agy-run.mjs, docs/HARNESS_ROUTING.md
-needs-owner: harness
+needs-owner: none
 ---
 
 # A sweep routed to Antigravity returns nothing, because headless `agy` cannot grep
@@ -39,20 +39,18 @@ wrapper records failed calls for exactly this reason), and it returns no partial
 
 ## What it would take
 
-Two candidate fixes, and the choice needs the owner because it is a machine-global permission
-grant rather than a repository change (`needs-owner: harness`):
+**Refuse earlier and route elsewhere.** `agy-run.mjs` already inspects the prompt well enough to
+warn; it should refuse a prompt that reads like a search when no `command(...)` grant exists, and
+`docs/HARNESS_ROUTING.md` should say plainly that repo-wide search does not go to Antigravity.
+Today its judgement about this harness rests on task classes that never needed to search.
 
-1. **Grant `command(rg)`** - or a narrower target - in
-   `~/.gemini/antigravity-cli/settings.json`, so the model can shell out to ripgrep. This makes the
-   harness usable for the work it is otherwise good at. It also widens what a bare `agy` call can
-   run on this machine, which is the reason it is his call and not a session's.
-2. **Refuse earlier and route elsewhere.** `agy-run.mjs` already inspects the prompt well enough
-   to warn; it could refuse a prompt that reads like a search when no `command(...)` grant exists,
-   and `docs/HARNESS_ROUTING.md` could say plainly that repo-wide search does not go to
-   Antigravity. Cheaper, and it gives up the capability rather than fixing it.
-
-Either way `docs/HARNESS_ROUTING.md` wants the sentence, because today its judgement about this
-harness is drawn from task classes that never needed to search.
+**The other option was considered and decided against, not deferred.** Granting `command(rg)` - or
+a narrower target - in `~/.gemini/antigravity-cli/settings.json` would make the harness usable for
+the work it is otherwise good at. It is not taken because it widens the machine's permission
+posture, and a session may not do that on its own argument; that is the same edge on which
+`docs/backlog/the-allowlist-is-not-what-stops-a-row-at-night.md` was parked. Refusing early costs
+the capability and nothing else, and it is reversible the day the owner wants the grant. If he ever
+does, the grant is the whole fix and this item becomes his.
 
 ## Evidence
 
@@ -64,3 +62,10 @@ harness is drawn from task classes that never needed to search.
   `ad-handoff-citation-sweep`.
 - What the sweep was worth doing by hand: eleven filenames across the whole checkout, about three
   minutes with ripgrep, one live path citation and no prose citations found.
+- `docs/HARNESS_ROUTING.md`, "A sweep must be handed its FILES - measured 2026-09-03" - the earlier
+  half of this. That entry says to enumerate the files so only `read_file` is needed, which works
+  when the delegate is told WHICH files to read. It does not cover a task whose question is "find
+  every file that mentions X", where the enumeration is the answer rather than the input.
+- `docs/backlog/harness-routing-doc-cites-four-refuted-claims.md` - a separate open item that also
+  ends in an edit to `docs/HARNESS_ROUTING.md`. Worth taking in one pass; the two do not overlap in
+  subject.

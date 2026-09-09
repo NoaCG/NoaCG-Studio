@@ -59,3 +59,7 @@ one.
   of the XML read.
 - `docs/DEV_PORTS.md` and `scripts/dev-worktree.mjs:65` - why a worktree's browser work is awkward
   in the first place.
+- `docs/backlog/the-allowlist-is-not-what-stops-a-row-at-night.md` - the same night's other
+  permission cost, parked. It is about which entries the allowlist carries; this is about whether
+  the prompt asked for the browser at all. Named here so nobody files a third item over one
+  evening's stoppages.
