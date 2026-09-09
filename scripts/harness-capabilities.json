@@ -98,8 +98,8 @@
       "kind": "observation",
       "measuredOn": "2.1.263",
       "measuredAt": "2026-09-09",
-      "claim": "REFUTED as of 2.1.263: a background subagent spawned from a session that was itself launched by another session (this row, launched by the night loop) delivered its completion notification, carrying its result, directly into that launched session - not only to its launcher. Measured by spawning one background subagent that wrote a marker file; the notification, with the marker's contents, arrived here. Previously measured true on 2.1.240 (2026-08-29): a session launched by another session never received its own subagents' completion notifications; they routed to the launcher, which is why fan-outs collected results via files at agreed paths instead.",
-      "reprobe": "From a launched row, spawn one background subagent that writes a file, and see whether a completion notification with the result arrives in that same session. No notification (only the file) confirms the original claim; a notification confirms the refutation.",
+      "claim": "REFUTED as of 2.1.263, confirmed by a SECOND independent probe on 2026-09-09: a launched session does receive its own subagents' completion notifications, and the notification carries the subagent's final message verbatim rather than just a 'done' flag. The second probe added the detail that decides how to use this: DELIVERY IS AT A TURN BOUNDARY, attached to a tool result, never as an interrupt inside a running tool call. The probe spawned a subagent that finished in 8.5s, then sat in a single 120-second blocking command; the notification surfaced only when that command returned. So a leg that waits inside one long call, a poll loop or a sleep still cannot see it, which is why the practical guidance in .agent-workflows/check.md (collect results from files, never wait on a notification) is unchanged even though its stated reason was wrong. Known limits of both probes: one nesting level only, and neither probe could independently verify it was a launched session rather than take its launcher's word. Previously measured true on 2.1.240 (2026-09-03): a session launched by another session never receives its own subagents' completion notifications; they route to the launcher.",
+      "reprobe": "From a launched session, spawn one background subagent that writes a marker file, then wait WITHOUT polling. Record whether a completion notification arrives and at what point relative to the turn boundary, then read the marker to confirm the subagent actually ran.",
       "source": ".agent-workflows/orchestrator/incidents.md, \"the fan-out that waited on notifications that could not arrive\"; refuted docs/handoffs/2026-09-09-x-capability-reprobe.md"
     },
     {
@@ -131,6 +131,16 @@
       "claim": "A Codex row always names a fallback pool, because Codex capacity is shared with the owner's other projects and can be near zero on a given day. Codex is otherwise available by default (owner, 2026-09-03) - this constrains the plan's shape, not how much Codex it uses.",
       "reprobe": null,
       "source": "docs/OWNER_RULINGS.md, owner-decisions-2026-09-03"
+    },
+    {
+      "id": "codex-writable-root-is-the-launching-session-cwd",
+      "harness": "Codex",
+      "kind": "observation",
+      "measuredOn": "0.154.0-alpha.6",
+      "measuredAt": "2026-09-09",
+      "claim": "A delegation's writable root is THE LAUNCHING SESSION'S WORKING DIRECTORY, and nothing else. Measured three times on 2026-09-09, and the third attempt CONFIRMS the rule by succeeding. First, handed the ordinary row recipe ('make a feature branch in its own worktree before the work starts'), the delegate was denied writing C:/claude/NoaCG-Studio/.git/refs/heads/<branch> and stopped having changed no file. Then, given a worktree created for it in advance and told to run no git at all, it refused again and said why in plain terms: the target 'is outside that writable root, and approval is disabled', naming the launching session's own worktree as the only writable path. It read both target files correctly and reported its analysis, so reads are unrestricted; only writes are pinned. CONSEQUENCE FOR ROUTING: pre-creating a worktree does NOT help, because the root follows the launcher, not the prompt. A delegation can only edit files under the directory the launching session is sitting in. Either launch it from a session whose cwd IS the worktree the work belongs in, or have it edit in the launcher's own checkout and move the result. Third attempt, launched from a session whose OWN working directory was the target worktree: it created a new module and edited three existing files there without complaint. So the rule is positive as well as negative - delegate from the session that sits where the result belongs and it simply works. This is the mechanical reason such delegations get recorded as attempted and never landed, and it is not fixed by choosing the harness more often.",
+      "reprobe": "Delegate a one-line edit to a file in a DIFFERENT worktree from the launching session's, and read whether it reports the path as outside its writable root. The refusal names the root, which is the answer.",
+      "source": "docs/HARNESS_ROUTING.md - the delegate that cannot make its own branch"
     }
   ]
 }
