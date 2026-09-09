@@ -501,3 +501,52 @@ test('a word left outside a command\'s flags is refused, on scaffold and on save
   const clean = await run(['inspect', path.join(dir, 'graphic'), '--json'], closed);
   assert.doesNotMatch(JSON.parse(clean.stdout).error, /outside its flags/);
 });
+
+test('`login --name My Laptop` is refused instead of naming the key "My"', async () => {
+  // The same unquoted-value fault as above, with a worse victim. `--name My Laptop` gave the flag
+  // "My" and left "Laptop" in the positionals, so the consent page asked the user to authorise
+  // "My" and the key sat in Settings -> Account -> Agent access under that name. The name is the
+  // only thing telling one machine's key from another's when the user comes to revoke one, so
+  // half a name is close to no name. Reproduced 2026-09-09 on 0.3.0: the consent URL carried
+  // `name=My` and the word "Laptop" was never mentioned again.
+  //
+  // The refusal must land BEFORE the loopback listener opens, or a refused login would still be
+  // holding a port. NOACG_URL is unreachable here, which proves nothing was contacted either.
+  const r = await run(['login', '--name', 'My', 'Laptop', '--no-browser', '--wait', '1', '--json']);
+  assert.equal(r.code, 2, 'a stray word is a usage error, not a login failure');
+  const parsed = JSON.parse(r.stdout);
+  assert.equal(parsed.ok, false);
+  assert.match(parsed.error, /"Laptop"/);
+  assert.match(parsed.error, /--name "My Laptop"/, 'the refusal shows the quoting that fixes it');
+});
+
+test('every caspar sub-command except send refuses a stray word', async () => {
+  // `caspar play --url … 1 20` reads as "channel 1, layer 20" and is not: before this, the words
+  // were dropped and the PLAY went out on the default channel and layer, putting a production on
+  // a layer the operator did not name. a997eabe extended the guard to every verb that takes a
+  // package; caspar was left out because it dispatches on a sub-command instead, and it is the
+  // one family here that reaches live playout hardware.
+  for (const argv of [
+    ['caspar', 'play', '--url', 'http://127.0.0.1:1/output', '1', '20'],
+    ['caspar', 'stop', 'nonsense'],
+    ['caspar', 'status', '--server', '127.0.0.1', 'junk'],
+    ['caspar', 'agent', '--token', 'a', 'token'],
+  ]) {
+    const r = await run([...argv, '--json']);
+    assert.equal(r.code, 2, `${argv.join(' ')} should be a usage error`);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, false);
+    assert.match(parsed.error, new RegExp(`^caspar ${argv[1]} takes no argument`), 'the refusal names the sub-command');
+    // No quoting advice here: not one caspar flag takes a value that can hold a space, so
+    // "needs quotes" would send the operator hunting for a value that was never there.
+    assert.doesNotMatch(parsed.error, /needs quotes/);
+    assert.match(parsed.error, /drop the word or hand it to the flag/);
+  }
+
+  // `send` is the deliberate exception: its words ARE the AMCP command, so they must survive the
+  // grammar and reach the (closed) port, which is a different failure entirely.
+  const sent = await run(['caspar', 'send', 'INFO', '1', '--timeout', '200', '--json']);
+  const parsed = JSON.parse(sent.stdout);
+  assert.equal(parsed.command, 'INFO 1', 'send keeps every word it was given');
+  assert.doesNotMatch(parsed.error ?? '', /outside its flags/);
+});

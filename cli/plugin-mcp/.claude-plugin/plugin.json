@@ -1,6 +1,6 @@
 {
   "name": "noacg-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "The NoaCG CLI as an always-on MCP server: one tool, noacg, with the CLI's verbs (types, scaffold, validate with screenshots, inspect, screenshot, docs, save) and a browser kept warm between calls. Optional - the noacg plugin's skill drives the same CLI from the terminal with no server; install this one when you want the tool in every session.",
   "author": {
     "name": "NoaCG Studio",

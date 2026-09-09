@@ -327,12 +327,31 @@ Three things, in the order a stranger meets them:
    "Football", in its `<title>`, its SPX description and its file names, with nothing said. The
    same hole was open on `save`, where that name goes into the user's LIBRARY. Fixed on the same
    branch: `refuseStrayArgs` (`cli/src/output.ts`) refuses a word past what a verb takes and
-   names the word to quote - `scaffold` takes none, `save` / `validate` / `inspect` / `screenshot`
-   take one package, `pack` takes any number and `caspar` has sub-commands, so those two keep
-   their own grammar. Pinned by `cli/test/unit.test.mjs`.
-2. **`noacg types` prints lines up to 354 characters**, 67 rows of them, which no terminal shows.
-   Filed: `docs/backlog/noacg-types-prints-a-table-no-terminal-can-show.md`.
-3. **Three of six neutral scaffolds warn on their own bench.** Filed:
+   names the word to quote. **Two more victims turned up in 0.3.1** and are fixed the same way:
+   `login --name My Laptop` named the machine's key "My" on the consent page and in Settings,
+   which is the name the user later revokes by; and `caspar play --url … 1 20` dropped the two
+   words and put the production on the DEFAULT channel and layer. So the grammar today is
+   complete: `scaffold` / `login` / `logout` / `whoami` / `doctor` / `types` / `mcp` take no
+   argument, `save` / `validate` / `inspect` / `screenshot` / `docs` take one, every `caspar`
+   sub-command takes none, and the two deliberate exceptions are `pack` (any number of packages)
+   and `caspar send` (its words are the AMCP command). The refusal offers the quoting that fixes
+   it only where a flag on that verb can actually hold a space; elsewhere it says to drop the
+   word, because "needs quotes" sends an operator hunting for a value that was never there.
+   Pinned by `cli/test/unit.test.mjs`.
+2. **`noacg types` printed lines up to 354 characters**, 67 rows of them, which no terminal shows.
+   **Fixed in 0.3.1**: `typesTable()` (`cli/src/commands/types.ts`) reads the terminal width,
+   keeps `type` and `neutral` whole because those are the columns a reader chooses by, and splits
+   the rest across fields, events and designs in proportion to their natural widths, cutting at an
+   item boundary with the dropped count (`+7`) rather than mid-key. Measured against the live
+   deployment's 67 types, the widest line is exactly the terminal width at 40, 60, 80, 100, 120,
+   160, 200 and 400 columns. **A pipe has no width and so gets the full table, unelided** - the
+   skill sends an agent to bare `noacg types` for the design id it then scaffolds with, and an
+   agent's stdout is always a pipe, so a guessed width would hide what it was sent to read.
+   Pinned by `cli/test/types-table.test.mjs`, which asserts the fit and the column alignment at
+   80, 100 and 160, and that no width elides nothing.
+3. **Three of six neutral scaffolds warn on their own bench.** STILL OPEN - it is a studio
+   template fault rather than a CLI one, and the fix has to start from a reproduction because the
+   obvious cause is already ruled out. Filed:
    `docs/backlog/neutral-scaffolds-fail-their-own-stress-bench.md`.
 
 One documentation fix came out of it too: `cli/README.md` told the reader to edit
@@ -692,3 +711,14 @@ production shows an input per field + Take/Update/Next/Out. No application code 
   renderer controls. And the MCP entrance got the offline tests it had never had
   (`cli/test/mcp.test.mjs`), which is what turned the "caspar is not exposed" rule from prose into
   something a build can fail on. Version stayed 0.2.0; nothing was published.
+- **0.3.1 (2026-09-09): the first minute, fixed.** 0.3.0 went to npm on 2026-09-05 and the
+  time-to-air walk four days later ran the tool as a stranger would. Everything it found in the
+  CLI is closed here. `noacg types` fits a terminal instead of printing 354-character lines
+  (finding 2 above, and `cli/test/types-table.test.mjs`). The silent stray-word fault that
+  `scaffold` and `save` were fixed for turned out to have two more victims, and both are worse
+  than the original: `login --name My Laptop` stored the machine's key under the name "My", and
+  `caspar play --url … 1 20` sent a production to the default channel and layer without saying
+  the two words meant nothing (finding 1 above). The same hole on `doctor`, `docs`, `logout` and
+  `whoami` is closed in the same pass. The walk's third finding is a studio template fault rather
+  than a CLI one and stays open in the backlog. Nothing about the package's shape, its verbs or
+  its output contract changed, so 0.3.1 is a drop-in for anyone on 0.3.0.

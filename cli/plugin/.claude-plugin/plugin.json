@@ -1,6 +1,6 @@
 {
   "name": "noacg",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Make broadcast graphics for NoaCG Studio from Claude Code. The plugin entrance to the NoaCG CLI: the noacg-graphic skill (the NoaCG contract, the tools, the loop - not how to design) and the /noacg:graphic command. Runs nothing until a graphic is being made; the optional noacg-mcp plugin adds the always-on MCP server.",
   "author": {
     "name": "NoaCG Studio",

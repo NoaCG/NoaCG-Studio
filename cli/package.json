@@ -1,6 +1,6 @@
 {
   "name": "@noacg/cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "The NoaCG CLI: scaffold, validate, inspect, screenshot and save broadcast graphics for NoaCG Studio, from a coding agent or your own terminal. Runs as an MCP server too (noacg mcp), against any NoaCG deployment.",
   "license": "Apache-2.0",
   "author": "NoaCG Studio (https://noacg.studio)",

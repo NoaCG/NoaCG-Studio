@@ -4,9 +4,10 @@ import { browserLabel, launchBrowser } from '../browser.js';
 import { BridgeClient } from '../bridgeClient.js';
 import { cliVersion, configDir, noacgUrl } from '../config.js';
 import { displayPrefix, resolveKey } from '../auth.js';
-import { EXIT_OK, EXIT_USAGE, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_OK, EXIT_USAGE, refuseStrayArgs, type Out, type ParsedArgs } from '../output.js';
 
-export async function runDoctor(_args: ParsedArgs, out: Out): Promise<number> {
+export async function runDoctor(args: ParsedArgs, out: Out): Promise<number> {
+  refuseStrayArgs(args, 0);
   const report: Record<string, unknown> = { cli: cliVersion(), url: noacgUrl(), configDir: configDir() };
   // Whether a key is HELD here, not whether it is still honoured - `noacg whoami` asks the
   // deployment; doctor stays a local report that works with no network at all.

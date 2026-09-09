@@ -26,6 +26,7 @@ import {
   flagList,
   flagNumber,
   flagString,
+  refuseStray,
   UsageError,
   type Out,
   type ParsedArgs,
@@ -474,12 +475,30 @@ const USAGE = `noacg caspar <agent|status|send|play|stop> [options]
          Put a production on a channel with no browser involved.
   stop   [--channel 1] [--layer 20] [--server HOST]`;
 
+/**
+ * Every `caspar` sub-command except `send` takes its arguments as flags, so a bare word here is
+ * always a mistake - and the two that matter go to a live channel. `caspar play --url … 1 20`
+ * reads as "channel 1, layer 20" and is not: the words are dropped, the command goes out on the
+ * defaults, and a production lands on a layer the operator did not name. `send` is the exception
+ * by design, because its words ARE the AMCP command.
+ *
+ * `caspar` cannot use `refuseStrayArgs`: `_[1]` is a sub-command rather than an argument, so the
+ * refusal has to name both words and say what THIS sub-command accepts.
+ */
+function refuseStrayCasparArgs(args: ParsedArgs, sub: string): void {
+  // No quoting example: not one flag on any of these sub-commands takes a value that can hold a
+  // space, so the generic advice in refuseStray is the true one here.
+  refuseStray(`caspar ${sub}`, args._.slice(2), 'no argument');
+}
+
 export async function runCaspar(args: ParsedArgs, out: Out): Promise<number> {
   const sub = args._[1];
   switch (sub) {
     case 'agent':
+      refuseStrayCasparArgs(args, sub);
       return runAgent(args, out);
     case 'status':
+      refuseStrayCasparArgs(args, sub);
       return oneShot(args, out, 'VERSION');
     case 'send': {
       const command = args._.slice(2).join(' ').trim();
@@ -487,11 +506,13 @@ export async function runCaspar(args: ParsedArgs, out: Out): Promise<number> {
       return oneShot(args, out, command);
     }
     case 'play': {
+      refuseStrayCasparArgs(args, sub);
       const url = flagString(args, 'url');
       if (!url) throw new UsageError('`noacg caspar play` needs --url, the production\'s output URL.');
       return oneShot(args, out, playCommand(flagNumber(args, 'channel') ?? 1, flagNumber(args, 'layer') ?? 20, url));
     }
     case 'stop':
+      refuseStrayCasparArgs(args, sub);
       return oneShot(args, out, stopCommand(flagNumber(args, 'channel') ?? 1, flagNumber(args, 'layer') ?? 20));
     default:
       out.say(USAGE);
