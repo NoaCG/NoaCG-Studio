@@ -41,8 +41,9 @@ needed, and hold `src/docs/AGENTS.md`'s voice and the owner's binding constraint
 `e2e/docs.spec.ts`. Roughly an afternoon.
 
 The walk's own by-product is the second deliverable: the list of moments the dialog did not carry
-its own explanation. `docs/backlog/import-walk-hesitations.md` is what that looks like for the
-import road, and it is the shape to copy.
+its own explanation. The import road's walk produced exactly three of those, and all three were
+then fixed on the screen rather than in the guide - `docs/handoffs/2026-09-09-m-wizard-says-it-itself.md`
+is that round trip end to end, and it is the shape to copy.
 
 ## Evidence
 

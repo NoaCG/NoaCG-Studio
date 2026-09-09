@@ -199,6 +199,23 @@ export function productionsContaining(graphicId: string): Show[] {
   return loadShows().filter((s) => s.graphics.some((g) => g.graphicId === graphicId));
 }
 
+/**
+ * WHAT A PRODUCTION NOBODY NAMED IS CALLED.
+ *
+ * One spelling, because two doors used to answer this differently and the wizard's answer was
+ * wrong: its Finish step filled an empty production box with the GRAPHIC's name, so a first
+ * import produced a graphic called "Imported SVG design" sitting in a production also called
+ * "Imported SVG design" (e2e/import-svg.spec.ts, "an unnamed production is not named after the
+ * graphic"). A show holding one strap
+ * is not called "Interview strap". The floor below was already the app's answer everywhere
+ * else, and Finish never let it be reached; it is exported now so the UI can PRINT the name a
+ * save is about to write instead of guessing one.
+ *
+ * Deliberately plain. A default that reads as a deliberate name teaches the reader nothing; one
+ * that reads as "you have not named this yet" is the invitation to name it.
+ */
+export const UNTITLED_PRODUCTION = 'Untitled production';
+
 export function createShow(name: string): Show[] {
   createShowNamed(name);
   return loadShows();
@@ -217,7 +234,7 @@ export function createShow(name: string): Show[] {
 export function createShowNamedChecked(name: string): { show: Show; error: string | null } {
   const show: Show = {
     id: uuid(),
-    name: name.trim() || 'Untitled production',
+    name: name.trim() || UNTITLED_PRODUCTION,
     version: 2,
     graphics: [],
     updatedAt: nowIso(),

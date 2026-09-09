@@ -476,6 +476,20 @@ export default function ImportDesignStep({
                 : ''}
             </p>
           )}
+          {/* THE RAIL JUST RENUMBERED UNDER THE READER'S HANDS, so the card says why. Dropping
+              an SVG swaps the six-step design walk for the five-step SVG one
+              (`STEP_TITLES_DESIGN` / `STEP_TITLES_SVG` in CreationWizard.tsx): the counter goes
+              from STEP 2 / 6 to STEP 2 / 5 and TWO of the step names change, so it does not even
+              read as "one step was removed" - it reads as a different wizard. Somebody who had
+              just counted their remaining steps watched them change with nothing on screen to
+              account for it (e2e/import-svg.spec.ts, "the drop says why the walk just got a
+              step shorter").
+              Stated as a FACT about SVG walks rather than as an event, because the same card is
+              on screen for a reader who walked back into a saved SVG draft and never saw six. */}
+          <p className="hint" data-testid="import-svg-rail-note">
+            Five steps now, not six: an SVG has nothing to erase and its text is already placed,
+            so Prepare and Text became the one Fields step.
+          </p>
           {svg.fonts.length > 0 && (
             <p className="hint" data-testid="import-svg-fonts">
               Typeface{svg.fonts.length === 1 ? '' : 's'}: {svg.fonts.map((f) => f.family).join(', ')}

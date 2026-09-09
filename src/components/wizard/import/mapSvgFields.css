@@ -393,6 +393,22 @@
 .map-svg-align {
   flex: 0 0 auto;
 }
+/* THE ANSWER, beside the heading rather than on hover. Normal case and no tracking, so it reads
+   as the row's value and not as a second label - and it is what sets this column's width, since
+   the 3x3 of dots underneath is only 42 px. */
+.map-svg-align-now {
+  text-transform: none;
+  letter-spacing: 0;
+}
+/* A ROW LABEL NEVER WRAPS. The row is a nowrap flex line, so a label too wide for its share of
+   it wraps INSIDE its own field and takes the whole row a line taller - which on the clock row,
+   the one that also carries the countdown picker, is exactly what the alignment answer did at
+   1280 px (56 px to 68). Wrapping the label buys nothing: the boxes beside it are `grow` and
+   give the width back the moment they are asked to. Measured, with the widest answer on the
+   scorebug: every row stays 54 px and all seven still arrive whole at 1280x720 and 1366x768. */
+.map-svg-row .save-field > span {
+  white-space: nowrap;
+}
 .map-svg-align-grid {
   display: grid;
   grid-template-columns: repeat(3, 8px);

@@ -4171,3 +4171,149 @@ test('svg import: grouping never moves a row out of the order the file draws it 
   await expect(heads.first()).toContainText('On the artwork');
   await expect(heads.first()).toContainText('no box of their own');
 });
+
+// ── THE THREE MOMENTS THE GUIDE HAD TO EXPLAIN ──
+//
+// Walking this road cold to write the `#first-graphic` guide on /docs turned up exactly three
+// places where the screen needed a sentence it did not have (docs/backlog/import-walk-
+// hesitations.md, since acted on and deleted). The owner's standard, stated 2026-09-03:
+//
+//   "Of course, it should be so intuitive that you can just use it without reading anything."
+//
+// So the guide is the fallback and every sentence it had to write was a candidate defect. These
+// cases are what keeps the answers on screen: a sentence nobody pinned is a sentence the next
+// refactor deletes.
+
+// 1. THE RAIL RENUMBERS UNDER THE FILE DROP. Six steps become five and TWO of the step names
+// change, so it does not read as "one step was removed" - it reads as a different wizard.
+test('svg import: the drop says why the walk just got a step shorter', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="import-graphic"]').click();
+
+  // What the reader counted before the drop: the six-step design walk.
+  await expect(page.getByTestId('wz-stepcount')).toContainText('2 / 6');
+  await expect(page.locator('.wz-dot-label')).toHaveText([
+    'Start', 'Design', 'Prepare', 'Text', 'Animation', 'Finish',
+  ]);
+
+  await page.locator('.wz-drop input[type="file"]').setInputFiles(SCOREBUG_SVG);
+  await expect(page.getByTestId('import-svg-card')).toBeVisible();
+
+  // …and what it is now, with the account for it on the same card, beside the layer count.
+  await expect(page.getByTestId('wz-stepcount')).toContainText('2 / 5');
+  await expect(page.locator('.wz-dot-label')).toHaveText([
+    'Start', 'Design', 'Fields', 'Animation', 'Finish',
+  ]);
+  const note = page.getByTestId('import-svg-rail-note');
+  await expect(note).toBeVisible();
+  // The two counts the reader just watched, and BOTH names that left, in the words the rail
+  // used for them - a note that said only "fewer steps" would not close the loop.
+  await expect(note).toContainText('Five steps now, not six');
+  await expect(note).toContainText('Prepare');
+  await expect(note).toContainText('Text');
+  await expect(note).toContainText('Fields');
+});
+
+// 2. THE ALIGNMENT GRID SAYS ITS ANSWER IN WORDS. Nine unlabelled dots under the word "Aligned"
+// were the only control on this step with no read-back, and what they decide is the most
+// consequential answer on the row: which edge holds still when an operator's text is longer
+// than the drawn sample. The answers existed, one cell at a time, on hover.
+test('svg import: every alignment grid writes its own answer beside the heading', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg2(page, SCOREBUG_SVG);
+
+  const grids = page.getByTestId('map-svg-fields').locator('.map-svg-align');
+  const count = await grids.count();
+  expect(count).toBeGreaterThan(1);
+
+  for (let i = 0; i < count; i++) {
+    const grid = grids.nth(i);
+    // The words are the CHOSEN dot's own two axes, so the sentence and the picture can never
+    // disagree - the dot's title is where they both come from.
+    const chosen = grid.locator('button[aria-checked="true"]');
+    await expect(chosen).toHaveCount(1);
+    const words = ((await chosen.getAttribute('title')) ?? '').split(' - ')[0];
+    expect(words).toMatch(/^(left|centred|right), (top|middle|bottom)$/);
+    // Readable without hovering anything: the words are in the label, not in a title.
+    await expect(grid.locator('.map-svg-align-now')).toHaveText(words);
+  }
+
+  // Clicking a different cell restates the row rather than leaving the old answer standing.
+  const first = grids.first();
+  await first.locator('button').nth(2).click(); // right, top
+  await expect(first.locator('.map-svg-align-now')).toHaveText('right, top');
+
+  // WHAT the grid decides is said ONCE, in the section's own note, rather than on each of seven
+  // rows - the rule this step already follows for everything a row cannot afford to repeat.
+  await page.getByTestId('map-svg-why-fields').click();
+  const list = page.getByTestId('map-svg-fields');
+  await expect(list).toContainText('that edge holds still when an operator types something longer');
+  await expect(list).toContainText('A ringed dot was read from your drawing');
+});
+
+// …and it costs the step nothing. The row budget is exact (see "the mapping step's checklist is
+// on screen at 1280x720" above), and the answer takes the alignment column from 52 px to 112.
+// The two text boxes give that width back; what nearly broke it was the CLOCK row, whose label
+// wrapped and took the row from 56 px to 68. `.map-svg-row .save-field > span` is told not to
+// wrap for exactly that reason, and this is what says so.
+for (const [width, height] of [[1366, 768], [1280, 720]] as const) {
+  test(`svg import: the alignment answer never wraps a mapping row at ${width}x${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/app');
+    await dropSvg2(page, SCOREBUG_SVG);
+    await expect(page.getByTestId('map-svg-fields').locator('.map-svg-align').first())
+      .toContainText(/(left|centred|right), (top|middle|bottom)/);
+
+    const rows = await page.evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLElement>('[data-testid="map-svg-fields"] .map-svg-row'))
+        .map((r) => Math.round(r.getBoundingClientRect().height)));
+    expect(rows).toHaveLength(7);
+    // One line each. The clock row is 56 because its picker is a select, not because it wrapped;
+    // a wrapped label put it at 68 and the last row 12 px lower.
+    expect(Math.max(...rows)).toBeLessThanOrEqual(56);
+  });
+}
+
+// 3. THE TWO NAME BOXES NEVER DEFAULT TO THE SAME WORD. On the commonest first run - an empty
+// library, so the picker is already on "New production" - both boxes start empty, and the
+// production used to take the GRAPHIC's name: a graphic called "Imported SVG design" inside a
+// production called "Imported SVG design", found a week later in a library holding three of
+// them. A show that holds one strap is not called "Interview strap".
+test('svg import: an unnamed production is not named after the graphic', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg2(page, SCOREBUG_SVG);
+  await page.locator('.wz-next').click(); // Animation
+  await page.locator('.wz-next').click(); // Finish
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+
+  // Both boxes empty, and each says what ITS OWN empty means - the rule the graphic box already
+  // followed and the production box did not.
+  await expect(page.getByTestId('wz-finish-name')).toHaveValue('');
+  await expect(page.getByTestId('wz-finish-name')).toHaveAttribute('placeholder', 'Imported SVG design');
+  await page.getByTestId('wz-finish-production-pick').locator('select').selectOption('new');
+  const prod = page.getByTestId('wz-finish-production-name');
+  await expect(prod).toHaveValue('');
+  await expect(prod).toHaveAttribute('placeholder', 'Untitled production');
+
+  // The step teaches the difference once, where the choice is made.
+  await expect(page.getByTestId('wz-finish-production-pick'))
+    .toContainText('Name it for the show, like Friday Show or Class Quiz, not for this graphic');
+
+  // The confirmation prints BOTH names, and they are not the same word.
+  await page.getByTestId('wz-finish-production-go').click();
+  const dest = page.getByTestId('wz-finish-production-confirm-dest');
+  await expect(dest).toContainText('Untitled production');
+  await expect(dest).not.toContainText('Imported SVG design');
+  await expect(page.getByTestId('wz-finish-production-confirm'))
+    .toContainText('Imported SVG design goes into this production');
+
+  // And the write matches what the dialog promised, rather than the UI guessing one name while
+  // the model applies another.
+  await page.getByTestId('wz-finish-production-confirm-go').click();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  // The page that airs carries TWO names now, and they are different words: the show it is,
+  // and the one graphic in it. That is the whole of what this case is about.
+  await expect(page.getByTestId('production-page')).toContainText('Untitled production');
+  await expect(page.getByTestId('production-page')).toContainText('Imported SVG design');
+});
