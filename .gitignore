@@ -32,6 +32,11 @@ spx-corpus-out/
 # committed copy could only ever go stale and disagree with the exporter.
 ograf-starters-out/
 
+# The zip, the frames and the transcript scripts/ograf-external-walk.mjs writes when it drives an
+# imported-SVG graphic in SuperFly.tv's ograf-server. The frames worth keeping are copied into
+# docs/acceptance/ by hand; the rest is a run's working area and is rebuilt by re-running it.
+ograf-external-out/
+
 # Never commit API keys - copy .env.example to .env and fill it in locally.
 .env
 
