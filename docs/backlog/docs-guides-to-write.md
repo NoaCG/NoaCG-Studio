@@ -3,11 +3,13 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-08-26
-state: advanced
+state: superseded
 note: >-
-  items 2 (countdowns and clocks), 3 (artwork that is not an SVG) and 4 (which package do I
-  want) are on the page, 2026-09-06. Only item 1 (the creation wizard) is left, and it is
-  deliberately held rather than merely unwritten - see the body.
+  all four items are on the page. Items 2 (countdowns and clocks), 3 (artwork that is not an
+  SVG) and 4 (which package do I want) landed 2026-09-06; item 1 (the creation wizard, end to
+  end) landed 2026-09-09 as #first-graphic, written by walking the road rather than from this
+  file. The list is spent. The UI work the walk turned up is its own file,
+  docs/backlog/import-walk-hesitations.md.
 asked: >-
   "I like the new docs" - the next guides on the /docs shelf, in the order they earn their place
   (paraphrase of the 2026-08-26 walk)
@@ -38,17 +40,26 @@ One guide is roughly an afternoon: run the flow, write it, pin its load-bearing 
 
 **Tactically, in order:**
 
-1. **The creation wizard, end to end.** The most-used surface on the product and the least
-   documented: Entry, Browse, Fields, Style, Animation, Finish, and the fact that Finish can export
-   without the editor ever opening. `#getting-started` currently compresses all of it into three
-   list items. This is the one guide a first-time reader most needs and it is not a graphic kind,
-   so it belongs beside `#svg` under "Make a graphic".
+1. ~~**The creation wizard, end to end.**~~ **Done, 2026-09-09.** `#first-graphic`, "Your first
+   graphic, step by step", between `#graphics` and `#svg` under "Make a graphic".
 
-   **STILL OPEN, and held back on purpose.** It was skipped on 2026-09-06 while items 2 and 3 were
-   written, because the wizard was being changed the same night: a step-by-step guide to a surface
-   that is moving documents a screen the reader will not find. Write it once the wizard's steps
-   have settled, and check what Entry and Finish actually look like on the day rather than working
-   from this paragraph.
+   Holding it back was right, and the paragraph that described it was already wrong by the time it
+   was written. The steps this file named (Entry, Browse, Fields, Style, Animation, Finish) are not
+   the steps the wizard has: the import road is Start, Design, Fields, Animation, Finish, and the
+   rail carries a sixth step (Prepare) that an SVG drop removes. So the guide was written by
+   walking the road cold with an SVG drawn for the walk, from the Import door to a cue taken to air
+   on a production dashboard, and every quoted string in it was read off the running app that day.
+   That is the method to repeat, not this paragraph.
+
+   Scoped to the SVG road rather than to the wizard in general, because the owner's ask for the
+   2026-09-25 release is how a student imports their own graphics, and because a walk of one real
+   road is checkable in a way a tour of every mode is not. Pinned in `e2e/docs.spec.ts`.
+   `#getting-started` and `#svg` both hand off to it; `#dashboard` gained the wizard's own
+   one-press route into a production, which it had not carried.
+
+   **The walk's own output is the UI list this file asked for**, filed as
+   `docs/backlog/import-walk-hesitations.md`: the three places where a sentence of documentation
+   was needed to make the screen usable. The importer itself was clean on the walk.
 2. ~~**Countdowns and clocks.**~~ **Done, 2026-09-06.** `#countdowns` in the `#graphics` shelf.
    It carries the length-not-text rule, the colon trap (`2:30` reads as two minutes), the
    `noacg-data-source` holder and why the class rather than an inline `display:none`, what an
