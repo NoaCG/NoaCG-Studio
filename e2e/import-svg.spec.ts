@@ -4235,7 +4235,10 @@ test('svg import: every alignment grid writes its own answer beside the heading'
     await expect(chosen).toHaveCount(1);
     const words = ((await chosen.getAttribute('title')) ?? '').split(' - ')[0];
     expect(words).toMatch(/^(left|centred|right), (top|middle|bottom)$/);
-    // Readable without hovering anything: the words are in the label, not in a title.
+    // Readable without hovering anything: the words are in the label, not in a title. VISIBLE
+    // is asserted separately because `toHaveText` reads textContent - a rule that hid this span
+    // would leave the defect exactly as it was and the text assertion still passing.
+    await expect(grid.locator('.map-svg-align-now')).toBeVisible();
     await expect(grid.locator('.map-svg-align-now')).toHaveText(words);
   }
 
@@ -4245,11 +4248,13 @@ test('svg import: every alignment grid writes its own answer beside the heading'
   await expect(first.locator('.map-svg-align-now')).toHaveText('right, top');
 
   // WHAT the grid decides is said ONCE, in the section's own note, rather than on each of seven
-  // rows - the rule this step already follows for everything a row cannot afford to repeat.
+  // rows - and as a SENTENCE on the paragraph that already covers the row's controls, because
+  // that body has a pinned two-paragraph ceiling ("the step says what a control does, in a few
+  // lines", above). Both halves are asserted here: the sentence, and the ceiling it fits inside.
   await page.getByTestId('map-svg-why-fields').click();
-  const list = page.getByTestId('map-svg-fields');
-  await expect(list).toContainText('that edge holds still when an operator types something longer');
-  await expect(list).toContainText('A ringed dot was read from your drawing');
+  const note = page.getByTestId('map-svg-why-fields-body');
+  await expect(note).toContainText('growing from whichever edge Aligned names');
+  await expect(note.locator('p')).toHaveCount(2);
 });
 
 // …and it costs the step nothing. The row budget is exact (see "the mapping step's checklist is
@@ -4283,8 +4288,12 @@ for (const [width, height] of [[1366, 768], [1280, 720]] as const) {
 test('svg import: an unnamed production is not named after the graphic', async ({ page }) => {
   await page.goto('/app');
   await dropSvg2(page, SCOREBUG_SVG);
+  // Settle on the STEP COUNTER between the two clicks. Clicking Next twice in a row without one
+  // lands the second on a step that has not re-rendered - the flake `_svg-import.ts` documents.
   await page.locator('.wz-next').click(); // Animation
+  await expect(page.getByTestId('wz-stepcount')).toContainText('4');
   await page.locator('.wz-next').click(); // Finish
+  await expect(page.getByTestId('wz-stepcount')).toContainText('5');
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 
   // Both boxes empty, and each says what ITS OWN empty means - the rule the graphic box already

@@ -405,8 +405,13 @@
    the one that also carries the countdown picker, is exactly what the alignment answer did at
    1280 px (56 px to 68). Wrapping the label buys nothing: the boxes beside it are `grow` and
    give the width back the moment they are asked to. Measured, with the widest answer on the
-   scorebug: every row stays 54 px and all seven still arrive whole at 1280x720 and 1366x768. */
-.map-svg-row .save-field > span {
+   scorebug: every row stays 54 px and all seven still arrive whole at 1280x720 and 1366x768.
+   `:first-child` IS THE LABEL, and the rest of the selector is why it has to be there. Two other
+   spans sit directly inside a `.save-field` on this step and BOTH are sentences that must wrap:
+   `NameHint`'s line under a picker ("filled: the widest drawing beside row B"), which follows its
+   own select, and a recipe option's label ("Reveal by itself a few seconds after the lock"),
+   which follows its own checkbox. Neither is ever first. */
+.map-svg-row .save-field > span:first-child {
   white-space: nowrap;
 }
 .map-svg-align-grid {

@@ -2157,15 +2157,18 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
               A ticked layer becomes a field the operator retypes live, in the type you drew.
               Untick one and its words stay part of the artwork.
             </p>
-            <p>The Text box is live. Type a long value and the preview shows what airs.</p>
-            {/* THE KEY TO THE NINE DOTS, once for the whole checklist rather than on each of
-                seven rows - the rule this step already follows for the vote note. Each row
-                states its OWN answer beside the word Aligned; what a row cannot afford to
-                repeat is what the answer is FOR, and which of the two dot styles it is in. */}
+            {/* THE KEY TO THE NINE DOTS - one SENTENCE on the paragraph that already covers
+                what a row's controls do, not a paragraph of its own. Each row now states its own
+                answer in words beside the word Aligned; what a row cannot afford to repeat seven
+                times is what that answer is FOR. It is said here because the ⓘ notes on this step
+                have a pinned LENGTH ceiling (e2e/import-svg.spec.ts, "the step says what a
+                control does, in a few lines" - this body is exactly two paragraphs, and the owner
+                on 2026-08-26: "it needs to be shorter and just what it does"). Tying it to the
+                Text box is also the cheapest demonstration there is: type a long value and the
+                anchored edge is the one that visibly does not move. */}
             <p>
-              Aligned is where a line is anchored in its shape: that edge holds still when an
-              operator types something longer than you drew. A ringed dot was read from your
-              drawing, a solid one you set.
+              The Text box is live. Type a long value and the preview shows what airs, growing
+              from whichever edge Aligned names.
             </p>
           </SectionHead>
           {fieldGroups.map((group) => (

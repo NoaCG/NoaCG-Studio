@@ -487,8 +487,12 @@ export default function ImportDesignStep({
               Stated as a FACT about SVG walks rather than as an event, because the same card is
               on screen for a reader who walked back into a saved SVG draft and never saw six. */}
           <p className="hint" data-testid="import-svg-rail-note">
-            Five steps now, not six: an SVG has nothing to erase and its text is already placed,
-            so Prepare and Text became the one Fields step.
+            {/* "needs no erasing and no placing" rather than "its text is already placed",
+                because this card also renders for a file whose type was outlined on export -
+                it has no text to have placed, and the line above it says so. Both halves stay
+                true of every SVG. */}
+            Five steps now, not six: an SVG needs no erasing and no placing, so Prepare and Text
+            became the one Fields step.
           </p>
           {svg.fonts.length > 0 && (
             <p className="hint" data-testid="import-svg-fonts">
