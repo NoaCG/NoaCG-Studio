@@ -42,8 +42,13 @@ needed, and hold `src/docs/AGENTS.md`'s voice and the owner's binding constraint
 
 The walk's own by-product is the second deliverable: the list of moments the dialog did not carry
 its own explanation. The import road's walk produced exactly three of those, and all three were
-then fixed on the screen rather than in the guide - `docs/handoffs/2026-09-09-m-wizard-says-it-itself.md`
-is that round trip end to end, and it is the shape to copy.
+then fixed on the screen rather than in the guide. **That round trip is the shape to copy**: the
+walk filed a backlog item listing the three hesitations, a later row answered all three in the
+wizard itself, and that row deleted the item in the same commit as the last fix. The three answers
+are pinned by their own cases in `e2e/import-svg.spec.ts` - "the drop says why the walk just got a
+step shorter", "every alignment grid writes its own answer beside the heading" and "an unnamed
+production is not named after the graphic" - which is where to read what a walk's by-product turns
+into.
 
 ## Evidence
 
