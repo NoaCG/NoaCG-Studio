@@ -13,6 +13,15 @@ Run it locally with:
 npm run check:freshness
 ```
 
+**A third kind of staleness lives outside this document: harness capability observations.**
+`scripts/harness-capabilities.json` records what Claude Code, Codex and Antigravity were each
+measured to do, pinned to the CLI build that was running at the time. `npm run harness:usage`
+compares each entry's `measuredOn` against the installed build and reports every one that has
+gone `UNVERIFIED` since — the same report-never-auto-upgrade posture as the rest of this
+document, but for CLI behaviour instead of package versions. Nothing re-probes them on a
+schedule yet; each one is re-measured by hand, by running the command its own `reprobe` field
+names, whenever a routing decision leans on it.
+
 ## The rule: report, never auto-upgrade
 
 No automated dependency bumps, and no Dependabot. This is a deliberate call, not inertia:
