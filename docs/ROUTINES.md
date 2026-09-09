@@ -76,6 +76,26 @@ routine that acts rather than reports**, which is exactly why it is not folded i
 brief: an alert-only brief that quietly installs things is a brief nobody can trust. It speaks only
 when something changed or a rollback happened.
 
+**Since 2026-09-09 it also names what its own upgrade invalidated.** `scripts/harness-capabilities.json`
+pins every capability observation to the version it was measured on, so upgrading a CLI silently
+turns those observations into claims about a build that is no longer installed - and the routing
+step reads them as fact. This routine is the only thing that knows the moment a version moves, so
+after an upgrade it runs `node scripts/harness-usage.mjs --landed` and reports the count if any are
+now unverified. It never re-probes and never edits that file: the freshness rule here is that a
+check REPORTS and nothing auto-upgrades.
+
+The cadence argument is the measurement. **The CLIs update daily and the observations were
+re-probed never** - the first full re-probe, on 2026-09-09, found five of eleven false. The weekly
+owner session already asks "which capability observation lapsed?", but weekly is up to seven
+upgrades behind, so the report belongs where the invalidation happens.
+
+**`--landed` is not optional there.** Without it the report describes whatever commit the checkout
+sits on: measured the same day, this repo's orchestrator worktree was eight commits behind and
+reported eleven unverified observations that had just been measured, off the same installed builds.
+If that flag is ever rejected as an unknown argument, the checkout predates it and the routine says
+so rather than reporting a number
+(`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`).
+
 ## Weekly - the owner session
 
 `weekly-owner-session`, Tuesdays 09:15. It runs `.agent-workflows/orchestrator-week.md`, which is

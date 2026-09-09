@@ -42,6 +42,7 @@ import {
 } from './agy-run.mjs';
 import {
   AGY_KINDS,
+  landedCapabilitiesText,
   AGY_LEDGER_VERSION,
   attributeProjects,
   bullet,
@@ -1151,4 +1152,39 @@ test('the shipped observation file parses, every observation names its version, 
   }
   assert.deepEqual(readCapabilities('not json'), []);
   assert.deepEqual(readCapabilities('{}'), []);
+});
+
+// The stale-checkout false alarm, which is the reason `--landed` exists. Measured on 2026-09-09:
+// this worktree reported 0 unverified and the orchestrator worktree, eight commits behind and
+// holding the pre-re-probe file, reported ELEVEN off the same installed builds. A daily routine
+// pointed at the second would have raised that alarm every morning. So the flag must read the
+// LANDED file and must not quietly fall back to the tree when git answers.
+test('--landed reads the observation file from the landed ref, never the checkout', () => {
+  const landed = JSON.stringify({ v: 1, observations: [{ id: 'a', harness: 'Codex', kind: 'observation', measuredOn: '9.9.9' }] });
+  const asked = [];
+  const runGit = (args) => {
+    asked.push(args.join(' '));
+    if (args[0] === 'rev-parse') return { status: 0, stdout: '' };
+    if (args[0] === 'merge-base') return { status: 0, stdout: '' };
+    if (args[0] === 'show') return { status: 0, stdout: landed };
+    throw new Error(`unexpected git call: ${args.join(' ')}`);
+  };
+
+  assert.equal(landedCapabilitiesText(runGit), landed);
+  // origin/main, never the bare local name - the whole point of routing through mainRef.
+  assert.ok(
+    asked.some((call) => call.startsWith('show origin/main:scripts/harness-capabilities.json')),
+    `expected a show against origin/main, got ${JSON.stringify(asked)}`,
+  );
+
+  // A path git cannot answer falls back to the caller's tree rather than reporting nothing: an
+  // answer from the checkout beats no answer at all on a fresh clone with no remote.
+  const noRef = (args) => (args[0] === 'rev-parse' ? { status: 1, stdout: '' } : { status: 128, stdout: '' });
+  assert.equal(landedCapabilitiesText(noRef), null);
+});
+
+test('--landed is parsed, and defaults off so the ordinary run still describes this checkout', () => {
+  assert.equal(parseArgs([]).landed, false);
+  assert.equal(parseArgs(['--landed']).landed, true);
+  assert.equal(parseArgs(['--landed', '--json']).json, true);
 });
