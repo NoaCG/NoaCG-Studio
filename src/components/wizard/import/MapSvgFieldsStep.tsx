@@ -2304,11 +2304,11 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
                           writes its own answer beside the heading").
                           MEASURED before it was written, because the step has an exact
                           rows-on-screen budget (e2e/import-svg.spec.ts, 7 rows at 1280x720 and
-                          1366x768). On the scorebug at 1280 the widest answer takes the column
-                          from 52 px to 111 and the two text boxes from 165 to 135, which the
-                          budget survives - but the CLOCK row, which also carries the countdown
-                          picker, then wrapped a label and grew from 56 px to 68. The guard in
-                          mapSvgFields.css (a row label never wraps) is what buys it back: every
+                          1366x768). On the scorebug at 1280 the answer takes the column from
+                          52 px to 112 and the two text boxes from 165 to 135, which the budget
+                          survives - but the CLOCK row, which also carries the countdown picker,
+                          then wrapped a label and grew from 56 px to 68. The guard in
+                          mapSvgFields.css (a row LABEL never wraps) is what buys it back: every
                           row stays 54 px, the last one still ends at 609, and all seven arrive
                           whole at both sizes. */}
                       <span>
