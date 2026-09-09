@@ -126,12 +126,12 @@ Each tick, in this order, and nothing else:
    already written in section 5. Never one that is not in the wave table.
 4. **REFILL a free slot.** A slot is free when a row landed or its process is gone and the machine
    is under its concurrency ceiling. **`node scripts/candidates.mjs --plan <wave-state file>`** reads
-   the candidate list below and names the next one to launch - it runs the instruments over the
-   whole list and prints `LAUNCH <letter>` for the first candidate that is collision-CLEAR against
-   every running row's REAL diff (`collision-check` reads what a branch changed, never what it
-   forecast), whose BROWSER SLOT is free (a candidate naming e2e specs is taken to need it, held
-   while a running row holds it) AND whose size still FITS the window (`wave-horizon`). A held unit
-   carries its reason, and the pick falls through to the next one in the order. Launch the
+   the candidate list below and names the next one to launch: `LAUNCH <letter>` for the first
+   candidate NOT already in the launch ledger that is collision-CLEAR against every running row's
+   REAL diff (`collision-check`, the instrument that would have spared rows H and I their 79-minute
+   phantom chain - it reads what a branch changed, never what it forecast), whose BROWSER SLOT is
+   free (a candidate naming e2e specs is taken to need it, held while a running row holds it) AND
+   whose size still FITS the window (`wave-horizon`). A held unit carries its reason. Launch the
    pick exactly like a planned row (its own worktree, its own queue, its own handoff), record
    the start with `node scripts/wave-launch.mjs record --letter <L> --branch <b> --size <size>` so
    the horizon learns, and append the launch and its traced why to the wave-state file. A refill

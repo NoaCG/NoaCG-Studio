@@ -11,14 +11,26 @@
 // ran them per candidate by hand. This composes both over the `## Candidates` TABLE the planner
 // writes (columns L, size, serves, TOUCHES, SPECS, goal, and an optional browser), so the refill
 // pick is one command whose answer the loop confirms rather than a sequence the model drives. It
-// launches nothing; it prints LAUNCH <letter> for the first candidate that is collision-clear, whose
-// scarce slot is free, AND that fits the window, and HOLD for each one it passes with the reason.
+// launches nothing; it prints LAUNCH <letter> for the first candidate that is not already launched,
+// is collision-clear, whose scarce slot is free, AND that fits the window, and HOLD for each one it
+// passes with the reason.
+//
+// THE LEDGER IS THE LOOP'S MEMORY. A candidate with a launch record for this wave is held as
+// already launched, whatever became of it: on 2026-09-05 the pick printed LAUNCH W twice in an
+// hour with W's record already written, because nothing here read the ledger for identity - and a
+// freshly launched row has no diff yet, so collision-check cannot tell it from an unstarted one.
 //
 // THE SCARCE SLOT. On the night of 2026-09-08 this instrument said LAUNCH for a browser row four
 // times while another row held the one browser slot the machine has (root AGENTS.md: one
 // browser-driving job per MACHINE). Neither instrument knows a resource - collision-check reads
 // files and wave-horizon reads time - and the candidate table had nowhere to say a unit needs one.
-// Two halves are needed and they come from different places:
+// The job queue does NOT already settle this: it serializes SCRIPTED browser jobs (`npm run queue`,
+// `COST.browser` in jobs-store), and every one of the four bad picks was a row driving the browser
+// BY HAND - "reproduce in the running app", a rendered measurement - which no process table shows
+// as a job. That is what the wave table's `browser` column has always meant (collisions.md: a
+// browser-driving session costs a full slot), so the plan is the source here on purpose, and the
+// cost of that choice is accepted: a row that drives the browser for one suite inside a four-hour
+// row holds the slot for four hours. Two halves are needed and they come from different places:
 //
 //   - WHAT A CANDIDATE NEEDS is DERIVED from what the planner already writes: a candidate whose
 //     SPECS column names an e2e spec is taken to need the browser. Inference is wrong in both
@@ -27,22 +39,38 @@
 //     was such a row), and the loop simply takes the next candidate and comes back to it when the
 //     slot frees. The alternative, a column the planner must remember to fill, fails OPEN when a
 //     cell is forgotten - which is the four bad picks again, silently. An optional `browser`
-//     column overrides the derivation, and ONLY the values `yes` and `no` count as the planner's
-//     word: an empty cell, a dash or anything else derives, so a placeholder cannot fail open
-//     either. Combining the two is better than either alone because they fail in opposite
-//     directions and the override can only move a verdict from "held by inference" to "the
-//     planner's word"; the one open failure left is a planner writing `no` on a row that drives
-//     the browser, which no instrument can check any more than it can check a wrong TOUCHES.
+//     column overrides the derivation, and ONLY a cell starting with `yes` or `no` counts as the
+//     planner's word (`browserWord`, shared with the plan check, which refuses any other spelling):
+//     an empty cell or a dash derives, so a placeholder cannot fail open either. Combining the
+//     two is better than either alone because they fail in opposite directions and the override
+//     can only move a verdict from "held by inference" to "the planner's word"; the one open
+//     failure left is a planner writing `no` on a row that drives the browser, which no
+//     instrument can check any more than it can check a wrong TOUCHES.
 //   - WHAT IS HELD is read from the rows that are RUNNING. A planned row holds the browser when the
-//     wave table says `browser` yes or its MINTS names the browser; a launched candidate holds it
-//     when the rule above says it needs it (so the third bad pick, a candidate launched into the
-//     slot, is covered too). Running means launched in the ledger `wave-launch.mjs` keeps, not yet
-//     queued, not landed, and still seen by the activity scan; the ledger is what wave-horizon
-//     already reads, so a launch nobody records is invisible to both instruments in the same way
-//     and `launch.md` already makes recording every launch the rule. A wave-table browser row with
-//     NO ledger record is printed as a caution rather than held: a phantom hold that no landing
-//     can lift is the one closed failure that is not cheap, so this is the one place the choice
-//     is loud-open, and the caution names the record command.
+//     wave table says `browser` yes or its MINTS names the browser slot; a launched candidate holds
+//     it when the rule above says it needs it (so the third bad pick, a candidate launched into
+//     the slot, is covered too). Running means launched in the ledger `wave-launch.mjs` keeps for
+//     THIS wave, not landed, not in the queue, and its branch still existing - existence, not a
+//     diff, because the first minutes after a launch are exactly when the bad picks happened. A
+//     landing that gave up or was withdrawn leaves the row running: the session may be back at
+//     work, and that is the closed direction. The ledger is what wave-horizon already reads, so a
+//     launch nobody records is invisible to both instruments in the same way, and `launch.md`
+//     already makes recording every launch the rule; the hold is exactly as good as that
+//     recording, and the first day wave this met (2026-09-09) had recorded none of its rows. A
+//     wave-table browser row due now with NO ledger record is printed as a caution rather than
+//     held: a phantom hold that no landing can lift is the one closed failure that is not cheap,
+//     so this is the one place the choice is loud-open, and the caution names the record command.
+//
+// WHICH WAVE A LEDGER LINE BELONGS TO. A record written by this build names its plan, and plans are
+// matched by FILE NAME, not path: the store keeps one file per date and kind, the record's path is
+// always the store's (`inStore` checks it), and the path the operator types can differ in drive
+// letter case, slash direction or be a copy of the plan somewhere else - measured on this machine,
+// `path.resolve` keeps the case, so a path comparison emptied the running set and failed OPEN. A
+// name that matches a copy is still the same wave, which is the answer wanted. Records with no plan
+// (every line before 2026-09-09) match by the wave's WINDOW instead - from local midnight of the
+// date in the plan's name to its "Window ends" - which keeps last night's F, G, K, L, O, P out of a
+// plan that reuses those letters; a day and a night plan of one date share that window's early
+// hours, and for those legacy lines that ambiguity is accepted rather than guessed at.
 //
 // The pick respects the planner's ORDER and falls through: a standard unit at the top that no
 // longer fits does not block a small one below it that does. Read-only, like the instruments it
@@ -56,58 +84,43 @@ import { collisions } from './collision-check.mjs';
 import { scanActivity } from './worktree-activity.mjs';
 import { horizon, landingLatency, parseWindowEnd } from './wave-horizon.mjs';
 import { joinDurations, readLaunches, SIZES, statsBySize } from './wave-launch.mjs';
-import { jobsDir, readJobs, readLandings } from './jobs-store.mjs';
-import { parseWaveTable } from './wave-plan-check.mjs';
+import { jobsDir, landingStateFor, readJobs, readLandings } from './jobs-store.mjs';
+import { browserWord, mintsOf, parseWaveTable, tableUnder } from './wave-plan-check.mjs';
+import { git, worktreeEntries } from './worktree-cleanup-lib.mjs';
 import { newestWavePlan, WAVE_PLAN_MAX_AGE_MS } from './wave-tick.mjs';
+
+/** A cell without its markdown: backticks and bold stripped, trimmed. */
+const clean = (cell) => String(cell ?? '').replace(/[`*]/g, '').trim();
 
 /** Split a table cell of comma/semicolon-separated tokens, dropping `-`, `none`, and empties. */
 function cells(value) {
-  return String(value ?? '').split(/[,;]/).map((token) => token.replace(/`/g, '').trim())
+  return clean(value).split(/[,;]/).map((token) => token.trim())
     .filter((token) => token && token !== '-' && token.toLowerCase() !== 'none');
 }
 
 /**
  * The `## Candidates` table as rows { letter, size, serves, files, specs, goal, browser }. Any
  * heading containing "candidates" opens it; the header row names the columns, so order is not
- * assumed. `browser` is the raw cell of the optional column, lower-cased, empty when absent.
+ * assumed. `browser` is the optional column's cell, cleaned and lower-cased, empty when absent.
  */
 export function parseCandidates(text) {
-  const lines = String(text).replace(/\r\n/g, '\n').split('\n');
-  const start = lines.findIndex((line) => /^#{1,6}\s+.*\bcandidates\b/i.test(line));
-  if (start < 0) return [];
-  let header = null;
+  const table = tableUnder(text, /^#{1,6}\s+.*\bcandidates\b/i);
+  if (!table?.header) return [];
   const rows = [];
-  for (let index = start + 1; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (/^#{1,6}\s+/.test(line)) break;
-    if (!line.trim().startsWith('|')) continue;
-    const parts = line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
-    if (!header) { header = parts.map((cell) => cell.replace(/\*/g, '').toLowerCase()); continue; }
-    if (parts.every((cell) => /^:?-+:?$/.test(cell))) continue;
-    const row = {};
-    header.forEach((key, position) => { row[key] = parts[position] ?? ''; });
-    const letter = (row.l ?? row.letter ?? row['#'] ?? '').replace(/\*/g, '').trim();
+  for (const row of table.rows) {
+    const letter = clean(row.letter);
     if (!/^[A-Z]{1,2}$/.test(letter)) continue;
     rows.push({
       letter,
-      size: (row.size ?? 'standard').trim().toLowerCase(),
-      serves: (row.serves ?? '').trim(),
+      size: clean(row.size ?? 'standard').toLowerCase() || 'standard',
+      serves: clean(row.serves),
       files: cells(row.touches),
       specs: cells(row.specs).map((spec) => spec.replace(/^e2e\//, '')),
-      goal: (row.goal ?? '').trim(),
-      browser: (row.browser ?? '').replace(/`/g, '').trim().toLowerCase(),
+      goal: clean(row.goal),
+      browser: clean(row.browser).toLowerCase(),
     });
   }
   return rows;
-}
-
-/** The planner's word in a `browser` cell: a cell STARTING with yes or no, so `yes - drives the
- *  app` counts and a dash, a question mark or a note that names neither does not. */
-function browserWord(cell) {
-  const text = String(cell ?? '').trim();
-  if (/^yes\b/i.test(text)) return true;
-  if (/^no\b/i.test(text)) return false;
-  return null;
 }
 
 /**
@@ -121,68 +134,86 @@ export function needsBrowser(candidate) {
   return { needs: (candidate.specs ?? []).length > 0, source: 'specs' };
 }
 
-/** Does a wave-table row hold the browser? Its `browser` column, or a MINTS cell naming it. */
+/** A MINTS slot name that is the browser: `browser`, `the browser slot` - a whole token, so a
+ *  path like `docs/browser-support.md` or a note reading `not the browser` mints nothing here. */
+const BROWSER_MINT = /^(the\s+)?browser(\s+slot)?$/i;
+
+/** Does a wave-table row hold the browser? Its `browser` column, or a MINTS token naming the slot. */
 export function waveRowHoldsBrowser(row) {
-  return browserWord(row.browser) === true || /\bbrowser\b/i.test(String(row.mints ?? ''));
+  return browserWord(row.browser) === true || mintsOf(row.mints).some((mint) => BROWSER_MINT.test(clean(mint)));
 }
 
 /**
- * The rows RUNNING right now, as { letter, branch }: launched in the ledger, not yet queued, not
- * landed, still seen by the activity scan, and belonging to this wave - a record that names another
- * plan is not this wave's, and one older than a plan can live (`WAVE_PLAN_MAX_AGE_MS` past its
- * window) is a leftover whose letter may have been reused. The scan filter is what drops a record
- * whose branch was rewound and deleted. Pure: every input is handed in.
+ * When this wave is: its plan's file name, the local midnight of the date in that name (null when
+ * the name carries none) and its "Window ends" (null when the plan has none). What `belongsToWave`
+ * reads, computed once.
  */
-export function runningRows({ launches, jobs, landings, entries, planPath = null, now = Date.now() }) {
-  const seen = new Set(entries.map((entry) => entry.branch).filter(Boolean));
-  return joinDurations(launches, jobs, landings) // newest record per branch, joined to its queueing and landing
-    .filter((row) => row.toQueueMin === null && row.toLandMin === null && seen.has(row.branch)
-      && belongsToWave({ at: row.launchedAt, plan: row.plan }, { planPath, now }))
-    .map((row) => ({ letter: row.letter ?? null, branch: row.branch }));
+export function waveSpan(planPath, text) {
+  const name = path.basename(planPath);
+  const dated = /^(\d{4}-\d{2}-\d{2})/.exec(name);
+  const day = dated ? Date.parse(`${dated[1]}T00:00:00`) : NaN; // no offset = LOCAL, like the file's name
+  return { name, startMs: Number.isFinite(day) ? day : null, endMs: parseWindowEnd(text) };
+}
+
+/** Is this ledger line one of this wave's launches? See the header, "which wave a ledger line
+ *  belongs to". `record` carries `at` and `plan`; a joined row carries `launchedAt` and `plan`. */
+export function belongsToWave(record, span, { now = Date.now() } = {}) {
+  const at = record.at ?? record.launchedAt;
+  if (record.plan) return path.basename(record.plan).toLowerCase() === span.name.toLowerCase();
+  const end = span.endMs ?? now;
+  const start = span.startMs ?? end - 2 * WAVE_PLAN_MAX_AGE_MS;
+  return at >= start && at <= end;
 }
 
 /**
- * Is this ledger line one of this wave's launches? The plan and age filters `runningRows` uses.
- * Plans are compared by FILE NAME: the store holds one per date and kind, and the ledger's path
- * comes from `wave-launch.mjs` while this one comes from whatever the operator typed - a drive
- * letter in another case or forward slashes would make every record read as another wave's, and
- * an empty running set fails open, which is the failure this whole check exists to remove.
+ * The rows RUNNING right now, as { letter, branch, at }, out of the wave's launches: not landed,
+ * not in the queue (a landing that gave up or was withdrawn is NOT the queue - the session may be
+ * back at work, and holding is the closed direction), and the branch still exists. `launches` are
+ * `joinDurations` rows already filtered to this wave; `branches` is every branch name that exists,
+ * so a freshly launched row with no diff yet is as running as one mid-work. Pure: every input is
+ * handed in.
  */
-export function belongsToWave(record, { planPath = null, now = Date.now() } = {}) {
-  if (planPath && record.plan && path.basename(record.plan).toLowerCase() !== path.basename(planPath).toLowerCase()) return false;
-  return now - record.at <= 2 * WAVE_PLAN_MAX_AGE_MS;
+export function runningRows({ launches, jobs, branches }) {
+  return launches
+    .filter((row) => row.toLandMin === null && branches.has(row.branch))
+    .filter((row) => {
+      const state = landingStateFor(row.branch, jobs.filter((job) => (job.enqueuedAt ?? 0) >= row.launchedAt)).state;
+      return state !== 'queued' && state !== 'landed';
+    })
+    .map((row) => ({ letter: row.letter ?? null, branch: row.branch, at: row.launchedAt }));
 }
 
-/** The letters this wave has launched at all - running, queued or landed. */
-export function recordedLetters({ launches, planPath = null, now = Date.now() }) {
-  return new Set(launches.filter((record) => record.letter && belongsToWave(record, { planPath, now })).map((record) => record.letter));
-}
-
-/**
- * Who holds the browser slot: every running row the wave table or the candidate rule says drives
- * the browser. `unrecorded` lists wave-table browser rows with no ledger record at all (`recorded`
- * is every letter the wave has launched, whatever happened to it since) - possibly running and
- * invisible, which the caller prints rather than acts on (see the header).
- */
-export function heldBrowser({ waveRows = [], candidates = [], running = [], recorded = new Set(running.map((row) => row.letter)) }) {
-  const holders = [];
-  for (const row of running) {
-    const planned = waveRows.find((entry) => entry.letter === row.letter);
+/** Who holds the browser slot: every running row the wave table or the candidate rule says drives it. */
+export function heldBrowser({ waveRows = [], candidates = [], running = [] }) {
+  return running.filter((row) => {
+    const planned = waveRows.find((entry) => clean(entry.letter) === row.letter);
+    if (planned) return waveRowHoldsBrowser(planned);
     const candidate = candidates.find((entry) => entry.letter === row.letter);
-    const holds = planned ? waveRowHoldsBrowser(planned) : (candidate ? needsBrowser(candidate).needs : false);
-    if (holds) holders.push(row);
-  }
-  const unrecorded = waveRows.filter((row) => waveRowHoldsBrowser(row) && !recorded.has(row.letter)).map((row) => row.letter);
-  return { holders, unrecorded };
+    return candidate ? needsBrowser(candidate).needs : false;
+  });
+}
+
+/**
+ * Wave-table browser rows that are due now and have no ledger line carrying their letter -
+ * possibly running and invisible, which the caller prints rather than acts on (see the header).
+ * A row whose START waits on a slot or a landing is not due and is not a caution.
+ */
+export function unrecordedBrowserRows({ waveRows = [], recorded = new Set() }) {
+  return waveRows
+    .filter((row) => waveRowHoldsBrowser(row) && /^now\b/i.test(clean(row.start)) && !recorded.has(clean(row.letter)))
+    .map((row) => clean(row.letter));
 }
 
 /**
  * Evaluate the ordered candidates. `entries` are the activity scan's running rows; `durations` and
  * `latency` feed the horizon; `remainingMin` is the window left; `held.browser` names the rows
- * holding the browser slot. Each result carries a verdict and the reason; `pick` is the first
- * candidate that is collision-clear, whose slot is free and that fits, in the planner's order.
+ * holding the browser slot; `launched` maps a letter to its launch { branch, at } for this wave.
+ * Each result carries a verdict, what held it (`heldOn`) and the reason; `pick` is the first
+ * candidate that is unlaunched, collision-clear, whose slot is free and that fits, in the
+ * planner's order. The reasons are ordered by how hard the fact is: the ledger, then a real diff,
+ * then the slot, then the clock.
  */
-export function evaluate(candidates, { entries, durations, latency, remainingMin, held = { browser: [] } }) {
+export function evaluate(candidates, { entries, durations, latency, remainingMin, held = { browser: [] }, launched = new Map() }) {
   const window = horizon({ remainingMin, durations, latency });
   const holders = held.browser ?? [];
   const results = candidates.map((candidate) => {
@@ -190,22 +221,56 @@ export function evaluate(candidates, { entries, durations, latency, remainingMin
     const collision = collisions({ files: candidate.files, specs: candidate.specs, branch: null }, entries);
     const browser = needsBrowser(candidate);
     const fits = window.sizes[size]?.fits ?? false;
-    let verdict;
+    const fitLine = fits ? 'fits' : `a ${size} unit no longer fits (${window.sizes[size]?.slackMin ?? '?'} min short)`;
+    const launch = launched.get(candidate.letter);
+    let verdict = 'HOLD';
+    let heldOn = null;
     let reason;
-    if (!collision.clear) { verdict = 'HOLD'; reason = `collides with ${collision.hits.map((hit) => hit.branch).join(', ')}`; }
-    else if (browser.needs && holders.length > 0) {
-      verdict = 'HOLD';
-      reason = `needs the browser${browser.source === 'specs' ? ' (from its specs; a browser column cell of no overrides)' : ''}, `
-        + `held by ${holders.map((row) => `${row.letter ?? '?'} (${row.branch})`).join(', ')}`;
-    } else if (!fits) { verdict = 'HOLD'; reason = `a ${size} unit no longer fits (${window.sizes[size]?.slackMin ?? '?'} min short)`; }
-    else { verdict = 'LAUNCH'; reason = 'clear and fits'; }
+    if (launch) {
+      heldOn = 'launched';
+      reason = `already launched as ${launch.branch} at ${new Date(launch.at).toISOString().slice(11, 16)}Z`;
+    } else if (!collision.clear) {
+      heldOn = 'collision';
+      reason = `collides with ${collision.hits.map((hit) => hit.branch).join(', ')}`;
+    } else if (browser.needs && holders.length > 0) {
+      heldOn = 'browser';
+      reason = `needs the browser${browser.source === 'specs' ? ' (from its specs; a browser cell of no overrides)' : ''}, `
+        + `held by ${holders.map((row) => `${row.letter ?? '?'} (${row.branch})`).join(', ')}; ${fits ? 'fits once it frees' : fitLine}`;
+    } else if (!fits) {
+      heldOn = 'window';
+      reason = fitLine;
+    } else {
+      verdict = 'LAUNCH';
+      reason = 'clear and fits';
+    }
     return {
-      letter: candidate.letter, size, verdict, reason, goal: candidate.goal, cautions: collision.cautions,
+      letter: candidate.letter, size, verdict, heldOn, reason, goal: candidate.goal, cautions: collision.cautions,
       needsBrowser: browser.needs, browserSource: browser.source,
     };
   });
   const pick = results.find((result) => result.verdict === 'LAUNCH') ?? null;
   return { window, results, pick };
+}
+
+/** The closing line when there is no pick: the slot is named when the slot is why, because
+ *  night.md reads "nothing fits the window" as the stop condition and a spent list as the trigger
+ *  to extend it, and a list waiting on the browser is neither. */
+export function holdLine(results, holders) {
+  const onSlot = results.filter((result) => result.heldOn === 'browser');
+  if (onSlot.length > 0) {
+    return `Hold - ${onSlot.map((result) => result.letter).join(', ')} wait${onSlot.length === 1 ? 's' : ''} on the browser slot held by `
+      + `${holders.map((row) => row.letter ?? row.branch).join(', ')}; nothing else is both clear and fits. Re-check when it frees.`;
+  }
+  return 'Hold - nothing on the list is both clear and fits the window. Let what is running land, then re-check.';
+}
+
+/** Every branch that exists here: local heads plus every worktree's branch, or null when git cannot say. */
+function existingBranches(cwd) {
+  const refs = git(['for-each-ref', 'refs/heads', '--format=%(refname:short)'], cwd);
+  if (!refs.ok) return null;
+  const names = new Set(refs.stdout.split('\n').filter(Boolean));
+  for (const entry of worktreeEntries(cwd)) if (entry.branch) names.add(entry.branch);
+  return names;
 }
 
 function argValue(argv, name) {
@@ -228,44 +293,44 @@ export async function main(argv = process.argv.slice(2), { now = Date.now(), cwd
     process.stdout.write('No ## Candidates table in the plan - the planner writes one for the refill loop to draw on.\n');
     return 0;
   }
-  const endAt = parseWindowEnd(text);
-  if (endAt === null) {
+  const span = waveSpan(planPath, text);
+  if (span.endMs === null) {
     process.stderr.write('candidates: the plan has no "Window ends: <iso>" line - wave-horizon needs it.\n');
     return 2;
   }
   const jobs = readJobs(dir);
-  const launches = readLaunches(dir);
-  const landings = readLandings(dir);
-  const durations = statsBySize(joinDurations(launches, jobs, landings));
+  const joined = joinDurations(readLaunches(dir), jobs, readLandings(dir));
+  const durations = statsBySize(joined);
   const latency = landingLatency(jobs);
   const activity = await scanActivity(cwd);
   const entries = [
     ...activity.worktrees.map((entry) => ({ name: entry.name, branch: entry.branch, files: entry.files })),
     ...activity.branches.map((entry) => ({ name: entry.branch, branch: entry.branch, files: entry.files })),
   ];
-  const running = runningRows({ launches, jobs, landings, entries, planPath, now });
-  const held = heldBrowser({
-    waveRows: parseWaveTable(text).rows, candidates, running, recorded: recordedLetters({ launches, planPath, now }),
-  });
+  const launches = joined.filter((row) => belongsToWave(row, span, { now }));
+  const launched = new Map(launches.filter((row) => row.letter).map((row) => [row.letter, { branch: row.branch, at: row.launchedAt }]));
+  const branches = existingBranches(cwd) ?? new Set(launches.map((row) => row.branch)); // git silent: every launch counts as alive
+  const running = runningRows({ launches, jobs, branches });
+  const waveRows = parseWaveTable(text).rows;
+  const holders = heldBrowser({ waveRows, candidates, running });
+  const unrecorded = unrecordedBrowserRows({ waveRows, recorded: new Set(launched.keys()) });
   const { results, pick } = evaluate(candidates, {
-    entries, durations, latency, remainingMin: (endAt - now) / 60_000, held: { browser: held.holders },
+    entries, durations, latency, remainingMin: (span.endMs - now) / 60_000, held: { browser: holders }, launched,
   });
 
   if (argv.includes('--json')) {
-    process.stdout.write(`${JSON.stringify({ pick: pick?.letter ?? null, held: held.holders, unrecorded: held.unrecorded, results }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ pick: pick?.letter ?? null, held: holders, unrecorded, results }, null, 2)}\n`);
     return 0;
   }
-  for (const letter of held.unrecorded) {
-    process.stdout.write(`  caution: wave row ${letter} drives the browser and has no launch record - if it is running, the slot is `
-      + `held and this cannot see it. Record it: node scripts/wave-launch.mjs record --letter ${letter} --branch <b> --size <size>\n`);
+  for (const letter of unrecorded) {
+    process.stdout.write(`  caution: wave row ${letter} drives the browser and no launch record carries its letter - if it is running, `
+      + `the slot is held and this cannot see it. Record it: node scripts/wave-launch.mjs record --letter ${letter} --branch <b> --size <size>\n`);
   }
   for (const result of results) {
     process.stdout.write(`  ${result.verdict === 'LAUNCH' ? 'LAUNCH' : 'hold  '} ${result.letter} (${result.size}) - ${result.reason}${result.letter === pick?.letter ? '  <- next' : ''}\n`);
     for (const caution of result.cautions) process.stdout.write(`         caution: ${caution.reason}\n`);
   }
-  process.stdout.write(pick
-    ? `\nLaunch next: ${pick.letter} - ${pick.goal}\n`
-    : '\nHold - nothing on the list is both clear and fits the window. Let what is running land, then re-check.\n');
+  process.stdout.write(pick ? `\nLaunch next: ${pick.letter} - ${pick.goal}\n` : `\n${holdLine(results, holders)}\n`);
   return 0;
 }
 

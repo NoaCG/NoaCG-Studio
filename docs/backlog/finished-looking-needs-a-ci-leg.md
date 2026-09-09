@@ -1,8 +1,13 @@
+---
+serves: NOW
+size: small
+touches: scripts/wave-tick.mjs, scripts/wave-tick.test.mjs
+needs-owner: none
+---
 # The tick's FINISHED-LOOKING alarm needs a CI leg, because a row reading its CI looks finished
 
-**Filed:** 2026-09-09. **Source:** measurement, the night wave of 2026-09-08 (its wave-state file in
-the wave-plan store, sections "23:44Z - the tick called row O finished", "V flagged FINISHED-LOOKING"
-and "Row V closed").
+**Filed:** 2026-09-09. **Source:** measurement, the night wave of 2026-09-08 - three alarms, three
+wrong, the run ids and pull requests below.
 
 ## Why
 
@@ -33,9 +38,10 @@ same shape as the clean-tree `git status`, which the tick spawns only where the 
 - When `gh` cannot answer, fire the alarm as today and say "CI not checked" in the line, rather than
   suppressing it: the alarm is advisory, and a gh outage must not silence the one check that
   catches a stranded branch.
-- The `.output` mtime is NOT a substitute signal. The orchestrator read it as the transcript mtime
-  and it was live to the second for row O and frozen for 95 minutes for row V while V committed and
-  pushed twice. That belongs in `night.md` beside the three-signal test.
+- The agent `.output` file's mtime is NOT a substitute signal. The orchestrator read it as the
+  transcript mtime and it was live to the second for row O and frozen for 95 minutes for row V
+  while V committed and pushed twice. That sentence belongs in `night.md` beside the three-signal
+  test.
 
 Tests in `scripts/wave-tick.test.mjs`: a branch with an in-progress run on its tip does not fire; a
 branch whose run completed inside the quiet window does not fire; one whose run completed before the

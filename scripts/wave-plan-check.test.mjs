@@ -4,7 +4,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { checkPlan, economyNotes, parsePromptBlocks, parseWaveTable, pathProbe, promptPathProblems, touchProblems } from './wave-plan-check.mjs';
+import {
+  browserWord, checkPlan, economyNotes, mintsOf, parsePromptBlocks, parseWaveTable, pathProbe, promptPathProblems, tableUnder,
+  touchProblems,
+} from './wave-plan-check.mjs';
 
 const NOW = Date.parse('2026-09-02T12:00:00');
 const FILES = new Set(['src/a.ts', 'src/b.ts', 'scripts/x.mjs', 'docs/SVG_AUTHORING.md', 'src/components/wizard', 'e2e/import.spec.ts']);
@@ -285,4 +288,50 @@ Row D records ALIGN-2026-09-15-1.
 test('no pending alignment answers means no alignment problem at all', () => {
   const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], now: NOW });
   assert.ok(!problems.some((p) => /alignment answer/.test(p)));
+});
+
+// ── The shared table walker and the browser word ─────────────────────────────────────────────────
+
+test('tableUnder returns the first table under a matching heading, keyed by column, and null without one', () => {
+  const table = tableUnder('## Candidates\n\ntext\n\n| **L** | size | goal |\n|---|---|---|\n| A | small | g |\n\n## Next\n\n| L |\n|---|\n| Z |\n', /^#{1,6}\s+.*\bcandidates\b/i);
+  assert.deepEqual(table.header, ['letter', 'size', 'goal']);
+  assert.equal(table.rows.length, 1); // the next heading closes it
+  assert.equal(table.rows[0].letter, 'A');
+  assert.equal(tableUnder('# Plan\n', /candidates/i), null);
+  assert.equal(tableUnder('## Candidates\n\nno table\n', /candidates/i).header, null);
+});
+
+test('browserWord reads a cell starting with yes or no, ignores markdown, and is null for anything else', () => {
+  assert.equal(browserWord('yes'), true);
+  assert.equal(browserWord('`yes`'), true);
+  assert.equal(browserWord('**No** - queued form only'), false);
+  assert.equal(browserWord('-'), null);
+  assert.equal(browserWord('needs it'), null);
+  assert.equal(browserWord('not sure'), null);
+  assert.equal(browserWord(''), null);
+  assert.deepEqual(mintsOf('the browser slot, none, -, docs/GOALS.md'), ['the browser slot', 'docs/GOALS.md']);
+});
+
+test('a wave-table browser cell that is not a yes or a no is a problem, because the refill instrument reads it', () => {
+  const plan = GOOD.replace('| opus | yes |', '| opus | needs it |');
+  const { problems } = checkPlan(plan, { exists, handoffs, receipts: [], now: NOW });
+  assert.ok(problems.some((p) => /row A: browser must start with yes or no - got "needs it"/.test(p)), problems.join('\n'));
+  assert.ok(!checkPlan(GOOD, { exists, handoffs, receipts: [], now: NOW }).problems.some((p) => /browser must/.test(p)));
+});
+
+test('a candidates-table browser cell must be empty, a dash, or start with yes or no', () => {
+  const plan = `${GOOD}
+
+## Candidates
+
+| L | size | serves | TOUCHES | SPECS | browser | goal |
+|---|---|---|---|---|---|---|
+| M | small | NOW | src/a.ts | - |  | fine |
+| N | small | NOW | src/a.ts | - | - | fine |
+| O | small | NOW | src/a.ts | e2e/x.spec.ts | no | fine |
+| P | small | NOW | src/a.ts | e2e/x.spec.ts | shared with F | not fine |
+`;
+  const { problems } = checkPlan(plan, { exists, handoffs, receipts: [], now: NOW });
+  const browserProblems = problems.filter((p) => /candidate .*browser must/.test(p));
+  assert.deepEqual(browserProblems, ['candidate P: browser must start with yes or no, or be empty - got "shared with F"']);
 });

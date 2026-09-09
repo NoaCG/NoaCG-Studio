@@ -186,7 +186,7 @@ export function deltaBetween(previous, current, { quietMinutes = QUIET_MINUTES }
         events.push(`FINISHED-LOOKING AND UNQUEUED ${branch.name} - clean tree, no commit for `
           + `${Math.floor((current.at - branch.lastCommitMs) / 60_000)} min, nothing queued. Not checked: a CI run `
           + 'on its tip, or a live session - a row reading its CI before it queues looks exactly like this, so '
-          + 'confirm with night.md\'s three signals first. If its session ended believing a watcher would '
+          + 'confirm with night.md\'s three-signal test first. If its session ended believing a watcher would '
           + 'queue it, nothing will.');
       }
     }

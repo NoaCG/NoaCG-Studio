@@ -262,7 +262,9 @@ test('finished-but-unqueued fires once, says how long the branch has been quiet,
   // It says what it did not measure. Three alarms on 2026-09-08, all on rows reading their CI
   // before queueing, all wrong - a line that reads as a verdict is one a tired reader obeys.
   assert.match(warning, /Not checked: a CI run on its tip, or a live session/);
-  assert.match(warning, /three signals/);
+  // The pointer names a phrase night.md actually carries ("the three-signal test"), so a reader
+  // who greps for it lands on the test rather than on nothing.
+  assert.match(warning, /three-signal test/);
   assert.equal(deltaBetween(state(after, 2), after).some((event) => event.startsWith('FINISHED-LOOKING')), false);
 });
 
