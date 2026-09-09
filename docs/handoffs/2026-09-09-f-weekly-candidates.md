@@ -91,7 +91,16 @@ Against 2026-09-08-night-wave-plan.local.md:
 and with a copy of that plan carrying a `## Weekly review` section, the two classified rows pass and
 the one deferred without a reason is the only thing still owed.
 
-Two implementation calls worth arguing with. **Every `GOAL` line in the file counts**, not only
+Three implementation calls worth arguing with. **Ids are POSITIONAL** - `WEEK-<date>-<n>` over the
+file's GOAL lines - which means a review re-run on the same date that reorders a row moves every
+later id, and a plan that already classified one would bind its reason to a different candidate. A
+content hash would be immune and unreadable. I kept the positional form because the id is typed into
+a plan by a person, because it says which week and which row at a glance, and because it matches the
+one other id family here (`ALIGN-<date>-<n>`); what keeps the weakness visible is that every report
+and every refusal prints the row's TITLE beside its id, so a moved reason reads as wrong the first
+time anybody looks. The trade is written beside the code, not left to be rediscovered.
+
+**Every `GOAL` line in the file counts**, not only
 those under an "Improve" heading: anchoring on the heading would be more precise and would fail
 silently the first time a session numbered or renamed the section, and a silent miss is the defect
 this whole row exists to end. A false positive costs a plan one sentence; a false negative costs a
@@ -154,14 +163,61 @@ from this one, over a file that is not in git, and no reading of the repository 
   so the honest lines are two rejections naming those branches and one decision about the third.
   **That refusal is the row working, not a regression.**
 
+## What `/check` found, and what it changed
+
+**review: delegated** (code-review, `high`, scope-checked against this branch and merge-base
+`18bc401b`). Seven findings, six fixed, one accepted with the reason written beside the code.
+
+The one that mattered was in the new resolver. It took two `dirname`s off any `gitdir:` pointer, and
+a `--separate-git-dir` clone and a submodule carry the same pointer while its target IS the
+repository's git directory - so both would have resolved two levels above the truth and reported "no
+weekly file" from a folder that never held one, which is the failure the module exists to prevent
+wearing a hat. Git writes a `commondir` file inside a linked worktree's admin directory and nowhere
+else, so reading it tells the shapes apart exactly. `scripts/primary-checkout.test.mjs` now pins all
+five: a directory `.git`, a linked worktree, a relative pointer, a pointer with no `commondir`, and
+no `.git` at all. The two test helpers gained the `commondir` file, which also makes them faithful
+to what git actually creates rather than to what my parser happened to accept.
+
+Also fixed: `--plan` with no argument resolved to the repo root and died with an EISDIR stack trace;
+an undated plan bypassed the window and made every row mandatory; a review outside the window
+printed every row as `UNCLASSIFIED` under a closing line saying everything was accounted for. And
+the contract regained the `## Weekly review` heading in the core's list of sections the check reads
+by name - I had cut it to fit the budget, and the reviewer was right that a planner writing a plan
+from the contract would then be refused for a section nothing told them to write. It fits now
+because the same clause names the two scripts instead of restating the classes their refusals
+already spell out.
+
+Accepted, not fixed: the positional-id weakness above.
+
+**Reported, not fixed - a pre-existing bug outside this diff.** `scripts/dev-port.mjs`'s own
+`gitCommonDir()` has exactly the two-`dirname` shape the review found in mine, so on a
+`--separate-git-dir` clone the port registry would be written outside the repository. Nothing on
+this machine is such a clone, so nothing is broken today. It belongs in its own change, and its own
+change should probably delete the copy in favour of `scripts/primary-checkout.mjs`.
+
+**simplify: inline.** The skill returned fan-out instructions rather than a result, so per
+`check.md`'s four-branch rule the leg ran here. Four angles, four fixes: a redundant ternary before
+an early return, an unreachable fallback string in `summaryLine`, a nested ternary flattened to
+if/else, and `alignmentState` resolving the primary checkout once per call instead of once per file.
+Reuse considered and declined twice, both noted in the code: `daysSince` from `owner-receipts.mjs`
+clamps at zero and so cannot say that a review is NEWER than the plan reading it, and a shared
+"classified section" parser for `## Handoffs` and `## Weekly review` would take three regex
+parameters to save twelve lines, which is the clever form rather than the obvious one.
+
+**taste: not applicable.** Nothing here can move what a graphic looks like - it is a path resolver,
+a gate and two CLIs.
+
 ## Verification
 
-- `npm run build > log 2>&1; echo $?` -> `0`. 105 test files, 1425 tests, 0 failures; the new tests
-  ran inside it (`ok 1320`-`1323`, `ok 1361`, `ok 1365`).
+- `npm run build > log 2>&1; echo $?` -> `0`, run twice: before `/check` (1425 tests) and after
+  (1433 tests, 1432 passed, 0 failed, 1 pre-existing skip). Every new test ran inside the build.
+- `npm run test:e2e:affected` not run and not required: no product code changed. The diff is
+  `scripts/`, `docs/`, `.agent-workflows/` and one `package.json` line.
 - `node scripts/check-shared-instructions.mjs` -> core 199/200, common path **640/640**. The always
   loaded orchestrator path was at exactly its ceiling before this branch and is at exactly its
   ceiling after: the contract change is net zero lines, paid for by replacing the prose obligation
   ("the weekly file's candidate rows are frontier input") with the command that counts it. The rule
   itself lives in a script, which is the whole argument of the backlog item it came from.
 - `node scripts/gates.mjs audit` -> OK, 35 checks and 110 test files.
-- check: `/check` run before queueing.
+- check: run. `review: delegated`, `simplify: inline`, `verify: inline`, verdict pass; the stamp is
+  at `<git-common-dir>/noacg-jobs/checks/claude-f-weekly-candidates-reach-a-wave.json`.
