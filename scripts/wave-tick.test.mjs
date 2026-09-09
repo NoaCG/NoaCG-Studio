@@ -10,6 +10,7 @@ import test from 'node:test';
 import { landingStateFor } from './jobs-store.mjs';
 import {
   QUIET_MINUTES,
+  aheadOfMain,
   nothingQueuedFor,
   STATE_VERSION,
   deltaBetween,
@@ -28,6 +29,10 @@ const branch = (over = {}) => ({
   name: 'claude/a-thing',
   sha: 'abc123',
   landed: false,
+  // The ordinary branch has commits of its own, and a landed one does not have any main lacks, so
+  // the default follows `landed` rather than making every existing case restate it. The cases that
+  // matter here - the empty branch that read as ahead, above all - set it explicitly.
+  ahead: !over.landed,
   landingState: 'not-queued',
   landingReason: null,
   requeue: null,
@@ -102,6 +107,84 @@ test('an unknown branch fires NEW BRANCH, and queueing fires QUEUED on the trans
   const queued = snapshot({ branches: [branch({ landingState: 'queued', lastCommitMs: NOW - MINUTE })] });
   assert.match(deltaBetween(state(appeared, 2), queued).join('\n'), /QUEUED claude\/a-thing/);
   assert.deepEqual(deltaBetween(state(queued, 3), queued), []);
+});
+
+// ── The phantom landing: an empty branch is not a landed one ─────────────────────────────────────
+//
+// MEASURED 2026-09-09, ticks 345 and 346. Row AC launched at 20:19 into a worktree branch cut at
+// main's tip. Tick 345, seconds later, printed "NEW BRANCH ahead of main:
+// claude/ac-harness-verdict"; tick 346, four minutes later, printed "LANDED
+// claude/ac-harness-verdict". The branch had committed nothing - `git rev-list --count
+// origin/main..<branch>` was 0 for all four rows at the time - and it landed for real an hour
+// later at tick 368, so the loop was told the same branch landed twice. night.md fires a planned
+// follow-on when its trigger branch lands and counts the row's slot free, so the first, false one
+// would have launched a follow-on against work that did not exist.
+//
+// The cause was not the `git branch -m` rename every row's prompt starts with. A renamed empty
+// branch at main's tip is listed by `git branch --merged origin/main` immediately - reproduced in
+// a synthetic repo, it produces no event at all. The cause is the ORDER of the tick's two reads:
+// `mergedBranchNames()` runs about a second before `branchInventory()`, and a branch born in that
+// window is in the inventory and not in the set. Same reproduction, with the branch created
+// between the two reads, prints exactly the observed pair.
+//
+// THE TWO DIRECTIONS ARE PINNED SEPARATELY ON PURPOSE. Silencing the phantom by keying LANDED on
+// something a real landing also lacks would make the night loop deaf, and nobody would notice
+// until a follow-on failed to fire.
+
+test('a branch that never had a commit of its own does not land, however it came to read as ahead', () => {
+  // The state tick 345 wrote: not in the merged set (so `landed` false), and no commit of its own.
+  const raced = state(snapshot({ branches: [branch({ landed: false, ahead: false, lastCommitMs: NOW - MINUTE })] }));
+  const contained = snapshot({ branches: [branch({ landed: true, lastCommitMs: NOW - MINUTE })] });
+  assert.deepEqual(deltaBetween(raced, contained), []);
+  // Nor when the branch is cleaned up in the same gap and a landing record exists for the name.
+  const gone = snapshot({ landedBranchNames: ['claude/a-thing'] });
+  assert.equal(deltaBetween(raced, gone).some((event) => event.startsWith('LANDED')), false);
+});
+
+test('a branch that really committed and really landed still fires LANDED, exactly once', () => {
+  const working = state(snapshot({ branches: [branch({ lastCommitMs: NOW - MINUTE })] }));
+  const landed = snapshot({ branches: [branch({ landed: true, lastCommitMs: NOW - MINUTE })] });
+  assert.deepEqual(deltaBetween(working, landed).filter((e) => e.startsWith('LANDED')), ['LANDED claude/a-thing']);
+  assert.deepEqual(deltaBetween(state(landed, 2), landed).filter((e) => e.startsWith('LANDED')), []);
+  // And when the queue lands it and cleanup deletes the branch inside one gap.
+  const gone = snapshot({ landedBranchNames: ['claude/a-thing'] });
+  assert.deepEqual(deltaBetween(working, gone), ['LANDED claude/a-thing (branch already cleaned up)']);
+});
+
+test('aheadOfMain trusts the sha over the batched set, which may predate the branch', () => {
+  const inMainAlways = () => true;
+  // The cheap answer stands wherever it says "contained" - no probe, no spawn.
+  assert.equal(aheadOfMain({ sha: 'abc123', listedAsMerged: true }, () => {
+    throw new Error('must not probe a branch the set already answered for');
+  }), false);
+  // The race: the set omits a branch that git says is in main. The sha wins.
+  assert.equal(aheadOfMain({ sha: 'abc123', listedAsMerged: false }, inMainAlways), false);
+  // Both agree it is ahead.
+  assert.equal(aheadOfMain({ sha: 'abc123', listedAsMerged: false }, () => false), true);
+});
+
+test('an empty branch is not finished work, whatever its worktree looks like', () => {
+  // A row's branch is cut at main's tip, so `lastCommitMs` is MAIN's last commit and is quiet from
+  // the first second - and the tree is clean and nothing is queued, because the row just started.
+  assert.equal(looksFinishedUnqueued(branch({ ahead: false }), { now: NOW }), false);
+  assert.equal(looksFinishedUnqueued(branch({ ahead: true }), { now: NOW }), true);
+});
+
+test('the ahead-of-main line waits for a commit of the branch\'s own', () => {
+  // A branch first seen with nothing on it says nothing - it is a worktree, not news.
+  const empty = snapshot({ branches: [branch({ landed: true, lastCommitMs: NOW - MINUTE })] });
+  assert.deepEqual(deltaBetween(state(snapshot()), empty), []);
+  // Its first commit is the news, and it is announced once.
+  const working = snapshot({ branches: [branch({ lastCommitMs: NOW - MINUTE })] });
+  assert.deepEqual(deltaBetween(state(empty, 2), working),
+    ['AHEAD OF MAIN claude/a-thing - commits of its own that origin/main does not have']);
+  assert.deepEqual(deltaBetween(state(working, 3), working), []);
+});
+
+test('nextState records the had-its-own-commit answer, not only the merged one', () => {
+  const raced = state(snapshot({ branches: [branch({ landed: false, ahead: false })] }));
+  assert.deepEqual(raced.branches['claude/a-thing'], { sha: 'abc123', landed: false, ahead: false, landingState: 'not-queued' });
+  assert.equal(state(snapshot({ branches: [branch()] })).branches['claude/a-thing'].ahead, true);
 });
 
 test('a landing that gave up is announced once, with the queue\'s own reason and re-queue command', () => {
