@@ -25,7 +25,7 @@ import {
   type PlanShape,
 } from '../../src/entitlements/contract.js';
 
-import { RENDER_LIMITS, allowedFormats, resolveTier, validateRenderRequest } from '../../src/render/limits.js';
+import { RENDER_CONFIG, RENDER_LIMITS, allowedFormats, resolveTier, storedRenderTier, validateRenderRequest } from '../../src/render/limits.js';
 import { applyEntitlementToLiteProfile, emailDomain, gatedFeature, surfaceRefused } from './entitlements.js';
 import { liteProfile } from './aiLiteProfile.js';
 
@@ -83,7 +83,7 @@ test('an assigned plan overrides the default and says so', () => {
     name: 'Studio',
     features: { 'templates.beta': true, 'community.publish': false },
     limits: { aiDailyStarts: 50 },
-    renderTier: 'paid',
+    renderTier: 'granted',
     renderFormats: ['mp4', 'prores4444'],
   };
   const resolved = resolveEntitlement({ ...bare('user-1'), plan });
@@ -94,7 +94,7 @@ test('an assigned plan overrides the default and says so', () => {
   assert.equal(allows(resolved, 'community.publish'), false);
   assert.equal(resolved.limits.aiDailyStarts.value, 50);
   assert.equal(resolved.limits.aiDailyStarts.source, 'plan');
-  assert.equal(resolved.renderTier.value, 'paid');
+  assert.equal(resolved.renderTier.value, 'granted');
   assert.deepEqual(resolved.renderFormats.value, ['mp4', 'prores4444']);
 
   // A key the plan does not mention still falls through to the default.
@@ -197,7 +197,7 @@ test('suspension denies every feature but keeps the plan visible', () => {
     name: 'Studio',
     features: { 'templates.beta': true },
     limits: { aiDailyStarts: 50 },
-    renderTier: 'paid',
+    renderTier: 'granted',
     renderFormats: null,
   };
   const resolved = resolveEntitlement({ ...bare('user-1'), accountState: 'suspended', plan });
@@ -223,7 +223,7 @@ test('a suspended account is not rescued by a grant', () => {
 test('anonymous callers ignore plans and grants entirely', () => {
   const resolved = resolveEntitlement({
     ...bare(null),
-    plan: { key: 'studio', name: 'Studio', features: { 'sync.cloud': true }, limits: {}, renderTier: 'paid', renderFormats: null },
+    plan: { key: 'studio', name: 'Studio', features: { 'sync.cloud': true }, limits: {}, renderTier: 'granted', renderFormats: null },
     grants: [grant({ key: 'sync.cloud', value: true })],
   });
   assert.equal(allows(resolved, 'sync.cloud'), false);
@@ -277,22 +277,49 @@ test('the render tier still resolves to today\'s answer when no plan names one',
 });
 
 test('a plan can move the render tier, but only to one that exists', () => {
-  assert.equal(resolveTier(true, 'paid'), 'paid');
+  assert.equal(resolveTier(true, 'granted'), 'granted');
   assert.equal(resolveTier(true, 'anonymous'), 'anonymous');
+  // 'granted' was called 'paid' until migration 0055. A plan row an admin set before that keeps
+  // the caps it was set up to give rather than silently narrowing to free.
+  assert.equal(resolveTier(true, 'paid'), 'granted');
   // A plan naming a tier the code does not have must not fail the request and must not be
   // read as the most generous one.
   for (const bogus of ['enterprise', 'PAID', '', 'free ']) {
     assert.equal(resolveTier(true, bogus), 'free', bogus);
   }
   // An anonymous caller has no plan to honour, whatever gets passed.
-  assert.equal(resolveTier(false, 'paid'), 'anonymous');
+  assert.equal(resolveTier(false, 'granted'), 'anonymous');
+});
+
+test('a tier name read back out of storage never lands as undefined caps', () => {
+  // Every tier this build has reads back as itself.
+  for (const tier of ['anonymous', 'free', 'granted'] as const) {
+    assert.equal(storedRenderTier(tier), tier);
+  }
+  // A render_jobs row written before migration 0055 says 'paid'. It meant the caps now called
+  // 'granted', and it is read as those.
+  assert.equal(storedRenderTier('paid'), 'granted');
+  // Anything else is a name this build cannot honour, and saying so is the caller's cue to pick
+  // its own fallback rather than indexing the cap tables with it.
+  // 'constructor' and 'toString' are in the list because the value is untrusted text out of the
+  // database: a lookup written as an object index would answer those with an Object property
+  // rather than with null, and the caller would go on to index the cap tables with a function.
+  for (const unknown of ['enterprise', 'PAID', '', 'constructor', 'toString', null, undefined]) {
+    assert.equal(storedRenderTier(unknown), null, String(unknown));
+  }
+  // The reason this matters: both tables are indexed BY the tier, and a miss is a NaN expiry
+  // rather than a caught error (api/_lib/reconcile.ts, api/_lib/renderRoutes/complete.ts).
+  for (const tier of ['anonymous', 'free', 'granted'] as const) {
+    assert.equal(typeof RENDER_CONFIG.outputTtlMs[tier], 'number', tier);
+    assert.ok(RENDER_LIMITS[tier], tier);
+  }
 });
 
 test('a suspended account drops to the anonymous render tier', () => {
   const resolved = resolveEntitlement({
     ...bare('user-1'),
     accountState: 'suspended',
-    plan: { key: 'p', name: 'P', features: {}, limits: {}, renderTier: 'paid', renderFormats: null },
+    plan: { key: 'p', name: 'P', features: {}, limits: {}, renderTier: 'granted', renderFormats: null },
   });
   assert.equal(resolveTier(true, resolved.renderTier.value), 'anonymous');
   assert.equal(allows(resolved, 'render.cloud'), false);
@@ -317,7 +344,7 @@ test('a plan moves only the five AI allowances, never the routing', () => {
       aiMonthlySuccesses: 200,
       aiUserConcurrency: 3,
     },
-    renderTier: 'paid',
+    renderTier: 'granted',
     renderFormats: null,
   };
   const applied = applyEntitlementToLiteProfile(base, resolveEntitlement({ ...bare('user-1'), plan }));
@@ -399,7 +426,7 @@ test('the kill switch reaches anonymous visitors too', () => {
 });
 
 test('with no plan the allowed formats are exactly the tier\'s', () => {
-  for (const tier of ['anonymous', 'free', 'paid'] as const) {
+  for (const tier of ['anonymous', 'free', 'granted'] as const) {
     assert.deepEqual(allowedFormats(tier), RENDER_LIMITS[tier].formats);
     assert.deepEqual(allowedFormats(tier, null), RENDER_LIMITS[tier].formats);
     assert.deepEqual(allowedFormats(tier, []), RENDER_LIMITS[tier].formats);
@@ -448,7 +475,7 @@ test('a suspended account cannot render a format its plan granted', () => {
     name: 'Studio',
     features: {},
     limits: {},
-    renderTier: 'paid',
+    renderTier: 'granted',
     renderFormats: ['prores4444'],
   };
   const resolved = resolveEntitlement({ ...bare('user-1'), accountState: 'suspended', plan });
