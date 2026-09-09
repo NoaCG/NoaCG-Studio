@@ -126,12 +126,12 @@ Each tick, in this order, and nothing else:
    already written in section 5. Never one that is not in the wave table.
 4. **REFILL a free slot.** A slot is free when a row landed or its process is gone and the machine
    is under its concurrency ceiling. **`node scripts/candidates.mjs --plan <wave-state file>`** reads
-   the candidate list below and names the next one to launch - it runs both instruments over the
+   the candidate list below and names the next one to launch - it runs the instruments over the
    whole list and prints `LAUNCH <letter>` for the first candidate that is collision-CLEAR against
-   every running row's REAL diff (`collision-check`, the instrument that would have spared rows H
-   and I their 79-minute phantom chain - it reads what a branch changed, never what it forecast) AND
-   whose size still FITS the window (`wave-horizon`). A unit that collides or no longer fits is held,
-   with the reason, and the pick falls through to the next one in the planner's order. Launch the
+   every running row's REAL diff (`collision-check` reads what a branch changed, never what it
+   forecast), whose BROWSER SLOT is free (a candidate naming e2e specs is taken to need it, held
+   while a running row holds it) AND whose size still FITS the window (`wave-horizon`). A held unit
+   carries its reason, and the pick falls through to the next one in the order. Launch the
    pick exactly like a planned row (its own worktree, its own queue, its own handoff), record
    the start with `node scripts/wave-launch.mjs record --letter <L> --branch <b> --size <size>` so
    the horizon learns, and append the launch and its traced why to the wave-state file. A refill
@@ -152,12 +152,12 @@ Each tick, in this order, and nothing else:
 
 **The candidate list.** The planner writes MORE units than the slots can hold, ordered, in the
 wave-state file under `## Candidates` as a TABLE `candidates.mjs` reads - columns
-`L | size | serves | TOUCHES | SPECS | goal`, where `size` is `small`, `standard` or `large` (what
-`wave-horizon` reads), `TOUCHES` and `SPECS` are the files and covering specs (what
-`collision-check` reads), and `serves` traces the why to `## NOW`, an ACTIVE programme or an owner
-receipt. Each candidate is a FRONTIER unit under the same WHY chain as a continuation; the fields
-are drawn from the backlog item it comes from (its `serves`/`size`/`touches`/`covered-by` front
-matter, `docs/backlog/README.md`). The loop consumes them in order; a unit that collides or does not
+`L | size | serves | TOUCHES | SPECS | goal` plus an optional `browser` (`yes`/`no` only; any other
+cell derives the need from SPECS); `size` is `small`, `standard` or `large` (`wave-horizon`),
+`TOUCHES` and `SPECS` are the files and covering specs (`collision-check`), and `serves` traces the
+why to `## NOW`, an ACTIVE programme or an owner receipt. Each candidate is a FRONTIER unit under
+the same WHY chain as a continuation; the fields come from its backlog item's front matter
+(`serves`/`size`/`touches`/`covered-by`, `docs/backlog/README.md`). A unit that collides or does not
 fit is held, not dropped, and re-tried when a slot or the window allows. When the list is spent and
 the horizon still shows room, the loop launches ONE fresh planner subagent to extend it from what has
 landed - never plans the units itself, because a thin loop with the whole night in its head is the

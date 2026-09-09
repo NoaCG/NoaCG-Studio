@@ -259,6 +259,10 @@ test('finished-but-unqueued fires once, says how long the branch has been quiet,
   assert.match(warning, /claude\/a-thing/);
   assert.match(warning, /45 min/);
   assert.match(warning, /nothing will/);
+  // It says what it did not measure. Three alarms on 2026-09-08, all on rows reading their CI
+  // before queueing, all wrong - a line that reads as a verdict is one a tired reader obeys.
+  assert.match(warning, /Not checked: a CI run on its tip, or a live session/);
+  assert.match(warning, /three signals/);
   assert.equal(deltaBetween(state(after, 2), after).some((event) => event.startsWith('FINISHED-LOOKING')), false);
 });
 
