@@ -69,6 +69,11 @@ while the links are still there, and the record outlives the walk that produced 
 - **Wired into all four exits**: `poll` on a terminal status (`:975`), `cancel` (`:1048`), the
   launch timeout via `abandonLaunch` (`:536`, called at `:908`), and `launch`'s own opening sweep
   (`:859`).
+- **Handles**: the relay's output file descriptor was already closed at the spawn; the shutdown
+  socket is destroyed on every path and its timeout is unref'd, so no command holds the process
+  open - every one of them exits within seconds, `reap` in 1.5 s. The launch's scratch directory
+  (the prompt file) is deliberately NOT deleted: the job can still be `queued` when the launcher
+  returns, and the companion reads that file when the job actually starts.
 - **`scripts/ram-reclaim.mjs:44`** adds `orphaned-codex-delegation-tree` to `RECLAIMABLE`, and
   **`scripts/jobs.mjs:1169`** feeds the same proved pids to the starved-queue reclaimer through
   the classifier that already fails closed.
