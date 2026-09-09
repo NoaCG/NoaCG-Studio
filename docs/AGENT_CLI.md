@@ -264,10 +264,15 @@ instead. The walk used the local build so the numbers describe THIS branch rathe
 | `whoami` | `noacg whoami` (against `https://noacg.studio`) | **3.8 s** | 0 |
 | `save` | `noacg save ./football-scoreboard` against a DEV SERVER | **0.3 s** | 1, refused |
 
-**24.8 seconds of tool time** for the seven authoring verbs, of which `validate` is 43% - it is
-the only one that launches Chromium, runs the gate, drives the bench and writes three 1920x1080
-frames, and it is the verb an author runs most. Everything else is a bridge round trip. Nothing
-in the door needed a retry, and no verb sat silent for longer than it worked.
+**24.8 seconds of tool time** for the seven authoring verbs, of which `validate` is 43%. EVERY ONE
+OF THEM LAUNCHES CHROMIUM - each goes through `BridgeClient.connect()`, which calls
+`launchBrowser()` before it opens `/bridge` (`cli/src/bridgeClient.ts:158`), so a browser start is
+the floor under the whole table. `doctor` launches one of its own on top of that
+(`cli/src/commands/doctor.ts:18`) and `login` opens the user's real browser at the consent page
+(`cli/src/commands/login.ts:146`). What makes `validate` the expensive one is what it does INSIDE
+that browser: it runs the gate, drives the bench and writes three 1920x1080 frames, and it is the
+verb an author runs most. The rest are a browser start plus a bridge round trip. Nothing in the
+door needed a retry, and no verb sat silent for longer than it worked.
 
 ### The leg to a player
 
