@@ -33,7 +33,7 @@ import { appendFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describeFailureSet, fetchFailureSet } from './ci-failure-set.mjs';
+import { describeFailureSet, fetchFailureSet, resolveRepo } from './ci-failure-set.mjs';
 import { ensureJobsDir, jobsDir } from './jobs-store.mjs';
 
 export const DEFAULT_EVERY_SECONDS = 60;
@@ -224,12 +224,6 @@ export function listRuns({ limit = DEFAULT_LIMIT } = {}) {
   }
 }
 
-function repoSlug() {
-  if (process.env.GH_REPO) return process.env.GH_REPO;
-  const res = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'], { encoding: 'utf8', windowsHide: true, timeout: 30_000 });
-  return res.status === 0 ? String(res.stdout).trim() || null : null;
-}
-
 /**
  * The OPEN pull request for a branch, or null. Only asked for a `Reviewed`-only red, so the extra
  * call costs nothing on a normal poll and nothing at all on a quiet one.
@@ -293,7 +287,11 @@ export async function main(argv = process.argv.slice(2)) {
     process.stdout.write('Usage: node scripts/ci-watch.mjs [--every <seconds>] [--since <minutes>] [--limit <runs>] [--once]\n');
     return 0;
   }
-  const describe = describeFor(repoSlug());
+  // One implementation of "which repository is this", shared with the failure set this file
+  // already imports. It was two until 2026-09-09, and the copy here knew only `GH_REPO` and
+  // `gh repo view` - so an expired `gh auth` left an unattended watcher describing every run as
+  // unnameable, where the git remote could have answered.
+  const describe = describeFor(resolveRepo().repo);
   let state = null;
   let lastError = null;
   for (;;) {

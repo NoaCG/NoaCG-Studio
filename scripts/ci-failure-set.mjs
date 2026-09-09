@@ -19,6 +19,13 @@
 // failure it could not classify is worse than no dedup at all - the owner's constraint, verbatim
 // on 2026-08-29: "it's fine to turn off any extra emails, but I do not want to close my eyes if we
 // have problems".
+//
+// `unknown` CARRIES A REASON. Until 2026-09-09 every empty answer printed one sentence, so "I
+// asked GitHub and its annotations named nothing" was indistinguishable from "I never asked" -
+// and from a laptop it was always the second, because the repository came from `GH_REPO` alone and
+// only the workflows set it. Measured 2026-09-08: eleven of eleven of that week's failed runs
+// answered `unknown` locally and named a spec or a job with `GH_REPO` prefixed. So the CLI now
+// resolves the repository from the checkout, and every empty answer says WHICH emptiness it is.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -93,6 +100,7 @@ export function failureSet(jobs, annotationsFor = () => []) {
   // is news. `exhausted` is the second.
   const cancelled = [...new Set(own.filter((job) => job?.conclusion === 'cancelled').map((job) => String(job.name)))].sort();
   const anyFailed = own.some((job) => FAILED.has(job?.conclusion));
+  const derivedFailed = (jobs ?? []).some((job) => DERIVED_JOBS.has(job?.name) && FAILED.has(job?.conclusion));
 
   const items = new Set();
   for (const job of own) {
@@ -116,6 +124,14 @@ export function failureSet(jobs, annotationsFor = () => []) {
   const sorted = [...items].sort();
   return {
     items: sorted,
+    /**
+     * WHY the set is empty, as a key `describeFailureSet` turns into a sentence. Null when
+     * something was named. The four emptinesses reachable from a jobs list are genuinely
+     * different answers, and a reader who gets one word cannot act on any of them: a run GitHub
+     * would not describe, a run that ran out of clock, a run where the derived gate was the only
+     * casualty, and a run where simply nothing failed.
+     */
+    reason: sorted.length > 0 ? null : emptyReason({ jobs, anyFailed, derivedFailed, cancelled }),
     // `unknown` is load-bearing - see the header. It is NOT a hash of the empty string, because a
     // caller comparing hashes must never find two unclassifiable runs equal to each other.
     hash: sorted.length === 0 ? 'unknown' : createHash('sha1').update(sorted.join('\n')).digest('hex').slice(0, 12),
@@ -124,6 +140,17 @@ export function failureSet(jobs, annotationsFor = () => []) {
     /** Nothing reported a fault, and at least one job never got to finish. */
     exhausted: !anyFailed && cancelled.length > 0,
   };
+}
+
+/**
+ * Which emptiness this is. Order matters: a run that ran out of clock usually ALSO has a failed
+ * `CI gate` hanging off it, and "the shards never finished" is the useful half of that pair.
+ */
+function emptyReason({ jobs, anyFailed, derivedFailed, cancelled }) {
+  if ((jobs ?? []).length === 0) return 'no-jobs';
+  if (!anyFailed && cancelled.length > 0) return 'exhausted';
+  if (derivedFailed) return 'derived-only';
+  return 'no-failed-jobs';
 }
 
 /**
@@ -138,12 +165,70 @@ function normalizePath(path) {
   return String(path).replaceAll('\\', '/').replace(/^\[[^\]]+\]\s*[›>]\s*/, '').trim();
 }
 
-/** The set in one line a person can read in a refusal message or an issue title. */
-export function describeFailureSet(items, { max = 3 } = {}) {
+/**
+ * Why a set came back empty, in the words a reader needs to know what to do next. The keys are
+ * `failureSet`'s and `fetchFailureSet`'s `reason`; an unrecognised one keeps the old sentence,
+ * because a caller on an older shape must still get something true.
+ */
+const WHY_EMPTY = {
+  'no-run-id': 'no run id was given - pass --run <id>',
+  'no-repo': 'the repository could not be determined - `gh` named none and the git remote is not a GitHub URL; set GH_REPO',
+  'no-jobs': 'GitHub listed no jobs for that run - the run id may be wrong, or `gh` is not signed in (`gh auth status`)',
+  'no-failed-jobs': 'nothing in the run failed - no job reported a fault',
+  exhausted: 'nothing failed; one or more jobs ran out of their own clock, so the run has no verdict',
+  'derived-only': 'only the derived CI gate failed - no job named a fault of its own',
+};
+
+/**
+ * The set in one line a person can read in a refusal message or an issue title.
+ *
+ * `reason` is optional and the callers that predate it pass none, which is why the fallback
+ * sentence is still the 2026-08 one.
+ */
+export function describeFailureSet(items, { max = 3, reason = null } = {}) {
   const list = items ?? [];
-  if (list.length === 0) return 'something this gate could not name - open the run';
+  if (list.length === 0) return WHY_EMPTY[reason] ?? 'something this gate could not name - open the run';
   const shown = list.slice(0, max).join(', ');
   return list.length > max ? `${shown} (+${list.length - max} more)` : shown;
+}
+
+/**
+ * `owner/name` for the repository this checkout belongs to, and where the answer came from.
+ *
+ * Three sources in falling order of authority, and each covers where the one before it is blind:
+ * the environment (what every workflow sets, and the only one a caller can force), `gh repo view`
+ * (which knows the checkout but needs a signed-in `gh`), and the `origin` remote (which needs
+ * nothing but git, and answers when `gh auth` has expired).
+ *
+ * NOTHING IS CACHED AND NO OWNER IS WRITTEN DOWN. The repository moved from a personal account to
+ * the NoaCG organisation on 2026-09-06 (ea7f569c); a hardcoded owner would have survived that move
+ * looking correct and asking GitHub about a repository that no longer exists.
+ */
+export function resolveRepo({ env = process.env, run = spawnSync } = {}) {
+  const fromEnv = (env.GH_REPO || env.GITHUB_REPOSITORY || '').trim();
+  if (fromEnv) return { repo: fromEnv, source: 'GH_REPO' };
+
+  const viewed = run('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { encoding: 'utf8', windowsHide: true, timeout: 30_000 });
+  const named = viewed?.status === 0 ? String(viewed.stdout ?? '').trim() : '';
+  if (named) return { repo: named, source: 'gh repo view' };
+
+  const remote = run('git', ['remote', 'get-url', 'origin'], { encoding: 'utf8', windowsHide: true, timeout: 15_000 });
+  const fromRemote = remote?.status === 0 ? repoFromRemote(remote.stdout) : null;
+  if (fromRemote) return { repo: fromRemote, source: 'git remote' };
+
+  return { repo: null, source: null };
+}
+
+/**
+ * `owner/name` out of a git remote URL, or null when it is not a GitHub one. Both forms git writes
+ * are accepted - `https://github.com/o/r.git` and `git@github.com:o/r.git` - and anything else
+ * answers null rather than a guess, because a wrong repository asks GitHub a question about
+ * somebody else's runs and gets a plausible empty answer back.
+ */
+export function repoFromRemote(url) {
+  const text = String(url ?? '').trim();
+  const match = /^(?:https?:\/\/(?:[^@/]+@)?github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(text);
+  return match ? match[1] : null;
 }
 
 /**
@@ -153,8 +238,11 @@ export function describeFailureSet(items, { max = 3 } = {}) {
  */
 export function fetchFailureSet(runId, { repo = process.env.GH_REPO, gh = ghJsonLines } = {}) {
   // No answer is not an exhausted run: `exhausted` false keeps the fail-open direction the header
-  // promises, so an unreachable API still reaches the callers as "speak up".
-  if (!runId || !repo) return { items: [], hash: 'unknown', cancelled: [], exhausted: false };
+  // promises, so an unreachable API still reaches the callers as "speak up". The default `repo`
+  // stays `GH_REPO` alone so the workflow callers are byte-for-byte unchanged; the CLI at the
+  // bottom resolves the checkout's own repository and passes it in.
+  if (!runId) return { items: [], hash: 'unknown', cancelled: [], exhausted: false, reason: 'no-run-id' };
+  if (!repo) return { items: [], hash: 'unknown', cancelled: [], exhausted: false, reason: 'no-repo' };
   const jobs = gh([`repos/${repo}/actions/runs/${runId}/jobs?per_page=100`, '--jq', '.jobs[] | {id, name, conclusion}']);
   return failureSet(jobs, (id) => gh([`repos/${repo}/check-runs/${id}/annotations?per_page=100`, '--jq', '.[] | {path, annotation_level}']));
 }
@@ -183,8 +271,12 @@ export function ghJsonLines(args) {
 // gates reach the pure decisions above - must never make a network call.
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const argv = process.argv.slice(2);
-  const runId = argv[argv.indexOf('--run') + 1];
-  const set = fetchFailureSet(runId);
-  if (argv.includes('--json')) process.stdout.write(`${JSON.stringify(set)}\n`);
-  else console.log(`${set.hash}  ${describeFailureSet(set.items, { max: 20 })}`);
+  // A flag is never a value: `--run --json` must be "no run id", not a request about a run called
+  // `--json`, which GitHub answers with an empty set that reads exactly like a run nobody can name.
+  const after = argv[argv.indexOf('--run') + 1];
+  const runId = argv.includes('--run') && after !== undefined && !after.startsWith('--') ? after : undefined;
+  const { repo, source } = resolveRepo();
+  const set = fetchFailureSet(runId, { repo });
+  if (argv.includes('--json')) process.stdout.write(`${JSON.stringify({ ...set, repo, repoSource: source })}\n`);
+  else console.log(`${set.hash}  ${describeFailureSet(set.items, { max: 20, reason: set.reason })}`);
 }

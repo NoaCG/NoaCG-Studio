@@ -33,6 +33,8 @@ on:
 
 permissions:
   contents: read
+  actions: read # the repeat-failure report reads this repo's own run history…
+  checks: read # …and the ANNOTATIONS on its jobs, which is where the failing spec is named
   issues: write # the failure step files/updates a rolling issue
 
 jobs:
@@ -78,6 +80,35 @@ jobs:
       # (docs/OGRAF.md, docs/IBC_LISTING_CHECKLIST.md).
       - name: OGraf conformance against the published schemas
         run: npm run check:ograf-schema
+
+      # NON-BLOCKING, and deliberately not an alarm. A spec that fails once on each of several
+      # different commits leaves no same-sha fail-then-pass pair, so `scripts/e2e-quarantine.mjs`
+      # cannot see it and nothing else was looking: measured 2026-09-08, `e2e/import-svg.spec.ts`
+      # had failed on four commits across four lines of work, one of them main, and no mechanism
+      # in the repo had said a word. Cross-commit evidence is weaker than the quarantine's
+      # receipt — it cannot tell a flake from one defect four branches tripped over — so this
+      # PRINTS and a person decides. Quarantining on it would take a spec out of the blocking
+      # plan, where it stops testing what it was written for and leaves only by passing 20 times.
+      #
+      # It writes to this run's step summary, which is why it wants no issue of its own; the
+      # weekly audit is already the thing somebody opens on a Monday.
+      #
+      # BEFORE `npm audit` for the reason that step's own comment gives: a step that exits
+      # non-zero ends the job, and everything that must be seen has to come first.
+      #
+      # BOUNDED, AND ALLOWED TO FAIL. `|| true` bounds the exit code, not the clock: this is one
+      # `gh` process per failed run plus one per failing job inside it, serially, and a bad week
+      # against nine e2e shards is a few hundred spawns. Without a cap of its own it can eat the
+      # job's 15 minutes and take `npm audit` down with it - which the repo's own trap says is not
+      # a verdict, only a stop at a cap. `continue-on-error` is what `|| true` cannot do: a step
+      # KILLED by its own timeout fails whatever its command said.
+      - name: Repeat failures across commits (report only)
+        timeout-minutes: 6
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/ci-repeat-failures.mjs --days 7 --limit 40 || true
 
       # Fails on high/critical only — the tracked low/moderate advisories (repo maintenance
       # notes) stay a report, not a weekly alarm.

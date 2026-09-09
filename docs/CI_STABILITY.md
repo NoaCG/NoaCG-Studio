@@ -518,6 +518,15 @@ Unit-tested in `scripts/ci-failure-set.test.mjs` and `scripts/red-main-issue.tes
 
 ## Reproducing this
 
+Most of the sweep below now has a script. `node scripts/ci-repeat-failures.mjs --days 7` walks the
+failed runs of `ci.yml` and `configured-suite.yml`, builds each one's failure set through the same
+`scripts/ci-failure-set.mjs` the landing gate uses, and reports every item that failed on two or
+more distinct commits across two or more lines of work. `--since 2026-09-04 --until 2026-09-08`
+re-derives a past window. It runs weekly in `weekly-audit.yml` and writes to that run's step
+summary; it decides nothing and quarantines nothing, for the reason its header gives. The by-hand
+recipe below is still what you want for anything it does not cover - most of all the re-run-to-green
+runs, which a `conclusion=failure` sweep misses by construction.
+
 ```bash
 # The inventory. `gh run list` caps at 1000 per query - stitch windows and dedupe by databaseId.
 # SLICE THE DATES EXPLICITLY. `--paginate` with an open-ended `created>=<DATE>` silently TRUNCATES:
