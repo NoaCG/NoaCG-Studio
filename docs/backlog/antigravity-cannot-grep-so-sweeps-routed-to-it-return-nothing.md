@@ -44,6 +44,17 @@ warn; it should refuse a prompt that reads like a search when no `command(...)` 
 `docs/HARNESS_ROUTING.md` should say plainly that repo-wide search does not go to Antigravity.
 Today its judgement about this harness rests on task classes that never needed to search.
 
+**Narrow that refusal to SEARCH, and do not widen it to listing.** Measured the same night on the
+same 1.1.28 build, from the harness verdict row: `npm run agy:read` with no `command` grant, asked
+to LIST a directory, returned a complete and accurate listing in 6.5 s - 16 files, every size
+checked against the filesystem. So the three "invalid" grant actions do not move together any
+more. A refusal written against ungranted tools in general would now block work that succeeds.
+`scripts/harness-capabilities.json`, entry `agy-headless-auto-denies-ungranted-tools`, records both
+halves and a two-call re-probe that keeps them apart;
+`docs/metrics/2026-09-09-harness-verdict.md` question 2 carries the working. The routing sentence
+this item asks for should read "never ask Antigravity to FIND something; enumerate the files and it
+reads them faultlessly", which is now in `docs/HARNESS_ROUTING.md`.
+
 **The other option was considered and decided against, not deferred.** Granting `command(rg)` - or
 a narrower target - in `~/.gemini/antigravity-cli/settings.json` would make the harness usable for
 the work it is otherwise good at. It is not taken because it widens the machine's permission

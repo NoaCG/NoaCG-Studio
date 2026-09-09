@@ -1327,3 +1327,63 @@ an economy note when Codex headroom goes undrawn. What has NOT changed: a Codex 
 fallback, still runs through the `rescue` workflow from the Claude row that owns its spec and
 landing, and its outcomes are graded like every other pool's - the ruling is about the default,
 not about trust.
+
+## The harness verdict, 2026-09-09 night: the money question, answered against measurements
+
+The owner asked for the honest truth about whether Codex can be driven through this orchestrator,
+whether Antigravity has any use or just fails every task, and what more Codex quota would buy. The
+full working is `docs/metrics/2026-09-09-harness-verdict.md`, with the two worker-written table
+files beside it. The judgement, and only the parts that change how a row is written here:
+
+**Codex can finish real work through this channel, and the writable set is now exact.** A
+controlled pair of delegations, four minutes apart from one session, re-derived the rule from
+scratch: a write inside the launching session's own worktree succeeded, a write into a sibling
+worktree in the same run was refused, and a write into the temp directory in that same run
+succeeded. So the recorded root was slightly wrong - it is **the working directory plus `/tmp` and
+`$TMPDIR`**, which means a delegation can stage a file it cannot place. This never needed probing
+at all: `codex exec` prints `sandbox: workspace-write [workdir, /tmp, $TMPDIR]` in its startup
+banner on every run. Read the banner before writing another probe. On this build the refusal
+arrives as an OS access error rather than a policy message, so a session reading only the summary
+can record a task as attempted while nothing moved.
+
+**Antigravity does not fail every task. It fails every ambiguous one, and every one that needs a
+search.** Given a bounded spec - one file in, one file out, absolute paths, a declared tool set,
+no shell - it returned 63 numbers in a single sixty-second call, 50 of them exact and the other 13
+the whole of one column. Its one flaw came from our spec defining a failed call by the wrong field,
+and it executed that wrong definition perfectly. The search half is the section above this one:
+listing a directory now works with no `command` grant, searching still returns nothing, and the two
+were measured hours apart on the same build. Codex,
+handed a looser spec over the same data, picked the right field on its own. **That is the routing
+rule worth carrying: Antigravity is literal, Codex exercises judgement.** Send Antigravity
+arithmetic and transcription, where a defect in the spec is the only risk you have not covered.
+Never send it work whose right answer depends on noticing that the instruction is wrong.
+
+**More Codex quota would not buy more finished work today, and the reason is on our side of the
+ledger.** Of the nine delegated tasks in the last 24 hours, seven failed on our own prompt or
+invocation; two rows are evidence about the worker, one of which was accepted. Fix the spec
+discipline first - and the two sections above this one already say how: split a sweep's file list
+across calls, hand over a deletion log rather than banning git, and never route a search to
+Antigravity. What the measurement did settle is the rate: nine small Codex invocations moved
+the 5-hour window from 18% to 62% in thirteen minutes, and the weekly window 7 points - which
+scales to roughly 130 delegations a week, or 18 a day, on tonight's mix. The 2026-09-03 note above
+about Codex sitting at 64% of its weekly window untouched no longer describes the machine.
+
+**The effort default is `medium`, and the doc that says otherwise has been corrected.**
+`scripts/codex-rescue.mjs` sets `DEFAULT_EFFORT = 'medium'` under the owner's 2026-09-09 ruling,
+which expires 2026-09-16. `.claude/commands/rescue.md` still said `high` and led this very
+measurement astray, so read the constant, never the prose. The pair that was measured is low
+against high, which is not the default in force: high cost **37% more tokens (17,822 against
+12,962) for the same correct answer**, and was 0.89 s quicker on a 15-second task, which is one
+sample and inside the noise. Read it as "high buys tokens, not results, on short retrieval" and
+nothing more. The medium trial's own review date is 2026-09-16 and the delegation ledger is what
+settles it - which cannot be read yet, because seven of the last nine rows measure our spec rather
+than the worker.
+
+**And Codex is not slow to start through the orchestrator - it is heavy to leave running.** The MCP
+fleet everyone suspected costs 1.1-1.4 s and zero tokens; the channel adds about 3 s to an 8 s job.
+The real cost is that every `codex exec` leaves four processes and about 195 MB resident after it
+finishes, one `codex.exe` was holding four such fleets at once, and this happens with plain
+`codex exec` too, because the MCP servers are declared globally in `~/.codex/config.toml`. The
+observation is `codex-invocation-leaks-its-mcp-fleet` in the capability file; the mechanism is
+being fixed on `claude/ab-reap-codex-delegation-tree`. **Stop attributing delegation slowness to
+startup.** A row that delegates should expect to pay memory, not seconds.

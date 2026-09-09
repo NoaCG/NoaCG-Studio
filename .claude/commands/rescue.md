@@ -31,10 +31,13 @@ liveness against job status, and cancels with argv that no shell can rewrite.
    `node scripts/codex-rescue.mjs launch "<the task>"`
 
    Pass the request through as-is, minus routing flags. `--model`, `--effort`, `--resume` and
-   `--fresh` forward to Codex. **A launch that names no `--effort` runs at `high`** - the wrapper
-   injects the owner-ruled norm (`docs/HARNESS_ROUTING.md`, "there is no model choice, only
-   effort"); pass a lower effort deliberately, for mechanical retrieval only. Note `--model` has
-   nothing to point at on the ChatGPT subscription - `gpt-5.6-sol` is the only model it accepts.
+   `--fresh` forward to Codex. **A launch that names no `--effort` runs at the wrapper's
+   `DEFAULT_EFFORT`, which is `medium`** under the owner's 2026-09-09 ruling and is reviewed on
+   2026-09-16; read the constant in `scripts/codex-rescue.mjs`, because this line said `high` for
+   a week after the code stopped agreeing and sent one measurement down the wrong path. Pass a
+   lower effort deliberately, for mechanical retrieval only. `--model` now has something to point
+   at: the CLI's own default is `gpt-6-astra`, and `gpt-5.6-sol` still works when named
+   (`scripts/harness-capabilities.json`, `codex-one-model-on-the-subscription`).
    **The run is read-only unless you pass `--write`** - the delegate
    edits files only when the request actually asks for edits. It prints JSON with a `jobId`. If no
    job id comes back, stop and report what it said - do not retry silently, and do not launch a
