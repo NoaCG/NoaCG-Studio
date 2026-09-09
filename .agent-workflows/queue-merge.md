@@ -82,6 +82,12 @@ the build, then queue. `node scripts/merge-order.mjs --branch <branch>` says whi
 branches this one collides with - advisory, because order is the queue's: whichever lands second
 integrates `main` (owner ruling 2026-09-05: a merge question never reaches him).
 
+**A verdict older than the fix to the tool that issued it must be RE-MEASURED before it is acted
+on.** On 2026-09-09 a finished branch was held overnight on a `hold` that told it to reconcile a
+file it had never touched: the verdict came from `merge-order` reading a local `main` 43 commits
+stale, and the row that fixed that had already landed. Re-running the command answered `free` in
+seconds. This applies to every advisor a session consults before queueing, not only this one.
+
 **A branch cut from another branch does not queue.** `merge-order.mjs --branch <branch>` reports
 when this branch CONTAINS another branch that has not landed, and exits 3. Queueing it would land
 that other session's commits without its declaration, and the queue cannot tell: the pull request

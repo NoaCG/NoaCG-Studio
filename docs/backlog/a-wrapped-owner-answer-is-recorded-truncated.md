@@ -46,4 +46,4 @@ Preferring the answered occurrence is the safer tie-break.
   `docs/ROUTINES.md`. The fourth defect in the same shipment - `alignmentState` reading the
   checkout it runs in rather than the primary one, so it found no weekly file anywhere but the main
   tree - was fixed on 2026-09-09 by `scripts/primary-checkout.mjs` and `weeklyDir()`; its backlog
-  item is gone with it, and the argument is in `docs/handoffs/2026-09-09-f-weekly-candidates.md`.
+  item is gone with it, and the argument is in `git show 64ad2f68:docs/handoffs/2026-09-09-f-weekly-candidates.md`.

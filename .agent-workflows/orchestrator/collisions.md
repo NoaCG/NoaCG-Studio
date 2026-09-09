@@ -11,16 +11,17 @@ every `TOUCHES` set, then across the collisions a `TOUCHES` diff calls disjoint.
 ## The collisions a file diff calls disjoint
 
 - **A scarce shared slot.** Two sessions minting migration `0036`; two re-recording
-  `scripts/overflow-baseline.json`; two adding an e2e spec and so both editing
-  `scripts/e2e-lists.mjs` / `scripts/e2e-affected.mjs`; two moving a landed goal out of
-  `docs/GOALS.md` into `docs/GOALS_ARCHIVE.md`; two touching `package.json`. Different filenames,
-  disjoint sets, clean merge, wrong result. **The plan ALLOCATES these up front** - A takes 0036,
-  B takes 0037, C owns the baseline re-record - and each is named in that session's `MINTS`.
+  `scripts/overflow-baseline.json`; two adding an e2e spec and so both editing `e2e-lists.mjs` /
+  `e2e-affected.mjs`; two archiving a landed goal out of `docs/GOALS.md`; two touching
+  `package.json`. Different filenames, disjoint sets, clean merge, wrong result. **The plan
+  ALLOCATES these up front** - A takes 0036, B takes 0037, C owns the baseline re-record - and each
+  is named in that session's `MINTS`.
 - **A shared CHECK - two rows that change one FLOW, not one file.** Different sources, same TEST,
   because that test drives the flow both changed. **Ask of every pair: do these rows change the
   same user-visible FLOW?** If so they share its tests whatever their file lists say. Measurable,
-  not foreseen: `node scripts/e2e-affected.mjs` maps sources to covering specs - run it over each
-  row's forecast `TOUCHES`; an intersection is a collision (`incidents.md` "two dialogs").
+  not foreseen: `node scripts/e2e-affected.mjs --list` maps sources to covering specs - run it over
+  each row's `TOUCHES`; an intersection is a collision (`incidents.md` "two dialogs"). Keep the
+  `--list`: bare, it RUNS the whole suite on the one browser slot, three times now.
 - **A renamed or re-signatured shared export.** One session changes it, another writes callers.
   Any session that renames or re-signatures something shared is **sequential by construction**,
   whatever the file sets say.
@@ -34,9 +35,9 @@ every `TOUCHES` set, then across the collisions a `TOUCHES` diff calls disjoint.
   that session still holds the file, the work is its continuation or it waits, never a second row.
 
 **When two sessions do collide on one file, the planner says which version WINS - the later-landing
-session resolves with judgement, not with a merge.** A collision settled by whoever happens to
-merge second, with no ruling from the plan, is how a clean merge produces a tree describing
-something neither branch built. Worked example: `incidents.md` "the docs-index backlog item".
+session resolves with judgement, not with a merge.** Settled instead by whoever merges second, a
+collision is how a clean merge produces a tree describing something neither branch built. Worked
+example: `incidents.md` "the docs-index backlog item".
 
 ## The machine's limits
 
@@ -87,14 +88,13 @@ every open item traced, never invented work), **deferred** (machine-continuable,
 it stays, and section 4 says why), or **owner** (its open items need a person and have gone to
 needs-you or an owner-queue item). `node scripts/handoff-drain.mjs` prints every file with its
 class and flags the unclassified and the long-deferred; the plan check refuses a plan while any
-file is unclassified. Consumed, spent and owner files are DELETED by the wave itself: exactly one
-session's prompt carries the line "delete these handoff files in your first commit: <list>", so
-the deletion lands with the successor work, distinct file deletions cannot conflict, and this
-session still changes nothing.
+file is unclassified. Consumed, spent and owner files are DELETED by the wave itself, by exactly
+one session whose prompt names the list, so the deletion lands with the successor work.
 
 **But SPENT is a claim about each open ITEM, not about the file.** A handoff is spent only once
 every open item is traced to where it now lives - a landed commit, a backlog file, a contract, an
-owner-queue item - and the plan records that trace; the file's own "what is left" heading is what
-its author believed on the day, not the test. Grep PROSE mentions ("see the handoff") as well as
-paths - the path grep feels sufficient and is not. Deferring costs nothing; a wrong deletion
-destroys the only copy, and "git is the archive" helps only a reader who knows what to look for.
+owner-queue item - and that trace is recorded; the file's own "what is left" heading is what its
+author believed on the day, not the test. **Then REPOINT before deleting**: each citation states
+its own fact and cites something durable, `git show <sha>:<path>` at worst. Grep PROSE and bare
+filenames too - a path grep feels sufficient, and missed 2 of 37 sites on 2026-09-09. Deferring
+costs nothing; a wrong deletion destroys the only findable copy.

@@ -1,7 +1,7 @@
 # The shard durations table is refreshed by hand, and nobody remembers
 
 **Filed:** 2026-09-04. **Source:** measured while making the timing model honest
-(`docs/handoffs/2026-09-04-u-honest-timings-and-selection.md`).
+(`git show 12ce8f55:docs/handoffs/2026-09-04-u-honest-timings-and-selection.md`).
 
 ## Why
 
@@ -34,7 +34,7 @@ which is how a gate gets routed around.
 
 ## Evidence
 
-- `docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md`: the 15-day stale table, the 49%
+- `git show ba427e57:docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md`: the 15-day stale table, the 49%
   growth, and the two heaviest specs missing from it.
-- `docs/handoffs/2026-09-04-u-honest-timings-and-selection.md`: the overhead term, and why a stale
+- `git show 12ce8f55:docs/handoffs/2026-09-04-u-honest-timings-and-selection.md`: the overhead term, and why a stale
   reading now costs a wrong verdict about fitting rather than only a slow run.

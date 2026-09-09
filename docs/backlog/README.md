@@ -24,6 +24,15 @@ in flight. Nothing here is scheduled. Nothing here is a commitment.
 <Numbers, quotes, the doc that measured it. Link rather than re-argue.>
 ```
 
+**A defect report naming a file is checked against the RULE STORE for that file's scope before it
+is filed.** One `npm run rules -- <path>` (or a grep of `contracts/rules/`) - a claim that
+contradicts a landed rule is usually the claim that is wrong, and the check costs seconds at filing
+against a whole row later. Paid for on 2026-09-09: a row was planned off a backlog file that was
+itself planned off an unverified delegate claim, and only reproducing before fixing stood between
+it and a shipped regression. The file even recorded that the claim's author had been measured wrong
+on two of six claims in the same review, and it still became a row. More review of the claim is not
+the guard; reading what the repository already says about that file is.
+
 **`## Why` is mandatory and it is the whole point.** An idea without a stated reason cannot be
 compared against anything, so it never wins a slot and never gets deleted either - it just sits
 there making the folder look like work. If you cannot write the Why, the idea is not ready to be

@@ -1,6 +1,6 @@
 # A test run that fills the disk prints a passing tail and exits 0
 
-**Filed:** 2026-09-09, carried out of `docs/handoffs/2026-09-06-f-growth-question.md` during the
+**Filed:** 2026-09-09, carried out of `git show 3228fae6:docs/handoffs/2026-09-06-f-growth-question.md` during the
 handoff drain. **Source:** measurement - it happened to that row.
 
 ## Why
