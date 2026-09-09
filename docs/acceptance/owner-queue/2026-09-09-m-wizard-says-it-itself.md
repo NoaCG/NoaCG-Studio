@@ -19,17 +19,18 @@ with **Prepare** and **Text** in the rail. Drop `docs/svg-samples/scorebug.svg`.
 **1. Why the rail just renumbered.** The header is now **STEP 2 / 5** and two step names have
 changed. Under "7 text layers found" on the Your design card:
 
-> Five steps now, not six: an SVG has nothing to erase and its text is already placed, so Prepare
-> and Text became the one Fields step.
+> Five steps now, not six: an SVG needs no erasing and no placing, so Prepare and Text became the
+> one Fields step.
 
 Before, six steps became five under your hands with nothing on screen accounting for it.
 
 **2. The alignment grid says its answer.** Press **Next**. Every text row's third control used to
 be a 3x3 of unlabelled dots under the bare word `Aligned`; the answers were reachable only by
 hovering one cell at a time. Each row now reads **ALIGNED left, middle** (or whatever that row's
-drawing says), in the chosen dot's own words. Click a different dot and the words follow it. Press
-the ⓘ beside **Editable text** for the part a row cannot afford to repeat seven times: what the
-grid decides, and which of the two dot styles you are looking at.
+drawing says), in the chosen dot's own words. Click a different dot and the words follow it. The
+part a row cannot afford to repeat seven times is behind the ⓘ beside **Editable text**, on the
+line about the Text box: type a long value into any row and the edge the grid names is the one
+that visibly does not move.
 
 **3. Two name boxes, two different names.** Press **Next** twice to reach Finish. Leave both name
 boxes empty and choose **＋ New production…**. The production box's placeholder now reads
