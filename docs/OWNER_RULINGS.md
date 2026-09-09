@@ -652,3 +652,41 @@ landing on a question that has to sit above four answers.
 
 **The ruling is the outcome, not the mechanism.** "Type-aware" is what the floor must stop being
 blind to; which signal it keys on is an engineering question, answered from the shipped corpus.
+
+---
+
+## 2026-09-09 - spend Codex hard this week, on the new model at medium
+
+> *"Can we use GPT-6 Astra medium? Astra is GPT's new model so it's very good. I think we should try
+> to use it. Of course it will drain our usage very fast but it's okay to use Codex this week as
+> much as we can."*
+
+Two decisions in one sentence, and they have different shelf lives.
+
+**The spend is his and it is time-boxed to the week.** Nothing in the repo rations the Codex
+subscription, so this changes no mechanism; it removes a hesitation. A row that would have been kept
+for Claude because Codex headroom looked precious goes to Codex instead, until the week is out.
+
+**The effort default moves to `medium`, and this is not a relaxation of the floor.** His 2026-08-30
+ruling set high as the norm and **medium as the floor**; medium is inside the range he already
+sanctioned, chosen deliberately here to buy throughput rather than drifted into by a config nobody
+read - which is what actually happened on 2026-08-30. Low stays reserved for mechanical retrieval.
+`DEFAULT_EFFORT` in `scripts/codex-rescue.mjs` carries it, with `DEFAULT_EFFORT_REVIEW_ON` set to
+**2026-09-16** and a test that fails once that date passes while the default is still medium.
+
+**The model was already astra.** `gpt-6-astra` is the CLI's own default as of 0.154.0-alpha.6 - the
+2026-09-09 re-probe found the "only one model works on this subscription" claim false, and
+`~/.codex/config.toml` now names astra rather than `gpt-5.6-sol`. So nothing had to be pinned to
+honour this; `--model` is still forwarded when a caller names one.
+
+**What the week is for, stated so it can be settled rather than remembered.** The premise is that
+astra is very good. That is worth testing rather than assuming, and the delegation ledger already
+records what settles it - model, effort, outcome and cause per task class. As of this ruling there is
+**one worker-attributable outcome per model**, which ranks nothing. On 2026-09-16, read
+`npm run harness:usage` and either extend the trial with the evidence or put the default back to
+high.
+
+One caveat worth carrying, because it explains why the ledger is thin: the two astra delegations that
+failed on 2026-09-09 failed on OUR invocation, not the model - a delegation can only write inside the
+directory the launching session sits in, and the standard row recipe opens by asking for a branch.
+Both are logged `cause: prompt` and excluded from pool quality for that reason.
