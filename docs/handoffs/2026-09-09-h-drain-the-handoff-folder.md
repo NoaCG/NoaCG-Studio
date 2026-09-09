@@ -153,6 +153,11 @@ modules. **It corrected two of my own conclusions**: `contracts/retired.json` an
 four blocks modules were already recorded, which turned a duplicate backlog file into a useful one
 about the reporting gap instead.
 
+**The routing lesson, which I agree with and which should not survive only as a ledger note: split
+the file list across calls, and hand the delegate a pre-computed deletion log instead of banning
+git.** The ban is what removed the only tool that answers "was this consumed or lost", and that is
+the one question a handoff trace turns on.
+
 One conclusion was wrong, and it is mine rather than the model's. It read the wizard-exit acceptance
 item as lost because the file is absent, when `f80e9ec8` walked and deleted it - a direct
 consequence of my "run no git" instruction, which was there because twelve gates here shell out to
@@ -211,6 +216,21 @@ running as 34348666178.
 in this diff can move what a graphic looks like.
 
 Verdict stamp at `.git/noacg-jobs/checks/claude-h-drain-the-handoff-folder.json`.
+
+## One file filed on the orchestrator's request, not from a handoff
+
+`create-project-is-a-door-that-saves-nothing.md`. Row D's walk of the import road found that
+"Create project" is the editor door taken early and persists nothing (`create()` calls
+`applyDraftProject()` with no arguments; both Finish doors save explicitly). D corrected its guide
+and pinned the sentence in a spec, so the docs are right; nobody had asked whether the BEHAVIOUR is.
+D had queued and could not file it, and `docs/backlog/` was already mine.
+
+Filed as an open QUESTION with the code fact attached, explicitly UNVERIFIED, with reproducing it in
+the running app as the mandatory first step - a label risk and a data-loss risk are different sizes
+and only the walk separates them. I did not open the wizard or read `CreationWizard.tsx`, which was
+the instruction and is also right: the reproduce belongs to whoever picks it up with the browser
+slot free. The date is why it is not a shrug - 2026-09-25 puts a room of strangers in front of that
+button.
 
 ## Needs the owner
 
