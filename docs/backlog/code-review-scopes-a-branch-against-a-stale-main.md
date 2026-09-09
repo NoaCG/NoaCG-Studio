@@ -3,11 +3,12 @@ v: 2
 source: derived
 kind: finding
 raised: 2026-09-09
-state: unstarted
+state: advanced
+note: "detection landed on claude/r-review-scope-is-checked, the tool did not. /check phase 2 now makes the row compare the review's scope against the branch's diff, discard the whole pass on a mismatch and report it, and those sentences are pinned as critical contract markers so they cannot be deleted quietly. The built-in still mis-scopes, which is the half that needs the harness"
 found: "the /code-review tooling scopes a branch by diffing against the LOCAL main, which under the merge queue is permanently behind, so it reviews files the branch never touched and can report a real diff as clean"
 serves: NOW
 size: small
-touches: none in this repository
+touches: .agent-workflows/check.md, scripts/check-shared-instructions.mjs
 covered-by: none
 needs-owner: harness
 ---

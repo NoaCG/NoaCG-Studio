@@ -30,9 +30,10 @@ first before changing anything, exactly as the repo's Git rules require.
 ## 1. Scope - compute once, reuse in every phase
 
 - The scope is what this branch changed: `git fetch --quiet origin main` first, then
-  `git diff $(git merge-base origin/main HEAD)..HEAD` plus any uncommitted changes
-  (`git status --porcelain=v1`). Compute it once; all three phases work from this same changed
-  set. Do not review or simplify code the branch did not touch.
+  `git diff $(git merge-base origin/main HEAD)` - merge base against the WORKING TREE, so
+  uncommitted content is in the diff you read - plus `git status --porcelain=v1` for anything
+  untracked. Compute it once; all three phases work from this same changed set. Do not review or
+  simplify code the branch did not touch.
 - **`origin/main`, never the local `main` branch.** `git fetch` moves the remote-tracking ref; it
   does not move the local branch, and since landings moved to the merge queue nothing on this
   machine moves it at all, so the lag only grows. Measured on 2026-09-09 in a worktree cut that
@@ -102,18 +103,26 @@ Goal: find and fix real defects in the changed code before polishing it.
   Either can change with any release.
 - **SCOPE-CHECK THE REVIEW BEFORE BELIEVING ONE WORD OF IT, and say in the handoff that you
   did.** Write down the branch, the base sha and the file list the review says it read, run
-  `git diff --name-only $(git merge-base origin/main HEAD)..HEAD` in this worktree, and compare
-  the two lists. It matches only if the review's branch is this worktree's and every file it
-  reviewed is in that list. One command, and it catches a failure that is silent in the BAD
+  `git diff --name-only $(git merge-base origin/main HEAD)..HEAD` in this worktree, add anything
+  `git status --porcelain=v1` reports uncommitted - the review reads the working tree too - and
+  compare the two lists. It matches only if the review's branch is this worktree's and every file
+  it reviewed is in that list. One command, and it catches a failure that is silent in the BAD
   direction: a branch looks like it changed MORE than it did, so its real diff reads as clean.
+- **A pass that will not say what it scoped fails this check exactly like a mismatch.** Derive
+  its file list from the paths its findings name when it has findings; a pass reporting CLEAN
+  with no branch, no base sha and no file list leaves nothing to compare, and that is the shape
+  of the silent failure itself. Unfalsifiable is not the same as trustworthy.
 - **On any mismatch, discard the WHOLE pass** - not just the findings that fell outside - redo
   the review by hand over that same diff, and report `review: discarded+inline` with BOTH
-  scopes, the sha the review used and this branch's merge base. Four measured instances: three
-  passes that read another WORKTREE's branch on 2026-08-29, because a delegated review inherits
-  the delegating tool's directory rather than this worktree's; rows Q and P against a stale
-  local `main` on 2026-09-08; and row J on 2026-09-09, whose pass scoped 26 commits back and
-  returned eight findings with not one inside this branch's diff. The reviewing tool is a
-  built-in with no file in this repository
+  scopes, the sha the review used and this branch's merge base. Discarded means discarded as a
+  review of THIS branch; findings about another branch's files are still relayed, per the next
+  bullet. Six mis-scoped passes measured across four rows, from two causes. Three read another
+  WORKTREE's branch on 2026-08-29, because a delegated review inherits the delegating tool's
+  directory rather than this worktree's - that write-up is consumed, retrievable with
+  `git show c5823d3b^:docs/handoffs/2026-08-29-dd-svg-fitting-two.md`. Three more scoped against
+  a stale local `main`: rows Q and P on 2026-09-08, and row J on 2026-09-09, whose pass reached
+  26 commits back and returned eight findings with not one inside its own diff. The reviewing
+  tool is a built-in with no file in this repository
   (`docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md`), so noticing is the half
   this repository owns.
 - Findings about another branch's files are that branch's business: report them to the session
@@ -185,8 +194,8 @@ Goal: leave the changed code simpler than the review left it, without changing w
   Say `review: <mode>` and `simplify: <mode>`, drawn from `delegated` (a delegated pass returned
   its result and was used), `inline` (done in this context), `discarded+inline` (a delegated pass
   came back but failed phase 2's scope check, so it was thrown away and redone by hand, and it
-  carries both scopes) and `not run`, with the reason for any
-  `not run`. A check carrying a `not run` leg has not passed, and says so. This is the same rule
+  carries both scopes) and `not run`, with the reason for any `not run`. A check carrying a
+  `not run` leg has not passed, and says so. This is the same rule
   the landing queue follows when it refuses loudly instead of reporting a merge it did not make:
   a weaker check reported as a full one is worse than an honest gap, because it is the version
   that survives into the record. `/check` is permanent for night sessions on these terms, so a
