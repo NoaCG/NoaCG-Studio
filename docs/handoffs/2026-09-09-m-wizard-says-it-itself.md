@@ -154,6 +154,21 @@ applied, and `_offline-guard.ts` refuses the run rather than measuring an unpinn
 server has to be stopped before the suite is queued. That is the guard working, but it costs a
 whole slot to learn.
 
+### CI
+
+Green, and read as a job list rather than as a colour: run **34360843885** on `fd94670f`, the
+commit carrying every source, spec and copy change on this branch. Fourteen jobs ran and all
+fourteen passed - Build, Factory gates, E2E plan, nine E2E subsets, Combined E2E report, CI gate -
+with the five expected skips for a change that does not affect the deploy: Vercel, Reviewed, the
+catalog calibration gate, the E2E retry and After the gate.
+
+Two commits follow it and neither can move that verdict. One is markdown. The other moves two
+comments and corrects a measured number inside a third (111 to the 112 actually measured), and
+`mapSvgFields.css` and `MapSvgFieldsStep.tsx` are byte-identical between `fd94670f` and the tip
+once comments are stripped - checked, not assumed. The tip's own run, 34362973826, was still
+working through its nine subsets when this was written; the merge queue re-runs CI on the merged
+result before anything lands, which is the verdict that actually gates it.
+
 ### The third failure is not mine, and that is measured
 
 `catalog-baseline.spec.ts`, "every catalog variant renders identically", fails for 24 credits and
