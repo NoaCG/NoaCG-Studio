@@ -660,6 +660,19 @@ production shows an input per field + Take/Update/Next/Out. No application code 
   scaffold arms carried the machine every time, free arms shipped state as fields on 4 of 7
   typed-action cells; and all five novel-brief cells authored a WORKING machine from scratch -
   the evidence the Future item "agent-authored machines" was waiting on (owner gate).
+- **The round went on air, and that is a SEPARATE event from the blind read above.** On
+  **2026-08-23**, after the round was saved to noacg.studio, the owner **ran 7 of the 22 saved
+  graphics in a real production**: *"all the graphics I tried work very well… animations work,
+  editable fields work, the graphic lives with the length of the text… great stuff."* The blind
+  read says expert eyes could not tell agent-made from hand-made; this says seven of them went
+  into a production and behaved. Provenance, because it matters here: the quote is a first-hand
+  record in the orchestrator's memory store (`owner-walk-agent-round-ux`, recorded the same day,
+  `strength: observation`), not a measurement this repository took - it is written down here
+  because until 2026-09-09 the strongest real-world evidence the agent door had could not be cited
+  by any file. The 22 is independently in `docs/SAVED_CONTENT_MODEL.md` §6 (22 agent-made graphics
+  saved into one folder and staged as a production); the 7 rests on the memory entry alone. The
+  same walk's product feedback - the library and production UX defects it found - is what that
+  entry is mostly about, and none of it was about the graphics.
 - **Round two (2026-08-26): one vocabulary, a measured OGraf claim, an entrance with tests.** The
   four names became one artifact and one capability ("One name for each thing" above, applied
   across the CLI, the plugin, the skill's own description and the `/docs` page). The dual

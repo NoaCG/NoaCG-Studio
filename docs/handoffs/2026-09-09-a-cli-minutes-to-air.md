@@ -73,6 +73,21 @@ browser tooling dropping a tab and handing me a stale element reference, not the
   hook is right - Playwright would adopt it). Stop the server first; `Get-NetTCPConnection
   -LocalPort <port>` finds the pid when the shell that started it is a background task.
 
+## The relay, and the follow-up it leaves
+
+The orchestrator relayed one addition mid-row: the agent round's LIVE PRODUCTION RUN existed only
+in the orchestrator's memory store and could not be cited by any file in the repository. I verified
+both halves myself before writing anything, as the relay asked - the memory entry
+(`owner-walk-agent-round-ux`, `strength: observation`, recorded 2026-08-23) says the owner ran 7
+graphics in a real production with the quote it gives, and `docs/SAVED_CONTENT_MODEL.md` §6
+independently records the 22 saved. Both check out. It is now its own bullet in the Status section
+of `docs/AGENT_CLI.md`, deliberately NOT merged into the blind-read bullet above it, since
+conflating the two is what produced the overclaim in the demo script. The 7 rests on the memory
+entry alone and the bullet says so.
+
+**Follow-up for the next planner:** `docs/DEMO_2026-09-25.md` (row G, pull request 189) dropped
+its version of that line. Once this branch lands, the demo can cite `docs/AGENT_CLI.md` for it.
+
 ## Anything that needs the owner
 
 Nothing blocking. One thing to look at, in the owner queue as
