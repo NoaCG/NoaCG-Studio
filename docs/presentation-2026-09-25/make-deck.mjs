@@ -382,9 +382,10 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   text(s, '24.8 s', { x: M, y: 4.0, w: lw, h: 0.95, fontFace: DISPLAY, fontSize: 60, bold: true, color: AMBER, charSpacing: -2 });
   text(s, [
     { text: 'Tool time for the seven CLI verbs', options: { bold: true, color: PAPER } },
-    // NOT "the only verb that opens a browser": every one of them does, because they all reach the
-    // studio through BridgeClient.connect(), which launches one (cli/src/bridgeClient.ts:158).
-    // validate is the slow one for what it does INSIDE that browser.
+    // NOT "the only verb that opens a browser": all seven authoring verbs do, because they reach
+    // the studio through BridgeClient.connect(), which launches one (cli/src/bridgeClient.ts:158).
+    // validate is the slow one for what it does INSIDE that browser. The slide says "they all"
+    // about the four verbs printed above it, which are four of those seven.
     { text: ', measured by hand on 2026-09-09. They all start a browser to reach the studio; validate is 10.7 s of it because it also runs the gate and writes three full-size frames. The rest of the clock is what the agent spends designing, plus the hop to a player. Nobody has put a stopwatch on that last leg end to end yet, so this is the number there is.', options: {} },
   ], { x: M, y: 5.0, w: lw, h: 1.7, fontSize: 14.5, color: MID, lineSpacingMultiple: 1.2 });
 
