@@ -25,6 +25,7 @@ import {
   sameRoot,
   selfAndAncestors,
   underDesktopCodex,
+  withinRoot,
 } from './e2e-runs.mjs';
 
 const onlyWindows = { skip: process.platform !== 'win32' };
@@ -422,6 +423,28 @@ test('a launch that never registered a delegation is kept until its launcher giv
   assert.deepEqual(killed(orphanedCodexTrees(MACHINE, [stillLaunching])), [], 'somebody is still waiting for it');
   const abandoned = record({ jobs: [], owned, launcher: null });
   assert.deepEqual(killed(orphanedCodexTrees(MACHINE, [abandoned])), [17376], 'the launch timed out');
+});
+
+test('a delegation launched from a subdirectory still belongs to its worktree', () => {
+  // The recorded workspace is the directory the launch was MADE in, not one that was chosen, so
+  // `/rescue` run from `<worktree>/cli` records that. A worktree-scoped sweep that compared paths
+  // for equality would leave exactly the family whose directory is about to be deleted.
+  const worktree = 'C:/claude/NoaCG-Studio/.claude/worktrees/agent-a9ad096b88a1d4eb5';
+  assert.equal(withinRoot(worktree, worktree), true);
+  assert.equal(withinRoot(`${worktree}/cli`, worktree), true);
+  assert.equal(withinRoot(worktree.replaceAll('/', '\\'), worktree), true, 'either spelling of the same path');
+  assert.equal(withinRoot(`${worktree}-2`, worktree), false, 'a sibling is not inside it');
+  assert.equal(withinRoot('C:/claude/NoaCG-Studio', worktree), false, 'and neither is its parent');
+  assert.equal(withinRoot(null, worktree), false);
+});
+
+test('an unfinished delegation is COUNTED, so a caller can act on it without reading prose', () => {
+  const [busy] = orphanedCodexTrees(MACHINE, [record({
+    jobs: [{ id: 'done', finished: true }, { id: 'running', finished: false }],
+  })]);
+  assert.equal(busy.unfinished, 1, 'what a worktree removal reads before deleting the directory');
+  const [idle] = orphanedCodexTrees(MACHINE, [record()]);
+  assert.equal(idle.unfinished, 0);
 });
 
 test('a process that has already exited is neither killed nor reported as kept', () => {

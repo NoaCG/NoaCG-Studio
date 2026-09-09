@@ -78,6 +78,29 @@ while the links are still there, and the record outlives the walk that produced 
   **`scripts/jobs.mjs:1169`** feeds the same proved pids to the starved-queue reclaimer through
   the classifier that already fails closed.
 
+## The worktree cleanup closes them too (the owner's ask, relayed mid-row)
+
+"Could we have worktree cleanup also clean up nodes that are abandoned?" It could not:
+`worktree-cleanup-lib.mjs` knew nothing about processes, so a worktree could be torn down while
+the delegations it started went on running - which is how three families outlived their sessions.
+It is not only a memory problem. The delegation's `codex.exe` runs with the worktree as its
+working directory, so on Windows it is also why a removal comes back "folder may be locked/busy"
+and leaves an emptied husk.
+
+`reapDelegationTrees` (`scripts/worktree-cleanup-lib.mjs:56`) is one call to the same reaper, and
+both removal paths make it BEFORE `git worktree remove` (`scripts/cleanup-worktrees.mjs:604` and
+`:1057`). No new judgement: `reap --cwd <path> --workspace <path>` narrows both halves of the
+sweep to that checkout - job records and processes - and everything else holds, including the
+desktop-app guard and the recorded-identity check.
+
+**And a delegation that has NOT finished now stops the removal.** This is the first place with the
+information to do that: a delegation deliberately outlives its session, and the session hold only
+knows about Claude sessions, so the sweep would have deleted every file under a running worker's
+working directory. The reaper exits 3 for "still working", the cleanup keeps the worktree and says
+why. Verified live in both directions with a real delegation: scoped to another worktree it
+collected nothing and all 15 recorded processes survived; scoped to this one, in git's backslash
+spelling of the path, it collected the family.
+
 ## Measured, on this machine
 
 | | processes | resident |
@@ -127,6 +150,19 @@ Without it, the reap would have issued `taskkill /T /F` against a Windows servic
 forced a fix: a record is finished with when the machine stops RECOGNISING it, not when its pids
 stop responding, or that record would have looked half-alive for as long as that service ran.
 
+## Two things the relay added, and what they are worth
+
+**A live parent proves nothing, and one observation says so.** The orchestrator's prompt called a
+tree whose broker still had a live Claude Code parent the ambiguous case. It is not ambiguous in
+this design, because the parent is never consulted: a family is collected when its delegations
+have OUTCOMES, whatever its parent chain looks like. The evening's manual cleanup killed all three
+families, including that one, and no session was harmed - which is consistent with the rule but is
+one data point, not the reason for it.
+
+**The leak is not a hang.** Nothing froze. Every delegation completed normally and simply never
+tore its family down, so the families accumulated one per delegation until the machine was full.
+A reader chasing a hang looks in the wrong place.
+
 ## Windows Job Objects: investigated, and deliberately not built
 
 Node exposes no Job Object API - not in `child_process`, not through `detached` or `windowsHide` -
@@ -154,9 +190,20 @@ The recorded-identity sweep is the fallback named in the row, and it is sufficie
 
 ## Check
 
-- `review: delegated` - the code-review skill returned findings and named this branch, base
-  `a2ab4097`, and exactly the six files `git diff --name-only` reports, with a clean working tree;
-  scope checked and matched. Ten findings, all confirmed against the code and fixed in `00599ebe`:
+- `review: delegated`, twice - the second pass because the worktree-cleanup wiring was written
+  after the first, and a kill path added after its review has not been reviewed. Both named this
+  branch and files inside its diff; scope checked and matched both times.
+- The SECOND pass found seven, all confirmed and fixed: the reap's verdict was discarded, so a
+  worktree could still be removed out from under a delegation that was **running** (the serious
+  one - it is now a refusal); `--workspace` scoped the processes but not the job records, so a
+  cleanup running in the primary checkout would have rewritten the primary's job store; the path
+  match was equality, so a delegation launched from a subdirectory of the worktree would have been
+  left running; a record with no readable workspace was given the temp state directory, putting it
+  out of every scoped sweep's reach; `--workspace --all-workspaces` took the flag as a path and
+  reported a confident nothing; `reapedDelegations` carried two shapes under one name; and the
+  safety suite had started spawning the real reaper once per removed worktree, which is now
+  injected.
+- The FIRST pass found ten, all confirmed against the code and fixed in `00599ebe`:
   the record-only-grows-from-the-broker hole (the one that would have made a leak permanent), the
   queue runner writing to the plugin's `state.json` from its poll loop and dying on a state
   directory that moved, sequential broker shutdowns, a twenty-second launch stall, a snapshot
@@ -166,15 +213,20 @@ The recorded-identity sweep is the fallback named in the row, and it is sufficie
 - `simplify: inline` - the skill returned fan-out instructions, so the leg ran here: an
   `indexByPid` helper for the four hand-rolled pid maps, one `writeOwnership` for the three
   hand-rolled record writes, and two clearer control-flow forms.
-- `verify: npm run build` green (exit 0, read from the build's own exit code), 72 unit tests
-  across the three touched test files, plus the live end-to-end runs above. CI green on
-  `b8b1e1f5` with every job run - Build, Factory gates, all nine E2E shards, CI gate.
+- `verify: npm run build` green (exit 0, read from the build's own exit code), 74 unit tests
+  across the four touched test files plus `worktree-safety.test.mjs` 57/57, and the live
+  end-to-end runs above. CI green with every job run - Build, Factory gates, all nine E2E shards,
+  CI gate - on `b8b1e1f5` and again on `579aa2a2`, and dispatched in full on the tip.
 - `taste: not applicable` - nothing here can move what a graphic looks like.
 
 ## What is left
 
-Nothing blocking. Two things a later row could take:
+Nothing blocking. Three things a later row could take:
 
+- **Families started before this lands are out of reach, by design.** Two other sessions' brokers
+  were running while this was written; they have no ownership record, so the detector fails closed
+  and keeps them. Their next launch records and collects them. Nothing here reaches backwards, and
+  nothing should.
 - The session-start hook reports orphaned Playwright workers and browser shells to a human; it
   does not yet report orphaned delegation families. `orphanProcesses` returns them now, so it is a
   display change.

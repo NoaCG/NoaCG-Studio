@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { reapDelegationTrees, samePath } from './worktree-cleanup-lib.mjs';
+import { REAP_BUSY, reapDelegationTrees, samePath } from './worktree-cleanup-lib.mjs';
 
 const WORKTREE = 'C:/claude/NoaCG-Studio/.claude/worktrees/agent-abc123';
 
@@ -24,10 +24,26 @@ test('the reap is scoped to the worktree being removed, and to nothing else', ()
     },
   });
   assert.equal(out.ok, true);
+  assert.equal(out.busy, false);
   assert.equal(out.output, 'No stale Codex jobs found.');
   assert.match(seen.args[0], /codex-rescue\.mjs$/);
-  assert.deepEqual(seen.args.slice(1), ['reap', '--workspace', WORKTREE]);
+  // BOTH flags, naming the same directory: `--cwd` decides whose job records are read and
+  // `--workspace` whose processes are swept. With only the second, a cleanup running in the
+  // primary checkout would rewrite the PRIMARY's job store while sweeping a worktree's processes.
+  assert.deepEqual(seen.args.slice(1), ['reap', '--cwd', WORKTREE, '--workspace', WORKTREE]);
   assert.equal(seen.args.includes('--all-workspaces'), false, 'never every workspace on the machine');
+});
+
+test('a delegation that has not finished is reported as busy, not as a failure', () => {
+  // The reaper exits 3 when work in that workspace is still running. Nothing went wrong - and the
+  // worktree must not be removed, because a delegation outlives the session that launched it and
+  // its `codex.exe` is working in the directory about to be deleted.
+  const out = reapDelegationTrees(WORKTREE, {
+    run: () => ({ status: REAP_BUSY, stdout: '  kept pid 1 - 1 delegation(s) in this workspace have not finished', stderr: '' }),
+  });
+  assert.equal(out.busy, true);
+  assert.equal(out.ok, false);
+  assert.match(out.output, /have not finished/);
 });
 
 test('a reap that fails is reported, never thrown - the worktree still goes', () => {
@@ -35,6 +51,7 @@ test('a reap that fails is reported, never thrown - the worktree still goes', ()
     run: () => { throw new Error('spawn ENOENT'); },
   });
   assert.equal(threw.ok, false);
+  assert.equal(threw.busy, false, 'a reaper that could not run has said nothing about the work');
   assert.match(threw.output, /spawn ENOENT/);
 
   const failed = reapDelegationTrees(WORKTREE, {

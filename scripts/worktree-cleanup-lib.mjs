@@ -34,6 +34,9 @@ export function samePath(a, b) {
  */
 const REAP_TIMEOUT_MS = 30_000;
 
+/** The reaper's exit code for "a delegation in this workspace has not finished" - not a failure. */
+export const REAP_BUSY = 3;
+
 /**
  * Close the Codex delegation families that belong to a worktree about to be removed.
  *
@@ -55,19 +58,26 @@ const REAP_TIMEOUT_MS = 30_000;
  */
 export function reapDelegationTrees(worktreePath, { run = spawnSync } = {}) {
   const script = join(dirname(fileURLToPath(import.meta.url)), 'codex-rescue.mjs');
-  if (!worktreePath || !existsSync(script)) return { ok: false, output: 'no reaper to run' };
+  if (!worktreePath || !existsSync(script)) return { ok: false, busy: false, output: 'no reaper to run' };
   try {
-    const res = run(process.execPath, [script, 'reap', '--workspace', worktreePath], {
+    // `--cwd` and `--workspace` name the same directory on purpose: the first decides whose JOB
+    // RECORDS are read, the second whose PROCESSES are swept. Left to itself the reaper would
+    // take its cwd from this cleanup - which runs in the primary checkout - and rewrite the
+    // primary's job store under a command that says it is scoped to a worktree.
+    const res = run(process.execPath, [script, 'reap', '--cwd', worktreePath, '--workspace', worktreePath], {
       encoding: 'utf8',
       timeout: REAP_TIMEOUT_MS,
       windowsHide: true,
     });
     return {
       ok: res?.status === 0,
+      // Exit 3: a delegation in this worktree has NOT finished. Nothing failed - there is simply
+      // work running in the directory the caller is about to delete.
+      busy: res?.status === REAP_BUSY,
       output: `${res?.stdout ?? ''}${res?.stderr ?? ''}`.trim() || 'nothing to collect',
     };
   } catch (error) {
-    return { ok: false, output: error?.message ?? 'the reaper could not be run' };
+    return { ok: false, busy: false, output: error?.message ?? 'the reaper could not be run' };
   }
 }
 

@@ -58,6 +58,7 @@
 //     fully contained in local main and origin/main, and even then let `git branch -d` refuse as
 //     a final backstop.
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -550,6 +551,10 @@ export function applySelf(
     prunePorts = pruneStalePorts,
     refreshRemote = () => git(['fetch', 'origin', '--prune'], plan.primaryRoot),
     archive = archiveAndVerify,
+    // Injectable for the same reason `archive` is: a test that removes a temp worktree has no
+    // delegations to collect, and spawning the reaper to prove it costs a full enumeration of the
+    // machine's processes per removal.
+    reap = spawnSync,
   } = {},
 ) {
   const done = {
@@ -559,7 +564,7 @@ export function applySelf(
     deletedRemoteBranch: null,
     archived: null,
     releasedPorts: [],
-    reapedDelegations: null, // what this worktree's finished delegations gave up on the way out
+    reapedDelegations: [], // { path, said } - this worktree's delegations, on the way out
     errors: [],
   };
 
@@ -592,7 +597,21 @@ export function applySelf(
   // The delegations this worktree started are closed BEFORE the folder goes: their `codex.exe`
   // runs with this directory as its working directory, so one still running both leaks memory
   // and holds the folder open against the removal below.
-  done.reapedDelegations = reapDelegationTrees(plan.path).output;
+  //
+  // AND A DELEGATION THAT HAS NOT FINISHED STOPS THE REMOVAL DEAD. A delegation deliberately
+  // outlives the session that launched it, and nothing else here can see one: the session hold
+  // only knows about Claude sessions. Removing the worktree would delete every file underneath a
+  // running Codex worker's working directory.
+  const reaped = reapDelegationTrees(plan.path, { run: reap });
+  done.reapedDelegations = [{ path: plan.path, said: reaped.output }];
+  if (reaped.busy) {
+    done.errors.push(
+      `a Codex delegation is still running in ${plan.path} - it outlives the session that started `
+        + 'it, so nothing was removed. Let it finish, or cancel it with '
+        + '`node scripts/codex-rescue.mjs cancel`, and clean up again.',
+    );
+    return done;
+  }
 
   // Never --force: a refusal here is git protecting something this assessment did not see.
   const removed = git(['worktree', 'remove', plan.path], plan.primaryRoot);
@@ -982,6 +1001,9 @@ export function applyPlan(
     refreshRemote = () => git(['fetch', 'origin', '--prune'], plan.primaryRoot),
     archive = archiveAndVerify,
     liveness = {},
+    // See `applySelf`: injectable so the safety suite does not enumerate the machine's processes
+    // once per removed worktree.
+    reap = spawnSync,
   } = {},
 ) {
   const done = {
@@ -1041,8 +1063,15 @@ export function applyPlan(
 
     // Close this worktree's finished delegations first: their `codex.exe` runs with this folder
     // as its working directory, so one still running is both leaked memory and a reason the
-    // removal below comes back "folder may be locked/busy".
-    done.reapedDelegations.push({ path: w.path, said: reapDelegationTrees(w.path).output });
+    // removal below comes back "folder may be locked/busy". One that has NOT finished keeps the
+    // worktree - a delegation outlives its session by design, and nothing else in this sweep can
+    // see one.
+    const reaped = reapDelegationTrees(w.path, { run: reap });
+    done.reapedDelegations.push({ path: w.path, said: reaped.output });
+    if (reaped.busy) {
+      done.errors.push(`worktree ${w.path}: a Codex delegation is still running there - kept`);
+      continue;
+    }
 
     const res = git(['worktree', 'remove', w.path], plan.primaryRoot); // never --force
     // Judge by REGISTRATION, not exit code, exactly as applySelf does. On Windows a folder
@@ -1364,7 +1393,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && pro
   if (done.archived?.files > 0) {
     console.log(`Archived ${done.archived.files} file(s), ${formatBytes(done.archived.bytes)} -> ${done.archived.destination}`);
   }
-  if (done.reapedDelegations) console.log(`Delegation processes: ${done.reapedDelegations}`);
+  for (const { said } of done.reapedDelegations) console.log(`Delegation processes: ${said}`);
   if (done.removedWorktree) console.log(`Removed worktree ${plan.path}`);
   if (done.deletedBranch) console.log(`Deleted branch ${done.deletedBranch}`);
   if (done.deletedRemoteBranch) console.log(`Deleted GitHub branch origin/${done.deletedRemoteBranch}`);

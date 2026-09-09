@@ -63,7 +63,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { allProcesses, descendantsOf, orphanedCodexTrees, sameRoot } from './e2e-runs.mjs';
+import { allProcesses, descendantsOf, orphanedCodexTrees, withinRoot } from './e2e-runs.mjs';
 
 /** Where the plugin keeps its versioned copies. Overridable so the test never needs a real one. */
 const PLUGIN_CACHE = path.join(
@@ -456,7 +456,10 @@ export function recordOwnership(dir, { table = allProcesses(), jobIds = [], now 
   const self = byPid.get(process.pid);
   const record = {
     version: OWNERSHIP_VERSION,
-    workspace: (broker && workspaceOfBroker(broker.command)) ?? previous?.workspace ?? dir,
+    // Null rather than the state directory when the broker's command line does not say: a record
+    // whose workspace is a temp path can never match a worktree-scoped sweep, so guessing one
+    // would quietly put that family out of every scoped reap's reach.
+    workspace: (broker && workspaceOfBroker(broker.command)) ?? previous?.workspace ?? null,
     stateDir: dir,
     endpoint: session?.endpoint ?? previous?.endpoint ?? null,
     broker: broker ? { pid: brokerPid, createdMs: broker.createdMs } : previous?.broker ?? null,
@@ -677,6 +680,17 @@ export function brokerShutdown(endpoint, timeoutMs = GRACE_MS) {
   });
 }
 
+/**
+ * Is a delegation in this sweep's scope still working?
+ *
+ * The detector already knows - it is why the tree was kept - and this is the one thing it knows
+ * that a caller ABOUT TO DELETE THAT DIRECTORY cannot afford to miss. A worktree removal reads it
+ * and stands down; nothing else in this file consults it.
+ */
+function stillWorking(trees) {
+  return trees.some((tree) => (tree.unfinished ?? 0) > 0);
+}
+
 /** One line per kept pid, whichever pass reported it: the same tree is judged twice per reap. */
 function namedOnce(trees) {
   const byPid = new Map();
@@ -724,11 +738,16 @@ async function waitForExit(pids, ms) {
  *
  * `workspace` narrows the sweep to the delegations of ONE checkout, which is what a worktree
  * removal needs: that worktree's family is about to lose the directory it is running in, and
- * nobody else's is any of its business.
+ * nobody else's is any of its business. A delegation launched from a SUBDIRECTORY of it counts -
+ * the recorded workspace is the directory the launch was made in, so `<worktree>/cli` is this
+ * worktree's delegation and an equality test would quietly leave it running.
+ *
+ * `busy` in the result says a delegation in scope has NOT finished, which is the one thing a
+ * caller about to delete that directory has to know.
  */
 export async function reapTrees({ log = console.log, workspace = null } = {}) {
   const records = delegationRecords()
-    .filter((record) => !workspace || (record.workspace && sameRoot(record.workspace, workspace)));
+    .filter((record) => !workspace || withinRoot(record.workspace, workspace));
   const table = allProcesses();
   const before = orphanedCodexTrees(table, records);
   const collecting = before.filter((tree) => tree.kill.length > 0);
@@ -737,7 +756,7 @@ export async function reapTrees({ log = console.log, workspace = null } = {}) {
     // the tree with it, a machine that was restarted - is finished with, and saying so here is
     // what stops every later sweep re-reading it.
     for (const tree of before) if (tree.stateDir) forgetOwnership(tree.stateDir, table);
-    return { closed: 0, trees: [], kept: namedOnce(before) };
+    return { closed: 0, trees: [], kept: namedOnce(before), busy: stillWorking(before) };
   }
 
   // WRITE THE FAMILY DOWN BEFORE CLOSING ANY OF IT. The kill list is wider than the record - it
@@ -779,7 +798,13 @@ export async function reapTrees({ log = console.log, workspace = null } = {}) {
   // again per tree, and the kills above have already happened.
   const settledAfterKills = closed > 0 ? allProcesses() : settled;
   for (const tree of after) if (tree.stateDir) forgetOwnership(tree.stateDir, settledAfterKills);
-  return { closed, refused, trees: collecting, kept: namedOnce([...before, ...after]) };
+  return {
+    closed,
+    refused,
+    trees: collecting,
+    kept: namedOnce([...before, ...after]),
+    busy: stillWorking(after),
+  };
 }
 
 // ── Commands ─────────────────────────────────────────────────────────────────────────────────────
@@ -1066,16 +1091,16 @@ async function cancel(argv, cwd) {
  * time: whatever the last run failed to collect is collected before the next family is started.
  */
 async function reap(argv, cwd) {
-  const at = argv.indexOf('--workspace');
-  const workspace = at === -1 ? null : argv[at + 1];
-  if (at !== -1 && !workspace) throw new Error('--workspace needs a path (got none)');
+  const workspace = reapWorkspace(argv);
 
   // CLEARING STALE JOB RECORDS NEEDS THE PLUGIN; COLLECTING PROCESSES DOES NOT. They are reported
   // together because a person running `reap` wants both, but a machine without the plugin
   // installed - or with a job store this wrapper cannot read - must still be able to close the
   // processes a delegation left behind. So the first half is allowed to fail on its own.
   try {
-    const dirs = argv.includes('--all-workspaces') ? allStateDirs() : [await stateDir(cwd)];
+    // The workspace named on the command line, when there is one: a reap run from the primary
+    // checkout ON BEHALF of a worktree must clear THAT worktree's job records, not its own.
+    const dirs = argv.includes('--all-workspaces') ? allStateDirs() : [await stateDir(workspace ?? cwd)];
     const cleared = [];
     for (const dir of dirs) {
       if (!existsSync(path.join(dir, 'state.json'))) continue;
@@ -1090,8 +1115,31 @@ async function reap(argv, cwd) {
   } catch (error) {
     console.log(`Could not read the Codex job records (${error.message}); collecting processes anyway.`);
   }
-  reportReap(await reapTrees({ workspace }));
-  return 0;
+  const result = await reapTrees({ workspace });
+  reportReap(result);
+  // EXIT 3 IS "SOMETHING IS STILL RUNNING HERE", and it exists for one caller: a worktree removal
+  // asks this before deleting the directory a delegation is working in. Nothing was wrong, so it
+  // is not a failure; nothing is finished either, so it is not a plain success.
+  return result.busy ? 3 : 0;
+}
+
+/**
+ * The `--workspace` path, checked rather than taken.
+ *
+ * A flag standing in for the value is the failure that matters: `reap --workspace
+ * --all-workspaces` would otherwise scope the sweep to a directory called `--all-workspaces`,
+ * match no record, and report a quiet, complete-looking nothing - which is exactly what a worktree
+ * removal would read as "nothing left running here".
+ */
+export function reapWorkspace(argv) {
+  const at = argv.indexOf('--workspace');
+  if (at === -1) return null;
+  const value = argv[at + 1];
+  if (!value || value.startsWith('--')) throw new Error('--workspace needs a path (got none)');
+  if (argv.includes('--all-workspaces')) {
+    throw new Error('--workspace and --all-workspaces contradict each other; pass one');
+  }
+  return value;
 }
 
 /** What a reap did: what closed, what would not close, and what stayed and why. */

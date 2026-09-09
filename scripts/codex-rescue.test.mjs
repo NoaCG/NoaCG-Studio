@@ -375,6 +375,21 @@ test('a record is finished with when the machine stops recognising any of it', a
   assert.ok(readOwnership(dir));
 });
 
+test('a scoped reap will not take a flag for a path', async () => {
+  // `reap --workspace --all-workspaces` would otherwise scope the sweep to a directory named
+  // `--all-workspaces`, match nothing, and report a quiet complete-looking nothing - which the
+  // worktree removal that asked would read as "no delegation is running here".
+  const { reapWorkspace } = await import('./codex-rescue.mjs');
+  assert.equal(reapWorkspace(['--workspace', 'C:/claude/x']), 'C:/claude/x');
+  assert.equal(reapWorkspace([]), null);
+  assert.throws(() => reapWorkspace(['--workspace']), /needs a path/);
+  assert.throws(() => reapWorkspace(['--workspace', '--all-workspaces']), /needs a path/);
+  assert.throws(
+    () => reapWorkspace(['--workspace', 'C:/claude/x', '--all-workspaces']),
+    /contradict each other/,
+  );
+});
+
 test('an endpoint is a socket path once its scheme is off', async () => {
   const { endpointPath } = await import('./codex-rescue.mjs');
   assert.equal(

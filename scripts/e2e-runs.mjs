@@ -56,6 +56,21 @@ export function sameRoot(a, b) {
 }
 
 /**
+ * Is `path` the root itself or somewhere inside it?
+ *
+ * Equality is not enough wherever a path was recorded from a working DIRECTORY rather than
+ * chosen: a command run in `<worktree>/cli` records that, and asking "is this worktree's" with
+ * `sameRoot` answers no. The trailing separator is what keeps `...-2` from reading as inside
+ * `...`, the same shape `orphanedDevServers` uses to keep a worktree under its own repo.
+ */
+export function withinRoot(path, root) {
+  if (!path || !root) return false;
+  const here = normalize(root).toLowerCase();
+  const at = normalize(path).toLowerCase();
+  return at === here || at.startsWith(`${here}/`);
+}
+
+/**
  * Every node process on this machine, as `{ pid, command, startedAt }`.
  *
  * Node has no portable process list, so this shells out. Windows is the primary platform here
@@ -603,13 +618,17 @@ export function orphanedCodexTrees(processes, records = []) {
       proved.push({ pid: child.pid, what: 'started by a process we recorded', createdMs: child.createdMs });
     }
 
+    // `unfinished` is the count, not the sentence: a caller that is about to DELETE this
+    // workspace's directory has to know that work is still running there, and reading a
+    // human-readable line to find out is one rewording away from silently saying no.
+    const head = { ...treeHead(record), unfinished: unfinished.length };
     if (waiting) {
       for (const p of proved) keep(p.pid, waiting);
-      return { ...treeHead(record), kill: [], kept, waiting };
+      return { ...head, kill: [], kept, waiting };
     }
     // Youngest first, so a parent is never signalled before the children it started.
     const kill = proved.sort((a, b) => (b.createdMs ?? 0) - (a.createdMs ?? 0));
-    return { ...treeHead(record), kill, kept, waiting: null };
+    return { ...head, kill, kept, waiting: null };
   });
 }
 
