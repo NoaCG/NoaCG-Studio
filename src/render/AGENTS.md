@@ -46,10 +46,13 @@ measure, buildManifest, config) may use anything the app uses.
   slots (after IN + after each played step, never after OUT). total < fixed = hard error.
   Continuous phases (repeat:-1, duration >= 1e7 s) cost 0 fixed time. Cues snap to the
   frame grid. Imported templates without builder globals only render with outMode 'none'.
-- **limits.ts** - RENDER_LIMITS tiers (anonymous/free/paid) + RENDER_CONFIG: every
+- **limits.ts** - RENDER_LIMITS tiers (anonymous/free/granted) + RENDER_CONFIG: every
   configurable number lives here; UI checks are UX, api/ re-validates authoritatively.
-  `resolveTier()` is the single seam a plan row's `render_tier` enters through; the `paid` name
-  is a cap table for grants, not a product - NoaCG sells nothing (`docs/OWNER_RULINGS.md`). Every tier number is
+  `resolveTier()` is the single seam a plan row's `render_tier` enters through, and
+  `storedRenderTier()` the one a stored tier name does; `granted` is a cap table for grants, not
+  a product - NoaCG sells nothing (`docs/OWNER_RULINGS.md`). It was called `paid` until migration
+  0055, which is unrelated to `AiTaskTier`'s `paid` in api/_lib/aiTaskRegistry.ts - that one is
+  reserved for the day a user's own money settles an AI bill and must not be renamed. Every tier number is
   PER PRINCIPAL and is only checked once a request is parsed; the flood guards in front of
   them are `RENDER_CONFIG.startRateLimit` (the burst gate, api/_lib/rateLimit.ts) and
   `RENDER_CONFIG.globalConcurrency` (the fleet ceiling, api/_lib/admission.ts), both with

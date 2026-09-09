@@ -29,6 +29,17 @@
 //   - every ANSWERED alignment question mentioned by id (scripts/alignment-answers.mjs) - what he
 //     said on Tuesday, still not in docs/OWNER_RULINGS.md. Unlike an ask this one is not deferrable:
 //     it is a ruling already given, and it repeats every morning until a branch records it.
+//   - every CANDIDATE ROW of a weekly review written in the last week classified under
+//     `## Weekly review` (scripts/weekly-candidates.mjs) - planned as a row, or deferred or
+//     rejected with a reason. All three pass; silence does not. On 2026-09-08 the weekly review
+//     emitted three well-formed rows and both of that day's plans were written afterwards without
+//     lifting one or mentioning the file, and nothing recorded the miss.
+//
+// THE WEEKLY LINE IS ALWAYS PRINTED, pass or fail, and it names the directory it searched. Both
+// the weekly file and the answered rulings live in the PRIMARY checkout, gitignored, so a
+// linked-worktree read of the wrong directory reports "nothing here" - which is what let the
+// alignment refusal pass every plan for a week after it shipped. A path on the screen is what
+// makes "nothing is owed" and "I looked in the wrong place" different sentences.
 //
 // And it prints ECONOMY NOTES, which refuse nothing: a snapshot line that gives Claude a percentage
 // it does not have, and Codex headroom left idle by a plan with no codex row (`economyNotes`).
@@ -45,6 +56,7 @@ import { drain, handoffFiles, newestWavePlan, parseHandoffSection } from './hand
 import { inStore, wavePlansDir } from './wave-plan-store.mjs';
 import { isStanding, readReceipts } from './owner-receipts.mjs';
 import { parseWindowEnd } from './wave-horizon.mjs';
+import { candidateProblems, parseCandidateSection, planDate, summaryLine, weeklyCandidates } from './weekly-candidates.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
@@ -319,9 +331,10 @@ export function economyNotes(text, rows) {
 /**
  * The whole verdict, from the plan text plus injected facts so the pure part is testable.
  * `exists(relativePath)`, `handoffs` (from handoff-drain), `receipts` (from owner-receipts),
- * `alignment` (the pending answers from alignment-answers).
+ * `alignment` (the pending answers from alignment-answers), `candidates` (the weekly review's rows
+ * this plan is inside the window of, from weekly-candidates).
  */
-export function checkPlan(text, { exists, handoffs = [], receipts = [], alignment = [], now = Date.now(), night = false } = {}) {
+export function checkPlan(text, { exists, handoffs = [], receipts = [], alignment = [], candidates = [], now = Date.now(), night = false } = {}) {
   const problems = [];
   const table = parseWaveTable(text);
   problems.push(...table.problems);
@@ -371,9 +384,13 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
   // The candidates table is the refill loop's list (night.md). Its optional browser column is the
   // planner's override of the specs-derived need, and only a cell starting with yes or no is read
   // as one - so a cell spelt any other way is a planner who believes they overrode and did not.
-  const candidates = tableUnder(text, /^#{1,6}\s+.*\bcandidates\b/i);
-  if (candidates?.header?.includes('browser')) {
-    for (const row of candidates.rows) {
+  // NAMED FOR THE TABLE, not `candidates`: this function also takes a `candidates` PARAMETER, the
+  // weekly review's rows, and the two arrived from different branches that git merged without a
+  // conflict. Sharing the name does more than fail to compile - it silently rebinds
+  // `candidateProblems(candidates, ...)` below from the weekly rows to this table.
+  const candidatesTable = tableUnder(text, /^#{1,6}\s+.*\bcandidates\b/i);
+  if (candidatesTable?.header?.includes('browser')) {
+    for (const row of candidatesTable.rows) {
       const cell = String(row.browser ?? '').replace(/[`*]/g, '').trim();
       if (cell && cell !== '-' && browserWord(cell) === null) {
         problems.push(`candidate ${row.letter ?? '?'}: browser must start with yes or no, or be empty - got "${row.browser}"`);
@@ -409,6 +426,10 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
       problems.push(`alignment answer ${entry.id} is not in docs/OWNER_RULINGS.md and this plan does not mention it - plan the row that records what he said`);
     }
   }
+  // A candidate row from a weekly review inside this plan's window. Unlike an alignment answer it
+  // may be turned down - the owner's ruling is that nothing is forced into a wave - so all three
+  // classes pass and only silence, or a refusal with no reason behind it, is a problem.
+  problems.push(...candidateProblems(candidates, parseCandidateSection(text), seenLetters));
   return { problems, notes: economyNotes(text, table.rows), rows: table.rows.length, pools: [...new Set(table.rows.flatMap(rowPools))] };
 }
 
@@ -431,18 +452,25 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     console.error('    whose exact path for today `node scripts/wave-plan-store.mjs --path <date> <day|night>` prints.\n');
     return 1;
   }
+  const weekly = weeklyCandidates(root, planDate(planPath));
   const verdict = checkPlan(readFileSync(planPath, 'utf8'), {
     exists: (relative) => existsSync(path.join(root, ...relative.split('/'))),
     handoffs: handoffFiles(root),
     receipts: readReceipts(root, { now }),
     alignment: alignmentState(root).pending,
+    candidates: weekly.owed,
     now,
     night: /-night-/.test(path.basename(planPath)),
   });
   if (argv.includes('--json')) {
-    console.log(JSON.stringify({ plan: planPath, ...verdict }, null, 2));
+    console.log(JSON.stringify({ plan: planPath, weekly, ...verdict }, null, 2));
     return verdict.problems.length ? 1 : 0;
   }
+  // Printed on every run, green or red. The two per-machine inputs above - the weekly file and the
+  // rulings it holds - live outside this checkout, so the directory they were read from is part of
+  // the verdict rather than a detail: a check that reports nothing owed after reading an empty
+  // folder is the failure this rule was added to end.
+  console.error(`  ${summaryLine(weekly)}`);
   for (const note of verdict.notes) console.error(`  economy: ${note}`);
   if (verdict.problems.length) {
     console.error(`\nWave plan NOT ready - ${path.basename(planPath)} (${verdict.problems.length} problem(s)):\n`);
@@ -450,7 +478,7 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     console.error('');
     return 1;
   }
-  console.log(`Wave plan OK: ${path.basename(planPath)} - ${verdict.rows} row(s), pools ${verdict.pools.join(', ') || 'none'}; every handoff classified, every standing owner ask and alignment answer mentioned.`);
+  console.log(`Wave plan OK: ${path.basename(planPath)} - ${verdict.rows} row(s), pools ${verdict.pools.join(', ') || 'none'}; every handoff classified, every standing owner ask, alignment answer and weekly candidate row (${weekly.owed.length}) accounted for.`);
   return 0;
 }
 

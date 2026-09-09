@@ -76,6 +76,26 @@ routine that acts rather than reports**, which is exactly why it is not folded i
 brief: an alert-only brief that quietly installs things is a brief nobody can trust. It speaks only
 when something changed or a rollback happened.
 
+**Since 2026-09-09 it also names what its own upgrade invalidated.** `scripts/harness-capabilities.json`
+pins every capability observation to the version it was measured on, so upgrading a CLI silently
+turns those observations into claims about a build that is no longer installed - and the routing
+step reads them as fact. This routine is the only thing that knows the moment a version moves, so
+after an upgrade it runs `node scripts/harness-usage.mjs --landed` and reports the count if any are
+now unverified. It never re-probes and never edits that file: the freshness rule here is that a
+check REPORTS and nothing auto-upgrades.
+
+The cadence argument is the measurement. **The CLIs update daily and the observations were
+re-probed never** - the first full re-probe, on 2026-09-09, found five of eleven false. The weekly
+owner session already asks "which capability observation lapsed?", but weekly is up to seven
+upgrades behind, so the report belongs where the invalidation happens.
+
+**`--landed` is not optional there.** Without it the report describes whatever commit the checkout
+sits on: measured the same day, this repo's orchestrator worktree was eight commits behind and
+reported eleven unverified observations that had just been measured, off the same installed builds.
+If that flag is ever rejected as an unknown argument, the checkout predates it and the routine says
+so rather than reporting a number
+(`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`).
+
 ## Weekly - the owner session
 
 `weekly-owner-session`, Tuesdays 09:15. It runs `.agent-workflows/orchestrator-week.md`, which is
@@ -132,8 +152,17 @@ auto-upgrades.
 
 **It writes one gitignored file**, `docs/handoffs/<date>-orchestrator-week.local.md` in the main
 checkout, and prints only the owner-facing sections in chat. The next `/orchestrator` invocation
-reads the file with the rest of the handoff folder and turns its candidate rows into a wave, or says
-why not.
+turns its candidate rows into a wave, or says why not.
+
+**That last sentence is now counted rather than trusted.** It was prose here and in
+`orchestrator/grounding.md` and nothing measured it: the 2026-09-08 review emitted three well-formed
+candidate rows, both of that day's wave plans were written afterwards without lifting one or naming
+the file, and nothing recorded the miss. `npm run weekly:candidates` lists the rows with a
+`WEEK-<date>-<n>` id each - reading the main checkout from whatever checkout it runs in, and naming
+the folder it read either way - and for a week after the review `scripts/wave-plan-check.mjs`
+refuses a plan that leaves one unmentioned. Planning it, deferring it and rejecting it all pass;
+only silence fails. Nothing is forced into a wave, by the same ruling that keeps the owner queue
+from expiring - the ask is that a skipped row is skipped on purpose and says so.
 
 Tuesday and not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday, and
 he reads the weekly percentage off his account page himself, so the routine never computes or asks

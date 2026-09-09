@@ -38,9 +38,12 @@ Preferring the answered occurrence is the safer tie-break.
 
 ## Evidence
 
-- `scripts/alignment-answers.mjs:52` (`FIELD`), `:73` (the parse loop), `:109` (the dedupe), `:117`
-  (the substring test); `scripts/wave-plan-check.mjs:359`.
+- `scripts/alignment-answers.mjs:70` (`FIELD`), `:80` (the parse loop), `:135` (the dedupe), `:140`
+  (the substring test); `scripts/wave-plan-check.mjs:375`. The line numbers moved on 2026-09-09,
+  when the fourth defect below was fixed in the same file; the code they name is unchanged.
 - Landed as PR #157, merge `b119dbdd`.
 - The mechanism's purpose is stated in `.agent-workflows/orchestrator-week.md` and
-  `docs/ROUTINES.md`; a fourth defect in the same shipment - `alignmentState` reading the wrong
-  checkout - is in `docs/backlog/the-weekly-recap-reaches-no-wave-and-nothing-notices.md`.
+  `docs/ROUTINES.md`. The fourth defect in the same shipment - `alignmentState` reading the
+  checkout it runs in rather than the primary one, so it found no weekly file anywhere but the main
+  tree - was fixed on 2026-09-09 by `scripts/primary-checkout.mjs` and `weeklyDir()`; its backlog
+  item is gone with it, and the argument is in `docs/handoffs/2026-09-09-f-weekly-candidates.md`.

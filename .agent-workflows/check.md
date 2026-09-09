@@ -16,8 +16,10 @@ scope is the whole branch diff.
 another session and so must not spawn background subagents of its own. The line that matters is
 not "does this delegate" but **where the result comes back**: a BLOCKING delegation that hands
 its result straight back in the tool result is fine everywhere, because nothing has to be waited
-on; a BACKGROUND fan-out is not, because in a launched session the completion notification goes
-to the launcher and never arrives. So no phase here requires a fan-out - every one has a path
+on; a BACKGROUND fan-out is not, because its completion notification goes to whoever is inside a turn
+when it fires - and a session that has fanned out has nothing left to do but end its turn, so the
+report lands in that session's LAUNCHER instead (re-measured 2026-09-09 on 2.1.263 - see phase 2).
+So no phase here requires a fan-out - every one has a path
 that completes in one context, and phase 5 says out loud which path each leg took. A gate that
 cannot run where the work happens is not a gate.
 
@@ -65,9 +67,26 @@ Goal: find and fix real defects in the changed code before polishing it.
   - **Instructions telling you to fan out into background agents and wait for them.** You are
     the one who would do the work; the angles they name are the angles to cover inline.
   - **An agent name, a job id, or a promise of a later completion notification.** Waiting will
-    not make it run - **never wait on a completion notification here.** In a session that was
-    itself launched by another session, those notifications route to the LAUNCHER and never
-    arrive (`.agent-workflows/orchestrator/launch.md`, paid for twice).
+    not make it run - **never wait on a completion notification here.** The routing was re-measured
+    on 2.1.263 (2026-09-09) and it is not a simple yes or no:
+
+    > **A subagent's completion notification goes to whoever is inside a turn when it fires.** If
+    > the launched session is still in a turn, it arrives there, carrying the subagent's result
+    > text verbatim (two probes). **If that session has ENDED its turn to wait, the notification
+    > goes to its LAUNCHER instead** - measured by a controlled probe that spawned one background
+    > subagent and ended its turn immediately: the notification arrived in the launcher, and the
+    > marker file proved the subagent had run.
+
+    **A fan-out is always the second case**, because a session that has spawned agents and has
+    nothing else to do ends its turn - which is why waiting never works. It is not that the
+    notification is lost; it is delivered to somebody else. Sixteen such reports have been seen
+    straying to a launcher: seven from one row on 2026-09-08, eight from another on 2026-09-09,
+    plus the deliberate probe.
+
+    So the rule stands, and so does the older reason, for fan-outs specifically. What was wrong
+    was stating it as a property of launched sessions in general. **Keep collecting results from
+    files** - and if you are the launcher and a stray report arrives, it belongs to the row that
+    spawned it: relay it with `scripts/relay.mjs`, do not act on it here.
   - **No such capability, or it errors out.** Review the diff directly for correctness, edge
     cases, race conditions, and violations of the binding contracts in the relevant `AGENTS.md`
     and docs. There is always an inline path; `not run` is for a leg genuinely blocked, never

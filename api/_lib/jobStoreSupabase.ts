@@ -5,7 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RenderFormatId } from '../../src/render/manifest.js';
-import type { RenderTier } from '../../src/render/limits.js';
+import { storedRenderTier } from '../../src/render/limits.js';
 import type { JobError, JobOutput, JobState } from '../../src/render/types.js';
 import { TERMINAL_STATES } from '../../src/render/types.js';
 import { supabaseSecretKey, type JobProgressSnapshot, type JobRecord, type JobStore } from './jobStore.js';
@@ -16,7 +16,9 @@ interface JobRow {
   id: string;
   user_id: string | null;
   ip_hash: string;
-  tier: RenderTier;
+  // The column is `text` (0007), so this is whatever is stored - not necessarily a tier this
+  // build still has. fromRow() is what turns it back into a RenderTier.
+  tier: string;
   project_name: string;
   job_token_hash: string;
   worker_secret_hash: string;
@@ -73,7 +75,12 @@ function fromRow(row: JobRow): JobRecord {
     principal,
     userId: row.user_id,
     ipHash: row.ip_hash,
-    tier: row.tier,
+    // A row written before migration 0055 still says 'paid'; storedRenderTier reads that as the
+    // 'granted' caps it always meant. Anything else this build cannot name falls back to 'free',
+    // which is the narrower of the two tiers a signed-in job can be on and never mislabels the
+    // job as anonymous. The tier is read back to size the output TTL (api/_lib/reconcile.ts,
+    // renderRoutes/complete.ts), so leaving it unrecognised would produce a NaN expiry.
+    tier: storedRenderTier(row.tier) ?? 'free',
     projectName: row.project_name,
     jobTokenHash: row.job_token_hash,
     workerSecretHash: row.worker_secret_hash,

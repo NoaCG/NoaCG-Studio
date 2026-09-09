@@ -67,7 +67,22 @@ export function parseHandoffSection(planText) {
   return classified;
 }
 
-/** The tracked handoff files: every `.md` that is not a gitignored `.local.md`. */
+/**
+ * The tracked handoff files: every `.md` that is not a gitignored `.local.md`.
+ *
+ * THE FILTER STAYS, and the weekly recap is covered somewhere else instead (decided 2026-09-09,
+ * against the backlog item that proposed dropping it). The four classes here are a question about
+ * DELETING a file - consumed, spent and owner files are deleted by one wave row - and the two
+ * `.local.md` files on this machine are the only ones nothing may delete: the weekly recap is
+ * overwritten weekly by a routine and is the record the review reads back, and a wave plan is the
+ * only copy of a wave's routing. Listing them here would ask a planner to answer a deletion
+ * question about files that are not his to delete, and a plausible "spent" would destroy the
+ * routine's own record.
+ *
+ * The obligation the weekly recap really carries is a different one - whether its candidate rows
+ * reached a wave - and it is enforced by `scripts/weekly-candidates.mjs` under its own heading, so
+ * one file is not answering two questions on one line.
+ */
 export function handoffFiles(root = REPO_ROOT) {
   const dir = path.join(root, ...HANDOFF_DIR.split('/'));
   if (!existsSync(dir)) return [];

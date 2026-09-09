@@ -339,10 +339,38 @@ export default function BrowseStep({
 
   const [sort, sortSet] = useState<SortMode>('relevance');
 
-  // HOW FAR DOWN THE RESULT THE READER HAS ASKED TO GO — reset by any change to what the
-  // result IS. Derived during render off a signature rather than reset in an effect: an
-  // effect would paint one frame of the previous page's cards against the new filter, which
-  // on a step made of live MiniPreview iframes is a visible flash of the wrong designs.
+  // HOW FAR DOWN THE RESULT THE READER HAS ASKED TO GO. `shownLimit` is a DEPTH, never a page
+  // index: the grid below is always `slice(0, shownLimit)` of the CURRENT outcome, so a result
+  // that changes under the reader re-flows into the same depth and no stale card can survive it.
+  // Derived during render off a signature rather than reset in an effect: an effect would paint
+  // one frame of the previous page's cards against the new filter, which on a step made of live
+  // MiniPreview iframes is a visible flash of the wrong designs.
+  //
+  // THE SIGNATURE IS `filters` AND `sort`, AND THE TWO OMISSIONS ARE DELIBERATE - `outcome` above
+  // reads a third and a fourth input, and this list is shorter on purpose:
+  //
+  //   · `brandFamily` is out under rule `wizard/feed-footer-brand-chooser-browse-context`,
+  //     ratified 2026-09-07: it RE-RANKS and never filters, so every design the reader had is
+  //     still in the result and merely in a new order, and collapsing them back to twelve would
+  //     take away results they pressed for, under a chooser sitting in the footer where they
+  //     pressed it.
+  //   · `hiddenIds` is out because it has exactly one transition per mount - `[]` until the
+  //     entitlement fetch lands, then the real list, and never again
+  //     (components/useMyEntitlement.ts; offline it never changes at all). Keying on it would
+  //     turn a slow connection into a depth reset.
+  //
+  // DO NOT READ THAT FIRST BULLET AS A GENERAL RULE ABOUT RE-RANKS, because the file does not keep
+  // one. `sort` is in the signature by name, and `filters.family` / `filters.format` ride in
+  // through the JSON - and all three are pure re-ranks too (`passesStrictFilters` ignores family
+  // and format; `formatBoost` scores a non-match at zero and keeps it). So switching the sort or
+  // picking a programme DOES collapse the depth today, and only the brand chooser does not. That
+  // inconsistency is real and unresolved - it is written up in
+  // docs/backlog/browse-rerank-controls-disagree-about-paging.md rather than settled here, since
+  // the 2026-09-07 ruling covers the brand chooser alone and the rest is the owner's call.
+  //
+  // This comment used to read "reset by any change to what the result IS", which is the wording
+  // that ruling withdrew as too strong. It outlived the ruling by a month and was then read back
+  // as a defect report against code it no longer described, so it states the mechanism now.
   const resultKey = `${JSON.stringify(filters)}|${sort}`;
   const [paging, setPaging] = useState({ key: resultKey, shown: PAGE_SIZE });
   const shownLimit = paging.key === resultKey ? paging.shown : PAGE_SIZE;

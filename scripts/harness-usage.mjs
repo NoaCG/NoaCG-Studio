@@ -93,6 +93,8 @@ import { fileURLToPath } from 'node:url';
 // which reads as "Antigravity cost nothing".
 import { LEDGER_VERSION, ledgerPath } from './agy-run.mjs';
 import { wavePlansDir } from './wave-plan-store.mjs';
+// The one answer to "which ref has landed?" - never the local `main`, which nothing moves any more.
+import { mainRef } from './main-ref.mjs';
 // Same guarantee for the delegation-outcome ledger: its writer owns the path and the version.
 import {
   ACCEPTED_OUTCOMES, OUTCOMES_VERSION, legacyVerdict, outcomesLedgerPath, poolFor,
@@ -116,11 +118,12 @@ const HOUR_MS = 3_600_000;
 
 /** Argument parsing, separated from the filesystem so the window logic is testable on its own. */
 export function parseArgs(argv) {
-  const args = { json: false, wave: false, since: null, until: null, hours: null, top: 12 };
+  const args = { json: false, wave: false, since: null, until: null, hours: null, top: 12, landed: false };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     const next = () => argv[index += 1];
     if (token === '--json') args.json = true;
+    else if (token === '--landed') args.landed = true;
     else if (token === '--wave') args.wave = true;
     else if (token === '--since') args.since = next();
     else if (token === '--until') args.until = next();
@@ -1131,7 +1134,7 @@ function outcomesReport(collected, window, top) {
   return report;
 }
 
-const USAGE = `Usage: node scripts/harness-usage.mjs [--since <iso> | --hours <n> | --wave] [--until <iso>] [--top <n>] [--json]
+const USAGE = `Usage: node scripts/harness-usage.mjs [--since <iso> | --hours <n> | --wave] [--until <iso>] [--top <n>] [--landed] [--json]
 
 Prints what each AI harness cost over a window: Claude Code and Codex from their own local
 transcripts, Antigravity from the ledger \`npm run agy\` keeps (it writes none of its own). With no
@@ -1220,6 +1223,34 @@ export function readCapabilities(text) {
   }
 }
 
+/**
+ * The observation file as the LANDED commit holds it, for a caller asking about the repository
+ * rather than about this checkout.
+ *
+ * The working-tree copy answers "what does the branch I am on record?", which is right for a
+ * session working on that file and wrong for anything else. Measured on 2026-09-09: run from this
+ * worktree the report said 0 unverified, and run from the orchestrator worktree - eight commits
+ * behind, holding the pre-re-probe file - it said ELEVEN. A daily routine pointed at the second
+ * would have raised the same false alarm every morning until somebody checked out that worktree.
+ *
+ * This is the third shape of one defect this repo keeps meeting: a script answering a question
+ * about the repository from whatever checkout it happens to run in. `scripts/main-ref.mjs` fixed
+ * the ref half and `check-landed-ref.mjs` gates it, but that gate looks for `main` passed as a
+ * REVISION, so a tracked data FILE read through the filesystem walks straight past it
+ * (`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`).
+ *
+ * Falls back to the working tree, and says nothing about it, when there is no landed ref to read -
+ * a fresh clone, a checkout with no remote. An answer from the tree beats no answer.
+ */
+export function landedCapabilitiesText(runGit, file = 'scripts/harness-capabilities.json') {
+  const ref = mainRef((args) => {
+    const result = runGit(args);
+    return { ok: result.status === 0 };
+  });
+  const shown = runGit(['show', `${ref}:${file}`]);
+  return shown.status === 0 ? shown.stdout : null;
+}
+
 /** Each observation with its standing against the installed versions: holds, unverified, or constraint. */
 export function capabilityStandings(observations, installed) {
   const versionOf = new Map(installed.map((row) => [row.pool, row.version ?? null]));
@@ -1279,10 +1310,14 @@ export function main(argv = process.argv.slice(2), { home = homedir(), now = Dat
   const agyOut = agyReport(agy, window);
   const outcomesOut = outcomesReport(outcomes, window, args.top);
   const installed = harnessVersions();
-  const capabilities = capabilityStandings(
-    readCapabilities(readTextOrNull(path.join(REPO_ROOT, 'scripts', 'harness-capabilities.json'))),
-    installed,
-  );
+  // `--landed` asks about the REPOSITORY; without it the question is about this checkout. A daily
+  // routine and the weekly review both want the first, and a worktree eight commits behind answers
+  // the second with an eleven-observation false alarm - see landedCapabilitiesText.
+  const capabilityText = (args.landed
+    ? landedCapabilitiesText((gitArgs) => spawnSync('git', gitArgs, { cwd: REPO_ROOT, encoding: 'utf8', windowsHide: true }))
+    : null)
+    ?? readTextOrNull(path.join(REPO_ROOT, 'scripts', 'harness-capabilities.json'));
+  const capabilities = capabilityStandings(readCapabilities(capabilityText), installed);
 
   if (args.json) {
     process.stdout.write(`${JSON.stringify({

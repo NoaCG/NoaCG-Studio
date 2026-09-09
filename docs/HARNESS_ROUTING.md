@@ -549,17 +549,31 @@ slower, which is not the same thing as Flash being better everywhere. This is a 
 evidence attached, not a proven ranking. A later round that finds a class of work Pro wins should
 append that finding rather than argue with this one.
 
-### Codex: there is no model choice, only effort
+### Codex: the model choice was closed, and it has REOPENED
 
-Ten model names were probed against the CLI on this machine - `gpt-5.6`, `gpt-5.6-codex`,
-`gpt-5.6-pro`, `gpt-5.6-mini`, `gpt-5.6-sol-max`, `gpt-5.6-sol-mini`, `gpt-5.6-sol-thinking`,
-`gpt-5.5-sol`, `gpt-5-codex` and `o3`. **Every one came back
-`not supported when using Codex with a ChatGPT account`.**
+**Re-measured 2026-09-09 on Codex 0.154.0-alpha.6, and the rule below is no longer true.** `codex exec`
+with no `--model` defaults to `gpt-6-astra` and succeeds; `gpt-5.6-sol` also still succeeds. Two ids
+work, not one. The configured model in `~/.codex/config.toml` is now `gpt-6-astra`, not `gpt-5.6-sol`.
+So `--model` on `/rescue` points at something real again, and a row that wants a specific Codex model
+must name it rather than assume the harness has only one.
 
-`gpt-5.6-sol` is the one that works, and it is the configured model. Ten rejections do not PROVE an
-eleventh is unique - but they are ten of the ten plausible alternatives, so **treat the model as
-fixed and reasoning effort as the single knob on this harness.** `--model` survives on `/rescue` as a
-flag with nothing useful to point at.
+What follows is kept because it was true when it was measured, and because it says how much a
+rejection sweep is worth: not much, for long.
+
+> Ten model names were probed against the CLI on this machine - `gpt-5.6`, `gpt-5.6-codex`,
+> `gpt-5.6-pro`, `gpt-5.6-mini`, `gpt-5.6-sol-max`, `gpt-5.6-sol-mini`, `gpt-5.6-sol-thinking`,
+> `gpt-5.5-sol`, `gpt-5-codex` and `o3`. **Every one came back
+> `not supported when using Codex with a ChatGPT account`.**
+>
+> `gpt-5.6-sol` is the one that works, and it is the configured model. Ten rejections do not PROVE an
+> eleventh is unique - but they are ten of the ten plausible alternatives, so **treat the model as
+> fixed and reasoning effort as the single knob on this harness.**
+
+**The lesson is about the shape of the claim, not the model.** "Every plausible alternative was
+rejected" was ten measurements deep and still expired in nine days, because what it really measured
+was a subscription's entitlements on one afternoon. A claim about what a VENDOR currently allows has
+a shelf life; a claim about what the CLI's own code does does not. Weight them differently when you
+cite one.
 
 **Owner ruling, 2026-08-30 - the effort ladder is the inverse of a cost-saving default:**
 
@@ -577,6 +591,27 @@ changed it to `medium`**, on his own ruling that medium is the minimum; a sessio
 machine-global config and did not. Recorded here so nobody reads the old value out of an earlier
 handoff and believes it.
 
+**It has drifted back. Read on 2026-09-09: `model_reasoning_effort = "low"`.** What was measured is
+that value and the file's modification time, which was that same morning; `model` also reads
+`gpt-6-astra` rather than the `gpt-5.6-sol` recorded above. **Who or what rewrote it was NOT
+measured** - the CLI updating its own config is the likeliest explanation and it is a guess, and the
+owner setting it back deliberately would look identical from here. Ask him before repeating the guess
+as a cause.
+
+Either way the value is not what the ruling above says it is, which is the point: **a setting in a
+file this repo does not own drifts, and nothing here notices.**
+
+**It does not reach repo delegations, and that is not luck.** `scripts/codex-rescue.mjs` injects
+`--effort high` when a launch names none, exactly so the machine config cannot govern what this repo
+sends - the mechanism added 2026-09-01 after the first time this bit. So a `/rescue` runs at high
+whatever the file says. **What the file still governs is the owner's OWN interactive Codex sessions**,
+which run at `low` until he changes it back, and a session must not change it for him.
+
+The general point is worth more than the value: **a ruling that lives only in a file a vendor's tool
+rewrites is not enforced, it is merely written down.** The effort floor survived because it was also
+built into a script this repo owns. Anything else recorded in `~/.codex/config.toml` has no such
+guard, so check it rather than cite it.
+
 **The same goes for the Antigravity write grant below: the owner installed it, not a session.**
 Both files are machine-global, both were filed for him, and both were changed by him the same day.
 
@@ -584,6 +619,67 @@ Both files are machine-global, both were filed for him, and both were changed by
 the floor for anything unpinned, and it governs the owner's own interactive sessions too; a repo
 delegation names its effort in the command so the intent is visible there rather than inherited
 invisibly from a file nobody is looking at.
+
+### A Codex delegation can only WRITE inside the session that launched it
+
+**Measured 2026-09-09 on 0.154.0-alpha.6.** Handed an ordinary row prompt - one that opens, as every
+row prompt here does, with "make a feature branch in its own worktree before the work starts" - the
+delegate got as far as `git branch` and stopped. Git was denied writing
+`C:/claude/NoaCG-Studio/.git/refs/heads/<branch>`. It changed no file, ran no test, and reported the
+prerequisite as the reason.
+
+**The cause is narrower and worse than "git is blocked".** Handed a worktree created for it in
+advance, and told to run no git at all, it refused again and named the reason exactly: the target
+directory *"is outside that writable root, and approval is disabled"*, and the only writable path it
+reported was **the launching session's own worktree**.
+
+> **A delegation's writable root is the LAUNCHING SESSION'S WORKING DIRECTORY.** Not the path in the
+> prompt, not a worktree prepared for it, not the repository. Reads are unrestricted - it read both
+> target files and analysed them correctly. Only writes are pinned, and they are pinned to wherever
+> the caller happens to be sitting.
+
+So a linked worktree fails twice over - its git metadata lives in the main checkout's shared `.git`,
+and the worktree itself is outside the root. **Pre-creating the worktree does not help**, which is
+worth saying because it is the first workaround anyone reaches for and it costs a round trip to learn.
+
+**This is the mechanical half of "Codex sat idle all night".** A row routed here under the standard
+recipe would have failed at its first command, so fixing the routing step alone would have turned
+missing delegations into failed ones.
+
+**The shape that works** follows from where the root is. Two options, differing only in who is
+sitting in the right directory:
+
+1. **Delegate from the row that owns the work** - the launching session is already sitting in the
+   feature worktree, so that worktree IS the writable root. **Measured working on 2026-09-09**, third
+   attempt of the same task: launched from a session whose own directory was the target, the delegate
+   created a new module and edited three existing files there. It needs no preparation at all. What it
+   needs is that the row delegating is the row whose branch the work belongs on, rather than an
+   orchestrator delegating from somewhere else - which is what the first two attempts got wrong.
+2. **Or let it edit the launcher's own checkout** and move the result onto the right branch afterwards.
+   Uglier, and only worth it when the launcher cannot be where the work goes.
+
+In both cases the prompt says, in as many words, **run no git at all** - a denied git command is
+expected and is not the delegate's problem to route around - and the launching row reads the diff and
+commits it. That is not a concession; it is the routing rule this repo already has - **whoever
+delegates verifies by re-deriving the result, never by checking the worker did as told** - and reading
+the diff before committing IS that verification.
+
+**So do not also ask it for `npm run build`. Split the verification.** The delegate honours "run no
+git" by blocking git subprocesses outright, and **twelve of this repo's gates shell out to git**
+(`check:shared-instructions`, `check:tree-shape`, `check:contract-freshness`,
+`check:contract-citations`, `check:docs-index`, `check:gate-coverage`, `check:client-neutral`,
+`check:copy`, `check:contracts`, `check:contract-evidence`, `check:retired-names`,
+`check:landed-ref`). All twelve failed with `Git subprocess blocked: the caller prohibited all git
+operations`, the build exited 1, and the build-tier tests never ran. **The exit code was real and
+meant nothing about the code** - which is worse than no signal, because it looks like one.
+
+Ask the delegate for the **focused tests** covering what it touched; those need no git and are the
+ones that can actually fail on its work. **The launching row runs the build**, after taking the
+changes onto the branch.
+
+**One contamination to plan for** with shape 2: the delegate builds the launcher's whole working
+tree, so the launcher's own uncommitted work sits inside everything it measures. Commit before
+delegating, or read every failure twice to work out whose it is.
 
 ### Compose every `agy` prompt out of ABSOLUTE paths
 
@@ -1032,9 +1128,17 @@ reason is the same for both: no machine-readable output.**
 - **`codex agents`** browses agent sessions on the shared local app-server daemon. It is a TUI,
   and `--help` offers no `--json` and no list-and-exit mode. **So it does not extend the third
   liveness signal to Codex.** `scripts/claude-agents.mjs` works because `claude agents --json`
-  answers in under a second with `pid`, `cwd` and `status`; there is no equivalent here, and a TUI
-  cannot be read by `blocked-sessions.mjs`. A human can browse Codex sessions with it, which is
-  worth knowing and is not a mechanism.
+  answers in under a second with `pid` and `cwd`; there is no equivalent here, and a TUI cannot be
+  read by `blocked-sessions.mjs`. A human can browse Codex sessions with it, which is worth knowing
+  and is not a mechanism.
+
+  **Correction, re-measured 2026-09-09 on Claude Code 2.1.263: that JSON carries NO `status` field.**
+  The fields are `pid`, `cwd`, `kind`, `startedAt`, `sessionId` and `name`. Earlier text here said
+  `status`, and the liveness story was described as if a session's state could be read off it. It
+  cannot: what `claude agents --json` gives is a live PROCESS LIST, and liveness is inferred from a
+  pid being present, never read from a field. `scripts/claude-agents.mjs` was already right - its own
+  degrade-to-"no status" path is what caught the error in the prose - so nothing downstream was
+  wrong, only this description of it.
 - **`codex queue --thread <uuid> --message <text>`** queues a message into an existing session. It
   is scriptable, unlike the above, but it needs a thread UUID you must already hold and it returns
   nothing about the result - fire-and-forget into a session, not a request/response channel. **It
@@ -1156,6 +1260,38 @@ asked to stop: a memory disabling a capability the harness may no longer lack. T
 refusal reads the same version: on 1.1.25 it refuses, on any other build it warns and lets the
 free rejection be the probe. **Appending a version-free "this harness cannot X" to this file is
 now the wrong move**; add the observation to the JSON with its version and cite it from here.
+
+**The first full re-probe ran 2026-09-09** against Claude Code 2.1.263, Codex 0.154.0-alpha.6 and
+Antigravity 1.1.27, and took the unverified count from eleven to zero. **Five of the eleven were
+refuted.** That is the number to remember when deciding how much a capability observation is worth:
+**a little under half of what this file asserted about its own tools was false within days.** The
+entries were kept and their `claim` rewritten to open with what the newest probe found, per the JSON's
+own "append, never delete" rule, so the history of what was true on which build survives.
+
+Two of the five bear directly on how a row is written here, and both are corrected in place above:
+Codex has more than one usable model again, and `claude agents --json` has no `status` field.
+`--permission-prompts` is now a listed flag on 2.1.263 - verify what it does before routing on it;
+its existence is measured, its behaviour is not.
+
+**And one of the five refutations was itself wrong, within the same day.** The subagent-notification
+entry was re-probed, found to deliver into the launched session, and recorded as REFUTED. Hours later
+sixteen fan-out reports from two different rows arrived in their LAUNCHER, which is what the refuted
+claim predicted. A third, controlled probe settled it: **the notification goes to whoever is inside a
+turn when it fires.** A session that stays in a turn gets its own; a session that has ended its turn
+to wait - which is exactly what a session does after it fans out - has the report delivered to its
+launcher instead.
+
+So the original observation was right about the case that matters and wrong about the reason, the
+refutation was right about the mechanism and wrong to generalise from one shape of probe, and only
+running BOTH shapes gives the real rule. **The lesson is about probe design rather than this
+harness**: a capability probe that exercises one path measures that path, and writing the verdict as
+though it covered the whole behaviour is how a correction becomes the next error. Where a claim has
+two sides, the re-probe field must name both, and this one now does.
+
+**This is why the re-probe needs a cadence rather than a volunteer.** It has been hand-run exactly
+once. Nothing schedules it, so the next reader of this file has no way to know how stale it is beyond
+comparing `measuredOn` against the build in front of them - which is what `npm run harness:usage`
+prints, and the only thing standing between this document and confident fiction.
 
 **Codex is available by default** (owner, 2026-09-03, `docs/OWNER_RULINGS.md`), superseding the
 2026-09-01 evening ordering "Antigravity first, Codex last". The evidence that made it urgent:

@@ -446,39 +446,114 @@ test('a card\'s ⓘ opens its full detail without picking the template', async (
   await expect(page.locator('.wz-variant-detail')).toHaveCount(1);
 });
 
-test('the chosen brand ranks its family first without filtering anything out', async ({ page }) => {
-  // Make a glass graphic, save it as a BRAND, then reopen the wizard and choose that brand in the
-  // footer (proposal §13.3; docs/BRAND_PLAN.md §5). The create rides the Advanced editor door
-  // (the footer shortcut is Skip to finish since step 6).
+const GLASS_BRAND = 'Glass house';
+
+/**
+ * Make a glass graphic, save its look as a BRAND, and come back to a fresh Browse step with that
+ * brand offered in the footer chooser (proposal §13.3; docs/BRAND_PLAN.md §5). The create rides
+ * the Advanced editor door - the footer shortcut is Skip to finish since step 6. Leaves the step
+ * open with no type chosen, so each caller narrows it however its own subject needs.
+ */
+async function seedGlassBrandAndReturnToBrowse(page: Page) {
   await enableAdvancedMode(page);
   await toBrowseStep(page);
   await pickDesign(page, 'Frosted Card');
   await finishIntoEditor(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
 
-  await page.evaluate(async () => {
+  await page.evaluate(async (name) => {
     const { createLook, captureLookFromTemplate } = await import('/src/model/packets.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     // The STYLE FAMILY is stated, not captured. Nothing in a template's own code records which
     // catalog family it came from, so `captureLookFromTemplate` borrows it from whatever brand
-    // the app already considers current - and here there is none. The family is exactly what this
-    // test is about, so it is set rather than left to that fallback.
+    // the app already considers current - and here there is none. The family is exactly what
+    // these tests are about, so it is set rather than left to that fallback.
     const captured = captureLookFromTemplate(useTemplateStore.getState().template);
-    createLook('Glass house', { ...captured, styleTag: 'glass' });
-  });
+    createLook(name, { ...captured, styleTag: 'glass' });
+  }, GLASS_BRAND);
   await settleDurableWrites(page);
 
   await startNewProject(page);
   await page.locator('[data-entry="template"]').click();
+}
+
+/** The style family of the card at the head of the grid - what a re-rank moves. */
+const firstStyle = (page: Page) => page.locator('.wz-variant .wz-style-tag').first().textContent();
+
+test('the chosen brand ranks its family first without filtering anything out', async ({ page }) => {
+  await seedGlassBrandAndReturnToBrowse(page);
   await chooseType(page, 'Lower thirds');
   const n = await catalogCounts(page);
-  const firstStyle = () => page.locator('.wz-variant .wz-style-tag').first().textContent();
-  expect(await firstStyle()).not.toBe('Glass');
+  expect(await firstStyle(page)).not.toBe('Glass');
 
-  await page.getByTestId('wz-brand').selectOption({ label: 'Glass house' });
-  expect(await firstStyle()).toBe('Glass');
+  await page.getByTestId('wz-brand').selectOption({ label: GLASS_BRAND });
+  expect(await firstStyle(page)).toBe('Glass');
   // Ranking, never filtering: the result total is untouched.
   expect(await resultTotal(page)).toBe(n.lowerThirds);
+});
+
+test('a brand chosen after paging re-ranks in place and keeps the depth the reader pressed for', async ({ page }) => {
+  // THE RULE THIS PINS: `wizard/feed-footer-brand-chooser-browse-context` - the brand chooser
+  // re-ranks Browse without resetting the page, "because the reader asked for those extra results
+  // and a re-rank should not take them away". The paging signature in BrowseStep.tsx is therefore
+  // `filters` + `sort` and deliberately omits `brandFamily`, even though the result reads it.
+  //
+  // It is pinned here because the omission looks like a bug to anyone reading the signature beside
+  // the result's longer dependency list, and on 2026-09-09 it was filed as one. Nothing in the
+  // suite contradicted that reading, so the "fix" - collapsing the reader back to twelve under a
+  // chooser that sits in the footer - would have landed green. This test is what says no.
+  await seedGlassBrandAndReturnToBrowse(page);
+  await chooseType(page, 'Lower thirds');
+
+  const total = await resultTotal(page);
+  const page1 = await shownCount(page);
+  const cards = page.locator('.wz-variant');
+
+  // Page once, so the reader is standing somewhere a reset would be visible.
+  await page.getByTestId('wz-browse-more').click();
+  await expect(cards).toHaveCount(page1 * 2);
+  expect(await firstStyle(page)).not.toBe('Glass');
+
+  await page.getByTestId('wz-brand').selectOption({ label: GLASS_BRAND });
+
+  // THE DEPTH SURVIVES. Not twelve - the two pages the reader pressed for are still there.
+  await expect(cards).toHaveCount(page1 * 2);
+  // …and it re-ranked while they stood there, so the brand's own family now leads.
+  expect(await firstStyle(page)).toBe('Glass');
+
+  // THE CARDS ARE THE RE-RANKED LIST, not a remembered page of the old one. The expectation is
+  // computed from the search module with the same brand in it, so this asserts the ORDER rather
+  // than merely the count - which is the half that would catch a genuinely stale page.
+  const expected = await page.evaluate(async () => {
+    const { browseTemplates, NO_BROWSE_FILTERS } = await import('/src/templates/search.ts');
+    const { CATEGORY_GROUP_OF } = await import('/src/model/taxonomy.ts');
+    // MIRROR THE CONTROL rather than guessing at it. `chooseType(page, 'Lower thirds')` resolves
+    // to the SHELF, not the category, because that shelf has a single member - so the filter
+    // actually in force is `group`. Naming the category here instead would agree with the UI only
+    // for as long as that stays true, and would fail on a second category joining the shelf: a
+    // catalog addition that broke nothing, in a spec whose header promises to track catalog growth.
+    const out = browseTemplates(
+      { ...NO_BROWSE_FILTERS, group: CATEGORY_GROUP_OF['lower-third'] },
+      { brandFamily: 'glass' },
+    );
+    return [...out.best, ...out.also].map((r) => r.meta.name);
+  });
+  const shown = await page.locator('.wz-variant .wz-variant-cap strong').allTextContents();
+  // Pin the LENGTH before comparing, because `expected.slice(0, shown.length)` takes its bound
+  // from the value under test: were the caption markup renamed, `shown` would come back empty and
+  // the order assertion would pass against an empty expectation while the counts above stayed
+  // green - the one assertion here that a stale page could not survive, quietly dead.
+  expect(shown).toHaveLength(page1 * 2);
+  expect(shown).toEqual(expected.slice(0, shown.length));
+
+  // Ranking, never filtering: the total is untouched and the count line still tells the truth.
+  expect(await resultTotal(page)).toBe(total);
+  expect(await shownCount(page)).toBe(page1 * 2);
+
+  // The hidden-design half of the same signature is NOT driven here, and deliberately: `hiddenIds`
+  // reaches this step from `useMyEntitlement`, which resolves once per mount and never changes
+  // again - offline it never changes at all - so there is no mid-session transition for a spec to
+  // stage. The depth argument above is what covers it if that ever stops being true.
 });
 
 test('facet values without catalog mass render no chip', async ({ page }) => {

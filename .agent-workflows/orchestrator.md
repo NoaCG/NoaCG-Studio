@@ -114,13 +114,13 @@ headings the check reads by name: `## Wave table` (columns L, goal, START, TOUCH
 browser); every prompt verbatim in fenced blocks; the `Pools at plan time:` and `Window ends: <iso>`
 lines (read by `wave-horizon.mjs`), and on a night wave a `## Candidates` list the refill loop draws
 on (`orchestrator/night.md`); `## Handoffs`, one line per file read (`- consumed: <file> -> row B`);
-`## Owner receipts`, the output of `node scripts/owner-receipts.mjs` with each standing ask marked
-planned, held or deferred; then the tick's heartbeat lines and whatever the morning report needs
+`## Weekly review` and `## Owner receipts`, one line per item `weekly-candidates.mjs` and
+`owner-receipts.mjs` list; then the tick's heartbeat lines and whatever the morning report needs
 nowhere else - a ruling taken for the owner, an unplanned launch and its reason. **A plan launches
 when `node scripts/wave-plan-check.mjs` passes** - it refuses a plan outside the store, a row
 without a pool, a slot minted twice, a missing path, a prompt not ending on QUEUE, an unclassified
-handoff, a standing owner ask the plan never mentions, and a night plan with no `Window ends:`
-line. A correction it forces sends the rows back through the collision pass before the plan ships.
+handoff or weekly candidate row, an unmentioned standing owner ask, and a night plan with no
+`Window ends:` line. A correction sends the rows back through the collision pass before it ships.
 
 ## The rules that are never module-deep
 

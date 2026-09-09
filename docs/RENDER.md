@@ -119,7 +119,7 @@ lives in process memory (dev/self-host).
 
 ### Tiers & limits (src/render/limits.ts — every number lives there)
 
-| | anonymous | free (signed in) | paid (the widest cap table; a grant, never a purchase) |
+| | anonymous | free (signed in) | granted (the widest cap table; a grant, never a purchase) |
 |---|---|---|---|
 | formats | mp4, webm, png-still | + png-sequence, prores4444 | all |
 | max output / fps | 1920×1080 / 30 | 1920×1080 / 60 | 4096×2304 / 60 |
@@ -128,7 +128,9 @@ lives in process memory (dev/self-host).
 
 Client checks are UX; the server re-validates everything. A plan row's `render_tier` reaches
 `resolveTier()` through the entitlements resolver; nothing is sold, and no billing is planned
-(owner, 2026-09-07, `docs/OWNER_RULINGS.md`).
+(owner, 2026-09-07, `docs/OWNER_RULINGS.md`). The widest tier was called `paid` until migration
+0055 renamed it; a stored row still saying so is read as `granted` (`storedRenderTier()`), so the
+code and the migration can reach production in either order.
 
 ### Flood protection: three layers, three different jobs
 

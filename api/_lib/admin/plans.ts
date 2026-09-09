@@ -14,7 +14,7 @@
 import { apiError, json, readJson } from '../http.js';
 import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../adminAuth.js';
 import { isFeatureKey, isLimitKey } from '../../../src/entitlements/contract.js';
-import { RENDER_LIMITS } from '../../../src/render/limits.js';
+import { RENDER_LIMITS, storedRenderTier } from '../../../src/render/limits.js';
 import { RENDER_FORMATS } from '../../../src/render/manifest.js';
 import type { AdminPlan, AdminPlanListResponse } from '../../../src/admin/types.js';
 
@@ -59,7 +59,12 @@ function toPlan(row: PlanRow, assignedCount: number): AdminPlan {
     isDefault: row.is_default,
     features,
     limits,
-    renderTier: row.render_tier,
+    // A plan row an admin set before migration 0055 still says 'paid'. Read it as the tier it
+    // meant, so the Plans table and the editor's dropdown agree with what the render path will
+    // actually do - and so the <select> below has an option matching its own value instead of
+    // silently displaying the first one. A name from neither era is shown as stored; the editor
+    // is where an operator would fix it, so hiding it would be the wrong help.
+    renderTier: storedRenderTier(row.render_tier) ?? row.render_tier,
     autoAssignEmailDomains: row.auto_assign_email_domains ?? [],
     renderFormats: row.render_formats,
     billing: {
@@ -191,7 +196,10 @@ export default {
     }
     if (!name) return apiError('invalid', 'The plan needs a name.', 400);
 
-    const renderTier = typeof plan.renderTier === 'string' && TIERS.includes(plan.renderTier) ? plan.renderTier : 'free';
+    // Through storedRenderTier rather than TIERS alone, so saving an untouched plan that still
+    // stores the retired 'paid' keeps the caps it was set up to give instead of silently narrowing
+    // it to free - and writes the current name, which retires that row for good.
+    const renderTier = storedRenderTier(typeof plan.renderTier === 'string' ? plan.renderTier : null) ?? 'free';
     const renderFormats = Array.isArray(plan.renderFormats)
       ? plan.renderFormats.filter((value): value is string => typeof value === 'string' && FORMATS.includes(value))
       : null;

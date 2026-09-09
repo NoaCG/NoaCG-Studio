@@ -335,3 +335,44 @@ test('a candidates-table browser cell must be empty, a dash, or start with yes o
   const browserProblems = problems.filter((p) => /candidate .*browser must/.test(p));
   assert.deepEqual(browserProblems, ['candidate P: browser must start with yes or no, or be empty - got "shared with F"']);
 });
+
+// The weekly review's candidate rows. Both directions, because getting only one of them right is
+// how the 2026-09-08 miss happened: the plans said nothing, and saying nothing read as fine.
+const candidates = [
+  { id: 'WEEK-2026-09-08-1', n: 1, title: 'the wave plan outlives its worktree', goal: 'a plan is written where it survives' },
+  { id: 'WEEK-2026-09-08-2', n: 2, title: 'one walk covers a route', goal: '/walk groups the queue by route' },
+];
+
+test('a weekly candidate row the plan says nothing about is refused', () => {
+  const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], candidates, now: NOW });
+  assert.deepEqual(problems.filter((p) => /weekly candidate/.test(p)).length, 2);
+  assert.ok(problems.some((p) => /WEEK-2026-09-08-1 \("the wave plan outlives its worktree"\) is not classified/.test(p)));
+});
+
+test('a weekly candidate planned into a row, or turned down with a reason, passes', () => {
+  const answered = checkPlan(`${GOOD}
+
+## Weekly review
+
+- planned: WEEK-2026-09-08-1 -> row A
+- rejected: WEEK-2026-09-08-2 - it needs the route grouping first, and that has no slot this wave
+`, { exists, handoffs, receipts: [], candidates, now: NOW });
+  assert.deepEqual(answered.problems.filter((p) => /weekly candidate/.test(p)), []);
+});
+
+test('a weekly candidate turned down with no reason, or planned into a row that is not there, is refused', () => {
+  const { problems } = checkPlan(`${GOOD}
+
+## Weekly review
+
+- planned: WEEK-2026-09-08-1 -> row Z
+- rejected: WEEK-2026-09-08-2
+`, { exists, handoffs, receipts: [], candidates, now: NOW });
+  assert.ok(problems.some((p) => /planned as row Z, and the wave table has no row Z/.test(p)));
+  assert.ok(problems.some((p) => /WEEK-2026-09-08-2 .*rejected with no reason/.test(p)));
+});
+
+test('no weekly candidates in the window means no candidate problem at all', () => {
+  const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], now: NOW });
+  assert.ok(!problems.some((p) => /weekly candidate/.test(p)));
+});
