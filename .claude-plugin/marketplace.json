@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "noacg",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "description": "The plugin entrance to the NoaCG CLI: the noacg-graphic skill (the NoaCG contract, the tools, the loop) and the /noacg:graphic command - make a broadcast graphic and put it in your NoaCG library. Runs nothing until a graphic is being made.",
       "author": {
         "name": "NoaCG Studio",
@@ -21,7 +21,7 @@
     },
     {
       "name": "noacg-mcp",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "description": "Optional: the NoaCG CLI as an always-on MCP server - one tool, noacg, with the CLI's verbs and a browser kept warm between calls. Install beside noacg when you want the tool in every session; it costs a process and some context in each.",
       "author": {
         "name": "NoaCG Studio",
