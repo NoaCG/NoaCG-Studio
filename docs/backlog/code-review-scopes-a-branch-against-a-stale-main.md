@@ -3,11 +3,12 @@ v: 2
 source: derived
 kind: finding
 raised: 2026-09-09
-state: unstarted
+state: advanced
+note: "detection landed on claude/r-review-scope-is-checked, the tool did not. /check phase 2 now makes the row compare the review's scope against the branch's diff, discard the whole pass on a mismatch and report it, and those sentences are pinned as critical contract markers so they cannot be deleted quietly. The built-in still mis-scopes, which is the half that needs the harness"
 found: "the /code-review tooling scopes a branch by diffing against the LOCAL main, which under the merge queue is permanently behind, so it reviews files the branch never touched and can report a real diff as clean"
 serves: NOW
 size: small
-touches: none in this repository
+touches: .agent-workflows/check.md, scripts/check-shared-instructions.mjs
 covered-by: none
 needs-owner: harness
 ---
@@ -31,6 +32,13 @@ It cost that row an entire review pass.
 **Row P**, independently the same night: its delegated review pass read a stale `main` and reviewed
 two landed pull requests' files. P discarded the pass and reviewed inline instead.
 
+**Row J**, 2026-09-09, a day later and still happening: the pass scoped against merge base
+`ae5a32b9` rather than the branch's `761ad8e7`, read 117 files over 26 commits, and returned eight
+findings about another row's landed work, none of them inside J's own diff. J discarded it and
+reviewed by hand, which then found three real defects the delegated pass never looked at - one of
+them a factual overclaim in J's own text. Three rows, three separate discoveries, three review legs
+paid for twice.
+
 ## Why
 
 `git fetch` moves `origin/main`; it does not move the local `main` branch. Every landing used to
@@ -51,8 +59,18 @@ Two things, either of which is enough, and neither of which anyone here can writ
 2. It names the ref and the base sha it scoped against in its output, so a reader can see the
    answer is stale instead of acting on ten findings about somebody else's files.
 
-Until then the workaround is the one both rows arrived at independently: check the base the review
-used before believing its file list, and `git fetch` before running it.
+Until then the workaround is the one all three rows arrived at independently, and since
+`claude/r-review-scope-is-checked` it is no longer a workaround anyone has to reinvent: **the
+in-repository half of this finding is that the row NOTICES.** `/check` phase 2 now makes the row
+write down the branch, base sha and file list the review claims, compare them against
+`git diff --name-only $(git merge-base origin/main HEAD)..HEAD`, discard the whole pass on any
+mismatch, and report `review: discarded+inline` carrying both scopes. Phase 1 fetches first, so
+even `origin/main` is current. Three sentences of that step are pinned as critical contract markers
+in `scripts/check-shared-instructions.mjs`, so deleting the comparison fails the build rather than
+passing quietly.
+
+That does not fix the tool and does not close this finding. A mis-scoped review still costs a whole
+review leg; it just costs one command to detect instead of a wasted pass believed.
 
 ## Needs the owner
 
