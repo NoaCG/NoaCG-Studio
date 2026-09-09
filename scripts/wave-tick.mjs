@@ -44,7 +44,10 @@ import { wavePlansDir } from './wave-plan-store.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
 
-export const STATE_VERSION = 1;
+// v2 added `ahead` to each stored branch - the positive "this branch had a commit of its own"
+// receipt the LANDED event now requires. A v1 file is discarded rather than migrated (`main` warns
+// and starts fresh), which costs one tick of silence and cannot resurrect the phantom below.
+export const STATE_VERSION = 2;
 
 /** No commit for this long, on a clean unqueued branch ahead of main, is worth a delta line. */
 export const QUIET_MINUTES = 30;
@@ -71,11 +74,24 @@ export function parseArgs(argv) {
 }
 
 /**
- * A branch "looks finished and was never queued" - the ended-expecting-a-watcher shape. Modest by
- * design: this cannot know the build was green or the session's intent, only that work stopped
- * arriving and nothing was handed to the queue. `clean` may be null (not measured, or the status
- * command failed) and null never classifies - a claim this check cannot back stays unmade.
+ * Does this branch carry a commit of its own that `origin/main` does not have?
+ *
+ * THE SET AND THE SHA ARE TWO DIFFERENT ANSWERS, AND THE SECOND IS THE ONE THAT COUNTS.
+ * `listedAsMerged` comes from one `git branch --merged` read covering every branch at once, which
+ * is what keeps the tick to a handful of git calls - but that read happens at ONE MOMENT, and a
+ * branch created after it is missing from the set for a reason that has nothing to do with its
+ * commits. So wherever the set says a branch is not contained, ask git about that exact sha
+ * instead. The probe runs only for the few the set already calls ahead (three of 53 branches on
+ * the night this was written), so the batched read still does the work.
+ *
+ * `inMain` erring reads as NOT contained, matching `landingStateFor`: the set already said ahead,
+ * and an unreadable second opinion should not overturn a readable first one.
  */
+export function aheadOfMain({ sha, listedAsMerged }, inMain) {
+  if (listedAsMerged) return false;
+  return !inMain(sha);
+}
+
 /**
  * Is there nothing in the queue for this branch's CURRENT work?
  *
@@ -94,9 +110,21 @@ export function nothingQueuedFor(landingState) {
   return landingState === 'not-queued' || landingState === 'landed';
 }
 
+/**
+ * A branch "looks finished and was never queued" - the ended-expecting-a-watcher shape. Modest by
+ * design: this cannot know the build was green or the session's intent, only that work stopped
+ * arriving and nothing was handed to the queue. `clean` may be null (not measured, or the status
+ * command failed) and null never classifies - a claim this check cannot back stays unmade.
+ */
 export function looksFinishedUnqueued(branch, { now, quietMinutes = QUIET_MINUTES } = {}) {
   return Boolean(
     !branch.landed
+    // A BRANCH WITH NO COMMITS OF ITS OWN HAS NO FINISHED WORK ON IT. A row's worktree branch is
+    // cut at main's tip, so `lastCommitMs` is MAIN's last commit - already hours old the moment the
+    // row starts - and every other leg here (clean tree, nothing queued) is true of an empty branch
+    // too. Without this leg a row that had been running for two minutes could be announced as a
+    // session that ended without queueing. `aheadOfMain` above is how it is measured.
+    && branch.ahead === true
     && branch.worktree
     && branch.worktree.clean === true
     && nothingQueuedFor(branch.landingState)
@@ -124,8 +152,33 @@ export function deltaBetween(previous, current, { quietMinutes = QUIET_MINUTES }
   for (const branch of current.branches) {
     const before = prevBranches[branch.name];
     if (!current.landedUnknown) {
-      if (branch.landed && before && !before.landed) events.push(`LANDED ${branch.name}`);
-      if (!branch.landed && !before) events.push(`NEW BRANCH ahead of main: ${branch.name}`);
+      // A LANDING IS A BRANCH THAT ONCE HAD A COMMIT OF ITS OWN AND IS NOW IN MAIN - both halves,
+      // measured, not one inferred from the other. `!before.landed` is the transition key
+      // night.md describes, and `before.ahead === true` is the receipt that the transition was
+      // real: the previous tick asked git directly whether that exact sha was an ancestor of
+      // origin/main and got NO. The two can disagree, and their disagreement is the whole bug.
+      //
+      // MEASURED 2026-09-09T20:19:58Z, ticks 345 and 346. `claude/ac-harness-verdict` had just
+      // been created at main's tip and had committed nothing. Tick 345 read the merged-branch SET
+      // first and built the branch inventory about a second later - the branch was born inside
+      // that window, so it was in the inventory and not in the set, and read as ahead of main.
+      // Tick 346 found it in both and called it LANDED. It landed for real an hour later at tick
+      // 368, so the night loop was told the same branch landed twice, and the first time it had
+      // no commits at all. night.md fires a planned follow-on when its trigger branch lands and
+      // counts the row's slot free, so a phantom launches a follow-on against work that does not
+      // exist. The related trap - incidents.md "the empty branch that read as landed" - is why
+      // the transition key exists; this is the case the key alone does not cover, because the
+      // previous tick's "ahead" reading was itself wrong.
+      if (branch.landed && before && !before.landed && before.ahead === true) events.push(`LANDED ${branch.name}`);
+      // NEW BRANCH gets the same requirement, for the same reason: it fired on that same phantom.
+      // Keyed on the ahead TRANSITION rather than on first sighting, so a row's empty branch is
+      // announced when it makes its first commit instead of when the harness mints it - later,
+      // but true. A branch that lands and then grows fresh commits says so in its own words.
+      if (branch.ahead && !before?.ahead) {
+        events.push(before
+          ? `AHEAD OF MAIN ${branch.name} - commits of its own that origin/main does not have`
+          : `NEW BRANCH ahead of main: ${branch.name}`);
+      }
     }
     if (before && before.landingState !== branch.landingState) {
       if (branch.landingState === 'queued') events.push(`QUEUED ${branch.name}`);
@@ -154,7 +207,9 @@ export function deltaBetween(previous, current, { quietMinutes = QUIET_MINUTES }
   for (const [name, before] of Object.entries(prevBranches)) {
     if (currentNames.has(name)) continue;
     if (current.landedBranchNames?.includes(name) || before.landed) {
-      if (!before.landed) events.push(`LANDED ${name} (branch already cleaned up)`);
+      // Same requirement as the live path above: a landing job for a branch the loop never saw
+      // carrying a commit of its own is not news it should act on.
+      if (!before.landed && before.ahead === true) events.push(`LANDED ${name} (branch already cleaned up)`);
     } else {
       events.push(`BRANCH GONE ${name} - deleted since last tick with no landing recorded for it`);
     }
@@ -198,7 +253,14 @@ export function deltaBetween(previous, current, { quietMinutes = QUIET_MINUTES }
 export function nextState(current, { tick, quietMinutes = QUIET_MINUTES }) {
   const branches = {};
   for (const branch of current.branches) {
-    branches[branch.name] = { sha: branch.sha, landed: branch.landed, landingState: branch.landingState };
+    branches[branch.name] = {
+      sha: branch.sha,
+      landed: branch.landed,
+      // Recorded as its own fact rather than left to be re-derived from `landed`: the next tick's
+      // LANDED event rests on it, and the two are measured differently on purpose.
+      ahead: branch.ahead === true,
+      landingState: branch.landingState,
+    };
   }
   return {
     v: STATE_VERSION,
@@ -214,7 +276,7 @@ export function nextState(current, { tick, quietMinutes = QUIET_MINUTES }) {
 }
 
 export function summaryLine(current) {
-  const ahead = current.branches.filter((branch) => !branch.landed);
+  const ahead = current.branches.filter((branch) => branch.ahead);
   const running = current.jobs.filter((job) => job.state === 'running').length;
   const waiting = current.jobs.filter((job) => job.state === 'waiting').length;
   return `${ahead.length} branch(es) ahead of main, ${running} job(s) running, ${waiting} waiting, `
@@ -253,13 +315,20 @@ export function wavePlanFresh(name, now, { maxAgeMs = WAVE_PLAN_MAX_AGE_MS } = {
  */
 function branchInventory() {
   const refs = git(
-    ['for-each-ref', 'refs/heads', 'refs/remotes/origin', '--format=%(refname:short) %(objectname) %(committerdate:unix)'],
+    ['for-each-ref', 'refs/heads', 'refs/remotes/origin', '--format=%(refname) %(refname:short) %(objectname) %(committerdate:unix)'],
     REPO_ROOT,
   );
   if (!refs.ok) return [];
   const byName = new Map();
   for (const line of refs.stdout.split('\n').filter(Boolean)) {
-    const [ref, sha, committed] = line.split(' ');
+    const [full, ref, sha, committed] = line.split(' ');
+    // `refs/remotes/origin/HEAD` is the remote's default-branch POINTER, not a branch, and its
+    // short name is the bare remote name `origin` - which does not start with `origin/`, so it
+    // used to enter the inventory as a local branch called "origin" sitting at main's tip. It was
+    // in the state file for months, counted in every "N branch(es) ahead of main" summary, and
+    // with the containment probe below it would cost a git spawn every tick to re-learn that it is
+    // main. The full refname is the only thing that tells the two apart, so the format carries it.
+    if (full === 'refs/remotes/origin/HEAD') continue;
     const remote = ref.startsWith('origin/');
     const name = remote ? ref.slice('origin/'.length) : ref;
     if (name === 'main' || name === 'HEAD') continue;
@@ -394,6 +463,23 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
     if (!fetch.ok) warnings.push(`git fetch failed (${fetch.stderr.split('\n')[0] || 'no detail'}) - reading local state only.`);
   }
 
+  // The previous snapshot is read BEFORE the scan, not after, because a tick that cannot measure
+  // containment carries the last known answer forward instead of writing "not landed, not ahead"
+  // over every branch - which would make the next healthy tick re-announce every landing it had
+  // already announced, and would silence a branch that genuinely lands right after the outage.
+  const statePath = args.statePath ?? path.join(dir, 'wave-tick-state.json');
+  let previous = null;
+  if (existsSync(statePath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(statePath, 'utf8'));
+      if (parsed.v === STATE_VERSION) previous = parsed;
+      else warnings.push(`state file is v${parsed.v}, this build writes v${STATE_VERSION} - starting fresh, so every event below may be a repeat.`);
+    } catch {
+      warnings.push('state file was unreadable - starting fresh, so every event below may be a repeat.');
+    }
+  }
+  const known = previous?.branches ?? {};
+
   const merged = mergedBranchNames();
   const landedUnknown = merged === null;
   if (landedUnknown) {
@@ -413,9 +499,16 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
 
   const branches = branchInventory().map((branch) => {
     const landing = landingStateFor(branch.name, jobs, { inMain: containedInMain });
+    const listedAsMerged = merged ? merged.has(branch.name) : false;
     return {
       ...branch,
-      landed: merged ? merged.has(branch.name) : false,
+      landed: landedUnknown ? known[branch.name]?.landed === true : listedAsMerged,
+      // `merged` was read before this inventory, so a branch born between the two reads is here
+      // and not there - which on 2026-09-09 made an empty branch read as ahead of main and then
+      // "land" four minutes later (see deltaBetween). aheadOfMain settles it against the sha.
+      ahead: landedUnknown
+        ? known[branch.name]?.ahead === true
+        : aheadOfMain({ sha: branch.sha, listedAsMerged }, containedInMain),
       landingState: landing.state,
       landingReason: landing.reason,
       requeue: landing.requeue,
@@ -435,18 +528,6 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
 
   const blocked = blockedSessions();
   if (!blocked.ok) warnings.push(`blocked-sessions.mjs gave no readable answer (${blocked.detail}) - the waiting column is blind this tick.`);
-
-  const statePath = args.statePath ?? path.join(dir, 'wave-tick-state.json');
-  let previous = null;
-  if (existsSync(statePath)) {
-    try {
-      const parsed = JSON.parse(readFileSync(statePath, 'utf8'));
-      if (parsed.v === STATE_VERSION) previous = parsed;
-      else warnings.push(`state file is v${parsed.v}, this build writes v${STATE_VERSION} - starting fresh, so every event below may be a repeat.`);
-    } catch {
-      warnings.push('state file was unreadable - starting fresh, so every event below may be a repeat.');
-    }
-  }
 
   const current = {
     at: now,
