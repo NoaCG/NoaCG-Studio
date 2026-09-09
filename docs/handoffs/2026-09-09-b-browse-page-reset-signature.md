@@ -162,8 +162,10 @@ beta designs get used. Same fix shape for all five functions, so it is one item.
   one** - 25 passed, 1 failed. That is the part worth keeping: nothing else in the file noticed,
   which is why the change would have landed green before today.
 
-`npm run test:e2e:affected` - 39 spec files, the plan `BrowseStep.tsx` and the spec resolve to -
-was run queued over the committed tree.
+`npm run test:e2e:affected` - the 39 spec files `BrowseStep.tsx` and the spec resolve to - **491
+passed in 9.0 minutes, no failures**, run queued over the committed tree. Both brand tests are in
+it, so the new one has now passed on the exact text that is landing as well as in the two-direction
+job above.
 
 `/check`: `review: delegated` (high, findings acted on - the three-controls inconsistency, the
 self-referential slice bound and the category/group mismatch all came from it), `simplify: inline`
