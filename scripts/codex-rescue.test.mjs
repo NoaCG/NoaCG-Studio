@@ -163,24 +163,42 @@ test('an explicit --effort always wins over the default, even a lower one', asyn
   assert.deepEqual(flags, ['--effort', 'low']);
 });
 
-test('the default effort is the owner-ruled norm, not the machine config', async () => {
-  const { DEFAULT_EFFORT } = await import('./codex-rescue.mjs');
-  assert.equal(DEFAULT_EFFORT, 'high');
+test('the default effort is the owner-ruled setting, not the machine config', async () => {
+  const { DEFAULT_EFFORT, DEFAULT_EFFORT_REVIEW_ON } = await import('./codex-rescue.mjs');
+  // medium until 2026-09-16 by the 2026-09-09 ruling; high is the standing norm it returns to.
+  assert.equal(DEFAULT_EFFORT, 'medium');
+  // low is never the default, whatever the machine config drifted to - that is the one thing this
+  // constant exists to stop, and it is the shape the defect actually took on 2026-08-30.
+  assert.notEqual(DEFAULT_EFFORT, 'low');
+
+  // A trial without an expiry is just a new default. The date is asserted so that a session
+  // reading this after it passes is TOLD to go and settle it from the delegation ledger rather
+  // than inheriting a week-long experiment as policy.
+  assert.match(DEFAULT_EFFORT_REVIEW_ON, /^\d{4}-\d{2}-\d{2}$/);
+  const due = Date.parse(`${DEFAULT_EFFORT_REVIEW_ON}T00:00:00Z`);
+  assert.ok(
+    Date.now() < due || DEFAULT_EFFORT === 'high',
+    `the ${DEFAULT_EFFORT} default was a trial due for review on ${DEFAULT_EFFORT_REVIEW_ON}: `
+      + 'read npm run harness:usage for what the week measured, then either extend it with that '
+      + 'evidence and move the date, or set DEFAULT_EFFORT back to high',
+  );
 });
 
 test('--resume still maps to --resume-last and --model is still forwarded beside the default', async () => {
-  const { launchPlan } = await import('./codex-rescue.mjs');
+  // Reads DEFAULT_EFFORT rather than restating it: this case is about the FLAGS being forwarded,
+  // and spelling the value here made it fail for an unrelated reason the day the default moved.
+  const { launchPlan, DEFAULT_EFFORT } = await import('./codex-rescue.mjs');
   const { flags } = launchPlan(['--resume', '--model', 'gpt-5.6-sol']);
-  assert.deepEqual(flags, ['--resume-last', '--model', 'gpt-5.6-sol', '--effort', 'high']);
+  assert.deepEqual(flags, ['--resume-last', '--model', 'gpt-5.6-sol', '--effort', DEFAULT_EFFORT]);
 });
 
 test('the = spelling of a valued flag is a flag, never prompt text', async () => {
-  const { launchPlan } = await import('./codex-rescue.mjs');
+  const { launchPlan, DEFAULT_EFFORT } = await import('./codex-rescue.mjs');
   const { flags, text } = launchPlan(['--effort=low', 'list', 'the', 'exports']);
   assert.deepEqual(flags, ['--effort', 'low']);
   assert.equal(text, 'list the exports');
   const model = launchPlan(['--model=gpt-5.6-sol', 'x']);
-  assert.deepEqual(model.flags, ['--model', 'gpt-5.6-sol', '--effort', 'high']);
+  assert.deepEqual(model.flags, ['--model', 'gpt-5.6-sol', '--effort', DEFAULT_EFFORT]);
 });
 
 test('a valued flag with no value is refused, not spawned as undefined', async () => {

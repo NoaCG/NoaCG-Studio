@@ -268,7 +268,22 @@ function summarize(job) {
 // one laptop's ~/.codex/config.toml, which nothing checks and no other machine shares - so a
 // launch that names no effort now carries the norm explicitly instead of inheriting whatever the
 // machine happens to say. An explicit --effort always wins; this is a default, not a clamp.
-export const DEFAULT_EFFORT = 'high';
+//
+// MEDIUM UNTIL 2026-09-16, by the owner's ruling of 2026-09-09: spend the Codex subscription hard
+// this week on `gpt-6-astra`, the CLI's new default model, and take the throughput medium buys.
+// This is not a relaxation of the floor - medium IS the floor the same owner set, chosen
+// deliberately rather than drifted into, and low remains reserved for mechanical retrieval.
+//
+// IT HAS AN EXPIRY BECAUSE A TRIAL WITHOUT ONE IS JUST A NEW DEFAULT. What the week is meant to
+// answer is whether astra at medium is worth more than the previous model at high, and the
+// delegation ledger already records what settles it: model, effort, outcome and cause per task
+// class (`npm run harness:usage`, `scripts/delegation-outcome.mjs`). On or after the date above,
+// read the ledger and either extend this with the evidence or put it back to `high`.
+//
+// Nothing here pins the MODEL: `--model` is forwarded when a caller names one, and with none the
+// CLI uses its own default, which is `gpt-6-astra` as of 0.154.0-alpha.6.
+export const DEFAULT_EFFORT = 'medium';
+export const DEFAULT_EFFORT_REVIEW_ON = '2026-09-16';
 
 /** Pure half of launch(): split argv into forwarded flags and the prompt, injecting the effort
  *  default when the caller named none. Exported so the default is pinned by a test. Both flag
