@@ -113,8 +113,21 @@ failed** - the failure being exactly that pre-existing one.
 FinishStep while that run was in flight and Vite hot-reloaded a half-applied file. My mistake, not
 the code's: **do not edit source while a suite is running.** `j-0825` is the clean re-run.
 
-`npm run build`: exit 0 twice, before and after the merge of `main` (read off the build's own exit
-code, not a pipe's).
+`npm run build`: exit 0 three times, before and after the merge of `main` and again on the tip
+(read off the build's own exit code, not a pipe's).
+
+**CI, and which jobs actually ran.** The push-triggered run for `f523a7ff` was still in flight when
+the copy trim went up, so the concurrency group cancelled it and the next push's plan would have
+covered only that last delta. I dispatched a run of my own on the tip instead
+(`gh workflow run ci.yml --ref claude/z-rename-takes-the-mint`, run **34296533953** on
+`2ce13c94`): **success**, and the jobs that ran were Build, E2E plan, Factory gates, Catalog
+calibration gate, **nine E2E shards, all marked `(full)`** - the plan escalated to the whole suite
+rather than a narrow selection - Combined E2E report and CI gate. Reviewed, Vercel, E2E retry and
+After the gate skipped. `catalog-baseline` passed there, which is the other half of the evidence
+that its failure here is this laptop's.
+
+The commit that adds this handoff is docs-only on top of that green tip, so its own push run plans
+from `2ce13c94` and covers the documents alone; the landing job is what gates on it.
 
 ## The check
 
