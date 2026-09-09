@@ -11,9 +11,12 @@ by hand from an empty folder on 2026-09-09 with a stopwatch on every verb, took 
 player, and wrote the table into `docs/AGENT_CLI.md` under **"Time to air, measured"**. The
 headline: **the seven authoring verbs cost 24.8 seconds of tool time together**, and `validate` is
 43% of that. (Corrected 2026-09-09: this file first said `validate` was the only verb that opens a
-browser. Every verb does - they all reach the studio through `BridgeClient.connect()`, which
-launches one. `validate` is the slow one for what it does inside that browser: the gate, the bench
-and three 1920x1080 frames.) The rest of the wall clock is
+browser. All seven authoring verbs do - they reach the studio through `BridgeClient.connect()`,
+which launches one - so the browser start is the floor under all of them, not something `validate`
+alone pays for. `validate` is the slow one for what it does inside that browser: the gate, the
+bench and three 1920x1080 frames. The two rows that are not authoring verbs are the exceptions:
+`whoami` opens no browser, and `save` refused in 0.3 s because it checks for a key before it
+connects.) The rest of the wall clock is
 whatever the agent spends designing, plus the hop to a player. Branch
 `claude/a-cli-minutes-to-air`.
 

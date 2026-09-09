@@ -264,15 +264,18 @@ instead. The walk used the local build so the numbers describe THIS branch rathe
 | `whoami` | `noacg whoami` (against `https://noacg.studio`) | **3.8 s** | 0 |
 | `save` | `noacg save ./football-scoreboard` against a DEV SERVER | **0.3 s** | 1, refused |
 
-**24.8 seconds of tool time** for the seven authoring verbs, of which `validate` is 43%. EVERY ONE
-OF THEM LAUNCHES CHROMIUM - each goes through `BridgeClient.connect()`, which calls
-`launchBrowser()` before it opens `/bridge` (`cli/src/bridgeClient.ts:158`), so a browser start is
-the floor under the whole table. `doctor` launches one of its own on top of that
+**24.8 seconds of tool time** for the seven authoring verbs, of which `validate` is 43%. ALL SEVEN
+LAUNCH CHROMIUM - each goes through `BridgeClient.connect()`, which calls `launchBrowser()` before
+it opens `/bridge` (`cli/src/bridgeClient.ts:158`), so a browser start is the floor under those
+seven rows and not a cost `validate` alone pays. `doctor` launches one of its own on top of that
 (`cli/src/commands/doctor.ts:18`) and `login` opens the user's real browser at the consent page
-(`cli/src/commands/login.ts:146`). What makes `validate` the expensive one is what it does INSIDE
-that browser: it runs the gate, drives the bench and writes three 1920x1080 frames, and it is the
-verb an author runs most. The rest are a browser start plus a bridge round trip. Nothing in the
-door needed a retry, and no verb sat silent for longer than it worked.
+(`cli/src/commands/login.ts:146`). The two rows that are NOT authoring verbs are the ones that show
+where the floor comes from: `whoami` never opens a browser, and `save` came back in 0.3 s because
+it looks for a key before it connects and refuses without one (`cli/src/commands/save.ts:77` -
+"that answer needs no browser"). What makes `validate` the expensive verb is what it does INSIDE
+its browser: it runs the gate, drives the bench and writes three 1920x1080 frames, and it is the
+verb an author runs most. The other six are a browser start plus a bridge round trip. Nothing in
+the door needed a retry, and no verb sat silent for longer than it worked.
 
 ### The leg to a player
 

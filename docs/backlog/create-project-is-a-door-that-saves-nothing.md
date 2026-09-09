@@ -64,9 +64,12 @@ read, because the 25 September deck was sending the room through this button and
   own comment says so out loud: *"The editor door (and the quiet from-any-step shortcut): create
   and hand over. Saving stays the user's move, exactly as it always has been."*
   (`src/components/wizard/CreationWizard.tsx`, above `const create`.)
-- **The button is reachable earlier than "an early door" suggests.** Its guard is
-  `(mode === 'design' || mode === 'svg' || mode === 'import') && step < finishStep`, so on the SVG
-  road it sits in the footer from the Design step onward - beside every step a student is on.
+- **The button is reachable earlier than "an early door" suggests.** Its guard, whole, is
+  `(mode === 'design' || mode === 'svg' || mode === 'import') && step < finishStep && (mode ===
+  'import' ? step >= 2 : step >= 1)`. On the SVG road (Start, Design, Fields, Animation, Finish)
+  that puts it in the footer beside Design, Fields and Animation - three of the five screens, and
+  every screen where a student is actually building something. It is absent on Start and on
+  Finish, where the door cards are the actions.
 - **"Both Finish doors save" is true of the two doors the default studio shows, and only those.**
   The production door and the export door save. Finish's THIRD door, "Open in the editor
   (Alpha)", is wired to `onOpenEditor={create}` (`CreationWizard.tsx:2331`) - the same function,

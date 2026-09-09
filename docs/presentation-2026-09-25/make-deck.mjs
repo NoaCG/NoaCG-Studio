@@ -47,7 +47,7 @@ const asked = outFlag > -1 && process.argv[outFlag + 1] ? process.argv[outFlag +
 // that lacks one, so the path a caller names and the path that gets written are not the same
 // path - and an existence check on the first one lets `--out deck` destroy `deck.pptx`. We write
 // the file ourselves below, so this is the only place the final name is decided.
-const OUT = asked.toLowerCase().endsWith('.pptx') ? resolve(asked) : resolve(`${asked}.pptx`);
+const OUT = resolve(asked.toLowerCase().endsWith('.pptx') ? asked : `${asked}.pptx`);
 
 // ---------------------------------------------------------------------------------------------
 // Brand tokens (NoaCG-Brand-Kit/BRAND-MANUAL.md §3) and the type stack this deck can rely on.
@@ -105,12 +105,13 @@ function head(slide, s, x, y, w) {
   text(slide, s.toUpperCase(), { x, y, w, h: 0.26, fontFace: MONO, fontSize: 11, color: AMBER, charSpacing: 2 });
 }
 
-/** A surface panel. */
-// NO `line` PROPERTY, deliberately: omitting it is pptxgenjs's own "draw no outline". Asking for
-// `line: { width: 0 }` does the opposite, because the library reads it as `options.line.width || 1`
-// and 0 is falsy, so a zero-width request becomes a 1pt stroke and every panel lands half a point
-// larger per side than the geometry above says. A caller that wants an outline passes one in opts,
-// which is spread last and replaces this shape's whole line setting.
+/** A surface panel.
+ *
+ *  NO `line` PROPERTY, deliberately: omitting it is pptxgenjs's own "draw no outline". Asking for
+ *  `line: { width: 0 }` does the opposite, because the library reads it as
+ *  `options.line.width || 1` and 0 is falsy, so a zero-width request becomes a 1pt stroke and
+ *  every panel lands half a point larger per side than the geometry above says. A caller that
+ *  wants an outline passes one in `opts`, which is spread last and replaces the whole setting. */
 function panel(slide, x, y, w, h, opts = {}) {
   slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h, rectRadius: 0.1, fill: { color: PANEL }, ...opts });
 }
@@ -308,10 +309,11 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     ['Drop it. The layer names become the field names.', 'noacg.studio/app  >  New graphic  >  Import graphic'],
     ['Type a name longer than you drew for. Watch what the panel does.', 'the Fields step: wider, then a new line, and only then smaller'],
     ['Pick what it does. The quiz board locks and reveals; the scorebug counts.', 'the Fields step  >  Behaviour'],
-    // NEVER "Create project". That button is reachable from every step of this road and it does
-    // NOT save (CreationWizard.tsx create() -> applyDraftProject() with no arguments: "Saving
-    // stays the user's move"). Finish's doors are the ones that save on purpose, so the room is
-    // sent to Finish and to a door by name. See docs/backlog/create-project-is-a-door-that-saves-nothing.md.
+    // NEVER "Create project". That button stands beside the Design, Fields and Animation steps of
+    // this road and it does NOT save (CreationWizard.tsx create() -> applyDraftProject() with no
+    // arguments: "Saving stays the user's move"). The two doors the default studio shows on Finish
+    // do save, so the room is sent to Finish and to a door by name.
+    // See docs/backlog/create-project-is-a-door-that-saves-nothing.md.
     ['Finish: name it, then take the production door. It saves the graphic and puts it in a show.', 'the Finish step  >  Add to the production'],
   ];
   steps.forEach(([main, pointer], i) => step(s, i + 1, lx, 1.9 + i * 0.98, lw, main, pointer));
@@ -344,7 +346,7 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   s.addNotes(
     '§3, R1.1 to R1.6. Status on 2026-09-09: WORKS on the shipped samples for all six beats, with one exception. R1.4, behaviour on artwork nobody at NoaCG drew, is pinned by e2e/import-svg-behaviour.spec.ts, but you have not looked at your OWN quiz board since the three text-box fixes (docs/TEXT_BOX_BINDING.md). The 12th is that walk.\n\n' +
     'R1.3 ON THEIR OWN FILE. The growth default is measured off the geometry and for some exporter shapes it disagrees with what the designer meant (docs/backlog/svg-growth-default-across-exporters.md). That is why the dropdown sentence is said out loud rather than waited for.\n\n' +
-    'THE ROAD, IN SCREENS. Start, Design, Fields, Animation, Finish (src/components/wizard/CreationWizard.tsx, STEP_TITLES_SVG). "Create project" sits in the footer from Design onwards and it does NOT save - it builds with defaults for everything not yet reached and hands you to the code editor (create() calls applyDraftProject() with no arguments; both Finish doors save on purpose). DO NOT name it in the room: send people to Finish and to a door by name. docs/backlog/create-project-is-a-door-that-saves-nothing.md is the open question about whether that button should be renamed or should save.\n\n' +
+    'THE ROAD, IN SCREENS. Start, Design, Fields, Animation, Finish (src/components/wizard/CreationWizard.tsx, STEP_TITLES_SVG). "Create project" sits in the footer beside Design, Fields and Animation - not on Start, not on Finish - and it does NOT save: it builds with defaults for everything not yet reached and hands you to the code editor (create() calls applyDraftProject() with no arguments). The two doors the default studio shows on Finish, the production one and Export, both save. DO NOT name Create project in the room: send people to Finish and to a door by name. docs/backlog/create-project-is-a-door-that-saves-nothing.md is the open question about whether that button should be renamed or should save.\n\n' +
     'R1.5. A Yle designer\'s licensed face takes the upload road, in the Typefaces row on the FIELDS step - two screens before the end. The Google door is offered only where Google has the family.\n\n' +
     'NOT A BEAT. The live-vote encore needs a fixture brought by hand and has two open backlog items; only if the room is ahead of the clock.\n\n' +
     'Source: docs/DEMO_2026-09-25.md §3; the guide is docs.html #first-graphic, landed 2026-09-09.',
