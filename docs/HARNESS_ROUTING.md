@@ -1273,6 +1273,21 @@ Codex has more than one usable model again, and `claude agents --json` has no `s
 `--permission-prompts` is now a listed flag on 2.1.263 - verify what it does before routing on it;
 its existence is measured, its behaviour is not.
 
+**And one of the five refutations was itself wrong, within the same day.** The subagent-notification
+entry was re-probed, found to deliver into the launched session, and recorded as REFUTED. Hours later
+sixteen fan-out reports from two different rows arrived in their LAUNCHER, which is what the refuted
+claim predicted. A third, controlled probe settled it: **the notification goes to whoever is inside a
+turn when it fires.** A session that stays in a turn gets its own; a session that has ended its turn
+to wait - which is exactly what a session does after it fans out - has the report delivered to its
+launcher instead.
+
+So the original observation was right about the case that matters and wrong about the reason, the
+refutation was right about the mechanism and wrong to generalise from one shape of probe, and only
+running BOTH shapes gives the real rule. **The lesson is about probe design rather than this
+harness**: a capability probe that exercises one path measures that path, and writing the verdict as
+though it covered the whole behaviour is how a correction becomes the next error. Where a claim has
+two sides, the re-probe field must name both, and this one now does.
+
 **This is why the re-probe needs a cadence rather than a volunteer.** It has been hand-run exactly
 once. Nothing schedules it, so the next reader of this file has no way to know how stale it is beyond
 comparing `measuredOn` against the build in front of them - which is what `npm run harness:usage`
