@@ -9,8 +9,8 @@
 `check:advisors` appears in `package.json` and nowhere else. It is not in `npm run build`, not in
 `check:freshness`, not in `weekly-audit.yml`, and not in `post-land.yml` - which is the workflow
 that applies the very migrations that create the functions the gate reports on. A gate a person has
-to remember is a document, and this one proved it: it sat red for thirteen days after the teams
-migrations landed because nobody ran it.
+to remember is a document, and this one proved it: it sat red for at least the thirteen days
+between the teams migrations landing and the 2026-09-08 review that noticed.
 
 The red is now gone (see "What was already done"), which makes the remaining half both smaller and
 more urgent. A green gate nothing runs decays back to red the next time anything touches the
@@ -101,6 +101,15 @@ about the database and the advisor reports on the database:
 - `anon` holds no SELECT on `teams`, `team_members` or `team_productions`;
 - all three tables have RLS on WITH policies, so none contributes to `rls_enabled_no_policy`.
 
+One trap was worth the extra query, and the next person reading these functions should know it was
+checked. Commit `8e31b649`, "Close four authorization gaps the teams schema left open", edited
+migrations 0053 and 0054 **in place** rather than adding a new one. An already-applied migration is
+not re-run by `supabase db push`, so the hardening could have existed in git and not in the
+database - and reading the migration files would have shown a fix that was not there. It IS there:
+`pg_get_functiondef` on the live functions shows `team_production_save` carrying both its
+suspension test and its `is_team_member` test, `team_join` carrying its suspension test, and the
+live policy set on all three tables matching the migration source expression for expression.
+
 The gate itself, same day, from a linked worktree with the token read out of the main checkout's
 `.env`:
 
@@ -109,12 +118,12 @@ The gate itself, same day, from a linked worktree with the token read out of the
 - the baseline diff was 32 insertions and 2 deletions - the six entries plus `recordedAt` and
   `count`. No existing entry was dropped, which is the thing to check on a re-record.
 
-Still true from the 2026-09-08 filing:
+From the 2026-09-08 filing, each re-checked on 2026-09-09 rather than carried over:
 
-- `grep -rn advisors .github/workflows/ package.json` - one hit, the `package.json` line.
-- `.github/workflows/post-land.yml:35` - `SUPABASE_ACCESS_TOKEN` already wired.
-- `node scripts/migration-drift.mjs`: production and staging both hold every migration. No drift;
-  this item is only about the advisors.
+- `grep -rn advisors .github/workflows/ package.json` - still one hit, `package.json:45`.
+- `.github/workflows/post-land.yml:35` - `SUPABASE_ACCESS_TOKEN` still wired.
+- `node scripts/migration-drift.mjs` - 55 local migrations, production and staging hold all 55.
+  No drift; this item is only about the advisors.
 
 ## Do not drive the count toward zero
 
