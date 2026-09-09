@@ -621,13 +621,31 @@ function measurementProblem(check, receipts) {
   return null;
 }
 
+/**
+ * Where one check's receipts are collected, unique per check in the run.
+ *
+ * THE INDEX IS WHAT MAKES IT UNIQUE; the sanitized name rides along only so a person reading the
+ * temp directory can tell the files apart. Two check names that differ solely in punctuation
+ * sanitize to one string - `package.json` already carries `test:e2e:affected` and
+ * `test:e2e-affected` - and `measured()` APPENDS rather than truncating. Sharing a path therefore
+ * hands the second check the first one's rows, and `measurementProblem` can never see that the
+ * second measured nothing. That is the single hole the whole receipt mechanism exists to close, so
+ * it must not be open in the mechanism itself.
+ *
+ * Only one of that pair is runnable in a tier today, which is why nothing has broken yet - not why
+ * it is safe.
+ */
+export function receiptPathFor(dir, index, name) {
+  return path.join(dir, `${index}-${name.replace(/[^A-Za-z0-9]+/g, '-')}.tsv`);
+}
+
 function runChecks(checks) {
   const failed = [];
   const dir = mkdtempSync(path.join(os.tmpdir(), 'noacg-gates-'));
   try {
-    for (const check of checks) {
+    for (const [index, check] of checks.entries()) {
       const started = Date.now();
-      const receiptFile = path.join(dir, `${check.name.replace(/[^A-Za-z0-9]+/g, '-')}.tsv`);
+      const receiptFile = receiptPathFor(dir, index, check.name);
       process.stdout.write(`\n[gates] ${check.name}: ${check.command}\n`);
       const res = runCommand(check.command, { ...process.env, [RECEIPT_ENV]: receiptFile });
       const seconds = ((Date.now() - started) / 1000).toFixed(1);
