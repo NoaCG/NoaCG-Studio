@@ -13,6 +13,18 @@ import { draftResolution, type WizardDraft, behaviourSummary } from '../draft';
 import { BetaFeedbackButton } from '../../feedback/BetaFeedback';
 import WizardConfirm from '../WizardConfirm';
 
+/**
+ * The operator fields `from` carries that `keeping` has no field for, by their TITLES.
+ *
+ * A cue's values are a flat map by field id and the payload a take sends is exactly that map,
+ * so a key the replacement has no field for is ignored on air. Asked twice on this step - of
+ * the production's pool copy, and of the library record a save writes over - and it is one
+ * question, so it is one function.
+ */
+function strandedBy(from: { field: string; title?: string }[], keeping: string[]): string[] {
+  return from.filter((f) => !keeping.includes(f.field)).map((f) => f.title || f.field);
+}
+
 /** Which earlier step a summary row was decided on — the target of its Edit link. Named
  *  rather than numbered because the step INDEX differs by mode (import mode carries an extra
  *  Images step before Template), and only the wizard knows the mode. */
@@ -255,28 +267,29 @@ export default function FinishStep({
   // exactly the reader this dialog was built for.
   const replacedCopy = pendingShow?.graphics.find((g) => g.name === graphicName);
   const replacing = !!replacedCopy;
-  // The LIBRARY half of the same question, and it is not the same lookup: walking back in and
-  // then picking a DIFFERENT production still writes to the record the first pass made, and a
-  // name the library ALREADY holds is that graphic whoever made it and whenever. ONE call
-  // (model/library.ts `librarySaveEffect`) answers it, and the save makes the same call, so
-  // the sentence below cannot promise something the write does not do.
+  // The LIBRARY half of the same question, and the production picked cannot answer it: walking
+  // back in and then picking a DIFFERENT production still writes to the record the first pass
+  // made, and a name the library already holds is that graphic whoever made it and whenever.
+  // ONE call (model/library.ts `librarySaveEffect`) answers it, and the save makes the same
+  // call, so the sentences below cannot promise something the write does not do.
   const effect = librarySaveEffect(libraryIndex, graphicName, madeId);
   // A record ALREADY UNDER THIS NAME is replaced: the walk's own on a second press, or the one
   // the name means when this walk has made nothing. A rename is neither - it moves the walk's
   // record and leaves every other graphic alone.
   const savingOver = effect.kind === 'over' || (effect.kind === 'update' && !effect.renamedFrom);
-  const renamingTo = effect.kind === 'twin' || (effect.kind === 'update' && !!effect.renamedFrom);
-  // WHAT THE REPLACED LIBRARY RECORD STOPS CARRYING. Same arithmetic as `strandedFields` below
-  // and the same consequence, one layer up: any production pooling that record has cues whose
-  // values address its fields, and this version has no field for these.
-  const strandedInLibrary =
-    effect.kind === 'over'
-      ? effect.holder.fields.filter((f) => !fields.includes(f.field)).map((f) => f.title)
-      : [];
+  const renamingTo = effect.kind === 'update' && !!effect.renamedFrom;
+  // A DIFFERENT graphic already carries this name and is NOT the one being written. Nothing of
+  // it is lost, but the two become hard to tell apart on Home and the production pool - which
+  // replaces by name (model/shows.ts `addGraphicToShow`) - would follow this one instead.
+  const sharesNameWith = effect.kind === 'update' ? effect.sharesWith : null;
+  // WHAT THE REPLACED LIBRARY RECORD STOPS CARRYING - the same question as the pool copy's
+  // below, one layer up: any production pooling that record has cues whose values address its
+  // fields, and this version has no field for these.
+  const strandedInLibrary = effect.kind === 'over' ? strandedBy(effect.holder.fields, fields) : [];
   // WHAT EACH DOOR FACE SAYS ABOUT THE LIBRARY: a clause for the production door, which
   // continues into what it does with the production, and a whole sentence for the export door,
   // which asks nothing at all before it writes. Written out per case rather than assembled,
-  // because the four sentences are the product and a reader should be able to edit one.
+  // because these sentences are the product and a reader should be able to edit one.
   const libraryFace = renamingTo
     ? {
         clause: `Renames the graphic you just saved to ${graphicName}`,
@@ -293,9 +306,7 @@ export default function FinishStep({
   // field for is ignored on air, and a field it adds starts from its own default. So the cues
   // survive - and are partially addressed - and a student who is told only that they "stay"
   // would find out on air. Named, because a count is not something anyone can act on.
-  const strandedFields = (replacedCopy?.template.fields ?? [])
-    .filter((f) => !fields.includes(f.field))
-    .map((f) => f.title || f.field);
+  const strandedFields = strandedBy(replacedCopy?.template.fields ?? [], fields);
 
   return (
     <div className="wz-finish">
@@ -337,19 +348,23 @@ export default function FinishStep({
             )}
           </p>
         )}
-        {/* THE RENAME THAT WALKS INTO A TAKEN NAME. Nothing is lost - the record this walk made
-            is the one that moves - but the reader ends up with two graphics under one name, and
-            only one of them can be found by name afterwards. */}
-        {effect.kind === 'twin' && (
+        {/* A NAME TWO GRAPHICS WOULD SHARE. Nothing is lost - the record this walk made is the
+            one that moves - but the two become hard to tell apart on Home, and the production
+            pool matches by name, so a rundown holding it would follow this graphic. Said whether
+            this press CREATES the sharing or a previous one already did. */}
+        {sharesNameWith && (
           <p className="status-warn" data-testid="wz-finish-name-twin">
             A different graphic in your library is already called <strong>{graphicName}</strong>.
-            Finishing leaves it alone and renames the one you just saved to match, so two graphics
-            would share the name. Change the name above to keep them apart.
+            {renamingTo
+              ? ' Finishing renames the one you just saved to match, so two graphics share the name.'
+              : ' Two graphics share the name.'}{' '}
+            That graphic keeps its own artwork, but a production holding the name would follow
+            this one instead. Change the name above to keep them apart.
           </p>
         )}
         {/* And the ordinary second press: your own graphic, updated. Stated calmly, because
             nothing here is at risk - the alternative would be a second row of your own work. */}
-        {effect.kind === 'update' && (
+        {effect.kind === 'update' && !sharesNameWith && (
           <p className="hint" data-testid="wz-finish-name-yours">
             {effect.renamedFrom
               ? `Finishing renames the graphic you just saved from ${effect.renamedFrom} to ${graphicName}.`
@@ -543,6 +558,16 @@ export default function FinishStep({
                   {' '}
                   Cue values for {strandedFields.join(', ')} no longer match a field in this
                   version and are ignored on air; new fields start from their defaults.
+                </>
+              )}
+              {/* The pool matches by NAME, so replacing a copy also moves the production's link
+                  to the library onto this graphic. Worth saying only when another graphic
+                  carries the name, because that is when the link moves OFF something. */}
+              {replacing && sharesNameWith && (
+                <>
+                  {' '}
+                  This production points at this graphic from now on, not at the other one called{' '}
+                  {graphicName}.
                 </>
               )}
             </li>

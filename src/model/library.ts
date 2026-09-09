@@ -101,7 +101,11 @@ export function graphicNameIndex(): LibraryNameEntry[] {
     id: g.id,
     name: g.name,
     updatedAt: g.updatedAt,
-    fields: g.template.fields.map((f) => ({ field: f.field, title: f.title || f.field })),
+    // `?? []` because a STORED template is whatever an older client or a migrated v1 packet
+    // wrote, and `normalize` above defaults the record's own fields but never the template's.
+    // Every wizard save reads this index, so one malformed record would otherwise throw inside
+    // a door's promise and leave the reader with nothing saved and nothing said.
+    fields: (g.template.fields ?? []).map((f) => ({ field: f.field, title: f.title || f.field })),
   }));
 }
 
@@ -155,10 +159,18 @@ export function graphicHoldingName(name: string): GraphicDoc | undefined {
 export type LibrarySaveEffect =
   /** Nothing holds this name and this walk holds nothing: a new record. */
   | { kind: 'mint'; targetId: null }
-  /** The record this walk already made, kept under whatever the field now says. */
-  | { kind: 'update'; targetId: string; renamedFrom: string | null }
-  /** The record this walk made, renamed onto a name a DIFFERENT graphic already carries. */
-  | { kind: 'twin'; targetId: string; renamedFrom: string; holder: LibraryNameEntry }
+  /**
+   * The record this walk already made, kept under whatever the field now says.
+   * `renamedFrom` is the name it is moving off, and `sharesWith` a DIFFERENT graphic already
+   * carrying the new one - the two together are the rename that walks into a taken name, and
+   * `sharesWith` alone is the state that press left behind.
+   */
+  | {
+      kind: 'update';
+      targetId: string;
+      renamedFrom: string | null;
+      sharesWith: LibraryNameEntry | null;
+    }
   /** No record of this walk's own, so the name is the identity and it is written over. */
   | { kind: 'over'; targetId: string; holder: LibraryNameEntry };
 
@@ -173,12 +185,12 @@ export function librarySaveEffect(
   const wanted = name.trim();
   const mine = madeId ? index.find((g) => g.id === madeId) : undefined;
   if (mine) {
-    if (mine.name === wanted) return { kind: 'update', targetId: mine.id, renamedFrom: null };
-    // A twin ALREADY under this name is the tie-break's territory, not a twin this press makes.
-    const other = holderIn(index.filter((g) => g.id !== mine.id), wanted);
-    return other
-      ? { kind: 'twin', targetId: mine.id, renamedFrom: mine.name, holder: other }
-      : { kind: 'update', targetId: mine.id, renamedFrom: mine.name };
+    return {
+      kind: 'update',
+      targetId: mine.id,
+      renamedFrom: mine.name === wanted ? null : mine.name,
+      sharesWith: holderIn(index.filter((g) => g.id !== mine.id), wanted) ?? null,
+    };
   }
   const holder = holderIn(index, wanted);
   return holder ? { kind: 'over', targetId: holder.id, holder } : { kind: 'mint', targetId: null };

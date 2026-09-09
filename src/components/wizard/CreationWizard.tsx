@@ -719,18 +719,17 @@ export default function CreationWizard() {
   // The index is the library reduced to names, ids and fields - never the templates - so this
   // stays cheap enough to re-read on every change while the step is on screen.
   const [finishLibrary, setFinishLibrary] = useState<LibraryNameEntry[]>([]);
-  /** Re-read it now: after a door press, which changes the library AND the ref together. */
-  const rereadFinish = () => setFinishLibrary(graphicNameIndex());
+  /** Re-read it now: after a door press, which moves the library AND the ref together. */
+  const rereadFinish = useCallback(() => setFinishLibrary(graphicNameIndex()), []);
   useEffect(() => {
     if (!onFinish) {
       setFinishLibrary([]);
       return;
     }
-    const onData = () => setFinishLibrary(graphicNameIndex());
-    onData();
-    window.addEventListener('spx-data-changed', onData);
-    return () => window.removeEventListener('spx-data-changed', onData);
-  }, [onFinish]);
+    rereadFinish();
+    window.addEventListener('spx-data-changed', rereadFinish);
+    return () => window.removeEventListener('spx-data-changed', rereadFinish);
+  }, [onFinish, rereadFinish]);
   const finishMadeId = madeThisOpen.current?.graphicId ?? null;
 
   if (!open) return null;
