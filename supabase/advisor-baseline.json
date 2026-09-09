@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
-  "recordedAt": "2026-08-25",
-  "count": 100,
+  "recordedAt": "2026-09-09",
+  "count": 106,
   "entries": {
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -258,6 +258,11 @@
       "level": "WARN",
       "detail": "Function `public.is_suspended()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_suspended`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_is_team_member_p_team uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.is_team_member(p_team uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_team_member`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_public_system_notice_": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -277,6 +282,21 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.storage_within_quota(p_bucket text, p_owner text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/storage_within_quota`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_team_join_p_code text, p_display_name text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_join(p_code text, p_display_name text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_join`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_team_production_save_p_id uuid, p_expected timestamp with time zone, p_doc jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_production_save(p_id uuid, p_expected timestamp with time zone, p_doc jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_save`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_team_rotate_code_p_team uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_rotate_code(p_team uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_rotate_code`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "multiple_permissive_policies_public_community_templates_authenticated_SELECT": {
       "name": "multiple_permissive_policies",
@@ -443,6 +463,11 @@
       "level": "INFO",
       "detail": "Table \\`public.system_settings\\` has a foreign key \\`system_settings_updated_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
+    "unindexed_foreign_keys_public_team_productions_team_productions_updated_by_fkey": {
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.team_productions\\` has a foreign key \\`team_productions_updated_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
     "unindexed_foreign_keys_public_template_admin_template_admin_updated_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
@@ -487,6 +512,11 @@
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`render_jobs_active\\` on table \\`public.render_jobs\\` has not been used"
+    },
+    "unused_index_public_team_members_team_members_user_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`team_members_user_idx\\` on table \\`public.team_members\\` has not been used"
     },
     "unused_index_public_template_admin_template_admin_visibility_idx": {
       "name": "unused_index",
