@@ -3,10 +3,11 @@
 // keep using elsewhere.
 
 import { noacgUrl } from '../config.js';
-import { EXIT_OK, flagBool, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_OK, flagBool, refuseStrayArgs, type Out, type ParsedArgs } from '../output.js';
 import { forgetKey, resolveKey, revokeSelf } from '../auth.js';
 
 export async function runLogout(args: ParsedArgs, out: Out): Promise<number> {
+  refuseStrayArgs(args, 0);
   const origin = noacgUrl();
   const found = await resolveKey(origin);
   if (!found) {

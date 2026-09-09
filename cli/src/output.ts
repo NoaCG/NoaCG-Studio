@@ -98,6 +98,22 @@ export class Out {
 }
 
 /**
+ * The refusal itself, for a command whose grammar `refuseStrayArgs` cannot describe.
+ *
+ * `verb` is what the user typed to get here - "scaffold", or "caspar play", which dispatches on a
+ * sub-command instead of taking a package - and `takes` says what the verb does accept, so the
+ * sentence is true whichever grammar asked. Everything else that takes a fixed number of
+ * arguments goes through `refuseStrayArgs` below.
+ */
+export function refuseStray(verb: string, stray: string[], takes: string, example?: string): void {
+  if (stray.length === 0) return;
+  const quote = example ? `A value containing a space needs quotes: ${example}.` : 'A value containing a space needs quotes.';
+  throw new UsageError(
+    `${verb} takes ${takes} outside its flags, but also got ${stray.map((s) => `"${s}"`).join(', ')}. ${quote}`,
+  );
+}
+
+/**
  * Refuse a word left outside a command's flags.
  *
  * `_[0]` is the verb on both entrances (index.ts dispatches on it, mcp.ts builds the same argv),
@@ -106,17 +122,15 @@ export class Out {
  * flag value. `--name Football scoreboard` leaves "scoreboard" sitting in `_`, and before this
  * the graphic was quietly called "Football", in its `<title>`, its SPX description and its file
  * names, right into the user's library. Measured on the 2026-09-09 time-to-air walk
- * (docs/AGENT_CLI.md, "Time to air, measured"). `pack` takes any number of packages and `caspar`
- * has sub-commands, so neither calls this.
+ * (docs/AGENT_CLI.md, "Time to air, measured").
+ *
+ * `login` is the same fault with a different victim: `--name My Laptop` named the machine's key
+ * "My" on the consent page and in the user's Settings, and the word it dropped was the half that
+ * told the two laptops apart. `pack` takes any number of packages, `caspar send` takes an AMCP
+ * command as its words, and the rest of `caspar` calls `refuseStray` directly.
  */
 export function refuseStrayArgs(args: ParsedArgs, allowed: 0 | 1, example?: string): void {
-  const stray = args._.slice(1 + allowed);
-  if (stray.length === 0) return;
-  const takes = allowed === 0 ? 'no argument' : 'one argument';
-  const quote = example ? `A value containing a space needs quotes: ${example}.` : 'A value containing a space needs quotes.';
-  throw new UsageError(
-    `${args._[0]} takes ${takes} outside its flags, but also got ${stray.map((s) => `"${s}"`).join(', ')}. ${quote}`,
-  );
+  refuseStray(args._[0], args._.slice(1 + allowed), allowed === 0 ? 'no argument' : 'one argument', example);
 }
 
 /** Left-aligned columns for a small table. */

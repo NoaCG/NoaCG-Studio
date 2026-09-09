@@ -3,7 +3,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EXIT_OK, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_OK, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 
 const TOPICS = ['contract', 'package', 'validator', 'control', 'design-notes'] as const;
 export type DocTopic = (typeof TOPICS)[number];
@@ -25,6 +25,7 @@ export function docTopics(): readonly string[] {
 }
 
 export async function runDocs(args: ParsedArgs, out: Out): Promise<number> {
+  refuseStrayArgs(args, 1);
   const topic = args._[1];
   if (!topic) {
     out.result({ ok: true, topics: TOPICS });

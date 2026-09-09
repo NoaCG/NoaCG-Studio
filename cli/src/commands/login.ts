@@ -16,7 +16,7 @@ import http from 'node:http';
 import os from 'node:os';
 import type { AddressInfo } from 'node:net';
 import { noacgUrl } from '../config.js';
-import { EXIT_FINDINGS, EXIT_OK, flagBool, flagNumber, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_FINDINGS, EXIT_OK, flagBool, flagNumber, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { ApiError, challengeFor, displayPrefix, explainFailure, isAgentKey, newState, newVerifier, redeemCode, storeKey } from '../auth.js';
 
 /** How long the listener waits for the browser before giving up. */
@@ -119,6 +119,12 @@ function listenForCode(state: string, waitMs: number): Promise<{ port: number; h
 }
 
 export async function runLogin(args: ParsedArgs, out: Out): Promise<number> {
+  // Before the listener opens, because the fault this catches is silent and permanent: an
+  // unquoted `--name My Laptop` gave the flag "My" and left "Laptop" in `_`, so the key went to
+  // the deployment called "My" and sat in Settings -> Account -> Agent access under that name.
+  // The name is the only thing distinguishing one machine's key from another's when the user
+  // comes to revoke one, so dropping half of it is worse than it looks.
+  refuseStrayArgs(args, 0, '--name "My Laptop"');
   const origin = noacgUrl();
 
   // The paste fallback: a key minted elsewhere (another machine, a CI secret) stored here.

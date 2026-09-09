@@ -2,10 +2,11 @@
 // deployment still honours it. Prints the PREFIX the Settings list shows, never the key.
 
 import { noacgUrl } from '../config.js';
-import { EXIT_FINDINGS, EXIT_OK, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_FINDINGS, EXIT_OK, refuseStrayArgs, type Out, type ParsedArgs } from '../output.js';
 import { ApiError, describeKey, displayPrefix, explainFailure, resolveKey } from '../auth.js';
 
-export async function runWhoami(_args: ParsedArgs, out: Out): Promise<number> {
+export async function runWhoami(args: ParsedArgs, out: Out): Promise<number> {
+  refuseStrayArgs(args, 0);
   const origin = noacgUrl();
   const found = await resolveKey(origin);
   if (!found) {
