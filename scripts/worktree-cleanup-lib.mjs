@@ -11,7 +11,8 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, rmdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /** Absolute path with forward slashes, for cross-checkout comparison on Windows. */
 export function normalize(path) {
@@ -21,6 +22,53 @@ export function normalize(path) {
 /** Case-insensitive path equality (Windows filesystems are case-insensitive). */
 export function samePath(a, b) {
   return normalize(a).toLowerCase() === normalize(b).toLowerCase();
+}
+
+/**
+ * How long a reap gets before the removal goes ahead without it.
+ *
+ * The reap asks each broker to shut down and gives the family five seconds to go, so a worktree
+ * with several finished delegations can legitimately take a few of those. Thirty seconds is well
+ * past that and still bounded: cleanup runs unattended at night, and a step that can hang is a
+ * cleanup that silently stops running.
+ */
+const REAP_TIMEOUT_MS = 30_000;
+
+/**
+ * Close the Codex delegation families that belong to a worktree about to be removed.
+ *
+ * WHY THE CLEANUP OWNS THIS AT ALL. A delegation's `codex.exe` runs with the worktree as its
+ * working directory, and its parent links are cut within seconds of the launch - so a worktree
+ * could be torn down while the family it started went on running, which is exactly how three
+ * trees survived their sessions on 2026-09-09. On Windows a live process holding that directory
+ * is also why a removal comes back "folder may be locked/busy", so this runs BEFORE the removal
+ * rather than after it.
+ *
+ * NO NEW MACHINERY, AND NO NEW JUDGEMENT. It is one more caller of `codex-rescue.mjs reap`, which
+ * closes only what a delegation RECORDED launching, only once every delegation in that workspace
+ * has an outcome, only while the machine still agrees each pid is that same process, and never
+ * anything belonging to the owner's desktop Codex app. `--workspace` keeps it to this worktree's
+ * own delegations; nobody else's are its business.
+ *
+ * Never throws and never blocks a removal: a reap that fails leaves memory behind, which is what
+ * was happening anyway, while a cleanup that throws leaves the worktree.
+ */
+export function reapDelegationTrees(worktreePath, { run = spawnSync } = {}) {
+  const script = join(dirname(fileURLToPath(import.meta.url)), 'codex-rescue.mjs');
+  if (!worktreePath || !existsSync(script)) return { ok: false, output: 'no reaper to run' };
+  try {
+    const res = run(process.execPath, [script, 'reap', '--workspace', worktreePath], {
+      encoding: 'utf8',
+      timeout: REAP_TIMEOUT_MS,
+      windowsHide: true,
+    });
+    return {
+      ok: res?.status === 0,
+      output: `${res?.stdout ?? ''}${res?.stderr ?? ''}`.trim() || 'nothing to collect',
+    };
+  } catch (error) {
+    return { ok: false, output: error?.message ?? 'the reaper could not be run' };
+  }
 }
 
 /** Run git with the given args in `cwd`; return { ok, stdout, stderr } all trimmed. */

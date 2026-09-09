@@ -77,6 +77,7 @@ import {
   git,
   inspectLeftoverFolders,
   normalize,
+  reapDelegationTrees,
   samePath,
   worktreeRoots,
   sweepEmptyLeftoverFolders,
@@ -558,6 +559,7 @@ export function applySelf(
     deletedRemoteBranch: null,
     archived: null,
     releasedPorts: [],
+    reapedDelegations: null, // what this worktree's finished delegations gave up on the way out
     errors: [],
   };
 
@@ -586,6 +588,11 @@ export function applySelf(
     done.errors.push(`refusing: ${archived.reason} - nothing was removed`);
     return done;
   }
+
+  // The delegations this worktree started are closed BEFORE the folder goes: their `codex.exe`
+  // runs with this directory as its working directory, so one still running both leaks memory
+  // and holds the folder open against the removal below.
+  done.reapedDelegations = reapDelegationTrees(plan.path).output;
 
   // Never --force: a refusal here is git protecting something this assessment did not see.
   const removed = git(['worktree', 'remove', plan.path], plan.primaryRoot);
@@ -979,6 +986,7 @@ export function applyPlan(
 ) {
   const done = {
     removedWorktrees: [],
+    reapedDelegations: [], // { path, said } - each worktree's finished delegations, on the way out
     archived: [], // { path, destination, files, bytes }
     deletedBranches: [],
     deletedRemoteBranches: [],
@@ -1030,6 +1038,11 @@ export function applyPlan(
         bytes: archived.bytes,
       });
     }
+
+    // Close this worktree's finished delegations first: their `codex.exe` runs with this folder
+    // as its working directory, so one still running is both leaked memory and a reason the
+    // removal below comes back "folder may be locked/busy".
+    done.reapedDelegations.push({ path: w.path, said: reapDelegationTrees(w.path).output });
 
     const res = git(['worktree', 'remove', w.path], plan.primaryRoot); // never --force
     // Judge by REGISTRATION, not exit code, exactly as applySelf does. On Windows a folder
@@ -1263,6 +1276,12 @@ function report(plan, done) {
     L.push('  (released only under --apply)');
   }
 
+  if (done?.reapedDelegations?.length > 0) {
+    L.push('');
+    L.push('## Codex delegation processes closed with their worktree');
+    for (const { path, said } of done.reapedDelegations) L.push(`  - ${path}: ${said.replaceAll('\n', ' ')}`);
+  }
+
   if (plan.otherMerged.length > 0) {
     L.push('');
     L.push(
@@ -1345,6 +1364,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && pro
   if (done.archived?.files > 0) {
     console.log(`Archived ${done.archived.files} file(s), ${formatBytes(done.archived.bytes)} -> ${done.archived.destination}`);
   }
+  if (done.reapedDelegations) console.log(`Delegation processes: ${done.reapedDelegations}`);
   if (done.removedWorktree) console.log(`Removed worktree ${plan.path}`);
   if (done.deletedBranch) console.log(`Deleted branch ${done.deletedBranch}`);
   if (done.deletedRemoteBranch) console.log(`Deleted GitHub branch origin/${done.deletedRemoteBranch}`);

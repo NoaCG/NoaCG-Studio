@@ -6,9 +6,11 @@
 //   node scripts/codex-rescue.mjs poll <jobId> [--timeout-seconds 240]
 //   node scripts/codex-rescue.mjs result <jobId> [--json]
 //   node scripts/codex-rescue.mjs cancel <jobId>
-//   node scripts/codex-rescue.mjs reap [--all-workspaces]   clear jobs whose process died, and
-//                                                           close the process family of every
-//                                                           delegation that has finished with it
+//   node scripts/codex-rescue.mjs reap [--all-workspaces] [--workspace <path>]
+//                                       clear jobs whose process died, and close the process
+//                                       family of every delegation that has finished with it -
+//                                       `--workspace` narrows that to one checkout's delegations,
+//                                       which is what a worktree removal asks for
 //
 // WHY THIS EXISTS. The Codex plugin's own companion script is the engine and stays the engine -
 // this wrapper never reimplements a task run. It exists because the CHANNEL around that engine
@@ -61,7 +63,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { allProcesses, descendantsOf, orphanedCodexTrees } from './e2e-runs.mjs';
+import { allProcesses, descendantsOf, orphanedCodexTrees, sameRoot } from './e2e-runs.mjs';
 
 /** Where the plugin keeps its versioned copies. Overridable so the test never needs a real one. */
 const PLUGIN_CACHE = path.join(
@@ -719,9 +721,14 @@ async function waitForExit(pids, ms) {
  * milliseconds. Anything that fails either check is kept and named. Nothing is matched by
  * executable name, nothing is killed on a pattern, and a process belonging to the owner's desktop
  * Codex app is refused by `orphanedCodexTrees` even if a record somehow names it.
+ *
+ * `workspace` narrows the sweep to the delegations of ONE checkout, which is what a worktree
+ * removal needs: that worktree's family is about to lose the directory it is running in, and
+ * nobody else's is any of its business.
  */
-export async function reapTrees({ log = console.log } = {}) {
-  const records = delegationRecords();
+export async function reapTrees({ log = console.log, workspace = null } = {}) {
+  const records = delegationRecords()
+    .filter((record) => !workspace || (record.workspace && sameRoot(record.workspace, workspace)));
   const table = allProcesses();
   const before = orphanedCodexTrees(table, records);
   const collecting = before.filter((tree) => tree.kill.length > 0);
@@ -972,7 +979,7 @@ async function poll(argv, cwd) {
       console.log(summarize(job));
       // SUCCESS AND FAILURE ARE THE SAME EXIT HERE. A completed delegation leaves exactly the
       // family a failed one does, and the leak measured on 2026-09-09 was three COMPLETED jobs.
-      await reportReap(await reapTrees());
+      reportReap(await reapTrees());
       return job.status === 'completed' ? 0 : 1;
     }
     // A STALL AND A POLL TIMEOUT REAP NOTHING, deliberately. Both mean "no outcome yet", and a
@@ -1045,7 +1052,7 @@ async function cancel(argv, cwd) {
   console.log(`${job.id} cancelled (${killed}).`);
   // Cancelling used to kill the worker and leave the family: the taskkill above walks a parent
   // chain that was severed seconds after the launch, so it reached one process out of ten.
-  await reportReap(await reapTrees());
+  reportReap(await reapTrees());
   return 0;
 }
 
@@ -1059,19 +1066,31 @@ async function cancel(argv, cwd) {
  * time: whatever the last run failed to collect is collected before the next family is started.
  */
 async function reap(argv, cwd) {
-  const dirs = argv.includes('--all-workspaces') ? allStateDirs() : [await stateDir(cwd)];
-  const cleared = [];
-  for (const dir of dirs) {
-    if (!existsSync(path.join(dir, 'state.json'))) continue;
-    for (const job of readState(dir).jobs) {
-      const patch = reconcileJob(job);
-      if (!patch) continue;
-      persistPatch(dir, patch);
-      cleared.push(`${job.id}  ${job.status} -> failed/dead  (pid ${patch.deadPid} gone)  ${path.basename(dir)}`);
+  const at = argv.indexOf('--workspace');
+  const workspace = at === -1 ? null : argv[at + 1];
+  if (at !== -1 && !workspace) throw new Error('--workspace needs a path (got none)');
+
+  // CLEARING STALE JOB RECORDS NEEDS THE PLUGIN; COLLECTING PROCESSES DOES NOT. They are reported
+  // together because a person running `reap` wants both, but a machine without the plugin
+  // installed - or with a job store this wrapper cannot read - must still be able to close the
+  // processes a delegation left behind. So the first half is allowed to fail on its own.
+  try {
+    const dirs = argv.includes('--all-workspaces') ? allStateDirs() : [await stateDir(cwd)];
+    const cleared = [];
+    for (const dir of dirs) {
+      if (!existsSync(path.join(dir, 'state.json'))) continue;
+      for (const job of readState(dir).jobs) {
+        const patch = reconcileJob(job);
+        if (!patch) continue;
+        persistPatch(dir, patch);
+        cleared.push(`${job.id}  ${job.status} -> failed/dead  (pid ${patch.deadPid} gone)  ${path.basename(dir)}`);
+      }
     }
+    console.log(cleared.length ? cleared.join('\n') : 'No stale Codex jobs found.');
+  } catch (error) {
+    console.log(`Could not read the Codex job records (${error.message}); collecting processes anyway.`);
   }
-  console.log(cleared.length ? cleared.join('\n') : 'No stale Codex jobs found.');
-  await reportReap(await reapTrees());
+  reportReap(await reapTrees({ workspace }));
   return 0;
 }
 
