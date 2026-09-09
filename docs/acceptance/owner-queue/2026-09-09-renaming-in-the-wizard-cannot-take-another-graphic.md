@@ -28,9 +28,12 @@ before changing anything: the record's fields went from `zz` to `f0`, which is t
 **What to look at.** The line under the name field, and then Home.
 
 The line now says: *"A different graphic in your library is already called **Away Team**.
-Finishing leaves it alone and renames the one you just saved to match, so two graphics would
+Finishing leaves its artwork alone and renames the one you just saved to match, so two graphics
 share the name. Change the name above to keep them apart."* Before today it said your library
 already had that graphic and finishing would save over it, which was true and was the problem.
+Both doors under it say the same thing in their own words, and the production door's
+confirmation adds the one fact only it causes: a rundown that already holds that name points at
+this graphic afterwards, not at the other one.
 
 Press **Export it** anyway and go to Home. Your `Away Team` from step 1 is untouched, still with
 its own artwork, and your production still points at it. The graphic you made in step 2 is the

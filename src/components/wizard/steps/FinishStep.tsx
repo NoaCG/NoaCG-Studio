@@ -349,17 +349,19 @@ export default function FinishStep({
           </p>
         )}
         {/* A NAME TWO GRAPHICS WOULD SHARE. Nothing is lost - the record this walk made is the
-            one that moves - but the two become hard to tell apart on Home, and the production
-            pool matches by name, so a rundown holding it would follow this graphic. Said whether
-            this press CREATES the sharing or a previous one already did. */}
+            one that moves - but the two become hard to tell apart on Home. Said whether this
+            press CREATES the sharing or a previous one already did.
+            THE POOL CONSEQUENCE IS NOT SAID HERE: a production that holds the name would follow
+            this graphic instead, and only the production door can do that. It is stated in that
+            door's confirmation, which is where the production is chosen, rather than costing
+            every reader a fourth line about a door they may not press. */}
         {sharesNameWith && (
           <p className="status-warn" data-testid="wz-finish-name-twin">
-            A different graphic in your library is already called <strong>{graphicName}</strong>.
+            A different graphic in your library is already called <strong>{graphicName}</strong>.{' '}
             {renamingTo
-              ? ' Finishing renames the one you just saved to match, so two graphics share the name.'
-              : ' Two graphics share the name.'}{' '}
-            That graphic keeps its own artwork, but a production holding the name would follow
-            this one instead. Change the name above to keep them apart.
+              ? 'Finishing leaves its artwork alone and renames the one you just saved to match, so two graphics share the name.'
+              : 'Its artwork is not touched, and two graphics already share the name.'}{' '}
+            Change the name above to keep them apart.
           </p>
         )}
         {/* And the ordinary second press: your own graphic, updated. Stated calmly, because

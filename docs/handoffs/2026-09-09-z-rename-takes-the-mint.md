@@ -138,7 +138,15 @@ code, not a pipe's).
   would protect every caller, but `folder` is a field somebody may legitimately want to clear, so
   the guard stays at the call site.
 - **verify: inline.** Build green (exit 0). `check:copy` passes on the new sentences. The e2e
-  evidence is above.
+  evidence is above, and I drove the Finish step in this worktree's own dev server at 1440x900 and
+  1366x768 and MEASURED the result rather than reading the code: the shared-name warning sits at
+  the same 236px left edge as the input and the hint, wears the same amber `status-warn` as row
+  G's, and both door faces read as sentences ("Renames the graphic you just saved to Away Team,
+  pools it into the production with its first cue ready"). It first came out at four lines (68px
+  at 1366), against 34px for G's two-line warning in the equivalent screen, which pushes the doors
+  down in a container that already scrolls at that height. So the pool consequence moved to the
+  production door's confirmation - the only door that causes it - and the shared line is three
+  lines (51px). The benign paths are byte-identical to G's copy, measured in the same session.
 - **taste: not applicable.** Nothing here can move what a graphic looks like - no design file, no
   template machinery, no SVG import road, no fit or alignment code. The wizard copy I changed is
   three sentences on the Finish step, which is not a rendered graphic.
