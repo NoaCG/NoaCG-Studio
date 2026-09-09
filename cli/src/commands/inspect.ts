@@ -3,7 +3,7 @@
 // machine; for any OGraf manifest from `schema` + `customActions` + `stepCount`. No category.
 
 import { BridgeClient, type BridgeInspection } from '../bridgeClient.js';
-import { EXIT_OK, table, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_OK, refuseStrayArgs, table, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { readPackageInput } from '../workspace.js';
 
 export function describeInspection(i: BridgeInspection): string {
@@ -31,6 +31,7 @@ export function describeInspection(i: BridgeInspection): string {
 export async function runInspect(args: ParsedArgs, out: Out): Promise<number> {
   const input = args._[1];
   if (!input) throw new UsageError('inspect needs a package directory or .zip.');
+  refuseStrayArgs(args, 1);
   const { bytes, fileName } = await readPackageInput(input);
   const bridge = await BridgeClient.connect();
   try {

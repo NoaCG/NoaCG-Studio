@@ -226,6 +226,111 @@ build the library record) and then that the server hop's refusal is the DOCUMENT
 `npm run bench:cli` is named `*bench*` on purpose: that puts it in `SWEEP_SCRIPTS`, so it queues
 behind a live e2e suite instead of running beside one (root `AGENTS.md`, "Verifying changes").
 
+## Time to air, measured
+
+The owner's bar for this door is *"create graphics in your own Codex or Claude Code and, in
+minutes, play them out in the NoaCG CG player system."* Until 2026-09-09 nobody had timed it, so
+the sentence was a hope. These are wall-clock numbers off one walk, on one machine, on one day.
+**A number with no date is not a measurement**, so every row below carries all three.
+
+**When:** 2026-09-09, 11:07-11:18 UTC. **Machine:** Windows 10 (10.0.19045), 16 cores, 17 GB,
+Node v24.13.0, Google Chrome as the bench browser. **Entrance:** the TERMINAL one, walked by hand
+from an empty directory outside the repo (`C:\claude\noacg-cli-walk`), following `cli/README.md`'s
+own "Use" block line by line. **Deployment:** this checkout's dev server (`npm run dev:worktree`,
+`http://localhost:5290`), driving the branch's own bridge. **CLI:** built from `cli/` in this
+checkout, run as `node cli/dist/index.js …` - the same code `npx @noacg/cli` ships.
+
+### Setup, once per machine
+
+| Step | Wall clock |
+|---|---|
+| `npm install` in `cli/` (110 packages, cold) | 6.5 s |
+| `npm run build` in `cli/` (skill generator + tsc) | 2.2 s |
+
+A stranger does not pay this: they type `npx @noacg/cli <command>`, which pays a registry fetch
+instead. The walk used the local build so the numbers describe THIS branch rather than 0.3.0.
+
+### The verbs
+
+| Verb | The command as typed | Wall clock | Exit |
+|---|---|---|---|
+| `doctor` | `noacg doctor` | **2.4 s** | 0 |
+| `types` | `noacg types` | **1.7 s** | 0 |
+| `scaffold` | `noacg scaffold --type scoreboard --design neutral --name "Football scoreboard" --out ./football-scoreboard` | **2.1 s** | 0 |
+| `validate` | `noacg validate ./football-scoreboard --screenshots ./shots` | **10.7 s** | 0 |
+| `inspect` | `noacg inspect ./football-scoreboard` | **1.9 s** | 0 |
+| `screenshot` | `noacg screenshot … --state onair --out ./one-frame.png` | **4.0 s** | 0 |
+| `pack` | `noacg pack ./football-scoreboard --out ./walk.noacgpack.json` | **2.0 s** | 0 |
+| `whoami` | `noacg whoami` (against `https://noacg.studio`) | **3.8 s** | 0 |
+| `save` | `noacg save ./football-scoreboard` against a DEV SERVER | **0.3 s** | 1, refused |
+
+**24.8 seconds of tool time** for the seven authoring verbs, of which `validate` is 43% - it is
+the only one that launches Chromium, runs the gate, drives the bench and writes three 1920x1080
+frames, and it is the verb an author runs most. Everything else is a bridge round trip. Nothing
+in the door needed a retry, and no verb sat silent for longer than it worked.
+
+### The leg to a player
+
+The graphic went on air through the package's own fallback player, which is the route
+`GETTING-ON-AIR.md` names for anyone with no playout host in the room: serve the package folder
+over any local http address, open the graphic's `.html` in one tab and `controlpanel.html` in
+another, drive it from there. Measured the same day, immediately after `pack`:
+
+| Step | Result |
+|---|---|
+| serve the folder (a 30-line static server, port 8123) | the panel found the graphic and reported `connected: spx-control-football` |
+| **Play** | the graphic came on air - root opacity 0 -> 1, state `main: Off` -> `Enter` |
+| **Goal A** (an operator button the type's machine declares) | `HOME 0 AWAY 0` -> `HOME 1 AWAY 0` |
+| **Stop** | state back to `main: Off`, the exit animation ran |
+
+That leg took about six minutes of wall clock as walked, and that number is honest but not
+useful: two of those minutes were my own browser tooling losing a tab and a stale element
+reference. The product steps are three, and each is seconds.
+
+### What could NOT be walked, and why
+
+- **`save` stopped twice on this machine, and neither wall is the one you would guess.** The
+  route is served: `vite.config.ts` registers `meApiPlugin()`, which `ssrLoadModule`s the real
+  `api/me/[...path].ts`, so `POST /api/me/graphics` answers on the dev server. What the walk hit
+  was, in order: (1) **the CLI's key store is per ORIGIN** (`cli/src/auth.ts`), and the machine
+  held a key for `https://noacg.studio` and none for `http://localhost:5290`, so `save` refused
+  client-side in 0.3 s - *"Not logged in to http://localhost:5290 - run `noacg login` first…
+  No account? Zip the package and use the studio's Import door."*; and (2) had it been logged in,
+  the endpoint answers **503** `{"code":"unavailable","message":"This NoaCG has no account
+  backend, so there is no library to save into here."}` (measured with `curl` the same day),
+  because a LINKED WORKTREE has no `.env.local` - the file is per checkout and gitignored. So the
+  wall is a local backend, not the architecture, and a checkout that carries the env can walk the
+  whole line. **What is true either way is that the README's Use block ends on a line a fresh
+  local walk cannot run**, which is worth knowing before anyone times themselves against it. The
+  local route the CLI itself points at is the Import door, which `noacg pack` also names.
+- **`save` against `https://noacg.studio` was not run in this walk.** A valid key was held
+  (`whoami` above), but writing into the owner's live library from an unattended session is a
+  remote account write, and this session's permission gate refused it. The client half of that
+  path is what `cli/test/smoke.test.mjs` covers; the server half is `docs/AGENT_SAVE.md`.
+- **The studio's own production output URL** (`/output?production=<slug>`) needs a published
+  production, which needs the backend. Same wall as `save`.
+
+### What the walk found
+
+Three things, in the order a stranger meets them:
+
+1. **An unquoted flag value was swallowed in silence.** `--name Football scoreboard` (no quotes)
+   left "scoreboard" as a stray word, and `scaffold` ignored it: the graphic came out named
+   "Football", in its `<title>`, its SPX description and its file names, with nothing said. The
+   same hole was open on `save`, where that name goes into the user's LIBRARY. Fixed on the same
+   branch: `refuseStrayArgs` (`cli/src/output.ts`) refuses a word past what a verb takes and
+   names the word to quote - `scaffold` takes none, `save` / `validate` / `inspect` / `screenshot`
+   take one package, `pack` takes any number and `caspar` has sub-commands, so those two keep
+   their own grammar. Pinned by `cli/test/unit.test.mjs`.
+2. **`noacg types` prints lines up to 354 characters**, 67 rows of them, which no terminal shows.
+   Filed: `docs/backlog/noacg-types-prints-a-table-no-terminal-can-show.md`.
+3. **Three of six neutral scaffolds warn on their own bench.** Filed:
+   `docs/backlog/neutral-scaffolds-fail-their-own-stress-bench.md`.
+
+One documentation fix came out of it too: `cli/README.md` told the reader to edit
+`football-scoreboard.html`, and the file the scaffold writes is `football_scoreboard.html` - the
+html is named after the GRAPHIC, not the folder.
+
 ## The skill (`cli/skill/noacg-graphic/`)
 
 The contract TEXT, carried by all three entrances - not a fourth thing to install and not an
@@ -555,6 +660,19 @@ production shows an input per field + Take/Update/Next/Out. No application code 
   scaffold arms carried the machine every time, free arms shipped state as fields on 4 of 7
   typed-action cells; and all five novel-brief cells authored a WORKING machine from scratch -
   the evidence the Future item "agent-authored machines" was waiting on (owner gate).
+- **The round went on air, and that is a SEPARATE event from the blind read above.** On
+  **2026-08-23**, after the round was saved to noacg.studio, the owner **ran 7 of the 22 saved
+  graphics in a real production**: *"all the graphics I tried work very well… animations work,
+  editable fields work, the graphic lives with the length of the text… great stuff."* The blind
+  read says expert eyes could not tell agent-made from hand-made; this says seven of them went
+  into a production and behaved. Provenance, because it matters here: the quote is a first-hand
+  record in the orchestrator's memory store (`owner-walk-agent-round-ux`, recorded the same day,
+  `strength: observation`), not a measurement this repository took - it is written down here
+  because until 2026-09-09 the strongest real-world evidence the agent door had could not be cited
+  by any file. The 22 is independently in `docs/SAVED_CONTENT_MODEL.md` §6 (22 agent-made graphics
+  saved into one folder and staged as a production); the 7 rests on the memory entry alone. The
+  same walk's product feedback - the library and production UX defects it found - is what that
+  entry is mostly about, and none of it was about the graphics.
 - **Round two (2026-08-26): one vocabulary, a measured OGraf claim, an entrance with tests.** The
   four names became one artifact and one capability ("One name for each thing" above, applied
   across the CLI, the plugin, the skill's own description and the `/docs` page). The dual

@@ -5,7 +5,7 @@
 
 import path from 'node:path';
 import { BridgeClient, type NeutralFieldSpec, type ScaffoldRequest, type ScaffoldStyle } from '../bridgeClient.js';
-import { EXIT_OK, flagList, flagNumber, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_OK, flagList, flagNumber, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { isEmptyDir, unzipTo } from '../workspace.js';
 
 const KINDS = new Set(['text', 'lines', 'number', 'color', 'select', 'toggle', 'image']);
@@ -56,6 +56,9 @@ function styleFrom(args: ParsedArgs): ScaffoldStyle | undefined {
 }
 
 export function scaffoldRequestFrom(args: ParsedArgs): ScaffoldRequest {
+  // `scaffold` takes nothing outside its flags, so a leftover word is always an unquoted value -
+  // see refuseStrayArgs for what it used to cost.
+  refuseStrayArgs(args, 0, '--name "Football scoreboard"');
   const name = flagString(args, 'name');
   const style = styleFrom(args);
   const fields = flagString(args, 'fields');

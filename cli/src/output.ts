@@ -97,6 +97,28 @@ export class Out {
   }
 }
 
+/**
+ * Refuse a word left outside a command's flags.
+ *
+ * `_[0]` is the verb on both entrances (index.ts dispatches on it, mcp.ts builds the same argv),
+ * so `allowed` counts the arguments AFTER it: 0 for `scaffold`, 1 for the verbs that take one
+ * package. Anything past that is a mistake, and in practice always the same one - an unquoted
+ * flag value. `--name Football scoreboard` leaves "scoreboard" sitting in `_`, and before this
+ * the graphic was quietly called "Football", in its `<title>`, its SPX description and its file
+ * names, right into the user's library. Measured on the 2026-09-09 time-to-air walk
+ * (docs/AGENT_CLI.md, "Time to air, measured"). `pack` takes any number of packages and `caspar`
+ * has sub-commands, so neither calls this.
+ */
+export function refuseStrayArgs(args: ParsedArgs, allowed: 0 | 1, example?: string): void {
+  const stray = args._.slice(1 + allowed);
+  if (stray.length === 0) return;
+  const takes = allowed === 0 ? 'no argument' : 'one argument';
+  const quote = example ? `A value containing a space needs quotes: ${example}.` : 'A value containing a space needs quotes.';
+  throw new UsageError(
+    `${args._[0]} takes ${takes} outside its flags, but also got ${stray.map((s) => `"${s}"`).join(', ')}. ${quote}`,
+  );
+}
+
 /** Left-aligned columns for a small table. */
 export function table(rows: string[][]): string {
   const widths: number[] = [];
