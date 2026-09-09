@@ -78,10 +78,16 @@ test:e2e:affected` 18 passed. Observed rather than inferred: the rendered sectio
 390 wide, and the whole road walked in the running app before a word was written.
 `taste: not applicable` - nothing here can move what a graphic looks like.
 
-CI run `34347886767` on `4b536758` is green, and six jobs actually ran: Build, Factory gates, E2E
-plan, E2E 1/1 (subset), Combined E2E report and CI gate. The five skips are the expected ones for a
-non-deploy-affecting change - Vercel, the catalog calibration gate, Reviewed, the E2E retry and
-After the gate.
+CI is green and was read twice, with the job list checked both times rather than the summary
+colour: run `34347886767` on `4b536758`, the tip carrying every change to the page and the spec,
+and run `34348747075` on `c0d46500`, the markdown after it. Six jobs ran each time and all six
+passed - Build, Factory gates, E2E plan, E2E 1/1 (subset), Combined E2E report, CI gate - with the
+five expected skips for a non-deploy-affecting change: Vercel, the catalog calibration gate,
+Reviewed, the E2E retry and After the gate. Only this file changes after that.
+
+One gate did fire, and it was mine: `check:owner-queue` refused the acceptance item for having no
+`kind:` / `date:` front matter. That is a build-only check, which is the argument for running the
+build after writing the acceptance note rather than before.
 
 ## What I did not do
 
