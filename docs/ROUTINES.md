@@ -152,8 +152,17 @@ auto-upgrades.
 
 **It writes one gitignored file**, `docs/handoffs/<date>-orchestrator-week.local.md` in the main
 checkout, and prints only the owner-facing sections in chat. The next `/orchestrator` invocation
-reads the file with the rest of the handoff folder and turns its candidate rows into a wave, or says
-why not.
+turns its candidate rows into a wave, or says why not.
+
+**That last sentence is now counted rather than trusted.** It was prose here and in
+`orchestrator/grounding.md` and nothing measured it: the 2026-09-08 review emitted three well-formed
+candidate rows, both of that day's wave plans were written afterwards without lifting one or naming
+the file, and nothing recorded the miss. `npm run weekly:candidates` lists the rows with a
+`WEEK-<date>-<n>` id each - reading the main checkout from whatever checkout it runs in, and naming
+the folder it read either way - and for a week after the review `scripts/wave-plan-check.mjs`
+refuses a plan that leaves one unmentioned. Planning it, deferring it and rejecting it all pass;
+only silence fails. Nothing is forced into a wave, by the same ruling that keeps the owner queue
+from expiring - the ask is that a skipped row is skipped on purpose and says so.
 
 Tuesday and not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday, and
 he reads the weekly percentage off his account page himself, so the routine never computes or asks

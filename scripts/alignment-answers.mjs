@@ -35,12 +35,30 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { primaryCheckout } from './primary-checkout.mjs';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
 
 /** Where the weekly session writes, and where the rulings live once a session has recorded them. */
 export const HANDOFF_DIR = path.join('docs', 'handoffs');
 export const RULINGS_FILE = 'docs/OWNER_RULINGS.md';
+
+/**
+ * THE DIRECTORY THE WEEKLY FILE IS ACTUALLY IN - the PRIMARY checkout's, never this one's.
+ *
+ * The weekly session writes an absolute path into the primary checkout and `.gitignore` keeps the
+ * file out of git, so a linked worktree never has a copy. Reading `<this checkout>/docs/handoffs`
+ * therefore answered "no weekly file" in every session that ran anywhere but the primary tree -
+ * including every orchestrator session, which `orchestrator-home.mjs` pins to
+ * `.claude/worktrees/orchestrator`. The refusal below then passed every plan for a week without
+ * anything saying it had looked in an empty directory (2026-09-08, verified from a linked
+ * worktree). `primaryCheckout` answers `root` itself when there is no `.git`, so a test's
+ * temporary checkout still reads its own files.
+ */
+export function weeklyDir(root = REPO_ROOT) {
+  return path.join(primaryCheckout(root), HANDOFF_DIR);
+}
 
 // `ALIGN-<yyyy>-<mm>-<dd>-<n>` - the date the question was asked, and its number that morning.
 // The heading is read LENIENTLY: any level from `##` to `####`, and anything after the id, because
@@ -77,7 +95,7 @@ export function parseAlignmentQuestions(text) {
 
 /** Every `<date>-orchestrator-week.local.md`, oldest first, so the newest is always last. */
 export function weeklyFiles(root = REPO_ROOT) {
-  const dir = path.join(root, HANDOFF_DIR);
+  const dir = weeklyDir(root);
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((name) => WEEKLY_FILE.test(name)).sort().map((name) => path.join(dir, name));
 }
@@ -94,13 +112,20 @@ export function newestWeeklyFile(root = REPO_ROOT) {
  * does, because the file is gitignored per machine.
  */
 export function alignmentState(root = REPO_ROOT) {
+  // TWO ROOTS, on purpose. The questions come from the PRIMARY checkout, because that is the only
+  // tree the weekly file is ever written into; the rulings come from THIS checkout, because
+  // `docs/OWNER_RULINGS.md` is tracked and the branch that records a ruling is the one that must
+  // clear it. Reading both from one root is what broke this on 2026-09-08. Both roots are resolved
+  // once here, so the `.git` link is read once per call rather than once per file.
+  const primary = primaryCheckout(root);
+  const dir = path.join(primary, HANDOFF_DIR);
   const files = weeklyFiles(root);
-  if (files.length === 0) return { source: null, open: [], pending: [], recorded: [] };
-  const newest = files[files.length - 1];
   const rulingsPath = path.join(root, ...RULINGS_FILE.split('/'));
   const rulings = existsSync(rulingsPath) ? readFileSync(rulingsPath, 'utf8') : '';
-  const relative = (file) => path.relative(root, file).split(path.sep).join('/');
-  const state = { source: relative(newest), open: [], pending: [], recorded: [] };
+  if (files.length === 0) return { dir, source: null, open: [], pending: [], recorded: [] };
+  const newest = files[files.length - 1];
+  const relative = (file) => path.relative(primary, file).split(path.sep).join('/');
+  const state = { dir, source: relative(newest), open: [], pending: [], recorded: [] };
   // ANSWERS are read from EVERY week, because an answer given a month ago and never written down is
   // precisely the ruling this file promises not to lose - reading only the newest week would drop
   // it the following Tuesday, quietly, which is the failure wearing a different hat.
@@ -133,8 +158,10 @@ export function rulingBlock(entry) {
 }
 
 function report(state) {
-  if (!state.source) return ['No weekly owner session file in docs/handoffs/ - nothing to record.'];
-  const lines = [`Alignment answers from ${state.source}:`];
+  // NAME THE DIRECTORY, always. "Nothing to record" and "I read the wrong folder" printed the same
+  // sentence for a week; the path is the one fact that tells them apart.
+  if (!state.source) return [`No weekly owner session file in ${state.dir} - nothing to record.`];
+  const lines = [`Alignment answers from ${state.source} (in ${state.dir}):`];
   if (state.open.length) {
     lines.push('', `  OPEN - his to answer, and nothing waits on them (${state.open.length}):`);
     for (const entry of state.open) lines.push(`    ${entry.id}  ${entry.question}`);

@@ -185,7 +185,11 @@ Overwrite the same date's file if it exists. Seven short sections, numbers from 
 7. **Improve** - the outside ideas classified, then at most three improvements for the coming week,
    each as a candidate row in the orchestrator's section-5 shape (GOAL, WHY, TOUCHES, POOL), so the
    next `/orchestrator` invocation can lift it straight into a wave. A row whose why is "the number
-   went down" is not a row; name the failure it ends.
+   went down" is not a row; name the failure it ends. **Each row's `GOAL` line is what identifies
+   it** - `scripts/weekly-candidates.mjs` numbers the file's GOAL lines in order and gives each an
+   id, and for a week afterwards the plan check refuses a wave plan that leaves one unmentioned. So
+   write one GOAL line per row and none anywhere else in the file, and check the round trip before
+   you print: `npm run weekly:candidates` must list every row you just wrote, with its title.
 
 **Then print sections 1 to 4 in chat, and nothing else.** Those are his five minutes. Sections 5 to
 7 are the machine reviewing itself and they stay in the file, where the next `/orchestrator`
