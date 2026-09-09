@@ -12,22 +12,21 @@ the 2026-09-12 production stays, as the rehearsal.
 
 ## The route, under a minute
 
-Open <https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/DEMO_2026-09-25.md> on your phone and
-read **§0** (five calls about the shape) and **§7** (the gap list, ten rows). Skip the beat tables
-unless one of the five calls looks wrong to you.
+Branch `claude/g-demo-25-september` until it lands, then
+<https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/DEMO_2026-09-25.md> on your phone. Read
+§0 (five calls about the shape) and §7 (the gap list, twelve rows). Skip the beat tables unless
+one of the five calls looks wrong to you.
 
-**What to look at.** Three things only you can judge:
+**What to look at.** Five decisions were made without you, each with the sentence that reverts
+it. Say the sentence and the script changes.
 
-- **§0, call 1 and call 3.** It is a follow-along session where they drive, and the SVG road goes
-  first because the whole room can do it without a terminal or a subscription. If you meant a
-  presentation they watch, the shape changes and the timing halves.
-- **§7 row 1.** The one gap that can sink the day is the venue's network, and it is yours: the
-  `app?diag=1` screenshot from the Yle network was never taken after the 2026-08-20 failure. One
-  message to the contact settles it, and asking which OGraf renderer they run in the same message
-  settles §7 row 6's target too.
-- **§5, A3 and A4.** "Their systems" is prepared as four targets and picked on the day. The one
-  every student can do is OBS on their own laptop; CasparCG 2.3 with the output URL has never been
-  ticked on a real box and the 12th is where it gets its tick. If you know the room will have
-  neither, say which it will have.
+| decided | because | say this and what changes |
+|---|---|---|
+| They drive; we drive only the box and subscription beats | "trying NoaCG" reads as hands-on | "Make it a presentation" - the timing halves and every who cell becomes the owner |
+| Going on air is taught once, after both roads | both roads end at the library | "Show each road to air on its own" - §5 is repeated inside §3 and §4 and the session grows twenty minutes |
+| The SVG road goes before the CLI road | the whole room can do it with no terminal and no subscription | "CLI first" - the sections swap and the room without agents waits through road 2 |
+| Four playout targets prepared, picked on the day; OBS on their own laptop is the one every student does | OBS is the only target with no unseen hardware behind it | "The room will have X" - the other three beats are cut and the rehearsal on the 12th aims at X |
+| The step-by-step guide is `/docs` plus a one-page printed index, not a separate document | a second guide drifts, and two already disagree | "I want one document they take home" - G2 becomes that document and a row is planned to write it |
 
-Branch `claude/g-demo-25-september`.
+The one gap that can sink the day is yours and is filed on its own so it reaches your action list:
+`2026-09-09-g-yle-network-diag-screenshot.md`, one message to the Yle contact.

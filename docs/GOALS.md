@@ -99,17 +99,12 @@ and per gap, is [`COMPETITORS.md`](COMPETITORS.md):
 > A student draws **their own graphic** - any graphic, not a lower third - gives it **the behaviour
 > their show needs**, and plays it out from the dashboard. **Without writing a line of code.**
 
-**The date is 2026-09-25** - students and YLE people trying NoaCG, hands on. We owe them **one
-presentation and one step-by-step guide** over two capabilities: **SVG import, ending in their own
-graphic playing on their systems**, and **the CLI taking a graphic from Codex or Claude Code to the
-NoaCG player in minutes**. The ordered beats, the route to each, and whether it works today or is
-a gap: **`docs/DEMO_2026-09-25.md`**. Its gap list (§7) is what the fortnight is planned from.
-
-**2026-09-12 still happens, as the rehearsal** (owner, 2026-09-09: *"you don't have to stress
-about that"*): a real production with real students, a **QUIZ** (lock / reveal) and a
-**SCOREBOARD** (score + / -), the student drawing the graphic and NoaCG supplying the behaviour.
-What it rehearses and which beats it ticks is the demo script's §0 and §7. The student release
-before this is CLOSED (archive).
+**The date is 2026-09-25** (ruling: `docs/OWNER_RULINGS.md`, 2026-09-09). Students and YLE people
+try NoaCG hands on, and we owe one presentation and one step-by-step guide over SVG import ending
+on their systems and the CLI from Codex or Claude Code to the NoaCG player. Beats, routes and the
+gap list are **`docs/DEMO_2026-09-25.md`**. **2026-09-12 still happens, as the rehearsal**, a real
+student production with a **QUIZ** (lock / reveal) and a **SCOREBOARD** (score + / -). The student
+draws the graphic; we supply the behaviour. The student release before this is CLOSED (archive).
 
 **A WALK THAT IS OWED NEVER BLOCKS WORK** (owner, 2026-08-30, unprompted and twice): *"It's up to
 me to test what I need to test. You don't have to block any work just because I haven't tested
@@ -118,11 +113,8 @@ is a record of what is waiting to be SEEN, never a gate on what may be STARTED; 
 expires. Keep building; he catches up when he catches up.
 
 - [ ] **1. Prove the SVG road, with eyes on it.** SVG import v1 is merged
-      (`docs/SVG_IMPORT_PLAN.md`). The owner has walked it five times (2026-08-25 to 2026-09-03),
-      each walk landing fixes; what is still owed is the walk as a STRANGER, because whether the
-      workflow is CLEAR to someone who has never seen it is the half no test can answer. A
-      2026-09-09 row walks it that way and writes the end-to-end `/docs` page
-      (`docs/handoffs/2026-09-09-d-*.md` when it lands; `docs/DEMO_2026-09-25.md` G1).
+      (`docs/SVG_IMPORT_PLAN.md`) and the owner has walked it five times since 2026-08-25. What is
+      owed is a STRANGER's walk, which no test answers; `claude/d-import-road-guide` writes it up.
 - [ ] **2. Attach BEHAVIOUR to a graphic somebody else drew.** Both cases work - pinned by
       `e2e/import-svg-behaviour.spec.ts`, designed in `docs/GRAPHIC_BEHAVIOUR_PLAN.md` §10,
       shipped detail in the archive. **What is left is the OWNER WALK.**
@@ -145,7 +137,7 @@ expires. Keep building; he catches up when he catches up.
       footer checkbox copies a look nobody chose, and a logo has no road into a brand). Plan and
       the two wave rows: **`docs/BRAND_PLAN.md`**; level 2 (the PDF brand bible) stays parked there.
 
-**Deliberately NOT in the three weeks: CUSTOMIZING that behaviour** (owner, 2026-08-22 - *"what if
+**Deliberately NOT before the 25th: CUSTOMIZING that behaviour** (owner, 2026-08-22 - *"what if
 I don't want to be able to lock it?"*). That is the P2 question one level up; for the class, our
 behaviour used as-is is enough.
 
@@ -214,7 +206,7 @@ solid in the same commit, and its row in `docs/PROMISE_AUDIT.md` changes grade f
       on a calendar row (`gsap-licence` in `scripts/check-vendored-versions.mjs`), due around
       2027-03-04. The replaceability half is unchanged and still binding.
 
-**The Yle thread**: nothing is owed now; the owner re-contacts in a few weeks, and in roughly a
+**The Yle thread**: one message is owed now (the demo script's B0); the owner re-contacts in a few weeks, and in roughly a
 month Yle would try NoaCG inside one of their productions. Expect one question - which ports and
 hosts their strict network blocks. Answer it when they report it.
 

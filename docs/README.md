@@ -121,8 +121,8 @@ Layers of documentation, top to bottom:
 
 | Doc | State |
 |---|---|
-| `DEMO_2026-09-25.md` | The 25 September session for students and YLE people as ordered beats with a route and status evidence per beat; §7 is the gap list the fortnight is planned from. Written 2026-09-09. |
-| `TEXT_BOX_BINDING.md` | Text and its box: every field lives in the shape drawn under it, the text owns its alignment, the box owns its growth. Owner walk 2026-09-02; three measured defects, one fixed. Design only. |
+| `DEMO_2026-09-25.md` | SESSION SCRIPT for 2026-09-25, written 2026-09-09: the beats with a route and status evidence each; §7 is the gap list the fortnight is planned from. Moves to the historical table after the day. |
+| `TEXT_BOX_BINDING.md` | Text and its box: every field lives in the shape drawn under it, the text owns its alignment, the box owns its growth. Owner walk 2026-09-02; all three measured defects fixed, the alignment grid built 2026-09-08. Growth per box is still design. |
 | `GROWTH_EXECUTION_PLAN.md` | The adoption push. Locked 2026-07-08; only open signup done. The §9 backlog is the work queue when growth resumes. |
 | `NIGHTLY_AUTOMATION_PLAN.md` | Era 7. Job A (CI/health gates) built; generation jobs B/C plan-only, waiting on the §10 decisions (they spend real money nightly). |
 | `VIDEO_DESIGN_QUALITY_PLAN.md` | Video AI quality. Most of it landed (arm B, fonts, readability gates); still open: the experiment-gated vision critic (§3.5) and the chip-set palette decision (§3.6). |
