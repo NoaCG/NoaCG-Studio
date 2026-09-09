@@ -220,9 +220,11 @@ export const BROKER_COMMAND = /app-server-broker\.mjs\b[^\n]*\bserve\b/;
  * otherwise come back cut in half - the same trap `rootOfCommand` documents in e2e-runs.mjs.
  */
 export function workspaceOfBroker(command = '') {
-  const paired = /--cwd\s+(.*?)\s+--(?:pid-file|log-file|endpoint)\b/.exec(command);
-  const trailing = /--cwd\s+(.+?)\s*$/.exec(command);
-  const found = (paired ?? trailing)?.[1];
+  // Bounded by the NEXT FLAG, whichever it is, or by the end of the line. Naming the flags the
+  // plugin emits today (`--pid-file`, `--log-file`, `--endpoint`) would read one new flag as part
+  // of the path, and a workspace that is really `C:/…/worktree --new-flag value` matches no
+  // worktree - so every scoped reap would silently skip that family and call it not busy.
+  const found = /--cwd\s+(.*?)(?:\s+--[a-z]|\s*$)/.exec(command)?.[1];
   return found ? found.replace(/^"|"$/g, '') : null;
 }
 

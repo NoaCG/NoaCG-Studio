@@ -241,6 +241,14 @@ test('the workspace comes out of the broker\'s command line, spaces and all', as
     workspaceOfBroker('node broker.mjs serve --cwd C:/My Work/repo --pid-file C:/t/broker.pid'),
     'C:/My Work/repo',
   );
+  // And bounded by whatever flag comes next, not by the three the plugin emits today. One new
+  // flag would otherwise land inside the path, and a workspace that matches no worktree makes
+  // every scoped reap skip that family in silence.
+  assert.equal(
+    workspaceOfBroker('node broker.mjs serve --cwd C:/repo --brand-new-flag value'),
+    'C:/repo',
+  );
+  assert.equal(workspaceOfBroker('node broker.mjs serve --cwd C:/repo'), 'C:/repo', 'last argument');
   assert.equal(workspaceOfBroker('node broker.mjs serve'), null);
 });
 
