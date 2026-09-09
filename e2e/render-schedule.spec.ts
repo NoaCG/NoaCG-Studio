@@ -113,7 +113,7 @@ test('render limits: tier gates on format, resolution, fps, and duration', async
       ),
       signinGates: ['mp4', 'webm', 'png-still', 'png-sequence', 'prores4444'].map(formatNeedsSignIn),
       tiers: [resolveTier(false), resolveTier(true)],
-      paidDefined: RENDER_LIMITS.paid.maxWidth,
+      grantedDefined: RENDER_LIMITS.granted.maxWidth,
     };
   });
 
@@ -126,10 +126,10 @@ test('render limits: tier gates on format, resolution, fps, and duration', async
   expect(r.anonLong.map((i: { code: string }) => i.code)).toContain('duration');
   expect(r.anonFps.map((i: { code: string }) => i.code)).toContain('fps');
   expect(r.anon4k.map((i: { code: string }) => i.code)).toContain('resolution');
-  expect(r.free4k.map((i: { code: string }) => i.code)).toContain('resolution'); // 4K stays paid-gated
+  expect(r.free4k.map((i: { code: string }) => i.code)).toContain('resolution'); // 4K stays on the granted tier
   expect(r.freeProresLong.map((i: { code: string }) => i.code)).toContain('duration'); // per-format cap
   expect(r.freeProresOk).toEqual([]);
   expect(r.signinGates).toEqual([false, false, false, true, true]);
   expect(r.tiers).toEqual(['anonymous', 'free']);
-  expect(r.paidDefined).toBe(4096);
+  expect(r.grantedDefined).toBe(4096);
 });

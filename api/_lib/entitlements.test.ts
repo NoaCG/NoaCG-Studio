@@ -301,8 +301,9 @@ test('a tier name read back out of storage never lands as undefined caps', () =>
   assert.equal(storedRenderTier('paid'), 'granted');
   // Anything else is a name this build cannot honour, and saying so is the caller's cue to pick
   // its own fallback rather than indexing the cap tables with it.
-  // 'constructor' and 'toString' are in the list because the key is untrusted text out of the
-  // database and the retired-name map must not answer with an inherited Object property.
+  // 'constructor' and 'toString' are in the list because the value is untrusted text out of the
+  // database: a lookup written as an object index would answer those with an Object property
+  // rather than with null, and the caller would go on to index the cap tables with a function.
   for (const unknown of ['enterprise', 'PAID', '', 'constructor', 'toString', null, undefined]) {
     assert.equal(storedRenderTier(unknown), null, String(unknown));
   }

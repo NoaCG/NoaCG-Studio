@@ -20,28 +20,41 @@
 --     render tier name; the comment in limits.ts that also blamed 0018 was wrong, and is corrected
 --     in the same commit.
 --
--- ORDER MATTERS INSIDE THIS FILE. The rows are rewritten BEFORE the constraint is replaced, so the
--- new constraint is validated against data that already satisfies it. Doing it the other way round
--- fails on any database that has ever had a job on the old tier.
+-- ORDER MATTERS INSIDE THIS FILE, AND IT IS THE OPPOSITE OF THE INSTINCTIVE ONE. Postgres
+-- evaluates a CHECK constraint on every row an UPDATE writes, not only on INSERT - so rewriting
+-- `render_jobs.tier` while 0007's constraint still says `in ('anonymous', 'free', 'paid')` aborts
+-- with 23514 on precisely the databases that HAVE old rows, which is the only case this file is
+-- for. On an empty database the UPDATE matches nothing and the mistake is invisible. The old
+-- constraint therefore comes off FIRST, the rows are rewritten with no constraint in force, and
+-- the new constraint goes on last, where it validates data that already satisfies it.
 --
--- SAFE TO RUN AGAINST A DATABASE THAT ALREADY HAS THE OLD ROWS - that is the whole job - and safe
--- to run twice: the UPDATEs match nothing the second time, and the constraint is dropped by name
--- before it is added back.
+-- Safe to run twice: the constraint is dropped by name before it is added back, and the second
+-- run's UPDATEs match nothing.
 --
--- SAFE IN EITHER DEPLOY ORDER. Code that reaches production before this migration does still reads
--- a stored 'paid' as the 'granted' caps it always meant (`storedRenderTier` in src/render/limits.ts
--- is the single seam), so no in-flight render job loses its output TTL and no granted plan silently
--- narrows to free. This migration is what lets that compatibility shim eventually be deleted.
+-- DEPLOY ORDER. Reads are safe in either order: code that reaches production before this migration
+-- still reads a stored 'paid' as the 'granted' caps it always meant (`storedRenderTier` in
+-- src/render/limits.ts is the single seam), so no in-flight render job loses its output TTL, no
+-- granted plan narrows to free, and the admin Plans editor shows the new name for an old row.
+-- WRITES are not, and cannot be while one constraint has to name one set of values: between the
+-- code going live and this file being applied, starting a render on the granted tier inserts
+-- 'granted' against a constraint that has not learned it yet and fails with a 500. It fails CLOSED
+-- and a retry after the migration succeeds; nothing is written wrong. Only the granted tier is
+-- exposed - anonymous and free are untouched - and the mirror-image window exists if this file is
+-- applied first, so the fix is to keep the gap short, not to reorder it. `post-land.yml` pushes
+-- migrations as soon as the branch is on `origin/main`, which is what keeps it short.
 
 -- ── plans ────────────────────────────────────────────────────────────────────────────────────
+-- No constraint has ever guarded this column (0018 says why), so it needs no dance.
 update public.plans set render_tier = 'granted' where render_tier = 'paid';
 
 -- ── render jobs ──────────────────────────────────────────────────────────────────────────────
-update public.render_jobs set tier = 'granted' where tier = 'paid';
-
--- Drop-and-add is the only way to redefine a check constraint; `db push` recognises the pair as a
+-- Drop first (see ORDER MATTERS above), rewrite, then put the constraint back. Drop-and-add is
+-- the only way to redefine a check constraint anyway; `db push` recognises the pair as a
 -- replacement rather than a removal because this file adds the same name straight back.
 alter table public.render_jobs drop constraint if exists render_jobs_tier_check;
+
+update public.render_jobs set tier = 'granted' where tier = 'paid';
+
 alter table public.render_jobs add constraint render_jobs_tier_check
   check (tier in ('anonymous', 'free', 'granted'));
 

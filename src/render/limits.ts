@@ -152,29 +152,25 @@ export function isRenderTier(value: string): value is RenderTier {
   return value === 'anonymous' || value === 'free' || value === 'granted';
 }
 
-/** Tier names this build no longer has, and what each one MEANT.
- *
- *  'granted' was called 'paid' until migration 0055. Two kinds of stored row can still carry the
- *  old name: a `render_jobs` row written before the migration ran, and a `plans.render_tier` an
- *  admin set (that column is free text - see 0018 - so no constraint ever stopped a typo either).
- *  Reading the old name as what it meant is what keeps the code deploying independently of the
- *  migration in either order. Delete this map once no database can still hold the old value.
- *
- *  A Map rather than an object literal, because the lookup key is untrusted text out of the
- *  database: `{ paid: 'granted' }['constructor']` is a function, not a tier. */
-const RETIRED_TIER_NAMES = new Map<string, RenderTier>([['paid', 'granted']]);
-
 /** The tier a STORED name means, or null when this build has no idea what it is.
  *
  *  Every path that reads a tier back out of the database goes through here, because the tier is
  *  an index into RENDER_LIMITS and RENDER_CONFIG.outputTtlMs: an unrecognised name reaching those
  *  is `undefined` caps, and `Date.now() + undefined` is a NaN timestamp that throws on the way to
  *  the database. Callers decide what an unknown name falls back to, because the safe answer
- *  differs - a job row wants the narrower tier, a plan row wants whatever the caller had anyway. */
+ *  differs - a job row wants the narrower tier, a plan row wants whatever the caller had anyway.
+ *
+ *  'granted' was called 'paid' until migration 0055, and two kinds of stored row can still say so:
+ *  a `render_jobs` row written before the migration ran, and a `plans.render_tier` an admin set
+ *  (that column is free text - see 0018 - so nothing ever stopped a typo there either). Reading
+ *  the old name as what it meant is what lets the code and the migration reach production in
+ *  either order. Drop that line, and any later one like it, once no database can still hold the
+ *  value. */
 export function storedRenderTier(value: string | null | undefined): RenderTier | null {
   if (!value) return null;
   if (isRenderTier(value)) return value;
-  return RETIRED_TIER_NAMES.get(value) ?? null;
+  if (value === 'paid') return 'granted';   // retired by migration 0055
+  return null;
 }
 
 /** The tier a resolved entitlement renders at.
