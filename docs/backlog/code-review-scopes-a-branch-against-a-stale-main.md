@@ -4,75 +4,96 @@ source: derived
 kind: finding
 raised: 2026-09-09
 state: advanced
-note: "detection landed on claude/r-review-scope-is-checked, the tool did not. /check phase 2 now makes the row compare the review's scope against the branch's diff, discard the whole pass on a mismatch and report it, and those sentences are pinned as critical contract markers so they cannot be deleted quietly. The built-in still mis-scopes, which is the half that needs the harness"
+note: "the row now HANDS the delegate its scope - `scripts/review-request.mjs` prints the branch, the merge base against `origin/main` and the complete file list, and the review is invoked with that instead of a branch name, so there is nothing left for it to derive. What remains is unmeasured: no delegated pass has yet run under the handed request, so nobody knows whether the delegate obeys it. The next row to run /check reports what came back"
 found: "the /code-review tooling scopes a branch by diffing against the LOCAL main, which under the merge queue is permanently behind, so it reviews files the branch never touched and can report a real diff as clean"
 serves: NOW
 size: small
-touches: .agent-workflows/check.md, scripts/check-shared-instructions.mjs
+touches: .agent-workflows/check.md, scripts/review-request.mjs, scripts/check-shared-instructions.mjs
 covered-by: none
 needs-owner: harness
 ---
 
 # The code review scopes a branch against a stale local `main`
 
-`/code-review` decides which files a branch changed, and on 2026-09-08 it decided wrong for two
-rows on the same night. It reviewed files that had landed on `main` days earlier and attributed
-them to the branch under test. The tooling is a Claude Code built-in and has no file in this
-repository, so this receipt is the record rather than the fix.
+`/code-review` decides which files a branch changed, and between 2026-08-29 and 2026-09-09 it
+decided wrong nine times in this repository. It reviewed files that had landed on `main` days
+earlier and attributed them to the branch under test. The tooling is a Claude Code built-in with no
+file here, so this receipt is the record rather than the fix.
 
-## The evidence, from two rows that had no contact
+## The nine, from rows that had no contact with each other
 
-**Row Q** (`git show c68f2a92:docs/handoffs/2026-09-08-q-oss-community-files.md`, "The thing underneath all ten").
-Local `main` sat at `03aa732d`, two commits behind. The review read `37bc74af` and `31dd12ea` as
-this branch's work and produced ten findings about files the branch never opened. Q's words for the
-shape: "Both are right answers to the wrong question, and the failure is quiet in the bad
-direction: a branch looks like it changed MORE than it did, so a real diff can be reported clean."
-It cost that row an entire review pass.
+**Three on 2026-08-29**, from the other cause: a delegated review inherits the delegating tool's
+working directory rather than the worktree under test, so it reviewed a different WORKTREE's
+branch. That write-up is consumed and retrievable with
+`git show c5823d3b^:docs/handoffs/2026-08-29-dd-svg-fitting-two.md`.
 
-**Row P**, independently the same night: its delegated review pass read a stale `main` and reviewed
-two landed pull requests' files. P discarded the pass and reviewed inline instead.
+**Row Q**, 2026-09-08 (`git show c68f2a92:docs/handoffs/2026-09-08-q-oss-community-files.md`, "The
+thing underneath all ten"). Local `main` sat at `03aa732d`, two commits behind. The review read
+`37bc74af` and `31dd12ea` as this branch's work and produced ten findings about files the branch
+never opened. Q's words for the shape: "Both are right answers to the wrong question, and the
+failure is quiet in the bad direction: a branch looks like it changed MORE than it did, so a real
+diff can be reported clean."
 
-**Row J**, 2026-09-09, a day later and still happening: the pass scoped against merge base
-`ae5a32b9` rather than the branch's `761ad8e7`, read 117 files over 26 commits, and returned eight
-findings about another row's landed work, none of them inside J's own diff. J discarded it and
-reviewed by hand, which then found three real defects the delegated pass never looked at - one of
-them a factual overclaim in J's own text. Three rows, three separate discoveries, three review legs
-paid for twice.
+**Row P**, independently the same night: its delegated pass read a stale `main` and reviewed two
+landed pull requests' files. P discarded the pass and reviewed inline.
+
+**Row J**, 2026-09-09: the pass scoped against merge base `ae5a32b9` rather than the branch's
+`761ad8e7`, read 117 files over 26 commits, and returned eight findings about another row's landed
+work, none inside J's own diff.
+
+**Rows AS, AV and AQ**, all on the night of 2026-09-09. AS's pass scoped against a local `main` 29
+commits stale, reviewed 56 files against a true diff of 2, and returned four findings all in
+`cli/` - another row's files. AV's "named files this branch doesn't touch and reported no base
+sha". AQ's, five commits stale, put nine of ten findings in files the branch never touched.
+
+**The quality cost is worse than the money.** AQ's discarded pass had MISSED a real defect that the
+inline redo then caught. A review of the wrong files is not merely wasted; it returns findings and
+therefore looks like it worked. Every one of the nine was a delegated pass paid for and thrown
+away, and the redo was done by hand.
 
 ## Why
 
 `git fetch` moves `origin/main`; it does not move the local `main` branch. Every landing used to
 fast-forward the primary checkout, so the two agreed. GitHub's merge queue runs on GitHub and
-touches nothing on this machine, so the local ref stopped moving the moment the last hand-merge
-did and the lag only grows - 33 commits on 2026-09-09, in a worktree cut that same night.
+touches nothing on this machine, so the local ref stopped moving the moment the last hand-merge did
+and the lag only grows - 41 commits in this worktree on 2026-09-09.
 
-The in-repository half of this is now fixed and gated: `scripts/main-ref.mjs` is the one answer to
-"which ref means landed", `scripts/owner-receipts.mjs` was the fifth and last script reading the
-bare local ref, and `scripts/check-landed-ref.mjs` refuses a sixth at build time. None of that
-reaches a built-in that runs outside the repository.
+The in-repository half of that is fixed and gated: `scripts/main-ref.mjs` is the one answer to
+"which ref means landed", and `scripts/check-landed-ref.mjs` refuses at build time any script that
+asks the question of the bare local ref. None of it reaches a built-in running outside the
+repository.
 
-## What would settle it
+## What was actually wrong with the workaround
 
-Two things, either of which is enough, and neither of which anyone here can write:
+`.agent-workflows/check.md` had said the correct thing since 2026-09-08 - fetch first, merge base
+against `origin/main`, run the commands inside this worktree - and the rows followed it. **The
+delegate never read it.** A delegated review is a separate context that receives an invocation and
+nothing else, and what the row handed it was a branch name. A branch name is not a scope; it is an
+instruction to go and derive one, and the derivation is exactly where the stale ref got in. The
+rule was correct, complete, and pointed at the wrong reader.
 
-1. `/code-review` diffs against `origin/main` (or fetches first), rather than the local branch.
-2. It names the ref and the base sha it scoped against in its output, so a reader can see the
-   answer is stale instead of acting on ten findings about somebody else's files.
+So it is now ROUTED rather than restated. `node scripts/review-request.mjs` prints the request the
+row hands over: the branch, the merge base taken against `origin/main` after a fetch, the complete
+changed set including uncommitted work, and - because this text is the only thing that reaches the
+delegate - the instruction not to derive a scope, and to stop and print both lists rather than
+quietly substitute its own view. The script binds its git to the worktree that contains it, which
+answers the 2026-08-29 cause in code. Measured on the branch that added it: the true base answered
+one changed file and the local one answered 72.
 
-Until then the workaround is the one all three rows arrived at independently, and since
-`claude/r-review-scope-is-checked` it is no longer a workaround anyone has to reinvent: **the
-in-repository half of this finding is that the row NOTICES.** `/check` phase 2 now makes the row
-write down the branch, base sha and file list the review claims, compare them against
-`git diff --name-only $(git merge-base origin/main HEAD)..HEAD`, discard the whole pass on any
-mismatch, and report `review: discarded+inline` carrying both scopes. Phase 1 fetches first, so
-even `origin/main` is current. Three sentences of that step are pinned as critical contract markers
-in `scripts/check-shared-instructions.mjs`, so deleting the comparison fails the build rather than
-passing quietly.
+`/check` phase 2 still compares the scope the review REPORTS against this branch's real diff and
+discards the whole pass on a mismatch. That comparison is what caught all nine, and a fix upstream
+of a detector does not retire the detector.
 
-That does not fix the tool and does not close this finding. A mis-scoped review still costs a whole
-review leg; it just costs one command to detect instead of a wasted pass believed.
+## What is genuinely left
 
-## Needs the owner
+**The fix is unmeasured.** No delegated review has yet run under the handed request, so nobody
+knows whether the delegate honours a file list it did not compute, or quietly recomputes one
+anyway. The next rows to run `/check` are the measurement: report whether the pass came back naming
+the handed base sha and file list, and whether it ever refused on a disagreement. Two or three
+clean scope-checks in a row close this; one delegate ignoring the list means the request needs
+teeth the workflow cannot give it, and that is when the harness ask below becomes worth spending.
 
-`needs-owner: harness`. Reaching the tooling means an Anthropic-side change or a harness
-configuration this repository does not hold, and that is his call, not a decision to make here.
+`needs-owner: harness` therefore stands but has dropped in value. The tool-side fix - make
+`/code-review` diff against `origin/main`, and have it name the base sha it used - would still be
+better than working around it, and it needs an Anthropic-side change this repository does not hold.
+It is no longer costing a review pass a night, so it is not worth interrupting him for.
