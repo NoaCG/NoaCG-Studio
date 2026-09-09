@@ -112,10 +112,12 @@ is supposed to have.
 
 - `npm run build` green, exit code read directly rather than through a pipe. Run after every
   commit; the last run is on the tip.
-- CI green on `51c82851` (run 34380119919). **Which jobs ran:** E2E plan, Factory gates, Build and
-  CI gate all passed; the E2E shards, the catalog calibration gate and the Vercel job were
-  SKIPPED, which is the docs-only path - the plan measured from merge base `0204e175` and found no
-  affected specs. Nothing in this branch touches `src/`, `cli/` or `e2e/`.
+- CI read green three times, most recently on the tip. **Which jobs ran** (same on every run):
+  Build, Factory gates, E2E plan and CI gate all passed; the E2E shards, the catalog calibration
+  gate, Reviewed and the Vercel job were SKIPPED, which is the docs-only path - the plan measured
+  from merge base `0204e175` and found no affected specs. Nothing in this branch touches `src/`,
+  `cli/` or `e2e/`. Runs 34378049690 (`c08fe6ac`), 34380119919 (`51c82851`) and 34381415304
+  (`97af3226`, the last commit before this handoff).
 - `check: review delegated, simplify inline, verify inline. taste: not applicable.`
   - **review: delegated (high).** It scope-checked clean: it named this branch, its three commits
     and a file list entirely inside `git diff --name-only 0204e175..HEAD`. Six findings, all
