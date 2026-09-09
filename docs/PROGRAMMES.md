@@ -147,12 +147,11 @@ Claims: `docs/NORTH_STAR_2027.md` §5 P5, proven by recurring novel-brief benchm
 State: AUTHORIZED (ratified 2026-08-29, `docs/OGRAF_FIRST_REVIEW.md`) and **may start now**. First
 tenant of this register; nothing about it is redesigned here. The NOW date (`docs/GOALS.md`,
 `## NOW`) is a forecast of when the ladder matters, never a precondition for starting it (owner,
-2026-09-03 - the rule is "A DATE IS
-NOT A GATE" above; the test to start is a clear vision of how to do it and no fire burning). The
-earlier reading of the 2026-08-30 sequencing ruling as a wait is superseded, and it had already
-been overruled case by case: on 2026-09-01 the owner authorized the OGraf host-page fix (checker
-row X-04) by name ahead of the date - "No dates are blocked"; implemented 2026-09-02 on
-`claude/c-ograf-host-page`, landing through the queue.
+2026-09-03 - the rule is "A DATE IS NOT A GATE" above; the test to start is a clear vision of how
+to do it and no fire burning). The earlier reading of the 2026-08-30 sequencing ruling as a wait
+is superseded, and it had already been overruled case by case: on 2026-09-01 the owner authorized
+the OGraf host-page fix (checker row X-04) by name ahead of the date - "No dates are blocked";
+implemented 2026-09-02 on `claude/c-ograf-host-page`, landing through the queue.
 Stage list: the ladder in `docs/GOALS.md` "NEXT - OGraf-first", verbatim, in its dependency
 order. Outreach stays gated behind working playout (owner, 2026-08-29 evening).
 Owner actions: the GSAP written clarification; the ecosystem-listing PR and any EBU contact

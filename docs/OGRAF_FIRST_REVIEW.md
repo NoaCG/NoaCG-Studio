@@ -402,7 +402,7 @@ clarification is sought and replaceability is preserved until it arrives.
 ## 12. Sequencing - what moves when
 
 **Now.** The push is whatever `docs/GOALS.md`, `## NOW` names, and nothing in this review
-competes with it. What may START is the register's call, not this date's: `docs/PROGRAMMES.md`,
+competes with it. What may START is the register's call, not this review's: `docs/PROGRAMMES.md`,
 "P6 OGraf & Interoperability" records that P6 may start now. The SVG importer walks and the CLI
 publish decision stay the priorities the prompt restates.
 

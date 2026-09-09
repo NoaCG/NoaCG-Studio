@@ -47,7 +47,8 @@ in its own text (the OGraf one does).
 roadmap in the "NOW" section of `docs/GOALS.md`; the student release before it is CLOSED (history
 in `docs/GOALS_ARCHIVE.md`). A student draws their own graphic - any graphic, not a lower third -
 gets the BEHAVIOUR their show needs onto it, and plays it out **without writing a line of code**.
-That "NOW" section names the date and what is owed on it; today it is **2026-09-25**, students
+That "NOW" section names the date and what is owed on it; the date it names is **2026-09-25**,
+students
 and YLE people trying NoaCG hands on, over two capabilities - SVG import ending in their own
 graphics playing on their own systems, and the CLI carrying a graphic from an agent to the NoaCG
 player in minutes (beats and gap list: `docs/DEMO_2026-09-25.md`). The **2026-09-12** student
