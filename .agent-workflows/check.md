@@ -32,14 +32,16 @@ first before changing anything, exactly as the repo's Git rules require.
 - **`node scripts/review-request.mjs`.** It fetches, takes the merge base against `origin/main`,
   and prints the branch, that base sha and every file this branch changed, committed and
   uncommitted. All three phases work from that one set; do not review or simplify code the branch
-  did not touch. Read the changed code itself with `git diff $(git merge-base origin/main HEAD)`,
-  which diffs the merge base against the WORKING TREE, so uncommitted content is in what you read.
-- **Nothing in this phase is a command to retype.** The script binds its git to the worktree that
-  CONTAINS it rather than to the caller's directory, and takes the base from `origin/main` rather
-  than the local `main` branch the merge queue no longer moves. Those two mistakes cost nine
+  did not touch. Read the changed code itself IN THIS WORKTREE with
+  `git diff $(git merge-base origin/main HEAD)`, which diffs the merge base against the WORKING
+  TREE, so uncommitted content is in what you read.
+- **The base and the file list are never yours to recompute.** The script binds its git to the
+  worktree that CONTAINS it rather than to the caller's directory, and takes the base from
+  `origin/main` rather than the local `main` branch the merge queue no longer moves - and it
+  refuses outright rather than falling back to a ref that is neither. Those two mistakes cost nine
   delegated review passes between 2026-08-29 and 2026-09-09, every one discarded and redone by
   hand; `docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md` itemises them.
-- If it reports nothing to review and the working tree is clean, report "nothing to check" and stop.
+- If it reports nothing to review, report "nothing to check" and stop.
 - Before editing, read the nested `AGENTS.md` contracts covering the touched areas - review
   findings are judged against them, and a "simplification" that violates one is a bug.
 
@@ -113,15 +115,9 @@ Goal: find and fix real defects in the changed code before polishing it.
   the review by hand over that same diff, and report `review: discarded+inline` with BOTH
   scopes, the sha the review used and this branch's merge base. Discarded means discarded as a
   review of THIS branch; findings about another branch's files are still relayed, per the next
-  bullet. Six mis-scoped passes measured across four rows, from two causes. Three read another
-  WORKTREE's branch on 2026-08-29, because a delegated review inherits the delegating tool's
-  directory rather than this worktree's - that write-up is consumed, retrievable with
-  `git show c5823d3b^:docs/handoffs/2026-08-29-dd-svg-fitting-two.md`. Three more scoped against
-  a stale local `main`: rows Q and P on 2026-09-08, and row J on 2026-09-09, whose pass reached
-  26 commits back and returned eight findings with not one inside its own diff. The reviewing
-  tool is a built-in with no file in this repository
-  (`docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md`), so noticing is the half
-  this repository owns.
+  bullet. Nine mis-scoped passes across seven rows and two causes, itemised with their shas in
+  `docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md`. The reviewing tool is a
+  built-in with no file in this repository, so noticing is the half this repository owns.
 - Findings about another branch's files are that branch's business: report them to the session
   that owns it, and never fix them here.
 - **Review the diff against what was ASKED as well as for bugs**, and keep the two apart: does

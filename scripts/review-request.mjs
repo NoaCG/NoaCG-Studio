@@ -31,7 +31,7 @@
 // WHAT THIS FIXES AND WHAT IT DOES NOT. It removes the delegate's ability to be wrong about scope,
 // because there is nothing left for it to work out. It does not verify that the delegate obeyed:
 // `/check` phase 2 still compares the scope the review REPORTS against this branch's real diff and
-// discards the whole pass on a mismatch. That comparison caught all five, and a fix upstream of a
+// discards the whole pass on a mismatch. That comparison caught all nine, and a fix upstream of a
 // detector is never a reason to remove the detector.
 //
 // The base is computed against `origin/main` through `scripts/main-ref.mjs`, and the git commands
@@ -62,6 +62,10 @@ const LEVELS = new Set(['low', 'medium', 'high', 'max']);
  * `.trim()` here eats that space off the first line, `slice(3)` below then eats the first character
  * of the path with it, and the request goes out naming `agent-workflows/check.md` for a file called
  * `.agent-workflows/check.md`. Caught by reading this script's own output on its own branch.
+ *
+ * That is also why this does not call the shared `git()` in `worktree-cleanup-lib.mjs`, which is
+ * otherwise the same eight lines: it trims both ends, which is right for the revisions and branch
+ * names its callers ask for and wrong for every byte of porcelain.
  */
 function git(args, { allowFail = false } = {}) {
   const run = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
@@ -73,22 +77,36 @@ function git(args, { allowFail = false } = {}) {
 }
 
 /**
- * Working-tree paths from `git status --porcelain=v1`, which the diff above cannot see.
+ * Working-tree paths from `git status --porcelain=v1 -z --untracked-files=all`, which the diff
+ * against HEAD cannot see.
  *
  * A review reads the tree, so uncommitted and untracked work is in its scope whether or not the
- * request names it - and a file the request omits is a file the delegate is then entitled to be
- * surprised by. Renames arrive as `R  old -> new`; the NEW path is the one that exists to read.
- * Paths containing odd characters come back quoted, and git's own quoting is C-style, so the
- * quotes are stripped rather than reproduced into a list somebody will paste.
+ * request names it - and a file the request omits is a file the delegate is entitled to be
+ * surprised by. Both flags are load-bearing, and each was measured here rather than assumed:
+ *
+ *   - `--untracked-files=all`, because the default collapses a new DIRECTORY to one entry. A probe
+ *     with two files under `zz-probe/` reported the single line `?? zz-probe/`, which is a path
+ *     nobody can open: the request would have named a directory as a file to review and never
+ *     named either file inside it.
+ *   - `-z`, because git quotes any path it considers unusual and escapes non-ASCII bytes C-style.
+ *     `zz-käyttö.md` came back as `"zz-k\303\244ytt\303\266.md"`, and stripping the quotes leaves
+ *     the escapes intact, so the path failed to resolve and the file was reported as DELETED. NUL
+ *     separation turns quoting off outright rather than teaching this function to undo it.
+ *
+ * Under `-z` a rename is TWO fields - the entry carries the new path, and the old path follows in
+ * its own field - so the follower is consumed rather than read as another changed file. The new
+ * path is the one that exists to read.
  */
 export function workingTreePaths(status) {
+  const fields = status.split('\0').filter(Boolean);
   const paths = [];
-  for (const line of status.split('\n')) {
-    if (!line.trim()) continue;
-    const entry = line.slice(3);
-    const arrow = entry.indexOf(' -> ');
-    const file = arrow === -1 ? entry : entry.slice(arrow + 4);
-    paths.push(file.startsWith('"') && file.endsWith('"') ? file.slice(1, -1) : file);
+  for (let i = 0; i < fields.length; i += 1) {
+    const entry = fields[i];
+    if (entry.length < 4) continue;
+    paths.push(entry.slice(3));
+    // `R` rename, `C` copy: either index or worktree column can carry it, and the source path is
+    // the next field. Skipping it is what keeps a rename's OLD name out of the review's scope.
+    if (entry[0] === 'R' || entry[0] === 'C' || entry[1] === 'R' || entry[1] === 'C') i += 1;
   }
   return paths;
 }
@@ -113,13 +131,26 @@ export function scope() {
   // unfetched ref is the very staleness this script exists to remove, so the caller is told.
   const fetched = git(['fetch', '--quiet', 'origin', 'main'], { allowFail: true }) !== null;
   const ref = mainRef((args) => ({ ok: git(args, { allowFail: true }) !== null }));
+  // `mainRef` falls back to the local branch when there is no `origin/main`, and keeps the local
+  // one when it is not an ancestor of the remote - a diverged main. Both are correct answers to
+  // ITS question and useless to this one: a request that says "never scope from `main`" and then
+  // hands over a base taken from `main` is worse than no request, because it is wrong in the exact
+  // way it warns about. This script has one job, so it refuses rather than falls back.
+  if (ref !== 'origin/main') {
+    throw new Error(
+      `review-request: the base must come from origin/main, but the landed ref resolved to "${ref}". ` +
+        'Fetch, or fix a locally diverged main, before asking for a review scope.',
+    );
+  }
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']);
   const base = git(['merge-base', ref, 'HEAD']);
-  const committed = git(['diff', '--name-only', `${base}..HEAD`]).split('\n').filter(Boolean);
-  const working = workingTreePaths(git(['status', '--porcelain=v1']));
-  const changed = [...new Set([...committed, ...working])].sort();
-  const files = changed.filter((file) => existsSync(path.join(ROOT, file)));
-  const deleted = changed.filter((file) => !existsSync(path.join(ROOT, file)));
+  const committed = git(['diff', '--name-only', '-z', `${base}..HEAD`]).split('\0').filter(Boolean);
+  const working = workingTreePaths(git(['status', '--porcelain=v1', '-z', '--untracked-files=all']));
+  const files = [];
+  const deleted = [];
+  for (const file of [...new Set([...committed, ...working])].sort()) {
+    (existsSync(path.join(ROOT, file)) ? files : deleted).push(file);
+  }
   return { branch, ref, base, files, deleted, fetched };
 }
 
@@ -130,12 +161,12 @@ export function scope() {
  * refusing it here is that ban with teeth.
  */
 function refuseUltra(level) {
-  if (level !== 'ultra') return;
+  if (level !== 'ultra') return false;
   console.error(
     'review-request: `ultra` reports back out of band, so its result never reaches the caller ' +
       'that has to scope-check and act on it. Use `high`.',
   );
-  process.exit(2);
+  return true;
 }
 
 /**
@@ -162,7 +193,14 @@ export function requestText({ branch, ref, base, files, deleted, fetched }, leve
         ...deleted.map((file) => `  ${file}`),
       ].join('\n')
     : '';
-  return `Review ONLY the ${files.length} file(s) listed at the end of this request. Effort level: ${level}.
+  // A branch can legitimately only remove things, and then there is nothing to open at all. Saying
+  // "review the 0 file(s) listed below" would read as a mistake and invite the delegate to go
+  // looking for the real list, which is the one thing this request exists to prevent.
+  const opening = files.length
+    ? `Review ONLY the ${files.length} file(s) listed at the end of this request.`
+    : 'This branch only REMOVES files, so there is nothing to open. Review the removal itself, ' +
+      'against the paths listed under DELETED at the end of this request.';
+  return `${opening} Effort level: ${level}.
 
 Branch:     ${branch}
 Merge base: ${base}  (against ${ref})
@@ -182,21 +220,35 @@ it worked.
 Report the merge-base sha and every file you actually read, so the caller can compare your scope
 against this one. A pass that will not say what it scoped is treated as a failed pass.
 
-FILES (${files.length}):
-${files.map((file) => `  ${file}`).join('\n')}${removed}`;
+${files.length ? `FILES (${files.length}):\n${files.map((file) => `  ${file}`).join('\n')}` : 'FILES: none.'}${removed}`;
+}
+
+/**
+ * The requested level, in either spelling.
+ *
+ * Both are read because `--level=medium` silently produced a `high` request while only the
+ * space-separated form was understood, and a wrong level is a thing nothing downstream can notice.
+ */
+function levelFrom(argv) {
+  const joined = argv.find((arg) => arg.startsWith('--level='));
+  if (joined) return joined.slice('--level='.length);
+  const at = argv.indexOf('--level');
+  return at === -1 ? 'high' : (argv[at + 1] ?? '');
 }
 
 export function main(argv = process.argv.slice(2)) {
-  const levelAt = argv.indexOf('--level');
-  const level = levelAt === -1 ? 'high' : (argv[levelAt + 1] ?? '');
-  refuseUltra(level);
+  const level = levelFrom(argv);
+  if (refuseUltra(level)) return 2;
   if (!LEVELS.has(level)) {
     console.error(`review-request: unknown level "${level}". One of: ${[...LEVELS].join(', ')}.`);
     return 2;
   }
 
   const computed = scope();
-  if (computed.files.length === 0) {
+  // Deletions count. A branch that only removes files has changed plenty - something may still
+  // reference what it removed - and testing `files` alone reported it as nothing to review, which
+  // tells the row to skip the check chain entirely. This repository deletes files constantly.
+  if (computed.files.length + computed.deleted.length === 0) {
     console.error(
       `review-request: nothing to review - ${computed.branch} matches ${computed.ref} and the ` +
         'working tree is clean.',
@@ -205,8 +257,8 @@ export function main(argv = process.argv.slice(2)) {
   }
 
   if (argv.includes('--json')) {
-    const { branch, base, files } = computed;
-    console.log(JSON.stringify({ branch, mergeBase: base, files }, null, 2));
+    const { branch, base, files, deleted } = computed;
+    console.log(JSON.stringify({ branch, mergeBase: base, files, deleted }, null, 2));
     return 0;
   }
 

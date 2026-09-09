@@ -15,22 +15,33 @@ test('a leading status column is not mistaken for part of the path', () => {
   // ` M path` - tracked, modified, unstaged - is the commonest line there is, and its first column
   // is a SPACE. Trimming the block before splitting eats it, and the path loses its first
   // character: `.agent-workflows/check.md` went out as `agent-workflows/check.md`.
-  assert.deepEqual(workingTreePaths(' M .agent-workflows/check.md'), ['.agent-workflows/check.md']);
-  assert.deepEqual(workingTreePaths('MM src/app.ts'), ['src/app.ts']);
-  assert.deepEqual(workingTreePaths('?? scripts/new.mjs'), ['scripts/new.mjs']);
+  assert.deepEqual(workingTreePaths(' M .agent-workflows/check.md\0'), ['.agent-workflows/check.md']);
+  assert.deepEqual(workingTreePaths('MM src/app.ts\0'), ['src/app.ts']);
+  assert.deepEqual(workingTreePaths('?? scripts/new.mjs\0'), ['scripts/new.mjs']);
 });
 
-test('a rename contributes the path that now exists to read', () => {
-  assert.deepEqual(workingTreePaths('R  src/old.ts -> src/new.ts'), ['src/new.ts']);
+test('a rename yields the new path only, and swallows the source field', () => {
+  // Under `-z` a rename is two fields: the entry carrying the NEW path, then the old one on its
+  // own. Reading the follower as another entry puts a path the branch no longer has into the
+  // scope, and shifts every field after it by one.
+  assert.deepEqual(workingTreePaths('R  src/new.ts\0src/old.ts\0'), ['src/new.ts']);
+  assert.deepEqual(workingTreePaths('R  a.ts\0b.ts\0 M c.ts\0'), ['a.ts', 'c.ts']);
+  // A rename staged in the index and then modified in the worktree carries `R` in column one only.
+  assert.deepEqual(workingTreePaths('RM a.ts\0b.ts\0 M c.ts\0'), ['a.ts', 'c.ts']);
 });
 
-test('git quoting is stripped rather than pasted into a file list', () => {
-  assert.deepEqual(workingTreePaths('?? "docs/a file.md"'), ['docs/a file.md']);
+test('a path git would have quoted arrives whole under -z', () => {
+  // `-z` turns quoting off, so a name with a space or a non-ASCII byte needs no unescaping. Before
+  // it, `zz-käyttö.md` arrived as `"zz-k\303\244ytt\303\266.md"` and was reported as DELETED,
+  // because the escaped spelling resolves to no file on disk.
+  assert.deepEqual(workingTreePaths('?? docs/a file.md\0'), ['docs/a file.md']);
+  assert.deepEqual(workingTreePaths('?? zz-käyttö.md\0'), ['zz-käyttö.md']);
 });
 
-test('blank lines and an empty status yield nothing', () => {
+test('an empty status yields nothing, and short fields are ignored', () => {
   assert.deepEqual(workingTreePaths(''), []);
-  assert.deepEqual(workingTreePaths('\n M src/a.ts\n\n'), ['src/a.ts']);
+  assert.deepEqual(workingTreePaths('\0\0'), []);
+  assert.deepEqual(workingTreePaths(' M a\0'), ['a']);
 });
 
 test('the request carries the scope, the ban on deriving it, and the refusal rule', () => {
@@ -95,4 +106,19 @@ test('with nothing deleted the request has no DELETED section at all', () => {
     'high',
   );
   assert.equal(text.includes('DELETED'), false);
+});
+
+test('a branch that only removes files still gets a request that makes sense', () => {
+  // Testing `files` alone for emptiness reported a deletion-only branch as nothing to review, which
+  // tells the row to skip the check chain. The request has to read as a real instruction here, not
+  // as "review the 0 files below".
+  const text = requestText(
+    { branch: 'b', ref: 'origin/main', base: 'abc', files: [], deleted: ['docs/gone.md'], fetched: true },
+    'high',
+  );
+  assert.match(text, /only REMOVES files/);
+  assert.match(text, /FILES: none\./);
+  assert.match(text, /DELETED \(1\)/);
+  assert.match(text, /docs\/gone\.md/);
+  assert.equal(text.includes('FILES (0)'), false);
 });
