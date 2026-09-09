@@ -63,6 +63,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { mainRef } from './main-ref.mjs';
 import { measured } from './measured.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -175,6 +176,22 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 function gitRead(args, root) {
   const run = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
   return run.status === 0 ? run.stdout : null;
+}
+
+/**
+ * WHICH REF MEANS "LANDED" for this checkout - `origin/main` whenever the local branch is behind
+ * it, which under the merge queue is always. See scripts/main-ref.mjs for what the wrong answer
+ * has cost elsewhere; this file learned it on 2026-09-09, with the local ref 33 commits behind:
+ * `--serves` announced that a branch closed a receipt it had never opened and edited five more,
+ * because every one of those had in fact landed on `main` days earlier.
+ *
+ * Memoised per checkout because `receiptsFor` asks once per deleted receipt and a migration pass
+ * deletes forty; the answer cannot change inside one run of a read-only script.
+ */
+const LANDED_REF = new Map();
+function landedRef(root) {
+  if (!LANDED_REF.has(root)) LANDED_REF.set(root, mainRef((args) => ({ ok: gitRead(args, root) !== null })));
+  return LANDED_REF.get(root);
 }
 
 /** Whole days between a timestamp (ms) and now, never negative. Shared with the handoff drain. */
@@ -502,11 +519,18 @@ export function suspectMatches(receipts, commits, { threshold = SUSPECT_SCORE } 
   return suspects.sort((a, b) => b.score - a.score);
 }
 
-/** Commit subjects and touched paths on `main` since a date, newest first. */
+/**
+ * Commit subjects and touched paths on what has LANDED since a date, newest first.
+ *
+ * This used to read local `main` and fall back to `origin/main` only when that read FAILED. The
+ * fallback is shaped like robustness and guarantees the wrong answer: local `main` exists on every
+ * checkout here, so the fallback never fired and the stale ref was always the one that answered.
+ * That shape is why this file survived four sibling scripts being fixed for the same bug.
+ */
 export function recentCommits(root = REPO_ROOT, since = '2026-01-01') {
   const format = '%x00%h|%cs|%s';
   const args = ['log', '--no-merges', `--since=${since}`, '--name-only', `--format=${format}`];
-  const log = gitRead([...args, 'main'], root) ?? gitRead([...args, 'origin/main'], root);
+  const log = gitRead([...args, landedRef(root)], root);
   if (log === null) return [];
   return log
     .split('\0')
@@ -550,7 +574,7 @@ export function formatSuspects(suspects) {
  * like a branch would refuse real landings for a resemblance - so a receipt nobody marked `active`
  * is outside its reach, by design.
  *
- * `changed` is `git diff --name-status main...<branch>`, parsed: `{ path, deleted }`. `receipts`
+ * `changed` is `git diff --name-status <landed>...<branch>`, parsed: `{ path, deleted }`. `receipts`
  * must include the ones the branch DELETED, read from the merge base - see `receiptsFor` - because
  * this runs in the branch's own checkout, where a served receipt's file is already gone.
  */
@@ -586,7 +610,7 @@ export function servesVerdict({ branch, receipts, changed }) {
 
 /**
  * The receipts `--serves` must judge against: the shelf as it stands here, PLUS the ones this
- * branch deleted, read back from `main`.
+ * branch deleted, read back from the landed ref.
  *
  * Without the second half the feature reports its own success case wrong. The preflight runs in
  * the branch's checkout, so a branch that correctly closed its receipt has no file left to read,
@@ -600,7 +624,7 @@ export function receiptsFor(changed, root = REPO_ROOT) {
     if (!entry.deleted) continue;
     const slug = path.basename(entry.path, '.md');
     if (slug === 'README' || known.has(slug)) continue;
-    const before = gitRead(['show', `main:${entry.path}`], root);
+    const before = gitRead(['show', `${landedRef(root)}:${entry.path}`], root);
     if (before === null) continue;
     const receipt = receiptFrom(path.basename(entry.path), before, { historical: true });
     if (receipt?.receipt) gone.push(receipt);
@@ -608,9 +632,9 @@ export function receiptsFor(changed, root = REPO_ROOT) {
   return [...here, ...gone];
 }
 
-/** `git diff --name-status main...<branch>` as `servesVerdict` wants it. */
+/** `git diff --name-status <landed>...<branch>` as `servesVerdict` wants it. */
 export function changedBacklogFiles(branch, root = REPO_ROOT) {
-  const diff = gitRead(['diff', '--name-status', `main...${branch}`, '--', BACKLOG_DIR], root);
+  const diff = gitRead(['diff', '--name-status', `${landedRef(root)}...${branch}`, '--', BACKLOG_DIR], root);
   if (diff === null) return null;
   return diff
     .split('\n')
@@ -621,10 +645,16 @@ export function changedBacklogFiles(branch, root = REPO_ROOT) {
     });
 }
 
-/** Receipts deleted from the backlog, read out of git history - the landed ones. */
+/**
+ * Receipts deleted from the backlog, read out of git history - the landed ones.
+ *
+ * Walks the LANDED ref, not HEAD. Run in a worktree, HEAD's history stops at the fork point plus
+ * this branch's own commits, so every receipt closed since the branch was cut is missing from a
+ * listing whose whole promise is "the landed ones".
+ */
 export function closedReceipts(root = REPO_ROOT, { limit = 50 } = {}) {
   const log = gitRead(
-    ['log', `--max-count=${limit}`, '--diff-filter=D', '--name-only', '--format=%h|%cs|%s', '--', BACKLOG_DIR],
+    ['log', landedRef(root), `--max-count=${limit}`, '--diff-filter=D', '--name-only', '--format=%h|%cs|%s', '--', BACKLOG_DIR],
     root,
   );
   if (log === null) return [];
