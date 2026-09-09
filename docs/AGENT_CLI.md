@@ -271,8 +271,8 @@ seven rows and not a cost `validate` alone pays. `doctor` launches one of its ow
 (`cli/src/commands/doctor.ts:18`) and `login` opens the user's real browser at the consent page
 (`cli/src/commands/login.ts:146`). The two rows that are NOT authoring verbs are the ones that show
 where the floor comes from: `whoami` never opens a browser, and `save` came back in 0.3 s because
-it looks for a key before it connects and refuses without one (`cli/src/commands/save.ts:77` -
-"that answer needs no browser"). What makes `validate` the expensive verb is what it does INSIDE
+it looks for a key before it connects and refuses without one (`cli/src/commands/save.ts:76-81` -
+"the cheapest refusal first: no key means no save, and that answer needs no browser"). What makes `validate` the expensive verb is what it does INSIDE
 its browser: it runs the gate, drives the bench and writes three 1920x1080 frames, and it is the
 verb an author runs most. The other six are a browser start plus a bridge round trip. Nothing in
 the door needed a retry, and no verb sat silent for longer than it worked.
