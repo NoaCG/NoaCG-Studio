@@ -84,6 +84,7 @@
     "test:orchestrator-week": "node --test scripts/orchestrator-week.test.mjs",
     "orchestrator:week": "node scripts/orchestrator-week.mjs",
     "alignment:pending": "node scripts/alignment-answers.mjs",
+    "weekly:candidates": "node scripts/weekly-candidates.mjs",
     "night:report": "node scripts/night-report.mjs",
     "test:night-report": "node --test scripts/night-report.test.mjs",
     "test:claude-agents": "node --test scripts/claude-agents.test.mjs",

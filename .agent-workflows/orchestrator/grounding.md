@@ -45,7 +45,7 @@ It produces the wave table, so if the window later runs short the routing alread
   the weekly review are written into the PRIMARY checkout, gitignored, so the home never has them**
   (`docs/ROUTINES.md`, its routine table, owns when each is written and deleted). Read them there:
   the verdict is a claim like any handoff, so re-check the run it names
-  (`gh run view <id> --json jobs`) first, and the weekly file's candidate rows are frontier input.
+  (`gh run view <id> --json jobs`); `npm run weekly:candidates` says what this plan owes the review.
 - **For each branch a pasted handoff names**: `git show-ref --verify refs/heads/<branch>` and
   `git branch --merged main`. A handoff claiming "all merged" for a branch that never landed, or
   naming a branch that no longer exists, is reported in section 4 - not written a prompt. **And for

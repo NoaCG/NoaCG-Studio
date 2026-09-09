@@ -119,8 +119,8 @@ planned, held or deferred; then the tick's heartbeat lines and whatever the morn
 nowhere else - a ruling taken for the owner, an unplanned launch and its reason. **A plan launches
 when `node scripts/wave-plan-check.mjs` passes** - it refuses a plan outside the store, a row
 without a pool, a slot minted twice, a missing path, a prompt not ending on QUEUE, an unclassified
-handoff, a standing owner ask the plan never mentions, and a night plan with no `Window ends:`
-line. A correction it forces sends the rows back through the collision pass before the plan ships.
+handoff or weekly candidate row, an unmentioned standing owner ask, and a night plan with no
+`Window ends:` line. A correction sends the rows back through the collision pass before it ships.
 
 ## The rules that are never module-deep
 

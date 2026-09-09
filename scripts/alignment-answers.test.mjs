@@ -124,6 +124,39 @@ test('an answer from an older week stays pending - reading only the newest file 
   assert.deepEqual(state.open.map((entry) => entry.id), ['ALIGN-2026-09-15-1'], 'only this week is still open');
 });
 
+test('the weekly file is read from the primary checkout while the rulings come from this one', () => {
+  // The failure this pins, measured 2026-09-08: the weekly session writes an absolute path into
+  // the primary checkout and .gitignore keeps the file out of git, so every linked worktree - and
+  // every orchestrator session, which is pinned to .claude/worktrees/orchestrator - read an empty
+  // folder and reported "no weekly file". The refusal passed every plan for a week.
+  const primary = mkdtempSync(path.join(tmpdir(), 'align-primary-'));
+  mkdirSync(path.join(primary, '.git', 'worktrees', 'w'), { recursive: true });
+  mkdirSync(path.join(primary, 'docs', 'handoffs'), { recursive: true });
+  writeFileSync(
+    path.join(primary, 'docs', 'handoffs', '2026-09-15-orchestrator-week.local.md'),
+    question('ALIGN-2026-09-15-1', 'Still the top?', 'Yes.'),
+  );
+  writeFileSync(path.join(primary, 'docs', 'OWNER_RULINGS.md'), '# Owner rulings\n');
+
+  const worktree = path.join(primary, '.claude', 'worktrees', 'w');
+  mkdirSync(path.join(worktree, 'docs', 'handoffs'), { recursive: true });
+  writeFileSync(path.join(worktree, '.git'), `gitdir: ${path.join(primary, '.git', 'worktrees', 'w')}\n`);
+  writeFileSync(path.join(worktree, 'docs', 'OWNER_RULINGS.md'), '# Owner rulings\n');
+
+  const before = alignmentState(worktree);
+  assert.equal(before.source, 'docs/handoffs/2026-09-15-orchestrator-week.local.md');
+  assert.deepEqual(before.pending.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
+  assert.equal(before.dir, path.join(primary, 'docs', 'handoffs'), 'the directory it read is part of the answer');
+
+  // TWO ROOTS, on purpose. The branch that records a ruling has it in ITS working tree and nowhere
+  // else, so the rulings side must read this checkout - otherwise the refusal never clears until
+  // the branch lands, which is the moment it is no longer needed.
+  writeFileSync(path.join(worktree, 'docs', 'OWNER_RULINGS.md'), '# Owner rulings\n\n## ALIGN-2026-09-15-1\n\n> Yes.\n');
+  const after = alignmentState(worktree);
+  assert.deepEqual(after.pending, []);
+  assert.deepEqual(after.recorded.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
+});
+
 test('an unanswered question from an older week is dropped, per the carry-forward-once rule', () => {
   const state = alignmentState(checkout({
     weekly: {
