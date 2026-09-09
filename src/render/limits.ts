@@ -5,13 +5,17 @@
 // checks are UX; the server always re-validates against the same table.
 //
 // Tiers: anonymous visitors get the basic formats with strict caps; signed-in users get
-// the full format set with sensible free limits; 'paid' is the widest cap table, reachable only
-// through a plan row whose render_tier names it - assigned by an admin, or auto-assigned by
-// e-mail domain (migration 0045) - for a school grant or a heavy-use exception. NoaCG sells
-// nothing and no billing is planned (docs/OWNER_RULINGS.md, 2026-09-07). The tier's name is
-// wrong for what it is; renaming it touches RenderTier, the check constraints in 0007 and
-// 0018, and AiTaskTier in api/_lib/aiTaskRegistry.ts with one migration, so it waits for a
-// change of its own.
+// the full format set with sensible free limits; 'granted' is the widest cap table, reachable
+// only through a plan row whose render_tier names it - assigned by an admin, or auto-assigned
+// by e-mail domain (migration 0045) - for a school grant or a heavy-use exception. NoaCG sells
+// nothing and no billing is planned (docs/OWNER_RULINGS.md, 2026-09-07).
+//
+// This tier was called 'paid' until migration 0055. The name was simply false: you reach it by
+// being granted it, never by buying it. AiTaskTier in api/_lib/aiTaskRegistry.ts still has a
+// 'paid' member and it is NOT the same concept - no task carries that label, it is reserved for
+// the day a user's own money settles an AI bill, and `noacgFunded` reads the label to decide
+// whether the funded-route rule binds. Leave it where it is. The only check constraint on a tier
+// name is `render_jobs.tier` in 0007; `plans.render_tier` (0018) is deliberately free text.
 
 import {
   RENDER_FORMATS,
@@ -22,7 +26,7 @@ import {
 } from './manifest.js';
 import { durationInFrames } from './manifest.js';
 
-export type RenderTier = 'anonymous' | 'free' | 'paid';
+export type RenderTier = 'anonymous' | 'free' | 'granted';
 
 export interface TierCaps {
   formats: RenderFormatId[];
@@ -64,7 +68,7 @@ export const RENDER_LIMITS: Record<RenderTier, TierCaps> = {
     perHour: 10,
     perDay: 40,
   },
-  paid: {
+  granted: {
     formats: ['mp4', 'webm', 'png-still', 'png-sequence', 'prores4444'],
     maxWidth: 4096, maxHeight: 4096, maxPixels: 4096 * 2304,
     maxFps: 60,
@@ -89,7 +93,7 @@ export const RENDER_CONFIG = {
   /** A compiled single composition module past this is a runaway generation, not code. */
   compiledJsMaxBytes: 1_000_000,
   /** Output download TTL per tier (ms). */
-  outputTtlMs: { anonymous: 2 * 3600_000, free: 24 * 3600_000, paid: 7 * 86_400_000 } as Record<RenderTier, number>,
+  outputTtlMs: { anonymous: 2 * 3600_000, free: 24 * 3600_000, granted: 7 * 86_400_000 } as Record<RenderTier, number>,
   /** How often the browser polls job status (also returned by the start endpoint). */
   pollIntervalMs: 2500,
   /** How often the worker rewrites progress.json (throttle). */
@@ -145,7 +149,32 @@ export const RENDER_CONFIG = {
 } as const;
 
 export function isRenderTier(value: string): value is RenderTier {
-  return value === 'anonymous' || value === 'free' || value === 'paid';
+  return value === 'anonymous' || value === 'free' || value === 'granted';
+}
+
+/** Tier names this build no longer has, and what each one MEANT.
+ *
+ *  'granted' was called 'paid' until migration 0055. Two kinds of stored row can still carry the
+ *  old name: a `render_jobs` row written before the migration ran, and a `plans.render_tier` an
+ *  admin set (that column is free text - see 0018 - so no constraint ever stopped a typo either).
+ *  Reading the old name as what it meant is what keeps the code deploying independently of the
+ *  migration in either order. Delete this map once no database can still hold the old value.
+ *
+ *  A Map rather than an object literal, because the lookup key is untrusted text out of the
+ *  database: `{ paid: 'granted' }['constructor']` is a function, not a tier. */
+const RETIRED_TIER_NAMES = new Map<string, RenderTier>([['paid', 'granted']]);
+
+/** The tier a STORED name means, or null when this build has no idea what it is.
+ *
+ *  Every path that reads a tier back out of the database goes through here, because the tier is
+ *  an index into RENDER_LIMITS and RENDER_CONFIG.outputTtlMs: an unrecognised name reaching those
+ *  is `undefined` caps, and `Date.now() + undefined` is a NaN timestamp that throws on the way to
+ *  the database. Callers decide what an unknown name falls back to, because the safe answer
+ *  differs - a job row wants the narrower tier, a plan row wants whatever the caller had anyway. */
+export function storedRenderTier(value: string | null | undefined): RenderTier | null {
+  if (!value) return null;
+  if (isRenderTier(value)) return value;
+  return RETIRED_TIER_NAMES.get(value) ?? null;
 }
 
 /** The tier a resolved entitlement renders at.
@@ -153,14 +182,15 @@ export function isRenderTier(value: string): value is RenderTier {
  *  Plans name their tier as free text (`plans.render_tier`), because the tier TABLE above is
  *  code and a plan row must not be able to break the render path by naming something that is
  *  not in it. An unrecognised name therefore falls back to what the caller would have got
- *  anyway - signed in or not - rather than failing the request or silently granting 'paid'.
+ *  anyway - signed in or not - rather than failing the request or silently granting the widest
+ *  cap table. A plan still naming the retired 'paid' keeps the caps it was set up to give.
  *
  *  This module stays PURE (see the header): it takes the already-resolved tier name, it does
  *  not load entitlements. api/_lib/entitlements.ts does that. */
 export function resolveTier(signedIn: boolean, entitledTier?: string): RenderTier {
   const fallback: RenderTier = signedIn ? 'free' : 'anonymous';
   if (!signedIn) return fallback; // an anonymous caller has no plan to honour
-  return entitledTier && isRenderTier(entitledTier) ? entitledTier : fallback;
+  return storedRenderTier(entitledTier) ?? fallback;
 }
 
 export interface LimitIssue {
