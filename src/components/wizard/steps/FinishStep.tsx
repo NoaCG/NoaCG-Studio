@@ -3,7 +3,7 @@ import { ALL_PRESETS } from '../../../blocks/presetRegistry';
 import { FONTS } from '../../../model/fonts';
 import type { SpxTemplate } from '../../../model/types';
 import type { ImportedTemplateResult } from '../../../model/importTemplate';
-import { UNTITLED_PRODUCTION, type Show } from '../../../model/shows';
+import { resolveShowName, type Show } from '../../../model/shows';
 import { librarySaveEffect, type LibraryNameEntry } from '../../../model/library';
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { isRenderConfigured } from '../../../render/config';
@@ -250,12 +250,14 @@ export default function FinishStep({
   // sitting in a production also called "Imported SVG design" - which the confirmation below
   // then printed back, twice, in two sentences (e2e/import-svg.spec.ts, "an unnamed production
   // is not named after the graphic").
-  // A show holding one strap is not called "Interview strap". `UNTITLED_PRODUCTION` is the
-  // floor `createShowNamedChecked` already applies to every other door in the app, spelled here
-  // so the dialog PRINTS the name the save is about to write rather than an empty string.
+  // A show holding one strap is not called "Interview strap". `resolveShowName` is the same
+  // function the write itself goes through, asked early - the dialog below has to PRINT the
+  // production a press is about to create, and at that moment there is no record to read the
+  // name off. Sharing the function rather than the constant is what keeps the sentence on
+  // screen and the row on disk one answer.
   const resolvedDest = (): ProductionDest =>
     dest === 'new'
-      ? { kind: 'new', name: newName.trim() || UNTITLED_PRODUCTION }
+      ? { kind: 'new', name: resolveShowName(newName) }
       : { kind: 'existing', id: dest };
 
   // THE DESTINATION, HELD FOR ONE QUESTION. The primary door does two irreversible-feeling
@@ -428,7 +430,7 @@ export default function FinishStep({
                  to, so nothing has to be read anywhere else. It used to promise the graphic's
                  name and the example both, in a string too long to finish reading in a `grow`
                  input; the example now sits in the line under this row, where it has room. */
-              placeholder={UNTITLED_PRODUCTION}
+              placeholder={resolveShowName('')}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               data-testid="wz-finish-production-name"

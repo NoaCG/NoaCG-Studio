@@ -334,7 +334,13 @@
   font-size: 11px;
   line-height: 1.3;
   color: var(--text-dim);
-  /* The label above is tracked caps; this is a sentence, so it keeps its own case and tracking. */
+}
+/* NOT TRACKED CAPS. `.save-field > span` is a label and is styled as one (save-controls.css);
+   these two are not labels, so they undo it in one place. The hint under a box is a sentence;
+   the alignment answer is a VALUE that rides inside its label ("Aligned left, middle"), and
+   uppercasing it would read as a second heading rather than as the row's answer. */
+.save-field > .map-svg-name-hint,
+.map-svg-align-now {
   text-transform: none;
   letter-spacing: 0;
 }
@@ -393,13 +399,9 @@
 .map-svg-align {
   flex: 0 0 auto;
 }
-/* THE ANSWER, beside the heading rather than on hover. Normal case and no tracking, so it reads
-   as the row's value and not as a second label - and it is what sets this column's width, since
-   the 3x3 of dots underneath is only 42 px. */
-.map-svg-align-now {
-  text-transform: none;
-  letter-spacing: 0;
-}
+/* THE ANSWER, beside the heading rather than on hover. It is what sets this column's width, since
+   the 3x3 of dots underneath is only 42 px; its case and tracking are reset beside the name
+   hint's, which undoes the same label styling for the same reason. */
 /* A ROW LABEL NEVER WRAPS. The row is a nowrap flex line, so a label too wide for its share of
    it wraps INSIDE its own field and takes the whole row a line taller - which on the clock row,
    the one that also carries the countdown picker, is exactly what the alignment answer did at

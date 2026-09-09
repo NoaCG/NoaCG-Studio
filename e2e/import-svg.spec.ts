@@ -1200,6 +1200,7 @@ for (const [width, height, rowsExpected] of [[1366, 768, 7], [1280, 720, 7]] as 
         firstRowBottom: rows[0].bottom,
         rowsOnScreen: rows.filter((r) => r.bottom <= port.bottom + 0.5).length,
         rowCount: rows.length,
+        tallestRow: Math.max(...rows.map((r) => Math.round(r.height))),
       };
     });
     // The heading that says what the step is for, and the first row under it, are both in the
@@ -1210,6 +1211,12 @@ for (const [width, height, rowsExpected] of [[1366, 768, 7], [1280, 720, 7]] as 
     // row on the shortest laptop) instead of the three rows the sticky band could afford.
     expect(fold.rowCount).toBe(7);
     expect(fold.rowsOnScreen).toBe(rowsExpected);
+    // EVERY ROW IS ONE LINE, which is the other half of the same budget and the half a copy
+    // change spends first. The clock row is 56 px because its countdown picker is a select, not
+    // because anything wrapped; a wrapped label put it at 68 and the last row 12 px lower - what
+    // the alignment answer did at 1280 before `.map-svg-row .save-field > span:first-child` was
+    // told not to wrap. `rowsOnScreen` alone does not catch that: at 1280 all seven still fitted.
+    expect(fold.tallestRow).toBeLessThanOrEqual(56);
 
     // Every detected layer arrives ticked. The scorebug exports one layer as `f:Competition`,
     // which used to switch the other six off.
@@ -4224,11 +4231,10 @@ test('svg import: every alignment grid writes its own answer beside the heading'
   await dropSvg2(page, SCOREBUG_SVG);
 
   const grids = page.getByTestId('map-svg-fields').locator('.map-svg-align');
-  const count = await grids.count();
-  expect(count).toBeGreaterThan(1);
+  const all = await grids.all();
+  expect(all.length).toBeGreaterThan(1);
 
-  for (let i = 0; i < count; i++) {
-    const grid = grids.nth(i);
+  for (const grid of all) {
     // The words are the CHOSEN dot's own two axes, so the sentence and the picture can never
     // disagree - the dot's title is where they both come from.
     const chosen = grid.locator('button[aria-checked="true"]');
@@ -4257,28 +4263,8 @@ test('svg import: every alignment grid writes its own answer beside the heading'
   await expect(note.locator('p')).toHaveCount(2);
 });
 
-// …and it costs the step nothing. The row budget is exact (see "the mapping step's checklist is
-// on screen at 1280x720" above), and the answer takes the alignment column from 52 px to 112.
-// The two text boxes give that width back; what nearly broke it was the CLOCK row, whose label
-// wrapped and took the row from 56 px to 68. `.map-svg-row .save-field > span` is told not to
-// wrap for exactly that reason, and this is what says so.
-for (const [width, height] of [[1366, 768], [1280, 720]] as const) {
-  test(`svg import: the alignment answer never wraps a mapping row at ${width}x${height}`, async ({ page }) => {
-    await page.setViewportSize({ width, height });
-    await page.goto('/app');
-    await dropSvg2(page, SCOREBUG_SVG);
-    await expect(page.getByTestId('map-svg-fields').locator('.map-svg-align').first())
-      .toContainText(/(left|centred|right), (top|middle|bottom)/);
-
-    const rows = await page.evaluate(() =>
-      Array.from(document.querySelectorAll<HTMLElement>('[data-testid="map-svg-fields"] .map-svg-row'))
-        .map((r) => Math.round(r.getBoundingClientRect().height)));
-    expect(rows).toHaveLength(7);
-    // One line each. The clock row is 56 because its picker is a select, not because it wrapped;
-    // a wrapped label put it at 68 and the last row 12 px lower.
-    expect(Math.max(...rows)).toBeLessThanOrEqual(56);
-  });
-}
+// (What the answer COSTS the step is measured by the height-budget test above, which already
+// walks both pinned window sizes: it gained one line asserting no row is taller than 56 px.)
 
 // 3. THE TWO NAME BOXES NEVER DEFAULT TO THE SAME WORD. On the commonest first run - an empty
 // library, so the picker is already on "New production" - both boxes start empty, and the
