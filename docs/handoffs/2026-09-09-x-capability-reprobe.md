@@ -96,8 +96,9 @@ either.
   added one short paragraph pointing at `scripts/harness-capabilities.json` and
   `npm run harness:usage`, describing the same report-never-auto-upgrade posture applied to CLI
   behavior instead of package versions.
-- `docs/backlog/harness-routing-doc-cites-four-refuted-claims.md` - new backlog item (see "Left
-  undone" below).
+- `docs/backlog/harness-routing-doc-cites-four-refuted-claims.md` and
+  `docs/backlog/owner-receipts-serves-diffs-against-local-main.md` - two new backlog items (see
+  "Left undone" and "What I nearly got wrong" below).
 
 ## What I nearly got wrong
 
@@ -113,6 +114,17 @@ branch, whenever a worktree has sat for a while.
 Separately, and more consequentially: I deleted five entries the file's own governing rule said
 never to delete, and did not catch it myself - see the correction section above.
 
+The same stale-`main` trap struck a third time at `queue-merge.md`'s "which receipt does this
+branch serve" step: `node scripts/owner-receipts.mjs --serves claude/x-capability-reprobe`
+reported closing two receipts and editing 21 more, none of which this branch touches -
+`changedBacklogFiles` in that script diffs against the literal `main` ref with no `origin/main`
+fallback, so it read the same 61-commit staleness as real scope. `git diff --name-status
+origin/main...claude/x-capability-reprobe -- docs/backlog` gives the true answer: this branch adds
+exactly one new backlog file and serves no existing owner receipt. Filed as
+`docs/backlog/owner-receipts-serves-diffs-against-local-main.md` - fixing the script is out of this
+row's scope, but three tools tripping on the same stale-ref shape in one session is worth a
+standing note.
+
 ## Left undone, on purpose
 
 - **The re-probe cadence is still owed.** This was a hand-run pass, exactly as the row asked for;
@@ -125,6 +137,10 @@ never to delete, and did not catch it myself - see the correction section above.
   Updating it was out of this row's `TOUCHES`, and deciding whether `.agent-workflows/check.md`'s
   phase-2 notification rule should change on the strength of one measurement is a judgement call -
   filed as `docs/backlog/harness-routing-doc-cites-four-refuted-claims.md` rather than done here.
+- **`owner-receipts.mjs --serves` diffs against a literal `main`, not `origin/main`** - filed as
+  `docs/backlog/owner-receipts-serves-diffs-against-local-main.md`. Fixing every call site that
+  makes the same assumption is a small but genuine change to a script other rows and workflows
+  depend on, not a one-line fix worth making unreviewed at the end of a re-probe row.
 
 ## Verification
 
@@ -155,6 +171,8 @@ written to `<git-common-dir>/noacg-jobs/checks/claude-x-capability-reprobe.json`
 - `docs/HARNESS_ROUTING.md` - still cites several of the now-refuted claims as settled fact; not
   touched this row, filed to the backlog instead
 - `docs/backlog/harness-routing-doc-cites-four-refuted-claims.md` - the filed follow-up
+- `scripts/owner-receipts.mjs` - `changedBacklogFiles`, the `main`-vs-`origin/main` bug
+- `docs/backlog/owner-receipts-serves-diffs-against-local-main.md` - the filed follow-up
 
 Branch is green and queued. Nothing here needs the owner - no `account`, `money`, `identity` or
 `harness` question was open at any point.
