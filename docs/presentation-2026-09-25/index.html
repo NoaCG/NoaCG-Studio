@@ -67,7 +67,10 @@
   body.notes-open { grid-template-columns: 1fr 30%; }
 
   /* ── The stage: a 16:9 box that fits the viewport, sized in container units ───────────── */
-  .stage-wrap { display: grid; place-items: center; min-width: 0; min-height: 0; }
+  .stage-wrap {
+    display: grid; place-items: center; min-width: 0; min-height: 0;
+    container-type: size;                  /* gives .stage a cqh to measure against */
+  }
   .stage {
     position: relative;
     width: min(100%, 177.78cqh);           /* never wider than 16:9 of the height */
@@ -76,7 +79,6 @@
     container-type: size;                  /* every size below is a share of the stage (cqw) */
     background: var(--void);
   }
-  .stage-wrap { container-type: size; }    /* gives .stage a cqh to measure against */
 
   /* ── Cards. All sit in the same place; one is visible ─────────────────────────────────── */
   .card {
@@ -103,7 +105,6 @@
   h3 { font-family: var(--font-display); font-size: 1.9cqw; font-weight: 600; margin: 0 0 1cqw; letter-spacing: -0.01em; }
   p  { margin: 0; }
   .lede { font-size: 2.1cqw; line-height: 1.4; color: var(--paper); max-width: 60cqw; }
-  .dim { color: var(--dim); }
   code, .mono { font-family: var(--font-mono); }
 
   /* The mono pointer under a step or a box: a docs anchor, a file, a role */
@@ -140,7 +141,7 @@
     border-radius: 0.6cqw;
     padding: 1.5cqw 1.8cqw;
   }
-  .box + .box { margin-top: 1.2cqw; }
+  .stack { display: grid; gap: 1.2cqw; align-content: start; }   /* boxes stacked in a column */
   .box p { font-size: 1.55cqw; line-height: 1.35; }
   .box-head {
     font-family: var(--font-mono); font-size: 0.95cqw; font-weight: 500;
@@ -177,14 +178,12 @@
 
   /* The four playout targets on the on-air card */
   .targets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.4cqw; margin-top: 1.6cqw; }
-  .targets .box + .box { margin-top: 0; }
   .targets h3 { font-size: 1.6cqw; }
   .targets p { font-size: 1.3cqw; color: var(--dim); }
   .targets code { font-size: 1.15cqw; color: var(--paper); }
 
   /* The three on-air steps, in a row */
   .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4cqw; }
-  .row3 .box + .box { margin-top: 0; }
 
   /* Anchor list on the close card */
   .anchors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3cqw; margin-top: 2.6cqw; }
@@ -428,7 +427,7 @@
         <span class="pointer">the Fields step &rarr; What it does</span></li>
       <li>Create, then Finish: add it to a production.</li>
     </ol>
-    <div>
+    <div class="stack">
       <div class="box">
         <div class="box-head">Say it before they ask</div>
         <p>If a long name does not grow the way you meant, the answer is one dropdown on the Fields step: <b>When the text is too long</b>.</p>
