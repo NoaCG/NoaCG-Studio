@@ -25,8 +25,8 @@ This is the taste half, and it is yours.
 3. Press **Show 12 more** once. You now have 24 cards.
 4. Pick a saved brand in the footer chooser. **You keep all 24**, re-ordered so your brand's style
    family leads. (No chooser means no saved brands - make one from Home first.)
-5. Now press **Show 12 more** again to get back to 24, and instead change the **sort dropdown** from
-   "Most relevant" to "Simplest first". **You drop to 12.**
+5. Still on those 24, now change the **sort dropdown** (immediately right of the "Showing 24 of 93"
+   line) from **Relevance** to **Simplest first**. **You drop to 12.**
 
 ## What to look at
 

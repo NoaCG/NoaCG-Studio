@@ -153,8 +153,24 @@ beta designs get used. Same fix shape for all five functions, so it is one item.
 
 ## State
 
-`npm run build` exit **0**, read from the build's own exit code. `/check` run before queueing.
-Queued with `/queue-merge`; the queue lands it when its turn comes.
+`npm run build` exit **0**, read from the build's own exit code, not a pipe's.
+
+**The spec was verified in both directions, in one queued job, because the box is RAM-bound.**
+
+- As it stands, `wizard-filters.spec.ts` is **20/20 green**.
+- With the assigned change applied to the signature, **exactly one test fails and it is the new
+  one** - 25 passed, 1 failed. That is the part worth keeping: nothing else in the file noticed,
+  which is why the change would have landed green before today.
+
+`npm run test:e2e:affected` - 39 spec files, the plan `BrowseStep.tsx` and the spec resolve to -
+was run queued over the committed tree.
+
+`/check`: `review: delegated` (high, findings acted on - the three-controls inconsistency, the
+self-referential slice bound and the category/group mismatch all came from it), `simplify: inline`
+(the skill returned fan-out instructions, so the four angles were covered here: lifted the duplicated
+first-card-style locator into one helper, and dropped the self-referential slice bound). `taste: not
+applicable` - nothing in this change can move what a graphic looks like; it is a comment, a test and
+four documents.
 
 ## What I would want the next planner to take from this
 
