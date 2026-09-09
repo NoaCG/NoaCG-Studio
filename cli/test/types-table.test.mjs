@@ -109,11 +109,29 @@ test('short columns return their unused budget to a long list', () => {
   assert.equal(lines[0].length, 80);
 });
 
-test('widths clamp at 60 and 200, with a 100-column fallback', () => {
+test('widths clamp at 60 and 200', () => {
   assert.equal(typesTable(fixture, 40), typesTable(fixture, 60));
   assert.equal(typesTable(fixture, 400), typesTable(fixture, 200));
-  for (const missing of [0, undefined, NaN, Infinity]) {
-    assert.equal(typesTable(fixture, missing), typesTable(fixture, 100));
-  }
   assert.equal(typesTable([], 80), 'type  fields  events  designs  neutral');
+});
+
+test('no width means no elision - a pipe gets every id in full', () => {
+  // `process.stdout.columns` is undefined whenever stdout is piped, which is ALWAYS the case
+  // when a coding agent runs the CLI, and cli/skill/noacg-graphic/SKILL.md sends the agent to
+  // bare `noacg types` for the design id it then scaffolds with. Guessing a width there would
+  // hide two thirds of the design ids from the one reader that cannot ask again.
+  for (const missing of [undefined, 0, NaN, Infinity, -20]) {
+    const rendered = typesTable(fixture, missing);
+    assert.ok(!rendered.includes('+'), `width ${String(missing)} must not elide: ${rendered}`);
+    for (const type of fixture) {
+      if (type.designs.length) {
+        assert.ok(rendered.includes(type.designs.map((d) => d.id).join(' ')), `${type.id}: every design id survives`);
+      }
+      if (type.fields.length) {
+        assert.ok(rendered.includes(type.fields[type.fields.length - 1].key), `${type.id}: the last field survives`);
+      }
+    }
+  }
+  // And it is exactly the table this command printed before it learned about terminals.
+  assert.ok(typesTable(fixture).split('\n').some((l) => l.length > 200), 'the full table is wider than any clamp');
 });

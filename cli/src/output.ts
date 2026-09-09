@@ -107,9 +107,16 @@ export class Out {
  */
 export function refuseStray(verb: string, stray: string[], takes: string, example?: string): void {
   if (stray.length === 0) return;
-  const quote = example ? `A value containing a space needs quotes: ${example}.` : 'A value containing a space needs quotes.';
+  // Advise the fix that exists. An unquoted flag value is the usual cause and `example` shows
+  // the quoting that fixes it - but only a verb with a flag that can HOLD a space has one to
+  // show. Telling an operator who typed `caspar stop nonsense` to add quotes sends them looking
+  // for a value to quote that was never there, and `--server "my caspar box"` would have them
+  // resolving a hostname with spaces in it.
+  const advice = example
+    ? `A value containing a space needs quotes: ${example}.`
+    : 'Everything this verb takes is a flag, so drop the word or hand it to the flag it belongs to.';
   throw new UsageError(
-    `${verb} takes ${takes} outside its flags, but also got ${stray.map((s) => `"${s}"`).join(', ')}. ${quote}`,
+    `${verb} takes ${takes} outside its flags, but also got ${stray.map((s) => `"${s}"`).join(', ')}. ${advice}`,
   );
 }
 

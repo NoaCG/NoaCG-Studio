@@ -331,18 +331,24 @@ Three things, in the order a stranger meets them:
    `login --name My Laptop` named the machine's key "My" on the consent page and in Settings,
    which is the name the user later revokes by; and `caspar play --url … 1 20` dropped the two
    words and put the production on the DEFAULT channel and layer. So the grammar today is
-   `scaffold` / `login` / `logout` / `whoami` / `doctor` take no argument, `save` / `validate` /
-   `inspect` / `screenshot` / `docs` take one, every `caspar` sub-command takes none, and the two
-   deliberate exceptions are `pack` (any number of packages) and `caspar send` (its words are the
-   AMCP command). Pinned by `cli/test/unit.test.mjs`.
+   complete: `scaffold` / `login` / `logout` / `whoami` / `doctor` / `types` / `mcp` take no
+   argument, `save` / `validate` / `inspect` / `screenshot` / `docs` take one, every `caspar`
+   sub-command takes none, and the two deliberate exceptions are `pack` (any number of packages)
+   and `caspar send` (its words are the AMCP command). The refusal offers the quoting that fixes
+   it only where a flag on that verb can actually hold a space; elsewhere it says to drop the
+   word, because "needs quotes" sends an operator hunting for a value that was never there.
+   Pinned by `cli/test/unit.test.mjs`.
 2. **`noacg types` printed lines up to 354 characters**, 67 rows of them, which no terminal shows.
    **Fixed in 0.3.1**: `typesTable()` (`cli/src/commands/types.ts`) reads the terminal width,
    keeps `type` and `neutral` whole because those are the columns a reader chooses by, and splits
    the rest across fields, events and designs in proportion to their natural widths, cutting at an
    item boundary with the dropped count (`+7`) rather than mid-key. Measured against the live
-   deployment's 67 types, the widest line is now exactly the terminal width at 40, 60, 80, 100,
-   120, 160, 200 and 400 columns. Pinned by `cli/test/types-table.test.mjs`, which asserts the fit
-   and the column alignment at 80, 100 and 160.
+   deployment's 67 types, the widest line is exactly the terminal width at 40, 60, 80, 100, 120,
+   160, 200 and 400 columns. **A pipe has no width and so gets the full table, unelided** - the
+   skill sends an agent to bare `noacg types` for the design id it then scaffolds with, and an
+   agent's stdout is always a pipe, so a guessed width would hide what it was sent to read.
+   Pinned by `cli/test/types-table.test.mjs`, which asserts the fit and the column alignment at
+   80, 100 and 160, and that no width elides nothing.
 3. **Three of six neutral scaffolds warn on their own bench.** STILL OPEN - it is a studio
    template fault rather than a CLI one, and the fix has to start from a reproduction because the
    obvious cause is already ruled out. Filed:

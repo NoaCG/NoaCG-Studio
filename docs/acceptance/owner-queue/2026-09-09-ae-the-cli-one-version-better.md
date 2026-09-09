@@ -43,7 +43,9 @@ wrapped two or three times and the columns stopped lining up - which is the enti
 table carries. Now it fits whatever your window is: `type` and `neutral` stay whole because those
 are the columns you choose by, and `fields`, `events` and `designs` share what is left, cut at a
 whole item with the count they dropped (`+7`), never mid-key. **Resize the window and run it
-again** - narrow it to something silly and it still lines up.
+again** - narrow it to something silly and it still lines up. Pipe it anywhere
+(`… types | more`) and you get the whole thing back untouched, because a pipe has no width and
+an agent reading this command is always a pipe.
 
 The judgement I would like your eye on is which column gives ground first. I split the three lists
 in proportion to how wide they naturally are rather than picking a favourite, so at 80 columns you

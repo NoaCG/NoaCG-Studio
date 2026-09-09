@@ -1,7 +1,7 @@
 // `noacg types` - the graphic types the deployment knows, with what each brings.
 
 import { BridgeClient, type BridgeTypeSummary } from '../bridgeClient.js';
-import { EXIT_OK, table, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_OK, refuseStrayArgs, table, type Out, type ParsedArgs } from '../output.js';
 
 /** Keep whole list items: a partial field or design id cannot be used to scaffold anything. */
 function elideItems(cell: string, width: number): string {
@@ -16,8 +16,16 @@ function elideItems(cell: string, width: number): string {
   return `+${items.length}`;
 }
 
-/** Human-only rendering. The bridge result stays intact for callers that request JSON. */
-export function typesTable(types: BridgeTypeSummary[], columns: number): string {
+/**
+ * Human-only rendering. The bridge result stays intact for callers that request JSON.
+ *
+ * `columns` is a REAL terminal width or nothing. Without one, every cell is printed in full:
+ * eliding needs a width to elide against, and inventing one truncates for a reader who is not
+ * there. That matters because the skill tells an agent to run bare `noacg types` and then
+ * `noacg scaffold --design <id>` (`cli/skill/noacg-graphic/SKILL.md`), and an agent's stdout is
+ * always a pipe - so a guessed width would hide the design ids it was sent to read.
+ */
+export function typesTable(types: BridgeTypeSummary[], columns?: number): string {
   const rows = [
     ['type', 'fields', 'events', 'designs', 'neutral'],
     ...types.map((t) => [
@@ -28,9 +36,10 @@ export function typesTable(types: BridgeTypeSummary[], columns: number): string 
       t.neutral ? 'yes' : 'no',
     ]),
   ];
+  if (columns === undefined || !Number.isFinite(columns) || columns <= 0) return table(rows);
   const natural = rows[0].map((_, i) => Math.max(...rows.map((row) => row[i].length)));
   const widths = [...natural];
-  const terminalWidth = Math.max(60, Math.min(200, Math.floor(Number.isFinite(columns) && columns > 0 ? columns : 100)));
+  const terminalWidth = Math.max(60, Math.min(200, Math.floor(columns)));
   let remaining = terminalWidth - natural[0] - natural[4] - 8;
   let pending = [1, 2, 3];
 
@@ -69,7 +78,8 @@ export function typesTable(types: BridgeTypeSummary[], columns: number): string 
   })));
 }
 
-export async function runTypes(_args: ParsedArgs, out: Out): Promise<number> {
+export async function runTypes(args: ParsedArgs, out: Out): Promise<number> {
+  refuseStrayArgs(args, 0);
   const bridge = await BridgeClient.connect();
   try {
     const types = await bridge.types();
@@ -78,7 +88,8 @@ export async function runTypes(_args: ParsedArgs, out: Out): Promise<number> {
     out.say(`${types.length} graphic types. A type brings its FIELDS, its state machine's operator EVENTS (buttons) and its runtime;`);
     out.say('scaffold one with `noacg scaffold --type <id> [--design <id>|neutral]`, or author from scratch against the contract (`noacg docs contract`).');
     out.say('');
-    out.say(typesTable(types, process.stdout.columns || 100));
+    // A pipe has no width, so it gets the full table - see typesTable's note.
+    out.say(typesTable(types, process.stdout.columns));
     out.say('--json carries every field, event and design in full.');
     return EXIT_OK;
   } finally {

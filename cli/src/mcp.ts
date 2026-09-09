@@ -30,7 +30,7 @@ import { scaffoldRequestFrom } from './commands/scaffold.js';
 import { notLoggedIn, savePackage } from './commands/save.js';
 import { describeValidation, regenerateInPlace, sourcesOf } from './commands/validate.js';
 import { ografBench } from './ografBench.js';
-import { EXIT_OK, parseArgs, UsageError, type Out, type ParsedArgs } from './output.js';
+import { EXIT_OK, parseArgs, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from './output.js';
 import { shoot } from './screenshot.js';
 import { isEmptyDir, packageEntries, readPackageInput, unzipTo } from './workspace.js';
 
@@ -220,7 +220,8 @@ async function save(input: Input): Promise<Result> {
 
 const VERBS: Record<McpCommand, (input: Input) => Promise<Result>> = { types, scaffold, validate, inspect, screenshot, docs, save };
 
-export async function runMcp(_args: ParsedArgs, _out: Out): Promise<number> {
+export async function runMcp(args: ParsedArgs, _out: Out): Promise<number> {
+  refuseStrayArgs(args, 0);
   const server = new McpServer({ name: 'noacg', version: cliVersion() });
 
   server.registerTool(

@@ -537,7 +537,10 @@ test('every caspar sub-command except send refuses a stray word', async () => {
     const parsed = JSON.parse(r.stdout);
     assert.equal(parsed.ok, false);
     assert.match(parsed.error, new RegExp(`^caspar ${argv[1]} takes no argument`), 'the refusal names the sub-command');
-    assert.match(parsed.error, /needs quotes/);
+    // No quoting advice here: not one caspar flag takes a value that can hold a space, so
+    // "needs quotes" would send the operator hunting for a value that was never there.
+    assert.doesNotMatch(parsed.error, /needs quotes/);
+    assert.match(parsed.error, /drop the word or hand it to the flag/);
   }
 
   // `send` is the deliberate exception: its words ARE the AMCP command, so they must survive the

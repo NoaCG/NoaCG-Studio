@@ -62,8 +62,9 @@ Both are filed rather than fixed, because the measurement was the deliverable an
 design decisions rather than typing:
 
 - **`noacg types` prints 67 rows up to 354 characters wide.** It is the second command in the
-  README and no terminal can show it.
-  `docs/backlog/noacg-types-prints-a-table-no-terminal-can-show.md`.
+  README and no terminal can show it. **Fixed in 0.3.1** (branch `claude/ae-cli-0-3-1`), so the
+  backlog file this line used to name is gone; the route to look at it is
+  `docs/acceptance/owner-queue/2026-09-09-ae-the-cli-one-version-better.md`.
 - **Three of six neutral scaffolds warn on their own bench** before anybody edits them - a plate
   that does not follow its text under the doubled-text stress. A newcomer's first `validate` is
   therefore not clean, which teaches exactly the wrong reflex.
