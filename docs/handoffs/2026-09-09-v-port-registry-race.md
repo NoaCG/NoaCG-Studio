@@ -102,3 +102,49 @@ Three things worth knowing before touching it:
 - The lock is not held by `releaseReservation`. An earlier draft did hold it; the review was right
   that it bought only ordering, while adding a way for `dev-port.mjs --release`, the documented
   recovery command, to hang behind a long walk and then throw.
+
+## Landing, 2026-09-09 - the reconciliation this branch was held for was a phantom
+
+The branch sat unlanded overnight and was handed to the next session with one instruction: merge
+`main`, then reconcile `scripts/e2e-affected.mjs` by hand, because four rows had edited it and git
+would union them cleanly into a file that decides which specs run. A wrong union there does not go
+red; it quietly stops running something. That was the right thing to be afraid of and it was not
+what happened here.
+
+**This branch never touched that file.** Its only appearance in the branch's history is the merge
+commit `fe64ba73`, which took `main` in. Measured against the fork point `70abb5e5`:
+
+    git diff 70abb5e5 HEAD -- scripts/e2e-affected.mjs      # empty
+    git log --oneline 70abb5e5..origin/main -- scripts/e2e-affected.mjs
+    # 35523e29 only - row T's, and it has landed
+
+Of the four branches named, only T ever edited it. After `git merge origin/main` the file is
+byte-identical to `main`'s copy, so there is no union to audit and nothing to reconcile.
+
+**Where the phantom came from, and it is already fixed.** `scripts/merge-order.mjs` measured each
+candidate's file set against the local `main` ref rather than the landed one, and this checkout's
+`main` was 43 commits stale. So this branch was credited with the files six rows had already
+landed - including T's edit to `e2e-affected.mjs`. The file now carries that account in a comment
+above the two lines, because row T fixed exactly this in `35523e29` and that fix is on `main`. Re-run
+against the current ref, the verdict is `clear: conflicts with nothing in flight (5 commits, 5
+files)`, and the five files are this branch's own.
+
+The lesson is not that the hold was wrong. The hold was correct on the evidence available at the
+time, and the evidence was produced by a tool that has since been fixed. What is worth carrying is
+that a `hold` verdict older than the fix to the tool that issued it should be re-measured before it
+is acted on, not inherited.
+
+**One correction to the recipe that was handed over.** It said to run `node scripts/e2e-affected.mjs`
+to re-derive the selection and read it. That script is a RUNNER: bare, it starts Playwright and ran
+all 1297 tests here, taking the machine's single browser slot. The flag that prints the plan and
+runs nothing is `--list` (`--json` for a machine). Re-derived properly, this branch's plan is:
+
+    e2e-affected: INTEGRATION base 70abb5e5 - covers both sides of the merge
+    e2e-affected: no mapping for these files (falling back to the full suite):
+      - scripts/e2e-affected.mjs
+    e2e-affected: core/unmapped change detected - running the FULL suite (133 changed files).
+    e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.
+
+That is the maximally conservative answer - the whole suite plus the catalog gate - so the failure
+mode the hold was guarding against cannot occur on this landing even in principle. Nothing is
+selected away.
