@@ -45,8 +45,20 @@ and a second implementation that keeps fewer of them is worse than none.
 - `scripts/e2e-quarantine.mjs` and `e2e/quarantine.json` - the machinery, wired to `ci.yml` only.
 - GitHub issue #94 - the flake that made this concrete.
 
-**Not the same item as `repeat-failures-across-shas-go-unseen.md`**, which is about what the
-`ci.yml` quarantine admits: a fail-then-pass on the SAME sha, so a spec that fails on several
-different commits never enters. That one narrows an existing mechanism; this one is a tier with no
-mechanism. Whoever takes either should read the other - the second half of this file (what a
-non-blocking tier should carry) is easier to answer once that admission rule is settled.
+## What landed on 2026-09-09, and what it changes here
+
+The sibling item about cross-commit repeats is closed (`scripts/ci-repeat-failures.mjs`, reported
+weekly from `weekly-audit.yml`), and closing it settled two things this file needs.
+
+**The admission rule stays same-sha.** Cross-commit repeats are now a REPORT a person reads, never
+an automatic quarantine, because that evidence cannot tell a flake from one defect several branches
+tripped over. So a non-blocking tier does not inherit a weaker admission rule from anywhere - the
+retry half in step 1 is still the whole cheap answer, and a report is a legitimate second half.
+
+**This suite can finally name its failing specs.** Until `scripts/configured-verdict.mjs` learned to
+emit one `::error file=<spec>` per unclean spec, the job's annotations were `.github` placeholders
+and a count, so `scripts/ci-failure-set.mjs` could say no more than
+`job: Configured E2E (authenticated, local Supabase)`. Measured over the seven days to 2026-09-09:
+**seven configured reds on seven distinct commits of `main`, and not one of them named a spec.**
+Anything built here - a retry, a quarantine, a report - needs that identity string, so this is now
+unblocked in a way it was not when the file was written.
