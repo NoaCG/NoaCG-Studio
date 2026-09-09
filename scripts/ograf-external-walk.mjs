@@ -39,7 +39,7 @@
 //
 // Exit 1 if any beat fails. A failure here is a NoaCG defect until the transcript says
 // otherwise - the platform owns OGraf compatibility.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -96,11 +96,19 @@ function say(line) {
 // ── the two servers ──────────────────────────────────────────────────────────
 
 const children = [];
+/**
+ * Stop what this run started, before this process exits.
+ *
+ * SYNCHRONOUSLY, which is the whole point: `process.exit()` follows immediately, and an async
+ * `spawn('taskkill')` never gets to run - measured on 2026-09-09, when three runs in a row each
+ * left a 640 MB Vite server behind and the queue's own memory floor then blocked the next one.
+ * A shelled npm on Windows is a .cmd wrapper around the real node process, so the TREE is what
+ * has to go, not the leader.
+ */
 function stopChildren() {
   for (const child of children.splice(0)) {
     try {
-      // A detached process group on Windows needs the tree killed, not the leader.
-      if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F']);
+      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
       else child.kill('SIGTERM');
     } catch {
       /* the walk is over either way */
@@ -260,7 +268,9 @@ async function frame(page, name) {
   const file = join(framesDir, `${String(frameNo).padStart(2, '0')}-${name}.png`);
   // THE RENDERER'S OWN PAGE, not ours. Waiting on the graphic's animation is the only place a
   // wall-clock wait is honest here: the exit is a GSAP tween in somebody else's document and
-  // there is nothing of ours to query for it.
+  // there is nothing of ours to query for it. It is enough only because the page is in front
+  // (see bringToFront above) - a throttled page would still be mid-tween after any wait.
+  await page.bringToFront();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: file });
   const roles = await litRoles(page);
@@ -318,6 +328,13 @@ async function main() {
     say(`renderer page error: ${String(err).slice(0, 300)}`);
   });
   await rendererPage.goto(`${ograf}/renderer/default/`);
+  // THE PAGE MUST BE IN FRONT, and this is not cosmetic. A browser throttles
+  // requestAnimationFrame in a page that is not the visible one, GSAP rides that clock, and a
+  // graphic whose entrance and state changes are tweens then sits frozen part-way through. It
+  // reads EXACTLY like a graphic that will not play: the actions answer 200, the machine moves,
+  // and the drawn states never appear. Two runs of this walk on 2026-09-09 reported a dead
+  // board for that reason alone, and the same reading in a foregrounded page was correct.
+  await rendererPage.bringToFront();
   let renderer = null;
   for (let i = 0; i < 60 && !renderer; i++) {
     const res = await fetch(`${ograf}/api/ograf/v1/renderers`);

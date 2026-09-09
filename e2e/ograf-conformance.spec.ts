@@ -724,3 +724,63 @@ test('the stylesheet rewrite is exact on every shape it has to survive, and the 
   expect(report.leak).toContain("would still address the renderer's document");
   expect(report.lost).toContain('changed its rule count');
 });
+
+test("a mounted Graphic's timeline calls still fire — an operator action PAINTS, not just answers 200", async ({ page }) => {
+  // THE DEFECT THIS PINS, found on 2026-09-09 by driving an imported quiz board in SuperFly.tv's
+  // ograf-server (docs/OGRAF.md): every custom action answered 200, the machine moved, and not
+  // one drawn state ever lit.
+  //
+  // The animation interpreter fires a step's lifecycle calls and its measured-motion builders by
+  // NAME, through `window[name]` and never eval (blocks/animData.ts). Under SPX the template owns
+  // the page, so `function applySelection()` is also `window.applySelection`. Inside a Graphic the
+  // same code runs inside `initTemplate`, so that declaration is LOCAL and the renderer's window
+  // has never heard of it — the call resolved to undefined and the interpreter skipped it in
+  // silence. A quiz that locks and reveals nothing is the worst answer a Graphic can give a
+  // renderer, and no status code reports it, which is why this reads the DOM.
+  //
+  // A catalog quiz is the subject rather than an imported board because it is what CI can build
+  // in one line; the mechanism is the same one, and it is the mechanism that broke.
+  await createProject(page, 'Arena Split');
+  const zip = await downloadOgraf(page);
+  await serve(page, zip, 'http://ograf-calls.local', 'arena_split');
+
+  const manifestName = Object.keys(zip.files).find((n) => n.endsWith('.ograf.json'))!;
+  const manifest = JSON.parse(await zip.file(manifestName)!.async('string'));
+  // The pick rides the action as its payload, keyed by the field id the manifest declares — the
+  // same route a renderer's operator surface takes.
+  const select = (manifest.customActions ?? []).find((a: { id: string }) => a.id === 'select');
+  expect(select, 'the quiz board declares no "select" action to drive').toBeTruthy();
+  const pickField = Object.keys(select.schema?.properties ?? {})[0];
+  expect(pickField, '"select" carries no field for the answer chosen').toBeTruthy();
+  const letters: string[] = (manifest.schema?.properties?.[pickField]?.enum ?? []).filter((v: string) => v !== '');
+  expect(letters.length, 'the answer field offers no choices').toBeGreaterThan(0);
+
+  const result = await page.evaluate(
+    async ({ pick, field }) => {
+      const mod = await import('http://ograf-calls.local/graphic.mjs');
+      customElements.define('ograf-calls-under-test', mod.default);
+      type Driver = HTMLElement & {
+        load(p: unknown): Promise<{ statusCode: number }>;
+        playAction(p: unknown): Promise<{ statusCode: number }>;
+        customAction(p: unknown): Promise<{ statusCode: number }>;
+        dispose(p?: unknown): Promise<unknown>;
+      };
+      const el = document.createElement('ograf-calls-under-test') as Driver;
+      document.body.appendChild(el);
+      await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
+      await el.playAction({ skipAnimation: true });
+      const before = el.querySelectorAll('.quiz-sel').length;
+      const action = await el.customAction({ id: 'select', payload: { [field]: pick }, skipAnimation: true });
+      const after = el.querySelectorAll('.quiz-sel').length;
+      await el.dispose({});
+      el.remove();
+      return { statusCode: action.statusCode, before, after };
+    },
+    { pick: letters[0], field: pickField },
+  );
+
+  expect(result.statusCode, 'the select action was refused').toBe(200);
+  expect(result.before, 'a row was already marked before anything was picked').toBe(0);
+  // The whole point: 200 was never the question.
+  expect(result.after, 'select answered 200 and marked no answer row — the timeline call never fired').toBe(1);
+});
