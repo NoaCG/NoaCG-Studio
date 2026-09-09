@@ -409,8 +409,12 @@ NoaCG being something EBU/YLE can test in a real production.** This reorders the
 ladder's first rung (the listing was previously "cheapest credibility per minute"); the GOALS.md
 NEXT section carries the same gate, and the review's §12 carries a dated update note.
 
-**Must influence current work (nothing new starts before 2026-09-12):** only discipline, no
-tasks. The student push's CasparCG/SVG decisions are already compatible with everything above -
+**Must influence current work:** only discipline, no tasks. What may START is the register's call
+and not this file's: `docs/PROGRAMMES.md`, "P6 OGraf & Interoperability" records that P6 may start
+now, and the date under `docs/GOALS.md` `## NOW` is the forecast of when the push matters rather
+than a wait (owner ruling, 2026-09-03). This paragraph used to read "nothing new starts before
+2026-09-12", which the ruling retired; its twin in `docs/OGRAF_FIRST_REVIEW.md` §12 was corrected
+first. The student push's CasparCG/SVG decisions are already compatible with everything above -
 machines live inside the graphic, steps are the default path, the control contract derives from
 the document. Nothing found in this research asks the current push to change course, and nothing
 here may delay it.

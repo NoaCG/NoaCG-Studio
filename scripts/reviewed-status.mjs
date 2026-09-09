@@ -39,6 +39,14 @@
 // The bound is 150 seconds against a worst measured gap of 48. Waiting too long costs a runner
 // minute nobody is waiting on, because `CI gate` takes six to nine; waiting too short leaves the
 // bug in. The asymmetry is why the bound is generous rather than tight.
+//
+// THE THIRD SHAPE, AND IT IS NOT THIS JOB'S FAULT: no `Reviewed` at all. A pull request opened
+// while its branch conflicts with `main` gets NO `pull_request` run created, because GitHub cannot
+// build the merge ref - so this job never reports, and the branch cannot land no matter what the
+// status says. `gh pr view <n> --json mergeStateStatus` reads `DIRTY` in that state; merging
+// `main` in produced the run three seconds after the next push. Measured on pull request 193,
+// 2026-09-09. If a queued branch sits with no `Reviewed` line at all rather than a red one, look
+// there before looking here.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 

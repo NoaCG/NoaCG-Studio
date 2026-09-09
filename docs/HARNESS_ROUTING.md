@@ -1165,6 +1165,32 @@ prompt defect rather than the model - the one that was retried then matched a ha
 exactly. Read a low first-pass rate against the prompts that produced it before routing away from a
 pool; the alternative is retiring a pool for a mistake we made.
 
+### Split a sweep's file list, and hand over a deletion log rather than banning git - 2026-09-09
+
+Two rows measured the same thing on the same day, on Codex `gpt-6-astra` at effort `medium`, and
+the second was run deliberately to test what the first concluded.
+
+**One call over 37 files covered 17 of them.** The handoff drain handed the whole list to one
+`codex-rescue` launch (22 minutes, ledger `repaired` / cause `prompt`). It said plainly that it had
+covered 17 and had not guessed the rest, which is the behaviour worth paying for, and every claim
+the row spot-checked held - it even corrected two of the row's own conclusions. But twenty files
+came back untouched. **The second row split the same shape of work across two calls, two files then
+four; every site inside a given list was found and edited correctly on the first pass, and each
+call returned a reasoned leave-alone list the row re-derived and agreed with.** Its three defects
+were all presentation (an undeclared 100-column wrap convention), cause `prompt` again.
+
+**And do not ban git.** The first row banned it, because twelve gates here shell out to git and all
+twelve fail in a delegate's environment - and the ban removed the only tool that answers "was this
+file consumed or lost", which is the one question a handoff trace turns on. It reported an
+acceptance item as lost that a landed commit had walked and deleted. Hand over a pre-computed
+deletion log instead, or let it run git and accept that the gates will not.
+
+**The lesson that outlives both, and it is about the verifier rather than the worker.** The second
+row's own re-derivation found three sites outside BOTH delegated lists, because the finding the
+lists were built from was wrong before the delegation started. A delegate cannot be faulted for a
+list it was not given, and reading its report would never have surfaced them. Re-derive the
+receipt, never the report.
+
 ### What zero first-pass meant - all eleven ledger lines classified, 2026-09-03
 
 The delegation ledger read **0 first-pass out of 6 in the last 24 hours, across every pool
