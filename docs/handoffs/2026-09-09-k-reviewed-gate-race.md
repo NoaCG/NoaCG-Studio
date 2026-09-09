@@ -113,10 +113,11 @@ In CI, on this branch's own pull request:
   person can walk in the app. Landing-machinery commits here do not add one (`02592b01` is the
   precedent).
 - **I queued while rows M and N had not landed**, against my prompt's "a gate lands alone" trap.
-  What I could read at 13:05 UTC: `npm run jobs` showed exactly one branch ahead of `main` (mine),
-  and `claude/m-wizard-says-it-itself` and `claude/n-presentation-25-september` existed with no
-  commits ahead of `main` - so there was nothing of theirs in flight for this gate to break, and
-  nothing that could wake me when there was. The deciding argument is the direction of the change:
+  What I could read: at 13:05 UTC `npm run jobs` showed exactly one branch ahead of `main` (mine);
+  at 13:16 `claude/m-wizard-says-it-itself` had one commit and was still `not queued`, and
+  `claude/n-presentation-25-september` had none. Row J has no branch at all. So both were still
+  mid-work, neither could be waited for by a session nothing can wake, and neither had a landing in
+  flight for this gate to interrupt. The deciding argument is the direction of the change:
   the new gate is **strictly more permissive** than the old one. Same pass condition, more time
   before the same red, and the one new verdict (`unreadable`) replaces a hard throw. A sibling
   merging `main` cannot get a red that the old gate would not also have given, so the cost of
