@@ -335,7 +335,13 @@ export type FieldSemantic =
   | 'name' | 'role' | 'organization' | 'headline' | 'description' | 'topic'
   | 'question' | 'answer' | 'score' | 'team' | 'price' | 'discount' | 'percentage'
   | 'location' | 'date' | 'time' | 'duration' | 'url' | 'social-handle'
-  | 'qr-content' | 'image' | 'logo' | 'items' | 'source' | 'amount';
+  | 'qr-content' | 'image' | 'logo' | 'items' | 'source' | 'amount'
+  // The one semantic that is NOT content. A scrolling graphic gives its operator a speed
+  // control (owner walk, end credits and tickers), and that field is an instruction to the
+  // graphic rather than something the graphic says. It is named here so a design can declare
+  // it, so field counts can leave it out of "how many things do I type", and so nothing has to
+  // call an operator control a "description".
+  | 'speed';
 
 export const SEMANTIC_LABELS: Record<FieldSemantic, string> = {
   name: 'Name', role: 'Role', organization: 'Organization', headline: 'Headline',
@@ -349,7 +355,7 @@ export const SEMANTIC_LABELS: Record<FieldSemantic, string> = {
   // Browse card's field summary reads "name + description + source / platform", and the plural
   // form of "Amount / total" came out as "2 amount / totals". A label that cannot be said out
   // loud is not a label.
-  source: 'Source', amount: 'Amount',
+  source: 'Source', amount: 'Amount', speed: 'Speed',
 };
 
 // ── Facet E: capabilities ───────────────────────────────────────────────────
