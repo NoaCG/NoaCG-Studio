@@ -452,6 +452,28 @@ test('a session with no endpoint is not adoptable, because there is nothing to a
   assert.deepEqual(adoptableBrokers(TABLE, []), []);
 });
 
+test('an unrecorded delegation that is still working makes its workspace busy', async () => {
+  // THE OTHER HALF OF THE SAME BLIND SPOT. `delegationRecords` answers "is anything running here"
+  // from the ownership record, so a workspace with none reports a clean nothing - and the caller
+  // reading that is a worktree removal, about to delete the directory a codex.exe is standing in.
+  const { unrecordedWorking } = await import('./codex-rescue.mjs');
+  const worktree = 'C:/claude/NoaCG-Studio/.claude/worktrees/agent-a9ad096b88a1d4eb5';
+  const busy = unrecordedWorking([session({ workspace: worktree, jobs: [true, false] })]);
+  assert.deepEqual(busy, [{ stateDir: session().stateDir, workspace: worktree }]);
+  assert.deepEqual(unrecordedWorking([session({ workspace: worktree })]), [], 'every job over');
+  assert.deepEqual(unrecordedWorking([session({ jobs: [] })]), [], 'no job has been run here yet');
+  assert.deepEqual(unrecordedWorking(), []);
+});
+
+test('a workspace stays busy even once its broker has gone', async () => {
+  // The one place in this file that takes the plugin's word instead of demanding proof. Nothing
+  // is closed on this answer - it only ever refuses - and the job statuses have already been
+  // reconciled against the OS, so what is left unfinished is work the plugin still believes in.
+  const { unrecordedWorking } = await import('./codex-rescue.mjs');
+  const orphaned = session({ brokerPid: 424242, endpoint: null, workspace: 'C:/repo', jobs: [false] });
+  assert.deepEqual(unrecordedWorking([orphaned]).map((s) => s.workspace), ['C:/repo']);
+});
+
 test('the desktop Codex app is refused here too, record or no record', async () => {
   const { adoptableBrokers } = await import('./codex-rescue.mjs');
   // It cannot reach this point - the app runs no broker and keeps no job store - but the promise
