@@ -54,8 +54,9 @@ const PLENTY = 12_000; // MB free
  * A job in whatever state the case needs.
  *
  * The default command is a real e2e invocation, because that is the expensive case the budget
- * exists for - a fixture with no command would be charged as one too (unknown is assumed heavy),
- * but naming it keeps these tests honest about WHICH cost they are exercising.
+ * exists for. Naming it keeps these tests honest about WHICH cost they are exercising: a fixture
+ * with no command is charged one BROWSER (`COST.walk`), not one suite, so a case that means to
+ * exercise the suite cost has to say a suite.
  */
 function job(id, over = {}) {
   return {
@@ -188,16 +189,86 @@ test('several landings fit inside one suite-equivalent', () => {
   assert.ok(costOf(many[0]) * 3 < 1, 'three landings cost less than one suite');
 });
 
-test('cost is read from the command, and an unrecognised command is assumed expensive', () => {
+test('cost is read from the command, and an unrecognised command is assumed to be ONE browser', () => {
   assert.equal(costOf({ command: 'npm run test:e2e:affected', kind: 'gate' }), COST.browser);
   assert.equal(costOf({ command: 'node scripts/l3-sweep.mjs scoreboard', kind: 'sweep' }), COST.browser);
   assert.equal(costOf({ command: 'npm run build', kind: 'gate' }), COST.other);
   assert.equal(costOf({ command: 'node --test scripts/x.test.mjs', kind: 'gate' }), COST.other);
   assert.equal(costOf({ command: 'node scripts/land-watch.mjs --pr 12 --branch x', kind: 'merge' }), COST.merge);
-  // The asymmetry that matters: undercharging an expensive job puts two dev servers and eight
-  // browser workers on a 16 GB laptop; overcharging a cheap one costs some wall clock at night.
-  assert.equal(costOf({ command: 'some-tool-nobody-listed', kind: 'gate' }), COST.browser);
+  // THE DEFAULT FOR AN UNKNOWN COMMAND. Suite-sized work is enumerated - the e2e suites and the
+  // batteries in `SWEEP_SCRIPTS` - so a command neither list knows is not one of them, and its
+  // worst case is a dev server and one browser page. It is not free either, so a night cannot
+  // fill with eight of them.
+  assert.equal(costOf({ command: 'some-tool-nobody-listed', kind: 'gate' }), COST.walk);
+  assert.ok(COST.walk > 0 && COST.walk < COST.browser, 'a walk is neither free nor a whole suite');
   assert.equal(costOf({ command: 'npm run build', kind: 'gate', cost: 0.9 }), 0.9, 'an explicit cost wins');
+});
+
+test('a declared cost is written to the record and read back off it', () => {
+  // The half this mechanism was missing until 2026-09-09: `costOf` read `job.cost` and nothing
+  // ever wrote it, so a session that knew its job was small had no way to say so.
+  const dir = tempQueue();
+  const declared = addJob(dir, { command: 'node scripts/ograf-external-walk.mjs', checkout: '/wt/a', cost: 0.25, now: 1 });
+  assert.equal(declared.cost, 0.25);
+  const [onDisk] = readJobs(dir);
+  assert.equal(onDisk.cost, 0.25, 'the number survives the trip through the file');
+  assert.equal(costOf(onDisk), 0.25);
+
+  // A job that declared nothing carries no `cost` key at all, so it keeps reading the default
+  // and picks up a later change to it instead of freezing today's guess onto the record.
+  const silent = addJob(dir, { command: 'node scripts/ograf-external-walk.mjs', checkout: '/wt/b', now: 2 });
+  assert.ok(!('cost' in silent), 'nothing invented for a job that declared nothing');
+  assert.equal(costOf(silent), COST.walk);
+
+  // A retry or an adopted landing spreads the old record back through `addJob`, which is the
+  // only path a declared cost has to survive on.
+  const retry = addJob(dir, { ...declared, retryOf: declared.id, now: 3 });
+  assert.equal(retry.cost, 0.25, 'a retry inherits what the original declared');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('a nonsense declared cost is refused where it is written, not trusted by every reader after', () => {
+  // `costOf` trusts the record, and the listing, the budget and the scaled RAM floor all trust
+  // `costOf`. A bad number written once is a job that never starts or starves the rest.
+  const dir = tempQueue();
+  const bad = (cost) => () => addJob(dir, { command: 'npm run build', checkout: '/wt/a', cost, now: 1 });
+  assert.throws(bad(0), /suite-equivalents/);
+  assert.throws(bad(-1), /suite-equivalents/);
+  assert.throws(bad(Number.NaN), /suite-equivalents/);
+  assert.throws(bad('0.5'), /suite-equivalents/, 'a string is not a cost');
+  // Over a suite-equivalent is refused rather than accepted and silently unstartable: the day
+  // budget is 1, so such a job would wait for ever with nothing saying why.
+  assert.throws(bad(1.5), /suite-equivalents/);
+  assert.equal(addJob(dir, { command: 'npm run build', checkout: '/wt/a', cost: 1, now: 1 }).cost, 1, 'a whole suite is allowed');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('a single browser walk starts on the RAM a suite is rightly refused', () => {
+  // THE 2026-09-09 REGRESSION, both directions in one case. j-0888 was one OGraf renderer walk
+  // and sat refused for about three hours - "only 2.0-3.2 GB RAM free, needs 4.0" - because an
+  // unrecognised command was charged a whole suite and the floor scales with the cost. The fix
+  // is per-job accounting, NOT a lower floor: at the same 3.2 GB a real suite must still wait.
+  const short = { hour: NIGHT, freeMemMb: 3277 }; // 3.2 GB, the reading j-0888 was refused on
+  const walk = job('j-0001', { command: 'node scripts/ograf-external-walk.mjs --server C:/tmp/ograf' });
+  assert.deepEqual(schedule([walk], short).start.map((j) => j.id), ['j-0001']);
+  assert.deepEqual(schedule([job('j-0001')], short).start, [], 'a suite is still refused on 3.2 GB');
+  assert.match(schedule([job('j-0001')], short).waiting[0].reason, /3\.2 GB RAM free, needs 4\.0/);
+
+  // And a session that declares a smaller cost gets a smaller floor with it.
+  const declared = job('j-0001', { command: 'node scripts/ograf-external-walk.mjs', cost: 0.25 });
+  assert.deepEqual(schedule([declared], { hour: NIGHT, freeMemMb: 1100 }).start.map((j) => j.id), ['j-0001']);
+});
+
+test('the day still spends at most one suite-equivalent, whether it is spent whole or sliced', () => {
+  // The consequence of pricing a walk at half a suite, pinned on purpose: two of them may run by
+  // day where one suite could, and a third may not. The budget is a share of THIS MACHINE, so
+  // the day's promise - one suite-equivalent of agent work while the owner is using the laptop -
+  // is kept either way.
+  const walk = (id) => job(id, { command: `node scripts/ograf-external-walk.mjs --n ${id}` });
+  const three = [walk('j-0001'), walk('j-0002'), walk('j-0003')];
+  const { start, waiting } = schedule(three, { hour: DAY, freeMemMb: PLENTY });
+  assert.deepEqual(start.map((j) => j.id), ['j-0001', 'j-0002']);
+  assert.match(waiting[0].reason, /budget 1\/1 used/);
 });
 
 test('a cheap job runs beside a suite at night', () => {

@@ -47,8 +47,25 @@ export const KINDS = Object.freeze(['gate', 'merge', 'sweep']);
  * Heavy work is classified by `command-match.mjs`, the repo's ONE named list of what starts
  * browser work - the same authority the guard hook and the process detector read, so a script
  * that is heavy here is heavy everywhere rather than in a second opinion that can drift.
+ *
+ * `walk` is the cost of ONE browser, and it exists because charging every unrecognised command a
+ * whole suite cost a night's work: 2026-09-09, j-0888 was a single-page OGraf renderer walk and
+ * sat refused for about three hours with "only 2.0-3.2 GB RAM free, needs 4.0" while six other
+ * sessions landed around it. The session could not capture the frames for the beat it had just
+ * proven, and pull request 212 shipped without pictures. Half a suite is a JUDGEMENT, not a
+ * measurement: a suite is a dev server and four browser workers, a walk is that server and one
+ * page, and half leaves the floor at 2 GB - reachable on this box, which 4 GB is not while the
+ * owner has a browser open. Retune it from the logs the way `freeMemFloorMb` says to, once one
+ * says what a walk actually costs.
+ *
+ * IT FOLLOWS THAT TWO WALKS MAY RUN BY DAY WHERE ONE SUITE COULD, AND FOUR AT NIGHT. That is the
+ * unit meaning what it says rather than a hole: the day budget spends at most ONE suite-equivalent
+ * of this machine on agent work either way, sliced instead of whole, and the RAM floor is the
+ * physical backstop that stops the second slice starting on a box that cannot take it. Work
+ * OUTSIDE the queue is still charged a full suite each (`capacity`), because nothing can measure
+ * it.
  */
-export const COST = Object.freeze({ browser: 1, merge: 0.15, other: 0.4 });
+export const COST = Object.freeze({ browser: 1, walk: 0.5, merge: 0.15, other: 0.4 });
 
 /** Capacity policy. Night is for agents; the day belongs to the person using the laptop. */
 export const POLICY = Object.freeze({
@@ -172,10 +189,21 @@ export function stampGap(stamp, tip) {
 export function addJob(dir, {
   command, checkout, branch = null, kind = 'gate', after = [], capMinutes = POLICY.capMinutes,
   retryOf = null, retryCount = 0, orderHold = null, blockedSince = null,
-  retryReason = null, ciDispatched = false, review = null, now,
+  retryReason = null, ciDispatched = false, review = null, cost = null, now,
 }) {
   if (!KINDS.includes(kind)) throw new Error(`unknown job kind: ${kind}`);
   if (typeof command !== 'string' || command.trim() === '') throw new Error('a job needs a command');
+  // A DECLARED COST IS VALIDATED HERE OR NOWHERE. `costOf` trusts whatever number is on the
+  // record, and every consumer - the listing, the budget, the scaled RAM floor - trusts `costOf`,
+  // so a nonsense value written once is a job that either never starts or starves the others for
+  // as long as it lives. The ceiling is 1 because a suite-equivalent is the heaviest thing this
+  // box models: a job declaring more than that could never start during the day (budget 1) and
+  // would wait silently forever, which is the exact failure this field was added to end.
+  if (cost !== null && cost !== undefined) {
+    if (typeof cost !== 'number' || !Number.isFinite(cost) || cost <= 0 || cost > 1) {
+      throw new Error(`a job's cost is in suite-equivalents, greater than 0 and at most 1: got ${cost}`);
+    }
+  }
   ensureJobsDir(dir);
 
   const taken = new Set(readdirSync(dir).filter((n) => n.endsWith('.json')).map((n) => n.slice(0, -5)));
@@ -203,6 +231,11 @@ export function addJob(dir, {
       capMinutes,
       retryOf,
       retryCount,
+      // WHAT THIS JOB COSTS, when its session knew better than the classifier. Written only when
+      // it was declared, so a job that said nothing keeps reading its cost off `costOf`'s default
+      // and picks up any later change to that default rather than freezing yesterday's guess.
+      // A retry or an adopted landing spreads the old record into `addJob`, so it inherits this.
+      ...(cost === null || cost === undefined ? {} : { cost }),
       // Set only when the job is born already parked behind another branch - an ordering block the
       // sweep adopted. It is `waiting` like any other job; the scheduler is what holds it.
       ...(orderHold ? { orderHold } : {}),
@@ -309,25 +342,37 @@ export function capacity({ hour, outsideRuns = 0, policy = POLICY }) {
 /**
  * Commands we KNOW are cheap: CPU and a little RAM, no dev server, no browser.
  *
- * The list is deliberately short and explicit. Everything it does not recognise is charged as a
- * full suite, because the failure directions are not symmetric: charging a cheap job too much
- * costs some wall clock at night, while charging an expensive one too little puts two dev
- * servers and eight browser workers on a 16 GB laptop and slows everything down at once.
+ * The list is deliberately short and explicit, and the two failure directions are not symmetric:
+ * charging a cheap job too much costs wall clock at night, while charging an expensive one too
+ * little puts two dev servers and eight browser workers on a 16 GB laptop at once.
  */
 const CHEAP = [/\bnpm\s+run\s+build\b/, /\bnode\s+--test\b/, /\bnpm\s+run\s+lint\b/, /\btsc\b/, /\bnpm\s+run\s+check:/];
 
 /**
  * What one job costs, in suite-equivalents.
  *
- * A job records its cost when it is queued, so the number is visible in the queue and stable for
- * the job's whole life; this is where that default comes from.
+ * A job that DECLARED a cost when it was queued keeps that number for its whole life - it is on
+ * the record, so the listing, the budget and the RAM floor all read the same figure and a retry
+ * inherits it. Everything below is the default for a job that declared nothing.
+ *
+ * THE DEFAULT FOR AN UNRECOGNISED COMMAND IS ONE BROWSER, NOT A SUITE. Suite-sized work in this
+ * repo is ENUMERATED - the Playwright suites `invokesE2e` matches, and the catalog batteries and
+ * benches named in `SWEEP_SCRIPTS`, which the guard hook and the process detector keep honest
+ * because they refuse and detect off the same list. A command neither list recognises therefore
+ * is NOT one of those batteries; its realistic worst case is a dev server and a browser page,
+ * which is what `COST.walk` is. Charging it a whole suite is what refused j-0888 all night.
+ *
+ * The old default was `COST.browser`, on the argument that an unknown command should be assumed
+ * to be the worst thing on the machine. That argument survives here in weakened form: an unknown
+ * command is still assumed to open a browser and is never free, so a night cannot fill up with
+ * eight of them. It is only no longer assumed to be four browsers and a suite's worth of RAM.
  */
 export function costOf(job) {
   if (typeof job.cost === 'number') return job.cost;
   if (job.kind === 'merge') return COST.merge;
   const command = job.command ?? '';
   if (invokesE2e(command) || invokesSweep(command)) return COST.browser;
-  return CHEAP.some((p) => p.test(command)) ? COST.other : COST.browser;
+  return CHEAP.some((p) => p.test(command)) ? COST.other : COST.walk;
 }
 
 /** Budgets are fractional; print them without floating-point noise. */

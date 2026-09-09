@@ -166,10 +166,21 @@ async function main() {
 async function cmdAdd() {
   const command = args[1];
   if (!command || command.startsWith('-')) {
-    console.error('Usage: node scripts/jobs.mjs add "<command>" [--kind gate|merge|sweep] [--after <id>,<id>] [--branch <name>] [--cap <minutes>]');
+    console.error('Usage: node scripts/jobs.mjs add "<command>" [--kind gate|merge|sweep] [--after <id>,<id>] [--branch <name>] [--cap <minutes>] [--cost <suite-equivalents>]');
+    console.error('  --cost says what this job weighs when you know better than the classifier: 1 is a');
+    console.error('  Playwright suite or a catalog battery, 0.5 one browser page, 0.4 a build. It sets');
+    console.error('  both the budget share and the free-RAM the job demands before it may start.');
     process.exit(1);
   }
   ensureJobsDir(dir);
+  // THE TYPO IS REPORTED WHERE IT WAS TYPED. `addJob` refuses a cost that is not a number in
+  // range, but by then `Number('half')` is a NaN with the word already lost, and "got NaN" tells
+  // whoever typed it nothing about what they typed.
+  const declaredCost = valueOf('--cost');
+  if (declaredCost !== undefined && !Number.isFinite(Number(declaredCost))) {
+    console.error(`--cost takes a number of suite-equivalents, not "${declaredCost}".`);
+    process.exit(1);
+  }
   const job = addJob(dir, {
     command,
     checkout: process.cwd(),
@@ -177,6 +188,7 @@ async function cmdAdd() {
     kind: valueOf('--kind') ?? 'gate',
     after: (valueOf('--after') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     capMinutes: Number(valueOf('--cap') ?? POLICY.capMinutes),
+    cost: declaredCost === undefined ? null : Number(declaredCost),
     now: Date.now(),
   });
   await ensureRunner();
