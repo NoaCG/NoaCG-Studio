@@ -39,6 +39,7 @@ import type { PreviewBoxOverlay } from '../WizardPreview';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import {
+  artworkInk as inkOfArtwork,
   clearFill,
   fillGap,
   nameHint,
@@ -122,13 +123,20 @@ function dominantFill(el: Element): string | null {
 }
 
 /**
- * WHERE EACH LAYER SITS, AND WHAT COLOUR IT IS, for the fill-them-in guess (fieldAutoMap.ts).
+ * WHERE EACH LAYER SITS, and what colour it is, for the two readers in fieldAutoMap.ts.
+ *
  * Read off the step's own render with every hiding LIFTED for the duration of the read: a drawn
  * moment is hidden as exported, and a hidden element has no box. The lift is a stylesheet rule
  * keyed on `data-reveal` (mapSvgFields.css), so an Illustrator class-hidden layer is measured
  * exactly like an inline-hidden one; the attribute is gone again before anything can paint.
+ *
+ * The two doors below differ only in whether they ask for the COLOUR, because that half costs
+ * enough to be worth asking for: `dominantFill` walks every painted node under every layer
+ * through `getComputedStyle`. The boxes are read once per FILE, so the notice can leave the
+ * artwork's own plates out of what it counts; the colour is read on the PRESS that fills the
+ * boxes in, which is the only thing that reads it. One reveal and one walk either way.
  */
-function measureLayers(stage: HTMLElement, ids: string[]): Map<string, Pick<FillLayer, 'box' | 'color'>> {
+function measureStage(stage: HTMLElement, ids: string[], colours: boolean): Map<string, Pick<FillLayer, 'box' | 'color'>> {
   const out = new Map<string, Pick<FillLayer, 'box' | 'color'>>();
   const root = stage.querySelector('svg');
   if (!root) return out;
@@ -143,12 +151,23 @@ function measureLayers(stage: HTMLElement, ids: string[]): Map<string, Pick<Fill
         r.width > 0 && r.height > 0
           ? { top: r.top - svgRect.top, bottom: r.bottom - svgRect.top, left: r.left - svgRect.left, right: r.right - svgRect.left }
           : null;
-      out.set(id, { box, color: dominantFill(el) });
+      out.set(id, { box, color: colours ? dominantFill(el) : null });
     }
   } finally {
     stage.removeAttribute('data-reveal');
   }
   return out;
+}
+
+/** Just where each layer sits, for the unmatched count's ink. */
+function measureBoxes(stage: HTMLElement, ids: string[]): Map<string, FillLayer['box']> {
+  return new Map([...measureStage(stage, ids, false)].map(([id, m]) => [id, m.box]));
+}
+
+/** Where each layer sits AND what colour it is, for the fill-them-in guess: a green drawing on an
+ *  answer row is its correct look, a red one its wrong look. */
+function measureLayers(stage: HTMLElement, ids: string[]): Map<string, Pick<FillLayer, 'box' | 'color'>> {
+  return measureStage(stage, ids, true);
 }
 
 /**
@@ -215,6 +234,18 @@ function proposeFollowers(
  * and whether it can HEAD a group in the checklist - and a shape that is a backplate to one and a
  * row to the other would put a graphic in two states at once. The thing a full-frame plate is a
  * plate FOR is the graphic, not a row of it.
+ *
+ * A THIRD MEASUREMENT ASKS A VERSION OF THIS AND DELIBERATELY DOES NOT USE IT: the unmatched
+ * count's `isPlate` (fieldAutoMap.ts) measures a plate against the artwork's INK rather than the
+ * frame, at 0.95. The two are not interchangeable and the newer one is the better measured -
+ * `scripts/svg-plate-share-spike.mjs` walks 77 files and finds that a frame rule at 0.7 misses 75
+ * of their 132 plates, every strap and bug drawn small inside a 1920x1080 artboard among them.
+ * This one keeps the frame on purpose. Both its readers ask about a shape's standing IN THE
+ * FRAME - may it repeat as a row, may it head the checklist - and both were tuned against
+ * `full-frame-offering.spec.ts` and the shipped samples at this number. Moving them onto the ink
+ * would change the checklist's grouping and the growth proposal on every lower third in the
+ * catalog, which is a measurement of its own and nobody has made it
+ * (docs/backlog/one-rule-for-what-a-backplate-is.md).
  */
 const BACKPLATE_SHARE_OF_FRAME = 0.7;
 
@@ -1337,6 +1368,35 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
     }
     setBoxFits(fits);
   }, [svg, boundMarkerIds, allMarkerIds, placedLines]);
+
+  // ── WHERE EVERY LAYER SITS, FOR THE UNMATCHED COUNT (fieldAutoMap.ts, `isPlate`) ──
+  // The notice says how many layers nothing is using, and without geometry it counts the board's
+  // own backplate as one of them. A layer's box is a fact about the ARTWORK and not about which
+  // rows are ticked, so it is measured once per file over every candidate the importer found and
+  // read back by id below.
+  //
+  // A LAYOUT effect, for the reason the grouping above is one: the count is a NUMBER on screen,
+  // and measuring after paint would print the inflated one for a frame and then correct it.
+  //
+  // It re-runs when a FONT lands, because `uploadFont` below registers the face under the very
+  // family the artwork asks for - so the stage's text stops being laid out in the fallback and
+  // the ink moves under a number the reader is looking at.
+  const [layerBoxes, setLayerBoxes] = useState<Map<string, FillLayer['box']>>(new Map());
+  const fontKey = draft.svgFonts.map((f) => `${f.family}:${f.customFont?.asset.path ?? f.fontId ?? ''}`).join('|');
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!svg || !stage) {
+      setLayerBoxes(new Map());
+      return;
+    }
+    // Deduped for `proposeFollowers`' reason: one id may sit in two inventories, because a
+    // picture-filled backplate is offered both as a picture and as a panel that grows.
+    const ids = [...new Set([...svg.groups, ...svg.shapes, ...svg.candidates, ...svg.images, ...svg.outlines].map((c) => c.id))];
+    setLayerBoxes(measureBoxes(stage, ids));
+  }, [svg, fontKey]);
+  /** The artwork the plate rule is measured against, from every box the step could read. */
+  const artworkInk = useMemo(() => inkOfArtwork([...layerBoxes.values()]), [layerBoxes]);
+
   // TEXT AND ITS BOX, for the hovered row. Only a row that HAS a box and that the step could
   // measure gets one: a line sitting straight on the artwork has no room to draw and nothing to
   // be aligned in, and the plain outline is the whole truthful answer there.
@@ -1847,7 +1907,14 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
   const fillPickers = behaviour ? pickersOf(behaviour, fillText) : [];
   /** Each row's key as the hints and the fill speak it - the key the row's own layer carries. */
   const rowKeyAt = behaviour ? rowKeysOf(behaviour, fillText) : [];
-  const gap = behaviour && recipeId ? fillGap(recipeId, fillPickers, fillText, fillDrawn, fillTaken) : { empty: 0, spare: 0 };
+  /** A layer with the box the artwork was measured at, so the count can tell the board's own
+   *  plate from something drawn on it. Before the measurement lands every box is absent, which
+   *  is the count this notice had before geometry reached it. */
+  const withBox = (l: FillLayer): FillLayer => ({ ...l, box: layerBoxes.get(l.id) ?? null });
+  const gap =
+    behaviour && recipeId
+      ? fillGap(recipeId, fillPickers, fillText.map(withBox), fillDrawn.map(withBox), fillTaken, artworkInk)
+      : { empty: 0, spare: 0 };
   // The fill's marks belong to the recipe they were made on; a change of behaviour orphans
   // them, and an orphaned mark would explain a box that no longer exists.
   const fillShown = fill && behaviour && recipeIdOf(fill.before) === recipeId ? fill : null;
@@ -1896,7 +1963,17 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
       ? measureLayers(stage, [...fillText, ...fillDrawn].map((l) => l.id))
       : new Map<string, Pick<FillLayer, 'box' | 'color'>>();
     const withGeometry = (l: FillLayer): FillLayer => ({ ...l, ...(measured.get(l.id) ?? {}) });
-    const picks = proposeFill(recipeId, fillPickers, fillText.map(withGeometry), fillDrawn.map(withGeometry), fillTaken);
+    // The ink is the step's own standing measurement of EVERY candidate, never this press's:
+    // the press reads only what the two pools offer, and a picture or an outlined title is ink
+    // a reader sees.
+    const picks = proposeFill(
+      recipeId,
+      fillPickers,
+      fillText.map(withGeometry),
+      fillDrawn.map(withGeometry),
+      fillTaken,
+      artworkInk,
+    );
     setFill({ before: behaviour, picks });
     if (picks.length > 0) onDraft({ svgBehaviour: withFill(behaviour, picks, fillText) });
   };
