@@ -5,7 +5,7 @@ needs: account
 ---
 # npm still thinks the repository is `miwco/NoaCG-Studio`, so the CLI cannot publish
 
-**This one needs you, and it is the only thing tonight that does.** It takes about two minutes and
+**This one needs you, and it is the only thing this session needs from you.** It takes two minutes and
 it is on npmjs.com, not in the repository. Until it is done, no session can publish `@noacg/cli` -
 0.3.1 is built, tested, landed on `main` and refused by the registry.
 
@@ -25,8 +25,8 @@ same workflow, same npm 12.0.2, same node, same everything else.
 
 ## The route, under a minute
 
-**npmjs.com** -> sign in as `miwco` -> **@noacg/cli** -> **Settings** -> **Trusted publishing**
-(direct link: `https://www.npmjs.com/package/@noacg/cli/access`).
+**npmjs.com** -> sign in as `miwco` -> **Packages** -> **@noacg/cli** -> **Settings** ->
+**Trusted publishing**. That is npm's own documented path, checked tonight rather than remembered.
 
 **What to look at.** The GitHub Actions entry will say organisation **`miwco`**. That is the bug.
 An existing entry cannot be edited, so delete it and add it again with:
@@ -47,11 +47,14 @@ and it is the only reason this item exists rather than the version simply being 
 
 ## Then tell any session, or do it yourself
 
-Publishing is one command from the repository page, or from a checkout:
+**Re-run the release that failed** - do not start a new one. On the repository's **Actions** tab,
+open the failed **Release CLI to npm** run for `cli-v0.3.1` (run `34408194386`) and press **Re-run
+all jobs**. From a checkout it is `gh run rerun 34408194386`.
 
-```
-gh workflow run release-cli.yml --ref main -f dry_run=false
-```
+Re-running is the right route because that run is pinned to the tag `cli-v0.3.1`, which points at
+the exact commit that was built, tested and reviewed. Starting a fresh run against `main` instead
+would publish whatever `main` has grown since - it has already moved twice tonight - and would hang
+the GitHub Release off a commit that was never the one published.
 
 It publishes 0.3.1 and creates the matching GitHub Release. You do not have to check anything
 afterwards - say the word in a session and it will re-derive the result from the registry. If you
