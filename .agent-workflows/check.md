@@ -38,7 +38,7 @@ first before changing anything, exactly as the repo's Git rules require.
 - **The base and the file list are never yours to recompute.** The script binds its git to the
   worktree that CONTAINS it rather than to the caller's directory, and takes the base from
   `origin/main` rather than the local `main` branch the merge queue no longer moves - and it
-  refuses outright rather than falling back to a ref that is neither. Those two mistakes cost nine
+  refuses outright rather than falling back to a ref that is neither. Those two mistakes cost ten
   delegated review passes between 2026-08-29 and 2026-09-09, every one discarded and redone by
   hand; `docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md` itemises them.
 - If it reports nothing to review, report "nothing to check" and stop.
@@ -102,7 +102,7 @@ Goal: find and fix real defects in the changed code before polishing it.
   it reviewed is in that list. One command, and it catches a failure that is silent in the BAD
   direction: a branch looks like it changed MORE than it did, so its real diff reads as clean.
   Phase 1 now hands the scope over rather than leaving it to be derived, which is what removes the
-  delegate's chance to be wrong - this comparison stays because it is what CAUGHT all nine, and a
+  delegate's chance to be wrong - this comparison stays because it is what CAUGHT all ten, and a
   fix upstream of a detector never retires the detector.
 - **A pass that will not say what it scoped fails this check exactly like a mismatch.** Derive
   its file list from the paths its findings name when it has findings; a pass reporting CLEAN
@@ -113,9 +113,13 @@ Goal: find and fix real defects in the changed code before polishing it.
   quietly review what it thinks changed, so a refusal is the request working, not the row failing.
 - **On any mismatch, discard the WHOLE pass** - not just the findings that fell outside - redo
   the review by hand over that same diff, and report `review: discarded+inline` with BOTH
-  scopes, the sha the review used and this branch's merge base. Discarded means discarded as a
-  review of THIS branch; findings about another branch's files are still relayed, per the next
-  bullet. Nine mis-scoped passes across seven rows and two causes, itemised with their shas in
+  scopes, the sha the review used and this branch's merge base. **Discard it as a VERDICT, not as
+  reading matter** - discarded means you may no longer say this branch was reviewed, never that the
+  text goes in the bin unread. Any finding that does land inside the real diff is checked against
+  the code like any other before the redo: on 2026-09-09 row AT's mis-scoped pass carried three
+  in-scope findings, two of them genuine and high severity, and binning the pass would have shipped
+  both. Findings about another branch's files are relayed, per the next bullet. Ten mis-scoped
+  passes across eight rows and two causes, itemised with their shas in
   `docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md`. The reviewing tool is a
   built-in with no file in this repository, so noticing is the half this repository owns.
 - Findings about another branch's files are that branch's business: report them to the session

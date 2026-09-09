@@ -80,6 +80,21 @@ is wrong**, and I only know because I probed it: git emits `?? "zz a space.md"`.
 finding against the actual behaviour, including the ones from a pass that has just proved itself
 careful.
 
+## Row AT's relay changed the discard rule, and that is the better half of it
+
+AT's relay arrived at the queueing step with a tenth occurrence - 79 files claimed "against main"
+where the true diff was 11 - but the number is not the valuable part. **Three of its six findings
+named files that ARE in the true diff, and two of those were genuine high-severity defects: a
+missing `checks: read` permission, and skipped Playwright specs annotated as failed ones.**
+
+`/check` said "discard the WHOLE pass", and read literally that bins two real defects. So the rule
+now says what it always meant: **discard it as a VERDICT, not as reading matter.** You may no
+longer claim the branch was reviewed, and you still check every in-scope claim against the code
+before redoing the leg. The pinned marker sentence is unchanged - the clarification sits beside it.
+
+Worth noticing about how that arrived: the relay is the channel that works. AT could not reach me
+directly, and the correction would have been lost if I had queued fifteen minutes earlier.
+
 ## Traps that exist in no repo file
 
 - **`worktree-cleanup-lib.mjs` exports a shared `git()` that looks like the one to reuse here.

@@ -15,14 +15,14 @@
 // go and derive one, and the derivation is where the stale ref gets in.
 //
 // So the rule was correct, complete, and pointed at the wrong reader. By 2026-09-09 that had cost
-// nine delegated review passes in this repository, every one paid for and thrown away:
+// ten delegated review passes in this repository, every one paid for and thrown away:
 //
 //   - 2026-08-29, three rows: the review inherited the delegating tool's directory and reviewed a
 //     different WORKTREE's branch.
-//   - 2026-09-08, rows Q and P, and 2026-09-09, rows J, AS, AV and AQ: the review diffed against a
-//     local `main` that was days behind, and returned findings about other branches' landed files.
-//     J's pass reached 26 commits back and had not one finding inside J's own diff; AS's reviewed
-//     56 files against a true diff of 2.
+//   - 2026-09-08, rows Q and P, and 2026-09-09, rows J, AS, AV, AQ and AT: the review diffed
+//     against a local `main` that was days behind, and returned findings about other branches'
+//     landed files. J's pass reached 26 commits back and had not one finding inside J's own diff;
+//     AS's reviewed 56 files against a true diff of 2.
 //
 // The quality cost is worse than the money. Row AQ's discarded pass had MISSED a real defect that
 // the inline redo then found: a review of the wrong files is not merely wasted, it returns
@@ -31,7 +31,7 @@
 // WHAT THIS FIXES AND WHAT IT DOES NOT. It removes the delegate's ability to be wrong about scope,
 // because there is nothing left for it to work out. It does not verify that the delegate obeyed:
 // `/check` phase 2 still compares the scope the review REPORTS against this branch's real diff and
-// discards the whole pass on a mismatch. That comparison caught all nine, and a fix upstream of a
+// discards the whole pass on a mismatch. That comparison caught all ten, and a fix upstream of a
 // detector is never a reason to remove the detector.
 //
 // The base is computed against `origin/main` through `scripts/main-ref.mjs`, and the git commands
@@ -209,7 +209,7 @@ THIS LIST IS THE SCOPE. It was computed in the worktree that owns the branch and
 deliberately, so there is nothing for you to work out. Do not derive the changed set yourself, and
 in particular do not diff against \`main\`: that local ref does not move under this project's merge
 queue, and a scope taken from it reviews other branches' landed files while reporting this branch's
-real diff as clean. That happened nine times here by 2026-09-09, and every pass was discarded whole.
+real diff as clean. That happened ten times here by 2026-09-09, and every pass was discarded whole.
 
 IF YOU DISAGREE, REFUSE. If a file listed under FILES is missing or unreadable, or your own view of
 what this branch changed differs from these lists, stop and say so: print both lists and the base

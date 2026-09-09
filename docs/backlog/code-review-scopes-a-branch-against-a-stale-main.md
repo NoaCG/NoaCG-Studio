@@ -4,7 +4,7 @@ source: derived
 kind: finding
 raised: 2026-09-09
 state: advanced
-note: "the row now HANDS the delegate its scope - `scripts/review-request.mjs` prints the branch, the merge base against `origin/main` and the complete file list, and the review is invoked with that instead of a branch name, so there is nothing left for it to derive. What remains is unmeasured: no delegated pass has yet run under the handed request, so nobody knows whether the delegate obeys it. The next row to run /check reports what came back"
+note: "the row now HANDS the delegate its scope - `scripts/review-request.mjs` prints the branch, the merge base against `origin/main` and the complete file list, and the review is invoked with that instead of a branch name, so there is nothing left for it to derive. Measured ONCE, on the branch that added it: the pass came back naming the handed base sha and exactly the handed file list, and cross-checked both against the script itself. One pass on one short file list is not proof - the next rows to run /check report what came back, and two or three clean scope-checks close this"
 found: "the /code-review tooling scopes a branch by diffing against the LOCAL main, which under the merge queue is permanently behind, so it reviews files the branch never touched and can report a real diff as clean"
 serves: NOW
 size: small
@@ -16,11 +16,11 @@ needs-owner: harness
 # The code review scopes a branch against a stale local `main`
 
 `/code-review` decides which files a branch changed, and between 2026-08-29 and 2026-09-09 it
-decided wrong nine times in this repository. It reviewed files that had landed on `main` days
+decided wrong ten times in this repository. It reviewed files that had landed on `main` days
 earlier and attributed them to the branch under test. The tooling is a Claude Code built-in with no
 file here, so this receipt is the record rather than the fix.
 
-## The nine, from rows that had no contact with each other
+## The ten, from rows that had no contact with each other
 
 **Three on 2026-08-29**, from the other cause: a delegated review inherits the delegating tool's
 working directory rather than the worktree under test, so it reviewed a different WORKTREE's
@@ -41,14 +41,24 @@ landed pull requests' files. P discarded the pass and reviewed inline.
 `761ad8e7`, read 117 files over 26 commits, and returned eight findings about another row's landed
 work, none inside J's own diff.
 
-**Rows AS, AV and AQ**, all on the night of 2026-09-09. AS's pass scoped against a local `main` 29
-commits stale, reviewed 56 files against a true diff of 2, and returned four findings all in
+**Rows AS, AV, AQ and AT**, all on the night of 2026-09-09. AS's pass scoped against a local `main`
+29 commits stale, reviewed 56 files against a true diff of 2, and returned four findings all in
 `cli/` - another row's files. AV's "named files this branch doesn't touch and reported no base
-sha". AQ's, five commits stale, put nine of ten findings in files the branch never touched.
+sha". AQ's, five commits stale, put nine of ten findings in files the branch never touched. AT's
+reported reading 79 files and about 4,900 insertions "against main" where the true diff was 11
+files, and reviewed `cli/src/**`, `scripts/worktree-cleanup-lib.mjs` and `scripts/codex-rescue.mjs`,
+none of which that branch touches.
+
+**AT's pass also corrected the discard rule, which is worth more than the tenth data point.** Three
+of its six findings named files that ARE in the true diff, and two of those were genuine
+high-severity defects - a missing `checks: read` permission, and skipped Playwright specs annotated
+as failed ones. Discarding the pass unread would have shipped both. So `/check` now says to discard
+a mis-scoped pass as a VERDICT rather than as reading matter: you may no longer claim the branch was
+reviewed, and you still check every in-scope claim against the code before redoing the leg.
 
 **The quality cost is worse than the money.** AQ's discarded pass had MISSED a real defect that the
 inline redo then caught. A review of the wrong files is not merely wasted; it returns findings and
-therefore looks like it worked. Every one of the nine was a delegated pass paid for and thrown
+therefore looks like it worked. Every one of the ten was a delegated pass paid for and thrown
 away, and the redo was done by hand.
 
 ## Why
@@ -81,17 +91,23 @@ answers the 2026-08-29 cause in code. Measured on the branch that added it: the 
 one changed file and the local one answered 72.
 
 `/check` phase 2 still compares the scope the review REPORTS against this branch's real diff and
-discards the whole pass on a mismatch. That comparison is what caught all nine, and a fix upstream
+discards the whole pass on a mismatch. That comparison is what caught all ten, and a fix upstream
 of a detector does not retire the detector.
 
 ## What is genuinely left
 
-**The fix is unmeasured.** No delegated review has yet run under the handed request, so nobody
-knows whether the delegate honours a file list it did not compute, or quietly recomputes one
-anyway. The next rows to run `/check` are the measurement: report whether the pass came back naming
-the handed base sha and file list, and whether it ever refused on a disagreement. Two or three
-clean scope-checks in a row close this; one delegate ignoring the list means the request needs
-teeth the workflow cannot give it, and that is when the harness ask below becomes worth spending.
+**The fix is measured exactly once.** On the branch that added it, the delegated pass came back
+naming merge base `e25d8b14` and exactly the four handed files plus the one deletion read at the
+base - and it went further than asked, running the diff and `review-request.mjs --json` itself and
+reporting that all three agreed before reviewing anything. That is the first evidence that a
+delegate honours a file list it did not compute.
+
+One pass is not proof. It is one delegate, on one branch, on one night, with a four-file list, and
+nobody has yet seen the disagreement path fire in anger. The next rows to run `/check` are the rest
+of the measurement: report whether the pass named the handed base sha and file list, and whether it
+ever refused. Two or three more clean scope-checks close this; one delegate quietly recomputing
+means the request needs teeth the workflow cannot give it, and that is when the harness ask below
+becomes worth spending.
 
 `needs-owner: harness` therefore stands but has dropped in value. The tool-side fix - make
 `/code-review` diff against `origin/main`, and have it name the base sha it used - would still be
