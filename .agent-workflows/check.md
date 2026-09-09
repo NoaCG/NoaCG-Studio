@@ -27,28 +27,21 @@ This workflow edits the working tree of the current feature branch and nothing e
 merges, pushes, or touches `main` in any way - if invoked while sitting on `main`, branch
 first before changing anything, exactly as the repo's Git rules require.
 
-## 1. Scope - compute once, reuse in every phase
+## 1. Scope - computed once, by one command
 
-- The scope is what this branch changed: `git fetch --quiet origin main` first, then
-  `git diff $(git merge-base origin/main HEAD)` - merge base against the WORKING TREE, so
-  uncommitted content is in the diff you read - plus `git status --porcelain=v1` for anything
-  untracked. Compute it once; all three phases work from this same changed set. Do not review or
-  simplify code the branch did not touch.
-- **`origin/main`, never the local `main` branch.** `git fetch` moves the remote-tracking ref; it
-  does not move the local branch, and since landings moved to the merge queue nothing on this
-  machine moves it at all, so the lag only grows. Measured on 2026-09-09 in a worktree cut that
-  night: the local ref was 33 commits behind, and the two spellings of this one command answered
-  6 files and 100. The review then spends its whole pass on landed code and reports the real diff
-  as clean - which is what happened to two rows on 2026-09-08
-  (`docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md` carries both).
-- **Run every scope command INSIDE this worktree, with its absolute path**, and record the
-  branch name (`git rev-parse --abbrev-ref HEAD`) and the merge-base sha alongside the file
-  list, which is what phase 2 compares the review's own scope against. Several worktrees of this
-  repo are normally live at once, and a tool that resolves paths from the session's own directory
-  rather than from this worktree silently answers for somebody else's branch. That is not
-  hypothetical: the review phase reviewed a different worktree's branch three times on
-  2026-08-29.
-- If the diff is empty and the working tree is clean, report "nothing to check" and stop.
+- **`node scripts/review-request.mjs`.** It fetches, takes the merge base against `origin/main`,
+  and prints the branch, that base sha and every file this branch changed, committed and
+  uncommitted. All three phases work from that one set; do not review or simplify code the branch
+  did not touch. Read the changed code itself IN THIS WORKTREE with
+  `git diff $(git merge-base origin/main HEAD)`, which diffs the merge base against the WORKING
+  TREE, so uncommitted content is in what you read.
+- **The base and the file list are never yours to recompute.** The script binds its git to the
+  worktree that CONTAINS it rather than to the caller's directory, and takes the base from
+  `origin/main` rather than the local `main` branch the merge queue no longer moves - and it
+  refuses outright rather than falling back to a ref that is neither. Those two mistakes cost ten
+  delegated review passes between 2026-08-29 and 2026-09-09, every one discarded and redone by
+  hand; `docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md` itemises them.
+- If it reports nothing to review, report "nothing to check" and stop.
 - Before editing, read the nested `AGENTS.md` contracts covering the touched areas - review
   findings are judged against them, and a "simplification" that violates one is a bug.
 
@@ -56,12 +49,12 @@ first before changing anything, exactly as the repo's Git rules require.
 
 Goal: find and fix real defects in the changed code before polishing it.
 
-- Run the tool's dedicated code-review capability over this branch's diff (Claude Code: the
-  code-review skill, invoked with the branch name and an EXPLICIT level - `high` is the right
-  default here; Codex: its review mode). **Always name the level.** Claude Code's skill reuses
-  the last level typed when none is given, so a bare invocation can silently inherit `ultra`,
-  which is a cloud multi-agent run that reports back out of band. Never ask for `ultra` from
-  this workflow.
+- Run the tool's dedicated code-review capability (Claude Code: the code-review skill; Codex: its
+  review mode), invoked with **exactly what `scripts/review-request.mjs` printed** - the file list
+  and the base sha, never the branch name alone. A branch name is not a scope; it is an instruction
+  to go and derive one, and the delegate derives it from the local ref this machine stopped moving.
+  Measured 2026-09-09 on a branch that had changed one file: the two bases answered 1 file and 72.
+  The request carries the level and what to do on disagreement too, so nothing is left to compose.
 - **A DELEGATED PASS COUNTS ONLY IF ITS RESULT COMES BACK INTO THIS CONVERSATION.** Invoke the
   capability, then decide from *what came back*, not from what kind of session you think you
   are in. **Findings, or an explicit clean result, mean the pass ran**: scope-check it (next
@@ -108,23 +101,27 @@ Goal: find and fix real defects in the changed code before polishing it.
   compare the two lists. It matches only if the review's branch is this worktree's and every file
   it reviewed is in that list. One command, and it catches a failure that is silent in the BAD
   direction: a branch looks like it changed MORE than it did, so its real diff reads as clean.
+  Phase 1 now hands the scope over rather than leaving it to be derived, which is what removes the
+  delegate's chance to be wrong - this comparison stays because it is what CAUGHT all ten, and a
+  fix upstream of a detector never retires the detector.
 - **A pass that will not say what it scoped fails this check exactly like a mismatch.** Derive
   its file list from the paths its findings name when it has findings; a pass reporting CLEAN
   with no branch, no base sha and no file list leaves nothing to compare, and that is the shape
   of the silent failure itself. Unfalsifiable is not the same as trustworthy.
+- **A pass that REFUSES because the handed scope and its own view disagree has not run** - take the
+  leg inline and say why. The request tells the delegate to stop and print both lists rather than
+  quietly review what it thinks changed, so a refusal is the request working, not the row failing.
 - **On any mismatch, discard the WHOLE pass** - not just the findings that fell outside - redo
   the review by hand over that same diff, and report `review: discarded+inline` with BOTH
-  scopes, the sha the review used and this branch's merge base. Discarded means discarded as a
-  review of THIS branch; findings about another branch's files are still relayed, per the next
-  bullet. Six mis-scoped passes measured across four rows, from two causes. Three read another
-  WORKTREE's branch on 2026-08-29, because a delegated review inherits the delegating tool's
-  directory rather than this worktree's - that write-up is consumed, retrievable with
-  `git show c5823d3b^:docs/handoffs/2026-08-29-dd-svg-fitting-two.md`. Three more scoped against
-  a stale local `main`: rows Q and P on 2026-09-08, and row J on 2026-09-09, whose pass reached
-  26 commits back and returned eight findings with not one inside its own diff. The reviewing
-  tool is a built-in with no file in this repository
-  (`docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md`), so noticing is the half
-  this repository owns.
+  scopes, the sha the review used and this branch's merge base. **Discard it as a VERDICT, not as
+  reading matter** - discarded means you may no longer say this branch was reviewed, never that the
+  text goes in the bin unread. Any finding that does land inside the real diff is checked against
+  the code like any other before the redo: on 2026-09-09 row AT's mis-scoped pass carried three
+  in-scope findings, two of them genuine and high severity, and binning the pass would have shipped
+  both. Findings about another branch's files are relayed, per the next bullet. Ten mis-scoped
+  passes across eight rows and two causes, itemised with their shas in
+  `docs/backlog/code-review-scopes-a-branch-against-a-stale-main.md`. The reviewing tool is a
+  built-in with no file in this repository, so noticing is the half this repository owns.
 - Findings about another branch's files are that branch's business: report them to the session
   that owns it, and never fix them here.
 - **Review the diff against what was ASKED as well as for bugs**, and keep the two apart: does
@@ -208,7 +205,9 @@ Goal: leave the changed code simpler than the review left it, without changing w
   can eventually see review the way it sees CI (`docs/ORCHESTRATION_NEXT.md` §5). One JSON file
   at `<git-common-dir>/noacg-jobs/checks/<branch-with-slashes-as-dashes>.json`:
   `{ v: 1, branch, mergeBase, reviewedSha, files, legs: { review: { mode, findings, fixed,
-  model, effort }, simplify: {...}, verify: {...} }, verdict, at }` - `reviewedSha` is the EXACT
+  model, effort }, simplify: {...}, verify: {...} }, verdict, at }` - `branch`, `mergeBase` and
+  `files` come out of `node scripts/review-request.mjs --json`, so the stamp records the scope the
+  review was actually handed rather than a retyped copy. `reviewedSha` is the EXACT
   commit the check ran on, and any commit after it invalidates the stamp (re-run or honestly
   re-stamp what was re-checked). Overwrite the branch's previous stamp; the file is per-machine
   state like the job store, never committed.
