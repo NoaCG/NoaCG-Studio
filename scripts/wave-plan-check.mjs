@@ -79,14 +79,23 @@ function rowPools(row) {
 }
 
 /** The spellings of "this row mints nothing". Anything else in MINTS is a slot name. */
-const NO_MINT = new Set(['-', '', 'none', 'nothing', 'n/a', 'no']);
+export const NO_MINT = new Set(['-', '', 'none', 'nothing', 'n/a', 'no']);
 
-/** The wave table as rows keyed by column name. Any heading containing "wave table" opens it. */
-export function parseWaveTable(text) {
-  const lines = text.replace(/\r\n/g, '\n').split('\n');
-  const problems = [];
-  const start = lines.findIndex((line) => /^#{1,6}\s+.*\bwave table\b/i.test(line));
-  if (start < 0) return { rows: [], columns: [], problems: ['no "## Wave table" heading'] };
+/** A MINTS cell as its slot names - the one grammar, shared with the refill instrument. */
+export function mintsOf(cell) {
+  return String(cell ?? '').split(',').map((mint) => mint.trim()).filter((mint) => !NO_MINT.has(mint.toLowerCase()));
+}
+
+/**
+ * The first markdown table under the first heading matching `headingRe`: `header` is the column
+ * keys (`columnKey`), each row is keyed by them and carries its `raw` line. Null when the heading
+ * is missing; a table with no header row comes back with `header: null`. The one table walker for
+ * the wave table here and the candidates table in `candidates.mjs`, so the two cannot drift.
+ */
+export function tableUnder(text, headingRe) {
+  const lines = String(text).replace(/\r\n/g, '\n').split('\n');
+  const start = lines.findIndex((line) => headingRe.test(line));
+  if (start < 0) return null;
   let header = null;
   const rows = [];
   for (let index = start + 1; index < lines.length; index += 1) {
@@ -105,11 +114,31 @@ export function parseWaveTable(text) {
     });
     rows.push(row);
   }
-  if (!header) return { rows: [], columns: [], problems: ['the wave table has no header row'] };
+  return { header, rows };
+}
+
+/** The wave table as rows keyed by column name. Any heading containing "wave table" opens it. */
+export function parseWaveTable(text) {
+  const table = tableUnder(text, /^#{1,6}\s+.*\bwave table\b/i);
+  if (!table) return { rows: [], columns: [], problems: ['no "## Wave table" heading'] };
+  if (!table.header) return { rows: [], columns: [], problems: ['the wave table has no header row'] };
+  const problems = [];
   for (const column of REQUIRED_COLUMNS) {
-    if (!header.includes(column)) problems.push(`the wave table lacks a ${column.toUpperCase()} column`);
+    if (!table.header.includes(column)) problems.push(`the wave table lacks a ${column.toUpperCase()} column`);
   }
-  return { rows, columns: header, problems };
+  return { rows: table.rows, columns: table.header, problems };
+}
+
+/**
+ * The planner's word in a `browser` cell, with backticks and bold stripped: a cell STARTING with
+ * yes or no, so `yes - drives the running app` counts, and a dash or a note naming neither is null.
+ * Shared with `candidates.mjs`, which reads the same word off the candidates table.
+ */
+export function browserWord(cell) {
+  const text = String(cell ?? '').replace(/[`*]/g, '').trim();
+  if (/^yes\b/i.test(text)) return true;
+  if (/^no\b/i.test(text)) return false;
+  return null;
 }
 
 /**
@@ -334,10 +363,16 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
       const named = /\bfallback\b/i.test(row.raw) || /\bfallback\b/i.test(block?.text ?? '');
       if (!named) problems.push(`row ${letter}: a non-Claude pool must name its fallback pool (in the row or the prompt)`);
     }
-    for (const mint of (row.mints ?? '').split(',').map((mint) => mint.trim()).filter((mint) => !NO_MINT.has(mint.toLowerCase()))) {
+    for (const mint of mintsOf(row.mints)) {
       const key = mint.toLowerCase();
       if (mints.has(key)) problems.push(`rows ${mints.get(key)} and ${letter} both mint ${mint}`);
       else mints.set(key, letter);
+    }
+    // The browser cell is read by the refill instrument to know who HOLDS the machine's one browser
+    // slot, so a value it cannot read is a row that holds nothing: "needs it" or "shared with F"
+    // passed this check and held nothing until 2026-09-09.
+    if (table.columns.includes('browser') && browserWord(row.browser) === null) {
+      problems.push(`row ${letter}: browser must start with yes or no - got "${row.browser}"`);
     }
     if (exists) problems.push(...touchProblems({ ...row, letter }, exists));
     if (!block) problems.push(`row ${letter}: no prompt block opens with "SESSION ${letter}"`);
@@ -345,6 +380,22 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
   }
   for (const letter of blocks.keys()) {
     if (!seenLetters.has(letter)) problems.push(`prompt block SESSION ${letter} has no wave-table row`);
+  }
+  // The candidates table is the refill loop's list (night.md). Its optional browser column is the
+  // planner's override of the specs-derived need, and only a cell starting with yes or no is read
+  // as one - so a cell spelt any other way is a planner who believes they overrode and did not.
+  // NAMED FOR THE TABLE, not `candidates`: this function also takes a `candidates` PARAMETER, the
+  // weekly review's rows, and the two arrived from different branches that git merged without a
+  // conflict. Sharing the name does more than fail to compile - it silently rebinds
+  // `candidateProblems(candidates, ...)` below from the weekly rows to this table.
+  const candidatesTable = tableUnder(text, /^#{1,6}\s+.*\bcandidates\b/i);
+  if (candidatesTable?.header?.includes('browser')) {
+    for (const row of candidatesTable.rows) {
+      const cell = String(row.browser ?? '').replace(/[`*]/g, '').trim();
+      if (cell && cell !== '-' && browserWord(cell) === null) {
+        problems.push(`candidate ${row.letter ?? '?'}: browser must start with yes or no, or be empty - got "${row.browser}"`);
+      }
+    }
   }
   if (!/^\s*(?:[-*]\s*)?(?:\*\*)?pools at plan time\s*(?:\*\*)?:/im.test(text)) {
     problems.push('no "Pools at plan time:" line - quote npm run harness:usage for the snapshot the routing was decided on');

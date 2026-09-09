@@ -179,9 +179,15 @@ export function deltaBetween(previous, current, { quietMinutes = QUIET_MINUTES }
   if (!current.landedUnknown) {
     for (const branch of current.branches) {
       if (looksFinishedUnqueued(branch, { now: current.at, quietMinutes }) && !prevUnqueued.has(branch.name)) {
+        // The line says what it did NOT measure, because on 2026-09-08 it fired three times and
+        // was wrong three times: each row was reading its CI run before queueing, which from here
+        // is indistinguishable from a session that ended. Whether that leg gets measured is filed
+        // in docs/backlog/finished-looking-needs-a-ci-leg.md; until then the reader confirms.
         events.push(`FINISHED-LOOKING AND UNQUEUED ${branch.name} - clean tree, no commit for `
-          + `${Math.floor((current.at - branch.lastCommitMs) / 60_000)} min, nothing queued. If its session `
-          + 'ended believing a watcher would queue it, nothing will.');
+          + `${Math.floor((current.at - branch.lastCommitMs) / 60_000)} min, nothing queued. Not checked: a CI run `
+          + 'on its tip, or a live session - a row reading its CI before it queues looks exactly like this, so '
+          + 'confirm with night.md\'s three-signal test first. If its session ended believing a watcher would '
+          + 'queue it, nothing will.');
       }
     }
   }

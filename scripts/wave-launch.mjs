@@ -80,6 +80,7 @@ export function joinDurations(launches, jobs, landings) {
       branch: launch.branch,
       size: SIZES.includes(launch.size) ? launch.size : 'standard',
       launchedAt: launch.at,
+      plan: launch.plan ?? null,
       toQueueMin: queued ? Math.round((queued.enqueuedAt - launch.at) / 60_000) : null,
       toLandMin: landed ? Math.round((landed.at - launch.at) / 60_000) : null,
     };
