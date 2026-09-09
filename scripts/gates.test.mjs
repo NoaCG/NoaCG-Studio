@@ -10,7 +10,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { ROOT, audit, auditGates, discoverChecks, discoverTests, entryPointsOf, guardsHit, guardsOf, matchesGuard, parseHeader, relativeImports, testFilesOnDisk, tierMechanisms } from './gates.mjs';
+import { ROOT, audit, auditGates, discoverChecks, discoverTests, entryPointsOf, guardsHit, guardsOf, matchesGuard, parseHeader, receiptPathFor, relativeImports, testFilesOnDisk, tierMechanisms } from './gates.mjs';
 
 const workflows = (map) => (name) => (Object.hasOwn(map, name) ? map[name] : null);
 const WIRED = { buildLine: 'node scripts/gates.mjs run && tsc && node scripts/gates.mjs run --gate after-build', ci: 'run: node scripts/gates.mjs run --gate factory\n' };
@@ -173,4 +173,26 @@ test('the real repository passes the real audit, discovers every test file on di
   assert.deepEqual(problems, []);
   assert.equal(tests.length, files.length);
   assert.ok(checks.some((c) => c.entry === 'scripts/check-gate-coverage.mjs' && c.header.gate === 'build'));
+});
+
+// Two check names that sanitize identically must not share a receipt file. `measured()` appends,
+// so a shared path hands the second check the first one's rows and `measurementProblem` can never
+// see that the second measured nothing - the one hole the receipt mechanism exists to close, open
+// in the mechanism itself. `package.json` already carries both spellings below.
+test('each check gets its own receipt file, even when two names sanitize to the same string', () => {
+  const dir = path.join('/tmp', 'gates-x');
+  const first = receiptPathFor(dir, 0, 'test:e2e:affected');
+  const second = receiptPathFor(dir, 1, 'test:e2e-affected');
+
+  assert.notEqual(first, second, 'two names differing only in punctuation must not collide');
+  assert.equal(path.basename(first), '0-test-e2e-affected.tsv');
+  assert.equal(path.basename(second), '1-test-e2e-affected.tsv');
+
+  // The readable half is still there, so somebody looking in the temp directory can tell which
+  // file belongs to which check rather than reading a bare number or a hash.
+  assert.ok(path.basename(first).includes('test-e2e-affected'));
+
+  // And the same check at the same position is stable, because the runner writes the path into the
+  // child's environment and reads it back after the check exits.
+  assert.equal(receiptPathFor(dir, 0, 'test:e2e:affected'), first);
 });
