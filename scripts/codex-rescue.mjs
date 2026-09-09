@@ -1117,10 +1117,13 @@ async function reap(argv, cwd) {
   }
   const result = await reapTrees({ workspace });
   reportReap(result);
-  // EXIT 3 IS "SOMETHING IS STILL RUNNING HERE", and it exists for one caller: a worktree removal
-  // asks this before deleting the directory a delegation is working in. Nothing was wrong, so it
-  // is not a failure; nothing is finished either, so it is not a plain success.
-  return result.busy ? 3 : 0;
+  // EXIT 3 IS "THE WORKSPACE YOU ASKED ABOUT IS STILL WORKING", and it exists for one caller: a
+  // worktree removal asks before deleting the directory a delegation is running in. Nothing was
+  // wrong, so it is not a failure; nothing is finished either, so it is not a plain success. Only
+  // a SCOPED reap can say it - an unscoped sweep finding somebody else's delegation running is
+  // the ordinary state of the machine, and a person running `reap` should not read that as an
+  // error.
+  return workspace && result.busy ? 3 : 0;
 }
 
 /**
