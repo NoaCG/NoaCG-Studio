@@ -731,10 +731,7 @@ export default function CreationWizard() {
     window.addEventListener('spx-data-changed', onData);
     return () => window.removeEventListener('spx-data-changed', onData);
   }, [onFinish]);
-  const finishMade = madeThisOpen.current;
-  const finishMadeRecord = finishMade?.graphicId
-    ? { id: finishMade.graphicId, name: finishMade.name }
-    : null;
+  const finishMadeId = madeThisOpen.current?.graphicId ?? null;
 
   if (!open) return null;
 
@@ -913,11 +910,7 @@ export default function CreationWizard() {
    */
   const saveBuiltGraphic = async (name: string): Promise<{ ok: boolean; error: string | null }> => {
     const again = madeThisOpen.current;
-    const effect = librarySaveEffect(
-      graphicNameIndex(),
-      name,
-      again?.graphicId ? { id: again.graphicId, name: again.name } : null,
-    );
+    const effect = librarySaveEffect(graphicNameIndex(), name, again?.graphicId ?? null);
     const over = effect.targetId;
     if (over) {
       useTemplateStore.getState().setSaved({ graphicId: over, dirty: true, status: 'idle' });
@@ -2311,7 +2304,7 @@ export default function CreationWizard() {
                 libraryIndex={finishLibrary}
                 fields={importedFile.template.fields.map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                made={finishMadeRecord}
+                madeId={finishMadeId}
                 onAddToProduction={createFromFileAndAddToProduction}
                 onOpenEditor={createFromFile}
                 showEditorDoor={advanced}
@@ -2331,7 +2324,7 @@ export default function CreationWizard() {
                 libraryIndex={finishLibrary}
                 fields={(previewTemplate?.fields ?? []).map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                made={finishMadeRecord}
+                madeId={finishMadeId}
                 onAddToProduction={createAndAddToProduction}
                 onOpenEditor={create}
                 showEditorDoor={advanced}
@@ -2377,7 +2370,7 @@ export default function CreationWizard() {
                 libraryIndex={finishLibrary}
                 fields={aiResult.template.fields.map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                made={finishMadeRecord}
+                madeId={finishMadeId}
                 onAddToProduction={createFromAiAndAddToProduction}
                 onOpenEditor={createFromAi}
                 showEditorDoor={advanced}

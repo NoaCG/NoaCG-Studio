@@ -165,11 +165,13 @@ export type LibrarySaveEffect =
 export function librarySaveEffect(
   index: LibraryNameEntry[],
   name: string,
-  /** The record this stretch of wizard has already made, if it still exists. */
-  made: { id: string; name: string } | null,
+  /** The record this stretch of wizard has already made. Its name comes from the INDEX, not
+   *  from the caller: the walk remembers the name it saved under, and the record is what it is
+   *  now (another tab may have renamed it). */
+  madeId: string | null,
 ): LibrarySaveEffect {
   const wanted = name.trim();
-  const mine = made ? index.find((g) => g.id === made.id) : undefined;
+  const mine = madeId ? index.find((g) => g.id === madeId) : undefined;
   if (mine) {
     if (mine.name === wanted) return { kind: 'update', targetId: mine.id, renamedFrom: null };
     // A twin ALREADY under this name is the tie-break's territory, not a twin this press makes.

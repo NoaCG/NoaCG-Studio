@@ -61,7 +61,7 @@ interface Props {
   /** The library record this stretch of wizard has ALREADY made, when the reader has been here
    *  before (walked back in, or pressed a door twice). It is what every door writes to from
    *  then on, under whatever the name field now says. Null on a first pass. */
-  made?: { id: string; name: string } | null;
+  madeId?: string | null;
   /** Every live graphic, reduced to the name question (model/library.ts `graphicNameIndex`).
    *  The wizard re-reads it on every library change while this step is up, so what the step
    *  says and what the save does come from one list at one moment. */
@@ -219,7 +219,7 @@ export default function FinishStep({
   showEditorDoor,
   onExport,
   busy,
-  made = null,
+  madeId = null,
   libraryIndex = [],
   fields = [],
 }: Props) {
@@ -260,7 +260,7 @@ export default function FinishStep({
   // name the library ALREADY holds is that graphic whoever made it and whenever. ONE call
   // (model/library.ts `librarySaveEffect`) answers it, and the save makes the same call, so
   // the sentence below cannot promise something the write does not do.
-  const effect = librarySaveEffect(libraryIndex, graphicName, made);
+  const effect = librarySaveEffect(libraryIndex, graphicName, madeId);
   // A record ALREADY UNDER THIS NAME is replaced: the walk's own on a second press, or the one
   // the name means when this walk has made nothing. A rename is neither - it moves the walk's
   // record and leaves every other graphic alone.
