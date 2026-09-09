@@ -133,13 +133,13 @@
       "source": "docs/OWNER_RULINGS.md, owner-decisions-2026-09-03"
     },
     {
-      "id": "codex-sandbox-cannot-write-shared-git-metadata",
+      "id": "codex-writable-root-is-the-launching-session-cwd",
       "harness": "Codex",
       "kind": "observation",
       "measuredOn": "0.154.0-alpha.6",
       "measuredAt": "2026-09-09",
-      "claim": "A delegation cannot create a branch or commit in this repository's LINKED WORKTREES. Measured on 2026-09-09: asked to make its own feature branch before working, the delegate reported that git was denied writing C:/claude/NoaCG-Studio/.git/refs/heads/<branch> and stopped at that prerequisite having changed no file. A linked worktree keeps its git metadata in the SHARED .git directory of the main checkout, which is outside the sandbox's writable root, so every git write fails while file edits, node and npm all work normally. This is the mechanical reason such delegations get recorded as attempted and never landed: the standard row recipe here opens with 'make a feature branch in its own worktree', which is the one thing this harness cannot do. The working shape is to create the worktree from the launching row FIRST, tell the delegate to run no git at all, and commit its edits yourself.",
-      "reprobe": "Delegate any task whose prompt tells it to create its own branch, and read whether it reports a denied write under .git/refs. Cheaper: ask it to run `git status` in a linked worktree and report the exit code.",
+      "claim": "A delegation's writable root is THE LAUNCHING SESSION'S WORKING DIRECTORY, and nothing else. Measured three times on 2026-09-09. First, handed the ordinary row recipe ('make a feature branch in its own worktree before the work starts'), the delegate was denied writing C:/claude/NoaCG-Studio/.git/refs/heads/<branch> and stopped having changed no file. Then, given a worktree created for it in advance and told to run no git at all, it refused again and said why in plain terms: the target 'is outside that writable root, and approval is disabled', naming the launching session's own worktree as the only writable path. It read both target files correctly and reported its analysis, so reads are unrestricted; only writes are pinned. CONSEQUENCE FOR ROUTING: pre-creating a worktree does NOT help, because the root follows the launcher, not the prompt. A delegation can only edit files under the directory the launching session is sitting in. Either launch it from a session whose cwd IS the worktree the work belongs in, or have it edit in the launcher's own checkout and move the result. This is the mechanical reason such delegations get recorded as attempted and never landed, and it is not fixed by choosing the harness more often.",
+      "reprobe": "Delegate a one-line edit to a file in a DIFFERENT worktree from the launching session's, and read whether it reports the path as outside its writable root. The refusal names the root, which is the answer.",
       "source": "docs/HARNESS_ROUTING.md - the delegate that cannot make its own branch"
     }
   ]

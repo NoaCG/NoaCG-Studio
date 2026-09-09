@@ -623,10 +623,20 @@ delegate got as far as `git branch` and stopped. Git was denied writing
 `C:/claude/NoaCG-Studio/.git/refs/heads/<branch>`. It changed no file, ran no test, and reported the
 prerequisite as the reason.
 
-**The cause is worktrees, not permissions on the repo.** A linked worktree keeps its git metadata in
-the SHARED `.git` directory of the main checkout, which sits outside the sandbox's writable root.
-Reads work. File edits work. `node` and `npm` work. Only git writes fail, and they fail on the very
-first instruction the recipe gives.
+**The cause is narrower and worse than "git is blocked".** Handed a worktree created for it in
+advance, and told to run no git at all, it refused again and named the reason exactly: the target
+directory *"is outside that writable root, and approval is disabled"*, and the only writable path it
+reported was **the launching session's own worktree**.
+
+> **A delegation's writable root is the LAUNCHING SESSION'S WORKING DIRECTORY.** Not the path in the
+> prompt, not a worktree prepared for it, not the repository. Reads are unrestricted - it read both
+> target files and analysed them correctly. Only writes are pinned, and they are pinned to wherever
+> the caller happens to be sitting.
+
+So a linked worktree fails twice over: its git metadata lives in the main checkout's shared `.git`,
+AND the worktree itself is outside the root unless the launcher is already in it. **Pre-creating the
+worktree does not help**, which is the thing worth knowing, because it is the first workaround
+anyone reaches for and it costs a full round trip to discover.
 
 **This is the mechanical half of "Codex sat idle all night".** The routing step was blamed for not
 choosing Codex, and it deserved some of that. But a row routed to Codex under the standard recipe
@@ -634,18 +644,22 @@ would have failed at its first command anyway, which means the delegation ledger
 never only a routing failure - it was a recipe that asks this harness for the one thing it cannot do.
 Fixing the routing step alone would have produced failed delegations instead of missing ones.
 
-**The shape that works**, and it costs the launching row about a minute:
+**The shape that works** follows straight from where the root is. There are two, and they differ only
+in who is sitting in the right directory:
 
-1. The Claude row creates the worktree and branch itself, with `git worktree add <path> -b <branch>`.
-2. The delegate's prompt names that absolute path and says, in as many words, **run no git at all** -
-   and that a denied git command is expected and not its problem to route around.
-3. The delegate edits, runs the tests and the build, and reports what it changed.
-4. The launching row reads the diff, commits it, and lands it.
+1. **Delegate from the row that owns the work.** The launching session is already in the feature
+   worktree, so that worktree IS the writable root and the delegate can edit it. This is the normal
+   case and it needs no preparation at all - what it needs is that the row delegating is the row whose
+   branch the work belongs on, rather than an orchestrator delegating from somewhere else.
+2. **Or let it edit the launcher's own checkout** and move the result onto the right branch afterwards.
+   Uglier, and only worth it when the launcher cannot be where the work goes.
 
-Step 4 is not a concession; it is the routing rule this repo already has - **whoever delegates
-verifies by re-deriving the result, never by checking the worker did as told.** Reading the diff
-before committing it is that verification, so putting the commit on the launcher costs nothing that
-was not already owed.
+In both cases the prompt says, in as many words, **run no git at all** - a denied git command is
+expected and is not the delegate's problem to route around - and the launching row reads the diff and
+commits it. That last step is not a concession; it is the routing rule this repo already has -
+**whoever delegates verifies by re-deriving the result, never by checking the worker did as told.**
+Reading the diff before committing it IS that verification, so putting the commit on the launcher
+costs nothing that was not already owed.
 
 ### Compose every `agy` prompt out of ABSOLUTE paths
 
