@@ -226,6 +226,100 @@ build the library record) and then that the server hop's refusal is the DOCUMENT
 `npm run bench:cli` is named `*bench*` on purpose: that puts it in `SWEEP_SCRIPTS`, so it queues
 behind a live e2e suite instead of running beside one (root `AGENTS.md`, "Verifying changes").
 
+## Time to air, measured
+
+The owner's bar for this door is *"create graphics in your own Codex or Claude Code and, in
+minutes, play them out in the NoaCG CG player system."* Until 2026-09-09 nobody had timed it, so
+the sentence was a hope. These are wall-clock numbers off one walk, on one machine, on one day.
+**A number with no date is not a measurement**, so every row below carries all three.
+
+**When:** 2026-09-09, 11:07-11:18 UTC. **Machine:** Windows 10 (10.0.19045), 16 cores, 17 GB,
+Node v24.13.0, Google Chrome as the bench browser. **Entrance:** the TERMINAL one, walked by hand
+from an empty directory outside the repo (`C:\claude\noacg-cli-walk`), following `cli/README.md`'s
+own "Use" block line by line. **Deployment:** this checkout's dev server (`npm run dev:worktree`,
+`http://localhost:5290`), driving the branch's own bridge. **CLI:** built from `cli/` in this
+checkout, run as `node cli/dist/index.js …` - the same code `npx @noacg/cli` ships.
+
+### Setup, once per machine
+
+| Step | Wall clock |
+|---|---|
+| `npm install` in `cli/` (110 packages, cold) | 6.5 s |
+| `npm run build` in `cli/` (skill generator + tsc) | 2.2 s |
+
+A stranger does not pay this: they type `npx @noacg/cli <command>`, which pays a registry fetch
+instead. The walk used the local build so the numbers describe THIS branch rather than 0.3.0.
+
+### The verbs
+
+| Verb | The command as typed | Wall clock | Exit |
+|---|---|---|---|
+| `doctor` | `noacg doctor` | **2.4 s** | 0 |
+| `types` | `noacg types` | **1.7 s** | 0 |
+| `scaffold` | `noacg scaffold --type scoreboard --design neutral --name "Football scoreboard" --out ./football-scoreboard` | **2.1 s** | 0 |
+| `validate` | `noacg validate ./football-scoreboard --screenshots ./shots` | **10.7 s** | 0 |
+| `inspect` | `noacg inspect ./football-scoreboard` | **1.9 s** | 0 |
+| `screenshot` | `noacg screenshot … --state onair --out ./one-frame.png` | **4.0 s** | 0 |
+| `pack` | `noacg pack ./football-scoreboard --out ./walk.noacgpack.json` | **2.0 s** | 0 |
+| `whoami` | `noacg whoami` (against `https://noacg.studio`) | **3.8 s** | 0 |
+| `save` | `noacg save ./football-scoreboard` against a DEV SERVER | **0.3 s** | 1, refused |
+
+**24.8 seconds of tool time** for the seven authoring verbs, of which `validate` is 43% - it is
+the only one that launches Chromium, runs the gate, drives the bench and writes three 1920x1080
+frames, and it is the verb an author runs most. Everything else is a bridge round trip. Nothing
+in the door needed a retry, and no verb sat silent for longer than it worked.
+
+### The leg to a player
+
+The graphic went on air through the package's own fallback player, which is the route
+`GETTING-ON-AIR.md` names for anyone with no playout host in the room: serve the package folder
+over any local http address, open the graphic's `.html` in one tab and `controlpanel.html` in
+another, drive it from there. Measured the same day, immediately after `pack`:
+
+| Step | Result |
+|---|---|
+| serve the folder (a 30-line static server, port 8123) | the panel found the graphic and reported `connected: spx-control-football` |
+| **Play** | the graphic came on air - root opacity 0 -> 1, state `main: Off` -> `Enter` |
+| **Goal A** (an operator button the type's machine declares) | `HOME 0 AWAY 0` -> `HOME 1 AWAY 0` |
+| **Stop** | state back to `main: Off`, the exit animation ran |
+
+That leg took about six minutes of wall clock as walked, and that number is honest but not
+useful: two of those minutes were my own browser tooling losing a tab and a stale element
+reference. The product steps are three, and each is seconds.
+
+### What could NOT be walked, and why
+
+- **`save` against a dev server is impossible, by construction.** `save` POSTs to
+  `/api/me/graphics`, which is a serverless function - Vite serves none, so a local walk always
+  ends at the package. The refusal is fast (0.3 s, before any browser starts) and names the way
+  out: *"No account? Zip the package and use the studio's Import door."* That is the honest local
+  route, and `noacg pack` prints the same door. **The README's Use block ends on a line a local
+  walk cannot run**, which is worth knowing before anyone times themselves against it.
+- **`save` against `https://noacg.studio` was not run in this walk.** A valid key was held
+  (`whoami` above), but writing into the owner's live library from an unattended session is a
+  remote account write, and this session's permission gate refused it. The client half of that
+  path is what `cli/test/smoke.test.mjs` covers; the server half is `docs/AGENT_SAVE.md`.
+- **The studio's own production output URL** (`/output?production=<slug>`) needs a published
+  production, which needs the backend. Same wall as `save`.
+
+### What the walk found
+
+Three things, in the order a stranger meets them:
+
+1. **An unquoted flag value was swallowed in silence.** `--name Football scoreboard` (no quotes)
+   left "scoreboard" as a stray word, and `scaffold` ignored it: the graphic came out named
+   "Football", in its `<title>`, its SPX description and its file names, with nothing said. Fixed
+   on the same branch - `scaffold` now refuses a word outside its flags and names the word to
+   quote (`cli/src/commands/scaffold.ts`, pinned by `cli/test/unit.test.mjs`).
+2. **`noacg types` prints lines up to 354 characters**, 67 rows of them, which no terminal shows.
+   Filed: `docs/backlog/noacg-types-prints-a-table-no-terminal-can-show.md`.
+3. **Three of six neutral scaffolds warn on their own bench.** Filed:
+   `docs/backlog/neutral-scaffolds-fail-their-own-stress-bench.md`.
+
+One documentation fix came out of it too: `cli/README.md` told the reader to edit
+`football-scoreboard.html`, and the file the scaffold writes is `football_scoreboard.html` - the
+html is named after the GRAPHIC, not the folder.
+
 ## The skill (`cli/skill/noacg-graphic/`)
 
 The contract TEXT, carried by all three entrances - not a fourth thing to install and not an

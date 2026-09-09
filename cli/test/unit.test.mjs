@@ -470,3 +470,18 @@ test('save needs a package argument', async () => {
   assert.equal(r.code, 2);
   assert.match(JSON.parse(r.stdout).error, /needs a package directory/);
 });
+
+test('scaffold refuses a word left outside its flags, which is always an unquoted value', async () => {
+  // `--name Football scoreboard` without quotes: the shell hands the CLI a stray "scoreboard",
+  // and before this refusal the graphic was silently named "Football" - in its <title>, its SPX
+  // description and its file names - with nothing said. Found on the 2026-09-09 time-to-air walk.
+  // It must refuse before the browser starts, so a closed port is the deployment here.
+  const r = await run(['scaffold', 'scoreboard', '--type', 'scoreboard', '--name', 'Football', '--out', path.join(await tmpdir(), 'fresh'), '--json'], {
+    NOACG_URL: 'http://127.0.0.1:1',
+  });
+  assert.equal(r.code, 2);
+  const parsed = JSON.parse(r.stdout);
+  assert.equal(parsed.ok, false);
+  assert.match(parsed.error, /"scoreboard"/);
+  assert.match(parsed.error, /needs quotes/);
+});

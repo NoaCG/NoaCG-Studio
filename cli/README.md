@@ -100,7 +100,8 @@ then `codex mcp add noacg -- npx -y @noacg/cli mcp`.
 ```
 npx @noacg/cli types
 npx @noacg/cli scaffold --type scoreboard --design neutral --name "Football scoreboard" --out ./football-scoreboard
-#  ...design it: edit football-scoreboard.html, css/template.css, js/template.js ...
+#  ...design it: edit football_scoreboard.html, css/template.css, js/template.js ...
+#  (the html is named after the GRAPHIC, not the folder: the name's spaces become underscores)
 npx @noacg/cli validate ./football-scoreboard --screenshots ./shots
 npx @noacg/cli inspect ./football-scoreboard
 npx @noacg/cli login                  # once per machine: a scoped key that can only create graphics in your library

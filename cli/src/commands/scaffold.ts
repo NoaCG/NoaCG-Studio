@@ -56,6 +56,19 @@ function styleFrom(args: ParsedArgs): ScaffoldStyle | undefined {
 }
 
 export function scaffoldRequestFrom(args: ParsedArgs): ScaffoldRequest {
+  // `scaffold` takes no argument beyond the verb itself, so a leftover word is always a mistake -
+  // and in practice always the SAME mistake: an unquoted flag value. `--name Football scoreboard`
+  // leaves "scoreboard" sitting here, and the graphic is quietly called "Football", in the
+  // package's <title>, its SPX description and its file names. Measured on the time-to-air walk
+  // (2026-09-09, docs/AGENT_CLI.md "Time to air, measured"), where it cost a re-scaffold to spot.
+  // `_[0]` is the verb in both entrances (index.ts dispatches on it; mcp.ts builds the same argv).
+  const stray = args._.slice(1);
+  if (stray.length) {
+    throw new UsageError(
+      `scaffold takes no arguments outside its flags, but got ${stray.map((s) => `"${s}"`).join(', ')}. ` +
+        'A value containing a space needs quotes: --name "Football scoreboard".',
+    );
+  }
   const name = flagString(args, 'name');
   const style = styleFrom(args);
   const fields = flagString(args, 'fields');
