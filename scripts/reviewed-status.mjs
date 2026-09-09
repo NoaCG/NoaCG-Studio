@@ -39,11 +39,10 @@
 // The bound is 150 seconds against a worst measured gap of 48. Waiting too long costs a runner
 // minute nobody is waiting on, because `CI gate` takes six to nine; waiting too short leaves the
 // bug in. The asymmetry is why the bound is generous rather than tight.
-import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { REVIEW_CONTEXT } from './queue-pr.mjs';
+import { REVIEW_CONTEXT, spawnRunner } from './queue-pr.mjs';
 
 /** How long to wait for a status that another command is on its way to posting. */
 export const DEFAULT_WAIT_MS = 150_000;
@@ -54,14 +53,13 @@ export const DEFAULT_INTERVAL_MS = 5_000;
 /** States that answer the question for good: waiting longer cannot change any of them. */
 const TERMINAL = new Set(['success', 'failure', 'error']);
 
-/** Spawn `gh` and hand back its stdout; a non-zero exit throws with what gh said. */
-export function ghRunner(args) {
-  const res = spawnSync('gh', args, { encoding: 'utf8', windowsHide: true });
-  if (res.status !== 0) {
-    throw new Error(`gh ${args.slice(0, 2).join(' ')} failed: ${(res.stderr || res.stdout || '').trim() || `exit ${res.status}`}`);
-  }
-  return String(res.stdout ?? '').trim();
-}
+/**
+ * Run `gh` and hand back its stdout; a non-zero exit throws with what gh said. The spawning and
+ * the error text are `queue-pr.mjs`'s, so the two halves of this mechanism - the command that
+ * posts the status and the check that reads it - call the same tool the same way.
+ */
+const runGh = spawnRunner('gh');
+export const ghRunner = (args) => runGh(args).out;
 
 /**
  * The pull request number in a merge group's head ref (`gh-readonly-queue/main/pr-123-<base>`).
@@ -109,6 +107,12 @@ export function readReviewStatus(sha, repo, gh = ghRunner) {
  * Ask until the status answers for good or the bound runs out. Returns the last reading plus how
  * long it took, so the log can say whether this was a wait or an immediate answer.
  *
+ * A POLL THAT FAILS IS NOT AN ANSWER. Where the old check asked twice, this one asks up to thirty
+ * times, so one 502 or one rate-limit response from `gh` would otherwise end the job - reinstating
+ * the false red this whole change removes, and without the sentence that explains it. A failed
+ * read is `unreadable`, the wait carries on, and only a bound reached with nothing but failures
+ * ends it - which the caller then reports as gh not answering rather than as a missing stamp.
+ *
  * `read`, `sleep` and `now` are injected so the wait is testable without a clock or a network.
  * @param {object} input
  * @param {() => {state: string, description: string}} input.read
@@ -117,23 +121,37 @@ export async function waitForReviewStatus({ read, timeoutMs = DEFAULT_WAIT_MS, i
   const started = now();
   let polls = 0;
   for (;;) {
-    const status = read();
+    let status;
+    try {
+      status = read();
+    } catch (error) {
+      status = { state: 'unreadable', description: String(error?.message ?? error).split('\n')[0] };
+    }
     polls += 1;
     const waitedMs = now() - started;
     if (TERMINAL.has(status.state)) return { ...status, waitedMs, polls };
     // Not there yet. Say so on every poll but the first, so a job log shows the wait happening
-    // rather than sitting silent for two minutes.
-    if (polls > 1) log(`  still ${status.state} after ${Math.round(waitedMs / 1000)}s of ${Math.round(timeoutMs / 1000)}s`);
+    // rather than sitting silent for two minutes. A failed read carries what gh said with it.
+    const why = status.state === 'unreadable' ? ` (${status.description})` : '';
+    if (polls > 1) log(`  still ${status.state}${why} after ${Math.round(waitedMs / 1000)}s of ${Math.round(timeoutMs / 1000)}s`);
     if (waitedMs + intervalMs > timeoutMs) return { ...status, waitedMs, polls };
     await sleep(intervalMs);
   }
+}
+
+/** The bound, from the environment when it is set and readable, and the default otherwise. */
+export function waitMsFrom(env) {
+  const seconds = Number(env.REVIEW_WAIT_SECONDS);
+  // A bound that is not a number would be no bound at all: `NaN` fails every comparison, so the
+  // loop would poll until the job's own cap killed it, with nothing in the log but `NaNs`.
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : DEFAULT_WAIT_MS;
 }
 
 /** The job's own step: resolve the sha, wait for the status, say what happened, exit 0 or 1. */
 async function main() {
   const env = process.env;
   const repo = env.GITHUB_REPOSITORY ?? '';
-  const waitMs = env.REVIEW_WAIT_SECONDS ? Number(env.REVIEW_WAIT_SECONDS) * 1000 : DEFAULT_WAIT_MS;
+  const waitMs = waitMsFrom(env);
   const sha = resolveSha(env);
   if (!sha) {
     console.error('::error::no sha to read a review status on');
@@ -147,6 +165,12 @@ async function main() {
   });
   const waited = `${Math.round(status.waitedMs / 1000)}s, ${status.polls} poll(s)`;
   console.log(`${REVIEW_CONTEXT} on ${sha}: ${status.state} ${status.description} (${waited})`);
+  if (status.state === 'unreadable') {
+    // GitHub not answering is a different fact from a tip nobody stamped, and the reader needs
+    // the difference: one is re-runnable, the other needs `/check` and a queueing.
+    console.error(`::error::could not read ${REVIEW_CONTEXT} on ${sha} in ${waited} - gh said: ${status.description}`);
+    process.exit(1);
+  }
   if (status.state !== 'success') {
     // Name the wait in the error. Without it the next reader repeats this session's work asking
     // whether the red is the race again; with it, the red is a fact about the tip.
@@ -156,5 +180,13 @@ async function main() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await main();
+  // Everything this step can throw - an unparseable merge-group ref, a `gh` that is not installed
+  // - has to arrive as one `::error::` line. A raw stack in a job log reads as a broken check
+  // rather than as an answer about the tip, which is the failure this whole file is about.
+  try {
+    await main();
+  } catch (error) {
+    console.error(`::error::${String(error?.message ?? error).split('\n')[0]}`);
+    process.exit(1);
+  }
 }

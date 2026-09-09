@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { pullRequestNumberFromGroupRef, readReviewStatus, resolveSha, waitForReviewStatus } from './reviewed-status.mjs';
+import { DEFAULT_WAIT_MS, pullRequestNumberFromGroupRef, readReviewStatus, resolveSha, waitForReviewStatus, waitMsFrom } from './reviewed-status.mjs';
 
 /** A clock and a sleeper that cost no time: `sleep` just advances the fake clock. */
 function fakeClock() {
@@ -80,6 +80,49 @@ test('a pending status keeps the wait going', async () => {
   });
   assert.equal(status.state, 'success');
   assert.equal(status.polls, 2);
+});
+
+test('a poll that fails is retried, not treated as an answer - one 502 must not be a red', async () => {
+  const { now, sleep } = fakeClock();
+  let seen = 0;
+  const status = await waitForReviewStatus({
+    read: () => {
+      seen += 1;
+      if (seen <= 2) throw new Error('gh api failed: HTTP 502');
+      return { state: 'success', description: '' };
+    },
+    timeoutMs: 150_000,
+    intervalMs: 5_000,
+    now,
+    sleep,
+  });
+  assert.equal(status.state, 'success');
+  assert.equal(status.polls, 3);
+});
+
+test('a gh that never answers ends as `unreadable`, which is a different verdict from `missing`', async () => {
+  const { now, sleep } = fakeClock();
+  const lines = [];
+  const status = await waitForReviewStatus({
+    read: () => { throw new Error('gh api failed: could not resolve host\nsecond line'); },
+    timeoutMs: 20_000,
+    intervalMs: 5_000,
+    now,
+    sleep,
+    log: (line) => lines.push(line),
+  });
+  assert.equal(status.state, 'unreadable');
+  assert.equal(status.description, 'gh api failed: could not resolve host');
+  assert.equal(status.waitedMs, 20_000);
+  assert.match(lines[0], /still unreadable \(gh api failed: could not resolve host\) after 5s of 20s/);
+});
+
+test('the bound falls back to the default when the environment sets nonsense, so the wait is always bounded', () => {
+  assert.equal(waitMsFrom({}), DEFAULT_WAIT_MS);
+  assert.equal(waitMsFrom({ REVIEW_WAIT_SECONDS: 'abc' }), DEFAULT_WAIT_MS);
+  assert.equal(waitMsFrom({ REVIEW_WAIT_SECONDS: '0' }), DEFAULT_WAIT_MS);
+  assert.equal(waitMsFrom({ REVIEW_WAIT_SECONDS: '-5' }), DEFAULT_WAIT_MS);
+  assert.equal(waitMsFrom({ REVIEW_WAIT_SECONDS: '12' }), 12_000);
 });
 
 test('a merge group reads the pull request number off its head ref', () => {
