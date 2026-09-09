@@ -1321,9 +1321,10 @@ arrives as an OS access error rather than a policy message, so a session reading
 can record a task as attempted while nothing moved.
 
 **Antigravity does not fail every task. It fails every ambiguous one.** Given a bounded spec - one
-file in, one file out, absolute paths, a declared tool set, no shell - it returned a forty-cell
-table in a single sixty-second call with every number exact. Its one flaw came from our spec
-defining a failed call by the wrong field, and it executed that wrong definition perfectly. Codex,
+file in, one file out, absolute paths, a declared tool set, no shell - it returned 63 numbers in a
+single sixty-second call, 50 of them exact and the other 13 the whole of one column. Its one flaw
+came from our spec defining a failed call by the wrong field, and it executed that wrong
+definition perfectly. Codex,
 handed a looser spec over the same data, picked the right field on its own. **That is the routing
 rule worth carrying: Antigravity is literal, Codex exercises judgement.** Send Antigravity
 arithmetic and transcription, where a defect in the spec is the only risk you have not covered.
@@ -1337,12 +1338,16 @@ the 5-hour window from 18% to 62% in thirteen minutes, and the weekly window 7 p
 scales to roughly 130 delegations a week, or 18 a day, on tonight's mix. The 2026-09-03 note above
 about Codex sitting at 64% of its weekly window untouched no longer describes the machine.
 
-**The effort floor has a measured price.** The delegation channel injects `--effort high` where a
-launch names none, while this machine's own config runs at low. On an identical task with
-identical correct answers, high cost **37% more tokens (17,822 against 12,962) and was not faster**
-(14.86 s against 15.75 s). That is short retrieval work only, and it says nothing about long work.
-The floor is an owner ruling and stands; a row doing mechanical retrieval should pass a low effort
-deliberately, as the rescue procedure already permits.
+**The effort default is `medium`, and the doc that says otherwise has been corrected.**
+`scripts/codex-rescue.mjs` sets `DEFAULT_EFFORT = 'medium'` under the owner's 2026-09-09 ruling,
+which expires 2026-09-16. `.claude/commands/rescue.md` still said `high` and led this very
+measurement astray, so read the constant, never the prose. The pair that was measured is low
+against high, which is not the default in force: high cost **37% more tokens (17,822 against
+12,962) for the same correct answer**, and was 0.89 s quicker on a 15-second task, which is one
+sample and inside the noise. Read it as "high buys tokens, not results, on short retrieval" and
+nothing more. The medium trial's own review date is 2026-09-16 and the delegation ledger is what
+settles it - which cannot be read yet, because seven of the last nine rows measure our spec rather
+than the worker.
 
 **And Codex is not slow to start through the orchestrator - it is heavy to leave running.** The MCP
 fleet everyone suspected costs 1.1-1.4 s and zero tokens; the channel adds about 3 s to an 8 s job.

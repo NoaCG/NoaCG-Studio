@@ -15,13 +15,26 @@ This file is the Antigravity spend appendix for the 2026-09-09 harness verdict, 
 
 agy's own `total_tokens` field is input plus output only, so the four token columns must never be added into a single number.
 
-**Editor's note, added on review.** The failed-call column undercounts, and the fault is the
-spec's, not the worker's. My spec defined a failed call as one whose status is anything other than
-success, which finds 4. The ledger's `ok` field finds 11, because seven runs return status SUCCESS
-with an empty response and the wrapper records those as `ok: false`. The correct per-model failure
-counts, over the 34 lines then on the ledger, are: gemini-3.1-pro-high 2, gemini-3.7-flash-high 5,
-gemini-3.8-flash-high 2, claude-sonnet-4-6 2, claude-opus-4-6-thinking 0, total 11. Every other
-number in both tables reproduces exactly against an independent pass.
+**Editor's note, added on review.** The failed-call column undercounts, in both tables, and the
+fault is the spec's rather than the worker's. My spec defined a failed call as one whose status is
+anything other than success, which finds 4. The ledger's `ok` field finds 11, because seven runs
+return status SUCCESS with an empty response and the wrapper records those as `ok: false`.
+
+Over this file's own scope, the 33 ledger lines up to 2026-09-09T20:24:47.567Z, the correct
+failure counts are:
+
+- by model: gemini-3.1-pro-high 2, gemini-3.7-flash-high 5, gemini-3.8-flash-high 2,
+  claude-sonnet-4-6 2, claude-opus-4-6-thinking 0. Total 11.
+- by day: 2026-08-30 is 2, 2026-09-01 is 1, 2026-09-02 is 2, 2026-09-03 is 2, 2026-09-04 is 2,
+  2026-09-08 is 1, 2026-09-09 is 1. Total 11.
+
+Every other number in both tables reproduces exactly against an independent pass.
+
+**On comparing this file with its sibling.** Table 5 of
+`docs/metrics/2026-09-09-harness-verdict-tables.md` covers 34 lines, not 33, because it was
+written after the very call that produced this file had appended its own line. That one call is
+the whole difference: it moves gemini-3.7-flash-high from 16 calls to 17 and adds its wall clock
+and tokens to that row and to the totals. Neither file is wrong; they were taken a minute apart.
 
 ## Usage by calendar day
 

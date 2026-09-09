@@ -8,8 +8,9 @@ whether Antigravity has any use or whether it just fails every task we give it.
 session sitting in `.claude/worktrees/agent-a1122c442ea77070f`. Nine Codex invocations and two
 Antigravity calls paid for it. The raw tables are in
 `docs/metrics/2026-09-09-harness-verdict-tables.md` (written by Codex) and
-`docs/metrics/2026-09-09-agy-spend-appendix.md` (written by Antigravity); both were checked
-number by number against an independent pass before they were allowed to stand.
+`docs/metrics/2026-09-09-agy-spend-appendix.md` (written by Antigravity). Both were checked number
+by number against an independent pass, and everywhere a number did not reproduce there is an
+editor's note in place saying so rather than a quiet deletion.
 
 ## Read this part first
 
@@ -33,7 +34,9 @@ He is right. Four of my own delegations left sixteen processes and 778 MB behind
 by hand at the end of this session.
 
 **One thing is better than the file said.** Antigravity did not fail. Given a bounded spec it
-produced a forty-cell table in a single sixty-second call with zero arithmetic errors.
+produced 63 numbers in a single sixty-second call and made **no arithmetic error at all**. One
+column of 13 cells is nevertheless wrong, because my spec told it to count the wrong field and it
+counted that field perfectly. That is the shape of its failures, and the shape of its value.
 
 ## Question 1: can this orchestrator drive Codex to finish real work?
 
@@ -55,8 +58,10 @@ codex-writable-root-is-the-launching-session-cwd
 OK
 ```
 
-Both facts check out. `scripts/harness-capabilities.json` has 14 entries, 12 of them with
-`kind: "observation"`, and the last id is the one it named.
+Both facts check out. At the moment it read the file, `scripts/harness-capabilities.json` held 14
+entries, 12 of them with `kind: "observation"`, and the last id was the one it named. This change
+adds a fifteenth entry, so the file reads 15 and 13 today; the probe's answer was right when the
+probe ran.
 
 **Probe B, writing elsewhere.** Same launcher, same flags, two independent targets. Writing to a
 sibling worktree was refused, and this is the refusal verbatim:
@@ -112,11 +117,13 @@ against the filesystem. The count is right and the sizes are right, including a 
 long that had been created four minutes earlier.
 
 **Then a real write.** One call, `--write`, spec handed over as a prompt file of absolute paths
-with the tool set declared and no shell, asked to turn a 34-line JSON ledger into a per-model
+with the tool set declared and no shell, asked to turn a 33-line JSON ledger into a per-model
 table and a per-day table. It finished in 60.4 seconds and wrote the file where it was told.
-I re-derived every cell: five model rows and a totals row across calls, failures, wall clock and
-four separate token columns, plus a seven-row daily table. **All forty numbers match to the
-digit,** including a wall-clock total of 3473.9511605 seconds.
+I re-derived every cell: six model rows including a total, across calls, failures, wall clock and
+four separate token columns, plus a seven-row daily table. That is **63 numbers, and 50 of them
+match to the digit**, including a wall-clock total of 3473.9511605 seconds. The 13 that do not are
+the whole failed-call column, and they are wrong because my spec defined failure by the wrong
+field. See the next paragraph.
 
 **Its one flaw was mine.** My spec defined a failed call as one whose "recorded status is anything
 other than success". It obeyed that exactly and reported 4 failures. The truthful number is 11,
@@ -166,24 +173,35 @@ repaired after review, three unusable. Seven of the nine are attributed to our o
 invocation, which leaves two rows that say anything at all about the worker, and one of those two
 was accepted. The meter refuses to call that a rate, and so do I.
 
-**The cheaper win, measured.** The delegation channel injects `--effort high` when a launch names
-no effort, while this machine's own `~/.codex/config.toml` runs at `model_reasoning_effort = "low"`.
-On an identical task, with identical correct answers:
+**What effort costs, and a correction to my own first draft.** I measured low against high because
+I believed the delegation channel injects `--effort high` when a launch names none. **It does
+not.** `scripts/codex-rescue.mjs` sets `DEFAULT_EFFORT = 'medium'`, by your own ruling of
+2026-09-09 that runs until 2026-09-16 - spend the subscription hard this week at medium on
+`gpt-6-astra` and see what the throughput buys. I read that from `.claude/commands/rescue.md`,
+which still says high, rather than from the code. The stale line is corrected in this change.
+
+So the pair below never tested the default actually in force, and it is reported for what it is:
 
 | Effort | Wall clock | Tokens |
 |---|---|---|
 | low | 15.75 s | 12,962 |
 | high | 14.86 s | 17,822 |
 
-High effort cost **37 percent more tokens and produced no measured speed or quality gain** on
-short retrieval work. That is quota being spent for nothing on every delegation that does not
-name its own effort. This is a floor by owner ruling and I am not overriding it, but a floor with
-a measured price of 37 percent on short work deserves to be re-decided rather than inherited.
+Same task, same correct answer both times. High cost **37 percent more tokens**. On wall clock high
+was 0.89 s quicker, which is one sample apiece and well inside the noise of a 15-second run, so the
+honest reading is that **high bought 37 percent more tokens and no measurable improvement** - not
+that it was slower. This says nothing about medium, and nothing about long work.
 
-**So: fix the spec discipline and the effort default first, and re-read this table in a week.**
-If the ledger then shows delegations failing because the window is exhausted, rather than because
-we wrote the spec badly, the upgrade buys something real. Today it would buy more of the same
-failures, faster.
+**What that means for the trial you have running.** The medium week expires 2026-09-16 and the
+wrapper's own comment names what settles it: read the delegation ledger for model, effort, outcome
+and cause per task class, then either extend it with the evidence or put it back to high. On
+tonight's ledger that reading is not yet possible, because seven of nine rows measure our spec
+rather than the worker. **Getting the spec discipline right is therefore the prerequisite for
+both decisions** - the effort trial and the quota upgrade - and it costs nothing.
+
+**So: fix the spec discipline first, and re-read this table in a week.** If the ledger then shows
+delegations failing because the window is exhausted, rather than because we wrote the spec badly,
+the upgrade buys something real. Today it would buy more of the same failures, faster.
 
 ## Question 4: why Codex feels slow through the orchestrator
 
@@ -211,15 +229,21 @@ they do not exit when the run does. I measured my own session's leavings:
 
 - Baseline before any delegation: **10 node processes, 619 MB**.
 - After four wrapper delegations and five plain `codex exec` runs: **40 node processes, 2,554 MB**,
-  and `codex.exe` had gone from one process to three.
-- The fleets group by creation time into families of five to seven processes, each family about
-  330 to 430 MB, each one still resident long after its job had completed. The oldest family on
-  screen was 40 minutes past the end of the work that created it.
+  and `codex.exe` had gone from one process to three. That is +30 processes and +1,935 MB across
+  nine invocations, so **not every invocation leaves a whole family behind** - some reuse an
+  existing one. Take the per-invocation figure from the reap below, not by dividing this.
+- The survivors group by creation time into families of five to seven processes, each family about
+  330 to 430 MB **as observed at creation**. Five such families were on screen at once, and each
+  was still resident long after its own job had completed; the oldest was 40 minutes past the end
+  of the work that created it.
 - The parents are not dead. **One `codex.exe`, PID 4264, was holding four separate MCP fleets at
   once**, one per session it had served, none torn down. That is the mechanism: the app-server
   outlives the session, and the fleet outlives the app-server's use of it.
-- I killed the sixteen processes belonging to my own four delegations. That freed **778 MB**, or
-  about 195 MB and four processes per delegation.
+- **The firm number is the reap.** I killed the sixteen processes belonging to my own four
+  delegations and measured before and after: **778 MB freed, which is four processes and about
+  195 MB per delegation.** That is what a reaper actually recovers, and it is lower than the
+  families' size at creation because the processes shrink once they go idle. Budget RAM on 195 MB
+  per delegation; treat 330-430 MB as the peak, not the residue.
 
 **This is not the wrapper's doing.** Two of the leaked families came from plain `codex exec` runs
 with no wrapper involved. The three MCP servers are declared globally in `~/.codex/config.toml`,
@@ -241,9 +265,18 @@ so it is his call and not a change I made.
 
 ## What changed in the repository tonight
 
-- `scripts/harness-capabilities.json`: four observations re-probed on the installed builds and
-  their `measuredOn` moved. The Codex writable-root claim is corrected to include the temp
-  directory, with the sandbox banner as its evidence.
+- `scripts/harness-capabilities.json`: two observations re-probed and their `measuredOn` moved -
+  the Antigravity grant behaviour onto 1.1.28, and the Codex writable-root claim onto
+  0.154.0-alpha.11, corrected to include the temp directory with the sandbox banner as its
+  evidence. One new observation added for the leaked MCP fleet. The other entries stay pinned to
+  the builds they were measured on and will keep printing as UNVERIFIED, which is correct: I did
+  not re-probe them.
+- `.claude/commands/rescue.md`: two stale facts corrected - the injected effort default, which is
+  `medium` and not `high`, and the claim that `gpt-5.6-sol` is the only model the subscription
+  accepts. The first of those sent this document's own first draft down the wrong path.
+- `docs/backlog/agy-warns-about-a-grant-1-1-28-no-longer-needs.md`: the wrapper still warns about
+  a grant this build does not need, and only one ungranted action was probed, so the fix needs
+  the other probes first.
 - `docs/HARNESS_ROUTING.md`: a dated section carrying this verdict.
 - `docs/metrics/2026-09-09-harness-verdict-tables.md`: the Codex-written tables, annotated where
   one row could not be reproduced.

@@ -12,9 +12,10 @@ against measurements taken tonight between 20:20 and 20:35 UTC, not against impr
 launching session is standing in, plus the temp folder. Proved by two delegations four minutes
 apart, one writing here and succeeding, one writing into another worktree and being refused.
 
-**Yes on Antigravity**, which surprised me. Given a bounded spec it produced a forty-cell table in
-one sixty-second call with every number exact. It fails the tasks whose specs leave anything to
-be worked out, and every recent failure on the ledger is attributed to our prompt, not the model.
+**Yes on Antigravity**, which surprised me. Given a bounded spec it produced 63 numbers in one
+sixty-second call, and the only ones it got wrong were the 13 my own spec told it to count from
+the wrong field. It fails the tasks whose specs leave anything to be worked out, and every recent
+failure on the ledger is attributed to our prompt, not the model.
 
 **No on the quota, not yet.** Seven of the last nine delegated tasks failed on our own spec, so
 capacity is not the limit. The document says what to fix first and what to re-read in a week.
