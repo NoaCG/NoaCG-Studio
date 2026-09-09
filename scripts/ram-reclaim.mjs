@@ -13,9 +13,12 @@
 // themselves; what is left holding the RAM is NAMED and left alone, because "which of my windows
 // should I shut" is a judgement about work in flight that no classifier can make.
 //
-// The detectors live in `e2e-runs.mjs` (`orphanProcesses`, `orphanedDevServers`), which already
-// answers "is this a leftover?" for `--kill-orphans` and only ever says yes when NO Playwright
-// CLI is running at all. This module is the decision layer over them: when to look, what may be
+// The detectors live in `e2e-runs.mjs` (`orphanProcesses`, `orphanedDevServers`,
+// `orphanedCodexTrees`), which already answer "is this a leftover?" for `--kill-orphans` and only
+// ever say yes on a proof: no Playwright CLI is running at all, a dev server's launch chain has
+// no living owner, or - for a Codex delegation's process family - the launch RECORDED which pids
+// it started and when, the delegation has since finished, and the machine still agrees each pid is
+// that same process. This module is the decision layer over them: when to look, what may be
 // killed, and what to say about the rest.
 
 /**
@@ -38,6 +41,8 @@ export const RECLAIMABLE = Object.freeze({
   'headless-browser-shell': 'a headless Chromium shell left behind by a killed run',
   'orphaned-dev-server-chain': 'a dev server (and its shims) whose launch chain has no living owner',
   'stale-conhost': 'a console host whose process is already gone',
+  'orphaned-codex-delegation-tree':
+    'a process we recorded launching for a Codex delegation that has since finished',
 });
 
 /**

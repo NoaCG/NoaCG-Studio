@@ -45,9 +45,29 @@ function normalize(path) {
   return resolve(path).replaceAll('\\', '/');
 }
 
+/** A process table by pid - what every walk up or down the tree starts from. */
+function indexByPid(processes) {
+  return new Map(processes.map((entry) => [entry.pid, entry]));
+}
+
 /** Case-insensitive checkout-path equality (Windows filesystems are case-insensitive). */
 export function sameRoot(a, b) {
   return normalize(a).toLowerCase() === normalize(b).toLowerCase();
+}
+
+/**
+ * Is `path` the root itself or somewhere inside it?
+ *
+ * Equality is not enough wherever a path was recorded from a working DIRECTORY rather than
+ * chosen: a command run in `<worktree>/cli` records that, and asking "is this worktree's" with
+ * `sameRoot` answers no. The trailing separator is what keeps `...-2` from reading as inside
+ * `...`, the same shape `orphanedDevServers` uses to keep a worktree under its own repo.
+ */
+export function withinRoot(path, root) {
+  if (!path || !root) return false;
+  const here = normalize(root).toLowerCase();
+  const at = normalize(path).toLowerCase();
+  return at === here || at.startsWith(`${here}/`);
 }
 
 /**
@@ -127,7 +147,7 @@ function posixNodeProcesses() {
 export function allProcesses() {
   if (process.platform !== 'win32') return [];
   const script =
-    '@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine) | ' +
+    '@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate) | ' +
     'ConvertTo-Json -Depth 3 -Compress';
   const res = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
     encoding: 'utf8',
@@ -142,6 +162,10 @@ export function allProcesses() {
       ppid: Number(r.ParentProcessId),
       name: String(r.Name ?? ''),
       command: typeof r.CommandLine === 'string' ? r.CommandLine : '',
+      // WHEN it started, which is half of a process's IDENTITY on a system that reuses pids.
+      // `orphanedCodexTrees` refuses to kill a pid whose start time is not the one that was
+      // recorded, so this field is what makes a recorded kill safe hours after the recording.
+      createdMs: msFromCimDate(r.CreationDate),
     }));
   } catch {
     return [];
@@ -405,7 +429,7 @@ function chainIsOrphaned(server, byPid) {
  * against real tables captured from both cases.
  */
 export function orphanedDevServers(processes, root = repoRoot) {
-  const byPid = new Map(processes.map((p) => [p.pid, p]));
+  const byPid = indexByPid(processes);
   const repo = normalize(root).toLowerCase();
   return processes
     .filter((p) => DEV_SERVER.test(p.command))
@@ -424,18 +448,230 @@ export function orphanedDevServers(processes, root = repoRoot) {
     .map((p) => ({ pid: p.pid, root: p.root, chain: p.chain }));
 }
 
+// ── Codex delegation trees ───────────────────────────────────────────────────────────────────
+//
+// A Codex delegation leaves a process FAMILY behind, and until 2026-09-09 nothing ever collected
+// it. Measured that evening on this laptop: 47 node.exe holding 2.3 GB, of which 30 belonged to
+// three delegations that had finished 6, 8 and 13 hours earlier. One family is a broker, a
+// `codex.js app-server`, a `codex.exe`, and the MCP servers that codex.exe starts - about 450 MB,
+// resident forever, on a 16 GB machine whose job queue refuses to start work below a 4 GB floor.
+//
+// WHY THE PARENT CHAIN CANNOT BE THE ANSWER, and this is the whole reason the record exists. Half
+// of every family is ALREADY severed: the broker spawns its app-server through a shell, that
+// shell exits, and the app-server is left with a dead parent within seconds of starting. Measured
+// on the two leaked trees - the broker's own parent was gone, and so were the parents of the
+// `codex.js app-server`, of the security MCP server and of both halves of the `npx @playwright/mcp`
+// pair. So "walk down from the thing I started" finds a fraction of the family, and "kill what
+// looks orphaned" would take the owner's DESKTOP Codex app with it: its MCP servers are severed
+// in exactly the same way and look identical.
+//
+// SO OWNERSHIP IS RECORDED, NEVER INFERRED. `codex-rescue.mjs` writes down what it launched -
+// each pid WITH the time it started - and this detector kills only what that record names and
+// what the machine still agrees is that same process. Everything else is KEPT and named.
+
+/**
+ * The owner's own Codex DESKTOP APP - `ChatGPT.exe` from the WindowsApps package, and the
+ * `codex.exe` it runs out of its private `AppData\Local\OpenAI\Codex\bin` directory.
+ *
+ * THE ONE THING THAT MUST NEVER HAPPEN HERE. He works in that application; closing it destroys
+ * whatever is open in it. It is matched by executable PATH rather than by process name, because
+ * the plugin's Codex and the desktop app's Codex are both called `codex.exe` and differ only in
+ * where they live (the plugin's is the npm install under `AppData\Roaming\npm`). The one name
+ * match, `ChatGPT.exe`, is the desktop app's own binary and is not a name any other program on
+ * this machine has.
+ *
+ * `runtimes[/\\]cua_node` is deliberately NOT here even though it sits under the same
+ * `AppData\Local\OpenAI\Codex` root: that runtime is shared, and the plugin's own delegations
+ * were measured running MCP servers out of it. Widening this pattern to the whole directory
+ * would make it match half the plugin family and quietly turn the guard into a blanket refusal.
+ */
+const DESKTOP_CODEX_PATH = /[/\\](?:windowsapps[/\\]openai\.codex|appdata[/\\]local[/\\]openai[/\\]codex[/\\]bin[/\\])/i;
+const DESKTOP_CODEX_NAME = /^chatgpt\.exe$/i;
+
+/**
+ * Is `parent` believably the parent of `child`?
+ *
+ * A real parent is OLDER than its child. Windows hands a dead process's number to the next one
+ * that starts, so a "parent" that started after its child is a stranger wearing the dead parent's
+ * pid - and following that link would walk from our tree into somebody else's. Unknown start
+ * times fall back to trusting the link, which is the direction that keeps a real family together;
+ * every kill is separately gated on a start time that matches the record.
+ */
+function believableParent(parent, child) {
+  if (!parent || !child) return false;
+  if (!Number.isFinite(parent.createdMs) || !Number.isFinite(child.createdMs)) return true;
+  return parent.createdMs <= child.createdMs;
+}
+
+/** A pid's ancestors, outward from its parent, stopping at a link that cannot be real. */
+export function ancestorsOf(pid, processes) {
+  const byPid = indexByPid(processes);
+  const chain = [];
+  const seen = new Set([pid]);
+  for (let at = byPid.get(pid); at; ) {
+    const parent = byPid.get(at.ppid);
+    if (!parent || seen.has(parent.pid) || !believableParent(parent, at)) break;
+    seen.add(parent.pid);
+    chain.push(parent);
+    at = parent;
+  }
+  return chain;
+}
+
+/**
+ * Does this process belong to the owner's desktop Codex app - itself, or anywhere below it?
+ *
+ * Asserted before every kill, including kills of pids our own record names. The record makes that
+ * combination impossible in theory (we never launched the desktop app), which is exactly why it
+ * is worth asserting: the case it catches is a record gone wrong, and the cost of missing it is
+ * the application he is working in.
+ */
+export function underDesktopCodex(pid, processes) {
+  const self = processes.find((p) => p.pid === pid);
+  if (!self) return false;
+  return [self, ...ancestorsOf(pid, processes)].some(
+    (p) => DESKTOP_CODEX_NAME.test(p.name ?? '') || DESKTOP_CODEX_PATH.test(p.command ?? ''),
+  );
+}
+
+/** Everything running below `pids`, through links that can be real. Roots are not included. */
+export function descendantsOf(pids, processes) {
+  const children = new Map();
+  for (const p of processes) {
+    if (!children.has(p.ppid)) children.set(p.ppid, []);
+    children.get(p.ppid).push(p);
+  }
+  const found = new Map();
+  const queue = [...pids].map((pid) => processes.find((p) => p.pid === pid)).filter(Boolean);
+  const seen = new Set(queue.map((p) => p.pid));
+  while (queue.length > 0) {
+    const at = queue.shift();
+    for (const child of children.get(at.pid) ?? []) {
+      if (seen.has(child.pid) || !believableParent(at, child)) continue;
+      seen.add(child.pid);
+      found.set(child.pid, child);
+      queue.push(child);
+    }
+  }
+  return [...found.values()];
+}
+
+/**
+ * Codex delegation trees that may be closed, and - just as importantly - the processes that may
+ * not be, each with the reason it stays.
+ *
+ * A tree is orphaned when BOTH halves hold:
+ *
+ *   1. THE WORK IS OVER. Every delegation the record names has reached an outcome. One broker
+ *      serves every delegation in a workspace (measured: two jobs 100 s apart shared one
+ *      `codex.exe`), so one unfinished job keeps the whole family.
+ *   2. THE PROCESS IS STILL THE ONE WE RECORDED. Its pid AND its start time match. A pid alone is
+ *      not an identity on Windows, and hours pass between the recording and the sweep.
+ *
+ * "The launching session is gone" is deliberately NOT a trigger. This wrapper orphans its launch
+ * on purpose (defect 1 in codex-rescue.mjs) so a delegation SURVIVES the session that asked for
+ * it; treating a closed session as evidence of abandonment would kill running work. The one place
+ * the launcher's liveness does decide anything is a record with no delegation at all - a launch
+ * that never got a job id back - which is the launch-timeout leak and nothing else.
+ *
+ * Pure over an injected process table and injected records, so the fixtures below can be real
+ * tables captured from this machine - including the desktop app's, which must never be a
+ * candidate and cannot be tested any other way.
+ */
+export function orphanedCodexTrees(processes, records = []) {
+  const byPid = indexByPid(processes);
+  return records.map((record) => {
+    const kept = [];
+    const keep = (pid, why) => kept.push({ pid, why });
+
+    const unfinished = (record.jobs ?? []).filter((job) => !job.finished);
+    const launcherAlive = record.launcher ? isRecorded(byPid.get(record.launcher.pid), record.launcher) : false;
+    const waiting = unfinished.length > 0
+      ? `${unfinished.length} delegation(s) in this workspace have not finished`
+      : (record.jobs ?? []).length === 0 && launcherAlive
+        ? 'the launch has not recorded a delegation yet'
+        : null;
+
+    // Recorded pids first, then whatever is running BELOW the ones that proved to be ours - a
+    // child of a process we own is ours by construction, and that is how MCP servers started
+    // after the last recording are collected.
+    const proved = [];
+    for (const owned of record.owned ?? []) {
+      const live = byPid.get(owned.pid);
+      if (!live) continue; // already gone: nothing to keep and nothing to kill
+      if (!isRecorded(live, owned)) {
+        keep(owned.pid, `pid was reused - it is now ${live.name || 'another process'}, started later than the one we launched`);
+        continue;
+      }
+      if (underDesktopCodex(owned.pid, processes)) {
+        keep(owned.pid, 'it belongs to the desktop Codex app, which is never a candidate');
+        continue;
+      }
+      proved.push({ pid: owned.pid, what: owned.what ?? 'recorded', createdMs: live.createdMs });
+    }
+    for (const child of descendantsOf(proved.map((p) => p.pid), processes)) {
+      if (proved.some((p) => p.pid === child.pid)) continue;
+      if (underDesktopCodex(child.pid, processes)) {
+        keep(child.pid, 'it belongs to the desktop Codex app, which is never a candidate');
+        continue;
+      }
+      proved.push({ pid: child.pid, what: 'started by a process we recorded', createdMs: child.createdMs });
+    }
+
+    // `unfinished` is the count, not the sentence: a caller that is about to DELETE this
+    // workspace's directory has to know that work is still running there, and reading a
+    // human-readable line to find out is one rewording away from silently saying no.
+    const head = { ...treeHead(record), unfinished: unfinished.length };
+    if (waiting) {
+      for (const p of proved) keep(p.pid, waiting);
+      return { ...head, kill: [], kept, waiting };
+    }
+    // Youngest first, so a parent is never signalled before the children it started.
+    const kill = proved.sort((a, b) => (b.createdMs ?? 0) - (a.createdMs ?? 0));
+    return { ...head, kill, kept, waiting: null };
+  });
+}
+
+/** The record's identity as a report line's subject: which workspace, which broker, which jobs. */
+function treeHead(record) {
+  return {
+    workspace: record.workspace ?? '<unknown workspace>',
+    stateDir: record.stateDir ?? null,
+    endpoint: record.endpoint ?? null,
+    jobs: (record.jobs ?? []).map((job) => job.id),
+  };
+}
+
+/** Is the live process the one the record names - same pid AND same start time? */
+function isRecorded(live, owned) {
+  if (!live || !owned) return false;
+  if (!Number.isFinite(owned.createdMs) || !Number.isFinite(live.createdMs)) return false;
+  return live.pid === owned.pid && live.createdMs === owned.createdMs;
+}
+
 /**
  * Playwright workers, browser shells, and DEV SERVERS with no live CLI to belong to - what a
  * killed or crashed run leaves behind. The workers and shells hold real RAM; the dev server
  * holds this checkout's e2e PORT, which is worse than wasteful - the guard hook refuses every
  * following run until somebody finds and kills it by hand.
+ *
+ * `delegations` is the Codex ownership ledger, when the caller has one - `codex-rescue.mjs`
+ * reads it, because the job store is its business and not this module's. With none, the codex
+ * half of the answer is empty, which is the fail-closed direction: no record, no candidate.
  */
-export function orphanProcesses() {
+export function orphanProcesses({ delegations = [] } = {}) {
   const runsExist = nodeProcesses().some((p) => RUNNER.test(p.command));
   const workers = nodeProcesses().filter((p) => WORKER.test(p.command));
   const shells = browserShells();
-  const servers = orphanedDevServers(allProcesses());
-  return runsExist ? { workers: [], shells: [], servers: [] } : { workers, shells, servers };
+  const table = allProcesses();
+  const servers = orphanedDevServers(table);
+  // A live Playwright CLI says nothing about a Codex delegation, so it does not gate this half.
+  // The Playwright leftovers are proved orphaned by the ABSENCE of a CLI; a delegation tree is
+  // proved by its own record, which is a stronger fact and an unrelated one.
+  const codexTrees = orphanedCodexTrees(table, delegations);
+  return runsExist
+    ? { workers: [], shells: [], servers: [], codexTrees }
+    : { workers, shells, servers, codexTrees };
 }
 
 function browserShells() {

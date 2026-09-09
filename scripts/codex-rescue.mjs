@@ -6,7 +6,11 @@
 //   node scripts/codex-rescue.mjs poll <jobId> [--timeout-seconds 240]
 //   node scripts/codex-rescue.mjs result <jobId> [--json]
 //   node scripts/codex-rescue.mjs cancel <jobId>
-//   node scripts/codex-rescue.mjs reap [--all-workspaces]
+//   node scripts/codex-rescue.mjs reap [--all-workspaces] [--workspace <path>]
+//                                       clear jobs whose process died, and close the process
+//                                       family of every delegation that has finished with it -
+//                                       `--workspace` narrows that to one checkout's delegations,
+//                                       which is what a worktree removal asks for
 //
 // WHY THIS EXISTS. The Codex plugin's own companion script is the engine and stays the engine -
 // this wrapper never reimplements a task run. It exists because the CHANNEL around that engine
@@ -32,17 +36,34 @@
 //      `/PID` into `C:/Program Files/Git/PID`. Every cancel ended in
 //      `ERROR: Invalid argument/option`. `killPlan` passes argv straight to the executable with
 //      no shell, so there is nothing to rewrite.
+//   4. THE TREE OUTLIVED THE DELEGATION - found 2026-09-09, eleven days later, and the most
+//      expensive of the four. A FINISHED delegation left its whole process family resident: a
+//      broker, a `codex.js app-server`, a `codex.exe` and their MCP servers, about 450 MB each.
+//      Measured that evening: 30 node processes and 1.4 GB belonging to three delegations that
+//      had ended 6, 8 and 13 hours earlier, on a laptop whose job queue stops starting work
+//      below a 4 GB floor. Nothing collected them because nothing knew what to collect - the
+//      plugin's job record nulls the pid the moment a job completes, the family's parent links
+//      are severed within seconds of the launch, and defect 1's fix deliberately cuts the last
+//      live chain from this shell. `recordOwnership` writes each pid down WITH the time it
+//      started, while the links are still there; `reapTrees` asks the broker to shut down and
+//      then closes what the record still recognises. The record is the only thing standing
+//      between a reap and the owner's own desktop Codex app, whose processes are severed in
+//      exactly the same way and look identical.
 //
-// The arithmetic - which jobs are dead, what to kill, how to orphan a launch - is pure and unit
-// tested in codex-rescue.test.mjs. This file is the part that talks to the OS and to the plugin.
+// The arithmetic - which jobs are dead, what to kill, how to orphan a launch, which trees are
+// orphaned - is pure and unit tested in codex-rescue.test.mjs and e2e-runs.test.mjs. This file is
+// the part that talks to the OS and to the plugin.
 
 import { spawn, spawnSync } from 'node:child_process';
 import {
-  closeSync, existsSync, mkdtempSync, openSync, readFileSync, readdirSync, statSync, writeFileSync,
+  closeSync, existsSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
+import net from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { allProcesses, descendantsOf, orphanedCodexTrees, withinRoot } from './e2e-runs.mjs';
 
 /** Where the plugin keeps its versioned copies. Overridable so the test never needs a real one. */
 const PLUGIN_CACHE = path.join(
@@ -171,6 +192,64 @@ export function logIdleSeconds(logFile, nowMs = Date.now()) {
   return Math.max(0, Math.round((nowMs - statSync(logFile).mtimeMs) / 1000));
 }
 
+/** The broker: the one process in the family whose command line names the workspace it serves. */
+export const BROKER_COMMAND = /app-server-broker\.mjs\b[^\n]*\bserve\b/;
+
+/**
+ * The workspace a broker was started for, out of its own command line.
+ *
+ * Read as everything between `--cwd` and the flag after it rather than as one whitespace-free
+ * token: the plugin does not quote this argument, and a checkout path with a space in it would
+ * otherwise come back cut in half - the same trap `rootOfCommand` documents in e2e-runs.mjs.
+ */
+export function workspaceOfBroker(command = '') {
+  const paired = /--cwd\s+(.*?)\s+--(?:pid-file|log-file|endpoint)\b/.exec(command);
+  const trailing = /--cwd\s+(.+?)\s*$/.exec(command);
+  const found = (paired ?? trailing)?.[1];
+  return found ? found.replace(/^"|"$/g, '') : null;
+}
+
+/** What a recorded process is, for a report a person reads. Never used to decide anything. */
+export function labelProcess(command = '', name = '') {
+  if (BROKER_COMMAND.test(command)) return 'the broker';
+  if (/^codex\.exe$/i.test(name)) return 'codex.exe';
+  if (/[/\\]codex\.js["']?\s+app-server/.test(command)) return 'the codex app-server';
+  if (/[/\\]codex["']?\s+app-server\b/.test(command)) return 'the shell that starts codex';
+  if (/mcp[/\\]+.*server\.mjs|@playwright[/\\]+mcp|mcp\.js/.test(command)) return 'an MCP server';
+  if (/npx-cli\.js/.test(command)) return 'an npx shim for an MCP server';
+  return name || 'a process this delegation started';
+}
+
+/**
+ * WHEN TO LOOK AT THE PROCESS TABLE WHILE A DELEGATION IS STARTING.
+ *
+ * The family is not born all at once and it does not stay connected: measured on this machine,
+ * the broker and its app-server start in the same second, the MCP servers arrive one to three
+ * seconds later, and by the time anybody asks, half of them have dead parents - the broker starts
+ * its app-server through a shell, and that shell exits. A snapshot is only worth taking while the
+ * links are still there, and reading the whole table costs a PowerShell process, so the schedule
+ * backs off instead of polling: often enough to catch the family being built, rarely enough that
+ * a long launch does not spend its life enumerating processes.
+ */
+export const SNAPSHOT_AT_MS = [0, 1_000, 2_500, 5_000, 10_000, 20_000, 40_000];
+
+/**
+ * And once the family is built, a slow heartbeat for as long as anybody is watching.
+ *
+ * A SECOND DELEGATION IN THE SAME WORKSPACE ADDS TO THE SAME FAMILY, minutes later - measured,
+ * two jobs 100 s apart sharing one `codex.exe` and one broker. The backoff above is spent inside
+ * the first forty seconds, so without this the record would stop growing exactly where the
+ * comment on the poll recorder says it keeps up. A minute apart costs one process listing per
+ * minute of watching.
+ */
+export const SNAPSHOT_TAIL_MS = 60_000;
+
+/** Is a snapshot due - on the backoff while it lasts, on the heartbeat afterwards? */
+export function snapshotDue(elapsedMs, taken, sinceLastMs = Infinity) {
+  const next = SNAPSHOT_AT_MS[taken];
+  return next === undefined ? sinceLastMs >= SNAPSHOT_TAIL_MS : elapsedMs >= next;
+}
+
 // ── The plugin, and its on-disk job state ────────────────────────────────────────────────────────
 
 function pluginRoot() {
@@ -246,6 +325,486 @@ function findJob(jobs, reference) {
 
 function newestFirst(jobs) {
   return [...jobs].sort((left, right) => String(right.updatedAt ?? '').localeCompare(String(left.updatedAt ?? '')));
+}
+
+// ── The process family a delegation owns ─────────────────────────────────────────────────────────
+//
+// Defect 4. Written beside the plugin's own `state.json` and `broker.json`, in the same job store,
+// because a record that lives anywhere else is a second thing to keep in step with the jobs.
+
+/** The ownership record, beside the plugin's `state.json` in the workspace's job store. */
+const OWNERSHIP_FILE = 'owned-tree.json';
+
+/**
+ * The record's format version. Additive optional fields never bump it. A bump ships with its
+ * migration; an unknown version degrades to READ-ONLY, and read-only here means the tree is never
+ * a candidate - a record this code cannot read is not a proof of anything, and the whole point of
+ * the record is that nothing is killed without one.
+ */
+const OWNERSHIP_VERSION = 1;
+
+/**
+ * How long a family gets to close itself after its broker has been asked to shut down.
+ *
+ * The broker's own path is: end the app-server's stdin, wait 50 ms, then tree-kill it; the
+ * app-server's MCP servers then see their stdin close and exit in turn. That is a chain of small
+ * timeouts rather than one, so the window has to cover the whole chain and no more - five seconds
+ * is several times the measured teardown, and it is spent only when a tree is actually being
+ * collected. Anything still alive at the end is closed from the record instead.
+ */
+export const GRACE_MS = 5_000;
+
+/** A process table by pid - the lookup every identity check in this section starts from. */
+function indexByPid(table) {
+  return new Map(table.map((entry) => [entry.pid, entry]));
+}
+
+/** The ownership record on disk. One writer, so a reader never meets half a shape. */
+function writeOwnership(dir, record) {
+  writeFileSync(path.join(dir, OWNERSHIP_FILE), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  return record;
+}
+
+/** The broker session the plugin records per workspace: its endpoint, its pid, its files. */
+function brokerSession(dir) {
+  const file = path.join(dir, 'broker.json');
+  if (!existsSync(file)) return null;
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** The ownership record for one workspace, or null when there is none this code can read. */
+export function readOwnership(dir) {
+  const file = path.join(dir, OWNERSHIP_FILE);
+  if (!existsSync(file)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8'));
+    return parsed?.version === OWNERSHIP_VERSION ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What is still ours, out of what we knew and what we just saw.
+ *
+ * Two rules, and both of them only ever SHRINK the record. A process that has exited can never be
+ * killed again, so it leaves. A pid whose start time no longer matches is a different process
+ * wearing the same number, so it leaves too - carrying it forward is precisely how a record turns
+ * into a licence to kill a stranger.
+ */
+export function mergeOwned(previous = [], observed = [], live = new Map()) {
+  const out = new Map();
+  for (const entry of [...previous, ...observed]) {
+    if (!Number.isFinite(entry?.pid) || !Number.isFinite(entry?.createdMs)) continue;
+    const now = live.get(entry.pid);
+    if (!now || now.createdMs !== entry.createdMs) continue;
+    out.set(`${entry.pid}:${entry.createdMs}`, {
+      pid: entry.pid,
+      createdMs: entry.createdMs,
+      what: entry.what ?? labelProcess(now.command, now.name),
+    });
+  }
+  return [...out.values()].sort((left, right) => left.createdMs - right.createdMs);
+}
+
+/**
+ * Write down what this workspace's delegation is running: every pid WITH the time it started.
+ *
+ * Called while the launch is still happening and again on every poll, because the family is built
+ * over the first seconds and its parent links are cut soon after (see `SNAPSHOT_AT_MS`). What is
+ * seen while the links are alive stays in the record after they are gone, and that is the entire
+ * mechanism - the record outlives the tree walk that produced it.
+ *
+ * Returns the record, or null when there is nothing to record: no broker yet, a process table
+ * this platform cannot read (POSIX returns none, honestly, rather than guessing), or a broker pid
+ * that does not look like a broker - which means the plugin's note is stale and a reused pid was
+ * one step away from entering the record.
+ */
+export function recordOwnership(dir, { table = allProcesses(), jobIds = [], now = () => new Date().toISOString() } = {}) {
+  if (table.length === 0) return null;
+  const byPid = indexByPid(table);
+  const previous = readOwnership(dir);
+  const session = brokerSession(dir);
+  const brokerPid = Number(session?.pid);
+  const claimed = Number.isFinite(brokerPid) ? byPid.get(brokerPid) : null;
+  // The broker is identified TWICE: the plugin's note says which pid, and the process itself has
+  // to look like a broker. A pid alone would let a reused number into the record, and the record
+  // is what every later kill is allowed by.
+  const broker = claimed && BROKER_COMMAND.test(claimed.command) ? claimed : null;
+
+  // EVERY ROOT, NOT JUST THE BROKER. The broker is the first thing recorded and often the first
+  // thing to exit - it is what a graceful shutdown closes - and expanding only from it would
+  // leave the app-server and its MCP servers, the expensive half, unrecorded the moment the
+  // broker was gone. Growing from everything already recorded keeps the family in the record
+  // even after its root has left it.
+  const roots = broker ? [broker] : [];
+  for (const entry of previous?.owned ?? []) {
+    const live = byPid.get(entry.pid);
+    if (live && live.createdMs === entry.createdMs && live !== broker) roots.push(live);
+  }
+  if (roots.length === 0) return null;
+
+  const observed = [...roots, ...descendantsOf(roots.map((p) => p.pid), table)].map((p) => ({
+    pid: p.pid,
+    createdMs: p.createdMs,
+    what: labelProcess(p.command, p.name),
+  }));
+  const self = byPid.get(process.pid);
+  const record = {
+    version: OWNERSHIP_VERSION,
+    // Null rather than the state directory when the broker's command line does not say: a record
+    // whose workspace is a temp path can never match a worktree-scoped sweep, so guessing one
+    // would quietly put that family out of every scoped reap's reach.
+    workspace: (broker && workspaceOfBroker(broker.command)) ?? previous?.workspace ?? null,
+    stateDir: dir,
+    endpoint: session?.endpoint ?? previous?.endpoint ?? null,
+    broker: broker ? { pid: brokerPid, createdMs: broker.createdMs } : previous?.broker ?? null,
+    // Only ever consulted for a record that names NO delegation - a launch that never got a job
+    // id back. A finished session is not evidence about a running delegation: this wrapper
+    // detaches the launch on purpose so the work survives the session that asked for it.
+    //
+    // An EXPLICIT null is a decision (`abandonLaunch`) and is kept; a missing field is not.
+    launcher: previous && 'launcher' in previous
+      ? previous.launcher
+      : (self ? { pid: self.pid, createdMs: self.createdMs } : null),
+    jobs: [...new Set([...(previous?.jobs ?? []), ...jobIds])],
+    recordedAt: now(),
+    owned: mergeOwned(previous?.owned, observed, byPid),
+  };
+  return writeOwnership(dir, record);
+}
+
+/**
+ * How long a launch keeps looking for the family it just asked for before handing the job id
+ * back and leaving the rest to the poll.
+ *
+ * A JOB ID IS NOT A FAMILY. Measured on this machine: the launcher answers with the job still
+ * `queued`, and the broker is only started when the job actually begins - so the record written
+ * at the moment the id arrives names nothing at all, which is what the first live run of this
+ * code did. Ten seconds covered every launch measured here (the broker appeared within five),
+ * and it is a CAP, not a wait: the loop leaves as soon as it has the family. A job that queues
+ * for longer than that is recorded by the first poll instead, and the family's links were
+ * measured still intact minutes later - so the caller is not made to sit through somebody
+ * else's delegation to buy something the next command gets for free.
+ */
+const RECORD_WINDOW_MS = 10_000;
+
+/** Write the record for a launch, waiting for the broker the job will be served by. */
+async function recordLaunchedTree(dir, jobId) {
+  const deadline = Date.now() + RECORD_WINDOW_MS;
+  let first = null;
+  while (Date.now() < deadline) {
+    // Reading the process table costs a PowerShell process, so it is only read once there is a
+    // broker to look for.
+    if (existsSync(path.join(dir, 'broker.json'))) {
+      const record = recordOwnership(dir, { jobIds: [jobId] });
+      // Twice: the first record catches the broker, the second the MCP servers it starts a
+      // second or two later, while every link is still there to be walked.
+      if (record) {
+        if (first) return record;
+        first = record;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, first ? 2_000 : 500));
+  }
+  return first;
+}
+
+/**
+ * Forget a record that no longer names anything of ours, so the store does not fill up with dead
+ * pids - and so a recycled one stops being reported for ever.
+ *
+ * IT ASKS THE SAME QUESTION THE DETECTOR DOES, not "is that pid alive". Measured on 2026-09-09,
+ * 22 seconds after a cancelled delegation: one recorded MCP server's number had been handed to
+ * `svchost.exe`. By liveness that record would have looked half-alive for as long as that service
+ * ran; by identity it is what it is, which is over.
+ */
+export function forgetOwnership(dir, table = allProcesses()) {
+  const record = readOwnership(dir);
+  if (!record || table.length === 0) return false;
+  const byPid = indexByPid(table);
+  const stillOurs = (record.owned ?? []).some((entry) => byPid.get(entry.pid)?.createdMs === entry.createdMs);
+  if (stillOurs) return false;
+  rmSync(path.join(dir, OWNERSHIP_FILE), { force: true });
+  return true;
+}
+
+/**
+ * Give up on a launch that never produced a delegation, so its broker stops being protected by
+ * the "somebody is still launching" clause. Refuses to touch a record that names a job: a
+ * delegation that exists is judged by its own outcome, never by who is waiting for it.
+ */
+export function abandonLaunch(dir) {
+  const record = readOwnership(dir);
+  if (!record || (record.jobs ?? []).length > 0) return null;
+  return writeOwnership(dir, { ...record, launcher: null, abandonedAt: new Date().toISOString() });
+}
+
+/**
+ * A recorder that respects the snapshot schedule: call `note()` as often as you like and it reads
+ * the process table only when `SNAPSHOT_AT_MS` - or, past it, the `SNAPSHOT_TAIL_MS` heartbeat -
+ * says a snapshot is due.
+ */
+export function ownershipRecorder(dir, { started = Date.now(), jobIds = [] } = {}) {
+  let taken = 0;
+  let lastAt = -Infinity;
+  const ids = new Set(jobIds);
+  return {
+    add: (id) => id && ids.add(id),
+    note() {
+      if (!snapshotDue(Date.now() - started, taken, Date.now() - lastAt)) return null;
+      // NOTHING TO RECORD IS ANSWERED FROM DISK, not from the process table. Reading the table
+      // costs a PowerShell process every time, and until the job leaves the queue there is no
+      // broker and no record - which is the majority of the calls on this path, on the machine
+      // this whole mechanism exists to keep memory free on.
+      if (!existsSync(path.join(dir, 'broker.json')) && !readOwnership(dir)) return null;
+      taken += 1;
+      lastAt = Date.now();
+      try {
+        return recordOwnership(dir, { jobIds: [...ids] });
+      } catch {
+        // Recording is never allowed to break a launch. A missing record costs memory later; a
+        // launch that throws here costs the delegation itself.
+        return null;
+      }
+    },
+  };
+}
+
+/**
+ * Every root the plugin keeps job state under, so a delegation started under a different
+ * environment is still found. `CLAUDE_PLUGIN_DATA` is set inside a Claude Code session and unset
+ * in a plain shell, and the two point at different directories - the leaked trees measured on
+ * 2026-09-09 lived under the first while a sweep run from a terminal looked only at the second.
+ */
+export function stateRoots() {
+  const roots = [path.join(tmpdir(), 'codex-companion')];
+  if (process.env.CLAUDE_PLUGIN_DATA) roots.unshift(path.join(process.env.CLAUDE_PLUGIN_DATA, 'state'));
+  // A plugin's data directory is named after the plugin, and this machine has carried two of
+  // them (`codex-inline`, then `codex-openai-codex`). Whatever the env says today, every sibling
+  // state root is still a place a delegation can be recorded in.
+  const pluginData = path.join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.claude', 'plugins', 'data');
+  for (const entry of dirEntries(pluginData)) {
+    if (entry.isDirectory()) roots.push(path.join(pluginData, entry.name, 'state'));
+  }
+  return [...new Set(roots)].filter((root) => existsSync(root));
+}
+
+/**
+ * A directory's entries, or none.
+ *
+ * These directories belong to another program, on a machine where sessions come and go: one can
+ * be deleted between the `existsSync` and the read, or refuse a read outright. THE QUEUE RUNNER
+ * CALLS ALL OF THIS from its poll loop, and a scheduler that dies because somebody else's
+ * temporary directory moved is a worse failure than the memory this reclaims.
+ */
+function dirEntries(dir) {
+  try {
+    return readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+}
+
+/** Every workspace the plugin has state for, so a job orphaned in a closed session is still found. */
+function allStateDirs() {
+  return stateRoots().flatMap((root) => dirEntries(root)
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(root, entry.name)));
+}
+
+/**
+ * What the orphan detector judges: one record per workspace that has an ownership record, with
+ * every delegation in that workspace and whether it has reached an outcome.
+ *
+ * The job statuses are read from the plugin's own state and reconciled IN MEMORY, so a delegation
+ * whose process is gone counts as finished rather than holding its family for ever.
+ *
+ * READ-ONLY, DELIBERATELY. `reconciledJobs` persists what it works out, and this function is
+ * called from the QUEUE RUNNER's poll loop as well as from here - two unlocked read-modify-writes
+ * of the same `state.json`, from two processes, is a lost update or a half-written file. The
+ * commands that own a job (`status`, `poll`, `cancel`, `reap`) still persist their verdict; a
+ * sweep only needs to know, not to say.
+ */
+export function delegationRecords() {
+  const records = [];
+  for (const dir of allStateDirs()) {
+    const owned = readOwnership(dir);
+    if (!owned) continue;
+    let jobs;
+    try {
+      jobs = readState(dir).jobs.map((job) => ({
+        id: job.id,
+        finished: TERMINAL.has(reconcileJob(job)?.status ?? job.status),
+      }));
+    } catch {
+      // A job store this wrapper cannot read (a future version, a half-written file) is not a
+      // licence to close anything: an unreadable status is treated as work in progress.
+      jobs = [{ id: '<unreadable job state>', finished: false }];
+    }
+    records.push({ ...owned, jobs });
+  }
+  return records;
+}
+
+/** `pipe:\\.\pipe\x` and `unix:/tmp/x` both address a socket; strip the scheme and connect. */
+export function endpointPath(endpoint) {
+  return typeof endpoint === 'string' ? endpoint.replace(/^(pipe|unix):/, '') : null;
+}
+
+/**
+ * Ask a broker to close itself the way the plugin does - `broker/shutdown` over its own endpoint.
+ *
+ * This is the graceful half, and it is worth more than politeness: the broker holds a live handle
+ * to the `codex.js app-server` it started, so it can close the one link in the family that no
+ * outside walk can follow any more. Nothing here fails loudly - a broker that has already gone,
+ * or never listened, is exactly the case the kill below covers.
+ */
+export function brokerShutdown(endpoint, timeoutMs = GRACE_MS) {
+  const target = endpointPath(endpoint);
+  if (!target) return Promise.resolve('no endpoint recorded');
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ path: target });
+    const finish = (outcome) => { socket.destroy(); resolve(outcome); };
+    const timer = setTimeout(() => finish('no answer'), timeoutMs);
+    timer.unref?.();
+    socket.setEncoding('utf8');
+    socket.on('connect', () => socket.write(`${JSON.stringify({ id: 1, method: 'broker/shutdown', params: {} })}\n`));
+    socket.on('data', () => { clearTimeout(timer); finish('shut itself down'); });
+    socket.on('error', (error) => { clearTimeout(timer); finish(`endpoint gone (${error.code ?? 'error'})`); });
+    socket.on('close', () => { clearTimeout(timer); resolve('endpoint closed'); });
+  });
+}
+
+/**
+ * Is a delegation in this sweep's scope still working?
+ *
+ * The detector already knows - it is why the tree was kept - and this is the one thing it knows
+ * that a caller ABOUT TO DELETE THAT DIRECTORY cannot afford to miss. A worktree removal reads it
+ * and stands down; nothing else in this file consults it.
+ */
+function stillWorking(trees) {
+  return trees.some((tree) => (tree.unfinished ?? 0) > 0);
+}
+
+/** One line per kept pid, whichever pass reported it: the same tree is judged twice per reap. */
+function namedOnce(trees) {
+  const byPid = new Map();
+  for (const tree of trees) for (const entry of tree.kept) byPid.set(entry.pid, entry);
+  return [...byPid.values()];
+}
+
+/**
+ * Add the family a reap has just resolved to the record, so what is about to be closed is
+ * written down before anything is closed. Needs no broker: the entries have already been proved
+ * against this table by the detector.
+ */
+function rememberExpanded(dir, entries, table) {
+  const record = readOwnership(dir);
+  if (!record) return;
+  const byPid = indexByPid(table);
+  const owned = mergeOwned(record.owned, entries.map((entry) => ({
+    pid: entry.pid,
+    createdMs: entry.createdMs,
+    what: entry.what,
+  })), byPid);
+  writeOwnership(dir, { ...record, owned });
+}
+
+/** Wait for pids to go, up to `ms`. Signal 0 only - cheap, and identity is re-checked after. */
+async function waitForExit(pids, ms) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (!pids.some((pid) => processAlive(pid))) return true;
+    await new Promise((done) => setTimeout(done, 250));
+  }
+  return false;
+}
+
+/**
+ * Collect the process families of delegations that are over. The graceful ask first, then the
+ * recorded remainder.
+ *
+ * THE ORDER IS THE SAFETY ARGUMENT. The tree is proved orphaned from the record BEFORE anything
+ * is asked to stop, and proved AGAIN from a freshly read process table after the grace window,
+ * so every pid that is finally killed has had its start time checked against the record within
+ * milliseconds. Anything that fails either check is kept and named. Nothing is matched by
+ * executable name, nothing is killed on a pattern, and a process belonging to the owner's desktop
+ * Codex app is refused by `orphanedCodexTrees` even if a record somehow names it.
+ *
+ * `workspace` narrows the sweep to the delegations of ONE checkout, which is what a worktree
+ * removal needs: that worktree's family is about to lose the directory it is running in, and
+ * nobody else's is any of its business. A delegation launched from a SUBDIRECTORY of it counts -
+ * the recorded workspace is the directory the launch was made in, so `<worktree>/cli` is this
+ * worktree's delegation and an equality test would quietly leave it running.
+ *
+ * `busy` in the result says a delegation in scope has NOT finished, which is the one thing a
+ * caller about to delete that directory has to know.
+ */
+export async function reapTrees({ log = console.log, workspace = null } = {}) {
+  const records = delegationRecords()
+    .filter((record) => !workspace || withinRoot(record.workspace, workspace));
+  const table = allProcesses();
+  const before = orphanedCodexTrees(table, records);
+  const collecting = before.filter((tree) => tree.kill.length > 0);
+  if (collecting.length === 0) {
+    // Nothing to close, but a record whose family has gone some other way - a cancel that took
+    // the tree with it, a machine that was restarted - is finished with, and saying so here is
+    // what stops every later sweep re-reading it.
+    for (const tree of before) if (tree.stateDir) forgetOwnership(tree.stateDir, table);
+    return { closed: 0, trees: [], kept: namedOnce(before), busy: stillWorking(before) };
+  }
+
+  // WRITE THE FAMILY DOWN BEFORE CLOSING ANY OF IT. The kill list is wider than the record - it
+  // includes everything running below what was recorded - and the broker is usually the first to
+  // go. If the reap stopped here, or the broker exited on its own before the next sweep, a
+  // record still naming only the broker would be forgotten as dead while the app-server and its
+  // MCP servers, the expensive half, went on running with nothing left that could ever claim
+  // them. Recording the expansion first is what keeps that from becoming permanent.
+  for (const tree of collecting) if (tree.stateDir) rememberExpanded(tree.stateDir, tree.kill, table);
+
+  // Every broker is asked at once. Sequentially, a machine with three leaked families - the
+  // number measured on 2026-09-09 - would put half a minute in front of the launch that swept it.
+  await Promise.all(collecting.map(async (tree) => {
+    const said = await brokerShutdown(tree.endpoint);
+    const quiet = await waitForExit(tree.kill.map((p) => p.pid), GRACE_MS);
+    log(`  ${tree.workspace}: asked the broker to shut down - ${said}${quiet ? ', and the family went with it' : ''}`);
+  }));
+
+  // Re-derive from the machine as it is NOW: the graceful step has changed it, and every kill
+  // below is allowed by a record that was checked against this table, not the earlier one.
+  const settled = allProcesses();
+  const after = orphanedCodexTrees(settled, records);
+  let closed = 0;
+  let refused = 0;
+  for (const tree of after) {
+    for (const target of tree.kill) {
+      const plan = killPlan(target.pid);
+      const run = spawnSync(plan.command, plan.args, { encoding: 'utf8', shell: false, windowsHide: true });
+      if (run.status === 0) {
+        closed += 1;
+        log(`    closed pid ${target.pid} (${target.what})`);
+      } else {
+        refused += 1;
+        log(`    could NOT close pid ${target.pid} (${target.what}) - taskkill said: ${(run.stderr || run.stdout || '').trim()}`);
+      }
+    }
+  }
+  // One table read for the whole loop: `forgetOwnership` would otherwise enumerate the machine
+  // again per tree, and the kills above have already happened.
+  const settledAfterKills = closed > 0 ? allProcesses() : settled;
+  for (const tree of after) if (tree.stateDir) forgetOwnership(tree.stateDir, settledAfterKills);
+  return {
+    closed,
+    refused,
+    trees: collecting,
+    kept: namedOnce([...before, ...after]),
+    busy: stillWorking(after),
+  };
 }
 
 // ── Commands ─────────────────────────────────────────────────────────────────────────────────────
@@ -324,6 +883,13 @@ async function launch(argv, cwd) {
   const outFile = path.join(scratch, 'launch.json');
   writeFileSync(promptFile, text, 'utf8');
 
+  // Collect whatever the last delegation left behind before starting another family. A launch is
+  // the one moment this wrapper is certainly running, so it is where an orchestrator that died
+  // mid-flight gets cleaned up after - see `reap`. It reports to stderr because stdout is the
+  // launch's JSON and callers parse it.
+  const dir = await stateDir(cwd);
+  await reapTrees({ log: (line) => process.stderr.write(`${line}\n`) });
+
   const scriptArgs = [
     'task', '--background', '--json', '--cwd', cwd, '--prompt-file', promptFile, ...flags,
   ];
@@ -334,8 +900,12 @@ async function launch(argv, cwd) {
   );
   relay.unref();
 
+  // The family is built during this wait, and its parent links are cut during it too, so this is
+  // the only window in which some of it can be seen at all (`SNAPSHOT_AT_MS`).
+  const recorder = ownershipRecorder(dir);
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
+    recorder.note();
     if (existsSync(outFile)) {
       const raw = readFileSync(outFile, 'utf8');
       const start = raw.indexOf('{');
@@ -344,6 +914,15 @@ async function launch(argv, cwd) {
         try {
           const payload = JSON.parse(raw.slice(start, end + 1));
           if (payload.jobId) {
+            // Not `recorder.note()`: the schedule may not be due, and a record that does not name
+            // the delegation can never be judged finished later. Wrapped, because a delegation
+            // that is already RUNNING must never be lost to a bookkeeping error - an unreported
+            // job id is a leak this code cannot even see, which is the defect it exists to fix.
+            try {
+              await recordLaunchedTree(dir, payload.jobId);
+            } catch (error) {
+              process.stderr.write(`Could not record the delegation's process family: ${error.message}\n`);
+            }
             console.log(JSON.stringify({ ...payload, promptBytes: Buffer.byteLength(text) }, null, 2));
             return 0;
           }
@@ -354,6 +933,12 @@ async function launch(argv, cwd) {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
+  // THE LAUNCH TIMED OUT, which is the leak nobody sees: a broker may well be running, and no job
+  // id ever came back to name it. Saying so in the record is what lets it be collected - until
+  // then the sweep keeps the tree, because a launcher that is still alive may yet be starting
+  // something. This process has just stopped waiting, so it is no longer that launcher.
+  abandonLaunch(dir);
+  await reapTrees({ log: (line) => process.stderr.write(`${line}\n`) });
   throw new Error(`Codex launcher wrote no job id within 60 s. Its output: ${
     existsSync(outFile) ? readFileSync(outFile, 'utf8').trim() || '(empty)' : '(no file)'}`);
 }
@@ -407,13 +992,25 @@ async function poll(argv, cwd) {
   const reference = positional.find((token) => !token.startsWith('--')) ?? '';
   const dir = await stateDir(cwd);
   const deadline = Date.now() + timeoutSeconds * 1000;
+  // A second delegation in the same workspace adds MCP servers to the SAME `codex.exe` minutes
+  // after the launch window closed (measured: two jobs 100 s apart, one family), so the record
+  // keeps being brought up to date for as long as anybody is watching.
+  const recorder = ownershipRecorder(dir);
 
   for (;;) {
+    recorder.note();
     const job = findJob(newestFirst(reconciledJobs(dir)), reference);
     if (TERMINAL.has(job.status)) {
       console.log(summarize(job));
+      // SUCCESS AND FAILURE ARE THE SAME EXIT HERE. A completed delegation leaves exactly the
+      // family a failed one does, and the leak measured on 2026-09-09 was three COMPLETED jobs.
+      reportReap(await reapTrees());
       return job.status === 'completed' ? 0 : 1;
     }
+    // A STALL AND A POLL TIMEOUT REAP NOTHING, deliberately. Both mean "no outcome yet", and a
+    // model can think for five minutes without writing a log line. The delegation is detached on
+    // purpose so it survives the session watching it; killing it here would destroy work that is
+    // still running, to save memory it is still using.
     if (job.logIdleSeconds != null && job.logIdleSeconds >= STALL_SECONDS) {
       console.log(`${summarize(job)}\nStalled: no log line for ${job.logIdleSeconds}s. Not waiting further.`);
       return 2;
@@ -478,34 +1075,87 @@ async function cancel(argv, cwd) {
     errorMessage: 'Cancelled by user.',
   });
   console.log(`${job.id} cancelled (${killed}).`);
+  // Cancelling used to kill the worker and leave the family: the taskkill above walks a parent
+  // chain that was severed seconds after the launch, so it reached one process out of ten.
+  reportReap(await reapTrees());
   return 0;
 }
 
-/** Every workspace the plugin has state for, so a job orphaned in a closed session is still found. */
-function allStateDirs() {
-  const root = process.env.CLAUDE_PLUGIN_DATA
-    ? path.join(process.env.CLAUDE_PLUGIN_DATA, 'state')
-    : path.join(tmpdir(), 'codex-companion');
-  if (!existsSync(root)) return [];
-  return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(root, entry.name));
-}
-
+/**
+ * Clear the job records a dead process left behind, and collect the process families that
+ * delegations have finished with.
+ *
+ * THIS IS WHAT MAKES THE RECORD WORTH WRITING. Reaping on the way out of a delegation covers the
+ * ordinary exits; an orchestrator that is killed between the two has no way to clean up after
+ * itself, and only the record on disk can finish the job. So `launch` runs this first, every
+ * time: whatever the last run failed to collect is collected before the next family is started.
+ */
 async function reap(argv, cwd) {
-  const dirs = argv.includes('--all-workspaces') ? allStateDirs() : [await stateDir(cwd)];
-  const cleared = [];
-  for (const dir of dirs) {
-    if (!existsSync(path.join(dir, 'state.json'))) continue;
-    for (const job of readState(dir).jobs) {
-      const patch = reconcileJob(job);
-      if (!patch) continue;
-      persistPatch(dir, patch);
-      cleared.push(`${job.id}  ${job.status} -> failed/dead  (pid ${patch.deadPid} gone)  ${path.basename(dir)}`);
+  const workspace = reapWorkspace(argv);
+
+  // CLEARING STALE JOB RECORDS NEEDS THE PLUGIN; COLLECTING PROCESSES DOES NOT. They are reported
+  // together because a person running `reap` wants both, but a machine without the plugin
+  // installed - or with a job store this wrapper cannot read - must still be able to close the
+  // processes a delegation left behind. So the first half is allowed to fail on its own.
+  try {
+    // The workspace named on the command line, when there is one: a reap run from the primary
+    // checkout ON BEHALF of a worktree must clear THAT worktree's job records, not its own.
+    const dirs = argv.includes('--all-workspaces') ? allStateDirs() : [await stateDir(workspace ?? cwd)];
+    const cleared = [];
+    for (const dir of dirs) {
+      if (!existsSync(path.join(dir, 'state.json'))) continue;
+      for (const job of readState(dir).jobs) {
+        const patch = reconcileJob(job);
+        if (!patch) continue;
+        persistPatch(dir, patch);
+        cleared.push(`${job.id}  ${job.status} -> failed/dead  (pid ${patch.deadPid} gone)  ${path.basename(dir)}`);
+      }
     }
+    console.log(cleared.length ? cleared.join('\n') : 'No stale Codex jobs found.');
+  } catch (error) {
+    console.log(`Could not read the Codex job records (${error.message}); collecting processes anyway.`);
   }
-  console.log(cleared.length ? cleared.join('\n') : 'No stale Codex jobs found.');
-  return 0;
+  const result = await reapTrees({ workspace });
+  reportReap(result);
+  // EXIT 3 IS "THE WORKSPACE YOU ASKED ABOUT IS STILL WORKING", and it exists for one caller: a
+  // worktree removal asks before deleting the directory a delegation is running in. Nothing was
+  // wrong, so it is not a failure; nothing is finished either, so it is not a plain success. Only
+  // a SCOPED reap can say it - an unscoped sweep finding somebody else's delegation running is
+  // the ordinary state of the machine, and a person running `reap` should not read that as an
+  // error.
+  return workspace && result.busy ? 3 : 0;
+}
+
+/**
+ * The `--workspace` path, checked rather than taken.
+ *
+ * A flag standing in for the value is the failure that matters: `reap --workspace
+ * --all-workspaces` would otherwise scope the sweep to a directory called `--all-workspaces`,
+ * match no record, and report a quiet, complete-looking nothing - which is exactly what a worktree
+ * removal would read as "nothing left running here".
+ */
+export function reapWorkspace(argv) {
+  const at = argv.indexOf('--workspace');
+  if (at === -1) return null;
+  const value = argv[at + 1];
+  if (!value || value.startsWith('--')) throw new Error('--workspace needs a path (got none)');
+  if (argv.includes('--all-workspaces')) {
+    throw new Error('--workspace and --all-workspaces contradict each other; pass one');
+  }
+  return value;
+}
+
+/** What a reap did: what closed, what would not close, and what stayed and why. */
+function reportReap(result) {
+  if (!result) return;
+  const { closed = 0, refused = 0, trees = [], kept = [] } = result;
+  if (closed > 0 || refused > 0) {
+    const stubborn = refused > 0 ? `, and ${refused} would not close` : '';
+    console.log(`Closed ${closed} process(es) from ${trees.length} finished delegation tree(s)${stubborn}.`);
+  } else if (trees.length > 0) {
+    console.log(`${trees.length} finished delegation tree(s) closed themselves when the broker shut down.`);
+  }
+  for (const { pid, why } of kept) console.log(`  kept pid ${pid} - ${why}`);
 }
 
 // ── Entry ────────────────────────────────────────────────────────────────────────────────────────

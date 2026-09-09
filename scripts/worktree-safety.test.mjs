@@ -62,6 +62,15 @@ import {
   worktreeRoots,
 } from './worktree-cleanup-lib.mjs';
 
+/**
+ * The cleanup asks the Codex delegation reaper before it removes a worktree. These fixtures are
+ * temp repositories that never launched one, so the answer is always "nothing here" - and proving
+ * that for real would spawn a process and enumerate the whole machine once per removal. What the
+ * reaper decides is judged in codex-rescue.test.mjs and e2e-runs.test.mjs, against real process
+ * tables; what is judged HERE is what the cleanup does with the answer.
+ */
+const noDelegations = () => ({ status: 0, stdout: 'No stale Codex jobs found.', stderr: '' });
+
 function runGit(cwd, ...args) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
   assert.equal(
@@ -136,7 +145,7 @@ test('self cleanup approves and removes a clean, merged, pushed worktree', (t) =
   assert.equal(plan.ok, true);
   assert.equal(plan.branch, worktree.branch);
 
-  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }) });
+  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }), reap: noDelegations });
   assert.deepEqual(done.errors, []);
   assert.equal(done.removedWorktree, true);
   assert.equal(done.deletedBranch, worktree.branch);
@@ -181,7 +190,7 @@ test('self cleanup archives unrebuildable output, and its secret dies unread', (
   assert.deepEqual(plan.ignored.regenerable, ['node_modules/'], 'node_modules is rebuildable');
   assert.equal(plan.archive.files, 2, 'both bench files are in the copy plan');
 
-  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }) });
+  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }), reap: noDelegations });
   assert.deepEqual(done.errors, []);
   assert.equal(done.removedWorktree, true);
   assert.equal(done.archived.ok, true);
@@ -219,7 +228,7 @@ test('self cleanup refuses when the only copy of a secret is the one it would de
     `expected a lone-secret refusal, got ${JSON.stringify(plan.reasons)}`,
   );
 
-  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }) });
+  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }), reap: noDelegations });
   assert.equal(done.removedWorktree, false);
   assert.equal(existsSync(join(worktree.path, '.env')), true);
 });
@@ -242,6 +251,7 @@ test('a copy that cannot be proven stops the removal, and no flag overrides it',
   const done = applySelf(plan, {
     prunePorts: () => [],
     refreshRemote: () => ({ ok: true }),
+    reap: noDelegations,
     archive: () => ({ ok: false, reason: 'file count 1 source / 0 archived', destination: null, files: 0, bytes: 0 }),
   });
   assert.equal(done.removedWorktree, false);
@@ -393,7 +403,7 @@ test('self cleanup needs no ceremony when only rebuildable artifacts are present
   assert.deepEqual(plan.ignored.secrets, []);
   assert.equal(plan.archive.destination, null, 'nothing to copy means no archive folder at all');
 
-  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }) });
+  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }), reap: noDelegations });
   assert.deepEqual(done.errors, []);
   assert.equal(done.removedWorktree, true);
 });
@@ -495,7 +505,7 @@ test('self cleanup re-verifies at apply time and deletes nothing if the tree wen
   // The session writes a file between assessment and apply - the classic stale-plan race.
   writeFileSync(join(worktree.path, 'late.txt'), 'written after assessment\n');
 
-  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }) });
+  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: true }), reap: noDelegations });
   assert.equal(done.removedWorktree, false);
   assert.equal(done.deletedBranch, null);
   assert.ok(
@@ -513,7 +523,7 @@ test('self cleanup refuses when origin cannot be refreshed, rather than trusting
   runGit(primary, 'push', 'origin', 'main');
 
   const plan = assessSelf(worktree.path);
-  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: false, stderr: 'network down' }) });
+  const done = applySelf(plan, { prunePorts: () => [], refreshRemote: () => ({ ok: false, stderr: 'network down' }), reap: noDelegations });
   assert.equal(done.removedWorktree, false);
   assert.ok(done.errors.some((error) => /could not refresh origin/.test(error)));
   assert.equal(existsSync(worktree.path), true);
@@ -572,7 +582,7 @@ test('cleanup removes only a clean, remotely backed-up managed worktree and bran
     'delete',
   );
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
 
   assert.deepEqual(result.errors, []);
   assert.equal(existsSync(worktree.path), false);
@@ -598,6 +608,7 @@ test('cleanup never deletes an unmerged GitHub branch', (t) => {
   const result = applyPlan(plan, primary, {
     prunePorts: () => [],
     refreshRemote: () => ({ ok: true }),
+    reap: noDelegations,
   });
   assert.deepEqual(result.deletedRemoteBranches, []);
   assert.notEqual(
@@ -631,7 +642,7 @@ test('cleanup refuses a GitHub branch that moved after assessment', (t) => {
   runGit(other, 'push', 'origin', worktree.branch);
   const movedHead = runGit(other, 'rev-parse', 'HEAD');
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
 
   assert.deepEqual(result.deletedRemoteBranches, []);
   assert.match(result.errors.join('\n'), /origin\/codex\/remote-race.*changed - skipped/);
@@ -660,7 +671,7 @@ test('a branch that is not on main is refused, however finished the worktree loo
   assert.match(entry.why, /has commits not in origin\/main/);
   assert.equal(plan.branches.find((b) => b.name === worktree.branch).action, 'skip');
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
   assert.deepEqual(result.removedWorktrees, []);
   assert.equal(existsSync(worktree.path), true);
   assert.notEqual(runGit(primary, 'branch', '--list', worktree.branch), '');
@@ -698,7 +709,7 @@ test('a worktree with NO branch is refused by rule, not by whether its commit la
   assert.match(main.why, /primary checkout/);
   assert.match(main.why, /MERGES, BUILDS and RESETS/);
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
   assert.deepEqual(result.removedWorktrees, []);
   assert.equal(existsSync(infra), true);
   assert.equal(existsSync(primary), true);
@@ -744,7 +755,7 @@ test('a branch on main with only rebuildable ignored content is eligible', (t) =
   assert.equal(entry.archive.files, 0, 'nothing here needs a copy');
   assert.deepEqual(assessmentRisks(plan), []);
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.archived, [], 'no archive folder is made for rebuildable output');
   assert.equal(existsSync(worktree.path), false);
@@ -768,7 +779,7 @@ test('the sweep archives and verifies a worktree\'s paid output before removing 
   assert.equal(entry.action, 'remove');
   assert.equal(entry.archive.files, 1);
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
   assert.deepEqual(result.errors, []);
   assert.equal(result.archived.length, 1);
   assert.equal(existsSync(worktree.path), false, 'only now may the worktree go');
@@ -857,7 +868,7 @@ test('a locked worktree is refused rather than forced, in the sweep and in self 
   assert.equal(selfPlan.ok, false);
   assert.ok(selfPlan.reasons.some((reason) => /locked/.test(reason)));
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
   assert.deepEqual(result.removedWorktrees, []);
   assert.equal(existsSync(worktree.path), true);
 });
@@ -1071,7 +1082,7 @@ test('cleanup apply rechecks a worktree that became dirty after assessment', (t)
   const plan = assess(primary);
   writeFileSync(join(worktree.path, 'late-change.txt'), 'do not remove\n');
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
 
   assert.ok(
     result.errors.some((error) => error.includes('safety state changed after assessment')),
@@ -1089,7 +1100,7 @@ test('cleanup apply refuses every action if the primary checkout leaves main', (
   const plan = assess(primary);
   runGit(primary, 'switch', '-c', 'admin/not-main');
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
 
   assert.deepEqual(result.removedWorktrees, []);
   assert.deepEqual(result.deletedBranches, []);
@@ -1108,7 +1119,7 @@ test('cleanup apply preserves a branch whose ref moved after assessment', (t) =>
   const plan = assess(primary);
   runGit(primary, 'branch', '-f', 'codex/ref-moved', 'HEAD~1');
 
-  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+  const result = applyPlan(plan, primary, { prunePorts: () => [], reap: noDelegations });
 
   assert.ok(result.errors.some((error) => error.includes('state changed after assessment')));
   assert.notEqual(runGit(primary, 'branch', '--list', 'codex/ref-moved'), '');
