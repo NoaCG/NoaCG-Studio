@@ -15,7 +15,9 @@ nothing is using", and it is gated at three empty boxes precisely so it fires wh
 act on it. On a vote board M was wrong. The vote's **Bar** role is a gauge, and a gauge is filled
 from any drawing at all, so while its boxes are empty every rectangle in the file is pooled - the
 full-bleed plate the board is drawn on included. The notice was sending authors off to rename
-their backdrop (`docs/backlog/the-vote-notice-counts-plates-as-spare-layers.md`).
+their backdrop. The defect was filed on the shelf as
+`the-vote-notice-counts-plates-as-spare-layers` and deleted in the change that served it, as the
+shelf's own rule says.
 
 The count now leaves out a drawing that covers the artwork's whole ink. Nothing else moved: the
 sentence, the three-box gate, the names under each box and **Fill them in** are all as they were.
@@ -29,6 +31,14 @@ band from 95% to 99.8% is empty. The first drawing that is not a plate appears a
 70% down the two are mixed - a scorebug's plate at 71.7% sits beside a group of words at 71.6%. So
 95% is the round number inside the gap, and the slack matters: your own rotated quiz board draws
 its backdrop at 99.8%, not 100%.
+
+Size alone is not the whole rule. A plate also has to have **something else drawn on it**, because
+a file whose one drawing is a bar with the figure written across it would otherwise be 100% of an
+artwork it is the whole of - and the single layer that author most needs to name would be the one
+the notice stopped naming. Over the corpus that costs exactly one exclusion: the shipped rule calls
+131 of the 132 a plate, and the one it declines is `logo-small-favicon`, whose corner mark is the
+only drawing in its file. The spike now runs the shipped rule and prints its verdict per file, so
+re-deriving the number exercises the code rather than a copy of it.
 
 The measurement also changed the fix. The backlog proposed a share of the artwork's FRAME; the
 corpus refuses it. The same plate is 7.6% of the frame on a nameplate drawn into a 1920x1080
@@ -63,6 +73,12 @@ one that went is the plate.
   exported-hidden full-board layer is a moment they drew, and a moment nothing is using is exactly
   what this notice exists to name. Two live in the corpus: a "Time up" state over 67% of its board
   and a "Goal" over 75%.
+- **The step still carries an older, different answer to "what is a backplate"** -
+  `BACKPLATE_SHARE_OF_FRAME = 0.7`, which decides the checklist's grouping and the growth
+  proposal. The new measurement says that one is weak (a frame rule at 70% misses 57% of the
+  corpus's plates), but moving those two onto the ink would change what the checklist and the
+  growth control do on every lower third, and nobody has measured that. Filed as
+  `docs/backlog/one-rule-for-what-a-backplate-is.md` rather than changed here.
 - **This was built without a browser open on the app** (the wave's browser slot was elsewhere).
   The numbers were re-derived through a queued Playwright walk that reads the notice's own text,
   and through `scripts/field-auto-map.test.mjs`; nobody has looked at the notice on screen. If the

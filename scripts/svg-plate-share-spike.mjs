@@ -4,7 +4,7 @@
 // role could take, and on a vote board an empty gauge role pools every plain rectangle in the
 // file. A full-bleed plate, a rule and a panel behind the rows are all counted, so the reader is
 // told the file has layers nothing is using and sent hunting for layers that do not exist
-// (docs/backlog/the-vote-notice-counts-plates-as-spare-layers.md).
+// (docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md).
 //
 // Excluding a plate needs a number, and a guessed number is how you get a rule that throws away
 // somebody's bar. This prints the DISTRIBUTION the number has to come out of: for every drawing
@@ -38,8 +38,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 import { rolldown } from 'rolldown';
+import { rawSuffix } from './rolldown-raw.mjs';
 
 const IMPORTER = fileURLToPath(new URL('../src/assets/svgImport.ts', import.meta.url));
+const FILL = fileURLToPath(new URL('../src/components/wizard/import/fieldAutoMap.ts', import.meta.url));
 /** The three folders that hold artwork: the exporter corpus, the practice library, and the
  *  show boards the behaviour recipes were written against. */
 const FOLDERS = [
@@ -56,10 +58,10 @@ const flag = (name) => {
 const only = flag('--only');
 const jsonOut = flag('--json');
 
-/** The importer as one self-contained browser script on `window.NOACG_SVG`. */
-async function bundleImporter() {
-  const bundle = await rolldown({ input: IMPORTER, platform: 'browser', logLevel: 'silent' });
-  const { output } = await bundle.generate({ format: 'iife', name: 'NOACG_SVG', codeSplitting: false });
+/** One module of the app's graph as a self-contained browser script on `window[name]`. */
+async function bundleForPage(input, name) {
+  const bundle = await rolldown({ input, platform: 'browser', plugins: [rawSuffix], logLevel: 'silent' });
+  const { output } = await bundle.generate({ format: 'iife', name, codeSplitting: false });
   await bundle.close();
   return output[0].code;
 }
@@ -86,6 +88,10 @@ function corpus() {
  * components/wizard/import/draft.ts - the inventory a gauge role is filled from and the one the
  * notice counts. Everything else (text, pictures, outlines) is measured too, but only to say
  * where the ink is and what a drawing holds.
+ *
+ * The `plate` column is the SHIPPED rule - `isPlate` and `artworkInk` out of fieldAutoMap.ts, not
+ * a copy of them here - so a change to the constant, the slack or the second condition shows up in
+ * this table on the next run rather than confirming a distribution the code has left behind.
  */
 const MEASURE_IN_PAGE = (source) => {
   let r;
@@ -111,7 +117,14 @@ const MEASURE_IN_PAGE = (source) => {
     if (!el) return null;
     const b = el.getBoundingClientRect();
     if (!(b.width > 0) || !(b.height > 0)) return null;
-    return { left: b.left - frame.left, top: b.top - frame.top, width: b.width, height: b.height };
+    // The shipped shape (`FillBox`), so a box read here can be handed straight to the shipped
+    // rule rather than converted on the way - a conversion is a place for the two to drift.
+    return {
+      left: b.left - frame.left,
+      top: b.top - frame.top,
+      right: b.right - frame.left,
+      bottom: b.bottom - frame.top,
+    };
   };
   const label = (c) => c.label ?? '';
   const every = [
@@ -125,30 +138,23 @@ const MEASURE_IN_PAGE = (source) => {
   host.innerHTML = '';
 
   const measured = every.filter((c) => c.box);
-  // THE INK: the union of every candidate's box. On a full-frame artboard holding a band at the
-  // bottom this is the band, which is the artwork a reader would point at.
-  const ink = measured.reduce(
-    (a, c) => ({
-      left: Math.min(a.left, c.box.left),
-      top: Math.min(a.top, c.box.top),
-      right: Math.max(a.right, c.box.left + c.box.width),
-      bottom: Math.max(a.bottom, c.box.top + c.box.height),
-    }),
-    { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity },
-  );
-  const inkArea = measured.length > 0 ? Math.max(1, (ink.right - ink.left) * (ink.bottom - ink.top)) : 1;
+  // THE INK, from the shipped `artworkInk`: the union of every candidate's box. On a full-frame
+  // artboard holding a band at the bottom this is the band, which is the artwork a reader would
+  // point at.
+  const ink = window.NOACG_FILL.artworkInk(measured.map((c) => c.box));
+  const areaOf = (b) => Math.max(0, b.right - b.left) * Math.max(0, b.bottom - b.top);
+  const inkArea = ink ? Math.max(1, areaOf(ink)) : 1;
   const frameArea = Math.max(1, r.width * r.height);
-  // A box HOLDS another when it contains it whole, with a pixel of slack for a stroke.
-  const holds = (a, b) =>
-    a.left - 1 <= b.left &&
-    a.top - 1 <= b.top &&
-    a.left + a.width + 1 >= b.left + b.width &&
-    a.top + a.height + 1 >= b.top + b.height;
+  // A box HOLDS another when it contains it whole, with a pixel of slack for a stroke. Only the
+  // informational column below reads this; the plate verdict is the shipped rule's.
+  const holds = (a, b) => a.left - 1 <= b.left && a.top - 1 <= b.top && a.right + 1 >= b.right && a.bottom + 1 >= b.bottom;
 
-  const drawings = measured
-    .filter((c) => c.kind === 'group' || c.kind === 'shape')
+  const asLayer = (c) => ({ id: c.id, label: c.label, hidden: !!c.hidden, box: c.box });
+  const drawn = measured.filter((c) => c.kind === 'group' || c.kind === 'shape');
+  const drawnLayers = drawn.map(asLayer);
+  const drawings = drawn
     .map((c) => {
-      const area = c.box.width * c.box.height;
+      const area = areaOf(c.box);
       const others = measured.filter((o) => o.id !== c.id);
       const held = others.filter((o) => holds(c.box, o.box));
       return {
@@ -161,6 +167,7 @@ const MEASURE_IN_PAGE = (source) => {
         inkShare: area / inkArea,
         holds: held.length,
         holdsShare: others.length > 0 ? held.length / others.length : 0,
+        plate: window.NOACG_FILL.isPlate('gauge', asLayer(c), ink, drawnLayers),
       };
     })
     .sort((a, b) => b.frameShare - a.frameShare);
@@ -171,7 +178,7 @@ const MEASURE_IN_PAGE = (source) => {
     height: r.height,
     candidates: measured.length,
     unmeasured: every.length - measured.length,
-    ink: measured.length > 0 ? { ...ink, share: inkArea / frameArea } : null,
+    ink: ink ? { ...ink, share: inkArea / frameArea } : null,
     drawings,
   };
 };
@@ -179,7 +186,10 @@ const MEASURE_IN_PAGE = (source) => {
 const pad = (s, n) => String(s).padEnd(n).slice(0, n);
 const pct = (x) => `${(x * 100).toFixed(1)}%`.padStart(6);
 
-const importer = await bundleImporter();
+const [importer, fill] = await Promise.all([
+  bundleForPage(IMPORTER, 'NOACG_SVG'),
+  bundleForPage(FILL, 'NOACG_FILL'),
+]);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 2200, height: 1400 } });
 await page.setContent(
@@ -190,6 +200,7 @@ await page.setContent(
     + '<div id="stage"></div>',
 );
 await page.addScriptTag({ content: importer });
+await page.addScriptTag({ content: fill });
 
 const rows = [];
 for (const item of corpus()) {
@@ -203,6 +214,7 @@ console.log('');
 console.log('THE PLATE SPIKE - every drawing the mapping step offers, by how much it covers.');
 console.log('frame = share of the viewBox. ink = share of the union of every candidate box.');
 console.log('holds = how many of the other candidates its box contains, and their share.');
+console.log('PLATE = what the shipped rule (fieldAutoMap.ts isPlate) says about it.');
 console.log('');
 for (const row of rows) {
   if (row.error) {
@@ -219,14 +231,14 @@ for (const row of rows) {
     const holds = `${String(d.holds).padStart(3)} (${pct(d.holdsShare)})`;
     console.log(
       `    ${pad(d.id, 5)} ${pad(d.kind + (d.hidden ? '/hidden' : ''), 13)} ${pad(d.label || '(unnamed)', 30)}`
-        + ` frame ${pct(d.frameShare)}  ink ${pct(d.inkShare)}  holds ${holds}`,
+        + ` frame ${pct(d.frameShare)}  ink ${pct(d.inkShare)}  holds ${holds}  ${d.plate ? 'PLATE' : ''}`,
     );
   }
 }
 
 const all = rows.flatMap((r) => r.drawings ?? []);
 console.log('');
-console.log(`${rows.length} files, ${all.length} drawings offered.`);
+console.log(`${rows.length} files, ${all.length} drawings offered, ${all.filter((d) => d.plate).length} of them plates.`);
 if (jsonOut) {
   writeFileSync(jsonOut, JSON.stringify(rows, null, 2));
   console.log(`Wrote ${jsonOut}`);

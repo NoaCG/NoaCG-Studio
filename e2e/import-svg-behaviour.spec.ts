@@ -1586,7 +1586,8 @@ test('the mapping step explains itself: the name under an empty box, the count o
 
 test('the unmatched count leaves out the plate the board is drawn on', async ({ page }, testInfo) => {
   // A VOTE BOARD IS WHERE THE COUNT WENT WRONG
-  // (docs/backlog/the-vote-notice-counts-plates-as-spare-layers.md). The vote's `bar` role is a
+  // (docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md).
+  // The vote's `bar` role is a
   // GAUGE, and a gauge is filled from any drawing at all, so while its boxes are empty every
   // rectangle in the file is pooled - the full-bleed plate the board is drawn on included. The
   // notice then told the author their file has a layer nothing is using and sent them off to
