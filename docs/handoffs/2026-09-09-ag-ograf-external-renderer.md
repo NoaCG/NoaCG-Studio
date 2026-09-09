@@ -24,6 +24,17 @@ every operator action answer `200` and paint nothing.
    its spec (`e2e/import-svg.spec.ts:886`, the tail item).
 6. **`docs/acceptance/owner-queue/2026-09-09-ag-an-imported-board-plays-in-somebody-elses-renderer.md`**.
 
+## Two corrections the prompt asked for that were already done
+
+The row was told `docs/DEMO_2026-09-25.md` cites `docs/backlog/docs-guides-to-write.md`, which
+another branch deletes, and that it pins four gap-list cells to branch names the merge queue
+deletes. **Both were already fixed on `main` before this row started**, by `f7961cbd` ("Bring the
+25 September script up to date with what landed and with the deck"), which also closed rows 4 and
+5. Verified rather than assumed: the file contains no `docs-guides-to-write` reference, and §7
+carries no branch name (the only two, in §0, are historical pull-request references and are
+correct). Nothing to change, so nothing was changed. The third tail item, the stale spec title,
+was still open and is fixed in `b8a3916a`.
+
 ## The trap that cost this row about three hours, and is in no repo file
 
 **A browser throttles `requestAnimationFrame` in a page that is not the visible one.** GSAP rides
@@ -114,9 +125,11 @@ small".
   branch. No reuse finding - the scripts here each carry their own small `waitFor`, and there is no
   shared one to call.
 - `verify:` `npm run build` green. `npm run test:e2e:affected` was NOT run locally: it is browser
-  work, and the queue's memory floor blocked every browser job on this machine tonight. CI ran the
-  affected plan instead - 13 specs over four shards on run 34414850947, including the new
-  conformance test, all green; the review fixes are on run 34416591659.
+  work, and the queue's memory floor blocked every browser job on this machine tonight. CI covers
+  it and then some - run **34416773176** is the FULL suite on this tip, dispatched deliberately
+  because the push that carried the review fixes cancelled its own run: Build, Factory gates, the
+  catalog calibration gate, all nine E2E shards, the combined report and the CI gate, every one
+  green. Run 34414850947 had already put the new conformance test through the affected plan.
 - `taste: not applicable` - nothing here changes what a graphic looks like. The fix changes whether
   a graphic's own state paint RUNS in a renderer, and the states it paints are the designer's own,
   unchanged.
