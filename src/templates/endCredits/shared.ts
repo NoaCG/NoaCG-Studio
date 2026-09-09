@@ -45,6 +45,7 @@ import {
 import type { PresetConfig } from '../lowerThirds/animPresets';
 import type { AnimData } from '../../blocks/animData';
 import { convertToDataRegion } from '../shared/standard';
+import { SPEED_FIELD_TITLES } from '../meta';
 import { creditsPresetById } from './creditsPresets';
 import { creditsMotionJs } from './creditsMotion';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
@@ -406,10 +407,10 @@ const scrollPoseCss = `/* The scroll's two poses - see creditsRoll() in the JS, 
  * allows each page. The static board is absent on purpose: nothing there has a speed.
  */
 const SPEED_FIELD_TITLE: Partial<Record<AnimPresetId, string>> = {
-  'credits-roll': 'Scroll speed (%)',
-  'credits-loop': 'Scroll speed (%)',
-  'credits-crawl': 'Crawl speed (%)',
-  'credits-pages': 'Page speed (%)',
+  'credits-roll': SPEED_FIELD_TITLES.scroll,
+  'credits-loop': SPEED_FIELD_TITLES.scroll,
+  'credits-crawl': SPEED_FIELD_TITLES.crawl,
+  'credits-pages': SPEED_FIELD_TITLES.page,
 };
 
 /** Build the complete end-credits SpxTemplate. */

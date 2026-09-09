@@ -1438,7 +1438,7 @@
       "em-dash": 9
     },
     "src/templates/tickers/tickerMotion.ts": {
-      "em-dash": 7
+      "em-dash": 6
     },
     "src/templates/tickers/tickerPresets.ts": {
       "em-dash": 10

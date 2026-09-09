@@ -38,7 +38,7 @@ it **never touches another worktree** - not to check something, not to merge, no
    worktree, `.claude/worktrees/orchestrator`, detached at `origin/main`. Infrastructure: never a
    branch, never a commit, never deleted. It exists because **the main checkout belongs to the
    landing queue**, which rewrites that tree at every integration, and a throwaway worktree is
-   pinned at the commit it was cut from. The session and the wave-state file live there.
+   pinned at the commit it was cut from. The session lives there; the wave-state file does not.
 
 **Landing authority belongs to GitHub's merge queue.** Never merge, and never push by hand. A branch
 reaches `main` declared finished by its own session - but re-arming a declared landing's watcher,
@@ -108,7 +108,8 @@ session enters the watch loop (`orchestrator/night.md`) and stays there until th
 
 ## The wave-state file - the plan's durable copy
 
-`docs/handoffs/<date>-<day|night>-wave-plan.local.md` in the home, gitignored. It holds, under
+At the path `node scripts/wave-plan-store.mjs --path <date> <day|night>` prints - the store beside
+the job store, NEVER a checkout, because a plan in a worktree dies with it. It holds, under
 headings the check reads by name: `## Wave table` (columns L, goal, START, TOUCHES, MINTS, POOL,
 browser); every prompt verbatim in fenced blocks; the `Pools at plan time:` and `Window ends: <iso>`
 lines (read by `wave-horizon.mjs`), and on a night wave a `## Candidates` list the refill loop draws
@@ -116,8 +117,8 @@ on (`orchestrator/night.md`); `## Handoffs`, one line per file read (`- consumed
 `## Owner receipts`, the output of `node scripts/owner-receipts.mjs` with each standing ask marked
 planned, held or deferred; then the tick's heartbeat lines and whatever the morning report needs
 nowhere else - a ruling taken for the owner, an unplanned launch and its reason. **A plan launches
-when `node scripts/wave-plan-check.mjs` passes** - it refuses a row without a pool, a scarce slot
-minted twice, a path that does not exist, a prompt that does not end on QUEUE, an unclassified
+when `node scripts/wave-plan-check.mjs` passes** - it refuses a plan outside the store, a row
+without a pool, a slot minted twice, a missing path, a prompt not ending on QUEUE, an unclassified
 handoff, a standing owner ask the plan never mentions, and a night plan with no `Window ends:`
 line. A correction it forces sends the rows back through the collision pass before the plan ships.
 

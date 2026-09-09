@@ -35,6 +35,7 @@ import {
 import {
   CATEGORY_DEFAULT_META,
   HIDDEN_CONFIG_FIELDS,
+  SPEED_FIELD_TITLE_SET,
   TYPE_META,
   TYPE_OCCASIONS,
   VARIANT_META,
@@ -149,6 +150,13 @@ function isLogoField(field: SpxField): boolean {
   return field.ftype === 'filelist' && /logo/i.test(field.title);
 }
 
+/** The operator's SPEED control — a config input, not a thing the operator writes, so it is out
+ *  of the visible-field buckets like the hidden ids beside it (`SPEED_FIELD_TITLES` in meta.ts
+ *  says why an id cannot identify it). Without this a two-line marquee browses as "3 fields". */
+function isSpeedField(field: SpxField): boolean {
+  return field.ftype === 'number' && SPEED_FIELD_TITLE_SET.has(field.title);
+}
+
 function deriveFieldCounts(
   variant: TemplateVariant,
   fields: SpxField[],
@@ -156,7 +164,8 @@ function deriveFieldCounts(
 ): FieldCounts {
   const hiddenIds = new Set(HIDDEN_CONFIG_FIELDS[variant.category] ?? []);
   const content = fields.filter(
-    (f) => DATA_FTYPES.includes(f.ftype) && !hiddenIds.has(f.field) && !isLogoField(f),
+    (f) => DATA_FTYPES.includes(f.ftype) && !hiddenIds.has(f.field) && !isLogoField(f)
+      && !isSpeedField(f),
   );
   const visible = content.length;
   // The reachable range: in the line-based categories the wizard lets lines shrink to 1

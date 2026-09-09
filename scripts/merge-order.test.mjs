@@ -447,4 +447,18 @@ test('a branch already landed on origin/main is not outstanding, however stale t
   );
   const next = assessment.branches[0];
   assert.deepEqual(next.stacked, [], 'containing a landed branch is not a stack');
+
+  // THE OTHER HALF, and the one that was still wrong until 2026-09-09. Choosing the candidates
+  // against `origin/main` and then MEASURING each one against the stale local `main` credits a
+  // branch with every file that landed while it was open. Row S was told its branch held 38 files
+  // belonging to six other rows, and a phantom migration number among them produced a `hold`.
+  assert.equal(assessment.ref, 'origin/main', 'the assessment says which revision answered');
+  assert.deepEqual(
+    [...next.files].sort(),
+    ['docs/next.md'],
+    'a branch is credited with its OWN files, never with the ones it merged in from a landed branch',
+  );
+  // Its own commit plus the merge commit it made. Against the stale local `main` this was 3,
+  // because the landed branch's commit is reachable through that merge and got counted too.
+  assert.equal(next.ahead, 2, 'and with its own commits, not with the landed one it merged in');
 });

@@ -23,6 +23,8 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
+import { wavePlansDir } from './wave-plan-store.mjs';
+
 /** A tracked handoff file. `.local.md` is gitignored session state, not a handoff anyone inherits. */
 export function isHandoff(relPath) {
   const normalized = relPath.replaceAll('\\', '/');
@@ -129,13 +131,14 @@ export function recordsTheTrace(entry) {
 /**
  * The wave plans a hook should look in, newest first.
  *
- * TWO PLACES, and the second is the one that matters. The plan is a gitignored `*.local.md` written
- * by the orchestrator into ITS OWN worktree, so a session deleting handoffs from its feature
- * checkout has no copy. Looking only where the command runs would report every legitimate drain as
- * untraced, which would make the notice noise within one wave.
+ * THE STORE FIRST, because that is where a plan is written from 2026-09-09 (`wave-plan-store.mjs`)
+ * and it is the same directory seen from every checkout. The two `docs/handoffs/` directories
+ * follow, holding the plans written before the move: this feeds `warn-edit.mjs` and
+ * `warn-command.mjs`, so a directory dropped here reports every legitimate drain as untraced and
+ * turns the notice into noise within one wave.
  */
 export function wavePlanPaths(root, homeRoot) {
-  const dirs = [path.join(root, 'docs', 'handoffs')];
+  const dirs = [wavePlansDir(), path.join(root, 'docs', 'handoffs')].filter(Boolean);
   if (homeRoot) dirs.push(path.join(homeRoot, 'docs', 'handoffs'));
   const plans = [];
   for (const dir of dirs) {

@@ -27,9 +27,16 @@ first before changing anything, exactly as the repo's Git rules require.
 
 ## 1. Scope - compute once, reuse in every phase
 
-- The scope is what this branch changed: `git diff $(git merge-base main HEAD)` plus any
+- The scope is what this branch changed: `git diff $(git merge-base origin/main HEAD)` plus any
   uncommitted changes (`git status --porcelain=v1`). Compute it once; all three phases work
   from this same changed set. Do not review or simplify code the branch did not touch.
+- **`origin/main`, never the local `main` branch.** `git fetch` moves the remote-tracking ref; it
+  does not move the local branch, and since landings moved to the merge queue nothing on this
+  machine moves it at all, so the lag only grows. Measured on 2026-09-09 in a worktree cut that
+  night: the local ref was 33 commits behind, and the two spellings of this one command answered
+  6 files and 100. The review then spends its whole pass on landed code and reports the real diff
+  as clean - which is what happened to two rows on 2026-09-08 (`docs/handoffs/
+  2026-09-08-q-oss-community-files.md`, "The thing underneath all ten").
 - **Run every scope command INSIDE this worktree, with its absolute path**, and record the
   branch name (`git rev-parse --abbrev-ref HEAD`) and the merge-base sha alongside the file
   list. Several worktrees of this repo are normally live at once, and a tool that resolves

@@ -52,6 +52,7 @@ import {
   dedupeClaudeRows,
   dedupeCodexSessions,
   deltaTokens,
+  findNewestWavePlan,
   findWavePlan,
   formatCount,
   formatDuration,
@@ -315,6 +316,30 @@ test('the newest wave plan wins, and a non-plan local handoff is not one', () =>
   });
   assert.deepEqual(plan, { name: 'b-wave-plan.local.md', mtimeMs: 20 });
   assert.equal(findWavePlan('nope', { exists: () => false }), null);
+});
+
+// `--wave` reads the store now. It kept reading only `docs/handoffs/` for one commit after the
+// plans moved there, which made every wave's spend section exit 2 with a message naming a
+// directory that can no longer hold a plan.
+test('the newest plan is found across the store and the directories plans used to live in', () => {
+  const byDir = {
+    store: { '2026-09-08-night-wave-plan.local.md': 50 },
+    legacy: { '2026-09-09-day-wave-plan.local.md': 90, 'notes.local.md': 99 },
+  };
+  const options = {
+    exists: (dir) => dir in byDir,
+    readdir: (dir) => Object.keys(byDir[dir]),
+    stat: (full) => {
+      const [dir, name] = full.split(/[\\/]/);
+      return { mtimeMs: byDir[dir][name] };
+    },
+  };
+  // Newest wins ACROSS the directories, not within the first one that answers.
+  assert.deepEqual(findNewestWavePlan(['store', 'legacy'], options), { name: '2026-09-09-day-wave-plan.local.md', mtimeMs: 90 });
+  assert.deepEqual(findNewestWavePlan(['legacy', 'store'], options), { name: '2026-09-09-day-wave-plan.local.md', mtimeMs: 90 });
+  // A null directory is what `wavePlansDir()` returns outside a checkout, and must be skipped.
+  assert.deepEqual(findNewestWavePlan([null, 'store'], options), { name: '2026-09-08-night-wave-plan.local.md', mtimeMs: 50 });
+  assert.equal(findNewestWavePlan([null, 'gone'], options), null);
 });
 
 // ── Formatting ───────────────────────────────────────────────────────────────────────────────────

@@ -26,6 +26,7 @@ import { definitionScriptBlock } from '../../model/spxDefinition';
 import { resolveEasing } from '../../model/easings';
 import {
   resolveOptions,
+  type AnimPresetId,
   type ResolvedOptions,
   type TemplateVariant,
   type WizardOptions,
@@ -45,8 +46,9 @@ import {
 import type { PresetConfig } from '../lowerThirds/animPresets';
 import type { AnimData } from '../../blocks/animData';
 import { convertToDataRegion } from '../shared/standard';
+import { SPEED_FIELD_TITLES } from '../meta';
 import { tickerPresetById } from './tickerPresets';
-import { TICKER_MOTION_JS } from './tickerMotion';
+import { tickerMotionJs } from './tickerMotion';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
 
 export interface TickerDesign {
@@ -221,6 +223,10 @@ function update(data) {
     if (el) setFieldValue(el, fields[key]);
   }
   rebuildTicker();
+  // A new SPEED reaches a strip that is already travelling, rather than waiting for the next
+  // take. The dashboard's ± live-number buttons send exactly this update and say they act on
+  // air, so the field has to mean it (see tickerApplySpeed).
+  tickerApplySpeed();
 }
 
 // play(): rebuild (fresh measurements), then start the loop.
@@ -302,6 +308,68 @@ const ITEMS_SAMPLE = [
   'Tickets for the summer tour are on sale now',
 ].join('\n');
 
+/** 100 = the pace the design ships at. See SPEED_FIELD_TITLE below. */
+const SPEED_DEFAULT = '100';
+
+/**
+ * The title the SPEED field carries, per motion preset — and the list of presets that get one
+ * at all (owner walk 2026-08-28: "anything with scrolling graphics should have a speed setting
+ * in the control panel"). A strip has to sit under whatever else is on air and be readable
+ * from the back of a room, and that is judged at the desk with the graphic already up.
+ *
+ * Named for what the design actually does, so an operator reads the control page rather than
+ * translating it: a marquee scrolls, a flip holds each item.
+ *
+ * THE TIMED ROTATOR GETS NONE, and that is the same carve-out the static credits board has.
+ * Its cadence is a state-machine timer (`after: HOLD` in templates/types/ticker.ts), armed by
+ * the shared machine runtime as `edge.after / NOACG_ANIM.speed` — nothing this file emits
+ * touches it, so a percentage typed here would move only the strip's fade-in while the stories
+ * kept changing at exactly the old rate. An operator control page must never offer a field the
+ * graphic cannot honour, and a field that half-works is worse than no field: it is a promise
+ * the product breaks in front of someone on air. Giving the rotator a real one means teaching
+ * the machine runtime to read an operator field, which is a change for every machine graphic
+ * and not for this file.
+ */
+const SPEED_FIELD_TITLE: Partial<Record<AnimPresetId, string>> = {
+  'ticker-marquee': SPEED_FIELD_TITLES.scroll,
+  'ticker-flip': SPEED_FIELD_TITLES.item,
+};
+
+/**
+ * The first `fN` id an appended field may take, given the design's own markup and how many
+ * fields have been pushed so far.
+ *
+ * IT IS THE MARKUP THAT DECIDES, not the field count, because the two disagree. A design that
+ * declares `maxLines: 3` draws its second cap unconditionally - `<span id="f2">` with a sample
+ * of its own when the operator supplied only two lines (tk11's "Newsdesk") - while the f2 FIELD
+ * is pushed only when that third line exists. Take the id from the field count and a two-line
+ * Headline Crawl emits `id="f2"` twice: the definition calls f2 the speed, `update()` finds the
+ * visible cap first and prints "150" across the strip, and `tickerSpeed()` parses "Newsdesk" to
+ * NaN and quietly falls back to 100. That is precisely the broken promise the speed field
+ * exists to avoid, and it is reachable from the AI path, which routinely builds a three-line
+ * chassis from a two-line spec.
+ *
+ * So: scan what the design actually drew and start after its highest id. A design that grows a
+ * cap tomorrow is handled by the same line, with nothing to remember.
+ *
+ * NOT `blocks/edit.ts` `nextFieldId(fields)`, which reads the FIELD LIST - the source that is
+ * wrong here. That one is right for a template being edited, where the definition and the markup
+ * already agree; this one is for the moment before they do.
+ *
+ * The deeper fix, if this ever needs one, is to make them agree: emit the third cap's FIELD
+ * whenever the design draws the cap. That is a real behaviour change - a two-line Headline Crawl
+ * would gain a "Source" control it does not have today - so it belongs to whoever decides that a
+ * drawn cap should always be editable, not to a speed field.
+ *
+ * Exported for `scripts/ticker-speed.test.mjs`: the collision only appears on a line count the
+ * catalog never builds with, so the emit baseline cannot see it and this is where it is pinned.
+ */
+export function appendedFieldId(designHtml: string, fieldCount: number): string {
+  let highest = -1;
+  for (const m of designHtml.matchAll(/\bid="f(\d+)"/g)) highest = Math.max(highest, Number(m[1]));
+  return `f${Math.max(fieldCount, highest + 1)}`;
+}
+
 /** Build the complete ticker SpxTemplate. */
 export function assembleTicker(meta: TickerMeta, design: TickerDesign, o: ResolvedOptions,
   /** Refine the converted animation data — the seam a graphic TYPE injects its machine
@@ -330,6 +398,19 @@ export function assembleTicker(meta: TickerMeta, design: TickerDesign, o: Resolv
     fields.push({ field: 'f2', ftype: 'textfield', title: o.lines[2].title, value: o.lines[2].sample });
   }
 
+  // The SPEED field, the operator's rather than the author's. A percentage of the pace the
+  // design ships at, defaulted to 100 so an untouched graphic plays exactly as it always did
+  // and there is one obvious number to come back to. Appended LAST, so every field id a
+  // template already uses stays where it is. Input only: tickerSpeed() reads it and nothing
+  // draws it, so it lives in a hidden holder like the item source.
+  // Which presets get one, and why the rotator does not, is on SPEED_FIELD_TITLE above.
+  const speedTitle = SPEED_FIELD_TITLE[o.animation.presetId];
+  let speedField: string | null = null;
+  if (speedTitle) {
+    speedField = appendedFieldId(design.html, fields.length);
+    fields.push({ field: speedField, ftype: 'number', title: speedTitle, value: SPEED_DEFAULT });
+  }
+
   const settings = baseSettings(meta, o, { steps: '1', playlayer: '3', webplayout: '3' });
 
   const html = documentHtml({
@@ -339,7 +420,11 @@ export function assembleTicker(meta: TickerMeta, design: TickerDesign, o: Resolv
   <div class="ticker">
 ${design.html}
     <!-- Hidden items source — SPX writes field f0 here; JS renders it. -->
-    <div id="f0" class="noacg-data-source">${itemsText}</div>
+    <div id="f0" class="noacg-data-source">${itemsText}</div>${speedField ? `
+    <!-- ${speedField}: how fast this plays, as a percentage of the design's own pace.
+         100 = as designed · 150 = half again as fast · 60 = a slow, readable strip.
+         Input only: tickerSpeed() reads it, nothing ever draws it. -->
+    <div id="${speedField}" class="noacg-data-source">${SPEED_DEFAULT}</div>` : ''}
   </div>`,
   });
 
@@ -380,7 +465,11 @@ ${dataSourceCss}`;
   const ease = resolveEasing(o.animation.easing, preset.autoEase);
   const cfg: PresetConfig = {
     prefix: 'ticker',
-    lineCount: fields.length,
+    // How many #fN elements the presets may choreograph — the VISIBLE lines, which is why this
+    // counts the content fields rather than `fields.length`. The speed field is an input-only
+    // holder with nothing to animate, and a preset that faded `#f0 … #f{lineCount-1}` would
+    // otherwise reach into it.
+    lineCount: fields.length - (speedField ? 1 : 0),
     hasAccent: false,
     steps: false,
     speed: o.animation.speed,
@@ -399,7 +488,7 @@ var TICKER_ROTATE = ${o.animation.presetId === 'ticker-rotate'};
 
 ${design.rowBuilderJs}
 
-${TICKER_MOTION_JS}
+${tickerMotionJs(speedField)}
 
 ${preset.emit(cfg)}`,
   );

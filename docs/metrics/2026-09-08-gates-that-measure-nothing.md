@@ -163,3 +163,15 @@ file that registered none.
    declares `// measures: none - <why>` in its header, so the next blind gate cannot land.
 
 Plus `runTests` refusing a test file that registered no tests, and refusing an empty test glob.
+
+## What a review of it found, the next day
+
+Four reviews read the mechanism above on 2026-09-09 and found three holes in it, each of the same
+species it was built to catch: the empty-glob refusal tested the tier's literal NAME rather than
+its population, so every tier but `build` accepted zero test files; the runner and the audit read
+the `measures: none - <why>` exemption with two different thresholds, and the weaker one was in
+force wherever a workflow runs a gate directly; and the audit's static half was a substring test
+that a sentence about the helper, in a comment, satisfied. All three are closed, with a negative
+test each, in `scripts/measured.test.mjs`. What no static reading can prove - that a `measured`
+call is REACHED - is now written out over `judgeMeasurement` in `scripts/gates.mjs` rather than
+implied to be covered. See `docs/handoffs/2026-09-09-y-measured-holes.md`.

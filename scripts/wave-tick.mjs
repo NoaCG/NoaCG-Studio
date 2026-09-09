@@ -39,6 +39,7 @@ import { ensureJobsDir, findRunner, jobsDir, pending, readJobs, readLandings, la
 import { syncLandings } from './landings.mjs';
 import { nodeProcesses } from './e2e-runs.mjs';
 import { git, worktreeEntries } from './worktree-cleanup-lib.mjs';
+import { wavePlansDir } from './wave-plan-store.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
@@ -328,10 +329,25 @@ function blockedSessions() {
   }
 }
 
-/** The newest fresh wave plan in a checkout - shared with the handoff drain and the plan check. */
+/**
+ * The newest fresh wave plan - shared with the handoff drain, the plan check and the session-start
+ * hook, so this one function decides where a plan lives for all of them.
+ *
+ * It reads the STORE and nothing else (`wave-plan-store.mjs`). It used to read the calling
+ * checkout's `docs/handoffs/`, which meant the plan's location was "whichever worktree the
+ * orchestrator happened to be in" - and a plan in a throwaway worktree dies with it, which is how
+ * a week of routing and every decision taken on the owner's behalf went missing (2026-09-08).
+ * There is deliberately NO fallback to the old location: a fallback would find a plan written into
+ * a worktree, let the wave launch on it, and lose it exactly as before. Reading the old location
+ * is the archive's job, and only `orchestrator-week.mjs` still does it.
+ *
+ * `root` is kept in the signature because four callers pass one, and ignored because the store is
+ * the same directory seen from every worktree of this repository.
+ */
 export function newestWavePlan(now, root = REPO_ROOT) {
-  const dir = path.join(root, 'docs', 'handoffs');
-  if (!existsSync(dir)) return null;
+  void root;
+  const dir = wavePlansDir();
+  if (!dir || !existsSync(dir)) return null;
   const candidates = readdirSync(dir)
     .filter((name) => name.includes('wave-plan') && name.endsWith('.local.md') && wavePlanFresh(name, now))
     .sort()
@@ -455,8 +471,9 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
   if (wavePlan && existsSync(wavePlan)) {
     appendOwnLine(wavePlan, heartbeatLine({ tick, at: now, summary, events: events.length }));
   } else if (args.wavePlan !== 'none') {
-    warnings.push('no live wave plan found under docs/handoffs (dated *wave-plan.local.md within a day) - '
-      + 'heartbeat not recorded anywhere. Pass --wave-plan <path>, or --wave-plan none to silence this.');
+    warnings.push(`no live wave plan in the store ${wavePlansDir() ?? '(no git checkout)'} (dated *wave-plan.local.md within a day) - `
+      + 'heartbeat not recorded anywhere. Write the plan at the path `node scripts/wave-plan-store.mjs --path <date> <day|night>` '
+      + 'prints, or pass --wave-plan <path>, or --wave-plan none to silence this.');
   }
 
   if (args.json) {

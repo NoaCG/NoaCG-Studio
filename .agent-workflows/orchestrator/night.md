@@ -108,18 +108,20 @@ Each tick, in this order, and nothing else:
    made and the RESULT when it returns, so a call still carrying no result is a session waiting,
    at that instant, on that call. A session grinding through a suite has results arriving; a stuck
    one does not.
-   **A wait is one of three things**, and the tick now separates one of them. It is a permission
-   prompt nobody has answered, a call still running, or a session that is no longer running at
-   all - and the harness's own live-session inventory answers the third, so every waiting line
-   carries whether a process still holds it. The 30-minute threshold clears every shell command
-   (the Bash tool is killed at 600 s) but NOT a blocking agent fork or a slow MCP call, so a long
-   review leg still surfaces - correctly, as "waiting" behind a live process, never as "stuck".
-   **The first two remain genuinely inseparable and the tick says so rather than guessing**, and
-   they want the same action anyway. A wait behind NO live process is the one that changes the
-   night: that row is not coming back, so its slot is free and its work is unfinished. Report it,
-   never kill anything, and treat an absent process as strong evidence rather than proof - the
-   inventory cannot see a session on another machine, and it answers `unknown` on any machine
-   where it does not run at all.
+   **EACH INSTRUMENT ANSWERS ONE QUESTION AND NO OTHER**, and substituting one for another nearly
+   cost a live row its branch on 2026-09-08. `blocked-sessions.mjs` answers who is HELD on a
+   call - a working session has results arriving and never qualifies, so an empty list is silence
+   about every session, not an all-clear about any. `claude-agents.mjs` answers what the harness
+   LISTS as running, and never sees an Agent-tool subagent, a Codex session or another machine.
+   Neither answers "is this row alive"; the three-signal test below does.
+   **A wait is one of three things**: a permission prompt nobody answered, a call still running, or
+   a session no longer running at all. The inventory separates the third, so every waiting line
+   carries whether a process holds it; the first two are inseparable, the tick says so rather than
+   guessing, and both want the same action. The 30-minute threshold clears every shell command (the
+   Bash tool is killed at 600 s) but not a blocking agent fork or a slow MCP call, so a long review
+   leg surfaces as "waiting" behind a live process, never as "stuck". A wait behind NO live process
+   is the one that changes the night: that row is not coming back, its slot is free and its work is
+   unfinished. Report it, kill nothing, and treat an absent process as evidence, never proof.
 3. For every follow-on whose trigger has now landed, launch it in its own worktree with the prompt
    already written in section 5. Never one that is not in the wave table.
 4. **REFILL a free slot.** A slot is free when a row landed or its process is gone and the machine
@@ -178,11 +180,10 @@ already retries that once), and a stacked pull request dropped from the queue wh
 landed with every check green. **Repair that second one with `npm run queue:merge -- <branch>`**,
 which re-posts the verdict and turns auto-merge back on - it reads the `/check` stamp like any
 queueing, so an unstamped tip needs the `--unreviewed` form below. `gh pr merge <n> --auto` does the
-same job in one call and is what to reach for interactively - but the auto-mode classifier BLOCKED
-it on 2026-09-08, on the one branch of that wave that needed it, so a loop knowing only the raw
-command has no repair at 03:00. A RED CHECK or a CONFLICT
-with what landed is the branch's, and only its own session may queue it again - it reaches the
-user, with its command, when that session is gone.
+same job in one call, but the auto-mode classifier BLOCKED it on 2026-09-08 on the one branch that
+needed it, so a loop knowing only the raw command has no repair at 03:00. A RED CHECK or a CONFLICT
+with what landed is the branch's, and only its own session may queue it again - it reaches the user,
+with its command, when that session is gone.
 
 **A BRANCH WHOSE SESSION IS STILL ALIVE IS THE ONE THING THE LOOP MAY NOT QUEUE.** Queueing it
 would be this session declaring another session's work done, which is the one rule landing has
@@ -193,7 +194,8 @@ branch, so an unqueued live branch costs nobody anything until its own session q
 2026-09-05: *"You shouldn't need me for landing branches."*). No live session is in it, so there is
 no declaration being pre-empted - there is no declarer. **The test is THREE liveness signals that
 must ALL be quiet - any one of them speaking means alive:** the harness's live-session inventory,
-the branch tip's age, and the mtime of the session's transcript. **The inventory ALONE is not
+the branch tip's age, and the mtime of the session's transcript. **`blocked-sessions.mjs` is not
+one of the three** - it answers a different question (step 2). **The inventory ALONE is not
 enough and reading it that way is the trap**: it fails open for subagents, and on 2026-09-05 it
 reported a row idle while that row was committing every four minutes and about to queue itself
 (row Z's measurement, `incidents.md`). A tip that moved in the last half hour is alive whatever any
@@ -212,13 +214,10 @@ gated state and the row's handoff describes the rest, which is what every prompt
 already says to do.
 
 **An EMPTY WORKTREE is not a session, and a live session is not an idle one.** Both halves were
-paid for on 2026-09-05. The walk session's branch was flagged FINISHED-LOOKING twice, an hour
-apart, and was alive both times, so a stopped branch tip must never be the signal - the inventory
-is. But a first draft of this rule also required the branch to have NO WORKTREE, and that condition
-is redundant with the inventory and produces false negatives: row S that day had a fully gated
-branch, `/check` run in all four legs, a handoff written, and a dead session sitting in a worktree
-nobody was in. Under the three-condition test its work would have been stranded for exactly the
-reason the rule exists to remove. A directory is not a declarer.
+paid for on 2026-09-05: a branch flagged FINISHED-LOOKING twice an hour apart was alive both times,
+and a first draft that also demanded NO WORKTREE would have stranded row S - fully gated, `/check`
+run in all four legs, a handoff written, its dead session in a worktree nobody was in. A directory
+is not a declarer, and a stopped tip is not a verdict.
 
 **The loop never merges, never pushes, and never touches another worktree's files.** It watches,
 it launches what was planned, and it reports.

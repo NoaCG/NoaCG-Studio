@@ -28,7 +28,13 @@
 // measuring nothing (scripts/measured.mjs carries all three). A gate reports the size of the set
 // it resolved with `measured(n, subject)`, that helper refuses a count of zero whoever runs the
 // gate, this runner refuses a check that exits 0 having reported NOTHING, and the audit refuses
-// a gate that neither reports nor writes down why it has no countable subject.
+// a gate that neither reports nor writes down why it has no countable subject. A TIER is held to
+// the same rule as a gate: a tier whose checks or test files resolve to an empty list has looked
+// at nothing, and only `EMPTY_TIERS` below can say where that is honest.
+//
+// The one thing no reading of the text can prove is that a `measured` call is REACHED - what the
+// static half does and does not establish is written out over `judgeMeasurement`, where the next
+// reader meets it.
 //
 // CHECKS are the entry files of the `check:*` and `test:*` scripts of package.json - each file
 // judged once, however many scripts name it; the script is how a person runs the check, the
@@ -52,6 +58,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parseArgs } from './e2e-quarantine.mjs';
+import { REASON_MIN } from './measured.mjs';
+import { parseReceipts, RECEIPT_ENV } from './measured-receipt.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -151,8 +159,10 @@ export function discoverChecks(scripts, read = readRepoFile) {
   }
   const checks = [];
   for (const rec of byEntry.values()) {
+    // The text is carried, not re-read: the audit judges the header AND the body of every check,
+    // and reading each entry twice per build is one file system round trip per gate for nothing.
     const text = read(rec.entry);
-    checks.push({ ...rec, name: rec.names[0], command: rec.command ?? `node ${rec.entry}`, exists: text !== null, header: parseHeader(text ?? '') });
+    checks.push({ ...rec, name: rec.names[0], command: rec.command ?? `node ${rec.entry}`, exists: text !== null, text, header: parseHeader(text ?? '') });
   }
   return { checks, entryless };
 }
@@ -189,12 +199,67 @@ export function guardsOf(gate) {
 }
 
 /**
- * Is this gate exempt from saying how much it measured? Only a header reading `measures: none -
- * <why>` exempts it, and the audit is what holds that line to a reason. One reader, so the runner
- * and the audit cannot disagree about who is exempt.
+ * THE ONE READING OF A `measures:` LINE - what it exempts, and what is wrong with it. The runner
+ * asks whether the gate owes a receipt; the audit asks what to print. Both ask here.
+ *
+ * They used to ask separately, and disagreed: the audit required a reason of `REASON_MIN`
+ * characters while the runner accepted any non-empty one, so `// measures: none - x` exempted a
+ * gate at run time and failed the same gate in the audit. That gap is not academic - three gates
+ * (`type-floor.mjs`, `overflow-sweep.mjs`, `field-coverage.mjs`) are invoked straight from
+ * workflows, where the audit does not run, so the weaker of two readings was the one in force.
+ *
+ * A BAD EXEMPTION EXEMPTS NOTHING: a malformed line or a reason too thin to act on leaves
+ * `exempt` false, so the gate still owes a receipt at run time AND fails the audit. The failure
+ * direction of a mechanism that disbelieves passes has to be "still measured".
+ *
+ * @returns {{ exempt: boolean, problem: string|null }}
  */
+export function measuresDeclaration(header) {
+  const declared = header?.measures ?? null;
+  if (declared === null) return { exempt: false, problem: null };
+  const none = declared.match(/^none\s*-\s*(.+)$/);
+  if (!none) {
+    return {
+      exempt: false,
+      problem: `declares \`measures: ${declared}\` - that line may only say \`none - <why>\`, because a gate that does measure something reports the NUMBER from the code, where the number is`,
+    };
+  }
+  if (none[1].trim().length < REASON_MIN) {
+    return {
+      exempt: false,
+      problem: 'declares `measures: none` without a reason a reader can act on - say WHY this gate has no countable subject',
+    };
+  }
+  return { exempt: true, problem: null };
+}
+
+/** Is this gate exempt from saying how much it measured? The runner's question, one reader. */
 export function measuresNothing(header) {
-  return /^none\s*-\s*\S/.test(header.measures ?? '');
+  return measuresDeclaration(header).exempt;
+}
+
+/**
+ * A RUNNABLE TIER MAY NOT SILENTLY HOLD NOTHING. Each tier's checks are the entry files of
+ * package.json's `check:`/`test:` scripts and its test files are a `scripts/**\/*.test.mjs` glob
+ * filtered by header - both RESOLVED populations, and a resolved population that comes back empty
+ * is the same claim as `measured(0, ...)`: the tier ran and looked at nothing.
+ *
+ * This used to be a comparison against the literal tier name `build`, which is the type-floor bug
+ * one tier over: `after-build` honestly holds no test files, so every tier but `build` was let
+ * through, and a renamed header or a filter that stopped matching would have emptied the FACTORY
+ * tier - five browser test files, the whole CI factory job - while it printed a notice and exited
+ * 0. Zero is honest only where this table says so, in a sentence a reader can act on, exactly like
+ * `measures: none - <why>`. The audit holds the table to the repository in both directions, so an
+ * exemption that has stopped being true fails the build rather than quietly covering a hole.
+ */
+export const EMPTY_TIERS = new Map([
+  ['factory:checks', 'the factory tier is browser work, and every browser gate is a node --test file rather than a check: script'],
+  ['after-build:tests', 'the after-build tier runs once the bundle exists, over dist/, and holds checks rather than node --test files'],
+]);
+
+/** Why this tier may hold none of this kind of gate, or null - the one reader of the table. */
+export function emptyTierReason(tier, kind) {
+  return EMPTY_TIERS.get(`${tier}:${kind}`) ?? null;
 }
 
 /** Does one guard reach one path? `**` alone reaches everything. The one matcher every question uses. */
@@ -221,6 +286,87 @@ export function tierMechanisms({ buildLine, ciText }) {
   }
   return problems;
 }
+
+/**
+ * The lines of a file that are not comments, joined. Line-based on purpose: a scanner that tracked
+ * quotes to cut a TRAILING `//` would be fooled by a regex literal holding a quote character
+ * (`/['"]/` is all over these scripts), and swallowing the rest of a file that way would report a
+ * gate that measures as one that does not. A whole line beginning a comment cannot be carrying
+ * code, so dropping those is safe and enough.
+ *
+ * What survives, deliberately: a trailing comment on a line of real code, and the closing line of
+ * a block comment. So `measured(...)` written inside a comment AFTER code on the same line still
+ * reads as a call. That errs towards seeing a call that is there, and the only cost is that the
+ * argument rules below could quote a count out of such a comment - which the message shows.
+ */
+function codeLines(text) {
+  return String(text ?? '')
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*(?:\/\/|\*|\/\*)/.test(line))
+    .join('\n');
+}
+
+/** Does this file IMPORT the helper - an import statement, not the string in a sentence about it? */
+function importsMeasured(code) {
+  return /\bfrom\s+['"][^'"]*\bmeasured\.mjs['"]/.test(code) || /\bimport\(\s*['"][^'"]*\bmeasured\.mjs['"]/.test(code);
+}
+
+/**
+ * The first argument of every `measured(...)` / `measured.optional(...)` call, as written - or
+ * `null` for a call whose argument this cannot read with confidence. One entry per call either
+ * way, because "is there a call at all" is a different question from "is the count fabricated".
+ *
+ * A bracket walk rather than a regex, because the counts in this repository are expressions that
+ * span lines and nest parentheses (`[a, b].reduce((total, rules) => total + (rules?.length ?? 0), 0)`).
+ * A walk that counts brackets cannot see that `text.split('(')` holds a quoted one, so anything
+ * ambiguous comes back as `null` rather than as a guess: an unbalanced walk, a statement that
+ * ended without a second argument, or an argument holding a quote at all. Reading nothing costs
+ * one narrowing rule on one call; reading it wrong fails an honest gate with three lines of
+ * unrelated code quoted back at its author.
+ */
+export function measuredArguments(text) {
+  const code = codeLines(text);
+  const call = /\bmeasured(?:\.optional)?\s*\(/g;
+  const args = [];
+  let found;
+  while ((found = call.exec(code)) !== null) {
+    const start = found.index + found[0].length;
+    let depth = 1;
+    let i = start;
+    let readable = false;
+    while (i < code.length) {
+      const ch = code[i];
+      if (ch === ';' && depth === 1) break;
+      if (ch === ',' && depth === 1) {
+        readable = true;
+        break;
+      }
+      if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+      else if (ch === ')' || ch === ']' || ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          readable = true;
+          break;
+        }
+      }
+      i += 1;
+    }
+    const arg = code.slice(start, i).trim();
+    args.push(readable && !/['"`]/.test(arg) ? arg : null);
+  }
+  return args;
+}
+
+/**
+ * COUNTS THAT CANNOT BE ZERO, which is to say counts that are not measurements. Each entry is a
+ * named idiom, not a proof: the point is that the shape a person reaches for when a gate starts
+ * failing - floor it at one, fall back to one - is refused where they write it.
+ */
+const FABRICATED_COUNTS = [
+  [/^\d+$/, 'a literal count is not a measurement - the number has to come from the set the gate resolved, or the gate cannot notice that set emptying'],
+  [/(\|\||\?\?)\s*[1-9]/, 'a fallback to a non-zero count hides exactly the empty case this rule exists to catch (`?? 0` keeps it, and fails honestly)'],
+  [/Math\.max\(\s*[^()]*\b[1-9]\d*\b/, 'flooring the count at one hides exactly the empty case this rule exists to catch'],
+];
 
 /**
  * THE AUDIT. One line per problem, empty when every declaration is honest.
@@ -258,7 +404,7 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
         problems.push(`${label} declares \`gate: workflow ${header.workflow}\`, but that workflow names neither \`npm run ${gate.name}\` nor ${gate.entry}`);
       }
     }
-    if (header.gate === 'none' && !(header.reason && header.reason.trim().length >= 20)) {
+    if (header.gate === 'none' && !(header.reason && header.reason.trim().length >= REASON_MIN)) {
       problems.push(`${label} declares \`gate: none\` without a reason a reader can act on ("not wired yet" is the defect this audit exists to catch)`);
     }
   };
@@ -282,28 +428,39 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
    * Static, because the alternative is discovering the omission on the one run where it would
    * have mattered. This is the rule that makes the NEXT blind gate fail to land rather than pass
    * for a month: three of them did, on 2026-09-08, and each was found by a person reading a log.
+   *
+   * WHAT THIS PROVES, exactly: that the file imports the helper, that a call to it is written
+   * outside a comment, and that the count it hands over is not one of the named fabrications
+   * below. It was weaker than that until 2026-09-09 - a substring test that a sentence ABOUT the
+   * helper satisfied, in a comment, with no import and no call.
+   *
+   * WHAT IT DOES NOT PROVE, and cannot: that the call is REACHED. `if (false) measured(1, 'x')`
+   * is written outside a comment and always will be, and no scan short of running the code can
+   * say whether a call runs on the path this gate actually took. The runner closes half of that
+   * at run time - a check that exits 0 leaving NO receipt fails - but a check that reaches ONE of
+   * its `measured` calls and skips another leaves a receipt and passes. So this rule refuses a
+   * gate that never reports; it does not certify one that does. The population of counts a gate
+   * writes is on the record either way: the runner prints every receipt next to the gate's name,
+   * which is where a person reading a log sees "1 items" under a gate that used to say 502.
    */
   const judgeMeasurement = (gate, label) => {
-    const declared = gate.header.measures;
-    if (declared !== null) {
-      const none = declared.match(/^none\s*-\s*(.+)$/);
-      if (!none) {
-        problems.push(`${label} declares \`measures: ${declared}\` - that line may only say \`none - <why>\`, because a gate that does measure something reports the NUMBER from the code, where the number is`);
-      } else if (none[1].trim().length < 20) {
-        problems.push(`${label} declares \`measures: none\` without a reason a reader can act on - say WHY this gate has no countable subject`);
-      }
-      return;
-    }
-    // An IMPORT is not a call. A gate can name the helper in a comment, or import it and never
-    // reach it, and for the 12 checks at `workflow` and `none` tiers nothing runs the second half
-    // of this rule - so a mention would be the whole enforcement. Both halves are required.
-    const text = read(gate.entry) ?? '';
-    if (!(text.includes('measured.mjs') && /\bmeasured(\.optional)?\s*\(/.test(text))) {
+    const { exempt, problem } = measuresDeclaration(gate.header);
+    if (problem) problems.push(`${label} ${problem}`);
+    if (exempt || problem) return;
+    const text = gate.text ?? read(gate.entry) ?? '';
+    const args = measuredArguments(text);
+    if (!(importsMeasured(codeLines(text)) && args.length > 0)) {
       problems.push(
         `${label} never says how much it measured - import { measured } from './measured.mjs' and report the size of the set it resolved, ` +
           'so a moved constant or an emptied directory fails the gate instead of passing it. ' +
           'If it truly has no countable subject, add `// measures: none - <why>` to its header',
       );
+      return;
+    }
+    for (const arg of args) {
+      if (arg === null) continue;
+      const fabricated = FABRICATED_COUNTS.find(([shape]) => shape.test(arg));
+      if (fabricated) problems.push(`${label} reports \`measured(${arg}, ...)\`, and ${fabricated[1]}`);
     }
   };
 
@@ -329,6 +486,33 @@ export function auditGates({ checks, entryless = [], tests, tracked, workflowTex
   // list, which it used to answer with exit 0.
   if (tests.length === 0) {
     problems.push('scripts/**/*.test.mjs matches no file, so `npm run build` would run no tests at all and still pass - the glob or the tests moved');
+  }
+
+  // AND THE SAME QUESTION PER TIER, which the whole-population rule above cannot ask. Every test
+  // file lands in `build` unless its header moves it, so the FACTORY tier is one header rename
+  // away from empty while the glob still matches 107 files. The runner refuses an empty tier too,
+  // but only when that tier is run, and the factory tier is run by a CI job on another machine
+  // long after the laptop called the build green - so it is judged here, in the build that
+  // emptied it.
+  //
+  // An EMPTY check population is not judged here, on purpose: this audit IS a check in the build
+  // tier, so a build tier holding no checks is a build in which this code never runs. That
+  // direction belongs to the runner, which reaches it whether or not any check exists. A STALE
+  // exemption is a different question and is judged for both kinds - an entry in EMPTY_TIERS that
+  // has quietly stopped being true is the next reader's false reassurance, and would let the
+  // runner print a written reason over a tier that a rename had emptied for real.
+  const inTier = (gates, tier) => gates.filter((g) => g.header.gate === tier).length;
+  for (const tier of RUNNABLE) {
+    const held = { tests: inTier(tests, tier), checks: inTier(checks, tier) };
+    if (held.tests === 0 && !emptyTierReason(tier, 'tests')) {
+      problems.push(`no test file declares \`gate: ${tier}\`, so \`gates.mjs run --gate ${tier}\` would run none and still pass - a header, a rename or the glob stopped matching, or zero is honest here and belongs in EMPTY_TIERS with a reason`);
+    }
+    for (const kind of ['tests', 'checks']) {
+      const reason = emptyTierReason(tier, kind);
+      if (held[kind] > 0 && reason) {
+        problems.push(`EMPTY_TIERS says the ${tier} tier holds no ${kind === 'tests' ? 'test files' : 'checks'} ("${reason}"), and ${held[kind]} now declare it - the written reason is out of date, so drop it and let the tier be held to a real population`);
+      }
+    }
   }
 
   // A gate-shaped script with no script file (a bare Playwright suite) has no header to carry,
@@ -415,13 +599,12 @@ function runCommand(command, env) {
  * The receipts a check wrote through `scripts/measured.mjs`: one row per `measured(...)` call.
  * A check that never called it leaves no file at all, which is the case this exists to tell
  * apart from "measured zero" - the helper already fails the latter on its own.
+ *
+ * The format itself belongs to `scripts/measured-receipt.mjs`, which both writers also use.
  */
 function readReceipts(file) {
   if (!existsSync(file)) return [];
-  return readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean).map((line) => {
-    const [count, subject, kind] = line.split('\t');
-    return { count: Number(count), subject, optional: kind === 'optional' };
-  });
+  return parseReceipts(readFileSync(file, 'utf8'));
 }
 
 /**
@@ -446,7 +629,7 @@ function runChecks(checks) {
       const started = Date.now();
       const receiptFile = path.join(dir, `${check.name.replace(/[^A-Za-z0-9]+/g, '-')}.tsv`);
       process.stdout.write(`\n[gates] ${check.name}: ${check.command}\n`);
-      const res = runCommand(check.command, { ...process.env, GATE_MEASURED_FILE: receiptFile });
+      const res = runCommand(check.command, { ...process.env, [RECEIPT_ENV]: receiptFile });
       const seconds = ((Date.now() - started) / 1000).toFixed(1);
       if (res.status !== 0) {
         failed.push(check.name);
@@ -473,23 +656,39 @@ function runChecks(checks) {
 const TEST_COUNT_REPORTER = './scripts/gates-test-count.mjs';
 
 /**
+ * THE RUNNER'S HALF OF THE TIER-POPULATION RULE - `measured(n, ...)` for a tier. A population of
+ * zero is a verdict, not a notice, unless `EMPTY_TIERS` says in writing why zero is honest here.
+ * The audit runs the same table over the same populations at build time; this runs it in whatever
+ * process actually invoked the tier, which for `factory` is a CI job on another machine.
+ * @returns {{ fatal: boolean, line: string }|null} null when the population is not empty
+ */
+export function emptyPopulation(tier, kind, count) {
+  if (count > 0) return null;
+  const why = emptyTierReason(tier, kind);
+  if (why) return { fatal: false, line: `\n[gates] the ${tier} tier holds no ${kind}: ${why}\n` };
+  return {
+    fatal: true,
+    line: `\n[gates] the ${tier} tier holds no ${kind}, so this run would look at nothing and still pass.\n` +
+      '  A tier resolves its gates from package.json and from `scripts/**/*.test.mjs` filtered by header, so zero\n' +
+      '  means a glob, a rename or a header stopped matching. If zero is honest for this tier, say so in\n' +
+      '  EMPTY_TIERS in scripts/gates.mjs, with a reason a reader can act on.\n',
+  };
+}
+
+/**
  * `node --test` over the tier's files, and then the same question the checks answer: did each
  * file actually run any tests? A test file whose cases are generated from a list - a catalog, a
  * directory, a registry - registers ZERO tests when that list resolves to nothing, and node
  * reports the file itself as one passing test. The build used to read that as 99 files green.
  */
-function runTests(files, tier) {
-  if (files.length === 0) {
-    // A TIER may honestly hold no tests - `after-build` holds one check and nothing else. The
-    // BUILD tier holding none is a different claim: that is where every `scripts/**/*.test.mjs`
-    // lands by default, so zero there means the glob or the tests moved. The whole population
-    // going empty is the audit's rule, in `auditGates`, and it runs in this same build.
-    if (tier !== 'build') {
-      process.stdout.write(`\n[gates] the ${tier} tier holds no test files.\n`);
-      return 0;
-    }
-    process.stderr.write('\n[gates] the build tier holds no test files - `scripts/**/*.test.mjs` matched nothing, which is a broken glob, not a pass.\n');
-    return 1;
+export function runTests(files, tier) {
+  // A tier may honestly hold no test files, and `after-build` does. Which tiers those are is a
+  // written fact in EMPTY_TIERS, held to the repository by the audit - not, as it was until
+  // 2026-09-09, the observation that this tier is not literally called `build`.
+  const empty = emptyPopulation(tier, 'tests', files.length);
+  if (empty) {
+    (empty.fatal ? process.stderr : process.stdout).write(empty.line);
+    return empty.fatal ? 1 : 0;
   }
   process.stdout.write(`\n[gates] node --test over ${files.length} file(s)\n`);
   const countsAt = path.join(os.tmpdir(), `noacg-test-counts-${process.pid}.tsv`);
@@ -570,7 +769,15 @@ function main(argv) {
       return 2;
     }
     let failed = [];
-    if (only !== 'tests') failed = runChecks(tierChecks);
+    if (only !== 'tests') {
+      const empty = emptyPopulation(tier, 'checks', tierChecks.length);
+      if (empty?.fatal) {
+        process.stderr.write(empty.line);
+        return 1;
+      }
+      if (empty) process.stdout.write(empty.line);
+      failed = runChecks(tierChecks);
+    }
     if (failed.length > 0) {
       console.error(`\n[gates] ${failed.length} check(s) failed: ${failed.join(', ')}${only === 'checks' ? '' : ' - tests not run'}`);
       return 1;

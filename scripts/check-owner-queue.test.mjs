@@ -9,7 +9,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { auditOwnerQueueItem, KINDS, NEEDS, QUEUE_DIR, SERVES } from './check-owner-queue.mjs';
+import {
+  auditOwnerQueueItem,
+  KINDS,
+  NEEDS,
+  OWN_ROUTE,
+  QUEUE_DIR,
+  SERVES,
+  placeOf,
+  routeTextOf,
+} from './check-owner-queue.mjs';
 
 test('a file with no front matter at all fails', () => {
   const problems = auditOwnerQueueItem('# A title\n\nSome body text.\n');
@@ -146,4 +155,125 @@ test('the date gate compares dates, not string length or arrival order', () => {
   assert.deepEqual(auditOwnerQueueItem(before), []);
   assert.equal(auditOwnerQueueItem(on).length, 1);
   assert.equal(auditOwnerQueueItem(after).length, 1);
+});
+
+// --- THE ROUTE, AND THE PLACE IT OPENS ---
+// `/walk` groups the queue by where each route sends the owner, so these rules decide which
+// screen he is taken to. Every one of them is silent when wrong: a misread route does not fail
+// anything, it just puts an item in a group whose screen does not show it.
+
+test('a route section is found in both shapes the queue uses', () => {
+  assert.match(routeTextOf('---\nkind: walk\n---\n# T\n\n## The route, under a minute\n\nOpen /app.\n'), /Open \/app/);
+  assert.match(routeTextOf('# T\n\n**Route, under a minute.** Open /app.\n'), /Open \/app/);
+  assert.equal(routeTextOf('# T\n\nSome body with no route at all.\n'), null);
+});
+
+test('a heading about routing is not mistaken for a route', () => {
+  assert.equal(routeTextOf('# T\n\n## What the router does\n\nBody.\n'), null);
+});
+
+// Found by filing this change's own queue item and watching it group as "on their own": its title
+// is "A walk now covers a route, not an item", and a heading pattern that merely CONTAINED the
+// word read the title as the route, stopped at the next heading, and grouped the item on three
+// words of prose. The heading has to OPEN with it.
+test('a title that mentions a route is not the route section', () => {
+  const text = '# A walk now covers a route, not an item\n\n## What changed\n\nBody.\n\n' +
+    '## The route, under a minute\n\n```bash\nnpm run something\n```\n';
+  assert.match(routeTextOf(text), /npm run something/);
+  assert.equal(placeOf(text).id, 'checkout');
+});
+
+// The regression this pins is real and it was found by reading the output: the receipts item's
+// route is ONE command in a terminal, and the "what to look at" paragraph under it mentions the
+// editor and the studio while describing a list of bugs. Read as one blob it grouped as "the
+// studio", which would have sent the owner to a screen the item is not about.
+test('the route stops where "what to look at" starts', () => {
+  const text =
+    '# T\n\n## The route, under a minute\n\n    node scripts/owner-receipts.mjs\n\n' +
+    '**What to look at.** Three rows: the editor that reported a bad canvas, and the studio ' +
+    'looking identical signed in and out.\n';
+  assert.doesNotMatch(routeTextOf(text), /the editor/);
+  assert.equal(placeOf(text).id, 'checkout');
+});
+
+test('the most specific place wins - that ordering IS the rule', () => {
+  const place = (route) => placeOf(`# T\n\n## The route\n\n${route}\n`).id;
+  // /docs before the site that hosts it.
+  assert.equal(place('Open <https://noacg.studio/docs#svg-vote>.'), 'docs');
+  assert.equal(place('Open <https://noacg.studio> and scroll to the footer.'), 'site');
+  // The import wizard before the studio that contains it.
+  assert.equal(place('`/app` -> **Import graphic** -> drop a board.'), 'import');
+  assert.equal(place('`/app` -> **Templates** -> Credits & thanks.'), 'studio');
+  // The studio before a checkout, because half the studio routes start by starting the server.
+  assert.equal(place('`npm run dev`, open `/app`, then Browse.'), 'studio');
+  assert.equal(place('```bash\nnpm run alignment:pending\n```'), 'checkout');
+  assert.equal(place('Open the newest merged pull request on https://github.com/NoaCG/x/pulls.'), 'github');
+});
+
+// A route section's HEADING beats a bold mention of the word anywhere else in the item. Without
+// that rule, an item summarising this very change - "The **route** each item writes is what groups
+// it now" - had its summary read as the route and grouped on its own.
+test('a passing bold mention of the word does not outrank a real route section', () => {
+  const text =
+    '# T\n\nThe **route** each item writes is what groups it now.\n\n' +
+    '## The route, under a minute\n\n`/app` -> **Import graphic** -> drop a board.\n';
+  assert.equal(placeOf(text).id, 'import');
+});
+
+test('a bold lead-in still works mid-sentence, which is where half of them are', () => {
+  const text = '# T\n\n**Date:** 2026-09-07. **Route:** open `/app` and hover Home.\n';
+  assert.equal(placeOf(text).id, 'studio');
+});
+
+// The one-paragraph template the queue used before this change wrote "What to look at:" as plain
+// prose, and `Route:` as a plain lead-in. Both shapes are still on disk, so the boundary has to
+// hold without any bold at all.
+test('a plain "What to look at:" ends the route, exactly as the bold one does', () => {
+  const text =
+    '# T\n\nRoute: run `node scripts/owner-receipts.mjs` in a checkout.\n' +
+    'What to look at: the rows where the editor and the studio disagree.\n';
+  assert.doesNotMatch(routeTextOf(text), /the editor/);
+  assert.equal(placeOf(text).id, 'checkout');
+});
+
+// A `#` comment on the first line of a fenced block is not a heading, and reading it as one used
+// to truncate the route to its opening fence - which grouped an import route as a checkout.
+test('a comment inside a fenced block does not end the route', () => {
+  const text =
+    '# T\n\n## The route, under a minute\n\n```bash\n# start the studio first\nnpm run dev\n```\n\n' +
+    'Then open `/app` and click **Import graphic**.\n';
+  assert.match(routeTextOf(text), /Import graphic/);
+  assert.equal(placeOf(text).id, 'import');
+});
+
+test('an item whose route matches no place is on its own, never forced into one', () => {
+  assert.equal(placeOf('# T\n\n## The route\n\nOpen the Scheduled panel in the sidebar.\n').id, OWN_ROUTE.id);
+  assert.equal(placeOf('# T\n\nNo route here.\n').id, OWN_ROUTE.id);
+});
+
+// The route requirement is a TIGHTENING, so it is date-gated exactly like `needs:` above: items
+// filed by branches already in flight must not go red for a line their prompt never saw.
+test('a walk item filed from the route date needs a route section', () => {
+  const problems = auditOwnerQueueItem('---\nkind: walk\ndate: 2026-09-10\n---\n# T\n\nBody.\n');
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /no route section/);
+});
+
+test('the same item with a route passes', () => {
+  const text = '---\nkind: walk\ndate: 2026-09-10\n---\n# T\n\n## The route, under a minute\n\nOpen `/app`.\n';
+  assert.deepEqual(auditOwnerQueueItem(text), []);
+});
+
+test('an item filed before the route date is left alone', () => {
+  assert.deepEqual(auditOwnerQueueItem('---\nkind: walk\ndate: 2026-09-09\n---\n# T\n\nBody.\n'), []);
+});
+
+test('hardware and owner-action need no route - one is blocked, the other is a console', () => {
+  assert.deepEqual(auditOwnerQueueItem('---\nkind: hardware\ndate: 2026-12-31\n---\n# T\n'), []);
+  const action = '---\nkind: owner-action\ndate: 2026-12-31\nneeds: account\n---\n# T\n';
+  assert.deepEqual(auditOwnerQueueItem(action), []);
+});
+
+test('a done item is a record, not a walk, so it needs no route', () => {
+  assert.deepEqual(auditOwnerQueueItem('---\nkind: walk\ndate: 2026-12-31\ndone: true\n---\n# T\n'), []);
 });

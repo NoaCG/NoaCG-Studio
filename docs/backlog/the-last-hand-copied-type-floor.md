@@ -1,7 +1,7 @@
 # Read the lower-third type floor from its module instead of a copied literal
 
-**Filed:** 2026-09-08. **Source:** measurement, from the `/check` review of `claude/b-red-alarms`
-(`docs/handoffs/2026-09-08-b-red-alarms.md`).
+**Filed:** 2026-09-08. **Source:** measurement, from the `/check` review of `claude/b-red-alarms`,
+which landed as PR #148 (merge `7242c3f0`); the type-floor half of it is `ef0950ac`.
 
 ## Why
 

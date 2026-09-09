@@ -92,6 +92,7 @@ import { fileURLToPath } from 'node:url';
 // same file: a restated path that drifts does not fail, it reports "no ledger - nothing to read",
 // which reads as "Antigravity cost nothing".
 import { LEDGER_VERSION, ledgerPath } from './agy-run.mjs';
+import { wavePlansDir } from './wave-plan-store.mjs';
 // Same guarantee for the delegation-outcome ledger: its writer owns the path and the version.
 import {
   ACCEPTED_OUTCOMES, OUTCOMES_VERSION, legacyVerdict, outcomesLedgerPath, poolFor,
@@ -148,8 +149,9 @@ export function resolveWindow(args, { now, wavePlan } = {}) {
   if (args.wave) {
     if (!wavePlan) {
       throw new Error(
-        'no docs/handoffs/*wave-plan*.local.md found, so --wave has no start time. '
-        + 'Use --since <iso> or --hours <n>.',
+        'no *wave-plan*.local.md found in the wave-plan store, so --wave has no start time. '
+        + '`node scripts/wave-plan-store.mjs --list` says what the store holds; '
+        + 'otherwise use --since <iso> or --hours <n>.',
       );
     }
     // The window opens at the DATE IN THE PLAN'S NAME (local midnight), not its mtime: the watch
@@ -722,7 +724,22 @@ function listJsonl(dir, out = []) {
   return out;
 }
 
-/** The newest wave plan, which is what `--wave` means by "this wave". */
+/**
+ * The newest wave plan across several directories, which is what `--wave` means by "this wave".
+ * Several, because a plan lives in the store (`wave-plan-store.mjs`) and the two `docs/handoffs/`
+ * directories still hold the ones written before the 2026-09-09 move.
+ */
+export function findNewestWavePlan(dirs, options = {}) {
+  let best = null;
+  for (const dir of dirs) {
+    if (!dir) continue;
+    const found = findWavePlan(dir, options);
+    if (found && (!best || found.mtimeMs > best.mtimeMs)) best = found;
+  }
+  return best;
+}
+
+/** The newest wave plan in ONE directory. */
 export function findWavePlan(handoffDir, { readdir = readdirSync, stat = statSync, exists = existsSync } = {}) {
   if (!exists(handoffDir)) return null;
   let best = null;
@@ -1244,7 +1261,10 @@ export function main(argv = process.argv.slice(2), { home = homedir(), now = Dat
       process.stdout.write(`${USAGE}\n`);
       return 0;
     }
-    window = resolveWindow(args, { now, wavePlan: findWavePlan(path.join(REPO_ROOT, 'docs', 'handoffs')) });
+    window = resolveWindow(args, {
+      now,
+      wavePlan: findNewestWavePlan([wavePlansDir(), path.join(REPO_ROOT, 'docs', 'handoffs')]),
+    });
   } catch (error) {
     process.stderr.write(`harness-usage: ${error.message}\n\n${USAGE}\n`);
     return 2;

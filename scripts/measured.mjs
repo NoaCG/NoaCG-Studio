@@ -36,10 +36,16 @@
 // The runner adds the second half it alone can see - `scripts/gates.mjs` refuses a check that
 // exits 0 having reported NO measurement at all - and `check:gate-coverage` adds the third, a
 // static rule that a new gate either uses this helper or writes down why it cannot.
-import { appendFileSync } from 'node:fs';
+import { appendReceipt } from './measured-receipt.mjs';
 
-/** Where the runner asks for the receipt, so it can tell "measured zero" from "never reported". */
-const RECEIPT = 'GATE_MEASURED_FILE';
+/**
+ * How long a written reason has to be before it counts as one. Every escape hatch in the
+ * measurement rule is held to this same length - `measured.optional(n, subject, why)` here,
+ * `// measures: none - <why>` and `// gate: none - <why>` in `scripts/gates.mjs`, which imports
+ * this constant rather than repeating the number. A hatch whose reason may be "not yet" is the
+ * hatch everything leaves through, and two hatches with two lengths is two rules.
+ */
+export const REASON_MIN = 20;
 
 function record(count, subject, optional) {
   // STDERR, because a gate's STDOUT can be data. `.github/workflows/ci.yml` runs
@@ -48,14 +54,7 @@ function record(count, subject, optional) {
   // channel would have broken every CI plan step, which is a worse bug than the one this helper
   // exists to prevent. The runner reads the receipt file, never the text.
   process.stderr.write(`[measured] ${count} ${subject}\n`);
-  const file = process.env[RECEIPT];
-  if (!file) return;
-  try {
-    appendFileSync(file, `${count}\t${subject}\t${optional ? 'optional' : 'required'}\n`, 'utf8');
-  } catch {
-    // A receipt the runner cannot read is the runner's problem to report, not a reason to fail
-    // a gate that did its work. The `[measured]` line above is still in the log either way.
-  }
+  appendReceipt(count, subject, optional);
 }
 
 /**
@@ -104,7 +103,7 @@ export function measured(count, subject) {
  * justify is the hatch everything leaves through.
  */
 measured.optional = function optional(count, subject, why) {
-  if (typeof why !== 'string' || why.trim().length < 20) {
+  if (typeof why !== 'string' || why.trim().length < REASON_MIN) {
     refuse(`[measured] ${subject}: measured.optional needs a reason a reader can act on, saying WHEN zero is honest here.`);
   }
   if (!Number.isInteger(count) || count < 0) {

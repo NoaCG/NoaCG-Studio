@@ -167,6 +167,7 @@
     "check:contracts": "node scripts/compile-contracts.mjs --check",
     "check:contract-evidence": "node scripts/check-contract-evidence.mjs",
     "check:retired-names": "node scripts/check-retired-names.mjs",
+    "check:landed-ref": "node scripts/check-landed-ref.mjs",
     "metrics:landing": "node scripts/landing-latency.mjs --days 30 --slow 60",
     "metrics:contracts": "node scripts/metrics/contract-cost.mjs",
     "metrics:conflicts": "node scripts/metrics/conflict-trace.mjs",

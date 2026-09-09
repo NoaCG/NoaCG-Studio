@@ -10,9 +10,25 @@ pinned by `e2e/import-name-collision.spec.ts`.
 
 A saved graphic's name is its identity. The production pool has always worked that way
 (`addGraphicToShow` replaces by name), and since 2026-09-08 the wizard's Finish doors do too:
-`saveBuiltGraphic` resolves the record through `graphicHoldingName` (`src/model/library.ts`) and
+`saveBuiltGraphic` resolves the record through `librarySaveEffect` (`src/model/library.ts`) and
 writes over it, with the Finish step saying so on the name field and in the production door's
 confirmation before anything is written.
+
+## One cell where the Finish doors make a twin ON PURPOSE
+
+Since 2026-09-09 a Finish door writes to the record THIS WALK ALREADY MADE whenever it still
+exists, whatever the name field now says. So renaming mid-walk onto a name a different graphic
+already carries leaves two graphics sharing that name. That is deliberate and must not be
+"fixed" back: the alternative was resolving the new name against the library, which wrote today's
+artwork into a graphic the walk had never opened and destroyed it, with no undo and no history
+(reproduced in `e2e/import-name-collision.spec.ts`, "a rename mid-walk never writes over a graphic
+this walk did not make"). A twin is recoverable with one rename on Home; the destruction was not
+recoverable at all. The Finish step names the collision before the door is pressed
+(`wz-finish-name-twin`), and ending the walk with the ✕ (`forgetWalk`) is what makes the next save
+resolve by name again.
+
+Closing the two doors below does not close this cell, and a tie-break that prefers a pooled
+record (below) is the right answer to it rather than a rule that reaches across on a rename.
 
 Two records under one name are not merely untidy. They make `resolveSavedGraphicDoc`
 (`src/model/library.ts`) ambiguous by design, so a production pool copy with no `graphicId`
@@ -51,5 +67,6 @@ duplicating twice gives two `X copy` records.
 ## What it would take
 
 Reproduce each door the way the wizard door was reproduced - drive it, measure the library and
-the pool - then reuse `graphicHoldingName` and say the same thing the Finish step says: the name
-is taken, finishing saves over that graphic, change the name to keep both.
+the pool - then reuse `librarySaveEffect` (or `graphicHoldingName`, which is the same rule for a
+door that has no walk behind it) and say the same thing the Finish step says: the name is taken,
+finishing saves over that graphic, change the name to keep both.

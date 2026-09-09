@@ -430,19 +430,19 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // it was written for and wrong for these: a travelling crawl, an index board and a
   // double-decker are three things an operator picks between by name. tk18/tk19 are compiled
   // by the `ticker` TYPE and browse as 'rotator' from there.
-  tk11: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'topic', 'source'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
-  tk12: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
-  tk13: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline', 'topic'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
-  tk14: { category: 'ticker', subtype: 'market-ticker', structures: ['strip'], positionalSemantics: ['items', 'headline', 'topic'], extraCapabilities: ['ticker', 'repeating', 'loop', 'live-data'] },
-  tk15: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline', 'source'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
-  tk16: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
-  tk17: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline', 'source'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
+  tk11: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'topic', 'source', 'speed'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
+  tk12: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline', 'speed'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
+  tk13: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline', 'topic', 'speed'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
+  tk14: { category: 'ticker', subtype: 'market-ticker', structures: ['strip'], positionalSemantics: ['items', 'headline', 'topic', 'speed'], extraCapabilities: ['ticker', 'repeating', 'loop', 'live-data'] },
+  tk15: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline', 'source', 'speed'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
+  tk16: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline', 'speed'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
+  tk17: { category: 'ticker', subtype: 'crawl', structures: ['strip'], positionalSemantics: ['items', 'headline', 'source', 'speed'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
   // The double-decker holds the current story STILL above the crawl, which is what makes it a
   // news ticker rather than one more crawl.
-  tk20: { category: 'ticker', subtype: 'news-ticker', structures: ['strip', 'multi-line'], positionalSemantics: ['items', 'topic', 'headline'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
+  tk20: { category: 'ticker', subtype: 'news-ticker', structures: ['strip', 'multi-line'], positionalSemantics: ['items', 'topic', 'headline', 'speed'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
   // The markets double-decker: the same held-still deck over a crawl, filed as a MARKET ticker
   // because that is the word an operator reaches for it by.
-  tk22: { category: 'ticker', subtype: 'market-ticker', structures: ['strip', 'multi-line'], positionalSemantics: ['items', 'topic', 'headline'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
+  tk22: { category: 'ticker', subtype: 'market-ticker', structures: ['strip', 'multi-line'], positionalSemantics: ['items', 'topic', 'headline', 'speed'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
 
   // ── The PUBLIC-SERVICE pack's alerts (templates/alerts) ────────────────────
   //
@@ -692,3 +692,29 @@ export const HIDDEN_CONFIG_FIELDS: Partial<Record<AssemblerId, string[]>> = {
   'starting-soon': ['f2'],
   'quiz': ['f5', 'f6'],
 };
+
+/**
+ * Every title the OPERATOR SPEED control ships under, across the categories that scroll.
+ *
+ * It is a config input like the ones above and is left out of the visible-field buckets for the
+ * same reason, but it cannot be listed there: those are fixed ids per category, and a speed
+ * field is APPENDED, so it lands on `f2` or `f3` depending on how many caps the design draws.
+ * Its title is the fixed thing about it, so that is what identifies it.
+ *
+ * THE ASSEMBLERS READ THESE RATHER THAN SPELLING THEM AGAIN (`templates/tickers/shared.ts`,
+ * `templates/endCredits/shared.ts` — each maps its own motion presets onto these strings). A
+ * second copy would drift on the day somebody renames one, and the only symptom would be a
+ * Browse card quietly counting a control as a thing the operator has to write.
+ *
+ * Named for what the design DOES, so an operator reads the control page instead of translating
+ * it: a roll and a marquee scroll, a crawl crawls, a paged board and a flip strip hold.
+ */
+export const SPEED_FIELD_TITLES = {
+  scroll: 'Scroll speed (%)',
+  crawl: 'Crawl speed (%)',
+  page: 'Page speed (%)',
+  item: 'Item speed (%)',
+} as const;
+
+/** The same four as a set, for asking "is this field the speed control?". */
+export const SPEED_FIELD_TITLE_SET: ReadonlySet<string> = new Set(Object.values(SPEED_FIELD_TITLES));

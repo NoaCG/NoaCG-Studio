@@ -19,7 +19,12 @@ const mk = (name, entry, header) => ({ kind: 'check', name, names: [name], entry
 // already reports what it measured, and one test file, so the measurement rules stay out of their
 // counts; those rules have their own tests in scripts/measured.test.mjs.
 const REPORTS = () => "import { measured } from './measured.mjs';\nmeasured(files.length, 'files');";
-const oneTest = (guard) => [{ kind: 'test', name: 'scripts/b.test.mjs', entry: 'scripts/b.test.mjs', exists: true, header: { ...parseHeader(''), gate: 'build' }, derivedGuards: [guard] }];
+// One test file per tier that is required to hold some: an empty tier is itself a problem now
+// (`EMPTY_TIERS`), so a fixture about tiers and guards has to model a repository with both.
+const tierTests = (guard) => [
+  { kind: 'test', name: 'scripts/b.test.mjs', entry: 'scripts/b.test.mjs', exists: true, header: { ...parseHeader(''), gate: 'build' }, derivedGuards: [guard] },
+  { kind: 'test', name: 'scripts/f.test.mjs', entry: 'scripts/f.test.mjs', exists: true, header: { ...parseHeader('// needs: browser'), gate: 'factory' }, derivedGuards: [guard] },
+];
 
 test('a header is read for its tier, its workflow, its reason, its guards and its needs - from the leading comment block only', () => {
   const h = parseHeader(['#!/usr/bin/env node', '// gate: workflow weekly-audit.yml', '// guards: src/assets/**, docs/X.md', '// needs: browser', '//', '// prose'].join('\n'));
@@ -92,7 +97,7 @@ test('the audit refuses a missing tier, an unknown tier, a browser need in the b
     mk('check:e', 'scripts/check-e.mjs', '// gate: build\n'),
     mk('check:c', 'scripts/check-c.mjs', '// gate: build\n// needs: browser\n// guards: src/**\n'),
   ];
-  const problems = auditGates({ checks, tests: oneTest('package.json'), tracked, read: REPORTS, workflowText: workflows({ 'ci.yml': `run: npm run check:other\n${WIRED.ci}` }), buildLine: WIRED.buildLine });
+  const problems = auditGates({ checks, tests: tierTests('package.json'), tracked, read: REPORTS, workflowText: workflows({ 'ci.yml': `run: npm run check:other\n${WIRED.ci}` }), buildLine: WIRED.buildLine });
   const has = (re) => assert.ok(problems.some((p) => re.test(p)), `expected a problem matching ${re}\n${problems.join('\n')}`);
   has(/"check:x".*declares no tier/);
   has(/"check:y".*gate: nightly.*not one of/);
@@ -113,12 +118,12 @@ test('an honest declaration passes, in every tier, and a composite\'s second nam
     mk('check:n', 'scripts/n.mjs', '// gate: none - reports what a design costs and never gates\n// guards: **\n'),
     mk('check:l', 'scripts/l.mjs', '// gate: after-build\n// guards: package.json\n'),
   ];
-  const problems = auditGates({ checks, tests: oneTest('scripts/b.mjs'), tracked, read: REPORTS, workflowText: workflows({ 'ci.yml': `run: npm run check:all\n${WIRED.ci}` }), buildLine: WIRED.buildLine });
+  const problems = auditGates({ checks, tests: tierTests('scripts/b.mjs'), tracked, read: REPORTS, workflowText: workflows({ 'ci.yml': `run: npm run check:all\n${WIRED.ci}` }), buildLine: WIRED.buildLine });
   assert.deepEqual(problems, []);
 });
 
 test('a script with no file must be named by a workflow, and a header no script reaches is refused', () => {
-  const base = { checks: [], tests: oneTest('scripts/orphan.mjs'), tracked: ['scripts/orphan.mjs', 'scripts/b.test.mjs'], workflowText: workflows({ 'ci.yml': WIRED.ci }), buildLine: WIRED.buildLine };
+  const base = { checks: [], tests: tierTests('scripts/orphan.mjs'), tracked: ['scripts/orphan.mjs', 'scripts/b.test.mjs'], workflowText: workflows({ 'ci.yml': WIRED.ci }), buildLine: WIRED.buildLine };
   const unnamed = auditGates({ ...base, entryless: [{ kind: 'script', name: 'test:e2e:catalog', command: 'playwright test --config=x' }], allWorkflowText: 'run: npm run test:e2e\n' });
   assert.equal(unnamed.length, 1);
   assert.match(unnamed[0], /"test:e2e:catalog" runs no script file.*none does/);

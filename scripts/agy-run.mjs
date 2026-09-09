@@ -431,7 +431,7 @@ export function changedPaths(before, after) {
  * same observation for the plan-time staleness report.
  */
 export const EFFORTLESS_MODELS = Object.freeze({
-  measuredOn: '1.1.25',
+  measuredOn: '1.1.27',
   models: Object.freeze(['claude-sonnet-4-6', 'claude-opus-4-6-thinking']),
 });
 

@@ -1,7 +1,8 @@
 # Handoff - phase 2b, the contract migration, and what is left after it
 
 **Written:** 2026-09-07, at the end of the session that landed phases 1c, 1d and the four module
-rows of 2a (`docs/handoffs/2026-09-06-workflow-phases-1c-1d-2a.md` is that record). **Plan:**
+rows of 2a (PRs 66-77; `docs/WORKFLOW_ARCHITECTURE.md` §7 and `docs/metrics/2026-09-06-phases-1c-1d.md`
+are the record, and this file carries forward everything those rows left open). **Plan:**
 `docs/WORKFLOW_ARCHITECTURE.md` - §5.3 is the specification for everything below, §7 is the phase
 order. **Measurements:** `docs/METRICS.md`, three dated columns.
 

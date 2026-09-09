@@ -11,6 +11,7 @@ import {
   buildIndex,
   claudeCandidates,
   describeLiveness,
+  isUnder,
   livenessFor,
   normalisePath,
   parseAgents,
@@ -98,6 +99,19 @@ test('paths are compared one way, whatever the platform spelled them', () => {
   assert.equal(normalisePath('C:\\Repo\\A\\'), normalisePath('c:/repo/a'));
   assert.equal(normalisePath(''), null);
   assert.equal(normalisePath(null), null);
+});
+
+test('a directory belongs to a repo whatever the platform spelled it, and a sibling does not', () => {
+  const root = 'C:/claude/NoaCG-Studio';
+  assert.equal(isUnder('c:\\claude\\noacg-studio\\.claude\\worktrees\\x', root), true);
+  assert.equal(isUnder('C:/claude/NoaCG-Studio/', root), true);
+  // The boundary is a `/`, so the sibling checkout that shares a prefix is a different repo.
+  assert.equal(isUnder('C:/claude/NoaCG-Studio-old/scripts', root), false);
+  assert.equal(isUnder('C:/claude/other', root), false);
+  // Nothing in, nothing out: a row with no cwd is never counted as this repo's.
+  assert.equal(isUnder('', root), false);
+  assert.equal(isUnder(null, root), false);
+  assert.equal(isUnder('C:/claude/NoaCG-Studio', null), false);
 });
 
 test('a real executable anywhere on PATH beats a launcher anywhere on it', () => {

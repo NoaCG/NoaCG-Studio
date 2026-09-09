@@ -42,3 +42,10 @@ check on the tip, and when the branch contains another branch that is ahead of `
 
 `queueOnGitHub` and `scripts/queue-pr.mjs` share the sequence, so the base goes through the one
 place both callers use. Pin it in `scripts/jobs-store.test.mjs` beside the other refusals.
+
+**Check that "one place" exists before relying on it.** A `/check` review of the phase 1c/1d/2a
+rows found `queueOnGitHub` in `scripts/jobs.mjs` and `queuePullRequest` in `scripts/queue-pr.mjs`
+to be the same sequence written twice, and nobody took the finding. If that is still true when this
+lands, the base rule goes into one of the two copies and the other keeps queueing the old way -
+which is the same defect this item is about, arriving through the other door. Merge them first, or
+put the containment check somewhere both genuinely call.
