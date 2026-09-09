@@ -193,3 +193,95 @@ test('main push runs are read from one workflow, completed pushes only, deduplic
   assert.equal(asked[0], 'repos/o/r/actions/workflows/quarantine.yml/runs?branch=main&event=push&status=completed&per_page=5');
   assert.deepEqual(mainPushRuns({ repo: 'o/r', gh: () => [] }), []);
 });
+
+// WHY THE SET IS EMPTY. Four emptinesses reach a reader as one word until they are told apart, and
+// on 2026-09-08 the weekly review ran this tool against eleven failed runs, got eleven `unknown`s,
+// and nearly reported that CI had failed eleven times for reasons the repo could not name. Every
+// one of them was "I never asked GitHub", which is not a verdict about the run at all.
+import { fetchFailureSet, repoFromRemote, resolveRepo } from './ci-failure-set.mjs';
+
+test('a green run says nothing failed, rather than that it could not be named', () => {
+  const set = failureSet([JOBS.green], () => []);
+  assert.equal(set.hash, 'unknown');
+  assert.equal(set.reason, 'no-failed-jobs');
+  assert.match(describeFailureSet(set.items, { reason: set.reason }), /nothing in the run failed/);
+});
+
+test('a run GitHub described no jobs for is told apart from a run where nothing failed', () => {
+  // `ghJsonLines` answers [] for an unauthenticated `gh`, a wrong run id and a slow API alike, so
+  // the sentence names all three possibilities instead of picking one it cannot know.
+  const set = failureSet([], () => []);
+  assert.equal(set.reason, 'no-jobs');
+  assert.match(describeFailureSet(set.items, { reason: set.reason }), /run id may be wrong/);
+});
+
+test('a run that only ran out of clock reports exhausted, even with the derived gate red beside it', () => {
+  // The gate fails BECAUSE the shards were killed, so "the shards never finished" is the half of
+  // that pair worth saying. Ordering, not a new rule - it is why `exhausted` is tested first.
+  const set = failureSet([
+    { id: 1, name: 'E2E 4/9 (full)', conclusion: 'cancelled' },
+    { id: 2, name: 'CI gate', conclusion: 'failure' },
+  ]);
+  assert.equal(set.exhausted, true);
+  assert.equal(set.reason, 'exhausted');
+});
+
+test('a run whose only casualty was the derived gate says so', () => {
+  const set = failureSet([JOBS.gate, JOBS.green], () => []);
+  assert.equal(set.reason, 'derived-only');
+  assert.match(describeFailureSet(set.items, { reason: set.reason }), /derived CI gate/);
+});
+
+test('a named set carries no reason, and an unrecognised reason keeps the old sentence', () => {
+  assert.equal(failureSet([JOBS.shard3], () => anim).reason, null);
+  assert.match(describeFailureSet([], { reason: 'something-new' }), /could not name/);
+  assert.match(describeFailureSet([], {}), /could not name/);
+});
+
+test('fetchFailureSet distinguishes no run id from no repository, and asks GitHub for neither', () => {
+  let asked = 0;
+  const gh = () => {
+    asked += 1;
+    return [];
+  };
+  assert.equal(fetchFailureSet('', { repo: 'o/r', gh }).reason, 'no-run-id');
+  assert.equal(fetchFailureSet('123', { repo: '', gh }).reason, 'no-repo');
+  assert.equal(asked, 0, 'neither case is worth a network call');
+});
+
+// RESOLVING THE REPOSITORY. Every workflow sets GH_REPO and nothing sets it for a person, which is
+// the whole reason the tool was blind outside CI. Three sources, each covering where the previous
+// one is blind - and none of them writes an owner down, because the repository moved to the NoaCG
+// organisation on 2026-09-06 and a hardcoded owner would have survived that move looking right.
+test('the environment wins, and costs no subprocess at all', () => {
+  const run = () => assert.fail('the environment already answered');
+  assert.deepEqual(resolveRepo({ env: { GH_REPO: ' o/r ' }, run }), { repo: 'o/r', source: 'GH_REPO' });
+  assert.deepEqual(resolveRepo({ env: { GITHUB_REPOSITORY: 'o/r' }, run }), { repo: 'o/r', source: 'GH_REPO' });
+});
+
+test('with no environment, gh names the checkout', () => {
+  const run = (cmd) => (cmd === 'gh' ? { status: 0, stdout: 'NoaCG/NoaCG-Studio\n' } : assert.fail('git was not needed'));
+  assert.deepEqual(resolveRepo({ env: {}, run }), { repo: 'NoaCG/NoaCG-Studio', source: 'gh repo view' });
+});
+
+test('when gh cannot answer - not signed in, not installed - the git remote still can', () => {
+  const run = (cmd) => (cmd === 'gh' ? { status: 1, stdout: '' } : { status: 0, stdout: 'https://github.com/NoaCG/NoaCG-Studio.git\n' });
+  assert.deepEqual(resolveRepo({ env: {}, run }), { repo: 'NoaCG/NoaCG-Studio', source: 'git remote' });
+});
+
+test('when nothing can name the repository the answer is null, never a guess', () => {
+  const run = () => ({ status: 1, stdout: '' });
+  assert.deepEqual(resolveRepo({ env: {}, run }), { repo: null, source: null });
+});
+
+test('both remote forms parse, and a non-GitHub remote answers null', () => {
+  // A wrong repository is worse than none: GitHub answers a question about somebody else's runs
+  // with a plausible empty set, which reads exactly like a green run.
+  assert.equal(repoFromRemote('https://github.com/NoaCG/NoaCG-Studio.git'), 'NoaCG/NoaCG-Studio');
+  assert.equal(repoFromRemote('https://github.com/NoaCG/NoaCG-Studio'), 'NoaCG/NoaCG-Studio');
+  assert.equal(repoFromRemote('git@github.com:NoaCG/NoaCG-Studio.git\n'), 'NoaCG/NoaCG-Studio');
+  assert.equal(repoFromRemote('ssh://git@github.com/NoaCG/NoaCG-Studio.git'), 'NoaCG/NoaCG-Studio');
+  assert.equal(repoFromRemote('https://gitlab.com/NoaCG/NoaCG-Studio.git'), null);
+  assert.equal(repoFromRemote(''), null);
+  assert.equal(repoFromRemote(undefined), null);
+});
