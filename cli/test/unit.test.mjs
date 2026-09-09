@@ -471,17 +471,33 @@ test('save needs a package argument', async () => {
   assert.match(JSON.parse(r.stdout).error, /needs a package directory/);
 });
 
-test('scaffold refuses a word left outside its flags, which is always an unquoted value', async () => {
+test('a word left outside a command\'s flags is refused, on scaffold and on save', async () => {
   // `--name Football scoreboard` without quotes: the shell hands the CLI a stray "scoreboard",
   // and before this refusal the graphic was silently named "Football" - in its <title>, its SPX
   // description and its file names - with nothing said. Found on the 2026-09-09 time-to-air walk.
-  // It must refuse before the browser starts, so a closed port is the deployment here.
-  const r = await run(['scaffold', 'scoreboard', '--type', 'scoreboard', '--name', 'Football', '--out', path.join(await tmpdir(), 'fresh'), '--json'], {
-    NOACG_URL: 'http://127.0.0.1:1',
-  });
-  assert.equal(r.code, 2);
-  const parsed = JSON.parse(r.stdout);
+  // Both verbs must refuse before the browser starts, so a closed port is the deployment here;
+  // `save` matters most, because that name is what lands in the user's library.
+  const closed = { NOACG_URL: 'http://127.0.0.1:1' };
+
+  const scaffolded = await run(
+    ['scaffold', 'scoreboard', '--type', 'scoreboard', '--name', 'Football', '--out', path.join(await tmpdir(), 'fresh'), '--json'],
+    closed,
+  );
+  assert.equal(scaffolded.code, 2);
+  const parsed = JSON.parse(scaffolded.stdout);
   assert.equal(parsed.ok, false);
   assert.match(parsed.error, /"scoreboard"/);
   assert.match(parsed.error, /needs quotes/);
+
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'graphic', 'graphic.html'), '<h1/>');
+  const saved = await run(['save', path.join(dir, 'graphic'), 'scoreboard', '--name', 'Football', '--json'], closed);
+  assert.equal(saved.code, 2, 'a stray word is a usage error, not a refusal');
+  assert.match(JSON.parse(saved.stdout).error, /"scoreboard"/);
+
+  // The package argument itself is not a stray word: inspect gets past the grammar and fails on
+  // the closed port instead, which is a different message.
+  const clean = await run(['inspect', path.join(dir, 'graphic'), '--json'], closed);
+  assert.doesNotMatch(JSON.parse(clean.stdout).error, /outside its flags/);
 });

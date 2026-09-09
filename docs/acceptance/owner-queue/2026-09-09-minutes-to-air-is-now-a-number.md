@@ -3,20 +3,29 @@ kind: agent
 date: 2026-09-09
 serves: now
 ---
-# "In minutes" is now a number: 25 seconds of tool time from nothing to a graphic on air
+# "In minutes" is now a number: the CLI's seven verbs cost 25 seconds
 
 Your bar for this door is *"create graphics in your own Codex or Claude Code and, in minutes, play
 them out in the NoaCG CG player system."* Nobody had ever timed it. I walked the terminal entrance
 by hand from an empty folder on 2026-09-09 with a stopwatch on every verb, took the result to a
 player, and wrote the table into `docs/AGENT_CLI.md` under **"Time to air, measured"**. The
-headline: **the seven authoring verbs cost 24.8 seconds together**, and `validate` is 43% of that
-because it is the only one that opens a browser. Branch `claude/a-cli-minutes-to-air`.
+headline: **the seven authoring verbs cost 24.8 seconds of tool time together**, and `validate` is
+43% of that because it is the only one that opens a browser. The rest of the wall clock is
+whatever the agent spends designing, plus the hop to a player. Branch
+`claude/a-cli-minutes-to-air`.
 
 The walk also found one thing that was silently wrong, and it is fixed on the same branch.
 
 ## The route, under a minute
 
-In any terminal, in an empty folder outside the repo:
+Once per machine, because `cli/dist/` is built rather than committed (8.7 s, measured):
+
+```
+npm --prefix <checkout>/cli install
+npm --prefix <checkout>/cli run build
+```
+
+Then, in any terminal, in an empty folder outside the repo:
 
 ```
 node <checkout>/cli/dist/index.js scaffold --type scoreboard --design neutral --name Football scoreboard --out ./x
@@ -33,7 +42,8 @@ Note the MISSING QUOTES around `Football scoreboard` - the mistake anyone makes 
 
 **What to look at.** Read that refusal as if you had just typed it. Does it tell you what to do
 next, or does it tell you what you did wrong? That is the only judgement in it - the fix itself
-is four lines and a test.
+is a dozen lines and a test. `save`, `validate`, `inspect` and `screenshot` now refuse the same
+way, and `save` is the one that mattered: its `--name` is what lands in your library.
 
 Then, if you want the numbers rather than the fix: `docs/AGENT_CLI.md`, "Time to air, measured".
 The two rows worth your eye are `validate` at **10.7 s** (the verb an author runs most, so it is

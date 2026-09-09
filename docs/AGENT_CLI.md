@@ -289,12 +289,20 @@ reference. The product steps are three, and each is seconds.
 
 ### What could NOT be walked, and why
 
-- **`save` against a dev server is impossible, by construction.** `save` POSTs to
-  `/api/me/graphics`, which is a serverless function - Vite serves none, so a local walk always
-  ends at the package. The refusal is fast (0.3 s, before any browser starts) and names the way
-  out: *"No account? Zip the package and use the studio's Import door."* That is the honest local
-  route, and `noacg pack` prints the same door. **The README's Use block ends on a line a local
-  walk cannot run**, which is worth knowing before anyone times themselves against it.
+- **`save` stopped twice on this machine, and neither wall is the one you would guess.** The
+  route is served: `vite.config.ts` registers `meApiPlugin()`, which `ssrLoadModule`s the real
+  `api/me/[...path].ts`, so `POST /api/me/graphics` answers on the dev server. What the walk hit
+  was, in order: (1) **the CLI's key store is per ORIGIN** (`cli/src/auth.ts`), and the machine
+  held a key for `https://noacg.studio` and none for `http://localhost:5290`, so `save` refused
+  client-side in 0.3 s - *"Not logged in to http://localhost:5290 - run `noacg login` first…
+  No account? Zip the package and use the studio's Import door."*; and (2) had it been logged in,
+  the endpoint answers **503** `{"code":"unavailable","message":"This NoaCG has no account
+  backend, so there is no library to save into here."}` (measured with `curl` the same day),
+  because a LINKED WORKTREE has no `.env.local` - the file is per checkout and gitignored. So the
+  wall is a local backend, not the architecture, and a checkout that carries the env can walk the
+  whole line. **What is true either way is that the README's Use block ends on a line a fresh
+  local walk cannot run**, which is worth knowing before anyone times themselves against it. The
+  local route the CLI itself points at is the Import door, which `noacg pack` also names.
 - **`save` against `https://noacg.studio` was not run in this walk.** A valid key was held
   (`whoami` above), but writing into the owner's live library from an unattended session is a
   remote account write, and this session's permission gate refused it. The client half of that
@@ -308,9 +316,12 @@ Three things, in the order a stranger meets them:
 
 1. **An unquoted flag value was swallowed in silence.** `--name Football scoreboard` (no quotes)
    left "scoreboard" as a stray word, and `scaffold` ignored it: the graphic came out named
-   "Football", in its `<title>`, its SPX description and its file names, with nothing said. Fixed
-   on the same branch - `scaffold` now refuses a word outside its flags and names the word to
-   quote (`cli/src/commands/scaffold.ts`, pinned by `cli/test/unit.test.mjs`).
+   "Football", in its `<title>`, its SPX description and its file names, with nothing said. The
+   same hole was open on `save`, where that name goes into the user's LIBRARY. Fixed on the same
+   branch: `refuseStrayArgs` (`cli/src/output.ts`) refuses a word past what a verb takes and
+   names the word to quote - `scaffold` takes none, `save` / `validate` / `inspect` / `screenshot`
+   take one package, `pack` takes any number and `caspar` has sub-commands, so those two keep
+   their own grammar. Pinned by `cli/test/unit.test.mjs`.
 2. **`noacg types` prints lines up to 354 characters**, 67 rows of them, which no terminal shows.
    Filed: `docs/backlog/noacg-types-prints-a-table-no-terminal-can-show.md`.
 3. **Three of six neutral scaffolds warn on their own bench.** Filed:

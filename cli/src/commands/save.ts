@@ -13,7 +13,7 @@
 import path from 'node:path';
 import { BridgeClient, type BridgeValidation } from '../bridgeClient.js';
 import { cliVersion, noacgUrl } from '../config.js';
-import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { ApiError, explainFailure, resolveKey, saveGraphic } from '../auth.js';
 import { readPackageInput } from '../workspace.js';
 import { describeValidation } from './validate.js';
@@ -72,6 +72,7 @@ export async function savePackage(
 export async function runSave(args: ParsedArgs, out: Out): Promise<number> {
   const input = args._[1];
   if (!input) throw new UsageError('save needs a package directory or .zip.');
+  refuseStrayArgs(args, 1, '--name "Football scoreboard"');
   // The cheapest refusal first: no key means no save, and that answer needs no browser.
   if (!(await resolveKey(noacgUrl()))) {
     const error = notLoggedIn(noacgUrl());

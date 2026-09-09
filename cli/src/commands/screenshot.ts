@@ -3,7 +3,7 @@
 
 import path from 'node:path';
 import { BridgeClient } from '../bridgeClient.js';
-import { EXIT_OK, flagList, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_OK, flagList, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { shoot } from '../screenshot.js';
 import { readPackageInput } from '../workspace.js';
 
@@ -24,6 +24,7 @@ export async function runScreenshot(args: ParsedArgs, out: Out): Promise<number>
   const outPath = flagString(args, 'out');
   const state = (flagString(args, 'state') ?? 'onair') as 'off' | 'onair' | 'stress';
   if (!input) throw new UsageError('screenshot needs a package directory or .zip.');
+  refuseStrayArgs(args, 1);
   if (!outPath) throw new UsageError('screenshot needs --out <file.png>.');
   if (!['off', 'onair', 'stress'].includes(state)) throw new UsageError('--state is off, onair or stress.');
   const { bytes, fileName } = await readPackageInput(input);

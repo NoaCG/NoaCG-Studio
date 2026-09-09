@@ -16,7 +16,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient, type BridgeValidation, type SpxTemplate } from '../bridgeClient.js';
 import { ografBench } from '../ografBench.js';
-import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { shoot } from '../screenshot.js';
 import { packageEntries, readPackageInput, removeStaleGenerated, unzipTo } from '../workspace.js';
 
@@ -86,6 +86,7 @@ export async function regenerateInPlace(
 export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
   const input = args._[1];
   if (!input) throw new UsageError('validate needs a package directory or .zip.');
+  refuseStrayArgs(args, 1);
   const bench = flagBool(args, 'bench', true);
   const houseContract = flagBool(args, 'house-contract', true);
   const shotsDir = flagString(args, 'screenshots');

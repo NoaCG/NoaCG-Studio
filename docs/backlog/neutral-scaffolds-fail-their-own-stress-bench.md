@@ -7,7 +7,7 @@ state: unstarted
 found: "three of six neutral scaffolds hand the author a bench WARNING they did not cause - the
   scaffold's own plate does not follow its text under the doubled-text stress it will be judged by"
 size: standard
-touches: src/templates/neutral/, src/bridge/bridgeApi.ts
+touches: src/templates/types/neutralDesign.ts, src/templates/scoreboards/shared.ts
 ---
 # A neutral scaffold fails the bench it ships with
 
@@ -35,11 +35,20 @@ cannot survive doubled text, we are asking authors to clear a bar we did not cle
 
 ## What it would take
 
-Every warning found is the same shape: a **fixed-width surface with text that can outgrow it**.
-The bench doubles every text value and asks whether text still sits on the plate painted behind
-it. The fix per scaffold is the one the finding already recommends - let the surface follow the
-content (`width: fit-content` + padding) instead of pinning it - plus breathing room where two
-elements can meet (`match-board`'s `#f1` and `.scoreboard-clock`).
+**Start by reproducing it, not by applying the finding's advice.** The bench's teaching line says
+to let the surface follow its content (`width: fit-content` + padding), and on these designs it
+already does: `src/templates/scoreboards/shared.ts` emits `width: fit-content` on
+`.scoreboard-box` for any design that sets no `stageWidth`, and the neutral scoreboard
+(`neutralScoreboardDesign`, `src/templates/types/neutralDesign.ts`) sets none. So the box is not
+pinned, and the stock fix would change nothing. What it does carry is
+`max-width: maxTextWidthCss(...)`, and one unverified candidate is `.scoreboard-mask`, which has
+no `min-width: 0` - under `justify-content: space-between` with a gap, the row's min-content width
+can exceed that cap and the content overflows the plate it is measured against. Reproduce with
+`noacg scaffold --type scoreboard --design neutral` then `noacg validate --screenshots`, and read
+`stress.png` before touching CSS.
+
+Whatever the cause, `match-board` also needs breathing room between `#f1` and `.scoreboard-clock`,
+which is a spacing decision rather than a width one.
 
 Two decisions belong to whoever picks this up:
 
