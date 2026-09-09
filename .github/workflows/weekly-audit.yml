@@ -33,7 +33,8 @@ on:
 
 permissions:
   contents: read
-  actions: read # the repeat-failure report reads this repo's own run history
+  actions: read # the repeat-failure report reads this repo's own run history…
+  checks: read # …and the ANNOTATIONS on its jobs, which is where the failing spec is named
   issues: write # the failure step files/updates a rolling issue
 
 jobs:
@@ -94,11 +95,20 @@ jobs:
       #
       # BEFORE `npm audit` for the reason that step's own comment gives: a step that exits
       # non-zero ends the job, and everything that must be seen has to come first.
+      #
+      # BOUNDED, AND ALLOWED TO FAIL. `|| true` bounds the exit code, not the clock: this is one
+      # `gh` process per failed run plus one per failing job inside it, serially, and a bad week
+      # against nine e2e shards is a few hundred spawns. Without a cap of its own it can eat the
+      # job's 15 minutes and take `npm audit` down with it - which the repo's own trap says is not
+      # a verdict, only a stop at a cap. `continue-on-error` is what `|| true` cannot do: a step
+      # KILLED by its own timeout fails whatever its command said.
       - name: Repeat failures across commits (report only)
+        timeout-minutes: 6
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node scripts/ci-repeat-failures.mjs --days 7 || true
+        run: node scripts/ci-repeat-failures.mjs --days 7 --limit 40 || true
 
       # Fails on high/critical only — the tracked low/moderate advisories (repo maintenance
       # notes) stay a report, not a weekly alarm.

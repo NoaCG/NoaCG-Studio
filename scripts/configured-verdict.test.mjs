@@ -131,6 +131,25 @@ test('an unknown workspace degrades to no path, never to a wrong one', () => {
   assert.equal(repoRelative('a.spec.ts', 'C:\\w\\repo\\e2e\\configured', 'C:\\w\\repo'), 'e2e/configured/a.spec.ts', 'windows separators normalize');
 });
 
+test('a run where the stack never came up names NO spec - every spec skipped is not every spec broken', () => {
+  // The annotation is narrower than the fingerprint on purpose. A skipped spec is unclean (the
+  // fingerprint must tell an all-skipped run from a clean one) but it did not fail, and naming it
+  // would put innocent files into the failure set, the rolling issue and the cross-commit report -
+  // where an environment fault repeats across commits by its nature and would headline as a flake.
+  const specs = [spec('account.spec.ts', 'a', 'skipped'), spec('teams.spec.ts', 'b', 'skipped')];
+  const v = verdict(withRoot(report({ expected: 0, unexpected: 0, flaky: 0, skipped: 2 }, specs)), { minTests: 40, allowedSkips: '', workspace: WORKSPACE });
+  assert.equal(v.green, false, 'still red, loudly');
+  assert.deepEqual(v.problems.map((p) => p.title), ['Unexpected skip', 'Too few tests ran']);
+  assert.deepEqual(v.failing, [], 'and not one spec is named as the fault');
+  assert.equal(v.failSet.length, 2, 'the FINGERPRINT still sees them, which is what tells this run from a clean one');
+});
+
+test('a spec that failed beside skipped ones is still named', () => {
+  const specs = [spec('account.spec.ts', 'a', 'skipped'), spec('teams.spec.ts', 'b', 'failed')];
+  const v = verdict(withRoot(report({ expected: 0, unexpected: 1, flaky: 0, skipped: 1 }, specs)), { minTests: 0, allowedSkips: 'account.spec.ts', workspace: WORKSPACE });
+  assert.deepEqual(v.failing.map((f) => f.path), ['e2e/configured/teams.spec.ts']);
+});
+
 test('a clean run names nothing at all', () => {
   const v = verdict(withRoot(report({ expected: 42, unexpected: 0, flaky: 0, skipped: 0 }, [spec('a.spec.ts', 'x', 'passed')])), { minTests: 0, allowedSkips: '', workspace: WORKSPACE });
   assert.deepEqual(v.failing, []);

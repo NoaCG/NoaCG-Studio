@@ -68,8 +68,15 @@ export function failedRuns({ repo, workflow, since, until = null, limit = 100, g
   // window this file was built against is re-derivable a week later, which a rolling `--days`
   // cannot be.
   const created = until ? `${since}..${until}` : `%3E%3D${since}`;
-  const query = `status=failure&created=${created}&per_page=${Math.min(limit, 100)}`;
-  return gh([`repos/${repo}/actions/workflows/${workflow}/runs?${query}`, '--jq', '.workflow_runs[] | {id, head_sha, head_branch, created_at, html_url, name}']).filter((run) => run?.id && run?.head_sha);
+  const page = Math.min(limit, 100);
+  const query = `status=failure&created=${created}&per_page=${page}`;
+  const runs = gh([`repos/${repo}/actions/workflows/${workflow}/runs?${query}`, '--jq', '.workflow_runs[] | {id, head_sha, head_branch, created_at, html_url, name}']).filter((run) => run?.id && run?.head_sha);
+  // A FULL PAGE MEANS THERE MAY BE MORE. One page is asked for on purpose - this walks jobs and
+  // annotations per run and paging the window would multiply that - but a silently short answer
+  // under-reports, and under-reporting here prints a clean week. docs/CI_STABILITY.md measured the
+  // same trap in the by-hand sweep: `--paginate` over an open window returned 82 of ~100 runs and
+  // stopped dead, reporting no error.
+  return { runs, truncated: runs.length >= page };
 }
 
 /**
@@ -116,11 +123,15 @@ export function repeatOffenders(runs, { minShas = 2 } = {}) {
 }
 
 /** The report, as lines. Markdown when it is going to a step summary, plain text for a terminal. */
-export function renderReport({ specs, jobs, seen }, { window, runs, markdown = false } = {}) {
+export function renderReport({ specs, jobs, seen }, { window, runs, markdown = false, truncated = [] } = {}) {
   const bullet = markdown ? '- ' : '  ';
   const lines = [];
   const head = `Repeat failures across commits - ${window}, ${runs} failed run(s), ${seen} distinct item(s)`;
   lines.push(markdown ? `### ${head}` : head, '');
+  // Said FIRST, because everything under it is then a floor rather than a count.
+  if (truncated.length > 0) {
+    lines.push(`${markdown ? '**' : ''}Incomplete: ${truncated.join(', ')} filled the page, so older failed runs in this window were not read. Raise --limit or shorten --days.${markdown ? '**' : ''}`, '');
+  }
 
   if (specs.length === 0) {
     lines.push(markdown ? '**No spec failed on two commits across two lines of work.**' : 'No spec failed on two commits across two lines of work.');
@@ -151,12 +162,28 @@ export function windowStart(days, now = new Date()) {
 // ── CLI ──────────────────────────────────────────────────────────────────────────────────────────
 if (process.argv[1] && /ci-repeat-failures\.mjs$/.test(process.argv[1].replace(/\\/g, '/'))) {
   const argv = process.argv.slice(2);
+  // A FLAG IS NEVER A VALUE. `--days --json` read as days="--json" gives NaN, and NaN reaches
+  // GitHub as `per_page=NaN` (a 422, an empty answer) or `windowStart(NaN)` (a thrown
+  // RangeError) - the first of which prints a clean bill of health from an instrument that asked
+  // nothing, which is the exact failure this file exists to prevent.
   const valueOf = (flag, fallback) => {
     const i = argv.indexOf(flag);
-    return i >= 0 && argv[i + 1] !== undefined ? argv[i + 1] : fallback;
+    const next = i >= 0 ? argv[i + 1] : undefined;
+    return next !== undefined && !next.startsWith('--') ? next : fallback;
   };
-  const days = Number(valueOf('--days', '7'));
-  const limit = Number(valueOf('--limit', '60'));
+  // …and a value that is not a number is not a number. Refusing beats defaulting quietly: a run
+  // over the wrong window looks exactly like a run over the right one.
+  const positive = (flag, fallback) => {
+    const raw = valueOf(flag, String(fallback));
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) {
+      console.error(`${flag} wants a positive number, not "${raw}".`);
+      process.exit(2);
+    }
+    return n;
+  };
+  const days = positive('--days', 7);
+  const limit = positive('--limit', 60);
   const workflows = String(valueOf('--workflows', DEFAULT_WORKFLOWS.join(','))).split(',').map((w) => w.trim()).filter(Boolean);
 
   const { repo, source } = resolveRepo();
@@ -170,8 +197,11 @@ if (process.argv[1] && /ci-repeat-failures\.mjs$/.test(process.argv[1].replace(/
   const since = valueOf('--since', windowStart(days));
   const until = valueOf('--until', null);
   const runs = [];
+  const truncated = [];
   for (const workflow of workflows) {
-    for (const run of failedRuns({ repo, workflow, since, until, limit })) {
+    const answer = failedRuns({ repo, workflow, since, until, limit });
+    if (answer.truncated) truncated.push(workflow);
+    for (const run of answer.runs) {
       // The set of ONE run, through the same code the landing gate and the alarm use, so a spec is
       // named here exactly as it is named there and the two can be compared by string.
       const set = fetchFailureSet(run.id, { repo });
@@ -183,9 +213,9 @@ if (process.argv[1] && /ci-repeat-failures\.mjs$/.test(process.argv[1].replace(/
   const markdown = argv.includes('--markdown') || Boolean(process.env.GITHUB_STEP_SUMMARY);
   const window = until ? `${since}..${until}` : `since ${since} (${days} day(s))`;
   if (argv.includes('--json')) {
-    process.stdout.write(`${JSON.stringify({ repo, repoSource: source, since, until, runs: runs.length, ...result }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ repo, repoSource: source, since, until, runs: runs.length, truncated, ...result }, null, 2)}\n`);
   } else {
-    const lines = renderReport(result, { window, runs: runs.length, markdown });
+    const lines = renderReport(result, { window, runs: runs.length, markdown, truncated });
     console.log(lines.join('\n'));
     if (process.env.GITHUB_STEP_SUMMARY) {
       const { appendFileSync } = await import('node:fs');

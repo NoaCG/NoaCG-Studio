@@ -101,12 +101,24 @@ test('a past window is asked for as a closed range, so a measurement can be re-d
     asked.push(args[0]);
     return [{ id: 1, head_sha: 'aaa', head_branch: 'main' }, { head_sha: 'no id' }, { id: 2 }];
   };
-  const runs = failedRuns({ repo: 'o/r', workflow: 'ci.yml', since: '2026-09-04', until: '2026-09-08', gh });
-  assert.deepEqual(runs, [{ id: 1, head_sha: 'aaa', head_branch: 'main' }], 'a run without an id or a sha is no run');
+  const answer = failedRuns({ repo: 'o/r', workflow: 'ci.yml', since: '2026-09-04', until: '2026-09-08', gh });
+  assert.deepEqual(answer.runs, [{ id: 1, head_sha: 'aaa', head_branch: 'main' }], 'a run without an id or a sha is no run');
   assert.match(asked[0], /workflows\/ci\.yml\/runs\?status=failure&created=2026-09-04\.\.2026-09-08/);
 
   failedRuns({ repo: 'o/r', workflow: 'ci.yml', since: '2026-09-04', gh });
   assert.match(asked[1], /created=%3E%3D2026-09-04/, 'an open window is >=DATE');
+});
+
+test('a full page is reported as incomplete, never as a quiet count', () => {
+  // Under-reporting here prints a clean week, which is the one answer this instrument must never
+  // give by accident. docs/CI_STABILITY.md measured the same trap in the by-hand sweep.
+  const three = () => [{ id: 1, head_sha: 'a' }, { id: 2, head_sha: 'b' }, { id: 3, head_sha: 'c' }];
+  assert.equal(failedRuns({ repo: 'o/r', workflow: 'ci.yml', since: 'x', limit: 3, gh: three }).truncated, true);
+  assert.equal(failedRuns({ repo: 'o/r', workflow: 'ci.yml', since: 'x', limit: 4, gh: three }).truncated, false);
+
+  const text = renderReport(repeatOffenders([]), { window: 'w', runs: 3, truncated: ['ci.yml'] }).join('\n');
+  assert.match(text, /Incomplete: ci\.yml/);
+  assert.doesNotMatch(renderReport(repeatOffenders([]), { window: 'w', runs: 0 }).join('\n'), /Incomplete/);
 });
 
 test('the window start is a plain date, days back from now', () => {

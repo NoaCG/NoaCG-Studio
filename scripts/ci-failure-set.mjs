@@ -271,7 +271,10 @@ export function ghJsonLines(args) {
 // gates reach the pure decisions above - must never make a network call.
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const argv = process.argv.slice(2);
-  const runId = argv.includes('--run') ? argv[argv.indexOf('--run') + 1] : undefined;
+  // A flag is never a value: `--run --json` must be "no run id", not a request about a run called
+  // `--json`, which GitHub answers with an empty set that reads exactly like a run nobody can name.
+  const after = argv[argv.indexOf('--run') + 1];
+  const runId = argv.includes('--run') && after !== undefined && !after.startsWith('--') ? after : undefined;
   const { repo, source } = resolveRepo();
   const set = fetchFailureSet(runId, { repo });
   if (argv.includes('--json')) process.stdout.write(`${JSON.stringify({ ...set, repo, repoSource: source })}\n`);

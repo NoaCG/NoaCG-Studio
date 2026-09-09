@@ -48,6 +48,18 @@ export function allSpecs(report) {
 
 const statuses = (spec) => (spec.tests ?? []).flatMap((t) => (t.results ?? []).map((r) => r.status));
 
+/**
+ * A spec that actually RAN and went wrong, as opposed to one that never ran.
+ *
+ * `isUnclean` below is deliberately wider - it is true of a skipped spec too, because the
+ * fingerprint has to tell "everything skipped" apart from a clean run. An ANNOTATION cannot be
+ * that wide: when the local stack does not come up every spec skips, and naming all of them as
+ * failing specs would put innocent files into the failure set, the rolling issue and the
+ * cross-commit report - where an environment fault, which repeats across commits by its nature,
+ * would headline as a flaky spec.
+ */
+const reallyFailed = (spec) => statuses(spec).some((s) => s !== 'passed' && s !== 'skipped');
+
 /** A spec is "not clean" if ANY attempt failed - a flake is `failed > passed`, so reading only the
  *  LAST status sees `passed` and fingerprints the empty set. Written that way first and caught
  *  against two real reports that each held a flaky spec and both hashed to SHA1(""). */
@@ -104,6 +116,7 @@ export function verdict(report, { minTests, allowedSkips, workspace = '' }) {
   // of main, not one of them naming a spec. Playwright's own `github` reporter would not have
   // helped, because a FLAKY test is `ok()` to it and this suite counts flaky as red on purpose.
   const failing = unclean
+    .filter(reallyFailed)
     .map((s) => ({
       file: s.file,
       path: repoRelative(s.file, report?.config?.rootDir, workspace),
