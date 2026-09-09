@@ -9,9 +9,9 @@ here** - its record is its own module header, `src/templates/importedDesign/scor
 one binding format is `docs/SVG_BEHAVIOUR_PLAN.md`** (2026-09-05): it reads §10-§13 as a
 decomposition and plans the port; this document stays the record of what each behaviour found.
 
-**The goal it serves** (`docs/GOALS.md` NOW): by **2026-09-12**, a student draws their own graphic,
-gets the behaviour their show needs onto it, and plays it out - without writing a line of code. The
-two graphics that decide it are a **QUIZ** (lock the answer, reveal it) and a **SCOREBOARD**
+**The goal it serves** (`docs/GOALS.md`, `## NOW`): a student draws their own graphic, gets the
+behaviour their show needs onto it, and plays it out - without writing a line of code. The two
+graphics that decide it are a **QUIZ** (lock the answer, reveal it) and a **SCOREBOARD**
 (score + / -). The autumn's productions are quizzes and keeping score, which is what makes those
 two the right pair rather than an arbitrary one.
 

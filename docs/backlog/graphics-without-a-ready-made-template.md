@@ -55,7 +55,7 @@ the right shape at all.
   designer can read - the same gap `run-a-real-audience-vote.md` names. A designer cannot draw for
   a contract that is not published.
 - **The fall release is not this.** *"we need to have the quiz and the scoreboard for this fall at
-  least."* Those two stay the 2026-09-12 commitment (`docs/GOALS.md` NOW) and are not blocked on
+  least."* Those two stay the NOW push commitment (`docs/GOALS.md`, `## NOW`) and are not blocked on
   anything in this row.
 
 ## What it would take

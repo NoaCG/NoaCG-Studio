@@ -331,7 +331,7 @@ crosses every boundary in this document. Machine state crosses none of them.
 
 ## 6. The verdict table
 
-Ordered by what the current push (`docs/GOALS.md` NOW - quiz + scoreboard by 2026-09-12, and the
+Ordered by what the current push (`docs/GOALS.md`, `## NOW` - quiz + scoreboard, and the
 poll being built now) needs first. **Cost is shape, not schedule.** Rows are only here because
 something real is behind them; nothing was invented to fill the table.
 
