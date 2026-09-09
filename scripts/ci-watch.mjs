@@ -57,8 +57,13 @@ export const REVIEWED_ONLY = 'job: Reviewed';
  * pre-queue window every branch passes through, because the stamp only exists once a session
  * queues. It measured false. `reviewed` does not run on `push` at all (ci.yml: pull_request,
  * merge_group, or a dispatch asking for it), and a pull request exists only because `/queue-merge`
- * opened one - and that posts the status within seconds of `pr create`, well before a runner picks
- * the job up. The same wave queued two more pull requests minutes apart and neither went red.
+ * opened one - which posts the status seconds later. The same wave queued two more pull requests
+ * minutes apart and neither went red.
+ *
+ * "Seconds later" used to be a race the check could lose - by forty-eight of them on pull request
+ * #174, on a branch that was properly reviewed. It no longer is: the job WAITS up to 150 s for the
+ * status (`scripts/reviewed-status.mjs`), so a `Reviewed` red is one of the two shapes below and
+ * never the gap between a push and the queueing that follows it.
  *
  * All three of that night's `Reviewed` reds were TRUE, and both branches are still unlanded:
  * a pull request queued the day before whose tip moved twice with no fresh stamp (queue-merge.md,

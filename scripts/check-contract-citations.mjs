@@ -183,10 +183,26 @@ function flatten(text) {
   return String(text).replace(/\r\n/g, '\n').replace(/[*`_]/g, '').replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** Every file git knows about, repo-relative and posix. */
+/**
+ * Every file git knows about, repo-relative and posix.
+ *
+ * A file DELETED but not yet staged is still in the index, so `--cached` lists a path that is not
+ * on disk any more - and reading it threw an ENOENT stack trace instead of a verdict, which is
+ * what deleting one backlog file and running `npm run build` looks like. A path that is gone
+ * carries no citations, so it is dropped here rather than crashing the gate that reads it.
+ *
+ * `-z` goes with that filter. Without it git C-quotes any path with a non-ASCII or special
+ * character (`"docs/caf\303\251.md"`), and a quoted name never resolves on disk - so the file
+ * would be dropped from the scan instead of read, and a gate that fails closed would have found
+ * a way to fail open. NUL-separated output is the literal path, always.
+ */
 function trackedFiles() {
-  const out = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' });
-  return out.split('\n').map((line) => line.trim().replace(/\\/g, '/')).filter(Boolean);
+  const out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' });
+  return out
+    .split('\0')
+    .map((line) => line.trim().replace(/\\/g, '/'))
+    .filter(Boolean)
+    .filter((file) => existsSync(resolve(ROOT, file)));
 }
 
 function main() {

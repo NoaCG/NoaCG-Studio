@@ -202,38 +202,34 @@ jobs:
   # (`gh-readonly-queue/main/pr-<n>-<base>`) and the status is looked up on ITS head. A branch
   # with no review status - or a failing one - cannot enter or pass the queue. A dispatch that
   # asked for it (`require_review`, the mechanical landings' door) reads the dispatched tip.
+  #
+  # It WAITS for the status rather than looking once, because the status and this run are started
+  # by two different commands and this one used to lose the race by up to forty-eight seconds on a
+  # branch whose review really happened (pull request #174, and the measurements are in
+  # `scripts/reviewed-status.mjs`). The pass condition is unchanged - a `success` status on that
+  # exact sha - so a tip nobody stamped is still red, at the bound.
   reviewed:
     name: Reviewed
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && inputs.require_review && github.ref != 'refs/heads/main')
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    # The wait is 150 s, so the cap has to sit above it with room for the checkout.
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
       statuses: read
     steps:
-      - name: Find the review status on the pull request head
+      # No `setup-node` and no dependencies: the runner image's own Node runs a script of node
+      # builtins that shells out to `gh`, which is the only tool this check needs.
+      - uses: actions/checkout@v5
+
+      - name: Wait for the review status on the pull request head
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           GROUP_REF: ${{ github.event.merge_group.head_ref }}
-        run: |
-          set -euo pipefail
-          if [ "$EVENT" = "merge_group" ]; then
-            NUMBER="$(echo "$GROUP_REF" | sed -nE 's#.*/pr-([0-9]+)-.*#\1#p')"
-            [ -n "$NUMBER" ] || { echo "::error::cannot read a pull request number off $GROUP_REF"; exit 1; }
-            SHA="$(gh pr view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)"
-          else
-            SHA="${PR_HEAD:-$GITHUB_SHA}"
-          fi
-          STATE="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status" --jq '[.statuses[] | select(.context == "noacg/reviewed")][0].state // "missing"')"
-          DESC="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status" --jq '[.statuses[] | select(.context == "noacg/reviewed")][0].description // ""')"
-          echo "noacg/reviewed on ${SHA}: ${STATE} ${DESC}"
-          if [ "$STATE" != "success" ]; then
-            echo "::error::no passing noacg/reviewed status on ${SHA} - queue with npm run queue:merge, which posts the /check stamp"
-            exit 1
-          fi
+        run: node scripts/reviewed-status.mjs
 
   plan:
     name: E2E plan
