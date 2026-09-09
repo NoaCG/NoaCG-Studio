@@ -30,7 +30,7 @@
  * installed later, PowerPoint's Home > Replace > Replace Fonts swaps them in one go.
  */
 
-import { existsSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -42,13 +42,12 @@ import PptxGenJS from 'pptxgenjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const outFlag = process.argv.indexOf('--out');
-const OUT = resolve(outFlag > -1 && process.argv[outFlag + 1] ? process.argv[outFlag + 1] : resolve(HERE, 'NoaCG-2026-09-25.pptx'));
-
-if (existsSync(OUT)) {
-  console.error(`make-deck: ${OUT} exists and may carry hand edits, so it is not overwritten.`);
-  console.error('Move or delete it first if you really want a fresh starting point, or pass --out <other path>.');
-  process.exit(2);
-}
+const asked = outFlag > -1 && process.argv[outFlag + 1] ? process.argv[outFlag + 1] : resolve(HERE, 'NoaCG-2026-09-25.pptx');
+// NORMALISE THE EXTENSION HERE, not in the library. `pres.writeFile()` appends '.pptx' to a name
+// that lacks one, so the path a caller names and the path that gets written are not the same
+// path - and an existence check on the first one lets `--out deck` destroy `deck.pptx`. We write
+// the file ourselves below, so this is the only place the final name is decided.
+const OUT = asked.toLowerCase().endsWith('.pptx') ? resolve(asked) : resolve(`${asked}.pptx`);
 
 // ---------------------------------------------------------------------------------------------
 // Brand tokens (NoaCG-Brand-Kit/BRAND-MANUAL.md §3) and the type stack this deck can rely on.
@@ -107,8 +106,13 @@ function head(slide, s, x, y, w) {
 }
 
 /** A surface panel. */
+// NO `line` PROPERTY, deliberately: omitting it is pptxgenjs's own "draw no outline". Asking for
+// `line: { width: 0 }` does the opposite, because the library reads it as `options.line.width || 1`
+// and 0 is falsy, so a zero-width request becomes a 1pt stroke and every panel lands half a point
+// larger per side than the geometry above says. A caller that wants an outline passes one in opts,
+// which is spread last and replaces this shape's whole line setting.
 function panel(slide, x, y, w, h, opts = {}) {
-  slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h, rectRadius: 0.1, fill: { color: PANEL }, line: { color: PANEL, width: 0 }, ...opts });
+  slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h, rectRadius: 0.1, fill: { color: PANEL }, ...opts });
 }
 
 /** The quiet line at the foot of a slide. */
@@ -155,7 +159,9 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   // widths 100 / 66 / 40. Here 1x = 0.2 in.
   const u = 0.2;
   for (const [i, wf] of [1, 0.66, 0.4].entries()) {
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: M, y: 0.75 + i * 1.5 * u, w: 4 * u * wf, h: u, rectRadius: 0.2 * u, fill: { color: AMBER }, line: { color: AMBER, width: 0 } });
+    // No `line`, for the reason spelled out on `panel()`: the bar widths are the construction, and
+    // a 1pt stroke on a 0.2in bar is a visible error in the mark.
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: M, y: 0.75 + i * 1.5 * u, w: 4 * u * wf, h: u, rectRadius: 0.2 * u, fill: { color: AMBER } });
   }
   text(s, [
     { text: 'Noa', options: { bold: true, color: PAPER } },
@@ -302,7 +308,11 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     ['Drop it. The layer names become the field names.', 'noacg.studio/app  >  New graphic  >  Import graphic'],
     ['Type a name longer than you drew for. Watch what the panel does.', 'the Fields step: wider, then a new line, and only then smaller'],
     ['Pick what it does. The quiz board locks and reveals; the scorebug counts.', 'the Fields step  >  Behaviour'],
-    ['Create, then Finish: add it to a production.', null],
+    // NEVER "Create project". That button is reachable from every step of this road and it does
+    // NOT save (CreationWizard.tsx create() -> applyDraftProject() with no arguments: "Saving
+    // stays the user's move"). Finish's doors are the ones that save on purpose, so the room is
+    // sent to Finish and to a door by name. See docs/backlog/create-project-is-a-door-that-saves-nothing.md.
+    ['Finish: name it, then take the production door. It saves the graphic and puts it in a show.', 'the Finish step  >  Add to the production'],
   ];
   steps.forEach(([main, pointer], i) => step(s, i + 1, lx, 1.9 + i * 0.98, lw, main, pointer));
 
@@ -321,7 +331,10 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   text(s, [
     { text: 'A typeface Google does not have, or a licensed one, takes the ', options: {} },
     { text: 'upload', options: { bold: true } },
-    { text: ' road on the last screen before Create.', options: {} },
+    // The Typefaces row lives on the FIELDS step (MapSvgFieldsStep.tsx, the "Upload font file…"
+    // button), which on this road is Start, Design, Fields, Animation, Finish - two screens
+    // before the end, not the last one.
+    { text: ' road in the Typefaces row, on the Fields step.', options: {} },
   ], { x: rx + pad, y: 4.0 + pad, w: rw - 2 * pad, h: 0.9, fontSize: 16, color: MID, lineSpacingMultiple: 1.15 });
 
   panel(s, rx, 5.45, rw, 1.05);
@@ -331,7 +344,8 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   s.addNotes(
     '§3, R1.1 to R1.6. Status on 2026-09-09: WORKS on the shipped samples for all six beats, with one exception. R1.4, behaviour on artwork nobody at NoaCG drew, is pinned by e2e/import-svg-behaviour.spec.ts, but you have not looked at your OWN quiz board since the three text-box fixes (docs/TEXT_BOX_BINDING.md). The 12th is that walk.\n\n' +
     'R1.3 ON THEIR OWN FILE. The growth default is measured off the geometry and for some exporter shapes it disagrees with what the designer meant (docs/backlog/svg-growth-default-across-exporters.md). That is why the dropdown sentence is said out loud rather than waited for.\n\n' +
-    'R1.5. A Yle designer\'s licensed face takes the upload road; the Google door is offered only where Google has the family.\n\n' +
+    'THE ROAD, IN SCREENS. Start, Design, Fields, Animation, Finish (src/components/wizard/CreationWizard.tsx, STEP_TITLES_SVG). "Create project" sits in the footer from Design onwards and it does NOT save - it builds with defaults for everything not yet reached and hands you to the code editor (create() calls applyDraftProject() with no arguments; both Finish doors save on purpose). DO NOT name it in the room: send people to Finish and to a door by name. docs/backlog/create-project-is-a-door-that-saves-nothing.md is the open question about whether that button should be renamed or should save.\n\n' +
+    'R1.5. A Yle designer\'s licensed face takes the upload road, in the Typefaces row on the FIELDS step - two screens before the end. The Google door is offered only where Google has the family.\n\n' +
     'NOT A BEAT. The live-vote encore needs a fixture brought by hand and has two open backlog items; only if the room is ahead of the clock.\n\n' +
     'Source: docs/DEMO_2026-09-25.md §3; the guide is docs.html #first-graphic, landed 2026-09-09.',
   );
@@ -366,7 +380,10 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   text(s, '24.8 s', { x: M, y: 4.0, w: lw, h: 0.95, fontFace: DISPLAY, fontSize: 60, bold: true, color: AMBER, charSpacing: -2 });
   text(s, [
     { text: 'Tool time for the seven CLI verbs', options: { bold: true, color: PAPER } },
-    { text: ', measured by hand on 2026-09-09. validate is 10.7 s of it, the only verb that opens a browser. The rest of the clock is what the agent spends designing, plus the hop to a player. Nobody has put a stopwatch on that last leg end to end yet, so this is the number there is.', options: {} },
+    // NOT "the only verb that opens a browser": every one of them does, because they all reach the
+    // studio through BridgeClient.connect(), which launches one (cli/src/bridgeClient.ts:158).
+    // validate is the slow one for what it does INSIDE that browser.
+    { text: ', measured by hand on 2026-09-09. They all start a browser to reach the studio; validate is 10.7 s of it because it also runs the gate and writes three full-size frames. The rest of the clock is what the agent spends designing, plus the hop to a player. Nobody has put a stopwatch on that last leg end to end yet, so this is the number there is.', options: {} },
   ], { x: M, y: 5.0, w: lw, h: 1.7, fontSize: 14.5, color: MID, lineSpacingMultiple: 1.2 });
 
   // With an agent: the three steps.
@@ -483,5 +500,17 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   );
 }
 
-await pres.writeFile({ fileName: OUT });
+// THE REFUSAL IS THE FILESYSTEM'S OWN, and it is the last thing that happens. Building the deck
+// into a buffer first and writing it with the 'wx' flag makes the check and the write one atomic
+// act on one path: there is no window between them and no filename that can route around them.
+// An `existsSync` guard up front could be defeated by any name the library would later rewrite.
+const buf = await pres.write({ outputType: 'nodebuffer' });
+try {
+  await writeFile(OUT, buf, { flag: 'wx' });
+} catch (e) {
+  if (e?.code !== 'EEXIST') throw e;
+  console.error(`make-deck: ${OUT} exists and may carry hand edits, so it is not overwritten.`);
+  console.error('Move or delete it first if you really want a fresh starting point, or pass --out <other path>.');
+  process.exit(2);
+}
 console.log(`make-deck: wrote ${OUT} (${TOTAL_SLIDES} slides)`);
