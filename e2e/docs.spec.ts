@@ -162,11 +162,13 @@ test('the step-by-step walk keeps the road, the three surprises and its handoffs
   await page.goto('/docs');
   const walk = page.locator('#first-graphic');
 
-  // (a) The five steps, by the names the wizard's own rail uses. A renamed step leaves a reader
-  // looking for a heading that is not on their screen, which is the failure this guide exists
-  // to prevent, and nothing else on the page names them.
-  for (const step of ['Start', 'Design', 'Fields', 'Animation', 'Finish']) {
-    await expect(walk).toContainText(step);
+  // (a) The five steps, in order, by the names the wizard's own rail uses. A renamed step leaves
+  // a reader looking for a heading that is not on their screen, which is the failure this guide
+  // exists to prevent, and nothing else on the page names them. The NUMBERS are in the strings on
+  // purpose: "Start" and "Finish" occur in the prose either side of the table, so the bare words
+  // would keep passing after the table itself was deleted.
+  for (const step of ['1. Start', '2. Design', '3. Fields', '4. Animation', '5. Finish']) {
+    await expect(walk.locator('.doc-table')).toContainText(step);
   }
 
   // (b1) THE RAIL RENUMBERS. Measured 2026-09-09: the wizard opens on a six-step rail and an SVG
@@ -191,15 +193,23 @@ test('the step-by-step walk keeps the road, the three surprises and its handoffs
   await expect(walk).toContainText('two name boxes and they are not the same box');
   await expect(walk).toContainText('Add to the production');
   await expect(walk).toContainText('Export it');
+  // And the one thing on that screen that can cost a first-timer their work: `Create project`
+  // calls `create` (CreationWizard.tsx), which hands the graphic to the editor WITHOUT saving,
+  // while both Finish doors save first. A reader who takes it for a harmless "keep the defaults"
+  // shortcut can close the tab on an unsaved graphic.
+  await expect(walk).toContainText('it does not save');
 
   // (c) The handoffs. This guide stays short by pointing, so a link that goes nowhere is the one
   // failure that makes it worse than no guide. In-page anchors are silent when they break.
-  for (const href of ['#svg-rules', '#artwork', '#behaviour', '#svg-fonts', '#export', '#dashboard']) {
-    await expect(walk.locator(`a[href="${href}"]`).first()).toHaveCount(1);
+  // `.first()` rather than a count, because the guide legitimately links the same target twice
+  // (the SVG rules, once for the file and once for outlined type); what has to hold is that at
+  // least one link exists and that its target does.
+  for (const href of ['#svg-rules', '#svg-layers', '#artwork', '#behaviour', '#svg-fonts', '#export', '#dashboard']) {
+    await expect(walk.locator(`a[href="${href}"]`).first()).toBeAttached();
     await expect(page.locator(`[id="${href.slice(1)}"]`)).toHaveCount(1);
   }
   // And the door into the product, so the walk can actually be started from it.
-  await expect(walk.locator('a[href="/app#/new"]').first()).toHaveCount(1);
+  await expect(walk.locator('a[href="/app#/new"]').first()).toBeAttached();
 
   // Getting started is where a cold reader lands, and its three list items are the outline this
   // guide expands. The link between them is what stops the outline reading as the whole answer.

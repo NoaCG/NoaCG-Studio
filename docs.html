@@ -499,11 +499,11 @@ Full results at https://example.org</code></pre>
             end.
           </p>
           <p>
-            The walk uses an SVG, because an SVG is the only file that brings its text in as
-            fields an operator can retype. A picture takes the same road with one extra step, and
-            <a href="#artwork">pictures, logos and Lottie</a> covers that. What the SVG itself has
-            to contain is <a href="#svg-rules">five rules</a> long, and it is worth reading before
-            you export.
+            The walk uses an SVG, because that is what a design app hands you and it is the file
+            that brings your own text in as fields an operator can retype. A picture takes the same
+            road with one extra step, and <a href="#artwork">pictures, logos and Lottie</a> covers
+            that. What the SVG itself has to contain is <a href="#svg-rules">five rules</a> long,
+            and it is worth reading before you export.
           </p>
           <p>
             Where to start: <a href="/app#/new">the studio</a> &rarr;
@@ -518,10 +518,11 @@ Full results at https://example.org</code></pre>
             <tr><td>5. Finish</td><td>Its name, and where it goes.</td></tr>
           </table></div>
           <p>
-            The rail down the left starts with six steps and drops to five the moment an SVG
-            lands. The step that goes is <strong>Prepare</strong>, which erases and scales a
-            picture. An SVG has nothing to erase, so it is skipped and everything after it
-            renumbers.
+            The rail down the left starts with six steps and becomes five the moment an SVG lands.
+            Two go, <strong>Prepare</strong> and <strong>Text</strong>, which erase a picture's
+            baked-in words and place new ones over the gap. One arrives in their place,
+            <strong>Fields</strong>. An SVG has nothing to erase and its text is already exactly
+            where you set it, so those two jobs become one and everything after them renumbers.
           </p>
 
           <h3 id="first-format">Set the canvas before you drop the file</h3>
@@ -536,19 +537,24 @@ Full results at https://example.org</code></pre>
             Drop the file and the step reads back what it found: the artwork's size, how many text
             layers it saw, and every typeface the file names. Check the layer count against what
             you drew. A number lower than yours means some of that type is outlines rather than
-            text, which is <a href="#svg-rules">rule 2</a>.
+            text. Re-exporting with live text is the better answer, and it is
+            <a href="#svg-rules">rule 2</a>. If you cannot, the next step offers those shapes back
+            as an <strong>Outlined text</strong> group;
+            <a href="#svg-layers">what each layer becomes</a> says what you get for ticking one.
           </p>
 
           <h3 id="first-fields">Fields is where the graphic is decided</h3>
           <p>
-            This is the step that turns a drawing into something an operator can drive. It has
-            five groups, and each one writes its current answer beside its own heading, so you can
-            read the whole step without opening anything.
+            This is the step that turns a drawing into something an operator can drive. Every group
+            writes its current answer beside its own heading, so you can read the whole step without
+            opening anything. A group appears only when your file has something for it, so a file
+            carrying a logo or outlined type shows more groups than the five below.
           </p>
           <ul>
-            <li><strong>Editable text.</strong> One row per text layer, all of them ticked. A row
-              carries the layer's name, the words you drew, and a small grid saying how the text
-              sits in its box. The name is the label the operator reads, so it is worth fixing
+            <li><strong>Editable text.</strong> One row per text layer, ticked, apart from any
+              layer you named with a <code>static:</code> prefix to say the words are furniture. A
+              row carries the layer's name, the words you drew, and a small grid saying how the
+              text sits in its box. The name is the label the operator reads, so it is worth fixing
               here if your file said "Rectangle_3". The words are what the field starts as, not a
               caption. Untick a row and that layer goes back to being part of the drawing.</li>
             <li><strong>Add a field.</strong> Draws a new box on the artwork, for a line you did
@@ -587,10 +593,14 @@ Full results at https://example.org</code></pre>
               <a href="#export">Which package do I want</a> is the next question.</li>
           </ul>
           <p>
-            There is no third door into the code editor unless <strong>Advanced mode</strong> is
-            on in Settings, and nothing on this road needs it.
-            <strong>Create project</strong> sits beside Next on every step before Finish: it ends
-            the walk where you are and keeps the defaults for everything you have not reached.
+            A third door, <strong>Open in the editor</strong>, appears here only when
+            <strong>Advanced mode</strong> is on in Settings. Nothing on this road needs it.
+          </p>
+          <p>
+            <strong>Create project</strong>, which sits beside Next from the Design step on, is not
+            a fourth ending. It builds the graphic with the defaults for everything you have not
+            reached and hands it to the code editor, and it does not save. Saving there is your own
+            press. Take Finish's doors unless you know you want the canvas.
           </p>
 
           <h3 id="first-air">Take it to air</h3>

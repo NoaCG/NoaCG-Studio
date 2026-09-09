@@ -9,7 +9,7 @@ found: >-
   walking the road cold for the /docs step-by-step guide (2026-09-09)
 serves: NOW
 size: small
-touches: src/components/wizard/CreationWizard.tsx, src/components/wizard/steps/FinishStep.tsx, src/components/wizard/steps/MapSvgFieldsStep.tsx
+touches: src/components/wizard/CreationWizard.tsx, src/components/wizard/steps/FinishStep.tsx, src/components/wizard/import/MapSvgFieldsStep.tsx
 covered-by: e2e/docs.spec.ts, e2e/import-svg.spec.ts
 needs-owner: none
 ---
@@ -21,8 +21,8 @@ this checkout's own dev server with an SVG drawn for the walk.
 
 ## Why
 
-The backlog file this guide came from states the standard, in the owner's words about a different
-feature (`docs/backlog/docs-guides-to-write.md`, 2026-09-03):
+The owner stated the standard on 2026-09-03, about a different feature, and it is the standard
+this list is measured against (`docs/backlog/teams-needs-written-instructions.md`):
 
 > Of course, it should be so intuitive that you can just use it without reading anything.
 
@@ -52,7 +52,8 @@ it does not read as "one step was removed".
 
 **Shape of a fix.** One line in the Design step's read-back, beside "2 text layers found", saying
 that an SVG skips the erase step. It costs a sentence and it is the sentence the guide had to
-write. `CreationWizard.tsx` `STEP_SUBS` is where the two rails are.
+write. `CreationWizard.tsx` `STEP_TITLES_DESIGN` / `STEP_TITLES_SVG` (and `STEP_SUBS` beside them)
+are the two rails.
 
 ### 2. Finish has two name boxes, and empty means the same word twice
 
@@ -80,7 +81,7 @@ least likely to guess from nine blank squares.
 **Shape of a fix.** The group already writes its answer beside every other heading on this step
 ("2 of 2 editable on air", "the panel gets wider, then taller - read from your artwork"). This one
 does not. Writing the chosen cell out in words beside `Aligned` would match the step's own pattern
-and cost nothing.
+and cost nothing. `src/components/wizard/import/MapSvgFieldsStep.tsx`.
 
 ## What it would take
 
@@ -93,8 +94,9 @@ one-graphic production should be called instead.
 - The walk itself, and the guide it produced: `#first-graphic` on `docs.html`, pinned by
   `e2e/docs.spec.ts` ("the step-by-step walk keeps the road, the three surprises and its
   handoffs"). Every quoted string above is in that spec or in the guide.
-- `docs/backlog/docs-guides-to-write.md` for the standard these are measured against, and for the
-  instruction that produced this list: "Write the guide by walking the flow and noting every place
-  a sentence was needed - that list is the stage-4 UI work."
+- `docs/backlog/teams-needs-written-instructions.md` for the standard these are measured against.
+  The instruction that produced this list came from the same owner reading, in the guides list
+  that was deleted on 2026-09-09 when its last item landed: "Write the guide by walking the flow
+  and noting every place a sentence was needed - that list is the stage-4 UI work."
 - `docs/backlog/svg-import-sweep-findings.md` is the same instrument pointed at the importer
   rather than the wizard. Nothing here overlaps with it.
