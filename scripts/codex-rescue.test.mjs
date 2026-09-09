@@ -375,6 +375,91 @@ test('a record is finished with when the machine stops recognising any of it', a
   assert.ok(readOwnership(dir));
 });
 
+// ── The delegations no record claims ─────────────────────────────────────────────────────────────
+//
+// A launch made from a checkout older than `recordOwnership` writes no record, so every later
+// sweep sees no candidate and the family runs until the machine is restarted - measured
+// 2026-09-10, two families and 537 MB, hours after the reaper itself had landed. `adoptableBrokers`
+// is the answer and it is a DIFFERENT KIND of answer: it may only ever produce an ask, never a
+// kill, because the thing that licenses a kill is exactly what is missing here.
+
+/** The broker's own pid entry, as the process table has it. */
+const brokerProcess = { pid: 30668, ppid: 30404, name: 'node.exe', command: brokerLine, createdMs: 1788985322424 };
+
+/** The owner's desktop Codex app: no broker, no job store, and never a candidate. */
+const desktopApp = [
+  { pid: 25708, ppid: 6120, name: 'ChatGPT.exe', command: '"C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.901.6511.0_x64__2p2nqsd0c76g0\\app\\ChatGPT.exe"', createdMs: 1788900000000 },
+  { pid: 20136, ppid: 25708, name: 'codex.exe', command: 'C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\8e5b6932251c2c1c\\codex.exe -c features.code_mode_host=true app-server', createdMs: 1788900001000 },
+];
+
+const TABLE = [brokerProcess, ...desktopApp];
+
+/** One workspace's `broker.json` plus the finished-state of its jobs, the way disk hands it over. */
+function session(overrides = {}) {
+  return {
+    stateDir: 'C:/Users/me/.claude/plugins/data/codex-openai-codex/state/agent-a9ad-06a7',
+    endpoint: 'pipe:\\\\.\\pipe\\cxc-qFSQuA-codex-app-server',
+    brokerPid: 30668,
+    jobs: [true],
+    ...overrides,
+  };
+}
+
+test('a finished delegation with no record is adopted by its broker, not by a pattern', async () => {
+  const { adoptableBrokers } = await import('./codex-rescue.mjs');
+  const [found] = adoptableBrokers(TABLE, [session()]);
+  assert.equal(found.pid, 30668);
+  assert.equal(found.endpoint, 'pipe:\\\\.\\pipe\\cxc-qFSQuA-codex-app-server');
+  // The workspace comes from the BROKER's command line: the state directory's name is a hash and
+  // cannot be turned back into a path, so a scoped reap would silently skip a guessed one.
+  assert.equal(found.workspace, 'C:/claude/NoaCG-Studio/.claude/worktrees/agent-a9ad096b88a1d4eb5');
+});
+
+test('an adopted broker carries no kill list, and there is nowhere to put one', async () => {
+  // THE SAFETY ARGUMENT IS STRUCTURAL, not a rule somebody has to keep. Without a record there is
+  // no proof of which process belongs to this delegation, so the only thing this may return is an
+  // address to ask - and a shape with no `kill` in it cannot grow one by accident.
+  const { adoptableBrokers } = await import('./codex-rescue.mjs');
+  const [found] = adoptableBrokers(TABLE, [session()]);
+  assert.deepEqual(Object.keys(found).sort(), ['endpoint', 'pid', 'stateDir', 'workspace']);
+});
+
+test('one unfinished delegation keeps its broker, which is about to be needed', async () => {
+  const { adoptableBrokers } = await import('./codex-rescue.mjs');
+  // One broker serves every delegation in a workspace, so a single job still running holds it.
+  assert.deepEqual(adoptableBrokers(TABLE, [session({ jobs: [true, false] })]), []);
+});
+
+test('a workspace with no delegation yet is mid-launch, and its broker is left alone', async () => {
+  const { adoptableBrokers } = await import('./codex-rescue.mjs');
+  // The broker is started when the job begins, so the seconds between the two look exactly like a
+  // finished workspace - except that no job has ever finished there, which is what says so.
+  assert.deepEqual(adoptableBrokers(TABLE, [session({ jobs: [] })]), []);
+});
+
+test('a broker.json whose pid now belongs to something else addresses nothing', async () => {
+  const { adoptableBrokers } = await import('./codex-rescue.mjs');
+  // `broker.json` outlives the process it names by days - sixteen of them were on this machine -
+  // so the pid has to still be running the broker, not merely still be a pid.
+  const recycled = [{ pid: 30668, ppid: 4, name: 'svchost.exe', command: 'svchost.exe -k netsvcs', createdMs: 1788999999999 }];
+  assert.deepEqual(adoptableBrokers(recycled, [session()]), []);
+  assert.deepEqual(adoptableBrokers([], [session()]), [], 'a table that could not be read proves nothing');
+});
+
+test('a session with no endpoint is not adoptable, because there is nothing to ask', async () => {
+  const { adoptableBrokers } = await import('./codex-rescue.mjs');
+  assert.deepEqual(adoptableBrokers(TABLE, [session({ endpoint: null })]), []);
+  assert.deepEqual(adoptableBrokers(TABLE, []), []);
+});
+
+test('the desktop Codex app is refused here too, record or no record', async () => {
+  const { adoptableBrokers } = await import('./codex-rescue.mjs');
+  // It cannot reach this point - the app runs no broker and keeps no job store - but the promise
+  // in defect 4 is absolute rather than true-for-now, so the check is made anyway.
+  const underApp = [{ ...brokerProcess, pid: 31000, ppid: 20136 }, ...desktopApp];
+  assert.deepEqual(adoptableBrokers(underApp, [session({ brokerPid: 31000 })]), []);
+});
+
 test('a scoped reap will not take a flag for a path', async () => {
   // `reap --workspace --all-workspaces` would otherwise scope the sweep to a directory named
   // `--all-workspaces`, match nothing, and report a quiet complete-looking nothing - which the
