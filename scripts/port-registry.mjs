@@ -13,9 +13,22 @@
 //
 //   5202.json  ->  { port, livePort, root, preferred, createdAt }
 //
-// A ticket is created with the exclusive 'wx' flag. That is the entire concurrency story: the
-// filesystem, not a lock we would have to police, decides who won when two worktrees start in
-// the same instant. The loser gets EEXIST and walks to the next candidate.
+// A ticket is created with the exclusive 'wx' flag: the filesystem, not a lock we would have to
+// police, decides who won when two WORKTREES start in the same instant. The loser gets EEXIST
+// and walks to the next candidate.
+//
+// That settles "who gets THIS port". It does not settle "which port does THIS checkout get",
+// because two tools in one worktree (vite and playwright, say) each run the whole walk and can
+// write tickets on two different ports without ever colliding on a single file. Reconciling
+// afterwards cannot work: whoever reads the registry first has already returned a port by the
+// time the second writes, and the walk wraps, so the second can legitimately decide a LOWER
+// port won and delete the one already handed out. So the walk runs under a per-root CLAIM LOCK:
+//
+//   claim-<hash of the root>.lock  ->  { root, pid, token, at }
+//
+// Two levels, two different keys, and nothing serialises across them - six worktrees still race
+// for ports at full speed, because each holds a different claim lock while it does. A lock names
+// the process holding it, so a waiter can tell a killed holder from a slow one and take over.
 //
 // OWNERSHIP RULES, all in one place:
 //   - A ticket naming an ACTIVE worktree is untouchable, whether or not its server is running.
@@ -28,7 +41,8 @@
 //     claim back and walk on. We never touch the process: killing another session's server is
 //     the exact failure this mechanism exists to prevent.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 /** The approved dev-port block: even ports 5180-5298. Each odd neighbour is that port's live-e2e port. */
@@ -69,6 +83,155 @@ export function preferredPort(root) {
 export function candidatePort(root, k) {
   const slot = (preferredSlot(root) + k * WALK_STEP) % SLOT_COUNT;
   return PORT_RANGE.first + PORT_RANGE.stride * slot;
+}
+
+/** How often a waiter re-checks a claim lock it could not take. */
+const LOCK_POLL_MS = 5;
+
+/** How long a waiter waits on a LIVE holder before reporting the lock as wedged. */
+const LOCK_WAIT_MS = 60_000;
+
+/**
+ * A lock this old is taken over even though its holder's pid still exists. Only a recycled pid
+ * can get us here - no allocation runs for two minutes - and without it one would wedge a
+ * checkout for good.
+ */
+const LOCK_MAX_AGE_MS = 120_000;
+
+/** How long "access denied" is allowed to mean Windows' delete-pending rather than a real fault. */
+const LOCK_DENIED_GRACE_MS = 1_000;
+
+/**
+ * Path of the lock that serialises allocation FOR ONE CHECKOUT. Named by a digest of the root
+ * rather than the path itself, because a checkout path is longer than a filename may be and
+ * contains separators. `listTickets` only matches `<port>.json`, so a lock is never a ticket.
+ */
+export function claimLockPath(registryDir, root) {
+  const digest = createHash('sha1').update(normalizeRoot(root).toLowerCase()).digest('hex').slice(0, 16);
+  return join(registryDir, `claim-${digest}.lock`);
+}
+
+/** Block this thread for `ms` without spinning - allocation is synchronous, so it cannot await. */
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Run `work` while holding the claim lock for `root`, so only one process at a time decides that
+ * checkout's port.
+ *
+ * A process killed mid-allocation would otherwise wedge its checkout for good, so a lock names
+ * the PID that took it and a waiter takes it over once that process is gone. Liveness, not a
+ * timer: a walk that probes sixty candidates spawns a child per candidate and can legitimately
+ * run for seconds, and any deadline short enough to reclaim a crash quickly is short enough to
+ * rob a slow walk - which would put two allocations for one checkout back inside the very window
+ * this lock closes. The lock also carries a one-off token, so a holder can only ever delete the
+ * lock that is still its own.
+ */
+function withClaimLock(registryDir, root, work) {
+  const path = claimLockPath(registryDir, root);
+  const mine = { root: normalizeRoot(root), pid: process.pid, token: randomUUID(), at: Date.now() };
+  const giveUpAt = Date.now() + LOCK_WAIT_MS;
+  let deniedSince = 0;
+
+  for (;;) {
+    try {
+      writeFileSync(path, JSON.stringify(mine) + '\n', { flag: 'wx' });
+      break;
+    } catch (err) {
+      // EEXIST is the ordinary loser. On Windows a file another process is deleting stays
+      // un-openable for a moment after the delete is issued and an exclusive create against it
+      // fails with access denied instead - measured here with sixteen tools claiming at once.
+      // A registry we genuinely may not write to raises the same code and must not be mistaken
+      // for that, so it is tolerated only while there is no lock file to blame it on, and only
+      // for far longer than that delete window ever lasts.
+      const denied = err?.code === 'EPERM' || err?.code === 'EACCES';
+      if (err?.code !== 'EEXIST' && !denied) throw err;
+      const held = readClaimLock(path);
+      if (denied && !held) {
+        deniedSince ||= Date.now();
+        if (Date.now() - deniedSince > LOCK_DENIED_GRACE_MS) throw err;
+      } else {
+        deniedSince = 0;
+        if (Date.now() > giveUpAt) {
+          throw new Error(
+            `Waited ${LOCK_WAIT_MS / 1000}s for the dev-port claim lock ${path} and never got it.\n` +
+              `Nothing should hold it for more than a moment: delete that file if no dev server is starting up.`,
+            { cause: err },
+          );
+        }
+        if (isHolderGone(path, held)) takeOverClaimLock(path);
+      }
+      sleepSync(LOCK_POLL_MS);
+    }
+  }
+
+  try {
+    return work();
+  } finally {
+    releaseClaimLock(path, mine.token);
+  }
+}
+
+/** The lock currently on `path`, or null when there is nothing readable there. */
+function readClaimLock(path) {
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    return typeof parsed?.token === 'string' && Number.isInteger(parsed?.pid) ? parsed : null;
+  } catch {
+    return null; // gone, or caught mid-write - either way there is nothing to judge yet
+  }
+}
+
+/** True when the process that took this lock is gone, so a waiter may take it over. */
+function isHolderGone(path, held) {
+  if (!held) return ageOf(path) > LOCK_MAX_AGE_MS; // unreadable for two minutes: not a torn read
+  if (Date.now() - held.at > LOCK_MAX_AGE_MS) return true; // only a recycled pid gets this far
+  try {
+    process.kill(held.pid, 0); // signal 0 asks "does this process exist?" and sends nothing
+    return false;
+  } catch (err) {
+    return err?.code === 'ESRCH'; // EPERM means it exists and belongs to another user
+  }
+}
+
+/** How long ago this file was written, or 0 when it is not there to judge. */
+function ageOf(path) {
+  try {
+    return Date.now() - statSync(path).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Take a dead holder's lock. Renaming it away first is what makes this safe: two waiters can
+ * both decide the same lock is abandoned, but only one rename can succeed, so the loser finds
+ * nothing to delete rather than deleting the winner's fresh lock.
+ */
+function takeOverClaimLock(path) {
+  const dead = `${path}.${process.pid}.${Date.now()}.dead`;
+  try {
+    renameSync(path, dead);
+  } catch {
+    return; // somebody else got there first - just try the exclusive create again
+  }
+  removeQuietly(dead);
+}
+
+/** Give a lock back, but only while it is still ours - never undo somebody else's takeover. */
+function releaseClaimLock(path, token) {
+  if (readClaimLock(path)?.token !== token) return;
+  removeQuietly(path);
+}
+
+/** Delete a file, riding out the same Windows delete-pending window that blocks a create. */
+function removeQuietly(path) {
+  try {
+    rmSync(path, { force: true, maxRetries: 10, retryDelay: 10 });
+  } catch {
+    // Leave it: its holder is gone, so the next allocation for this checkout takes it over.
+  }
 }
 
 /** Path of the ticket file that reserves `port`. */
@@ -155,9 +318,21 @@ export function pruneStaleReservations({ registryDir, isRootActive, includeCorru
 export function allocatePort({ root, registryDir, isRootActive, isPortBusy = () => false, now = () => new Date().toISOString() }) {
   const me = normalizeRoot(root);
   mkdirSync(registryDir, { recursive: true });
+  // Everything below is ONE decision for this checkout - read the registry, pick a port, write
+  // the ticket - and it has to be indivisible. Two tools in this worktree that each ran it
+  // concurrently would each see no ticket for us and each claim a port, and no after-the-fact
+  // reconciliation can repair that: by then the first has already returned its number.
+  return withClaimLock(registryDir, me, () =>
+    allocateUnderClaim({ me, registryDir, isRootActive, isPortBusy, now }),
+  );
+}
 
+/** The allocation itself. Only ever called with this checkout's claim lock held. */
+function allocateUnderClaim({ me, registryDir, isRootActive, isPortBusy, now }) {
   // 1. Already assigned? The ticket IS the assignment - that is what makes the number survive
-  //    restarts, and what every other tool reads instead of re-deciding.
+  //    restarts, and what every other tool reads instead of re-deciding. More than one ticket
+  //    can only be left over from a version of this file that allocated without the lock;
+  //    keep the lowest and give the rest back.
   const existing = ticketsFor(registryDir, me);
   if (existing.length > 0) return { ...collapseToLowest(registryDir, existing), reused: true };
 
@@ -197,11 +372,9 @@ export function allocatePort({ root, registryDir, isRootActive, isPortBusy = () 
       continue;
     }
 
-    // Two tools in THIS worktree can allocate at the same moment (vite and playwright, say) and
-    // land on different ports, which would be worse than the collision we are fixing. Reconcile
-    // on a rule both sides compute identically: lowest port wins, the loser releases.
-    const settled = collapseToLowest(registryDir, ticketsFor(registryDir, me));
-    return { ...(settled ?? ticket), reused: false };
+    // This is the only ticket this checkout can hold: step 1 found none, and the claim lock
+    // keeps any other tool in this worktree out until we have returned.
+    return { ...ticket, reused: false };
   }
 
   throw new Error(

@@ -23,6 +23,7 @@ import {
   SLOT_COUNT,
   allocatePort,
   candidatePort,
+  claimLockPath,
   listTickets,
   normalizeRoot,
   preferredPort,
@@ -230,9 +231,73 @@ describe('simultaneous allocation', () => {
     const registry = tempRegistry();
     const root = COLLIDING_A;
     const startAt = Date.now() + 1500;
-    const results = await Promise.all([0, 1, 2].map(() => allocateInChild({ registry, root, startAt })));
+    // EIGHT, not the two the name describes. The walk steps 7 slots at a time and wraps, so a
+    // process pushed far enough along it reaches a candidate NUMBERED BELOW the preferred port -
+    // and that is the shape that used to make two tools disagree about which of the root's
+    // tickets won. Three racers never walk that far: at three this case passed 100 runs in a row
+    // on a machine where eight failed 8 times in 30.
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => allocateInChild({ registry, root, startAt })),
+    );
     assert.equal(new Set(results.map((r) => r.port)).size, 1, 'a worktree must not end up with two ports');
     assert.equal(listTickets(registry).length, 1);
+  });
+});
+
+describe('the claim lock', () => {
+  // A pid no process can have, rather than one from a process we watched exit: both operating
+  // systems recycle pids, and a recycled one would hand a live holder back and hang this case
+  // for the full sixty-second wait. A test for a race must not have a race in it.
+  const DEAD_PID = 2_147_483_647;
+
+  it('leaves no lock behind once the allocation is done', () => {
+    const registry = tempRegistry();
+    const result = allocate(registry, COLLIDING_A);
+    assert.ok(result.port);
+    assert.equal(existsSync(claimLockPath(registry, COLLIDING_A)), false, 'the lock outlived its holder');
+  });
+
+  it('takes over a lock whose holder was killed mid-allocation', () => {
+    const registry = tempRegistry();
+    const lock = claimLockPath(registry, COLLIDING_A);
+    mkdirSync(registry, { recursive: true });
+    // What a Ctrl-C'd `npm run dev:worktree` leaves: a lock naming a process that is gone. If a
+    // waiter could not tell that from a slow one, the checkout would be wedged for good.
+    writeFileSync(lock, JSON.stringify({ root: COLLIDING_A, pid: DEAD_PID, token: 'abandoned', at: Date.now() }));
+
+    const result = allocate(registry, COLLIDING_A);
+    assert.equal(result.port, preferredPort(COLLIDING_A));
+    assert.equal(existsSync(lock), false, 'the dead holder\'s lock was left in place');
+  });
+
+  it('takes over a lock old enough that its pid must have been recycled', () => {
+    const registry = tempRegistry();
+    const lock = claimLockPath(registry, COLLIDING_A);
+    mkdirSync(registry, { recursive: true });
+    // A LIVE pid - this process - on a lock from three minutes ago. No allocation runs that
+    // long, so the pid has been handed to somebody else and liveness alone would wedge us.
+    writeFileSync(
+      lock,
+      JSON.stringify({ root: COLLIDING_A, pid: process.pid, token: 'recycled', at: Date.now() - 180_000 }),
+    );
+
+    assert.equal(allocate(registry, COLLIDING_A).port, preferredPort(COLLIDING_A));
+    assert.equal(existsSync(lock), false, 'the ancient lock was left in place');
+  });
+
+  it('locks per checkout, so a neighbour\'s lock never blocks this one', () => {
+    const registry = tempRegistry();
+    mkdirSync(registry, { recursive: true });
+    // A LIVE holder - this very process - on another checkout's lock. Anything that serialised
+    // allocation across checkouts would hang here for a minute instead of returning at once.
+    writeFileSync(
+      claimLockPath(registry, COLLIDING_B),
+      JSON.stringify({ root: COLLIDING_B, pid: process.pid, token: 'held', at: Date.now() }),
+    );
+
+    const started = Date.now();
+    assert.equal(allocate(registry, COLLIDING_A).port, preferredPort(COLLIDING_A));
+    assert.ok(Date.now() - started < 1000, 'allocation waited on another checkout\'s lock');
   });
 });
 
