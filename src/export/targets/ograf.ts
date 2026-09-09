@@ -9,7 +9,7 @@ import gsapSource from '../../assets/gsap.min.js?raw';
 import lottieSource from '../../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isLottieAsset, parseDataUrl } from '../../assets/assetUtils';
 import { templateUsesLottie } from '../../assets/lottieSupport';
-import { parseAnimData } from '../../blocks/animData';
+import { ANIM_CALL_NAME_RE, parseAnimData, type AnimStep } from '../../blocks/animData';
 import { eventButtons, kindForField, type ControlButton } from '../../control/controlModel';
 import { stripLiveData } from '../../control/liveData';
 import { stripRealtimeControl } from '../../control/realtimeControl';
@@ -736,10 +736,72 @@ export function assertScopedCss(original: string, scoped: string, self: string):
   return scoped;
 }
 
+/**
+ * Names `graphic.mjs` declares at MODULE scope, which the hand-over below must never emit.
+ *
+ * The hand-over writes a bare identifier - `window.foo = (typeof foo === 'function') ? foo : …`
+ * - inside `initTemplate`, so a name the wrapper also declares resolves up the scope chain to
+ * the WRAPPER's function and the timeline would fire that instead of the template's. Skipping
+ * such a name leaves it exactly as it behaves today, which is a silent no-op, rather than
+ * calling the wrong function. Keep this in step with the declarations in `graphicModule`.
+ */
+const WRAPPER_BINDINGS = new Set([
+  'ensureGsap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls',
+  'scopedDocument', 'scopedWindow', 'initTemplate', 'Graphic',
+]);
+
+/**
+ * Reserved words. `ANIM_CALL_NAME_RE` guarantees a bare IDENTIFIER, which is all the
+ * interpreter's `window[name]` needs because there the name is a string. Here it is emitted as
+ * CODE, so `window.delete = (typeof delete === 'function') ? …` is a SyntaxError and the whole
+ * package stops parsing - a data quirk that is harmless everywhere else would make the graphic
+ * fail to load at all.
+ */
+const RESERVED_WORDS = new Set([
+  'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do',
+  'else', 'enum', 'export', 'extends', 'false', 'finally', 'for', 'function', 'if', 'import',
+  'in', 'instanceof', 'new', 'null', 'return', 'super', 'switch', 'this', 'throw', 'true', 'try',
+  'typeof', 'var', 'void', 'while', 'with', 'yield', 'let', 'static', 'await',
+]);
+
+/**
+ * Every function name this graphic's TIMELINE fires by string: a step's lifecycle `calls` and
+ * its measured-motion `dynamics` builders, on the default path and inside every state's own
+ * timeline.
+ *
+ * The interpreter resolves both through `window[name]` and never through eval - that rule is
+ * absolute (`ANIM_CALL_NAME_RE` in blocks/animData.ts states it). Under SPX and CasparCG the
+ * template owns the page, so a top-level `function noacgRepaint()` IS `window.noacgRepaint`
+ * and a bare name is enough. Inside an OGraf Graphic the same code runs inside `initTemplate`,
+ * where those declarations are LOCAL - so the list is what `scopedWindow` has to be handed for
+ * the timeline to keep working.
+ *
+ * Three kinds of name are dropped, and dropping one leaves it behaving exactly as it does
+ * today: anything that is not a bare identifier (the data cannot legally carry one, and it
+ * would reach the emitted code as code), a reserved word, and a name the wrapper itself
+ * declares.
+ */
+function timelineFunctionNames(template: SpxTemplate): string[] {
+  const data = parseAnimData(template.js);
+  if (!data) return [];
+  const stateTimelines = (data.machine?.groups ?? []).flatMap((g) =>
+    g.states.map((s) => s.timeline).filter((t): t is AnimStep => !!t),
+  );
+  const names = new Set<string>();
+  for (const step of [...data.steps, ...stateTimelines]) {
+    for (const call of step.calls ?? []) names.add(call.call);
+    for (const dynamic of step.dynamics ?? []) names.add(dynamic.build);
+  }
+  return [...names]
+    .filter((name) => ANIM_CALL_NAME_RE.test(name) && !RESERVED_WORDS.has(name) && !WRAPPER_BINDINGS.has(name))
+    .sort();
+}
+
 /** graphic.mjs: a readable Web Component wrapping the template's own runtime. */
 function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB): string {
   const stepCount = Math.max(1, Number(template.settings.steps) || 1);
   const machine = parseAnimData(template.js)?.machine;
+  const timelineNames = timelineFunctionNames(template);
   // Each state group's off-air (initial) state, so the wrapper can tell when a press took the
   // graphic off air by itself. Empty for a template with no machine — such a graphic never
   // reports off air here and behaves exactly as before.
@@ -858,6 +920,8 @@ const OFF_STATES = ${JSON.stringify(offStates)};
 // main group's walk — how the wrapper re-derives its step pointer after an event moved the
 // machine. All empty when this graphic has no state machine.
 const CUSTOM_ACTION_IDS = ${JSON.stringify(actionIds)};
+// The functions this graphic's timeline fires by name (see scopedWindow below).
+const TIMELINE_FUNCTIONS = ${JSON.stringify(timelineNames)};
 const MAIN_GROUP_ID = ${JSON.stringify(mainGroupId)};
 const MAIN_PATH = ${JSON.stringify(mainPath)};
 
@@ -898,11 +962,79 @@ function scopedDocument(root) {
   });
 }
 
+/**
+ * A \`window\` scoped to ONE mounted Graphic.
+ *
+ * The animation interpreter fires a step's lifecycle CALLS and its measured-motion BUILDERS by
+ * name - \`window[name]\`, never eval. Under SPX the template owns the page, so its top-level
+ * \`function noacgRepaint()\` IS \`window.noacgRepaint\` and the name is enough. Here the same
+ * code runs inside \`initTemplate\`, so those declarations are local and the renderer's window
+ * knows nothing about them. The names below are therefore handed to this object; everything
+ * else - gsap, getComputedStyle, the viewport - reads through to the real window.
+ *
+ * MEASURED, not guessed: driven in SuperFly.tv's OGraf server on 2026-09-09, an imported quiz
+ * board's select, lock and reveal each answered 200 and moved the machine, and not one of the
+ * designer's drawn states ever lit, because every timeline call resolved to \`undefined\` in
+ * silence (docs/OGRAF.md). A graphic that says 200 and paints nothing is the worst answer a
+ * Graphic can give a renderer, so this is not an optimisation.
+ *
+ * A WRITE lands here rather than on the renderer's page, which is the isolation
+ * \`scopedDocument\` gives the ids: the SPX definition object and the stage-fit caches a
+ * template parks on window are per-graphic, so two designs on two layers cannot overwrite each
+ * other's.
+ *
+ * ONE READ IS REWRITTEN, and only one: a host METHOD - \`getComputedStyle\`, \`setTimeout\`,
+ * \`fetch\` - throws when it is called with any receiver but the real window, so it is handed
+ * back bound. Nothing else is, because a bound function carries none of the original's own
+ * properties: binding \`Date\` would make \`window.Date.now()\` "undefined is not a function",
+ * and binding gsap would drop every method hanging off it. Host methods are exactly the native
+ * functions with no \`prototype\`, which is what tells the two apart.
+ */
+function scopedWindow(names) {
+  const own = Object.create(null);
+  for (const name of names) own[name] = undefined;
+  const isHostMethod = (fn) =>
+    !fn.prototype && /\\[native code\\]/.test(Function.prototype.toString.call(fn));
+  return new Proxy(window, {
+    get(target, key) {
+      if (key in own) return own[key];
+      const value = target[key];
+      return typeof value === 'function' && isHostMethod(value) ? value.bind(target) : value;
+    },
+    set(target, key, value) {
+      own[key] = value;
+      return true;
+    },
+    has(target, key) {
+      return key in own || key in target;
+    },
+  });
+}
+
 // initTemplate(): runs the template's own JS AFTER the markup is in the DOM and returns
 // its runtime entry points. The code inside is exactly what the editor shows — the
-// \`document\` parameter shadows the global one so its lookups stay inside this Graphic.
-function initTemplate(document) {
+// \`document\` and \`window\` parameters shadow the global ones so its lookups stay inside
+// this Graphic.
+function initTemplate(document, window) {
 ${template.js.replace(/^/gm, '  ')}
+
+  // THE TIMELINE'S OWN VOCABULARY, handed to the scoped window above. Every name here is one
+  // the graphic's animation data fires by string, and each is declared by the template's code
+  // just above — local to this function, which is why window has to be told about them.
+  //
+  // A name the template does NOT declare lexically keeps whatever is already on the scoped
+  // window, because assigning the function to window directly is the other spelling a template
+  // may use for the same thing (validation accepts both) and that assignment has already landed
+  // here. Writing undefined over it would reintroduce the silent no-op this whole block exists
+  // to remove. Where neither spelling defined it, the value stays undefined and the interpreter
+  // skips the call, exactly as it does under SPX.
+${
+  timelineNames.length
+    ? timelineNames
+        .map((name) => `  window.${name} = (typeof ${name} === 'function') ? ${name} : window.${name};`)
+        .join('\n')
+    : '  // (this graphic\'s timeline names no function)'
+}
 
   // The machine globals ride along when the template has a state machine, so the wrapper can
   // ASK where the graphic is instead of assuming its own step pointer stayed in step — and
@@ -1010,7 +1142,7 @@ class Graphic extends HTMLElement {
     holder.innerHTML = withPackageUrls.html(TEMPLATE_HTML);
     this.appendChild(holder);
 
-    this._runtime = initTemplate(scopedDocument(this));
+    this._runtime = initTemplate(scopedDocument(this), scopedWindow(TIMELINE_FUNCTIONS));
     this._step = -1; // not on air yet
     if (params && params.data) this._runtime.update(JSON.stringify(params.data));
     return { statusCode: 200 };

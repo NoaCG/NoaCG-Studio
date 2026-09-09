@@ -429,12 +429,133 @@ manifest is written. `e2e/ograf-conformance.spec.ts` then proves three things on
    the lifecycle - including `skipAnimation`, concurrent calls, and the status codes for calling
    an action too early or after `dispose()`;
 4. that package's injected CSS points at the package for its fonts and images rather than at the
-   host page, and two different graphics mounted in one document leave each other's fields alone.
+   host page, and two different graphics mounted in one document leave each other's fields alone;
+5. a mounted graphic's timeline CALLS still fire - an operator action is judged on whether the
+   graphic painted, not on the 200 it answered.
 
-Items 2 and 4 exist because an external renderer found what the transcription could not: a rule
+Items 2, 4 and 5 exist because an external renderer found what the transcription could not: a rule
 the schema does not encode is still a rule the operator sees broken. The external round itself is
 not automated - it is a hand check whose result is the section above, to be repeated when the
 generated Web Component or the manifest changes shape.
+
+### 2026-09-09: a student's own drawing, with behaviour, in the same renderer
+
+Both rounds above drove a package NoaCG designed: a catalog graphic, then a CLI scaffold. The
+graphic the 25 September session actually promises is neither. It is an SVG somebody drew in
+Illustrator, imported here, carrying behaviour proposed from its own layer names - and it had
+never been in a renderer nobody here wrote. `docs/DEMO_2026-09-25.md` beat A7 said so.
+
+The walk is a script now rather than a memory: **`scripts/ograf-external-walk.mjs`**. It drives
+the real import door and the real export dialog in the app, uploads the package through the
+server's own zip endpoint, opens the renderer page, and drives the graphic only through the
+server's HTTP control API. The exact commands, from an empty directory:
+
+```bash
+# The renderer, built from source. Not vendored here - it is their release cadence, and a
+# pinned copy would only ever check a renderer frozen on the day it was pinned.
+curl -sSL -o ograf-server.tar.gz \
+  https://codeload.github.com/SuperFlyTV/ograf-server/tar.gz/refs/heads/main
+tar -xzf ograf-server.tar.gz
+cd ograf-server-main && corepack enable && yarn && yarn build
+
+# The walk. Browser work, so it is enqueued rather than run beside a suite.
+npm run queue -- "node scripts/ograf-external-walk.mjs --server <ograf-server-main>"
+node scripts/jobs.mjs wait <id>
+```
+
+It writes the zip, one PNG per beat and a transcript of every request and response into
+`ograf-external-out/`, which is gitignored: the frames are a run's output and are rebuilt by
+re-running it. Built here at version 1.0.0 of `ograf-server`, main branch, on Node 24 and
+yarn 4.9.1.
+
+Two things about the server that cost an hour and are written down so they do not again: the
+renderer page is **`/renderer/default/`**, not `/renderer/renderer-layer/` - its route matcher
+reads the renderer's TYPE and the only type it serves is `default` - and `clear` takes
+`{filters: [{renderTarget}]}` rather than a bare render target.
+
+#### What it refused: every operator action answered 200 and painted nothing
+
+The board loaded, the bundled Archivo and Inter came from inside the package, `playAction` put
+the question and four answers on air, and the render target's layer was the renderer's own. Then
+`select`, `lock`, `revealChoice` and `judge` were fired in turn. **All four answered `200`, `judge`
+moved `currentStep` from 0 to 1, and the frame never changed.** Thirteen drawn states were in the
+DOM and not one ever lit. There was no console error, no rejected promise and no status code
+anywhere that said so.
+
+The cause is how a step's lifecycle **calls** and its measured-motion **builders** are resolved:
+by NAME, through `window[name]`, never eval - `blocks/animData.ts` states that rule as absolute.
+Under SPX and CasparCG the template owns the page, so a top-level `function noacgRepaint()` IS
+`window.noacgRepaint` and a bare name is enough. Inside an OGraf Graphic the same code runs inside
+`initTemplate()` - which is what scopes each Graphic's `document` to its own element - so those
+declarations are LOCAL, the renderer's window has never heard of them, and every call resolved to
+`undefined` and was skipped in silence. Nothing local had ever caught it for the same reason the
+font defect of 2026-08-18 was never caught locally: under every other target the template IS the
+document.
+
+This was never only about imported artwork. **A catalog quiz, a clock, a competition board and a
+ticker's measured travel are all equally dead** in an OGraf renderer, and the two earlier rounds
+missed it because a scoreboard's custom actions write FIELD text, which travels by the data path
+and paints without a timeline call.
+
+The fix is `scopedWindow()` in `src/export/targets/ograf.ts`, the twin of the `scopedDocument()`
+the 2026-08-18 round produced: `initTemplate` now takes a `window` as well, the export lists the
+names that graphic's timeline can fire (`timelineFunctionNames`, read off its own animation data)
+and hands them over after the template's code has declared them. Reads of anything else - gsap,
+`getComputedStyle`, the viewport - pass through to the real window; a WRITE lands in the scoped
+object, so the SPX definition object and the stage-fit caches a template parks on `window` became
+per-graphic too, which closes the same class of collision for `window` that scoping the ids closed
+for `document`.
+
+`e2e/ograf-conformance.spec.ts` pins it on every CI run ("a mounted Graphic's timeline calls still
+fire"): a catalog quiz is exported, mounted, driven through `customAction('select')`, and the
+assertion is that a row is MARKED - not that the action answered 200. It drives with
+`skipAnimation` so the verdict never depends on a ticker.
+
+#### The trap that nearly made this round lie, twice
+
+**A browser throttles `requestAnimationFrame` in a page that is not the visible one.** GSAP rides
+that clock, so a graphic in a background page freezes part-way through its entrance and never
+finishes a state change - which reads exactly like the defect above: the actions answer `200`, the
+machine moves, the drawn states never appear. The first two runs of the walk reported a dead board
+for that reason alone, and a third, driven the same way in a page that was in front, was correct.
+
+So the fix above is not "the thing that was different when it finally worked". It was isolated by
+an A/B in the same foregrounded renderer, one package at a time: the package as this branch emits
+it, then the same package with `scopedWindow` stripped back to what `main` emits. Same renderer,
+same data, same walk.
+
+| | machine after `select` | drawn states lit |
+|---|---|---|
+| as `main` emits it | `main/selected` | none |
+| with `scopedWindow` | `main/selected` | `answer.selected/B` |
+
+`scripts/ograf-external-walk.mjs` now calls `page.bringToFront()` before it drives and before
+every frame, and says why. Anything measuring MOTION in a hidden page is measuring the throttle.
+
+#### What it confirmed, with the fix in
+
+Driven entirely through the external server's HTTP control API, on the imported `quiz-board.svg`:
+
+- upload `200`, listed as `noacg-imported-svg-design`, the served manifest carrying seven fields,
+  four custom actions, `stepCount: 2`, measured `actionDurations` and the `v_noacg` hints;
+- `load` with the operator's data, then `playAction`;
+- `select` carrying `{f6: "B"}` - the Doha row takes the designer's own selected treatment;
+- `lock` - the drawn **LOCKED IN** badge appears and the pick stays up, which is the moment
+  itself: `answer.selected/B` and `locked` lit together;
+- `judge` - Santiago (the key, C) lights as correct and the other three take the wrong
+  treatment: `answer.correct/C`, `answer.wrong/A`, `answer.wrong/B`, `answer.wrong/D`;
+- `stopAction` and `clear`, both `200`;
+- an unknown custom action answered **`400`** with our own message through the foreign host:
+  `This graphic defines no custom action "no-such-action".`
+
+Every lit state above was read out of the renderer's own DOM after the action, not judged by eye,
+and each was seen on the renderer's page as well. `skipAnimation` is the honest way to photograph
+a settled frame while driving from outside the browser, and it is part of the contract rather than
+a workaround.
+
+What this round does not settle: the renderer drops a Graphic's instance when its layer is
+cleared, so it still never calls an action after `dispose()` - the `409` for that case remains
+our own guarantee, exactly as after 2026-08-22.
 
 ### 2026-08-29: the community checker's 83 rules
 

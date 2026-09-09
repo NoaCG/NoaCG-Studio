@@ -121,6 +121,11 @@ export const SWEEP_SCRIPTS =
   // The PLAYOUT DASHBOARD frames, for the same reason as the two above and named like neither
   // family: it builds a production through the app and photographs it at four window sizes.
   + '|playout-dashboard-shots'
+  // `ograf-external-walk` drives the SVG import road in the app, exports the package, and then
+  // opens a SECOND browser page on somebody else's renderer and drives it there. Two pages and
+  // two servers for the length of a wizard walk plus a graphic's whole lifecycle - the same
+  // workload as the shots scripts above, under a name that matches no family here.
+  + '|ograf-external-walk'
   + `|render-smoke[\\w-]*|(?!(?:${SERVER_SCRIPTS})\\.)[\\w-]*bench[\\w-]*`
   + '|[\\w-]*spike[\\w-]*';
 
