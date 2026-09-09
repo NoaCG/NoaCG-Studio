@@ -500,6 +500,13 @@ test('a kit opened FOR a production joins that one, in its look', async ({ page 
   await page.locator('.wz-variant').first().click();
   await page.getByTestId('wz-skip-to-finish').click();
   await page.getByTestId('wz-finish-name').fill('Friday Desk');
+  // NAME THE PRODUCTION. This used to be left empty and the production silently took the
+  // GRAPHIC's name, which is the defect fixed in src/model/shows.ts (`UNTITLED_PRODUCTION`): an
+  // empty box now falls to the app's own name for a production nobody named. What this case is
+  // about is which production a kit JOINS, so it needs a named one to point at - not a
+  // particular way of arriving at the name, and least of all the way that was wrong.
+  await page.getByTestId('wz-finish-production-pick').locator('select').selectOption('new');
+  await page.getByTestId('wz-finish-production-name').fill('Friday Desk');
   await addToProductionFromFinish(page);
   await expect(page).toHaveURL(/#\/production\//);
   await settleDurableWrites(page);

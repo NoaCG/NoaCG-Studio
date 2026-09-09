@@ -195,6 +195,21 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     ],
   ],
   [
+    // The check is only worth what its SCOPE is worth: a review of the wrong files reports this
+    // branch's real diff as clean, and that has now been measured six times across four rows
+    // (three wrong worktrees on 2026-08-29, rows Q and P on 2026-09-08, row J on 2026-09-09,
+    // the last three all against a local `main` the merge queue no longer moves). The reviewing
+    // tool is a built-in nothing here can fix, so the comparison the row runs IS the mechanism -
+    // pinned in three parts, the exact command, the verdict, and the word the handoff carries,
+    // because a rewrite that keeps two of the three leaves the leg unfalsifiable.
+    'check',
+    [
+      'git diff --name-only $(git merge-base origin/main HEAD)..HEAD',
+      'On any mismatch, discard the WHOLE pass',
+      'review: discarded+inline',
+    ],
+  ],
+  [
     'cleanup-worktrees',
     [
       'contained in both local `main` and `origin/main`',

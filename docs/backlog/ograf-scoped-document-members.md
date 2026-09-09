@@ -28,4 +28,4 @@ row (a shadow root or per-graphic iframe), which removes the question.
 
 ## Evidence
 
-`docs/handoffs/2026-09-02-c-ograf-host-page.md`; the readers named in `src/export/AGENTS.md`.
+`git show 592891dc:docs/handoffs/2026-09-02-c-ograf-host-page.md`; the readers named in `src/export/AGENTS.md`.

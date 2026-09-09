@@ -3,7 +3,7 @@ import { ALL_PRESETS } from '../../../blocks/presetRegistry';
 import { FONTS } from '../../../model/fonts';
 import type { SpxTemplate } from '../../../model/types';
 import type { ImportedTemplateResult } from '../../../model/importTemplate';
-import type { Show } from '../../../model/shows';
+import { resolveShowName, type Show } from '../../../model/shows';
 import { librarySaveEffect, type LibraryNameEntry } from '../../../model/library';
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { isRenderConfigured } from '../../../render/config';
@@ -244,9 +244,20 @@ export default function FinishStep({
       : productions[0]?.id ?? 'new',
   );
   const [newName, setNewName] = useState('');
+  // AN EMPTY PRODUCTION BOX IS NOT THE GRAPHIC'S NAME. It used to be, and on the commonest
+  // first run there is nothing else on screen: an empty library preselects "New production"
+  // above, both boxes start empty, and one press made a graphic called "Imported SVG design"
+  // sitting in a production also called "Imported SVG design" - which the confirmation below
+  // then printed back, twice, in two sentences (e2e/import-svg.spec.ts, "an unnamed production
+  // is not named after the graphic").
+  // A show holding one strap is not called "Interview strap". `resolveShowName` is the same
+  // function the write itself goes through, asked early - the dialog below has to PRINT the
+  // production a press is about to create, and at that moment there is no record to read the
+  // name off. Sharing the function rather than the constant is what keeps the sentence on
+  // screen and the row on disk one answer.
   const resolvedDest = (): ProductionDest =>
     dest === 'new'
-      ? { kind: 'new', name: newName.trim() || (name.trim() || namePlaceholder) }
+      ? { kind: 'new', name: resolveShowName(newName) }
       : { kind: 'existing', id: dest };
 
   // THE DESTINATION, HELD FOR ONE QUESTION. The primary door does two irreversible-feeling
@@ -414,7 +425,12 @@ export default function FinishStep({
           {dest === 'new' && (
             <input
               className="grow"
-              placeholder={`Production name — e.g. Friday Show (empty = "${name.trim() || namePlaceholder}")`}
+              /* THE PLACEHOLDER IS THE FALLBACK, which is the rule the graphic's own name box
+                 twenty lines up already follows: the field SHOWS what an empty box falls back
+                 to, so nothing has to be read anywhere else. It used to promise the graphic's
+                 name and the example both, in a string too long to finish reading in a `grow`
+                 input; the example now sits in the line under this row, where it has room. */
+              placeholder={resolveShowName('')}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               data-testid="wz-finish-production-name"
@@ -423,7 +439,8 @@ export default function FinishStep({
         </div>
         <p className="hint">
           A production is what airs: its graphics, the cue rundown, the output URL, and the
-          control page.
+          control page. Name it for the show, like Friday Show or Class Quiz, not for this
+          graphic.
         </p>
       </div>
 

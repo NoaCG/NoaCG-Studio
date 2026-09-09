@@ -174,4 +174,4 @@ force wherever a workflow runs a gate directly; and the audit's static half was 
 that a sentence about the helper, in a comment, satisfied. All three are closed, with a negative
 test each, in `scripts/measured.test.mjs`. What no static reading can prove - that a `measured`
 call is REACHED - is now written out over `judgeMeasurement` in `scripts/gates.mjs` rather than
-implied to be covered. See `docs/handoffs/2026-09-09-y-measured-holes.md`.
+implied to be covered. See `git show b08eae77:docs/handoffs/2026-09-09-y-measured-holes.md`.

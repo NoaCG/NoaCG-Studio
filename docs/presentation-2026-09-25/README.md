@@ -1,18 +1,14 @@
-# The presentation for 2026-09-25
+# The 25 September 2026 deck
 
-**Open `index.html` in Chrome or Edge.** It needs no network and no server: the three brand
-typefaces are in `fonts/` beside it, and nothing else is loaded. Copy the whole folder, not the
-one file, or the system faces stand in for the brand ones.
+`NoaCG-2026-09-25.pptx` is the presentation for the session with students and Yle. Double-click
+it. It opens, presents and edits in PowerPoint or LibreOffice, needs no network and no browser,
+and its speaker notes name the beat, its status and the proving file for every slide.
 
-Seven cards, composed from `docs/DEMO_2026-09-25.md` and pointing back at it: what NoaCG is, the
-one picture of the two roads, one card per section of the session with what the room does now
-and where the guide is, and the close. The session is a follow-along (script §0, call 1), so the
-room looks at a card only at the boundary of a section; the product carries the rest.
+The content of record is `docs/DEMO_2026-09-25.md`; the deck was built from its beats on
+2026-09-09 and every slide sentence traces to that file's evidence column.
 
-Press **N** for the presenter notes. They name the script row behind every claim on the card
-and, where a beat is not WORKS, say so with the date. Press **?** for the other keys. The deck
-prints one card per page with its notes underneath, as a fallback if the laptop dies.
-
-When the script's status column moves (the 12th ticks the hardware rows; the install lines get
-re-run), the notes in `index.html` are the copy to update. The cards themselves make no claim a
-status change would falsify.
+`make-deck.mjs` is the starting-point generator. It refuses to write over an existing deck, so a
+hand edit always wins, and nothing in the repository lints or runs it; its header says why. This
+file exists so that `docs/README.md` can point at the directory through a row the docs-index gate
+covers: a row naming a `.pptx` is invisible to `scripts/check-docs-index.mjs`, a row naming this
+`.md` is not.

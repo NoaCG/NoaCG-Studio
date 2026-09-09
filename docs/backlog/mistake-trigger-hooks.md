@@ -69,6 +69,11 @@ the 2026-09-02 orchestration-guardrails handoff for the first three guardrails (
 feed-a-real-event verification did not survive, and none of those three hooks has a test file:
 `docs/backlog/hook-tests-run-only-by-hand.md`. `git show
 b8d1f58f^:docs/handoffs/2026-09-02-h-orchestration-guardrails.md` prints the cases);
-`docs/handoffs/2026-09-02-d-mistake-trigger-hooks.md` for the 2026-09-02 round; the 2026-09-05
+the 2026-09-02 mistake-trigger round's own handoff (drained 2026-09-09 - its four open items all
+have durable homes now: the two unbuilt hooks are "What closed" and "What is left" above, the
+occupancy refusal and the migration-by-shell-redirect are `docs/MISTAKE_TRIGGERS.md`'s own list,
+and the `handoffs`-in-the-command-text limit is stated in `scripts/hooks/warn-command.mjs`'s
+header; `git show 11c86fe7:docs/handoffs/2026-09-02-d-mistake-trigger-hooks.md` prints it);
+the 2026-09-05
 mistake-triggers handoff for the two measurements that reshaped this item, restated in full above
 (drained 2026-09-08).

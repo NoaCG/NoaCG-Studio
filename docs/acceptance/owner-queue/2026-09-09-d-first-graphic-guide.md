@@ -41,6 +41,8 @@ string in it was read off a running build.
 - The `/docs` shelf's guide list is finished, so its backlog file is deleted the way landed work is.
   Your 2026-09-03 ask for Teams instructions was sharing that receipt and is **not** done, so it
   now has its own file: `docs/backlog/teams-needs-written-instructions.md`.
-- The three moments where the wizard needed a sentence of documentation to be usable are filed
-  with repros in `docs/backlog/import-walk-hesitations.md`. That is the list your own standard asks
-  for: anything the guide has to explain is a candidate defect in the screen.
+- The three moments where the wizard needed a sentence of documentation to be usable were filed
+  with repros, and have since been fixed on the screen itself: see
+  `docs/acceptance/owner-queue/2026-09-09-m-wizard-says-it-itself.md` for the route to all three.
+  That list is what your own standard asks for: anything the guide has to explain is a candidate
+  defect in the screen.

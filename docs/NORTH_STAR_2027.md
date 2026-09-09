@@ -380,7 +380,7 @@ against what the programmes prove or invalidate.
 
 | Window | The push | ACTIVE programmes (target) | Key exits |
 |---|---|---|---|
-| Sep 2026 | GOALS NOW: students' own graphics, 2026-09-12 | none new - P1 and P2 in DESIGN; GOALS.md slim-down lands; register lands if ratified | the class production; Teams design ratified |
+| Sep 2026 | GOALS NOW: students' own graphics (`docs/GOALS.md`, `## NOW`) | none new - P1 and P2 in DESIGN; GOALS.md slim-down lands; register lands if ratified | the class production; Teams design ratified |
 | Oct-Dec 2026 | class productions keep running | **P1 Teams**, **P6 OGraf** (rungs 1-5), P3 first slice (clips by reference) | three-student claim scenario-proven; OGraf import v1; clip playout airing; Yle trial happens on whatever is true then |
 | Jan-Mar 2027 | - | **P6** (playout + Server API), **P3** (rundown v2 + scenario driver), **P4** (Phase 3 convergence, Data Hub), P2 research rounds running throughout | OGraf playout claim; outreach unlocks per the ruling; full-show scenario green |
 | Apr-Jun 2027 | - | **P2** (chosen surface + customization, if the research has earned it), **P4** (connectors, Companion), **P5** (scope widening, recurring bench), **P7** editor attempt underway | behaviour claim (a) scenario-proven; automation claim; agent production claim |
@@ -403,7 +403,7 @@ ratification record, not the state:
 
 | Programme | Ratified state | Entry condition |
 |---|---|---|
-| P6 OGraf | AUTHORIZED (ratified 2026-08-29) | none - may start now; 2026-09-12 is a forecast, not a wait (owner, 2026-09-03) |
+| P6 OGraf | AUTHORIZED (ratified 2026-08-29) | none - may start now; the NOW date (`docs/GOALS.md`, `## NOW`) is a forecast, not a wait (owner, 2026-09-03) |
 | P1 Teams | DESIGN now, moving to implementation quickly | ACTIVE on plan ratification |
 | P3 Production/Rundown/Media | DESIGN; clip slice AUTHORIZED | none - the slice may start now, same ruling |
 | P2 Behaviour & Control | DESIGN - standing continuous research | implementation on evidence + ruling |

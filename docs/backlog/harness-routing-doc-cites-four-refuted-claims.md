@@ -1,7 +1,7 @@
 # HARNESS_ROUTING.md cites four capability claims a re-probe just measured false
 
 **Filed:** 2026-09-09. **Source:** measurement (branch `claude/x-capability-reprobe`, handoff
-`docs/handoffs/2026-09-09-x-capability-reprobe.md`).
+`git show 1a51192f:docs/handoffs/2026-09-09-x-capability-reprobe.md`).
 
 ## Why
 
@@ -46,6 +46,6 @@ different ways (2026-08-29, cited in `check.md` itself).
 
 ## Evidence
 
-`docs/handoffs/2026-09-09-x-capability-reprobe.md` (the full probe table and commit message);
+`git show 1a51192f:docs/handoffs/2026-09-09-x-capability-reprobe.md` (the full probe table and commit message);
 `scripts/harness-capabilities.json` (each entry's `claim` field now opens with `REFUTED as of
 <version>:` and states what the probe found, with the previous claim kept below it).

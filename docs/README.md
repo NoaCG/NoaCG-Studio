@@ -122,7 +122,7 @@ Layers of documentation, top to bottom:
 | Doc | State |
 |---|---|
 | `DEMO_2026-09-25.md` | SESSION SCRIPT for 2026-09-25, written 2026-09-09: the beats with a route and status evidence each; §7 is the gap list the fortnight is planned from. Moves to the historical table after the day. |
-| `presentation-2026-09-25/index.html` | THE PRESENTATION for 2026-09-25: seven cards composed from the script above, opened from a file with no network (fonts beside it), presenter notes behind `N` naming the script row behind every claim. Its `README.md` says how to open and update it. |
+| `presentation-2026-09-25/README.md` | THE DECK for 2026-09-25 lives beside this file: `presentation-2026-09-25/NoaCG-2026-09-25.pptx`, seven slides the owner double-clicks, presents from and hand-edits in PowerPoint or LibreOffice, with no network. `DEMO_2026-09-25.md` is the content of record and every slide traces to its evidence column, with the beat, its status and the date in the speaker notes. `make-deck.mjs` beside it is the starting-point generator; it refuses to write over the file, so a hand edit always wins. The row names the `.md` so the docs-index gate covers it. |
 | `TEXT_BOX_BINDING.md` | Text and its box: every field lives in the shape drawn under it, the text owns its alignment, the box owns its growth. Owner walk 2026-09-02; all three measured defects fixed, the alignment grid built 2026-09-08. Growth per box is still design. |
 | `GROWTH_EXECUTION_PLAN.md` | The adoption push. Locked 2026-07-08; only open signup done. The §9 backlog is the work queue when growth resumes. |
 | `NIGHTLY_AUTOMATION_PLAN.md` | Era 7. Job A (CI/health gates) built; generation jobs B/C plan-only, waiting on the §10 decisions (they spend real money nightly). |

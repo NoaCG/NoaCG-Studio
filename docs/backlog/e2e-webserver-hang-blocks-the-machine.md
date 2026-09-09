@@ -26,8 +26,9 @@ check cannot see - so the guard reported a clean machine while the machine was b
 
 ## Evidence
 
-Measured in the 2026-09-02 night wave (row K, handoff
-`docs/handoffs/2026-09-02-d-leaving-the-wizard.md`):
+Measured in the 2026-09-02 night wave, row K. Its handoff was drained on 2026-09-09; the numbers
+below are the whole of what it carried about this, and it prints from
+`git show 187a1c79:docs/handoffs/2026-09-02-d-leaving-the-wizard.md`:
 
 - A Playwright run in the **primary checkout** held the lock for **126 minutes** having burned
   **1.7 CPU seconds**, with **no browser child processes**.

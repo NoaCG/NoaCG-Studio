@@ -138,4 +138,4 @@ against origin/main: 27 of 31 landed same-day. These did not, and must not be dr
    claude/editor-blank-stage-note` - its first landing died mid-wait). Two side bugs to fix
    alongside: Space tapped over the stage is silently swallowed by canvas pan; `__activeTl`
    never released on completion so the playhead pins after the first play. Still deprioritized
-   behind the 2026-09-12 push - a small session, not an urgent one.
+   behind the NOW push (`docs/GOALS.md`, `## NOW`) - a small session, not an urgent one.

@@ -2157,7 +2157,19 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
               A ticked layer becomes a field the operator retypes live, in the type you drew.
               Untick one and its words stay part of the artwork.
             </p>
-            <p>The Text box is live. Type a long value and the preview shows what airs.</p>
+            {/* THE KEY TO THE NINE DOTS - one SENTENCE on the paragraph that already covers
+                what a row's controls do, not a paragraph of its own. Each row now states its own
+                answer in words beside the word Aligned; what a row cannot afford to repeat seven
+                times is what that answer is FOR. It is said here because the ⓘ notes on this step
+                have a pinned LENGTH ceiling (e2e/import-svg.spec.ts, "the step says what a
+                control does, in a few lines" - this body is exactly two paragraphs, and the owner
+                on 2026-08-26: "it needs to be shorter and just what it does"). Tying it to the
+                Text box is also the cheapest demonstration there is: type a long value and the
+                anchored edge is the one that visibly does not move. */}
+            <p>
+              The Text box is live. Type a long value and the preview shows what airs, growing
+              from whichever edge Aligned names.
+            </p>
           </SectionHead>
           {fieldGroups.map((group) => (
           <div
@@ -2284,7 +2296,24 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
                        row whose line has a box - text on the artwork has nothing to be aligned in
                        (`wizard/offer-control-can-change-graphic-front`). */
                     <div className="save-field map-svg-align" data-testid={`map-svg-align-${f.candidateId}`}>
-                      <span>Aligned</span>
+                      {/* THE ANSWER IN WORDS, beside the heading, which is what every other
+                          group on this step does ("2 of 2 editable on air", "the panel gets
+                          wider, then taller - read from your artwork") and what this one alone
+                          did not: nine unlabelled dots, their answers reachable only by hovering
+                          one cell at a time (e2e/import-svg.spec.ts, "every alignment grid
+                          writes its own answer beside the heading").
+                          MEASURED before it was written, because the step has an exact
+                          rows-on-screen budget (e2e/import-svg.spec.ts, 7 rows at 1280x720 and
+                          1366x768). On the scorebug at 1280 the answer takes the column from
+                          52 px to 112 and the two text boxes from 165 to 135, which the budget
+                          survives - but the CLOCK row, which also carries the countdown picker,
+                          then wrapped a label and grew from 56 px to 68. The guard in
+                          mapSvgFields.css (a row LABEL never wraps) is what buys it back: every
+                          row stays 54 px, the last one still ends at 609, and all seven arrive
+                          whole at both sizes. */}
+                      <span>
+                        Aligned <span className="map-svg-align-now">{now.h}, {now.v}</span>
+                      </span>
                       <div className="map-svg-align-grid" role="radiogroup" aria-label="How the text sits in its box">
                         {ALIGN_V.map((v) =>
                           ALIGN_H.map((h) => {

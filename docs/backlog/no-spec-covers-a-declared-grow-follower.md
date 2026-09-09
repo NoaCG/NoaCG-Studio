@@ -1,6 +1,6 @@
 # A saved template with a declared `mode: 'grow'` follower is promised support and covered by no spec
 
-**Filed:** 2026-09-09, carried out of `docs/handoffs/2026-09-06-f-growth-question.md` during the
+**Filed:** 2026-09-09, carried out of `git show 3228fae6:docs/handoffs/2026-09-06-f-growth-question.md` during the
 handoff drain. **Source:** the row's own honest gap, named under "What is NOT done" and never filed.
 
 ## Why

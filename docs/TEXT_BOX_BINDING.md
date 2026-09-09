@@ -410,6 +410,20 @@ list, so the moment a reader edited that list - dropped a strap, added a layer -
 lower third silently stopped growing with its plate. It is collected always now, exactly as end
 caps are, and a declared entry still wins.
 
+**And one narrowing, recorded because it is real.** Before the fix above, declaring any follower
+list disabled the spanner sweep. That was the bug - but it did make one state reachable by
+accident: a spanning layer could be pinned to stay exactly as drawn. It cannot be any more. A
+spanner is now representable only as "travels" (list it under the rule) or "stretches" (leave it
+out and let the sweep have it). Accepted deliberately, on the end-cap precedent that panel
+furniture is not an author's decision, and the corpus sweep above is the argument: zero of the 79
+follower rows was a layer that should stretch, so the state being removed is one nothing on the
+corpus asks for. Two costs come with it. The sweep now runs per rule per update rather than
+short-circuiting on a declared list, on `update()`'s hot path, alongside the end-cap sweep that
+already did - bounded, but the two read almost the same nodes and could share one pass. And no
+spec covers a DECLARED `mode: 'grow'` follower end to end, because no UI route can produce one any
+more while `draft.ts` still promises saved templates carrying it keep working
+(`docs/backlog/no-spec-covers-a-declared-grow-follower.md`).
+
 ### The guardrail, said once
 
 **Text never paints outside its box, and a box that stays as drawn moves nothing.** A box that

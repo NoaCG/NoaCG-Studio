@@ -1,7 +1,7 @@
 # The e2e durations table drifts for weeks because nothing forces a refresh
 
 **Filed:** 2026-09-04. **Source:** measurement, while fixing the E2E shard-cap cancellations
-(`docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md`).
+(`git show ba427e57:docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md`).
 
 ## Why
 
@@ -52,7 +52,7 @@ is its own branch.
 
 - `docs/CI_STABILITY.md` §4 "Reopened 2026-09-04, different cause: an uneven split, not a suite that
   got too big" - the 30-run measurement, the per-shard table, and the 66.9 -> 99.7 minute growth.
-- `docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md` - how the drift reached four
+- `git show ba427e57:docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md` - how the drift reached four
   cancelled runs and, through them, a misfiled issue and two dead landings.
 - `scripts/e2e-durations.mjs` header - why the table exists and how a refresh is meant to happen.
 

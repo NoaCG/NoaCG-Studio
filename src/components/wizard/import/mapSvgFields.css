@@ -334,7 +334,13 @@
   font-size: 11px;
   line-height: 1.3;
   color: var(--text-dim);
-  /* The label above is tracked caps; this is a sentence, so it keeps its own case and tracking. */
+}
+/* NOT TRACKED CAPS. `.save-field > span` is a label and is styled as one (save-controls.css);
+   these two are not labels, so they undo it in one place. The hint under a box is a sentence;
+   the alignment answer is a VALUE that rides inside its label ("Aligned left, middle"), and
+   uppercasing it would read as a second heading rather than as the row's answer. */
+.save-field > .map-svg-name-hint,
+.map-svg-align-now {
   text-transform: none;
   letter-spacing: 0;
 }
@@ -390,8 +396,25 @@
    (e2e/import-svg.spec.ts, "the mapping step's checklist is on screen") and a line per row would
    cost seven; the two text boxes give up about 25 px each to make room, which is what they can
    afford at the panel's ~438 px. */
+/* Sized by its LABEL, not by its grid: the heading carries the row's answer in words ("Aligned
+   left, middle") where the 3x3 of dots under it is only 42 px wide. The words' own case and
+   tracking are reset up beside the name hint's, which undoes the same label styling. */
 .map-svg-align {
   flex: 0 0 auto;
+}
+/* A ROW LABEL NEVER WRAPS. The row is a nowrap flex line, so a label too wide for its share of
+   it wraps INSIDE its own field and takes the whole row a line taller - which on the clock row,
+   the one that also carries the countdown picker, is exactly what the alignment answer did at
+   1280 px (56 px to 68). Wrapping the label buys nothing: the boxes beside it are `grow` and
+   give the width back the moment they are asked to. Measured, with the widest answer on the
+   scorebug: every row stays 54 px and all seven still arrive whole at 1280x720 and 1366x768.
+   `:first-child` IS THE LABEL, and the rest of the selector is why it has to be there. Two other
+   spans sit directly inside a `.save-field` on this step and BOTH are sentences that must wrap:
+   `NameHint`'s line under a picker ("filled: the widest drawing beside row B"), which follows its
+   own select, and a recipe option's label ("Reveal by itself a few seconds after the lock"),
+   which follows its own checkbox. Neither is ever first. */
+.map-svg-row .save-field > span:first-child {
+  white-space: nowrap;
 }
 .map-svg-align-grid {
   display: grid;

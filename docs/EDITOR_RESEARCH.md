@@ -12,8 +12,9 @@ binds it to data, gives it behaviour, and keeps a package of many graphics maint
 
 **Nothing in this document is authorized to be built by it.** `docs/CONTROL_PANEL_ROAD.md` §11
 parks the cloud editor, and `docs/GOALS.md` THEN items 1 and 2 park the WYSIWYG canvas and the
-node editor as an authoring surface. The 2026-09-12 production owns the calendar. This file exists
-so that when the editor is finally committed to, we are solving the right problem.
+node editor as an authoring surface. The NOW push, in that file's `## NOW`, owns the calendar.
+This file exists so that when the editor is finally committed to, we are solving the right
+problem.
 
 **Where the control axis lives.** Custom control applications, the production operator story,
 shared production data and staged-vs-live are decided in `docs/CONTROL_PANEL_ROAD.md` (rewritten

@@ -420,9 +420,9 @@ operator; the default path as the dumb-playout contract.
   instruction: do not turn this into an enterprise-feature roadmap.
 - **No second graphic model, no per-template panel code, no arbitrary panel markup** - restated
   from §2 because they are the standing temptation.
-- **Nothing in this document is authorized to be built by it.** The 2026-09-12 production owns
-  the calendar; every section above is sequenced after it, and each build starts from its own
-  session with this doc as the brief.
+- **Nothing in this document is authorized to be built by it.** The NOW push (`docs/GOALS.md`,
+  `## NOW`) owns the calendar; every section above is sequenced after it, and each build starts
+  from its own session with this doc as the brief.
 
 ## The decisions record
 

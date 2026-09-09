@@ -199,6 +199,33 @@ export function productionsContaining(graphicId: string): Show[] {
   return loadShows().filter((s) => s.graphics.some((g) => g.graphicId === graphicId));
 }
 
+/**
+ * WHAT A PRODUCTION NOBODY NAMED IS CALLED.
+ *
+ * Deliberately plain. A default that reads as a deliberate name teaches the reader nothing; one
+ * that reads as "you have not named this yet" is the invitation to name it.
+ */
+const UNTITLED_PRODUCTION = 'Untitled production';
+
+/**
+ * THE NAME A PRODUCTION WILL ACTUALLY BE SAVED UNDER, answered before it exists.
+ *
+ * Every write goes through `createShowNamedChecked` below, which applies the same floor - but a
+ * confirmation dialog has to PRINT the destination a press is about to create, and at that
+ * moment there is no record to read it off. So the policy is a pure function both callers share,
+ * rather than a constant each of them re-applies: the sentence on screen and the row on disk
+ * cannot then disagree, and a floor that later grows (deduplication, say) grows for both at once.
+ *
+ * The defect it closes: the wizard's Finish step filled an empty production box with the
+ * GRAPHIC's name, so a first import produced a graphic called "Imported SVG design" sitting in a
+ * production also called "Imported SVG design" (e2e/import-svg.spec.ts, "an unnamed production is
+ * not named after the graphic"). A show holding one strap is not called "Interview strap". The
+ * floor was already the app's answer everywhere else and that door never let it be reached.
+ */
+export function resolveShowName(name: string): string {
+  return name.trim() || UNTITLED_PRODUCTION;
+}
+
 export function createShow(name: string): Show[] {
   createShowNamed(name);
   return loadShows();
@@ -217,7 +244,7 @@ export function createShow(name: string): Show[] {
 export function createShowNamedChecked(name: string): { show: Show; error: string | null } {
   const show: Show = {
     id: uuid(),
-    name: name.trim() || 'Untitled production',
+    name: resolveShowName(name),
     version: 2,
     graphics: [],
     updatedAt: nowIso(),
