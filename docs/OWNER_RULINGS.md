@@ -690,3 +690,19 @@ One caveat worth carrying, because it explains why the ledger is thin: the two a
 failed on 2026-09-09 failed on OUR invocation, not the model - a delegation can only write inside the
 directory the launching session sits in, and the standard row recipe opens by asking for a branch.
 Both are logged `cause: prompt` and excluded from pool quality for that reason.
+
+## 2026-09-09 - the date is the 25th, and the 12th is no longer the pressure
+
+Paraphrased from speech in the day-wave brief, so the intent binds and the wording does not:
+
+> The Friday deadline we have in a few days is okay, you don't have to stress about that. The
+> deadline is the 25th: students and YLE people trying NoaCG. We owe one presentation and a
+> step-by-step guide, over two capabilities - SVG import, ending in their custom graphics playing
+> on their systems, and the CLI working smoothly enough that a graphic goes from Codex or Claude
+> Code to the NoaCG player in minutes.
+
+What it changes: `docs/GOALS.md` `## NOW` names 2026-09-25 and the two deliverables, and the
+session is scripted as beats with a costed gap list in `docs/DEMO_2026-09-25.md`. What it does not
+change: the 2026-09-12 student production still happens, as the rehearsal. He relaxed its
+pressure; he did not cancel the quiz or the scoreboard. For the question of what current work
+serves, this supersedes the 2026-08-22 ruling that named the 12th.
