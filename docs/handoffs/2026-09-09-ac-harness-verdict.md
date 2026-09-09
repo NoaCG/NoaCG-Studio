@@ -1,9 +1,13 @@
 # Row AC - the harness verdict
 
-**Branch:** `claude/ac-harness-verdict`, two commits, queued. **Gate:** `npm run build` green
-twice, `npm run test:harness-usage` 88/88, CI run 34403134698 green on the first commit with
-Build, Factory gates and CI gate all run and the E2E shards correctly skipped for a
-documentation change. **check:** `review: delegated` (8 findings, 8 fixed),
+**Branch:** `claude/ac-harness-verdict`, queued. **Gate:** `npm run build` green three times,
+`npm run test:harness-usage` 88/88, and CI green on the tip - run 34405102816, whose jobs read
+Build success, Factory gates success, E2E plan success, CI gate success, every E2E shard skipped.
+The shards are skipped correctly: this branch changes no product code at all, only documentation,
+one JSON data file and one command markdown. The middle run (34404921909) was cancelled by the
+next push, which the shell guard warns about; it owed nothing the final run did not cover, because
+Build and Factory gates run over the whole tree rather than over a delta. **check:**
+`review: delegated` (8 findings, 8 fixed),
 `simplify: inline` (the skill returned fan-out instructions, so the leg ran here; 3 fixed),
 `verify: inline`, `taste: not applicable`.
 
