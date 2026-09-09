@@ -126,7 +126,9 @@ function newSlide(n) {
 /** A numbered step: an amber mono number in the gutter, then the step and, on its own line, where to go. */
 function step(slide, n, x, y, w, main, pointer, mainSize = 19) {
   text(slide, String(n).padStart(2, '0'), { x, y: y + 0.05, w: 0.5, h: 0.3, fontFace: MONO, fontSize: 14, color: AMBER });
-  const runs = [{ text: main, options: { fontSize: mainSize, color: PAPER, breakLine: true, paraSpaceAfter: 4 } }];
+  // The paragraph break exists only when a pointer follows, so a bare step ends without an
+  // empty line for a hand editor to find.
+  const runs = [{ text: main, options: { fontSize: mainSize, color: PAPER, breakLine: Boolean(pointer), paraSpaceAfter: 4 } }];
   if (pointer) runs.push({ text: pointer, options: { fontSize: 13, fontFace: MONO, color: DIM } });
   text(slide, runs, { x: x + 0.55, y, w: w - 0.55, h: 0.95 });
 }
