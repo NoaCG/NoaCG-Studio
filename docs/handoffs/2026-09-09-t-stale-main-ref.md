@@ -187,11 +187,13 @@ local ref and using `origin/main`. So the failure is not constant, which makes i
 - **verify: green.** `npm run build` exit 0, read from the build's own exit code. 30 tests across
   `check-landed-ref`, `main-ref` and `owner-receipts`. `npm run check:owner-receipts` OK.
   `check:gate-coverage` accepts the new gate (35 checks, 107 test files) and the build runner runs
-  it. Both CI runs green, and I read the job lists rather than the badges - 34287397482 on the
-  first commit and **34289690234 on `e058e8b6`, the commit this branch queues**: Factory gates,
-  Build, E2E plan, nine E2E shards, Combined E2E report and CI gate all success in each; Reviewed,
-  Vercel, catalog calibration, E2E retry and After-the-gate skipped on their conditions. The one
-  commit after that run is this line and the check stamp it required.
+  it. Every CI run on this branch was green and I read the job LISTS rather than the badges -
+  34287397482, 34289690234 and 34291981581, the last of these on the merge-order fix: Factory
+  gates, Build, E2E plan, all nine E2E shards, Combined E2E report and CI gate success in each;
+  Reviewed, Vercel, catalog calibration, E2E retry and After-the-gate skipped on their conditions.
+  A handoff cannot name the run for the commit that contains the handoff, so the tip's own verdict
+  is read at queue time and reported in the session's closing message; the queue then gates it
+  again on a temporary merge with `main`, which is the verdict that actually matters.
 - **taste: not applicable.** Nothing here can move what a graphic looks like - four scripts, a
   workflow instruction and two backlog receipts.
 - No `docs/acceptance/owner-queue/` item: the change is developer tooling with no route in the
