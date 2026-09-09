@@ -351,6 +351,30 @@ derived from the cap rather than asked as a second question.
 Today's "What else moves" list is kept, unchanged in mechanism, nested under the box that grows -
 and it is a list of WHICH layers, never of how each one behaves. That second half is settled below.
 
+### The room a box has is what its followers leave it - measured 2026-09-08
+
+Two readings of one panel have to agree, or an option promises something the graphic cannot do.
+The offer (`svgOfferHeights`) tells the fit how much height it may wrap into; the apply
+(`growSvgHeights`) grows the panel by what the settled block took. Both now read the same two
+laws, and both were wrong on the owner's quiz board, in opposite directions.
+
+**The cap is kept by whatever TRAVELS, not by the panel alone.** The question plate had 384px
+between its own bottom edge and its mirrored margin, and 49px between its lowest follower - an
+answer plate - and that same margin. Measured from the panel, the offer handed the fit 384px of
+room, and delivering it would have pushed the bottom answer 48px off the board. The room is
+measured from the far edge of the panel and everything listed under it (`svgMovingBox`), so what
+is offered is what can be delivered, on any board.
+
+**A block asks for the height it is OVER by, and travels with the edge it is composed against.**
+The overflow used to be read as how far the block ran past its room's floor, which is where the
+room ends only for a block composed against the top of its box. A centred block grows both ways
+from its middle: the owner's question wrapped to 342 units inside 216 units of room, stood 63
+units above the plate and 13 units short of that floor, and reported that it needed nothing at
+all - so "the panel gets taller" left the plate at the height it was drawn while the words stood
+40px outside it. Read as a height (`svgBlockExtras`) the same block asks for the 126 units it is
+over by, and `svgGrowShare` moves it by the share of the growth its own alignment implies: a top
+block stays put, a centred one takes half, a bottom one takes all of it.
+
 ### What travels is not a question - settled 2026-09-06
 
 The owner, on 2026-09-05, about the per-layer picker each listed follower carried ("Moves out of

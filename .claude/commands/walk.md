@@ -1,5 +1,5 @@
 ---
-description: Walk what is built and not yet confirmed by a human - the owner queue, one item at a time
+description: Walk what is built and not yet confirmed by a human - the owner queue, one route at a time
 argument-hint: [optional filter - an item's subject, "hardware" for the blocked list, or "agent" for the ones an agent settles]
 ---
 

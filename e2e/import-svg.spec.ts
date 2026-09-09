@@ -3550,13 +3550,20 @@ test('svg import: the too-long mode answers the same however the reader got ther
   // honours that by shrinking, which is the ladder's last rung doing its job.
   expect(fixed.spill).toBe(0);
 
-  // The two that promise a TALLER panel are pinned separately, in the row that owns the defect:
-  // measured 2026-09-05, they wrap to 8 lines at the drawn size, never grow the plate (259px, the
-  // height it was drawn at), and leave the words standing ~40px outside it. The fit spends room
-  // the panel is never given. `docs/backlog/the-panel-that-never-gets-taller.md` carries the
-  // numbers; when it is fixed, the two lines below become the same assertions as the two above.
-  expect(tall.h).toBe(fixed.h); // <- the defect, pinned so the fix is visible when it lands
-  expect(tall.spill).toBeGreaterThan(0); // <- and so is this
+  // AND THE OPTION THAT PROMISES A TALLER PANEL DELIVERS ONE. Until 2026-09-08 these two lines
+  // pinned the opposite: the plate stayed at the 259px it was drawn at while the fit wrapped to
+  // eight lines at full size, and the words stood ~40px outside it. Two readings disagreed about
+  // the same panel - the offer measured the question plate's own room to the frame (384px) while
+  // the four answer plates that travel with it had 49px, and the apply measured a CENTRED block's
+  // overflow as if it were composed against the top of its box, so it asked for nothing at all.
+  // Measured here: 285px against a drawn 259, seven lines at 29.2px, nothing outside the plate.
+  const heights =
+    `plate ${fixed.h}px under shrink, ${tall.h}px under grow-y; ` +
+    `grow-y wrapped to ${tall.lines} lines at ${tall.size}px and spilled ${tall.spill}px`;
+  expect(tall.h, `grow-y did not make the plate taller: ${heights}`).toBeGreaterThan(
+    fixed.h + ROTATION_SLACK,
+  );
+  expect(tall.spill, `grow-y left words outside the plate: ${heights}`).toBe(0);
 });
 
 // A GRAPHIC THE AUDIENCE SEES AGAIN KEEPS A FIXED BOX (owner, 2026-09-02, docs/TEXT_BOX_BINDING.md
