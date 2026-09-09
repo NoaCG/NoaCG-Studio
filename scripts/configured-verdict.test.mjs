@@ -7,7 +7,8 @@
 // because it read each spec's LAST result and a flake ends `passed`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verdict, isUnclean, allSpecs } from './configured-verdict.mjs';
+import { verdict, isUnclean, allSpecs, repoRelative } from './configured-verdict.mjs';
+import { failureSet } from './ci-failure-set.mjs';
 
 const spec = (file, title, ...results) => ({ file, title, tests: [{ results: results.map((status) => ({ status })) }] });
 const report = (stats, specs) => ({ stats, suites: [{ specs }] });
@@ -78,4 +79,60 @@ test('ordering noise cannot change the fingerprint', () => {
 test('specs are found however deeply Playwright nests them', () => {
   const nested = { suites: [{ suites: [{ suites: [{ specs: [spec('deep.spec.ts', 'd', 'passed')] }] }] }] };
   assert.equal(allSpecs(nested).length, 1);
+});
+
+// NAMING THE SPEC, not the job. Until 2026-09-09 a configured red told GitHub only a count, so
+// `scripts/ci-failure-set.mjs` could answer nothing better than `job: Configured E2E
+// (authenticated, local Supabase)` - and over the seven days to 2026-09-09 that was seven reds on
+// seven distinct commits of main, none of them naming a spec. Playwright's own `github` reporter
+// would not have closed the hole: a FLAKY test is `ok()` to it, and this suite counts flaky as red.
+const WORKSPACE = '/home/runner/work/NoaCG-Studio/NoaCG-Studio';
+const withRoot = (r, rootDir = `${WORKSPACE}/e2e/configured`) => ({ ...r, config: { rootDir } });
+
+test('a failing spec carries the repo-relative path the rest of the repo keys on', () => {
+  // Run 34407579629, 2026-09-09: `production-links.spec.ts:20` timed out at 180s and passed in
+  // 8.7s on the retry, which this suite counts as red. Playwright writes `file` relative to
+  // rootDir, so the prefix has to be put back or the identity is a different string.
+  const flake = { ...spec('production-links.spec.ts', 'unpublishing and publishing again keeps every capability URL', 'timedOut', 'passed'), line: 20 };
+  const v = verdict(withRoot(report({ expected: 41, unexpected: 0, flaky: 1, skipped: 0 }, [flake])), {
+    minTests: 40,
+    allowedSkips: '',
+    workspace: WORKSPACE,
+  });
+  assert.equal(v.green, false);
+  assert.deepEqual(v.failing.map((f) => f.path), ['e2e/configured/production-links.spec.ts']);
+  assert.equal(v.failing[0].line, 20);
+  assert.deepEqual(v.failing[0].statuses, ['timedOut', 'passed']);
+});
+
+test('the emitted annotation is what ci-failure-set reads, so the run names the SPEC', () => {
+  // The whole point, closed end to end: the path this verdict puts in an `::error file=` line is
+  // the path GitHub hands back as a failure annotation, and that is the item the failure set
+  // names. Anything else here and the two halves would agree on nothing.
+  const flake = { ...spec('production-links.spec.ts', 'a capability URL', 'timedOut', 'passed'), line: 20 };
+  const v = verdict(withRoot(report({ expected: 41, unexpected: 0, flaky: 1, skipped: 0 }, [flake])), { minTests: 0, allowedSkips: '', workspace: WORKSPACE });
+  const annotations = v.failing.map((f) => ({ path: f.path, annotation_level: 'failure' }));
+  const set = failureSet([{ id: 1, name: 'Configured E2E (authenticated, local Supabase)', conclusion: 'failure' }], () => annotations);
+  assert.deepEqual(set.items, ['e2e/configured/production-links.spec.ts']);
+  assert.equal(set.reason, null);
+});
+
+test('an unknown workspace degrades to no path, never to a wrong one', () => {
+  // A bare `production-links.spec.ts` and `e2e/configured/production-links.spec.ts` are two
+  // identities; a set holding both dedups against neither. With no workspace the annotation goes
+  // out without a `file=`, which is exactly the behaviour that stood before this.
+  const flake = spec('production-links.spec.ts', 'x', 'failed');
+  const v = verdict(withRoot(report({ expected: 0, unexpected: 1, flaky: 0, skipped: 0 }, [flake])), { minTests: 0, allowedSkips: '', workspace: '' });
+  assert.equal(v.failing[0].path, null);
+  assert.equal(repoRelative('a.spec.ts', '/w/repo/e2e/configured', '/w/repo'), 'e2e/configured/a.spec.ts');
+  assert.equal(repoRelative('a.spec.ts', '/w/repo', '/w/repo'), 'a.spec.ts', 'a report written at the repo root needs no prefix');
+  assert.equal(repoRelative('a.spec.ts', '/elsewhere/e2e', '/w/repo'), null, 'a rootDir outside the workspace is not guessed at');
+  assert.equal(repoRelative('a.spec.ts', undefined, '/w/repo'), null);
+  assert.equal(repoRelative('a.spec.ts', 'C:\\w\\repo\\e2e\\configured', 'C:\\w\\repo'), 'e2e/configured/a.spec.ts', 'windows separators normalize');
+});
+
+test('a clean run names nothing at all', () => {
+  const v = verdict(withRoot(report({ expected: 42, unexpected: 0, flaky: 0, skipped: 0 }, [spec('a.spec.ts', 'x', 'passed')])), { minTests: 0, allowedSkips: '', workspace: WORKSPACE });
+  assert.deepEqual(v.failing, []);
+  assert.equal(v.green, true);
 });

@@ -54,7 +54,28 @@ const statuses = (spec) => (spec.tests ?? []).flatMap((t) => (t.results ?? []).m
 export const isUnclean = (spec) => statuses(spec).some((s) => s !== 'passed');
 const lastStatus = (spec) => statuses(spec).at(-1) ?? 'not run';
 
-export function verdict(report, { minTests, allowedSkips }) {
+/**
+ * One spec's path as the rest of the repo names it - `e2e/configured/production-links.spec.ts`.
+ *
+ * Playwright writes `spec.file` relative to the config's `rootDir`, which is an absolute runner
+ * path (`/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured`). The failure set, the
+ * quarantine and the annotations all key on the REPO-RELATIVE path, so the prefix has to come
+ * back - and it comes from the workspace root the caller passes, never from a hardcoded
+ * `e2e/configured`, which would go on looking right the day the config's testDir moves.
+ *
+ * Null when the workspace is unknown or the report was written somewhere else entirely. A wrong
+ * prefix is worse than none: `production-links.spec.ts` and `e2e/configured/production-links.
+ * spec.ts` are two identities, and a set that mixes them dedups against nothing.
+ */
+export function repoRelative(file, rootDir, workspace) {
+  const dir = String(rootDir ?? '').replaceAll('\\', '/').replace(/\/+$/, '');
+  const root = String(workspace ?? '').replaceAll('\\', '/').replace(/\/+$/, '');
+  if (!file || !dir || !root) return null;
+  if (dir === root) return String(file);
+  return dir.startsWith(`${root}/`) ? `${dir.slice(root.length + 1)}/${file}` : null;
+}
+
+export function verdict(report, { minTests, allowedSkips, workspace = '' }) {
   const stats = report?.stats ?? {};
   const expected = stats.expected ?? 0;
   const unexpected = stats.unexpected ?? 0;
@@ -70,10 +91,28 @@ export function verdict(report, { minTests, allowedSkips }) {
     .filter((file) => !allowed.has(file))
     .sort();
 
-  const failSet = specs
-    .filter(isUnclean)
+  const unclean = specs.filter(isUnclean);
+  const failSet = unclean
     .map((s) => `${s.file}::${s.title}`)
     .sort();
+
+  // The same specs, with everything an ANNOTATION needs. Until 2026-09-09 this suite told GitHub
+  // only a count - the failing job's annotations were `.github` placeholders and "0 failed, 1
+  // flaky" - so `scripts/ci-failure-set.mjs` could never name more than the job, and every
+  // configured red in the repo's history reads `job: Configured E2E (authenticated, local
+  // Supabase)`. Measured over the seven days to 2026-09-09: seven reds on seven distinct commits
+  // of main, not one of them naming a spec. Playwright's own `github` reporter would not have
+  // helped, because a FLAKY test is `ok()` to it and this suite counts flaky as red on purpose.
+  const failing = unclean
+    .map((s) => ({
+      file: s.file,
+      path: repoRelative(s.file, report?.config?.rootDir, workspace),
+      title: s.title,
+      line: s.line ?? 0,
+      status: lastStatus(s),
+      statuses: statuses(s),
+    }))
+    .sort((a, b) => `${a.file}${a.title}`.localeCompare(`${b.file}${b.title}`));
   const failHash = createHash('sha1').update(failSet.join('\n')).digest('hex').slice(0, 12);
 
   const problems = [];
@@ -96,7 +135,7 @@ export function verdict(report, { minTests, allowedSkips }) {
   return {
     green: problems.length === 0,
     ran, expected, unexpected, flaky, skipped,
-    problems, failHash, failSet, specs,
+    problems, failHash, failSet, failing, specs,
     summary: `${ran} ran, ${skipped} skipped, ${unexpected} failed, ${flaky} flaky`,
   };
 }
@@ -130,9 +169,26 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
   }
 
   if (report) {
-    const v = verdict(report, { minTests, allowedSkips });
+    const v = verdict(report, { minTests, allowedSkips, workspace: process.env.GITHUB_WORKSPACE ?? '' });
     out(`Ran ${v.ran} tests (${v.expected} passed, ${v.unexpected} failed, ${v.flaky} flaky), ${v.skipped} skipped.`);
     for (const p of v.problems) out(`::error title=${p.title}::${p.detail}`);
+
+    // ONE ANNOTATION PER FAILING SPEC, so the repo can name what broke. GitHub turns an
+    // `::error file=…` into a check annotation carrying that path, which is exactly what
+    // `scripts/ci-failure-set.mjs` reads - so a configured red stops being `job: Configured E2E`
+    // and becomes the spec, in the same identity string the quarantine and the cross-commit
+    // report use.
+    //
+    // CAPPED, because GitHub keeps only the first ten error annotations of a step and the
+    // problem lines above must not be pushed out by a suite that broke wholesale. Past the cap
+    // the count is still said, and the full list is two lines below in the log either way.
+    const ANNOTATION_CAP = 6;
+    for (const spec of v.failing.slice(0, ANNOTATION_CAP)) {
+      const where = spec.path ? `file=${spec.path},line=${spec.line},` : '';
+      out(`::error ${where}title=${label}::${spec.file} - ${spec.title} (${spec.statuses.join(' then ')})`);
+    }
+    if (v.failing.length > ANNOTATION_CAP) out(`::error title=${label}::${v.failing.length - ANNOTATION_CAP} further spec(s) were not clean - the full list is in this log.`);
+
     out(`failure set (${v.failHash}):`);
     for (const entry of v.failSet) out(`  ${entry}`);
 
