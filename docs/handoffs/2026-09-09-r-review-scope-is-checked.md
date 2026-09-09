@@ -71,10 +71,11 @@ This row ran its own new step on its own branch, which is the only proof that ma
   four-branch rule it did not run. Done here over the four angles: two wording fixes, no structural
   change. The duplicated merge-base command in phase 2 is deliberate and stays - the point is that
   the command sits where the comparison happens.
-- **`verify: inline`.** `npm run build` green, exit 0 read from the build itself, twice. CI on
-  `c5501018` **success**; jobs that RAN were Build, E2E plan, Factory gates and CI gate. The E2E
-  shards are `skipped` and that is correct, not a gap - the plan job mapped a diff with no product
-  code and had no specs to map.
+- **`verify: inline`.** `npm run build` green, exit 0 read from the build itself, after each
+  commit. CI **success** on every commit this branch pushed, `545fc371` - the tip carrying all the
+  reviewed content - included; the jobs that RAN each time were Build, E2E plan, Factory gates and
+  CI gate. The E2E shards are `skipped` and that is correct, not a gap - the plan job mapped a diff
+  with no product code and had no specs to map.
 - **`taste: not applicable`.** Nothing here can move what a graphic looks like.
 
 No `docs/acceptance/owner-queue/` file: this changes how agents check their own work, and there is
