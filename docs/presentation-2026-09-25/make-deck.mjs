@@ -9,8 +9,14 @@
  *
  * Content of record: `docs/DEMO_2026-09-25.md`. Every sentence on a slide traces to that file's
  * evidence column, and the speaker notes name the beat, its status on 2026-09-09 and the file
- * that proves it. When the script changes, the deck is edited by hand; this generator is not
- * re-run to catch up.
+ * that proves it.
+ *
+ * THIS SCRIPT IS ALLOWED TO DRIFT FROM THE DECK, AND NOTHING CHECKS THAT IT HAS NOT. The deck
+ * was built from this exact script on 2026-09-09 and never again: from the first hand edit on,
+ * the deck is the one that is true, and this file is the record of how it started. No gate
+ * lints it (`eslint .` scopes its rules to src/, scripts/, e2e/, api/ and render-worker/) and no
+ * gate runs it (`pptxgenjs` is not a project dependency), so a broken generator stays green.
+ * That is accepted on purpose: the alternative is a generator that rewrites the owner's slides.
  *
  * Run it once, from the repository root, with pptxgenjs installed ad hoc (it is not a project
  * dependency and never becomes one for a one-off deck):
@@ -374,9 +380,9 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   s.addNotes(
     '§4. R2.1 is for everyone, subscription or not. R2.3: you drive one agent on the screen; the evidence is the 2026-08-22 round, 25 of 25 cells validator-clean and every one airable in your own blind read (benchmarks/agent/rounds/2026-08-22/VERDICT.md).\n\n' +
     'THE NUMBER. docs/AGENT_CLI.md, "Time to air, measured": one walk, one machine, 2026-09-09, against a dev server on the branch\'s own build (not 0.3.0 from npm), from an empty folder. 24.8 s is doctor + types + scaffold + validate + inspect + screenshot + pack. Setup once per machine is another 8.7 s.\n\n' +
-    'R2.5 IS STILL A GAP IN THE SCRIPT. The measurement stopped at the package\'s own fallback player. The cloud save and the studio\'s output URL were not walked: save refused against the dev server (the CLI\'s key store is per origin) and writing into the live library from an unattended session was not done. Do not say "minutes to air" as a measured claim; the slide\'s wording is the honest one.\n\n' +
+    'R2.5: THE CLOUD LEG IS UNTIMED. The measurement stopped at the package\'s own fallback player. The cloud save and the studio\'s output URL were not walked: save refused against the dev server (the CLI\'s key store is per origin) and writing into the live library from an unattended session was not done. The script carries that leg as §7 row 8, the live save with a stopwatch on it. Do not say "minutes to air" as a measured claim; the slide\'s wording is the honest one.\n\n' +
     'UNSEEN SINCE 2026-08-23. R2.1 against noacg.studio and R2.4 the live save (§7 row 8), and B5 the install lines on a fresh machine, last executed 2026-08-22 for Claude Code and 2026-08-27 for Codex, with the Codex side of the noacg-mcp split not re-verified (§7 row 6). Both are cheap to close before the day.\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §4, §7 rows 4, 6, 8; docs/AGENT_CLI.md "Time to air, measured".',
+    'Source: docs/DEMO_2026-09-25.md §4, §7 rows 6, 8; docs/AGENT_CLI.md "Time to air, measured".',
   );
 }
 

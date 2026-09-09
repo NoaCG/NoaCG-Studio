@@ -2,8 +2,10 @@
 
 **Branch:** `claude/s-presentation-pptx`, from `origin/main` at `0ad1e1e0`. Documents only.
 New: `docs/presentation-2026-09-25/NoaCG-2026-09-25.pptx` (the deck),
-`docs/presentation-2026-09-25/make-deck.mjs` (its starting-point generator), one owner-queue
-item, this handoff. Edited: `docs/README.md`, one row.
+`docs/presentation-2026-09-25/make-deck.mjs` (its starting-point generator),
+`docs/presentation-2026-09-25/README.md` (the directory's one-paragraph map, so the docs-index
+gate covers the row), one owner-queue item, this handoff. Edited: `docs/README.md`, one row;
+`docs/DEMO_2026-09-25.md`, the cells the two sibling landings and this deck made stale.
 
 ## What was built
 
@@ -66,10 +68,10 @@ Home > Replace > Replace Fonts swaps them in one go, and the owner-queue item sa
    2, the agent node's title wrapping on slide 3, a panel's text running to its edge on slides 4
    and 6. The final render is clean on all seven.
 5. `npm run build` exit 0, read from the build's own exit code, on both commits.
-6. CI on the push of `c28a90b7`: `E2E plan`, `Factory gates`, `Build` and `CI gate` ran and
-   passed; the E2E shards, `Reviewed` (a push run, not a pull request) and the after-gate jobs
-   were skipped, which is the honest plan for a docs-only change. The run for `14daa934` is read
-   before queueing.
+6. CI on the pushes of `c28a90b7`, `14daa934` and `8301fc51`: `E2E plan`, `Factory gates`,
+   `Build` and `CI gate` ran and passed on each; the E2E shards, `Reviewed` (a push run, not a
+   pull request) and the after-gate jobs were skipped, which is the honest plan for a docs-only
+   change. The run on the final tip is read to a verdict before queueing.
 
 ## /check
 
@@ -81,21 +83,42 @@ Home > Replace > Replace Fonts swaps them in one go, and the owner-queue item sa
   its four angles. Nothing further to change: no repo helper exists for pptx, the brand constants
   are cited to their source, and the refusal is the mechanism rather than a note.
 - `verify: inline`. Build green on the final tree; the deck re-validated, re-read and re-opened
-  in PowerPoint after the fix.
+  in PowerPoint after the fix and again after the relay's edits regenerated it.
 - `taste: not applicable`. Nothing here moves what a graphic looks like.
+
+## The review relay, and what was done with it
+
+The cross-file review's report reached the orchestrator rather than this session, as a fan-out's
+does, and came back by relay with five findings. All five were acted on before queueing.
+
+1. **The script said no deck exists.** `docs/DEMO_2026-09-25.md` O2 read GAP and §7 row 12
+   bundled the deck with the printed index, which its own §8 rule forbids leaving after a commit
+   that closes half of it. O2 now names the deck and reads UNSEEN (eyes), closed by the owner's
+   walk; row 12 is G2 alone; the deck has its own row 13.
+2. **The deck was more current than the script.** Slide 5's 24.8 s and slides 4 and 7's
+   `#first-graphic` came from rows A and D (pull requests 190 and 191), which landed after the
+   script was written, so R2.5 and G1 still read GAP. R2.5 now carries the measurement and the one
+   leg it could not walk, folded into §7 row 8 with a stopwatch; G1 reads WORKS; §7 rows 4 and 5
+   are deleted and their numbers are not reused, so every slide note that cites a row stays true.
+   The §0 paragraph that introduced the two branches as running now says they landed.
+3. **The README row had no orphan protection.** `check-docs-index.mjs` only sees rows whose first
+   cell ends in `.md`, so a row naming a `.pptx` fails no build when the file is gone. The row now
+   names `presentation-2026-09-25/README.md`, a real file beside the deck, and says why.
+4. **Nothing lints or runs the generator.** True, and decided rather than papered over: the
+   header now says in plain words that the script is allowed to drift from the deck, that no gate
+   checks it, and that this is accepted because the alternative is a generator that rewrites the
+   owner's slides. The deck at HEAD was built from the generator at HEAD; the reviewer saw the
+   `breakLine` edit mid-review, before the regeneration that followed it.
+5. **No owner-queue item named the deck.** It was being written in the QUEUE step; it exists now,
+   and the font substitution sits in its "what to look at" as the one-step Replace Fonts swap.
 
 ## What is not done, deliberately
 
 - **G2, the printed one-page index**, is still a GAP in the script (§7 row 12). The deck is not
   it; if the laptop dies, the notes pages print one slide per page with the notes under it.
-- **O2's status cell in `docs/DEMO_2026-09-25.md`** still reads GAP and §7 row 12 still stands.
-  The script's rule is that closing a row edits the cell and deletes the row in the same commit,
-  and row 12 bundles the deck with the printed index, which does not exist. Splitting that row is
-  the script owner's edit, not this branch's; it is one line and the next session that touches
-  the script should make it.
 - **Two dated items the notes lean on** are worth closing before the day and are cheap: the
   install lines on a fresh machine (B5, §7 row 6) and the terminal path and live save against
-  `noacg.studio` (§7 row 8).
+  `noacg.studio`, now with a stopwatch on it (§7 row 8).
 
 ## Safe to archive
 
