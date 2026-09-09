@@ -31,4 +31,4 @@ and `package.json` is a shared slot.
 
 ## Evidence
 
-`docs/handoffs/2026-09-02-c-ograf-host-page.md`.
+`git show 592891dc:docs/handoffs/2026-09-02-c-ograf-host-page.md`.

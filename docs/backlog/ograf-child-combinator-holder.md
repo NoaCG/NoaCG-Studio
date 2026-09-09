@@ -29,4 +29,4 @@ descendant combinator and say so. The first keeps the selector semantics exact; 
 
 ## Evidence
 
-`docs/handoffs/2026-09-02-c-ograf-host-page.md`, `src/export/targets/ograf.ts` `_load`.
+`git show 592891dc:docs/handoffs/2026-09-02-c-ograf-host-page.md`, `src/export/targets/ograf.ts` `_load`.

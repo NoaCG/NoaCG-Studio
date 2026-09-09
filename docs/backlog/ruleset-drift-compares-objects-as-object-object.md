@@ -40,9 +40,28 @@ The measurement rule applies here too: `rulesetDrift` says nothing about how man
 compared, so a `rulesetFacts` that returned an empty table would report no drift and pass. A
 `measured(Object.keys(here).length, 'ruleset facts compared')` would close that.
 
+## Two neighbours worth taking in the same pass
+
+Both were deferred by row J for the same reason this file was - one row, one mechanism - and both
+are about the same ruleset state:
+
+- **`owner-preflight.mjs` cannot see the merge method.** `gather()` (lines 124-137) walks the same
+  list, find-by-name and detail path that `landing-ruleset.mjs` already exports, hardcodes the
+  ruleset name and the two check contexts, and inspects `enforcement` and the presence of
+  `merge_queue` - but never `merge_method`. So if GitHub is flipped to SQUASH,
+  `npm run check:owner-setup` reports OK while `npm run land:ruleset` reports DRIFT: two checkers
+  over one state, able to disagree. The fix is one import - have `owner-preflight` call
+  `rulesetFacts`/`rulesetDrift` and add a `merge-method` fact - which also deletes the duplicated
+  walk. Row J left it alone because `owner-preflight.mjs` is gate-shaped and a sibling row was
+  sweeping gate-shaped scripts that night.
+- **Nothing schedules `land:ruleset`.** It exits non-zero on drift, so it CAN be consumed, but no
+  workflow, routine or gate runs it. A weekly routine is the natural home, per the repository's own
+  freshness rule that this kind of check is driven by time and never by commit
+  (`docs/ROUTINES.md`).
+
 ## Evidence
 
 `scripts/landing-ruleset.mjs:156-176`. Row J landed the file
-(`docs/handoffs/2026-09-08-j-squash-or-merge.md`); the species and the parallel fix are in
-`docs/handoffs/2026-09-09-y-measured-holes.md` and
+(`git show 86d76c13:docs/handoffs/2026-09-08-j-squash-or-merge.md`); the species and the parallel fix are in
+`git show b08eae77:docs/handoffs/2026-09-09-y-measured-holes.md` and
 `docs/metrics/2026-09-08-gates-that-measure-nothing.md`.

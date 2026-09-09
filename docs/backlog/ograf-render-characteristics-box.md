@@ -36,4 +36,4 @@ ON THE ELEMENT wins; a renderer that sizes only its container gets no override.
 
 ## Evidence
 
-`docs/handoffs/2026-09-02-c-ograf-host-page.md`, `docs/OGRAF.md` "Known limits".
+`git show 592891dc:docs/handoffs/2026-09-02-c-ograf-host-page.md`, `docs/OGRAF.md` "Known limits".

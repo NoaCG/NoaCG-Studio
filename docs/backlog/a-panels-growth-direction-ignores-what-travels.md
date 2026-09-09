@@ -27,5 +27,20 @@ already computed. That is one extra follower sweep per vertical rule, at rest, o
 ## Evidence
 
 `docs/TEXT_BOX_BINDING.md`, "The room a box has is what its followers leave it - measured
-2026-09-08", and the handoff `docs/handoffs/2026-09-08-l-panel-that-never-grows.md`, which carries
-the measured numbers for the board this was found on.
+2026-09-08".
+
+The board this was found on is
+`e2e/fixtures/svg-corpus/illustrator-owner-quiz-board-rotated.svg`, driven with a 591-character
+question. Its numbers, under `grow-y`: `svgGrowCap` reported 932px, which is 384px below the
+question plate's own bottom edge at 549px - but the four answer plates and their texts are the
+rule's declared followers and the lowest of them ends at 883px, so the room that could honestly be
+honoured was 932 - 883 = **49px**. That 49px is why the board still behaves correctly today and
+why nothing on the corpus measured differently. The row that measured it was
+`claude/l-panel-that-never-grows`; its handoff was drained on 2026-09-09 and prints from
+`git show 0441dea0:docs/handoffs/2026-09-08-l-panel-that-never-grows.md`, with the full
+four-option before/after table.
+
+One open judgement came out of that row and belongs here rather than in a handoff: the
+**wider-then-taller** option now widens and never needs the height, so it and plain **wider**
+only differ once the width runs out. Whether two options that close together earn two rows on
+the step is an owner look, not code.

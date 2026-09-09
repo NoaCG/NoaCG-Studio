@@ -50,5 +50,11 @@ Small: one function body, one import, and a judgement about two more.
 - `scripts/dev-port.mjs:79-82` (`registryDir`), `scripts/jobs-store.mjs` (the `gitCommonDir` import),
   `scripts/wave-plan-store.mjs` - what reads the answer.
 - `scripts/primary-checkout.mjs` and its test - the correct resolution, landed 2026-09-09.
-- `docs/handoffs/2026-09-09-f-weekly-candidates.md`, "What `/check` found" - where this was reported
-  rather than fixed, and why.
+- The `/check` review of `claude/f-weekly-candidates-reach-a-wave` is where this was reported
+  rather than fixed; its handoff was drained on 2026-09-09 and prints from
+  `git show 64ad2f68:docs/handoffs/2026-09-09-f-weekly-candidates.md`, section "What `/check`
+  found". The reasoning in the Why above is that report in full.
+- The same guess has a second observable consequence, measured on 2026-09-02 while probing the
+  mistake-trigger hooks: because `gitCommonDir()` closes over the MODULE's own location rather than
+  the command's, a hook file executed by absolute path from another checkout reads that other
+  checkout's job queue. Harmless in normal use, where a session runs its own checkout's hooks.

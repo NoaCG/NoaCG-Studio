@@ -19,6 +19,23 @@ dual package) into a rundown, drive play/continue/update/stop and at least one c
 record what SPX's `v_spx` conventions expect that we do not emit (if anything). Half a day
 including notes; findings extend `docs/OGRAF.md`'s external-round record.
 
+**Two things this round should check on the way, because no real renderer has ever seen them.**
+Both were left UNVERIFIED by the row that scoped exported CSS to the graphic element (landed
+2026-09-02, `579da11a` and `5f2545bb`), which could only test against a minimal host page it wrote
+itself:
+
+1. **That the graphic does not restyle the renderer's own page.** The exported stylesheet is
+   rewritten to address `:where([data-noacg-graphic="<id>"])` and a fail-closed export gate refuses
+   a sheet that would still reach the document. On a real renderer, look at the host chrome around
+   the graphic, not only at the graphic.
+2. **A renderer whose viewport differs from the authored canvas.** The graphic box is authored-size
+   and `load()` ignores `renderCharacteristics`, so the manifest's `ideal` promise holds only if
+   the renderer places and scales the box. That decision is stated in `docs/OGRAF.md` "Known
+   limits" and tracked in `docs/backlog/ograf-render-characteristics-box.md`; this round is the
+   first chance to see whether a real one does.
+
+SuperFly.tv's `ograf-server` is the other renderer worth a round for the same two questions.
+
 ## Evidence
 
 `docs/OGRAF_ECOSYSTEM.md` §1g and §4 (Direction A ladder item 4); SPX OGraf docs via the SPX-GC

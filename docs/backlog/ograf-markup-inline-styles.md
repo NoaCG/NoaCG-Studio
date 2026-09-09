@@ -31,11 +31,20 @@ same last-one-wins shape X-04 was closed for, one carrier over.
    sheets. Inline `style=""` attributes are element-local and need nothing.
 3. Confirm the SVG import's own runtime does not select by those class names through the real
    `document` (its `document` is the scoped one, so lookups stay inside the element).
-4. Alternatively, the document-boundary design row (shadow root or per-graphic iframe) covers
-   both carriers without a parser - `docs/handoffs/2026-09-02-c-ograf-host-page.md` holds the
-   argument either way.
+4. Alternatively, the document-boundary design row (shadow root or per-graphic iframe) covers both
+   carriers without a parser. The argument for it, measured on the row that built the parser and
+   recorded here because that row's handoff was drained on 2026-09-09: with `root = this.shadowRoot`
+   every `scopedDocument` member works unchanged, the only rewrite left is `html|body|:root` to
+   `:host`, and a missed shape degrades to a lost rule INSIDE the graphic rather than a restyled
+   renderer. It also closes the inbound leak (host CSS reaching in), which the parser leaves as it
+   was. The counter-argument is Chromium ignoring `@font-face` inside a shadow tree (checker X-08);
+   the answer is lifting `@font-face` rules into `document.head` once per design id, the way
+   `ensureGsap` lifts its script. GSAP, Lottie, `getComputedStyle` and `document.fonts` all work on
+   shadow trees.
 
 ## Evidence
 
-`docs/OGRAF.md` "Known limits" (the narrowed claim), the /check findings relayed in the session's
-handoff, `e2e/ograf-conformance.spec.ts` (what is covered: `template.css` only).
+`docs/OGRAF.md` "Known limits" (the narrowed claim), `e2e/ograf-conformance.spec.ts` (what is
+covered: `template.css` only). The /check findings that produced this item were relayed into the
+OGraf host-page row's handoff, drained 2026-09-09 and printed by
+`git show 592891dc:docs/handoffs/2026-09-02-c-ograf-host-page.md`.

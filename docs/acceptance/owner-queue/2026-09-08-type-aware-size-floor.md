@@ -22,9 +22,12 @@ all), card (28px), statement (42px). If a category is in the wrong band, that is
 the numbers came from what the catalog already ships, so a band that feels wrong means a category is
 grouped wrong rather than that a number is off by two.
 
-**The known residue, so you can judge whether it is worth anything.** Four info cards (`card26`,
-`card27`, `card28`, `card29`) are checklist/rundown boards whose lines all sit at 25-27px against
-the card band's 28px, so they still warn. They read at leisure like a persistent graphic but live in
-a category that also holds headline cards running to 240px. I left them warning rather than tune the
-number until they disappeared - if you think a rundown card belongs with the tickers, that is a
-one-line change to `PERSISTENT_CATEGORIES`.
+**The known residue, so you can judge whether it is worth anything.** Eight designs of 503 still
+warn. Four are info cards (`card26`, `card27`, `card28`, `card29`), checklist/rundown boards whose
+lines all sit at 25-27px against the card band's 28px. The other four each warn for their own
+reason, and each is arguable rather than wrong: `imp01` puts a name at 12px with its role at 8px;
+`ss12` says "Back shortly" at 30px in a category that otherwise runs 64-280px; `card48` sets
+"PRESENTED BY" at 20px; `lt48` sits at 26px. All eight were left warning rather than tuned away.
+The four info cards are the ones with a shape to them: they read at leisure like a persistent
+graphic but live in a category that also holds headline cards running to 240px. If you think a
+rundown card belongs with the tickers, that is a one-line change to `PERSISTENT_CATEGORIES`.

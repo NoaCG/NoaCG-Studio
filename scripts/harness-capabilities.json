@@ -10,7 +10,7 @@
       "measuredAt": "2026-09-09",
       "claim": "REFUTED as of 1.1.27: the same reprobe call (npm run agy:read, no command grant, \"list the files in <dir>\") returned a complete, accurate directory listing instead of an empty response. Whatever changed - a new real grant path for a listing action, or something else - the empty-response behavior described below is gone; this was not re-derived further. Previously measured true on 1.1.25 (2026-09-03): headless agy auto-denies any tool with no grant and still returns status SUCCESS with an empty response; only read_file, command and write_file were real grant actions (list_dir, grep_search, codebase_search were accepted into settings.json and dropped as invalid).",
       "reprobe": "npm run agy:read -- --model gemini-3.7-flash-high --label reprobe-grants \"List the files in <an absolute worktree dir>\" with no command grant; an empty response confirms the original claim, a listing confirms the refutation.",
-      "source": "docs/HARNESS_ROUTING.md, \"Three facts about this machine that were not true when this file last said them\"; refuted docs/handoffs/2026-09-09-x-capability-reprobe.md"
+      "source": "docs/HARNESS_ROUTING.md, \"Three facts about this machine that were not true when this file last said them\"; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
     },
     {
       "id": "agy-claude-models-reject-effort",
@@ -50,7 +50,7 @@
       "measuredAt": "2026-09-09",
       "claim": "REFUTED as of 0.154.0-alpha.6: gpt-5.6-sol is no longer the only model this subscription exposes. `codex exec` with no --model now defaults to gpt-6-astra and succeeds; gpt-5.6-sol also still succeeds when named explicitly. At least two model ids work now, not one - which candidates besides gpt-6-astra newly succeed was not re-swept. Previously measured true on 0.153.0-alpha.5.1 (2026-08-30): gpt-5.6-sol was the only model the ChatGPT subscription exposed through Codex; ten other names were probed and refused, so effort was the only knob.",
       "reprobe": "codex --model <candidate> on a one-line task, and a plain `codex exec` with no --model to see the default; a refusal on every candidate but gpt-5.6-sol confirms the original claim, any other success confirms the refutation.",
-      "source": "docs/HARNESS_ROUTING.md, \"Codex: there is no model choice, only effort\"; refuted docs/handoffs/2026-09-09-x-capability-reprobe.md"
+      "source": "docs/HARNESS_ROUTING.md, \"Codex: there is no model choice, only effort\"; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
     },
     {
       "id": "codex-agents-has-no-json",
@@ -90,7 +90,7 @@
       "measuredAt": "2026-09-09",
       "claim": "REFUTED as of 2.1.263: `claude --help` now lists --permission-prompts, with the description of who answers a permission prompt (a person, a configured tool, or \"none\" for auto-deny recorded). Previously measured true on 2.1.251 (2026-09-03): claude --help offered --permission-mode and no --permission-prompts; the flag that would turn a headless stall into a recorded denial was said to land in 2.1.259.",
       "reprobe": "claude --help | grep permission-prompts; no match confirms the original claim, a match confirms the refutation.",
-      "source": "docs/handoffs/2026-09-03-b-harness-followups.md (consumed); docs/acceptance/owner-queue/2026-09-03-upgrade-claude-code-and-clear-the-stale-binary.md; refuted docs/handoffs/2026-09-09-x-capability-reprobe.md"
+      "source": "docs/handoffs/2026-09-03-b-harness-followups.md (consumed); docs/acceptance/owner-queue/2026-09-03-upgrade-claude-code-and-clear-the-stale-binary.md; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
     },
     {
       "id": "claude-launched-session-gets-no-subagent-notifications",
@@ -100,7 +100,7 @@
       "measuredAt": "2026-09-09",
       "claim": "PARTLY REFUTED, then CORRECTED the same day on 2.1.263. The routing is neither 'always the launcher' nor 'always the session': a subagent's completion notification goes to WHOEVER IS INSIDE A TURN when it fires. Measured both ways. (a) Two probes had a launched session spawn a subagent and stay inside a turn - one explicitly sat in a 120-second blocking command - and the notification arrived in that session, carrying the subagent's final message verbatim. (b) A controlled probe had a launched session spawn one background subagent and END ITS TURN immediately; that notification arrived in the LAUNCHER, and the marker file confirmed the subagent had run, so 'no notification' is not confounded with 'never ran'. (c) In the field, sixteen fan-out reports have strayed to a launcher: seven from one row on 2026-09-08 and eight from another on 2026-09-09. A FAN-OUT IS ALWAYS CASE (b), because a session that has spawned agents has nothing left to do but end its turn and wait - which is why waiting on one never works and why the original observation held in practice for the case that matters. The earlier note here, that this was simply 'REFUTED', was measured correctly and generalised wrongly from the stay-in-turn case alone. Consequence for a launcher: stray reports belong to the row that spawned them - relay them with scripts/relay.mjs rather than acting on them. Previously measured true on 2.1.240 (2026-09-03): a session launched by another session never receives its own subagents' completion notifications; they route to the launcher.",
       "reprobe": "Two probes, and they must be run as a PAIR or the answer is half true. From a launched session: (1) spawn a background subagent and stay inside one long blocking call - the notification should arrive in that session at the turn boundary; (2) spawn one and end the turn immediately - it should arrive in the launcher. Confirm the subagent actually ran via a marker file in both cases.",
-      "source": ".agent-workflows/orchestrator/incidents.md, \"the fan-out that waited on notifications that could not arrive\"; refuted docs/handoffs/2026-09-09-x-capability-reprobe.md"
+      "source": ".agent-workflows/orchestrator/incidents.md, \"the fan-out that waited on notifications that could not arrive\"; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
     },
     {
       "id": "claude-agents-json-liveness",
@@ -110,7 +110,7 @@
       "measuredAt": "2026-09-09",
       "claim": "PARTIALLY REFUTED as of 2.1.263: `claude agents --json` still answers in under a second with pid and cwd, but the objects no longer carry a status field at all (kind, startedAt and sessionId appear instead) - anything reading `status` off this command now reads undefined rather than a stale or wrong value. Previously measured true on 2.1.251 (2026-09-03): claude agents --json answered in under a second with pid, cwd and status, and was the third liveness signal beside the two transcript-based ones.",
       "reprobe": "node scripts/claude-agents.mjs; it probes the command's shape on every run and degrades to unknown by itself. A `status` in the raw `claude agents --json` output confirms the original claim; its absence confirms the refutation.",
-      "source": ".agent-workflows/orchestrator/incidents.md, \"the third liveness signal\"; refuted docs/handoffs/2026-09-09-x-capability-reprobe.md"
+      "source": ".agent-workflows/orchestrator/incidents.md, \"the third liveness signal\"; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
     },
     {
       "id": "no-permission-skipping-flag-is-ever-forwarded",
