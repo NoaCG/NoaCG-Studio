@@ -78,6 +78,10 @@ test('needsBrowser derives from the specs when the planner said nothing, and fai
   assert.deepEqual(needsBrowser({ specs: ['a.spec.ts'], browser: 'no' }), { needs: false, source: 'column' });
   assert.deepEqual(needsBrowser({ specs: [], browser: 'yes' }), { needs: true, source: 'column' });
   assert.deepEqual(needsBrowser({ specs: [], browser: 'YES' }), { needs: true, source: 'column' });
+  // A cell that starts with the word is the planner's word with a note after it; `not sure` is not.
+  assert.deepEqual(needsBrowser({ specs: [], browser: 'yes - drives the running app' }), { needs: true, source: 'column' });
+  assert.deepEqual(needsBrowser({ specs: ['a.spec.ts'], browser: 'no, queued form only' }), { needs: false, source: 'column' });
+  assert.deepEqual(needsBrowser({ specs: ['a.spec.ts'], browser: 'not sure' }), { needs: true, source: 'specs' });
 });
 
 test('the optional browser column parses, and its absence reads as empty rather than as no', () => {
@@ -125,6 +129,18 @@ test('runningRows keeps launched, unqueued, unlanded rows the scan still sees, a
   assert.deepEqual(running, [{ letter: 'G', branch: 'claude/g-import-name' }]);
   // K queued, F landed, R's branch is gone from the scan, the 09-07 record names another plan,
   // and the three-day-old record is older than a plan can live. Only G is running.
+});
+
+test('a ledger plan path is matched by file name, so a typed path in another spelling still counts', () => {
+  // The ledger writes the store's absolute path; the operator types whatever the shell had. On
+  // Windows those differ in drive-letter case and slash direction, and a mismatch would empty the
+  // running set - the open failure, silently.
+  const launches = [{ at: NOW - 60 * MINUTE, letter: 'G', branch: 'claude/g-thing', size: 'standard', plan: 'C:\\claude\\NoaCG-Studio\\.git\\noacg-jobs\\wave-plans\\2026-09-08-night-wave-plan.local.md' }];
+  const entries = [{ branch: 'claude/g-thing', files: [] }];
+  const typed = 'c:/claude/noacg-studio/.git/noacg-jobs/wave-plans/2026-09-08-night-wave-plan.local.md';
+  assert.deepEqual(runningRows({ launches, jobs: [], landings: [], entries, planPath: typed, now: NOW }), [{ letter: 'G', branch: 'claude/g-thing' }]);
+  assert.deepEqual([...recordedLetters({ launches, planPath: typed, now: NOW })], ['G']);
+  assert.deepEqual(runningRows({ launches, jobs: [], landings: [], entries, planPath: 'C:/store/2026-09-07-night-wave-plan.local.md', now: NOW }), []);
 });
 
 test('a later ledger line for the same branch supersedes the earlier one', () => {

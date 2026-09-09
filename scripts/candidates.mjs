@@ -101,21 +101,29 @@ export function parseCandidates(text) {
   return rows;
 }
 
+/** The planner's word in a `browser` cell: a cell STARTING with yes or no, so `yes - drives the
+ *  app` counts and a dash, a question mark or a note that names neither does not. */
+function browserWord(cell) {
+  const text = String(cell ?? '').trim();
+  if (/^yes\b/i.test(text)) return true;
+  if (/^no\b/i.test(text)) return false;
+  return null;
+}
+
 /**
  * Does this candidate need the machine's browser slot? The planner's `yes`/`no` wins; anything else
  * derives from the SPECS column, and the derivation fails CLOSED (see the header). `source` says
  * which, so the printed reason can tell the planner how to override a hold it disagrees with.
  */
 export function needsBrowser(candidate) {
-  const cell = String(candidate.browser ?? '').trim().toLowerCase();
-  if (cell === 'yes') return { needs: true, source: 'column' };
-  if (cell === 'no') return { needs: false, source: 'column' };
+  const word = browserWord(candidate.browser);
+  if (word !== null) return { needs: word, source: 'column' };
   return { needs: (candidate.specs ?? []).length > 0, source: 'specs' };
 }
 
 /** Does a wave-table row hold the browser? Its `browser` column, or a MINTS cell naming it. */
 export function waveRowHoldsBrowser(row) {
-  return /^yes\b/i.test(String(row.browser ?? '').trim()) || /\bbrowser\b/i.test(String(row.mints ?? ''));
+  return browserWord(row.browser) === true || /\bbrowser\b/i.test(String(row.mints ?? ''));
 }
 
 /**
@@ -127,22 +135,21 @@ export function waveRowHoldsBrowser(row) {
  */
 export function runningRows({ launches, jobs, landings, entries, planPath = null, now = Date.now() }) {
   const seen = new Set(entries.map((entry) => entry.branch).filter(Boolean));
-  const byBranch = new Map(joinDurations(launches, jobs, landings).map((row) => [row.branch, row]));
-  const running = [];
-  for (const record of launches) {
-    const joined = byBranch.get(record.branch);
-    if (!joined || joined.launchedAt !== record.at) continue; // an older record for the same branch
-    if (joined.toQueueMin !== null || joined.toLandMin !== null) continue;
-    if (!seen.has(record.branch)) continue;
-    if (!belongsToWave(record, { planPath, now })) continue;
-    running.push({ letter: record.letter ?? null, branch: record.branch });
-  }
-  return running;
+  return joinDurations(launches, jobs, landings) // newest record per branch, joined to its queueing and landing
+    .filter((row) => row.toQueueMin === null && row.toLandMin === null && seen.has(row.branch)
+      && belongsToWave({ at: row.launchedAt, plan: row.plan }, { planPath, now }))
+    .map((row) => ({ letter: row.letter ?? null, branch: row.branch }));
 }
 
-/** Is this ledger line one of this wave's launches? The plan and age filters `runningRows` uses. */
+/**
+ * Is this ledger line one of this wave's launches? The plan and age filters `runningRows` uses.
+ * Plans are compared by FILE NAME: the store holds one per date and kind, and the ledger's path
+ * comes from `wave-launch.mjs` while this one comes from whatever the operator typed - a drive
+ * letter in another case or forward slashes would make every record read as another wave's, and
+ * an empty running set fails open, which is the failure this whole check exists to remove.
+ */
 export function belongsToWave(record, { planPath = null, now = Date.now() } = {}) {
-  if (planPath && record.plan && path.resolve(record.plan) !== path.resolve(planPath)) return false;
+  if (planPath && record.plan && path.basename(record.plan).toLowerCase() !== path.basename(planPath).toLowerCase()) return false;
   return now - record.at <= 2 * WAVE_PLAN_MAX_AGE_MS;
 }
 

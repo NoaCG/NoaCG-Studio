@@ -66,6 +66,28 @@ it stops reading as a verdict. Pinned in `scripts/wave-tick.test.mjs`.
 and the candidate-list paragraph names the optional `browser` column and its `yes`/`no` rule.
 Line-neutral: 243 lines before and after, ten bytes smaller.
 
+## What the check found
+
+`review: inline` - the code-review skill answered with a promise of a later notification, which
+under check.md's rule means it did not run, so the diff was read here against the angles. Two
+edges fixed: the ledger's `plan` path was compared with `path.resolve` against a path the operator
+typed, and on Windows a drive-letter case or slash difference would have emptied the running set
+(the open failure, silently) - plans are now matched by file name, which the store keeps unique per
+date and kind; and the candidate `browser` cell accepted only a bare `yes`/`no` while the wave-table
+reader accepted a leading word, so `yes - drives the app` would have derived - both now share
+`browserWord`. Both pinned in the test file.
+
+`simplify: inline` - the simplify skill returned fan-out instructions. One finding applied:
+`runningRows` re-derived newest-record-per-branch with a timestamp comparison `joinDurations`
+already makes, so `joinDurations` now carries `plan` (additive) and `runningRows` filters its rows
+directly. Skipped: putting the browser need in the backlog item's front matter, where the other
+candidate fields come from - the right depth eventually, but it is the owner-receipt format and
+its own change.
+
+`verify: inline` - `npm run build` exit 0 read from the build's own status, twice (before and after
+the check), `fail 0` in the test leg, every gate green. No product code changed, so no e2e leg.
+`taste: not applicable` - nothing here can move what a graphic looks like.
+
 ## Judgements taken, so they can be reverted
 
 - **Directories in `TOUCHES` without a trailing slash.** The night's candidate table wrote
