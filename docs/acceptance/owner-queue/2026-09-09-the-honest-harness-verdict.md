@@ -37,7 +37,15 @@ note where review changed something. The judgement is also appended to
 `docs/HARNESS_ROUTING.md` as the last section, and the re-probed capability observations are in
 `scripts/harness-capabilities.json`.
 
-**One decision is yours and I did not take it.** `~/.codex/config.toml` declares
-`mcp_servers.playwright` as `npx @playwright/mcp@latest`. Nothing in this repository's Codex work
-uses a browser, and that one entry is about 175 MB of every leaked fleet. Deleting it is your
-call, in your own configuration file. Branch `claude/ac-harness-verdict`.
+**Two decisions are yours and I took neither.**
+
+`~/.codex/config.toml` declares `mcp_servers.playwright` as `npx @playwright/mcp@latest`. Nothing
+in this repository's Codex work uses a browser, and that one entry is about 175 MB of every leaked
+fleet. Deleting it is your call, in your own configuration file.
+
+Antigravity cannot search a repository, which is why a sweep sent to it tonight came back empty.
+Granting `command(rg)` in `~/.gemini/antigravity-cli/settings.json` would fix it and would make the
+harness useful for exactly the work it is otherwise good at. No session may widen the machine's
+permission posture on its own argument, so it is filed rather than done
+(`docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md`). Until you say
+otherwise we enumerate file lists by hand. Branch `claude/ac-harness-verdict`.

@@ -33,10 +33,12 @@ The owner's own Codex Desktop session at 19:34 UTC tonight, in a folder he named
 He is right. Four of my own delegations left sixteen processes and 778 MB behind, which I reaped
 by hand at the end of this session.
 
-**One thing is better than the file said.** Antigravity did not fail. Given a bounded spec it
-produced 63 numbers in a single sixty-second call and made **no arithmetic error at all**. One
-column of 13 cells is nevertheless wrong, because my spec told it to count the wrong field and it
-counted that field perfectly. That is the shape of its failures, and the shape of its value.
+**One thing is better than the file said, and one is worse.** Antigravity did not fail: given a
+bounded spec it produced 63 numbers in a single sixty-second call and made **no arithmetic error at
+all**. One column of 13 cells is nevertheless wrong, because my spec told it to count the wrong
+field and it counted that field perfectly. But it **cannot search a repository at all**, which is
+why a sweep another row sent to it tonight came back empty after paying for the attempt. Both
+halves are the same trait: it does exactly what it is told and nothing more.
 
 ## Question 1: can this orchestrator drive Codex to finish real work?
 
@@ -109,12 +111,23 @@ nothing moved.
 **Yes, for bounded literal work, and the evidence is better than I expected.** It does not fail
 every task. It fails the tasks whose specs leave anything to be worked out.
 
-**The re-probe first.** The ledger's `agy-headless-auto-denies-ungranted-tools` entry says a
-headless call with no `command` grant silently auto-denies and returns an empty response. On the
-installed 1.1.28 that is false. `npm run agy:read` with no command grant, asked to list a
-directory, returned a complete listing in 6.5 seconds: 16 files with their sizes. I checked it
-against the filesystem. The count is right and the sizes are right, including a file 120 bytes
-long that had been created four minutes earlier.
+**The re-probe first, and it splits in two.** The ledger's
+`agy-headless-auto-denies-ungranted-tools` entry says a headless call with no `command` grant
+silently auto-denies and returns an empty response. Asked to **list** a directory, that is false on
+1.1.28: `npm run agy:read` returned a complete listing in 6.5 seconds, 16 files with their sizes,
+and I checked every one against the filesystem, including a file 120 bytes long created four
+minutes earlier.
+
+**Asked to search, it is still true, and another row proved it the same night.** The handoff drain
+sent a repo-wide citation sweep to `npm run agy` and got an empty response after 8.8 seconds and
+about 18 K tokens, because a model told to find something reaches for `grep_search`, which
+Antigravity will not let us grant. So the entry was neither refuted nor confirmed; it was one
+sentence covering two behaviours that no longer move together. It now records both, and the
+wrapper's warning turns out to be right about search and wrong about listing.
+
+**That is a routing rule, not a defect: never ask Antigravity to find something.** Enumerate the
+files yourself and it reads them faultlessly. Give it a question whose answer is the file list and
+you get nothing back, having paid for it.
 
 **Then a real write.** One call, `--write`, spec handed over as a prompt file of absolute paths
 with the tool set declared and no shell, asked to turn a 33-line JSON ledger into a per-model
@@ -136,10 +149,20 @@ because seven runs return status SUCCESS with an empty response and the wrapper 
 - **Codex exercises judgement.** That fixes gaps in a spec, and it also fills gaps you did not
   want filled (see question 3's table 1).
 
-**The counter-evidence, because it exists.** At 20:27 UTC tonight, while I was working, another
-session recorded an Antigravity doc-sweep as `unusable`. Its cause is `prompt`. So the failures
-are real, they are recent, and so far every one of them is attributed to our side of the
-conversation rather than the model's.
+**The counter-evidence, because it exists.** The failed sweep above is the row recorded at 20:27
+UTC tonight as `unusable`, cause `prompt`. So the failures are real, they are recent, and so far
+every one of them is attributed to our side of the conversation rather than the model's.
+
+**And there is a decision here that is yours, which no session may take.** Antigravity's search
+blindness is fixable: granting `command(rg)`, or something narrower, in
+`~/.gemini/antigravity-cli/settings.json` would let it search, and it is otherwise good at exactly
+the sweep work that needs searching. The row that hit this refused to take that decision, on the
+grounds that a session may not widen the machine's permission posture on its own argument, and
+filed it instead
+(`docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md`). **I agree with
+the refusal and I am not overriding it.** What you are weighing is a shell grant to a Google CLI
+on this laptop against the ability to route sweeps to a harness that is free at the point of use.
+Until you say otherwise, sweeps are enumerated by hand and Antigravity reads the list.
 
 **Use it for:** one file in, one file out, absolute paths, a declared tool set, no shell, and
 arithmetic or transcription rather than judgement. On that shape it is cheap, fast and exact.
@@ -274,9 +297,10 @@ so it is his call and not a change I made.
 - `.claude/commands/rescue.md`: two stale facts corrected - the injected effort default, which is
   `medium` and not `high`, and the claim that `gpt-5.6-sol` is the only model the subscription
   accepts. The first of those sent this document's own first draft down the wrong path.
-- `docs/backlog/agy-warns-about-a-grant-1-1-28-no-longer-needs.md`: the wrapper still warns about
-  a grant this build does not need, and only one ungranted action was probed, so the fix needs
-  the other probes first.
+- `docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md`: the refusal it
+  proposes must be narrowed to search and not widened to listing, with tonight's listing probe as
+  the reason. I had filed a separate item saying the wrapper's warning was stale; that premise was
+  wrong once this row's evidence arrived, so the item is gone rather than left standing.
 - `docs/HARNESS_ROUTING.md`: a dated section carrying this verdict.
 - `docs/metrics/2026-09-09-harness-verdict-tables.md`: the Codex-written tables, annotated where
   one row could not be reproduced.

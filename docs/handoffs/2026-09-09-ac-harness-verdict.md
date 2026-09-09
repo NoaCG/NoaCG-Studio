@@ -33,11 +33,37 @@ reading is not possible yet, because seven of the last nine rows measure our spe
 worker. Somebody has to fix the spec discipline before either the effort trial or the quota
 decision can be read.
 
-## The one thing that needs the owner
+## What the relay changed, after the check chain had finished
 
-`~/.codex/config.toml` declares `mcp_servers.playwright` as `npx @playwright/mcp@latest`. Nothing
-in this repository's Codex work uses a browser, and that single entry is about 175 MB of every
-leaked process fleet. It is his own configuration file on his own machine, so I did not touch it.
+The orchestrator's relay carried a collision and a refutation, both from row AD, and acting on it
+was the last real work of this session. **Read your relay before you queue, not after you think you
+are done** - the workflow says so and this is why.
+
+AD landed first and added its own section to `docs/HARNESS_ROUTING.md`. Git merged the two sections
+cleanly, which proves nothing about whether they agree, so I read AD's section and cross-referenced
+it rather than trusting the merge.
+
+More importantly, **AD refuted a claim I had just written.** I recorded
+`agy-headless-auto-denies-ungranted-tools` as refuted on 1.1.28 because a directory listing worked.
+AD had measured, hours earlier on the same build, a repo-wide search returning an empty response
+after 8.8 seconds. Both are true: **listing no longer auto-denies, search still does.** The entry
+now carries both halves and a two-call re-probe that keeps them apart, and I deleted the backlog
+item I had filed on the strength of the listing alone, because its premise was gone. That is the
+same over-generalising mistake this file's own subagent-notification entry records, made again
+within a day of the warning being written.
+
+## The two things that need the owner
+
+**The playwright MCP entry.** `~/.codex/config.toml` declares `mcp_servers.playwright` as
+`npx @playwright/mcp@latest`. Nothing in this repository's Codex work uses a browser, and that
+single entry is about 175 MB of every leaked process fleet. It is his own configuration file on his
+own machine, so I did not touch it.
+
+**The Antigravity shell grant**, which row AD raised and I agree with. `command(rg)` in
+`~/.gemini/antigravity-cli/settings.json` would make sweeps routable to Antigravity. A session may
+not widen the machine's permission posture on its own argument, so it stays filed. Both questions
+are on the owner-queue file so he meets them in one place.
+
 Everything else in this row was decided here.
 
 ## Evidence and traps that exist in no repo file

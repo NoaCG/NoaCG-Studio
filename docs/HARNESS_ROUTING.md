@@ -1346,11 +1346,13 @@ banner on every run. Read the banner before writing another probe. On this build
 arrives as an OS access error rather than a policy message, so a session reading only the summary
 can record a task as attempted while nothing moved.
 
-**Antigravity does not fail every task. It fails every ambiguous one.** Given a bounded spec - one
-file in, one file out, absolute paths, a declared tool set, no shell - it returned 63 numbers in a
-single sixty-second call, 50 of them exact and the other 13 the whole of one column. Its one flaw
-came from our spec defining a failed call by the wrong field, and it executed that wrong
-definition perfectly. Codex,
+**Antigravity does not fail every task. It fails every ambiguous one, and every one that needs a
+search.** Given a bounded spec - one file in, one file out, absolute paths, a declared tool set,
+no shell - it returned 63 numbers in a single sixty-second call, 50 of them exact and the other 13
+the whole of one column. Its one flaw came from our spec defining a failed call by the wrong field,
+and it executed that wrong definition perfectly. The search half is the section above this one:
+listing a directory now works with no `command` grant, searching still returns nothing, and the two
+were measured hours apart on the same build. Codex,
 handed a looser spec over the same data, picked the right field on its own. **That is the routing
 rule worth carrying: Antigravity is literal, Codex exercises judgement.** Send Antigravity
 arithmetic and transcription, where a defect in the spec is the only risk you have not covered.
@@ -1359,7 +1361,9 @@ Never send it work whose right answer depends on noticing that the instruction i
 **More Codex quota would not buy more finished work today, and the reason is on our side of the
 ledger.** Of the nine delegated tasks in the last 24 hours, seven failed on our own prompt or
 invocation; two rows are evidence about the worker, one of which was accepted. Fix the spec
-discipline first. What the measurement did settle is the rate: nine small Codex invocations moved
+discipline first - and the two sections above this one already say how: split a sweep's file list
+across calls, hand over a deletion log rather than banning git, and never route a search to
+Antigravity. What the measurement did settle is the rate: nine small Codex invocations moved
 the 5-hour window from 18% to 62% in thirteen minutes, and the weekly window 7 points - which
 scales to roughly 130 delegations a week, or 18 a day, on tonight's mix. The 2026-09-03 note above
 about Codex sitting at 64% of its weekly window untouched no longer describes the machine.
