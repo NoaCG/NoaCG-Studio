@@ -1584,6 +1584,52 @@ test('the mapping step explains itself: the name under an empty box, the count o
   await expect(page.getByTestId('map-svg-fill-button')).toBeVisible();
 });
 
+test('the unmatched count leaves out the plate the board is drawn on', async ({ page }, testInfo) => {
+  // A VOTE BOARD IS WHERE THE COUNT WENT WRONG
+  // (docs/backlog/the-vote-notice-counts-plates-as-spare-layers.md). The vote's `bar` role is a
+  // GAUGE, and a gauge is filled from any drawing at all, so while its boxes are empty every
+  // rectangle in the file is pooled - the full-bleed plate the board is drawn on included. The
+  // notice then told the author their file has a layer nothing is using and sent them off to
+  // rename the backdrop, at exactly the moment it is gated to fire.
+  //
+  // The board below is the shape the backlog describes: a student drew a plate, a rule under the
+  // title, a track per row and a bar over each track, and named none of them for a vote role - so
+  // they pick the behaviour by hand and open on eleven empty boxes. Fourteen of its fifteen
+  // unclaimed layers are things they could name; the fifteenth is the board itself.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect id="Backplate" data-name="Backplate" x="0" y="0" width="1920" height="1080" fill="#0b0f14"/>
+  <rect id="Header_x20_rule" data-name="Header rule" x="160" y="250" width="1600" height="8" fill="#f6a623"/>
+  <text id="Prompt" data-name="Prompt" x="160" y="200" font-family="Arial" font-size="56" fill="#fff">Which river is the longest?</text>
+  <rect id="Track_x20_1" data-name="Track 1" x="160" y="360" width="1600" height="60" fill="#1c2530"/>
+  <rect id="Track_x20_2" data-name="Track 2" x="160" y="500" width="1600" height="60" fill="#1c2530"/>
+  <rect id="Track_x20_3" data-name="Track 3" x="160" y="640" width="1600" height="60" fill="#1c2530"/>
+  <rect id="Meter_x20_1" data-name="Meter 1" x="160" y="360" width="900" height="60" fill="#f6a623"/>
+  <rect id="Meter_x20_2" data-name="Meter 2" x="160" y="500" width="700" height="60" fill="#f6a623"/>
+  <rect id="Meter_x20_3" data-name="Meter 3" x="160" y="640" width="500" height="60" fill="#f6a623"/>
+  <text id="Nimi_x20_1" data-name="Nimi 1" x="200" y="400" font-family="Arial" font-size="34" fill="#fff">Kemijoki</text>
+  <text id="Nimi_x20_2" data-name="Nimi 2" x="200" y="540" font-family="Arial" font-size="34" fill="#fff">Tornionjoki</text>
+  <text id="Nimi_x20_3" data-name="Nimi 3" x="200" y="680" font-family="Arial" font-size="34" fill="#fff">Oulujoki</text>
+  <text id="Luku_x20_1" data-name="Luku 1" x="1620" y="400" font-family="Arial" font-size="34" fill="#fff">41</text>
+  <text id="Luku_x20_2" data-name="Luku 2" x="1620" y="540" font-family="Arial" font-size="34" fill="#fff">33</text>
+  <text id="Luku_x20_3" data-name="Luku 3" x="1620" y="680" font-family="Arial" font-size="34" fill="#fff">26</text>
+</svg>`;
+  const file = testInfo.outputPath('vote-board-with-a-plate.svg');
+  writeFileSync(file, svg);
+  await openImportDoor(page, file);
+
+  // Nothing here reads as a behaviour, so the reader picks one - which is the case the notice was
+  // written for, and the case that seeds every box empty.
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('poll');
+
+  // Eleven empty boxes and FOURTEEN layers - the plate is not one of them, because "name it as
+  // the line under each box says" is not something anybody can do to the board's own backdrop.
+  // The header rule and the three tracks stay counted: a track behind a bar really could be the
+  // bar, and over the repo's artwork corpus nothing separates the two by size.
+  const notice = page.getByTestId('map-svg-unmatched');
+  await expect(notice).toContainText('11 boxes');
+  await expect(notice).toContainText('14 layers');
+});
+
 // ── THE SHOW CORPUS (docs/SVG_BEHAVIOUR_SHOWS.md) ────────────────────────────────────────────
 //
 // Six graphics American game shows and late-night talk shows put on air with operator commands

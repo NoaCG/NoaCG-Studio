@@ -110,9 +110,97 @@ function emptyAndClaimed(roles: RecipeRole[], pickers: FillPicker[], taken: stri
   return { empty, claimed };
 }
 
+// ── THE PLATE, AND WHY THE COUNT LEAVES IT OUT ──
+
+/**
+ * HOW MUCH OF THE ARTWORK A DRAWING COVERS BEFORE IT IS THE THING EVERYTHING ELSE SITS ON.
+ *
+ * The count below is a claim about somebody's file - "the file has N layers nothing is using" -
+ * and a `gauge` role pools EVERY drawing, so without this the board's own backplate is one of
+ * them. On a vote board that is the whole defect: three empty bar boxes made the notice fire, and
+ * the number it fired with counted the full-bleed plate behind the rows as a layer the author had
+ * forgotten to name (docs/backlog/the-vote-notice-counts-plates-as-spare-layers.md).
+ *
+ * MEASURED, not guessed - `scripts/svg-plate-share-spike.mjs` prints the table this came from.
+ * Over the 77 artwork files in `e2e/fixtures/svg-corpus/`, `docs/svg-samples/` and
+ * `e2e/fixtures/svg-shows/` it measures every drawing the mapping step offers, on the real
+ * importer and a real render. Of the 485 VISIBLE ones, the share-of-ink histogram is:
+ *
+ *     under 0.70    343   plates and everything else, mixed
+ *     0.70 - 0.85     6   still mixed: a scorebug's plate at 0.717, a group of words at 0.716
+ *     0.85 - 0.95     4   all four plates
+ *     0.95 - 0.999    1   one plate, the owner's ROTATED quiz backdrop at 0.998
+ *     0.999 - 1.000 131   every one of them a plate or the group wrapped round the graphic
+ *
+ * So the two populations separate at the top of the range and nowhere else. All 132 drawings at
+ * 0.95 and over are the graphic's backplate, its panel, or the group wrapped round the whole
+ * thing; the first that is NOT one appears at 0.737, a group holding a quiz's answer rows. 0.95
+ * is the round number under the crowd at the top, and the slack it leaves is not spare: a
+ * backdrop drawn rotated measures 0.998 rather than 1, and one drawn a pixel short of its own
+ * artwork would measure less again.
+ *
+ * THE DENOMINATOR IS THE INK, NOT THE FRAME, and that is the measurement's other finding. The
+ * backlog proposed a share of the artwork's frame; the corpus refuses it. The same plate reads
+ * 7.6% of the frame on a nameplate drawn into a 1920x1080 artboard and 100% on a full-bleed
+ * board, and the vote band's own backplate is 31.5% - a frame rule at 0.7 misses 75 of the 132
+ * plates, this one included, while wrongly catching a bumper's foreground. It is the trap
+ * MapSvgFieldsStep.tsx already records beside `proposeBannerGrowth`: no size-against-frame rule
+ * can label both a full-frame artboard and a small floating object. The union of every measured
+ * layer's box is what a reader points at when they say "the artwork", so that is what a plate is
+ * measured against.
+ */
+const PLATE_SHARE_OF_ARTWORK = 0.95;
+
+type Box = NonNullable<FillLayer['box']>;
+
+const areaOf = (b: Box) => Math.max(0, b.right - b.left) * Math.max(0, b.bottom - b.top);
+
+/** THE ARTWORK'S INK: the union of every box the step could measure. Null when it measured
+ *  none, which is how a caller with no geometry gets the count it has always had. */
+function inkBox(layers: FillLayer[]): Box | null {
+  let ink: Box | null = null;
+  for (const l of layers) {
+    if (!l.box) continue;
+    ink = ink
+      ? {
+          top: Math.min(ink.top, l.box.top),
+          left: Math.min(ink.left, l.box.left),
+          bottom: Math.max(ink.bottom, l.box.bottom),
+          right: Math.max(ink.right, l.box.right),
+        }
+      : { ...l.box };
+  }
+  return ink && areaOf(ink) > 0 ? ink : null;
+}
+
+/**
+ * Is this drawing the artwork's own plate rather than something drawn ON it?
+ *
+ * Two answers are deliberately no: a layer the step could not MEASURE (an unmeasured layer is
+ * counted exactly as it was before this existed, never guessed at), and a HIDDEN one. A designer
+ * does not hide the base look, so an exported-hidden layer is a moment they drew - which is the
+ * same reading `poolOf` already makes when it fills a `look` from hidden drawings alone. It is
+ * not idle: the corpus holds a hidden full-board "Time up" state at 0.674 of the ink and a hidden
+ * "Goal" at 0.754, and both are exactly the layer this notice exists to tell the author about.
+ */
+function isPlate(layer: FillLayer, ink: Box | null): boolean {
+  if (!ink || !layer.box || layer.hidden) return false;
+  return areaOf(layer.box) >= areaOf(ink) * PLATE_SHARE_OF_ARTWORK;
+}
+
 /**
  * How many pickers are still empty, and how many unused layers the file holds that one of them
  * could take. The step shows its notice off these two numbers.
+ *
+ * The spare count leaves the artwork's own PLATES out (`isPlate`): they are unclaimed drawings a
+ * gauge role would pool, but "name them as the line under each box says" is not something an
+ * author can do to the rectangle their board is drawn on, and the notice is gated at three empty
+ * boxes precisely so it fires when the reader will act on it. The count is only as good as the
+ * geometry it is handed - a caller that measured nothing gets the same number it always did.
+ *
+ * The FILL applies the same rule in ONE place and no more (`proposeFill` rule 5), because a wrong
+ * pick there is shown under the box, carries its reason and undoes in one press, while this
+ * number is a claim about the file with nothing to check it against.
  */
 export function fillGap(
   recipeId: string,
@@ -124,9 +212,14 @@ export function fillGap(
   const roles = rolesOf(recipeId);
   const { empty, claimed } = emptyAndClaimed(roles, pickers, taken);
   const pools = new Set(empty.map((p) => poolOf(roles.find((r) => r.id === p.role)!)));
+  const ink = inkBox([...text, ...drawn]);
   const spareIds = new Set<string>();
   for (const pool of pools) {
-    for (const layer of candidatesFor(pool, text, drawn)) if (!claimed.has(layer.id)) spareIds.add(layer.id);
+    for (const layer of candidatesFor(pool, text, drawn)) {
+      if (claimed.has(layer.id)) continue;
+      if (pool !== 'text' && isPlate(layer, ink)) continue;
+      spareIds.add(layer.id);
+    }
   }
   return { empty: empty.length, spare: spareIds.size };
 }
@@ -319,12 +412,19 @@ export function proposeFill(
     }
   }
 
-  // 5. One left, one box.
+  // 5. One left, one box - unless the one left is the board itself. Rule 4 already refuses a
+  //    plate for a row ("a drawing that spans the words end to end is the row's own plate"), and
+  //    this is the same refusal for a rowless role: on a board whose last unclaimed drawing is
+  //    the backplate, binding it as a gauge would scale the whole graphic with the vote share.
+  //    A REFUSAL only - the "exactly one" test is still asked of everything left, so a plate
+  //    beside another drawing keeps this rule quiet rather than choosing between them.
+  const ink = inkBox([...text, ...drawn]);
   for (const pool of ['look', 'gauge', 'text'] as const) {
     const boxes = empty.filter((p) => !p.key && poolOf(roleOf(p.role)!) === pool);
     if (boxes.length !== 1) continue;
     const left = spare(pool).filter((l) => fits(roleOf(boxes[0].role)!, l));
-    if (left.length === 1) take(boxes[0], left[0], pool === 'text' ? 'the one text layer left' : 'the one drawing left');
+    if (left.length !== 1 || (pool !== 'text' && isPlate(left[0], ink))) continue;
+    take(boxes[0], left[0], pool === 'text' ? 'the one text layer left' : 'the one drawing left');
   }
 
   return picks;

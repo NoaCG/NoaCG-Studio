@@ -122,13 +122,19 @@ function dominantFill(el: Element): string | null {
 }
 
 /**
- * WHERE EACH LAYER SITS, AND WHAT COLOUR IT IS, for the fill-them-in guess (fieldAutoMap.ts).
+ * WHERE EACH LAYER SITS, and optionally what colour it is, for the two readers in fieldAutoMap.ts.
  * Read off the step's own render with every hiding LIFTED for the duration of the read: a drawn
  * moment is hidden as exported, and a hidden element has no box. The lift is a stylesheet rule
  * keyed on `data-reveal` (mapSvgFields.css), so an Illustrator class-hidden layer is measured
  * exactly like an inline-hidden one; the attribute is gone again before anything can paint.
+ *
+ * THE COLOUR IS ASKED FOR, never given away, because the two readers want different amounts of
+ * work. The unmatched notice needs the boxes on every render of the step, to leave the artwork's
+ * own plates out of what it counts (`fillGap`); reading a dominant fill walks every painted node
+ * under every layer through `getComputedStyle`, which is a price worth paying once, on the press
+ * that fills the boxes in.
  */
-function measureLayers(stage: HTMLElement, ids: string[]): Map<string, Pick<FillLayer, 'box' | 'color'>> {
+function measureLayers(stage: HTMLElement, ids: string[], colours = false): Map<string, Pick<FillLayer, 'box' | 'color'>> {
   const out = new Map<string, Pick<FillLayer, 'box' | 'color'>>();
   const root = stage.querySelector('svg');
   if (!root) return out;
@@ -143,7 +149,7 @@ function measureLayers(stage: HTMLElement, ids: string[]): Map<string, Pick<Fill
         r.width > 0 && r.height > 0
           ? { top: r.top - svgRect.top, bottom: r.bottom - svgRect.top, left: r.left - svgRect.left, right: r.right - svgRect.left }
           : null;
-      out.set(id, { box, color: dominantFill(el) });
+      out.set(id, { box, color: colours ? dominantFill(el) : null });
     }
   } finally {
     stage.removeAttribute('data-reveal');
@@ -1337,6 +1343,33 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
     }
     setBoxFits(fits);
   }, [svg, boundMarkerIds, allMarkerIds, placedLines]);
+
+  // ── WHERE EVERY LAYER SITS, FOR THE UNMATCHED COUNT (fieldAutoMap.ts, `isPlate`) ──
+  // The notice says how many layers nothing is using, and without geometry it counts the board's
+  // own backplate as one of them. A layer's box is a fact about the ARTWORK and not about which
+  // rows are ticked, so it is measured once per file over every candidate the importer found and
+  // read back by id below.
+  //
+  // A LAYOUT effect, for the reason the grouping above is one: the count is a NUMBER on screen,
+  // and measuring after paint would print the inflated one for a frame and then correct it.
+  const [layerBoxes, setLayerBoxes] = useState<Map<string, FillLayer['box']>>(new Map());
+  const candidateKey = useMemo(
+    () =>
+      svg
+        ? [...svg.candidates, ...svg.images, ...svg.outlines, ...svg.groups, ...svg.shapes].map((c) => c.id).join('|')
+        : '',
+    [svg],
+  );
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!svg || !stage || !candidateKey) {
+      setLayerBoxes(new Map());
+      return;
+    }
+    const measured = measureLayers(stage, candidateKey.split('|'));
+    setLayerBoxes(new Map([...measured].map(([id, m]) => [id, m.box])));
+  }, [svg, candidateKey]);
+
   // TEXT AND ITS BOX, for the hovered row. Only a row that HAS a box and that the step could
   // measure gets one: a line sitting straight on the artwork has no room to draw and nothing to
   // be aligned in, and the plain outline is the whole truthful answer there.
@@ -1847,7 +1880,14 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
   const fillPickers = behaviour ? pickersOf(behaviour, fillText) : [];
   /** Each row's key as the hints and the fill speak it - the key the row's own layer carries. */
   const rowKeyAt = behaviour ? rowKeysOf(behaviour, fillText) : [];
-  const gap = behaviour && recipeId ? fillGap(recipeId, fillPickers, fillText, fillDrawn, fillTaken) : { empty: 0, spare: 0 };
+  /** A layer with the box the artwork was measured at, so the count can tell the board's own
+   *  plate from something drawn on it. Before the measurement lands every box is absent, which
+   *  is the count this notice had before geometry reached it. */
+  const withBox = (l: FillLayer): FillLayer => ({ ...l, box: layerBoxes.get(l.id) ?? null });
+  const gap =
+    behaviour && recipeId
+      ? fillGap(recipeId, fillPickers, fillText.map(withBox), fillDrawn.map(withBox), fillTaken)
+      : { empty: 0, spare: 0 };
   // The fill's marks belong to the recipe they were made on; a change of behaviour orphans
   // them, and an orphaned mark would explain a box that no longer exists.
   const fillShown = fill && behaviour && recipeIdOf(fill.before) === recipeId ? fill : null;
@@ -1893,7 +1933,7 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
     if (!behaviour || !recipeId) return;
     const stage = stageRef.current;
     const measured = stage
-      ? measureLayers(stage, [...fillText, ...fillDrawn].map((l) => l.id))
+      ? measureLayers(stage, [...fillText, ...fillDrawn].map((l) => l.id), true)
       : new Map<string, Pick<FillLayer, 'box' | 'color'>>();
     const withGeometry = (l: FillLayer): FillLayer => ({ ...l, ...(measured.get(l.id) ?? {}) });
     const picks = proposeFill(recipeId, fillPickers, fillText.map(withGeometry), fillDrawn.map(withGeometry), fillTaken);
