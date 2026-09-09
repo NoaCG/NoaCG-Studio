@@ -148,8 +148,25 @@ export function waveRowHoldsBrowser(row) {
  * the name carries none) and its "Window ends" (null when the plan has none). What `belongsToWave`
  * reads, computed once.
  */
+/**
+ * The file name out of a path written on EITHER platform.
+ *
+ * `path.basename` splits on the separator of the platform it runs on, and this comparison reads
+ * paths WRITTEN ON WINDOWS: the ledger stores what `--plan` was given, which on this machine is
+ * `C:\...\wave-plans\<name>`. On Linux a backslash is an ordinary character there, so basename
+ * hands back the whole string, the two sides never match, and the running set comes back empty -
+ * the silent failure this comparison exists to prevent, moved one platform sideways. CI caught it
+ * as a red test; the laptop would have caught it as a bad pick, eventually, with no message.
+ *
+ * Normalising first costs one replace and makes the answer identical everywhere, which is what a
+ * per-machine ledger read by a cross-platform test needs.
+ */
+function planFileName(planPath) {
+  return path.basename(String(planPath).replaceAll('\\', '/'));
+}
+
 export function waveSpan(planPath, text) {
-  const name = path.basename(planPath);
+  const name = planFileName(planPath);
   const dated = /^(\d{4}-\d{2}-\d{2})/.exec(name);
   const day = dated ? Date.parse(`${dated[1]}T00:00:00`) : NaN; // no offset = LOCAL, like the file's name
   return { name, startMs: Number.isFinite(day) ? day : null, endMs: parseWindowEnd(text) };
@@ -159,7 +176,7 @@ export function waveSpan(planPath, text) {
  *  belongs to". `record` carries `at` and `plan`; a joined row carries `launchedAt` and `plan`. */
 export function belongsToWave(record, span, { now = Date.now() } = {}) {
   const at = record.at ?? record.launchedAt;
-  if (record.plan) return path.basename(record.plan).toLowerCase() === span.name.toLowerCase();
+  if (record.plan) return planFileName(record.plan).toLowerCase() === span.name.toLowerCase();
   const end = span.endMs ?? now;
   const start = span.startMs ?? end - 2 * WAVE_PLAN_MAX_AGE_MS;
   return at >= start && at <= end;
