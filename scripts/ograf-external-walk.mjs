@@ -79,6 +79,12 @@ if (!existsSync(sample)) {
   process.exit(2);
 }
 
+// The output directory is emptied before a run, and `--out` is a path somebody types - so it is
+// checked before anything is deleted. `--out .` would otherwise take the checkout with it.
+if (!outDir.startsWith(root + (process.platform === 'win32' ? '\\' : '/'))) {
+  console.error(`--out must be a directory INSIDE the repository (got ${outDir}); this run empties it.`);
+  process.exit(2);
+}
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 const framesDir = join(outDir, 'frames');
@@ -96,20 +102,25 @@ function say(line) {
 // ── the two servers ──────────────────────────────────────────────────────────
 
 const children = [];
+/** The Chromium this run launched, closed in the `finally` whether the walk finished or threw. */
+let launched = null;
 /**
  * Stop what this run started, before this process exits.
  *
  * SYNCHRONOUSLY, which is the whole point: `process.exit()` follows immediately, and an async
  * `spawn('taskkill')` never gets to run - measured on 2026-09-09, when three runs in a row each
  * left a 640 MB Vite server behind and the queue's own memory floor then blocked the next one.
- * A shelled npm on Windows is a .cmd wrapper around the real node process, so the TREE is what
- * has to go, not the leader.
+ *
+ * THE TREE, not the leader, on either platform: a shelled `npm run dev` is a `.cmd` (or an `sh`)
+ * wrapping the node process that actually holds the port, and signalling the wrapper leaves the
+ * server running. Windows takes the tree with `taskkill /T`; elsewhere the child is its own
+ * process group (`detached`) and the group is signalled by negating the pid.
  */
 function stopChildren() {
   for (const child of children.splice(0)) {
     try {
       if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-      else child.kill('SIGTERM');
+      else process.kill(-child.pid, 'SIGTERM');
     } catch {
       /* the walk is over either way */
     }
@@ -146,6 +157,9 @@ async function startDevServer() {
     cwd: root,
     shell: true,
     stdio: 'ignore',
+    // Its own process group off Windows, so stopChildren can take the whole tree down: the
+    // shell is the child, and the node process holding the port is its child.
+    detached: process.platform !== 'win32',
     env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_PREVIEW_DEBOUNCE_MS: '50' },
   });
   children.push(child);
@@ -215,6 +229,14 @@ async function exportOgrafPackage(page) {
 
 // ── beat 2: hand it to the renderer ──────────────────────────────────────────
 
+/**
+ * Hand the package to the renderer, and return the id the SERVER says it stored it under.
+ *
+ * The id matters: this script happily reuses a server that is already up, and that server still
+ * holds everything previous runs uploaded. Picking "the first graphic whose id starts with
+ * noacg-" out of its listing would let a warm server hand back a STALE package, and the walk
+ * would drive and green-light something it did not just export.
+ */
 async function uploadPackage(zipPath) {
   const body = new FormData();
   body.set('graphic', new Blob([readFileSync(zipPath)], { type: 'application/zip' }), 'imported-quiz-ograf.zip');
@@ -222,7 +244,15 @@ async function uploadPackage(zipPath) {
   const text = await res.text();
   transcript.push({ step: 'upload', method: 'POST', url: '/api/serverApi/internal/graphics/graphic', status: res.status, body: text.slice(0, 2000) });
   if (!res.ok) throw new Error(`upload answered ${res.status}: ${text.slice(0, 400)}`);
-  say(`renderer: upload ${res.status}`);
+  let stored;
+  try {
+    stored = JSON.parse(text).graphics?.[0]?.id;
+  } catch {
+    stored = undefined;
+  }
+  if (!stored) throw new Error(`the upload answered ${res.status} but named no graphic: ${text.slice(0, 200)}`);
+  say(`renderer: upload ${res.status}, stored as ${stored}`);
+  return stored;
 }
 
 async function api(step, method, path, body) {
@@ -251,19 +281,21 @@ async function api(step, method, path, body) {
  * tokens are the ones the import stamped on the artwork (`data-noacg-role`), and a lit layer
  * carries the runtime's on-class.
  */
-async function litRoles(page) {
-  return page.evaluate(() => {
-    const host = document.querySelector('[id^="noacg-"], noacg-imported-svg-design') ?? document.body;
+async function litRoles(page, graphicId) {
+  return page.evaluate((id) => {
+    // The renderer registers the Graphic as `customElements.define(manifest.id, …)`, so the
+    // manifest id IS the element's tag name - which is why this walk never has to guess one.
+    const host = document.querySelector(id) ?? document.body;
     const roots = host.querySelectorAll('[data-noacg-role]');
     const lit = [];
     for (const el of roots) {
       if (el.classList.contains('imported-design-on')) lit.push(el.getAttribute('data-noacg-role'));
     }
     return { stamped: roots.length, lit };
-  });
+  }, graphicId);
 }
 
-async function frame(page, name) {
+async function frame(page, name, graphicId) {
   frameNo += 1;
   const file = join(framesDir, `${String(frameNo).padStart(2, '0')}-${name}.png`);
   // THE RENDERER'S OWN PAGE, not ours. Waiting on the graphic's animation is the only place a
@@ -273,7 +305,7 @@ async function frame(page, name) {
   await page.bringToFront();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: file });
-  const roles = await litRoles(page);
+  const roles = await litRoles(page, graphicId);
   transcript.push({ step: `frame ${name}`, frame: file, drawnStates: roles });
   say(`frame: ${name} - ${roles.stamped} drawn states, lit: ${roles.lit.join(', ') || '(none)'}`);
   return roles;
@@ -285,19 +317,23 @@ async function main() {
   await Promise.all([startDevServer(), startOgrafServer()]);
 
   const browser = await chromium.launch({ headless: !headed });
+  // Closed in the `finally` at the bottom rather than here: every `throw` in this walk would
+  // otherwise skip the close and leave a Chromium behind, on a laptop where the queue's own
+  // memory floor is what stops the next browser job from starting.
+  launched = browser;
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, acceptDownloads: true });
   const appPage = await context.newPage();
 
   const zipPath = await exportOgrafPackage(appPage);
   await appPage.close();
 
-  await uploadPackage(zipPath);
+  const graphicId = await uploadPackage(zipPath);
 
   const listed = await api('list graphics', 'GET', '/api/ograf/v1/graphics');
   const graphics = listed.payload?.graphics ?? [];
-  const listing = graphics.find((g) => String(g.id ?? '').startsWith('noacg-'));
-  if (!listing) throw new Error(`the renderer lists no NoaCG graphic: ${JSON.stringify(graphics).slice(0, 400)}`);
-  const graphicId = listing.id;
+  if (!graphics.some((g) => g.id === graphicId)) {
+    throw new Error(`the renderer does not list ${graphicId}: ${JSON.stringify(graphics).slice(0, 400)}`);
+  }
 
   // THE MANIFEST AS THE RENDERER SERVES IT BACK, not as we wrote it. Everything below is driven
   // off this - the field ids, the operator actions, the enum a picker would offer - so what the
@@ -380,11 +416,11 @@ async function main() {
   });
   expect(load.status === 200 && load.payload?.statusCode === 200, `load answered ${load.status}/${load.payload?.statusCode}`);
   const graphicInstanceId = load.payload?.graphicInstanceId;
-  await frame(rendererPage, 'loaded');
+  await frame(rendererPage, 'loaded', graphicId);
 
   const play = await api('playAction', 'POST', `${target}/playAction`, { renderTarget, graphicInstanceId, params: {} });
   expect(play.status === 200 && play.payload?.statusCode === 200, `playAction answered ${play.status}/${play.payload?.statusCode}`);
-  await frame(rendererPage, 'on-air');
+  await frame(rendererPage, 'on-air', graphicId);
 
   // THE OPERATOR VERBS THE BOARD DREW. Names come off the manifest rather than from here,
   // because the whole claim is that the renderer reads them out of the package.
@@ -404,7 +440,7 @@ async function main() {
       params,
     });
     expect(res.status === 200 && res.payload?.statusCode === 200, `customAction ${action} answered ${res.status}/${res.payload?.statusCode}`);
-    const roles = await frame(rendererPage, `action-${action}`);
+    const roles = await frame(rendererPage, `action-${action}`, graphicId);
     if (roles.lit.length) painted = true;
   }
   expect(painted, 'the operator actions light the drawn states the designer named');
@@ -422,14 +458,13 @@ async function main() {
 
   const stop = await api('stopAction', 'POST', `${target}/stopAction`, { renderTarget, graphicInstanceId, params: {} });
   expect(stop.status === 200 && stop.payload?.statusCode === 200, `stopAction answered ${stop.status}/${stop.payload?.statusCode}`);
-  await frame(rendererPage, 'off-air');
+  await frame(rendererPage, 'off-air', graphicId);
 
   // `clear` is the renderer's own verb for dropping the instance, and it takes a list of
   // FILTERS rather than one target - a controller clears "everything matching this" in one call.
   const cleared = await api('clear', 'PUT', `${target}/clear`, { filters: [{ renderTarget }] });
   expect(cleared.status === 200, `clear answered ${cleared.status}`);
 
-  await browser.close();
   return failures;
 }
 
@@ -478,6 +513,7 @@ try {
 } finally {
   writeFileSync(join(outDir, 'transcript.json'), JSON.stringify(transcript, null, 2));
   say(`transcript: ${join(outDir, 'transcript.json')}`);
+  if (launched) await launched.close().catch(() => {});
   stopChildren();
 }
 process.exit(exitCode);
