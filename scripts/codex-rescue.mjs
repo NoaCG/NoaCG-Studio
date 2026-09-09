@@ -54,7 +54,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import {
-  closeSync, existsSync, mkdtempSync, openSync, readFileSync, readdirSync, statSync, writeFileSync,
+  closeSync, existsSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -210,8 +210,9 @@ export function workspaceOfBroker(command = '') {
 /** What a recorded process is, for a report a person reads. Never used to decide anything. */
 export function labelProcess(command = '', name = '') {
   if (BROKER_COMMAND.test(command)) return 'the broker';
+  if (/^codex\.exe$/i.test(name)) return 'codex.exe';
   if (/[/\\]codex\.js["']?\s+app-server/.test(command)) return 'the codex app-server';
-  if (/[/\\]codex(\.exe)?["']?\s+.*\bapp-server\b/.test(command)) return 'codex.exe';
+  if (/[/\\]codex["']?\s+app-server\b/.test(command)) return 'the shell that starts codex';
   if (/mcp[/\\]+.*server\.mjs|@playwright[/\\]+mcp|mcp\.js/.test(command)) return 'an MCP server';
   if (/npx-cli\.js/.test(command)) return 'an npx shim for an MCP server';
   return name || 'a process this delegation started';
@@ -434,6 +435,56 @@ export function recordOwnership(dir, { table = allProcesses(), jobIds = [], now 
 }
 
 /**
+ * How long a launch keeps looking for the family it just asked for.
+ *
+ * A JOB ID IS NOT A FAMILY. Measured on this machine: the launcher answers with the job still
+ * `queued`, and the broker is only started when the job actually begins - so the record written
+ * at the moment the id arrives names nothing at all, which is what happened on the first live
+ * run of this code. Twenty seconds covers the ordinary queue wait without holding the caller up
+ * when nothing is coming; a delegation that waits longer than that is recorded by the first poll
+ * instead, and the family's links were measured still intact minutes later.
+ */
+const RECORD_WINDOW_MS = 20_000;
+
+/** Write the record for a launch, waiting for the broker the job will be served by. */
+async function recordLaunchedTree(dir, jobId) {
+  const deadline = Date.now() + RECORD_WINDOW_MS;
+  let first = null;
+  while (Date.now() < deadline) {
+    // Reading the process table costs a PowerShell process, so it is only read once there is a
+    // broker to look for.
+    if (existsSync(path.join(dir, 'broker.json'))) {
+      const record = recordOwnership(dir, { jobIds: [jobId] });
+      // Twice: the first record catches the broker, the second the MCP servers it starts a
+      // second or two later, while every link is still there to be walked.
+      if (record && first) return record;
+      if (record) first = record;
+    }
+    await new Promise((resolve) => setTimeout(resolve, first ? 2_000 : 500));
+  }
+  return first;
+}
+
+/**
+ * Forget a record that no longer names anything of ours, so the store does not fill up with dead
+ * pids - and so a recycled one stops being reported for ever.
+ *
+ * IT ASKS THE SAME QUESTION THE DETECTOR DOES, not "is that pid alive". Measured on 2026-09-09,
+ * 22 seconds after a cancelled delegation: one recorded MCP server's number had been handed to
+ * `svchost.exe`. By liveness that record would have looked half-alive for as long as that service
+ * ran; by identity it is what it is, which is over.
+ */
+export function forgetOwnership(dir, table = allProcesses()) {
+  const record = readOwnership(dir);
+  if (!record || table.length === 0) return false;
+  const byPid = new Map(table.map((p) => [p.pid, p]));
+  const stillOurs = (record.owned ?? []).some((entry) => byPid.get(entry.pid)?.createdMs === entry.createdMs);
+  if (stillOurs) return false;
+  rmSync(path.join(dir, OWNERSHIP_FILE), { force: true });
+  return true;
+}
+
+/**
  * Give up on a launch that never produced a delegation, so its broker stops being protected by
  * the "somebody is still launching" clause. Refuses to touch a record that names a job: a
  * delegation that exists is judged by its own outcome, never by who is waiting for it.
@@ -574,10 +625,17 @@ async function waitForExit(pids, ms) {
  */
 export async function reapTrees({ log = console.log } = {}) {
   const records = delegationRecords();
-  const before = orphanedCodexTrees(allProcesses(), records);
+  const table = allProcesses();
+  const before = orphanedCodexTrees(table, records);
   const collecting = before.filter((tree) => tree.kill.length > 0);
   const kept = before.flatMap((tree) => tree.kept);
-  if (collecting.length === 0) return { closed: 0, trees: [], kept };
+  if (collecting.length === 0) {
+    // Nothing to close, but a record whose family has gone some other way - a cancel that took
+    // the tree with it, a machine that was restarted - is finished with, and saying so here is
+    // what stops every later sweep re-reading it.
+    for (const tree of before) if (tree.stateDir) forgetOwnership(tree.stateDir, table);
+    return { closed: 0, trees: [], kept };
+  }
 
   for (const tree of collecting) {
     const said = await brokerShutdown(tree.endpoint);
@@ -596,6 +654,9 @@ export async function reapTrees({ log = console.log } = {}) {
       if (run.status === 0) closed += 1;
       log(`    closed pid ${target.pid} (${target.what})${run.status === 0 ? '' : ` - taskkill said: ${(run.stderr || run.stdout || '').trim()}`}`);
     }
+    // A record that names nothing of ours any more has nothing left to say, and leaving it behind
+    // would have every later sweep re-read a list of dead pids.
+    if (tree.stateDir) forgetOwnership(tree.stateDir);
   }
   return { closed, trees: collecting, kept: [...kept, ...after.flatMap((tree) => tree.kept)] };
 }
@@ -708,8 +769,8 @@ async function launch(argv, cwd) {
           const payload = JSON.parse(raw.slice(start, end + 1));
           if (payload.jobId) {
             // Not `recorder.note()`: the schedule may not be due, and a record that does not name
-            // the delegation cannot be judged finished later. This one always writes.
-            recordOwnership(dir, { jobIds: [payload.jobId] });
+            // the delegation can never be judged finished later.
+            await recordLaunchedTree(dir, payload.jobId);
             console.log(JSON.stringify({ ...payload, promptBytes: Buffer.byteLength(text) }, null, 2));
             return 0;
           }

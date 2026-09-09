@@ -303,6 +303,34 @@ test('an ownership record this code cannot read is not a proof of anything', asy
   assert.equal(readOwnership(dir), null);
 });
 
+test('a record is finished with when the machine stops recognising any of it', async () => {
+  // MEASURED, 22 SECONDS AFTER A CANCELLED DELEGATION: one recorded MCP server's pid had already
+  // been handed to `svchost.exe`. By liveness that record looks half-alive for as long as the
+  // service runs, and every sweep re-reads it; by identity it is over, which it is.
+  const { forgetOwnership, readOwnership } = await import('./codex-rescue.mjs');
+  const { existsSync, mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'codex-forget-'));
+  const write = () => writeFileSync(
+    join(dir, 'owned-tree.json'),
+    JSON.stringify({ version: 1, owned: [{ pid: 32196, createdMs: 1788985273109, what: 'an MCP server' }] }),
+    'utf8',
+  );
+
+  write();
+  const recycled = [{ pid: 32196, ppid: 4, name: 'svchost.exe', command: 'svchost.exe -k netsvcs', createdMs: 1788985295221 }];
+  assert.equal(forgetOwnership(dir, recycled), true);
+  assert.equal(existsSync(join(dir, 'owned-tree.json')), false);
+
+  write();
+  const ours = [{ pid: 32196, ppid: 4, name: 'node.exe', command: 'x', createdMs: 1788985273109 }];
+  assert.equal(forgetOwnership(dir, ours), false, 'still running: the record is still needed');
+  // A process table that could not be read is not evidence that anything ended.
+  assert.equal(forgetOwnership(dir, []), false);
+  assert.ok(readOwnership(dir));
+});
+
 test('an endpoint is a socket path once its scheme is off', async () => {
   const { endpointPath } = await import('./codex-rescue.mjs');
   assert.equal(
@@ -321,5 +349,12 @@ test('a recorded process is described by what it is, for the report a person rea
     'the codex app-server',
   );
   assert.equal(labelProcess('"node" ./mcp/server.mjs', 'node.exe'), 'an MCP server');
+  // The shell in between wears the same words as the binary it is about to start, so the process
+  // NAME settles which of the two this is.
+  assert.equal(
+    labelProcess('C:\\Program Files\\Git\\usr\\bin\\sh.exe /c/Users/me/AppData/Roaming/npm/codex app-server', 'sh.exe'),
+    'the shell that starts codex',
+  );
+  assert.equal(labelProcess('C:\\npm\\...\\bin\\codex.exe app-server', 'codex.exe'), 'codex.exe');
   assert.equal(labelProcess('something unfamiliar', 'node.exe'), 'node.exe');
 });
