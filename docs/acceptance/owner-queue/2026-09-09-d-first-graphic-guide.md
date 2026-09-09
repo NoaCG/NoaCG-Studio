@@ -1,15 +1,20 @@
+---
+kind: walk
+date: 2026-09-09
+serves: now
+---
 # The /docs guide that walks an SVG all the way to air
 
-**Date:** 2026-09-09. **Branch:** `claude/d-import-road-guide`.
+The docs page had a guide to the SVG file and a guide to each kind of graphic, but nothing that
+took a reader from a file they drew to a graphic an operator puts on air. It has one now.
 
-## The route, in under a minute
+## The route, under a minute
 
-1. Open <https://noacg.studio/docs>.
-2. In the left nav, under **Make a graphic**, click
-   **Your first graphic, step by step** (it is the second entry, between Graphics and Import your
-   own SVG graphic). The direct address is `/docs#first-graphic`.
+<https://noacg.studio/docs>, then in the left nav under **Make a graphic** click
+**Your first graphic, step by step** - the second entry, between Graphics and Import your own SVG
+graphic. The direct address is `/docs#first-graphic`. From `claude/d-import-road-guide`.
 
-## What to look at
+**What to look at.**
 
 The guide is the road you asked for on the 25th: a file a student drew, and a graphic an operator
 takes to air. It is one screen of reading and it points everywhere else rather than repeating it.
