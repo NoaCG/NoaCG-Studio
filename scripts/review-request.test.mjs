@@ -40,6 +40,7 @@ test('the request carries the scope, the ban on deriving it, and the refusal rul
       ref: 'origin/main',
       base: 'abc1234',
       files: ['src/a.ts', 'src/b.ts'],
+      deleted: [],
       fetched: true,
     },
     'high',
@@ -60,8 +61,38 @@ test('the request carries the scope, the ban on deriving it, and the refusal rul
 
 test('a failed fetch is declared in the request rather than hidden', () => {
   const text = requestText(
-    { branch: 'b', ref: 'origin/main', base: 'abc', files: ['a.ts'], fetched: false },
+    { branch: 'b', ref: 'origin/main', base: 'abc', files: ['a.ts'], deleted: [], fetched: false },
     'high',
   );
   assert.match(text, /WARNING: `git fetch` failed/);
+});
+
+test('a deleted path is listed apart from the files to open, never among them', () => {
+  // The first draft listed deletions under FILES. The request tells the delegate to REFUSE on a
+  // file it cannot open, so that draft asked for a refusal on every branch that removed anything -
+  // and it did exactly that on the branch that introduced this script.
+  const text = requestText(
+    {
+      branch: 'b',
+      ref: 'origin/main',
+      base: 'abcdef1234567890',
+      files: ['src/a.ts'],
+      deleted: ['docs/gone.md'],
+      fetched: true,
+    },
+    'high',
+  );
+  assert.match(text, /FILES \(1\):\n {2}src\/a\.ts/);
+  assert.match(text, /DELETED \(1\)/);
+  assert.match(text, /git show abcdef12:<path>/);
+  // The deleted path must not appear where the refusal rule applies.
+  assert.equal(text.slice(text.indexOf('FILES (1):'), text.indexOf('DELETED (1)')).includes('docs/gone.md'), false);
+});
+
+test('with nothing deleted the request has no DELETED section at all', () => {
+  const text = requestText(
+    { branch: 'b', ref: 'origin/main', base: 'abc', files: ['a.ts'], deleted: [], fetched: true },
+    'high',
+  );
+  assert.equal(text.includes('DELETED'), false);
 });

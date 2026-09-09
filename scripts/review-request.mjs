@@ -15,13 +15,14 @@
 // go and derive one, and the derivation is where the stale ref gets in.
 //
 // So the rule was correct, complete, and pointed at the wrong reader. By 2026-09-09 that had cost
-// five delegated review passes in this repository, every one paid for and thrown away:
+// nine delegated review passes in this repository, every one paid for and thrown away:
 //
 //   - 2026-08-29, three rows: the review inherited the delegating tool's directory and reviewed a
 //     different WORKTREE's branch.
-//   - 2026-09-08, rows Q and P, and 2026-09-09, row J: the review diffed against a local `main`
-//     that was days behind, and returned findings about other branches' landed files. J's pass
-//     reached 26 commits back and had not one finding inside J's own diff.
+//   - 2026-09-08, rows Q and P, and 2026-09-09, rows J, AS, AV and AQ: the review diffed against a
+//     local `main` that was days behind, and returned findings about other branches' landed files.
+//     J's pass reached 26 commits back and had not one finding inside J's own diff; AS's reviewed
+//     56 files against a true diff of 2.
 //
 // The quality cost is worse than the money. Row AQ's discarded pass had MISSED a real defect that
 // the inline redo then found: a review of the wrong files is not merely wasted, it returns
@@ -38,6 +39,7 @@
 // failures above are therefore answered in code instead of in prose a delegate cannot see.
 
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -91,7 +93,20 @@ export function workingTreePaths(status) {
   return paths;
 }
 
-/** Branch, merge base and the complete changed set, computed once and used by both output modes. */
+/**
+ * Branch, merge base and the complete changed set, computed once and used by both output modes.
+ *
+ * The changed set is split by whether the path still EXISTS, because the two need different
+ * instructions. A deletion is part of what this branch did and can absolutely be the defect - a
+ * file removed while something still references it - but there is nothing at that path to open, and
+ * a request that lists it among the files to read is a request the delegate is right to refuse. It
+ * is listed separately, pointed at the base sha, and the first draft of this script got that wrong:
+ * it named a receipt this very branch had deleted.
+ *
+ * Existence on disk is the test rather than the diff's status letter, because it answers the only
+ * question that matters - can the reviewer open this - for every combination at once, including a
+ * path deleted in a commit and restored in the working tree.
+ */
 export function scope() {
   // Fetch before anything reads `origin/main`, because the remote-tracking ref is only as current
   // as the last fetch. Offline is survivable but must not be silent: a base computed from an
@@ -102,8 +117,10 @@ export function scope() {
   const base = git(['merge-base', ref, 'HEAD']);
   const committed = git(['diff', '--name-only', `${base}..HEAD`]).split('\n').filter(Boolean);
   const working = workingTreePaths(git(['status', '--porcelain=v1']));
-  const files = [...new Set([...committed, ...working])].sort();
-  return { branch, ref, base, files, fetched };
+  const changed = [...new Set([...committed, ...working])].sort();
+  const files = changed.filter((file) => existsSync(path.join(ROOT, file)));
+  const deleted = changed.filter((file) => !existsSync(path.join(ROOT, file)));
+  return { branch, ref, base, files, deleted, fetched };
 }
 
 /**
@@ -129,11 +146,22 @@ function refuseUltra(level) {
  * that it must not be recomputed, what to do on disagreement, and what to report back. Prose in
  * `check.md` reaches the row; only this text reaches the party that was getting it wrong.
  */
-export function requestText({ branch, ref, base, files, fetched }, level) {
+export function requestText({ branch, ref, base, files, deleted, fetched }, level) {
   const stale = fetched
     ? ''
     : '\nWARNING: `git fetch` failed, so the base below was computed from a remote-tracking ref ' +
       'that may itself be behind. Say so in your output.\n';
+  const removed = deleted.length
+    ? [
+        '',
+        '',
+        `DELETED (${deleted.length}) - part of this change, but there is nothing at these paths to`,
+        'open, so the refusal rule above does not apply to them. Read them at the merge base with',
+        `\`git show ${base.slice(0, 8)}:<path>\` if you need the before, and check that nothing left`,
+        'behind still refers to them:',
+        ...deleted.map((file) => `  ${file}`),
+      ].join('\n')
+    : '';
   return `Review ONLY the ${files.length} file(s) listed at the end of this request. Effort level: ${level}.
 
 Branch:     ${branch}
@@ -143,18 +171,19 @@ THIS LIST IS THE SCOPE. It was computed in the worktree that owns the branch and
 deliberately, so there is nothing for you to work out. Do not derive the changed set yourself, and
 in particular do not diff against \`main\`: that local ref does not move under this project's merge
 queue, and a scope taken from it reviews other branches' landed files while reporting this branch's
-real diff as clean. That happened five times here by 2026-09-09, and each pass was discarded whole.
+real diff as clean. That happened nine times here by 2026-09-09, and every pass was discarded whole.
 
-IF YOU DISAGREE, REFUSE. If a listed file is missing or unreadable, or your own view of what this
-branch changed differs from this list, stop and say so: print both lists and the base sha you would
-have used, and review nothing. Do not quietly review what you think changed instead. A review of
-the wrong files is worse than no review, because it returns findings and so looks like it worked.
+IF YOU DISAGREE, REFUSE. If a file listed under FILES is missing or unreadable, or your own view of
+what this branch changed differs from these lists, stop and say so: print both lists and the base
+sha you would have used, and review nothing. Do not quietly review what you think changed instead.
+A review of the wrong files is worse than no review, because it returns findings and so looks like
+it worked.
 
 Report the merge-base sha and every file you actually read, so the caller can compare your scope
 against this one. A pass that will not say what it scoped is treated as a failed pass.
 
 FILES (${files.length}):
-${files.map((file) => `  ${file}`).join('\n')}`;
+${files.map((file) => `  ${file}`).join('\n')}${removed}`;
 }
 
 export function main(argv = process.argv.slice(2)) {
