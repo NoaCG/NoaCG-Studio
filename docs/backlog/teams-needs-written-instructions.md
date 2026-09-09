@@ -42,8 +42,12 @@ needed, and hold `src/docs/AGENTS.md`'s voice and the owner's binding constraint
 
 The walk's own by-product is the second deliverable: the list of moments the dialog did not carry
 its own explanation. The import road's walk produced exactly three of those, and all three were
-then fixed on the screen rather than in the guide - `docs/handoffs/2026-09-09-m-wizard-says-it-itself.md`
-is that round trip end to end, and it is the shape to copy.
+then fixed on the screen rather than in the guide. **That round trip is the shape to copy**: the
+walk filed `docs/backlog/import-walk-hesitations.md`, a later row answered all three in the wizard
+itself and deleted that file in the same commit as the last fix, and the three answers are pinned
+by cases in `e2e/import-svg.spec.ts`. What landed is visible in
+`docs/acceptance/owner-queue/2026-09-09-m-wizard-says-it-itself.md`, which carries the route to all
+three.
 
 ## Evidence
 
