@@ -194,7 +194,7 @@
       "em-dash": 8
     },
     "src/components/wizard/steps/FinishStep.tsx": {
-      "em-dash": 8
+      "em-dash": 7
     },
     "src/components/wizard/steps/KitFinishStep.tsx": {
       "em-dash": 1

@@ -1373,10 +1373,13 @@ export default function CreationWizard() {
       // generic announcement the app makes for an unclaimed one.
       created = made.error ?? (await commitDurableWrites());
     }
-    // A picked production deleted mid-wizard (another tab/device): fall back to a new one
-    // named after the graphic rather than dropping the work on the floor.
+    // A picked production deleted mid-wizard (another tab/device): fall back to a NEW one rather
+    // than dropping the work on the floor. UNNAMED, so the model's own floor answers - naming it
+    // after the graphic, which this used to do, is the defect the empty production box carried
+    // on the same door (e2e/import-svg.spec.ts, "an unnamed production is not named after the
+    // graphic"), and one door must not answer one question two ways.
     if (!show) {
-      const made = createShowNamedChecked(name);
+      const made = createShowNamedChecked('');
       show = made.show;
       created = made.error ?? (await commitDurableWrites());
     }

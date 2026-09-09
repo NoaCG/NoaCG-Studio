@@ -31,8 +31,8 @@ bundled face, the 1920x1080 page measured at its real size, the growth ladder la
 widening on air when the name got long. Nothing in `src/assets/svgImport.ts` needed a fix, so none
 was invented.
 
-**What the walk did produce is the list of sentences the screen did not carry**, filed as
-`docs/backlog/import-walk-hesitations.md` with a repro each: the step rail silently renumbering
+**What the walk did produce is the list of sentences the screen did not carry**, filed with a
+repro each (and since acted on and deleted, hence no link): the step rail silently renumbering
 from six to five on the drop, Finish's two name boxes both defaulting to the same word, and the
 3x3 alignment grid being the only control on that step that does not write its answer in words.
 That is exactly the list the owner's own standard asks for.
@@ -104,7 +104,6 @@ build after writing the acceptance note rather than before.
 
 ## Next
 
-The obvious follow-on is `docs/backlog/import-walk-hesitations.md` - three small changes, each one
-line of copy in a place that already has the value to print, except the production-name default
-which wants a minute of thought. After that, Teams instructions, which is now the oldest unserved
-docs ask on the shelf.
+The obvious follow-on was the hesitations list, and it was taken the same day: all three are
+answered on the screen now, in `docs/handoffs/2026-09-09-m-wizard-says-it-itself.md`. After that,
+Teams instructions, which is the oldest unserved docs ask on the shelf.
