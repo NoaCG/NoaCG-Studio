@@ -53,12 +53,16 @@ The 2026-09-02 live-run handoff, "What caused friction" finding 2, drained 2026-
 relays and the rulings taken on each are in the orchestrator home's
 `docs/handoffs/2026-09-02-day-wave-plan.local.md` (gitignored).
 
-Verified by reading the three handoffs rather than by recollection:
-`2026-09-02-a-teams-spec-diagnosability.md:117` and `2026-09-02-d-mistake-trigger-hooks.md:126`
-both report `simplify: inline` with check.md's reason; `2026-09-02-c-ograf-host-page.md:41` reports
-`simplify: delegated (relayed)`, which is the counter-example - it is delegated only because the
-orchestrator relayed it. The earlier `2026-09-02-orchestrator-review.md` reports both legs inline
-for the same reason as A and D.
+Verified by reading three 2026-09-02 handoffs rather than by recollection, and their wording is
+quoted here because all three were drained on 2026-09-09. Rows A (teams spec diagnosability) and D
+(mistake-trigger hooks) both reported `simplify: inline`, each giving check.md's own reason - "the
+skill returned fan-out instructions, which in a launched session means it did not run". Row C
+(OGraf host page) reported `simplify: delegated (relayed)`, which is the counter-example: it is
+delegated only because the orchestrator relayed the result back. The earlier
+`2026-09-02-orchestrator-review.md` reported both legs inline for the same reason as A and D. The
+files themselves print from `git show 91496ca2:docs/handoffs/2026-09-02-a-teams-spec-diagnosability.md`,
+`git show 11c86fe7:docs/handoffs/2026-09-02-d-mistake-trigger-hooks.md` and
+`git show 592891dc:docs/handoffs/2026-09-02-c-ograf-host-page.md`.
 
 The rule that already exists but was never applied to `/check` is the last bullet of "The line
 rules" in `.agent-workflows/orchestrator/prompts.md`; the notification-routing behaviour is stated

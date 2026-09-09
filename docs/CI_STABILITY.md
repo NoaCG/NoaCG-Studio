@@ -220,7 +220,7 @@ cancelled, and three instruments read that differently: the red-main gate called
 issue #52 naming a failure that did not exist, `main-health.mjs` skipped past 29 of them and quoted
 a verdict from 2026-08-05, and two landings (rows F and D) died at the queue's 45-minute cap after
 a cancelled run escalated them to a full suite. Full account:
-`docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md`.
+`git show ba427e57:docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md`.
 
 ### 5. FLAKY-SPEC - one proven flake (already fixed) and one regression wearing a flake's name
 

@@ -6,7 +6,7 @@
 
 Same sha, opposite verdicts. `E2E 8/9` went red on `fc06fc2b` and green on the re-run of that
 exact commit, which is this repo's own definition of a flake. It is not the port-registry race
-that `docs/handoffs/2026-09-09-v-port-registry-race.md` closed - that one is fixed and proven -
+that `git show fc06fc2b:docs/handoffs/2026-09-09-v-port-registry-race.md` closed - that one is fixed and proven -
 so it is a second, independent intermittent living in the E2E tier.
 
 It matters for the same reason the first one did: a night branch whose session has finished can

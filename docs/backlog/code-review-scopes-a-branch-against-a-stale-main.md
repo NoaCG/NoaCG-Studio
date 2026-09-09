@@ -21,7 +21,7 @@ repository, so this receipt is the record rather than the fix.
 
 ## The evidence, from two rows that had no contact
 
-**Row Q** (`docs/handoffs/2026-09-08-q-oss-community-files.md`, "The thing underneath all ten").
+**Row Q** (`git show c68f2a92:docs/handoffs/2026-09-08-q-oss-community-files.md`, "The thing underneath all ten").
 Local `main` sat at `03aa732d`, two commits behind. The review read `37bc74af` and `31dd12ea` as
 this branch's work and produced ten findings about files the branch never opened. Q's words for the
 shape: "Both are right answers to the wrong question, and the failure is quiet in the bad

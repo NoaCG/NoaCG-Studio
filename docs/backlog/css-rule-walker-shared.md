@@ -29,4 +29,4 @@ it lands alone.
 
 ## Evidence
 
-`docs/handoffs/2026-09-02-c-ograf-host-page.md`.
+`git show 592891dc:docs/handoffs/2026-09-02-c-ograf-host-page.md`.

@@ -275,7 +275,11 @@ GOAL   On Home, "Brands" lists brands with logo thumbnails and a default star; "
        brand; a 300 KB logo is refused with its reason; import accepts .brand.json and .look.json.
 WHY    docs/BRAND_PLAN.md §4 - a brand can only be captured from an open graphic today; there is no
        way to author one, so the chooser row <1> built has nothing a producer made on purpose.
-READ   docs/BRAND_PLAN.md §2, §4, §7; the landed row <1> handoff; src/components/home/AGENTS.md;
+READ   docs/BRAND_PLAN.md §2, §4, §7; what row <1> landed, in the code rather than in its handoff -
+       src/model/brand.ts (the ProjectBrand record and the retired anonymous look it still reads)
+       and src/model/packets.ts captureLookFromTemplate, whose header states the one degradation
+       row <1> left: with no brand and no legacy record the style family falls back to 'minimal',
+       which costs Browse ranking order and nothing else; src/components/home/AGENTS.md;
        src/components/wizard/steps/StyleStep.tsx (font import + color pickers to REUSE);
        src/components/wizard/MiniPreview.tsx; src/assets/paletteExtract.ts; docs/DESIGN_LANGUAGE.md.
 DO     1. Rename the section and its chip; rows gain thumbnail, star, Edit.  2. BrandEditor with the

@@ -37,5 +37,5 @@ to shrink; left-growing ones stretch past the left edge and are clipped by the e
 
 ## Evidence
 
-`docs/handoffs/2026-09-02-c-ograf-host-page.md` (the relayed cross-file finding), `src/export/AGENTS.md`
+`git show 592891dc:docs/handoffs/2026-09-02-c-ograf-host-page.md` (the relayed cross-file finding), `src/export/AGENTS.md`
 (the scoped-document contract as it now reads).

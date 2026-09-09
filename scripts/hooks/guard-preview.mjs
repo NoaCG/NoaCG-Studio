@@ -6,9 +6,10 @@
 // a port this worktree never listens on, and the page it serves looks exactly like this branch's
 // work - which is what makes the failure silent. Measured 2026-09-01 (docs/DEV_PORTS.md
 // "Starting a dev server"); between 2026-09-02 and 2026-09-04 four sessions each spent ten to
-// thirty minutes reading a stale page from another checkout as their own
-// (docs/handoffs/2026-09-02-b-queue-walks-itself.md and 2026-09-02-d-leaving-the-wizard.md still
-// carry two of the four; the other two handoffs were drained on 2026-09-08). The shell guard
+// thirty minutes reading a stale page from another checkout as their own. All four of those
+// handoffs have since been drained; the two that carried the longest accounts print from
+// `git show 0f3a8442:docs/handoffs/2026-09-02-b-queue-walks-itself.md` and
+// `git show 187a1c79:docs/handoffs/2026-09-02-d-leaving-the-wizard.md`. The shell guard
 // next door already refuses `npm run dev` with a message naming this trap, and a session reaching
 // for preview_start never sees it, because it is not typing a shell command. That is the routing
 // rule in docs/MISTAKE_TRIGGERS.md: the call's own arguments plus one stat decide it, the failure
