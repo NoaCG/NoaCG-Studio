@@ -26,6 +26,7 @@ import { freemem } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { activeRuns, nodeProcesses, orphanProcesses } from './e2e-runs.mjs';
+import { delegationRecords } from './codex-rescue.mjs';
 import { requiresRunningDevServer } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
@@ -1139,12 +1140,17 @@ function reclaimIfStarved(starvedSince, now) {
 
 /** Leftovers, each already PROVED orphaned by the detector that found it. */
 function reclaimCandidates() {
-  const { workers, shells, servers } = orphanProcesses();
+  const { workers, shells, servers, codexTrees } = orphanProcesses({ delegations: delegationRecords() });
   return [
     ...workers.map((p) => ({ pid: p.pid, kind: 'playwright-worker' })),
     ...shells.map((p) => ({ pid: p.pid, kind: 'headless-browser-shell' })),
     // A server's chain is children-first, so the shims cannot outlive what they were shimming.
     ...servers.flatMap((s) => s.chain.map((pid) => ({ pid, kind: 'orphaned-dev-server-chain' }))),
+    // A finished Codex delegation's family, and only the pids its launch WROTE DOWN - youngest
+    // first, so a parent is never killed before the children it started. The graceful ask lives
+    // in `codex-rescue.mjs reap`, which runs on every delegation's way out; by the time a starved
+    // queue is looking at these, hours have passed and there is nothing left to be polite to.
+    ...codexTrees.flatMap((tree) => tree.kill.map((p) => ({ pid: p.pid, kind: 'orphaned-codex-delegation-tree' }))),
   ];
 }
 

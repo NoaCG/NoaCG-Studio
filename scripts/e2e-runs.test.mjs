@@ -16,11 +16,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ancestorsOf,
   blockingRuns,
+  descendantsOf,
+  orphanedCodexTrees,
   orphanedDevServers,
   rootOfCommand,
   sameRoot,
   selfAndAncestors,
+  underDesktopCodex,
 } from './e2e-runs.mjs';
 
 const onlyWindows = { skip: process.platform !== 'win32' };
@@ -275,4 +279,155 @@ test('an empty process table reports nothing rather than guessing', () => {
   // The POSIX case and the "could not read the machine" case both land here; every caller of
   // this module fails OPEN by design.
   assert.deepEqual(orphanedDevServers([], REPO), []);
+});
+
+// ── A CODEX DELEGATION'S PROCESS FAMILY ──
+//
+// This detector KILLS PROCESSES on the machine the owner is working on, so the cases below are
+// the guard - the prose in e2e-runs.mjs is not. Every pid and command line here was captured with
+// `Get-CimInstance Win32_Process` on 2026-09-09, from the three delegation families that had been
+// leaking all day and from the owner's own desktop Codex app running beside them. The start times
+// are the measured ones expressed as offsets from a round base, because their exact values mean
+// nothing and their ORDER and equality mean everything.
+//
+// The two shapes that must never be confused are both here, and they look alike on purpose: the
+// plugin's `codex.exe` and the desktop app's `codex.exe` differ only in where they live, and both
+// families run MCP servers whose parents are already dead.
+
+const T = 1_788_960_000_000;
+const at = (seconds) => T + Math.round(seconds * 1000);
+
+const NODE = '"C:\\Program Files\\nodejs\\node.exe"';
+const BROKER_CMD =
+  `${NODE} C:\\Users\\me\\.claude\\plugins\\cache\\openai-codex\\codex\\1.0.6\\scripts\\app-server-broker.mjs `
+  + 'serve --endpoint pipe:\\\\.\\pipe\\cxc-qFSQuA-codex-app-server '
+  + '--cwd C:/claude/NoaCG-Studio/.claude/worktrees/agent-a9ad096b88a1d4eb5 '
+  + '--pid-file C:\\Users\\me\\AppData\\Local\\Temp\\cxc-qFSQuA\\broker.pid';
+
+/**
+ * The plugin's family, exactly as it was found: the broker's own parent gone, the app-server cut
+ * off from the broker by the shell that started it, and only `codex.exe` and its MCP server still
+ * connected to anything.
+ */
+const PLUGIN_FAMILY = [
+  { pid: 17376, ppid: 17764, name: 'node.exe', command: BROKER_CMD, createdMs: at(0) },
+  { pid: 5320, ppid: 34364, name: 'node.exe', command: `${NODE} C:\\Users\\me\\AppData\\Roaming\\npm/node_modules/@openai/codex/bin/codex.js app-server`, createdMs: at(0.3) },
+  { pid: 31132, ppid: 5320, name: 'codex.exe', command: 'C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\node_modules\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\bin\\codex.exe app-server', createdMs: at(0.6) },
+  { pid: 26952, ppid: 31132, name: 'node.exe', command: `${NODE} ./mcp/server.mjs`, createdMs: at(2) },
+  { pid: 30928, ppid: 36352, name: 'node.exe', command: '"node" "C:\\Users\\me\\AppData\\Local\\npm-cache\\_npx\\9833c18b2d85bc59\\node_modules\\.bin\\\\..\\@playwright\\mcp\\cli.js"', createdMs: at(2.4) },
+];
+
+/** The owner's desktop Codex app, and the MCP server it is running. Never a candidate. */
+const DESKTOP_FAMILY = [
+  { pid: 6120, ppid: 4, name: 'explorer.exe', command: 'C:\\Windows\\Explorer.EXE', createdMs: at(-600) },
+  { pid: 25708, ppid: 6120, name: 'ChatGPT.exe', command: '"C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.901.6511.0_x64__2p2nqsd0c76g0\\app\\ChatGPT.exe"', createdMs: at(-300) },
+  { pid: 20136, ppid: 25708, name: 'codex.exe', command: 'C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\8e5b6932251c2c1c\\codex.exe -c features.code_mode_host=true app-server', createdMs: at(-290) },
+  { pid: 10476, ppid: 20136, name: 'node.exe', command: `${NODE} ./mcp/server.mjs`, createdMs: at(-280) },
+];
+
+const MACHINE = [...PLUGIN_FAMILY, ...DESKTOP_FAMILY];
+
+/** What the launch wrote down: the broker and the app-server, recorded while the link was alive. */
+function record({ jobs = [{ id: 'task-mtu4yl9y-g6jc21', finished: true }], owned, launcher = null } = {}) {
+  return {
+    workspace: 'C:/claude/NoaCG-Studio/.claude/worktrees/agent-a9ad096b88a1d4eb5',
+    endpoint: 'pipe:\\\\.\\pipe\\cxc-qFSQuA-codex-app-server',
+    jobs,
+    launcher,
+    owned: owned ?? [
+      { pid: 17376, createdMs: at(0), what: 'the broker' },
+      { pid: 5320, createdMs: at(0.3), what: 'the codex app-server' },
+    ],
+  };
+}
+
+const killed = (trees) => trees.flatMap((tree) => tree.kill.map((p) => p.pid));
+
+test('a finished delegation gives up the tree it recorded, and everything below it', () => {
+  const [tree] = orphanedCodexTrees(MACHINE, [record()]);
+  // 31132 and 26952 were never recorded: they are reached as living descendants of the recorded
+  // app-server, which is the only way MCP servers started after the last snapshot are collected.
+  assert.deepEqual(new Set(tree.kill.map((p) => p.pid)), new Set([17376, 5320, 31132, 26952]));
+  assert.equal(tree.waiting, null);
+  // Youngest first: a parent is never signalled before the children it started.
+  assert.deepEqual(tree.kill.map((p) => p.pid), [26952, 31132, 5320, 17376]);
+});
+
+test('one unfinished delegation keeps the whole family, and says so for each pid', () => {
+  // One broker serves every delegation in a workspace - measured, two jobs 100 s apart sharing
+  // one codex.exe - so a single job still running holds all of it.
+  const [tree] = orphanedCodexTrees(MACHINE, [record({
+    jobs: [{ id: 'done', finished: true }, { id: 'running', finished: false }],
+  })]);
+  assert.deepEqual(tree.kill, []);
+  assert.deepEqual(new Set(tree.kept.map((k) => k.pid)), new Set([17376, 5320, 31132, 26952]));
+  assert.match(tree.kept[0].why, /have not finished/);
+});
+
+test('a recorded pid that now belongs to something else is kept, never killed', () => {
+  // THE REASON THE RECORD CARRIES A START TIME. Windows hands a dead process's number to the next
+  // one that asks, and hours pass between the recording and the sweep.
+  const [tree] = orphanedCodexTrees(MACHINE, [record({
+    owned: [{ pid: 17376, createdMs: at(-99), what: 'the broker' }],
+  })]);
+  assert.deepEqual(tree.kill, []);
+  assert.equal(tree.kept.length, 1);
+  assert.match(tree.kept[0].why, /pid was reused/);
+});
+
+test('a record that names the desktop Codex app is refused, delegation finished or not', () => {
+  // The guard that matters most. A record can only name these pids if something has gone wrong,
+  // which is exactly when it must hold: closing them closes the application he works in.
+  const trees = orphanedCodexTrees(MACHINE, [record({
+    owned: [
+      { pid: 10476, createdMs: at(-280), what: 'an MCP server' },
+      { pid: 20136, createdMs: at(-290), what: 'codex.exe' },
+      { pid: 25708, createdMs: at(-300), what: 'the app itself' },
+    ],
+  })]);
+  assert.deepEqual(killed(trees), []);
+  for (const kept of trees[0].kept) assert.match(kept.why, /desktop Codex app/);
+});
+
+test('the desktop app is recognised from any depth, and the plugin\'s codex.exe is not', () => {
+  assert.equal(underDesktopCodex(10476, MACHINE), true, 'an MCP server three levels down');
+  assert.equal(underDesktopCodex(20136, MACHINE), true, 'its own codex.exe, by path');
+  assert.equal(underDesktopCodex(25708, MACHINE), true, 'the application itself');
+  assert.equal(underDesktopCodex(31132, MACHINE), false, 'the plugin\'s codex.exe is a different binary');
+  assert.equal(underDesktopCodex(26952, MACHINE), false, 'and so is the MCP server under it');
+  assert.equal(underDesktopCodex(99999, MACHINE), false, 'a pid that is not there at all');
+});
+
+test('a pid reused as a "parent" does not attach one family to another', () => {
+  // 5320 died and its number went to a process that started later; the table still says the
+  // app-server's parent is 5320. Following that link would walk from the desktop app's tree into
+  // the plugin's, in either direction.
+  const table = [
+    { pid: 5320, ppid: 25708, name: 'node.exe', command: 'something else entirely', createdMs: at(60) },
+    ...PLUGIN_FAMILY.filter((p) => p.pid !== 5320),
+    ...DESKTOP_FAMILY,
+  ];
+  assert.deepEqual(ancestorsOf(31132, table).map((p) => p.pid), [], 'the walk up stops at the impostor');
+  assert.deepEqual(descendantsOf([5320], table).map((p) => p.pid), [], 'and so does the walk down');
+});
+
+test('nothing is a candidate without a record, and a record proves nothing without a table', () => {
+  assert.deepEqual(orphanedCodexTrees(MACHINE, []), [], 'no record, no candidate');
+  assert.deepEqual(killed(orphanedCodexTrees([], [record()])), [], 'no table, no candidate');
+});
+
+test('a launch that never registered a delegation is kept until its launcher gives up', () => {
+  const owned = [{ pid: 17376, createdMs: at(0), what: 'the broker' }];
+  const stillLaunching = record({ jobs: [], owned, launcher: { pid: 6120, createdMs: at(-600) } });
+  assert.deepEqual(killed(orphanedCodexTrees(MACHINE, [stillLaunching])), [], 'somebody is still waiting for it');
+  const abandoned = record({ jobs: [], owned, launcher: null });
+  assert.deepEqual(killed(orphanedCodexTrees(MACHINE, [abandoned])), [17376], 'the launch timed out');
+});
+
+test('a process that has already exited is neither killed nor reported as kept', () => {
+  const [tree] = orphanedCodexTrees(MACHINE, [record({
+    owned: [{ pid: 424242, createdMs: at(0), what: 'the broker' }],
+  })]);
+  assert.deepEqual(tree.kill, []);
+  assert.deepEqual(tree.kept, []);
 });

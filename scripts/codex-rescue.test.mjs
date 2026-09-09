@@ -206,3 +206,120 @@ test('a valued flag with no value is refused, not spawned as undefined', async (
   assert.throws(() => launchPlan(['do', 'the', 'thing', '--effort']), /--effort needs a value/);
   assert.throws(() => launchPlan(['--model=', 'x']), /--model needs a value/);
 });
+
+// ── Defect 4: the family a delegation leaves behind ──────────────────────────────────────────────
+//
+// The kill decision itself is pinned in e2e-runs.test.mjs, beside the detector. What is pinned
+// here is the RECORD that decision reads: it may only ever shrink, it may never carry a pid
+// forward once the machine has stopped agreeing that pid is the same process, and a version this
+// code does not know must make the whole record unusable rather than half-usable.
+
+const brokerLine =
+  '"C:\\Program Files\\nodejs\\node.exe" C:\\Users\\me\\.claude\\plugins\\cache\\openai-codex\\codex\\1.0.6'
+  + '\\scripts\\app-server-broker.mjs serve --endpoint pipe:\\\\.\\pipe\\cxc-qFSQuA-codex-app-server'
+  + ' --cwd C:/claude/NoaCG-Studio/.claude/worktrees/agent-a9ad096b88a1d4eb5'
+  + ' --pid-file C:\\Users\\me\\AppData\\Local\\Temp\\cxc-qFSQuA\\broker.pid';
+
+test('the broker is recognised by its own command line, and the desktop app is not', async () => {
+  const { BROKER_COMMAND } = await import('./codex-rescue.mjs');
+  assert.ok(BROKER_COMMAND.test(brokerLine));
+  assert.equal(
+    BROKER_COMMAND.test('C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\8e5b69\\codex.exe app-server'),
+    false,
+  );
+});
+
+test('the workspace comes out of the broker\'s command line, spaces and all', async () => {
+  const { workspaceOfBroker } = await import('./codex-rescue.mjs');
+  assert.equal(
+    workspaceOfBroker(brokerLine),
+    'C:/claude/NoaCG-Studio/.claude/worktrees/agent-a9ad096b88a1d4eb5',
+  );
+  // The plugin does not quote this argument, so a checkout with a space in it is only readable
+  // because the flag AFTER it bounds the match - the trap rootOfCommand documents next door.
+  assert.equal(
+    workspaceOfBroker('node broker.mjs serve --cwd C:/My Work/repo --pid-file C:/t/broker.pid'),
+    'C:/My Work/repo',
+  );
+  assert.equal(workspaceOfBroker('node broker.mjs serve'), null);
+});
+
+test('the ownership record only ever shrinks', async () => {
+  const { mergeOwned } = await import('./codex-rescue.mjs');
+  const live = new Map([
+    [10, { pid: 10, createdMs: 1000, name: 'node.exe', command: 'the broker' }],
+    [20, { pid: 20, createdMs: 9999, name: 'node.exe', command: 'a stranger' }],
+  ]);
+  const previous = [
+    { pid: 10, createdMs: 1000, what: 'the broker' },           // still itself
+    { pid: 20, createdMs: 2000, what: 'the codex app-server' }, // pid reused: dropped
+    { pid: 30, createdMs: 3000, what: 'an MCP server' },        // exited: dropped
+  ];
+  const observed = [{ pid: 10, createdMs: 1000, what: 'the broker' }];
+  assert.deepEqual(mergeOwned(previous, observed, live), [{ pid: 10, createdMs: 1000, what: 'the broker' }]);
+});
+
+test('a newly seen process joins the record, oldest first', async () => {
+  const { mergeOwned } = await import('./codex-rescue.mjs');
+  const live = new Map([
+    [10, { pid: 10, createdMs: 1000, name: 'node.exe', command: 'x' }],
+    [11, { pid: 11, createdMs: 1400, name: 'node.exe', command: 'x' }],
+  ]);
+  const merged = mergeOwned(
+    [{ pid: 11, createdMs: 1400, what: 'an MCP server' }],
+    [{ pid: 10, createdMs: 1000, what: 'the broker' }],
+    live,
+  );
+  assert.deepEqual(merged.map((entry) => entry.pid), [10, 11]);
+});
+
+test('an entry with no start time is not an identity, so it is dropped', async () => {
+  const { mergeOwned } = await import('./codex-rescue.mjs');
+  const live = new Map([[10, { pid: 10, createdMs: null, name: 'node.exe', command: 'x' }]]);
+  assert.deepEqual(mergeOwned([{ pid: 10, createdMs: null, what: '?' }], [], live), []);
+});
+
+test('the snapshot schedule brackets the seconds a family is built in, then stops', async () => {
+  const { snapshotDue, SNAPSHOT_AT_MS } = await import('./codex-rescue.mjs');
+  assert.equal(snapshotDue(0, 0), true, 'the first look is immediate');
+  assert.equal(snapshotDue(500, 1), false, 'the second is not due yet');
+  assert.equal(snapshotDue(1_200, 1), true);
+  assert.equal(snapshotDue(10 * 60_000, SNAPSHOT_AT_MS.length), false, 'the schedule ends rather than polling for ever');
+});
+
+test('an ownership record this code cannot read is not a proof of anything', async () => {
+  const { readOwnership } = await import('./codex-rescue.mjs');
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'codex-owned-'));
+  const file = join(dir, 'owned-tree.json');
+  writeFileSync(file, JSON.stringify({ version: 1, owned: [{ pid: 1, createdMs: 2 }] }), 'utf8');
+  assert.equal(readOwnership(dir).owned.length, 1);
+  // A version from the future degrades to read-only, and read-only here means "not a candidate".
+  writeFileSync(file, JSON.stringify({ version: 2, owned: [{ pid: 1, createdMs: 2 }] }), 'utf8');
+  assert.equal(readOwnership(dir), null);
+  writeFileSync(file, '{ half a file', 'utf8');
+  assert.equal(readOwnership(dir), null);
+});
+
+test('an endpoint is a socket path once its scheme is off', async () => {
+  const { endpointPath } = await import('./codex-rescue.mjs');
+  assert.equal(
+    endpointPath('pipe:\\\\.\\pipe\\cxc-qFSQuA-codex-app-server'),
+    '\\\\.\\pipe\\cxc-qFSQuA-codex-app-server',
+  );
+  assert.equal(endpointPath('unix:/tmp/cxc/sock'), '/tmp/cxc/sock');
+  assert.equal(endpointPath(null), null);
+});
+
+test('a recorded process is described by what it is, for the report a person reads', async () => {
+  const { labelProcess } = await import('./codex-rescue.mjs');
+  assert.equal(labelProcess(brokerLine, 'node.exe'), 'the broker');
+  assert.equal(
+    labelProcess('"node" C:/npm/node_modules/@openai/codex/bin/codex.js app-server', 'node.exe'),
+    'the codex app-server',
+  );
+  assert.equal(labelProcess('"node" ./mcp/server.mjs', 'node.exe'), 'an MCP server');
+  assert.equal(labelProcess('something unfamiliar', 'node.exe'), 'node.exe');
+});
