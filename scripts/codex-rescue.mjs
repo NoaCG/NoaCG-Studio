@@ -50,9 +50,24 @@
 //      between a reap and the owner's own desktop Codex app, whose processes are severed in
 //      exactly the same way and look identical.
 //
+//      AND A DELEGATION LAUNCHED BEFORE THAT FIX EXISTED HAS NO RECORD AT ALL - measured
+//      2026-09-10, hours after the fix landed, with free RAM still under 2 GB. Two families,
+//      537 MB, left by delegations that finished at 23:22 and 23:23 the night before. Both were
+//      launched through this wrapper, from worktrees whose checkouts were forked before defect
+//      4's fix merged, so nothing ever wrote the record every later sweep needs. There is no
+//      version of this that a better call site fixes: with no record there is no candidate.
+//      `adoptableBrokers` covers it, and it is allowed to because it never kills anything - it
+//      asks the plugin's own broker, over the endpoint the plugin itself wrote down, to close
+//      the family it still holds a live handle to. The desktop app has no broker and no job
+//      store, so it cannot be reached this way even in principle.
+
+// So a reap now has two halves, and confusing them is the one way this file becomes dangerous:
+// the RECORD decides every kill and always will, while the broker's ENDPOINT decides the
+// graceful ask and needs no record.
+//
 // The arithmetic - which jobs are dead, what to kill, how to orphan a launch, which trees are
-// orphaned - is pure and unit tested in codex-rescue.test.mjs and e2e-runs.test.mjs. This file is
-// the part that talks to the OS and to the plugin.
+// orphaned, which brokers may be asked - is pure and unit tested in codex-rescue.test.mjs and
+// e2e-runs.test.mjs. This file is the part that talks to the OS and to the plugin.
 
 import { spawn, spawnSync } from 'node:child_process';
 import {
@@ -63,7 +78,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { allProcesses, descendantsOf, orphanedCodexTrees, withinRoot } from './e2e-runs.mjs';
+import {
+  allProcesses, descendantsOf, orphanedCodexTrees, underDesktopCodex, withinRoot,
+} from './e2e-runs.mjs';
 
 /** Where the plugin keeps its versioned copies. Overridable so the test never needs a real one. */
 const PLUGIN_CACHE = path.join(
@@ -203,9 +220,11 @@ export const BROKER_COMMAND = /app-server-broker\.mjs\b[^\n]*\bserve\b/;
  * otherwise come back cut in half - the same trap `rootOfCommand` documents in e2e-runs.mjs.
  */
 export function workspaceOfBroker(command = '') {
-  const paired = /--cwd\s+(.*?)\s+--(?:pid-file|log-file|endpoint)\b/.exec(command);
-  const trailing = /--cwd\s+(.+?)\s*$/.exec(command);
-  const found = (paired ?? trailing)?.[1];
+  // Bounded by the NEXT FLAG, whichever it is, or by the end of the line. Naming the flags the
+  // plugin emits today (`--pid-file`, `--log-file`, `--endpoint`) would read one new flag as part
+  // of the path, and a workspace that is really `C:/…/worktree --new-flag value` matches no
+  // worktree - so every scoped reap would silently skip that family and call it not busy.
+  const found = /--cwd\s+(.*?)(?:\s+--[a-z]|\s*$)/.exec(command)?.[1];
   return found ? found.replace(/^"|"$/g, '') : null;
 }
 
@@ -618,6 +637,16 @@ function allStateDirs() {
 }
 
 /**
+ * Has this job reached an outcome? Both walkers below ask it, and both ask it the same way: the
+ * plugin's status, corrected in memory by `reconcileJob` so a job whose worker is gone counts as
+ * over rather than holding its family for ever. The verdict is deliberately not persisted here -
+ * see the note on `delegationRecords` about two processes writing one `state.json`.
+ */
+function jobIsOver(job) {
+  return TERMINAL.has(reconcileJob(job)?.status ?? job.status);
+}
+
+/**
  * What the orphan detector judges: one record per workspace that has an ownership record, with
  * every delegation in that workspace and whether it has reached an outcome.
  *
@@ -637,10 +666,7 @@ export function delegationRecords() {
     if (!owned) continue;
     let jobs;
     try {
-      jobs = readState(dir).jobs.map((job) => ({
-        id: job.id,
-        finished: TERMINAL.has(reconcileJob(job)?.status ?? job.status),
-      }));
+      jobs = readState(dir).jobs.map((job) => ({ id: job.id, finished: jobIsOver(job) }));
     } catch {
       // A job store this wrapper cannot read (a future version, a half-written file) is not a
       // licence to close anything: an unreadable status is treated as work in progress.
@@ -649,6 +675,115 @@ export function delegationRecords() {
     records.push({ ...owned, jobs });
   }
   return records;
+}
+
+/**
+ * Delegations that are over, whose broker is still listening, and which NO ownership record
+ * claims - the leak a better call site cannot reach.
+ *
+ * The record is written by the launch, so a delegation launched from a checkout that predates
+ * `recordOwnership` has none, and neither has one whose launch was killed before the first
+ * snapshot. Either way the sweep sees no candidate and the family runs until the machine is
+ * restarted. Measured 2026-09-10: two such families, 537 MB, hours after the reaper had landed.
+ *
+ * WHAT MAKES THIS SAFE IS THAT IT PRODUCES NO KILL LIST. The caller may do exactly one thing with
+ * the answer - ask that broker to shut down over its own endpoint - and the broker then closes
+ * the family through the live handle it holds, which is the one link no outside walk can follow.
+ * Nothing is matched by executable name, nothing is signalled, and the failure mode of getting
+ * this wrong is a stranger's socket refusing a connection rather than a stranger's process dying.
+ *
+ * The four conditions, each of which is a way of being sure the broker is ours to ask:
+ *
+ *   1. THE PLUGIN WROTE THE ENDPOINT DOWN, in its own `broker.json`, in its own job store. That
+ *      file is the self-identifying record here, and it is why no ownership record is needed.
+ *   2. THE PID IS STILL A BROKER. `broker.json` outlives the process it names, so the pid alone
+ *      would let a recycled number be addressed; the command line has to say `app-server-broker`
+ *      as well. (The endpoint would refuse a stranger anyway - this refuses it one step earlier.)
+ *   3. THE WORK IS OVER. Every job in that workspace has reached an outcome, and there is at
+ *      least one - a workspace with no job yet is mid-launch, and the launch is about to need
+ *      that broker.
+ *   4. IT IS NOT THE DESKTOP CODEX APP. It cannot be - the app runs no broker and keeps no job
+ *      store here - and the check costs nothing, so the promise in defect 4 stays absolute
+ *      rather than merely true today.
+ */
+export function adoptableBrokers(processes, sessions = []) {
+  const byPid = indexByPid(processes);
+  const out = [];
+  for (const session of sessions) {
+    if (!endpointPath(session?.endpoint)) continue;
+    const jobs = session.jobs ?? [];
+    if (jobs.length === 0 || jobs.some((over) => !over)) continue;
+    const live = byPid.get(Number(session.brokerPid));
+    if (!live || !BROKER_COMMAND.test(live.command ?? '')) continue;
+    if (underDesktopCodex(live.pid, processes)) continue;
+    out.push({
+      stateDir: session.stateDir ?? null,
+      endpoint: session.endpoint,
+      // From the BROKER's command line, falling back to what the jobs say: the state directory's
+      // name is a hash of the workspace and cannot be turned back into a path, and a workspace
+      // this sweep guesses wrong is one a scoped reap silently skips.
+      workspace: workspaceOfBroker(live.command) ?? session.workspace ?? '<unknown workspace>',
+      pid: live.pid,
+    });
+  }
+  return out;
+}
+
+/**
+ * The other half of the same question, and the one a caller ABOUT TO DELETE A DIRECTORY needs:
+ * unrecorded delegations that have NOT finished.
+ *
+ * `delegationRecords` answers "is anything still working here" from the ownership record, so it
+ * cannot see a workspace that has none - and a scoped reap then exits 0, which a worktree removal
+ * reads as "nothing is running here" and deletes the directory a `codex.exe` is standing in. The
+ * same launches that leak a family are the ones that leak this answer, so both are fixed here.
+ *
+ * NO BROKER CHECK, DELIBERATELY, and this is the one place in the file that leans the other way.
+ * Everything that KILLS demands proof; this only refuses, so it takes the plugin's word. The job
+ * statuses have already been reconciled against the OS - a job whose worker is gone reads as
+ * failed - so what is left unfinished is work the plugin still believes in, and "I am not sure"
+ * has to mean "keep the worktree".
+ */
+export function unrecordedWorking(sessions = []) {
+  return sessions
+    .filter((session) => (session?.jobs ?? []).some((over) => !over))
+    .map((session) => ({ stateDir: session.stateDir ?? null, workspace: session.workspace ?? null }));
+}
+
+/**
+ * The disk half of `adoptableBrokers`: every workspace whose broker the ownership record does not
+ * claim, with its jobs reduced to "is it over".
+ *
+ * Read-only for the same reason `delegationRecords` is - `reconcileJob` is consulted in memory
+ * and its verdict is not persisted, because the queue runner reads this store from another
+ * process and two unlocked read-modify-writes of one `state.json` lose an update.
+ */
+function unclaimedSessions() {
+  const sessions = [];
+  for (const dir of allStateDirs()) {
+    // A record beats this path in both directions: it can prove a kill, and it is written by the
+    // launch that is still going, so overriding it here would close a family mid-delegation.
+    if (readOwnership(dir)) continue;
+    const session = brokerSession(dir);
+    if (!session) continue;
+    try {
+      const jobs = readState(dir).jobs;
+      sessions.push({
+        stateDir: dir,
+        endpoint: session.endpoint ?? null,
+        brokerPid: Number(session.pid),
+        // The plugin stamps every job with the directory the launch was made in, which is the
+        // only place a workspace can be read from when the broker process has already gone -
+        // the state directory's own name is a hash, and a hash does not come back.
+        workspace: jobs.find((job) => job.workspaceRoot)?.workspaceRoot ?? null,
+        jobs: jobs.map(jobIsOver),
+      });
+    } catch {
+      // A job store this wrapper cannot read says nothing about whether the work is over, and
+      // "nothing is over" is the direction that leaves a delegation running.
+    }
+  }
+  return sessions;
 }
 
 /** `pipe:\\.\pipe\x` and `unix:/tmp/x` both address a socket; strip the scheme and connect. */
@@ -743,12 +878,29 @@ async function waitForExit(pids, ms) {
  * worktree's delegation and an equality test would quietly leave it running.
  *
  * `busy` in the result says a delegation in scope has NOT finished, which is the one thing a
- * caller about to delete that directory has to know.
+ * caller about to delete that directory has to know. It is answered from the records AND from the
+ * workspaces no record claims, because a delegation the sweep cannot see is exactly the one whose
+ * absence would read as an empty directory.
  */
 export async function reapTrees({ log = console.log, workspace = null } = {}) {
   const records = delegationRecords()
     .filter((record) => !workspace || withinRoot(record.workspace, workspace));
-  const table = allProcesses();
+
+  // THE UNCLAIMED WORKSPACES GO FIRST, and they are the whole reason a reap is worth running on
+  // a machine that has been delegating for longer than this file has existed. They own no kill
+  // list (`adoptableBrokers` cannot produce one), so all that happens here is the ask.
+  // `unclaimedBusy` is the same blind spot seen from the other side: a RUNNING delegation with no
+  // record, which the records below cannot see either, and which a worktree removal must not read
+  // as an empty directory.
+  let table = allProcesses();
+  const { tried, closed: unrecordedClosed, busy: unclaimedBusy } =
+    await askUnclaimedBrokers({ log, workspace, table });
+  // A broker that was asked to close may have taken a dozen processes with it, so the records
+  // below are judged against the machine as it is AFTER the ask, never the table it was planned
+  // from. Only re-read when something was actually asked: this runs in front of every launch,
+  // and a process listing costs a PowerShell process.
+  if (tried > 0) table = allProcesses();
+
   const before = orphanedCodexTrees(table, records);
   const collecting = before.filter((tree) => tree.kill.length > 0);
   if (collecting.length === 0) {
@@ -756,7 +908,13 @@ export async function reapTrees({ log = console.log, workspace = null } = {}) {
     // the tree with it, a machine that was restarted - is finished with, and saying so here is
     // what stops every later sweep re-reading it.
     for (const tree of before) if (tree.stateDir) forgetOwnership(tree.stateDir, table);
-    return { closed: 0, trees: [], kept: namedOnce(before), busy: stillWorking(before) };
+    return {
+      closed: 0,
+      unrecordedClosed,
+      trees: [],
+      kept: namedOnce(before),
+      busy: unclaimedBusy || stillWorking(before),
+    };
   }
 
   // WRITE THE FAMILY DOWN BEFORE CLOSING ANY OF IT. The kill list is wider than the record - it
@@ -801,10 +959,52 @@ export async function reapTrees({ log = console.log, workspace = null } = {}) {
   return {
     closed,
     refused,
+    unrecordedClosed,
     trees: collecting,
     kept: namedOnce([...before, ...after]),
-    busy: stillWorking(after),
+    busy: unclaimedBusy || stillWorking(after),
   };
+}
+
+/**
+ * Everything the ownership record cannot answer for: ask the brokers whose delegations are over
+ * to close themselves, and report whether an unrecorded delegation is still working in scope.
+ *
+ * The counterpart to the record-driven half above, and deliberately the smaller of the two: it
+ * asks, waits, and reports. It never kills. If a broker will not go, its family stays and the
+ * line says so - which is the honest answer, because without a record there is nothing here that
+ * could prove which app-server belonged to it.
+ *
+ * `tried` is how many brokers were addressed, which is what tells the caller its process table is
+ * now stale; `closed` is how many actually went, so a report can tell "asked and nothing
+ * happened" from "asked and the memory came back"; `busy` is the refusal a worktree removal reads.
+ */
+async function askUnclaimedBrokers({ log = console.log, workspace = null, table = [] } = {}) {
+  const unclaimed = unclaimedSessions();
+  const inScope = (session) => !workspace || withinRoot(session.workspace, workspace);
+
+  const working = unrecordedWorking(unclaimed).filter(inScope);
+  for (const session of working) {
+    log(`  ${session.workspace ?? session.stateDir}: a delegation with no ownership record has `
+      + 'not finished - nothing here is closed, and this workspace counts as busy');
+  }
+  const busy = working.length > 0;
+
+  const sessions = adoptableBrokers(table, unclaimed).filter(inScope);
+  if (sessions.length === 0) return { tried: 0, closed: 0, busy };
+
+  // All at once, for the same reason the record-driven shutdowns are: this runs in front of every
+  // launch, and a machine carrying several of these would otherwise put a grace window per family
+  // between the caller and its delegation.
+  const went = await Promise.all(sessions.map(async (session) => {
+    const said = await brokerShutdown(session.endpoint);
+    const gone = await waitForExit([session.pid], GRACE_MS);
+    log(`  ${session.workspace}: no ownership record, every delegation finished - asked its `
+      + `broker (pid ${session.pid}) to shut down: ${said}`
+      + `${gone ? ', and it did' : ', but it is still running - it will be asked again next time'}`);
+    return gone ? 1 : 0;
+  }));
+  return { tried: sessions.length, closed: went.reduce((total, one) => total + one, 0), busy };
 }
 
 // ── Commands ─────────────────────────────────────────────────────────────────────────────────────
@@ -1148,7 +1348,12 @@ export function reapWorkspace(argv) {
 /** What a reap did: what closed, what would not close, and what stayed and why. */
 function reportReap(result) {
   if (!result) return;
-  const { closed = 0, refused = 0, trees = [], kept = [] } = result;
+  const { closed = 0, refused = 0, unrecordedClosed = 0, trees = [], kept = [] } = result;
+  if (unrecordedClosed > 0) {
+    console.log(
+      `${unrecordedClosed} unrecorded delegation broker(s) shut themselves down and took their families with them.`,
+    );
+  }
   if (closed > 0 || refused > 0) {
     const stubborn = refused > 0 ? `, and ${refused} would not close` : '';
     console.log(`Closed ${closed} process(es) from ${trees.length} finished delegation tree(s)${stubborn}.`);
