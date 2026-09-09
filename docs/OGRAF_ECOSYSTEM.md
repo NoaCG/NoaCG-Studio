@@ -5,7 +5,7 @@ extends `docs/OGRAF_FIRST_REVIEW.md` (ratified 2026-08-29) with the ecosystem re
 deferred: a verdict per open-source project, the boundary of generic OGraf operation inside NoaCG,
 and the evidence bar for claiming interoperability in both directions. Where this file corrects
 the review, the correction is also marked in the review's own text as a dated update. The student
-push (`docs/GOALS.md` NOW, production 2026-09-12) is untouched by everything below.
+push (`docs/GOALS.md`, `## NOW`) is untouched by everything below.
 
 Method: five dedicated research passes on 2026-08-29 read the actual repositories, package
 manifests, source files and issue trackers - not product pages. Claims carry their URLs. Refresh

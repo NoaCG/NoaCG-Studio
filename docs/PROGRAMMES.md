@@ -48,7 +48,7 @@ immediate steering document; this file carries the year's authorized work and it
 | P3 | Production, Rundown & Media | DESIGN; clip slice AUTHORIZED | clip playout by reference first; the slice may start now - the NOW date is a forecast, not a wait (owner 2026-09-03) |
 | P4 | Data & Automation | IDEA | design in Q1 windows; data-tree Phase 3 convergence before any connector |
 | P5 | Agent Platform | AUTHORIZED per item | the GOALS agent-door boxes; each new key scope and the npm publish are owner actions |
-| P6 | OGraf and Interoperability | AUTHORIZED | may start now; 2026-09-12 is the forecast of when it matters, not a wait (owner 2026-09-03). The ladder is GOALS.md "NEXT - OGraf-first", unchanged |
+| P6 | OGraf and Interoperability | AUTHORIZED | may start now; the NOW date (`docs/GOALS.md`, `## NOW`) is the forecast of when it matters, not a wait (owner 2026-09-03). The ladder is GOALS.md "NEXT - OGraf-first", unchanged |
 | P7 | Creation & Advanced Editor | DESIGN - failure analysis owner-confirmed | the owner read and confirmed the WYSIWYG_PLAN.md analysis 2026-09-01; attempt two spec'd as testable requirements, informed by P2 findings but NOT held for them (owner 2026-09-03: a date is not a gate); Jul-Aug 2027 is a forecast of when proving happens, not a wait |
 | H0 | Reliability (horizontal) | AUTHORIZED | stages attach where first needed; owns the soak driver and the fault harness |
 
@@ -60,10 +60,10 @@ of the draft; team bytes on the owner's quota; SMTP/OAuth provisioning starting 
 tracked as an owner-action queue item). The model: server-authoritative team productions as a
 hybrid - personal libraries, the per-user RLS predicates and LWW sync untouched; graphics enter
 by pool-copy. Implementation follows the plan's stages in order; every migration beyond the
-plan's M1/M2 is a scope edge. The NOW push (2026-09-12) still outranks it for machine capacity.
-Claim: `docs/NORTH_STAR_2027.md` §5 P1. Non-claim v1: simultaneous co-editing of one graphic.
-Scope edges: every migration (the RLS surface is the product's security boundary); SMTP/OAuth
-provisioning (owner accounts).
+plan's M1/M2 is a scope edge. The NOW push (`docs/GOALS.md`, `## NOW`) still outranks it for
+machine capacity. Claim: `docs/NORTH_STAR_2027.md` §5 P1. Non-claim v1: simultaneous co-editing
+of one graphic. Scope edges: every migration (the RLS surface is the product's security
+boundary); SMTP/OAuth provisioning (owner accounts).
 
 **Stages 1 and 2 landed 2026-09-01** - `supabase/migrations/0053_teams_and_membership.sql` (teams,
 membership, `is_team_member` / `team_join` / `team_rotate_code`) and `0054_team_productions.sql`
@@ -145,8 +145,9 @@ Claims: `docs/NORTH_STAR_2027.md` §5 P5, proven by recurring novel-brief benchm
 ## P6 OGraf & Interoperability
 
 State: AUTHORIZED (ratified 2026-08-29, `docs/OGRAF_FIRST_REVIEW.md`) and **may start now**. First
-tenant of this register; nothing about it is redesigned here. 2026-09-12 is a forecast of when the
-ladder matters, never a precondition for starting it (owner, 2026-09-03 - the rule is "A DATE IS
+tenant of this register; nothing about it is redesigned here. The NOW date (`docs/GOALS.md`,
+`## NOW`) is a forecast of when the ladder matters, never a precondition for starting it (owner,
+2026-09-03 - the rule is "A DATE IS
 NOT A GATE" above; the test to start is a clear vision of how to do it and no fire burning). The
 earlier reading of the 2026-08-30 sequencing ruling as a wait is superseded, and it had already
 been overruled case by case: on 2026-09-01 the owner authorized the OGraf host-page fix (checker

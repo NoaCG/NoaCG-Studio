@@ -401,8 +401,9 @@ clarification is sought and replaceability is preserved until it arrives.
 
 ## 12. Sequencing - what moves when
 
-**Now (unchanged).** The 2026-09-12 student production is the only NOW. Nothing in this review
-competes with it, and none of it should start before that date. The SVG importer walks and the CLI
+**Now.** The push is whatever `docs/GOALS.md`, `## NOW` names, and nothing in this review
+competes with it. What may START is the register's call, not this date's: `docs/PROGRAMMES.md`,
+"P6 OGraf & Interoperability" records that P6 may start now. The SVG importer walks and the CLI
 publish decision stay the priorities the prompt restates.
 
 **Soon after - bounded, high leverage, in order:**
