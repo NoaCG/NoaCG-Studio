@@ -74,11 +74,24 @@ export function parseArgs(argv) {
 }
 
 /**
- * A branch "looks finished and was never queued" - the ended-expecting-a-watcher shape. Modest by
- * design: this cannot know the build was green or the session's intent, only that work stopped
- * arriving and nothing was handed to the queue. `clean` may be null (not measured, or the status
- * command failed) and null never classifies - a claim this check cannot back stays unmade.
+ * Does this branch carry a commit of its own that `origin/main` does not have?
+ *
+ * THE SET AND THE SHA ARE TWO DIFFERENT ANSWERS, AND THE SECOND IS THE ONE THAT COUNTS.
+ * `listedAsMerged` comes from one `git branch --merged` read covering every branch at once, which
+ * is what keeps the tick to a handful of git calls - but that read happens at ONE MOMENT, and a
+ * branch created after it is missing from the set for a reason that has nothing to do with its
+ * commits. So wherever the set says a branch is not contained, ask git about that exact sha
+ * instead. The probe runs only for the few the set already calls ahead (three of 53 branches on
+ * the night this was written), so the batched read still does the work.
+ *
+ * `inMain` erring reads as NOT contained, matching `landingStateFor`: the set already said ahead,
+ * and an unreadable second opinion should not overturn a readable first one.
  */
+export function aheadOfMain({ sha, listedAsMerged }, inMain) {
+  if (listedAsMerged) return false;
+  return !inMain(sha);
+}
+
 /**
  * Is there nothing in the queue for this branch's CURRENT work?
  *
@@ -93,29 +106,16 @@ export function parseArgs(argv) {
  * gate in the tick decides whether `clean` is ever MEASURED, and a gate stricter than the
  * classifier below leaves `clean` null, which silently makes the classifier unable to fire.
  */
-/**
- * Does this branch carry a commit of its own that `origin/main` does not have?
- *
- * THE SET AND THE SHA ARE TWO DIFFERENT ANSWERS, AND THE SECOND IS THE ONE THAT COUNTS.
- * `listedAsMerged` comes from one `git branch --merged` read covering every branch at once, which
- * is what keeps the tick to a handful of git calls - but that read happens at ONE MOMENT, and a
- * branch created after it is missing from the set for a reason that has nothing to do with its
- * commits. So wherever the set says a branch is not contained, ask git about that exact sha
- * instead. The probe runs only for the few the set already calls ahead (four of 53 branches on the
- * night this was written), so the batched read still does the work.
- *
- * `inMain` erring reads as NOT contained, matching `landingStateFor`: the set already said ahead,
- * and an unreadable second opinion should not overturn a readable first one.
- */
-export function aheadOfMain({ sha, listedAsMerged }, inMain) {
-  if (listedAsMerged) return false;
-  return !inMain(sha);
-}
-
 export function nothingQueuedFor(landingState) {
   return landingState === 'not-queued' || landingState === 'landed';
 }
 
+/**
+ * A branch "looks finished and was never queued" - the ended-expecting-a-watcher shape. Modest by
+ * design: this cannot know the build was green or the session's intent, only that work stopped
+ * arriving and nothing was handed to the queue. `clean` may be null (not measured, or the status
+ * command failed) and null never classifies - a claim this check cannot back stays unmade.
+ */
 export function looksFinishedUnqueued(branch, { now, quietMinutes = QUIET_MINUTES } = {}) {
   return Boolean(
     !branch.landed
@@ -123,7 +123,7 @@ export function looksFinishedUnqueued(branch, { now, quietMinutes = QUIET_MINUTE
     // cut at main's tip, so `lastCommitMs` is MAIN's last commit - already hours old the moment the
     // row starts - and every other leg here (clean tree, nothing queued) is true of an empty branch
     // too. Without this leg a row that had been running for two minutes could be announced as a
-    // session that ended without queueing. See `ahead` below for how it is measured.
+    // session that ended without queueing. `aheadOfMain` above is how it is measured.
     && branch.ahead === true
     && branch.worktree
     && branch.worktree.clean === true
