@@ -25,6 +25,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { measured } from './measured.mjs';
+import { RULESET_NAME, REQUIRED_CHECKS, findExisting, rulesetVerdict } from './landing-ruleset-reader.mjs';
 
 /** The checks whose answer is a fact about GitHub, not about this tree. */
 export const CHECK_IDS = ['org-actions-pr', 'repo-actions-pr', 'ruleset', 'required-checks', 'migration-token', 'land-label'];
@@ -66,8 +67,8 @@ export function preflightReport(facts = {}) {
     },
     {
       id: 'required-checks',
-      says: 'the ruleset requires `CI gate` and `Reviewed`',
-      why: 'the queue merges on those two names; a rename in ci.yml that misses the ruleset lands work no gate judged',
+      says: 'the ruleset requires ' + REQUIRED_CHECKS.map((name) => `\`${name}\``).join(' and '),
+      why: 'the queue merges on those names; a rename in ci.yml that misses the ruleset lands work no gate judged',
       fix: 'node scripts/landing-ruleset.mjs --apply',
     },
     {
@@ -116,7 +117,7 @@ function ghJson(args) {
 }
 
 /** What GitHub says right now, as the fact map `preflightReport` takes. */
-export function gather({ repo = 'NoaCG/NoaCG-Studio', rulesetName = 'main is landed by the queue', required = ['CI gate', 'Reviewed'] } = {}) {
+export function gather({ repo = 'NoaCG/NoaCG-Studio', rulesetName = RULESET_NAME, required = REQUIRED_CHECKS } = {}) {
   const org = repo.split('/')[0];
   const facts = {};
 
@@ -127,20 +128,9 @@ export function gather({ repo = 'NoaCG/NoaCG-Studio', rulesetName = 'main is lan
   facts['repo-actions-pr'] = repoPolicy === null ? null : repoPolicy.can_approve_pull_request_reviews === true;
 
   const rulesets = ghJson([`repos/${repo}/rulesets`]);
-  const summary = Array.isArray(rulesets) ? rulesets.find((r) => r?.name === rulesetName) : null;
+  const summary = findExisting(rulesets, rulesetName);
   const detail = summary ? ghJson([`repos/${repo}/rulesets/${summary.id}`]) : null;
-  if (rulesets === null) {
-    facts.ruleset = null;
-    facts['required-checks'] = null;
-  } else if (!detail) {
-    facts.ruleset = false;
-    facts['required-checks'] = false;
-  } else {
-    const types = (detail.rules ?? []).map((r) => r.type);
-    facts.ruleset = detail.enforcement === 'active' && types.includes('merge_queue');
-    const contexts = (detail.rules ?? []).find((r) => r.type === 'required_status_checks')?.parameters?.required_status_checks?.map((c) => c.context) ?? [];
-    facts['required-checks'] = required.every((name) => contexts.includes(name));
-  }
+  Object.assign(facts, rulesetVerdict(rulesets, detail, required));
 
   const secrets = ghJson([`repos/${repo}/environments/production/secrets`]);
   facts['migration-token'] = secrets === null ? null : (secrets.secrets ?? []).some((s) => s?.name === 'SUPABASE_ACCESS_TOKEN');
