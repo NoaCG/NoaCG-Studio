@@ -43,11 +43,20 @@ Confirm it and the production page carries both names: the show, and the one gra
 
 ## What to look at
 
-The third one is the only one that changed behaviour rather than copy. `Untitled production` was
-already the app's answer for an unnamed production everywhere else, and the wizard was the only
-door that never let that answer be reached. It is deliberately plain: a default that reads as a
-deliberate name teaches nothing, where one that reads as "you have not named this yet" is the
-invitation to name it. Say so if you would rather it guessed something warmer.
+The third one is the only one that changed behaviour rather than copy, and it is the one to argue
+with if you are going to argue with any. `Untitled production` was already the app's answer for an
+unnamed production everywhere else, and the wizard was the only door that never let that answer be
+reached. It is deliberately plain: a default that reads as a deliberate name teaches nothing, where
+one that reads as "you have not named this yet" is the invitation to name it. The two rejected
+alternatives were making the door refuse to fire until you type a name (it greys the one-press road
+on the exact first run this is about) and guessing a show-shaped name from the day, like "Wednesday
+show" (two shows made the same day collide, and it hides the gap while looking warmer). Say so if
+you would rather it guessed something warmer after all.
+
+One consequence worth knowing: skip the box twice and you get two productions both called
+`Untitled production`, told apart in the picker only by their graphic count. The app has never
+deduplicated production names, typed ones included, so this is not new - but it is newly reachable
+by pressing Enter twice, and it is a taste call rather than a bug.
 
 The second one was measured before it was written, because the mapping step has an exact
 rows-on-screen budget: the answer takes the alignment column from 52 px to 112 and the two text

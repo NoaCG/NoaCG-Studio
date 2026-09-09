@@ -2,7 +2,8 @@
 
 **Branch:** `claude/m-wizard-says-it-itself`
 **Acceptance item:** `docs/acceptance/owner-queue/2026-09-09-m-wizard-says-it-itself.md`
-**Spec:** `e2e/import-svg.spec.ts` - four new cases (one of them runs at two viewport sizes).
+**Spec:** `e2e/import-svg.spec.ts` - three new cases, plus one assertion added to the mapping
+step's existing height-budget test. `e2e/wizard-kit.spec.ts` gained two lines.
 
 ## What landed
 
@@ -54,11 +55,21 @@ was unreachable from **two** callers, not one. `CreationWizard.tsx`'s deleted-mi
 also named the new production after the graphic, on a rarer path. One door must not answer one
 question two ways, so it now passes an empty string and lets the floor answer.
 
-Left alone deliberately: `saveTemplateSetToProduction`'s `fallbackName`. Its callers pass a KIT's
-pack name or the name typed on Finish for a whole AI package, and a set's name genuinely is a
-production's name. The one narrow case that is the same defect - an AI package with no typed name
-whose picked production was deleted in another tab, which falls back to `pack[0].name` - is deep
-enough that fixing it here would have been scope, not correctness.
+Left alone deliberately, and both simplify agents pushed on it, so the reasoning is worth having:
+`saveTemplateSetToProduction`'s `fallbackName` and `KitFinishStep.tsx`'s own empty-box fallback.
+Both resolve to a SET's name - a kit's pack name, or the name typed on Finish for a whole AI
+package - and a set's name genuinely is a production's name. "Wellness" is a good show title;
+"Interview strap" is not. The defect is naming a production after one GRAPHIC, and exactly one
+narrow path still does: an AI package with no typed name whose picked production was deleted in
+another tab falls back to `pack[0].name`. Deep enough that fixing it here would have been scope
+rather than correctness, and it has no repro.
+
+The shape the policy ended in is worth naming too, because it is not where it started. The floor
+was first spelled twice - once in the model where the write applies it, once in the wizard because
+the confirmation must PRINT the destination before any record exists. Two copies of one policy is
+how a dialog ends up promising a name the write does not make, which is precisely what the new
+case asserts cannot happen. It is a pure `resolveShowName(name)` now, shared by both, and the
+constant is private again.
 
 ## The measurement that shaped fix 2
 
@@ -75,15 +86,22 @@ simulating three candidate labels in the page:
 | both axes | 112 px | 135 px | **54,54,54,54,68,54,54** |
 
 Both axes wrapped the CLOCK row, the one that also carries the countdown picker, and pushed the
-last row 12 px lower. The fix is one CSS line - a row label never wraps - and with it the full
+last row 12 px lower. The fix is one CSS line - a row's LABEL never wraps - and with it the full
 two-axis answer is free: every row back to 54 px, the last one still ending at 609, seven on screen
-at both sizes. That guard is pinned by its own case at both viewports, because it is the thing a
-future copy change would silently spend.
+at both sizes.
+
+The guard lives in the height-budget test rather than in a pair of viewports of its own, because
+that test already walks both sizes with this fixture and already measures every row's rectangle.
+It earns its line there: `rowsOnScreen` does NOT catch a wrapped row, since at 1280 all seven
+still fitted while the last one sat 12 px lower. That is the assertion a future copy change spends
+first, and it is now beside the one it belongs to.
 
 ## Verification
 
-`review: not run as a separate leg` - see below. `simplify: inline`. `verify: inline and
-measured`.
+`review: delegated` (opus, adversarial - it found three things the build was happy with, all
+three held up against the source, all three are fixed). `simplify: delegated` (two agents over
+four angles; five findings applied, three skipped with reasons). `verify: inline and measured`.
+`taste: not applicable` - nothing here can move what a graphic looks like.
 
 - **Reproduced first, on the running app, before anything was edited.** All three exactly as D
   filed them: `STEP 2 / 6` -> `STEP 2 / 5` with no account for it; every alignment control's
@@ -94,11 +112,41 @@ measured`.
   production page that the press lands on is titled `Untitled production` - so the name the dialog
   printed is the name the write made, rather than the UI guessing one and the model applying
   another.
-- `npm run build` exit 0, read as the build's own exit code. Two gates fired first and both were
-  mine: `check:owner-queue` refused `kind: ui` (the vocabulary is walk / walk-p / owner-action /
-  hardware / agent), and `check:copy` refused an em-dash count that had gone DOWN without the
-  baseline being re-recorded - a stale-high baseline hands the file back the room it just gave up.
-- `npm run test:e2e:affected`, through the queue. Recorded in the section below.
+- `npm run build` exit 0, read as the build's own exit code, on every commit. Two gates fired on
+  the first pass and both were mine: `check:owner-queue` refused `kind: ui` (the vocabulary is
+  walk / walk-p / owner-action / hardware / agent), and `check:copy` refused an em-dash count that
+  had gone DOWN without the baseline being re-recorded - a stale-high baseline hands the file back
+  the room it just gave up.
+- `npm run test:e2e:affected`: **1302 passed, 3 failed.** Two of the three were mine and are the
+  interesting part; the third is not (below). Then `npx playwright test import-svg wizard-kit
+  wizard-finish productions library-productions` after the fixes: **154 passed, 0 failed.**
+
+### What the suite and the review caught, which a green build did not
+
+**A pinned length ceiling.** The alignment key went in as a third paragraph in the section's ⓘ,
+and that body is pinned at exactly two ("the step says what a control does, in a few lines" -
+written after it grew to four, with the owner's 2026-08-26 "no one wants to read more than a few
+lines" behind it). The sentence now rides the paragraph that already covers what a row's controls
+do. Better copy for the constraint, not a worse home for it: tying the anchored edge to the Text
+box beside it is the cheapest demonstration available.
+
+**A spec that encoded the defect.** `wizard-kit.spec.ts`'s "a kit opened FOR a production joins
+that one" built its production by filling the GRAPHIC name and leaving the production box empty,
+so it broke the moment that stopped meaning the same thing. Its subject is which production a kit
+joins, not how one gets named, so it names one now.
+
+**A CSS rule with a blast radius.** The guard was written `.map-svg-row .save-field > span`, and
+two other spans sit directly inside a field on that step: the line under a picker saying which
+layer filled it, and a recipe option's label ("Reveal by itself a few seconds after the lock").
+Both are sentences that must wrap; neither is ever the first child, where the label is. Scoped to
+`:first-child` and then **measured** on the vote band, the quiz board and the scorebug at 1280:
+the option labels compute `normal` again, everything the rule reaches is at most "VOTE NOW badge",
+and no row overflows the scrollport. The build would never have said any of this.
+
+**Two smaller ones**, both from the review and both real: the rail line claimed an SVG's "text is
+already placed", which is false for a file whose type was outlined on export and whose card says
+so two lines up; and `toHaveText` reads textContent, so a rule that HID the alignment words would
+have left the defect and kept the case green. The case asserts visibility separately now.
 
 **A note for whoever runs the browser leg next.** `npm run dev:worktree` and the offline e2e suite
 cannot both have the port: Playwright reuses a listening server, `webServer.env` is then never
@@ -106,7 +154,20 @@ applied, and `_offline-guard.ts` refuses the run rather than measuring an unpinn
 server has to be stopped before the suite is queued. That is the guard working, but it costs a
 whole slot to learn.
 
+### The third failure is not mine, and that is measured
+
+`catalog-baseline.spec.ts`, "every catalog variant renders identically", fails for 24 credits and
+ticker variants. It was reproduced **at this branch's own fork point** (`ffadb42e`, the tree
+checked out with every change here absent), and nothing between that commit and current main
+touches the baseline, its spec or `src/templates`. So it is red on main, and CI has not noticed
+because the affected-spec selection only runs it when something touches the catalog. Filed as
+`docs/backlog/the-catalog-baseline-has-been-red-and-nothing-ran-it.md`, with the second and larger
+half of the finding: a baseline gate that runs only when its subject moves cannot report that its
+subject already moved and broke it.
+
 ## Also on this branch
+
+`docs/backlog/the-catalog-baseline-has-been-red-and-nothing-ran-it.md`, argued above.
 
 `docs/backlog/a-live-landing-starves-every-browser-job.md`. Queueing the first repro sat at `#1`
 for a landing's entire stay in GitHub's merge queue, with nothing browser-driving running anywhere
