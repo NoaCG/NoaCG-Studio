@@ -55,7 +55,10 @@ import {
   ensureJobsDir,
   findRunner,
   finishedSince,
+  flagValue,
+  hasFlag,
   jobsDir,
+  KINDS,
   landingRow,
   pending,
   pruneJobs,
@@ -110,11 +113,9 @@ if (!dir) {
 }
 
 const args = process.argv.slice(2);
-const flag = (name) => args.includes(name);
-const valueOf = (name) => {
-  const i = args.indexOf(name);
-  return i === -1 ? undefined : args[i + 1];
-};
+// Both spellings of a flag, decided in the store and pinned by its tests - see `flagValue`.
+const flag = (name) => hasFlag(args, name);
+const valueOf = (name) => flagValue(args, name);
 
 // Terminal jobs older than the retention window go here, on the way past. Every entry point
 // prunes because every entry point already reads this directory, so the sweep is one extra
@@ -186,7 +187,7 @@ async function cmdAdd() {
   if (flag('--cost')) {
     // A LONE `-1` IS NOT A MISSING VALUE, it is a wrong one, and the range check below says so
     // better than this can. Only the next FLAG, or nothing at all, means the number was left out.
-    if (declaredCost === undefined || declaredCost.startsWith('--')) {
+    if (declaredCost === undefined || declaredCost === '' || declaredCost.startsWith('--')) {
       console.error(`--cost needs a number of suite-equivalents after it${declaredCost ? `, not "${declaredCost}"` : ''}.`);
       process.exit(1);
     }
@@ -197,6 +198,16 @@ async function cmdAdd() {
       console.error(wrong);
       process.exit(1);
     }
+  }
+  // `--kind` IS A COST DECLARATION NOW, so a typo in it is a mispriced job rather than a nuisance.
+  // `sweep` on the record tells `costOf` this is battery work, which is the whole reason a session
+  // that knows can say so - and until this, `--kind sweeep` reached the person as a stack trace out
+  // of `addJob` with a Node version banner under it, exactly what the `--cost` guard above was
+  // added to stop. `KINDS` decides what is legal; this only asks.
+  const declaredKind = valueOf('--kind');
+  if (flag('--kind') && !KINDS.includes(declaredKind)) {
+    console.error(`--kind is one of ${KINDS.join(', ')}: got ${declaredKind ? `"${declaredKind}"` : 'nothing'}.`);
+    process.exit(1);
   }
   const job = addJob(dir, {
     command,

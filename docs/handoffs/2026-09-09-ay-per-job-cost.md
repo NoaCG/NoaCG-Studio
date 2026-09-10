@@ -2,6 +2,11 @@
 
 Branch `claude/ay-per-job-cost`, two commits on merge base `345877ec`. Nothing is left uncommitted.
 
+> **Read the 2026-09-10 section at the bottom before acting on this one.** That header describes
+> the branch as row AY left it, and it did not land in that state: four landing jobs burned on it,
+> row BC took it over, merged `main` in and rebuilt the merge base. Two claims below are now false
+> and are marked where they appear. The current shape of the branch is described at the end.
+
 ## What was wrong, reproduced first
 
 Row AG's diagnosis was right and the reproduction is exact. `costOf()` read a `cost` field off the
@@ -79,8 +84,11 @@ change. `taste: not applicable` - nothing here can move what a graphic looks lik
 
 ## Left undone, on purpose
 
-- **`scripts/ograf-external-walk.mjs` is not in `SWEEP_SCRIPTS`** and I did not add it. It drives a
-  browser, so the guard hook does not know to refuse a hand-started one - but adding a name to that
+- ~~**`scripts/ograf-external-walk.mjs` is not in `SWEEP_SCRIPTS`**~~ **- no longer true.** Row AG
+  landed the script on 2026-09-10 and added it to the list in the same commit (`2e348a9f`), which
+  is what broke this branch. The reasoning below is kept because it is exactly what then happened.
+  It drives a browser, so the guard hook does not know to refuse a hand-started one - but adding a
+  name to that
   list changes what the guard refuses and what the process detector sees, machine-wide, and the
   script itself lives on row AG's branch rather than in the repository. Whoever lands that script
   should decide; if it goes on the list it will be priced as a battery, so it wants a `--cost 0.5`
@@ -219,6 +227,45 @@ watch could never have succeeded. Cancelling it was refused by this session's ow
 it was left to reach its 60-minute cap - which is the verdict, just spent rather than read. The
 gap is real and cheap to close: the same `liveLandingFor` call, on the same `isCommit`-style regex,
 widened to the tip-moving verbs.
+
+## What the check found, and it was not the fixture
+
+`review: delegated` (scope-checked and matched - merge base `4f95444b`, the eight files
+`review-request.mjs` printed, and the report named both back). Six findings, every one reproduced
+here before it was touched. The first is the one that mattered, and it was **this branch's own
+regression, not the merge's**:
+
+- **A landing was refused on memory the jobs ahead of it had claimed in the same pass.** Row AY's
+  second commit made `schedule` keep a running free-memory figure and subtract each admission's
+  floor from it - right for walks, wrong for landings, because the subtraction ran for every kind.
+  Reproduced: night, 4.3 GB free, two walks and a landing, and the landing waits with
+  `only 0.2 GB RAM free, needs 0.6`. That is the stall this entire branch exists to remove,
+  recreated one layer down, on the branch whose whole subject is landing friction. A merge is now
+  tested against the REAL reading and takes nothing out of the running figure, exactly as it is
+  already exempt from the budget. The physical backstop is kept - a landing on a genuinely short
+  box still waits - and nothing can crowd in behind it, because two merges never overlap. Pinned
+  by `a landing is not refused on memory the jobs ahead of it claimed in the same pass`.
+- **The waiting reason called a bookkeeping remainder "RAM free".** A reader was told
+  `only 0.1 GB RAM free` on a box with 2.1 GB free and went looking for memory that was never
+  missing. It now names both figures: `only 0.1 GB of 2.1 GB free RAM unclaimed this pass`.
+- **`--cost=0.5` was silently dropped.** The CLI read only the spaced spelling, so the equals form
+  matched nothing, no cost reached the record, and it printed `queued`. A dropped declaration is
+  the exact failure the `--cost` refusals were added to end. Both spellings are now decided by
+  `flagValue`/`hasFlag` in the store, where a test can reach them, rather than in the CLI.
+- **`--kind bogus` exited as a stack trace with a Node version banner** - the same class the
+  `--cost` guard had just closed, and more likely now that `--kind sweep` is a documented way to
+  declare a cost. It is one line against `KINDS` now.
+- Two documentation findings: this file's header described a state the branch never landed in, and
+  its `SWEEP_SCRIPTS` bullet had become false. Both are marked in place above rather than rewritten,
+  because what row AY believed is part of the record.
+
+`simplify: inline` - folded into the fixes rather than run as a separate pass, since the review's
+own findings were where the duplication was: the flag parsing moved to one tested place instead of
+two spellings' worth of call sites, and the merge exemption reuses the rule that already existed
+for the budget instead of adding a second concept.
+
+`verify: inline` - `npm run build` green, exit code read directly rather than through a pipe.
+`taste: not applicable` - nothing here can move what a graphic looks like.
 
 ## One cleanup this session could not do itself
 

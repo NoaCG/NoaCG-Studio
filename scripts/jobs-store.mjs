@@ -36,6 +36,31 @@ export const LIVE_STATES = Object.freeze(['waiting', 'running']);
 export const KINDS = Object.freeze(['gate', 'merge', 'sweep']);
 
 /**
+ * Read one command-line flag, written EITHER WAY - `--name value` or `--name=value`.
+ *
+ * This lives here, beside `costProblem` and `KINDS`, because what a flag says is now what a job
+ * COSTS: `--cost` and `--kind` are both declarations the scheduler acts on. It was in the CLI and
+ * understood only the spaced spelling, so `--cost=0.5` matched nothing, the job was queued at the
+ * classifier's guess, and the CLI printed "queued" - measured 2026-09-10. A dropped declaration is
+ * the one failure mode the `--cost` refusals exist to prevent, so the spelling is decided in one
+ * tested place rather than in whichever call site remembered.
+ *
+ * `undefined` means the flag is absent. An empty string means it was written with nothing after
+ * the `=`, which the caller refuses as a missing value rather than reading as a number.
+ */
+export function flagValue(args, name) {
+  const joined = args.find((a) => a.startsWith(`${name}=`));
+  if (joined !== undefined) return joined.slice(name.length + 1);
+  const i = args.indexOf(name);
+  return i === -1 ? undefined : args[i + 1];
+}
+
+/** Whether a flag was written at all, in either spelling. Says nothing about its value. */
+export function hasFlag(args, name) {
+  return args.includes(name) || args.some((a) => a.startsWith(`${name}=`));
+}
+
+/**
  * What a job COSTS, in suite-equivalents.
  *
  * Counting jobs was the crude part. A Playwright suite is a dev server plus four browser workers
@@ -554,11 +579,27 @@ export function schedule(jobs, {
     // while pricing a walk at half a suite made that reachable. So the pass keeps its own running
     // figure and charges each admission what its floor says it will take. It is an assumption,
     // not a measurement; the next poll re-reads the real thing.
+    // A LANDING IS NOT CHARGED AGAINST THE PASS'S RUNNING FIGURE EITHER, for the same reason it
+    // is exempt from the budget below. It is tested against the REAL reading and takes nothing
+    // out of it: `gh run watch` is a few hundred megabytes, and making it wait on what the walks
+    // ahead of it claimed reproduced the exact stall this whole change exists to remove - at
+    // 4.3 GB free, two walks admitted first and the landing behind them was refused with
+    // "only 0.2 GB RAM free, needs 0.6". The physical backstop is kept: on a genuinely short box
+    // the landing still waits. Nothing can crowd in behind it, because two merges never overlap
+    // (above), so at most one is admitted per pass whatever this figure says.
+    const budgetedMb = job.kind === 'merge' ? freeMemMb : freeLeftMb;
     const needsMb = policy.freeMemFloorMb * cost;
-    if (freeLeftMb < needsMb) {
+    if (budgetedMb < needsMb) {
       waiting.push({
         job,
-        reason: `only ${(freeLeftMb / 1024).toFixed(1)} GB RAM free, needs ${(needsMb / 1024).toFixed(1)}`,
+        // BOTH FIGURES, because they answer different questions and only one of them is the
+        // machine. A reader who is told "only 0.1 GB RAM free" on a box with 2.1 GB free goes
+        // looking for the memory, when the answer is that earlier jobs in this same pass claimed
+        // it - which the next poll may well undo.
+        reason:
+          budgetedMb === freeMemMb
+            ? `only ${(freeMemMb / 1024).toFixed(1)} GB RAM free, needs ${(needsMb / 1024).toFixed(1)}`
+            : `only ${(freeLeftMb / 1024).toFixed(1)} GB of ${(freeMemMb / 1024).toFixed(1)} GB free RAM unclaimed this pass, needs ${(needsMb / 1024).toFixed(1)}`,
       });
       continue;
     }
@@ -578,7 +619,7 @@ export function schedule(jobs, {
     start.push(job);
     if (releasedBecause) released.push({ job, reason: releasedBecause });
     used += cost;
-    freeLeftMb -= needsMb;
+    if (job.kind !== 'merge') freeLeftMb -= needsMb;
   }
   return { start, waiting, dead, released, running, slots };
 }

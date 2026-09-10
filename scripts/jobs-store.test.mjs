@@ -26,7 +26,9 @@ import {
   ensureJobsDir,
   expiredJobIds,
   finishedSince,
+  flagValue,
   giveUpReason,
+  hasFlag,
   landingRow,
   landingStateFor,
   orderHoldDecision,
@@ -269,6 +271,34 @@ test('a declared cost is written to the record and read back off it', () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('a flag is read whether it was written with a space or an equals sign', () => {
+  // The 2026-09-10 hole, and the reason this parsing is in the store rather than in the CLI: the
+  // CLI read only `--cost 0.5`, so `--cost=0.5` matched nothing, no cost reached the record, and
+  // the job queued at the classifier's guess while printing "queued". A dropped declaration is
+  // precisely what the `--cost` refusals exist to prevent, so the spelling is pinned here.
+  for (const written of [['--cost', '0.5'], ['--cost=0.5']]) {
+    assert.equal(hasFlag(written, '--cost'), true, written.join(' '));
+    assert.equal(flagValue(written, '--cost'), '0.5', written.join(' '));
+  }
+
+  // An absent flag is `undefined`; a flag written with nothing after the `=` is an empty string,
+  // which the CLI refuses as a missing value rather than reading `Number('')` as zero.
+  assert.equal(hasFlag(['--kind', 'sweep'], '--cost'), false);
+  assert.equal(flagValue(['--kind', 'sweep'], '--cost'), undefined);
+  assert.equal(hasFlag(['--cost='], '--cost'), true, 'written, so the refusal is about the value');
+  assert.equal(flagValue(['--cost='], '--cost'), '');
+
+  // A flag written LAST has nothing after it, which is how `--cost` came to be silently dropped
+  // in the first place. It reads as absent-valued, and the CLI turns that into a refusal.
+  assert.equal(flagValue(['add', 'cmd', '--cost'], '--cost'), undefined);
+  // A name that merely PREFIXES another is not that other one.
+  assert.equal(flagValue(['--cost-cap=3'], '--cost'), undefined);
+  // A value that looks like a flag is still returned, so the caller can say so by name.
+  assert.equal(flagValue(['--cost', '--kind'], '--cost'), '--kind');
+  // An `=` inside the value survives, since a path or a query may carry one.
+  assert.equal(flagValue(['--branch=feature/a=b'], '--branch'), 'feature/a=b');
+});
+
 test('a nonsense declared cost is refused where it is written, not trusted by every reader after', () => {
   // `costOf` trusts the record, and the listing, the budget and the scaled RAM floor all trust
   // `costOf`. A bad number written once is a job that never starts or starves the rest.
@@ -311,12 +341,41 @@ test('each job admitted in one pass spends the free memory the last one took', (
   const four = [walk('j-0001'), walk('j-0002'), walk('j-0003'), walk('j-0004')];
   const { start, waiting } = schedule(four, { hour: NIGHT, freeMemMb: 2150 }); // 2.1 GB
   assert.deepEqual(start.map((j) => j.id), ['j-0001'], 'one walk fits 2.1 GB, not four');
-  assert.match(waiting[0].reason, /only 0\.1 GB RAM free, needs 2\.0/);
+  // The reason names BOTH figures. Reporting the pass's remainder as though it were the machine's
+  // free memory sent a reader hunting for 2 GB that was never missing - the box has 2.1 GB free
+  // and the walk ahead of this one claimed it, which the next poll may well undo.
+  assert.match(waiting[0].reason, /only 0\.1 GB of 2\.1 GB free RAM unclaimed this pass, needs 2\.0/);
 
   // With room for two, two go - the accounting is a subtraction, not a one-job cap.
   assert.deepEqual(
     schedule(four, { hour: NIGHT, freeMemMb: 4200 }).start.map((j) => j.id),
     ['j-0001', 'j-0002'],
+  );
+});
+
+test('a landing is not refused on memory the jobs ahead of it claimed in the same pass', () => {
+  // Found by the pre-merge review, and it is this branch's own regression: the running figure
+  // above was subtracted for EVERY admission, so a landing queued behind two walks was refused
+  // with "only 0.2 GB RAM free, needs 0.6" on a box with 4.3 GB free. That is the stall the
+  // whole change exists to remove, re-created one layer down - and `COST.merge` is 0.15 precisely
+  // so that landings are the thing that always gets through.
+  const two = [walk('j-0001'), walk('j-0002'), merge('j-0003')];
+  assert.deepEqual(
+    schedule(two, { hour: NIGHT, freeMemMb: 4300 }).start.map((j) => j.id),
+    ['j-0001', 'j-0002', 'j-0003'],
+  );
+
+  // The physical backstop is kept, though: a landing on a genuinely short box still waits, and
+  // says the machine's real reading rather than a bookkeeping remainder.
+  const short = schedule([merge('j-0001')], { hour: NIGHT, freeMemMb: 300 });
+  assert.deepEqual(short.start, []);
+  assert.match(short.waiting[0].reason, /only 0\.3 GB RAM free, needs 0\.6/);
+
+  // And exempting it cannot admit a crowd, because two merges never overlap whatever the memory
+  // says - that rule runs before this one and is what keeps landings serial.
+  assert.deepEqual(
+    schedule([merge('j-0001'), merge('j-0002')], { hour: NIGHT, freeMemMb: PLENTY }).start.map((j) => j.id),
+    ['j-0001'],
   );
 });
 
