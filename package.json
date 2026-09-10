@@ -58,6 +58,7 @@
     "test:e2e:focus:queued": "node scripts/e2e-runs.mjs --wait && node scripts/e2e-affected.mjs --focus",
     "test:e2e:integration:queued": "node scripts/e2e-runs.mjs --wait && node scripts/e2e-affected.mjs --integration --focus",
     "test:e2e:runs": "node scripts/e2e-runs.mjs --all",
+    "tutorial:shots": "node scripts/tutorial-shots.mjs",
     "queue": "node scripts/jobs.mjs add",
     "jobs": "node scripts/jobs.mjs",
     "queue:merge": "node scripts/jobs.mjs add-merge",

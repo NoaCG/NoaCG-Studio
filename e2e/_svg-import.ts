@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { addToProductionFromFinish, startNewProject } from './_create';
 
@@ -41,6 +42,36 @@ export const TIMER_SVG = fileURLToPath(
   new URL('./fixtures/svg-corpus/illustrator-question-timer-board.svg', import.meta.url),
 );
 
+/**
+ * TUTORIAL FRAMES, off by default.
+ *
+ *   NOACG_TUTORIAL_SHOTS=<dir> npx playwright test <spec> -g "<one test title>"
+ *
+ * A tutorial pack (docs/tutorials/) is a spoken script, an instruction sheet and one picture per
+ * step. The pictures are the half that ROTS: a hand-taken folder of screenshots teaches a screen
+ * that no longer exists, and a PNG cannot fail a build. So the pack's frames are captured by the
+ * walk that already has to pass - if the import road changes shape, the spec goes red and the
+ * frames are re-shot from the road as it now is, in the same fix.
+ *
+ * The step names are the road's, not any one pack's, because every SVG import pack walks the same
+ * five wizard steps in the same order. The two beats after the wizard belong to whichever spec
+ * drives the production, so those are named there.
+ *
+ * Deliberately a SECOND switch beside NOACG_SHOTS, which import-svg-behaviour.spec.ts uses for its
+ * own review frames: those are numbered by a reviewer's reading order across the whole file and
+ * are taken wholesale, where these are one ordered sequence per walk. One directory holding both
+ * numbering schemes would read as a broken sequence.
+ */
+const TUTORIAL_SHOTS = process.env.NOACG_TUTORIAL_SHOTS ?? '';
+
+export async function tutorialShot(page: Page, step: string): Promise<void> {
+  if (!TUTORIAL_SHOTS) return;
+  mkdirSync(TUTORIAL_SHOTS, { recursive: true });
+  // `animations: 'disabled'` parks CSS and Web animations at their end state, which is what a
+  // settled surface looks like - the same choice scripts/docs-shots.mjs makes for the same reason.
+  await page.screenshot({ path: `${TUTORIAL_SHOTS}/${step}.png`, animations: 'disabled' });
+}
+
 /** The wizard's own Next. Scoped to the modal because the live walk runs with ADVANCED MODE on,
  *  which puts the editor's `» Next` verb on the page behind it — an unscoped role match then
  *  resolves to two buttons and the walk dies on the first step. */
@@ -79,11 +110,15 @@ export async function dropSvg(page: Page, fixture: string): Promise<void> {
     .catch(() => false);
   if (!autoOpened) await startNewProject(page);
   await expect(modal).toBeVisible();
+  await tutorialShot(page, 'step-1-import-door');
   await page.locator('[data-entry="import-graphic"]').click();
+  await tutorialShot(page, 'step-2-drop-zone');
   await page.locator('.wz-drop input[type="file"]').setInputFiles(fixture);
   await expect(page.getByTestId('import-svg-card')).toBeVisible();
+  await tutorialShot(page, 'step-3-what-it-found');
   await wizardNext(page).click();
   await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+  await tutorialShot(page, 'step-4-fields');
 }
 
 /**
@@ -101,15 +136,19 @@ export async function intoProduction(page: Page, graphic: string, production: st
   // the second on a step that has not re-rendered.
   await wizardNext(page).click(); // Animation
   await expect(page.getByTestId('wz-stepcount')).toContainText('4');
+  await tutorialShot(page, 'step-5-animation');
   await wizardNext(page).click(); // Finish
   await expect(page.getByTestId('wz-stepcount')).toContainText('5');
   await page.getByTestId('wz-finish-name').fill(graphic);
   await page.getByTestId('wz-finish-production-pick').locator('select').selectOption('new');
   await page.getByTestId('wz-finish-production-name').fill(production);
+  // Both boxes FILLED, because the frame's whole job is to show that they are two boxes.
+  await tutorialShot(page, 'step-6-finish');
   await addToProductionFromFinish(page);
   // 20 s: landing on the page builds the graphic's document, and the cold Prettier format is the
   // same cost import-graphic.spec.ts documents.
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await tutorialShot(page, 'step-7-production');
 }
 
 /**

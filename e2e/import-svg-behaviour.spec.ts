@@ -11,6 +11,7 @@ import {
   dropSvg,
   intoProduction,
   rowLabelled,
+  tutorialShot,
   QUIZ_SVG,
   SCORE_SVG,
   SCOREBUG_SVG,
@@ -76,6 +77,14 @@ async function openImportDoor(page: Page, fixture: string) {
 }
 
 
+// THIS WALK IS ALSO THE TUTORIAL PACK'S CAMERA (docs/tutorials/first-graphic/).
+//
+// It is the only test anywhere that takes a SHIPPED sample down the whole road a first-time user
+// takes - the Import door, the five wizard steps, a production, and the operator's four verbs - so
+// the pack's screenshots are captured here rather than by a script of their own. `tutorialShot` is
+// a no-op unless NOACG_TUTORIAL_SHOTS names a directory, and the pack's README carries the one
+// command that fills it. Renaming a step, or moving a beat, means re-shooting the pack: the
+// INSTRUCTIONS file names each frame by the step it belongs to.
 test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and survives a reload', async ({ page }) => {
   await openImportDoor(page, SCOREBUG_SVG);
 
@@ -94,6 +103,7 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
 
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
+  await tutorialShot(page, 'step-8-on-air');
 
   // Two up, one down, from the LIVE controls.
   const homePlus = live.getByTestId('live-number-f1-up');
@@ -105,6 +115,7 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
   const home = page.getByTestId('cue-field-f1');
   const away = page.getByTestId('cue-field-f2');
   await shot(page, '2-scoreboard-bumped');
+  await tutorialShot(page, 'step-9-score-bumped');
   await expect(home).toHaveValue('4'); // drawn as 2
   await expect(away).toHaveValue('0'); // drawn as 1
 
@@ -115,6 +126,29 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
   const log = page.getByTestId('action-log-row');
   await expect(log.filter({ hasText: 'Updated 1 field' })).toHaveCount(3);
   await expect(log.filter({ hasText: 'Played in' })).toHaveCount(1);
+
+  // THE OTHER HALF OF THE OPERATOR'S ROAD, and the half a first-timer gets wrong. The ± stepper
+  // above pushes on its own press; a TYPED value does not - it is staged until Update, and the
+  // panel says so. `/docs#first-air` is written on exactly that difference, and this is the walk
+  // that keeps the product's behaviour and the page's promise together on an IMPORTED board.
+  // playout-drills.spec.ts holds the same contract for a catalog graphic; what is new here is
+  // that the value reaching air is a text node inside somebody else's artwork.
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  const unsent = page.getByTestId('cue-unsent');
+  await page.getByTestId('cue-field-f0').fill('Ilves');
+  await expect(unsent).toContainText('not on air yet');
+  await expect(program.locator('#f0')).not.toHaveText('Ilves');
+  await tutorialShot(page, 'step-10-typed-not-on-air');
+
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('#f0')).toHaveText('Ilves');
+  await expect(unsent).toContainText('changes push live on');
+  await tutorialShot(page, 'step-11-updated');
+
+  // Out plays the graphic off, and the tally returns to honest silence.
+  await page.getByTestId('verb-out').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await tutorialShot(page, 'step-12-off-air');
 
   // And the figures are the production's, not the session's. A bump edits the cue DRAFT, which
   // flushes into the Show record on a 300 ms idle (ProductionPage `editDraft`) — so the wait is

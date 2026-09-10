@@ -104,6 +104,13 @@ dev-bench.log
 # refused the whole build. An output the instructions name by filename has to be ignored by name.
 build.log
 
+# Tutorial pack frames: one PNG per step of a road, captured by the e2e walk that already drives
+# that road (NOACG_TUTORIAL_SHOTS, e2e/_svg-import.ts). The pack's words are tracked and its
+# pictures are not, on purpose. A committed screenshot cannot fail a build, so it goes stale
+# against the interface it teaches and nobody notices - which is the one failure a tutorial
+# cannot survive. Each pack's README carries the one command that fills its frames/ folder.
+docs/tutorials/*/frames/
+
 # Catalog sweep taste screenshots (scripts/l3-sweep.mjs <shots-dir> <category>; multi-MB
 # PNGs, regenerated on demand - review them on disk, never commit them)
 l3-shots/
