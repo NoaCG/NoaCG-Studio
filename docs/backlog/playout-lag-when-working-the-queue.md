@@ -22,9 +22,15 @@ note: "measured end to end 2026-09-10 on branch claude/bg-playout-lag, which lan
   e2e/configured/playout-both-roads.spec.ts as the cover (mutation-tested red before it was
   believed). Re-measured with the same probe: a second surface waits 51 ms for a Take and 52 ms for
   an Out with no slow mode at all, against 131/138 median and a quarter of presses at 404-637 ms on
-  the durable road. The sending page no longer waits for the wire at all. What is left is the
-  AUTHORISATION trade the fast road makes and the cross-device ordering limit, both stated in the
-  section below."
+  the durable road. The sending page no longer waits for the wire at all. The AUTHORISATION trade
+  that road made was CLOSED the same day on branch claude/bn-private-command-topic: the fast road
+  moved to a private topic only the database writes to (migrations 0056 and 0057), and
+  e2e/configured/output-url-cannot-push.spec.ts holds it there - proved red first, with a holder of
+  the read-only output URL playing a graphic on air. It cost about 35 ms, so a second surface now
+  waits a median of 87 ms read signed out, worst 215, against the durable road's 131-136 with the
+  odd press at 645. What is LEFT of this ask is the cross-device ordering limit stated in the
+  section below, and the owner walking the result himself
+  (docs/acceptance/owner-queue/2026-09-10-bn-output-url-cannot-operate-the-show.md)."
 needs-owner: none
 asked: "I noticed some lag when I was playing out the quiz graphics, moving around the queue, and
   playing and stopping graphics. It's very important that our layout system is lag-free and
