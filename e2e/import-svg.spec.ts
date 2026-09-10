@@ -883,10 +883,15 @@ test('svg import: the Google door is offered only for a family Google actually h
   await expect(page.getByTestId('map-svg-font-google-Lato')).toBeVisible();
 });
 
-test('svg import: the last screen before Create names a typeface that will not travel', async ({ page }) => {
+test('svg import: the Finish step names a typeface that will not travel', async ({ page }) => {
   // The one way a pixel-exact import stops being pixel-exact is a family that ships with
   // nothing. It is never a blocker - the designer may know the playout machine has it - but it
   // was stated only on the mapping step, which "Next" walks straight past.
+  //
+  // The SVG road is Start, Design, Fields, Animation, Finish, and this asserts against
+  // `.wz-finish-summary` - the Finish step, named as such. The title said "the last screen
+  // before Create" until 2026-09-09, which put the summary two screens from where it is and
+  // named a button that is not on that step at all.
   await dropSvgMarkup(
     page,
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
