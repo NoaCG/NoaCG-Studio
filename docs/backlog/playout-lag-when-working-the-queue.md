@@ -9,10 +9,14 @@ note: "measured end to end 2026-09-10 on branch claude/bg-playout-lag, which lan
   the measurement found nothing in the dashboard to fix. On the BUILT app Take paints
   in 30 ms, Out in 30 ms, a Take straight after moving in the rundown in 30 ms, and nothing freezes
   the page for longer than one frame. On the DEV SERVER, at his own memory conditions, the same
-  gestures paint in 85-91 ms and drop three to four frames every time. The ask still stands because
-  the PUBLISHED path - where a verb is a Supabase round trip before the operator's own monitor
-  moves - is untested and needs a configured backend."
-needs-owner: account
+  gestures paint in 85-91 ms and drop three to four frames every time. The PUBLISHED path was then
+  measured on 2026-09-10 on branch claude/bj-published-path-lag, which landed
+  scripts/playout-wire-probe.mjs: a published Take costs about 160 ms from press to painted frame
+  against 30 ms unpublished, and the whole difference is the round trip plus the Realtime fan-out,
+  so it scales with the operator's network. It does NOT grow with the show's log, which was tested
+  to 50,000 rows and refused. The ask stays open on ONE thing: the optimistic-apply fix, designed
+  in the section below and deliberately not shipped in the round that measured it."
+needs-owner: none
 asked: "I noticed some lag when I was playing out the quiz graphics, moving around the queue, and
   playing and stopping graphics. It's very important that our layout system is lag-free and
   reliable. This is existential for that playout software: that it works well... The lag happened,
@@ -111,24 +115,100 @@ path. On a published production `runVerb` (ProductionPage.tsx) takes a different
 because the log follower brings it back and applying twice would double every write. So the
 operator's own PROGRAM monitor does not move until a full server round trip plus a Realtime fan-out
 has completed. On a venue's wifi that is exactly "it didn't play out immediately", and no amount of
-work on the local path can touch it. **Nobody has measured it**, because this checkout has no
-backend configured (`.env` absent, `.env.bench` blank) - it needs a real Supabase project and a
-published production. That measurement is the next piece of work here, and it should be taken with
-the same instrument against `playwright.live.config.ts`'s configured mode.
+work on the local path can touch it. **Measured on 2026-09-10** on branch `claude/bj-published-path-lag`, with the same instrument
+extended to stamp the wire; the numbers and what they mean are the section below.
 
-If the round trip IS the cost, the shape of the fix is already visible and is not free: apply the
-command locally at once and make the follower's echo idempotent. `PayloadStage`'s `data-plays`
-counter exists precisely because a duplicate `play` leaves no trace on screen, so "just apply
-locally too" is the change that has already been got wrong once.
+The round it was NOT measured in recorded `needs-owner: account`, on the reasoning that a
+configured backend is an account and therefore the owner's. That was wrong, and it is the mistake
+`docs/acceptance/OWNER_QUEUE.md` names: the account already exists, its credentials are in the
+main checkout's `.env`, and a linked worktree reaching them is a `cp` (for the dev server vite
+serves) plus `read-dotenv.mjs`'s `ambientEnv`, which already falls back to the main checkout for
+exactly this. A missing file in a worktree is a technical problem, and a technical problem is
+never his.
+
+## What the wire costs, measured
+
+`scripts/playout-wire-probe.mjs`, 2026-09-10, from this laptop against the real backend, eight
+takes, 4.3 GB free. It signs in as the E2E account, makes one throwaway production, and presses the
+same three-command batch `takeCueItems` sends, through the same RPC and the same RLS:
+
+| from the press | median | range |
+|---|---|---|
+| `control_send_many` answered | **98 ms** | 80-143 |
+| the row back over Realtime | **131 ms** | 127-455 (the first is cold) |
+| the Realtime channel joining, once, at page open | 254 ms | |
+
+Add the app's own 30 ms from the table above and a published Take is **about 160 ms from press to
+painted frame**, against 30 ms unpublished. The bare HTTP round trip to the project from here is 36
+ms median (12 requests, warm connection), so roughly 60 ms of the RPC is server-side and the rest is
+the network - which means **the number scales with the operator's network, not with anything in
+this repo**. At a venue RTT of 150 ms the same take is 350-450 ms to picture, which is the report.
+
+**Two candidate causes were tested and refused.** The rate-limit check inside `control_send_many`
+counts the production's rows in the last five seconds, and `control_events` is indexed on
+`(show_id, id)` with nothing on `created_at` - so the obvious guess was that a take gets slower as a
+show's log grows, which would have matched "it lagged while I was working". It does not: measured at
+0, 2,000, 10,000 and 50,000 rows behind the same production, the RPC stays at 100-140 ms with no
+trend. And it is not the graphics or the dashboard, which are the 30 ms at the end.
+
+## If this is to be fixed, the fix is optimistic apply - and here is the part that is not obvious
+
+Apply the command locally the moment the operator presses, send in parallel, and make the
+follower's echo idempotent so the returning row does not play the entrance a second time.
+`PayloadStage`'s `data-plays` counter exists precisely because a duplicate `play` leaves NO trace on
+screen - it re-runs an animation that settles on the picture that was already there - so this is the
+change that has already been got wrong once (e2e/configured/hosted-control-recovery.spec.ts).
+
+**The echo cannot be identified by the id the server minted.** The obvious design is to have
+`control_send_many` return its inserted ids and have the follower skip them, but the measurement
+above kills it: the Realtime row arrives 131 ms after the press while the RPC answers at 98 ms, and
+those two orders are not guaranteed - a fan-out that beats its own RPC response would reach a
+follower whose skip-set is still empty, and play twice. The skip-set has to be populated BEFORE the
+send, which means it cannot contain server-minted ids.
+
+So the reconciliation has to match on CONTENT: a pending queue of `{graphic, msg}` filled before the
+send, and a follower that consumes the head of it instead of applying when a row matches. That
+brings its own decisions, and they need writing down before code:
+
+- **A send that fails.** `play` cannot be un-played. The honest ending is to leave the local apply
+  standing and say so on the surface, because air and the operator's monitor now disagree - which is
+  what the unsent-dot on `verb-update` already does for a different case.
+- **Two operators, one cue.** Identical commands from two devices are indistinguishable by content.
+  Consuming one echo per pending entry is the conservative choice; the alternative double-plays.
+- **`liveCue` and the rundown's ON AIR marker** move on the `cue` status row, which comes back the
+  same way. Applying the picture optimistically and leaving the marker on the round trip would make
+  the two disagree for 130 ms, which is its own bug.
+- **The output page and other operators still wait the full round trip**, and always will. This
+  fixes the OPERATOR'S OWN monitor only, which is the thing they are looking at when they press.
+
+None of that is hard, but all of it is a decision, and the row that measured this deliberately did
+not also ship it. Nothing about the 2026-09-12 rehearsal waits on it: unpublished is instant, and
+published is 160 ms on a decent network.
 
 ## How to re-run it
 
+The wire on its own - fifteen seconds, no browser, no dev server, and the one to run AT a venue:
+
+```
+node scripts/playout-wire-probe.mjs [--takes N]
+```
+
+The whole dashboard, which needs a job slot and about ten minutes:
+
 ```
 npm run dev:worktree                                     # the dev server, for the seed only
-node scripts/playout-lag-bench.mjs playout-lag-out --seed
+node scripts/playout-lag-bench.mjs playout-lag-out --seed [--published]
 npm run build && npm run dev:worktree -- --preview       # the BUILT app, same port
 node scripts/playout-lag-bench.mjs playout-lag-out --measure --headless
+node scripts/playout-lag-bench.mjs playout-lag-out --cleanup     # only after a run that died
 ```
+
+`--published` signs the fixture in with `E2E_EMAIL` / `E2E_PASSWORD` and publishes it through the
+page's own button, so the measure phase really is on the wire; that phase then unpublishes it and
+presses the same two verbs again as a local control on the same machine and minute. A LINKED
+WORKTREE NEEDS ITS OWN `.env` for this, copied from the main checkout - vite reads the file from
+the checkout root, so without it the dev server serves an app with no backend and the fixture
+publishes nothing. The scripts themselves reach across on their own (`read-dotenv.mjs`).
 
 The two phases exist because the fixture is built through the app's own modules, which a production
 bundle does not expose; the seed saves the browser profile (localStorage and IndexedDB both) and
