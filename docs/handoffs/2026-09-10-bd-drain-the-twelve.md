@@ -108,6 +108,41 @@ Following the precedent AD set, so the judgement can be reversed rather than gue
   independently of that - the file's own table listed three. Timestamp any count taken off
   `~/.noacg/delegation-outcomes.jsonl`; AC recorded the same hazard the night before.
 
+## The merge-order hold, overruled deliberately
+
+`node scripts/merge-order.mjs --branch claude/bd-drain-the-twelve` returned **`hold`**: this branch
+"renames or deletes 4 path(s) that `claude/ay-per-job-cost` also edits", naming three of the twelve
+handoffs, and advised landing `claude/ba-ladder-frame-detach` first. I queued anyway. A merge
+question is never the owner's, so here is the reasoning where he can revert it.
+
+- **There is no measured conflict.** The same command's `--json` gives this branch
+  `conflictsWith: []` and `imposed: 0`. `git merge-tree --write-tree origin/main` against this
+  branch produced a tree and no conflicted paths.
+- **The overlap is in another session's SCRATCH, not its work.** `merge-order.mjs:540` builds each
+  branch's file set from `[...branch.files, ...branch.uncommitted]`. The committed diff of
+  `claude/ay-per-job-cost` against `origin/main` is six files - `docs/JOB_RUNNER_PLAN.md`,
+  `scripts/jobs-store.mjs`, `scripts/jobs-store.test.mjs`, `scripts/jobs.mjs`, its own owner-queue
+  item and its own handoff - and **not one of the three it is said to collide on**. The overlap is
+  entirely inside that worktree's 33 uncommitted files.
+- **The advice is unactionable by construction.** Both branches involved are in the tool's own
+  `notReady` list: `claude/ay-per-job-cost` for 33 uncommitted files and
+  `claude/ba-ladder-frame-detach` likewise. Holding for either is waiting on something that cannot
+  wake this session, which is the failure the row contract names by name.
+- **The wave plan already allocated this.** Row BD's `MINTS` line is `docs/handoffs/ (the twelve
+  deletions)`, which is the up-front allocation `.agent-workflows/orchestrator/collisions.md` asks
+  for. Row BC's own prompt scopes it to four files, none of them a handoff, and ends "Nothing else
+  on this branch."
+- **And the queue's own rule covers the residue**: whichever lands second integrates `main`. If that
+  worktree really is holding those files dirty, it meets the deletions when it takes `main` in,
+  which is the normal rhythm rather than a failure.
+
+**The reusable half**: `merge-order` counting uncommitted files as a branch's declared work makes a
+live session look like it owns every file it happens to have touched. That is right for a shared
+edit and wrong for a rename or delete, where it manufactures a hold against work nobody declared.
+Not filed as a defect, because the tool is deliberately advisory and erring towards a hold is the
+safe direction - but a reader who takes its verdict as binding will wait for nothing, and this is
+the second such hold in two days (`.agent-workflows/queue-merge.md` carries the 2026-09-09 one).
+
 ## Anything that needs the owner
 
 **Nothing from this row.** Two items that need him are unchanged and were already routed before I
