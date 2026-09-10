@@ -15,20 +15,29 @@ const DRIVER = path.join(ROOT, 'scripts', 'contracts-merge-driver.mjs');
 
 // Both streams: the driver reports a target it cannot produce on stderr, and that report is the
 // whole behaviour under test - a merge that carries on quietly is the failure it exists to avoid.
-const run = (args, cwd = ROOT) => {
-  const result = spawnSync(process.execPath, [DRIVER, ...args], { cwd, encoding: 'utf8', windowsHide: true });
+const run = (args, cwd = ROOT, env = process.env) => {
+  const result = spawnSync(process.execPath, [DRIVER, ...args], { cwd, env, encoding: 'utf8', windowsHide: true });
   return { status: result.status, out: `${result.stdout ?? ''}${result.stderr ?? ''}` };
 };
 
 test('installing registers a command with the four placeholders git passes, and is idempotent', () => {
-  // A fresh clone has no merge driver - git config is not committed - so this installs rather than
-  // assuming. `npm run contracts:compile` does the same thing for a person.
-  assert.equal(install(), true);
-  const configured = execFileSync('git', ['config', '--get', `merge.${DRIVER_NAME}.driver`], { cwd: ROOT, encoding: 'utf8' }).trim();
-  assert.match(configured, /contracts-merge-driver\.mjs" %O %A %B %P$/);
-  assert.equal(isInstalled(), true);
-  assert.equal(install(), true, 'registering twice is a no-op, so every compile can do it');
-  assert.equal(run(['--install']).status, 0);
+  // Use a disposable repository. The checkout running the suite may deliberately expose its Git
+  // metadata read-only, and a test of the installer must not mutate the developer's real config.
+  const dir = mkdtempSync(path.join(tmpdir(), 'merge-driver-install-'));
+  try {
+    execFileSync('git', ['init'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(install(dir), true);
+    const configured = execFileSync('git', ['config', '--get', `merge.${DRIVER_NAME}.driver`], {
+      cwd: dir,
+      encoding: 'utf8',
+    }).trim();
+    assert.match(configured, /contracts-merge-driver\.mjs" %O %A %B %P$/);
+    assert.equal(isInstalled(dir), true);
+    assert.equal(install(dir), true, 'registering twice is a no-op, so every compile can do it');
+    assert.equal(run(['--install'], ROOT, { ...process.env, GIT_DIR: path.join(dir, '.git') }).status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('called with nothing useful it refuses rather than writing a file it guessed at', () => {
