@@ -45,7 +45,7 @@ export-time reflow, stretching, or cropping.
   the file carries the OUTPUT capability alone - a template that could air a cue would have to
   carry the control slug onto every playout machine. The emitted script is **ES5 with a
   color-scheme meta**, for the two failure modes docs/CLOUD_PLAYOUT.md §3 records: CasparCG 2.3.x's
-  ~Chromium 65 CEF rejects the whole file on a `?.`, and Chromium paints a framed page opaque when
+  Chromium 71 CEF rejects the whole file on a `?.`, and Chromium paints a framed page opaque when
   the schemes disagree. `update()` re-points the frame at another production and only reloads on a
   REAL change - a repeat would throw the connection away and rebuild what is on air. Pinned by the
   two embed cases in e2e/productions.spec.ts, which run the generated file for real.

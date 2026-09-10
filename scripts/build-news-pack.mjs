@@ -56,7 +56,7 @@ for (const g of PACK.graphics) {
   for (const fn of ['function play()', 'function stop()', 'function update(data)']) {
     if (!g.js.includes(fn)) failures.push(`${where}: missing ${fn}`);
   }
-  // The CasparCG 2.3.x CEF (~Chromium 65) rule: template JS stays ES5 — no arrow
+  // The CasparCG 2.3.x CEF (Chromium 71) rule: template JS stays ES5 — no arrow
   // functions, template literals, optional chaining or nullish coalescing
   // (docs/CLOUD_PLAYOUT.md §3).
   for (const [token, label] of [

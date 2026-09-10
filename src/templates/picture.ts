@@ -14,7 +14,7 @@
 // §2 — many cues over one pool graphic), so taking picture 3 replaces picture 1 on the same
 // layer rather than stacking a second still on top of it.
 //
-// The emitted runtime must parse on CasparCG 2.3.x's CEF (~Chromium 65): no `?.`, no `??`, no
+// The emitted runtime must parse on CasparCG 2.3.x's CEF (Chromium 71): no `?.`, no `??`, no
 // arrow functions, no template literals in the template's own JS. Vite never transpiles this
 // string — it is emitted text (docs/CLOUD_PLAYOUT.md §3).
 

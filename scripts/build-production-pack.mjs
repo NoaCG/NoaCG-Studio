@@ -53,7 +53,7 @@ const graphics = manifest.graphics.map((entry) => {
   for (const fn of ['window.play', 'window.stop', 'window.update']) {
     if (!js.includes(`${fn} = function`)) fail(`${where}: missing ${fn} = function`);
   }
-  // The CasparCG 2.3.x CEF (~Chromium 65) rule: template JS stays ES5. Comments are
+  // The CasparCG 2.3.x CEF (Chromium 71) rule: template JS stays ES5. Comments are
   // stripped first - the rule is about code, and several files NAME the rule in a comment.
   const stripped = js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
   for (const [token, label] of [
