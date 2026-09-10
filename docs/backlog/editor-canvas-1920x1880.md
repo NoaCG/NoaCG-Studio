@@ -78,12 +78,19 @@ that the document is broken. The graphic still opens, renders, saves and exports
   working template and is rendered by both surfaces that already print the format - the topbar meta
   (`AppShell.tsx`) and the canvas chip (`PreviewFrame.tsx`). Deriving it covers boot restore,
   opening from the library, an import, a cloud pull and a hand edit of the code at once, instead of
-  instrumenting the ten-odd load doors and missing the eleventh. The header's format line is
-  normally hidden below 1400px as the least essential thing in the bar; a warning is not
-  decoration, so `app-shell.css` keeps it and paints it amber.
+  instrumenting the ten-odd load doors and missing the eleventh.
 - **The save half is a word, not a refusal.** `store/saveActions.ts` validates in BOTH save doors
   (`saveCurrentGraphic` and `saveGraphicAs`) and the status beside the Save button reads
-  `Saved · unsupported format`, with the validator's sentence in its title.
+  `⚠ Saved · unsupported format`, with the validator's sentence in its title. It gets its own
+  class rather than reusing the dirty one, because `save-status-dirty` wears the ● that means
+  "your work is not written" and the record here IS written.
+- **The topbar is width-banded, and the first attempt got that wrong.** The header's format line
+  is hidden below 1400px because the bar's widths were measured element by element, and a
+  signed-in 1366 bar has about 70px of slack against a 140px line. The first version overrode that
+  hide on the grounds that a warning is not decoration - which would have put the account avatar
+  back off the right edge, in the one state `configured/signed-in-ux.spec.ts` never reaches. The
+  code review caught it. So the header line stays hidden below 1400 and the save word drops its
+  reason there too, keeping the ⚠; the canvas chip carries the full warning at every width.
 - **Three call sites, three mutation tests.** The two tests at the end of
   `e2e/project-format.spec.ts` were each run with one call removed on purpose: the load one fails
   as `Expected "⚠ 1920×1880 · 25 fps" / Received "1920×1880 · 25 fps"` - the reproduction's own
@@ -96,6 +103,21 @@ there. "Put this on 1920×1080 for me" is a real feature and it is not this chan
 shell's own format line (`VideoAppShell.tsx`) is unguarded the same way and was left alone: a video
 project is a different record with its own picker, and widening the row to cover it would have
 mixed two subjects in one branch.
+
+## The IMPORT road is a live candidate, measured 2026-09-10
+
+Tracing on 2026-09-10 said the wizard cannot produce 1880, which is true, and left the origin open.
+Measured in the page that evening, the import road CAN carry it. `detectAuthoredFormat`
+(`src/model/importTemplate.ts`) reads an unambiguous root canvas straight out of the source, and
+`importedResolution` a few lines above it deliberately KEEPS a size the catalogue does not offer
+rather than snapping it, labelling it `Imported (1920×1880)`. Fed
+`body { width: 1920px; height: 1880px }` it answers exactly `1920x1880`, `certain: false`.
+
+That is a road, not a verdict. In the same probe `importHtmlTemplate` alone still produced a
+1920x1080 template, because the source stated no frame rate and the uncertain path falls back to
+the selected project format; whether 1880 survives depends on what the reader accepts at the
+import step, which was not walked end to end. Worth walking if the origin ever matters again -
+and much less urgent now that such a graphic announces itself on screen.
 
 ## What it would take
 

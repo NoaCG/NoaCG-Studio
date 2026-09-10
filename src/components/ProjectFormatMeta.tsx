@@ -2,6 +2,10 @@
 // Deriving its catalogue warning from the working template here covers every load door - boot
 // restore, library open, import, cloud pull, and hand-edited code - without duplicating a check
 // at each route or allowing the header and canvas chip to drift.
+//
+// The header used to put a THIN space before `fps` and the canvas chip a normal one. Merging them
+// meant picking one, and the normal space won on purpose: both labels are now one string, so a
+// test can assert it once and a reader comparing the two surfaces sees the same thing twice.
 
 import { validateProjectFormat } from '../model/projectFormat';
 import type { SpxTemplate } from '../model/types';
@@ -23,15 +27,16 @@ const CONSEQUENCE =
 
 export default function ProjectFormatMeta({ template, className, testId }: Props) {
   const issues = validateProjectFormat(template.resolution, template.fps);
+  const unsupported = issues.length > 0;
 
   return (
     <span
       className={className}
       data-testid={testId}
-      data-format-unsupported={issues.length ? 'true' : undefined}
-      title={issues.length ? `${issues.join(' ')} ${CONSEQUENCE}` : 'Authored project format'}
+      data-format-unsupported={unsupported ? 'true' : undefined}
+      title={unsupported ? `${issues.join(' ')} ${CONSEQUENCE}` : 'Authored project format'}
     >
-      {issues.length ? '⚠ ' : ''}
+      {unsupported ? '⚠ ' : ''}
       {template.resolution.width}×{template.resolution.height} · {template.fps} fps
     </span>
   );

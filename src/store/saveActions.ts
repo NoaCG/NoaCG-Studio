@@ -69,7 +69,11 @@ export async function saveCurrentGraphic(opts?: {
     s.setSaved({ ...s.saved, status: 'failed' });
     return 'failed';
   }
-  // An unknown catalogue format is not a broken document, so the save lands and reports it.
+  // An unknown catalogue format is not a broken document, so the save LANDS and reports it.
+  // Recorded on the save rather than derived live because the save word answers "what did the
+  // write you just made carry", not "what is this document" - the format's own live surfaces are
+  // the topbar line and the canvas chip (components/ProjectFormatMeta.tsx). That is also why
+  // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
   s.setSaved({ graphicId: doc.id, dirty: false, status: 'idle', formatIssues });
   persistLink();

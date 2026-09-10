@@ -56,18 +56,37 @@ export default function SaveControls() {
     };
   }, [menuOpen]);
 
-  const status =
-    saved.status === 'saving' ? { text: 'Saving…', cls: 'save-status', title: undefined }
-    : saved.status === 'failed' ? { text: 'Save failed', cls: 'save-status save-status-bad', title: undefined }
-    : !saved.graphicId ? { text: 'Not saved', cls: 'save-status save-status-dirty', title: undefined }
-    : saved.dirty ? { text: 'Unsaved changes', cls: 'save-status save-status-dirty', title: undefined }
+  // `why` is the half a narrow bar drops (save-controls.css); `title` is the hover, which every
+  // width keeps. Both are optional, and typing the ladder is what lets the rungs that have
+  // neither say nothing rather than spelling out `title: undefined` five times.
+  const status: { text: string; cls: string; why?: string; title?: string } =
+    saved.status === 'saving' ? { text: 'Saving…', cls: 'save-status' }
+    : saved.status === 'failed' ? { text: 'Save failed', cls: 'save-status save-status-bad' }
+    : !saved.graphicId ? { text: 'Not saved', cls: 'save-status save-status-dirty' }
+    : saved.dirty ? { text: 'Unsaved changes', cls: 'save-status save-status-dirty' }
+    // A save that LANDED carrying a format the catalogue does not offer. It gets its own class
+    // rather than reusing the dirty one: `save-status-dirty` wears the ● that means "your work is
+    // not written", and the record here IS written.
     : saved.formatIssues?.length
-      ? { text: 'Saved · unsupported format', cls: 'save-status save-status-dirty', title: saved.formatIssues.join(' ') }
-    : { text: 'Saved', cls: 'save-status save-status-ok', title: undefined };
+      ? {
+          text: 'Saved',
+          why: ' · unsupported format',
+          cls: 'save-status save-status-warn',
+          title: saved.formatIssues.join(' '),
+        }
+    : { text: 'Saved', cls: 'save-status save-status-ok' };
 
   return (
     <span className="save-controls" ref={wrapRef}>
-      <span className={status.cls} data-testid="save-status" title={status.title}>{status.text}</span>
+      <span
+        className={status.cls}
+        data-testid="save-status"
+        data-format-unsupported={status.why ? 'true' : undefined}
+        title={status.title}
+      >
+        {status.text}
+        {status.why && <span className="save-status-why">{status.why}</span>}
+      </span>
       <button
         className={saved.dirty || !saved.graphicId ? 'primary save-btn' : 'save-btn'}
         onClick={save}

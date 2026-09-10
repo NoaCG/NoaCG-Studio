@@ -13,6 +13,19 @@
 .save-status-ok { color: #5fb26a; }
 .save-status-ok::before { content: '✓ '; }
 .save-status-bad { color: #e0763a; }
+/* A save that LANDED but carried a project format the catalogue does not offer
+   (model/projectFormat.ts). Amber like an armed reset, and deliberately NOT the dirty ●: the
+   record was written, so the glyph that means "your work is not saved" would be a lie here. */
+.save-status-warn { color: var(--amber); }
+.save-status-warn::before { content: '⚠ '; }
+/* Below the width where the topbar's own resolution line goes (app-shell.css, 1400), the reason
+   drops and the amber ⚠ carries it alone - about 15px over the plain word instead of 150. The
+   bar's width ladder was measured element by element and a 1366 laptop has around 70px of slack;
+   spending 150 of it on a warning is how the account avatar ends up off the right edge. The
+   sentence is still on the hover title, and the canvas chip spells it out at every width. */
+@media (max-width: 1400px) {
+  .save-status-why { display: none; }
+}
 /* A tight laptop topbar keeps the button; the status word is the first thing to go
    (the button's primary/quiet styling still signals dirty vs saved). */
 @media (max-width: 1120px) {

@@ -13,7 +13,12 @@ had no callers anywhere in the app. It does now, at both ends: opening and savin
 
 ## The route, under a minute
 
-1. `/app`, and make any graphic (a catalog one off the wizard is fine).
+**This one needs `npm run dev`**, not the deployed site. Nothing in the app's own UI can put an
+off-catalogue size on a graphic - that is half of why the original is still unidentified - so the
+only hand route is a console line, and the line loads a source file that only a dev server serves.
+Say the word if you would rather have a fixture to drop instead; it would take a session an hour.
+
+1. `npm run dev`, then `/app`, and make any graphic (a catalog one off the wizard is fine).
 2. Open the browser console on that page and paste:
 
    ```js
@@ -22,20 +27,26 @@ had no callers anywhere in the app. It does now, at both ends: opening and savin
    s.applyTemplate({ ...s.template, resolution: { width: 1920, height: 1880, label: '1920x1880' } });
    ```
 
-   That is the only way to reach the state by hand - the wizard cannot produce 1880, which is
-   half of why the original graphic is still unidentified.
 3. Press **Save** (name it anything).
 
 ## What to look at
 
-**In the topbar**, between the graphic's name and the save word: `⚠ 1920×1880 · 25 fps` in amber.
-Hover it - the tooltip says `Unsupported project resolution 1920×1880.` and then what that costs.
-**On the canvas**, the small format chip bottom-left of the toolbar carries the same warning with
-an amber border. **Beside the Save button**, after the save: `Saved · unsupported format` instead
-of the plain green `Saved`.
+**On the canvas**, the small format chip at the left of the toolbar under the stage:
+`⚠ 1920×1880 · 25 fps`, amber text in an amber border. Hover it - the tooltip says
+`Unsupported project resolution 1920×1880.` and then what that costs. This is the surface that
+carries the warning at every window width.
 
-Then make an ordinary 1920×1080 graphic and look again: no glyph, no amber, and the topbar's
-format line goes back to being hidden on a laptop-width window, which is what it has always done.
+**Beside the Save button**, after the save: an amber `⚠ Saved · unsupported format` instead of the
+green `✓ Saved`. Narrow the window under about 1400px and it shortens to `⚠ Saved` - the sentence
+stays on the hover. It keeps the ⚠ rather than the ● that means unsaved, because the record really
+did get written.
+
+**In the topbar**, if your window is wider than about 1400px: the format line beside the graphic's
+name turns amber and gains the same ⚠. Below that width it stays hidden, exactly as it always has -
+the bar's widths were measured element by element and putting a 140px line back into a 1366 laptop
+is how the account avatar ends up off the right edge.
+
+Then make an ordinary 1920×1080 graphic and look again: no glyph, no amber anywhere.
 
 ## What was decided, so you can overrule it
 

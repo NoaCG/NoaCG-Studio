@@ -434,13 +434,20 @@ test('native 4K capture is not downsampled and a deliberate 1px hairline stays o
 // Remove either call and one of these two tests goes red - that is what they are for.
 
 /** Put the unsupported resolution on the AUTOSAVE SLOT, so the boot restore is what carries it -
- *  the same road as the owner's screenshot, which showed a document already `Saved` and `Synced`. */
+ *  the same road as the owner's screenshot, which showed a document already `Saved` and `Synced`.
+ *
+ *  It applies the template to the STORE before writing the slot, and that ordering is the whole
+ *  reason this is a helper. The 800 ms autosave timer armed by whatever created the project is
+ *  still pending: writing the slot behind the store's back leaves that timer to fire afterwards
+ *  with the template the store actually holds, putting 1920x1080 back. The reload would then read
+ *  a supported format and the assertion would fail as if the feature were broken. */
 async function seedUnsupportedFormat(page: Page): Promise<void> {
   await page.evaluate(`(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { saveProject } = await import('/src/model/project.ts');
     const s = useTemplateStore.getState();
     const template = { ...s.template, resolution: { width: 1920, height: 1880, label: '1920×1880' } };
+    s.applyTemplate(template);
     saveProject(template, s.baseline, { graphicId: s.saved.graphicId, dirty: false }, s.aiSpec, s.aiThread, s.legibility);
   })()`);
   await settleDurableWrites(page);
@@ -458,18 +465,35 @@ test('a restored graphic whose format the catalogue does not offer is marked, no
     /^Unsupported project resolution 1920×1880\./,
   );
   await expect(page.getByTestId('topbar-project-format')).toHaveAttribute('data-format-unsupported', 'true');
-  // VISIBILITY, not text: the suite runs at 1280 (devices['Desktop Chrome']), under the 1400px
-  // breakpoint that hides `.topbar-meta` as the least essential thing in the bar. A warning is
-  // not decoration, so app-shell.css keeps it - and `toHaveText` would pass on a hidden span.
-  await expect(page.getByTestId('topbar-project-format')).toBeVisible();
 
-  // And the mark is CONDITIONAL. An ordinary catalogue format carries neither glyph nor flag,
-  // and the header meta goes back to being the thing the narrow-width rule hides.
+  // THE TOPBAR IS WIDTH-BANDED, and both sides of that are asserted because the temptation is to
+  // make a warning immune to the bar's width ladder - which is how the account avatar ends up off
+  // the right edge on the commonest laptop there is. The suite runs at 1280
+  // (devices['Desktop Chrome']), under the 1400px rule that drops the format line: it stays
+  // dropped, warning or not. Above the breakpoint the warning is worn in the header too.
+  // VISIBILITY, never text: `toHaveText` passes on a hidden span.
+  await expect(page.getByTestId('topbar-project-format')).toBeHidden();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.getByTestId('topbar-project-format')).toBeVisible();
+  await expect(page.getByTestId('topbar-project-format')).toHaveText('⚠ 1920×1880 · 25 fps');
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  // And the mark is CONDITIONAL. An ordinary catalogue format carries neither glyph nor flag.
   await createProject(page, 'Hairline');
   await expect(page.getByTestId('preview-project-format')).toHaveText('1920×1080 · 25 fps');
   await expect(page.getByTestId('preview-project-format')).not.toHaveAttribute('data-format-unsupported', 'true');
-  await expect(page.getByTestId('topbar-project-format')).toBeHidden();
+  await expect(page.getByTestId('topbar-project-format')).not.toHaveAttribute('data-format-unsupported', 'true');
 });
+
+/** The topbar's own overflow test, the same arithmetic as `configured/signed-in-ux.spec.ts`:
+ *  how far past the bar's right edge its widest child reaches. Positive is an overflow, which is
+ *  the account avatar hanging off the screen. */
+async function topbarOverflowPx(page: Page): Promise<number> {
+  return page.locator('.topbar').evaluate((bar) => {
+    const boxes = [...bar.children].map((c) => c.getBoundingClientRect()).filter((r) => r.width > 0);
+    return Math.round(Math.max(...boxes.map((r) => r.right)) - bar.getBoundingClientRect().right);
+  });
+}
 
 test('a save carrying an unsupported format lands and says so instead of "Saved"', async ({ page }) => {
   await createProject(page, 'Hairline');
@@ -481,6 +505,7 @@ test('a save carrying an unsupported format lands and says so instead of "Saved"
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toBeHidden();
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(page.getByTestId('save-status')).not.toHaveAttribute('data-format-unsupported', 'true');
 
   // Now make the OPEN document carry it. `applyTemplate` with no opts keeps the save link
   // (store/templateStore.ts only resets `saved` when resetSampleData is set), so the next press
@@ -493,11 +518,20 @@ test('a save carrying an unsupported format lands and says so instead of "Saved"
   await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
 
   await page.getByTestId('save-graphic').click();
-  await expect(page.getByTestId('save-status')).toHaveText('Saved · unsupported format');
+  // The save WORD is banded too, and unlike the header's line it survives the narrow bar: at 1280
+  // the amber ⚠ carries it alone (the reason costs ~150px, the glyph ~15), and the full sentence
+  // is on the title at every width. Assert the flag and the title here, then widen for the words.
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-format-unsupported', 'true');
   await expect(page.getByTestId('save-status')).toHaveAttribute(
     'title',
     /^Unsupported project resolution 1920×1880\./,
   );
+  // useInnerText, because the reason is dropped with `display: none` and the default textContent
+  // read would report it at every width - the assertion would pass on a bar that overflows.
+  await expect(page.getByTestId('save-status')).toHaveText('Saved', { useInnerText: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.getByTestId('save-status')).toHaveText('Saved · unsupported format', { useInnerText: true });
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   // A copy carries the same warning: saveGraphicAs is the OTHER save door and calls the
   // validator on its own. Without this the Save-As call would be unpinned - the first save
@@ -508,7 +542,18 @@ test('a save carrying an unsupported format lands and says so instead of "Saved"
   await page.getByTestId('save-name').fill('Format guard copy');
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toBeHidden();
-  await expect(page.getByTestId('save-status')).toHaveText('Saved · unsupported format');
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-format-unsupported', 'true');
+
+  // AND THE BAR STILL FITS in the warned state, which is the thing this whole banding is for.
+  // `configured/signed-in-ux.spec.ts` walks the same ladder with the account cluster in the bar
+  // and can only run with credentials; this is the signed-out half, in the one state that spec
+  // never reaches. 1366 is the commonest laptop and the width app-shell.css was measured at.
+  for (const width of [1440, 1366, 1280, 1100]) {
+    await page.setViewportSize({ width, height: width >= 1400 ? 900 : 768 });
+    expect(await topbarOverflowPx(page), `topbar overflow at ${width}px with an unsupported format`)
+      .toBeLessThanOrEqual(0);
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   // Both records LANDED - the saves were announced, never refused.
   await settleDurableWrites(page);
