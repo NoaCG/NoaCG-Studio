@@ -1,9 +1,9 @@
 ---
-v: 1
+v: 2
 source: owner
 kind: ask
 raised: 2026-09-10
-state: filed
+state: unstarted
 asked: "can we keep main always up to date inside the 20 euro"
 ---
 # `version.json` should answer "is production current?" by itself

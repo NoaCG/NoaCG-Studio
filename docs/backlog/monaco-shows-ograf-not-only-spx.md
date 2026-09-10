@@ -1,9 +1,9 @@
 ---
-v: 1
+v: 2
 source: owner
 kind: ask
 raised: 2026-09-10
-state: filed
+state: unstarted
 asked: "the Monaco editor should be able to show the OGraf code and not just the SPX code ... you should be able to change from SPX to OGraf, and the code would follow along"
 ---
 # The code editor should show OGraf, not only SPX

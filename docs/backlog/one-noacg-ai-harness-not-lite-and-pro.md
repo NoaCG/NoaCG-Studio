@@ -1,9 +1,9 @@
 ---
-v: 1
+v: 2
 source: owner
-kind: decision
+kind: ask
 raised: 2026-09-10
-state: filed
+state: unstarted
 asked: "we need to change the harness names and just have one AI option ... It's a bit confusing to have to choose what model I should use"
 ---
 # One NoaCG AI harness, no tiers, no model chooser

@@ -1,9 +1,9 @@
 ---
-v: 1
+v: 2
 source: owner
 kind: ask
 raised: 2026-09-10
-state: filed
+state: unstarted
 asked: "it could be shorter and more cut-to-the-chase type of text ... it could have the Finnish style: no jargon and hype, just what it is and what it does"
 ---
 # The public copy should read Finnish-plain, not like marketing
