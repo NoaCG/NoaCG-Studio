@@ -50,6 +50,7 @@ import {
   cancelVerdict,
   classifyRefusal,
   costOf,
+  costProblem,
   devServerPrecheck,
   ensureJobsDir,
   findRunner,
@@ -168,18 +169,34 @@ async function cmdAdd() {
   if (!command || command.startsWith('-')) {
     console.error('Usage: node scripts/jobs.mjs add "<command>" [--kind gate|merge|sweep] [--after <id>,<id>] [--branch <name>] [--cap <minutes>] [--cost <suite-equivalents>]');
     console.error('  --cost says what this job weighs when you know better than the classifier: 1 is a');
-    console.error('  Playwright suite or a catalog battery, 0.5 one browser page, 0.4 a build. It sets');
-    console.error('  both the budget share and the free-RAM the job demands before it may start.');
+    console.error('  Playwright suite or a catalog battery, 0.5 one browser page, 0.4 a build, and 0.15');
+    console.error('  - a landing - is the least anything may claim. It sets both the budget share and');
+    console.error('  the free RAM the job demands before it may start.');
     process.exit(1);
   }
   ensureJobsDir(dir);
-  // THE TYPO IS REPORTED WHERE IT WAS TYPED. `addJob` refuses a cost that is not a number in
-  // range, but by then `Number('half')` is a NaN with the word already lost, and "got NaN" tells
-  // whoever typed it nothing about what they typed.
+  // THE TYPO IS REPORTED WHERE IT WAS TYPED, and a flag that says nothing is an error rather than
+  // a silence. `main()` is awaited at module top level with nothing catching it, so a throw out of
+  // `addJob` would reach the person as a stack trace and a Node version banner; and `--cost`
+  // written last leaves `valueOf` with `undefined`, which would queue the job at the classifier's
+  // guess while the typist believed they had declared one. `requeue` refuses a stray flag out
+  // loud for the same reason. The RANGE is `costProblem`'s to judge, so it is asked rather than
+  // restated - one place decides what a legal cost is, and the store is that place.
   const declaredCost = valueOf('--cost');
-  if (declaredCost !== undefined && !Number.isFinite(Number(declaredCost))) {
-    console.error(`--cost takes a number of suite-equivalents, not "${declaredCost}".`);
-    process.exit(1);
+  if (flag('--cost')) {
+    // A LONE `-1` IS NOT A MISSING VALUE, it is a wrong one, and the range check below says so
+    // better than this can. Only the next FLAG, or nothing at all, means the number was left out.
+    if (declaredCost === undefined || declaredCost.startsWith('--')) {
+      console.error(`--cost needs a number of suite-equivalents after it${declaredCost ? `, not "${declaredCost}"` : ''}.`);
+      process.exit(1);
+    }
+    const wrong = Number.isFinite(Number(declaredCost))
+      ? costProblem(Number(declaredCost))
+      : `a job's cost is a number of suite-equivalents: got "${declaredCost}"`;
+    if (wrong) {
+      console.error(wrong);
+      process.exit(1);
+    }
   }
   const job = addJob(dir, {
     command,

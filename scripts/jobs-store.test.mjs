@@ -72,6 +72,17 @@ function job(id, over = {}) {
   };
 }
 
+/**
+ * A single browser walk - one dev server and one page, the middle weight.
+ *
+ * The command is j-0888's, verbatim, and that script lives on the branch it was queued from
+ * rather than in this repository - which is exactly the case being exercised. The classifier
+ * cannot recognise a command it has never seen, and what it does about that is the question.
+ */
+function walk(id, over = {}) {
+  return job(id, { command: `node scripts/ograf-external-walk.mjs --server C:/tmp/ograf-${id}`, ...over });
+}
+
 /** A landing job - the cheap, network-bound kind that the weighting exists to let through. */
 function merge(id, over = {}) {
   return job(id, { kind: 'merge', command: `node scripts/land-watch.mjs --pr 12 --branch b-${id}`, ...over });
@@ -208,7 +219,7 @@ test('a declared cost is written to the record and read back off it', () => {
   // The half this mechanism was missing until 2026-09-09: `costOf` read `job.cost` and nothing
   // ever wrote it, so a session that knew its job was small had no way to say so.
   const dir = tempQueue();
-  const declared = addJob(dir, { command: 'node scripts/ograf-external-walk.mjs', checkout: '/wt/a', cost: 0.25, now: 1 });
+  const declared = addJob(dir, { command: walk('j-0001').command, checkout: '/wt/a', cost: 0.25, now: 1 });
   assert.equal(declared.cost, 0.25);
   const [onDisk] = readJobs(dir);
   assert.equal(onDisk.cost, 0.25, 'the number survives the trip through the file');
@@ -216,7 +227,7 @@ test('a declared cost is written to the record and read back off it', () => {
 
   // A job that declared nothing carries no `cost` key at all, so it keeps reading the default
   // and picks up a later change to it instead of freezing today's guess onto the record.
-  const silent = addJob(dir, { command: 'node scripts/ograf-external-walk.mjs', checkout: '/wt/b', now: 2 });
+  const silent = addJob(dir, { command: walk('j-0002').command, checkout: '/wt/b', now: 2 });
   assert.ok(!('cost' in silent), 'nothing invented for a job that declared nothing');
   assert.equal(costOf(silent), COST.walk);
 
@@ -239,6 +250,10 @@ test('a nonsense declared cost is refused where it is written, not trusted by ev
   // Over a suite-equivalent is refused rather than accepted and silently unstartable: the day
   // budget is 1, so such a job would wait for ever with nothing saying why.
   assert.throws(bad(1.5), /suite-equivalents/);
+  // And under a landing's cost is refused too, because the same number is the RAM admission
+  // threshold: `--cost 0.01` would let a session waive that check on its own job.
+  assert.throws(bad(0.01), /at least 0\.15/);
+  assert.equal(addJob(dir, { command: 'npm run build', checkout: '/wt/a', cost: COST.merge, now: 1 }).cost, COST.merge);
   assert.equal(addJob(dir, { command: 'npm run build', checkout: '/wt/a', cost: 1, now: 1 }).cost, 1, 'a whole suite is allowed');
   rmSync(dir, { recursive: true, force: true });
 });
@@ -249,14 +264,37 @@ test('a single browser walk starts on the RAM a suite is rightly refused', () =>
   // unrecognised command was charged a whole suite and the floor scales with the cost. The fix
   // is per-job accounting, NOT a lower floor: at the same 3.2 GB a real suite must still wait.
   const short = { hour: NIGHT, freeMemMb: 3277 }; // 3.2 GB, the reading j-0888 was refused on
-  const walk = job('j-0001', { command: 'node scripts/ograf-external-walk.mjs --server C:/tmp/ograf' });
-  assert.deepEqual(schedule([walk], short).start.map((j) => j.id), ['j-0001']);
+  assert.deepEqual(schedule([walk('j-0001')], short).start.map((j) => j.id), ['j-0001']);
   assert.deepEqual(schedule([job('j-0001')], short).start, [], 'a suite is still refused on 3.2 GB');
   assert.match(schedule([job('j-0001')], short).waiting[0].reason, /3\.2 GB RAM free, needs 4\.0/);
 
   // And a session that declares a smaller cost gets a smaller floor with it.
-  const declared = job('j-0001', { command: 'node scripts/ograf-external-walk.mjs', cost: 0.25 });
+  const declared = walk('j-0001', { cost: 0.25 });
   assert.deepEqual(schedule([declared], { hour: NIGHT, freeMemMb: 1100 }).start.map((j) => j.id), ['j-0001']);
+});
+
+test('each job admitted in one pass spends the free memory the last one took', () => {
+  // Every candidate used to be tested against the SAME reading, so N jobs that each fit the free
+  // memory all started at once - four walks on 2.1 GB free, which is not four walks' worth of
+  // machine. The floor is only a backstop if the pass subtracts what it has already let through.
+  const four = [walk('j-0001'), walk('j-0002'), walk('j-0003'), walk('j-0004')];
+  const { start, waiting } = schedule(four, { hour: NIGHT, freeMemMb: 2150 }); // 2.1 GB
+  assert.deepEqual(start.map((j) => j.id), ['j-0001'], 'one walk fits 2.1 GB, not four');
+  assert.match(waiting[0].reason, /only 0\.1 GB RAM free, needs 2\.0/);
+
+  // With room for two, two go - the accounting is a subtraction, not a one-job cap.
+  assert.deepEqual(
+    schedule(four, { hour: NIGHT, freeMemMb: 4200 }).start.map((j) => j.id),
+    ['j-0001', 'j-0002'],
+  );
+});
+
+test('a job queued AS a sweep is charged a battery, whatever its command looks like', () => {
+  // `SWEEP_SCRIPTS` has missed a suite-sized script many times over (`command-match.mjs` reads as
+  // a log of them), so a session that knows must be able to say so. The kind is already on the
+  // record; before this it was ignored and an honestly-declared battery read as one browser page.
+  assert.equal(costOf({ command: 'node scripts/brand-new-battery.mjs', kind: 'sweep' }), COST.browser);
+  assert.equal(costOf({ command: 'node scripts/brand-new-battery.mjs', kind: 'gate' }), COST.walk);
 });
 
 test('the day still spends at most one suite-equivalent, whether it is spent whole or sliced', () => {
@@ -264,7 +302,6 @@ test('the day still spends at most one suite-equivalent, whether it is spent who
   // day where one suite could, and a third may not. The budget is a share of THIS MACHINE, so
   // the day's promise - one suite-equivalent of agent work while the owner is using the laptop -
   // is kept either way.
-  const walk = (id) => job(id, { command: `node scripts/ograf-external-walk.mjs --n ${id}` });
   const three = [walk('j-0001'), walk('j-0002'), walk('j-0003')];
   const { start, waiting } = schedule(three, { hour: DAY, freeMemMb: PLENTY });
   assert.deepEqual(start.map((j) => j.id), ['j-0001', 'j-0002']);

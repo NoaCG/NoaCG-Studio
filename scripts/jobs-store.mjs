@@ -186,6 +186,30 @@ export function stampGap(stamp, tip) {
   return null;
 }
 
+/**
+ * What is wrong with a declared cost, or null if nothing is. Also what the CLI prints.
+ *
+ * A DECLARED COST IS VALIDATED HERE OR NOWHERE. `costOf` trusts whatever number is on the record,
+ * and every consumer - the listing, the budget, the scaled RAM floor - trusts `costOf`, so a
+ * nonsense value written once is a job that either never starts or starves the others for as long
+ * as it lives. Both ends of the range are real:
+ *
+ *   - The CEILING is one suite-equivalent, the heaviest thing this box models. A job declaring
+ *     more could never start during the day (the budget is 1) and would wait for ever with
+ *     nothing saying why, which is the exact failure this field was added to end.
+ *   - The FLOOR is what a landing costs, because the same number is also the RAM admission
+ *     threshold. Left open, `--cost 0.01` would let a session waive that check on its own job -
+ *     41 MB free and away it goes. Nothing this queue runs is lighter than ten minutes of
+ *     `gh run watch`, so nothing may claim to be.
+ */
+export function costProblem(cost) {
+  if (cost === null || cost === undefined) return null;
+  if (typeof cost !== 'number' || !Number.isFinite(cost) || cost < COST.merge || cost > 1) {
+    return `a job's cost is in suite-equivalents, at least ${COST.merge} and at most 1: got ${JSON.stringify(cost)}`;
+  }
+  return null;
+}
+
 export function addJob(dir, {
   command, checkout, branch = null, kind = 'gate', after = [], capMinutes = POLICY.capMinutes,
   retryOf = null, retryCount = 0, orderHold = null, blockedSince = null,
@@ -193,17 +217,8 @@ export function addJob(dir, {
 }) {
   if (!KINDS.includes(kind)) throw new Error(`unknown job kind: ${kind}`);
   if (typeof command !== 'string' || command.trim() === '') throw new Error('a job needs a command');
-  // A DECLARED COST IS VALIDATED HERE OR NOWHERE. `costOf` trusts whatever number is on the
-  // record, and every consumer - the listing, the budget, the scaled RAM floor - trusts `costOf`,
-  // so a nonsense value written once is a job that either never starts or starves the others for
-  // as long as it lives. The ceiling is 1 because a suite-equivalent is the heaviest thing this
-  // box models: a job declaring more than that could never start during the day (budget 1) and
-  // would wait silently forever, which is the exact failure this field was added to end.
-  if (cost !== null && cost !== undefined) {
-    if (typeof cost !== 'number' || !Number.isFinite(cost) || cost <= 0 || cost > 1) {
-      throw new Error(`a job's cost is in suite-equivalents, greater than 0 and at most 1: got ${cost}`);
-    }
-  }
+  const badCost = costProblem(cost);
+  if (badCost) throw new Error(badCost);
   ensureJobsDir(dir);
 
   const taken = new Set(readdirSync(dir).filter((n) => n.endsWith('.json')).map((n) => n.slice(0, -5)));
@@ -235,7 +250,7 @@ export function addJob(dir, {
       // it was declared, so a job that said nothing keeps reading its cost off `costOf`'s default
       // and picks up any later change to that default rather than freezing yesterday's guess.
       // A retry or an adopted landing spreads the old record into `addJob`, so it inherits this.
-      ...(cost === null || cost === undefined ? {} : { cost }),
+      ...(typeof cost === 'number' ? { cost } : {}),
       // Set only when the job is born already parked behind another branch - an ordering block the
       // sweep adopted. It is `waiting` like any other job; the scheduler is what holds it.
       ...(orderHold ? { orderHold } : {}),
@@ -356,20 +371,33 @@ const CHEAP = [/\bnpm\s+run\s+build\b/, /\bnode\s+--test\b/, /\bnpm\s+run\s+lint
  * inherits it. Everything below is the default for a job that declared nothing.
  *
  * THE DEFAULT FOR AN UNRECOGNISED COMMAND IS ONE BROWSER, NOT A SUITE. Suite-sized work in this
- * repo is ENUMERATED - the Playwright suites `invokesE2e` matches, and the catalog batteries and
- * benches named in `SWEEP_SCRIPTS`, which the guard hook and the process detector keep honest
- * because they refuse and detect off the same list. A command neither list recognises therefore
- * is NOT one of those batteries; its realistic worst case is a dev server and a browser page,
- * which is what `COST.walk` is. Charging it a whole suite is what refused j-0888 all night.
+ * repo is enumerated - the Playwright suites `invokesE2e` matches, and the catalog batteries and
+ * benches named in `SWEEP_SCRIPTS` - so the common unknown is a script that opens one page, and
+ * its realistic worst case is a dev server and that page. Charging it a whole suite is what
+ * refused j-0888 all night.
  *
- * The old default was `COST.browser`, on the argument that an unknown command should be assumed
- * to be the worst thing on the machine. That argument survives here in weakened form: an unknown
- * command is still assumed to open a browser and is never free, so a night cannot fill up with
- * eight of them. It is only no longer assumed to be four browsers and a suite's worth of RAM.
+ * THAT LIST DRIFTS, AND THIS DEFAULT NO LONGER COVERS FOR IT. Read `command-match.mjs` from the
+ * top: the `*spike*` family, `catalog-sameness`, `palette-freedom`, `pro-taste-rejudge`, four
+ * `-sweep` scripts and `docs-shots` were all suite-sized and all missing from it until somebody
+ * noticed. Under the old default an unlisted battery was charged correctly by accident; now it is
+ * charged half. Two things carry that weight instead, and both are better than a default that was
+ * right for the wrong reason: a new browser script is named like its siblings or added to the
+ * list (the root AGENTS.md trap says so, and the guard hook and the process detector go wrong
+ * together with it), and a session that knows what it is running says so - `--kind sweep`, or
+ * `--cost`. Meanwhile the scaled floor is charged against a running figure in `schedule`, so a
+ * job priced too low overcommits the box by ITSELF rather than letting three more in behind it.
+ *
+ * The old default's argument - assume an unknown command is the worst thing on the machine -
+ * survives in weakened form: an unknown command is still assumed to open a browser and is never
+ * free, so a night cannot fill up with eight of them.
  */
 export function costOf(job) {
   if (typeof job.cost === 'number') return job.cost;
   if (job.kind === 'merge') return COST.merge;
+  // `sweep` on the record is a DECLARATION - the session queueing it said this is battery work -
+  // and a declaration beats a guess made from the command text, which is the whole point of the
+  // kind. Without this an unlisted battery queued honestly as a sweep still read as a walk.
+  if (job.kind === 'sweep') return COST.browser;
   const command = job.command ?? '';
   if (invokesE2e(command) || invokesSweep(command)) return COST.browser;
   return CHEAP.some((p) => p.test(command)) ? COST.other : COST.walk;
@@ -456,6 +484,8 @@ export function schedule(jobs, {
   /** Landings let through despite a dead dependency, with the reason to print. */
   const released = [];
   let used = running.reduce((sum, j) => sum + costOf(j), 0);
+  /** What is left of the free-memory reading after the jobs this pass has already admitted. */
+  let freeLeftMb = freeMemMb;
   const mergeLive = () => [...running, ...start].some((j) => j.kind === 'merge');
 
   for (const job of jobs.filter((j) => j.state === 'waiting')) {
@@ -508,10 +538,18 @@ export function schedule(jobs, {
     // starting on a box that is already short - not to stop a landing, which is a few hundred
     // megabytes spending ten minutes in `gh run watch`. Charging a 0.15 job the full 4 GB
     // stalled exactly the work the owner cares most about finishing overnight.
-    if (freeMemMb < policy.freeMemFloorMb * cost) {
+    //
+    // AND EVERY JOB ADMITTED IN THIS PASS SPENDS THE SAME READING. `freeMemMb` is one sample
+    // taken before the loop, so testing each candidate against it unchanged let N jobs that each
+    // fit the free memory all start at once - four of them on 2.1 GB free, measured 2026-09-09
+    // while pricing a walk at half a suite made that reachable. So the pass keeps its own running
+    // figure and charges each admission what its floor says it will take. It is an assumption,
+    // not a measurement; the next poll re-reads the real thing.
+    const needsMb = policy.freeMemFloorMb * cost;
+    if (freeLeftMb < needsMb) {
       waiting.push({
         job,
-        reason: `only ${(freeMemMb / 1024).toFixed(1)} GB RAM free, needs ${(policy.freeMemFloorMb * cost / 1024).toFixed(1)}`,
+        reason: `only ${(freeLeftMb / 1024).toFixed(1)} GB RAM free, needs ${(needsMb / 1024).toFixed(1)}`,
       });
       continue;
     }
@@ -531,6 +569,7 @@ export function schedule(jobs, {
     start.push(job);
     if (releasedBecause) released.push({ job, reason: releasedBecause });
     used += cost;
+    freeLeftMb -= needsMb;
   }
   return { start, waiting, dead, released, running, slots };
 }

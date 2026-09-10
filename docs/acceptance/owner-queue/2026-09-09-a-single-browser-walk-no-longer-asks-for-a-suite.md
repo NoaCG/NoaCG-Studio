@@ -17,19 +17,21 @@ untouched: a real suite is still refused on a short box, which on this laptop it
 
 ## The route, under a minute
 
-In any worktree, with the queue's own store (this uses a throwaway one so nothing real runs):
+A queued command REALLY RUNS as soon as a runner picks it up, so this route queues a harmless
+`node -e 0` twice and lets the declared cost do the talking. Point the queue at a throwaway store
+first, so nothing here can touch the real one:
 
 ```
-export NOACG_JOBS_DIR=/tmp/qdir
-node scripts/jobs.mjs add "node scripts/ograf-external-walk.mjs --server C:/tmp/x"
-node scripts/jobs.mjs add "npm run test:e2e:affected"
+export NOACG_JOBS_DIR=/tmp/qdir      # PowerShell: $env:NOACG_JOBS_DIR = "$env:TEMP\qdir"
+node scripts/jobs.mjs add "node -e 0"            # priced as one browser page: 0.5
+node scripts/jobs.mjs add "node -e 0" --cost 1   # priced as a full suite
 ```
 
-**What to look at.** On a laptop with about 3 GB free, the walk answers `starting now` and the
-suite answers `only 3.1 GB RAM free, needs 4.0`. Before this change both said the second thing.
-Then declare a cost yourself: `npm run queue -- "<command>" --cost 0.25` writes `"cost": 0.25`
-into the job's JSON file in that directory, the listing prints it in the `[...]` column, and the
-RAM the job demands scales with it. A cost outside `0 < cost <= 1` is refused at the point it is
-typed. Cancel what you queued (`node scripts/jobs.mjs cancel j-0001`) and delete the directory.
+**What to look at.** On a laptop with about 3 GB free, the first answers `starting now` and the
+second answers `only 3.1 GB RAM free, needs 4.0`. Before this change both said the second thing,
+because both were charged a suite. The declared 1 is in the job's JSON file in that directory as
+`"cost": 1`, and `node scripts/jobs.mjs` prints each running job's cost in the `[...]` column.
+Then try `--cost 0.05` and `--cost 2`: both are refused where they are typed, because that number
+is also how much free memory the job may demand. Delete the directory when you are done.
 
 Measured on this laptop at 3215 MB free, 2026-09-09. Branch `claude/ay-per-job-cost`.
