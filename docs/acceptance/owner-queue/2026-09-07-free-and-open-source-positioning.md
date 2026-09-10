@@ -39,8 +39,10 @@ route to use today.
 **This item closes when the card has been rewritten and he has read it.** The card copy can land
 well before the harness work behind it, and should, because the card is wrong today either way.
 
-## One thing still to confirm with him
+## Confirmed 2026-09-10, after the decision was written
 
-His provider list for bring-your-own-key named something that transcribed as "OpenDirect", which is
-not a provider we carry and not an obvious product name. It is most likely OpenRouter. Until he
-says, the four providers already in `AI_PROVIDERS` are unchanged and nothing was added on a guess.
+- The unclear provider name was **OpenRouter**. It becomes a fifth bring-your-own-key provider
+  beside anthropic, openai, google and huggingface.
+- The transport is the **Vercel AI Gateway**, the one already wired, unchanged and still never
+  named to a user.
+- **The harness gets no product name.** > "create with AI is good". The card's title is the name.

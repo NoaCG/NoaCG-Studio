@@ -52,10 +52,13 @@ whether "Pro" still sounded like money and answered by removing the distinction 
    afford, deliberately, for the next few years. A change that improves output while multiplying
    spend fails this decision even though it improves the product.
 6. **Bring-your-own-key stays and widens.** A user who wants to pay a provider directly may, and
-   should be able to reach the Claude models, the GPT models, Google Gemini, Hugging Face and an
-   aggregator. Four BYO providers exist today in `AI_PROVIDERS` (`src/ai/settings.ts`): anthropic,
-   openai, google, huggingface. **One name in his list is not yet resolved - see the open question.**
-7. **The hosted harness always runs on the Vercel AI Gateway**, and that stays invisible. This
+   should be able to reach the Anthropic models, the OpenAI models, Google Gemini, Hugging Face and
+   **OpenRouter**, confirmed by him on 2026-09-10. Four BYO providers exist today in `AI_PROVIDERS`
+   (`src/ai/settings.ts`): anthropic, openai, google, huggingface. OpenRouter is therefore a fifth
+   provider to add, and it is the one that makes the list open-ended rather than a fixed four, since
+   an aggregator carries whatever its catalogue carries.
+7. **The hosted harness always runs on the Vercel AI Gateway** - confirmed by him on 2026-09-10,
+   naming the gateway we already use - and that stays invisible. This
    agrees with the 2026-08-14 ruling recorded at the top of `src/ai/modelTypes.ts`: the gateway is
    the NoaCG-funded transport and *"is never offered to a user as a choice"*, because a door naming
    it describes our plumbing rather than the product.
@@ -65,9 +68,13 @@ whether "Pro" still sounded like money and answered by removing the distinction 
    `wizard/say-user-own-coding-agent-route`, which already puts the own-agent route first on the AI
    door.
 
-## On the name
+## The name: none. It is "Create with AI"
 
-He asked for a good name for the single harness. **The recommendation is that it does not get one.**
+**Settled 2026-09-10.** He asked for a good name, was given the argument below, and answered
+*"create with AI is good"*. So the single hosted path carries no product name: the card's own title
+is what it is called, and no tier or edition word appears anywhere near it.
+
+The argument, kept because it is the reason and a later session will be tempted to name the thing:
 A product name exists to distinguish a thing from its alternatives, and after this decision there
 are no alternatives: there is the hosted path, and there is your own key. "Create with AI" already
 names the feature. Adding "NoaCG <something>" re-creates in branding the exact confusion the
