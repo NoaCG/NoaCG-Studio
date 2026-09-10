@@ -447,11 +447,11 @@ test(`every catalog variant renders identically${SCOPE_NOTE}`, async ({ page }, 
     return;
   }
 
-  const recorded = JSON.parse(readFileSync(RENDER_BASELINE, 'utf8')) as {
+  const renderBaseline = JSON.parse(readFileSync(RENDER_BASELINE, 'utf8')) as {
     recorded?: string;
     variants: Record<string, Record<string, string>>;
   };
-  const baseline = recorded.variants;
+  const baseline = renderBaseline.variants;
   if (!ONLY_DESIGNS) {
     expect(Object.keys(actual).sort(), 'the set of catalog variants changed').toEqual(Object.keys(baseline).sort());
   }
@@ -486,13 +486,14 @@ test(`every catalog variant renders identically${SCOPE_NOTE}`, async ({ page }, 
   // THE TWO CAUSES, IN THE ORDER THEY ACTUALLY HAPPEN. The old message named only the second one
   // ("a token substitution cannot do this"), and both times this went red for real the cause was
   // the first: a commit changed the emitted markup, re-recorded the SOURCE baseline beside it,
-  // and left this file behind — for two days in 2026-09-06's credits speed field and one more in
-  // 2026-09-09's ticker one. Two backlog items were filed off that message, both reasoning from
-  // "the look moved" towards a defect that was not there. The message now hands over the date
-  // this baseline was taken and the one command that separates the two.
+  // and left this file behind. The credits speed field did it on 2026-09-06 and the ticker one on
+  // 2026-09-09, and the red stood until 2026-09-10 because this comparison runs on one machine
+  // and only when a person starts it. Two backlog items were filed off the old message, both
+  // reasoning from "the look moved" towards a defect that was not there. The message now hands
+  // over the date this baseline was taken and the one command that separates the two causes.
   expect(
     drifted,
-    `The rendered look moved against a baseline recorded on ${recorded.recorded ?? 'an unstated date'}. ` +
+    `The rendered look moved against a baseline recorded on ${renderBaseline.recorded ?? 'an unstated date'}. ` +
       'Per-element records are in this test’s output directory; read them before re-recording. ' +
       'FIRST ask whether the emitted MARKUP moved since that date and only the source baseline ' +
       'was re-recorded: `git log --since=<that date> -- e2e/catalog-baseline.json` names every ' +
