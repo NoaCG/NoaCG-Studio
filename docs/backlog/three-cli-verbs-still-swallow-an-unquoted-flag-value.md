@@ -7,11 +7,18 @@ state: unstarted
 found: "`noacg login --name My Laptop` stores the key as \"My\"; `noacg pack --name My Pack out.json` names the pack \"My\" and treats \"Pack\" as a package to bundle; `noacg caspar play` ignores a word it was not expecting."
 serves: NOW
 size: small
-touches: cli/src/commands/login.ts, cli/src/commands/pack.ts, cli/src/commands/caspar.ts, cli/src/output.ts
+touches: cli/src/commands/pack.ts, cli/src/output.ts
 needs-owner: none
 ---
 
-# `login`, `pack` and `caspar` still take an unquoted flag value and drop the rest of it
+# `pack` still takes an unquoted flag value and drops the rest of it
+
+**Two of the three are FIXED and this file's title outlived them.** `claude/ae-cli-0-3-1` closed
+`login` and `caspar` in 0.3.1, verified on `main` at `4f95444b`: `cli/src/commands/login.ts:127`
+calls `refuseStrayArgs(args, 0, '--name "My Laptop"')`, and `cli/src/commands/caspar.ts:488-491`
+routes every sub-command through `refuseStrayCasparArgs`. **`pack` is the only one left**, and it is
+the one the file below calls the worst of the three. The slug is kept because other files point at
+it. Read the `login` and `caspar` sections as history.
 
 **Filed:** 2026-09-09. **Source:** two of the eight findings a mis-scoped review left addressed to
 nobody, listed in `git show a2ab4097:docs/handoffs/2026-09-09-j-one-date-for-the-push.md` under
@@ -19,8 +26,11 @@ nobody, listed in `git show a2ab4097:docs/handoffs/2026-09-09-j-one-date-for-the
 branch's diff; they were re-derived against `cli/` here, and the re-derivation turned up a third
 verb the finding had not named.
 
-**Not taken on the night it was filed** because `claude/ae-cli-0-3-1` held `cli/` that evening.
-Whoever picks this up should check whether that branch's own work already moved any of the three.
+**Not taken on the night it was filed** because `claude/ae-cli-0-3-1` held `cli/` that evening. That
+branch fixed `login` and `caspar`; see the note under the title. Whoever takes `pack` should do it in
+the same pass as `cli-defects-a-review-found-after-its-branch-had-landed.md`, which carries four more
+findings in the same files, including the one that says `docs/AGENT_CLI.md` currently calls this
+grammar complete.
 
 The 2026-09-09 time-to-air walk found this class of defect on `scaffold` and it was fixed there:
 `refuseStrayArgs` in `cli/src/output.ts:112` refuses a word left outside a verb's flags, and
