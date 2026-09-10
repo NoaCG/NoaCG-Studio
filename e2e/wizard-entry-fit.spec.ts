@@ -358,7 +358,7 @@ test('the AI card carries no tier or paid-edition copy', async ({ page }) => {
   // e2e/configured/anonymous.spec.ts.
   const hint = page.locator('[data-entry="ai"] .hint');
   await expect(hint).toContainText('Describe the graphic you need');
-  await expect(hint).not.toContainText(/NoaCG Lite|Free with|included/);
+  await expect(hint).not.toContainText(/NoaCG Lite|free with|included|free account/i);
 });
 
 test('both AI doors are marked Beta', async ({ page }) => {

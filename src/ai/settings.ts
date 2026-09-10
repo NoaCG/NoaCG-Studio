@@ -148,17 +148,18 @@ export const AI_MODELS: AiModelOption[] = [
   },
 ];
 
-/** Persisted Create-with-AI execution ids.
+/** The Create-with-AI execution ids.
  *
- *  `lite` and `pro` are read-only history. They must stay in this union so old
- *  `spx-gfx-ai` values can be recognized and migrated on read, but new settings never write
- *  either id. `null` now means the hosted path and `custom` remains the user's own account. */
+ *  A STORED `tier` is only ever `null` (the hosted path) or `custom` (the user's own account);
+ *  `loadAiSettings` normalizes every historical value to one of those, so nothing reads `lite`
+ *  or `pro` out of storage any more.
+ *
+ *  They stay in the union because `lite` is still the LIVE in-memory route the AI step resolves
+ *  to and runs (`profile: 'lite'`), and `pro` is what its frozen branches compare against while
+ *  the hosted Pro door is closed - see docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md.
+ *  Neither is dead vocabulary, and neither is written to `spx-gfx-ai`. */
 export const AI_TIERS = ['lite', 'pro', 'custom'] as const;
 export type AiTier = (typeof AI_TIERS)[number];
-
-export function isAiTier(value: unknown): value is AiTier {
-  return typeof value === 'string' && (AI_TIERS as readonly string[]).includes(value);
-}
 
 /**
  * NOTE FOR ANYONE LOOKING FOR A PRO FLAG HERE: there isn't one, and there must not be.

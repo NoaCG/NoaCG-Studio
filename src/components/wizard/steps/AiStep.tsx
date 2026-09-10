@@ -43,7 +43,6 @@ import {
   type ProPackageMember,
 } from '../../../ai/pro/language/graphics';
 import { loadProStatus, openProSession, reportProOutcome } from '../../../ai/pro/session';
-import { isBackendConfigured } from '../../../backend/config';
 import type { ProStatusResponse } from '../../../ai/pro/types';
 import {
   PRO_SUPPORTED_CATEGORIES,
@@ -324,6 +323,11 @@ export default function AiStep({
   }, [needsSignIn]);
   const [settings, setSettings] = useState(loadAiSettings);
   const liteOffered = Boolean(liteStatus?.enabled);
+  // `liteOffered` is false BOTH while the status is still in flight and when the answer is no,
+  // and the sheet's copy states the second as a fact about the build. So the copy waits for the
+  // answer: a visitor who opens the sheet before the fetch lands must not be told this build has
+  // no hosted route and then watch that silently become untrue.
+  const hostedResolved = liteStatus !== undefined;
   // HOSTED PRO IS THE ONLY PRO (owner, 2026-08-14). A NoaCG tier runs on NoaCG's own service or
   // it is not offered - it never asks a customer for a key to reach our own models. So the tier
   // appears on exactly two conditions, both of which have to be true at once: the SERVER says
@@ -332,16 +336,28 @@ export default function AiStep({
   // The second is not belt-and-braces: hosted Pro reserves and settles per account, so a build
   // with no backend cannot run it however the status answers.
   const proHosted = Boolean(proStatus?.available);
-  const proOffered = proHosted && isBackendConfigured();
-  // The wizard offers ONE hosted path and the user's own key. Hosted Pro's door is closed
-  // pending the measured comparison in docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md.
-  // Keep the proMode branches below intact so reopening it remains a one-line change.
+  /*
+   * THE WIZARD OFFERS ONE HOSTED PATH AND THE USER'S OWN KEY. Hosted Pro's DOOR is closed
+   * pending the measured comparison in docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md;
+   * its PIPELINE is untouched, and every `proMode` branch below is left intact rather than
+   * deleted, because deleting them is the half that decision has not made yet.
+   *
+   * TO REOPEN IT: restore `const proOffered = proHosted && isBackendConfigured()` (the two
+   * conditions ANDed - the server says this visitor has hosted Pro, and this deployment carries
+   * the backend the route is metered through, since a build with no backend cannot run it
+   * however the status answers), and give `tier` a branch that resolves to 'pro'. Nothing else
+   * below has moved.
+   */
   const tier: AiTier = settings.tier === 'custom' ? 'custom' : liteOffered ? 'lite' : 'custom';
   const liteMode = tier === 'lite';
   // Always false while the door above is closed. The widening cast is what keeps the Pro
   // branches below compiling against a `tier` that can no longer narrow to 'pro' - remove it
   // together with them, or when the door reopens, never on its own.
   const proMode = (tier as AiTier) === 'pro';
+  // Named beside its two siblings rather than repeated as a string comparison at seven render
+  // sites: this is the step's own idiom for "which route is running", and the three read as
+  // one set.
+  const ownKeyMode = tier === 'custom';
   const liteActive = liteMode && Boolean(liteStatus?.available);
 
   // THE BYO-KEY TIER RUNS ON A KEY THE USER OWNS. The saved route can point at the managed
@@ -360,12 +376,23 @@ export default function AiStep({
 
   /* The one-line read-back beside the settings button: whether NoaCG's hosted path needs no
      key or, on the user's own account, what it will call. */
-  const settingsSummary =
-    tier === 'custom' ? [
-        AI_PROVIDERS.find((provider) => provider.id === settings.provider)?.label ?? settings.provider,
-        settings.model,
-      ].filter(Boolean).join(' · ')
-      : 'NoaCG · no key needed';
+  /* WHAT THE HOSTED ROUTE IS, in the sheet. Three states, not two: until the status answers,
+     neither "it runs here" nor "this build has not got it" is known, and the second is a claim
+     about the build that must not be made and then withdrawn. */
+  const hostedNote = !hostedResolved
+    ? 'Checking what this build offers…'
+    : liteOffered
+      ? 'Create with AI runs on NoaCG’s own service. There is nothing to choose and no key to supply, '
+        + 'and it costs you nothing. It is still under construction, so do not rely on it for work '
+        + 'that has to be right today.'
+      : 'Create with AI on NoaCG’s own service is not available on this build. Your own coding agent '
+        + 'above, or your own AI account below, are the routes here.';
+  const settingsSummary = ownKeyMode
+    ? [
+      AI_PROVIDERS.find((provider) => provider.id === settings.provider)?.label ?? settings.provider,
+      settings.model,
+    ].filter(Boolean).join(' · ')
+    : 'NoaCG · no key needed';
   const aiReady = liteMode ? liteActive : proMode ? true : aiConfigured(settings);
   // Opens itself ONCE, after the tier is known: a custom-tier visitor with no provider
   // configured needs the setup in front of them, a Lite visitor does not.
@@ -842,7 +869,7 @@ export default function AiStep({
         return;
       }
       if (proMode) {
-        setError('NoaCG Pro designs a new look and its package of graphics; it does not convert imported templates. Open it as code, or switch the AI tier to “Bring your own key” to convert it.');
+        setError('This route designs a new look and its package of graphics; it does not convert imported templates. Open it as code, or tick “Use your own AI account instead” in AI settings to convert it.');
         return;
       }
       void run(
@@ -881,7 +908,7 @@ export default function AiStep({
           : null;
         // HOSTED PRO opens a reservation first: one allowance slot, one cost ceiling, covering
         // every model call the generation makes. There is no second path any more - the tier is
-        // only offered where this reservation can be made (see `proOffered`), which is what
+        // only offered where this reservation can be made (see the door note above), which is what
         // makes "no key to supply" true rather than merely written.
         const session = await openProSession();
         let designed: ProGenerateResult;
@@ -1148,11 +1175,15 @@ export default function AiStep({
         {/* Before the drop zone, the brief, the tiers and any key: the preferred route is the
             first thing the step says after its caution. Never gated on an account - a visitor
             with no account is exactly who owns a better road than the one that asks for one. */}
+        {/* `hostedOffered` is the route a visitor can actually REACH, which is now only the Lite
+            path: with the Pro door closed, a server answering "Pro is available" no longer puts a
+            hosted route on this screen, and ORing it in made this card promise "nothing to
+            install" while the sheet under it said the opposite. */}
         <AgentRouteCard
           ref={agentRouteRef}
           open={agentRouteOpen}
           onToggle={setAgentRouteOpen}
-          hostedOffered={liteOffered || proOffered}
+          hostedOffered={liteOffered}
         />
         {liteMode && liteStatus?.allowance && (
           <p className="hint" data-testid="lite-allowance">
@@ -1558,7 +1589,7 @@ export default function AiStep({
                 ↻ Start over
               </button>
             )}
-            {tier === 'custom' && result && !imported && alternatives[selected]?.spec && settings.useHarness && (
+            {ownKeyMode && result && !imported && alternatives[selected]?.spec && settings.useHarness && (
               <button
                 disabled={!!busy || !aiConfigured(settings)}
                 data-testid="ai-more-like"
@@ -1568,7 +1599,7 @@ export default function AiStep({
                 ✦ 3 more like this
               </button>
             )}
-            {tier === 'custom' && !imported && (
+            {ownKeyMode && !imported && (
               <label
                 className="wz-match"
                 title="On: three design directions built on the catalog design system, each exercised in a live playout test, learning from your picks. Off: one quick draft — the model's own take, checked but never played."
@@ -1607,7 +1638,7 @@ export default function AiStep({
               enough of them to have an answer — a first-time user gets no number rather
               than an invented one. Tokens and seconds, never money: prices are not in this
               codebase and a stale figure presented as cost would be believed. */}
-          {tier === 'custom' && (() => {
+          {ownKeyMode && (() => {
             const expected = runExpectation(imported ? 'convert' : 'generate', settings.useHarness);
             if (!expected || busy) return null;
             return (
@@ -1662,21 +1693,20 @@ export default function AiStep({
                 account and no key.{' '}
                 <button type="button" className="link-btn" onClick={revealAgentRoute}>Show me ›</button>
               </p>
-              <p className="hint" data-testid="ai-hosted-note">
-                {liteOffered
-                  ? 'Create with AI runs on NoaCG’s own service. There is nothing to choose and no key to supply, and it costs you nothing. It is still under construction, so do not rely on it for work that has to be right today.'
-                  : 'Create with AI on NoaCG’s own service is not available on this build. Your own coding agent above, or your own AI account below, are the routes here.'}
-              </p>
+              <p className="hint" data-testid="ai-hosted-note">{hostedNote}</p>
               <label className="dlg-check" data-testid="ai-own-key">
                 <input
                   type="checkbox"
-                  checked={tier === 'custom'}
-                  disabled={!!busy || !liteOffered}
+                  checked={ownKeyMode}
+                  disabled={!!busy || (hostedResolved && !liteOffered)}
                   onChange={(e) => saveSetting({ tier: e.target.checked ? 'custom' : null })}
                 />
-                <span>
-                  <strong>Use your own AI account instead</strong>
-                  <span className="hint">
+                {/* The house checkbox markup (.dlg-check-text/-title/-desc), not a bare span:
+                    `.dlg-check` blockifies its own children but stacks nothing inside them, so a
+                    title and a description in one span render as a single unbroken run. */}
+                <span className="dlg-check-text">
+                  <span className="dlg-check-title">Use your own AI account instead</span>
+                  <span className="dlg-check-desc">
                     Run it on your own account with OpenAI, Anthropic, Google or Hugging Face: any
                     model that provider offers, at that provider’s prices. If you have Claude Code
                     or Codex, you do not need this.
@@ -1686,7 +1716,7 @@ export default function AiStep({
               {/* Fixed on, not merely ticked: with no hosted path there is nothing to switch
                   back to, and a box that silently re-ticks itself is worse than one that says
                   why it cannot move. */}
-              {!liteOffered && (
+              {hostedResolved && !liteOffered && (
                 <p className="hint">This build has no hosted route, so your own account is the only one here.</p>
               )}
               {/* Pro has NO chooser at all — no provider, no model, no key. The copy states the
@@ -1774,7 +1804,7 @@ export default function AiStep({
                   </fieldset>
                 </div>
               )}
-              {tier === 'custom' && (
+              {ownKeyMode && (
                 <div style={{ marginTop: 10 }}>
                   {/* The tier's promise IS the key, so the managed route is not on offer here. */}
                   <AiProviderSettings settings={settings} onChange={saveSetting} allowManaged={false} />
@@ -2040,7 +2070,7 @@ export default function AiStep({
                   })}
                 </div>
               )}
-              {validation && !validation.ok && tier === 'custom' && (
+              {validation && !validation.ok && ownKeyMode && (
                 // The findings are the app's words, not the user's job to translate —
                 // one press sends them back as the instruction.
                 <div className="row" style={{ marginTop: 8 }}>

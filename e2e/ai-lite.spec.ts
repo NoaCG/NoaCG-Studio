@@ -108,6 +108,16 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await expect(page.getByTestId('ai-own-key').getByRole('checkbox')).not.toBeChecked();
   await expect(page.getByTestId('ai-settings').getByText('Provider', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('ai-settings').getByText('Model', { exact: true })).toHaveCount(0);
+  // THE ONE GESTURE THIS DOOR HAS, driven rather than seeded: ticking the box is what reveals
+  // the provider and model surface, and unticking it is what puts the hosted route back. A
+  // stored value proves the reading half only, and the reading half is not where the bug would
+  // be - the box writes `tier` and the sheet re-renders off it.
+  const ownKey = page.getByTestId('ai-own-key').getByRole('checkbox');
+  await ownKey.check();
+  await expect(page.getByTestId('ai-settings').getByText('Provider', { exact: true })).toBeVisible();
+  await ownKey.uncheck();
+  await expect(page.getByTestId('ai-settings').getByText('Provider', { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('ai-hosted-note')).toBeVisible();
   await page.getByRole('button', { name: /AI settings/ }).click();
 
   await page.getByTestId('more-control-toggle').click();

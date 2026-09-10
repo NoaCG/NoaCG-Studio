@@ -42,7 +42,7 @@ interface Props {
   open: boolean;
   onToggle: (open: boolean) => void;
   /**
-   * Whether a NoaCG-run tier (Lite or Pro) is on offer here. The closing line for somebody
+   * Whether the NoaCG-run route is on offer here. The closing line for somebody
    * with no agent has to be true in BOTH builds: on a hosted studio nothing needs installing
    * or pasting, but on a self-hosted one the only road left is their own provider account,
    * and "nothing to install" there would send them to a Generate button that stays disabled
@@ -104,7 +104,7 @@ const AgentRouteCard = forwardRef<HTMLDivElement, Props>(function AgentRouteCard
           <p>
             {hostedOffered
               ? 'No coding agent? Nothing to install: describe the graphic below and NoaCG makes it right here.'
-              : 'No coding agent? This door still works: Bring your own key, under AI settings below, runs it on your own provider account.'}
+              : 'No coding agent? This door still works: tick “Use your own AI account instead”, under AI settings below, to run it on your own provider account.'}
           </p>
         </div>
       )}
