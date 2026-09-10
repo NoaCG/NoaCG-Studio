@@ -181,6 +181,15 @@ an agent can drive is `agent`; an opinion that fits in a sentence is `walk-p`; a
 needs the screen is `walk`. **Defaulting to `walk` is not the safe choice** - it is how a queue
 of sixty-two accumulated, and a deep queue stops being read at all.
 
+**From 2026-09-11 a `walk` or `walk-p` item must carry `because:`**, naming which of four things
+makes it his - `taste`, `scope`, `direction` or `money` - and `npm run check:owner-queue` refuses
+one without it. It is the same mechanism as `needs:` on an owner-action item, one list further in,
+and it exists because the owner has now asked three times for less to reach him (2026-09-03,
+2026-09-04, 2026-09-10) while the queue grew to 96 items. The four are defined with a worked
+example in `docs/acceptance/OWNER_QUEUE.md`, "Why a walk item has to say WHY it is his". **If none
+of them fits, the item is not his: decide it, do it, and say in the item what you decided and
+why.**
+
 An item needs four things or it does not go in:
 
 - what changed, one sentence a non-technical reader follows;

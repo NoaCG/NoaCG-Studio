@@ -88,6 +88,44 @@ export const NEEDS = Object.freeze(['account', 'money', 'identity', 'harness']);
  */
 export const NEEDS_REQUIRED_FROM = '2026-09-05';
 
+/**
+ * WHY A WALK ITEM IS HIS. The same idea as `needs:`, one list further in.
+ *
+ * `needs:` closed the door on technical problems being parked on the owner. It did nothing about
+ * the far bigger list, because a `walk` or `walk-p` item never had to justify itself at all - so
+ * everything observable landed on his desk by default, and the queue grew past eighty.
+ *
+ * Owner, 2026-09-10, after walking his phone list: "we need to find a way to get less into my
+ * queue because design and technical questions should be possible to answer with the AI. It should
+ * be logical what we want to do." That is the third time he has said a version of it - the design
+ * default ruling of 2026-09-03 and the technical ruling of 2026-09-04 are the first two - which is
+ * the evidence that saying it in prose does not hold.
+ *
+ * Four reasons, and they are the ones OWNER_QUEUE.md already lists as genuinely his:
+ *
+ * - taste     - whether a shipped thing is any GOOD. No defensible general answer exists; it needs
+ *               his eye. Not "which of these two is better designed", which is a design default.
+ * - scope     - what the product IS or is not. A change to the thing rather than to a setting.
+ * - direction - where the product goes, including a call between two defensible options that point
+ *               it different ways.
+ * - money     - it costs money, or it commits him to a cost.
+ *
+ * If none of the four fits, the item is not his: DECIDE IT, do it, and say in the item what was
+ * decided and why, so he can overrule a thing that exists rather than adjudicate one that does not.
+ */
+export const WALK_BECAUSE = Object.freeze(['taste', 'scope', 'direction', 'money']);
+
+/**
+ * The date the `because:` requirement starts applying, as `YYYY-MM-DD`.
+ *
+ * Date-gated for exactly the reason `needs:` is: this is a tightening, and sessions file items
+ * while their branches are in flight, so a same-day requirement reds a build for a line the prompt
+ * never saw. Set to the day AFTER it landed. Items filed before it are read as they always were,
+ * and the value is validated whenever present at any date, since a misspelt reason is worse than
+ * an absent one.
+ */
+export const BECAUSE_REQUIRED_FROM = '2026-09-11';
+
 // ---------------------------------------------------------------------------
 // THE ROUTE, AND THE PLACE IT OPENS
 // ---------------------------------------------------------------------------
@@ -314,6 +352,27 @@ export function auditOwnerQueueItem(text) {
         'If none of them fits, it is not an owner action: do the work instead.',
     );
   }
+  // `because:` says why a WALK item is his, and the four reasons are the ones that genuinely are.
+  // A missing reason is how a decidable design question ends up on his desk; a reason on the wrong
+  // kind means somebody filed an agent item and dressed it up as a walk.
+  if (data.because !== undefined && !WALK_BECAUSE.includes(data.because)) {
+    problems.push(`because: '${data.because}' is not one of ${WALK_BECAUSE.join(', ')}`);
+  }
+  if (data.because !== undefined && !['walk', 'walk-p'].includes(data.kind)) {
+    problems.push(`because: only belongs on kind: walk or walk-p (this is kind: ${data.kind ?? 'missing'})`);
+  }
+  if (
+    ['walk', 'walk-p'].includes(data.kind) &&
+    data.because === undefined &&
+    !isTrue(data.done) &&
+    String(data.date ?? '') >= BECAUSE_REQUIRED_FROM
+  ) {
+    problems.push(
+      `kind: ${data.kind} needs a reason - add because: ${WALK_BECAUSE.join(' | ')}. ` +
+        'If none of them fits, it is not his: decide it, do it, and say in the item what you ' +
+        'decided and why.',
+    );
+  }
   // THE ROUTE. `/walk` groups the queue by the place a route opens, so an item with no route
   // section is not only unreachable (which OWNER_QUEUE.md has always said), it also cannot join
   // the group that would have carried it. The check is for a route SECTION, never for a route
@@ -463,6 +522,9 @@ function reportRoutes(queue, filter) {
     return items.length;
   }
 
+  // Printed for the same reason `needs:` is: a wrong reason should be visible to HIM, not only to
+  // the gate. An item filed before the requirement shows nothing, which is honest - it was never
+  // asked.
   printList('From your phone (walk-p)', of('walk-p'));
   printList('At the computer (walk)', of('walk'));
 

@@ -266,6 +266,7 @@ contracts nothing; `npm run rules -- <path>` lists what applies to a file.
 | `root/emit-clean-commented-code-person-can` | invariant | contract | active | `**` | Emit clean, commented code that a person can edit. |
 | `root/end-completed-waiting-turn-tiny-wrap` | rule | contract | active | `**` | End a completed or waiting turn with a tiny wrap-up somebody can read on a phone: what changed and whether it is verified, the exact action needed or "nothing", and the next step. |
 | `root/enqueue-browser-driving-work-rather-than` | trap | contract | active | `**` | ENQUEUE browser-driving work with `npm run queue` rather than waiting for a slot, because one such job runs per MACHINE and this laptop is RAM-bound. |
+| `root/file-walk-walk-item-only-naming` | rule | contract | active | `docs/acceptance/owner-queue/**` | File a walk or walk-p item only with a `because:` naming why it is the owner's - `taste`, `scope`, `direction` or `money`. |
 | `root/give-input-only-holder-never-inline` | trap | contract | active | `src/templates/**` | Give an input-only holder `class="noacg-data-source"` and never an inline `style="display:none"`. |
 | `root/green-gate-human-seeing-work-observable` | invariant | contract | active | `**` | A green gate is not a human seeing it. |
 | `root/keep-app-declaration-matching-meta-preview` | trap | contract | active | `src/brandTokens.css`, `src/preview/**` | Keep the app `color-scheme: dark` declaration and the matching meta the preview injects into its srcdoc PAIRED. |

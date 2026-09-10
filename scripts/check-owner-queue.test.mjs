@@ -14,6 +14,7 @@ import {
   KINDS,
   NEEDS,
   OWN_ROUTE,
+  WALK_BECAUSE,
   QUEUE_DIR,
   SERVES,
   placeOf,
@@ -107,6 +108,45 @@ test('every real file under docs/acceptance/owner-queue/ carries kind: and date:
     return auditOwnerQueueItem(text).map((problem) => `${name}: ${problem}`);
   });
   assert.deepEqual(failures, []);
+});
+
+// --- `because:` - WHY a walk item is his (owner ruling, 2026-09-10) ---
+// The same shape as `needs:` one list further in. Before it, everything observable reached him by
+// default and the queue passed eighty. These pin all four directions: required where it applies,
+// validated wherever it appears, refused on a kind that cannot carry it, and date-gated so items
+// filed before the rule still read clean.
+
+const walkItem = (front) => `---\n${front}\n---\n# A title\n\n## The route, under a minute\n\nOpen /app.\n`;
+
+test('a walk item filed after the rule must name a reason', () => {
+  const problems = auditOwnerQueueItem(walkItem('kind: walk\ndate: 2026-09-11'));
+  assert.match(problems.join(' '), /needs a reason/);
+  assert.match(problems.join(' '), /it is not his: decide it/);
+});
+
+test('a walk-p item filed after the rule must name a reason too', () => {
+  const problems = auditOwnerQueueItem(walkItem('kind: walk-p\ndate: 2026-09-11'));
+  assert.match(problems.join(' '), /needs a reason/);
+});
+
+for (const because of WALK_BECAUSE) {
+  test(`because: ${because} satisfies a walk item`, () => {
+    assert.deepEqual(auditOwnerQueueItem(walkItem(`kind: walk\ndate: 2026-09-11\nbecause: ${because}`)), []);
+  });
+}
+
+test('a misspelt reason is refused at any date, which an absent one is not', () => {
+  const problems = auditOwnerQueueItem(walkItem('kind: walk\ndate: 2026-08-29\nbecause: decision'));
+  assert.match(problems.join(' '), /is not one of taste, scope, direction, money/);
+});
+
+test('a reason on a kind that cannot carry one says which kind it is', () => {
+  const problems = auditOwnerQueueItem(walkItem('kind: agent\ndate: 2026-09-11\nbecause: taste'));
+  assert.match(problems.join(' '), /only belongs on kind: walk or walk-p/);
+});
+
+test('a walk item filed before the rule needs no reason', () => {
+  assert.deepEqual(auditOwnerQueueItem(walkItem('kind: walk\ndate: 2026-09-10')), []);
 });
 
 // --- `needs:` - WHY an owner-action item is his (owner ruling, 2026-09-04) ---
