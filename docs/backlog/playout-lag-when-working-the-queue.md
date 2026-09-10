@@ -17,8 +17,14 @@ note: "measured end to end 2026-09-10 on branch claude/bg-playout-lag, which lan
   delivers in either ~130 ms or ~600 ms, bimodally, in every client including an empty page, and the
   OUTPUT page follows the same road so AIR is late too. A broadcast message on the same backend is
   50 ms with no slow mode. It does NOT grow with the show's log, tested to 50,000 rows and refused.
-  The ask stays open on ONE thing: the transport fix designed in the section below, deliberately not
-  shipped by the round that measured it, two days before the rehearsal."
+  The transport fix was then SHIPPED on 2026-09-10 on branch claude/bm-verbs-on-both-roads: a verb
+  now leaves the press on both roads and every consumer reconciles them on a client-minted oid, with
+  e2e/configured/playout-both-roads.spec.ts as the cover (mutation-tested red before it was
+  believed). Re-measured with the same probe: a second surface waits 51 ms for a Take and 52 ms for
+  an Out with no slow mode at all, against 131/138 median and a quarter of presses at 404-637 ms on
+  the durable road. The sending page no longer waits for the wire at all. What is left is the
+  AUTHORISATION trade the fast road makes and the cross-device ordering limit, both stated in the
+  section below."
 needs-owner: none
 asked: "I noticed some lag when I was playing out the quiz graphics, moving around the queue, and
   playing and stopping graphics. It's very important that our layout system is lag-free and
@@ -234,31 +240,66 @@ roads. Every consumer keeps a small set of applied `oid`s and applies each one O
 brought it first. That is symmetric - it does not care which arrives first - and it degrades to
 today's behaviour exactly when the broadcast is lost, because the durable row still comes.
 
-What still has to be decided before code:
+### What shipped, and what each decision came out as
 
-- **How long an `oid` stays in the set.** It has to outlive the slow mode (650 ms measured, so
-  seconds not milliseconds) and be bounded, because a long show is thousands of commands.
-- **A broadcast that arrives and an insert that then FAILS.** The picture moved and the log does not
-  agree. `play` cannot be un-played; the honest ending is to say so on the surface, which is what the
-  unsent dot on `verb-update` already does for a different case.
-- **`liveCue` and the rundown's ON AIR marker** move on the `cue` status row. If the picture goes
-  fast and the marker stays on the log, the two disagree for a third of a second, which is its own
-  bug - the `cue` row has to travel the same two roads.
-- **Ordering.** The log is ordered by id; broadcasts are not. Within one verb the batch is applied
-  in the order it was sent, which is fine, but two verbs a few milliseconds apart from two devices
-  could land in different orders on different pages. The durable row is the tiebreak, and what that
-  means for a page that already applied the other order needs stating.
-- **A cost check.** Broadcast messages are billed and rate-limited separately from database rows.
+Shipped 2026-09-10 on `claude/bm-verbs-on-both-roads`: `src/control/commandRoads.ts` holds the ids
+and the reconciler, `sendControlVerb` in `hostedControl.ts` is the one door a verb leaves by, and
+`followControlLog` gained an `onCommand` tap that the dashboard, the hosted control page and the
+output renderer all feed into a single `createAppliedOnce`. Every open decision above, answered:
 
-**This was deliberately not shipped by the round that measured it.** It changes the live playout
-path two days before the 2026-09-12 rehearsal, it needs its own configured e2e cover against a real
-backend (a double-play is invisible, so the gate is the `data-plays` count, as in the recovery
-spec), and the measurement is worth landing on its own. Nothing about Saturday waits on it: an
-unpublished production is 30 ms today.
+- **How long an `oid` stays in the set.** 400 ids, evicted oldest-first. The log caps a production
+  at 50 commands per 5 s (0029), so 400 commands cannot be written in under 40 SECONDS however hard
+  a show is driven, against a slow mode of 650 ms. Bounded, with two orders of magnitude of room.
+- **A broadcast that arrives and an insert that then FAILS.** Said on the surface. The thrown error
+  carries `aired`, and both operator pages word it as "reached the screens but was NOT logged" -
+  a different sentence from "failed", because an operator would act differently on each.
+- **`liveCue` and the ON AIR marker.** They travel the fast road with the picture: the `cue` row is
+  in the same batch, and both surfaces moved their marker handling into the same `applyCommand` the
+  stage goes through, so the two cannot disagree for a third of a second.
+- **Ordering.** Resolved for one sender, stated as a limit for two. A machine `event` keeps the slow
+  road alone, because a clock's shared origin is derived from the row's own server time and a
+  broadcast has none - so a graphic that has just been sent an event stays slow for 1200 ms and a
+  verb pressed straight after cannot overtake it. ACROSS DEVICES that is not fixable from one
+  sender: an event from one operator and a Take from another, inside one fan-out window, can still
+  land in different orders on different renderers. The durable log stays the record.
+- **A cost check.** One broadcast per verb, alongside the row that was already being written; the
+  log's own 50-per-5-s cap bounds it. Nothing else broadcasts - `staged` (debounced typing), the
+  renderer's `live` reports and the production data API's server-side rows all stay durable-only,
+  which is where the volume actually is.
+
+**The authorisation trade, which was not on the list and should have been.** The command channel is
+public, joined with the publishable key, and isolated by its topic being derived from the show id -
+the same capability model `realtimeControl.ts` already ships for exported graphics. The show id is
+reachable from the OUTPUT capability as well as the control one, so a holder of an output URL, who
+could previously only read, can now push a command onto the fast road. The durable log is unaffected
+(writing it still needs the control slug and passes RLS) and a forged command is never recorded, but
+a read-only URL did become able to move a picture. Removing it needs Realtime Authorization with RLS
+on `realtime.messages`, which needs the receiving surfaces to hold a token - and the hosted control
+page and the output page are both signed OUT by design. The shape of that fix is to broadcast FROM
+the database inside `control_send_many` (`realtime.send`) on a private topic anon may read and not
+write; it costs the RPC's own 110 ms on top of the 50, so air would be about 180 ms rather than 80.
+That is a row of its own, not a reason to keep half a second.
+
+### Measured after, with the same probe
+
+Sixteen presses, 2026-09-10, one client sending and a SECOND client reading - which is what another
+operator's page and the output renderer are, and what a broadcast's sender can never measure about
+itself (`self` is false, so nobody hears their own frame):
+
+| what a second surface waits | fast road | durable row |
+| --- | --- | --- |
+| Take | **51.5 ms** (48-59, all eight) | 131 ms median, one press in four at 404-637 |
+| Out | **51.6 ms** (48-54, all eight) | 137.9 ms median, the same two modes |
+
+About 30 ms of paint goes on top of both. The median is not the point: the durable road has two
+modes and picks one unpredictably, and in this run four of sixteen presses landed in the slow one.
+The broadcast did not do that once. The SENDING page is faster than either - it applies its own
+items before the insert is even awaited, which the minted id is what makes safe.
 
 ## How to re-run it
 
-The wire on its own - fifteen seconds, no browser, no dev server, and the one to run AT a venue:
+Both roads on their own - thirty seconds, no browser, no dev server, and the one to run AT a venue.
+It prints a fast and a slow column per press, which are the after and the before of the same verb:
 
 ```
 node scripts/playout-wire-probe.mjs [--takes N]
