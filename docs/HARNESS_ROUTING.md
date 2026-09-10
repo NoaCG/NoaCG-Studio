@@ -28,10 +28,11 @@ Codex row in a wave names a fallback.
 | Bulk same-shape edits across many files | Codex (`/rescue --write`) | Long to do, short to specify - the shape delegation is good at. | Subscription window, not per-token. Measured 2026-08-29: the whole day's Codex use sat at 41% of its weekly window. |
 | A well-specced build spanning 5+ files | Codex (`/rescue --write`) | Same reason. The spec is the work; writing it out is cheaper than doing it. | As above, plus the time to write a spec good enough to hand over. |
 | A bug still failing after 2 genuine fix attempts | Codex (`/rescue`) | A second model with a different prior. Read-only by default, so it costs a diagnosis, not a diff. | As above. |
-| **Read-across-many-files comprehension questions** | **Antigravity (`agy -p`) on `gemini-3.7-flash-high`, with ABSOLUTE paths** | **Measured below: a 3-part cross-file question about the export registry came back 100% correct in 99 s, one call, no follow-ups.** But session D measured it reading the WRONG CHECKOUT from inside a linked worktree - wrong content, not just wrong links - so give it absolute paths and re-derive anything you act on. | Free at the subscription, and on Google's meter rather than Claude's. **Both figures in this row are Trial A on the unpinned default, not on the model this row now names** - the flash numbers, on a different question, are 17.6 s and 94.9 K input (see "Model choice"). ~160 K input + ~1.2 M cache-read for one such question. Budget for calls that bill and return nothing: 2 of 5 on session D's branch, 2 of 3 on this one. |
-| **A bounded artifact written to a spec, judged before use** | **Antigravity (`agy -p`), then read it yourself** | **Measured below: an unseen gate script came back correct on first run, matched the house script conventions closely, and caught a real edge case in the input.** | As above. Grading it costs a few minutes and is not optional. |
-| **A bounded artifact Antigravity WRITES to a spec** | **Either pool (`npm run agy -- --write`), then run the gate that CONSUMES it** | **Measured 2026-09-02 (last section): a doc edit and six SVG corpus fixtures, graded. Every mechanical acceptance condition passed on both pools; the one field needing JUDGEMENT was wrong in 3 of 6, and only the real gate caught it. The prompt MUST open by declaring the tool set and saying there is no shell, or the first tool call is auto-denied and the run bills for nothing.** | As the rows above, plus reading every line it wrote AND running the gate that reads the artifact. |
-| **The SECOND Antigravity pool** - `claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gpt-oss-120b-medium` | **The same work as the Gemini pool, on a separate paid allowance the owner barely touches** | **First graded 2026-09-02, on the same task as the Gemini pool: better exporter fidelity, better at flagging where it deviated from a wrong spec, a third of the input tokens - and worse on the judgement field. Usable; nothing yet separates the two pools by enough to make a rule.** | Its own pool, so it never competes with the Gemini calls. **It takes NO `--effort`** - the flag is refused, free, before anything runs. |
+| **Read-across-many-files comprehension questions** | **Antigravity (`agy -p`) on `gemini-3.7-flash-high`, with ABSOLUTE paths** | **Measured in "Trial A - comprehension": a 3-part cross-file question about the export registry came back 100% correct in 99 s, one call, no follow-ups.** But session D measured it reading the WRONG CHECKOUT from inside a linked worktree - wrong content, not just wrong links - so give it absolute paths and re-derive anything you act on. | Free at the subscription, and on Google's meter rather than Claude's. **Both figures in this row are Trial A on the unpinned default, not on the model this row now names** - the flash numbers, on a different question, are 17.6 s and 94.9 K input (see "Model choice"). ~160 K input + ~1.2 M cache-read for one such question. Budget for calls that bill and return nothing: 2 of 5 on session D's branch, 2 of 3 on this one. |
+| **A bounded artifact written to a spec, judged before use** | **Antigravity (`agy -p`), then read it yourself** | **Measured in "Trial B - generation": an unseen gate script came back correct on first run, matched the house script conventions closely, and caught a real edge case in the input.** | As above. Grading it costs a few minutes and is not optional. |
+| **A bounded artifact Antigravity WRITES to a spec** | **Either pool (`npm run agy -- --write`), then run the gate that CONSUMES it** | **Measured in "The delegation trial, 2026-09-02": a doc edit and six SVG corpus fixtures, graded. Every mechanical acceptance condition passed on both pools; the one field needing JUDGEMENT was wrong in 3 of 6, and only the real gate caught it. The prompt MUST open by declaring the tool set and saying there is no shell, or the first tool call is auto-denied and the run bills for nothing.** | As the rows above, plus reading every line it wrote AND running the gate that reads the artifact. |
+| **The SECOND Antigravity pool** - `claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gpt-oss-120b-medium` | **The same work as the Gemini pool, and on a batch that matters run BOTH and read the DISAGREEMENTS** | **First graded 2026-09-02: better exporter fidelity, better at flagging where it deviated from a wrong spec, a third of the input tokens - and worse on the judgement field, 1/3 against Gemini's 2/3. On 2026-09-10 they traded that field back: `claude-opus-4-6-thinking` scored 9 of 12 on a judgement task about this repo's own contracts against `gemini-3.7-flash-high`'s 7 on identical items, and alone caught the two whose route only the owner can walk. Two samples pointing opposite ways is not a ranking; the disagreements are where the errors were, both times. See "The delegation-first night, 2026-09-10".** | Its own pool, so it never competes with the Gemini calls, which is what makes running both free. **It takes NO `--effort`** - the flag is refused, free, before anything runs. Slower: 85.4 s against 72.6 s on the same twelve items. |
+| **Rewriting existing copy for VOICE** | **The second Antigravity pool, for DRAFTS - the final text is written here** | **Measured 2026-09-10, in "The delegation-first night, 2026-09-10": five sections over seven calls, and NONE of the five came back usable as it stood. It over-reported its own word count by 40-60% every single time, so it bought drafting and not shortening, and it edits what it was told to freeze - a frozen HTML comment, alt text, and a reflow that broke a repo gate. It still paid, because drafting five sections cost less than writing them.** | **Never hand it an acceptance condition it must MEASURE about its own output** - two calls spent their only turn counting and never wrote the file. Give it the constraint and check the constraint yourself; never take its tally. Budget for reading every line back, and run the gate that consumes the artifact: `npm run build` caught what review did not. |
 | Reading an undocumented file format and deciding what it means | Claude Code | Short to do, long to specify - the class the 2026-08-29 delegation trial named as a poor delegate. | - |
 | A three-line edit whose sites are already known | Claude Code | Measured 2026-08-30: delegating three one-line comment fixes cost 156 K Codex tokens, two round trips and a rewrap this session had to do anyway. The spec was longer than the diff. | - |
 | Anything that must be landed, gated, or merged | Claude Code | Only this harness runs the merge queue and knows the serialization rules. | - |
@@ -430,7 +431,8 @@ and why anything needing search, or a write, does not.
 The fix is one line and it is the OWNER's to make, not a session's: it means widening a
 machine-global permission file, and this session's own harness refused the edit, as it should. It
 was filed for him and **he made the change the same afternoon** - the working form turned out to be
-simpler than the regex the filing proposed, and it is recorded in the last section of this file.
+simpler than the regex the filing proposed, and it is recorded under "The write grant: the form
+that works, and confinement measured in both directions".
 That owner-queue item is gone, logged in `docs/acceptance/OWNER_QUEUE.md`'s Dropped list as done
 rather than presumed.
 
@@ -1387,3 +1389,168 @@ finishes, one `codex.exe` was holding four such fleets at once, and this happens
 observation is `codex-invocation-leaks-its-mcp-fleet` in the capability file; the mechanism is
 being fixed on `claude/ab-reap-codex-delegation-tree`. **Stop attributing delegation slowness to
 startup.** A row that delegates should expect to pay memory, not seconds.
+
+## The delegation-first night, 2026-09-10: what a whole wave of delegating actually bought
+
+The owner ran this night as an experiment. About 10 percent of the Claude allowance was left and
+the instruction was to push work onto Codex and Antigravity and see what that buys. Five rows were
+given delegation work, which makes this the largest single night of delegation evidence there is.
+**The counts below were re-derived from `C:/Users/ahonemi/.noacg/delegation-outcomes.jsonl` on
+2026-09-10 at 22:03 UTC, over lines at or after 2026-09-10T00:00:00Z, collapsed by label.** The
+night had not ended at that read, so this is a reading at an instant and not a total for the night
+- and it proved that itself twenty minutes later, when row CF's first line arrived at 22:23:13Z,
+after everything below was counted.
+
+At that instant the day held **18 tasks: 4 reviewed, 11 repaired, 3 unusable; cause `worker` on 10,
+`prompt` on 4, and none on the 4 that passed. Fourteen went to Antigravity and four to Codex.** One
+of the eighteen is row BD's handoff sweep at 06:18:18Z, which belongs to the morning wave rather
+than to this experiment, so **the night itself is 17**. Against 28 tasks accumulated over the
+ledger's first nine days, one night added 17: this is not a bigger sample than everything before
+it, but it is the first one large enough to compare task shapes within a single night.
+
+### The rule the night earns
+
+**A delegation-first instruction does not change which tasks are delegable.** It changes how many
+you attempt, and the ones that were a poor fit stay a poor fit however hard the allowance is
+squeezed. The four rows that had recorded delegations at the read split cleanly on one question -
+**where the volume is** (the fifth, CF, had not written a line yet):
+
+- **CB and CE put the volume in the WORK.** CB judged 68 owner-queue items against the same
+  four-reason test; the spec was written once and only the item list changed, so **seven calls
+  carrying 47,057 bytes of spec bought 68 items judged, 12 of them twice over - about 692 bytes of
+  spec per item.** CE rewrote five sections of one page against one voice instruction. Both are the
+  shape the routing table already calls "long to do, short to specify", and both paid.
+- **CC put the volume in the SPEC.** One validator, three call sites. Its own handoff records a
+  **14.5 KB spec that took longer to write than the code would have**, for a delegation recorded
+  `repaired / prompt` where every repair traced to the spec rather than the execution. The table
+  has said since 2026-08-30 that this class stays here. It was delegated anyway, because the
+  night's instruction read as "delegate", and the instruction is not evidence.
+- **CD bought evidence rather than work.** Its delegation WAS the measurement - the same wave
+  planned in the other harness - so its cost is not comparable to the other three.
+
+### CB: the two Antigravity pools, head to head on a task that is ALL judgement
+
+`gemini-3.7-flash-high`, six calls, 383.5 s of wall clock, **returned all 68 verdicts well-formed
+with every mechanical condition met**. On the judgement field, the his/not-his call **had to be
+changed on 14 of 68**. The direction is what matters: **the bias is one-directional and it is the
+dangerous direction** - it reads an item that argues its own reasoning well as already settled,
+missing that the item is asking the owner to judge the RESULT rather than the argument. It dropped
+the password-reset page, whose route only the owner can drive because only he has the mailbox, on
+the strength of a sentence about a redirect.
+
+*How many of the 14 ran that way is 9 or 10, and I could not close the gap.* The row's handoff
+says 9; the ledger's per-batch notes, read one by one, sum to 10 unless one batch's pair is read
+the other way, and those notes are prose rather than counts. Nothing turns on which it is - either
+way it is two thirds of the errors in the one direction that costs the owner something he cannot
+get back.
+
+**`claude-opus-4-6-thinking` scored 9 of 12 on the same batch against Gemini's 7, and alone caught
+the two items only the owner can walk.** It cost 85.4 s against 72.6 s on the identical twelve, and
+it takes no `--effort` flag.
+
+**Read that gap carefully, because it does not make a standing rule and this file has said so
+before.** It is one call over twelve items, and the two pools have now traded the judgement field
+once each: "The delegation trial, 2026-09-02" records Gemini beating the second pool on exactly
+that field, 2/3 against 1/3, on fixture generation. Two samples of n=3 and n=12 pointing opposite
+ways on different task shapes is not a ranking. What survives is narrower and more useful: **on a
+judgement task over this repo's own contracts the second pool is at least the Gemini pool's equal,
+and it caught two items the Gemini pool dropped whose route nobody but the owner can walk.**
+
+The tactic underneath it is worth more than either score: **run BOTH pools on a batch that matters
+and read the DISAGREEMENTS.** On this task they were where the errors were, every time - and it is
+free, because the two pools bill separately.
+
+### CE: the second pool on a VOICE task, which nothing had measured before
+
+**Five sections** of the landing page, `claude-opus-4-6-thinking`, **seven calls**, 808.3 s of wall
+clock: 5 recorded `repaired` with cause `worker` and 2 `unusable` with cause `prompt`. Do not read
+that as five sections landing usable and two failing. The two `unusable` rows are the FIRST
+attempts at two sections, both re-run to `repaired` under the labels `-start-2` and `-tail-2`, so
+**every one of the five sections came back needing repair and none came back clean.** Three
+findings, all from the row's own recorded notes:
+
+- **It cannot count its own output, it does not know that, and the error is systematic.** Every
+  draft over-reported by 40 to 60 percent: **claimed 185, 278, 300 and 250 words, delivered 283,
+  445, 469 and 409.** Each came with a tidy per-element tally and a checklist of ticks. The
+  mechanism is that it counts only the paragraphs it consciously rewrote and silently omits
+  headings, card bodies, chips and list items. **The delegation therefore bought drafting and not
+  shortening - and shortening was the row's actual metric**, so the whole length cut was done by
+  hand in the judging pass.
+- **Making that number an acceptance condition breaks the call outright.** Both `unusable` rows are
+  the same failure, and both were the tightest budgets: it spent its single turn counting and
+  recounting and never called `write_file`, billing about 34 K and 54 K input tokens for 723 and
+  611 output tokens of nothing. Both recovered first time on one added prompt line - *call
+  write_file ONCE, BEFORE any tallying; the ceiling is a target, not an arithmetic puzzle; the one
+  thing that is NOT acceptable is producing no file*. **The cause is `prompt` because we wrote the
+  ceiling as arithmetic**, and this is the voice-task version of the 2026-09-09 finding that a
+  literal worker executes a wrong instruction perfectly.
+- **It edits what it was told to freeze.** Across the five repaired calls: a maintainer HTML
+  comment deleted, alt text changed, a literal arrow escaped, and every paragraph reflowed into
+  single long lines against a frozen-markup instruction. That last one **broke
+  `check-client-neutral` and was caught by `npm run build`, not by review** - which is the standing
+  argument for routing a written artifact through the gate that consumes it.
+
+Routed accordingly, in the row's own words: **fine for "draft prose from a spec", bad for anything
+with a measurable acceptance condition it is asked to self-check. Give it the constraint, then
+measure the constraint yourself, and never take its own tally.** Nothing it returned was usable as
+it stood, and the delegation still paid, because five sections of drafting cost less than five
+sections of writing. It cost about 337 K input, 44 K output and 497 K cache-read tokens across the
+seven runs, on the pool the owner barely touches - the hero section alone took 466 s and 88 K input
+for 24 lines, because a tight ceiling sends it arithmetic-checking.
+
+### CD: Codex is a real budget, and it cannot start a row
+
+Two ledger lines, `unusable / prompt` then `reviewed`. The first launch passed no `--write`, so the
+sandbox denied `apply_patch` and nothing came back; the same thread then produced the whole plan
+when asked to PRINT it, which is the cheaper arm anyway because the thread keeps its grounding.
+
+**One orchestrator plan in Codex moved the 5-hour window by roughly fifteen to twenty points.** That
+figure is the row's own estimate - it read 1 percent used at 20:05 UTC and 42 percent at 20:25 with
+four rows delegating into the same subscription, and a rate-limit snapshot cannot attribute across
+sessions, so treat it as an order of magnitude and not a measurement. It is still the number that
+matters: **Codex is a real budget with a small denominator, not a free fallback for whatever Claude
+cannot afford.** A night of three or four rows delegating into it exhausts the window, and nobody
+sees it coming, because the snapshot is only written when Codex itself runs.
+
+**And Codex cannot launch a row.** There is no Agent tool there, so an unattended night in that
+harness is not possible today. The delegate's own plan ends *"Launch status for this measurement:
+not launched"*. Whatever else delegation buys, it does not buy a second orchestrator.
+
+### Two measurement traps this night exposed
+
+- **Not every `wallMs` on the ledger is a measurement.** Three of the night's lines carry an exact
+  whole number of minutes: BD's 2,520,000 ms (42 minutes) and CD's 480,000 and 300,000 ms (eight
+  and five). Those are budgets or poll timeouts written into the field, not elapsed time - and
+  BD's alone is 55 percent of the night's recorded wall clock, so anyone summing the column
+  inherits it. **Read a round `wallMs` as unverified**, and prefer the calls that recorded odd
+  numbers of milliseconds.
+- **`specBytes` is the field that decides the delegable/not-delegable question, and it is the one
+  most often left null.** CC's 14.5 KB spec - the single most useful number of the night for
+  routing - exists only in its handoff, because its ledger line records no `specBytes` at all. A
+  row that delegates should fill that field even when it fills nothing else.
+
+### Which routing-table rows this night moved, and which it did not
+
+**Moved: the second Antigravity pool.** Its row said "nothing yet separates the two pools by
+enough to make a rule", and after CB that is still true - but the row now carries BOTH
+head-to-heads rather than only the 2026-09-02 one, and turns the pair into an instruction instead
+of a preference.
+
+**Added: rewriting existing copy for voice.** No row covered it before CE measured it.
+
+**Not moved, and why.** The Gemini comprehension row's verdict is untouched: CB ran classification,
+not comprehension, so it says nothing about the read-across-many-files claim that row rests on. Its
+"Measured below" pointer was repaired to name "Trial A - comprehension", as was the
+bounded-artifact row's to "Trial B - generation" - a pointer repair is not a row update, and the
+file's own opening paragraph asks for it. The Codex rows for bulk edits and well-specced
+multi-file builds are untouched: no row tonight delegated that shape - CC was the opposite shape
+and CD was a measurement - so there is nothing new under them. The Claude Code rows are untouched
+because tonight confirmed them rather than moving them; CC is one more instance of the class that
+row already names, and one more instance is not a change. The bounded-artifact Antigravity rows
+are untouched for the same reason.
+
+**One thing was deliberately not done.** This section carries a pool-choice rule, which is the
+subject the routing table's opening paragraph names three sections for. That paragraph still names
+three, and the rule sits in the second-pool table row instead, where everyone reads it. Naming a
+fourth section is an edit to how this whole file is read, and it belongs to whoever owns that
+paragraph rather than to a row appending evidence under it.
