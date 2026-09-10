@@ -106,6 +106,10 @@ export const SWEEP_SCRIPTS =
   // app, one Chromium context per fixture, door to export. It is named like the `-sweep` family
   // that is deliberately listed one by one above, so it is listed here for the same reason.
   + '|svg-import-sweep'
+  // `flex-gap-sweep` renders every design TWICE at 1920x1080 through the app (native, and with
+  // the old-engine flex-gap shim forced on) and compares the layouts - the overflow sweep's rig,
+  // doubled.
+  + '|flex-gap-sweep'
   // `svg-samples-check` runs the real importer over the practice library in a bundled Chromium,
   // and `docs-shots` drives the app to photograph the public docs. Neither is named like any
   // family above and neither has an npm entry, which is precisely why they were missed: a

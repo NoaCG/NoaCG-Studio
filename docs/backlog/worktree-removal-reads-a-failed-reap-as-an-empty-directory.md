@@ -34,6 +34,15 @@ Small in code, and the whole value is in how it is verified.
   temporary env-var-gated injection, confirm the worktree survives and the reason is printed, then
   remove the injection before committing.
 
+**One more shape of "I could not tell", filed here on 2026-09-10 because row AV put it here.** A
+record whose `workspace` is null is excluded from a scoped reap AND from `busy`, so a workspace it
+belongs to answers "nothing is running here" and the directory goes. It is much less likely since
+`unclaimedSessions` began reading `workspaceRoot` off the jobs, but `recordOwnership` can still write
+null, and the fix is the same one-line judgement as the two above: a record with no readable
+workspace is unknown, and unknown is busy. Source:
+`git show 4f95444b:docs/handoffs/2026-09-09-av-reap-at-delegation-end.md`, last bullet of "Left
+undone, and why".
+
 ## Evidence
 
 Found while extending the reaper on `claude/av-reap-at-delegation-end`, which deliberately left

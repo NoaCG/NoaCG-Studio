@@ -50,11 +50,15 @@ import {
   cancelVerdict,
   classifyRefusal,
   costOf,
+  costProblem,
   devServerPrecheck,
   ensureJobsDir,
   findRunner,
   finishedSince,
+  flagValue,
+  hasFlag,
   jobsDir,
+  KINDS,
   landingRow,
   pending,
   pruneJobs,
@@ -109,11 +113,9 @@ if (!dir) {
 }
 
 const args = process.argv.slice(2);
-const flag = (name) => args.includes(name);
-const valueOf = (name) => {
-  const i = args.indexOf(name);
-  return i === -1 ? undefined : args[i + 1];
-};
+// Both spellings of a flag, decided in the store and pinned by its tests - see `flagValue`.
+const flag = (name) => hasFlag(args, name);
+const valueOf = (name) => flagValue(args, name);
 
 // Terminal jobs older than the retention window go here, on the way past. Every entry point
 // prunes because every entry point already reads this directory, so the sweep is one extra
@@ -166,10 +168,47 @@ async function main() {
 async function cmdAdd() {
   const command = args[1];
   if (!command || command.startsWith('-')) {
-    console.error('Usage: node scripts/jobs.mjs add "<command>" [--kind gate|merge|sweep] [--after <id>,<id>] [--branch <name>] [--cap <minutes>]');
+    console.error('Usage: node scripts/jobs.mjs add "<command>" [--kind gate|merge|sweep] [--after <id>,<id>] [--branch <name>] [--cap <minutes>] [--cost <suite-equivalents>]');
+    console.error('  --cost says what this job weighs when you know better than the classifier: 1 is a');
+    console.error('  Playwright suite or a catalog battery, 0.5 one browser page, 0.4 a build, and 0.15');
+    console.error('  - a landing - is the least anything may claim. It sets both the budget share and');
+    console.error('  the free RAM the job demands before it may start.');
     process.exit(1);
   }
   ensureJobsDir(dir);
+  // THE TYPO IS REPORTED WHERE IT WAS TYPED, and a flag that says nothing is an error rather than
+  // a silence. `main()` is awaited at module top level with nothing catching it, so a throw out of
+  // `addJob` would reach the person as a stack trace and a Node version banner; and `--cost`
+  // written last leaves `valueOf` with `undefined`, which would queue the job at the classifier's
+  // guess while the typist believed they had declared one. `requeue` refuses a stray flag out
+  // loud for the same reason. The RANGE is `costProblem`'s to judge, so it is asked rather than
+  // restated - one place decides what a legal cost is, and the store is that place.
+  const declaredCost = valueOf('--cost');
+  if (flag('--cost')) {
+    // A LONE `-1` IS NOT A MISSING VALUE, it is a wrong one, and the range check below says so
+    // better than this can. Only the next FLAG, or nothing at all, means the number was left out.
+    if (declaredCost === undefined || declaredCost === '' || declaredCost.startsWith('--')) {
+      console.error(`--cost needs a number of suite-equivalents after it${declaredCost ? `, not "${declaredCost}"` : ''}.`);
+      process.exit(1);
+    }
+    const wrong = Number.isFinite(Number(declaredCost))
+      ? costProblem(Number(declaredCost))
+      : `a job's cost is a number of suite-equivalents: got "${declaredCost}"`;
+    if (wrong) {
+      console.error(wrong);
+      process.exit(1);
+    }
+  }
+  // `--kind` IS A COST DECLARATION NOW, so a typo in it is a mispriced job rather than a nuisance.
+  // `sweep` on the record tells `costOf` this is battery work, which is the whole reason a session
+  // that knows can say so - and until this, `--kind sweeep` reached the person as a stack trace out
+  // of `addJob` with a Node version banner under it, exactly what the `--cost` guard above was
+  // added to stop. `KINDS` decides what is legal; this only asks.
+  const declaredKind = valueOf('--kind');
+  if (flag('--kind') && !KINDS.includes(declaredKind)) {
+    console.error(`--kind is one of ${KINDS.join(', ')}: got ${declaredKind ? `"${declaredKind}"` : 'nothing'}.`);
+    process.exit(1);
+  }
   const job = addJob(dir, {
     command,
     checkout: process.cwd(),
@@ -177,6 +216,7 @@ async function cmdAdd() {
     kind: valueOf('--kind') ?? 'gate',
     after: (valueOf('--after') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     capMinutes: Number(valueOf('--cap') ?? POLICY.capMinutes),
+    cost: declaredCost === undefined ? null : Number(declaredCost),
     now: Date.now(),
   });
   await ensureRunner();

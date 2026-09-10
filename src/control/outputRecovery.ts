@@ -110,7 +110,7 @@ export function receiverFollowFrom(graphic: string, live: LiveReportMap, logHead
 }
 
 /** `receiverFollowFrom` as the ES5 the receiver block emits (no `?.`, no `??` — a CasparCG 2.3
- *  CEF is ~Chromium 65). Emitted into a template literal, so: no backticks and no `${`. */
+ *  CEF is Chromium 71). Emitted into a template literal, so: no backticks and no `${`. */
 export const RECEIVER_FOLLOW_FROM_JS = `// Where this boot starts reading the log (control/outputRecovery.ts owns the rule).
   function followFrom(graphic, live, logHead) {
     var mine = (live || {})[graphic];

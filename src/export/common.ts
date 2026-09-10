@@ -4,6 +4,7 @@
 import type JSZip from 'jszip';
 import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
+import { FLEX_GAP_SHIM_FILE, flexGapShimSource } from '../assets/flexGapSupport';
 import { isFontAsset, parseDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
 import { fetchBundledFont, referencedFontFiles } from './bundledFonts';
@@ -67,6 +68,9 @@ export async function addReferencedFonts(zip: JSZip, template: SpxTemplate): Pro
 /** Write the bundled GSAP, fonts, and any template assets into the zip (relative paths). */
 export async function addSharedAssets(zip: JSZip, template: SpxTemplate): Promise<void> {
   zip.file('js/gsap.min.js', gsapSource);
+  // The flex-gap shim for an older playout engine (src/assets/flexGapSupport.ts), referenced
+  // from the html by one line beside GSAP's.
+  zip.file(FLEX_GAP_SHIM_FILE, flexGapShimSource);
   // The Lottie player ships only when the template uses it (its <head> tag references
   // js/lottie.min.js, mirroring the GSAP tag).
   if (templateUsesLottie(template)) zip.file('js/lottie.min.js', lottieSource);

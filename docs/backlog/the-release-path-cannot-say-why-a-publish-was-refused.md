@@ -48,6 +48,30 @@ Three things, smallest first, and the first one is the one that pays for itself:
    repository connects "we moved the repository" to "the package can no longer be published", and
    the connection is not guessable from the error.
 
+## How to finish 0.3.1 once the owner has fixed npm
+
+Traced here on 2026-09-10 out of session AH's handoff, which is deleted; the owner's own half is
+`docs/acceptance/owner-queue/2026-09-09-ah-npm-still-thinks-the-repository-is-yours.md` and it
+carries the re-run instruction. What that item does not carry is what the SESSION does afterwards.
+
+`npm run release:cli` will refuse - `scripts/release-cli.mjs:113`, "the tag cli-v0.3.1 already
+exists on origin" - and the refusal is correct, because the tag points at the reviewed commit
+`ed87060e` and the re-run uses it. The script's own verification half therefore never runs, so do
+those four by hand:
+
+```
+npm view @noacg/cli version            # must say 0.3.1
+npm view @noacg/cli dist-tags          # latest must be on it
+gh release list                        # must show cli-v0.3.1
+npx -y @noacg/cli@0.3.1 --version      # must answer 0.3.1
+```
+
+**Never dispatch the workflow against `main` for this.** A dispatch checks out main's tip rather
+than the tag, so it would publish a tree that was never tested and hang the GitHub Release off a
+different commit - and the workflow's tag-versus-version guard is gated on
+`startsWith(github.ref, 'refs/tags/')`, so a dispatch skips it entirely. If run `34408194386` is ever
+gone, `gh workflow run release-cli.yml --ref cli-v0.3.1 -f dry_run=false` is the equivalent.
+
 ## The trap, for `npm run learn`
 
 **Moving a repository silently breaks npm trusted publishing, and the error names the wrong thing.**

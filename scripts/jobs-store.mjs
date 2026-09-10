@@ -36,6 +36,31 @@ export const LIVE_STATES = Object.freeze(['waiting', 'running']);
 export const KINDS = Object.freeze(['gate', 'merge', 'sweep']);
 
 /**
+ * Read one command-line flag, written EITHER WAY - `--name value` or `--name=value`.
+ *
+ * This lives here, beside `costProblem` and `KINDS`, because what a flag says is now what a job
+ * COSTS: `--cost` and `--kind` are both declarations the scheduler acts on. It was in the CLI and
+ * understood only the spaced spelling, so `--cost=0.5` matched nothing, the job was queued at the
+ * classifier's guess, and the CLI printed "queued" - measured 2026-09-10. A dropped declaration is
+ * the one failure mode the `--cost` refusals exist to prevent, so the spelling is decided in one
+ * tested place rather than in whichever call site remembered.
+ *
+ * `undefined` means the flag is absent. An empty string means it was written with nothing after
+ * the `=`, which the caller refuses as a missing value rather than reading as a number.
+ */
+export function flagValue(args, name) {
+  const joined = args.find((a) => a.startsWith(`${name}=`));
+  if (joined !== undefined) return joined.slice(name.length + 1);
+  const i = args.indexOf(name);
+  return i === -1 ? undefined : args[i + 1];
+}
+
+/** Whether a flag was written at all, in either spelling. Says nothing about its value. */
+export function hasFlag(args, name) {
+  return args.includes(name) || args.some((a) => a.startsWith(`${name}=`));
+}
+
+/**
  * What a job COSTS, in suite-equivalents.
  *
  * Counting jobs was the crude part. A Playwright suite is a dev server plus four browser workers
@@ -47,8 +72,34 @@ export const KINDS = Object.freeze(['gate', 'merge', 'sweep']);
  * Heavy work is classified by `command-match.mjs`, the repo's ONE named list of what starts
  * browser work - the same authority the guard hook and the process detector read, so a script
  * that is heavy here is heavy everywhere rather than in a second opinion that can drift.
+ *
+ * `walk` is the cost of ONE browser, and it exists because charging every unrecognised command a
+ * whole suite cost a night's work: 2026-09-09, j-0888 was an OGraf renderer walk and sat refused
+ * for about three hours with "only 2.0-3.2 GB RAM free, needs 4.0" while six other sessions
+ * landed around it. The session could not capture the frames for the beat it had just proven, and
+ * pull request 212 shipped without pictures. Half a suite is a JUDGEMENT, not a measurement: a
+ * suite is a dev server and four browser workers, a walk is that server and one page, and half
+ * leaves the floor at 2 GB - reachable on this box, which 4 GB is not while the owner has a
+ * browser open. Retune it from the logs the way `freeMemFloorMb` says to, once one says what a
+ * walk actually costs.
+ *
+ * AND READ j-0888 AS THE WEAKER EVIDENCE IT TURNED OUT TO BE. Its script landed on 2026-09-10 as
+ * `scripts/ograf-external-walk.mjs`, and reading it counts one `chromium.launch`, TWO pages and
+ * TWO spawned servers - heavier than the walk this default assumes, lighter than the four-worker
+ * suite it was charged. The same commit put it in `SWEEP_SCRIPTS`, so it now prices at a full 1.0
+ * by name. What j-0888 still proves is the half of this that is not a judgement call: the session
+ * KNEW its job was not a suite and had no way to say so. What it no longer proves is that 0.5 is
+ * the right guess for an unknown command. If the logs say the common unknown is nearer a whole
+ * browser, this is the number to move, and that measurement is the one to make first.
+ *
+ * IT FOLLOWS THAT TWO WALKS MAY RUN BY DAY WHERE ONE SUITE COULD, AND FOUR AT NIGHT. That is the
+ * unit meaning what it says rather than a hole: the day budget spends at most ONE suite-equivalent
+ * of this machine on agent work either way, sliced instead of whole, and the RAM floor is the
+ * physical backstop that stops the second slice starting on a box that cannot take it. Work
+ * OUTSIDE the queue is still charged a full suite each (`capacity`), because nothing can measure
+ * it.
  */
-export const COST = Object.freeze({ browser: 1, merge: 0.15, other: 0.4 });
+export const COST = Object.freeze({ browser: 1, walk: 0.5, merge: 0.15, other: 0.4 });
 
 /** Capacity policy. Night is for agents; the day belongs to the person using the laptop. */
 export const POLICY = Object.freeze({
@@ -169,13 +220,39 @@ export function stampGap(stamp, tip) {
   return null;
 }
 
+/**
+ * What is wrong with a declared cost, or null if nothing is. Also what the CLI prints.
+ *
+ * A DECLARED COST IS VALIDATED HERE OR NOWHERE. `costOf` trusts whatever number is on the record,
+ * and every consumer - the listing, the budget, the scaled RAM floor - trusts `costOf`, so a
+ * nonsense value written once is a job that either never starts or starves the others for as long
+ * as it lives. Both ends of the range are real:
+ *
+ *   - The CEILING is one suite-equivalent, the heaviest thing this box models. A job declaring
+ *     more could never start during the day (the budget is 1) and would wait for ever with
+ *     nothing saying why, which is the exact failure this field was added to end.
+ *   - The FLOOR is what a landing costs, because the same number is also the RAM admission
+ *     threshold. Left open, `--cost 0.01` would let a session waive that check on its own job -
+ *     41 MB free and away it goes. Nothing this queue runs is lighter than ten minutes of
+ *     `gh run watch`, so nothing may claim to be.
+ */
+export function costProblem(cost) {
+  if (cost === null || cost === undefined) return null;
+  if (typeof cost !== 'number' || !Number.isFinite(cost) || cost < COST.merge || cost > 1) {
+    return `a job's cost is in suite-equivalents, at least ${COST.merge} and at most 1: got ${JSON.stringify(cost)}`;
+  }
+  return null;
+}
+
 export function addJob(dir, {
   command, checkout, branch = null, kind = 'gate', after = [], capMinutes = POLICY.capMinutes,
   retryOf = null, retryCount = 0, orderHold = null, blockedSince = null,
-  retryReason = null, ciDispatched = false, review = null, now,
+  retryReason = null, ciDispatched = false, review = null, cost = null, now,
 }) {
   if (!KINDS.includes(kind)) throw new Error(`unknown job kind: ${kind}`);
   if (typeof command !== 'string' || command.trim() === '') throw new Error('a job needs a command');
+  const badCost = costProblem(cost);
+  if (badCost) throw new Error(badCost);
   ensureJobsDir(dir);
 
   const taken = new Set(readdirSync(dir).filter((n) => n.endsWith('.json')).map((n) => n.slice(0, -5)));
@@ -203,6 +280,11 @@ export function addJob(dir, {
       capMinutes,
       retryOf,
       retryCount,
+      // WHAT THIS JOB COSTS, when its session knew better than the classifier. Written only when
+      // it was declared, so a job that said nothing keeps reading its cost off `costOf`'s default
+      // and picks up any later change to that default rather than freezing yesterday's guess.
+      // A retry or an adopted landing spreads the old record into `addJob`, so it inherits this.
+      ...(typeof cost === 'number' ? { cost } : {}),
       // Set only when the job is born already parked behind another branch - an ordering block the
       // sweep adopted. It is `waiting` like any other job; the scheduler is what holds it.
       ...(orderHold ? { orderHold } : {}),
@@ -309,25 +391,50 @@ export function capacity({ hour, outsideRuns = 0, policy = POLICY }) {
 /**
  * Commands we KNOW are cheap: CPU and a little RAM, no dev server, no browser.
  *
- * The list is deliberately short and explicit. Everything it does not recognise is charged as a
- * full suite, because the failure directions are not symmetric: charging a cheap job too much
- * costs some wall clock at night, while charging an expensive one too little puts two dev
- * servers and eight browser workers on a 16 GB laptop and slows everything down at once.
+ * The list is deliberately short and explicit, and the two failure directions are not symmetric:
+ * charging a cheap job too much costs wall clock at night, while charging an expensive one too
+ * little puts two dev servers and eight browser workers on a 16 GB laptop at once.
  */
 const CHEAP = [/\bnpm\s+run\s+build\b/, /\bnode\s+--test\b/, /\bnpm\s+run\s+lint\b/, /\btsc\b/, /\bnpm\s+run\s+check:/];
 
 /**
  * What one job costs, in suite-equivalents.
  *
- * A job records its cost when it is queued, so the number is visible in the queue and stable for
- * the job's whole life; this is where that default comes from.
+ * A job that DECLARED a cost when it was queued keeps that number for its whole life - it is on
+ * the record, so the listing, the budget and the RAM floor all read the same figure and a retry
+ * inherits it. Everything below is the default for a job that declared nothing.
+ *
+ * THE DEFAULT FOR AN UNRECOGNISED COMMAND IS ONE BROWSER, NOT A SUITE. Suite-sized work in this
+ * repo is enumerated - the Playwright suites `invokesE2e` matches, and the catalog batteries and
+ * benches named in `SWEEP_SCRIPTS` - so the common unknown is a script that opens one page, and
+ * its realistic worst case is a dev server and that page. Charging it a whole suite is what
+ * refused j-0888 all night.
+ *
+ * THAT LIST DRIFTS, AND THIS DEFAULT NO LONGER COVERS FOR IT. Read `command-match.mjs` from the
+ * top: the `*spike*` family, `catalog-sameness`, `palette-freedom`, `pro-taste-rejudge`, four
+ * `-sweep` scripts and `docs-shots` were all suite-sized and all missing from it until somebody
+ * noticed. Under the old default an unlisted battery was charged correctly by accident; now it is
+ * charged half. Two things carry that weight instead, and both are better than a default that was
+ * right for the wrong reason: a new browser script is named like its siblings or added to the
+ * list (the root AGENTS.md trap says so, and the guard hook and the process detector go wrong
+ * together with it), and a session that knows what it is running says so - `--kind sweep`, or
+ * `--cost`. Meanwhile the scaled floor is charged against a running figure in `schedule`, so a
+ * job priced too low overcommits the box by ITSELF rather than letting three more in behind it.
+ *
+ * The old default's argument - assume an unknown command is the worst thing on the machine -
+ * survives in weakened form: an unknown command is still assumed to open a browser and is never
+ * free, so a night cannot fill up with eight of them.
  */
 export function costOf(job) {
   if (typeof job.cost === 'number') return job.cost;
   if (job.kind === 'merge') return COST.merge;
+  // `sweep` on the record is a DECLARATION - the session queueing it said this is battery work -
+  // and a declaration beats a guess made from the command text, which is the whole point of the
+  // kind. Without this an unlisted battery queued honestly as a sweep still read as a walk.
+  if (job.kind === 'sweep') return COST.browser;
   const command = job.command ?? '';
   if (invokesE2e(command) || invokesSweep(command)) return COST.browser;
-  return CHEAP.some((p) => p.test(command)) ? COST.other : COST.browser;
+  return CHEAP.some((p) => p.test(command)) ? COST.other : COST.walk;
 }
 
 /** Budgets are fractional; print them without floating-point noise. */
@@ -411,6 +518,8 @@ export function schedule(jobs, {
   /** Landings let through despite a dead dependency, with the reason to print. */
   const released = [];
   let used = running.reduce((sum, j) => sum + costOf(j), 0);
+  /** What is left of the free-memory reading after the jobs this pass has already admitted. */
+  let freeLeftMb = freeMemMb;
   const mergeLive = () => [...running, ...start].some((j) => j.kind === 'merge');
 
   for (const job of jobs.filter((j) => j.state === 'waiting')) {
@@ -463,10 +572,34 @@ export function schedule(jobs, {
     // starting on a box that is already short - not to stop a landing, which is a few hundred
     // megabytes spending ten minutes in `gh run watch`. Charging a 0.15 job the full 4 GB
     // stalled exactly the work the owner cares most about finishing overnight.
-    if (freeMemMb < policy.freeMemFloorMb * cost) {
+    //
+    // AND EVERY JOB ADMITTED IN THIS PASS SPENDS THE SAME READING. `freeMemMb` is one sample
+    // taken before the loop, so testing each candidate against it unchanged let N jobs that each
+    // fit the free memory all start at once - four of them on 2.1 GB free, measured 2026-09-09
+    // while pricing a walk at half a suite made that reachable. So the pass keeps its own running
+    // figure and charges each admission what its floor says it will take. It is an assumption,
+    // not a measurement; the next poll re-reads the real thing.
+    // A LANDING IS NOT CHARGED AGAINST THE PASS'S RUNNING FIGURE EITHER, for the same reason it
+    // is exempt from the budget below. It is tested against the REAL reading and takes nothing
+    // out of it: `gh run watch` is a few hundred megabytes, and making it wait on what the walks
+    // ahead of it claimed reproduced the exact stall this whole change exists to remove - at
+    // 4.3 GB free, two walks admitted first and the landing behind them was refused with
+    // "only 0.2 GB RAM free, needs 0.6". The physical backstop is kept: on a genuinely short box
+    // the landing still waits. Nothing can crowd in behind it, because two merges never overlap
+    // (above), so at most one is admitted per pass whatever this figure says.
+    const budgetedMb = job.kind === 'merge' ? freeMemMb : freeLeftMb;
+    const needsMb = policy.freeMemFloorMb * cost;
+    if (budgetedMb < needsMb) {
       waiting.push({
         job,
-        reason: `only ${(freeMemMb / 1024).toFixed(1)} GB RAM free, needs ${(policy.freeMemFloorMb * cost / 1024).toFixed(1)}`,
+        // BOTH FIGURES, because they answer different questions and only one of them is the
+        // machine. A reader who is told "only 0.1 GB RAM free" on a box with 2.1 GB free goes
+        // looking for the memory, when the answer is that earlier jobs in this same pass claimed
+        // it - which the next poll may well undo.
+        reason:
+          budgetedMb === freeMemMb
+            ? `only ${(freeMemMb / 1024).toFixed(1)} GB RAM free, needs ${(needsMb / 1024).toFixed(1)}`
+            : `only ${(freeLeftMb / 1024).toFixed(1)} GB of ${(freeMemMb / 1024).toFixed(1)} GB free RAM unclaimed this pass, needs ${(needsMb / 1024).toFixed(1)}`,
       });
       continue;
     }
@@ -486,6 +619,7 @@ export function schedule(jobs, {
     start.push(job);
     if (releasedBecause) released.push({ job, reason: releasedBecause });
     used += cost;
+    if (job.kind !== 'merge') freeLeftMb -= needsMb;
   }
   return { start, waiting, dead, released, running, slots };
 }

@@ -36,6 +36,123 @@ async function mapCorpusFile(page: Page, slug: string) {
   await dropSvg(page, fixture(slug));
 }
 
+// ── READING THE COMPOSED DOCUMENT, AND WAITING FOR THE RIGHT ONE ────────────────────────────
+//
+// Every measurement in this file is taken inside the wizard's preview iframe, and that iframe is
+// REPLACED on each rebuild rather than re-pointed (WizardPreview.tsx says why: a new srcdoc on a
+// live frame is a subframe navigation, so it fills the reader's Back button). So a read is only
+// as good as the wait in front of it, and there are two separate ways to get the wait wrong.
+//
+// THE STAMPS ARE NARROWLY AHEAD OF THE ASSERTION THAT READS THEM. `data-doc-pending` is set from
+// a React passive effect - one commit after the change event `fill()` dispatched, never during
+// it. Measured over the whole ladder on an idle laptop, that stamp lands 6 to 17 ms before the
+// assertion arrives; that margin is the entire safety of a `not.toHaveAttribute('data-doc-
+// pending', '1')` wait, and a contended CI runner re-rendering this 2,400-line step does not owe
+// anyone 7 ms. Lose it and the wait answers about the PREVIOUS document: it passes on a rebuild
+// that has not started, and the frame it leaves in place is replaced 220 ms later.
+//
+// AND THE RUNG THAT OWES NOTHING WAITS FOR A STAMP THAT NEVER COMES. Typing a value the field
+// already holds composes an identical document, so no rebuild is scheduled and no stamp moves at
+// all (measured: 0 of 28 rungs stamp anything at `shrink / short`, 1 of 28 at every other). The
+// ladder types its datum at the top of each option and again as the first length, so that rung
+// is the one where the spec waits for nothing and walks straight into the PREVIOUS fill's
+// rebuild. Both CI failures landed there - run 34289872217 on `fc06fc2b`, and again on main's
+// tip in run 34421430904 - with `locator.evaluate: Frame was detached`.
+//
+// The detach is the LUCKY half. Lose the same race by a hair less and the read succeeds against
+// the document for the previous value, which is a silently wrong datum on a test whose whole job
+// is comparing one reading against another.
+
+const SETTLED = { timeout: 20_000 };
+
+/** A read that failed because the frame it was reading went away, rather than because the thing
+ *  it was reading is wrong. Only this shape is worth another attempt. */
+const frameWentAway = (err: unknown) =>
+  /frame was detached|execution context was destroyed|target closed|frame got detached/i.test(
+    err instanceof Error ? err.message : String(err),
+  );
+
+/**
+ * Read something out of the composed document, re-resolving the frame on every attempt.
+ *
+ * A rebuild that lands mid-read is a RETRY rather than a failure: the reading itself is
+ * unchanged (the getBBox measurements below are deliberate and none of them is relaxed), only
+ * the frame it is taken from is resolved again. Nothing here can make a stale reading pass -
+ * `awaitPainted` is what proves the document is the current one, and this is what stops the
+ * frame being swapped out from under a read that was already correct to take.
+ *
+ * ONLY A VANISHED FRAME IS RETRIED. Everything else is re-thrown on the spot, because the errors
+ * these readings raise are the ones this corpus exists to catch: `#f0` going missing reads as
+ * `Cannot read properties of null`, and retrying that for twenty seconds turns a named regression
+ * into a bare test timeout with no assertion attached to it.
+ */
+async function readArt<R, A>(
+  frame: FrameLocator,
+  fn: (art: SVGElement | HTMLElement, arg: A) => R,
+  arg: A,
+): Promise<R> {
+  let out!: R;
+  let fatal: unknown = null;
+  await expect(async () => {
+    if (fatal) return; // end the loop; the error is re-thrown below with its own message
+    try {
+      out = await frame.locator('.imported-design-art').evaluate(fn, arg);
+    } catch (err) {
+      if (!frameWentAway(err)) fatal = err;
+      else throw err;
+    }
+  }).toPass(SETTLED);
+  if (fatal) throw fatal;
+  return out;
+}
+
+/**
+ * Wait until the preview is painting exactly `value` AND has finished arriving.
+ *
+ * TWO THINGS, and neither implies the other. WHICH document is on screen is settled by asking it
+ * what it is showing rather than by reading when it was last stamped, so the answer is true at
+ * the rung that owes a rebuild and at the rung that owes none, and no margin has to hold for it.
+ * `svgFitValue` is the runtime's OWN reader - the one `svgPaintLines` marks its lines for - so a
+ * block wrapped onto three tspans comes back as the value it was made from, spaces intact, and
+ * the comparison is exact rather than a whitespace heuristic. Measured across all four options
+ * and all six lengths: exactly one text node reads back the typed value, every time.
+ *
+ * WHETHER IT HAS SETTLED is the other half, and asking only the first would have been a step
+ * BACKWARDS from the stamps this replaced. The value is baked into the emitted markup, so a text
+ * node reads it back the moment the SVG parses - before the fit has run at all. The fit runs
+ * twice (`SVG_FIT_BOOT`): once on `DOMContentLoaded`, and again on `document.fonts.ready`,
+ * because the first pass measures a face the browser has not loaded yet. So a reading taken
+ * between them is a FALLBACK-METRICS reading, and two of them taken either side of that line
+ * differ by a whole size step with nothing wrong in the product. `data-doc-pending` clears from
+ * the frame's own load handler and `document.fonts.ready` is awaited from here - the runtime
+ * registered its own callback on that promise first, so by the time this one resolves the second
+ * fit has already run. `fitBothWays` below waits out the same two events for the same reason.
+ *
+ * Both live inside the retry: a rebuild starting while this settles puts `data-doc-pending` back
+ * up, the attempt fails, and the next one re-asks the frame that replaced it.
+ */
+async function awaitPainted(page: Page, value: string) {
+  const stage = page.locator('.wz-stage');
+  const frame = page.frameLocator('.wz-side iframe');
+  await expect(async () => {
+    const state = await frame.locator('.imported-design-art').evaluate((art, want: string) => {
+      const read = (window as unknown as { svgFitValue?: (el: Element) => string }).svgFitValue;
+      return {
+        reader: !!read,
+        painted: !!read && [...art.querySelectorAll('text')].some((t) => read(t) === want),
+      };
+    }, value);
+    // Said apart, so a document that is not an imported design at all reports as that rather
+    // than as a value that never turned up.
+    expect(state.reader, 'the preview document carries no svgFitValue to read itself back with').toBe(true);
+    expect(state.painted, `the preview is not painting "${value.slice(0, 40)}" yet`).toBe(true);
+    await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 2_000 });
+    await frame.locator('body').evaluate(async () => {
+      await document.fonts.ready;
+    });
+  }).toPass(SETTLED);
+}
+
 /** Drop a corpus file on the Import door and stop on the card, which is where the size is
  *  reported - the mapping step is one click too far to read it. */
 async function dropCorpusFile(page: Page, slug: string) {
@@ -532,7 +649,7 @@ interface LadderReading {
  *  screen px: "wider" is a promise about what the reader sees, and this plate's own width
  *  attribute runs down the painted band rather than across it. */
 async function readLadder(frame: FrameLocator): Promise<LadderReading> {
-  return frame.locator('.imported-design-art').evaluate((art) => {
+  return readArt(frame, (art) => {
     const w = window as unknown as Record<string, Record<string, number>>;
     const q = art.querySelector('#f0') as SVGGraphicsElement;
     const panel = art.querySelector('#q_bg') as SVGGraphicsElement;
@@ -572,20 +689,22 @@ async function readLadder(frame: FrameLocator): Promise<LadderReading> {
       }),
       over: !!w.svgFitOver?.f0,
     };
-  });
+  }, null);
 }
 
-/** Type a question into the mapping step's own Text box and wait for the wizard's rebuild.
+/** Type a question into the mapping step's own Text box and wait for the wizard to be showing it.
  *
  *  The WIZARD is the surface he walked all three times, and it builds its document by a different
  *  path than the editor - so it needs its own measurement rather than inheriting the editor's.
- *  The stage carries the rebuild stamps, not the frame: a rebuild REPLACES the frame, so a stamp
- *  on the frame is gone exactly when a waiter needs to read it (WizardPreview.tsx). */
+ *
+ *  The wait leads with what the document is PAINTING rather than with the stage's rebuild stamps,
+ *  for the two reasons written out at the top of this file: the stamps are only a handful of
+ *  milliseconds ahead of the assertion that reads them, and at the rung where the field already
+ *  holds this value there is no rebuild to stamp at all. `awaitPainted` still waits the stamps
+ *  out afterwards - by then they say something, because the document they describe is known. */
 async function typeQuestion(page: Page, candidateId: string, value: string) {
-  const stage = page.locator('.wz-stage');
   await page.getByTestId(`map-svg-sample-${candidateId}`).fill(value);
-  await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
-  await expect(stage).toHaveAttribute('data-doc-rev', /\d/, { timeout: 20_000 });
+  await awaitPainted(page, value);
 }
 
 /** The candidate id of the layer the designer named "question". */
@@ -723,7 +842,7 @@ test('corpus: the fit ladder spends its rungs in order, on every option and ever
 const platesAtRest = new Map<string, number>();
 
 async function rememberPlate(frame: FrameLocator, id: string): Promise<void> {
-  const idx = await frame.locator('.imported-design-art').evaluate((art, fieldId) => {
+  const idx = await readArt(frame, (art, fieldId: string) => {
     const w = window as unknown as Record<string, Record<string, unknown>>;
     const el = art.querySelector(`#${fieldId}`) as SVGGraphicsElement;
     const panel = (w.svgFitContainer as unknown as (e: Element) => Element | null)(el);
@@ -734,7 +853,7 @@ async function rememberPlate(frame: FrameLocator, id: string): Promise<void> {
 
 async function readAlign(frame: FrameLocator, id: string) {
   const remembered = platesAtRest.get(id);
-  return frame.locator('.imported-design-art').evaluate((art, [fieldId, atRest]: [string, number]) => {
+  return readArt(frame, (art, [fieldId, atRest]: [string, number]) => {
     const w = window as unknown as Record<string, Record<string, unknown>>;
     const el = art.querySelector(`#${fieldId}`) as SVGGraphicsElement;
     const shapes = [...art.querySelectorAll('rect, path, polygon, ellipse, circle')];
@@ -818,7 +937,7 @@ test('corpus: a plate turned on its LAYER measures a screen pixel the same as on
   const row = await rowLabelled(page, /question/i);
   await typeQuestion(page, row, 'Mika on Suomen korkein tunturi?');
 
-  const room = await frame.locator('.imported-design-art').evaluate(() => {
+  const room = await readArt(frame, () => {
     const w = window as unknown as Record<string, Record<string, { width: number }>>;
     const plate = (
       w.svgLayoutEl as unknown as (t: string) => SVGGraphicsElement | null
@@ -827,7 +946,7 @@ test('corpus: a plate turned on its LAYER measures a screen pixel the same as on
       roomW: w.svgFitRoom?.f0?.width ?? 0,
       plateW: plate ? plate.getBoundingClientRect().width : 0,
     };
-  });
+  }, null);
   // The room a line is offered can never be a multiple of the plate it is drawn in. Asked as a
   // ratio rather than as a number, because the number is the artwork's and this is about the
   // frame it was read in.
@@ -836,13 +955,13 @@ test('corpus: a plate turned on its LAYER measures a screen pixel the same as on
 
   // And the words stay on the frame at a value long enough to have run off it.
   await typeQuestion(page, row, LADDER_VALUES.absurd);
-  const off = await frame.locator('.imported-design-art').evaluate((art) => {
+  const off = await readArt(frame, (art) => {
     const f = art.getBoundingClientRect();
     return [...art.querySelectorAll('text, rect')].filter((el) => {
       const r = el.getBoundingClientRect();
       return r.width > 0 && (r.left < f.left - 1 || r.right > f.right + 1);
     }).length;
-  });
+  }, null);
   expect(off, 'shapes painted off the frame').toBe(0);
   await exportsClean(page);
 });
@@ -1017,9 +1136,20 @@ test('corpus: the same question fits the same way whatever was toggled before it
   const stage = page.locator('.wz-stage');
   const value = LADDER_VALUES.over3;
 
+  // Attaching or removing a behaviour paints no new words, so this one cannot wait on what the
+  // document is showing the way `typeQuestion` does - it waits on the REVISION MOVING instead,
+  // snapshotted before the click. That is deterministic here for the one reason it is not
+  // deterministic in general: a behaviour is emitted code, so this select always composes a
+  // different document, and `awaitPainted` has already waited the previous rebuild out, so there
+  // is nothing older in flight whose landing could be mistaken for this one's. The stamp is read
+  // only once it exists, the way e2e/_preview.ts reads it - a revision snapshotted as null is
+  // not an "attribute absent" expectation, it is an expectation Playwright will not take.
   const behaviour = async (kind: string) => {
+    await expect(stage).toHaveAttribute('data-doc-rev', /\d/, SETTLED);
+    const before = await stage.getAttribute('data-doc-rev');
     await page.getByTestId('map-svg-behaviour-kind').selectOption(kind);
-    await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
+    await expect(stage).not.toHaveAttribute('data-doc-rev', before!, SETTLED);
+    await expect(stage).not.toHaveAttribute('data-doc-pending', '1', SETTLED);
   };
 
   await typeQuestion(page, qId, value);

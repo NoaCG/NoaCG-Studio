@@ -7,6 +7,7 @@
 
 import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
+import { flexGapShimTag } from '../assets/flexGapSupport';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
 import { settleGraphic, reportGraphicBox } from './settleGraphic';
@@ -168,6 +169,11 @@ html { overflow: hidden; }
 body { position: relative; overflow: visible !important; margin: ${options.authoring.padY}px ${options.authoring.padX}px !important; }
 </style>`
     : '';
+  // Flex `gap` on an engine that lacks it (CasparCG 2.3.x renders on Chromium 71; flex gap is
+  // 84): the shim puts the gap back as margins there and returns untouched everywhere else.
+  // It rides in every composed document because this composer is what the output page airs
+  // through, and the preview must lay out exactly what playout will (src/assets/flexGapShim.js).
+  const flexGapTag = flexGapShimTag();
   const gsapTag = `<script id="spx-gsap">\n${gsapSource}\n</script>`;
   // The bundled Lottie player rides along ONLY when the template uses it (unlike GSAP,
   // which every template animates with) — see src/assets/lottieSupport.ts.
@@ -228,7 +234,7 @@ window.addEventListener('unhandledrejection', function (ev) {
 
   // GSAP must load before the template JS. Put both at the end of <head> if possible. The
   // authoring style comes LAST so it overrides the template's own resetCanvasCss.
-  const headInjection = `${colorSchemeTag}\n${assetShimTag}${gsapTag}${lottieTag}\n${styleTag}\n${authoringStyleTag ? `${authoringStyleTag}\n` : ''}`;
+  const headInjection = `${colorSchemeTag}\n${assetShimTag}${flexGapTag}\n${gsapTag}${lottieTag}\n${styleTag}\n${authoringStyleTag ? `${authoringStyleTag}\n` : ''}`;
   if (/<\/head>/i.test(html)) {
     html = html.replace(/<\/head>/i, `${headInjection}</head>`);
   } else {

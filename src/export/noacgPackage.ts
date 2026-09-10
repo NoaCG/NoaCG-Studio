@@ -46,7 +46,7 @@ export interface GraphicPackageOptions {
 }
 
 /** The libraries the OGraf half loads from the SPX layout instead of a second `lib/` copy. */
-const SHARED_LIB = { gsap: 'js/gsap.min.js', lottie: 'js/lottie.min.js' };
+const SHARED_LIB = { gsap: 'js/gsap.min.js', lottie: 'js/lottie.min.js', flexGap: 'js/flex-gap-shim.js' };
 
 /**
  * Write the dual package into `root` (the per-graphic folder). The SPX half first - it IS the

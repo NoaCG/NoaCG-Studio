@@ -1,0 +1,910 @@
+// DOES THE OPERATOR'S LAG FOLLOW SELECTION, OR THE VERBS? AND WHAT DOES PUBLISHING COST?
+//
+//   npm run dev:worktree                      (the dev server, for the seed only)
+//   node scripts/playout-lag-bench.mjs playout-lag-out --seed [--published]
+//   npm run build && npm run dev:worktree -- --preview     (the BUILT app, same port)
+//   node scripts/playout-lag-bench.mjs playout-lag-out --measure [--rounds N] [--pool N] [--headless]
+//
+// Both phases in one go against the dev server (instrument shake-out only, never a number to
+// act on) is the no-flag form: node scripts/playout-lag-bench.mjs [out-dir]
+//
+// The owner, driving his own quiz on 2026-09-05: "It didn't play out immediately, or it didn't
+// stop immediately." docs/backlog/playout-lag-when-working-the-queue.md carries what was already
+// measured - the click handler is 0.3-0.4 ms and the host page records no long task - and the one
+// finding that matched "moving around the queue": every cue selection replaces the preview
+// iframe's 184 KB `srcdoc`. Nobody had measured what that rebuild COSTS, or whether a Take
+// pressed straight after one is slower than a Take pressed on its own.
+//
+// So this is not a screenshot script and it asserts nothing. It drives the real dashboard and
+// reports four numbers per gesture, in one clock (absolute epoch milliseconds, so a stamp taken
+// inside a sandboxed graphic document is comparable with one taken in the host - each document
+// has its OWN `performance.timeOrigin`, which is why every stamp here is `timeOrigin + now()`):
+//
+//   click        the capture-phase stamp, before React's handler runs
+//   command      the command reaching the stage (PROGRAM's `data-plays` moves, set synchronously
+//                inside `PayloadStage.apply`)
+//   played       the graphic's own command handler RETURNING, stamped inside its document
+//   painted      the first animation frame after that handler - the frame the entrance is drawn in
+//
+// THE PUBLISHED PATH takes a different road and needs three more stamps, because on a published
+// production `runVerb` (ProductionPage.tsx) awaits a Supabase RPC and deliberately applies
+// NOTHING locally - the log follower brings the row back and applying twice would double every
+// write. So the operator's own PROGRAM monitor waits for a server round trip AND a Realtime
+// fan-out before it moves at all:
+//
+//   rpcSent      the app calling `fetch` for `control_send_many` - everything before it is ours
+//   rpcDone      that fetch resolving - the round trip to the database, the operator's network
+//   wsRow        the first Realtime frame carrying a `control_events` row back into this tab,
+//                stamped on the SOCKET (a listener registered inside the WebSocket constructor,
+//                so it runs before realtime-js has parsed the frame)
+//
+// `command` then follows `wsRow` by a fraction of a millisecond, because the follower's `onRow`
+// calls `applyProgram` synchronously. Which of the four gaps is the large one is the whole
+// question, and it is the reason these are separate columns rather than one total.
+//
+// WHAT THAT FOUND on 2026-09-10, on the built app: a published Take paints in 515 ms and Out in
+// 397 ms, against 30 ms for the same production unpublished in the same browser a minute later.
+// The RPC is answered at 100-150 ms, so the LARGE gap is `rpcDone` to `wsRow` - the Realtime
+// fan-out, 220-350 ms of it. That is not the dashboard: measured from Node and from an empty
+// Chromium page, `postgres_changes` delivers in either ~130 ms or ~600 ms, bimodally, while a
+// `broadcast` on the same backend is 50 ms every time. `scripts/playout-wire-probe.mjs` measures
+// those two hops in fifteen seconds without a browser, which is the instrument to reach for first.
+//
+// And one number the four cannot give: `frozeMs`, the largest gap between consecutive animation
+// frames in the HOST page across the gesture. That is what an operator actually feels. It is
+// measured rather than inferred because the preview document boots on a thread the host may
+// share, and a long task attributed to a child frame is exactly the one the host's own
+// `longtask` observer missed on 2026-09-05.
+//
+// WHAT IT FOUND on 2026-09-10 is in docs/backlog/playout-lag-when-working-the-queue.md, and the
+// short version is worth carrying here so nobody re-derives the traps: on the BUILT app every
+// gesture paints in about 30 ms - Take, Out, and a Take pressed straight after moving in the
+// rundown - and the page never drops a frame. On the DEV SERVER the same gestures paint in 85-91
+// ms and drop three to four. Any latency number taken against `npm run dev` is a measurement of
+// React's development runtime, which is why this script has a `--measure` phase at all.
+//
+// Named `*-bench*` on purpose: that puts it inside SWEEP_SCRIPTS (scripts/command-match.mjs), so
+// it queues behind any other browser-driving job on this machine rather than competing with one.
+// The 2026-09-05 measurement was taken with 3.9 GB free against a 4.0 GB floor, so free memory is
+// recorded beside every run - a browser that is swapping lags whatever the code does.
+
+import { chromium } from '@playwright/test';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { freemem, totalmem } from 'node:os';
+import { join } from 'node:path';
+import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { outDir } from './out-dir.mjs';
+import { ambientEnv } from './read-dotenv.mjs';
+
+// The account the published fixture is created under. `ambientEnv` reads this checkout's `.env`
+// and falls back to the MAIN checkout's, so a linked worktree needs no copy of its own for the
+// SCRIPT - the dev server it drives is a different matter and does need one (vite reads `.env`
+// from the checkout root, so a worktree with no `.env` serves an app with no backend at all).
+// Resolved from THIS FILE rather than `process.cwd()`, like every other keyed script here: the
+// fallback shells `git rev-parse`, so a run started from another directory would look for the
+// main checkout from there and report a configured machine as having no credentials.
+const env = ambientEnv(fileURLToPath(new URL('..', import.meta.url)));
+
+const args = process.argv.slice(2);
+/** Flags that consume the next argument - so its VALUE is never mistaken for the out-dir. */
+const VALUE_FLAGS = new Set(['--rounds', '--pool']);
+const positional = args.filter((a, i) => !a.startsWith('-') && !VALUE_FLAGS.has(args[i - 1]));
+const headless = args.includes('--headless');
+
+/**
+ * A whole-number flag value, or a refusal.
+ *
+ * `Number(undefined)` and `Number('six')` are both NaN, and NaN loses every comparison silently:
+ * `for (r = 0; r < NaN; r++)` runs zero times, so a mistyped `--rounds` used to write a results
+ * file with an empty `runs` array, print the summary header with no rows under it, and exit 0.
+ * A bench that reports nothing while claiming success is worse than one that refuses.
+ */
+function intFlag(name, fallback) {
+  const at = args.indexOf(name);
+  if (at < 0) return fallback;
+  const value = Number(args[at + 1]);
+  if (!Number.isFinite(value) || value < 1 || !Number.isInteger(value)) {
+    console.error(`${name} takes a whole number of at least 1; got ${JSON.stringify(args[at + 1] ?? null)}.`);
+    process.exit(2);
+  }
+  return value;
+}
+
+const ROUNDS = intFlag('--rounds', 6);
+/**
+ * TWO PHASES, because the number that matters can only come off the BUILT app.
+ *
+ * The fixture is built by calling the app's own modules through the dev server's module graph
+ * (`import('/src/model/shows.ts')`, the same door e2e/_create.ts uses) - and a production bundle
+ * has no such graph. `--seed` therefore runs against the dev server and saves the browser
+ * profile it produced: localStorage AND IndexedDB, which is where a production actually lives
+ * (model/durableStore.ts). `--measure` restores that profile against whatever is serving the
+ * same port - `npm run dev:worktree -- --preview`, the built app - and only measures.
+ *
+ * The port is the same number in both phases, and that is load-bearing rather than convenient:
+ * a stored profile belongs to an ORIGIN, and http://localhost:5224 is the same origin whether
+ * Vite is serving src/ or dist/ behind it.
+ *
+ * With neither flag it seeds and measures in one go against the dev server, which is fine for
+ * shaking the instrument out and worthless for a number anybody is going to act on.
+ */
+const seedOnly = args.includes('--seed');
+const measureOnly = args.includes('--measure');
+
+/**
+ * PUBLISH the fixture against the real backend, which is a SEED-time decision.
+ *
+ * Publishing needs an account and the app's own module graph (sign-in, then the page's own
+ * Publish button), so it belongs to the phase that runs against the dev server. The measure
+ * phase learns what it is driving from the fixture file rather than from a flag - a published
+ * fixture measured with the flag left off would file round-trip numbers as local ones.
+ *
+ * Credentials come from the environment (`.env`, loaded below): E2E_EMAIL / E2E_PASSWORD, the
+ * same throwaway account e2e/configured/ drives. The repo carries no secrets.
+ */
+const publishSeed = args.includes('--published');
+
+/** Sign in and remove this bench's leftovers, then stop. The measure phase runs against the
+ *  BUILT app, which has no module graph to reach `unpublishControlShow` through, so tidying up
+ *  after a published run is its own pass against the dev server. */
+const cleanupOnly = args.includes('--cleanup');
+
+/** The production's name, and the ONLY thing `--cleanup` matches on. */
+const SHOW_NAME = 'Lag Bench';
+
+const out = outDir(positional[0], 'playout-lag-out', 'Usage: node scripts/playout-lag-bench.mjs [out-dir] [--seed|--measure] [--headless] [--rounds N]');
+mkdirSync(out, { recursive: true });
+const port = execSync('node scripts/dev-port.mjs').toString().trim();
+const base = `http://localhost:${port}`;
+
+/** Bytes as gigabytes, two decimals - a number, not a string, because it goes into JSON. */
+const gb = (bytes) => Math.round((bytes / 1024 ** 3) * 100) / 100;
+const freeNow = () => ({ freeGb: gb(freemem()), totalGb: gb(totalmem()) });
+
+// ── The probes, injected at document start into EVERY frame ────────────────────────────────
+//
+// In a GRAPHIC document (any frame that is not the top one) this wraps `addEventListener` so
+// that every `message` listener the composed document registers is timed from the outside: the
+// stamp before the call is the command arriving, the stamp after it is `play()` having returned.
+// Wrapping the registration rather than adding a second listener is what makes "after" mean
+// after - listener order is registration order, and this script cannot register later than a
+// document it does not control.
+const FRAME_PROBE = `(() => {
+  const abs = () => performance.timeOrigin + performance.now();
+  if (window === window.top) return;
+  const marks = [];
+  window.__lagMarks = marks;
+  const origAdd = window.addEventListener.bind(window);
+  window.addEventListener = function (type, fn, opts) {
+    if (type !== 'message' || typeof fn !== 'function') return origAdd(type, fn, opts);
+    const wrapped = function (ev) {
+      const d = ev && ev.data;
+      const cmd = d && typeof d === 'object' && d.type === 'spx-preview-cmd' ? d.cmd : null;
+      // A state poll is a round trip every 500-1000 ms and would drown the record; only the
+      // commands a VERB sends are kept.
+      if (!cmd || cmd === 'state' || cmd === 'measure') return fn.apply(this, arguments);
+      const rec = { cmd, arrived: abs(), played: null, painted: null };
+      try {
+        return fn.apply(this, arguments);
+      } finally {
+        rec.played = abs();
+        marks.push(rec);
+        requestAnimationFrame(() => { rec.painted = abs(); });
+      }
+    };
+    return origAdd(type, wrapped, opts);
+  };
+  // The document's own boot, for the preview rebuild: parse start, then the first frame it can
+  // draw in. The graphic's fonts, GSAP and the fit ladder all land between these two.
+  marks.push({ cmd: '__parse', arrived: abs(), played: abs(), painted: null });
+  window.addEventListener('load', () => {
+    const t = abs();
+    const rec = { cmd: '__load', arrived: t, played: t, painted: null };
+    marks.push(rec);
+    requestAnimationFrame(() => { rec.painted = abs(); });
+  });
+})();`;
+
+/**
+ * THE NETWORK PROBE, installed at document start in the TOP frame only.
+ *
+ * It has to be this early: `getSupabase()` is a dynamic import, and both the PostgREST client
+ * and realtime-js capture the globals they use when that module first evaluates. Wrapping after
+ * the app has booted would wrap nothing the app actually calls.
+ *
+ * It lives on `window.__lagNet` rather than on `__lagHost` on purpose. HOST_PROBE runs later
+ * (after the production page is up) and ASSIGNS a fresh object; folding these arrays into it
+ * would throw away every stamp taken during boot, including the socket's own join.
+ */
+const NET_PROBE = `(() => {
+  if (window !== window.top) return;
+  const abs = () => performance.timeOrigin + performance.now();
+  const net = { rpc: [], ws: [] };
+  window.__lagNet = net;
+  const origFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    const named = /\\/rest\\/v1\\/rpc\\/([a-z_]+)/i.exec(url);
+    if (!named) return origFetch(input, init);
+    // Stamped BEFORE the call and again when it settles, so the row carries the app's own
+    // pre-flight (serialising the batch, the auth header) on one side of \`sent\` and the
+    // network plus the database on the other. A rejected fetch is stamped too: a take that
+    // failed still cost the operator the wait, and a missing \`returned\` would read as a
+    // request that never came back.
+    const rec = { name: named[1], sent: abs(), returned: null, failed: false };
+    net.rpc.push(rec);
+    return origFetch(input, init).then(
+      (res) => { rec.returned = abs(); rec.status = res.status; return res; },
+      (err) => { rec.returned = abs(); rec.failed = true; throw err; },
+    );
+  };
+  // The Realtime fan-out, stamped on the SOCKET. The listener is registered inside the
+  // constructor, which is before realtime-js assigns its own \`onmessage\` - and listener order
+  // is registration order - so this is the frame ARRIVING, not the frame after the client has
+  // parsed and routed it. A Proxy rather than a subclass keeps \`WebSocket.OPEN\` and the rest
+  // of the statics answering as themselves.
+  window.WebSocket = new Proxy(window.WebSocket, {
+    construct(Target, argumentsList) {
+      const ws = new Target(...argumentsList);
+      ws.addEventListener('message', (ev) => {
+        const text = typeof ev.data === 'string' ? ev.data : '';
+        if (!text.includes('control_events')) return;
+        // WHICH COMMAND the row carries, so a gesture can time ITS OWN row rather than whichever
+        // arrived first. The fan-out has a slow mode of about 650 ms and stragglers past it, so a
+        // row from the settle before this gesture - the take-down that reset does, or a staged
+        // row - can land inside this window. Measured over the 2026-09-10 run: one of twenty rows
+        // was exactly that, its wsRow sitting 126 ms ahead of the graphic's own played stamp,
+        // while the other nineteen sat within 6 ms of it.
+        //
+        // THE FRAME IS A PHOENIX v2 ARRAY - [joinRef, ref, topic, event, payload] - not an object
+        // with a payload key. Checked against a live frame on 2026-09-10 (the record carries
+        // id, msg, graphic, show_id, created_at under payload.data.record); the object form is
+        // read too, so a serializer change degrades to null rather than to a wrong answer.
+        let kind = null;
+        try {
+          const frame = JSON.parse(text);
+          const payload = Array.isArray(frame) ? frame[4] : frame?.payload;
+          kind = payload?.data?.record?.msg?.t ?? null;
+        } catch { kind = null; }
+        net.ws.push({ t: abs(), kind, bytes: text.length });
+      });
+      return ws;
+    },
+  });
+})();`;
+
+/**
+ * The HOST probes: a continuous animation-frame sampler, a capture-phase click stamp, and two
+ * targeted attribute observers. Installed after the production page is up rather than at
+ * document start, so nothing here is paid during the app's own boot.
+ *
+ * `data-plays` is the honest "the command reached the stage" signal: PayloadStage sets it
+ * synchronously inside the same `apply` call that posts into the graphic's document.
+ */
+const HOST_PROBE = `(() => {
+  const abs = () => performance.timeOrigin + performance.now();
+  const h = { frames: [], clicks: [], plays: [], srcdoc: [], previewLoads: [] };
+  window.__lagHost = h;
+  // Trimmed in rare batches rather than shifted per frame: this runs in the page whose latency
+  // is the subject, and an O(n) shift on every animation frame would be the instrument creating
+  // what it measures. HOST_READ empties it once per gesture, so the cap is a safety net.
+  const tick = () => { h.frames.push(abs()); if (h.frames.length > 8000) h.frames.splice(0, 4000); requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+  document.addEventListener('click', (ev) => {
+    const el = ev.target instanceof Element ? ev.target.closest('[data-testid],.pd-cue-label') : null;
+    h.clicks.push({ t: abs(), what: el ? (el.getAttribute('data-testid') || el.className) : 'unknown' });
+  }, true);
+  const stage = document.querySelector('[data-testid="program-stage"]');
+  if (stage) new MutationObserver(() => h.plays.push({ t: abs(), plays: Number(stage.getAttribute('data-plays') || 0) }))
+    .observe(stage, { attributes: true, attributeFilter: ['data-plays'] });
+  // Returns whether the observers are on a LIVE element, so a caller can tell "the document was
+  // not rebuilt" apart from "nothing was watching". The element mark is what makes re-calling
+  // this free on the common path where React kept the same node.
+  const attachPreview = () => {
+    const frame = document.querySelector('[data-testid="production-preview"] iframe');
+    if (!frame) return false;
+    if (frame.__lagAttached) return true;
+    frame.__lagAttached = true;
+    new MutationObserver(() => h.srcdoc.push({ t: abs(), bytes: (frame.getAttribute('srcdoc') || '').length }))
+      .observe(frame, { attributes: true, attributeFilter: ['srcdoc'] });
+    frame.addEventListener('load', () => h.previewLoads.push(abs()));
+    return true;
+  };
+  attachPreview();
+  // The preview subtree is absent until a cue is selected, and conditional after that, so this
+  // is re-called before every measured gesture rather than once.
+  window.__lagAttachPreview = attachPreview;
+})();`;
+
+/** Everything the host recorded, then cleared - one gesture's worth. */
+const HOST_READ = `(() => {
+  const h = window.__lagHost;
+  const n = window.__lagNet || { rpc: [], ws: [] };
+  const out = { frames: h.frames.slice(), clicks: h.clicks.slice(), plays: h.plays.slice(), srcdoc: h.srcdoc.slice(), previewLoads: h.previewLoads.slice(), rpc: n.rpc.slice(), ws: n.ws.slice() };
+  h.frames.length = 0; h.clicks.length = 0; h.plays.length = 0; h.srcdoc.length = 0; h.previewLoads.length = 0;
+  n.rpc.length = 0; n.ws.length = 0;
+  return out;
+})();`;
+
+/**
+ * The largest gap between consecutive animation frames in a window - the freeze an operator feels.
+ *
+ * The left edge is CLAMPED to `from` rather than taken from the previous frame, because the frame
+ * before the gesture is by definition before it: an unclamped difference charges a stall that
+ * merely ENDED after the click to the click itself, and Playwright's own click preparation
+ * (scroll into view, hit testing) runs on the page in exactly that window. Charging the driver's
+ * work to the product is the one direction this number must not be wrong in.
+ */
+function frozeMs(frames, from) {
+  let worst = 0;
+  for (let i = 1; i < frames.length; i++) {
+    if (frames[i] < from) continue;
+    worst = Math.max(worst, frames[i] - Math.max(frames[i - 1], from));
+  }
+  return Number(worst.toFixed(1));
+}
+
+const round = (n) => (n === null || n === undefined || Number.isNaN(n) ? null : Number(n.toFixed(1)));
+
+/** Where the seed phase leaves the browser profile and the fixture's own ids. */
+const STATE_FILE = join(out, 'seed-state.json');
+const FIXTURE_FILE = join(out, 'seed-fixture.json');
+
+const browser = await chromium.launch({ headless });
+const context = await browser.newContext({
+  viewport: { width: 1920, height: 1080 },
+  ...(measureOnly ? { storageState: STATE_FILE } : {}),
+});
+await context.addInitScript(FRAME_PROBE);
+await context.addInitScript(NET_PROBE);
+const page = await context.newPage();
+
+/** Build one catalog design into the working document - the wizard's own create path. */
+const createProject = (variantName) =>
+  page.evaluate(async (name) => {
+    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const { formatTemplate } = await import('/src/format/formatCode.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const variant = Object.values(CATALOG).flat().find((v) => v.name === name);
+    if (!variant) throw new Error(`no catalog variant called ${name}`);
+    const draft = mergeDraft(initialDraft(), {
+      variantId: variant.id,
+      lines: variant.suggestedLines.map((l) => ({ ...l })),
+    });
+    const template = await formatTemplate(buildDraftTemplate(variant, draft));
+    useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
+  }, variantName);
+
+// ── THE FIXTURE: the owner's shape, not a lower third ───────────────────────────────────────
+// A quiz board (drawn states, a machine, the fit ladder on every state change), a scoreboard and
+// a lower third, in ONE production with six cues that alternate between them - so "move up and
+// down the rundown" crosses a template boundary on every step, which is the only case where the
+// preview document can be replaced at all.
+const GRAPHICS = ['Arena Quiz', 'Quiet Score', 'Hairline'];
+/**
+ * HOW MANY GRAPHICS THE PRODUCTION HOLDS - the axis that decides whether this scales to a real
+ * show. Every pool graphic gets its OWN document on the PROGRAM stage at all times, its own
+ * entry in the once-a-second state poll, and its own row in every render of the rundown, so a
+ * production is not one size. Three is the default because it is the smallest fixture that can
+ * cross a template boundary; the 2026-09-12 rehearsal is a quiz plus a scoreboard plus whatever
+ * else the night needs. Pass `--pool 8` to ask the question at that size.
+ */
+const POOL = Math.max(GRAPHICS.length, intFlag('--pool', GRAPHICS.length));
+
+// CLEANUP IS ITS OWN ENDING, before any of the phases below: it signs in, removes what a run
+// that died left published, and stops. It lives here rather than inside `seedFixture` because it
+// seeds nothing - and it needs the DEV server, since it reaches the unpublish call through the
+// app's own module graph.
+if (cleanupOnly) {
+  await openApp();
+  await signInAndClearLeftovers();
+  await browser.close();
+  console.log('Cleanup only - nothing seeded.');
+  process.exit(0);
+}
+
+let showId;
+let fixture;
+if (measureOnly) {
+  ({ showId, fixture } = JSON.parse(readFileSync(FIXTURE_FILE, 'utf8')));
+} else {
+  await seedFixture();
+  if (seedOnly) {
+    await context.storageState({ path: STATE_FILE, indexedDB: true });
+    writeFileSync(FIXTURE_FILE, JSON.stringify({ showId, fixture }, null, 2) + '\n');
+    await browser.close();
+    console.log(`Seeded ${fixture.labels.length} cues over ${fixture.graphics.join(', ')}.`);
+    console.log(`Profile written to ${STATE_FILE} - now serve the BUILT app on the same port and re-run with --measure.`);
+    process.exit(0);
+  }
+}
+
+/**
+ * Sign in as the test account and clear whatever a previous run of this bench left behind.
+ *
+ * Only the bench's OWN productions are removed, by name. The account is shared with the live
+ * e2e suite and, unlike a spec's teardown, this script has no business wiping a library it did
+ * not create - and a published leftover matters twice over, because migration 0040 reserves
+ * every address a production has ever held.
+ */
+async function signInAndClearLeftovers() {
+  const email = env.E2E_EMAIL ?? '';
+  const password = env.E2E_PASSWORD ?? '';
+  if (!email || !password) {
+    console.error('--published needs E2E_EMAIL and E2E_PASSWORD (this checkout\'s .env, or the main checkout\'s).');
+    process.exit(2);
+  }
+  // One failure mode covers both "wrong password" and "this build has no backend at all", and
+  // it says which - `signInWithEmail` answers 'No backend configured.' for the second. A
+  // worktree serving an app with a blank VITE_SUPABASE_URL would otherwise publish nothing and
+  // then measure the LOCAL path while the record claimed it was published.
+  const refusal = await page.evaluate(
+    async (creds) => (await import('/src/backend/auth.ts')).signInWithEmail(creds.email, creds.password).then((r) => r.error),
+    { email, password },
+  );
+  if (refusal) {
+    console.error(`sign-in refused: ${refusal}`);
+    process.exit(2);
+  }
+  await page.waitForSelector('.sync-status.sync-synced', { timeout: 90_000 }).catch(() => {
+    console.warn('# sync did not report settled within 90 s - continuing, the fixture is created locally either way');
+  });
+  const removed = await page.evaluate(async (name) => {
+    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const mine = loadShows().filter((s) => s.name === name);
+    for (const s of mine) {
+      if (s.hostedSlug) await unpublishControlShow(s.id).catch(() => {});
+      deleteShow(s.id);
+    }
+    await commitDurableWrites();
+    const { syncNow } = await import('/src/backend/syncController.ts');
+    await syncNow();
+    return mine.length;
+  }, SHOW_NAME);
+  if (removed) console.log(`# cleared ${removed} leftover "${SHOW_NAME}" production(s) from a previous run`);
+}
+
+/** Open the app and answer the analytics prompt - where both the seed and the cleanup start. */
+async function openApp() {
+  await page.goto(`${base}/app`);
+  await page.waitForSelector('.topbar');
+  await page.evaluate(async () => {
+    const { setAnalyticsConsent } = await import('/src/backend/events.ts');
+    setAnalyticsConsent(false);
+  });
+  await page.waitForSelector('[data-testid="analytics-consent"]', { state: 'detached' });
+}
+
+/** Create the three graphics, the production, its cues, its data tree and its bindings. */
+async function seedFixture() {
+  await openApp();
+  if (publishSeed) await signInAndClearLeftovers();
+  await createProject(GRAPHICS[0]);
+  showId = await page.evaluate(async (name) => {
+    const shows = await import('/src/model/shows.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const list = shows.createShow(name);
+    const show = list[list.length - 1];
+    shows.addGraphicToShow(show.id, useTemplateStore.getState().template);
+    const failure = await commitDurableWrites();
+    if (failure) throw new Error(failure);
+    return show.id;
+  }, SHOW_NAME);
+  // The pool. `addGraphicToShow` replaces BY NAME, so a bigger pool needs distinct names rather
+  // than distinct designs - what costs the dashboard is the number of documents and rows, not
+  // how many different catalog entries they came from.
+  for (let i = 1; i < POOL; i++) {
+    await createProject(GRAPHICS[i % GRAPHICS.length]);
+    await page.evaluate(
+      async ({ id, suffix }) => {
+        const shows = await import('/src/model/shows.ts');
+        const { useTemplateStore } = await import('/src/store/templateStore.ts');
+        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const template = useTemplateStore.getState().template;
+        shows.addGraphicToShow(id, suffix ? { ...template, name: `${template.name} ${suffix}` } : template);
+        const failure = await commitDurableWrites();
+        if (failure) throw new Error(failure);
+      },
+      { id: showId, suffix: i >= GRAPHICS.length ? String(Math.floor(i / GRAPHICS.length) + 1) : '' },
+    );
+  }
+
+  // Six cues, alternating graphic, and a BOUND production: seed data plus one binding per graphic,
+  // so the data effect runs and every take carries an overlaid value, exactly as his did.
+  fixture = await page.evaluate(async ({ id, cues }) => {
+    const shows = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const all = shows.loadShows();
+    const show = all.find((s) => s.id === id);
+    if (!show) throw new Error('no show');
+    const pool = show.graphics;
+    const labels = [];
+    // Two cues per pool graphic, laid out so that `labels[n]` and `labels[n + pool.length]` are
+    // the same graphic - which is what lets a family move WITHIN one template.
+    for (let i = 0; i < cues; i++) {
+      const g = pool[i % pool.length];
+      const { cueId } = shows.addShowCue(id, g.id, { label: `${g.name} cue ${Math.floor(i / pool.length) + 1}` });
+      if (!cueId) throw new Error('cue refused');
+      labels.push(`${g.name} cue ${Math.floor(i / pool.length) + 1}`);
+    }
+    shows.setShowSeedData(id, { round: { title: 'Round two', home: '3', away: '1' } });
+    for (const g of pool) {
+      const text = g.template.fields.find((f) => (f.ftype ?? 'textfield') === 'textfield');
+      if (text) shows.setFieldBinding(id, g.name, text.field, 'round.title');
+    }
+    const failure = await commitDurableWrites();
+    if (failure) throw new Error(failure);
+    return { labels, graphics: pool.map((g) => g.name), poolSize: pool.length };
+  }, { id: showId, cues: POOL * 2 });
+  if (publishSeed) await publishFixture();
+}
+
+/**
+ * Publish the fixture through the page's OWN button, not through `publishControlShow` directly.
+ *
+ * The button is the whole flow: the library->air gate, the upsert, the slug read-back, and the
+ * three `setShow*` writes that are what actually put this page on the published road. Calling
+ * the API from the console would leave `hostedSlug` unset and the page measuring the LOCAL path
+ * against a production that exists on the server - the one wrong answer this row cannot give.
+ */
+async function publishFixture() {
+  await page.goto(`${base}/app#/production/${showId}`);
+  await page.waitForSelector('[data-testid="cue-editor"]');
+  await page.getByTestId('production-publish').click();
+  // The header's mode chip is the page's own answer to "am I published", read off `hostedSlug`.
+  await page.waitForFunction(
+    () => document.querySelector('[data-testid="production-mode"]')?.textContent?.includes('SHOW') ?? false,
+    null,
+    { timeout: 90_000 },
+  );
+  await page.keyboard.press('Escape'); // publishing opens the Links popover
+  const slug = await page.evaluate(async (id) => {
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    await commitDurableWrites();
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === id)?.hostedSlug ?? null;
+  }, showId);
+  if (!slug) {
+    console.error('published, but no hosted slug was stored - the measure phase would drive the local path.');
+    process.exit(2);
+  }
+  fixture.hostedSlug = slug;
+  console.log(`# published: the fixture is a SHOW, and its verbs go over the wire`);
+}
+
+
+await page.goto(`${base}/app#/production/${showId}`);
+await page.waitForSelector('[data-testid="cue-editor"]');
+// The PROGRAM stage builds one document per pool graphic and boots them all; nothing below is a
+// measurement of that boot, so wait it out first.
+await page.waitForTimeout(4000);
+await page.evaluate(HOST_PROBE);
+
+/** Select a cue by its rundown label - the operator's own gesture. */
+const clickCue = async (label) => {
+  await page.locator('.pd-cue', { hasText: label }).locator('.pd-cue-label').first().click();
+};
+
+/** Read every graphic frame's marks, then clear them. */
+async function frameMarks() {
+  const rows = [];
+  for (const frame of page.frames()) {
+    if (frame === page.mainFrame()) continue;
+    let marks;
+    try {
+      marks = await frame.evaluate(() => {
+        const m = window.__lagMarks;
+        if (!m) return null;
+        const copy = m.slice();
+        m.length = 0;
+        return copy;
+      });
+    } catch {
+      continue; // a frame that went away mid-read is a rebuilt preview, which the host recorded
+    }
+    if (marks) for (const m of marks) rows.push({ ...m, frame: frame.name() || frame.url().slice(0, 24) });
+  }
+  return rows;
+}
+
+/** One gesture: click, wait, and turn every stamp into the four numbers plus the freeze. */
+async function gesture(name, act, settleMs = 1200) {
+  await page.evaluate(HOST_READ); // drop whatever the settle before this produced
+  await frameMarks();
+  // Re-arm the preview observers EVERY time. `attachPreview` marks the element it attached to,
+  // so re-calling it is free when the node is the same one - and the node is not guaranteed to
+  // be: the preview subtree is conditionally rendered, and a remount would silently leave a
+  // fresh iframe with no `srcdoc` observer on it. `srcdocReplaced: 0` is the exact reading the
+  // whole "composed once per template" conclusion rests on, and a dead observer and a real
+  // no-rebuild look identical in the output. `observing` below says which one it was.
+  const observing = await page.evaluate(() => window.__lagAttachPreview?.() ?? false);
+  const t0 = Date.now();
+  await act();
+  await page.waitForTimeout(settleMs);
+  const host = await page.evaluate(HOST_READ);
+  const marks = await frameMarks();
+  // TWO CLICKS, TWO CLOCKS. The families that move and then take fire two separate driver calls,
+  // and between them Playwright resolves a locator, runs its actionability checks and makes a
+  // CDP round trip - none of which an operator's hand pays. So the SELECTION half is measured
+  // from the first click and the VERB half from the last, and `interClickMs` publishes the gap
+  // between them rather than burying it inside the verb's number. Measuring both halves from
+  // the first click is what made an earlier pass of this bench report a Take as 33 ms slower
+  // after a selection when most of that was the driver.
+  const click = host.clicks.length ? host.clicks[0].t : t0;
+  const verbClick = host.clicks.length ? host.clicks[host.clicks.length - 1].t : t0;
+  const command = host.plays.length ? host.plays[0].t : null;
+  // THE WIRE, on a published production - and BOTH stamps are pinned to this verb rather than
+  // taken as whatever came first in the window.
+  //
+  // The send is picked by name AND from the verb's own click onwards. `control_send_many` is not
+  // the verb's door alone: the production-data dispatch effect sends through the identical RPC
+  // whenever the server data key resolves to null (ProductionPage.tsx, `runVerb(..., 'Data')`),
+  // so a data update in flight would otherwise be filed as the Take's round trip.
+  const send = host.rpc.find((r) => r.sent >= verbClick && (r.name === 'control_send_many' || r.name === 'control_send')) ?? null;
+  // WHICH COMMAND THIS VERB SENT - `play` for a take, `stop` for an out. Both the socket frame
+  // and the graphic's own mark are picked by it, and both from the verb's click onwards, so the
+  // two are measuring the same command and their agreement means something. A frame whose
+  // command could not be read is NOT matched: it is counted instead (`wsUnparsed` below), because
+  // accepting it would restore exactly the first-in-window behaviour this replaced - silently,
+  // and only in the runs where a frame happened not to parse.
+  const verbKind = name.startsWith('out') ? 'stop' : 'play';
+  const wsRow = host.ws.find((w) => w.t >= verbClick && w.kind === verbKind) ?? null;
+  // The command a VERB sends, not the settle burst the preview gets on selection.
+  const verbMark = marks.find((m) => m.cmd === verbKind && m.arrived >= verbClick) ?? null;
+  const bootMark = marks.find((m) => m.cmd === '__load') ?? null;
+  return {
+    gesture: name,
+    clickedWhat: host.clicks.length ? host.clicks[0].what : null,
+    // The rebuild half: did the preview document get replaced at all, and how big was it?
+    srcdocReplaced: host.srcdoc.length,
+    srcdocBytes: host.srcdoc.length ? host.srcdoc[0].bytes : null,
+    toSrcdocMs: host.srcdoc.length ? round(host.srcdoc[0].t - click) : null,
+    toPreviewLoadMs: host.previewLoads.length ? round(host.previewLoads[0] - click) : null,
+    toPreviewFirstFrameMs: bootMark && bootMark.painted ? round(bootMark.painted - click) : null,
+    // The verb half - from the VERB'S own click, so a two-click family is comparable with a
+    // one-click one. `interClickMs` is the driver's, and is reported so it can be subtracted
+    // from nothing and believed as nothing.
+    interClickMs: host.clicks.length > 1 ? round(verbClick - click) : null,
+    // THE PUBLISHED PATH'S THREE EXTRA STAMPS. All null on a local production, where no RPC is
+    // made and no row comes back - which is itself the reading: the local path spends nothing
+    // here because it applies the verb on the spot.
+    toRpcSentMs: send ? round(send.sent - verbClick) : null,
+    toRpcDoneMs: send && send.returned ? round(send.returned - verbClick) : null,
+    rpcFailed: send ? send.failed || (typeof send.status === 'number' && send.status >= 400) : null,
+    toWsRowMs: wsRow ? round(wsRow.t - verbClick) : null,
+    /** Every `control_events` frame in the window, matched or not - a batch is three rows. */
+    wsRows: host.ws.length,
+    /** Frames whose command could not be read off the socket text. Any number above zero here
+     *  means the matcher is blind for that many frames, and a run where it is non-zero while
+     *  `toWsRowMs` is null is the matcher failing rather than the row never arriving. */
+    wsUnparsed: host.ws.filter((w) => w.kind === null).length,
+    toCommandMs: command === null ? null : round(command - verbClick),
+    toPlayedMs: verbMark ? round(verbMark.played - verbClick) : null,
+    toPaintedMs: verbMark && verbMark.painted ? round(verbMark.painted - verbClick) : null,
+    handlerMs: verbMark ? round(verbMark.played - verbMark.arrived) : null,
+    // What the operator feels, whichever half caused it - measured across the WHOLE gesture, so
+    // from the first click, because a freeze the selection caused is one he still waits out.
+    frozeMs: frozeMs(host.frames, click),
+    // False = the preview observers were not on a live element for this gesture, so a
+    // `srcdocReplaced: 0` above means "not watched", not "not rebuilt".
+    observing,
+    freeGb: freeNow().freeGb,
+  };
+}
+
+// ── THE FIVE FAMILIES, INTERLEAVED ──────────────────────────────────────────────────────────
+//
+// Interleaved, not run one after another, because the first pass of this bench ran them in
+// blocks and the LAST block was three times slower than the first - on a machine whose free
+// memory fell from 2.2 GB to 0.8 GB while it ran. Block order and machine drift were the same
+// axis, so the numbers could not tell them apart. One round of every family, `ROUNDS` times,
+// puts every family across the same stretch of the machine's day.
+//
+// Every family that presses TAKE presses it on the SAME graphic (the quiz, cue "Arena Quiz 1"),
+// so no comparison between them is really a comparison between two graphics' entrances.
+//
+//   select-rebuild        move to a cue of ANOTHER graphic - the document is replaced
+//   select-no-rebuild     move to another cue of the SAME graphic - it cannot be
+//   take-idle             take, on a selection that settled seconds ago
+//   take-after-rebuild    move across a template boundary, then take at once
+//   take-after-no-rebuild move within one template, then take at once
+//
+// take-after-rebuild and take-after-no-rebuild differ in ONE thing: whether the selection
+// rebuilt the preview document. take-idle differs from both in one other: whether a selection
+// click happened at all. Between the three, the operator's lag has nowhere left to hide.
+
+// Cue 0 and cue `poolSize` are the SAME pool graphic (the quiz), so moving between them cannot
+// rebuild the preview document. Cue 1 is a different graphic, so moving to it must.
+const QUIZ_A = fixture.labels[0];
+const QUIZ_B = fixture.labels[fixture.poolSize ?? 3];
+const OTHER = fixture.labels[1];
+
+const runs = [];
+/** Which road the verbs are on RIGHT NOW - stamped on every row, because the local control
+ *  below flips it mid-run and a row that only carried a family name could not say which. */
+let wire = fixture.hostedSlug ? 'published' : 'local';
+const note = (o) => { runs.push({ ...o, wire }); console.log(JSON.stringify({ ...o, wire })); };
+
+/**
+ * WHICH BUILD IS ACTUALLY ON THE PORT - asked of the server, never inferred from the flag.
+ *
+ * `--measure` says which PHASE this is, not what is being served: pointing it at a dev server is
+ * a legitimate thing to do (it is how the dev-versus-build comparison is taken), and a record
+ * that read the flag would then file a dev-server reading as "the BUILT app". Vite's dev server
+ * injects `/@vite/client` into every page it serves and a built bundle never contains it, so the
+ * question has a one-line answer that cannot drift.
+ */
+const servedHtml = await (await fetch(`${base}/app`)).text();
+const buildLabel = servedHtml.includes('/@vite/client')
+  ? 'src (the DEV SERVER - React development runtime, not the product)'
+  : 'dist (the BUILT app)';
+console.log(`# playout lag bench — ${new Date().toISOString()} — ${JSON.stringify(freeNow())} — headless=${headless} — serving ${buildLabel}`);
+console.log(`# fixture: ${fixture.graphics.join(', ')} / ${fixture.labels.length} cues`);
+console.log(
+  fixture.hostedSlug
+    ? '# PUBLISHED against the real backend: every verb is an RPC and a Realtime row back, and nothing is applied locally'
+    : '# LOCAL production: the verbs apply on the spot, nothing leaves the machine',
+);
+
+/**
+ * How long to wait after a VERB before reading its stamps.
+ *
+ * A published verb cannot paint until an RPC and a Realtime row have both landed, so the local
+ * window is not long enough for it - and a paint that arrives after the window reads as `null`,
+ * which is indistinguishable in the summary from a paint that never happened. Generous on
+ * purpose: this costs wall-clock, and a blank cell costs the answer.
+ */
+const VERB_SETTLE = fixture.hostedSlug ? 4000 : 2200;
+
+/** Leave air down and one named cue selected and settled - every family's starting position. */
+async function reset(label) {
+  const cls = await page.locator('[data-testid="verb-take"]').getAttribute('class');
+  if (cls?.includes('pd-verb-live')) {
+    await page.getByTestId('verb-take').click();
+    // Taking air down is itself a round trip when published, and a reset that returned while
+    // the previous cue was still coming off would put that graphic's exit inside the NEXT
+    // gesture's window.
+    await page.waitForTimeout(fixture.hostedSlug ? 2500 : 900);
+  }
+  await clickCue(label);
+  await page.waitForTimeout(2200);
+}
+
+await reset(QUIZ_A);
+await page.evaluate(() => window.__lagAttachPreview?.());
+
+for (let r = 0; r < ROUNDS; r++) {
+  // 1. A selection that REBUILDS the preview document.
+  await reset(QUIZ_A);
+  note(await gesture('select-rebuild', () => clickCue(OTHER), 2200));
+
+  // 2. A selection that cannot.
+  await reset(QUIZ_A);
+  note(await gesture('select-no-rebuild', () => clickCue(QUIZ_B), 2200));
+
+  // 3. TAKE on a selection that settled two seconds ago.
+  await reset(QUIZ_A);
+  note(await gesture('take-idle', () => page.getByTestId('verb-take').click(), VERB_SETTLE));
+
+  // 3b. OUT - the other half of what he reported ("it didn't stop immediately"). The toggle IS
+  //     the Out button on a live cue, so this is the same control pressed from the other state.
+  //     `toCommand` stays blank here by design: `data-plays` counts entrances, not exits, so
+  //     the stage-side stamp for a stop is the one taken INSIDE the graphic's own handler.
+  await reset(QUIZ_A);
+  await page.getByTestId('verb-take').click();
+  await page.waitForTimeout(VERB_SETTLE);
+  note(await gesture('out-idle', () => page.getByTestId('verb-take').click(), VERB_SETTLE));
+
+  // 4. Move ACROSS a template boundary, then take at once - onto the quiz, so the entrance
+  //    being measured is the same one families 3 and 5 measure.
+  await reset(OTHER);
+  note(
+    await gesture(
+      'take-after-rebuild',
+      async () => {
+        await clickCue(QUIZ_A);
+        await page.getByTestId('verb-take').click();
+      },
+      VERB_SETTLE,
+    ),
+  );
+
+  // 5. The control: the same two clicks, the same interval, the same entrance - and no rebuild.
+  await reset(QUIZ_B);
+  note(
+    await gesture(
+      'take-after-no-rebuild',
+      async () => {
+        await clickCue(QUIZ_A);
+        await page.getByTestId('verb-take').click();
+      },
+      VERB_SETTLE,
+    ),
+  );
+}
+
+// ── THE LOCAL CONTROL, on the same machine and the same minute ──────────────────────────────
+//
+// The published rounds above and BG's 2026-09-10 local numbers were taken on different days at
+// different memory, so a difference between them is not by itself the wire's. Unpublishing the
+// SAME production and pressing the SAME two verbs again is: one fixture, one browser, one
+// build, one stretch of the machine's day, and the only thing that changed is which road
+// `runVerb` takes. It is also the cleanup - unpublish DELETES the `control_shows` row.
+if (fixture.hostedSlug) {
+  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-unpublish').click();
+  await page.waitForFunction(
+    () => document.querySelector('[data-testid="production-mode"]')?.textContent?.includes('NOT PUBLISHED') ?? false,
+    null,
+    { timeout: 60_000 },
+  );
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(1500);
+  // THE FIXTURE FILE OUTLIVES THIS PROCESS, and unpublishing DELETED the `control_shows` row -
+  // so the seed's record of a hosted slug is now a lie. Two `--measure` runs against different
+  // builds off one seed is the documented workflow and the whole reason the phases are split;
+  // without this the second one restores a profile that still believes it is published, and
+  // every `control_send_many` raises `unknown control page` while the run reports a full table
+  // of failures rather than refusing.
+  delete fixture.hostedSlug;
+  writeFileSync(FIXTURE_FILE, JSON.stringify({ showId, fixture }, null, 2) + '\n');
+  wire = 'local';
+  console.log('# unpublished - the same two verbs again, now on the local road');
+  for (let r = 0; r < ROUNDS; r++) {
+    await reset(QUIZ_A);
+    note(await gesture('take-idle-local', () => page.getByTestId('verb-take').click(), 2200));
+    await reset(QUIZ_A);
+    await page.getByTestId('verb-take').click();
+    await page.waitForTimeout(2200);
+    note(await gesture('out-idle-local', () => page.getByTestId('verb-take').click(), 2200));
+  }
+}
+
+const record = { at: new Date().toISOString(), base, serving: buildLabel, headless, rounds: ROUNDS, memory: freeNow(), published: !!fixture.hostedSlug, fixture, runs };
+writeFileSync(join(out, 'playout-lag.json'), JSON.stringify(record, null, 2) + '\n');
+
+// A summary a person reads without opening the JSON: per gesture family, the median of each
+// number. Median rather than mean because one swap or one GC should not move the verdict.
+const median = (xs) => {
+  const v = xs.filter((n) => typeof n === 'number').sort((a, b) => a - b);
+  return v.length ? Number(v[Math.floor(v.length / 2)].toFixed(1)) : null;
+};
+const families = [...new Set(runs.map((r) => r.gesture.split(':')[0]))];
+// `toCommand`, `toPlayed` and `toPainted` are from the VERB's click; `toSrcdoc` and `toPvwFrame`
+// from the selection's. `gap` is the driver's time between the two clicks in a two-click family -
+// it belongs to Playwright, not to the app, and is printed so it is never read as either.
+console.log('\n# family                 n  srcdoc      gap  toSrcdoc  toPvwFrame  toCommand  toPlayed  toPainted  froze');
+for (const f of families) {
+  const rows = runs.filter((r) => r.gesture.split(':')[0] === f);
+  const cell = (k) => String(median(rows.map((r) => r[k])) ?? '-').padStart(9);
+  const blind = rows.filter((r) => r.observing === false).length;
+  console.log(
+    `# ${f.padEnd(22)}${String(rows.length).padStart(2)}${String(median(rows.map((r) => r.srcdocReplaced)) ?? '-').padStart(8)}`
+    + `${cell('interClickMs')}${cell('toSrcdocMs')}${cell('toPreviewFirstFrameMs')}${cell('toCommandMs')}${cell('toPlayedMs')}${cell('toPaintedMs')}${cell('frozeMs')}`
+    + (blind ? `   ${blind} round(s) NOT OBSERVED - the srcdoc column is blind for those` : ''),
+  );
+}
+
+// THE WIRE, broken into its four gaps. Everything here is from the VERB's own click, and each
+// column is CUMULATIVE from it - so the cost of a step is the column minus the one to its left,
+// and the largest of those differences is the answer to "which gap is the large one".
+console.log('\n# family                 wire         n  toRpcSent  toRpcDone  toWsRow  toCommand  toPainted  froze   freeGb');
+for (const f of families) {
+  const rows = runs.filter((r) => r.gesture.split(':')[0] === f);
+  if (!rows.some((r) => r.toRpcSentMs !== null) && !rows.some((r) => r.toPaintedMs !== null)) continue;
+  const cell = (k, w = 9) => String(median(rows.map((r) => r[k])) ?? '-').padStart(w);
+  const failed = rows.filter((r) => r.rpcFailed === true).length;
+  console.log(
+    `# ${f.padEnd(22)}${(rows[0]?.wire ?? '-').padEnd(11)}${String(rows.length).padStart(2)}`
+    + `${cell('toRpcSentMs')}${cell('toRpcDoneMs')}${cell('toWsRowMs', 9)}${cell('toCommandMs')}${cell('toPaintedMs')}${cell('frozeMs', 7)}${cell('freeGb', 9)}`
+    + (failed ? `   ${failed} RPC(s) FAILED - those rows measure an error, not a take` : ''),
+  );
+}
+console.log(`\nWritten to ${join(out, 'playout-lag.json')}`);
+
+await browser.close();

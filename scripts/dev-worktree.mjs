@@ -66,11 +66,37 @@
 // ambient .env instead of starting one with the offline-pinned vars its config sets. So a sweep
 // and a suite in the same checkout are mutually exclusive - stop this before running specs.
 //
+// `--preview` SERVES `dist/` INSTEAD OF THE SOURCE, and it is not a convenience. Any measurement
+// of how the app FEELS is worthless taken against the dev server: React's development JSX runtime
+// (`jsxDEV`, with its stack capture per element) plus StrictMode's double render dominate every
+// profile of this app - 70 to 130 ms of it per second and a half in the production dashboard, on
+// a page where nothing has been pressed. Measured 2026-09-10 while chasing the operator's playout
+// lag, where the first profile said "React" and meant "React in dev mode". The shipped bundle has
+// neither. So a latency number that is going to be shown to anybody has to come from here, and
+// this mode exists so that getting one does not mean hand-starting a server the guard refuses.
+//
+// It refuses on the same busy port for the same reason, and it serves the SAME checkout - so
+// nothing about the argument above is weakened. Run `npm run build` first; `vite preview` on a
+// stale or missing `dist/` serves a stale or missing app and says nothing about it.
+//
+// IT SERVES NO `/api`, AND THAT FAILS QUIETLY. All six API plugins (`renderDevPlugin`,
+// `aiDevPlugin`, `eventsDevPlugin`, `adminDevPlugin`, `meDevPlugin`, `dataDevPlugin`) implement
+// `configureServer` and nothing else, so `vite preview` never installs them. A request to
+// `/api/me/entitlement` or `/api/render` then does not 404 - the SPA fallback answers it with
+// `index.html` and a 200, the caller's `response.json()` throws, and a caller that degrades on
+// error (myEntitlement.ts does) reports its default as though the server had said so. Nothing
+// anywhere says the handler was missing. So this mode is right for measuring how the shipped
+// bundle BEHAVES and wrong for reproducing anything that crosses `/api`; for those, use the dev
+// server. The startup line below says so every time, because a caveat only in a header is one
+// nobody reads at the moment it matters.
+//
 // CLI:
 //   node scripts/dev-worktree.mjs        start the server for this checkout (npm run dev:worktree)
+//   node scripts/dev-worktree.mjs --preview  serve the BUILT dist/ on the same port
 //   node scripts/dev-worktree.mjs --print  print where it WOULD serve, start nothing
 
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -82,20 +108,38 @@ const require = createRequire(import.meta.url);
 
 const record = devPorts();
 const url = `http://localhost:${record.port}`;
+const servesBuild = process.argv.includes('--preview');
 
 /** The lines every path prints: which tree, which port, and what to hand a sweep. */
 function where() {
   return [
     `Checkout:  ${record.root}`,
     `Dev port:  ${record.port} (${record.source})`,
+    `Serving:   ${servesBuild ? 'dist/ - the BUILT app (run `npm run build` first)' : 'src/ - the dev server'}`,
     `App:       ${url}/app`,
     `Sweeps:    --base ${url}   (e.g. node scripts/svg-import-sweep.mjs --base ${url})`,
+    ...(servesBuild
+      ? [
+          '',
+          'NO /api IN THIS MODE. The API plugins are dev-server only, so `vite preview` serves',
+          'index.html with a 200 for every /api/* request instead of 404ing. Render, AI, events,',
+          'admin, /api/me and /api/data all fail silently here - use the plain dev server for',
+          'anything that crosses them. This mode is for how the SHIPPED bundle behaves.',
+        ]
+      : []),
   ].join('\n');
 }
 
 if (process.argv.includes('--print')) {
   console.log(where());
   process.exit(0);
+}
+
+// Before the port probe and before anything is printed: refusing after announcing a URL reads as
+// a server that started and then died.
+if (servesBuild && !existsSync(join(repoRoot, 'dist', 'index.html'))) {
+  console.error(`No built app at ${join(repoRoot, 'dist')} - run \`npm run build\` in this checkout first.`);
+  process.exit(1);
 }
 
 // The reservation is this checkout's identity, so a busy port is never "just pick another one":
@@ -149,7 +193,11 @@ console.log(`${where()}\n`);
 // CI=1 is this repo's own switch for "do not pop a browser window" - vite.config.ts reads it for
 // exactly one thing, `server.open` - and a server started from a tool call must not steal the
 // desktop. An explicitly set CI is left alone.
-const child = spawn(process.execPath, [viteBin], {
+// `preview` takes the port explicitly: vite.config.ts pins `server.port` for the dev server and
+// says nothing about the preview one, and a preview server on a number nobody else derives would
+// break the single-source-of-port rule this file is built on.
+const viteArgs = servesBuild ? ['preview', '--port', String(record.port), '--strictPort'] : [];
+const child = spawn(process.execPath, [viteBin, ...viteArgs], {
   cwd: repoRoot,
   stdio: 'inherit',
   env: { ...process.env, CI: process.env.CI ?? '1' },

@@ -54,9 +54,16 @@ Verbatim. What it changed in `docs/DEMO_2026-09-25.md`, same commit as this note
 - **The timing was re-cut** and nobody has checked it against a real room: 10 opening, 20 road 1,
   25 drawing in small groups, 25 road 2, 10 on air and close. Ninety minutes still.
 - **The venue network got MORE dangerous, not less.** Ending the day at the hosted player means a
-  blocked network now takes the whole session rather than one beat. That is gap-list row 1, which
-  you took on personally the same day.
+  blocked network now takes the whole session rather than one beat. It has no gap-list row any
+  more, because you took it off the ledger the same day, so that consequence is written into B0's
+  own cell instead.
 
-**One new gap, row 14:** nothing is written about how a finished take-home file comes BACK - where
+**One new gap, row 17:** nothing is written about how a finished take-home file comes BACK - where
 a group sends it, in what format, what we do with it. One paragraph in the student one-pager
 answers it, and it is planned with G2 in the week of the 22nd.
+
+The one gap that can sink the day, the venue network, was yours on its own file until 2026-09-10,
+when you took it off the ledger: "I will take care of the Yle network screenshot when I get there,
+you do not have to remind me" (`docs/OWNER_RULINGS.md`). What is still filed for you out of that
+same message is the other question it carried,
+`2026-09-10-be-which-ograf-renderer-yle-runs.md`.

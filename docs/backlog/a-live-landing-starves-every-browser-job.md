@@ -54,6 +54,16 @@ Worth checking in the same pass whether `capacity()`'s `outsideRuns` subtraction
 a landing that runs outside the queue; it reads `activeRuns`, which only reports Playwright CLIs
 and sweeps, so probably not.
 
+**The other half of why browser work waits is being fixed on `claude/ay-per-job-cost` (pull request
+216), so do not file it again.** `costOf()`'s doc comment says a job records its cost when it is
+queued and `addJob()` never wrote one, so a single-page browser walk was charged the same
+suite-equivalent - and the same 4 GB memory floor - as a nine-shard Playwright suite. That is what
+cost row AG its evening on 2026-09-09: about three hours at 2.0-3.2 GB free with six sessions
+landing, and no way for a small job to say it was small. Traced here on 2026-09-10 out of
+`git show 4f95444b:docs/handoffs/2026-09-09-ag-ograf-external-renderer.md`, "A mechanism that is
+missing, and cost this row its evening", because that handoff is deleted and the branch holding the
+fix had not landed yet.
+
 ## Evidence
 
 - `scripts/jobs-store.mjs` lines 413, 473-488 - the comment and the two places the cost is

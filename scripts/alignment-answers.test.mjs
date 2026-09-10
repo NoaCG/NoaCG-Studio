@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { alignmentState, main, parseAlignmentQuestions, rulingBlock } from './alignment-answers.mjs';
+import { alignmentState, main, mentionsId, parseAlignmentQuestions, rulingBlock } from './alignment-answers.mjs';
 
 const question = (id, q, a = '') => `### ${id}\n**Question:** ${q}\n**Answer:** ${a}\n`;
 
@@ -112,6 +112,65 @@ test('a heading that names its reason after the id still parses - a lost questio
   assert.equal(parsed[0].answered, true);
 });
 
+test('a wrapped question and a wrapped answer are read whole - the dry run wrapped all three', () => {
+  // Measured 2026-09-10, the first time a session ran the weekly procedure cold: every markdown
+  // file in this repository wraps at about a hundred columns, so all three questions arrived
+  // wrapped and each one parsed down to a fragment ending mid-clause.
+  const [entry] = parseAlignmentQuestions(
+    '### ALIGN-2026-09-10-1\n'
+    + '**Question:** needs: alignment. Three things you asked for a fortnight ago have not been started at\n'
+    + 'all, and none of them serves the 25th. Do they still matter?\n'
+    + '**Answer:** Drop the video wrapper, it was an idea not a need. The assistant is the one I\n'
+    + 'actually want - after the 25th, done properly.\n',
+  );
+  assert.equal(
+    entry.question,
+    'needs: alignment. Three things you asked for a fortnight ago have not been started at all, and none of them serves the 25th. Do they still matter?',
+  );
+  assert.equal(
+    entry.answer,
+    'Drop the video wrapper, it was an idea not a need. The assistant is the one I actually want - after the 25th, done properly.',
+    'the rulings file is composed from this string, so a lost half is a lost ruling',
+  );
+});
+
+test('an empty Answer stays open when the section prose follows a blank line', () => {
+  // The dangerous neighbour of the fix above: joining continuation lines across a blank would
+  // invent an answer he never gave, refuse every wave plan over it, and record it as a ruling.
+  const parsed = parseAlignmentQuestions(
+    '### ALIGN-2026-09-10-1\n**Question:** Does it still matter?\n**Answer:**\n\nNothing else starts this week.\n',
+  );
+  assert.equal(parsed[0].answered, false);
+  assert.equal(parsed[0].answer, '');
+});
+
+test('an answer given in two paragraphs keeps both, and stops at the next question', () => {
+  const parsed = parseAlignmentQuestions(
+    '### ALIGN-2026-09-15-1 - needs: alignment\n'
+    + '**Question:** Do the three unstarted asks still matter?\n'
+    + '**Answer:** Drop the video wrapper, it was an idea and not a need.\n'
+    + '\n'
+    + 'The assistant is the one I actually want - after the 25th, done properly.\n'
+    + '\n'
+    + '### ALIGN-2026-09-15-2 - needs: alignment\n'
+    + '**Question:** Second?\n'
+    + '**Answer:**\n',
+  );
+  assert.equal(
+    parsed[0].answer,
+    'Drop the video wrapper, it was an idea and not a need. The assistant is the one I actually want - after the 25th, done properly.',
+  );
+  assert.equal(parsed[1].answered, false, 'the paragraph break must not carry the answer into the next block');
+});
+
+test('an answer written on the line under **Answer:** is still his answer', () => {
+  const parsed = parseAlignmentQuestions(
+    '### ALIGN-2026-09-10-1\n**Question:** Does it still matter?\n**Answer:**\nYes, until the students have used it.\n',
+  );
+  assert.equal(parsed[0].answered, true);
+  assert.equal(parsed[0].answer, 'Yes, until the students have used it.');
+});
+
 test('an answer from an older week stays pending - reading only the newest file would lose it', () => {
   const state = alignmentState(checkout({
     weekly: {
@@ -159,6 +218,35 @@ test('the weekly file is read from the primary checkout while the rulings come f
   const after = alignmentState(worktree);
   assert.deepEqual(after.pending, []);
   assert.deepEqual(after.recorded.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
+});
+
+test('an id is matched whole - ...-10 in the rulings does not record ...-1', () => {
+  assert.equal(mentionsId('## ALIGN-2026-09-15-10\n', 'ALIGN-2026-09-15-1'), false);
+  assert.equal(mentionsId('## ALIGN-2026-09-15-1\n', 'ALIGN-2026-09-15-1'), true);
+  const state = alignmentState(checkout({
+    weekly: { '2026-09-15-orchestrator-week.local.md': question('ALIGN-2026-09-15-1', 'Still the top?', 'Yes.') },
+    rulings: '# Owner rulings\n\n## ALIGN-2026-09-15-10\n\n> About a different question entirely.\n',
+  }));
+  assert.deepEqual(
+    state.pending.map((entry) => entry.id),
+    ['ALIGN-2026-09-15-1'],
+    'a longer id starting with this one must not mark it recorded, which would lose the ruling forever',
+  );
+});
+
+test('a carried-forward question takes the answered copy, whichever week holds it', () => {
+  // The procedure carries a question forward once by writing its block again under the same id, so
+  // the answer can land in the older file - the one open in front of whoever heard him say it.
+  const state = alignmentState(checkout({
+    weekly: {
+      '2026-09-08-orchestrator-week.local.md': question('ALIGN-2026-09-08-1', 'Still the top?', 'Yes, until the students have used it.'),
+      '2026-09-15-orchestrator-week.local.md': question('ALIGN-2026-09-08-1', 'Still the top?'),
+    },
+  }));
+  assert.deepEqual(state.open, [], 'the newer empty copy must not hide the answer in the older one');
+  assert.deepEqual(state.pending.map((entry) => entry.id), ['ALIGN-2026-09-08-1']);
+  assert.equal(state.pending[0].answer, 'Yes, until the students have used it.');
+  assert.equal(state.pending[0].source, 'docs/handoffs/2026-09-08-orchestrator-week.local.md');
 });
 
 test('an unanswered question from an older week is dropped, per the carry-forward-once rule', () => {

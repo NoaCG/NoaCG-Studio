@@ -51,7 +51,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { alignmentState } from './alignment-answers.mjs';
+import { alignmentState, mentionsId } from './alignment-answers.mjs';
 import { drain, handoffFiles, newestWavePlan, parseHandoffSection } from './handoff-drain.mjs';
 import { inStore, wavePlansDir } from './wave-plan-store.mjs';
 import { isStanding, readReceipts } from './owner-receipts.mjs';
@@ -420,9 +420,10 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
   // An answered alignment question is a ruling he has already given, so the plan may not hold or
   // defer it the way it may an ask - it plans the row that writes it into docs/OWNER_RULINGS.md.
   // Mentioning the id is what passes here; the answer stops being pending when the ruling lands,
-  // so an unrecorded one comes back tomorrow and the morning after that.
+  // so an unrecorded one comes back tomorrow and the morning after that. The id is matched WHOLE
+  // (`mentionsId`), so a plan naming ...-10 does not silently satisfy the refusal for ...-1.
   for (const entry of alignment) {
-    if (!text.includes(entry.id)) {
+    if (!mentionsId(text, entry.id)) {
       problems.push(`alignment answer ${entry.id} is not in docs/OWNER_RULINGS.md and this plan does not mention it - plan the row that records what he said`);
     }
   }

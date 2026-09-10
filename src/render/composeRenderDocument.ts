@@ -19,6 +19,7 @@ import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
+import { flexGapShimTag } from '../assets/flexGapSupport';
 import { stripLocalAssetTags } from '../preview/composeDocument';
 import { stripLiveData } from '../control/liveData';
 import { stripChatGraphic } from '../showchat/chatGraphicBlock';
@@ -116,6 +117,9 @@ export async function composeRenderDocument(
     `<meta name="color-scheme" content="${colorScheme}">`,
     `<script id="noacg-render-runtime">\n${RENDER_RUNTIME_JS}\n</script>`,
     assetShimTag(template),
+    // Inert on the render's Chromium; carried so a rendered frame is composed from the same
+    // document a playout engine gets.
+    flexGapShimTag(),
     `<script id="noacg-gsap">\n${gsapSource}\n</script>`,
     `<script id="noacg-gsap-detach">\n${GSAP_DETACH_JS}\n</script>`,
     // The bundled Lottie player, only when used. Loaded AFTER the runtime, so it captures

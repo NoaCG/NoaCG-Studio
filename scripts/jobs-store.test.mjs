@@ -26,7 +26,9 @@ import {
   ensureJobsDir,
   expiredJobIds,
   finishedSince,
+  flagValue,
   giveUpReason,
+  hasFlag,
   landingRow,
   landingStateFor,
   orderHoldDecision,
@@ -54,8 +56,10 @@ const PLENTY = 12_000; // MB free
  * A job in whatever state the case needs.
  *
  * The default command is a real e2e invocation, because that is the expensive case the budget
- * exists for - a fixture with no command would be charged as one too (unknown is assumed heavy),
- * but naming it keeps these tests honest about WHICH cost they are exercising.
+ * exists for. Naming it keeps these tests honest about WHICH cost they are exercising: a fixture
+ * with no command falls to the unknown-command default and is charged one WALK (`COST.walk`, half
+ * a suite), not one suite (`COST.browser`), so a case that means to exercise the suite cost has to
+ * say a suite.
  */
 function job(id, over = {}) {
   return {
@@ -71,6 +75,27 @@ function job(id, over = {}) {
   };
 }
 
+/**
+ * The command every walk fixture runs: a script this repository DOES NOT HAVE, on purpose.
+ *
+ * What these cases pin is the default for a command `command-match.mjs` cannot recognise, so the
+ * fixture has to stay unrecognisable. That is also the real shape of the case that made the rule:
+ * j-0888 was queued from a branch whose script had not landed yet.
+ *
+ * IT USED TO NAME A REAL SCRIPT - `ograf-external-walk`, j-0888's command verbatim - and that is
+ * how this file went red. On 2026-09-10 `main` landed that script and, in the same commit, added
+ * it to `SWEEP_SCRIPTS`, which is the right call for it: two servers and two pages. The two
+ * branches merged without one line of text conflict and four cases here started asserting a
+ * battery's price against a walk's. A fixture that names a real script is asserting that script's
+ * classification, and that belongs to whoever owns the script - not here.
+ */
+const WALK_COMMAND = 'node scripts/a-walk-this-repo-has-never-seen.mjs';
+
+/** A single browser walk - one dev server and one page, the middle weight. */
+function walk(id, over = {}) {
+  return job(id, { command: `${WALK_COMMAND} --server C:/tmp/walk-${id}`, ...over });
+}
+
 /** A landing job - the cheap, network-bound kind that the weighting exists to let through. */
 function merge(id, over = {}) {
   return job(id, { kind: 'merge', command: `node scripts/land-watch.mjs --pr 12 --branch b-${id}`, ...over });
@@ -79,6 +104,26 @@ function merge(id, over = {}) {
 function tempQueue() {
   return ensureJobsDir(mkdtempSync(join(tmpdir(), 'noacg-jobs-')));
 }
+
+test('the walk fixture is a command the classifier does not recognise - the premise every walk case rests on', () => {
+  // Every case below that uses `walk()` is really asking what the queue does with a command it
+  // has never seen. If the classifier ever learns this name, those cases quietly start pricing a
+  // battery and read as a broken mechanism instead of a stale fixture - which is exactly what
+  // happened on 2026-09-10 and cost this branch four landing attempts (j-0903 to j-0906, every
+  // one of them a land-watch pinned to the same sha).
+  //
+  // It was hard to read because the two CI runs on the SAME commit disagreed: `push` was green and
+  // `pull_request` was red. Nothing was flaky. `actions/checkout` takes the branch alone on a push
+  // and the branch MERGED WITH THE BASE on a pull request, so only the second run had a classifier
+  // that knew the name. The premise is asserted once, here, where its failure says what to do.
+  assert.equal(
+    costOf(walk('j-0001')),
+    COST.walk,
+    `${WALK_COMMAND} is now recognised by command-match.mjs. Rename the fixture to a script this `
+      + 'repository still does not have. Do NOT re-price the mechanism: these cases are about the '
+      + 'default for an UNKNOWN command, not about what any real script weighs.',
+  );
+});
 
 test('capacity is one by day, two at night', () => {
   assert.equal(capacity({ hour: DAY, freeMemMb: PLENTY }), 1);
@@ -188,16 +233,169 @@ test('several landings fit inside one suite-equivalent', () => {
   assert.ok(costOf(many[0]) * 3 < 1, 'three landings cost less than one suite');
 });
 
-test('cost is read from the command, and an unrecognised command is assumed expensive', () => {
+test('cost is read from the command, and an unrecognised command is assumed to be ONE browser', () => {
   assert.equal(costOf({ command: 'npm run test:e2e:affected', kind: 'gate' }), COST.browser);
   assert.equal(costOf({ command: 'node scripts/l3-sweep.mjs scoreboard', kind: 'sweep' }), COST.browser);
   assert.equal(costOf({ command: 'npm run build', kind: 'gate' }), COST.other);
   assert.equal(costOf({ command: 'node --test scripts/x.test.mjs', kind: 'gate' }), COST.other);
   assert.equal(costOf({ command: 'node scripts/land-watch.mjs --pr 12 --branch x', kind: 'merge' }), COST.merge);
-  // The asymmetry that matters: undercharging an expensive job puts two dev servers and eight
-  // browser workers on a 16 GB laptop; overcharging a cheap one costs some wall clock at night.
-  assert.equal(costOf({ command: 'some-tool-nobody-listed', kind: 'gate' }), COST.browser);
+  // THE DEFAULT FOR AN UNKNOWN COMMAND. Suite-sized work is enumerated - the e2e suites and the
+  // batteries in `SWEEP_SCRIPTS` - so a command neither list knows is not one of them, and its
+  // worst case is a dev server and one browser page. It is not free either, so a night cannot
+  // fill with eight of them.
+  assert.equal(costOf({ command: 'some-tool-nobody-listed', kind: 'gate' }), COST.walk);
+  assert.ok(COST.walk > 0 && COST.walk < COST.browser, 'a walk is neither free nor a whole suite');
   assert.equal(costOf({ command: 'npm run build', kind: 'gate', cost: 0.9 }), 0.9, 'an explicit cost wins');
+});
+
+test('a declared cost is written to the record and read back off it', () => {
+  // The half this mechanism was missing until 2026-09-09: `costOf` read `job.cost` and nothing
+  // ever wrote it, so a session that knew its job was small had no way to say so.
+  const dir = tempQueue();
+  const declared = addJob(dir, { command: walk('j-0001').command, checkout: '/wt/a', cost: 0.25, now: 1 });
+  assert.equal(declared.cost, 0.25);
+  const [onDisk] = readJobs(dir);
+  assert.equal(onDisk.cost, 0.25, 'the number survives the trip through the file');
+  assert.equal(costOf(onDisk), 0.25);
+
+  // A job that declared nothing carries no `cost` key at all, so it keeps reading the default
+  // and picks up a later change to it instead of freezing today's guess onto the record.
+  const silent = addJob(dir, { command: walk('j-0002').command, checkout: '/wt/b', now: 2 });
+  assert.ok(!('cost' in silent), 'nothing invented for a job that declared nothing');
+  assert.equal(costOf(silent), COST.walk);
+
+  // A retry or an adopted landing spreads the old record back through `addJob`, which is the
+  // only path a declared cost has to survive on.
+  const retry = addJob(dir, { ...declared, retryOf: declared.id, now: 3 });
+  assert.equal(retry.cost, 0.25, 'a retry inherits what the original declared');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('a flag is read whether it was written with a space or an equals sign', () => {
+  // The 2026-09-10 hole, and the reason this parsing is in the store rather than in the CLI: the
+  // CLI read only `--cost 0.5`, so `--cost=0.5` matched nothing, no cost reached the record, and
+  // the job queued at the classifier's guess while printing "queued". A dropped declaration is
+  // precisely what the `--cost` refusals exist to prevent, so the spelling is pinned here.
+  for (const written of [['--cost', '0.5'], ['--cost=0.5']]) {
+    assert.equal(hasFlag(written, '--cost'), true, written.join(' '));
+    assert.equal(flagValue(written, '--cost'), '0.5', written.join(' '));
+  }
+
+  // An absent flag is `undefined`; a flag written with nothing after the `=` is an empty string,
+  // which the CLI refuses as a missing value rather than reading `Number('')` as zero.
+  assert.equal(hasFlag(['--kind', 'sweep'], '--cost'), false);
+  assert.equal(flagValue(['--kind', 'sweep'], '--cost'), undefined);
+  assert.equal(hasFlag(['--cost='], '--cost'), true, 'written, so the refusal is about the value');
+  assert.equal(flagValue(['--cost='], '--cost'), '');
+
+  // A flag written LAST has nothing after it, which is how `--cost` came to be silently dropped
+  // in the first place. It reads as absent-valued, and the CLI turns that into a refusal.
+  assert.equal(flagValue(['add', 'cmd', '--cost'], '--cost'), undefined);
+  // A name that merely PREFIXES another is not that other one.
+  assert.equal(flagValue(['--cost-cap=3'], '--cost'), undefined);
+  // A value that looks like a flag is still returned, so the caller can say so by name.
+  assert.equal(flagValue(['--cost', '--kind'], '--cost'), '--kind');
+  // An `=` inside the value survives, since a path or a query may carry one.
+  assert.equal(flagValue(['--branch=feature/a=b'], '--branch'), 'feature/a=b');
+});
+
+test('a nonsense declared cost is refused where it is written, not trusted by every reader after', () => {
+  // `costOf` trusts the record, and the listing, the budget and the scaled RAM floor all trust
+  // `costOf`. A bad number written once is a job that never starts or starves the rest.
+  const dir = tempQueue();
+  const bad = (cost) => () => addJob(dir, { command: 'npm run build', checkout: '/wt/a', cost, now: 1 });
+  assert.throws(bad(0), /suite-equivalents/);
+  assert.throws(bad(-1), /suite-equivalents/);
+  assert.throws(bad(Number.NaN), /suite-equivalents/);
+  assert.throws(bad('0.5'), /suite-equivalents/, 'a string is not a cost');
+  // Over a suite-equivalent is refused rather than accepted and silently unstartable: the day
+  // budget is 1, so such a job would wait for ever with nothing saying why.
+  assert.throws(bad(1.5), /suite-equivalents/);
+  // And under a landing's cost is refused too, because the same number is the RAM admission
+  // threshold: `--cost 0.01` would let a session waive that check on its own job.
+  assert.throws(bad(0.01), /at least 0\.15/);
+  assert.equal(addJob(dir, { command: 'npm run build', checkout: '/wt/a', cost: COST.merge, now: 1 }).cost, COST.merge);
+  assert.equal(addJob(dir, { command: 'npm run build', checkout: '/wt/a', cost: 1, now: 1 }).cost, 1, 'a whole suite is allowed');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('a single browser walk starts on the RAM a suite is rightly refused', () => {
+  // THE 2026-09-09 REGRESSION, both directions in one case. j-0888 was one OGraf renderer walk
+  // and sat refused for about three hours - "only 2.0-3.2 GB RAM free, needs 4.0" - because an
+  // unrecognised command was charged a whole suite and the floor scales with the cost. The fix
+  // is per-job accounting, NOT a lower floor: at the same 3.2 GB a real suite must still wait.
+  const short = { hour: NIGHT, freeMemMb: 3277 }; // 3.2 GB, the reading j-0888 was refused on
+  assert.deepEqual(schedule([walk('j-0001')], short).start.map((j) => j.id), ['j-0001']);
+  assert.deepEqual(schedule([job('j-0001')], short).start, [], 'a suite is still refused on 3.2 GB');
+  assert.match(schedule([job('j-0001')], short).waiting[0].reason, /3\.2 GB RAM free, needs 4\.0/);
+
+  // And a session that declares a smaller cost gets a smaller floor with it.
+  const declared = walk('j-0001', { cost: 0.25 });
+  assert.deepEqual(schedule([declared], { hour: NIGHT, freeMemMb: 1100 }).start.map((j) => j.id), ['j-0001']);
+});
+
+test('each job admitted in one pass spends the free memory the last one took', () => {
+  // Every candidate used to be tested against the SAME reading, so N jobs that each fit the free
+  // memory all started at once - four walks on 2.1 GB free, which is not four walks' worth of
+  // machine. The floor is only a backstop if the pass subtracts what it has already let through.
+  const four = [walk('j-0001'), walk('j-0002'), walk('j-0003'), walk('j-0004')];
+  const { start, waiting } = schedule(four, { hour: NIGHT, freeMemMb: 2150 }); // 2.1 GB
+  assert.deepEqual(start.map((j) => j.id), ['j-0001'], 'one walk fits 2.1 GB, not four');
+  // The reason names BOTH figures. Reporting the pass's remainder as though it were the machine's
+  // free memory sent a reader hunting for 2 GB that was never missing - the box has 2.1 GB free
+  // and the walk ahead of this one claimed it, which the next poll may well undo.
+  assert.match(waiting[0].reason, /only 0\.1 GB of 2\.1 GB free RAM unclaimed this pass, needs 2\.0/);
+
+  // With room for two, two go - the accounting is a subtraction, not a one-job cap.
+  assert.deepEqual(
+    schedule(four, { hour: NIGHT, freeMemMb: 4200 }).start.map((j) => j.id),
+    ['j-0001', 'j-0002'],
+  );
+});
+
+test('a landing is not refused on memory the jobs ahead of it claimed in the same pass', () => {
+  // Found by the pre-merge review, and it is this branch's own regression: the running figure
+  // above was subtracted for EVERY admission, so a landing queued behind two walks was refused
+  // with "only 0.2 GB RAM free, needs 0.6" on a box with 4.3 GB free. That is the stall the
+  // whole change exists to remove, re-created one layer down - and `COST.merge` is 0.15 precisely
+  // so that landings are the thing that always gets through.
+  const two = [walk('j-0001'), walk('j-0002'), merge('j-0003')];
+  assert.deepEqual(
+    schedule(two, { hour: NIGHT, freeMemMb: 4300 }).start.map((j) => j.id),
+    ['j-0001', 'j-0002', 'j-0003'],
+  );
+
+  // The physical backstop is kept, though: a landing on a genuinely short box still waits, and
+  // says the machine's real reading rather than a bookkeeping remainder.
+  const short = schedule([merge('j-0001')], { hour: NIGHT, freeMemMb: 300 });
+  assert.deepEqual(short.start, []);
+  assert.match(short.waiting[0].reason, /only 0\.3 GB RAM free, needs 0\.6/);
+
+  // And exempting it cannot admit a crowd, because two merges never overlap whatever the memory
+  // says - that rule runs before this one and is what keeps landings serial.
+  assert.deepEqual(
+    schedule([merge('j-0001'), merge('j-0002')], { hour: NIGHT, freeMemMb: PLENTY }).start.map((j) => j.id),
+    ['j-0001'],
+  );
+});
+
+test('a job queued AS a sweep is charged a battery, whatever its command looks like', () => {
+  // `SWEEP_SCRIPTS` has missed a suite-sized script many times over (`command-match.mjs` reads as
+  // a log of them), so a session that knows must be able to say so. The kind is already on the
+  // record; before this it was ignored and an honestly-declared battery read as one browser page.
+  assert.equal(costOf({ command: 'node scripts/brand-new-battery.mjs', kind: 'sweep' }), COST.browser);
+  assert.equal(costOf({ command: 'node scripts/brand-new-battery.mjs', kind: 'gate' }), COST.walk);
+});
+
+test('the day still spends at most one suite-equivalent, whether it is spent whole or sliced', () => {
+  // The consequence of pricing a walk at half a suite, pinned on purpose: two of them may run by
+  // day where one suite could, and a third may not. The budget is a share of THIS MACHINE, so
+  // the day's promise - one suite-equivalent of agent work while the owner is using the laptop -
+  // is kept either way.
+  const three = [walk('j-0001'), walk('j-0002'), walk('j-0003')];
+  const { start, waiting } = schedule(three, { hour: DAY, freeMemMb: PLENTY });
+  assert.deepEqual(start.map((j) => j.id), ['j-0001', 'j-0002']);
+  assert.match(waiting[0].reason, /budget 1\/1 used/);
 });
 
 test('a cheap job runs beside a suite at night', () => {

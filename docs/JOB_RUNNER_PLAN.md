@@ -102,19 +102,35 @@ Jobs are weighted in **suite-equivalents**, because counting them was the crude 
 
 | job | cost | why |
 |---|---|---|
-| e2e suite, sweep, bench | **1.0** | a dev server plus four browser workers; two at once measured 34 browser processes, 93% CPU, under 2 GB free |
-| anything unrecognised | **1.0** | assumed expensive - see the asymmetry below |
+| e2e suite, sweep, bench, or anything queued `--kind sweep` | **1.0** | a dev server plus four browser workers; two at once measured 34 browser processes, 93% CPU, under 2 GB free |
+| anything unrecognised | **0.5** | assumed to be a dev server and ONE browser page - see the asymmetry below |
 | `npm run build`, `node --test`, lint, `tsc`, `check:*` | **0.4** | CPU, little RAM, no browser |
 | a landing (`auto-merge`) | **0.15** | almost entirely `gh run watch`, waiting on GitHub's network |
+
+A job may also declare its own cost - `npm run queue -- "<command>" --cost 0.5` - anywhere between
+a landing's 0.15 and a whole suite. The number is written onto the job record, so the listing, the
+budget and the RAM floor all read the same figure and a retry inherits it. It is the only way to
+price work the classifier has no way to recognise, and the floor of 0.15 is there because the same
+number is the RAM admission threshold: left open, a job could waive that check on itself.
 
 Heavy work is classified by `command-match.mjs` - the repo's ONE named list of what starts
 browser work, read by the guard hook and the process detector too, so a script that is heavy here
 is heavy everywhere rather than in a second opinion that can drift.
 
-**The asymmetry decides the default.** Charging a cheap job too much costs some wall clock at
-night. Charging an expensive one too little puts two dev servers and eight browser workers on a
-16 GB laptop and slows everything down at once. So only explicitly-listed commands get a
-discount; everything else pays a full suite.
+**The asymmetry decides the default, and it cuts both ways.** Charging an expensive job too little
+puts two dev servers and eight browser workers on a 16 GB laptop. Charging a cheap one too much
+stops it running at all: on 2026-09-09 a renderer walk (j-0888) was charged a suite, and because
+the RAM floor scales with the cost it demanded 4 GB free and sat refused for about three hours
+while six other branches landed. So an unrecognised command is assumed to open ONE browser - never
+free, never a battery - and anything genuinely suite-sized is either on `command-match.mjs`'s
+list, queued `--kind sweep`, or given a `--cost`.
+
+Read j-0888 as the weaker evidence it turned out to be, though. Its script landed the next day as
+`scripts/ograf-external-walk.mjs`, and it opens two pages and spawns two servers - heavier than
+the walk this default assumes, and the same commit listed it in `SWEEP_SCRIPTS`, so it prices at
+1.0 today. What it still proves is that a session which KNEW its job was small had no way to say
+so. Whether 0.5 is the right guess for an unknown command is open, and it is the number to move if
+the logs say otherwise.
 
 Budget, recomputed before every start and never cached:
 
@@ -124,7 +140,9 @@ Budget, recomputed before every start and never cached:
 - **A free-RAM floor overrides the clock in both directions.** Below the floor nothing new starts,
   however many slots the schedule allows. Ship the floor at 4 GB and tune it from the log.
   `NOACG_JOBS_FREE_MB` retunes it; a runner keeps the environment it started with, so restart it
-  after changing.
+  after changing. The floor scales with the job's cost - a full 4 GB for a suite, 2 GB for one
+  browser page, 600 MB for a landing - and one scheduling pass subtracts what it has already let
+  through, so two jobs cannot both be admitted against the same free-memory reading.
 - **Work started outside the queue still counts.** Another coding agent - Codex, or a hand-run
   command - never touches `jobs.mjs` and is invisible to the queue, but it IS visible to
   `activeRuns()`, which only ever reports browser work. Each such run costs a full

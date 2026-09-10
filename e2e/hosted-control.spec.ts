@@ -427,7 +427,7 @@ test('the receiver block emits the SAME baseline rule the app renderer applies',
     expect(emitted('Board', live, undefined)).toBe(0);
   }
 
-  // ES5 ONLY: a CasparCG 2.3 CEF is ~Chromium 65, where `?.` and `??` are syntax errors — a dead
+  // ES5 ONLY: a CasparCG 2.3 CEF is Chromium 71, where `?.` and `??` are syntax errors — a dead
   // layer with nothing on air and no clue why (docs/CLOUD_PLAYOUT.md §3). The emitted text is
   // never transpiled by Vite, so this is the only thing standing between the rule and that.
   expect(RECEIVER_FOLLOW_FROM_JS).not.toMatch(/\?\.|\?\?|=>|`|\bconst\b|\blet\b/);

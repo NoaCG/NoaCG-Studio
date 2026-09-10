@@ -54,7 +54,10 @@ export default function PlayoutCompatibility({ template }: { template: SpxTempla
         ))}
       </ul>
 
-      {!clean && (
+      {/* The list is offered whenever the scan FOUND something, clean or not: a shimmed
+          declaration never changes a verdict, but the promise that it is still listed is kept
+          here, so a reader exporting bare html for a host of their own can see it. */}
+      {support.findings.length > 0 && (
         <>
           <button
             onClick={() => setShowDetail((s) => !s)}
@@ -68,7 +71,7 @@ export default function PlayoutCompatibility({ template }: { template: SpxTempla
                 <div className="issue warn" key={f.feature.id}>
                   <span className="rule">Chromium {f.feature.since}</span>
                   <strong>{f.feature.label}</strong>
-                  {/* THREE effects, three sentences. A cosmetic finding is listed for honesty —
+                  {/* FOUR effects, four sentences. A cosmetic finding is listed for honesty —
                       the engine really does drop it — but describing it in the same words as a
                       missing panel would claim a design is broken on an engine where it is
                       simply set slightly differently, which is the opposite of what this
@@ -81,7 +84,7 @@ export default function PlayoutCompatibility({ template }: { template: SpxTempla
               ))}
               <p className="hint">
                 Not sure which CasparCG you run? Load the production’s output URL with{' '}
-                <code>&amp;debug=1</code> — the status readout names the browser engine it is
+                <code>&amp;debug=1</code> - the status readout names the browser engine it is
                 actually rendering with.
               </p>
             </div>
@@ -93,9 +96,10 @@ export default function PlayoutCompatibility({ template }: { template: SpxTempla
 }
 
 function effectSentence(effect: EngineFeature['effect']): string {
-  if (effect === 'kills-the-file') return ' — an engine without it cannot read the file at all, so the layer airs blank.';
-  if (effect === 'cosmetic') return ' — a typographic refinement. An engine without it lays the text out slightly differently; nothing goes missing, so it does not decide the verdicts above.';
-  return ' — an engine without it drops the whole declaration, so whatever it paints is simply missing.';
+  if (effect === 'kills-the-file') return ' - an engine without it cannot read the file at all, so the layer airs blank.';
+  if (effect === 'cosmetic') return ' - a typographic refinement. An engine without it lays the text out slightly differently; nothing goes missing, so it does not decide the verdicts above.';
+  if (effect === 'shimmed') return ' - an engine without it ignores the declaration, and a small script every export and the output page carry puts the spacing back there as margins. It does nothing on newer engines and does not decide the verdicts above.';
+  return ' - an engine without it drops the whole declaration, so whatever it paints is simply missing.';
 }
 
 function markFor(verdict: EngineVerdict): string {
@@ -106,6 +110,6 @@ function markFor(verdict: EngineVerdict): string {
 
 function sentenceFor(verdict: EngineVerdict, missing: number): string {
   if (verdict === 'fine') return 'renders as designed';
-  if (verdict === 'blank') return 'cannot read the graphic — the layer airs blank';
+  if (verdict === 'blank') return 'cannot read the graphic - the layer airs blank';
   return missing === 1 ? 'one part of the design will be missing' : `${missing} parts of the design will be missing`;
 }

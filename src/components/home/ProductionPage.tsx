@@ -68,14 +68,17 @@ import {
   claimJoinName,
   outputPageUrl,
   publishControlShow,
-  sendHostedControlBatch,
+  sendControlVerb,
   takeCueItems,
   unpublishControlShow,
+  verbAired,
   withLiveCue,
+  type ControlEventRow,
   type ControlSendItem,
   type LiveCueMap,
   type ResolvedControlShow,
 } from '../../control/hostedControl';
+import { createAppliedOnce } from '../../control/commandRoads';
 import { appendLogEntries, describeLogRow, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
@@ -265,6 +268,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [now, setNow] = useState(() => Date.now());
   const [openedAt] = useState(() => Date.now());
   const hostedSlug = show?.hostedSlug ?? null;
+  /** The production's row id — the command channel's key on the fast road. Read out here rather
+   *  than inside the verbs so a send depends on the ID and not on the whole show record. */
+  const showId = show?.id ?? null;
 
   const programRef = useRef<ProgramStageHandle>(null);
   /**
@@ -451,6 +457,42 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     programRef.current?.apply(out);
   }, [applySpeakingClocks]);
 
+  /**
+   * WHAT THE OPERATOR SEES, from whichever road the command arrived on.
+   *
+   * A published verb travels twice (src/control/commandRoads.ts): a broadcast that lands in about
+   * 50 ms and the durable row behind it at 130-650. This page also presses the verbs itself, so
+   * there is a third arrival that is faster than either - its own send. All three end up here and
+   * `applied` decides which one counts, on the id the press minted.
+   *
+   * Getting that wrong is invisible. A second `play` re-runs an entrance and settles on the
+   * picture that was already there, which is why `PayloadStage` counts them and why
+   * e2e/configured/playout-both-roads.spec.ts reads the count rather than the screen.
+   *
+   * The DURABLE half of a row - the action log line, the renderer's own reports, the signal that
+   * the data API wrote - stays in the follower's `onRow` below, because that half must happen
+   * once per ROW and is not what an operator is waiting for.
+   */
+  const applied = useRef(createAppliedOnce());
+  const applyCommand = useCallback(
+    (items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
+      for (const item of items) {
+        if (!applied.current.claim(item.msg)) continue;
+        const msg = item.msg;
+        // The ON AIR marker rides the same road as the picture, deliberately: split across the
+        // two, the graphic would be up for a third of a second while the rundown still said the
+        // layer was clear.
+        if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
+        // 'staged' is another operator typing and 'live' is the renderer REPORTING - neither is
+        // a command and the stage has no meaning for either.
+        else if (msg.t !== 'staged' && msg.t !== 'live') {
+          rememberAired([{ graphic: item.graphic, msg }]);
+          applyProgram([{ graphic: item.graphic, msg }]);
+        }
+      }
+    },
+    [applyProgram, rememberAired],
+  );
 
   const cues = useMemo(() => show?.cues ?? [], [show]);
   const graphicByPoolId = useMemo(() => new Map((show?.graphics ?? []).map((g) => [g.id, g] as const)), [show]);
@@ -671,24 +713,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         showId: show.id,
         from: resolved.lastEventId,
         tail,
+        // THE FAST ROAD. The same verbs, broadcast on this channel and here hundreds of
+        // milliseconds before their rows are - which is what moves this page's PROGRAM monitor
+        // when the press came from another operator's phone.
+        onCommand: applyCommand,
         onRow: (row) => {
           const msg = row.msg;
-          if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, row.graphic, msg.cue));
-          // A 'live' row is the renderer REPORTING what it applied — machine state included,
-          // which is what keeps the action buttons' greying honest about air.
-          else if (msg.t === 'live') noteMachineState(row.graphic, msg.state ?? null);
           // Mirror air locally: the PROGRAM monitor follows the wire, not just this page's own
-          // buttons, so a take from another operator's phone shows here too. Only RENDERER
-          // commands go through — 'staged' and 'live' are bookkeeping rows the stage has no
-          // meaning for (staged data has not aired; a 'live' row is a graphic REPORTING).
-          else if (msg.t !== 'staged') {
-            rememberAired([{ graphic: row.graphic, msg }]);
-            applyProgram([{ graphic: row.graphic, msg }]);
-            // A FEED wrote (control_data_patch marks its rows `src:'api'`), so the production's
-            // tree moved server-side. The row carries the resolved FIELD values, not the tree,
-            // so re-read it - and reuse this signal rather than adding a second subscription on
-            // control_shows just to learn the same fact.
-            if ((msg as { src?: string }).src === 'api') void refreshRef.current();
+          // buttons, so a take from another operator's phone shows here too. It is the SAME
+          // door the broadcast above comes through, and `applyCommand` drops whichever copy is
+          // second - a duplicate entrance would leave no trace on screen.
+          applyCommand([{ graphic: row.graphic, msg }]);
+          // A 'live' row is the renderer REPORTING what it applied — machine state included,
+          // which is what keeps the action buttons' greying honest about air. Durable only: a
+          // report is a row, not a verb, and it never travels the fast road.
+          if (msg.t === 'live') noteMachineState(row.graphic, msg.state ?? null);
+          // A FEED wrote (control_data_patch marks its rows `src:'api'`), so the production's
+          // tree moved server-side. The row carries the resolved FIELD values, not the tree,
+          // so re-read it - and reuse this signal rather than adding a second subscription on
+          // control_shows just to learn the same fact. Also durable only, and for a sharper
+          // reason: the API appends its rows server-side and broadcasts nothing.
+          else if (msg.t !== 'staged' && msg.t !== 'cue' && (msg as { src?: string }).src === 'api') {
+            void refreshRef.current();
           }
           const entry = describeLogRow(row, cueLabel);
           if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
@@ -960,16 +1006,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return true;
       }
       try {
-        for (const batch of batches) await sendHostedControlBatch(hostedSlug, batch);
-        // The published path mirrors through the log follower above, so nothing is applied
-        // locally here — that would double-apply every command this page sends.
+        // BOTH ROADS, from this one press (src/control/commandRoads.ts). `applyHere` moves this
+        // page's own monitor in zero hops - it used to wait for the whole round trip, because
+        // applying locally as well as off the log would have doubled every command it sent, and
+        // the minted id is what makes doing both safe. Every other surface has the broadcast at
+        // about 50 ms and the durable row behind it, and applies whichever won.
+        for (const batch of batches) {
+          await sendControlVerb({ slug: hostedSlug, showId, items: batch, applyHere: applyCommand });
+        }
         return true;
       } catch (e) {
-        setNote(`${label} failed: ${(e as Error).message}`);
+        // A verb that AIRED and then failed to log is a different sentence from one that never
+        // happened, and an operator has to be told which they are looking at: the picture in
+        // front of them has moved and nothing recorded it, so the next surface to rebuild from
+        // the log will not know about it.
+        setNote(
+          verbAired(e)
+            ? `${label} reached the screens but was NOT logged (${(e as Error).message}). Send it again.`
+            : `${label} failed: ${(e as Error).message}`,
+        );
         return false;
       }
     },
-    [hostedSlug, cueLabel, rememberAired, applyProgram],
+    [hostedSlug, showId, cueLabel, rememberAired, applyProgram, applyCommand],
   );
 
   /**
