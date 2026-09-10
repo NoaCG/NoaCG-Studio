@@ -21,8 +21,7 @@ installed browser, which auto-updates.
 
 | Playout system | Engine | How we know |
 |---|---|---|
-| CasparCG 2.3.0–2.3.2 | Chromium 71 | measured 2026-09-10 — **unsupported**, see §2 |
-| CasparCG 2.3.3+ | Chromium 88 | inferred — **unsupported**, see §2 |
+| CasparCG 2.3.x (the `v2.3.3-lts-stable` download) | Chromium 71 | measured 2026-09-10 — **unsupported for authoring**, see §2; flex `gap` is shimmed |
 | OBS Studio 30.x | Chromium 103 | an OBS not updated since 2023 — below the floor |
 | vMix 27+ | Chromium 103 | changelog only, never measured here |
 | **CasparCG 2.4.x** | **Chromium 117** | **THE SUPPORTED FLOOR** |
@@ -49,19 +48,32 @@ strangers are running.
 
 What is deliberately excluded, and why:
 
-- **CasparCG 2.3.x (71 / 88).** Unsupported, and the older half is worse than this bullet used to
-  say. Clearing Chromium 71 would mean rewriting flex `gap` (272 designs), `backdrop-filter` (178,
-  and 76 anyway) and the `inset` shorthand (138) out of the catalogue — load-bearing layout, not
-  decoration — and then `clamp()`/`min()`/`max()` (79, and `min()` is in
-  `src/templates/shared/base.ts`, so it is in every design), private class fields (74) and numeric
-  separators (75) on top. The 2.3.0–2.3.2 number is no longer an
-  inference: on 2026-09-10 a 2.3.2 build (`4de6d18f Dev`) reported **Chromium 71** on the output
-  page's `&debug=1` line, and the house scorebug aired on it with its flex gaps collapsed — the
-  same production on 2.5.0 has them. That settles a contradiction this section used to carry: a
-  2.3.2 server could not *parse* optional chaining (below 80), yet a "2.3.x" server was once seen
-  rendering `inset` (87) and `gap` (84), which must have been a different machine. `vite.config.ts`
-  still says "~Chromium 63", which is now merely conservative rather than unreconciled. **2.3.3+
-  remains an inference** — nothing here has run a genuine 2.3.3.
+- **CasparCG 2.3.x (71).** Not authored against, and one engine rather than the two this table
+  used to list. The number is measured: on 2026-09-10 the install named `v2.3.3-lts-stable`
+  reported **Chromium 71** on the output page's `&debug=1` line, its `libcef.dll` is CEF
+  3.3578 (the Chromium 71 branch), and the house scorebug aired on it with its flex gaps
+  collapsed — the same production on 2.5.0 has them. The "2.3.3+ = 88" row was an inference from
+  a 2.3.x server once seen rendering `inset` (87) and `gap` (84); that must have been a different
+  machine, because the official 2.3.3 LTS release (GitHub `v2.3.3-lts-stable`, 2021-03-16, the
+  one zip a school downloads today, 17,000 downloads) unpacks to a binary that answers `VERSION`
+  with `2.3.2 4de6d18f Dev` and ships CEF 3.3578. There is no 2.3 with Chromium 88 to download.
+
+  **The rule for that tier, in three parts.** Designs are authored against the floor, so on 2.3
+  a design gets by construction only what Chromium 71 understands. On top of that the studio
+  restores at runtime what the engine PARSES but does not LAY OUT, because the CSSOM still
+  carries the value and a script can read it back: flex `gap` is the one such feature, and
+  `src/assets/flexGapShim.js` rides in every composed document and every export (inline in the
+  preview, the output page, the render and the single-file targets; as `js/flex-gap-shim.js`
+  beside GSAP in the SPX, show and dual packages; as `lib/flex-gap-shim.js` in the OGraf and
+  LiveOS packages), puts the gap back as margins there and returns at its first line on any
+  engine with it. What the engine DROPS from the CSSOM is not restored: `color-mix()` (229
+  designs), `backdrop-filter` (199), the `inset` shorthand (169), `clamp()`/`min()`/`max()` (18,
+  and `min()` in `src/templates/shared/base.ts` carries its own fallback) and `aspect-ratio`
+  (6), all measured with `scripts/engine-floor.mjs --chromium 71` on 2026-09-10 over 504
+  designs. Restoring those would mean re-parsing the stylesheet TEXT rather than reading the
+  CSSOM, which is a decision about supporting 2.3 as a whole, not a spacing fix; it is open in
+  `docs/handoffs/2026-09-10-bk-flex-gap-on-old-engines.md`. `scripts/flex-gap-sweep.mjs`
+  measures every design native-against-shimmed and is the gate on the shim.
 - **OBS 30.x and vMix 27 (103).** Below the floor, so a design using `color-mix()` (111) loses
   its fills there. A current OBS is fine; vMix has never been measured here. Left as a known,
   recorded gap rather than a reason to migrate 189 declarations speculatively — revisit if a real

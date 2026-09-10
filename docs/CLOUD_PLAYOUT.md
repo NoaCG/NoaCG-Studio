@@ -340,7 +340,7 @@ The page:
   `e2e/snap-recovery.spec.ts` is the gate: it drives every image-bearing design through recovery
   and fails if a snap changes what the fields decided to show.
 - **It must parse on an OLD CEF.** CasparCG 2.3.x LTS — the ordinary school/student install
-  — embeds a ~Chromium 65 browser. A real 2.3.2 server rejected the first build outright
+  — embeds a Chromium 71 browser. A real 2.3.2 server rejected the first build outright
   (`Uncaught SyntaxError: Unexpected token ?`: `?.`/`??` need Chromium 80), showing a dead
   layer with nothing on air and no clue why. Two rules follow, and neither is optional
   while 2.3.x is a supported target: **the Vite build target stays at `es2017`** (it covers
