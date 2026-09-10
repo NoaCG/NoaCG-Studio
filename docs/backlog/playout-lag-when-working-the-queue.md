@@ -151,6 +151,13 @@ the comparison carries no machine drift. The selection families in that run meas
 `srcdoc` and 28-29.5 ms to the preview's first frame, matching the 2026-09-10 built-app table above
 - the machine was healthy. Nothing froze the page for longer than one frame interval anywhere.
 
+**The `wsRow` column is corroborated by a stamp that cannot share its failure mode.** `toPlayed` is
+taken inside the graphic's own document when its command handler returns, and in 19 of the run's 20
+verb rows it sits within 6 ms of `toWsRow`. The twentieth sat 126 ms apart, which is the bench
+picking up a straggler from the settle before it - the reason the frame is now matched to the verb's
+own command rather than taken as whichever arrived first. That row's family median is unchanged
+either way.
+
 **A published Take paints in about half a second. Unpublished it paints in 30 ms.**
 
 **THE LARGE GAP IS NOT THE RPC, IT IS THE FAN-OUT.** The send is answered at 100-150 ms and the row
@@ -177,6 +184,14 @@ is not explained here.
 **Supabase's other transport does not have the problem.** A `broadcast` message from one signed-in
 client to another on the same channel, twelve sends: **50 ms, range 49-55**. It touches no table and
 no WAL. That is a tenth of the slow mode and half of the fast one, and it never varies.
+
+**And a command sent moments after the channel joins can be missed entirely.** Seen once in 34
+probe takes: the take fired right after `SUBSCRIBED` never arrived over the socket at all, inside a
+ten-second wait. `followControlLog` does cover it - it refills on `SUBSCRIBED` and again whenever a
+later row leaves an id gap - so on the real page the picture catches up on the NEXT command rather
+than staying wrong. With nothing else sent, the floor is the 30-second poll. What that means for an
+operator is that the very first Take after opening the page is the one most likely to look ignored,
+which is exactly the take a class or a rehearsal starts with.
 
 **Two candidate causes were tested and refused.** The rate-limit check inside `control_send_many`
 counts the production's rows in the last five seconds, and `control_events` is indexed on
@@ -254,10 +269,14 @@ The whole dashboard, which needs a job slot and about ten minutes:
 ```
 npm run dev:worktree                                     # the dev server, for the seed only
 node scripts/playout-lag-bench.mjs playout-lag-out --seed [--published]
+node scripts/playout-lag-bench.mjs playout-lag-out --cleanup     # only after a run that died
 npm run build && npm run dev:worktree -- --preview       # the BUILT app, same port
 node scripts/playout-lag-bench.mjs playout-lag-out --measure --headless
-node scripts/playout-lag-bench.mjs playout-lag-out --cleanup     # only after a run that died
 ```
+
+`--cleanup` sits with the DEV SERVER on purpose: it goes through the same door the seed does
+(`import('/src/control/hostedControl.ts')`), and a production bundle exposes no module graph, so
+run against `--preview` it crashes on the import rather than cleaning anything up.
 
 `--published` signs the fixture in with `E2E_EMAIL` / `E2E_PASSWORD` and publishes it through the
 page's own button, so the measure phase really is on the wire; that phase then unpublishes it and

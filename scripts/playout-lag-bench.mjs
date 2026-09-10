@@ -73,6 +73,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { freemem, totalmem } from 'node:os';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { outDir } from './out-dir.mjs';
 import { ambientEnv } from './read-dotenv.mjs';
 
@@ -80,7 +81,10 @@ import { ambientEnv } from './read-dotenv.mjs';
 // and falls back to the MAIN checkout's, so a linked worktree needs no copy of its own for the
 // SCRIPT - the dev server it drives is a different matter and does need one (vite reads `.env`
 // from the checkout root, so a worktree with no `.env` serves an app with no backend at all).
-const env = ambientEnv(process.cwd());
+// Resolved from THIS FILE rather than `process.cwd()`, like every other keyed script here: the
+// fallback shells `git rev-parse`, so a run started from another directory would look for the
+// main checkout from there and report a configured machine as having no credentials.
+const env = ambientEnv(fileURLToPath(new URL('..', import.meta.url)));
 
 const args = process.argv.slice(2);
 /** Flags that consume the next argument - so its VALUE is never mistaken for the out-dir. */
@@ -245,7 +249,16 @@ const NET_PROBE = `(() => {
       const ws = new Target(...argumentsList);
       ws.addEventListener('message', (ev) => {
         const text = typeof ev.data === 'string' ? ev.data : '';
-        if (text.includes('control_events')) net.ws.push({ t: abs(), bytes: text.length });
+        if (!text.includes('control_events')) return;
+        // WHICH COMMAND the row carries, so a gesture can time ITS OWN row rather than whichever
+        // arrived first. The fan-out has a slow mode of about 650 ms and stragglers past it, so a
+        // row from the settle before this gesture - the take-down that reset does, or a staged
+        // row - can land inside this window. Measured over the 2026-09-10 run: one of twenty rows
+        // was exactly that, its wsRow sitting 126 ms ahead of the graphic's own played stamp,
+        // while the other nineteen sat within 6 ms of it.
+        let kind = null;
+        try { kind = JSON.parse(text)?.payload?.data?.record?.msg?.t ?? null; } catch { kind = null; }
+        net.ws.push({ t: abs(), kind, bytes: text.length });
       });
       return ws;
     },
@@ -371,6 +384,18 @@ const GRAPHICS = ['Arena Quiz', 'Quiet Score', 'Hairline'];
  */
 const POOL = Math.max(GRAPHICS.length, intFlag('--pool', GRAPHICS.length));
 
+// CLEANUP IS ITS OWN ENDING, before any of the phases below: it signs in, removes what a run
+// that died left published, and stops. It lives here rather than inside `seedFixture` because it
+// seeds nothing - and it needs the DEV server, since it reaches the unpublish call through the
+// app's own module graph.
+if (cleanupOnly) {
+  await openApp();
+  await signInAndClearLeftovers();
+  await browser.close();
+  console.log('Cleanup only - nothing seeded.');
+  process.exit(0);
+}
+
 let showId;
 let fixture;
 if (measureOnly) {
@@ -434,8 +459,8 @@ async function signInAndClearLeftovers() {
   if (removed) console.log(`# cleared ${removed} leftover "${SHOW_NAME}" production(s) from a previous run`);
 }
 
-/** Create the three graphics, the production, its cues, its data tree and its bindings. */
-async function seedFixture() {
+/** Open the app and answer the analytics prompt - where both the seed and the cleanup start. */
+async function openApp() {
   await page.goto(`${base}/app`);
   await page.waitForSelector('.topbar');
   await page.evaluate(async () => {
@@ -443,12 +468,12 @@ async function seedFixture() {
     setAnalyticsConsent(false);
   });
   await page.waitForSelector('[data-testid="analytics-consent"]', { state: 'detached' });
-  if (publishSeed || cleanupOnly) await signInAndClearLeftovers();
-  if (cleanupOnly) {
-    await browser.close();
-    console.log('Cleanup only - nothing seeded.');
-    process.exit(0);
-  }
+}
+
+/** Create the three graphics, the production, its cues, its data tree and its bindings. */
+async function seedFixture() {
+  await openApp();
+  if (publishSeed) await signInAndClearLeftovers();
   await createProject(GRAPHICS[0]);
   showId = await page.evaluate(async (name) => {
     const shows = await import('/src/model/shows.ts');
@@ -604,10 +629,20 @@ async function gesture(name, act, settleMs = 1200) {
   const click = host.clicks.length ? host.clicks[0].t : t0;
   const verbClick = host.clicks.length ? host.clicks[host.clicks.length - 1].t : t0;
   const command = host.plays.length ? host.plays[0].t : null;
-  // THE WIRE, on a published production. `control_stage` and the data patch use the same door,
-  // so the send is picked out by name rather than by being first: a preview edit staged a
-  // moment earlier must not be reported as this verb's round trip.
-  const send = host.rpc.find((r) => r.name === 'control_send_many' || r.name === 'control_send') ?? null;
+  // THE WIRE, on a published production - and BOTH stamps are pinned to this verb rather than
+  // taken as whatever came first in the window.
+  //
+  // The send is picked by name AND from the verb's own click onwards. `control_send_many` is not
+  // the verb's door alone: the production-data dispatch effect sends through the identical RPC
+  // whenever the server data key resolves to null (ProductionPage.tsx, `runVerb(..., 'Data')`),
+  // so a data update in flight would otherwise be filed as the Take's round trip.
+  const send = host.rpc.find((r) => r.sent >= verbClick && (r.name === 'control_send_many' || r.name === 'control_send')) ?? null;
+  // The row is picked by the COMMAND THIS VERB SENT - `play` for a take, `stop` for an out - and
+  // the same way round: from the verb's click onwards. `verbMark` below already does exactly this
+  // on the graphic's side, and the two agreeing within a few milliseconds is what says the row
+  // timed here is the row that moved the picture.
+  const verbKind = name.startsWith('out') ? 'stop' : 'play';
+  const wsRow = host.ws.find((w) => w.t >= verbClick && (w.kind === null || w.kind === verbKind)) ?? null;
   // The command a VERB sends, not the settle burst the preview gets on selection.
   const verbMark = marks.find((m) => m.cmd === 'play' || m.cmd === 'stop' || m.cmd === 'dispatch') ?? null;
   const bootMark = marks.find((m) => m.cmd === '__load') ?? null;
@@ -630,7 +665,8 @@ async function gesture(name, act, settleMs = 1200) {
     toRpcSentMs: send ? round(send.sent - verbClick) : null,
     toRpcDoneMs: send && send.returned ? round(send.returned - verbClick) : null,
     rpcFailed: send ? send.failed || (typeof send.status === 'number' && send.status >= 400) : null,
-    toWsRowMs: host.ws.length ? round(host.ws[0].t - verbClick) : null,
+    toWsRowMs: wsRow ? round(wsRow.t - verbClick) : null,
+    /** Every `control_events` frame in the window, matched or not - a batch is three rows. */
     wsRows: host.ws.length,
     toCommandMs: command === null ? null : round(command - verbClick),
     toPlayedMs: verbMark ? round(verbMark.played - verbClick) : null,
@@ -794,6 +830,14 @@ if (fixture.hostedSlug) {
   );
   await page.keyboard.press('Escape');
   await page.waitForTimeout(1500);
+  // THE FIXTURE FILE OUTLIVES THIS PROCESS, and unpublishing DELETED the `control_shows` row -
+  // so the seed's record of a hosted slug is now a lie. Two `--measure` runs against different
+  // builds off one seed is the documented workflow and the whole reason the phases are split;
+  // without this the second one restores a profile that still believes it is published, and
+  // every `control_send_many` raises `unknown control page` while the run reports a full table
+  // of failures rather than refusing.
+  delete fixture.hostedSlug;
+  writeFileSync(FIXTURE_FILE, JSON.stringify({ showId, fixture }, null, 2) + '\n');
   wire = 'local';
   console.log('# unpublished - the same two verbs again, now on the local road');
   for (let r = 0; r < ROUNDS; r++) {

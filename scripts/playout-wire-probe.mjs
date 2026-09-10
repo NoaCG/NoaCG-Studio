@@ -31,6 +31,7 @@
 import { createRequire } from 'node:module';
 import { freemem, totalmem } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { ambientEnv } from './read-dotenv.mjs';
 
 // The SDK is resolved through THIS FILE rather than through the process's cwd, so the probe works
@@ -47,7 +48,13 @@ if (!Number.isInteger(TAKES) || TAKES < 1) {
   process.exit(2);
 }
 
-const env = ambientEnv(process.cwd());
+// The CHECKOUT, resolved from this file rather than from `process.cwd()`. This is the instrument
+// the acceptance note hands the owner with "nothing to set up", and he will run it by its full
+// path from wherever his shell happens to be - `ambientEnv(process.cwd())` would then look for a
+// `.env` in that directory, shell `git rev-parse` there for the main-checkout fallback, find
+// neither, and exit claiming the machine has no credentials. Every other keyed script here
+// resolves the same way.
+const env = ambientEnv(fileURLToPath(new URL('..', import.meta.url)));
 const url = env.VITE_SUPABASE_URL;
 const key = env.VITE_SUPABASE_ANON_KEY;
 const email = env.E2E_EMAIL;
@@ -90,7 +97,15 @@ if (created.error) {
 }
 const slug = created.data.slug;
 
-/** Every Realtime row this process saw, with the moment it arrived. */
+/**
+ * Every Realtime row this process saw: when it arrived, what kind it is, and WHICH TAKE SENT IT.
+ *
+ * The take number is carried in the command itself and read back off the row, rather than the
+ * window being trusted to separate one take from the next. It has to be: the fan-out has a slow
+ * mode of about 650 ms and occasional stragglers past that, so a row from take N can land inside
+ * take N+1's wait and be read as an instant fan-out - which drags the median DOWN, in the one
+ * direction that makes the instrument flatter than the truth.
+ */
 const arrivals = [];
 let joined = false;
 const channel = sb
@@ -98,7 +113,11 @@ const channel = sb
   .on(
     'postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'control_events', filter: `show_id=eq.${showId}` },
-    (payload) => arrivals.push({ at: performance.now(), msg: payload.new?.msg?.t ?? '?' }),
+    (payload) => arrivals.push({
+      at: performance.now(),
+      t: payload.new?.msg?.t ?? '?',
+      take: payload.new?.msg?.take ?? null,
+    }),
   )
   .subscribe((status) => {
     if (status === 'SUBSCRIBED') joined = true;
@@ -113,39 +132,49 @@ if (!joined) {
 
 console.log(`# playout wire probe — ${new Date().toISOString()} — ${JSON.stringify(freeNow())}`);
 console.log(`# channel join: ${joinMs.toFixed(0)} ms`);
-console.log('# take  sendMs  fanoutMs  rows');
+console.log('# take  sendMs  fanoutMs  back');
 
 const sends = [];
 const fanouts = [];
 for (let i = 0; i < TAKES; i += 1) {
-  arrivals.length = 0;
+  const take = i + 1;
   // EXACTLY what a Take puts on the wire (`takeCueItems`): the cue's data, the graphic in, and
   // the shared cue-status row. Three rows, one atomic insert - so the numbers below are a take's,
-  // not a single command's.
+  // not a single command's. `take` is this probe's own marker; `control_send_many` validates only
+  // `t` and `graphic` and inserts `msg` verbatim, so it rides along and comes back on the row.
   const items = [
-    { graphic: 'probe', msg: { t: 'update', data: { title: `take ${i + 1}` } } },
-    { graphic: 'probe', msg: { t: 'play' } },
-    { graphic: 'probe', msg: { t: 'cue', cue: `cue-${i + 1}` } },
+    { graphic: 'probe', msg: { t: 'update', take, data: { title: `take ${take}` } } },
+    { graphic: 'probe', msg: { t: 'play', take } },
+    { graphic: 'probe', msg: { t: 'cue', take, cue: `cue-${take}` } },
   ];
   const sent = performance.now();
   const { error } = await sb.rpc('control_send_many', { p_slug: slug, p_items: items });
   const returned = performance.now();
   if (error) {
-    console.log(`# ${String(i + 1).padStart(4)}  RPC FAILED: ${error.message}`);
+    console.log(`# ${String(take).padStart(4)}  RPC FAILED: ${error.message}`);
+    // Paced even here, and DELIBERATELY: the likeliest error is the log's own 50-per-5-seconds
+    // cap, and retrying it without waiting turns one trip over the limit into every remaining
+    // take failing.
+    await sleep(900);
     continue;
   }
-  // The FIRST arrival is what moves the picture: `applyProgram` runs per row, and the entrance
-  // is the second of the three. Waiting for all three would time the batch's tail rather than
-  // the moment the operator's monitor stops being wrong.
+  // THE `play` ROW is the one that moves the picture - `update` sets values on a graphic that is
+  // not up yet and `cue` is status the stage ignores by contract - so that is the row timed, and
+  // it is picked by THIS take's marker rather than by being first in the window.
+  sends.push(returned - sent);
+  let play = null;
   const waitStart = performance.now();
-  while (arrivals.length === 0 && performance.now() - waitStart < 10_000) await sleep(2);
-  const first = arrivals[0] ?? null;
-  const sendMs = returned - sent;
-  const fanoutMs = first ? first.at - sent : null;
-  sends.push(sendMs);
+  while (!play && performance.now() - waitStart < 10_000) {
+    play = arrivals.find((a) => a.take === take && a.t === 'play') ?? null;
+    if (!play) await sleep(2);
+  }
+  const fanoutMs = play ? play.at - sent : null;
   if (fanoutMs !== null) fanouts.push(fanoutMs);
+  // How many of this take's three rows are back BY THE TIME its entrance is - the rest are still
+  // in flight and are not waited for, because the operator is not waiting for them either.
+  const backNow = arrivals.filter((a) => a.take === take).length;
   console.log(
-    `# ${String(i + 1).padStart(4)}${sendMs.toFixed(0).padStart(8)}${(fanoutMs === null ? 'none' : fanoutMs.toFixed(0)).padStart(10)}${String(arrivals.length).padStart(6)}`,
+    `# ${String(take).padStart(4)}${(returned - sent).toFixed(0).padStart(8)}${(fanoutMs === null ? 'none' : fanoutMs.toFixed(0)).padStart(10)}${String(backNow).padStart(6)}`,
   );
   // The log caps a production at 50 commands per 5 s (migration 0029) and a take is three, so
   // this paces well under it - and an operator does not press Take ten times a second either.
@@ -156,8 +185,8 @@ await sb.removeChannel(channel);
 await sb.from('control_shows').delete().eq('id', showId);
 
 console.log('');
-console.log(`# send (click -> RPC answered):     median ${median(sends)} ms over ${sends.length}`);
-console.log(`# fanout (click -> row back here):  median ${median(fanouts)} ms over ${fanouts.length}`);
+console.log(`# send   (click -> RPC answered):       median ${median(sends)} ms over ${sends.length}`);
+console.log(`# fanout (click -> ENTRANCE back here): median ${median(fanouts)} ms over ${fanouts.length}`);
 console.log('# the operator still waits for the app to apply and paint on top of the fanout number.');
 if (fanouts.length < sends.length) {
   console.log(`# ${sends.length - fanouts.length} take(s) NEVER came back over Realtime within 10 s - on the real page those wait for the 30 s poll.`);
