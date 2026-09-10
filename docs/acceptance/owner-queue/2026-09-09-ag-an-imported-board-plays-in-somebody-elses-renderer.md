@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-09
+because: taste
 serves: now
 ---
 # A student's own drawing, behaving, in a renderer nobody here wrote

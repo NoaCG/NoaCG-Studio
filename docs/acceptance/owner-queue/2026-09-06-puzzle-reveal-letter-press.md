@@ -1,9 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Whether Guess clears itself after a press is answered by the feature beside it - the box keeps the
+letter so Take back can undo it, and clearing it would break the undo. The button hint's wording
+is a copy default.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # The puzzle board: one press reveals a letter, one takes it back
 
 **Date:** 2026-09-06 · **Branch:** `claude/add-control-row-set-field-d1d013`
@@ -34,3 +43,20 @@ which all resolve the same rule. Typing letters straight into the Revealed lette
 - The hint on the button reads "moves Guess into Revealed letters with it". Say whether that
   wording is the operator's.
 - Nothing about the artwork changed; the same file walks as before.
+
+## Consolidated 2026-09-10 - the item this answers is now folded in
+
+`2026-09-06-puzzle-board-letters.md` asked exactly one question:
+
+> Revealing a letter is typing it and pressing Update, because no button can add to a field yet.
+> Say whether that is acceptable for the show or whether the "add a value to a list" control should
+> be built next.
+
+It was built, on the same board, the same week - which is what this item is. A question with a
+shipped answer is not a question, so that file is deleted rather than presented beside its own
+answer. The half of it that was not a question survives here: a student lays the phrase over the
+tiles with spaces, and a multi-line board needs its tiles numbered across then down.
+
+**Decided rather than asked, out of both.** Guess does not clear itself after a press, because Take
+back reads it - a box that emptied itself would take the undo with it. And the button hint stays
+"moves Guess into Revealed letters with it", which names the two boxes the operator can see.

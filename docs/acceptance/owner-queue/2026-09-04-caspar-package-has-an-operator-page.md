@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-04
+because: scope
 ---
 # A CasparCG export now carries an operator page
 

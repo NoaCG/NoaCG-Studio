@@ -1,9 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The nav-length question was already moved out of this item to 2026-09-09-how-to-work-with-a-
+team.md with the right count. What is left is docs voice, which the repo's own copy rule governs,
+and the fact that nobody has rendered the page - a claim an agent drives.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # Three more guides on /docs: countdowns, artwork that is not an SVG, and which package to take
 
 **Date:** 2026-09-06 · **Branch:** `claude/h-docs-guides`

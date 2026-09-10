@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-04
+because: taste
 ---
 # A password-reset link now opens something that can reset a password
 

@@ -1,9 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+It was settled by measurement rather than by taste: 172 combinations swept through the real
+importer, the second answer right on 0 of the 35 rows that offered it. Whether a row still says
+enough is a copy default the item argues.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # One less question on import: everything moves out of the way
 
 **Date:** 2026-09-06 · **Branch:** `claude/f-growth-question`

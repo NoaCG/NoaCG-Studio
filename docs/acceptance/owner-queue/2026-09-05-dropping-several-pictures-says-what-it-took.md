@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-05
+because: scope
 serves: now
 ---
 # Dropping several pictures at once now says what it took

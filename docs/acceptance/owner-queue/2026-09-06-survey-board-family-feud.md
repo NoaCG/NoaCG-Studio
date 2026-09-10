@@ -1,9 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The authoring rule it asks about - draw the answers as they look revealed, hide them until then -
+is the vote board's own rule applied to words, so consistency settles it. The missing un-reveal
+button is argued from what the show does.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # A survey board: reveal in any order, three strikes, the total adds itself up
 
 **Date:** 2026-09-06 · **Branch:** `claude/svg-behaviour-game-shows-518d88`

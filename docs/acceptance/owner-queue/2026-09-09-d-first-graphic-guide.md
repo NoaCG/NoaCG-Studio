@@ -1,8 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-09
 serves: now
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+What a first-timer needs from a step-by-step guide is research rather than taste, and the guide
+was written by walking the road with a running build. That the page renders and its quoted strings
+still match the wizard is a claim an agent drives.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # The /docs guide that walks an SVG all the way to air
 
 The docs page had a guide to the SVG file and a guide to each kind of graphic, but nothing that

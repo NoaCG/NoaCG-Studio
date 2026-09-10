@@ -1,7 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The one judgement it asks for, whether 'outro' should narrow to the credits shelf, has a
+defensible general answer given in the item: an ambiguous word should not choose for the person
+typing it. Everything else in the item is a defect that turned CI red.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # Asking for credits by name gets you credits, and nothing else
 
 **Date:** 2026-09-06 · **Branch:** `claude/phone-work-session-arxjzr`

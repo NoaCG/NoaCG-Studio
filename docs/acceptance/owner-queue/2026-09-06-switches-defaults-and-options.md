@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-06
+because: taste
 serves: now
 answered: false
 ---

@@ -1,9 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Its own route says nothing in the UI changed and this is a 'does it still behave' look. Four
+corner bugs animating and keyframing as before is a regression claim an agent drives.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # An animation NoaCG converted could throw the first time an operator pressed Take
 
 **Date:** 2026-09-06 · **Branch:** `claude/noacg-pro-harness-comparison-5c7fa0`

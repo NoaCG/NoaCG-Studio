@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-08
+because: taste
 ---
 # The size floor stopped refusing two thirds of our own catalog
 

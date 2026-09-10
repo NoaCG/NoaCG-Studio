@@ -1,7 +1,16 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-10
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The item says so itself: 'Nothing needs you. This is a fix to something we shipped the same day,
+not a decision waiting on you.' The route is drivable in a second browser window.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # An output URL renders the show and cannot operate it - 2026-09-10
 
 **What changed.** This morning's speed fix gave a published verb a second road: a realtime

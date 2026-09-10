@@ -1,6 +1,7 @@
 ---
 kind: walk-p
 date: 2026-09-07
+because: taste
 answered: true
 ---
 # The landing page says free and open source

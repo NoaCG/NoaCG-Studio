@@ -1,9 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Whether line 1 is number 1 is the least surprising mapping and the default: a box of entries reads
+top-down whatever order the reveal walks. The decorative numerals half already has its own item.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # A top ten list: Next reveals the entries from ten down to one
 
 **Date:** 2026-09-06 · **Branch:** `claude/svg-behaviour-game-shows-518d88`

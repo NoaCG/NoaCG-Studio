@@ -1,8 +1,19 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-09
 serves: now
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The pace questions are measured rather than felt - 139.8 px/s at 100%, exactly 140 times the
+percentage - and 100% meaning 'as drawn' is the only defensible default. Where a speed field sits
+under the content is a form-layout default. The rotator's hold is filed on the shelf with its
+shape.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # A ticker an operator can slow down
 
 Your walk of 2026-08-28 asked that "anything with scrolling graphics should have a speed setting

@@ -1,9 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+A labelled dropdown in a wizard footer reads as a choice; that is the default, not a taste call.
+The other two questions - the control absent rather than greyed with no brands, and the logo half
+- are claims an agent drives.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # Pick a brand when you make a graphic, and the logo lands in it
 
 **Date:** 2026-09-06 · **Branch:** `claude/a-brand-model-chooser`

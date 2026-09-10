@@ -1,7 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-05
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Which of the name and the avatar survives a narrow bar is a design default and the item argues it:
+the avatar is the door. The half that was genuinely his - whether there is a good reason to sign
+in at all - is parked with his words on docs/backlog/signed-in-looks-identical-to-signed-out.md,
+which is where a parked ask belongs.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # YOU CAN SEE WHETHER YOU ARE SIGNED IN - AND IT NO LONGER SHOVES YOUR AVATAR OFF THE BAR
 
 Your note from the reset-link walk: *"it looks exactly like you would be logged in. It's like

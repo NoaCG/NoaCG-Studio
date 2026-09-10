@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-06
+because: taste
 serves: now
 answered: false
 ---
@@ -47,3 +48,19 @@ Nothing runs in the studio; the hosted tiers are reached in the same clicks as b
 - Not done tonight, deliberately: the Entry card's hint (its three-line height reserve) and the
   `/docs` page ordering (`docs.html` was landed tonight by another row). Both are recorded as
   open on `docs/backlog/byo-key-and-create-with-ai-guidance.md`.
+
+## Decided 2026-09-10 - the install lines get a Copy button
+
+The item asked whether a block that selects whole on one click is enough, or whether it wants a
+Copy button. It wants one. Every documentation surface that prints a command to paste has a copy
+control, because select-then-copy is two motions and one of them fails silently on a phone. It is
+not a taste call and it does not need you.
+
+Filed as `docs/backlog/install-lines-need-a-copy-control.md`.
+
+**And one amber is enough.** The *Preferred* tag is the only amber on the card because a second one
+would make the tiers look equally recommended, which is the opposite of the steer.
+
+What is left is the half no gate can judge, and it is the hard half the receipt already named: does
+the card read as *the better road you already own*, rather than as "go away and use something
+else"?

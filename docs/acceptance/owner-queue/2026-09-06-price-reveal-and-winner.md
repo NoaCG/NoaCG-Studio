@@ -1,9 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Its only question is whether the recipe's name and its one box read right. 'Reveal' is the plain
+word for what it does; naming a control after its action is the default.
+
+Re-kinding and deleting are separate commits by rule, so this item stays here until an
+agent drives the route below and records what it saw. The original text follows,
+unchanged.
+
 # Bids and the actual price: typed text sealed until one press, a winner by choice
 
 **Date:** 2026-09-06 · **Branch:** `claude/svg-behaviour-game-shows-518d88`

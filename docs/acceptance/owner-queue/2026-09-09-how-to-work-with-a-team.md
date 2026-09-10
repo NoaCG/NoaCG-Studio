@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-09
+because: direction
 serves: now
 answered: false
 ---
@@ -67,3 +68,18 @@ The team surfaces themselves WERE walked, by `e2e/configured/teams.spec.ts` agai
 backend and real accounts, and the five screenshots it took are what the nine findings were read
 off. The `/docs` page itself is verified by `e2e/docs.spec.ts` and by the build, but no human has
 looked at the new section rendered.
+
+## Decided 2026-09-10 - the nav question is ours, not yours
+
+This item inherited the `/docs` nav-length question from
+`2026-09-06-h-two-new-docs-guides.md`, with the corrected count of fourteen. It goes back where it
+came from: you already gave the rule - *"only the most important information on the left"* - and
+applying your own rule to a list of fourteen entries is our work, not a second ruling. A nav that
+has grown from ten to fourteen in three weeks needs grouping or nesting rather than a verdict on
+each new entry, and "Pictures, logos & Lottie" and "Which package do I want" are not the two to
+argue about; they are simply the two most recent.
+
+Filed as `docs/backlog/the-docs-nav-has-grown-to-fourteen-entries.md`.
+
+What is left is the call the item correctly says is yours and not ours: whether a half-built feature
+belongs on a public, indexed page at all.
