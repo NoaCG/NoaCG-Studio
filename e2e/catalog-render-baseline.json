@@ -1,6 +1,7 @@
 {
-  "$comment": "Computed-style and geometry fingerprints of every catalog variant, settled and on air. Substituting a token for the literal it was given must not move these. Re-record with UPDATE_RENDER_BASELINE=1 only when the look changed ON PURPOSE. Platform-bound: compared only on the platform that recorded it (font rasterization).",
+  "$comment": "Computed-style and geometry fingerprints of every catalog variant, settled and on air. Substituting a token for the literal it was given must not move these. Re-record with UPDATE_RENDER_BASELINE=1 only when the look changed ON PURPOSE. Platform-bound: compared only on the platform that recorded it (font rasterization). `recorded` is the day it was taken - the failure message prints it, because the commonest drift is a markup change landed after that day.",
   "platform": "win32",
+  "recorded": "2026-09-10",
   "variants": {
     "al01": {
       "#count": "17",
@@ -2671,7 +2672,7 @@
       "body>script[2]": "931a670cd9f9a032"
     },
     "cr01": {
-      "#count": "37",
+      "#count": "38",
       "body": "8d64b94dad61c592",
       "body>div.credits.credits--minimal[1]": "8d64b94dad61c592",
       "body>div.credits.credits--minimal[1]>div.credits-background[1]": "2704c6f46d3b3440",
@@ -2707,11 +2708,12 @@
       "body>div.credits.credits--minimal[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
       "body>div.credits.credits--minimal[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
       "body>div.credits.credits--minimal[1]>div.noacg-data-source[3]": "931a670cd9f9a032",
+      "body>div.credits.credits--minimal[1]>div.noacg-data-source[4]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },
     "cr02": {
-      "#count": "43",
+      "#count": "44",
       "body": "7656d82cb777eea8",
       "body>div.credits.credits--glass[1]": "7656d82cb777eea8",
       "body>div.credits.credits--glass[1]>div.credits-background[1]": "f48f712145e5f8e4",
@@ -2753,11 +2755,12 @@
       "body>div.credits.credits--glass[1]>div.noacg-data-source[1]": "c41646ce27b0f36d",
       "body>div.credits.credits--glass[1]>div.noacg-data-source[2]": "c41646ce27b0f36d",
       "body>div.credits.credits--glass[1]>div.noacg-data-source[3]": "c41646ce27b0f36d",
+      "body>div.credits.credits--glass[1]>div.noacg-data-source[4]": "c41646ce27b0f36d",
       "body>script[1]": "c41646ce27b0f36d",
       "body>script[2]": "c41646ce27b0f36d"
     },
     "cr03": {
-      "#count": "35",
+      "#count": "36",
       "body": "eb7734706eb8ee01",
       "body>div.credits.credits--sport[1]": "eb7734706eb8ee01",
       "body>div.credits.credits--sport[1]>div.credits-background[1]": "b48c7ed4c29156a5",
@@ -2791,11 +2794,12 @@
       "body>div.credits.credits--sport[1]>div.noacg-data-source[1]": "a09c79f61a84b019",
       "body>div.credits.credits--sport[1]>div.noacg-data-source[2]": "a09c79f61a84b019",
       "body>div.credits.credits--sport[1]>div.noacg-data-source[3]": "a09c79f61a84b019",
+      "body>div.credits.credits--sport[1]>div.noacg-data-source[4]": "a09c79f61a84b019",
       "body>script[1]": "a09c79f61a84b019",
       "body>script[2]": "a09c79f61a84b019"
     },
     "cr04": {
-      "#count": "41",
+      "#count": "42",
       "body": "7656d82cb777eea8",
       "body>div.credits.credits--minimal[1]": "7656d82cb777eea8",
       "body>div.credits.credits--minimal[1]>div.credits-background[1]": "b8926ecb156a4a86",
@@ -2835,6 +2839,7 @@
       "body>div.credits.credits--minimal[1]>div.noacg-data-source[1]": "c41646ce27b0f36d",
       "body>div.credits.credits--minimal[1]>div.noacg-data-source[2]": "c41646ce27b0f36d",
       "body>div.credits.credits--minimal[1]>div.noacg-data-source[3]": "c41646ce27b0f36d",
+      "body>div.credits.credits--minimal[1]>div.noacg-data-source[4]": "c41646ce27b0f36d",
       "body>script[1]": "c41646ce27b0f36d",
       "body>script[2]": "c41646ce27b0f36d"
     },
@@ -2878,7 +2883,7 @@
       "body>script[2]": "931a670cd9f9a032"
     },
     "cr06": {
-      "#count": "42",
+      "#count": "43",
       "body": "7656d82cb777eea8",
       "body>div.credits.credits--noacg[1]": "7656d82cb777eea8",
       "body>div.credits.credits--noacg[1]>div.credits-background[1]": "334d3d09bef5079b",
@@ -2919,6 +2924,7 @@
       "body>div.credits.credits--noacg[1]>div.noacg-data-source[1]": "c41646ce27b0f36d",
       "body>div.credits.credits--noacg[1]>div.noacg-data-source[2]": "c41646ce27b0f36d",
       "body>div.credits.credits--noacg[1]>div.noacg-data-source[3]": "c41646ce27b0f36d",
+      "body>div.credits.credits--noacg[1]>div.noacg-data-source[4]": "c41646ce27b0f36d",
       "body>script[1]": "c41646ce27b0f36d",
       "body>script[2]": "c41646ce27b0f36d"
     },
@@ -2956,7 +2962,7 @@
       "body>script[2]": "931a670cd9f9a032"
     },
     "cr08": {
-      "#count": "34",
+      "#count": "35",
       "body": "e9384811efda3b35",
       "body>div.credits.credits--glass[1]": "e9384811efda3b35",
       "body>div.credits.credits--glass[1]>div.credits-background[1]": "8abd9c7b39e3864a",
@@ -2989,6 +2995,7 @@
       "body>div.credits.credits--glass[1]>div.noacg-data-source[1]": "82d7438e5a12ea26",
       "body>div.credits.credits--glass[1]>div.noacg-data-source[2]": "82d7438e5a12ea26",
       "body>div.credits.credits--glass[1]>div.noacg-data-source[3]": "82d7438e5a12ea26",
+      "body>div.credits.credits--glass[1]>div.noacg-data-source[4]": "82d7438e5a12ea26",
       "body>script[1]": "82d7438e5a12ea26",
       "body>script[2]": "82d7438e5a12ea26"
     },
@@ -3025,7 +3032,7 @@
       "body>script[2]": "c41646ce27b0f36d"
     },
     "cr11": {
-      "#count": "34",
+      "#count": "35",
       "body": "e9384811efda3b35",
       "body>div.credits.credits--glass[1]": "e9384811efda3b35",
       "body>div.credits.credits--glass[1]>div.credits-background[1]": "8abd9c7b39e3864a",
@@ -3058,11 +3065,12 @@
       "body>div.credits.credits--glass[1]>div.noacg-data-source[1]": "82d7438e5a12ea26",
       "body>div.credits.credits--glass[1]>div.noacg-data-source[2]": "82d7438e5a12ea26",
       "body>div.credits.credits--glass[1]>div.noacg-data-source[3]": "82d7438e5a12ea26",
+      "body>div.credits.credits--glass[1]>div.noacg-data-source[4]": "82d7438e5a12ea26",
       "body>script[1]": "82d7438e5a12ea26",
       "body>script[2]": "82d7438e5a12ea26"
     },
     "cr12": {
-      "#count": "31",
+      "#count": "32",
       "body": "eb7734706eb8ee01",
       "body>div.credits.credits--sport[1]": "eb7734706eb8ee01",
       "body>div.credits.credits--sport[1]>div.credits-background[1]": "b48c7ed4c29156a5",
@@ -3092,11 +3100,12 @@
       "body>div.credits.credits--sport[1]>div.noacg-data-source[1]": "a09c79f61a84b019",
       "body>div.credits.credits--sport[1]>div.noacg-data-source[2]": "a09c79f61a84b019",
       "body>div.credits.credits--sport[1]>div.noacg-data-source[3]": "a09c79f61a84b019",
+      "body>div.credits.credits--sport[1]>div.noacg-data-source[4]": "a09c79f61a84b019",
       "body>script[1]": "a09c79f61a84b019",
       "body>script[2]": "a09c79f61a84b019"
     },
     "cr13": {
-      "#count": "45",
+      "#count": "46",
       "body": "ada5a4d591442907",
       "body>div.credits.credits--editorial[1]": "ada5a4d591442907",
       "body>div.credits.credits--editorial[1]>div.credits-background[1]": "2f55605020497446",
@@ -3140,6 +3149,7 @@
       "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-end[1]>div.credits-year[1]": "65a157ae4122550c",
       "body>div.credits.credits--editorial[1]>div.noacg-data-source[1]": "c1a76e365ed48687",
       "body>div.credits.credits--editorial[1]>div.noacg-data-source[2]": "c1a76e365ed48687",
+      "body>div.credits.credits--editorial[1]>div.noacg-data-source[3]": "c1a76e365ed48687",
       "body>script[1]": "c1a76e365ed48687",
       "body>script[2]": "c1a76e365ed48687"
     },
@@ -9965,7 +9975,7 @@
       "body>script[2]": "931a670cd9f9a032"
     },
     "tk01": {
-      "#count": "26",
+      "#count": "27",
       "body": "8d64b94dad61c592",
       "body>div.ticker[1]": "cae6beb618404c57",
       "body>div.ticker[1]>div.ticker-box[1]": "3e37d017c658c0e4",
@@ -9990,11 +10000,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-item[8]": "0a11cae24cfdbfcd",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-sep[8]": "892f54129a6cff71",
       "body>div.ticker[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },
     "tk02": {
-      "#count": "26",
+      "#count": "27",
       "body": "eb7734706eb8ee01",
       "body>div.ticker[1]": "1ec848d13351bfaa",
       "body>div.ticker[1]>div.ticker-box[1]": "21bd1ccf9ebb3d2e",
@@ -10019,11 +10030,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-item[8]": "ce4501a999b095b0",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-sep[8]": "dc5fe1cd7f6a3c06",
       "body>div.ticker[1]>div.noacg-data-source[1]": "a09c79f61a84b019",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "a09c79f61a84b019",
       "body>script[1]": "a09c79f61a84b019",
       "body>script[2]": "a09c79f61a84b019"
     },
     "tk03": {
-      "#count": "14",
+      "#count": "15",
       "body": "e9384811efda3b35",
       "body>div.ticker[1]": "de7b353af8f9c291",
       "body>div.ticker[1]>div.ticker-box[1]": "cb16af5d3e40db33",
@@ -10036,11 +10048,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>div.ticker-item[3]": "c9aa6f1bc8a9b8e7",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>div.ticker-item[4]": "c9aa6f1bc8a9b8e7",
       "body>div.ticker[1]>div.noacg-data-source[1]": "82d7438e5a12ea26",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "82d7438e5a12ea26",
       "body>script[1]": "82d7438e5a12ea26",
       "body>script[2]": "82d7438e5a12ea26"
     },
     "tk04": {
-      "#count": "58",
+      "#count": "59",
       "body": "8d64b94dad61c592",
       "body>div.ticker[1]": "6e151443cbff9c09",
       "body>div.ticker[1]>div.ticker-box[1]": "f2425ba9e37aac6f",
@@ -10097,11 +10110,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-item[8]>span.tk-change.tk-down[1]>span.tk-arrow[1]": "897a469fb2b34526",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-sep[8]": "3d93b9c52e2e5ab7",
       "body>div.ticker[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },
     "tk05": {
-      "#count": "35",
+      "#count": "36",
       "body": "7656d82cb777eea8",
       "body>div.ticker[1]": "602431fa34609706",
       "body>div.ticker[1]>div.ticker-box[1]": "791e3759be4a1172",
@@ -10135,11 +10149,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-sep[8]": "e1acfa665c90d89c",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-clock[1]": "3b2c4d60735060eb",
       "body>div.ticker[1]>div.noacg-data-source[1]": "c41646ce27b0f36d",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "c41646ce27b0f36d",
       "body>script[1]": "c41646ce27b0f36d",
       "body>script[2]": "c41646ce27b0f36d"
     },
     "tk06": {
-      "#count": "35",
+      "#count": "36",
       "body": "7656d82cb777eea8",
       "body>div.ticker[1]": "a8bf3297f371ee09",
       "body>div.ticker[1]>div.ticker-box[1]": "5efd24a9aa917728",
@@ -10173,6 +10188,7 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-item[12]>span.ticker-down[1]": "0159528f0a313d6d",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-clock[1]": "0765aaba1d92b205",
       "body>div.ticker[1]>div.noacg-data-source[1]": "c41646ce27b0f36d",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "c41646ce27b0f36d",
       "body>script[1]": "c41646ce27b0f36d",
       "body>script[2]": "c41646ce27b0f36d"
     },
@@ -10236,7 +10252,7 @@
       "body>script[2]": "931a670cd9f9a032"
     },
     "tk11": {
-      "#count": "28",
+      "#count": "29",
       "body": "8d64b94dad61c592",
       "body>div.ticker[1]": "9a3bb0af8dc321b7",
       "body>div.ticker[1]>div.ticker-box[1]": "33dfbc2242f93205",
@@ -10263,11 +10279,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]": "7dc41b427aa2b87d",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]>span[1]": "2a3d94397cc2c4b5",
       "body>div.ticker[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },
     "tk12": {
-      "#count": "22",
+      "#count": "23",
       "body": "8d64b94dad61c592",
       "body>div.ticker[1]": "30ddd24d2d76456a",
       "body>div.ticker[1]>div.ticker-box[1]": "5dc6d6cdec9ca197",
@@ -10288,11 +10305,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-item[6]": "6e116284e3b89fc0",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-sep[6]": "29696d74c4918b50",
       "body>div.ticker[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },
     "tk13": {
-      "#count": "28",
+      "#count": "29",
       "body": "eb7734706eb8ee01",
       "body>div.ticker[1]": "76032da591d5bd17",
       "body>div.ticker[1]>div.ticker-box[1]": "25df2ce2fbcc1b01",
@@ -10319,11 +10337,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]": "3be315d780a790a9",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]>span[1]": "0fa099ac7815c1b5",
       "body>div.ticker[1]>div.noacg-data-source[1]": "a09c79f61a84b019",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "a09c79f61a84b019",
       "body>script[1]": "a09c79f61a84b019",
       "body>script[2]": "a09c79f61a84b019"
     },
     "tk14": {
-      "#count": "60",
+      "#count": "61",
       "body": "8d64b94dad61c592",
       "body>div.ticker[1]": "423ff973176ebcba",
       "body>div.ticker[1]>div.ticker-box[1]": "7a215861e7332480",
@@ -10382,11 +10401,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]": "503f44efb3c64315",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]>span[1]": "6bd2b91d0c401652",
       "body>div.ticker[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },
     "tk15": {
-      "#count": "28",
+      "#count": "29",
       "body": "8d64b94dad61c592",
       "body>div.ticker[1]": "a3d239a3ed0e56bb",
       "body>div.ticker[1]>div.ticker-box[1]": "7599fbffa6203bc2",
@@ -10413,11 +10433,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]": "1381aa226896c450",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]>span[1]": "4dba3858d0131298",
       "body>div.ticker[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },
     "tk16": {
-      "#count": "29",
+      "#count": "30",
       "body": "8d64b94dad61c592",
       "body>div.ticker[1]": "b4ed7374e33f28c2",
       "body>div.ticker[1]>div.ticker-box[1]": "3aad1a4a39dd6309",
@@ -10445,11 +10466,12 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-item[6]>span.ticker-kicker[1]": "f807b99932ba6f7e",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-sep[6]": "ba3728caaf45027c",
       "body>div.ticker[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },
     "tk17": {
-      "#count": "30",
+      "#count": "31",
       "body": "8d64b94dad61c592",
       "body>div.ticker[1]": "10b36b78c4ccf092",
       "body>div.ticker[1]>div.ticker-box[1]": "1bd3ac67d8cc88c6",
@@ -10478,6 +10500,7 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]": "f9d64a7cca184cfd",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-cap[1]>span[1]": "008416e5a49046c1",
       "body>div.ticker[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },
@@ -10511,7 +10534,7 @@
       "body>script[2]": "c41646ce27b0f36d"
     },
     "tk20": {
-      "#count": "37",
+      "#count": "38",
       "body": "7656d82cb777eea8",
       "body>div.ticker[1]": "b73a3f54edf987a3",
       "body>div.ticker[1]>div.ticker-box[1]": "cedb7054192a3ca1",
@@ -10547,6 +10570,7 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-item[8]>span.ticker-kicker[1]": "1ccadae2704cc77d",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-sep[8]": "e13842d0448f66ab",
       "body>div.ticker[1]>div.noacg-data-source[1]": "c41646ce27b0f36d",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "c41646ce27b0f36d",
       "body>script[1]": "c41646ce27b0f36d",
       "body>script[2]": "c41646ce27b0f36d"
     },
@@ -10566,7 +10590,7 @@
       "body>script[2]": "025f66a7e3046cca"
     },
     "tk22": {
-      "#count": "61",
+      "#count": "62",
       "body": "e9384811efda3b35",
       "body>div.ticker[1]": "981f0c3f08411bd7",
       "body>div.ticker[1]>div.ticker-box[1]": "5975a41a44e001d4",
@@ -10626,6 +10650,7 @@
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-item[12]>span.ticker-level[1]": "c5ae8278e540ac14",
       "body>div.ticker[1]>div.ticker-box[1]>div.ticker-viewport[1]>div[1]>span.ticker-item[12]>span.ticker-up[1]": "60ab9d08492a1d5f",
       "body>div.ticker[1]>div.noacg-data-source[1]": "82d7438e5a12ea26",
+      "body>div.ticker[1]>div.noacg-data-source[2]": "82d7438e5a12ea26",
       "body>script[1]": "82d7438e5a12ea26",
       "body>script[2]": "82d7438e5a12ea26"
     },
