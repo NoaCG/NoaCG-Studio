@@ -425,8 +425,21 @@ test(`every catalog variant renders identically${SCOPE_NOTE}`, async ({ page }, 
             'Computed-style and geometry fingerprints of every catalog variant, settled and on air. ' +
             'Substituting a token for the literal it was given must not move these. ' +
             'Re-record with UPDATE_RENDER_BASELINE=1 only when the look changed ON PURPOSE. ' +
-            'Platform-bound: compared only on the platform that recorded it (font rasterization).',
+            'Platform-bound: compared only on the platform that recorded it (font rasterization). ' +
+            '`recorded` is the day it was taken - the failure message prints it, because the ' +
+            'commonest drift is a markup change landed after that day.',
           platform: process.platform,
+          // WHEN this was taken, because the commonest cause of drift is AGE. This file is only
+          // ever compared on one machine, so a commit that changes the emitted markup and
+          // re-records e2e/catalog-baseline.json can leave this one behind for days without
+          // anything going red anywhere - which is exactly what happened between 2026-09-06 and
+          // 2026-09-10, and cost two backlog items that both guessed at the wrong cause. A date
+          // in the file turns "which of these two is stale" into one `git log --since`. UTC, like
+          // every other date this repository stamps into a generated file - a recording made
+          // after 21:00 in Helsinki therefore says yesterday, which costs nothing, because
+          // `git log --since=<a bare date>` reads that date as LOCAL midnight and so looks
+          // further back rather than less far.
+          recorded: new Date().toISOString().slice(0, 10),
           variants: actual,
         },
         null,
@@ -438,10 +451,11 @@ test(`every catalog variant renders identically${SCOPE_NOTE}`, async ({ page }, 
     return;
   }
 
-  const baseline = JSON.parse(readFileSync(RENDER_BASELINE, 'utf8')).variants as Record<
-    string,
-    Record<string, string>
-  >;
+  const renderBaseline = JSON.parse(readFileSync(RENDER_BASELINE, 'utf8')) as {
+    recorded?: string;
+    variants: Record<string, Record<string, string>>;
+  };
+  const baseline = renderBaseline.variants;
   if (!ONLY_DESIGNS) {
     expect(Object.keys(actual).sort(), 'the set of catalog variants changed').toEqual(Object.keys(baseline).sort());
   }
@@ -454,7 +468,21 @@ test(`every catalog variant renders identically${SCOPE_NOTE}`, async ({ page }, 
     const keys = [...new Set([...Object.keys(was), ...Object.keys(now)])].sort();
     const moved = keys.filter((k) => was[k] !== now[k]);
     if (!moved.length) continue;
-    drifted.push(`${r.id}: ${moved.length} element(s) — ${moved.slice(0, 4).join(', ')}`);
+    // A key the baseline never had reads very differently from a key whose record CHANGED, and
+    // the old line showed neither: `+` is an element that is new here, `-` one that is gone, and
+    // a bare key is one that stayed and moved. An added hidden holder is a `+`, and that is the
+    // difference between a stale baseline and a look that moved.
+    const appearedOrWent = (k: string): boolean => was[k] === undefined || now[k] === undefined;
+    const mark = (k: string): string => {
+      if (was[k] === undefined) return `+${k}`;
+      if (now[k] === undefined) return `-${k}`;
+      return k;
+    };
+    // Those keys go FIRST, because only four of them fit on the line. `moved` is in alphabetical
+    // order, and one element inserted mid-subtree renumbers every later sibling - which fills
+    // those four slots with keys that merely moved and hides the one key that says why.
+    const shown = [...moved.filter(appearedOrWent), ...moved.filter((k) => !appearedOrWent(k))];
+    drifted.push(`${r.id}: ${moved.length} element(s) — ${shown.slice(0, 4).map(mark).join(', ')}`);
     const dir = testInfo.outputPath('rendered');
     mkdirSync(dir, { recursive: true });
     writeFileSync(
@@ -464,9 +492,23 @@ test(`every catalog variant renders identically${SCOPE_NOTE}`, async ({ page }, 
     );
   }
 
+  // THE TWO CAUSES, IN THE ORDER THEY ACTUALLY HAPPEN. The old message named only the second one
+  // ("a token substitution cannot do this"), and both times this went red for real the cause was
+  // the first: a commit changed the emitted markup, re-recorded the SOURCE baseline beside it,
+  // and left this file behind. The credits speed field did it on 2026-09-06 and the ticker one on
+  // 2026-09-09, and the red stood until 2026-09-10 because this comparison runs on one machine
+  // and only when a person starts it. Two backlog items were filed off the old message, both
+  // reasoning from "the look moved" towards a defect that was not there. The message now hands
+  // over the date this baseline was taken and the one command that separates the two causes.
   expect(
     drifted,
-    'The rendered look moved. A token substitution cannot do this — investigate before ' +
-      're-recording. Full per-element records are in this test’s output directory.',
+    `The rendered look moved against a baseline recorded on ${renderBaseline.recorded ?? 'an unstated date'}. ` +
+      'Per-element records are in this test’s output directory; read them before re-recording. ' +
+      'FIRST ask whether the emitted MARKUP moved since that date and only the source baseline ' +
+      'was re-recorded: `git log --since=<that date> -- e2e/catalog-baseline.json` names every ' +
+      'such commit. A `+key` above is an element the baseline never had; find that key in the ' +
+      'records and read the rect its line ends with, because `|0,0,0,0` is an element nothing ' +
+      'draws — a re-record is then right, and says in its message which designs gained what. ' +
+      'ONLY IF IT IS NOT THAT is this a look that moved, which a token substitution cannot cause.',
   ).toEqual([]);
 });
