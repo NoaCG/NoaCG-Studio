@@ -7,10 +7,13 @@ were documented and never measured.
 
 **The short answer.** Codex plans well. It produced a complete seven-section night plan on the same
 inputs, honoured every Codex carve-out the contract already carries, and asked the owner nothing.
-What it cannot do is the second half of the job: it cannot launch a row, cannot write the plan into
-the durable store, and therefore cannot run the plan check that would have caught the four defects
-its own plan actually has. On a night the owner is asleep, a Codex orchestrator produces a document
-and stops. The contract does not say so, and that silence is the finding.
+What it cannot do is the second half of the job: it cannot launch a row, and it cannot write the
+plan into the durable store. On a night the owner is asleep, a Codex orchestrator produces a
+document and stops. The contract does not say so, and that silence is the finding.
+
+Its plan also carries four defects the Claude plan does not, and the gate that catches them never
+ran. That one is our fault rather than the harness's - the gate is reachable from inside Codex, and
+this row assumed it was not until the review caught me.
 
 ## Method
 
@@ -32,8 +35,9 @@ window `2026-09-11T03:00:00Z`, within about ten minutes of each other.
   That turns "the plans differ" into a number instead of a reading.
 
 The Codex session ran 44 turns and 5.6 M tokens over about eight minutes of wall clock. **Its plan
-is committed unedited** as `docs/metrics/2026-09-10-orchestrator-in-codex-plan.md`, so every quote
-below can be checked and the diff re-derived without re-spending a Codex window.
+is committed as `docs/metrics/2026-09-10-orchestrator-in-codex-plan.md`, unedited below a six-line
+provenance header**, so every quote below can be checked and the diff re-derived without re-spending
+a Codex window. The header does not change the score: 3 rows and 4 problems with it and without it.
 
 ### What this measurement is not
 
@@ -46,9 +50,10 @@ Say these out loud, because each of them limits what the numbers below are worth
   **not** independent agreement. What each row's prompt then SAYS is independent: the delegate never
   saw a line of the Claude prompts.
 - **Two steps were forbidden by me, not by the harness.** The delegate could not run
-  `orchestrator-home.mjs` (constraint 4) or `wave-plan-check.mjs` (the store was off limits). Both
-  turn out to be unreachable in Codex anyway, for the reasons in finding 2, but tonight's run does
-  not prove that on its own.
+  `orchestrator-home.mjs` (constraint 4) or `wave-plan-check.mjs` (the store was off limits). The
+  first is unreachable in Codex anyway, for the reason in finding 2, though tonight's run does not
+  prove that on its own. The second is NOT - see the correction under finding 2 - so the four
+  defects in the Codex plan are partly my constraint's doing and not only the harness's.
 - **The write half of the workflow was never exercised.** A read-only delegation cannot write the
   wave-state file, record a launch, or append a heartbeat, so those arms were read rather than run.
 - **The effort was not the owner's.** This ran at `--effort high`. His own
@@ -79,7 +84,8 @@ row CC: POOL "fallback opus - reproduce-first implementation with a narrow accep
 
 `orchestrator/routing.md` is explicit that the clause belongs on the `MODEL` line, not in the
 `POOL` cell, so this is a planner slip rather than a contract hole - and a gate exists for exactly
-it. What makes it worth writing down is finding 2: in Codex that gate cannot run.
+it. What makes it worth writing down is that the gate never ran: see finding 2, and the correction
+under it, which is that it could have.
 
 ## The differences, and what each one is
 
@@ -98,15 +104,23 @@ set of prompts somebody has to paste, and the file the planner is reading tells 
 nothing. `night.md` carves out the Monitor and `report.md` carves out the morning report; nothing
 carves out the launch, which is the larger of the three.
 
-**2. The wave-state file cannot be written from Codex, so the plan check cannot run.** The store is
+**2. The wave-state file cannot be written from Codex.** The store is
 `C:\claude\NoaCG-Studio\.git\noacg-jobs\wave-plans\`, under the PRIMARY checkout's git directory.
 A Codex session's write sandbox is `[workdir, /tmp, $TMPDIR]`. From the orchestrator's own home, or
 from any worktree, the store is outside it. The one place it is inside is the main checkout - which
 core exception 4 forbids the orchestrator from occupying, because *"the main checkout belongs to the
 landing queue"*. So core exception 3, which exists because *"a plan printed only in chat dies with
-this session while the user is asleep"*, describes the only kind of plan Codex can make. This is the
-sharpest finding of the night, it is structural rather than incidental, and it is what leaves the
-four defects above ungated.
+this session while the user is asleep"*, describes the only kind of plan Codex can make unless it
+writes one into the checkout it is standing in. This is structural rather than incidental, which is
+why it is the harder of the two to answer even though finding 1 is the one to answer first.
+
+**The gate, though, is reachable, and I got this wrong the first time.** `wave-plan-check.mjs`'s
+CLI refuses a plan outside the store, so the obvious conclusion is that a Codex plan cannot be
+scored - and that conclusion is false. `checkPlan()` is exported and pure, its inputs all come from
+the repository root, and this row scored both documents by importing it. So the four defects above
+went ungated by habit rather than by necessity: a twenty-line runner catches every one of them
+inside the sandbox. That is now written into the Codex adapter, and it is the cheapest of tonight's
+fixes.
 
 **3. `gh` cannot run, and section 3 has no other instrument.** The delegate's plan reports the
 GitHub query *"failed at the sandbox network boundary"* and correctly refuses to call `main` red or
@@ -137,9 +151,11 @@ the repository that knows it is the Codex side. Every harness fact therefore has
 shared core or a shared module, which is why the core carries none of them.
 
 That is the one thing this row could fix without touching a file another session owns tonight, and
-it is fixed: both adapters now name the four mechanisms the procedure assumes, and route each to
-the arm that already exists. They still override no judgement, and they stay inside the 25-line
-wrapper cap the shared-instructions check enforces.
+it is fixed. `.agents/skills/orchestrator/SKILL.md` now names the four mechanisms the procedure
+assumes and routes each to the arm that already exists; the `$o` alias points at that one file
+rather than repeating it, so the two can never drift into describing different harnesses. Both
+still override no judgement and stay inside the 25-line wrapper cap the shared-instructions check
+enforces, and the orchestrator common path is untouched at 640/640.
 
 **The defect this row was told to look for did not happen.** The assignment predicted that a Codex
 night plan with follow-on rows would be an adapter defect. It has none.
@@ -185,8 +201,9 @@ The four known gaps were written down on 5 September without anybody measuring w
 - **A different notify mechanism** was not reachable tonight; nothing here measured it.
 
 And one nobody had listed: **the sandbox**. No network, and writes confined to the directory the
-session was started in. That is what takes the durable plan and the plan check away, and it is the
-gap with the most consequence.
+session was started in. It is what takes the durable plan away. It looked like it took the plan
+check too, and that turned out to be a habit rather than a wall - which is worth remembering next
+time a harness limit looks total.
 
 ## Cost
 
@@ -198,9 +215,11 @@ fallback the word "fallback" suggests.
 
 ## What I would do next
 
-- **Answer finding 2 first.** It is the one that removes a gate rather than a convenience, and it
-  needs a decision, not a patch: either the store moves somewhere a Codex session can reach, or the
-  Codex arm of the plan check reads a plan from the workdir and says so in the verdict.
-- **Then finding 1**, which is one sentence in the core with an arm on it.
+- **Answer finding 1 first**, because it is the one that changes what the owner can expect on a
+  night he is asleep, and it is one sentence in the core with an arm on it.
+- **Then finding 2**, which needs a decision rather than a patch: either the store moves somewhere
+  a Codex session can reach, or `wave-plan-check.mjs` grows a mode that scores a plan in the
+  workdir and says in its verdict that the plan is not durable yet. The second is smaller and does
+  not move a file the whole orchestration depends on.
 - **Findings 4 and 5 are cheap** and can travel with any wave that touches `prompts.md`.
 - **Re-run this at `--effort low`**, which is what the owner's own machine will actually do.

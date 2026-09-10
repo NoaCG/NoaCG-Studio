@@ -11,13 +11,15 @@ touches: .agent-workflows/orchestrator.md, .agent-workflows/orchestrator/prompts
 covered-by: scripts/check-shared-instructions.mjs, scripts/wave-plan-check.test.mjs, docs/metrics/2026-09-10-orchestrator-in-codex.md
 needs-owner: none
 note: >-
-  2026-09-10 ran the comparison the ask is about. Codex $orchestrator planned tonight's own night
-  wave from the same commit, window and inputs as the live Claude plan; both were scored by the
-  same exported checkPlan() - Claude 4 rows / 0 problems, Codex 3 rows / 4 problems. The method,
-  the thirteen differences and their classification are in
-  docs/metrics/2026-09-10-orchestrator-in-codex.md. Both Codex adapters now name the four
-  mechanisms the shared procedure assumes. Five gaps in the shared contract are written out below
-  and NOT applied - that file belonged to another session that night.
+  5ed1be97 and c7ad7ff3 landed the comparison the ask is about, plus the delegate's own plan as
+  evidence. Codex $orchestrator planned the 2026-09-10 night wave from the same commit, window and
+  inputs as the live Claude plan; both were scored by the same exported checkPlan() - Claude 4
+  rows / 0 problems, Codex 3 rows / 4 problems. The method, the thirteen differences and their
+  classification are in docs/metrics/2026-09-10-orchestrator-in-codex.md, and the delegate's plan
+  itself in docs/metrics/2026-09-10-orchestrator-in-codex-plan.md. Both Codex adapters now name the
+  four mechanisms the shared procedure assumes. STILL MISSING: five gaps in the shared workflow,
+  written out below and deliberately NOT applied, because that file belonged to another session
+  that night.
 ---
 # The orchestrator produces the same plan in Codex as in Claude Code
 
@@ -104,19 +106,24 @@ Settled:
 the orchestrator session owned `.agent-workflows/orchestrator.md` and its module directory that
 night. In priority order, with the evidence in the metrics file:
 
-1. **The wave-state store is unreachable from Codex.** It lives under the primary checkout's
+1. **The core states "this session LAUNCHES its own rows" with no Codex arm**, in the always-loaded
+   core, where it fires before `launch.md` loads. `night.md` carves out the Monitor and `report.md`
+   the morning report; nothing carves out the launch, which is the larger of the three, because it
+   is what decides whether an unattended night is possible there at all.
+2. **The wave-state store is unreachable from Codex.** It lives under the primary checkout's
    `.git`, Codex writes only inside its own workdir, and core exception 4 forbids the orchestrator
-   from standing in the main checkout. So the durable plan and `wave-plan-check.mjs` are both
-   unavailable - which is why the four defects above went ungated. This one needs a decision, not
-   a wording fix.
-2. **The core states "this session LAUNCHES its own rows" with no Codex arm**, in the always-loaded
-   core, where it fires before `launch.md` loads.
+   from standing in the main checkout. Note what is NOT true here: the plan CHECK is reachable, and
+   the first pass of this write-up said otherwise. `wave-plan-check.mjs`'s CLI refuses a plan
+   outside the store, but `checkPlan()` is exported and pure and scores a workdir plan fine - which
+   is how both plans were scored. So this is about durability, not about gating, and the smaller
+   fix is a check mode that scores a workdir plan while saying in its verdict that it is not
+   durable yet.
 3. **`gh` cannot run in the Codex sandbox**, and section 3 plus `grounding.md` name it as the only
    instrument for a landing refusal and the morning CI verdict.
 4. **`prompts.md`'s block template has no slot for the delegation content `routing.md` step 3
    requires**, so the two planners invented two different placements for it.
 5. **The `MODEL` line names a rung that means nothing in Codex**, where there is no agent
-   definition to map it to. Downstream of 2.
+   definition to map it to. Downstream of 1, and it disappears when 1 is answered.
 
 Note for whoever takes these: the core is at 199/200 lines and the common path at 640/640, so none
 of them has room to be answered by adding a paragraph.
