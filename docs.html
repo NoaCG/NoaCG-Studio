@@ -1326,7 +1326,9 @@ CG 1-20 STOP</code></pre>
           <h3 id="teams-make">Make a team</h3>
           <p>
             Sign in first. Teams are an account feature and they change nothing else about the
-            product. An offline build and a signed-out visitor see no mention of a team anywhere.
+            product: an offline build has no team surfaces at all, and a signed-out visitor sees no
+            mention of a team unless somebody sends them a join link, which asks them to sign in or
+            make an account.
           </p>
           <ol>
             <li>Open a production you own and press <strong>Share with a team&hellip;</strong> in
@@ -1347,10 +1349,15 @@ CG 1-20 STOP</code></pre>
           <p>
             <strong>Send the link.</strong> The team screen shows a large join code and, under it, a
             link ending <code>#/join-team/&lt;code&gt;</code> with a <strong>Copy link</strong>
-            button. The link is the route. Nowhere in the app is there a field for typing a bare
-            code, so reading the code out to a room gets nobody in on its own. Paste the link into
-            the class chat, or send it however you already talk to each other. There is no email
-            invitation.
+            button. <strong>The link is the route.</strong> The screen that takes a code exists only
+            at a join link, and nothing else in the app leads to it, so a code read out to a room
+            gets nobody in who does not already hold a link. Paste the link into the class chat, or
+            send it however you already talk to each other. There is no email invitation.
+          </p>
+          <p>
+            Read that the other way round too, because it is the part that bites. Anybody who has
+            ever held a join link to any team, including last term's, is one paste away from using a
+            code they overheard. Treat a code like the link it belongs to.
           </p>
           <p>
             The person who receives it opens the link in their own browser, signs in or makes an
@@ -1362,14 +1369,25 @@ CG 1-20 STOP</code></pre>
             Anyone in the team can pass the link on. Only the owner can press <strong>Rotate
             code</strong>, which mints a new code and retires the old one for joining. Everybody
             already in the team stays in, so rotating is the answer to a link that reached the wrong
-            chat. Your own display name is fixed at the moment you join: joining again through the
-            same link with a different name replaces it, and that is the only way to change it.
+            chat.
+          </p>
+          <p>
+            Your own display name is fixed at the moment you join: joining again through the
+            team's current link with a different name replaces it, and that is the only way to
+            change it. A rotation retires the link you were sent, so get the new one from somebody
+            in the team before you try.
           </p>
 
           <h3 id="teams-roles">Who can do what</h3>
           <p>
             Two roles, and no more. Whoever made the team is its <strong>owner</strong>, everyone
             else is a <strong>member</strong>. In a class the teacher is the owner.
+          </p>
+          <p>
+            Every Yes below is reached through the same door, so it carries the same condition:
+            <strong>you need a production of your own to open</strong>. A member who joined a class
+            team and has made nothing yet cannot see the join code, the member list, or the way out.
+            Make a production of your own, even an empty one, and the door is there.
           </p>
           <div class="doc-table"><table>
             <tr><th></th><th>Owner</th><th>Member</th></tr>
@@ -1388,14 +1406,17 @@ CG 1-20 STOP</code></pre>
           </p>
 
           <p class="callout truth">
-            <span class="lbl">What works today</span>
-            Making a team, handing out its link, joining, seeing who is in it, rotating the code,
-            removing somebody, leaving and deleting all work now, against real separate accounts.
-            <strong>Moving a production into a team does not.</strong> The <strong>Move to
-            team</strong> button in that dialog is deliberately switched off, because the list a
-            moved production would appear in has not shipped yet. So a team you make today is the
-            group, standing ready for the production that will go into it, and the way to work on a
-            show together in the meantime is the links above.
+            <span class="lbl">What has been verified</span>
+            Making a team, handing out its link, joining through it, reading the member list,
+            rotating the code and deleting the team have all been run against the live backend.
+            Removing a member and leaving a team are implemented and refused correctly by the
+            database, but they have not yet been run with a second person in the team, so treat
+            them as expected rather than proven. <strong>Moving a production into a team does not
+            work at all.</strong> The <strong>Move to team</strong> button in that dialog is
+            deliberately switched off, because the list a moved production would appear in has not
+            shipped yet. So a team you make today is the group, standing ready for the production
+            that will go into it, and the way to work on a show together in the meantime is the
+            links above.
           </p>
 
           <h3 id="teams-move">What will happen when a production moves in</h3>

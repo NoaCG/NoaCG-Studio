@@ -39,8 +39,10 @@ string in it was read off a running build.
 ## Also on this branch
 
 - The `/docs` shelf's guide list is finished, so its backlog file is deleted the way landed work is.
-  Your 2026-09-03 ask for Teams instructions was sharing that receipt and is **not** done, so it
-  now has its own file: `docs/backlog/teams-needs-written-instructions.md`.
+  Your 2026-09-03 ask for Teams instructions was sharing that receipt, so it got its own file. It
+  has since been served: see `docs/acceptance/owner-queue/2026-09-09-how-to-work-with-a-team.md`,
+  and the nine screen defects the walk turned up in
+  `docs/backlog/the-team-dialog-makes-you-guess-nine-times.md`.
 - The three moments where the wizard needed a sentence of documentation to be usable were filed
   with repros, and have since been fixed on the screen itself: see
   `docs/acceptance/owner-queue/2026-09-09-m-wizard-says-it-itself.md` for the route to all three.

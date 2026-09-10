@@ -232,14 +232,23 @@ test('the teams guide sends people down the route that exists, and says which on
   // missing. The label is quoted exactly as the button renders it.
   await expect(teams).toContainText('Share with a team');
   await expect(teams).toContainText('a production is the only door');
+  // And the consequence for the reader this section is written for. A student who joins a class
+  // team and owns nothing cannot reach the dialog at all, so every Yes in the roles table carries
+  // that condition. Without this line the table promises a member three things they cannot do.
+  await expect(teams).toContainText('you need a production of your own to open');
 
-  // (b) THE LINK IS THE ROUTE, THE CODE IS NOT. `JoinTeamDialog` is reachable only at
-  // `#/join-team/<code>` (App.tsx renders it purely from the route), so nowhere in the app takes a
-  // typed code. The share dialog shows the code in the largest type on the screen, which is
-  // exactly why the guide has to say it: the owner walked this on 2026-09-04 and could not work
-  // out what the code was for.
-  await expect(teams).toContainText('field for typing a bare code');
+  // (b) THE LINK IS THE ROUTE, AND A CODE ALONE IS NOT. `JoinTeamDialog` is reachable only at
+  // `#/join-team/<code>` (App.tsx renders it purely from the route), so a code has nowhere to go
+  // unless the reader already holds a link. The share dialog prints the code in the largest type
+  // on the screen, which is exactly why the guide has to say this: the owner walked it on
+  // 2026-09-04 and could not work out what the code was for.
+  await expect(teams).toContainText('gets nobody in who does not already hold a link');
   await expect(teams).toContainText('There is no email invitation');
+  // The other half of the same fact, which is a security note rather than a convenience one: the
+  // join screen's code field IS editable (`data-testid="join-team-code"`), so anybody who has ever
+  // held a link to any team can redeem a code they overheard. A guide that said a bare code is
+  // useless would be telling a teacher that reading one out is safe.
+  await expect(teams).toContainText('one paste away');
 
   // (c) THE HONEST BOUNDARY. `move-to-team` is present and disabled until stage 4 ships
   // (docs/TEAMS_PLAN.md §7), so a guide that described a shared production as working would be a
