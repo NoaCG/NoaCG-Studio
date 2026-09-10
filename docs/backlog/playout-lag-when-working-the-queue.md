@@ -11,11 +11,14 @@ note: "measured end to end 2026-09-10 on branch claude/bg-playout-lag, which lan
   the page for longer than one frame. On the DEV SERVER, at his own memory conditions, the same
   gestures paint in 85-91 ms and drop three to four frames every time. The PUBLISHED path was then
   measured on 2026-09-10 on branch claude/bj-published-path-lag, which landed
-  scripts/playout-wire-probe.mjs: a published Take costs about 160 ms from press to painted frame
-  against 30 ms unpublished, and the whole difference is the round trip plus the Realtime fan-out,
-  so it scales with the operator's network. It does NOT grow with the show's log, which was tested
-  to 50,000 rows and refused. The ask stays open on ONE thing: the optimistic-apply fix, designed
-  in the section below and deliberately not shipped in the round that measured it."
+  scripts/playout-wire-probe.mjs and the wire columns on the bench: on the built app a published
+  Take paints in 515 ms and Out in 397 ms, against 30 ms for the same production unpublished in the
+  same browser a minute later. The large gap is the Realtime fan-out, not the RPC - postgres_changes
+  delivers in either ~130 ms or ~600 ms, bimodally, in every client including an empty page, and the
+  OUTPUT page follows the same road so AIR is late too. A broadcast message on the same backend is
+  50 ms with no slow mode. It does NOT grow with the show's log, tested to 50,000 rows and refused.
+  The ask stays open on ONE thing: the transport fix designed in the section below, deliberately not
+  shipped by the round that measured it, two days before the rehearsal."
 needs-owner: none
 asked: "I noticed some lag when I was playing out the quiz graphics, moving around the queue, and
   playing and stopping graphics. It's very important that our layout system is lag-free and
@@ -115,8 +118,9 @@ path. On a published production `runVerb` (ProductionPage.tsx) takes a different
 because the log follower brings it back and applying twice would double every write. So the
 operator's own PROGRAM monitor does not move until a full server round trip plus a Realtime fan-out
 has completed. On a venue's wifi that is exactly "it didn't play out immediately", and no amount of
-work on the local path can touch it. **Measured on 2026-09-10** on branch `claude/bj-published-path-lag`, with the same instrument
-extended to stamp the wire; the numbers and what they mean are the section below.
+work on the local path can touch it. **Measured on 2026-09-10** on branch
+`claude/bj-published-path-lag`, with the bench extended to stamp the wire; it is half a second, and
+the round trip turned out to be the smaller half of it. The numbers are the section below.
 
 The round it was NOT measured in recorded `needs-owner: account`, on the reasoning that a
 configured backend is an account and therefore the owner's. That was wrong, and it is the mistake
@@ -126,23 +130,53 @@ serves) plus `read-dotenv.mjs`'s `ambientEnv`, which already falls back to the m
 exactly this. A missing file in a worktree is a technical problem, and a technical problem is
 never his.
 
-## What the wire costs, measured
+## What the published path costs, measured
 
-`scripts/playout-wire-probe.mjs`, 2026-09-10, from this laptop against the real backend, eight
-takes, 4.3 GB free. It signs in as the E2E account, makes one throwaway production, and presses the
-same three-command batch `takeCueItems` sends, through the same RPC and the same RLS:
+`scripts/playout-lag-bench.mjs --seed --published` then `--measure`, 2026-09-10, the BUILT app on
+this checkout's port, a published production on the real backend, five rounds, about 5.0 GB free.
+Every column is from the VERB'S OWN click and each is cumulative, so a step's cost is one column
+minus the one to its left:
 
-| from the press | median | range |
+| family | toRpcSent | toRpcDone | toWsRow | toCommand | **toPainted** | froze |
+|---|---|---|---|---|---|---|
+| take-idle | 0.2 | 149.5 | 497.3 | 498.4 | **514.9** | 18.7 |
+| out-idle | 0.2 | 98.8 | 385.3 | - | **396.9** | 18.3 |
+| take-after-rebuild | 0.2 | 126.5 | 391.4 | 394.1 | **397.1** | 18.7 |
+| take-after-no-rebuild | 0.2 | 114.1 | 332.0 | 333.9 | **345.3** | 18.2 |
+| take-idle, UNPUBLISHED | - | - | - | 1.5 | **29.6** | 18.1 |
+| out-idle, UNPUBLISHED | - | - | - | - | **31.8** | 18.1 |
+
+The last two rows are the same production, unpublished in the same browser in the same minute, so
+the comparison carries no machine drift. The selection families in that run measured 3.4-3.8 ms to
+`srcdoc` and 28-29.5 ms to the preview's first frame, matching the 2026-09-10 built-app table above
+- the machine was healthy. Nothing froze the page for longer than one frame interval anywhere.
+
+**A published Take paints in about half a second. Unpublished it paints in 30 ms.**
+
+**THE LARGE GAP IS NOT THE RPC, IT IS THE FAN-OUT.** The send is answered at 100-150 ms and the row
+comes back at 330-500 ms, so the round trip to the database is the smaller half and the delivery of
+the row back to the browser is 220-350 ms of it.
+
+### Where that 350 ms actually lives
+
+Three clients, all measured on 2026-09-10 on this machine, all pressing the same three-command batch:
+
+| client | RPC answered | row back over `postgres_changes` |
 |---|---|---|
-| `control_send_many` answered | **98 ms** | 80-143 |
-| the row back over Realtime | **131 ms** | 127-455 (the first is cold) |
-| the Realtime channel joining, once, at page open | 254 ms | |
+| Node, no browser (`scripts/playout-wire-probe.mjs`, 18 takes over two runs) | 98-112 | median **131**, one outlier per run at 455-635 |
+| an EMPTY Chromium page on the app's origin (10 takes) | 117 | median **132**, but four of ten at 495-652 |
+| the real dashboard, built app (20 takes) | 114-150 | **332-497** |
 
-Add the app's own 30 ms from the table above and a published Take is **about 160 ms from press to
-painted frame**, against 30 ms unpublished. The bare HTTP round trip to the project from here is 36
-ms median (12 requests, warm connection), so roughly 60 ms of the RPC is server-side and the rest is
-the network - which means **the number scales with the operator's network, not with anything in
-this repo**. At a venue RTT of 150 ms the same take is 350-450 ms to picture, which is the report.
+So the fan-out is **bimodal - about 130 ms or about 500-650 ms** - and it is bimodal in every client
+including one with nothing on the page. It is not the dashboard's code, not Chromium, and not this
+laptop's network: the bare HTTP round trip to the project is 36 ms median. It is `postgres_changes`
+itself, which reaches a subscriber through the Realtime server's WAL watch and a per-subscriber RLS
+re-check. The dashboard lands in the slow mode more often than an idle page does, and that gradient
+is not explained here.
+
+**Supabase's other transport does not have the problem.** A `broadcast` message from one signed-in
+client to another on the same channel, twelve sends: **50 ms, range 49-55**. It touches no table and
+no WAL. That is a tenth of the slow mode and half of the fast one, and it never varies.
 
 **Two candidate causes were tested and refused.** The rate-limit check inside `control_send_many`
 counts the production's rows in the last five seconds, and `control_events` is indexed on
@@ -151,39 +185,61 @@ show's log grows, which would have matched "it lagged while I was working". It d
 0, 2,000, 10,000 and 50,000 rows behind the same production, the RPC stays at 100-140 ms with no
 trend. And it is not the graphics or the dashboard, which are the 30 ms at the end.
 
-## If this is to be fixed, the fix is optimistic apply - and here is the part that is not obvious
+### The half of this that optimistic apply cannot fix
 
-Apply the command locally the moment the operator presses, send in parallel, and make the
-follower's echo idempotent so the returning row does not play the entrance a second time.
-`PayloadStage`'s `data-plays` counter exists precisely because a duplicate `play` leaves NO trace on
-screen - it re-runs an animation that settles on the picture that was already there - so this is the
-change that has already been got wrong once (e2e/configured/hosted-control-recovery.spec.ts).
+The OUTPUT page - what the audience and the stream see - follows the same log over the same
+`postgres_changes` subscription. So **air is 330-500 ms behind the press too**, and no amount of
+applying locally on the operator's dashboard touches that, because the output page never sent
+anything to be optimistic about. On a published production the picture on screen is up to half a
+second behind the finger that took it, for everybody.
 
-**The echo cannot be identified by the id the server minted.** The obvious design is to have
-`control_send_many` return its inserted ids and have the follower skip them, but the measurement
-above kills it: the Realtime row arrives 131 ms after the press while the RPC answers at 98 ms, and
-those two orders are not guaranteed - a fan-out that beats its own RPC response would reach a
-follower whose skip-set is still empty, and play twice. The skip-set has to be populated BEFORE the
-send, which means it cannot contain server-minted ids.
+## The fix: send the picture over broadcast, keep the log as the truth
 
-So the reconciliation has to match on CONTENT: a pending queue of `{graphic, msg}` filled before the
-send, and a follower that consumes the head of it instead of applying when a row matches. That
-brings its own decisions, and they need writing down before code:
+This is the standard Supabase shape and the measurement above is what argues for it. A verb becomes
+TWO sends from the same click: a `broadcast` on the production's channel, which every operator page
+and the output page apply on arrival (50 ms), and the `control_send_many` insert exactly as today,
+which stays the durable, ordered truth that recovery, the tail and a late-joining renderer read.
+Nothing is removed. The log keeps being the thing that is right; the broadcast is the thing that is
+fast. It fixes **air**, not only the operator's own monitor, which optimistic apply cannot.
 
-- **A send that fails.** `play` cannot be un-played. The honest ending is to leave the local apply
-  standing and say so on the surface, because air and the operator's monitor now disagree - which is
-  what the unsent-dot on `verb-update` already does for a different case.
-- **Two operators, one cue.** Identical commands from two devices are indistinguishable by content.
-  Consuming one echo per pending entry is the conservative choice; the alternative double-plays.
-- **`liveCue` and the rundown's ON AIR marker** move on the `cue` status row, which comes back the
-  same way. Applying the picture optimistically and leaving the marker on the round trip would make
-  the two disagree for 130 ms, which is its own bug.
-- **The output page and other operators still wait the full round trip**, and always will. This
-  fixes the OPERATOR'S OWN monitor only, which is the thing they are looking at when they press.
+**The reconciliation is the whole design, because a duplicate `play` leaves NO trace on screen** -
+it re-runs an animation that settles on the picture that was already there. `PayloadStage`'s
+`data-plays` counter exists for exactly that reason, and it is why this has already been got wrong
+once (`e2e/configured/hosted-control-recovery.spec.ts`).
 
-None of that is hard, but all of it is a decision, and the row that measured this deliberately did
-not also ship it. Nothing about the 2026-09-12 rehearsal waits on it: unpublished is instant, and
-published is 160 ms on a decent network.
+**It cannot be reconciled on the id the server minted.** The obvious design is to have the RPC
+return its inserted ids and have the follower skip them, and the measurement kills it: the row can
+arrive before the RPC that created it answers, reaching a follower whose skip-set is still empty.
+Any skip-set has to exist before the send does.
+
+**So the command carries its own id, minted by the client.** `control_events.msg` is `jsonb` and
+`control_send_many` validates only `t` and `graphic` before inserting `msg` verbatim, so an extra
+key rides along with no migration: mint an `oid` per command, put it in the `msg`, send it on both
+roads. Every consumer keeps a small set of applied `oid`s and applies each one ONCE, whichever road
+brought it first. That is symmetric - it does not care which arrives first - and it degrades to
+today's behaviour exactly when the broadcast is lost, because the durable row still comes.
+
+What still has to be decided before code:
+
+- **How long an `oid` stays in the set.** It has to outlive the slow mode (650 ms measured, so
+  seconds not milliseconds) and be bounded, because a long show is thousands of commands.
+- **A broadcast that arrives and an insert that then FAILS.** The picture moved and the log does not
+  agree. `play` cannot be un-played; the honest ending is to say so on the surface, which is what the
+  unsent dot on `verb-update` already does for a different case.
+- **`liveCue` and the rundown's ON AIR marker** move on the `cue` status row. If the picture goes
+  fast and the marker stays on the log, the two disagree for a third of a second, which is its own
+  bug - the `cue` row has to travel the same two roads.
+- **Ordering.** The log is ordered by id; broadcasts are not. Within one verb the batch is applied
+  in the order it was sent, which is fine, but two verbs a few milliseconds apart from two devices
+  could land in different orders on different pages. The durable row is the tiebreak, and what that
+  means for a page that already applied the other order needs stating.
+- **A cost check.** Broadcast messages are billed and rate-limited separately from database rows.
+
+**This was deliberately not shipped by the round that measured it.** It changes the live playout
+path two days before the 2026-09-12 rehearsal, it needs its own configured e2e cover against a real
+backend (a double-play is invisible, so the gate is the `data-plays` count, as in the recovery
+spec), and the measurement is worth landing on its own. Nothing about Saturday waits on it: an
+unpublished production is 30 ms today.
 
 ## How to re-run it
 

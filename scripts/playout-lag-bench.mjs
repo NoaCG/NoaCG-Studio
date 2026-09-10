@@ -42,6 +42,14 @@
 // calls `applyProgram` synchronously. Which of the four gaps is the large one is the whole
 // question, and it is the reason these are separate columns rather than one total.
 //
+// WHAT THAT FOUND on 2026-09-10, on the built app: a published Take paints in 515 ms and Out in
+// 397 ms, against 30 ms for the same production unpublished in the same browser a minute later.
+// The RPC is answered at 100-150 ms, so the LARGE gap is `rpcDone` to `wsRow` - the Realtime
+// fan-out, 220-350 ms of it. That is not the dashboard: measured from Node and from an empty
+// Chromium page, `postgres_changes` delivers in either ~130 ms or ~600 ms, bimodally, while a
+// `broadcast` on the same backend is 50 ms every time. `scripts/playout-wire-probe.mjs` measures
+// those two hops in fifteen seconds without a browser, which is the instrument to reach for first.
+//
 // And one number the four cannot give: `frozeMs`, the largest gap between consecutive animation
 // frames in the HOST page across the gesture. That is what an operator actually feels. It is
 // measured rather than inferred because the preview document boots on a thread the host may
