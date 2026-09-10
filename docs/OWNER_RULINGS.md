@@ -731,7 +731,8 @@ not having one.
 That is his estimate for when the CasparCG and OBS ticks can actually happen, and a few weeks
 from the 10th lands on or past the 25th. So the three rows stop naming 2026-09-12 as the date
 that closes them and say what happens on the day WITHOUT the box, which is the honest planning
-answer: A3 and A4 run on our own hardware, A6 is cut and A4 covers it by hand. The acceptance
+answer: A3 is run by the students on their own laptops, which is what that beat always was; A4
+runs on our CasparCG rather than the room's; A6 is cut, and A4 covers it by hand. The acceptance
 lines in `docs/STUDENT_RELEASE_ACCEPTANCE.md` stay exactly where they are and stay unticked; what
 moved is who is expected to tick them and when, not the box.
 

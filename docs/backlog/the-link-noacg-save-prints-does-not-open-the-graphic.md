@@ -21,29 +21,29 @@ deployed bundle, so the difference has been invisible.
 
 It matters for the 25th because R2.4 is a beat a room full of people will follow along with. An
 agent prints a link, everyone clicks it, and everyone lands on Home instead of on the graphic they
-just made. The graphic IS there and IS correct - this is a routing disappointment, not data loss -
+just made. Measured in three navigation shapes including the one a person performs, all three land
+on Home. The graphic IS there and IS correct - this is a routing disappointment, not data loss -
 but the sentence we said out loud will have been wrong in front of them.
 
 ## What it would take
 
-**Drive the third navigation shape first, because neither run below isolates the variable.** The
-passing spec does `page.goto('/app#/graphic/<id>')` as a FULL document load while already signed
-in. Of the two runs here, the warm tab was already in the app and then navigated to the link, which
-on a hash URL is a same-document change that never re-runs boot; and the cold tab signed in on the
-way, where landing on `#/home` after an auth redirect is ordinary behaviour. So the deployed-bundle
-difference is not yet separated from the navigation-shape difference. **The shape that matters is
-the student's**: a fresh tab opening the printed link in a browser that is already signed in. Drive
-that against production before concluding anything.
+**The app receives the deep link and then throws it away.** That is now isolated rather than
+inferred, by driving the shape a student actually uses - already signed in, printed link opened as
+a full document load in a new tab. The hash is `#/graphic/<id>` at 0.1 s, which is simply the URL
+as navigated, and then the app boots and **replaces it with `#/home`**. So the link arrives intact;
+something in the boot or routing path discards it.
 
-Then find out which of these is true, because they need different fixes:
+That leaves two candidates, and they need different fixes:
 
-1. The deployed router rewrites `#/graphic/<id>` to `#/home` before the record resolves, and never
-   comes back. The hash was `#/home` on the very first sample in both runs and never changed, which
-   is weak evidence for this and the reason it is listed first.
-2. The record is not resolvable at that moment on production and the miss path differs from the dev
-   server's.
-3. Neither: the link works in the shape a student uses, and both runs here measured their own
-   navigation choices. This is a live possibility and checking it is cheap.
+1. The route resolves nothing for an id the local store has not synced yet, and the miss path
+   redirects Home instead of waiting. The spec's comment says a miss "runs one sync pass" - find
+   out whether that path exists in the deployed bundle and what it does when the record is not
+   there yet.
+2. The redirect happens before the id is looked up at all, in which case it is unconditional and
+   the sync is irrelevant.
+
+Start at whatever owns the `#/home` replacement on boot and work outward. Then fix the routing, or
+change what we promise, in all three places at once.
 
 Then either fix the routing or change what we promise, in all three places above at once - the
 beat, `save`'s printed line (`cli/src/commands/save.ts`), and the spec. **Whatever the fix, the
@@ -61,6 +61,11 @@ Measured 2026-09-10 against `https://noacg.studio`, signed in as the E2E test ac
   `#/graphic/76de10ef-...`.
 - **Cold tab** (fresh context, the link as its FIRST navigation, signing in on the way): polled for
   30 s, 61.2 s total from first navigation. Hashes seen, in order: `["#/home"]`. Same result.
+- **Student's shape** (signed in first, then the printed link opened as a full document load in a
+  NEW TAB of that same session - the shape the passing spec uses, and the one a person actually
+  performs): polled 40 s. Hashes seen, in order:
+  `["#/graphic/76de10ef-...", "#/home"]`. **The link arrives correct and the app replaces it.**
+  This is the run that isolates the defect from how the page was opened; the two above do not.
 - The graphic itself is fine: a screenshot of the warm tab shows it in Recent graphics, rendering
   its scoreboard correctly, with the topbar reading Synced. A looser earlier probe that waited for
   the graphic's NAME anywhere on the page succeeded in 5.0 s - which is how long the record takes

@@ -162,8 +162,8 @@ than the session cookie; deleting it from the library UI is the quick way.
 them all. **Line 179** points at `2026-09-09-g-yle-network-diag-screenshot.md`, which this change
 deletes, and tells the presenter the screenshot is still an open owner item - reminding the owner
 of the one thing he asked not to be reminded of. **Line 404** says B5 was last executed 2026-08-22
-and 2026-08-27 with the Codex split unverified; **line 405** cites §7 rows 6 and 8, and rows 6 and
-9 are gone. **Line 464** says the renderer question rides in the same owner message as the network
+and 2026-08-27 with the Codex split unverified; **line 405** cites §7 rows 6 and 8, and this branch
+closed rows 6, 8 and 9. **Line 464** says the renderer question rides in the same owner message as the network
 screenshot; it is its own file now. That file belongs to the deck row
 (`claude/aa-deck-repair` has a worktree), the generator refuses to overwrite the `.pptx` by design,
 and the owner may hand-edit it - so touching it from here would have been the wrong kind of help.
@@ -174,6 +174,34 @@ laptop this wave and its handoff will name status changes for A4, A6, §7 rows 2
 §8.7 acceptance line. This row minted `docs/DEMO_2026-09-25.md` and deliberately left those status
 verdicts alone: rows 2 and 10 were re-owned in the who and consequence columns only, so BH's
 evidence lands cleanly on top of them.
+
+## The check, leg by leg
+
+`review: delegated` (two passes). The first ran at `0402326f` and returned 14 findings; the second
+at `dbb22cc4` returned 12 more, once the live-save work had landed. **Both were scope-checked**:
+each reported merge base `77eeabc9` and the same file list `node scripts/review-request.mjs`
+printed (10 files, then 13, plus the one deletion), which matches this worktree's diff. Every
+finding was verified against the code or the cited file before acting, and all 26 were fixed. Two
+were load-bearing rather than tidying: the claim that `noacg doctor` cannot reveal a stale global
+install was wrong in four files, and the second pass caught this branch grading three beats on
+evidence its own handoff contradicted.
+
+`simplify: inline`. The simplify skill returned fan-out instructions rather than a result, which by
+the workflow's four-branch rule means the pass did not run, so the leg was done in this context
+over the prose angles: an overstated backlog title, one over-long line, and a sweep for statements
+duplicated between files instead of cited. Three fixes.
+
+`verify: inline`. `npm run build` exit 0 on every commit. `npm run test:e2e:affected` is not
+applicable - no product code changed, and CI's E2E plan job skipped the shards for the same reason,
+which I read off the job list rather than assumed (run 34460207857: Build, Factory gates, E2E plan
+and CI gate green; the six E2E and Vercel jobs skipped). The live suite ran anyway, because this
+row owed it: `e2e/configured/agent-access.spec.ts`, 1 passed in 26.2 s against the real backend.
+
+`taste: not applicable`. Nothing in this change can move what a graphic looks like. The only
+rendering this row saw was a scaffolded scoreboard in the live library, and it was correct.
+
+The verdict stamp is written for tip `6527bde8` under the git common dir, at
+`.git/noacg-jobs/checks/claude-be-agent-road-clean-profile.json`.
 
 ## Traps that exist in no repo file
 
@@ -217,6 +245,29 @@ evidence lands cleanly on top of them.
 
 No money, no account we do not hold, nothing published past `main`. The one thing waiting on him is
 unchanged and was already his: `2026-09-10-be-which-ograf-renderer-yle-runs.md`, one message.
+
+## The measurement that made row 14 solid instead of plausible
+
+The first two runs behind the link defect did NOT isolate the variable, and the review was right to
+say so. The passing spec does a full document load while signed in; my warm tab changed only the
+hash of a page already running, and my cold tab signed in on the way, where landing on `#/home`
+after an auth redirect is ordinary. Neither is what a person does.
+
+So `j-0934` drove the third shape, which is the student's: signed in first, then the printed link
+opened as a **full document load in a new tab of that same session**. The hashes it saw, in order:
+
+```
+["#/graphic/76de10ef-cce8-46ec-b6ca-a4f1a49f7ed9", "#/home"]
+```
+
+**The link arrives intact and the app throws it away.** That is a much better report than "it lands
+on Home": it rules out the navigation shape, rules out the fragment being lost in transit, and
+points at whatever replaces the hash on boot. The backlog file now carries that, and the
+speculative third possibility it used to list - "the link is fine and I measured my own driving" -
+is eliminated rather than left hanging.
+
+Worth keeping as a habit: the finding survived being challenged, and got sharper for it. The
+challenge cost one queued job.
 
 ## The three things to plan before the 25th
 
