@@ -6,7 +6,9 @@ whether Antigravity has any use or whether it just fails every task we give it.
 
 **Everything below was measured tonight**, between 20:20 and 20:35 UTC, on this laptop, from a
 session sitting in `.claude/worktrees/agent-a1122c442ea77070f`. Nine Codex invocations and two
-Antigravity calls paid for it. The raw tables are in
+Antigravity calls paid for it. **That count of invocations is a different quantity from the nine
+ledger tasks named under the next heading, and the two are not the same nine** - see "How to
+re-derive the ledger numbers in this file" at the end. The raw tables are in
 `docs/metrics/2026-09-09-harness-verdict-tables.md` (written by Codex) and
 `docs/metrics/2026-09-09-agy-spend-appendix.md` (written by Antigravity). Both were checked number
 by number against an independent pass, and everywhere a number did not reproduce there is an
@@ -15,10 +17,18 @@ editor's note in place saying so rather than a quiet deletion.
 ## Read this part first
 
 **More Codex quota would not buy more finished work right now, because capacity is not what is
-limiting us.** Of the nine delegated tasks on the outcome ledger in the last 24 hours, seven
-failed on our own prompt or invocation and only two are evidence about the worker at all. The
-meter's own words: worker quality is 1 of 2 accepted, "that is 2 rows - an anecdote, not a rate".
-Spending money to remove a limit we have not yet hit buys nothing.
+limiting us.** Nine delegated tasks sit on the outcome ledger **for the UTC day 2026-09-09**,
+collapsed by label, read after the last of them was written at 20:32:21Z. Seven of the nine failed
+on our own prompt or invocation and only two are evidence about the worker at all. The meter's own
+words: worker quality is 1 of 2 accepted, "that is 2 rows - an anecdote, not a rate". Spending
+money to remove a limit we have not yet hit buys nothing.
+
+The same reading over the **rolling 24 hours the measurement tables use** - 2026-09-08T20:25:55.094Z
+to 2026-09-09T20:25:55.094Z - gives five tasks, four of them ours. Both windows say the same thing
+in the same proportion, so nothing below turns on which one you pick; what matters is that the
+window is stated, because the ledger is append-only and every count over it is a count at a
+moment. The exact filters are at the end of this file, under "How to re-derive the ledger numbers
+in this file".
 
 **Codex capacity is being consumed far faster than anyone has been reading.** Tonight's nine
 invocations, all of them small, moved the 5-hour window from 18 percent used to 62 percent in
@@ -191,10 +201,12 @@ order of 130 delegations, or 18 a day. Doubling the plan would buy roughly anoth
 a day.
 
 **And that is why the answer is no, not yet.** Look at what those delegations currently return.
-Over the last 24 hours the outcome ledger holds nine tasks: one accepted as delivered, five
+Over the UTC day 2026-09-09 the outcome ledger holds nine tasks: one accepted as delivered, five
 repaired after review, three unusable. Seven of the nine are attributed to our own prompt or
 invocation, which leaves two rows that say anything at all about the worker, and one of those two
-was accepted. The meter refuses to call that a rate, and so do I.
+was accepted. The meter refuses to call that a rate, and so do I. Over the tables' rolling 24-hour
+window the same nine are five, four of them ours, with no accepted row in the window at all - the
+shape does not move.
 
 **What effort costs, and a correction to my own first draft.** I measured low against high because
 I believed the delegation channel injects `--effort high` when a launch names none. **It does
@@ -218,8 +230,8 @@ that it was slower. This says nothing about medium, and nothing about long work.
 **What that means for the trial you have running.** The medium week expires 2026-09-16 and the
 wrapper's own comment names what settles it: read the delegation ledger for model, effort, outcome
 and cause per task class, then either extend it with the evidence or put it back to high. On
-tonight's ledger that reading is not yet possible, because seven of nine rows measure our spec
-rather than the worker. **Getting the spec discipline right is therefore the prerequisite for
+tonight's ledger that reading is not yet possible, because seven of the day's nine rows measure our
+spec rather than the worker. **Getting the spec discipline right is therefore the prerequisite for
 both decisions** - the effort trial and the quota upgrade - and it costs nothing.
 
 **So: fix the spec discipline first, and re-read this table in a week.** If the ledger then shows
@@ -321,4 +333,48 @@ so it is his call and not a change I made.
   reconciled.
 - **Whether the orchestrator itself produces the same wave plan when run inside Codex.** That is
   the owner's standing ask from 2026-09-05 and it is still untested; see
-  `docs/backlog/orchestrator-runs-the-same-in-codex.md`.
+  `docs/backlog/orchestrator-runs-the-same-in-codex.md`. **Answered on 2026-09-10** by row CD -
+  the measurement is `docs/metrics/2026-09-10-orchestrator-in-codex.md`, and the receipt is
+  `advanced` rather than done because five shared-contract edits came out of it.
+
+## How to re-derive the ledger numbers in this file
+
+Added 2026-09-10, after the owner asked for the headline number to be reproducible. **Nothing in
+the verdict changed; what was missing was the window and the filter, which is the one property a
+metrics document has to have.** The counts below were re-derived from the ledger on 2026-09-10 at
+22:02 UTC, when it held 46 lines running from 2026-09-01T14:39:16.763Z to 2026-09-10T21:53:58.631Z.
+
+**The source and the filter.** The ledger is `C:/Users/ahonemi/.noacg/delegation-outcomes.jsonl`,
+one JSON object per line, and every count here collapses it the way `scripts/delegation-outcome.mjs`
+documents: lines sharing a non-null `label` become one task, the last line winning outright and the
+first line's timestamp kept; a line whose `label` is null is its own task. The verdict is `outcome`
+and `cause` where they are present, and the legacy `firstPass: true` reads as `clean`, while
+`firstPass: false` reads as nothing.
+
+**The window each count uses.** All three were true at the moment they were read, and they differ
+only in where the window is cut:
+
+| Window | Tasks | Outcomes | Cause `prompt` | Where it is used |
+|---|---|---|---|---|
+| UTC day 2026-09-09, read after 20:32:21.342Z | 9 | 1 clean, 5 repaired, 3 unusable | 7 | "Read this part first", and question 3 |
+| Rolling 24 h, 2026-09-08T20:25:55.094Z to 2026-09-09T20:25:55.094Z | 5 | 3 repaired, 2 unusable | 4 | the measurement tables' own cutoff |
+| The whole ledger through 2026-09-09T20:27:00.889Z | 25 | 1 clean, 1 reviewed, 10 repaired, 3 unusable, 10 not recorded | 8 | table 2 of the tables file |
+
+The day window is nine because three of its lines - the two recording this very measurement, at
+20:30:50Z and 20:30:59Z, and a `cli-feature` row at 20:32:21Z - were written after the tables were
+generated. That is why a rolling 24 hours anchored on the tables' cutoff gives five: it stops
+before this session finished writing its own rows down.
+
+**The two nines, which are two different quantities.** "Nine Codex invocations" is what this
+session spent between 20:20 and 20:35 UTC on 2026-09-09; it is a count of calls, taken off the
+rate-limit snapshots. "Nine ledger tasks" is the UTC day's whole delegation record, 06:29:32Z to
+20:32:21Z, seven of them Codex and two Antigravity, most belonging to other sessions. **Neither
+number is derivable from the other**, and the file no longer uses the bare word for both.
+
+**One more place two windows meet.** Table 3 of the tables file gives 2 accepted of 7 eligible
+(28.57%) over the whole ledger; this file's "1 of 2 accepted" is the same calculation over the day
+window. Both are right and they answer different questions, so quote the window with the ratio.
+
+**And the standing trap.** The ledger is append-only and live rows write to it while a session
+reads, so any total is a total at a stated instant. Never write "the last 24 hours" without an
+anchor, and never claim a total for a night that has not ended.

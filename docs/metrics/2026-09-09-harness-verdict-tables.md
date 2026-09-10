@@ -104,6 +104,14 @@ The accepted calculation rests on 7 rows from table 2; it is a descriptive rate 
 rows, not evidence of a population-wide or pool-specific rate. Accepted means clean or reviewed.
 Only rows whose cause is worker or whose outcome is accepted enter the denominator.
 
+**Editor's note, added 2026-09-10.** Every count in this table is over the WHOLE ledger as table 2
+read it - all 25 tasks, oldest line 2026-09-01T14:39:16.763Z, newest 2026-09-09T20:27:00.889Z. The
+verdict document quotes "1 of 2 accepted", which is the same calculation over the UTC day
+2026-09-09 alone, and it now says so. Neither number is wrong and neither replaces the other; a
+ratio off this ledger is meaningless without the window beside it. The three windows in play are
+tabulated in `docs/metrics/2026-09-09-harness-verdict.md` under "How to re-derive the ledger
+numbers in this file".
+
 ## Table 4 - Throughput per task with recorded measurements
 
 Source: the collapsed outcome-ledger tasks in table 2 with non-null `wallMs` or `specBytes`.
