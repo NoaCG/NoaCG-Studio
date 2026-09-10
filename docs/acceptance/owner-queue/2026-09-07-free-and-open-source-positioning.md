@@ -1,27 +1,46 @@
 ---
 kind: walk-p
 date: 2026-09-07
+answered: true
 ---
 # The landing page says free and open source
 
 "Premium" is gone from the marketing copy, and the page now states the licence.
 
-**Route, under a minute.** Open <https://noacg.studio>. The hero kicker should read
-**"Free & open source · Browser-based · No sign-up"**. Scroll to the **No lock-in**
-section ("Stop using NoaCG, and your graphics keep working"): its last sentence now names
-the AGPL, and there is a fifth fact chip reading **Open source, AGPL-3.0**.
+**Route, under a minute.** Open <https://noacg.studio>.
 
-**What to look at.** Whether "free and open source" belongs in the kicker at all, or whether
-it crowds the first thing a stranger reads. It is the only claim there that is about the
-licence rather than about using the product, and it made the line two lines on a phone. The
-alternative is to leave the kicker as it was and let the No lock-in section carry it alone.
+**What to look at.** Walked 2026-09-10. The kicker question is SETTLED. What keeps this item open
+is the Create with AI card, which the same walk turned into a product decision.
 
-Also check the **Create with AI** card. It used to read "NoaCG Lite is included free; NoaCG
-Pro..." which implied Pro was the paid one. It now says both generators are free. The names
-Lite and Pro survive as quality levels.
+## Settled 2026-09-10 - the kicker keeps the licence
 
-**What was deliberately NOT changed.** "Premium" still appears 51 times in `src/`, in the AI
-prompts, the design vocabulary and the template comments, where it means high production
-value rather than the paid edition. Removing it there would degrade what the generator
-produces. `docs/GOALS_ARCHIVE.md` also keeps its original paid-surface wording, because an
-archive records what was true at the time.
+> keep free and open source. It fits nicely.
+
+The hero kicker stays **"Free & open source · Browser-based · No sign-up"**. The alternative -
+dropping it from the kicker and letting the No lock-in section carry the licence alone - is
+rejected, and the two-line wrap on a phone is accepted. Do not re-open this.
+
+## Open: the Create with AI card is wrong, and the fix is a bigger decision
+
+Asked whether "Pro" still sounded like money, he removed the distinction instead:
+
+> we will remove all information about included free, etc., because everything is free. In the short
+> term we will fix that we have one AI harness model that can create graphics automatically ... we
+> need to change the harness names and just have one AI option ... It's a bit confusing to have to
+> choose what model I should use.
+
+The full decision, with all eight parts, what it touches and the naming recommendation, is
+`docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md`. In short: one hosted harness with no tier
+names and no model chooser, everything free with no allowance language, bring-your-own-key kept and
+widened, the hosted path always on the Vercel AI Gateway and never naming it, and the card saying
+plainly that the hosted path is under construction and the CLI with your own coding agent is the
+route to use today.
+
+**This item closes when the card has been rewritten and he has read it.** The card copy can land
+well before the harness work behind it, and should, because the card is wrong today either way.
+
+## One thing still to confirm with him
+
+His provider list for bring-your-own-key named something that transcribed as "OpenDirect", which is
+not a provider we carry and not an obvious product name. It is most likely OpenRouter. Until he
+says, the four providers already in `AI_PROVIDERS` are unchanged and nothing was added on a guess.
