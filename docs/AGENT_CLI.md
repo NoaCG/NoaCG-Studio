@@ -448,12 +448,18 @@ noacg@noacg-studio` copies the whole `cli/plugin/` directory to
 still carried it) `.mcp.json` alike. `codex mcp list` then showed the `noacg` server as enabled
 with **no `[mcp_servers.noacg]` block in `~/.codex/config.toml`**, which is how you can tell the
 plugin is what registered it: remove the plugin and the row disappears. Since 2026-09-02 the
-server lives in the `noacg-mcp` plugin, which Codex copies the same way (not yet re-verified on
-Codex after the split). So the manual skill copy and the separate `codex mcp add` that this
-document used to require are both gone, and Codex now installs in the same two commands as Claude
-Code. The `.codex-plugin/plugin.json` manifest carries the Codex-side interface metadata; the
-marketplace entry it is found through is the Claude one. Nothing shrinks the CLAUDE side below two
-commands: `claude plugin install` resolves `plugin@marketplace` only against a marketplace that is
+server lives in the `noacg-mcp` plugin, and **the split is re-verified on Codex as of 2026-09-10**,
+on a clean `CODEX_HOME`. In order: `codex plugin add noacg@noacg-studio` alone leaves `codex mcp
+list` EMPTY, which is the whole point of the split; `codex plugin add noacg-mcp@noacg-studio` then
+copies `cli/plugin-mcp/` to `~/.codex/plugins/cache/noacg-studio/noacg-mcp/<version>/`, `.mcp.json`
+and all, and `codex mcp list` shows `noacg` -> `node ${CLAUDE_PLUGIN_ROOT}/mcp-server.mjs` as
+enabled with only `[plugins."noacg-mcp@noacg-studio"] enabled = true` written to `config.toml`.
+Driven over stdio with `CLAUDE_PLUGIN_ROOT` set to that cache directory, the server answers
+`initialize` and `tools/list` with the single `noacg` tool. So the manual skill copy and the
+separate `codex mcp add` that this document used to require are both gone, and Codex now installs
+in the same two commands as Claude Code. The `.codex-plugin/plugin.json` manifest carries the
+Codex-side interface metadata; the marketplace entry it is found through is the Claude one.
+Nothing shrinks the CLAUDE side below two commands: `claude plugin install` resolves `plugin@marketplace` only against a marketplace that is
 already configured, and a repo shorthand in that position fails with *"Plugin "noacg" not found in
 marketplace "NoaCG/NoaCG-Studio""*.
 
@@ -537,17 +543,36 @@ measures 2.0 s cold, `noacg docs contract` 0.4 s with no browser. The agent-roun
 path since 2026-08-27, so it is the proven road, not the fallback.
 
 **Still open**, in order of value: the Anthropic token count once a machine has `claude login`
-(re-capture the rendered text with any MCP client's `tools/list`; expect the same ratio);
-publishing 0.3.0 (the owner's call - until then `noacg-mcp` and any `claude mcp add` user run
-the 83 MB 0.2.0 server with the seven-tool shape); the MCP SDK's 14 of the 37 MB, which a
+(re-capture the rendered text with any MCP client's `tools/list`; expect the same ratio); the MCP
+SDK's 14 of the 37 MB, which a
 hand-written JSON-RPC stdio server near the 20 MB floor would remove along with two dependencies,
-worth it only once `noacg-mcp` has users; re-verifying the Codex side after the split; and the
+worth it only once `noacg-mcp` has users; and the
 MCP verbs `scaffold`, `inspect` and `screenshot`, which still re-implement the terminal commands'
 package-open sequence rather than sharing a core the way `save` and the regenerate step now do
 (`scaffold` also round-trips typed input through the flag grammar, so `--size-scale`,
 `--type-scale`, `--fps` and `--resolution` are not reachable over MCP and a value beginning with
 `--` is swallowed). The adapter
-triple is guarded by `scripts/check-shared-instructions.mjs` and never generated. Verified
+triple is guarded by `scripts/check-shared-instructions.mjs` and never generated.
+
+**Also open, and the one with a date on it: a stale GLOBAL install wins over npx, silently.** This
+is what the old "until 0.3.0 is published" worry turned into. 0.3.0 has been on npm since
+2026-09-05, so a fresh machine gets it - measured 2026-09-10, `mcp-server.mjs` with no `@noacg/cli`
+on the box falls back to npx, says so on stderr, and answers `tools/list` with the single `noacg`
+tool. But `resolveCli()` prefers an installed copy over npx ON PURPOSE, to avoid npx's per-session
+cost, and it walks `PATH` to find one. So a machine that ever ran `npm i -g @noacg/cli` keeps that
+version. On this laptop the global is **0.2.0**, and the same probe against it returned the old
+**seven-tool** shape from the 83 MB server. `npm i -g @noacg/cli@latest` is the whole fix.
+
+What makes it hard to notice is which `doctor` you are told to run. `doctor` prints
+`cliVersion()`, the version of the copy EXECUTING it (`cli/src/commands/doctor.ts`), so a bare
+`noacg doctor` off a stale global does print 0.2.0 and would give the game away. But the docs
+prompt and this page both say `npx -y @noacg/cli doctor`, which fetches `latest` and reports THAT
+- 0.3.0 - while the MCP server goes on importing the global. The check everyone is told to run is
+the one that cannot see the problem. Filed with both measurements as
+`docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`. Worth closing before the tool has
+users, because on this laptop it is already true.
+
+Verified
 2026-08-22: `npm pack --dry-run` = 31 files (dist, skill, package.json, README, LICENSE); the plugin
 installed from this repository as a marketplace (`claude plugin install noacg@noacg-studio`) and
 `claude plugin details` listed the skill, the command and the MCP server at v0.2.0. **0.2.0 is on

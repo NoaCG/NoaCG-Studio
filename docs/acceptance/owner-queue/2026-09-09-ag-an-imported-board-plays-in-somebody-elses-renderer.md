@@ -46,9 +46,9 @@ build the renderer, the walk that drives it, and what was seen at each press.
 
 **Which renderer Yle brings.** This round proves the package behaves in SuperFly.tv's
 ograf-server, which is the EBU repository's own reference server. It says nothing about a
-different vendor's renderer, and nothing anywhere records which one Yle runs. That question is
-already in the message the B0 item asks for (`2026-09-09-g-yle-network-diag-screenshot.md`) -
-this is the second reason to send it.
+different vendor's renderer, and nothing anywhere records which one Yle runs. That question has
+its own item, `2026-09-10-be-which-ograf-renderer-yle-runs.md`; it used to ride along with the B0
+network screenshot, which the owner took off the ledger on 2026-09-10.
 
 ## What is NOT in this folder
 

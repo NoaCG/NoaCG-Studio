@@ -302,6 +302,13 @@ drop out of it is the silence this log exists to break.
   `scripts/check-vendored-versions.mjs` with a 180-day interval from 2026-09-05, so the weekly
   audit turns red around 2027-03-04 and files the rolling issue he watches. Until then the standing
   requirement is unchanged and lives in the GOALS ladder: preserve GSAP's replaceability.
+- 2026-09-09-g-yle-network-diag-screenshot - dropped 2026-09-10 on his ruling: *"I will take care
+  of the Yle network screenshot when I get there, you do not have to remind me."* He owns getting
+  the screenshot; the fallback if he cannot is unchanged and is written into
+  `docs/DEMO_2026-09-25.md` B0, which is now the one beat with no §7 row. **The item asked for two
+  things and he answered one.** Its second question, which OGraf renderer Yle runs, was re-filed
+  before the delete as `2026-09-10-be-which-ograf-renderer-yle-runs.md` and is still open - so if
+  he meant to drop that one too, deleting that file is what does it.
 
 ## The standing instruction behind all of it (owner, 2026-09-03, closing the walk)
 

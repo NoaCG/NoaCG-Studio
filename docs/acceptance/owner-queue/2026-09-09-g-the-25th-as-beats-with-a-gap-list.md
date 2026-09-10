@@ -28,5 +28,8 @@ it. Say the sentence and the script changes.
 | Four playout targets prepared, picked on the day; OBS on their own laptop is the one every student does | OBS is the only target with no unseen hardware behind it | "The room will have X" - the other three beats are cut and the rehearsal on the 12th aims at X |
 | The step-by-step guide is `/docs` plus a one-page printed index, not a separate document | a second guide drifts, and two already disagree | "I want one document they take home" - G2 becomes that document and a row is planned to write it |
 
-The one gap that can sink the day is yours and is filed on its own so it reaches your action list:
-`2026-09-09-g-yle-network-diag-screenshot.md`, one message to the Yle contact.
+The one gap that can sink the day, the venue network, was yours on its own file until 2026-09-10,
+when you took it off the ledger: "I will take care of the Yle network screenshot when I get there,
+you do not have to remind me" (`docs/OWNER_RULINGS.md`). What is still filed for you out of that
+same message is the other question it carried,
+`2026-09-10-be-which-ograf-renderer-yle-runs.md`.

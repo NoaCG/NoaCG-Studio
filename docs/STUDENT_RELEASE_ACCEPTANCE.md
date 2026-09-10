@@ -39,6 +39,11 @@ Follow docs/CLOUD_PLAYOUT.md §8 steps 1-8 in order; the open items from earlier
       the pre-kill on-air state; commands sent while it was dead apply on reconnect, in order.
 - [ ] §8.6 The `?control=` page from a phone (signed out) drives the same production; the
       live chip agrees on both surfaces.
+- [ ] §8.7a OBS Browser Source with the output URL: 1920×1080 at the channel's FPS,
+      transparent over a background source, and it repaints after "Refresh cache of current
+      page". This is the OBS half of §8 step 7. It had no line here until 2026-09-10, so the
+      route every student can do at their own desk (`docs/DEMO_2026-09-25.md` A3) had no box to
+      tick anywhere; the owner has done it and nothing recorded it.
 - [ ] §8.7 CasparCG channel restart with the URL loaded (`CG 1-20 ADD 1 "<url>" 1`):
       transparent, correct scale at 1920×1080, recovers after `RESTART`.
 - [ ] §8.8 Unpublish → both URLs go dead honestly; republish → the output URL is unchanged.
