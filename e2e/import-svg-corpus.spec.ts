@@ -587,10 +587,71 @@ test('corpus: every file arrives on the too-long answer and the picture count it
       const pictures = await page.getByTestId('map-svg-images').locator('.map-svg-row').count();
       const wanted = s.expect.imageFields ?? 0;
       if (pictures !== wanted) wrong.push(`${s.name}: stated ${wanted} picture rows, got ${pictures}`);
+      // The CAP column, read last on the same walk because it is the only one that changes the
+      // step's own answers - see `overgrown` for what it asks and why it had to be swept.
+      for (const said of await overgrown(page, s.name)) wrong.push(said);
     });
   }
   expect(wrong).toEqual([]);
 });
+
+// ── NOTHING OUTGROWS THE SCREEN ────────────────────────────────────────────────────────────
+// The owner's limit on growth, in his words (2026-08-26): "we cannot have templates outgrow the
+// screen", and on the vertical half (2026-09-03): "we shouldn't be able to put one page of text".
+// `svgGrowCap` is the mechanism - it mirrors the margin the design keeps on the side the panel is
+// anchored to onto the side it grows towards, floored by the table's own safe margin - so a wrong
+// value is unreachable rather than warned about.
+//
+// NOTHING GATED IT UNTIL 2026-09-10, and it was broken. Growth is decided in screen px and spent
+// by writing user units, and the one helper that converts between the two read every panel as a
+// PLACED line and converted at 1 (svg.ts `svgFitPlaced`). On a 1920x1080 artwork the frame scale
+// IS 1, which is every fixture the ladder sweep below walks and every graphic anyone had looked
+// at - so the defect was invisible in exactly the place people look. Measured on
+// `inkscape-millimetre-scorebug`, whose user units are millimetres: the plate grew to 1700 px
+// inside a 720 px frame and stood 1040 px below its bottom edge. The 3840-wide ticker had the
+// same bug the other way and grew half as far as it was granted.
+//
+// So the cap is swept over the WHOLE corpus rather than pinned on one file: what makes a fixture
+// able to catch this is its unit system, which is not something the reader of a growth change can
+// be expected to know to go looking for. Every field gets a long value, because one long field on
+// its own stayed inside the frame on that scorebug and four together did not - a panel's growth
+// is one pot the blocks inside it share (svgOfferHeights), so the cap is only actually reached
+// when they all ask.
+
+/** Every long value the step will take, then every growth-ruled panel that ends up outside the
+ *  frame's own safe margin. Empty is the pass. */
+async function overgrown(page: Page, slug: string): Promise<string[]> {
+  const mode = page.getByTestId('map-svg-stretch-mode');
+  if (!(await mode.count())) return []; // a graphic with no growth control has no cap to keep
+  const samples = page.locator('[data-testid^="map-svg-sample-"]');
+  const n = await samples.count();
+  if (n === 0) return []; // nothing to type, so nothing can ask the panel to grow
+  await mode.selectOption('grow-xy');
+  for (let i = 0; i < n; i++) await samples.nth(i).fill(LADDER_VALUES.absurd);
+  await awaitPainted(page, LADDER_VALUES.absurd);
+  const over = await readArt(page.frameLocator('.wz-side iframe'), (art) => {
+    const w = window as unknown as { NOACG_LAYOUT?: { rules: { el: string; safe: number }[] } };
+    const frame = art.getBoundingClientRect();
+    const out: string[] = [];
+    for (const rule of w.NOACG_LAYOUT?.rules ?? []) {
+      const el = art.querySelector(`[data-noacg-el~="${rule.el}"]`);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      // The frame's own edges, not the mirrored margin: this is the outer bound the cap can
+      // never be looser than, so a failure here is unambiguous rather than a tolerance argument.
+      // A panel drawn hard against an edge is allowed to stay there, hence the pixel of slack.
+      const past = [
+        r.left < frame.left - 1 ? `${Math.round(frame.left - r.left)}px past the left` : '',
+        r.right > frame.right + 1 ? `${Math.round(r.right - frame.right)}px past the right` : '',
+        r.top < frame.top - 1 ? `${Math.round(frame.top - r.top)}px above the top` : '',
+        r.bottom > frame.bottom + 1 ? `${Math.round(r.bottom - frame.bottom)}px below the bottom` : '',
+      ].filter(Boolean);
+      if (past.length) out.push(`${rule.el} stands ${past.join(' and ')}`);
+    }
+    return out;
+  }, null);
+  return over.map((said) => `${slug}: ${said}`);
+}
 
 // ── THE FIT LADDER, SWEPT ──────────────────────────────────────────────────────────────────
 // The owner has found the same bug family three times, on three files, each time by typing into
@@ -811,6 +872,80 @@ test('corpus: the fit ladder spends its rungs in order, on every option and ever
     }
   }
   expect(wrong).toEqual([]);
+});
+
+// ── WIDER, THEN TALLER - ONE PANEL, BOTH AXES ──────────────────────────────────────────────
+// The second rung of the ladder, on the file the owner found it missing on. Walking
+// `effects-gradient-shadow-lower-third.svg` on 2026-09-03 he found the plate widens and the text
+// wraps and then the plate does NOT get taller, so the second line prints over the row beneath
+// it (docs/backlog/growth-rule-geometry-and-purpose.md):
+//
+//   > we need to ensure that all our shapes can grow when we want them to grow vertically as well
+//
+// Nothing gated it. The ladder sweep above runs all four options on the owner's QUIZ BOARD, whose
+// question plate has 216 units of room and never needs a single unit of the height it is offered -
+// so grow-xy and grow-x give it identical answers at every length, and assertion 5 there actively
+// requires the plate NOT to get taller. The rung that had been broken twice was therefore measured
+// nowhere, on any file.
+//
+// This is that measurement, and it is deliberately RELATIONAL rather than a table of numbers, for
+// the reason the sweep above gives: what has to hold is the order of the rungs. The panel spends
+// its width first; when width alone will not do it, the block wraps AT THE SIZE THE DESIGNER DREW
+// and the panel gets taller by what the settled block took, keeping the drawn gap to the line
+// underneath. Shrinking is what must not happen here, because both of the rungs above it can still
+// pay.
+test('corpus: a panel told to get wider AND taller spends both, at the drawn size', async ({
+  page,
+}) => {
+  test.slow();
+  await mapCorpusFile(page, 'effects-gradient-shadow-lower-third');
+  const nameId = await rowLabelled(page, /name/i);
+  const frame = page.frameLocator('.wz-side iframe');
+  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-xy');
+
+  /** The plate, the name's painted block and the row drawn under it, in screen px. */
+  const read = () =>
+    readArt(frame, (art) => {
+      const name = art.querySelector('#f0') as SVGGraphicsElement;
+      const plate = art.querySelector('[data-noacg-el~="g0"]') as SVGGraphicsElement;
+      const role = art.querySelector('#f1') as SVGGraphicsElement;
+      return {
+        plate: plate.getBoundingClientRect().toJSON(),
+        block: name.getBoundingClientRect().toJSON(),
+        roleTop: role.getBoundingClientRect().top,
+        lines: name.querySelectorAll('tspan[data-noacg-line]').length || 1,
+        size: parseFloat(getComputedStyle(name as unknown as Element).fontSize),
+        drawn: (window as unknown as { svgFitSizes: Record<string, number> }).svgFitSizes.f0,
+      };
+    }, null);
+
+  // The length the designer drew, which is the datum every claim below is made against.
+  await page.getByTestId(`map-svg-sample-${nameId}`).fill('Alexandra Riva');
+  await awaitPainted(page, 'Alexandra Riva');
+  const rest = await read();
+  expect(rest.lines, 'the drawn name is one line').toBe(1);
+
+  // A name too long for the plate's width AND for one line of the width it may grow to.
+  await page.getByTestId(`map-svg-sample-${nameId}`).fill(LADDER_VALUES.over3);
+  await awaitPainted(page, LADDER_VALUES.over3);
+  const grown = await read();
+
+  const said: string[] = [];
+  if (grown.plate.width <= rest.plate.width + 1) {
+    said.push(`the plate stayed ${Math.round(grown.plate.width)} px wide`);
+  }
+  if (grown.plate.height <= rest.plate.height + 1) {
+    said.push(`the plate stayed ${Math.round(grown.plate.height)} px tall`);
+  }
+  if (grown.lines < 2) said.push('the name never wrapped');
+  if (grown.size < grown.drawn - 0.01) {
+    said.push(`the name shrank to ${grown.size} of ${grown.drawn} while both rungs could still pay`);
+  }
+  // The half the owner actually SAW go wrong: the wrapped block printing over the role under it.
+  if (grown.block.bottom > grown.roleTop + 1) {
+    said.push(`the name runs ${Math.round(grown.block.bottom - grown.roleTop)} px into the role`);
+  }
+  expect(said, 'the wider-then-taller ladder did not spend both rungs').toEqual([]);
 });
 
 // ── AN EXPLICIT text-anchor IS INFORMATION, NOT AN OPT-OUT ──────────────────────────────────

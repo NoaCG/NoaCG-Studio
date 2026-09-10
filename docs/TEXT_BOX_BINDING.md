@@ -351,6 +351,28 @@ derived from the cap rather than asked as a second question.
 Today's "What else moves" list is kept, unchanged in mechanism, nested under the box that grows -
 and it is a list of WHICH layers, never of how each one behaves. That second half is settled below.
 
+**The RUNTIME half of this rung is done and gated - measured 2026-09-10.** The surface above is
+still design; what a reader picks today already works. "The panel gets wider, then taller" reaches
+the emitted document as two ordinary rows on one element (`NOACG_LAYOUT` carries `g0` axis `x` and
+`g1` axis `y`, and the plate carries both stamps in one space-separated `data-noacg-el`), and the
+runtime spends both: on `effects-gradient-shadow-lower-third.svg` - the file the owner walked when
+he found the plate not getting taller - the plate widens 1040 -> 1640 px, then grows 190 -> 257 px,
+the name wraps onto a second line at the 56 px it was drawn at, and the role under it does not
+move. Twenty-one corpus fixtures do the same. `e2e/import-svg-corpus.spec.ts` now pins it ("a panel
+told to get wider AND taller spends both, at the drawn size"), which nothing did before: the ladder
+sweep runs all four options on the owner's QUIZ BOARD, whose plate has 216 units of room and never
+needs one of them, so grow-xy and grow-x give it the same answer at every length.
+
+**And the cap is gated now too, because it was broken.** Growth is decided in screen px and spent
+by writing user units, and the helper that converts between them read every panel as a placed HTML
+line, so the conversion ran at 1. On any 1920x1080 artwork the frame scale IS 1, so this was
+invisible everywhere anyone looks; on `inkscape-millimetre-scorebug`, whose units are millimetres,
+the plate grew to 1700 px inside a 720 px frame and stood 1040 px below its bottom edge - the
+owner's "one page of text", reachable. The 3840-wide ticker had it the other way and grew half as
+far as it was granted. Fixed in 255f0ab6 (`svgFitPlaced` asks the namespace, which is what it
+always meant) and swept over the whole corpus as a column on the every-file walk. Five fixtures
+moved, all of them print-unit, nested-viewBox or oversize-artboard files.
+
 ### The room a box has is what its followers leave it - measured 2026-09-08
 
 Two readings of one panel have to agree, or an option promises something the graphic cannot do.

@@ -5,7 +5,7 @@ kind: ask
 raised: 2026-08-30
 state: advanced
 asked: "the growth rule shouldn't depend only on a category. It should depend on the geometry and what is the why of the graphic and how it works with other graphics - in Who Wants To Be A Millionaire the question box does not resize with the question"
-note: 1f935233 wrote the rule where designers read it, and the code keys on the behaviour rather than the category; a plate still cannot widen and grow taller at once, which is the wrapped-line case he walked
+note: 1f935233 wrote the rule where designers read it, and the code keys on the behaviour rather than the category; the vertical half is now measured DONE (255f0ab6 - his own lower third widens and then gets taller at the drawn size, and the corpus is gated on it), so what still stands is step 2, how "played in a sequence" is known from the behaviour
 ---
 # The growth rule: geometry AND purpose, never category - and a sequence keeps its size
 
@@ -99,3 +99,24 @@ Paired with the 2026-09-03 quiz ruling above, the shape of the rule is now: a gr
 as one of a SEQUENCE keeps its size and fits the text inside it; a lower third or a standalone
 text box may grow, and growing means **both axes**, not width alone. A wrapped line that prints
 over the artwork beneath it is the failure either way.
+
+### That half is done - measured 2026-09-10
+
+Walked again on the file he walked, in the wizard, with "The panel gets wider, then taller"
+selected. His plate widens from 1040 to 1640 px, then gets taller from 190 to 257 px, the name
+wraps onto a second line at the 56 px the designer drew it at, and the role underneath stays
+where it was drawn. Both rules reach the emitted document (`NOACG_LAYOUT` carries `g0:x` and
+`g1:y`, and the plate carries both stamps), and the runtime spends both. Twenty-one of the corpus
+fixtures do the same. The claim this receipt used to carry - that a plate cannot do both at once -
+was written on 2026-09-05 and the commits that made vertical growth work landed on 2026-09-08 and
+2026-09-09, so it had been stale for three days with nothing measuring it.
+
+What the same walk DID find is that nothing gated the cap. Growth is decided in screen pixels and
+spent by writing user units, and the helper converting between them read every panel as a placed
+HTML line, so the conversion ran at 1 on artwork whose user units are not CSS pixels. The
+millimetre scorebug fixture grew its plate to 1700 px inside a 720 px frame - "one page of text",
+exactly - and the 3840-wide ticker grew half as far as it was granted. Fixed in 255f0ab6 and swept
+over the whole corpus by `e2e/import-svg-corpus.spec.ts`.
+
+**What still stands is step 2 above**: how a graphic knows it is played in a SEQUENCE, from the
+behaviour attached to it and never from a category.
