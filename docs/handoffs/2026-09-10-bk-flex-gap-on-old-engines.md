@@ -140,10 +140,23 @@ export screen, no longer raising a template's required engine, with a sentence s
 ## Evidence and traps that exist in no repo file
 
 - **Frames**, this laptop, `C:\Users\ahonemi\AppData\Local\Temp\claude\...\scratchpad\frames\`
-  (and the PRINTs in each server's media folder, timestamped 2026-09-10 12:xx-13:xx): `2.3-sb01-noshim`
-  / `2.3-sb01`, `2.5-sb01-noshim` / `2.5-sb01`, plus `st01` and `h201` on both. The 2.5 pairs are
-  identical. The exported files stay in `C:\casparcg\templates\bk\` and the 2.5 install's
-  `template\bk\` for the owner's walk.
+  (and the PRINTs in each server's media folder, timestamped 2026-09-10 12:xx-14:xx): for each of
+  `sb01`, `st01`, `h201` on each of `2.3` and `2.5`, four frames - `-noshim-tween` and `-noshim`
+  (700 ms into the entrance, and settled), then `-tween` and the settled frame with the shim.
+  The tween frames are the answer to the review's churn question, read off the real engine: the
+  gaps are in place mid-entrance and the server answers every command after. On 2.5 the pairs
+  show the same graphic (a pixel diff finds only the entrance's own settle noise, because PRINT
+  fires while the count-ups finish). The exported files stay in `C:\casparcg\templates\bk\` and
+  the 2.5 install's `template\bk\` for the owner's walk.
+- **Both walks were queued once with no `--after` between them and ran at the same moment.** The
+  second server could not bind port 5250, its socket became a second client on the first server
+  (the log shows every command twice), and its cleanup's `taskkill` took the running server down
+  under the other walk. The walk script now refuses to start when 5250 answers; queue server walks
+  strictly one after another.
+- **`CG ADD` with no data throws inside the export.** The 2.3 log shows `Uncaught SyntaxError:
+  Unexpected end of JSON input` for every load, with and without the shim: the CasparCG data
+  shim calls `update('')` when the command carries no payload, and `JSON.parse('')` throws.
+  Harmless here (the graphic then airs its defaults) and not this row's, but a row.
 - **`inset` on 2.3 is worse than gap was.** `sb01`'s slab and score chips are `position:absolute;
   inset:0` pseudo-elements, and on 2.3 they simply are not there - the frames show white text on
   video. That is the next mechanism, and it is not this one: `inset` is dropped from the CSSOM, so
@@ -174,29 +187,41 @@ base had fallen at BH's tip; the merge and a `contracts:compile` re-run (no chan
 
 - `review: inline` - the code-review skill returned a promise of later completion notifications
   rather than a result, so the leg was done here, over correctness, edge cases, races and the
-  contracts in `src/export/AGENTS.md` and `src/templates/AGENTS.md`. Four confirmed findings, all
-  in the shim, all fixed (the paragraph above and the commit message carry them). Asked versus
-  built: the goal holds on the real 2.3 and the real 2.5, the emitted template code is unchanged,
-  the count is measured and stated. Built without being asked: the `shimmed` effect in the
-  scanner, because without it the export screen would go on telling a user that 2.3 cannot render
-  a graphic the shim now renders. Not built: nothing asked; the two catalog baselines did not move
-  (the shim writes nothing on a modern engine, proven on the sweep's native side), so nothing was
-  minted.
+  contracts in `src/export/AGENTS.md` and `src/templates/AGENTS.md`: four confirmed findings, all
+  fixed in "Harden the flex-gap shim". Then the skill's eight fan-out legs reached the
+  orchestrator and came back through this branch's relay (read before queueing, as the
+  queue-merge workflow requires), about forty findings. Each was checked against the code: the
+  ones that held are fixed in "Carry the flex-gap shim everywhere a document goes" and listed
+  above; the ones declined are listed with their reasons above (the half-gap mechanism, the
+  per-target shim marker, the three design comments). Two findings were about the same
+  contradiction (the docs saying "unsupported" and "shimmed" in one row) and are answered by the
+  tier rule now in `docs/PLAYOUT_COMPATIBILITY.md` §2. Asked versus built: the goal holds on the
+  real 2.3 and the real 2.5, the emitted template code is unchanged, the count is measured and
+  stated. Built without being asked: the `shimmed` effect in the scanner (without it the export
+  screen would go on telling a user that 2.3 cannot render a graphic the shim now renders), the
+  shim in the OGraf, LiveOS and render documents (without it the scanner's claim was false for
+  two targets), and the panel listing a finding on a clean design. Not built: nothing asked; the
+  two catalog baselines did not move (the shim writes nothing on a modern engine, proven on the
+  sweep's native side), so nothing was minted.
 - `simplify: inline` - the simplify skill returned fan-out instructions. Over reuse,
-  simplification, efficiency and altitude: the authored-margin array became a field on the item
-  (also the `order` fix above); considered and left alone: sharing one tag builder between
-  `composeDocument` and `export/common.ts`, because `preview` importing from `export` is the wrong
-  direction and each is one line.
-- `verify: npm run build` green on its own exit code, four times over the day and once over the
-  final tree; `scripts/flex-gap-sweep.mjs --fail` over 504 designs, none off native; three
-  designs aired on both real servers with and without the shim. `npm run test:e2e:integration`
-  was NOT run on this laptop: it is a full suite, the day queue cannot start a cost-1 job while
-  landings hold budget, and CI runs the same suite on a clean checkout of the merged tree - its
-  run on the final sha is the gate. Read on `218bfd6f`, run 34464694887: Build, Factory gates,
+  simplification, efficiency and altitude, across both rounds: the authored-margin array became
+  a field on the item; three tag builders became one module, `src/assets/flexGapSupport.ts`, that
+  every composer and exporter imports; the sweep's second item model went, replaced by the
+  shim's own list; the observer's `indexOf` dedup became a `Set`; four startup passes became one
+  frame. Left alone on purpose: the sweep's fixed settle sleeps and ancestor-walking `painted`
+  (a gate, not a hot path; listed under "Left undone").
+- `verify: npm run build` green on its own exit code after each round (five runs over the day,
+  the last over the final tree); `scripts/flex-gap-sweep.mjs --fail` over all 504 designs after
+  each round, none off native (the last run: 289 designs, 857 containers, 286 move, 0 off);
+  three designs aired on both real servers with and without the shim after each round, the last
+  time with a frame 700 ms into the entrance tween as well as the settled one, and the 2.3
+  server's log read afterwards (every command answered). `npm run test:e2e:integration` was NOT
+  run on this laptop: it is a full suite, the day queue cannot start a cost-1 job while landings
+  hold budget, and CI runs the same suite on a clean checkout of the merged tree - its run on the
+  final sha is the gate. Read on `218bfd6f` (first round), run 34464694887: Build, Factory gates,
   E2E plan, Catalog calibration gate, E2E 1/9 through 9/9, Combined E2E report and CI gate all
-  `success`; Reviewed and Vercel skipped as always, no retry needed. The run on the intermediate
-  push was cancelled by the newer one, and the run on the pre-merge push was green with the same
-  job list.
+  `success`; the second round's run is named in the commit that adds this line's successor, and
+  the check stamp names the sha it covers.
 - `taste: not applicable` - no design file, no shared template machinery, no fit or alignment
   code; the shim is inert on every engine a preview or a thumbnail renders on, which the sweep's
   native side measures. The frames from the 2.3 server are the graphics looked at.
