@@ -99,6 +99,13 @@ won't send messages between them"). That is what makes it safe for `control-<id>
 for `postgres_changes` while commands move to a private topic - and it is worth knowing before
 anybody "tidies up" by putting them back on one channel.
 
+**"Nothing was recorded" cannot be a row COUNT, and the first version of the spec learned that the
+hard way.** The renderer writes to the log itself: after applying a command it reports what it
+applied, which is a `{t:'live'}` row. So the log grows a second after any legitimate take with
+nobody forging anything, and an assertion that the last row id was unchanged goes red on the
+renderer doing its job (`Expected: 54084 Received: 54085`, j-0993). The walk now reads the tail
+through the output capability and looks for the forged `oid`s themselves.
+
 **A REST broadcast of a private message answers 202 and delivers nothing.** All four REST pushes in
 the security walk come back `202` whether the topic is private or not; the refusal happens after
 the acknowledgement. So the endpoint's status code says nothing about the boundary, and the only

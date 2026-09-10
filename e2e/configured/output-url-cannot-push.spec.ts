@@ -95,22 +95,16 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   const airPlays = () => air.evaluate(() => document.body.getAttribute('data-plays'));
   await expect.poll(airPlays, { timeout: 30_000 }).toBe('0');
 
-  // ── ONE REAL TAKE, so both baselines below are measured rather than assumed. ────────────────
+  // ── ONE REAL TAKE, so the walk knows both roads were working before it attacks them. ────────
   //
-  // `last row` is only printed once a durable row has been applied, so on a freshly published
-  // production it is absent and reads as 0 - a "before" that would look identical to a broken
-  // overlay. One press makes it a number this walk has watched move.
-  //
-  // BOTH ROADS ARE WAITED FOR, separately, because they arrive at different times and the walk
-  // needs both to be true: the picture comes on the broadcast in about 87 ms, and the durable row
-  // lands behind it. Reading `last row` at the moment `data-plays` moves reads a 0 that is simply
-  // early - which is how this assertion first failed.
+  // BOTH ARE WAITED FOR, separately, because they arrive at different times: the picture comes on
+  // the broadcast in about 87 ms, and the durable row lands behind it. `last row` is printed only
+  // once a durable row has been applied, so reading it at the moment `data-plays` moves reads a
+  // zero that is merely early - and a zero read that way is indistinguishable from a renderer
+  // following nothing at all.
   await page.getByTestId('verb-take').click();
   await expect.poll(airPlays, { timeout: 60_000 }).toBe('1');
-  await expect
-    .poll(() => lastAppliedRow(air), { timeout: 60_000 })
-    .toBeGreaterThan(0);
-  const rowsBefore = await lastAppliedRow(air);
+  await expect.poll(() => lastAppliedRow(air), { timeout: 60_000 }).toBeGreaterThan(0);
 
   // ── THE HOLDER OF THE READ-ONLY LINK. ──────────────────────────────────────────────────────
   //
@@ -207,7 +201,20 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   // land has landed by now.
   await air.waitForTimeout(5_000);
   expect(await airPlays(), 'a holder of the output URL made the graphic play').toBe('1');
-  expect(await lastAppliedRow(air), 'a forged command reached the durable log').toBe(rowsBefore);
+
+  // …AND THE LOG IS READ FOR THE FORGED IDS THEMSELVES rather than counted. The renderer writes
+  // rows of its own - it reports what it applied, which is a `{t:'live'}` row - so the log GROWS
+  // after a legitimate take with nobody forging anything, and a count would read that as an
+  // attack. Every forged command carries an `oid` beginning `forged-`, and the honest question is
+  // whether any of them is in the log.
+  const forged = await attacker.evaluate(async (outputSlug) => {
+    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const sb = await getSupabase();
+    const tail = await sb!.rpc('control_output_tail', { p_output_slug: outputSlug, p_after: 0 });
+    const rows = (tail.data ?? []) as { id: number; msg: { t?: string; oid?: string } }[];
+    return rows.filter((r) => (r.msg?.oid ?? '').startsWith('forged-')).map((r) => `${r.id}:${r.msg.t}`);
+  }, slugs.output as string);
+  expect(forged, 'a forged command reached the durable log').toEqual([]);
 
   // ── AND THE ROAD IS OPEN TO WHOEVER MAY USE IT. ────────────────────────────────────────────
   //
