@@ -55,8 +55,9 @@ const PLENTY = 12_000; // MB free
  *
  * The default command is a real e2e invocation, because that is the expensive case the budget
  * exists for. Naming it keeps these tests honest about WHICH cost they are exercising: a fixture
- * with no command is charged one BROWSER (`COST.walk`), not one suite, so a case that means to
- * exercise the suite cost has to say a suite.
+ * with no command falls to the unknown-command default and is charged one WALK (`COST.walk`, half
+ * a suite), not one suite (`COST.browser`), so a case that means to exercise the suite cost has to
+ * say a suite.
  */
 function job(id, over = {}) {
   return {
@@ -73,14 +74,24 @@ function job(id, over = {}) {
 }
 
 /**
- * A single browser walk - one dev server and one page, the middle weight.
+ * The command every walk fixture runs: a script this repository DOES NOT HAVE, on purpose.
  *
- * The command is j-0888's, verbatim, and that script lives on the branch it was queued from
- * rather than in this repository - which is exactly the case being exercised. The classifier
- * cannot recognise a command it has never seen, and what it does about that is the question.
+ * What these cases pin is the default for a command `command-match.mjs` cannot recognise, so the
+ * fixture has to stay unrecognisable. That is also the real shape of the case that made the rule:
+ * j-0888 was queued from a branch whose script had not landed yet.
+ *
+ * IT USED TO NAME A REAL SCRIPT - `ograf-external-walk`, j-0888's command verbatim - and that is
+ * how this file went red. On 2026-09-10 `main` landed that script and, in the same commit, added
+ * it to `SWEEP_SCRIPTS`, which is the right call for it: two servers and two pages. The two
+ * branches merged without one line of text conflict and four cases here started asserting a
+ * battery's price against a walk's. A fixture that names a real script is asserting that script's
+ * classification, and that belongs to whoever owns the script - not here.
  */
+const WALK_COMMAND = 'node scripts/a-walk-this-repo-has-never-seen.mjs';
+
+/** A single browser walk - one dev server and one page, the middle weight. */
 function walk(id, over = {}) {
-  return job(id, { command: `node scripts/ograf-external-walk.mjs --server C:/tmp/ograf-${id}`, ...over });
+  return job(id, { command: `${WALK_COMMAND} --server C:/tmp/walk-${id}`, ...over });
 }
 
 /** A landing job - the cheap, network-bound kind that the weighting exists to let through. */
@@ -91,6 +102,25 @@ function merge(id, over = {}) {
 function tempQueue() {
   return ensureJobsDir(mkdtempSync(join(tmpdir(), 'noacg-jobs-')));
 }
+
+test('the walk fixture is a command the classifier does not recognise - the premise every walk case rests on', () => {
+  // Every case below that uses `walk()` is really asking what the queue does with a command it
+  // has never seen. If the classifier ever learns this name, those cases quietly start pricing a
+  // battery and read as a broken mechanism instead of a stale fixture - which is exactly what
+  // happened on 2026-09-10 and cost this branch two landing attempts.
+  //
+  // It was hard to read because the two CI runs on the SAME commit disagreed: `push` was green and
+  // `pull_request` was red. Nothing was flaky. `actions/checkout` takes the branch alone on a push
+  // and the branch MERGED WITH THE BASE on a pull request, so only the second run had a classifier
+  // that knew the name. The premise is asserted once, here, where its failure says what to do.
+  assert.equal(
+    costOf(walk('j-0001')),
+    COST.walk,
+    `${WALK_COMMAND} is now recognised by command-match.mjs. Rename the fixture to a script this `
+      + 'repository still does not have. Do NOT re-price the mechanism: these cases are about the '
+      + 'default for an UNKNOWN command, not about what any real script weighs.',
+  );
+});
 
 test('capacity is one by day, two at night', () => {
   assert.equal(capacity({ hour: DAY, freeMemMb: PLENTY }), 1);
