@@ -107,8 +107,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // rides the same road as the picture, or the ON AIR marker and the monitor would disagree
       // for a third of a second.
       if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
-      else if (msg.t === 'staged' || msg.t === 'live') continue;
-      else {
+      // 'staged' is another operator typing and 'live' is the renderer REPORTING - neither is a
+      // command, and both are the follower's business rather than the stage's.
+      else if (msg.t !== 'staged' && msg.t !== 'live') {
         // A RENDERER command: mirror it onto the PROGRAM monitor, so this page shows what
         // actually reached air rather than only what its own buttons sent.
         programRef.current?.apply([{ graphic: item.graphic, msg }]);
@@ -323,24 +324,34 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     );
   }
 
+  // A verb that AIRED and then failed to log is a different sentence from one that never
+  // happened: the picture has moved on every screen and nothing recorded it, so a renderer
+  // rebooting afterwards comes back to a production without it. That question is asked FIRST,
+  // ahead of the rate limit - the log's 50-per-5-s cap is the likeliest way to reach this at all,
+  // and "slow down a moment" would tell an operator whose graphic is up that nothing happened.
   const surfaceSendError = (e: Error) =>
     setError(
-      /slow down/i.test(e.message)
-        ? 'Too many commands — slow down a moment.'
-        : // A verb that AIRED and then failed to log is a different sentence from one that never
-          // happened: the picture has moved on every screen and nothing recorded it.
-          verbAired(e)
-          ? `That reached the screens but was NOT logged (${e.message}). Send it again.`
+      verbAired(e)
+        ? `That reached the screens but was NOT logged (${e.message}). Send it again.`
+        : /slow down/i.test(e.message)
+          ? 'Too many commands — slow down a moment.'
           : `Send failed: ${e.message}`,
     );
 
   /**
    * ONE DOOR for every verb this page presses, on BOTH ROADS (src/control/commandRoads.ts): the
    * broadcast that reaches the other surfaces in about 50 ms, this page's own monitor with no
-   * hop at all, and the durable insert that stays the truth.
+   * hop at all, and the durable insert that stays the truth. It answers whether the send LANDED,
+   * so a caller sending several batches can stop at the first refusal rather than pressing on.
    */
-  const sendVerb = (items: ControlSendItem[]) =>
-    sendControlVerb({ slug, showId: resolved?.id ?? null, items, applyHere: applyCommand }).catch(surfaceSendError);
+  const sendVerb = (items: ControlSendItem[]): Promise<boolean> =>
+    sendControlVerb({ slug, showId: resolved?.id ?? null, items, applyHere: applyCommand }).then(
+      () => true,
+      (e: Error) => {
+        surfaceSendError(e);
+        return false;
+      },
+    );
 
   /** The layers that are up, front to back. */
   const liveLayers = (payload?.graphics ?? [])
@@ -394,9 +405,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   };
   const outAll = () => {
     // `control_send_many` takes at most 8 items, so a clear of more than four layers is more than
-    // one verb - and each batch is its own press as far as the two roads are concerned.
+    // one verb - and each batch is its own press as far as the two roads are concerned. It STOPS
+    // at the first refusal: the likeliest refusal is the command-rate cap, and pressing on past it
+    // spends the rest of the allowance on batches that will be refused too.
     void (async () => {
-      for (const batch of clearAllCueBatches(liveLayers.map((l) => l.graphic))) await sendVerb(batch);
+      for (const batch of clearAllCueBatches(liveLayers.map((l) => l.graphic))) {
+        if (!(await sendVerb(batch))) return;
+      }
     })();
   };
 

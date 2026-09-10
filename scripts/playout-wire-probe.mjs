@@ -165,7 +165,13 @@ const joinStart = performance.now();
 while ((!joined || !senderJoined) && performance.now() - joinStart < 30_000) await sleep(50);
 const joinMs = performance.now() - joinStart;
 if (!joined) {
-  console.error('the Realtime channel never joined in 30 s - a published operator page would be falling back to the 30 s poll (CONTROL_POLL_MS).');
+  console.error('the WATCHING channel never joined in 30 s - a published operator page would be falling back to the 30 s poll (CONTROL_POLL_MS).');
+}
+// SAID OUT LOUD, because an unjoined SENDER is the way this instrument lies. supabase-js does not
+// queue a broadcast on a channel that is not joined; it posts it to the REST endpoint instead, so
+// every fastMs below would be measured against a road the app itself would never have used.
+if (!senderJoined) {
+  console.error('the SENDING channel never joined in 30 s - the fast numbers below are a REST fallback, not the road the app uses. Do not report them.');
 }
 
 console.log(`# playout wire probe - ${new Date().toISOString()} - ${JSON.stringify(freeNow())}`);
@@ -255,8 +261,11 @@ for (const verb of ['take', 'out']) {
   );
 }
 console.log('# the operator still waits for the app to apply and paint on top of the fast number.');
+// Counted against the presses that were actually ACCEPTED: a press whose RPC was refused returns
+// before it waits for anything, and reading it as a lost broadcast would blame the wrong road.
+const accepted = sends.length / 2;
 for (const verb of ['take', 'out']) {
-  const missing = TAKES - roads[verb].fast.length;
+  const missing = Math.max(0, Math.round(accepted) - roads[verb].fast.length);
   if (missing > 0) {
     console.log(`# ${missing} ${verb}(s) never arrived on the FAST road within 10 s - those fall back to the durable row.`);
   }

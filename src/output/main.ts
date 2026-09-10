@@ -314,6 +314,14 @@ async function boot(): Promise<void> {
     // the fast road would record a baseline that does not include the command just applied - and
     // the next boot would replay rows this renderer had already run. The row is here within
     // 650 ms and the report debounces for 800, so nothing is actually later for it.
+    //
+    // It is not the only way a report is scheduled, and the other way is not closed: the graphic's
+    // own state reply after a broadcast-applied entrance goes through `stage.onState` above. When
+    // a durable row straggles past the debounce, that report banks a snapshot containing the
+    // entrance against a baseline id below the row that carried it, and the next boot replays that
+    // row again. It costs a re-fired entrance inside the catch-up, which is hidden while it
+    // settles, so it is a cost rather than a fault - but it is a real one and not the ordering the
+    // paragraph above describes.
     if (forwarded) scheduleReport(row.graphic);
     dbg('last row', String(row.id));
   };

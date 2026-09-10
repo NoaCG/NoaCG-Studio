@@ -645,13 +645,39 @@ export async function controlOutputSeen(outputSlug: string): Promise<void> {
 //
 // The command channel is the SAME Realtime channel the log follower already joins, so a verb's
 // broadcast rides a socket that is up and joined rather than paying its own connect. The registry
-// is how a sender reaches it: `subscribeControlEvents` puts the joined channel here and takes it
-// away on unsubscribe, and `sendControlVerb` looks it up. No channel registered - a page that
-// sends before its follower is up, a surface that follows nothing - means the fast road is simply
-// absent and the verb goes durable-only, which is exactly what shipped before this.
+// is how a sender reaches it: `subscribeControlEvents` puts the channel here WHEN IT JOINS and
+// takes it away when it stops being joined, and `sendControlVerb` looks it up. No channel
+// registered - a page that sends in the second before its follower is up, a surface that follows
+// nothing - means the fast road is absent and the verb goes durable-only, which is exactly what
+// shipped before this.
+//
+// REGISTERED ON `SUBSCRIBED` RATHER THAN ON CREATION, and that is not a detail. `send` on a
+// channel that is not joined does not queue: supabase-js posts the frame to the broadcast REST
+// endpoint instead, printing a deprecation warning as it goes. Two things wrong with letting that
+// happen - the warning lands in the browser console of a renderer whose log an operator is being
+// asked to read, and a REST-delivered frame has no ordering guarantee against a socket frame
+// behind it, so two quick presses in that window can arrive inverted. The durable road is the
+// right answer for that first second.
 
-/** The joined command channel per show id. One following surface per page, so one entry. */
+/** The JOINED command channel per show id. One following surface per page, so one entry. */
 const commandChannels = new Map<string, RealtimeChannel>();
+
+/**
+ * SHOWS WHOSE FOLLOWER IS CATCHING UP, and why the fast road stands down while it is.
+ *
+ * `followControlLog`'s refill walk reads rows the socket could not deliver - after an outage, or
+ * behind an id hole - and it is asynchronous. A broadcast arriving mid-walk is applied at once and
+ * has no id to be ordered by, so it can land AHEAD of older rows the walk is still fetching: an
+ * Out pressed during the outage, then a Take pressed now, and the renderer plays the graphic in
+ * and then the arriving `stop` takes it back off. The final picture contradicts the operator's
+ * last press, and no id reconciliation can see it because the two commands are genuinely
+ * different.
+ *
+ * So while a walk is in flight the fast road is simply off - for followers AND for the sending
+ * page's own optimistic apply, which would invert the same way. Nothing is lost: every command
+ * still arrives on the durable road, in log order, which is what the walk is fetching.
+ */
+const recovering = new Set<string>();
 
 /**
  * HOW LONG A GRAPHIC STAYS ON THE SLOW ROAD AFTER AN EVENT, and why events take it at all.
@@ -675,7 +701,10 @@ const commandChannels = new Map<string, RealtimeChannel>();
  * for; docs/backlog/playout-lag-when-working-the-queue.md carries it as a known limit.
  */
 const SLOW_AFTER_EVENT_MS = 1200;
+/** Keyed by SHOW and graphic: a graphic key is a per-production layer name and collides freely
+ *  across productions, so a bare name would hold back a different show's layer of the same name. */
 const slowUntil = new Map<string, number>();
+const slowKey = (showId: string | null, graphic: string) => `${showId ?? '-'}:${graphic}`;
 
 /** What one verb put on which road. */
 export interface VerbRoads {
@@ -709,22 +738,28 @@ export async function sendControlVerb(opts: {
   applyHere?: (items: ControlSendItem[]) => void;
 }): Promise<VerbRoads> {
   const now = Date.now();
-  const channel = opts.showId ? commandChannels.get(opts.showId) : undefined;
+  const { showId } = opts;
+  const channel = showId && !recovering.has(showId) ? commandChannels.get(showId) : undefined;
   const items: ControlSendItem[] = [];
   const fast: ControlSendItem[] = [];
+  const held: string[] = [];
   for (const item of opts.items) {
     const stamped: ControlSendItem = { graphic: item.graphic, msg: withOid(item.msg) };
     items.push(stamped);
+    const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
-    if (item.msg.t === 'event') slowUntil.set(item.graphic, now + SLOW_AFTER_EVENT_MS);
-    else if (channel && (slowUntil.get(item.graphic) ?? 0) <= now) fast.push(stamped);
+    if (item.msg.t === 'event') {
+      held.push(key);
+      slowUntil.set(key, now + SLOW_AFTER_EVENT_MS);
+    } else if (channel && (slowUntil.get(key) ?? 0) <= now) fast.push(stamped);
   }
-  if (fast.length > 0) {
+  if (channel && fast.length > 0) {
     // Not awaited: `send` resolves on the socket push, and waiting for that ack would spend the
-    // very milliseconds this road exists to save. A push that fails costs nothing — the durable
+    // very milliseconds this road exists to save. It never rejects either - it answers 'ok',
+    // 'error' or 'timed out' - and a push that does not land costs nothing, because the durable
     // row is already on its way and brings the same commands with the same ids.
-    void channel!.send({ type: 'broadcast', event: COMMAND_EVENT, payload: { items: fast } }).catch(() => {});
+    void channel.send({ type: 'broadcast', event: COMMAND_EVENT, payload: { items: fast } });
     opts.applyHere?.(fast);
   }
   try {
@@ -735,6 +770,13 @@ export async function sendControlVerb(opts: {
     const failed = e as Error & { aired?: boolean };
     failed.aired = fast.length > 0;
     throw failed;
+  } finally {
+    // THE HOLD-BACK RUNS FROM WHEN THE ROW EXISTS, not from when the press left. The 1200 ms is
+    // budgeted against the fan-out's 650 ms slow mode and assumes the insert itself was quick;
+    // on the venue wifi this whole change exists for, `control_send_many` can take longer than
+    // the window, and a Take pressed after it expired would then overtake the event's own row.
+    const landed = Date.now() + SLOW_AFTER_EVENT_MS;
+    for (const key of held) slowUntil.set(key, landed);
   }
   return { items, fast };
 }
@@ -742,14 +784,6 @@ export async function sendControlVerb(opts: {
 /** Did this send put commands on screen before failing to log them? Read off the thrown error. */
 export function verbAired(e: unknown): boolean {
   return (e as { aired?: unknown } | null)?.aired === true;
-}
-
-/** Send one command — the INSERT is the send. */
-export async function sendHostedControl(slug: string, graphic: string, msg: ControlMessage | CueStatusMsg): Promise<void> {
-  const sb = await getSupabase();
-  if (!sb) return;
-  const { error } = await sb.rpc('control_send', { p_slug: slug, p_graphic: graphic, p_msg: msg });
-  if (error) throw new Error(error.message);
 }
 
 /** One wire item of a batched send. */
@@ -824,26 +858,6 @@ export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] 
     batches.push(liveGraphics.slice(i, i + LAYERS_PER_CLEAR_BATCH).flatMap(clearCueItems));
   }
   return batches;
-}
-
-/** Take a cue on the wire — one atomic, log-ordered insert. */
-export function takeCueOnWire(
-  slug: string,
-  cue: { id: string; graphic: string; values: Record<string, string> },
-): Promise<void> {
-  return sendHostedControlBatch(slug, takeCueItems(cue));
-}
-
-/** Out one layer on the wire. */
-export function clearCueOnWire(slug: string, liveGraphic: string): Promise<void> {
-  return sendHostedControlBatch(slug, clearCueItems(liveGraphic));
-}
-
-/** Out every live layer on the wire, batch by batch. */
-export async function clearAllCuesOnWire(slug: string, liveGraphics: string[]): Promise<void> {
-  for (const batch of clearAllCueBatches(liveGraphics)) {
-    await sendHostedControlBatch(slug, batch);
-  }
 }
 
 /**
@@ -939,14 +953,27 @@ export async function followControlLog(opts: {
   // socket ever is, so keep pulling while pages come back full. Every page advances `lastId`
   // (the RPC returns rows AFTER it), so the walk always terminates; the page ceiling is a
   // runaway guard, not a design limit.
+  // WHILE A WALK IS IN FLIGHT THE FAST ROAD STANDS DOWN (see `recovering` above): the walk is
+  // fetching rows OLDER than anything a broadcast can carry, and a broadcast has no id to be
+  // ordered against them. Counted rather than a boolean, because the 30 s poll and a hole
+  // recovery can overlap.
+  let walks = 0;
   const refill = () =>
     void (async () => {
-      for (let page = 0; page < MAX_TAIL_PAGES; page += 1) {
-        const rows = await opts.tail(lastId);
-        rows.forEach(apply);
-        if (rows.length < CONTROL_TAIL_PAGE) return;
+      walks += 1;
+      recovering.add(opts.showId);
+      try {
+        for (let page = 0; page < MAX_TAIL_PAGES; page += 1) {
+          const rows = await opts.tail(lastId);
+          rows.forEach(apply);
+          if (rows.length < CONTROL_TAIL_PAGE) return;
+        }
+      } finally {
+        walks = Math.max(0, walks - 1);
+        if (walks === 0) recovering.delete(opts.showId);
       }
     })();
+  const { onCommand } = opts;
   let everJoined = false;
   let status = '';
   const report = () => opts.onStatus?.({ status, everJoined });
@@ -969,9 +996,13 @@ export async function followControlLog(opts: {
       refill();
     }
     report();
-  }, opts.onCommand);
+  }, onCommand && ((items) => {
+    if (walks === 0) onCommand(items);
+  }));
   return () => {
     clearInterval(poll);
+    walks = 0;
+    recovering.delete(opts.showId);
     unsubscribe();
   };
 }
@@ -1028,11 +1059,16 @@ export async function subscribeControlEvents(
     // (CHANNEL_ERROR, TIMED_OUT, CLOSED) were swallowed here, which is what made a channel that
     // never joins indistinguishable from a quiet show: the consumer decides what to do with
     // them, and `followControlLog` both polls under them and says so.
-    .subscribe((status) => onStatus?.(status));
-  // The senders on this page reach the fast road through here rather than opening a second
-  // socket. Registered before the join completes on purpose: `send` on a channel that is still
-  // joining is queued by the client, and a verb pressed in that first second still travels.
-  commandChannels.set(showId, channel);
+    .subscribe((status) => {
+      // The senders on this page reach the fast road through here rather than opening a second
+      // socket - and only while this channel is actually JOINED, because `send` on one that is
+      // not falls back to an HTTP POST with a deprecation warning and no ordering guarantee
+      // against the socket frames behind it. Unregistered, a verb takes the durable road, which
+      // is what it did before this road existed.
+      if (status === 'SUBSCRIBED') commandChannels.set(showId, channel);
+      else if (commandChannels.get(showId) === channel) commandChannels.delete(showId);
+      onStatus?.(status);
+    });
   return () => {
     // Only if it is still OURS: a page that re-subscribes before tearing the old one down would
     // otherwise unregister the channel that just replaced this one.
