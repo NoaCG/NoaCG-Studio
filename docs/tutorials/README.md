@@ -32,10 +32,10 @@ That is why `frames/` is gitignored. The words are tracked and the pictures are 
 The mechanism is `NOACG_TUTORIAL_SHOTS` in `e2e/_svg-import.ts`: set it to a directory and the
 shared import helpers write one PNG per named step of the walk. Unset, it does nothing, so the
 suite pays nothing for it. `scripts/tutorial-shots.mjs` holds the pack-to-walk table and runs one
-walk with that variable set:
+walk with that variable set, after emptying the folder:
 
 ```
-npm run tutorial:shots -- first-graphic
+node scripts/tutorial-shots.mjs first-graphic
 ```
 
 ## The packs

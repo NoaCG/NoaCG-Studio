@@ -27,14 +27,17 @@ product as it is today rather than as it was when somebody took a screenshot. On
 the repository root:
 
 ```
-npm run tutorial:shots -- first-graphic
+node scripts/tutorial-shots.mjs first-graphic
 ```
 
 On a machine that can only run one browser job at a time, queue it instead:
 
 ```
-npm run queue -- "npm run tutorial:shots -- first-graphic"
+npm run queue -- "node scripts/tutorial-shots.mjs first-graphic"
 ```
+
+It empties `frames/` before it starts, so a walk that dies half way leaves a short folder rather
+than a mixture of new frames and old ones.
 
 Fourteen PNGs land in `frames/`, and the command says how many it got. It takes about forty
 seconds. If the walk goes red, the road changed: fix the walk first, then re-shoot, then read

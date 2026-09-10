@@ -116,6 +116,12 @@ export const SWEEP_SCRIPTS =
   // script nobody types by its script name still opens a browser, and one started beside a live
   // suite is neither blocked by the guard hook nor seen by the process detector.
   + '|svg-samples-check|docs-shots'
+  // `tutorial-shots` runs one e2e walk with the frame capture switched on (docs/tutorials/). It
+  // spawns Playwright rather than Chromium, so the run's own globalSetup takes the machine-wide
+  // e2e ticket and WAITS its turn - but waiting is not the same as not starting: priced as a walk
+  // it is admitted beside a live suite and then sits in `waitForOtherRuns` for up to thirty
+  // minutes holding a queue slot. Listed here so it is priced as the browser job it is.
+  + '|tutorial-shots'
   // The two ACCEPTANCE artifact builders. Neither asserts anything, and that is exactly why
   // they are easy to forget here: a script nobody calls a test still opens Chromium and still
   // drives the whole app through it. `acceptance-pack` walks four productions, a hosted-page rig

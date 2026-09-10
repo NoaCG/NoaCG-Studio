@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // REFILL A TUTORIAL PACK'S FRAMES from the walk that already tests that road.
 //
-//   npm run tutorial:shots -- first-graphic
-//   npm run queue -- "npm run tutorial:shots -- first-graphic"     # on a RAM-bound laptop
+//   node scripts/tutorial-shots.mjs first-graphic
+//   npm run queue -- "node scripts/tutorial-shots.mjs first-graphic"   # on a RAM-bound laptop
 //
 // A tutorial pack (docs/tutorials/) is a spoken script, an instruction sheet and one screenshot
 // per step. The screenshots are the half that rots: a PNG cannot fail a build, so a hand-taken
@@ -17,15 +17,17 @@
 //
 // It exists rather than a line in each pack's README because `VAR=x npx playwright test …` is not
 // a command this repository's owner can paste: the laptop runs PowerShell, the job queue spawns
-// through cmd.exe, and CI is Linux. One npm script works in all three.
+// through cmd.exe, and CI is Linux. One `node scripts/…` line works in all three.
 //
-// It drives Playwright, which registers the run with the machine-wide e2e ticket
-// (e2e/globalSetup via scripts/e2e-runs.mjs), so it serialises behind any other browser work by
-// itself. Do not add it to SWEEP_SCRIPTS: that list is for scripts that launch Chromium on their
-// own and are therefore invisible to that ticket.
+// It is on SWEEP_SCRIPTS (scripts/command-match.mjs) and it is spelled `node scripts/…` rather
+// than through an npm alias for that reason: a browser job the queue cannot see the shape of is
+// priced as a walk (0.5) instead of a browser (1.0), so the scheduler admits it beside a running
+// suite - and it then sits in e2e/_offline-guard.ts's `waitForOtherRuns` for up to thirty minutes,
+// holding a slot and doing nothing. The e2e ticket makes it WAIT its turn; only the price makes
+// the queue not start it in the first place.
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,7 +53,7 @@ const PACKS = {
 
 const name = process.argv[2];
 if (!name || !PACKS[name]) {
-  console.error(`Usage: npm run tutorial:shots -- <pack>\nPacks: ${Object.keys(PACKS).join(', ')}`);
+  console.error(`Usage: node scripts/tutorial-shots.mjs <pack>\nPacks: ${Object.keys(PACKS).join(', ')}`);
   process.exit(2);
 }
 
@@ -62,7 +64,13 @@ if (!existsSync(packDir)) {
   process.exit(2);
 }
 
+// EMPTIED, NEVER TOPPED UP. A walk that now dies at step 5 writes five fresh frames over the
+// fourteen already on disk, and the count below then reads a full folder - nine of them pictures
+// of an interface that no longer exists, mixed in with five that are current and nothing saying
+// which is which. That is the exact rot this whole mechanism exists to prevent, so the folder
+// starts empty and the count means what it says.
 const frames = join(packDir, 'frames');
+rmSync(frames, { recursive: true, force: true });
 mkdirSync(frames, { recursive: true });
 
 console.log(`Shooting docs/tutorials/${name}/frames from ${pack.spec} ("${pack.grep}")…`);
@@ -80,6 +88,14 @@ const child = spawn(
   { cwd: ROOT, stdio: 'inherit', env: { ...process.env, NOACG_TUTORIAL_SHOTS: frames } },
 );
 
+// A spawn that fails outright (a missing executable, a security hook) emits `error` and never
+// `exit`. With no listener that is an unhandled error event, so the process dies on a stack trace
+// and the frame count - the only thing this script reports - never prints.
+child.on('error', (err) => {
+  console.error(`Could not start Playwright: ${err.message}`);
+  process.exitCode = 1;
+});
+
 child.on('exit', (code) => {
   // Count what landed either way. A green walk that wrote nothing means the capture calls moved
   // out of the helpers, and a red one that wrote eight frames says WHERE the road broke - which
@@ -87,11 +103,28 @@ child.on('exit', (code) => {
   const got = existsSync(frames) ? readdirSync(frames).filter((f) => f.endsWith('.png')) : [];
   console.log(`\n${got.length} of ${pack.steps} frames in docs/tutorials/${name}/frames`);
   if (got.length < pack.steps) {
-    console.log(`Missing: the walk stopped at ${got.sort().at(-1) ?? 'the first step'}.`);
+    console.log(`Missing: the walk stopped at ${lastStep(got)}.`);
   }
   if (code === 0 && got.length < pack.steps) {
     console.error('The walk passed and the frames are short - check that tutorialShot still runs on this road.');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
-  process.exit(code ?? 1);
+  // `exitCode`, never `process.exit`: stdout to a pipe is written asynchronously, and exiting
+  // outright drops the count above - which is the line the pack's README promises.
+  process.exitCode = code ?? 1;
 });
+
+/**
+ * The last frame written, in the ROAD's order rather than the alphabet's.
+ *
+ * `step-10` sorts between `step-1` and `step-2`, so a plain sort names step 9 for every failure in
+ * steps 10 to 12 - the operator stretch this message exists to locate. The alphabetical tiebreak
+ * is load-bearing rather than decorative: `step-4`, `step-4b` and `step-4c` share one index, and
+ * they are the three frames of a step that is taller than the window.
+ */
+function lastStep(files) {
+  if (files.length === 0) return 'the first step';
+  const index = (f) => Number((/^step-(\d+)/.exec(f) ?? [])[1] ?? 0);
+  return [...files].sort((a, b) => index(a) - index(b) || a.localeCompare(b)).at(-1);
+}

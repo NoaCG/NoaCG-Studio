@@ -63,6 +63,9 @@ export const TIMER_SVG = fileURLToPath(
  * numbering schemes would read as a broken sequence.
  */
 const TUTORIAL_SHOTS = process.env.NOACG_TUTORIAL_SHOTS ?? '';
+// Once, here, rather than before each of the fourteen shots: a directory that exists cannot stop
+// existing mid-walk, and the module is only loaded by a run that is about to take them.
+if (TUTORIAL_SHOTS) mkdirSync(TUTORIAL_SHOTS, { recursive: true });
 
 /**
  * WAIT FOR THE PICTURE, NOT ONLY FOR THE FORM.
@@ -73,26 +76,45 @@ const TUTORIAL_SHOTS = process.env.NOACG_TUTORIAL_SHOTS ?? '';
  * stage once a rebuilt document has LOADED (the same contract as PreviewFrame's, e2e/_preview.ts),
  * so a step that has a stage waits for one.
  *
- * The pause after it is for the entrance, and it is honest about being a pause: GSAP animates
+ * The production page has no such stage, and its own wait is a different one: landing there builds
+ * the graphic's document through a cold Prettier format that `intoProduction` budgets 20 s for,
+ * and until it lands both monitors read "Building the output…" (home/PayloadStage). A frame taken
+ * then shows two empty monitors, which is what the instruction sheet tells the reader an EMPTY
+ * program monitor means - so the wrong reason would teach the wrong thing.
+ *
+ * The pause after them is for the entrance, and it is honest about being a pause: GSAP animates
  * inline styles from rAF, so Playwright's `animations: 'disabled'` does not park it and nothing
  * stamps its end. It is only ever paid on a capture run.
+ *
+ * NOTHING HERE MAY FAIL THE WALK. A camera that cannot settle is a bad picture, not a broken road,
+ * and a throw from inside a screenshot helper reports it as the second - so the waits are guarded
+ * and a failure is announced on stdout beside the frame it spoiled.
  */
 async function settleForCamera(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready).catch(() => {});
   const stage = page.locator('.wz-stage');
-  if (await stage.count()) {
-    // BOTH HALVES, in this order. `data-doc-pending` is set synchronously the moment the template
-    // changes and only `data-doc-rev` says a document has LOADED, so either alone lets a shutter
-    // through on a stage that is between two documents - which is an empty preview pane.
-    await expect(stage.first()).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
-    await expect(stage.first()).toHaveAttribute('data-doc-rev', /\d/, { timeout: 20_000 });
+  try {
+    if (await stage.count()) {
+      // BOTH HALVES, in this order. `data-doc-pending` is set synchronously the moment the template
+      // changes and only `data-doc-rev` says a document has LOADED, so either alone lets a shutter
+      // through on a stage that is between two documents - which is an empty preview pane.
+      await expect(stage.first()).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
+      await expect(stage.first()).toHaveAttribute('data-doc-rev', /\d/, { timeout: 20_000 });
+    } else {
+      // A monitor with nothing to say about itself. `PayloadStage` renders `.prod-monitor-note`
+      // while it is building AND when the build failed, and neither is a picture of the product -
+      // so the wait is on the note being gone rather than on its words, and a failed build stalls
+      // here and warns instead of passing for settled.
+      await expect(page.locator('.prod-monitor-note')).toHaveCount(0, { timeout: 30_000 });
+    }
+  } catch {
+    console.warn('[tutorial-shots] the surface never settled; the next frame may be mid-build');
   }
   await page.waitForTimeout(1_500);
 }
 
 export async function tutorialShot(page: Page, step: string): Promise<void> {
   if (!TUTORIAL_SHOTS) return;
-  mkdirSync(TUTORIAL_SHOTS, { recursive: true });
   await settleForCamera(page);
   // `animations: 'disabled'` parks CSS and Web animations at their end state, which is what a
   // settled surface looks like - the same choice scripts/docs-shots.mjs makes for the same reason.

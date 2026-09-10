@@ -2,6 +2,7 @@
 kind: walk-p
 date: 2026-09-10
 serves: now
+because: taste
 ---
 # The first tutorial pack is ready to hand to Gemini
 
@@ -18,7 +19,7 @@ On a phone, everything except the pictures:
 
 At a machine, for the pictures:
 
-3. `npm run tutorial:shots -- first-graphic`, then open
+3. `node scripts/tutorial-shots.mjs first-graphic`, then open
    `docs/tutorials/first-graphic/frames/`. Fourteen PNGs, about forty seconds.
 
 ## What to look at
@@ -37,7 +38,10 @@ At a machine, for the pictures:
 
 ## The question that is yours
 
-**Is one pack per road the right unit, and is this the road you wanted first?** The second pack is
-cheap now: the capture rides the same helpers, so it is a table row plus the words. The obvious
-next two are the quiz board, which is the other piece the 25 September room takes home, and the
-live vote once it has a downloadable board.
+**Is the script in your product's voice, and is it the video you would put your students in front
+of?** That is taste and nothing else answers it. Everything else here was decided rather than
+asked: the road, the sample, the length, and one pack per road as the unit.
+
+The second pack is cheap now - the capture rides the same helpers, so it is a table row plus the
+words. The obvious next two are the quiz board, which is the other piece the 25 September room
+takes home, and the live vote once it has a board a viewer can download.
