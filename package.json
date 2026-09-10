@@ -61,7 +61,7 @@
     "queue": "node scripts/jobs.mjs add",
     "jobs": "node scripts/jobs.mjs",
     "queue:merge": "node scripts/jobs.mjs add-merge",
-    "check:stamp": "node scripts/check-stamp.mjs",
+    "stamp": "node scripts/check-stamp.mjs",
     "requeue": "node scripts/jobs.mjs requeue",
     "test:jobs": "node --test scripts/jobs-store.test.mjs scripts/check-stamp.test.mjs scripts/alarm-issues.test.mjs scripts/wave-tick.test.mjs scripts/wave-launch.test.mjs scripts/wave-horizon.test.mjs scripts/collision-check.test.mjs scripts/wave-watch.test.mjs scripts/ci-watch.test.mjs scripts/landing-latency.test.mjs scripts/relay.test.mjs scripts/candidates.test.mjs",
     "test:deploy-affecting-paths": "node --test scripts/deploy-affecting-paths.test.mjs",

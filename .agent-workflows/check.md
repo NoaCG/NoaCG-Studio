@@ -205,7 +205,7 @@ Goal: leave the changed code simpler than the review left it, without changing w
   can eventually see review the way it sees CI (`docs/ORCHESTRATION_NEXT.md` §5). **Commit first,
   then one command**, with the same mode strings the report above carries:
 
-      npm run check:stamp -- --review inline:1/1 --simplify inline --verify inline \
+      npm run stamp -- --review inline:1/1 --simplify inline --verify inline \
         --model claude-opus-5 --effort high
 
   Counts are `<findings>/<fixed>` and may be left off a leg that found nothing. Add `--fail` for a
