@@ -43,7 +43,7 @@ test('Create with AI sends the first remote generation without an interruptive n
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
-  await expect(page.getByRole('heading', { name: 'NoaCG Lite' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Create with AI/ })).toBeVisible();
   await page.locator('.wz-step textarea').fill('A clean news lower third for a reporter.');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
 

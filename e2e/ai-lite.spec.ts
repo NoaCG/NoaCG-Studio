@@ -64,7 +64,7 @@ async function openLite(page: Page): Promise<void> {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
-  await expect(page.getByRole('heading', { name: 'NoaCG Lite' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Create with AI/ })).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -99,17 +99,25 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await expect(page.getByTestId('ai-attach')).toHaveCount(0);
   await expect(page.getByText(/Gemini|Qwen|OpenRouter|Anthropic|OpenAI/)).toHaveCount(0);
 
-  // AI settings still exists in Lite - it is where the execution TIER is chosen (Lite or
-  // bring your own key) - but while Lite is the tier it offers NO provider or model surface.
+  // AI settings describes the hosted path and offers one secondary own-account switch. The
+  // hosted path is the default and exposes no provider or model surface.
   await page.getByRole('button', { name: /AI settings/ }).click();
-  await expect(page.getByTestId('ai-tier')).toBeVisible();
-  await expect(page.getByTestId('ai-tier-lite').getByRole('radio')).toBeChecked();
-  await expect(page.getByTestId('ai-tier-custom')).toContainText('Bring your own key');
-  // Pro is offered only where the server hosts it and the backend can meter it - neither is
-  // true offline - so it is not a door here at all (e2e/pro.spec.ts pins the rule).
-  await expect(page.getByTestId('ai-tier-pro')).toHaveCount(0);
+  await expect(page.getByTestId('ai-tier')).toHaveCount(0);
+  await expect(page.getByTestId('ai-hosted-note')).toBeVisible();
+  await expect(page.getByTestId('ai-own-key')).toBeVisible();
+  await expect(page.getByTestId('ai-own-key').getByRole('checkbox')).not.toBeChecked();
   await expect(page.getByTestId('ai-settings').getByText('Provider', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('ai-settings').getByText('Model', { exact: true })).toHaveCount(0);
+  // THE ONE GESTURE THIS DOOR HAS, driven rather than seeded: ticking the box is what reveals
+  // the provider and model surface, and unticking it is what puts the hosted route back. A
+  // stored value proves the reading half only, and the reading half is not where the bug would
+  // be - the box writes `tier` and the sheet re-renders off it.
+  const ownKey = page.getByTestId('ai-own-key').getByRole('checkbox');
+  await ownKey.check();
+  await expect(page.getByTestId('ai-settings').getByText('Provider', { exact: true })).toBeVisible();
+  await ownKey.uncheck();
+  await expect(page.getByTestId('ai-settings').getByText('Provider', { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('ai-hosted-note')).toBeVisible();
   await page.getByRole('button', { name: /AI settings/ }).click();
 
   await page.getByTestId('more-control-toggle').click();

@@ -226,7 +226,7 @@ const LITE_READY = {
   expiresAt: '2099-01-01T00:00:00.000Z',
 };
 
-test('NoaCG Lite receives and produces the selected 4K60 format', async ({ page }) => {
+test('Create with AI receives and produces the selected 4K60 format', async ({ page }) => {
   // This spec tests format plumbing. Create with AI begins directly under the public
   // Terms and Privacy contract, so no first-use acknowledgement is seeded here.
   let requestFormat: unknown = null;
@@ -245,7 +245,7 @@ test('NoaCG Lite receives and produces the selected 4K60 format', async ({ page 
   await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="ai"]').click();
-  await expect(page.getByRole('heading', { name: 'NoaCG Lite' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Create with AI/ })).toBeVisible();
   await pickFormat(page, 'ai-format', 'landscape-2160p', 60);
   await page.locator('.wz-step textarea').fill('A clean lower third for a presenter.');
   await page.getByRole('button', { name: 'Create', exact: true }).click();

@@ -1239,12 +1239,12 @@ const unsupportedPatterns: { code: LiteUnsupportedCode; pattern: RegExp; message
   // lesson as `intentKinds` above: a hand-authored claim can be wrong in the direction that
   // refuses work, and that direction is the expensive one. Only the explicitly PLURAL forms
   // remain.
-  { code: 'multi-graphic-request', pattern: /\b(set of (?:three|four|five|\d+)|multiple graphics)\b/i, message: 'Lite creates one graphic at a time.', suggestion: 'Describe the single most important graphic you need first.' },
-  { code: 'advanced-state-machine', pattern: /\b(branching|state machine|multiple parallel states|conditional transition)\b/i, message: 'Lite does not create advanced branching or parallel state machines.', suggestion: 'Ask for one graphic with a simple entrance, hold, update, and exit.' },
-  { code: 'reference-recreation', pattern: /\b(recreate|replicate|copy|pixel[- ]perfect).{0,40}\b(screenshot|reference|image|graphic)\b/i, message: 'Lite does not recreate graphics from reference images.', suggestion: 'Describe the desired palette, hierarchy, mood, and graphic type in words.' },
-  { code: 'import-conversion', pattern: /\b(convert|repair|rewrite).{0,40}\b(import|html|zip|template)\b/i, message: 'Lite does not convert or repair imported templates.', suggestion: 'Ask Lite to create a new common graphic from a short brief.' },
-  { code: 'video-request', pattern: /\b(remotion|hyperframes|3d scene|cinematic sequence|video project)\b|\b(?:create|make|generate|render|produce|export)\b.{0,30}\bvideo\b/i, message: 'Lite creates editable broadcast graphics, not video projects.', suggestion: 'Ask for one lower third for a person, story, event, team, or organization.' },
-  { code: 'external-data', pattern: /\b(fetch|api|live feed|database|websocket|real[- ]time data)\b/i, message: 'Lite cannot add external data or network dependencies.', suggestion: 'Ask for editable fields that an operator can update in NoaCG.' },
+  { code: 'multi-graphic-request', pattern: /\b(set of (?:three|four|five|\d+)|multiple graphics)\b/i, message: 'Create with AI creates one graphic at a time.', suggestion: 'Describe the single most important graphic you need first.' },
+  { code: 'advanced-state-machine', pattern: /\b(branching|state machine|multiple parallel states|conditional transition)\b/i, message: 'Create with AI does not create advanced branching or parallel state machines.', suggestion: 'Ask for one graphic with a simple entrance, hold, update, and exit.' },
+  { code: 'reference-recreation', pattern: /\b(recreate|replicate|copy|pixel[- ]perfect).{0,40}\b(screenshot|reference|image|graphic)\b/i, message: 'Create with AI does not recreate graphics from reference images.', suggestion: 'Describe the desired palette, hierarchy, mood, and graphic type in words.' },
+  { code: 'import-conversion', pattern: /\b(convert|repair|rewrite).{0,40}\b(import|html|zip|template)\b/i, message: 'Create with AI does not convert or repair imported templates.', suggestion: 'Ask Create with AI to make a new common graphic from a short brief.' },
+  { code: 'video-request', pattern: /\b(remotion|hyperframes|3d scene|cinematic sequence|video project)\b|\b(?:create|make|generate|render|produce|export)\b.{0,30}\bvideo\b/i, message: 'Create with AI creates editable broadcast graphics, not video projects.', suggestion: 'Ask for one lower third for a person, story, event, team, or organization.' },
+  { code: 'external-data', pattern: /\b(fetch|api|live feed|database|websocket|real[- ]time data)\b/i, message: 'Create with AI cannot add external data or network dependencies.', suggestion: 'Ask for editable fields that an operator can update in NoaCG.' },
 ];
 
 export function obviousUnsupportedDecision(prompt: string): LiteDecision | null {
@@ -1260,7 +1260,7 @@ export function deterministicUnsupportedDecision(request: LiteGenerationRequest)
     return {
       status: 'unsupported',
       code: 'unsupported-category',
-      message: 'The first NoaCG Lite release is focused on excellent lower thirds.',
+      message: 'Create with AI is focused on excellent lower thirds for now.',
       suggestedBrief: 'Describe one lower third for a person, story, event, team, or organization.',
     };
   }
@@ -1892,7 +1892,7 @@ export function validateLiteDecision(
           decision: {
             status: 'unsupported',
             code: 'unsupported-category',
-            message: `${inference.category} is understood but does not yet have a Lite compiler.`,
+            message: `${inference.category} is understood but is not available in Create with AI yet.`,
             suggestedBrief: 'Choose lower-third to create this design now.',
             categoryChoices: [
               { category: inference.category, confidence: inference.confidence, reason: 'Best interpretation of the brief.' },

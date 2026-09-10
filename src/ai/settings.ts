@@ -148,18 +148,18 @@ export const AI_MODELS: AiModelOption[] = [
   },
 ];
 
-/** The Create-with-AI execution tiers. 'lite' and 'pro' are managed experiences (no model
- *  picking); 'custom' is the BRING YOUR OWN KEY surface.
+/** The Create-with-AI execution ids.
  *
- *  **The id `custom` is persisted** (localStorage `spx-gfx-ai`), so it stays as it is while the
- *  label the user reads changed to "Bring your own key" - renaming the id would silently reset
- *  every visitor who had chosen that tier. */
+ *  A STORED `tier` is only ever `null` (the hosted path) or `custom` (the user's own account);
+ *  `loadAiSettings` normalizes every historical value to one of those, so nothing reads `lite`
+ *  or `pro` out of storage any more.
+ *
+ *  They stay in the union because `lite` is still the LIVE in-memory route the AI step resolves
+ *  to and runs (`profile: 'lite'`), and `pro` is what its frozen branches compare against while
+ *  the hosted Pro door is closed - see docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md.
+ *  Neither is dead vocabulary, and neither is written to `spx-gfx-ai`. */
 export const AI_TIERS = ['lite', 'pro', 'custom'] as const;
 export type AiTier = (typeof AI_TIERS)[number];
-
-export function isAiTier(value: unknown): value is AiTier {
-  return typeof value === 'string' && (AI_TIERS as readonly string[]).includes(value);
-}
 
 /**
  * NOTE FOR ANYONE LOOKING FOR A PRO FLAG HERE: there isn't one, and there must not be.
@@ -170,17 +170,16 @@ export function isAiTier(value: unknown): value is AiTier {
  * reserves and settles per account. A client flag beside a server answer is two switches for
  * one door: a deployment then meters Pro while showing no door, or shows one it will refuse.
  *
- * A visitor who had already chosen Pro resolves to another tier where it is not offered; the
- * saved value is untouched, so it comes back the moment the server offers it again. And a
- * NoaCG tier never degrades into a key request: where we cannot run it on our own service, it
- * is ABSENT (owner, 2026-08-14).
+ * The wizard door is closed even when this status endpoint reports availability. The status
+ * and pipeline remain in place for the measured comparison recorded in
+ * docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md.
  */
 
 export interface AiSettings {
   provider: AiProviderId;
   model: string;
-  /** The chosen execution tier; null = not chosen yet (the AI step resolves the default:
-   *  Lite when the server offers it, otherwise the custom/BYO surface). */
+  /** The execution route: null = hosted, custom = the user's own account. Historical lite and
+   *  pro ids are accepted only so loadAiSettings can migrate them on read. */
   tier: AiTier | null;
   /** Explicitly ordered routes only. No entry means no cross-provider fallback. */
   fallbacks: ModelRoute[];
@@ -305,10 +304,13 @@ export function loadAiSettings(): AiSettings {
   const model = typeof saved.model === 'string' && saved.model.trim()
     ? saved.model.trim()
     : env('VITE_AI_MODEL') || defaultModelForProvider(provider) || DEFAULT_MODEL;
+  // Historical managed ids now resolve to the single hosted path. Preserve `custom`, whose
+  // meaning has not changed, and normalize every other stored value to the hosted null id.
+  const tier: AiTier | null = saved.tier === 'custom' ? 'custom' : null;
   return {
     provider,
     model,
-    tier: isAiTier(saved.tier) ? saved.tier : null,
+    tier,
     fallbacks: 'fallbacks' in saved ? validRoutes(saved.fallbacks) : envRoutes(),
     configuredProviders: validProviders(saved.configuredProviders),
     keyStorageAvailable: typeof saved.keyStorageAvailable === 'boolean' ? saved.keyStorageAvailable : null,

@@ -351,16 +351,14 @@ test('the Import card names the file types its own drop zone takes', async ({ pa
   await expect(page.locator('[data-entry="ai"] .hint')).not.toContainText('.zip');
 });
 
-test('an offline build promises no free tier it cannot run', async ({ page }) => {
+test('the AI card carries no tier or paid-edition copy', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
-  // The AI card names NoaCG Lite as free where there is a backend to meter its allowance
-  // against (pinned in e2e/configured/anonymous.spec.ts). This suite is pinned OFFLINE, where
-  // there are no accounts and no Lite - so the clause, and every word about an account, must
-  // be absent. A self-hosted studio grows no auth UI at all (root AGENTS.md, auth posture),
-  // and a card advertising a tier the build cannot run is the same broken promise in copy.
+  // The entry grid has a measured height budget, and the hosted route has no edition name or
+  // marketing clause in any build state. Configured mode pins the same absence in
+  // e2e/configured/anonymous.spec.ts.
   const hint = page.locator('[data-entry="ai"] .hint');
   await expect(hint).toContainText('Describe the graphic you need');
-  await expect(hint).not.toContainText(/NoaCG Lite|free account/);
+  await expect(hint).not.toContainText(/NoaCG Lite|free with|included|free account/i);
 });
 
 test('both AI doors are marked Beta', async ({ page }) => {

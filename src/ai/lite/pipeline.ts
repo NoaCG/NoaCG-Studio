@@ -148,7 +148,7 @@ export function normalizeLiteSpec(raw: DesignSpec, userSpec?: GenerateContext['s
 
 /** The block heading the skin's override CSS lands under (the polish gate writes it). */
 export const LITE_SKIN_MARKER =
-  '/* ── NoaCG Lite skin (AI-authored look — same contracts as the design CSS above) ── */';
+  '/* ── Create with AI skin (AI-authored look — same contracts as the design CSS above) ── */';
 
 export interface LiteSkinnedAssembly {
   template: SpxTemplate;
@@ -275,7 +275,7 @@ export async function compileLiteDecision(
 ): Promise<LiteCompileResult> {
   const spec = normalizeLiteSpec(raw, ctx.spec);
   const primaryVariantId = spec.variantId;
-  if (!primaryVariantId) throw new Error('Lite decision has no reference chassis.');
+  if (!primaryVariantId) throw new Error('Create with AI returned no reference chassis.');
   let skinOutcome: LiteCompileResult['skinOutcome'] = 'none';
   let skinRejectionRules: string[] | undefined;
   if (skin) {
@@ -318,7 +318,7 @@ export async function compileLiteDecision(
     };
     if (validation.ok && !holdFindings.length) break;
   }
-  if (!last) throw new Error('Lite has no reference chassis to compile.');
+  if (!last) throw new Error('Create with AI has no reference chassis to compile.');
   if (last.holdFindings.length) {
     last.validation = {
       ...last.validation,
@@ -327,7 +327,7 @@ export async function compileLiteDecision(
         ...last.validation.errors,
         ...last.holdFindings.map((finding) => ({
           rule: `lite-hold-${finding}`,
-          message: `The rendered hold frame failed Lite's ${finding} check.`,
+          message: `The rendered hold frame failed Create with AI's ${finding} check.`,
         })),
       ],
     };

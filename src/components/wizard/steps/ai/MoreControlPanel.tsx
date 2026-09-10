@@ -328,7 +328,7 @@ function LookSection({ spec, onSpec, uploads, disabled, allowUploads = true }: P
 
       {!allowUploads ? (
         <p className="hint" style={{ marginTop: 10 }}>
-          Image and logo input is paused while NoaCG Lite concentrates on lower-third quality.
+          Image and logo input is paused while Create with AI concentrates on lower-third quality.
         </p>
       ) : (
         <>

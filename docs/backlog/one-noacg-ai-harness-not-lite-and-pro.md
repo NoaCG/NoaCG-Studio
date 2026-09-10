@@ -3,7 +3,13 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-10
-state: unstarted
+state: advanced
+note: >-
+  452bda6e closed the DOOR - one hosted Create with AI option, no tier chooser, no user-visible
+  Lite or Pro, stored tiers migrated on read - and 206665a4 fixed what the review found in it.
+  The ask still stands for parts 4 and 6: the hosted route still adapts a proven catalog design
+  rather than authoring like a coding agent, the measured comparison that decides which harness
+  survives has not run, and OpenRouter is not a BYO provider yet. See "What is still open" below.
 asked: "we need to change the harness names and just have one AI option ... It's a bit confusing to have to choose what model I should use"
 ---
 # One NoaCG AI harness, no tiers, no model chooser
@@ -100,3 +106,48 @@ is the least bad. Avoid anything implying a level - no Studio, Plus, Core, Prime
 **Do not start by deleting the Pro pipeline.** The first job is the comparison that decides which
 harness survives; the copy change on the card can land long before that and should, because the
 card is wrong today either way.
+
+## What landed on 2026-09-10 - the DOOR, not the pipeline
+
+The user-facing half is done. The tier radio group is gone from the AI step's settings sheet;
+there is one hosted path with no name of its own, and the only other route is the user's own key,
+reached from a single checkbox rather than a third option in a list. No surface a user can read
+says "Lite" or "Pro" any more, and no copy names an allowance as a selling point.
+
+**The surviving hosted behaviour is today's Lite pipeline** - literally what every visitor already
+got by default, since Pro was never the default and had to be clicked. Hosted Pro's DOOR closed;
+its pipeline, its server routes and its `proMode` branches inside `AiStep.tsx` are untouched and
+simply never run, so reopening it is one line at the tier resolution.
+
+**Why not auto-route to whichever pipeline the server offers**, which was the first proposal: Lite
+and Pro are not two quality levels of one workflow. They differ in allowed categories, in the
+field cap (8 against 3), in whether a logo may be uploaded, in whether a result can be refined or
+only regenerated, and in the unit of output (one graphic against a package). A machine picking
+between them silently would change the step's SHAPE from one visit to the next with nothing on
+screen explaining why - the confusion he asked to remove, minus the label that at least explained
+it. And routing the cohort onto Pro by default is the cost decision part 5 reserves for the
+comparison, made blind: Pro is roughly twelve times Lite per graphic.
+
+Stored preferences migrate on read: `'lite'` and `'pro'` both resolve to the hosted path, `'custom'`
+is untouched. The ids stay in `AI_TIERS` as read-only history, because deleting one resets the
+storage of everyone who chose it (`ai/preserve-stored-ids-change-their-display`).
+
+## What is still open
+
+- **The comparison, and the harness that comes out of it.** Which pipeline survives, measured on
+  today's catalog, is untouched by the above. Until it runs, `src/ai/pro/` is code with no door.
+- **His longer-term half is NOT this row and was not attempted.** *"The goal here is that it can
+  create graphics like Claude Code and Codex. It should not just be a template copy with their own
+  text."* The hosted path still adapts a proven catalog design - that is exactly what Lite is - so
+  the bar in part 4 is not met and closing the Pro door did not move it. That work is the
+  continuous model work he named, and it belongs with the comparison above.
+- **OpenRouter as a fifth BYO provider** (part 6) is not done.
+- **The compiled invariant `wizard/offer-pro-tier-only-where-can`** still names the Pro tier and
+  now describes a door that is closed. It must be re-recorded with `npm run learn`, never edited
+  by hand.
+- **The entry card carries no under-construction sentence.** The card has a measured height budget
+  (`e2e/wizard-entry-fit.spec.ts`) and a fourth line pushes the video strip below the fold, so the
+  "do not rely on this yet" steer went on the AI step instead, where the reader has opened the
+  door. If he wants it on the card, the card's layout has to give up a line somewhere else first.
+- **`docs/GOALS.md` "NEXT - AI that anyone can afford"** still describes three tiers behind one
+  door. Its table is now a description of the pipelines, not of what a user is offered.

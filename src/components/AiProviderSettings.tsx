@@ -35,7 +35,7 @@ interface Props {
 
 /** The managed route as the ONE neutral row a picker may show for it. */
 const MANAGED_OPTION = {
-  label: 'NoaCG default (included)',
+  label: 'NoaCG (no key needed)',
   blurb: 'Runs on NoaCG’s own account — no key of your own needed.',
 };
 
