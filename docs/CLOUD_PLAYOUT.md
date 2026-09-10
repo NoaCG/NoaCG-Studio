@@ -91,7 +91,12 @@ interface Show {
 - **`output_slug text unique`** — a second, independent capability: holding it authorizes
   RENDERING the production, nothing else. It never appears in `control_show_by_slug`, so a
   control-page operator cannot derive it, and the output URL cannot operate the show beyond
-  what rendering requires (`control_report`). Generated URL-safe
+  what rendering requires (`control_report`). **It does resolve the show's uuid**, because a
+  renderer needs it to follow the log — so the id is an ADDRESS and never an authority, and
+  anything keyed on it (a realtime topic, most of all) has to be able to refuse a writer on its
+  own. It could not for one morning in September 2026, and migration 0056 is that repair;
+  `e2e/configured/output-url-cannot-push.spec.ts` is what holds this paragraph to its word.
+  Generated URL-safe
   (`translate(encode(gen_random_bytes(9),'base64'),'+/','-_')`) — the 0008 slug's raw base64
   survives only inside a query parameter; this one must also survive being hand-typed.
 - **`output jsonb`** — the renderable payload, written at publish:
