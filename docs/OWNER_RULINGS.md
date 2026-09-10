@@ -706,3 +706,37 @@ session is scripted as beats with a costed gap list in `docs/DEMO_2026-09-25.md`
 change: the 2026-09-12 student production still happens, as the rehearsal. He relaxed its
 pressure; he did not cancel the quiz or the scoreboard. For the question of what current work
 serves, this supersedes the 2026-08-22 ruling that named the 12th.
+
+---
+
+## 2026-09-10 - three answers on the 25 September gap list
+
+Given in a wave session, on three rows of `docs/DEMO_2026-09-25.md` §7. Paraphrased from speech,
+so the intent binds and the wording does not.
+
+**The Yle venue network screenshot (§7 row 1, beat B0) is his, off the ledger.**
+
+> I will take care of the Yle network screenshot when I get there, you do not have to remind me.
+
+What it changes: the row and the owner-queue item `2026-09-09-g-yle-network-diag-screenshot.md`
+are both deleted, and B0's status cell says he owns it off-ledger. What it does not change: the
+fallback. If the app does not boot on the venue network on the day we bring our own connection
+and say so in the room, exactly as before. He owns getting the screenshot, not the consequence of
+not having one.
+
+**The hardware rows (§7 rows 2, 3 and 10; beats A3, A4, A6) are no longer owned by the 12th.**
+
+> A few weeks at least.
+
+That is his estimate for when the CasparCG and OBS ticks can actually happen, and a few weeks
+from the 10th lands on or past the 25th. So the three rows stop naming 2026-09-12 as the date
+that closes them and say what happens on the day WITHOUT the box, which is the honest planning
+answer: A3 and A4 run on our own hardware, A6 is cut and A4 covers it by hand. The acceptance
+lines in `docs/STUDENT_RELEASE_ACCEPTANCE.md` stay exactly where they are and stay unticked; what
+moved is who is expected to tick them and when, not the box.
+
+**The deck (§7 row 13, beat O2) stays open, and he wants the reminder.**
+
+Asked whether the reminder to open `docs/presentation-2026-09-25/NoaCG-2026-09-25.pptx` should be
+retired the way row 1 was, he said no. The row is unchanged and the owner-queue item filed with
+the deck stays. Keep surfacing it until he has opened it.
