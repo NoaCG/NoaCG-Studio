@@ -121,6 +121,24 @@ async function boot(): Promise<void> {
   const stage = createOutputStage(document.body, resolved.output);
   dbg('graphics', stage.graphics.join(', '));
 
+  /**
+   * HOW MANY ENTRANCES THIS RENDERER HAS PLAYED, published on the body as `data-plays`.
+   *
+   * The same attribute `PayloadStage` publishes for the app's monitors, for the same reason and
+   * on the surface that matters most: a DUPLICATE command is the one renderer fault that leaves
+   * no trace. Replaying `play` on a graphic already up re-runs an animation and settles on
+   * exactly the picture that was already there, so air after the bug is pixel-identical to air
+   * without it. With a verb now travelling two roads (broadcast and durable log), "did that press
+   * arrive once?" is a question only a count can answer, and this is the renderer's own answer to
+   * it (e2e/configured/playout-both-roads.spec.ts).
+   *
+   * It renders nothing - an attribute is not a picture - so the rule that nothing but graphics
+   * ever reaches air is untouched, and it costs one integer whether anybody is reading it or not.
+   */
+  let plays = 0;
+  document.body.setAttribute('data-plays', '0');
+  const countPlay = () => document.body.setAttribute('data-plays', String((plays += 1)));
+
   // ── Recovery baselines (0033): each live entry records the log row the renderer had applied
   // when it wrote that report, so the boot follows from the OLDEST baseline and skips, per
   // graphic, what its own snapshot already contains. Nothing reported at all means the START of
@@ -261,6 +279,7 @@ async function boot(): Promise<void> {
     // re-guessed: a server row's `created_at` wins, and a locally-authored row falls back to now,
     // which is correct there because that log has exactly one renderer.
     stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg);
+    if (msg.t === 'play') countPlay();
     if (clock && effect?.when === 'after') applyClock(row.graphic, { [clock.field]: effect.value });
     if (pairEffect?.when === 'after') applyClock(row.graphic, pairEffect.values);
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
