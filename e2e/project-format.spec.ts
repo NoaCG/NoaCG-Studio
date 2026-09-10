@@ -1,8 +1,9 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';
-import { finishIntoEditor, enableAdvancedMode, startNewProject } from './_create';
+import { createProject, finishIntoEditor, enableAdvancedMode, startNewProject } from './_create';
 import { pickDesign } from './_browse';
+import { settleDurableWrites } from './_durable';
 
 async function pickFormat(
   page: Page,
@@ -416,4 +417,153 @@ test('native 4K capture is not downsampled and a deliberate 1px hairline stays o
   expect(png.readUInt32BE(16)).toBe(3840);
   expect(png.readUInt32BE(20)).toBe(2160);
   await testInfo.attach('native-4k', { path, contentType: 'image/png' });
+});
+
+// ── A format the catalogue does NOT offer ────────────────────────────────────────────────────
+//
+// Everything above pins what happens when a project format is CHOSEN. These two pin what happens
+// when one arrives that nobody could have chosen: the owner screenshotted a graphic at 1920x1880
+// on 2026-08-29 (docs/backlog/editor-canvas-1920x1880.md) and the number reached the header, the
+// canvas chip and a saved record without one word of complaint, because `validateProjectFormat`
+// had no callers anywhere in src/.
+//
+// Nothing refuses. Refusing to open would lose the reader's work and refusing to save would
+// strand it; an unknown format is a document nobody has measured, not a broken one. So the two
+// halves are a MARK on the live format label (components/ProjectFormatMeta.tsx, one derived call
+// that covers every load door at once) and a WORD on the save status (store/saveActions.ts).
+// Remove either call and one of these two tests goes red - that is what they are for.
+
+/** Put the unsupported resolution on the AUTOSAVE SLOT, so the boot restore is what carries it -
+ *  the same road as the owner's screenshot, which showed a document already `Saved` and `Synced`.
+ *
+ *  It applies the template to the STORE before writing the slot, and that ordering is the whole
+ *  reason this is a helper. The 800 ms autosave timer armed by whatever created the project is
+ *  still pending: writing the slot behind the store's back leaves that timer to fire afterwards
+ *  with the template the store actually holds, putting 1920x1080 back. The reload would then read
+ *  a supported format and the assertion would fail as if the feature were broken. */
+async function seedUnsupportedFormat(page: Page): Promise<void> {
+  await page.evaluate(`(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { saveProject } = await import('/src/model/project.ts');
+    const s = useTemplateStore.getState();
+    const template = { ...s.template, resolution: { width: 1920, height: 1880, label: '1920×1880' } };
+    s.applyTemplate(template);
+    saveProject(template, s.baseline, { graphicId: s.saved.graphicId, dirty: false }, s.aiSpec, s.aiThread, s.legibility);
+  })()`);
+  await settleDurableWrites(page);
+  await page.reload();
+}
+
+test('a restored graphic whose format the catalogue does not offer is marked, not refused', async ({ page }) => {
+  await createProject(page, 'Hairline');
+  await seedUnsupportedFormat(page);
+
+  // It still opened. The chip prints the number it really carries, now with the warning glyph.
+  await expect(page.getByTestId('preview-project-format')).toHaveText('⚠ 1920×1880 · 25 fps');
+  await expect(page.getByTestId('preview-project-format')).toHaveAttribute(
+    'title',
+    /^Unsupported project resolution 1920×1880\./,
+  );
+  await expect(page.getByTestId('topbar-project-format')).toHaveAttribute('data-format-unsupported', 'true');
+
+  // THE TOPBAR IS WIDTH-BANDED, and both sides of that are asserted because the temptation is to
+  // make a warning immune to the bar's width ladder - which is how the account avatar ends up off
+  // the right edge on the commonest laptop there is. The suite runs at 1280
+  // (devices['Desktop Chrome']), under the 1400px rule that drops the format line: it stays
+  // dropped, warning or not. Above the breakpoint the warning is worn in the header too.
+  // VISIBILITY, never text: `toHaveText` passes on a hidden span.
+  await expect(page.getByTestId('topbar-project-format')).toBeHidden();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.getByTestId('topbar-project-format')).toBeVisible();
+  await expect(page.getByTestId('topbar-project-format')).toHaveText('⚠ 1920×1880 · 25 fps');
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  // And the mark is CONDITIONAL. An ordinary catalogue format carries neither glyph nor flag.
+  await createProject(page, 'Hairline');
+  await expect(page.getByTestId('preview-project-format')).toHaveText('1920×1080 · 25 fps');
+  await expect(page.getByTestId('preview-project-format')).not.toHaveAttribute('data-format-unsupported', 'true');
+  await expect(page.getByTestId('topbar-project-format')).not.toHaveAttribute('data-format-unsupported', 'true');
+});
+
+/** The topbar's own overflow test, the same arithmetic as `configured/signed-in-ux.spec.ts`:
+ *  how far past the bar's right edge its widest child reaches. Positive is an overflow, which is
+ *  the account avatar hanging off the screen. */
+async function topbarOverflowPx(page: Page): Promise<number> {
+  return page.locator('.topbar').evaluate((bar) => {
+    const boxes = [...bar.children].map((c) => c.getBoundingClientRect()).filter((r) => r.width > 0);
+    return Math.round(Math.max(...boxes.map((r) => r.right)) - bar.getBoundingClientRect().right);
+  });
+}
+
+test('a save carrying an unsupported format lands and says so instead of "Saved"', async ({ page }) => {
+  await createProject(page, 'Hairline');
+
+  // First save = saveGraphicAs. A catalogue format must not warn.
+  await page.getByTestId('save-graphic').click();
+  await expect(page.getByTestId('save-dialog')).toBeVisible();
+  await page.getByTestId('save-name').fill('Format guard');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(page.getByTestId('save-status')).not.toHaveAttribute('data-format-unsupported', 'true');
+
+  // Now make the OPEN document carry it. `applyTemplate` with no opts keeps the save link
+  // (store/templateStore.ts only resets `saved` when resetSampleData is set), so the next press
+  // is saveCurrentGraphic rather than a second Save As.
+  await page.evaluate(`(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const s = useTemplateStore.getState();
+    s.applyTemplate({ ...s.template, resolution: { width: 1920, height: 1880, label: '1920×1880' } });
+  })()`);
+  await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
+
+  await page.getByTestId('save-graphic').click();
+  // The save WORD is banded too, and unlike the header's line it survives the narrow bar: at 1280
+  // the amber ⚠ carries it alone (the reason costs ~150px, the glyph ~15), and the full sentence
+  // is on the title at every width. Assert the flag and the title here, then widen for the words.
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-format-unsupported', 'true');
+  await expect(page.getByTestId('save-status')).toHaveAttribute(
+    'title',
+    /^Unsupported project resolution 1920×1880\./,
+  );
+  // useInnerText, because the reason is dropped with `display: none` and the default textContent
+  // read would report it at every width - the assertion would pass on a bar that overflows.
+  await expect(page.getByTestId('save-status')).toHaveText('Saved', { useInnerText: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.getByTestId('save-status')).toHaveText('Saved · unsupported format', { useInnerText: true });
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  // A copy carries the same warning: saveGraphicAs is the OTHER save door and calls the
+  // validator on its own. Without this the Save-As call would be unpinned - the first save
+  // above ran it too, but on a format the catalogue offers, where a missing call reads as a pass.
+  await page.getByTestId('save-menu').click();
+  await page.getByTestId('save-as').click();
+  await expect(page.getByTestId('save-dialog')).toBeVisible();
+  await page.getByTestId('save-name').fill('Format guard copy');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-format-unsupported', 'true');
+
+  // AND THE BAR STILL FITS in the warned state, which is the thing this whole banding is for.
+  // `configured/signed-in-ux.spec.ts` walks the same ladder with the account cluster in the bar
+  // and can only run with credentials; this is the signed-out half, in the one state that spec
+  // never reaches. 1366 is the commonest laptop and the width app-shell.css was measured at.
+  for (const width of [1440, 1366, 1280, 1100]) {
+    await page.setViewportSize({ width, height: width >= 1400 ? 900 : 768 });
+    expect(await topbarOverflowPx(page), `topbar overflow at ${width}px with an unsupported format`)
+      .toBeLessThanOrEqual(0);
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  // Both records LANDED - the saves were announced, never refused.
+  await settleDurableWrites(page);
+  const stored = await page.evaluate(`(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const size = (name) => {
+      const doc = loadGraphics().find((g) => g.name === name);
+      return doc ? doc.template.resolution.width + 'x' + doc.template.resolution.height : null;
+    };
+    return { original: size('Format guard'), copy: size('Format guard copy') };
+  })()`);
+  expect(stored).toEqual({ original: '1920x1880', copy: '1920x1880' });
 });

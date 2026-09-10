@@ -186,7 +186,15 @@ interface TemplateState {
    *  live status. `dirty` flips on in the template subscription below and off in
    *  store/saveActions.ts; both halves persist with the autosave slot so a reload keeps an
    *  honest badge. */
-  saved: { graphicId: string | null; dirty: boolean; status: 'idle' | 'saving' | 'failed' };
+  saved: {
+    graphicId: string | null;
+    dirty: boolean;
+    status: 'idle' | 'saving' | 'failed';
+    /** The project-format issues the last save carried (model/projectFormat.ts
+     *  validateProjectFormat). Empty or absent = the format is one the catalogue offers.
+     *  In-memory only; it is never persisted, so it is not a format version bump. */
+    formatIssues?: string[];
+  };
 
   setActiveTab: (tab: EditorTab) => void;
   setPreviewBg: (bg: PreviewBg) => void;

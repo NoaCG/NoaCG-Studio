@@ -104,6 +104,10 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.preview-project-format[data-format-unsupported='true'] {
+  border-color: rgba(246, 166, 35, 0.55);
+  color: var(--amber);
+}
 /* The area-type button's glyph: a T in a dashed box — the tool draws a bounded text area. */
 .tool-area-glyph {
   display: inline-block;

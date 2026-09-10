@@ -7,6 +7,7 @@ import { computePad } from './canvas/pasteboard';
 import { cancelCanvasSpaceTap, noteCanvasSpaceDown, spacePansCanvas, takeCanvasSpaceTap } from './spaceKey';
 import CanvasGuides from './canvas/CanvasGuides';
 import CanvasInteraction from './canvas/CanvasInteraction';
+import ProjectFormatMeta from './ProjectFormatMeta';
 
 interface Props {
   iframeRef: RefObject<HTMLIFrameElement | null>;
@@ -398,13 +399,7 @@ export default function PreviewFrame({ iframeRef }: Props) {
       )}
 
       <div className="preview-toolbar">
-        <span
-          className="preview-project-format"
-          data-testid="preview-project-format"
-          title="Authored project format"
-        >
-          {stageW}×{stageH} · {template.fps} fps
-        </span>
+        <ProjectFormatMeta template={template} className="preview-project-format" testId="preview-project-format" />
         {placedDesign && (
           <div className="tool-switch" data-testid="tool-switch">
             <button
