@@ -54,8 +54,10 @@ Timestamps, not impressions, and taken where the operator's eye is - the PROGRAM
    large is the answer; today nobody knows which of the four it is.
 2. Do it with the quiz he used - a bound behaviour, drawn state layers, several cues - not a lower
    third. The quiz's drawn states each trigger a re-measure through `svgFitDue` -> `fitSvgText`
-   (`importedDesign/drawnState.ts`), which is real work on a state change and is absent from a
-   simple graphic.
+   (declared in `src/templates/importedDesign/svg.ts`, called from the drawn-state setter in
+   `src/templates/importedDesign/behaviourRuntime.ts`), which is real work on a state change and
+   is absent from a simple graphic. There is no `importedDesign/drawnState.ts`; the earlier
+   citation named a file that has never existed.
 3. Drive the sequence he described: move up and down the rundown, play, stop, play again. If the
    preview rebuild above is the cause, the lag will follow SELECTION rather than the verbs, and
    that is a decisive, cheap experiment to run first.
