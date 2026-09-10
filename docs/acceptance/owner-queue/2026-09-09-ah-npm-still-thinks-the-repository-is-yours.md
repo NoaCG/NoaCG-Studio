@@ -2,6 +2,7 @@
 kind: owner-action
 date: 2026-09-09
 needs: account
+done: true
 ---
 # npm still thinks the repository is `miwco/NoaCG-Studio`, so the CLI cannot publish
 
@@ -62,3 +63,19 @@ want to see it yourself, `npm view @noacg/cli version` should say `0.3.1`.
 
 Nothing was published tonight, so nothing has to be taken back. The two failed runs are
 `34408194386` and `34408479669`.
+
+## Done - 0.3.1 is on npm (2026-09-10)
+
+The owner replaced the trusted-publisher connection with the `NoaCG` organisation, and the pinned
+run `34408194386` was re-run rather than a fresh one started. It published, and the registry was
+asked afterwards rather than the run believed: `@noacg/cli` is `0.3.1`, `latest` points at it, its
+provenance attestation names `https://github.com/NoaCG/NoaCG-Studio`, the workflow
+`.github/workflows/release-cli.yml` and the ref `refs/tags/cli-v0.3.1`, and
+`npx -y @noacg/cli@0.3.1 --version` answers `0.3.1`. The GitHub Release
+`https://github.com/NoaCG/NoaCG-Studio/releases/tag/cli-v0.3.1` exists. The npm package page now
+links the `NoaCG` repository too, because that link is read from the tarball that was just
+published rather than from the old one.
+
+Kept as a record rather than deleted: it is the explanation of why a repository move breaks
+publishing silently, which the next move will need. `docs/AGENT_CLI.md` carries the corrected
+values and the allowed-actions row.
