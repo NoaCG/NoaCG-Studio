@@ -322,6 +322,10 @@ test('one button puts the production on the configured channel, and one takes it
   await expect(page.getByTestId('caspar-air-target')).toContainText('2-30');
   await page.getByTestId('caspar-put-on-air').click();
   await expect(page.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
+  // THE WORDS, not only the state. Both buttons succeed identically - `{ state: 'ok' }` - so a
+  // message written from the result alone reads "On 2-30" after Take off too. It did, until a
+  // real CasparCG 2.5.0 showed it on 2026-09-10; this spec passed the whole time.
+  await expect(page.getByTestId('caspar-air-result')).toHaveText('✓ On 2-30');
 
   // THE WHOLE LIVE LINK is this one command: the production's own output URL, on the configured
   // channel and layer. Everything after it - every cue, take, update, recovery - travels on the
@@ -334,6 +338,7 @@ test('one button puts the production on the configured channel, and one takes it
 
   await page.getByTestId('caspar-take-off-air').click();
   await expect(page.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
+  await expect(page.getByTestId('caspar-air-result')).toHaveText('✓ Off 2-30');
   expect(agent.commands[1]).toBe('STOP 2-30');
 });
 

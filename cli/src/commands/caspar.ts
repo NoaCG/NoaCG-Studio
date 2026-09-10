@@ -62,6 +62,12 @@ export interface AmcpReply {
  *   400 ERROR\r\n<the offending command>\r\n      (and 4xx/5xx generally: status only)
  * There is NO greeting banner, so the command goes out as soon as the socket is up - waiting
  * for one would hang every call.
+ *
+ * Every one of those shapes was guessed at from the AMCP documentation until 2026-09-10, when all
+ * four came back off a real server: `201 VERSION OK` + one line, `200 INFO OK` + lines + a blank
+ * terminator, `202 PLAY OK` alone, and `400 ERROR` echoing the command it refused - which on
+ * CasparCG 2.3.2 is `HELP`, a command that build does not have. Measured on 2.3.2 (`4de6d18f Dev`)
+ * and 2.5.0 (`69e8ad5 Stable`); no shape needed changing.
  */
 function parseAmcp(buffer: string): AmcpReply | null {
   const end = buffer.indexOf('\r\n');

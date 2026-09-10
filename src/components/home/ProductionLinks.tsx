@@ -43,7 +43,20 @@ import {
  */
 function CasparAirRow({ outputUrl }: { outputUrl: string | null }) {
   const [busy, setBusy] = useState<'air' | 'stop' | null>(null);
-  const [result, setResult] = useState<CasparResult | null>(null);
+  // WHICH command produced this result, not just the result. Both buttons succeed the same way -
+  // `{ state: 'ok' }` - so a message written from the result alone said "✓ On 1-20" after Take
+  // off as well, telling an operator the graphic was up a second after they took it down.
+  // Measured against a real CasparCG 2.5.0 on 2026-09-10; the fake-agent spec could not see it,
+  // because it asserted on `data-state` and never on the words.
+  // The ADDRESS is captured with it, and for the mirror of the reason `run` re-reads the settings
+  // below: this sentence is PAST tense. Rendering `casparAddress(settings)` re-derives it from
+  // present settings, so airing on 2-30 and then typing layer 40 for the next show turns a
+  // standing verdict into "✓ On 2-40" - a claim about a layer nothing was ever sent to.
+  const [outcome, setOutcome] = useState<{
+    what: 'air' | 'stop';
+    address: string;
+    result: CasparResult;
+  } | null>(null);
 
   // Read on every render, and again at the moment of the click, rather than latching a copy at
   // mount: Settings is a modal that can be opened and changed without this page unmounting, and
@@ -55,9 +68,10 @@ function CasparAirRow({ outputUrl }: { outputUrl: string | null }) {
   const run = async (what: 'air' | 'stop') => {
     const now = loadCasparSettings();
     setBusy(what);
-    setResult(null);
+    setOutcome(null);
     try {
-      setResult(what === 'air' ? await airOnCaspar(now, outputUrl!) : await stopOnCaspar(now));
+      const result = what === 'air' ? await airOnCaspar(now, outputUrl!) : await stopOnCaspar(now);
+      setOutcome({ what, address: casparAddress(now), result });
     } finally {
       setBusy(null);
     }
@@ -76,13 +90,15 @@ function CasparAirRow({ outputUrl }: { outputUrl: string | null }) {
         </>
       }
       under={
-        result && (
+        outcome && (
           <span
-            className={result.state === 'ok' ? 'status-ok' : 'status-bad'}
+            className={outcome.result.state === 'ok' ? 'status-ok' : 'status-bad'}
             data-testid="caspar-air-result"
-            data-state={result.state}
+            data-state={outcome.result.state}
           >
-            {result.state === 'ok' ? `✓ On ${casparAddress(settings)}` : result.detail}
+            {outcome.result.state !== 'ok'
+              ? outcome.result.detail
+              : `✓ ${outcome.what === 'air' ? 'On' : 'Off'} ${outcome.address}`}
           </span>
         )
       }

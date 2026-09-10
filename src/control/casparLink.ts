@@ -307,6 +307,15 @@ export function testCasparConnection(settings: CasparSettings): Promise<CasparRe
  * The whole live link: one PLAY of the production's own output URL. Every cue, take, update
  * and recovery after this flows through the durable command log the /output page already
  * follows - there is deliberately no per-take CG traffic (docs/CASPARCG_CONNECT.md §2).
+ *
+ * THE OUTPUT URL IS THE ONE THIS PAGE'S ORIGIN SERVES, and on 2026-09-10 that turned out to
+ * matter more than it reads. Pressed on a dev server the command carries `http://localhost:<port>/
+ * output?…` - a Vite bundle of untranspiled ES modules, which the CEF in CasparCG 2.3.x (measured
+ * Chromium 71) cannot parse. AMCP still answers `202`, this function still returns `ok`, and the
+ * channel stays black: the one command succeeded, so nothing downstream can tell. The built
+ * bundle is `es2017` with the shims in output.html and airs on the same server. There is no fix
+ * to make here - a page cannot know how its own URL renders elsewhere - so the note is the
+ * mechanism: air a production from the deployment, not from a dev server.
  */
 export function airOnCaspar(settings: CasparSettings, outputUrl: string): Promise<CasparResult> {
   return throughAgent(settings, '/play', { channel: settings.channel, layer: settings.layer, url: outputUrl });
