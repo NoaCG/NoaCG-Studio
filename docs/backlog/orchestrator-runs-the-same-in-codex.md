@@ -3,13 +3,23 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-05
-state: unstarted
+state: advanced
 asked: "we should also check that the orchestrator works as well in Codex as in Claude because I will be using that when we run out of usage"
 serves: H0
 size: standard
-touches: .agents/skills/orchestrator/SKILL.md, .agents/skills/o/SKILL.md, .agent-workflows/orchestrator.md, .agent-workflows/orchestrator/night.md, docs/handoffs/
-covered-by: scripts/check-shared-instructions.mjs, scripts/wave-plan-check.test.mjs
+touches: .agent-workflows/orchestrator.md, .agent-workflows/orchestrator/prompts.md, .agent-workflows/orchestrator/routing.md, scripts/wave-plan-store.mjs, scripts/wave-plan-check.mjs
+covered-by: scripts/check-shared-instructions.mjs, scripts/wave-plan-check.test.mjs, docs/metrics/2026-09-10-orchestrator-in-codex.md
 needs-owner: none
+note: >-
+  5ed1be97 and c7ad7ff3 landed the comparison the ask is about, plus the delegate's own plan as
+  evidence. Codex $orchestrator planned the 2026-09-10 night wave from the same commit, window and
+  inputs as the live Claude plan; both were scored by the same exported checkPlan() - Claude 4
+  rows / 0 problems, Codex 3 rows / 4 problems. The method, the thirteen differences and their
+  classification are in docs/metrics/2026-09-10-orchestrator-in-codex.md, and the delegate's plan
+  itself in docs/metrics/2026-09-10-orchestrator-in-codex-plan.md. Both Codex adapters now name the
+  four mechanisms the shared procedure assumes. STILL MISSING: five gaps in the shared workflow,
+  written out below and deliberately NOT applied, because that file belonged to another session
+  that night.
 ---
 # The orchestrator produces the same plan in Codex as in Claude Code
 
@@ -74,3 +84,46 @@ Three findings do change how the test should be set up when someone runs it:
 Codex runs at `model_reasoning_effort = "low"` from `~/.codex/config.toml`. An orchestrator plan
 written at low effort is not the same experiment as one written at high, and the config decides it
 silently.
+
+## What 2026-09-10 settled, and what is left
+
+**The comparison has been run.** `docs/metrics/2026-09-10-orchestrator-in-codex.md` carries the
+method, the thirteen differences with their classification, and the limits. Codex `$orchestrator`
+produced a complete seven-section night plan on the same commit, the same window and the same
+inputs as the live Claude plan, and both were scored by the same exported `checkPlan()`: Claude 4
+rows and 0 problems, Codex 3 rows and 4 problems, all four the same `POOL`-cell slip.
+
+Settled:
+
+- The three Codex carve-outs the contract already carries all held - no follow-on rows, no refill,
+  the morning-report line in section 7, and no question put to the owner.
+- The predicted adapter defect did not exist. Both adapters were eleven lines of pointer that named
+  no harness fact at all; they now name the four the procedure assumes, inside the 25-line wrapper
+  cap, with the common path unchanged at 640/640.
+- The effort question is still open: this ran at `high`, and the owner's machine runs `low`.
+
+**Five gaps in the shared contract remain, and this row deliberately did not apply them** because
+the orchestrator session owned `.agent-workflows/orchestrator.md` and its module directory that
+night. In priority order, with the evidence in the metrics file:
+
+1. **The core states "this session LAUNCHES its own rows" with no Codex arm**, in the always-loaded
+   core, where it fires before `launch.md` loads. `night.md` carves out the Monitor and `report.md`
+   the morning report; nothing carves out the launch, which is the larger of the three, because it
+   is what decides whether an unattended night is possible there at all.
+2. **The wave-state store is unreachable from Codex.** It lives under the primary checkout's
+   `.git`, Codex writes only inside its own workdir, and core exception 4 forbids the orchestrator
+   from standing in the main checkout. Note what is NOT true here: the plan CHECK is reachable, and
+   the first pass of this write-up said otherwise. `wave-plan-check.mjs`'s CLI refuses a plan
+   outside the store, but `checkPlan()` is exported and pure and scores a workdir plan fine - which
+   is how both plans were scored. So this is about durability, not about gating, and the smaller
+   fix is a check mode that scores a workdir plan while saying in its verdict that it is not
+   durable yet.
+3. **`gh` cannot run in the Codex sandbox**, and section 3 plus `grounding.md` name it as the only
+   instrument for a landing refusal and the morning CI verdict.
+4. **`prompts.md`'s block template has no slot for the delegation content `routing.md` step 3
+   requires**, so the two planners invented two different placements for it.
+5. **The `MODEL` line names a rung that means nothing in Codex**, where there is no agent
+   definition to map it to. Downstream of 1, and it disappears when 1 is answered.
+
+Note for whoever takes these: the core is at 199/200 lines and the common path at 640/640, so none
+of them has room to be answered by adding a paragraph.
