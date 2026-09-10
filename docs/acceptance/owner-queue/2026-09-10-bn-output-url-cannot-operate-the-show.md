@@ -35,9 +35,9 @@ measuring something real.
 
 **Measured, if you want the numbers** (`node scripts/playout-wire-probe.mjs --takes 16`, thirty
 seconds, no browser, and worth running on the venue's wifi): a Take reaches a second screen in a
-median of 97 ms, worst 288 ms. The durable log road, which is what everything used before this
-week, was 131 ms with five presses in 32 landing between 600 and 800 ms. The old public channel
-was 51 ms; the boundary cost about 45 ms and it is the difference between a link you can hand
+median of 87 ms, worst 215 ms. The durable log road, which is what everything used before this
+week, was 131 ms with the odd press landing at 650 ms or worse. The public channel this replaced
+was 51 ms; the boundary cost about 35 ms, and it is the difference between a link you can hand
 around a room and one you cannot.
 
 **Nothing needs you.** This is a fix to something we shipped the same day, not a decision waiting

@@ -325,22 +325,30 @@ replaced it the same afternoon (job j-0982).
 
 | what a second surface waits | client broadcast | PRIVATE topic | durable row |
 | --- | --- | --- | --- |
-| Take | 51.5 ms (48-59) | **96.5 ms** (78-560, one press) | 131 ms, 3 of 16 past 260 (to 788) |
-| Out | 51.6 ms (48-54) | **98.1 ms** (78-288) | 130 ms, 2 of 16 past 260 (to 638) |
+| Take | 51.5 ms (48-59) | **86.9 ms** (72-215, one press) | 136 ms, 2 of 16 past 270 (to 645) |
+| Out | 51.6 ms (48-54) | **88.3 ms** (74-107) | 131 ms (128-143) |
 
-About 30 ms of paint goes on top of all of them, so a published Take now airs in about 130 ms
+Those are the SIGNED-OUT readings, because that is the seat: a browser source in OBS, the venue's
+playout machine and an operator's phone on the hosted URL all hold a slug and no account, and the
+command topic's read policy names `anon` and `authenticated` separately. The probe used to sign in;
+it no longer does, and if anon were ever refused this is the only instrument that would say so. The
+same run signed in reads 96.5 and 98.1 ms, which is the difference between two runs rather than
+between two roles.
+
+About 30 ms of paint goes on top of all of them, so a published Take now airs in about 120 ms
 against the 515 ms this file opened with.
 
-**The private topic costs about 45 ms and it buys the boundary.** The reason it is not slower is
+**The private topic costs about 35 ms and it buys the boundary.** The reason it is not slower is
 worth knowing: the broadcast arrives at the second client within a millisecond or two of the RPC
 answering its own sender (`fastMs` tracks `sendMs` press for press in the raw table), because both
 are released by the same commit. The estimate of "the RPC's own 110 ms on top of the 50" was wrong
 because it counted that round trip twice.
 
 **The median is still not the point.** The durable road has two modes and picks one unpredictably:
-five of these 32 rows landed past twice their own median, out at 638-788 ms. THE BROADCAST NEVER
-DID THAT - on either road, and the private one's single outlier is the first press of the run, the
-cold connection every column pays. BM's finding holds. The SENDING page remains faster than any of
+two of these 32 rows landed past twice their own median, out at 645 ms, and the run before it had
+five out at 638-788. THE BROADCAST NEVER DID THAT - on either road, and the private one's single
+outlier is the first press of a run, the cold connection every column pays. BM's finding holds. The
+SENDING page remains faster than any of
 them: it applies its own items before the send is awaited, which the minted id is what makes safe.
 
 ## How to re-run it

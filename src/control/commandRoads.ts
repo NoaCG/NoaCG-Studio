@@ -7,10 +7,11 @@
 // at about 130 ms or about 600 ms. A `broadcast` on the same backend never showed that slow mode.
 //
 // Re-measured the same day on the road that shipped (16 takes and 16 outs, read from a second
-// client): the broadcast reaches another surface in a median of 97 ms against the durable row's
-// 131, and - the number that matters - its worst press was 288 ms where the row's was 788, with
-// five of 32 rows past twice their median and the broadcast never once bimodal. So the fast road
-// is not mainly FASTER, it is RELIABLE: what it removes is the half-second an operator remembers.
+// client that is signed OUT, as every renderer is): the broadcast reaches another surface in a
+// median of 87 ms against the durable row's 131-136, and - the number that matters - its worst
+// press was 215 ms where the row's was 645, with the row bimodal in every run and the broadcast
+// never once. So the fast road is not mainly FASTER, it is RELIABLE: what it removes is the
+// half-second an operator remembers.
 //
 // So a verb now leaves the press on BOTH roads at once:
 //

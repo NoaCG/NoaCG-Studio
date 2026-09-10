@@ -17,12 +17,13 @@ lets anon and authenticated READ that topic shape and gives no client an INSERT 
 RLS is a refusal - so the only writer is the RPC and the only key to it is the control slug, which
 is exactly the authority the durable log always required.
 
-**It cost about 45 ms, not the 110 BM estimated.** A command reaches a second surface in a median
-of 97 ms, worst 288, against the durable row's 131 ms median and a slow mode out at 638-788 ms. Air
-is that plus about 30 ms of paint, so a published Take lands in about 130 ms against the 515 ms the
-owner reported. The estimate was pessimistic because it counted the RPC round trip twice: the
-broadcast arrives at the other client within a millisecond or two of the RPC answering its own
-sender, since both are released by the same commit.
+**It cost about 35 ms, not the 110 BM estimated.** Read from a signed-OUT second client - the seat
+every renderer actually occupies - a command arrives in a median of 87 ms, worst 215, against the
+durable row's 131-136 ms median with the odd press out at 645 ms. Air is that plus about 30 ms of
+paint, so a published Take lands in about 120 ms against the 515 ms the owner reported. The
+estimate was pessimistic because it counted the RPC round trip twice: the broadcast reaches the
+other client within a millisecond or two of the RPC answering its own sender, since both are
+released by the same commit.
 
 ## The test came first, and it went red on purpose
 
@@ -35,12 +36,15 @@ play?
 
 | run | result |
 | --- | --- |
-| against the road as BM shipped it (src from `main`) | **red - `Expected: "0" Received: "2"`, j-0981** |
-| the same, after the review rewrote the spec | **red, j-0987** |
-| with the private topic and migration 0056 | green, j-0983 and j-0988 |
+| the first draft against the road as BM shipped it | **red - `Expected: "0" Received: "2"`, j-0981** |
+| the FINAL text against the same code (src from `main`) | **red - `Expected: "1" Received: "3"`, j-0988** |
+| with the private topic and migration 0056 | green, j-0983 and j-0989 |
 
-The `Received: "2"` is worth reading twice: both the socket frame and the REST one landed, so a
-stranger with a read-only link put the graphic on air twice over.
+The counts are worth reading twice: on top of the operator's own real Take, the stranger's socket
+frame AND their REST call both landed, so a read-only link put the graphic on air twice over. Both
+red runs were taken with `git checkout origin/main -- src/` in place - the scratchpad script that
+does it and puts the branch's own src back is quoted in the traps below, because the dev server
+serves the working tree and a "red proof" run against the fix is worth nothing.
 
 **The green run does not prove the fast road is alive** - that spec passes with the broadcast
 completely dead, because every command still arrives on the durable road. What proves it is BM's
@@ -114,9 +118,12 @@ policy is the entire boundary. A permissive INSERT policy added there for some f
 reopen this row's hole silently; 0056's self-check names that and refuses to apply over one.
 
 **The dev server serves the working tree, so "prove it red" needs the fix genuinely absent.**
-Running the new spec while the fix was in the tree passed for the wrong reason (no fast road at
-all, since the migration had not been applied yet). Both red proofs here were taken with
-`git checkout origin/main -- src/` in place, then reverted.
+Running the new spec while the fix was in the tree passed for the wrong reason: no fast road at
+all, because the migration had not been applied yet. Both red proofs were taken with
+`git checkout origin/main -- src/` in place. The second ran as ONE queued job that reverted, ran
+the spec and restored the tree itself - worth repeating, because the first left this worktree's
+src reverted while the job sat behind a landing in the queue, which is a state nobody should be one
+interruption away from committing.
 
 **The e2e catalog tripwire failed once locally and is not this branch's.** `e2e/catalog-baseline`
 reported fourteen ticker variants with two moved elements each, in a run whose vite server restarted

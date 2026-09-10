@@ -100,10 +100,17 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   // `last row` is only printed once a durable row has been applied, so on a freshly published
   // production it is absent and reads as 0 - a "before" that would look identical to a broken
   // overlay. One press makes it a number this walk has watched move.
+  //
+  // BOTH ROADS ARE WAITED FOR, separately, because they arrive at different times and the walk
+  // needs both to be true: the picture comes on the broadcast in about 87 ms, and the durable row
+  // lands behind it. Reading `last row` at the moment `data-plays` moves reads a 0 that is simply
+  // early - which is how this assertion first failed.
   await page.getByTestId('verb-take').click();
   await expect.poll(airPlays, { timeout: 60_000 }).toBe('1');
+  await expect
+    .poll(() => lastAppliedRow(air), { timeout: 60_000 })
+    .toBeGreaterThan(0);
   const rowsBefore = await lastAppliedRow(air);
-  expect(rowsBefore, 'the renderer never reported applying a durable row').toBeGreaterThan(0);
 
   // ── THE HOLDER OF THE READ-ONLY LINK. ──────────────────────────────────────────────────────
   //
@@ -195,7 +202,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
 
   // ── THE CLAIM. Nothing played, and nothing was recorded. ───────────────────────────────────
   //
-  // Five seconds is fifty times the fast road's measured 97 ms
+  // Five seconds is fifty times the fast road's measured 87 ms
   // (docs/backlog/playout-lag-when-working-the-queue.md), so a forged command that was going to
   // land has landed by now.
   await air.waitForTimeout(5_000);
