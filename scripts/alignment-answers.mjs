@@ -73,24 +73,74 @@ const WEEKLY_FILE = /^\d{4}-\d{2}-\d{2}-orchestrator-week\.local\.md$/;
 /**
  * Every alignment question in one weekly file, in the order it was asked.
  * Pure, so the parsing is testable without a checkout: pass the file's text.
+ *
+ * A FIELD RUNS UNTIL THE NEXT BLANK LINE, not until the end of its own line. Every markdown file
+ * in this repository wraps at about a hundred columns and the first session to run the weekly
+ * procedure cold wrapped all three questions without thinking about it (dry run, 2026-09-10), so
+ * reading one physical line took the question down to a fragment ending mid-clause. The question
+ * only looks untidy in a report; the ANSWER is the damage. `rulingBlock` composes what a session
+ * appends to `docs/OWNER_RULINGS.md` out of these two strings, so an owner who answers in three
+ * sentences gets one and a half recorded, permanently, and the refusal clears as though the whole
+ * ruling had landed - the failure this file exists to prevent, one level down and silent.
+ *
+ * Holding whoever fills the answer in to "never press enter" would be a rule that depends on
+ * remembering, which is the shape this repository calls a missing mechanism (owner, 2026-08-29).
+ * So the parser takes the wrapping.
  */
 export function parseAlignmentQuestions(text) {
   const questions = [];
   let current = null;
+  // The field the last `**Question:**` or `**Answer:**` line opened, while its continuation lines
+  // are still arriving: 'question', 'answer', or null between fields.
+  let field = null;
   for (const line of String(text ?? '').split(/\r?\n/)) {
     const heading = line.match(HEADING);
     if (heading) {
       current = { id: heading[1], question: '', answer: '' };
       questions.push(current);
+      field = null;
       continue;
     }
     // Any other heading closes the block, so an answer never bleeds into the next question.
     if (current && /^#{1,6}\s/.test(line)) current = null;
     if (!current) continue;
-    const field = line.match(FIELD);
-    if (field) current[field[1].toLowerCase()] = field[2].trim();
+    const opened = line.match(FIELD);
+    if (opened) {
+      field = opened[1].toLowerCase();
+      current[field] = opened[2].trim();
+      continue;
+    }
+    // A BLANK LINE ENDS AN EMPTY FIELD, AND ONLY AN EMPTY ONE. The two failures either side of
+    // this line are the same one at different sizes, so neither may be traded for the other:
+    //
+    //  - an EMPTY `**Answer:**`, a blank line, then the section's own prose. Resuming there would
+    //    invent an answer he never gave, refuse every wave plan over it and write it into the
+    //    rulings file. An empty field never resumes, so it cannot happen.
+    //  - an answer given in TWO PARAGRAPHS, which is how a man who talks in paragraphs answers.
+    //    Ending the field at the first blank line drops the second half exactly as silently as
+    //    reading one physical line dropped the second line. A started field resumes.
+    //
+    // What closes a block outright is a heading, checked above, so an answer never runs past the
+    // next question or into section 3.
+    if (!line.trim()) { if (field && !current[field]) field = null; continue; }
+    if (field) current[field] = `${current[field]} ${line.trim()}`.trim();
   }
   return questions.map((entry) => ({ ...entry, answered: entry.answer.length > 0 }));
+}
+
+/**
+ * Does `text` name this alignment id - the whole id, not a longer one that starts with it?
+ *
+ * A plain substring test answers yes for `ALIGN-2026-09-15-1` when the file only carries
+ * `ALIGN-2026-09-15-10`, so the first question reads as recorded forever and its ruling is never
+ * written. The three-question cap makes that unreachable today, but the cap is a sentence in a
+ * workflow and the id format allows any number, so the guard belongs in the code that depends on
+ * it. Ids end in digits, so a following digit is the only thing that can extend one.
+ *
+ * Shared with `wave-plan-check.mjs`, whose refusal asks the same question of a wave plan.
+ */
+export function mentionsId(text, id) {
+  return new RegExp(`${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\d)`).test(String(text ?? ''));
 }
 
 /** Every `<date>-orchestrator-week.local.md`, oldest first, so the newest is always last. */
@@ -131,17 +181,28 @@ export function alignmentState(root = REPO_ROOT) {
   // it the following Tuesday, quietly, which is the failure wearing a different hat.
   // OPEN questions come from the newest week alone: by the procedure a question is carried forward
   // once and then dropped, so an old unanswered one is settled by the decision taken instead.
-  const seen = new Set();
+  //
+  // THE TIE-BREAK IS THE ANSWERED COPY, not the newest one. The procedure carries a question
+  // forward once by writing its block again under the SAME id, so the same question legitimately
+  // exists in two weeks' files. Taking the newest occurrence unconditionally means an answer
+  // written into the older copy - the file that was open in front of whoever heard him say it -
+  // loses to the newer empty block, and the ruling disappears with nothing reporting it.
+  const seen = new Map();
   for (const file of [...files].reverse()) {
     for (const entry of parseAlignmentQuestions(readFileSync(file, 'utf8'))) {
-      if (seen.has(entry.id)) continue;
-      seen.add(entry.id);
-      const row = { ...entry, source: relative(file) };
-      if (!entry.answered) {
-        if (file === newest) state.open.push(row);
-      } else if (rulings.includes(entry.id)) state.recorded.push(row);
-      else state.pending.push(row);
+      const previous = seen.get(entry.id);
+      if (previous && (previous.answered || !entry.answered)) continue;
+      seen.set(entry.id, { ...entry, source: relative(file) });
     }
+  }
+  for (const entry of seen.values()) {
+    // `source` already says which week won, and only the newest week's questions are still open -
+    // an UNANSWERED row is never replaced by the tie-break above, so its source is the file the id
+    // first appeared in, walking newest first.
+    if (!entry.answered) {
+      if (entry.source === state.source) state.open.push(entry);
+    } else if (mentionsId(rulings, entry.id)) state.recorded.push(entry);
+    else state.pending.push(entry);
   }
   return state;
 }
