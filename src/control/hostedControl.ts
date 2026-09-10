@@ -8,6 +8,8 @@
 // library at publish time (docs/SAVED_CONTENT_MODEL.md §4) — the hosted page renders them as
 // a read-only switcher, so picking one stages its data and airing it stays a deliberate take.
 
+import type { RealtimeChannel } from '@supabase/supabase-js';
+
 import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
 import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type GraphicDoc } from '../model/library';
@@ -21,6 +23,7 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
+import { COMMAND_EVENT, readCommandFrame, withOid } from './commandRoads';
 import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { cueDataRows, type CueDataRow } from './cueData';
 
@@ -638,6 +641,109 @@ export async function controlOutputSeen(outputSlug: string): Promise<void> {
   await sb.rpc('control_output_seen', { p_output_slug: outputSlug });
 }
 
+// ── THE FAST ROAD (src/control/commandRoads.ts has the measurement and the whole argument) ────
+//
+// The command channel is the SAME Realtime channel the log follower already joins, so a verb's
+// broadcast rides a socket that is up and joined rather than paying its own connect. The registry
+// is how a sender reaches it: `subscribeControlEvents` puts the joined channel here and takes it
+// away on unsubscribe, and `sendControlVerb` looks it up. No channel registered - a page that
+// sends before its follower is up, a surface that follows nothing - means the fast road is simply
+// absent and the verb goes durable-only, which is exactly what shipped before this.
+
+/** The joined command channel per show id. One following surface per page, so one entry. */
+const commandChannels = new Map<string, RealtimeChannel>();
+
+/**
+ * HOW LONG A GRAPHIC STAYS ON THE SLOW ROAD AFTER AN EVENT, and why events take it at all.
+ *
+ * A machine `event` is the one command whose correct handling needs the DATABASE's own clock: the
+ * renderer stamps a graphic's clock origin from the row's `created_at`, precisely so that two
+ * browser sources of one production agree to the millisecond and a replayed row resumes a match
+ * from where it really started (src/control/matchClockWire.ts). A broadcast has no server time,
+ * and substituting the sending laptop's clock would put its skew on air. So events keep the road
+ * they have always had.
+ *
+ * That leaves ORDER. If an event is slow and the Take after it is fast, the Take can overtake the
+ * event and reach a renderer in the wrong order. So a graphic that has just been sent an event
+ * goes slow with it, briefly: 1200 ms, comfortably past the fan-out's measured 650 ms slow mode.
+ * It is a deadline rather than an acknowledgement on purpose - nothing can wedge a graphic on the
+ * slow road forever, and a failed insert heals by itself.
+ *
+ * The same interleaving ACROSS DEVICES is not fixed by this and cannot be from one sender: an
+ * event from one operator and a Take from another, inside one fan-out window, can still land in
+ * different orders on different renderers. The durable log remains the record of what was asked
+ * for; docs/backlog/playout-lag-when-working-the-queue.md carries it as a known limit.
+ */
+const SLOW_AFTER_EVENT_MS = 1200;
+const slowUntil = new Map<string, number>();
+
+/** What one verb put on which road. */
+export interface VerbRoads {
+  /** Every item as it went on the wire, ids and all - the durable insert carries these. */
+  items: ControlSendItem[];
+  /** The items that also went out on the FAST road. */
+  fast: ControlSendItem[];
+}
+
+/**
+ * SEND ONE VERB, on both roads, from one press.
+ *
+ * The order is the design: broadcast first, then this surface's own picture, then the durable
+ * insert. The operator's own monitor therefore moves in zero hops, every other following surface
+ * in about 50 ms, and the log - which is still the truth - is written on its own schedule.
+ *
+ * WHEN THE INSERT THEN FAILS the picture has moved and the log does not agree. `play` cannot be
+ * un-played, so the honest ending is to SAY so: this throws exactly as the plain send always did,
+ * and the surfaces put it on screen. That is a real trade and it is the right way round - the
+ * alternative is broadcasting only after the insert answers, which puts air back above 150 ms and
+ * buys consistency the operator cannot see with lateness they can.
+ */
+export async function sendControlVerb(opts: {
+  slug: string;
+  /** The production's show id — the command channel's key. Null when it is not known yet, which
+   *  simply means no fast road for this verb. */
+  showId: string | null;
+  items: ControlSendItem[];
+  /** Apply on THIS surface, called with the fast items the instant the broadcast leaves and
+   *  before the insert is awaited. */
+  applyHere?: (items: ControlSendItem[]) => void;
+}): Promise<VerbRoads> {
+  const now = Date.now();
+  const channel = opts.showId ? commandChannels.get(opts.showId) : undefined;
+  const items: ControlSendItem[] = [];
+  const fast: ControlSendItem[] = [];
+  for (const item of opts.items) {
+    const stamped: ControlSendItem = { graphic: item.graphic, msg: withOid(item.msg) };
+    items.push(stamped);
+    // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
+    // snap-then-update pair must not have its second half overtake its first.
+    if (item.msg.t === 'event') slowUntil.set(item.graphic, now + SLOW_AFTER_EVENT_MS);
+    else if (channel && (slowUntil.get(item.graphic) ?? 0) <= now) fast.push(stamped);
+  }
+  if (fast.length > 0) {
+    // Not awaited: `send` resolves on the socket push, and waiting for that ack would spend the
+    // very milliseconds this road exists to save. A push that fails costs nothing — the durable
+    // row is already on its way and brings the same commands with the same ids.
+    void channel!.send({ type: 'broadcast', event: COMMAND_EVENT, payload: { items: fast } }).catch(() => {});
+    opts.applyHere?.(fast);
+  }
+  try {
+    await sendHostedControlBatch(opts.slug, items);
+  } catch (e) {
+    // THE PICTURE MOVED AND THE LOG DID NOT. The surfaces word their notice off this flag,
+    // because "Take failed" is a lie when the graphic is on screen everywhere.
+    const failed = e as Error & { aired?: boolean };
+    failed.aired = fast.length > 0;
+    throw failed;
+  }
+  return { items, fast };
+}
+
+/** Did this send put commands on screen before failing to log them? Read off the thrown error. */
+export function verbAired(e: unknown): boolean {
+  return (e as { aired?: unknown } | null)?.aired === true;
+}
+
 /** Send one command — the INSERT is the send. */
 export async function sendHostedControl(slug: string, graphic: string, msg: ControlMessage | CueStatusMsg): Promise<void> {
   const sb = await getSupabase();
@@ -650,6 +756,14 @@ export async function sendHostedControl(slug: string, graphic: string, msg: Cont
 export interface ControlSendItem {
   graphic: string;
   msg: ControlMessage | CueStatusMsg;
+}
+
+/** A command as a FOLLOWING surface receives it. Wider than `ControlSendItem` on purpose: the
+ *  log also carries the two meta rows nobody sends as a verb, and a surface reading one door for
+ *  both roads has to be able to name them before ignoring them. */
+export interface ControlCommandItem {
+  graphic: string;
+  msg: ControlEventRow['msg'];
 }
 
 /** Send several commands as ONE atomic, log-ordered insert (`control_send_many`, 0029) —
@@ -795,6 +909,21 @@ export async function followControlLog(opts: {
   from: number;
   tail: (afterId: number) => Promise<ControlEventRow[]>;
   onRow: (row: ControlEventRow) => void;
+  /**
+   * THE FAST ROAD's tap: the same commands, broadcast on this channel and arriving hundreds of
+   * milliseconds before their durable rows do (src/control/commandRoads.ts).
+   *
+   * `onRow` is untouched and keeps being the durable log - the action log, the staged buffer, the
+   * renderer's report baseline and this follow's own cursor are all built from it. This is the
+   * other question: "put it on the screen NOW." A surface that takes it therefore applies each
+   * command from TWO places, and must reconcile them with `createAppliedOnce` so that whichever
+   * road got here first wins and the other is dropped. Nothing else can catch a miss: a duplicate
+   * `play` re-runs an animation and settles on the picture that was already there.
+   *
+   * These commands carry no server time and no row id, because neither exists yet. Anything that
+   * needs either takes the slow road by construction (`sendControlVerb`).
+   */
+  onCommand?: (items: ControlCommandItem[]) => void;
   /** Called on every Realtime status change AND on every poll tick, so a surface with somewhere
    *  to show it can say "not joined — polling" instead of showing a stale picture in silence. */
   onStatus?: (status: ControlFollowStatus) => void;
@@ -840,7 +969,7 @@ export async function followControlLog(opts: {
       refill();
     }
     report();
-  });
+  }, opts.onCommand);
   return () => {
     clearInterval(poll);
     unsubscribe();
@@ -872,6 +1001,9 @@ export async function subscribeControlEvents(
   showId: string,
   onRow: (row: ControlEventRow) => void,
   onStatus?: (status: string) => void,
+  /** The FAST road: commands broadcast on this same channel, delivered the moment they land and
+   *  long before their durable rows exist. Omitting it leaves the surface on the log alone. */
+  onCommand?: (items: ControlCommandItem[]) => void,
 ): Promise<() => void> {
   const sb = await getSupabase();
   if (!sb) return () => {};
@@ -882,6 +1014,13 @@ export async function subscribeControlEvents(
       { event: 'INSERT', schema: 'public', table: 'control_events', filter: `show_id=eq.${showId}` },
       (payload) => onRow(payload.new as ControlEventRow),
     )
+    // …and the same commands over BROADCAST, which the measurement says arrives in 50 ms against
+    // the row's 130-650. Both roads carry the same client-minted `oid`, so a surface applies each
+    // command once whichever one won (src/control/commandRoads.ts).
+    .on('broadcast', { event: COMMAND_EVENT }, (frame) => {
+      const items = readCommandFrame<ControlEventRow['msg']>((frame as { payload?: unknown }).payload);
+      if (items) onCommand?.(items);
+    })
     // EVERY status, not only SUBSCRIBED. SUBSCRIBED fires on every (re)join, not only the first
     // — that is where a consumer tail-fills the gap a dropped socket left (rows inserted while
     // away produce no postgres_changes replay, so without it a sleeping tab misses commands
@@ -890,7 +1029,14 @@ export async function subscribeControlEvents(
     // never joins indistinguishable from a quiet show: the consumer decides what to do with
     // them, and `followControlLog` both polls under them and says so.
     .subscribe((status) => onStatus?.(status));
+  // The senders on this page reach the fast road through here rather than opening a second
+  // socket. Registered before the join completes on purpose: `send` on a channel that is still
+  // joining is queued by the client, and a verb pressed in that first second still travels.
+  commandChannels.set(showId, channel);
   return () => {
+    // Only if it is still OURS: a page that re-subscribes before tearing the old one down would
+    // otherwise unregister the channel that just replaced this one.
+    if (commandChannels.get(showId) === channel) commandChannels.delete(showId);
     void sb.removeChannel(channel);
   };
 }

@@ -17,18 +17,21 @@ import {
 } from '../control/controlModel';
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
+import { createAppliedOnce } from '../control/commandRoads';
 import { appendLogEntries, describeLogRow, logTime, type LogEntry } from '../control/eventLog';
 import {
-  clearAllCuesOnWire,
-  clearCueOnWire,
+  clearAllCueBatches,
+  clearCueItems,
   controlShowBySlug,
   followControlLog,
   hostedControlTail,
-  sendHostedControl,
-  sendHostedControlBatch,
+  sendControlVerb,
   stageHostedData,
-  takeCueOnWire,
+  takeCueItems,
+  verbAired,
   withLiveCue,
+  type ControlEventRow,
+  type ControlSendItem,
   type LiveCueMap,
   type OutputCue,
   type PanelGraphicSpec,
@@ -85,6 +88,46 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const previewRef = useRef<PayloadStageHandle>(null);
   const programRef = useRef<PayloadStageHandle>(null);
 
+  /**
+   * WHAT THIS OPERATOR SEES, from whichever road the command arrived on.
+   *
+   * A published verb travels twice (src/control/commandRoads.ts): a broadcast that lands in about
+   * 50 ms and the durable row behind it at 130-650. This page also presses verbs of its own,
+   * which arrive faster than either. `applied` decides which arrival counts, on the id the press
+   * minted - and nothing else could, because a second `play` re-runs an entrance and settles on
+   * the picture that was already there. `PayloadStage` counts them as `data-plays` and
+   * e2e/configured/playout-both-roads.spec.ts reads that count on this very page.
+   */
+  const applied = useRef(createAppliedOnce());
+  const applyCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
+    for (const item of items) {
+      if (!applied.current.claim(item.msg)) continue;
+      const msg = item.msg;
+      // A cue row names its own graphic, so it only ever speaks for that ONE layer - and it
+      // rides the same road as the picture, or the ON AIR marker and the monitor would disagree
+      // for a third of a second.
+      if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
+      else if (msg.t === 'staged' || msg.t === 'live') continue;
+      else {
+        // A RENDERER command: mirror it onto the PROGRAM monitor, so this page shows what
+        // actually reached air rather than only what its own buttons sent.
+        programRef.current?.apply([{ graphic: item.graphic, msg }]);
+        // …and remember what it put on air, which is what makes "not sent yet" honest.
+        if (msg.t === 'update') {
+          setAiredData((prev) => ({ ...prev, [item.graphic]: { ...prev[item.graphic], ...msg.data } }));
+        } else if (msg.t === 'stop') {
+          // Off air: forget it, or the next take would compare against a stale baseline.
+          setAiredData((prev) => {
+            if (!prev[item.graphic]) return prev;
+            const next = { ...prev };
+            delete next[item.graphic];
+            return next;
+          });
+        }
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -128,33 +171,19 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         showId: resolved.id,
         from: resolved.lastEventId,
         tail,
+        // THE FAST ROAD - the verbs, broadcast on this channel and here long before their rows.
+        onCommand: applyCommand,
         onRow: (row) => {
           const msg = row.msg;
+          // The SAME door the broadcast comes through, so a command applies once whichever road
+          // won it. What stays here is what is a property of the ROW rather than of the verb.
+          applyCommand([{ graphic: row.graphic, msg }]);
           if (msg.t === 'staged') {
             setShow((s) => (s && s !== 'loading' ? { ...s, staged: { ...s.staged, [row.graphic]: msg.data } } : s));
           } else if (msg.t === 'live') {
             setShow((s) =>
               s && s !== 'loading' ? { ...s, live: { ...s.live, [row.graphic]: { data: msg.data, state: msg.state } } } : s,
             );
-          } else if (msg.t === 'cue') {
-            // A cue row names its own graphic, so it only ever speaks for that ONE layer.
-            setLiveCue((m) => withLiveCue(m, row.graphic, msg.cue));
-          } else {
-            // A RENDERER command: mirror it onto the PROGRAM monitor, so this page shows what
-            // actually reached air rather than only what its own buttons sent.
-            programRef.current?.apply([{ graphic: row.graphic, msg }]);
-            // …and remember what it put on air, which is what makes "not sent yet" honest.
-            if (msg.t === 'update') {
-              setAiredData((prev) => ({ ...prev, [row.graphic]: { ...prev[row.graphic], ...msg.data } }));
-            } else if (msg.t === 'stop') {
-              // Off air: forget it, or the next take would compare against a stale baseline.
-              setAiredData((prev) => {
-                if (!prev[row.graphic]) return prev;
-                const next = { ...prev };
-                delete next[row.graphic];
-                return next;
-              });
-            }
           }
           const entry = describeLogRow(row, cueLabel);
           if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
@@ -165,7 +194,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       live = false;
       unsubscribe?.();
     };
-  }, [slug]);
+    // `applyCommand` is declared with no dependencies of its own, so listing it re-runs nothing;
+    // it is here because the follow now hands it BOTH roads and a silent capture would be the
+    // easiest way for the two to drift.
+  }, [slug, applyCommand]);
 
   const resolved = show && show !== 'loading' ? show : null;
   const cues: OutputCue[] = useMemo(() => resolved?.output?.cues ?? [], [resolved]);
@@ -292,7 +324,23 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   }
 
   const surfaceSendError = (e: Error) =>
-    setError(/slow down/i.test(e.message) ? 'Too many commands — slow down a moment.' : `Send failed: ${e.message}`);
+    setError(
+      /slow down/i.test(e.message)
+        ? 'Too many commands — slow down a moment.'
+        : // A verb that AIRED and then failed to log is a different sentence from one that never
+          // happened: the picture has moved on every screen and nothing recorded it.
+          verbAired(e)
+          ? `That reached the screens but was NOT logged (${e.message}). Send it again.`
+          : `Send failed: ${e.message}`,
+    );
+
+  /**
+   * ONE DOOR for every verb this page presses, on BOTH ROADS (src/control/commandRoads.ts): the
+   * broadcast that reaches the other surfaces in about 50 ms, this page's own monitor with no
+   * hop at all, and the durable insert that stays the truth.
+   */
+  const sendVerb = (items: ControlSendItem[]) =>
+    sendControlVerb({ slug, showId: resolved?.id ?? null, items, applyHere: applyCommand }).catch(surfaceSendError);
 
   /** The layers that are up, front to back. */
   const liveLayers = (payload?.graphics ?? [])
@@ -314,16 +362,16 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   });
 
   const takeCue = (cue: OutputCue) =>
-    takeCueOnWire(slug, { id: cue.id, graphic: cue.graphic, values: cueValues(cue) }).catch(surfaceSendError);
+    sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue) }));
   const nextLayer = () => {
-    if (selectedGraphic) void sendHostedControl(slug, selectedGraphic, { t: 'next' }).catch(surfaceSendError);
+    if (selectedGraphic) void sendVerb([{ graphic: selectedGraphic, msg: { t: 'next' } }]);
   };
   const outLayer = () => {
-    if (selectedGraphic) void clearCueOnWire(slug, selectedGraphic).catch(surfaceSendError);
+    if (selectedGraphic) void sendVerb(clearCueItems(selectedGraphic));
   };
   const updateLive = () => {
     if (selectedGraphic && selectedCue && selectedIsLive) {
-      void sendHostedControl(slug, selectedGraphic, { t: 'update', data: cueValues(selectedCue) }).catch(surfaceSendError);
+      void sendVerb([{ graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } }]);
     }
   };
   /**
@@ -339,12 +387,18 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   const snapTo = (groupId: string | null, stateId: string) => {
     if (!selectedGraphic || !selectedLayerCueId || !selectedCue) return;
-    void sendHostedControlBatch(slug, [
+    void sendVerb([
       { graphic: selectedGraphic, msg: { t: 'snap', snap: groupId === null ? null : { [groupId]: stateId } } },
       { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } },
-    ]).catch(surfaceSendError);
+    ]);
   };
-  const outAll = () => void clearAllCuesOnWire(slug, liveLayers.map((l) => l.graphic)).catch(surfaceSendError);
+  const outAll = () => {
+    // `control_send_many` takes at most 8 items, so a clear of more than four layers is more than
+    // one verb - and each batch is its own press as far as the two roads are concerned.
+    void (async () => {
+      for (const batch of clearAllCueBatches(liveLayers.map((l) => l.graphic))) await sendVerb(batch);
+    })();
+  };
 
   const selectCue = (cue: OutputCue) => {
     setSelectedCueId(cue.id);
@@ -472,6 +526,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               airedValues={airedData[selectedCue.graphic] ?? null}
               onPreview={(values) => previewCue(selectedCue, values)}
               onSnap={snapTo}
+              onSend={(items) => void sendVerb(items)}
               onError={setError}
             />
           )}
@@ -670,6 +725,7 @@ function HostedCueEditor({
   airedValues,
   onPreview,
   onSnap,
+  onSend,
   onError,
 }: {
   slug: string;
@@ -688,6 +744,8 @@ function HostedCueEditor({
   airedValues: Record<string, string> | null;
   onPreview: (values: Record<string, string>) => void;
   onSnap: (groupId: string | null, stateId: string) => void;
+  /** The page's one door for a verb — both roads, its own monitor, and the log. */
+  onSend: (items: ControlSendItem[]) => void;
   onError: (message: string) => void;
 }) {
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
@@ -1008,11 +1066,12 @@ function HostedCueEditor({
                         void stageHostedData(slug, cue.graphic, staged).catch((err: Error) => onError(err.message));
                         onPreview({ ...currentValues(), ...staged });
                       }
-                      void sendHostedControl(
-                        slug,
-                        cue.graphic,
-                        payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event },
-                      ).catch((err: Error) => onError(err.message));
+                      onSend([
+                        {
+                          graphic: cue.graphic,
+                          msg: payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event },
+                        },
+                      ]);
                     }}
                     title={
                       movedKeys(e).length > 0
@@ -1048,8 +1107,7 @@ function HostedCueEditor({
           if (timer.current) clearTimeout(timer.current);
           void stageHostedData(slug, cue.graphic, { [key]: next }).catch((e: Error) => onError(e.message));
           onPreview({ ...currentValues(), [key]: next });
-          void sendHostedControl(slug, cue.graphic, { t: 'update', data: { [key]: next } })
-            .catch((err: Error) => onError(err.message));
+          onSend([{ graphic: cue.graphic, msg: { t: 'update', data: { [key]: next } } }]);
         };
         return (
           <div className="pd-editor-events pd-live-numbers" data-testid="hosted-live-numbers">

@@ -186,6 +186,17 @@ export const CONFIGURED_TRIGGERS = [
   // change here that the offline plan reports as "covered" is covered by nothing.
   /^src\/control\/(hostedControl|hostedReceiver|outputRecovery)\.ts$/,
   /^src\/output\//,
+  // THE TWO ROADS A PUBLISHED VERB TRAVELS (src/control/commandRoads.ts). A broadcast and the
+  // durable insert carry the same command, and the whole question is whether a following surface
+  // applies it once. Offline there is only ever one road, so the reconciliation is ABSENT rather
+  // than untested - and its failure is invisible on screen, which is why the only thing that can
+  // judge it is e2e/configured/playout-both-roads.spec.ts counting entrances on a real backend.
+  // The hosted control page is named for the same reason it has never been named before: it is a
+  // signed-out capability URL with no offline existence at all, and it is now a SENDER on both
+  // roads as well as a follower of them.
+  /^src\/control\/commandRoads\.ts$/,
+  /^src\/components\/HostedControlPage\.tsx$/,
+  /^src\/components\/home\/PayloadStage\.tsx$/,
   // THE PRODUCTION DATA API and the panel that hands out its key (docs/DATA_API.md). Offline
   // there is no publish, no data_key row and no key to reveal, so the only honest proof that the
   // revealed string AUTHENTICATES is the configured walk

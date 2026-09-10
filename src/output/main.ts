@@ -30,6 +30,7 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from '../control/matchClockWire';
+import { createAppliedOnce } from '../control/commandRoads';
 import { alreadyInSnapshot, planOutputRecovery } from '../control/outputRecovery';
 import { createOutputStage } from './stage';
 
@@ -211,10 +212,23 @@ async function boot(): Promise<void> {
     stage.apply(graphic, { t: 'update', data: values });
   };
 
-  const apply = (row: ControlEventRow) => {
-    lastAppliedId = Math.max(lastAppliedId, row.id);
-    // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
-    if (alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return;
+  /**
+   * ONE COMMAND, from whichever road brought it (src/control/commandRoads.ts).
+   *
+   * Air used to be the WORST-placed seat in the house: the renderer never sends anything, so no
+   * amount of applying optimistically on an operator's dashboard could reach it, and every
+   * published verb arrived here 330-500 ms after the finger that pressed it. It now also listens
+   * on the broadcast road, which is 50 ms - and `applied` is what keeps the durable row that
+   * follows from playing the same entrance a second time.
+   *
+   * `createdAt` is the row's own server time and is absent on the fast road. Only an `event`
+   * needs it (it is where a clock's shared origin comes from), and an event is sent slow for
+   * exactly that reason, so the fallback below is reached by locally-authored rows only.
+   */
+  const applied = createAppliedOnce();
+  const applyCommand = (graphic: string, incoming: ControlEventRow['msg'], createdAt: string | undefined) => {
+    if (!applied.claim(incoming)) return;
+    const row = { graphic, msg: incoming, created_at: createdAt };
     // `let`, because an update row's CLOCK fields are forwarded as this renderer HOLDS them
     // rather than as the row carried them — see the rewrite in the update branch below.
     let msg = row.msg;
@@ -282,9 +296,24 @@ async function boot(): Promise<void> {
     if (msg.t === 'play') countPlay();
     if (clock && effect?.when === 'after') applyClock(row.graphic, { [clock.field]: effect.value });
     if (pairEffect?.when === 'after') applyClock(row.graphic, pairEffect.values);
+  };
+
+  const apply = (row: ControlEventRow) => {
+    lastAppliedId = Math.max(lastAppliedId, row.id);
+    // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
+    // The FAST road cannot reach this guard and does not need to: it is only joined once the
+    // boot catch-up has finished, so nothing it delivers can predate the snapshot.
+    if (alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return;
+    applyCommand(row.graphic, row.msg, row.created_at);
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
     // and so does the report path.
-    const forwarded = msg.t === 'update' || msg.t === 'play' || msg.t === 'stop' || msg.t === 'next' || msg.t === 'event' || msg.t === 'snap';
+    const t = row.msg.t;
+    const forwarded = t === 'update' || t === 'play' || t === 'stop' || t === 'next' || t === 'event' || t === 'snap';
+    // REPORTED FROM THE DURABLE ROW, even when the broadcast already put the command on screen.
+    // A report banks `lastAppliedId` as the baseline a reboot recovers from, so scheduling it off
+    // the fast road would record a baseline that does not include the command just applied - and
+    // the next boot would replay rows this renderer had already run. The row is here within
+    // 650 ms and the report debounces for 800, so nothing is actually later for it.
     if (forwarded) scheduleReport(row.graphic);
     dbg('last row', String(row.id));
   };
@@ -381,6 +410,10 @@ async function boot(): Promise<void> {
       return tail.ok ? tail.value : [];
     },
     onRow: apply,
+    // THE FAST ROAD, on the surface it matters most for: the audience's picture. Every command
+    // here also arrives as a durable row a few hundred milliseconds later, and `applyCommand`
+    // drops whichever copy is second.
+    onCommand: (items) => items.forEach((item) => applyCommand(item.graphic, item.msg, undefined)),
     onStatus: ({ status, everJoined }) => {
       const poll = `${Math.round(CONTROL_POLL_MS / 1000)} s`;
       dbg('realtime', everJoined ? `following (${status})` : `NOT JOINED (${status || 'no status'}) — polling every ${poll}`);
