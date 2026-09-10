@@ -11,8 +11,11 @@ note: |
   were killed by measurement (order dependence; the plate vanishing). What STILL stands is the
   standard itself: the second symptom (the box that stopped growing on a second try) is
   unreproduced, and the measured-default effect still cannot see typing. The panel that never got
-  taller, found while gating this, was fixed on 2026-09-08 -
-  docs/acceptance/owner-queue/2026-09-08-the-panel-that-gets-taller.md.
+  taller, found while gating this, was fixed on 2026-09-08 on branch
+  claude/l-panel-that-never-grows: the offer measured the question plate's own 384 px to its
+  margin while the lowest answer had 49 px, and a centred block never crossed the floor it was
+  asked about, so the panel grew by zero. Room is now measured from the far edge of everything
+  that travels, the question plate grows 259 px to 285 px, and nothing spills.
 asked: "it should be very simple: what it does, and it always works... when I just mess around and
   change a lot of things, it breaks. And it should be allowed to test and try to mess with it, and
   it shouldn't break. This is a good test, and this wizard step doesn't pass it yet."

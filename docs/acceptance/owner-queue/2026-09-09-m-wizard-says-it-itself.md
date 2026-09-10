@@ -1,8 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-09
 serves: now
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+All three are copy or default calls the item argues, with both alternatives to 'Untitled
+production' rejected with reasons - a door that refuses to fire, and a guessed name that collides.
+The measured row budget settles the second.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # The import wizard now says the three things only the guide said
 
 Walking the SVG import road cold, to write the `#first-graphic` guide on `/docs`, turned up three

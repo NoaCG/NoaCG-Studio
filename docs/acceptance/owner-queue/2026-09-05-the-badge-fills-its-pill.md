@@ -1,8 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-05
 serves: now
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The one judgement it puts up, whether a percentage should accept a rehearsal value, is answered in
+its own text: a tally repaints them on every vote, so a typed value would vanish, and Simulate
+votes is the rehearsal road. The rest is two of the owner's three reported bugs, fixed and
+measured, which an agent confirms.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # THE VOTE BADGE FILLS ITS PILL, AND THE DEAD FIELDS ARE GONE
 
 Two of the three bugs from your live-vote walk. They turned out to be one cause and one piece of

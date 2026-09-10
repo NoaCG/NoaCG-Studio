@@ -1,9 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-05
 serves: now
 answered: true
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The ring's weight is a design default - a selection affordance has to be visible without taking a
+meaning the tally already owns, which is why it is neutral rather than amber. Both halves are
+pinned by e2e/production-controls.spec.ts, so what remains is a claim an agent drives.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # You can tell which cue is selected, even when it is on air
 
 **Date:** 2026-09-05 · **Branch:** `claude/new-session-54bf87`

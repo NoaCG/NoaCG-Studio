@@ -1,9 +1,18 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-09
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+This is the second half of OWNER_QUEUE.md's worked example: which share of the artwork makes a
+layer a background plate is answered by the distribution already measured, and this item carries
+that measurement - 132 drawings at or above 95%, every one a plate, with an empty band from 95% to
+99.8%. The notice has never been read on screen, which is a claim an agent drives.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # The mapping step's unmatched notice stops calling background plates spare layers
 
 **Date:** 2026-09-09 · **Branch:** `claude/c-vote-notice-plates`
@@ -83,3 +92,25 @@ one that went is the plate.
   The numbers were re-derived through a queued Playwright walk that reads the notice's own text,
   and through `scripts/field-auto-map.test.mjs`; nobody has looked at the notice on screen. If the
   sentence reads oddly with the new number in it, say so.
+
+## Decided 2026-09-10 - 95% is the line, and the corpus is what draws it
+
+`docs/acceptance/OWNER_QUEUE.md` names this question as one of the two it uses to explain the
+`because:` key: *"which share of the artwork makes a layer a background plate is answered by the
+distribution already in the code."* This item carries that distribution, so the answer is in the
+item rather than in anybody's eye.
+
+**95% stands.** Of the 485 visible drawings across 77 artwork files, 132 sit at or above 95% of the
+artwork's ink and every one of them is a backplate, a panel, or the group wrapped round the whole
+graphic. The band from 95% to 99.8% is empty, so the threshold sits inside a gap rather than on a
+slope, and the slack is load-bearing: the owner's own rotated quiz board draws its backdrop at
+99.8%, not 100%. A number chosen inside an empty band is not a judgement, it is a reading.
+
+The two smaller calls beside it go the same way and for the reasons the item already gives. Rules
+and row furniture stay counted, because a track drawn behind a bar really could be the bar the
+author meant to name and nothing separates them by size. A hidden layer is never a plate however
+big, because a designer does not hide the base look, so a hidden full-board layer is a moment they
+drew - and a moment nothing is using is exactly what the notice exists to name.
+
+What is left is a claim an agent drives, and it is the real gap: this was built without a browser
+on the app, so nobody has read the sentence on screen with the new number in it.

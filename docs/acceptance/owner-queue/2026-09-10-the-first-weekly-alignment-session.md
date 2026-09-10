@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-10
+because: direction
 serves: now
 ---
 # Everything the first weekly alignment session on 2026-09-15 has to settle

@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-09
+because: direction
 serves: now
 ---
 # The 25 September deck, as a file you double-click
@@ -38,3 +39,32 @@ slide 5.
 
 **Editing is safe.** `make-deck.mjs` beside the deck refuses to write over the file, so your edits
 always win; a rebuild from the script means moving the old deck aside first, on purpose.
+
+## Consolidated 2026-09-10, and one thing decided rather than asked
+
+`2026-09-09-aa-slide-4-no-longer-sends-the-room-through-create-project.md` opened the same file at
+the same double-click and asked about one slide of it, so it is folded in here. Its question, in
+its own words:
+
+> **Step 05 now reads** "Finish: name it, then take the production door. It saves the graphic and
+> puts it in a show." ... Is that the instruction you want to give the room, or would you rather
+> they were told to press Export and take the package home?
+
+That one is genuinely yours, and it is sharper now than when it was written: your 2026-09-10 call 6
+says each group takes a lower-third quiz template and a scoreboard home and finishes them in their
+own time, so what the room does with its graphic inside the session and what it takes away are two
+different answers.
+
+**Decided, not asked: the `Create project` door gets fixed rather than worked around.** The slide's
+notes currently tell whoever presents not to say "Create project" out loud, because that button
+does not save. A control whose name promises something it does not do is a defect - your own rule
+from the outlined-text walk is that we should not offer things that do nothing - so the answer is
+not a presenter's workaround. It stays filed as
+`docs/backlog/create-project-is-a-door-that-saves-nothing.md`, now covering both controls (Finish's
+Advanced-mode "Open in the editor" is wired to the same non-saving call), and the slide note comes
+out when the product is fixed.
+
+**Read this one AFTER the deck is rebuilt.** `docs/backlog/deck-contradicts-the-2026-09-10-calls.md`
+records that the file on disk now contradicts the script on three slides, worst on slide 5, which
+still shows four playout targets and sends the room to point OBS at the output URL - the thing you
+cut on 2026-09-10. Opening it before the rebuild would show you a deck we already know is wrong.

@@ -1,7 +1,15 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-10
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+A rendering defect on an old engine, measured across 504 designs and fixed by a feature-tested
+shim. Every claim is a frame you can print.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # Flex gaps come back on CasparCG 2.3, and the same file is untouched on 2.5
 
 Row BH saw the house scorebug air on the 2.3 server as `HOME3` where 2.5 airs `HOME 5`. The cause

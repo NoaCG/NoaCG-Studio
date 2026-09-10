@@ -1,9 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Its only question is whether three grouped button sections on one control page read as one page or
+as clutter. Grouping related controls under headings is what every control surface does; that is a
+design default.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # A guest lineup with a segment bug and a coming-up strip on one card
 
 **Date:** 2026-09-06 · **Branch:** `claude/svg-behaviour-game-shows-518d88`

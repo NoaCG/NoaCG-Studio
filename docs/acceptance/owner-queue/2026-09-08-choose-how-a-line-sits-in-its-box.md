@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-08
+because: taste
 ---
 # You can now choose how a line sits in its box, and take back the nudge you drew
 
@@ -51,3 +52,43 @@ ALIGNED.
 box headings - that is the next piece. And line alignment inside a wrapped block (every line
 centred versus flush left) is unchanged from the side-by-side you approved: centring a block still
 centres its lines.
+
+## Consolidated 2026-09-10 - this is now the whole box-binding walk
+
+Three items were waiting on the same board, the same step and the same trip: this one, plus
+`2026-09-08-the-checklist-says-which-box-each-line-is-in.md` (step 1 of
+`docs/TEXT_BOX_BINDING.md`) and `2026-09-08-the-artwork-shows-you-the-box-and-the-room.md`
+(step 2). They are one sitting - open the studio, drop your rotated quiz board, press Next - so
+walking them apart costs three trips through one screen for one board's worth of judgement.
+Nothing is dropped: both questions are quoted below and git holds the originals. The precedent is
+`2026-09-10-the-first-weekly-alignment-session.md`, which consolidated four items on the same
+grounds the same day.
+
+**From step 1, the checklist.** Your board reads as five groups - Tan plate holding the question,
+Orange plate 1 to 4, one answer each - and the swatch beside each heading is that shape's own fill.
+
+> the question is whether the grouping matches what YOU see when you look at your board. If a line
+> is filed under a plate you would not have put it under, that is the binding being wrong, and it
+> is worth much more to know now than after growth answers are built on top of it.
+
+That one is yours because nobody but the person who drew the board knows what they meant by it.
+
+**From step 2, the overlay.** Hovering a row washes the box amber, dashes the room it has, hugs the
+words as they stand and drops a caret saying "centred, middle".
+
+> Those figures are NOT the margins you drew - your question sits 209 px in from one end of its
+> plate and 280 from the other. They are the margins the system will actually work to. **If you
+> would rather see the margins you drew,** say so - it is one line, and I would want to know,
+> because the two readings answer different questions and only one of them can be on screen.
+
+Also from step 2, and cheaper to answer: the wash is twelve percent, which is subtle on a tan
+plate. If you cannot find it with your eye, say so and the number goes up.
+
+**What was decided rather than asked, out of all three.** The name a box falls back to - its colour
+plus a number where the colour repeats - stays, because `q bg` teaches a student nothing. The 70%
+backplate threshold stays where it is until somebody measures what moving it does to the checklist
+and the growth control, which is filed as `docs/backlog/one-rule-for-what-a-backplate-is.md`. And
+the step's seven-row height budget is unchanged, so the three numbers this item offered up - where
+the grid sits, the quarter-of-the-type rule, the margin a moved line keeps - stay as shipped: each
+is argued from the corpus in the text above, and a threshold with an argument behind it is a
+default, not a taste call.

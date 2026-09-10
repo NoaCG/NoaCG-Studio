@@ -1,9 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-05
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Its own first line is 'nothing you can see on air, deliberately'. The two visible halves are a
+generated code table and a generated docs page, both gated by the build - developer-facing
+machinery, and the owner would have to ask an AI what a NOACG_BEHAVIOUR table should look like.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # The same four behaviours, one table, and a naming page that cannot drift
 
 **Date:** 2026-09-05 · **Branch:** `claude/svg-behaviour-control-system-459532`

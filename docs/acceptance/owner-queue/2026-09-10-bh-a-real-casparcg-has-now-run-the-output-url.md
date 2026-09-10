@@ -1,7 +1,15 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-10
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Four measurements against two real servers, every one of them a number rather than a judgement.
+Nothing in it asks the owner anything.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # A real CasparCG has now run the output URL, and it corrects two numbers we had wrong
 
 Until today every claim about CasparCG in this repository came from a fake: `e2e/caspar-connect.spec.ts`

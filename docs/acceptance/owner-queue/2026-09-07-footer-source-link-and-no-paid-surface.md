@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-07
+because: taste
 ---
 # The footer links to the source, and nothing says "for the core" any more
 

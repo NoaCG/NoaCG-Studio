@@ -1,9 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+A small grey hint under a form field is the convention, and the item argues the threshold from
+what twelve amber lines on a valid board would read as. The real gap is that the step was built
+without a browser, so its layout has never been looked at - which is a claim an agent drives.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # The mapping step explains itself, and offers to do the rest
 
 **Date:** 2026-09-06 · **Branch:** `claude/c-mapping-step-explains`

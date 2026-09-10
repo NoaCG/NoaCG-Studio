@@ -1,7 +1,15 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-10
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Sixteen presses on the wire, before and after. The item asks nothing; it reports a fix to a lag
+the owner reported, and the probe re-derives it in thirty seconds.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # A published Take is fast now, and so is air
 
 Yesterday's note said a published Take took 515 ms to reach the screen and a published Out 397 ms,
@@ -60,3 +68,24 @@ difference between "slow again" and "broken".
 nothing recorded it. The dashboard now says exactly that instead of "Take failed", because those
 are different sentences and you would act differently on each. You should not see it; if you do, the
 honest reading is "press it again".
+
+## Consolidated 2026-09-10 - and the item this replaces was actively misleading
+
+`2026-09-10-bj-published-take-is-half-a-second.md` measured the lag (Take 515 ms published, 30 ms
+unpublished) and told the owner what to do about Saturday:
+
+> **For the rehearsal: run it unpublished if you can.** Unpublished, every verb is local and
+> instant.
+
+That advice was true for about six hours and is wrong now: a published Take reaches a second screen
+in 51 ms and airs in about 80 ms, and this item is the fix that made it so. Leaving both on the
+queue would have handed him a measurement and its own contradiction in the same list, so bj is
+folded in here and deleted. Its numbers survive above as the "before" column, and its handoff,
+`docs/handoffs/2026-09-10-bj-published-path-lag.md`, still cites it by filename - that citation
+resolves through this item and through the Dropped log in `docs/acceptance/OWNER_QUEUE.md`.
+
+The one thing bj said that this item does not repeat: on the old road the shape was **either about
+130 ms or about 600 ms, unpredictably**, measured three ways - a plain script with no browser, an
+empty browser page, and the real dashboard. That two-mode behaviour is what made one press in four
+late with nothing to explain it, and it is why the spread rather than the median is the number to
+read.

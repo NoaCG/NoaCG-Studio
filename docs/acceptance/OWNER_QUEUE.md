@@ -55,6 +55,41 @@ The gate is date-gated from 2026-09-11 for the reason every change here is: sess
 while their branches are in flight, and a same-day requirement reds a build over a line the prompt
 never saw. The value is validated whenever it is present, at any date.
 
+### The test the 2026-09-10 drain used, so the next one does not re-derive it
+
+The gate could only stop the list growing. On 2026-09-10 the 68 `walk` and `walk-p` items already
+filed were judged against the four reasons one at a time, and the test that separated them was
+this, applied in order:
+
+1. **Does answering it change the PRODUCT - what it is, where it goes, or what it costs?** Then it
+   is `scope`, `direction` or `money`, and it is his.
+2. **Is there a shipped result on screen whose quality has no defensible general answer and which
+   no gate can assert?** Then it is `taste`, and it is his - *"is this any good"* stays his however
+   drivable the route is, which is the rule "Re-kinding an item" already sets out below.
+3. **Otherwise it is not his.** Decide it, write the decision and the argument into the item, and
+   re-kind or drop.
+
+**The sharp edge is step 2, and it cuts on ONE word: DECIDED.** A question an item raises and then
+argues to a conventional answer in its own text is decided, whoever wrote it and however it is
+phrased. Well over a dozen of the 68 ended with a sentence shaped like *"say if you would rather…"*
+sitting directly under the paragraph that had already settled the same question from ordinary
+practice. That sentence is politeness, not a question, and reading it as one is how a directory of
+92 files came to put 68 items on his two lists. The counter-error is as real: an item that says out
+loud that no gate can judge it, or that hands him two readings only one of which can be on screen,
+is his - and 22 of the 68 were.
+
+**Three outcomes, and none of them is a delete on an agent's own verification.** An item that names
+a reason keeps it. An item whose remaining question is a claim about the product is re-kinded to
+`agent` with the note the re-kinding rule requires, and STAYS here until an agent drives it -
+re-kind and delete are separate commits by rule, and this drain made none of the delete commits.
+An item with nothing left to drive at all is dropped, with the decision and its argument in the log
+at the end of this file.
+
+**Consolidation is not one of the three and it is not a drop.** Several items opening one screen
+become one item carrying every question verbatim, the way four items waiting on the same Tuesday
+became `2026-09-10-the-first-weekly-alignment-session.md` the same day. It is the only move that
+shortens his list without deciding anything, so it is the first one to reach for.
+
 ## The shape of an item
 
 ```markdown
@@ -348,6 +383,71 @@ drop out of it is the silence this log exists to break.
   things and he answered one.** Its second question, which OGraf renderer Yle runs, was re-filed
   before the delete as `2026-09-10-be-which-ograf-renderer-yle-runs.md` and is still open - so if
   he meant to drop that one too, deleting that file is what does it.
+
+### The 2026-09-10 drain against the four reasons - nine files, two of them drops
+
+Seven of the nine were CONSOLIDATED rather than dropped: every question they carried is quoted
+verbatim in the item that absorbed it, which opens the same screen, and git holds the originals.
+They are listed here anyway, because a file that leaves this directory without being walked should
+be findable from one place whatever the reason.
+
+- 2026-09-08-the-checklist-says-which-box-each-line-is-in and
+  2026-09-08-the-artwork-shows-you-the-box-and-the-room - into
+  `2026-09-08-choose-how-a-line-sits-in-its-box.md`. Steps 1, 2 and 3 of
+  `docs/TEXT_BOX_BINDING.md` on one board, one step and one trip.
+- 2026-09-05-the-option-names-the-panel and 2026-09-08-the-panel-that-gets-taller - into
+  `2026-09-10-bt-wider-then-taller-on-your-lower-third.md`. Three items on the too-long-text
+  control, and the first one's own text already said its defect was fixed by the second.
+- 2026-09-10-bj-published-take-is-half-a-second - into
+  `2026-09-10-bm-published-verbs-are-fast-now.md`, which is the fix for it, landed the same day.
+  bj told the owner to run the rehearsal unpublished; six hours later that advice was wrong, and
+  the two items together would have handed him a measurement and its own contradiction.
+  `docs/handoffs/2026-09-10-bj-published-path-lag.md` still cites bj by filename; this entry and
+  that item are its forwarding address.
+- 2026-09-06-puzzle-board-letters - into `2026-09-06-puzzle-reveal-letter-press.md`. Its one
+  question was whether to build the "add a value to a list" control. It was built, on the same
+  board, the same week.
+- 2026-09-09-aa-slide-4-no-longer-sends-the-room-through-create-project - into
+  `2026-09-09-s-the-25-september-deck-opens-in-powerpoint.md`. Both open the same file at the same
+  double-click, and slide 4's own text is regenerated by the deck rebuild that
+  `docs/backlog/deck-contradicts-the-2026-09-10-calls.md` records as due. Its surviving question -
+  whether the room is told to take the production door or to export and take the package home -
+  is what makes the deck item `because: direction`.
+
+**Three of those five consolidations folded a `walk` item into an item this same change re-kinded
+to `agent`**, which satisfies the re-kinding rule's separate-commits condition by the letter and
+strains it in substance: there is no commit in which the conversion can be reviewed before the
+absorbed file is gone. The review of this drain caught it and the worst case was reversed -
+`2026-09-10-bt-wider-then-taller-on-your-lower-third.md` is a `walk` again, `because: taste`,
+because it now carries three items' worth of the growth road he has reported broken three times.
+**Two still stand and are named here rather than buried**: `bm` absorbing a superseded measurement,
+and the puzzle board absorbing a question whose answer had already shipped. Anyone consolidating
+again should re-kind the absorbing item in its own commit first, or leave it where it is.
+
+Two were genuinely DROPPED, each with the decision that replaced it:
+
+- 2026-09-06-learning-write-path - dropped 2026-09-10. Its mechanics had already been driven by an
+  agent, and what remained was whether the compiled rule format - one to three imperative
+  sentences, symbols in backticks, no evidence - is the house voice. **Decided: it is, and the
+  deadline argues for deciding rather than waiting.** It is a machine-loaded rule store no user or
+  owner ever reads, so it is agent machinery by the 2026-09-04 ruling; the format also already
+  matches the owner's own standing writing rules. Phase 2b migrating 108 files into it is a reason
+  to settle the format now, not a reason to hold a question open until it is expensive.
+- 2026-09-06-cloud-landing-queue - dropped 2026-09-10. The queue itself was driven end to end by an
+  agent on 2026-09-10 (pull request 231, landed as `919d7d27`). The one question left was whether
+  to remove the owner's admin bypass after a week of landings. **Decided: the bypass stays.** It
+  exists for the case where the queue itself cannot land anything, and removing it makes that case
+  unrecoverable without console access - which is his account and nobody else's. Four days of
+  landings with the bypass unused is evidence it is not being leaned on, not evidence it should go,
+  and the cost of keeping it is zero. If he wants it gone, the ruleset is one setting.
+
+**A third was dropped and put back the same day.**
+`2026-09-07-pull-request-descriptions-for-people.md` was dropped on the argument that how a commit
+subject is written is already a landed rule. The review of the drain found that answers one of the
+item's three questions; the other two are about the rendered description on the pull request, which
+no rule asserts. It is `kind: agent` now, not a drop. **The lesson is the one this log exists for:
+a drop is the only outcome nobody can recover from his list, so a split argument is not enough for
+one.**
 
 ## The standing instruction behind all of it (owner, 2026-09-03, closing the walk)
 

@@ -1,7 +1,16 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-06
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The occasion vocabulary is gated - a sixth value that fewer than three designs carry fails the
+build - and every refusal is recorded with its rule. A vocabulary with a written gate and recorded
+refusals is decided, not adjudicated.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # Finding a graphic by what it is FOR
 
 **Date:** 2026-09-06 · **Branch:** `claude/g-use-case-metadata`

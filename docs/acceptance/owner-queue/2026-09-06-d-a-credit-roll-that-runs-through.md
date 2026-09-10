@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-06
+because: taste
 serves: now
 ---
 # A credit roll that runs all the way through, at the speed the operator sets
@@ -43,3 +44,22 @@ change in the preview settle recipe, for every travelling graphic at once - not 
 Tickers are NOT done: a marquee never ends, so "runs through" does not apply to it, but the speed
 field does and is written up as the remainder in
 `docs/backlog/scrolling-speed-and-through.md`.
+
+## Decided 2026-09-10 - the roll cards go back to showing the roll
+
+The item flagged a consequence and offered it back: because a settled roll now parks on its closing
+mark, the Browse card, the library thumbnail and the operator preview of the four roll designs all
+show the logo and the year where they used to show the typography.
+
+**That is a defect rather than a preference, and it is decided: a travelling graphic previews
+mid-flight, not settled.** Compare cr01, cr02, cr11 and cr13 as the item suggests and the reason is
+plain - four designs whose whole difference is their typography become four cards showing the same
+logo over the same year. A picker card exists to tell designs apart, and the last frame of a credit
+roll is the one frame that cannot. The ending itself is right and stays; only what a still card
+shows changes, and the item says it is one change in the preview settle recipe for every travelling
+graphic at once.
+
+Filed as `docs/backlog/a-settled-roll-previews-a-frame-that-tells-designs-apart.md`.
+
+What is left is yours: does the ending read like a credit roll ending - the list gone, then the
+mark, alone?

@@ -1,9 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-07
 serves: now
-answered: false
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The rule is evidence-led and stated: a group holding several text layers cannot be the name of one
+of them. Whether the explaining line sits inline or on hover is a design default, and the third-
+way-round case is a logic claim an agent drives.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # A slot named after its own placeholder keeps its name
 
 **Date:** 2026-09-07 · **Branch:** `claude/two-row-set-recipe-fcbe5e`

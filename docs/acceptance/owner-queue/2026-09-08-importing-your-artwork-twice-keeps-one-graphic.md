@@ -1,7 +1,16 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-08
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The item's own 'What I decided, and what I would undo it with' argues the trade whole, and the
+three deliberate leftovers are filed on the shelf. What remains is the two-import sequence
+behaving as described, which an agent drives.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # Importing your artwork twice under one name keeps ONE graphic, not two you cannot tell apart
 
 This is the sequence the class will walk: import your own graphic, build a production on it, go

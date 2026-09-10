@@ -1,7 +1,16 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-09
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+The trade is argued whole and the argument is not a matter of taste: artwork written over is work
+nobody gets back, two rows under one name is one rename on Home. Reproduced and pinned by two new
+e2e cases.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # Renaming a graphic in the wizard can no longer take another graphic with it
 
 Yesterday's fix made a wizard save under a name your library already holds write OVER that

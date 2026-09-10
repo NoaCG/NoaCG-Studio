@@ -1,7 +1,16 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-07
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Its route is a JavaScript console snippet against a dev server, and its question is whether a
+developer-facing error message reads like machine output - which the repo's own copy rule answers
+and an agent drives.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # A refused animation region now says which line is missing
 
 An agent that hands the studio a hand-written graphic used to be told its ANIMATION region "could

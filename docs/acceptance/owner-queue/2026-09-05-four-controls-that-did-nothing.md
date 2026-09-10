@@ -1,8 +1,17 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-05
 serves: now
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+Every one of the five is a factual claim about the product - this control wrote a setting nothing
+read - and the hide-versus-grey judgement is argued from the owner's own nit quoted at the top of
+the item. An agent drives each control's absence and presence.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # Four controls that did nothing, and one that lied about what it was doing
 
 Your nit from the outlined-text walk, taken as the principle it had earned: "it would be nice if

@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-09-06
+because: scope
 serves: now
 answered: false
 ---
@@ -37,3 +38,19 @@ instead of arriving as twenty-five fields to untick - the trap the top ten walke
 - The big number is hidden until the first call and hidden again after New game. Say whether it
   should read a dash instead.
 - The tile numerals are white on the amber plate once called. Say whether they should go dark.
+
+## Decided 2026-09-10 - two of the three questions were defaults
+
+**The big readout stays hidden until the first call**, rather than reading a dash. A dash is a value
+the graphic does not have; hiding the readout says the same thing with nothing on air. Every board
+in this catalogue that has no value yet draws nothing, and a bingo board that opens with a dash in
+its biggest slot is a board that looks broken on the first frame the audience sees.
+
+**The called tile's numeral goes dark on the amber plate.** White on amber is the one pairing on
+that board that fails ordinary contrast, and a called number is the one a player is scanning for
+across a room. This is a fixture change rather than a product change, so it is filed as
+`docs/backlog/called-bingo-tiles-lose-their-numerals.md`.
+
+What is left is the question that is genuinely yours, and it is a scope one: whether a bingo night
+runs from a box you type into, or wants the numbers as a clickable grid on the control page. Thirty
+buttons is the shape the Jeopardy board wants too, so the answer covers more than this board.

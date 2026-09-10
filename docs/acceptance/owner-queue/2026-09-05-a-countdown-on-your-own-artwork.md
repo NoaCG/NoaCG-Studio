@@ -1,8 +1,19 @@
 ---
-kind: walk
+kind: agent
 date: 2026-09-05
 serves: now
 ---
+## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+
+All four of its picky calls are argued to a conventional answer inside the item itself - one Start
+button because every consumer stopwatch says Start, ten seconds because a thirty-second warning on
+a thirty-second question never warns, no paint on artwork nobody drew, and Pause legality read
+from the states. Nothing is left but whether the countdown behaves as described, which an agent
+drives.
+
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
+
 # A countdown you can hold, on artwork you drew
 
 You asked on 2026-09-03 for more behaviours than the quiz and the vote, and you named the method:

@@ -1,6 +1,7 @@
 ---
 kind: walk
 date: 2026-08-30
+because: taste
 serves: now
 ---
 # A LIVE AUDIENCE VOTE, on a poll board you drew yourself
@@ -119,3 +120,27 @@ tests the quiz signature first. Nothing in the docs says so.
 **The item stays open.** Rows filed: `import-step-copy-a-kid-can-read.md`,
 `live-vote-fields-that-do-not-work.md`, `more-behaviours-than-poll-and-quiz.md`,
 `run-a-real-audience-vote.md`.
+
+## Where this item stands, 2026-09-10
+
+Two of your three bugs are fixed and measured, in
+`2026-09-05-the-badge-fills-its-pill.md`: the badge now holds the size you drew it until the pill is
+genuinely full (`PLEASE VOTE NOW` at 20.5 px where it aired at 12.1 px squeezed), and the dead
+boxes on the percentage rows are gone, replaced by a row that says which layer it is and that the
+vote fills it. The third - the badge that shrank early and jumped - was fixed the night before by
+the fit ladder and could not be reproduced after.
+
+**Decided rather than asked: the figures wait for Show result.** This item called that *"the
+decision I would most like your answer on"*, and it has a defensible general answer. A poll that
+shows its percentages while voting is open changes the vote it is measuring, which is why broadcast
+polls hold the numbers until the vote closes. It also matches the catalogue vote board, so a
+student moving between the two boards meets one behaviour. If you want them running live it is
+still the one-line change the item describes.
+
+Your four other threads from the 2026-09-03 walk are filed and are not this item:
+`import-step-copy-a-kid-can-read.md`, `live-vote-fields-that-do-not-work.md`,
+`more-behaviours-than-poll-and-quiz.md`, `run-a-real-audience-vote.md`.
+
+**What keeps this open is the re-look you are owed**, on the board you imported yourself: whether
+the bars travelling on the data reads right on air, and whether the Fields step's vote section now
+says something a student follows with no training.
