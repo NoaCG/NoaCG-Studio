@@ -67,6 +67,13 @@ playout hardware. Both are refused now, along with the same hole on `doctor`, `d
 
 ## What needs you
 
-Nothing, unless you disagree with the column split above. Publishing 0.3.1 is session AH's job
-once this branch lands, under your 2026-09-05 ruling that a session may run `npm run release:cli`
-without asking.
+Nothing here, unless you disagree with the column split above.
+
+**But 0.3.1 is not on npm yet, and that half does need you.** This item was written expecting the
+publish to happen unattended under your 2026-09-05 ruling. It was attempted that night and refused:
+npm's trusted publisher for `@noacg/cli` still names the old repository owner `miwco`, and the
+repository moved to `NoaCG` on 2026-09-06, so every publish fails with an error that looks like the
+package does not exist. Fixing it is about two minutes on npmjs.com and cannot be automated, because
+npm demands an interactive 2FA challenge to change that configuration. The exact steps are in
+`docs/acceptance/owner-queue/2026-09-09-ah-npm-still-thinks-the-repository-is-yours.md`. Until then
+the version you can install is still 0.3.0, and everything above describes the tag that is waiting.
