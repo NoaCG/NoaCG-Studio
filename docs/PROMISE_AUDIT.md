@@ -66,7 +66,7 @@ pointing at the real `.gitconfig`, since git identity is not part of what this p
 `codex` binaries were already installed and on `PATH`. A student starting from a bare OS installs
 those first, and this run says nothing about that half.
 
-**The four lines, in order, all exit 0.**
+**The four lines, in order, all exit 0**, with the prompt's own verification step under them.
 
 | line | time |
 |---|---|
@@ -83,20 +83,24 @@ the split holding on the Claude side too. `doctor` names the deployment, the bro
 version, the fresh config directory and "not logged in". The optional `noacg-mcp` plugin installs
 on Codex the same way and registers the server; `docs/AGENT_CLI.md` carries that walk.
 
-**Two things the run found, neither of them a limitation on the promise.**
+**Three things the run found, none of them a limitation on the promise.**
 
 - **The version stamp disagrees with the registry.** `main` stamps both plugin manifests 0.3.1
   (`cli/package.json` is 0.3.1) while `npm view @noacg/cli dist-tags` is still `latest: 0.3.0`, so
   today's install is a plugin calling itself 0.3.1 that drives 0.3.0. Nothing breaks; the plugin
   ships the skill and the command, and the version it prints is cosmetic. Publishing is a separate
   row's work and was deliberately not done here.
-- **A stale global install wins silently, forever.** The marketplace clone also drops a 107 MB
-  full checkout of this repository into the user's profile, which is Claude Code's own behaviour.
-  More consequential: `cli/plugin-mcp/mcp-server.mjs` prefers an installed `@noacg/cli` over npx
-  by design, so a machine that ever ran `npm i -g @noacg/cli` keeps that version. This laptop
-  carries a global **0.2.0**, and driving the server against it returned the old seven-tool shape
-  instead of 0.3.0's single `noacg` tool. `npm i -g @noacg/cli@latest` fixes it and nothing warns
-  you; `docs/AGENT_CLI.md` "Still open" carries it.
+- **A stale global install wins silently, forever.** `cli/plugin-mcp/mcp-server.mjs` prefers an
+  installed `@noacg/cli` over npx by design, so a machine that ever ran `npm i -g @noacg/cli` keeps
+  that version. This laptop carries a global **0.2.0**, and driving the server against it returned
+  the old seven-tool shape instead of 0.3.0's single `noacg` tool. `npm i -g @noacg/cli@latest`
+  fixes it and nothing warns you. Filed as
+  `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`; `docs/AGENT_CLI.md` carries the
+  measurement.
+- **Adding the marketplace costs 107 MB of the user's disk.** Both agents clone the whole
+  repository to read `.claude-plugin/marketplace.json`. That is the host's behaviour and not
+  something this repo chooses, so there is nothing here to fix; it is recorded because it surprises
+  people and because the room on the 25th will do it on their own laptops.
 
 ## What changed on the page because of the grades
 
