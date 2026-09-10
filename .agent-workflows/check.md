@@ -202,15 +202,28 @@ Goal: leave the changed code simpler than the review left it, without changing w
   change can move what a graphic looks like, and says so. A graphic change whose report carries
   neither has not been checked.
 - **Write the verdict stamp** - the machine-readable copy of the mode lines, so the landing path
-  can eventually see review the way it sees CI (`docs/ORCHESTRATION_NEXT.md` §5). One JSON file
-  at `<git-common-dir>/noacg-jobs/checks/<branch-with-slashes-as-dashes>.json`:
-  `{ v: 1, branch, mergeBase, reviewedSha, files, legs: { review: { mode, findings, fixed,
-  model, effort }, simplify: {...}, verify: {...} }, verdict, at }` - `branch`, `mergeBase` and
-  `files` come out of `node scripts/review-request.mjs --json`, so the stamp records the scope the
-  review was actually handed rather than a retyped copy. `reviewedSha` is the EXACT
-  commit the check ran on, and any commit after it invalidates the stamp (re-run or honestly
-  re-stamp what was re-checked). Overwrite the branch's previous stamp; the file is per-machine
-  state like the job store, never committed.
+  can eventually see review the way it sees CI (`docs/ORCHESTRATION_NEXT.md` §5). **Commit first,
+  then one command**, with the same mode strings the report above carries:
+
+      npm run check:stamp -- --review inline:1/1 --simplify inline --verify inline \
+        --model claude-opus-5 --effort high
+
+  Counts are `<findings>/<fixed>` and may be left off a leg that found nothing. Add `--fail` for a
+  check that ran and did not pass; there is nothing to add for one that did not run, because
+  **the verdict is DERIVED from the legs** - a `not run` leg writes `fail` and no flag raises it.
+  The branch, the merge base and the file list come from `review-request.mjs --json` and the sha
+  from HEAD, so the stamp records the scope the review was actually handed rather than a retyped
+  copy, and the command refuses to stamp over uncommitted tracked changes because that sha would
+  not hold what was checked. Any commit after it invalidates the stamp (re-run, or honestly
+  re-stamp what was re-checked); the file is per-machine state like the job store, never committed.
+
+  It writes `<git-common-dir>/noacg-jobs/checks/<branch-with-slashes-as-dashes>.json`, overwriting
+  the branch's previous stamp: `{ v: 1, branch, mergeBase, reviewedSha, files, legs: { review: {
+  mode, findings, fixed, model, effort }, simplify: {...}, verify: {...} }, verdict, at }`. That
+  shape is the script's business now - **do not hand-write this file.** Every session that did
+  invented its own way to (`node -e`, a python heredoc, a copy from a scratch file), the shape
+  drifted between them, and on 2026-09-10 a finished branch could not queue at all because an
+  ad-hoc interpreter call writing into `.git/` is the shape a sandbox refuses.
 - Then **stop**. Landing is serialized, not permissioned: when the work this check covers is
   finished, the `queue-merge` workflow hands the branch to the landing queue, which lands it
   one branch at a time. The queue reads this stamp (`scripts/jobs.mjs add-merge` refuses a tip
