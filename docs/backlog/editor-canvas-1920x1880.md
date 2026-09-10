@@ -5,10 +5,10 @@ kind: finding
 raised: 2026-08-29
 state: advanced
 note: >-
-  2026-09-10: the owner could not place the report and guessed dictation had garbled it. It had
-  not - the number was read off his screenshot. Tracing it found the mechanism half: nothing
-  validates a template's resolution against the catalog, because validateProjectFormat has no
-  callers. The graphic that showed 1880 is still unidentified.
+  2026-09-10 evening: the mechanism half is FIXED. validateProjectFormat now has callers at both
+  ends - a derived mark on the live format label and a word on the save status - and two tests in
+  e2e/project-format.spec.ts pin all three call sites. What stays open is only how a template came
+  to hold 1880, which needs the graphic and the owner does not remember which one it was.
 found: "screenshot of the failing editor showing `headline · 1920x1880 · 25 fps` in the header and in the resolution chip (owner's machine, not a paraphrase - the number is off the screenshot)"
 ---
 # A graphic came up in the editor at 1920x1880
@@ -64,9 +64,43 @@ are an imported or converted graphic carrying its artboard size, a hand edit of 
 canonical and editable by design, or a record predating the current format catalog. Naming which
 one needs the graphic.
 
+## Fixed 2026-09-10 evening: the validator has callers
+
+Point 3 landed on `claude/cc-validate-project-format`. The reproduction came first - seeding the
+autosave slot with 1920x1880 and reloading put `1920×1880 · 25 fps` in the header and in the chip
+with nothing complaining, which is exactly the owner's screenshot reached from a spec.
+
+**Nothing refuses**, and that was the call worth making. Refusing to open loses the reader's work
+and refusing to save strands it; what the catalogue can detect is that a format is UNKNOWN, not
+that the document is broken. The graphic still opens, renders, saves and exports. So:
+
+- **The load half is ONE derived call.** `src/components/ProjectFormatMeta.tsx` reads the LIVE
+  working template and is rendered by both surfaces that already print the format - the topbar meta
+  (`AppShell.tsx`) and the canvas chip (`PreviewFrame.tsx`). Deriving it covers boot restore,
+  opening from the library, an import, a cloud pull and a hand edit of the code at once, instead of
+  instrumenting the ten-odd load doors and missing the eleventh. The header's format line is
+  normally hidden below 1400px as the least essential thing in the bar; a warning is not
+  decoration, so `app-shell.css` keeps it and paints it amber.
+- **The save half is a word, not a refusal.** `store/saveActions.ts` validates in BOTH save doors
+  (`saveCurrentGraphic` and `saveGraphicAs`) and the status beside the Save button reads
+  `Saved · unsupported format`, with the validator's sentence in its title.
+- **Three call sites, three mutation tests.** The two tests at the end of
+  `e2e/project-format.spec.ts` were each run with one call removed on purpose: the load one fails
+  as `Expected "⚠ 1920×1880 · 25 fps" / Received "1920×1880 · 25 fps"` - the reproduction's own
+  signature - and each save one fails as `Expected "Saved · unsupported format" / Received "Saved"`.
+
+Not done, deliberately: nothing OFFERS to fix the format. There is no format control for an
+existing graphic (`ProjectFormatPicker` appears only in the creation wizard and in video settings),
+so the tooltip says what the number costs rather than sending the reader to a door that is not
+there. "Put this on 1920×1080 for me" is a real feature and it is not this change. The VIDEO
+shell's own format line (`VideoAppShell.tsx`) is unguarded the same way and was left alone: a video
+project is a different record with its own picker, and widening the row to cover it would have
+mixed two subjects in one branch.
+
 ## What it would take
 
-Nothing until a graphic with that resolution exists to look at. Two cheap reads when one does:
+Only the unexplained half is left, and it needs a graphic with that resolution to look at. Two
+cheap reads when one turns up:
 
 - Does `1920x1880` survive a save/load roundtrip, or is it produced by one? `model/layout.ts`
   carries the versioned format and its migration-on-read, so a roundtrip test is a few lines.
@@ -74,8 +108,10 @@ Nothing until a graphic with that resolution exists to look at. Two cheap reads 
   with it? Two sources that can differ is the shape that produces a number nobody chose.
 
 Otherwise: ask the owner for the graphic. A screenshot names a value; the saved record explains it.
-Asked on 2026-09-10; he does not remember which graphic it was, so that road is probably closed and
-the validator call is the whole remaining fix.
+Asked on 2026-09-10; he does not remember which graphic it was, so that road is probably closed.
+The validator call was the whole remaining FIX and it has landed, which means the next graphic that
+carries an off-catalogue format announces itself on screen rather than being noticed in a
+screenshot a fortnight later. That is the road this receipt now waits on.
 
 ## Evidence
 
