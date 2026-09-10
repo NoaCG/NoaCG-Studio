@@ -107,7 +107,8 @@ test('the walk fixture is a command the classifier does not recognise - the prem
   // Every case below that uses `walk()` is really asking what the queue does with a command it
   // has never seen. If the classifier ever learns this name, those cases quietly start pricing a
   // battery and read as a broken mechanism instead of a stale fixture - which is exactly what
-  // happened on 2026-09-10 and cost this branch two landing attempts.
+  // happened on 2026-09-10 and cost this branch four landing attempts (j-0903 to j-0906, every
+  // one of them a land-watch pinned to the same sha).
   //
   // It was hard to read because the two CI runs on the SAME commit disagreed: `push` was green and
   // `pull_request` was red. Nothing was flaky. `actions/checkout` takes the branch alone on a push
