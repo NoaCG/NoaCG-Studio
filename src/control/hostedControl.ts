@@ -695,15 +695,6 @@ const SLOW_AFTER_EVENT_MS = 1200;
 const slowUntil = new Map<string, number>();
 const slowKey = (showId: string | null, graphic: string) => `${showId ?? '-'}:${graphic}`;
 
-/** What one verb put on which road. */
-export interface VerbRoads {
-  /** Every item as it went on the wire, ids and all - the durable insert carries these. */
-  items: ControlSendItem[];
-  /** The items that were also MARKED for the fast road, and which the database therefore
-   *  broadcast if the send committed. */
-  fast: ControlSendItem[];
-}
-
 /** One item as `control_send_many` receives it: the command, plus the transport-only mark that
  *  says the database may put this one on the fast road (migration 0056 reads `fast` and inserts
  *  `graphic` and `msg`, so the mark never reaches the log or a receiver). */
@@ -732,20 +723,18 @@ export async function sendControlVerb(opts: {
   items: ControlSendItem[];
   /** Apply on THIS surface, called with the fast items before the send is awaited. */
   applyHere?: (items: ControlSendItem[]) => void;
-}): Promise<VerbRoads> {
+}): Promise<void> {
   const now = Date.now();
   const { showId } = opts;
   // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
   const fastRoad = !!showId && !recovering.has(showId);
-  const items: ControlSendItem[] = [];
   const wire: WireItem[] = [];
   const fast: ControlSendItem[] = [];
   const held: string[] = [];
   for (const item of opts.items) {
     const stamped: ControlSendItem = { graphic: item.graphic, msg: withOid(item.msg) };
-    items.push(stamped);
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
@@ -753,10 +742,11 @@ export async function sendControlVerb(opts: {
       held.push(key);
       slowUntil.set(key, now + SLOW_AFTER_EVENT_MS);
       wire.push(stamped);
-    } else if (fastRoad && (slowUntil.get(key) ?? 0) <= now) {
-      fast.push(stamped);
-      wire.push({ ...stamped, fast: true });
-    } else wire.push(stamped);
+      continue;
+    }
+    const rides = fastRoad && (slowUntil.get(key) ?? 0) <= now;
+    if (rides) fast.push(stamped);
+    wire.push(rides ? { ...stamped, fast: true } : stamped);
   }
   // THIS PAGE'S OWN MONITOR, before the round trip. It is applying commands it has not sent yet,
   // which is safe for the same reason the two roads are: the minted id means the echo it gets
@@ -778,7 +768,6 @@ export async function sendControlVerb(opts: {
     const landed = Date.now() + SLOW_AFTER_EVENT_MS;
     for (const key of held) slowUntil.set(key, landed);
   }
-  return { items, fast };
 }
 
 /** Did this send put commands on THIS surface's screen before failing? Read off the thrown

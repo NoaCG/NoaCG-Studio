@@ -1,6 +1,13 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { createProject } from '../_create';
-import { haveCreds, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
+import {
+  clearPublishedShows,
+  haveCreds,
+  lastAppliedRow,
+  signIn,
+  SUPABASE_URL,
+  wipeMyGraphics,
+} from './_helpers';
 
 // A READ-ONLY LINK MUST NOT BE ABLE TO MOVE A PICTURE.
 //
@@ -45,29 +52,6 @@ import { haveCreds, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 // walk would exercise the half no renderer ever uses.
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
-
-/** Publish nothing behind us (the account is shared with the rest of the live suite, and a
- *  published production keeps its reserved addresses — migration 0040). */
-async function clearPublishedShows(page: Page): Promise<void> {
-  await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
-    for (const s of loadShows()) {
-      if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
-      deleteShow(s.id);
-    }
-    const { syncNow } = await import('/src/backend/syncController.ts');
-    await syncNow();
-  });
-}
-
-/** The renderer's count of DURABLE rows applied, off the `&debug=1` overlay. A broadcast has no
- *  row id and can never move it, so this number is the log's own answer to "was it recorded?" */
-async function lastRow(air: Page): Promise<number> {
-  const text = await air.locator('pre').textContent();
-  const m = /last row: (\d+)/.exec(text ?? '');
-  return m ? Number(m[1]) : 0;
-}
 
 test('an output URL can render the show and cannot push a command onto it', async ({ page, browser }) => {
   test.setTimeout(360_000);
@@ -118,7 +102,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   // overlay. One press makes it a number this walk has watched move.
   await page.getByTestId('verb-take').click();
   await expect.poll(airPlays, { timeout: 60_000 }).toBe('1');
-  const rowsBefore = await lastRow(air);
+  const rowsBefore = await lastAppliedRow(air);
   expect(rowsBefore, 'the renderer never reported applying a durable row').toBeGreaterThan(0);
 
   // ── THE HOLDER OF THE READ-ONLY LINK. ──────────────────────────────────────────────────────
@@ -216,7 +200,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   // land has landed by now.
   await air.waitForTimeout(5_000);
   expect(await airPlays(), 'a holder of the output URL made the graphic play').toBe('1');
-  expect(await lastRow(air), 'a forged command reached the durable log').toBe(rowsBefore);
+  expect(await lastAppliedRow(air), 'a forged command reached the durable log').toBe(rowsBefore);
 
   // ── AND THE ROAD IS OPEN TO WHOEVER MAY USE IT. ────────────────────────────────────────────
   //
