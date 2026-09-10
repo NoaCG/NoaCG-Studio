@@ -10,6 +10,7 @@ import {
   MODES,
   buildStamp,
   deriveVerdict,
+  main,
   parseLeg,
   stampPath,
   trackedChanges,
@@ -122,6 +123,13 @@ test('the path it writes is the path jobs-store opens', () => {
   // readReviewStamp builds the same name from the same branch; a miss returns null rather than
   // throwing, so this asserts the shape by proving the reader looks where the writer wrote.
   assert.equal(readReviewStamp(dir, branch), null, 'nothing is there yet, and that is not an error');
+});
+
+test('every leg must be named - there is no pass-shaped default', () => {
+  // A leg defaulting to `inline` would let a bare `npm run stamp` record a full pass nobody
+  // claimed, in the one script whose job is to stop an unearned pass reaching the record.
+  assert.equal(main([]), 1);
+  assert.equal(main(['--review', 'inline', '--simplify', 'inline']), 1, 'verify is still missing');
 });
 
 test('untracked files do not block a stamp, tracked changes do', () => {

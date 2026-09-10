@@ -33,7 +33,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { jobsDir, stampGap } from './jobs-store.mjs';
+import { flagValue, hasFlag, jobsDir, stampGap } from './jobs-store.mjs';
 
 // The worktree this file belongs to, never `process.cwd()`. Several worktrees of this repository
 // are normally live at once, and a stamp answered for whichever directory a session happened to be
@@ -161,18 +161,20 @@ export function trackedChanges(status) {
     .filter((line) => line && !line.startsWith('??'));
 }
 
-function flag(argv, name) {
-  const at = argv.indexOf(`--${name}`);
-  return at === -1 ? null : argv[at + 1] ?? '';
-}
-
 export function main(argv = process.argv.slice(2)) {
   try {
-    const legs = {
-      review: parseLeg(flag(argv, 'review') ?? 'inline', 'review'),
-      simplify: parseLeg(flag(argv, 'simplify') ?? 'inline', 'simplify'),
-      verify: parseLeg(flag(argv, 'verify') ?? 'inline', 'verify'),
-    };
+    // EVERY LEG IS STATED, and there is no default. An omitted leg defaulting to `inline` would
+    // let `npm run stamp` alone write a full pass nobody claimed - a pass-shaped default in the
+    // one script whose whole job is to stop a pass being recorded that was not earned. Refusing
+    // costs a session one line of typing and cannot be got wrong by accident.
+    const missing = LEGS.filter((name) => flagValue(argv, `--${name}`) === undefined);
+    if (missing.length) {
+      console.error(`check-stamp: name every leg - missing ${missing.map((name) => `--${name}`).join(' ')}\n`);
+      console.error(`  each is one of: ${MODES.join(' | ')}, optionally with :<findings>/<fixed>`);
+      console.error('  npm run stamp -- --review inline:1/1 --simplify inline --verify inline');
+      return 1;
+    }
+    const legs = Object.fromEntries(LEGS.map((name) => [name, parseLeg(flagValue(argv, `--${name}`), name)]));
     const dirty = trackedChanges(git(['status', '--porcelain=v1']));
     if (dirty.length) {
       console.error(`Not stamping: ${dirty.length} tracked change(s) are uncommitted, so the sha this`);
@@ -184,14 +186,14 @@ export function main(argv = process.argv.slice(2)) {
 
     const scope = readScope();
     const reviewedSha = git(['rev-parse', 'HEAD']);
-    const { verdict, why } = deriveVerdict(legs, { failed: argv.includes('--fail') });
+    const { verdict, why } = deriveVerdict(legs, { failed: hasFlag(argv, '--fail') });
     const stamp = buildStamp({
       scope,
       reviewedSha,
       legs,
       verdict,
-      model: flag(argv, 'model') ?? process.env.NOACG_CHECK_MODEL ?? null,
-      effort: flag(argv, 'effort'),
+      model: flagValue(argv, '--model') ?? process.env.NOACG_CHECK_MODEL ?? null,
+      effort: flagValue(argv, '--effort') ?? null,
       at: new Date().toISOString(),
     });
 
@@ -209,7 +211,7 @@ export function main(argv = process.argv.slice(2)) {
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, `${JSON.stringify(stamp, null, 2)}\n`);
 
-    if (argv.includes('--json')) console.log(JSON.stringify(stamp, null, 2));
+    if (hasFlag(argv, '--json')) console.log(JSON.stringify(stamp, null, 2));
     else {
       console.log(`Stamped ${scope.branch} at ${reviewedSha.slice(0, 8)}: ${verdict.toUpperCase()}${why ? ` - ${why}` : ''}`);
       for (const name of LEGS) {
