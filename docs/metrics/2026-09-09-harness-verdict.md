@@ -360,10 +360,11 @@ only in where the window is cut:
 | Rolling 24 h, 2026-09-08T20:25:55.094Z to 2026-09-09T20:25:55.094Z | 5 | 3 repaired, 2 unusable | 4 | the measurement tables' own cutoff |
 | The whole ledger through 2026-09-09T20:27:00.889Z | 25 | 1 clean, 1 reviewed, 10 repaired, 3 unusable, 10 not recorded | 8 | table 2 of the tables file |
 
-The day window is nine because three of its lines - the two recording this very measurement, at
-20:30:50Z and 20:30:59Z, and a `cli-feature` row at 20:32:21Z - were written after the tables were
-generated. That is why a rolling 24 hours anchored on the tables' cutoff gives five: it stops
-before this session finished writing its own rows down.
+The day window is nine and the rolling window is five because **four of the day's lines fall after
+the tables' cutoff of 20:25:55.094Z**: `ad-handoff-citation-sweep` at 20:27:00.889Z, which is the
+line the third window ends on; the two recording this very measurement, at 20:30:50Z and
+20:30:59Z; and a `cli-feature` row at 20:32:21Z. The rolling window stops before this session
+finished writing its own rows down, which is the whole of the difference.
 
 **The two nines, which are two different quantities.** "Nine Codex invocations" is what this
 session spent between 20:20 and 20:35 UTC on 2026-09-09; it is a count of calls, taken off the
