@@ -526,7 +526,14 @@ const GROWTH_FINDINGS = [
 ];
 
 test('corpus: every file arrives on the too-long answer and the picture count its sidecar states', async ({ page }) => {
-  test.slow(); // one walk through the import door per accepted file
+  // ONE WALK THROUGH THE IMPORT DOOR PER ACCEPTED FILE, and the budget is said here rather than
+  // taken from `test.slow()`. The cap column added on 2026-09-10 types a long value into every
+  // sample box on every file and settles twice, which roughly doubled this walk: measured on CI
+  // run 34502002518 it took 125 s against `test.slow()`'s 180, and the very next run on a slower
+  // runner went past 180 and was killed. That is the false-deadline shape playwright.config.ts
+  // warns about - a budget through the middle of the work rather than above it - and a test whose
+  // whole job is sweeping 46 files should not be one contended runner away from red.
+  test.setTimeout(6 * 60_000);
   const dir = fileURLToPath(new URL('fixtures/svg-corpus/', import.meta.url));
   // Every file that REACHES the mapping step is walked, and each COLUMN then decides for itself
   // whether it applies. The two used to share one filter, so the growth column's exclusions
