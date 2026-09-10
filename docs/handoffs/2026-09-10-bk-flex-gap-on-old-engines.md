@@ -156,7 +156,11 @@ base had fallen at BH's tip; the merge and a `contracts:compile` re-run (no chan
   designs aired on both real servers with and without the shim. `npm run test:e2e:integration`
   was NOT run on this laptop: it is a full suite, the day queue cannot start a cost-1 job while
   landings hold budget, and CI runs the same suite on a clean checkout of the merged tree - its
-  run on the final sha is the gate, read job by job below.
+  run on the final sha is the gate. Read on `218bfd6f`, run 34464694887: Build, Factory gates,
+  E2E plan, Catalog calibration gate, E2E 1/9 through 9/9, Combined E2E report and CI gate all
+  `success`; Reviewed and Vercel skipped as always, no retry needed. The run on the intermediate
+  push was cancelled by the newer one, and the run on the pre-merge push was green with the same
+  job list.
 - `taste: not applicable` - no design file, no shared template machinery, no fit or alignment
   code; the shim is inert on every engine a preview or a thumbnail renders on, which the sweep's
   native side measures. The frames from the 2.3 server are the graphics looked at.
