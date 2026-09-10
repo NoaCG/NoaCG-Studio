@@ -110,11 +110,19 @@ export function parseAlignmentQuestions(text) {
       current[field] = opened[2].trim();
       continue;
     }
-    // A BLANK LINE ENDS THE FIELD, and it is the terminator rather than the next heading on
-    // purpose: an empty `**Answer:**` followed by a blank line and the section's own prose must
-    // stay OPEN. Swallowing that prose would invent an answer he never gave, refuse every wave
-    // plan over it, and write it into the rulings file - worse than the truncation being fixed.
-    if (!line.trim()) { field = null; continue; }
+    // A BLANK LINE ENDS AN EMPTY FIELD, AND ONLY AN EMPTY ONE. The two failures either side of
+    // this line are the same one at different sizes, so neither may be traded for the other:
+    //
+    //  - an EMPTY `**Answer:**`, a blank line, then the section's own prose. Resuming there would
+    //    invent an answer he never gave, refuse every wave plan over it and write it into the
+    //    rulings file. An empty field never resumes, so it cannot happen.
+    //  - an answer given in TWO PARAGRAPHS, which is how a man who talks in paragraphs answers.
+    //    Ending the field at the first blank line drops the second half exactly as silently as
+    //    reading one physical line dropped the second line. A started field resumes.
+    //
+    // What closes a block outright is a heading, checked above, so an answer never runs past the
+    // next question or into section 3.
+    if (!line.trim()) { if (field && !current[field]) field = null; continue; }
     if (field) current[field] = `${current[field]} ${line.trim()}`.trim();
   }
   return questions.map((entry) => ({ ...entry, answered: entry.answer.length > 0 }));
@@ -184,14 +192,15 @@ export function alignmentState(root = REPO_ROOT) {
     for (const entry of parseAlignmentQuestions(readFileSync(file, 'utf8'))) {
       const previous = seen.get(entry.id);
       if (previous && (previous.answered || !entry.answered)) continue;
-      const row = { ...entry, source: relative(file), newest: file === newest };
-      seen.set(entry.id, row);
+      seen.set(entry.id, { ...entry, source: relative(file) });
     }
   }
-  for (const row of seen.values()) {
-    const { newest: isNewest, ...entry } = row;
+  for (const entry of seen.values()) {
+    // `source` already says which week won, and only the newest week's questions are still open -
+    // an UNANSWERED row is never replaced by the tie-break above, so its source is the file the id
+    // first appeared in, walking newest first.
     if (!entry.answered) {
-      if (isNewest) state.open.push(entry);
+      if (entry.source === state.source) state.open.push(entry);
     } else if (mentionsId(rulings, entry.id)) state.recorded.push(entry);
     else state.pending.push(entry);
   }

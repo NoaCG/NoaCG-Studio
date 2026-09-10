@@ -144,6 +144,25 @@ test('an empty Answer stays open when the section prose follows a blank line', (
   assert.equal(parsed[0].answer, '');
 });
 
+test('an answer given in two paragraphs keeps both, and stops at the next question', () => {
+  const parsed = parseAlignmentQuestions(
+    '### ALIGN-2026-09-15-1 - needs: alignment\n'
+    + '**Question:** Do the three unstarted asks still matter?\n'
+    + '**Answer:** Drop the video wrapper, it was an idea and not a need.\n'
+    + '\n'
+    + 'The assistant is the one I actually want - after the 25th, done properly.\n'
+    + '\n'
+    + '### ALIGN-2026-09-15-2 - needs: alignment\n'
+    + '**Question:** Second?\n'
+    + '**Answer:**\n',
+  );
+  assert.equal(
+    parsed[0].answer,
+    'Drop the video wrapper, it was an idea and not a need. The assistant is the one I actually want - after the 25th, done properly.',
+  );
+  assert.equal(parsed[1].answered, false, 'the paragraph break must not carry the answer into the next block');
+});
+
 test('an answer written on the line under **Answer:** is still his answer', () => {
   const parsed = parseAlignmentQuestions(
     '### ALIGN-2026-09-10-1\n**Question:** Does it still matter?\n**Answer:**\nYes, until the students have used it.\n',

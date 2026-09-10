@@ -139,10 +139,11 @@ The id is `ALIGN-<the date>-<n>`, and the shape is exactly this, because
     **Answer:**
 
 An empty `**Answer:**` is an open question. Fill it in when he answers, faithfully enough that the
-ruling can be written from it, and change nothing else in the block. **Both fields run until the
-next blank line**, so wrap them like any other prose in this repository and write as much of what he
-said as it takes - the parser joins the lines. What ends an answer is the blank line before the next
-block, which is also why an unanswered question with the section's prose below it stays open.
+ruling can be written from it, and change nothing else in the block. **Write as much of what he said
+as it takes**: once a field has started it runs to the next heading, wrapped lines and paragraph
+breaks and all, so never trim him to fit. An EMPTY `**Answer:**` is the one thing that does not
+resume - it ends at the blank line under it, which is what keeps an unanswered question open with
+the section's own prose below it rather than quietly adopting that prose as his answer.
 
 **His answers are then recorded by a session, not by this routine.** The answer belongs in
 `docs/OWNER_RULINGS.md` under its id, and in whichever doc it moves (`GOALS.md`, `PROGRAMMES.md`, a
