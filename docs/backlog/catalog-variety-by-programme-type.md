@@ -106,7 +106,7 @@ kind, and News and Sports already exist as genre columns there with their own H/
 he is naming is a missing dimension that table does not carry at all: a VISUAL REGISTER (a
 broadcast-news look, a UFC look, an NFL look, a late-night look) distinct from which graphic kinds a
 genre runs. That is item 3's territory, the per-design default palette and entrance, not item 1's
-gap table - record these named registers there when item 3 is picked up. And the 26th's acceptance
+gap table - record these named registers there when item 3 is picked up. And the 25th's acceptance
 does not depend on this item: SVG import and playing out a custom graphic with working data fields
 is what the day rides on, not catalog width.
 
