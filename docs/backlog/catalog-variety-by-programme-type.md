@@ -100,10 +100,15 @@ the intent binds and the wording does not - full answer in `docs/OWNER_RULINGS.m
 > think we have all those kinds of looks.
 
 So the survey in item 1 above names **news, UFC, NFL and night shows** as looks the catalog
-currently has nothing for, next to the streamer and YouTube looks it leans on - feed these into
-`docs/CATALOG_BY_PROGRAMME.md`'s gap table rather than treating them as a separate ask. And the
-26th's acceptance does not depend on this item: SVG import and playing out a custom graphic with
-working data fields is what the day rides on, not catalog width.
+currently has nothing for, next to the streamer and YouTube looks it leans on. These are not new
+rows for `docs/CATALOG_BY_PROGRAMME.md`'s §5 gap table - that table's axes are genre and graphic
+kind, and News and Sports already exist as genre columns there with their own H/h/S/A ratings. What
+he is naming is a missing dimension that table does not carry at all: a VISUAL REGISTER (a
+broadcast-news look, a UFC look, an NFL look, a late-night look) distinct from which graphic kinds a
+genre runs. That is item 3's territory, the per-design default palette and entrance, not item 1's
+gap table - record these named registers there when item 3 is picked up. And the 26th's acceptance
+does not depend on this item: SVG import and playing out a custom graphic with working data fields
+is what the day rides on, not catalog width.
 
 He also raised a new capability while answering the same question, distinct from this item's scope:
 
