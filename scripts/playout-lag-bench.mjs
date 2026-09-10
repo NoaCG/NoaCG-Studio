@@ -256,8 +256,17 @@ const NET_PROBE = `(() => {
         // row - can land inside this window. Measured over the 2026-09-10 run: one of twenty rows
         // was exactly that, its wsRow sitting 126 ms ahead of the graphic's own played stamp,
         // while the other nineteen sat within 6 ms of it.
+        //
+        // THE FRAME IS A PHOENIX v2 ARRAY - [joinRef, ref, topic, event, payload] - not an object
+        // with a payload key. Checked against a live frame on 2026-09-10 (the record carries
+        // id, msg, graphic, show_id, created_at under payload.data.record); the object form is
+        // read too, so a serializer change degrades to null rather than to a wrong answer.
         let kind = null;
-        try { kind = JSON.parse(text)?.payload?.data?.record?.msg?.t ?? null; } catch { kind = null; }
+        try {
+          const frame = JSON.parse(text);
+          const payload = Array.isArray(frame) ? frame[4] : frame?.payload;
+          kind = payload?.data?.record?.msg?.t ?? null;
+        } catch { kind = null; }
         net.ws.push({ t: abs(), kind, bytes: text.length });
       });
       return ws;
@@ -637,14 +646,16 @@ async function gesture(name, act, settleMs = 1200) {
   // whenever the server data key resolves to null (ProductionPage.tsx, `runVerb(..., 'Data')`),
   // so a data update in flight would otherwise be filed as the Take's round trip.
   const send = host.rpc.find((r) => r.sent >= verbClick && (r.name === 'control_send_many' || r.name === 'control_send')) ?? null;
-  // The row is picked by the COMMAND THIS VERB SENT - `play` for a take, `stop` for an out - and
-  // the same way round: from the verb's click onwards. `verbMark` below already does exactly this
-  // on the graphic's side, and the two agreeing within a few milliseconds is what says the row
-  // timed here is the row that moved the picture.
+  // WHICH COMMAND THIS VERB SENT - `play` for a take, `stop` for an out. Both the socket frame
+  // and the graphic's own mark are picked by it, and both from the verb's click onwards, so the
+  // two are measuring the same command and their agreement means something. A frame whose
+  // command could not be read is NOT matched: it is counted instead (`wsUnparsed` below), because
+  // accepting it would restore exactly the first-in-window behaviour this replaced - silently,
+  // and only in the runs where a frame happened not to parse.
   const verbKind = name.startsWith('out') ? 'stop' : 'play';
-  const wsRow = host.ws.find((w) => w.t >= verbClick && (w.kind === null || w.kind === verbKind)) ?? null;
+  const wsRow = host.ws.find((w) => w.t >= verbClick && w.kind === verbKind) ?? null;
   // The command a VERB sends, not the settle burst the preview gets on selection.
-  const verbMark = marks.find((m) => m.cmd === 'play' || m.cmd === 'stop' || m.cmd === 'dispatch') ?? null;
+  const verbMark = marks.find((m) => m.cmd === verbKind && m.arrived >= verbClick) ?? null;
   const bootMark = marks.find((m) => m.cmd === '__load') ?? null;
   return {
     gesture: name,
@@ -668,6 +679,10 @@ async function gesture(name, act, settleMs = 1200) {
     toWsRowMs: wsRow ? round(wsRow.t - verbClick) : null,
     /** Every `control_events` frame in the window, matched or not - a batch is three rows. */
     wsRows: host.ws.length,
+    /** Frames whose command could not be read off the socket text. Any number above zero here
+     *  means the matcher is blind for that many frames, and a run where it is non-zero while
+     *  `toWsRowMs` is null is the matcher failing rather than the row never arriving. */
+    wsUnparsed: host.ws.filter((w) => w.kind === null).length,
     toCommandMs: command === null ? null : round(command - verbClick),
     toPlayedMs: verbMark ? round(verbMark.played - verbClick) : null,
     toPaintedMs: verbMark && verbMark.painted ? round(verbMark.painted - verbClick) : null,
