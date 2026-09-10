@@ -126,9 +126,19 @@ const known = published ? Object.keys(published.versions) : [];
  * repository nor the credential. Recreating the connection needs an interactive 2FA challenge, so
  * it is always the account owner's job and never same-session work. Asking here costs two seconds
  * and moves that discovery to BEFORE the tag exists.
+ *
+ * Renaming the WORKFLOW is the same failure and would slip past that comparison, because a stale
+ * constant and the stale path in the last publish's provenance agree with each other. So the
+ * constant is checked against the tree before it is trusted to say anything.
  */
 const WORKFLOW = '.github/workflows/release-cli.yml';
 const WORKFLOW_FILENAME = WORKFLOW.split('/').pop();
+if (!git('ls-tree', 'origin/main', '--', WORKFLOW)) {
+  fail(
+    `${WORKFLOW} does not exist on origin/main, so this script cannot say which workflow npm must trust`,
+    'If the release workflow was renamed, update WORKFLOW here and have the owner re-create npm\'s trusted publisher with the new filename.',
+  );
+}
 
 /** The repository as GitHub names it TODAY. A local remote can still carry the pre-move name. */
 const currentRepository = () => {
@@ -164,6 +174,14 @@ const lastPublished = published?.['dist-tags']?.latest;
 // the workflow refuses again. A MISMATCH is different - that is a real answer, and it refuses.
 const lastProvenance = lastPublished ? await provenanceOf(lastPublished).catch(() => null) : null;
 
+/**
+ * Compared case-INSENSITIVELY, even though npm's own matching is case-sensitive. Both sides here
+ * name the same repository, so a difference in case is this script reading two spellings of one
+ * name - a lowercase `origin` remote clones the same repository GitHub calls `NoaCG/NoaCG-Studio` -
+ * and refusing a release over that would be the false alarm this check exists to avoid.
+ */
+const sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
+
 let publisherLine;
 if (!here) {
   publisherLine = 'npm publisher UNCHECKED - neither `gh` nor the origin remote named a GitHub repository.';
@@ -172,7 +190,7 @@ if (!here) {
   publisherLine = `npm must be holding ${here.name} + ${WORKFLOW_FILENAME} - nothing to compare it against, because ${why}.`;
 } else {
   const drift = [];
-  if (lastProvenance.repository !== here.name) {
+  if (!sameName(lastProvenance.repository, here.name)) {
     drift.push(`npm last accepted ${lastProvenance.repository}, but this is ${here.name} (${here.from})`);
   }
   if (lastProvenance.path !== WORKFLOW) {
