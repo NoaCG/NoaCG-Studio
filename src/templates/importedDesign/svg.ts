@@ -492,18 +492,23 @@ function svgFitDue(within) {
 /** A line PLACED on the artwork rather than drawn in it - an HTML span, which measures and
  *  paints through different calls than an SVG text node does.
  *
- *  ASKED OF THE NAMESPACE, because it is asked of things that are not lines at all. It used to
- *  read "this node has no getComputedTextLength", which is a true test of "not an SVG <text>"
+ *  ASKED OF THE ELEMENT KIND, because it is asked of things that are not lines at all. It used
+ *  to read "this node has no getComputedTextLength", which is a true test of "not an SVG <text>"
  *  and only means "placed" while the caller already knows it is holding a line. svgUserScale
  *  asks it of PANELS and FOLLOWERS - a rect, a path, a group, none of which have that method -
  *  so every growing panel was read as placed and converted its grant at svgPlacedScale's
  *  fallback of 1 instead of the frame's own scale. Invisible on a 1920x1080 artwork, where the
  *  two are the same number; measured on the millimetre scorebug, whose user units are 3.78 px
  *  each, it grew the plate 3.78 times too far and stood it 1040 px below the frame's bottom
- *  edge (2026-09-10). A placed line is an HTML element; everything drawn is in the SVG
- *  namespace, whatever tag it is. */
+ *  edge (2026-09-10). A placed line is an HTML element; everything drawn is an SVG one,
+ *  whatever tag it is.
+ *
+ *  NOT the namespace string, which says the same thing and would put a literal http URL into the
+ *  emitted code. The export bench scans emitted JS for URLs and cannot tell an XML namespace
+ *  from a network reference (svgPaintLines below takes the namespace off the node for exactly
+ *  this reason), so writing one here refuses every imported graphic at the publish door. */
 function svgFitPlaced(el) {
-  return el.namespaceURI !== 'http://www.w3.org/2000/svg';
+  return !(el instanceof SVGElement);
 }
 
 /** Painted px per LAYOUT px for a placed line - what an entrance that scales the whole design

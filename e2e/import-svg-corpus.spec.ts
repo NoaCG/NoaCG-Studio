@@ -618,8 +618,32 @@ test('corpus: every file arrives on the too-long answer and the picture count it
 // is one pot the blocks inside it share (svgOfferHeights), so the cap is only actually reached
 // when they all ask.
 
-/** Every long value the step will take, then every growth-ruled panel that ends up outside the
- *  frame's own safe margin. Empty is the pass. */
+/** How far each growth-ruled panel hangs outside the frame, per edge, in screen px. Read once at
+ *  rest and once grown, because the law is about what GROWTH did: a shape drawn overhanging an
+ *  edge it never grows towards - a full-bleed band, a filtered shape whose rect spills - is the
+ *  artwork, and reporting it as a cap failure would send the next reader to the wrong code. */
+async function overhang(page: Page): Promise<Record<string, Record<string, number>>> {
+  return readArt(page.frameLocator('.wz-side iframe'), (art) => {
+    const w = window as unknown as { NOACG_LAYOUT?: { rules: { el: string }[] } };
+    const frame = art.getBoundingClientRect();
+    const out: Record<string, Record<string, number>> = {};
+    for (const rule of w.NOACG_LAYOUT?.rules ?? []) {
+      const el = art.querySelector(`[data-noacg-el~="${rule.el}"]`);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      out[rule.el] = {
+        'past the left': frame.left - r.left,
+        'past the right': r.right - frame.right,
+        'above the top': frame.top - r.top,
+        'below the bottom': r.bottom - frame.bottom,
+      };
+    }
+    return out;
+  }, null);
+}
+
+/** Every long value the step will take, then every growth-ruled panel that GREW past the frame.
+ *  Empty is the pass. */
 async function overgrown(page: Page, slug: string): Promise<string[]> {
   const mode = page.getByTestId('map-svg-stretch-mode');
   if (!(await mode.count())) return []; // a graphic with no growth control has no cap to keep
@@ -627,30 +651,26 @@ async function overgrown(page: Page, slug: string): Promise<string[]> {
   const n = await samples.count();
   if (n === 0) return []; // nothing to type, so nothing can ask the panel to grow
   await mode.selectOption('grow-xy');
-  for (let i = 0; i < n; i++) await samples.nth(i).fill(LADDER_VALUES.absurd);
-  await awaitPainted(page, LADDER_VALUES.absurd);
-  const over = await readArt(page.frameLocator('.wz-side iframe'), (art) => {
-    const w = window as unknown as { NOACG_LAYOUT?: { rules: { el: string; safe: number }[] } };
-    const frame = art.getBoundingClientRect();
-    const out: string[] = [];
-    for (const rule of w.NOACG_LAYOUT?.rules ?? []) {
-      const el = art.querySelector(`[data-noacg-el~="${rule.el}"]`);
-      if (!el) continue;
-      const r = el.getBoundingClientRect();
-      // The frame's own edges, not the mirrored margin: this is the outer bound the cap can
-      // never be looser than, so a failure here is unambiguous rather than a tolerance argument.
-      // A panel drawn hard against an edge is allowed to stay there, hence the pixel of slack.
-      const past = [
-        r.left < frame.left - 1 ? `${Math.round(frame.left - r.left)}px past the left` : '',
-        r.right > frame.right + 1 ? `${Math.round(r.right - frame.right)}px past the right` : '',
-        r.top < frame.top - 1 ? `${Math.round(frame.top - r.top)}px above the top` : '',
-        r.bottom > frame.bottom + 1 ? `${Math.round(r.bottom - frame.bottom)}px below the bottom` : '',
-      ].filter(Boolean);
-      if (past.length) out.push(`${rule.el} stands ${past.join(' and ')}`);
-    }
-    return out;
-  }, null);
-  return over.map((said) => `${slug}: ${said}`);
+  const rest = await overhang(page);
+  // A DISTINCT VALUE PER FIELD, so the wait can prove the LAST fill landed. Filling every box
+  // with one string leaves `awaitPainted` satisfied by the first field's document, and a rebuild
+  // landing mid-loop would then be measured with only some of the fields long - which is not the
+  // case the cap is reached in, so the gate would pass without exercising itself.
+  const value = (i: number) => `${LADDER_VALUES.absurd} (${i + 1})`;
+  for (let i = 0; i < n; i++) await samples.nth(i).fill(value(i));
+  await awaitPainted(page, value(n - 1));
+  const grown = await overhang(page);
+  const said: string[] = [];
+  for (const [token, edges] of Object.entries(grown)) {
+    // TWO CONDITIONS, and both are needed. Outside the frame at all - a pixel of slack, because a
+    // panel drawn flush to an edge measures a rounding tick outside it - AND further outside than
+    // the drawing put it, so an overhang the designer drew is not read as growth spending it.
+    const past = Object.entries(edges)
+      .filter(([edge, px]) => px > 1 && px > (rest[token]?.[edge] ?? 0) + 1)
+      .map(([edge, px]) => `${Math.round(px)}px ${edge}`);
+    if (past.length) said.push(`${slug}: ${token} grew to stand ${past.join(' and ')}`);
+  }
+  return said;
 }
 
 // ── THE FIT LADDER, SWEPT ──────────────────────────────────────────────────────────────────
@@ -924,6 +944,10 @@ test('corpus: a panel told to get wider AND taller spends both, at the drawn siz
   await awaitPainted(page, 'Alexandra Riva');
   const rest = await read();
   expect(rest.lines, 'the drawn name is one line').toBe(1);
+  // The drawn size is ASSERTED, not merely read: every shrink claim below compares against it,
+  // and comparing against an unmeasured NaN is false for any size at all - so a missing datum
+  // would turn the one rung that must not fire into an assertion that cannot.
+  expect(rest.drawn, 'the drawn type size was measured').toBeGreaterThan(0);
 
   // A name too long for the plate's width AND for one line of the width it may grow to.
   await page.getByTestId(`map-svg-sample-${nameId}`).fill(LADDER_VALUES.over3);
