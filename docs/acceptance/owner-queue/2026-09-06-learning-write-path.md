@@ -28,3 +28,19 @@ refuses and says why; drop the date and it prints the rule file it would write. 
 whether the rule text format (one to three imperative sentences, symbols in backticks, no
 evidence) is what you want every session writing from now on. The format is cheap to change
 today and expensive after phase 2b migrates 108 files into it.
+
+## Mechanics checked by an agent, 2026-09-10 - only the taste question is left
+
+Both halves of the route were run rather than described.
+
+The dated rule is refused, and the refusal is one line that names the offending text and the reason:
+`the rule text carries a date ("2026-09-06") - that is evidence, and it belongs in the record`.
+Without the date the dry run prints the rule file it would write, front matter and all.
+
+So the only thing left on this item is the question it was really filed for, and it has a deadline:
+
+> whether the rule text format - one to three imperative sentences, symbols in backticks, no
+> evidence - is what you want every session writing from now on. The format is cheap to change
+> today and expensive after phase 2b migrates 108 files into it.
+
+Read three or four rules in `.claude/rules/everywhere.md` and say whether that is the house voice.

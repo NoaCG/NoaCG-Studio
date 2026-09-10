@@ -40,9 +40,13 @@ judge: whether these two are worth the weight every reader pays.
 
 ## What to look at
 
-- **The nav.** Twelve entries now. If it reads as too many, the two to argue about are
-  "Pictures, logos & Lottie" and "Which package do I want", and either can go back into a
-  neighbouring section.
+- ~~**The nav.**~~ **Removed 2026-09-10, asked twice.** This said "twelve entries now"; the live
+  nav has fourteen, counted off `docs.html` on 2026-09-10, and
+  `2026-09-09-how-to-work-with-a-team.md` asks the same question with the right number. Answer it
+  there. The two entries this item wanted to argue about, "Pictures, logos & Lottie" and
+  "Which package do I want", are named there too so nothing is lost.
+
+  The original wording of this bullet ended: "either can go back into a neighbouring section."
 - **The voice.** Three guides written to match the four already there. If any paragraph reads
   like it is selling something, that is the defect.
 - **The countdown guide's length.** It carries six sub-heads, more than any other kind guide,
