@@ -45,6 +45,14 @@ Two small things worth folding in, both measured on the 2026-09-10 night: a roun
 exact whole number of minutes) is a poll budget rather than an elapsed time and should print as
 unverified, and a delegation line with a null `specBytes` should say so rather than print a blank.
 
+## Its neighbour on the shelf
+
+`docs/backlog/the-effort-trial-expires-on-a-ledger-that-cannot-settle-it.md` names the same script
+in its `touches:` and is a different finding - that the medium-effort trial expires on a ledger with
+no worker-attributed medium rows to settle it. They are worth doing together: that one needs a
+reading of the ledger by model, effort, outcome and cause per task class, which is exactly the
+report this one asks for. Whoever takes either should take both rather than writing two readers.
+
 ## Evidence
 
 - `scripts/delegation-outcome.mjs` - the collapse rule in the header, and seven exported functions
