@@ -45,11 +45,25 @@ cr01: 2 element(s) — #count, body>div.credits.credits--minimal[1]>div.noacg-da
 cr02 cr03 cr04 cr06 cr08 cr11 cr12 cr13   (same shape)
 ```
 
-The `#count` and the `.noacg-data-source` holder are almost certainly the operator speed control
-and the first-frame paint arriving as real elements. Whether that drift is CORRECT is the
-question the spec exists to force somebody to answer - *"A token substitution cannot do this —
-investigate before re-recording"* is its own error message - and for eight commits nobody was
-asked, because on Linux the question was never put.
+**That drift is settled, and the answer arrived on 2026-09-10** (branch
+`claude/bp-catalog-drift-after-the-shim`; the reasoning is in
+`docs/handoffs/2026-09-10-bp-catalog-drift-after-the-shim.md`). It was the operator speed control
+and nothing else - the first-frame paint guessed at above is not involved. `cde2a2da` (2026-09-06)
+appends a `<div class="noacg-data-source">` holding the speed value to nine credits designs, and
+`1a9269c0` with `4b6642e5` (2026-09-09) does the same to fifteen tickers; the count is 24, not the
+9 above and not the 26 the failure appears to print. Each commit re-recorded the SOURCE baseline
+beside it and left this one behind. The holder is `display: none`, its rect is `0,0,0,0`, and its
+fingerprint is identical to a holder already in the file, so nothing a viewer can see moved at all.
+The baseline is re-recorded on that branch and the spec is green here again.
+
+**What that settles is one instance. It does not touch the Why above**, and the four days the red
+stood are the argument for it: nine designs went red on 2026-09-06, fifteen more on 2026-09-09, and
+the first person to READ the red was on 2026-09-08 - verifying an unrelated branch, exactly as this
+file was. Two separate sessions then filed two separate backlog items reasoning towards defects
+that were not there: this one guessed the first-frame paint, and
+`catalog-render-drift-after-the-flex-gap-shim.md` (filed 2026-09-10 on
+`claude/bn-private-command-topic`, PR 233 - delete it once that branch lands) blamed the flex-gap
+shim that happened to land the same morning. Two rows spent on a red that had nowhere to speak.
 
 ## Shapes
 
@@ -61,9 +75,28 @@ asked, because on Linux the question was never put.
 - **Keep it laptop-only and make the SKIP loud** - report it in the run summary and fail the
   weekly freshness check when the recorded platform is not CI's. Cheapest, and it converts a
   silent hole into a visible one rather than closing it.
+- **Run it daily against `main` on the laptop, and let the morning brief speak the red.**
+  `docs/ROUTINES.md`'s `daily-morning-brief` already runs at 07:00 Helsinki to answer whether the
+  morning needs a person, and already defaults to silence. A fourth line - "the render baseline is
+  red on main, N designs" - turns a four-day hole into one morning without changing the gate at
+  all. Two constraints: it drives a browser, so it goes through `npm run queue` rather than
+  straight into the routine (one such job per machine), and it needs a checkout on `main` that is
+  not the primary one, because the root contract forbids reading or building there. A routine that
+  queues a read-only job and reports its exit code is still reporting, but it stretches "routines
+  report, sessions write" far enough that the rule should be read before writing it.
 
-The third is the smallest change and the first is the real fix; whichever is chosen, the nine
-credits records have to be investigated and re-recorded deliberately, not swept up with it.
+The third and fourth are the small changes and the first is the real fix. The fourth is the one
+that addresses what this actually cost: the gate was never wrong, it just had nowhere to say so.
+
+Whichever is chosen, note that a Linux recording was tried once and CI was red for a day on font
+rasterization alone (the spec's own comment records it), so anyone taking the first or second shape
+has to prove a fingerprint is stable across repeated runs on the runner image before recording one.
+
+Already landed, and worth knowing before starting: the baseline now records the DAY it was taken,
+the failure message prints that day and hands over
+`git log --since=<that date> -- e2e/catalog-baseline.json`, and a drifted key the baseline never
+had is marked `+` and shown first. That shortens the wrong path a reader takes. It does not close
+it, because it still needs a person to be standing there reading.
 
 ## Not this branch's work
 

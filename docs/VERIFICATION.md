@@ -602,7 +602,9 @@ can all pass, the whole `npm run test:e2e:catalog` suite can pass, and CI's full
 red on the baseline - as it did on 2026-08-19, after four green local catalog runs on a
 nine-design branch. `npm run test:e2e:focus:queued` covers it locally; CI's plan always does.
 Read the diff before committing it: ids ADDED and nothing existing changed is the healthy shape,
-and an existing id whose code or frame moved is a real change in a design nobody edited.
+and an existing id whose code or frame moved is a real change in a design nobody edited. The one
+line that always moves is `recorded` at the top of `e2e/catalog-render-baseline.json` - the day
+that file was taken, which the failure message prints back when the fingerprints disagree.
 
 `node scripts/engine-floor.mjs` is about the PLAYOUT BROWSER: what CSS/JS an older engine silently
 drops, per design and per declaration (`--engine casparcg-24`, `--chromium 80`, `--fail` to gate).

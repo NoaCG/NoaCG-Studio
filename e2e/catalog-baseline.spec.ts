@@ -434,7 +434,11 @@ test(`every catalog variant renders identically${SCOPE_NOTE}`, async ({ page }, 
           // re-records e2e/catalog-baseline.json can leave this one behind for days without
           // anything going red anywhere - which is exactly what happened between 2026-09-06 and
           // 2026-09-10, and cost two backlog items that both guessed at the wrong cause. A date
-          // in the file turns "which of these two is stale" into one `git log --since`.
+          // in the file turns "which of these two is stale" into one `git log --since`. UTC, like
+          // every other date this repository stamps into a generated file - a recording made
+          // after 21:00 in Helsinki therefore says yesterday, which costs nothing, because
+          // `git log --since=<a bare date>` reads that date as LOCAL midnight and so looks
+          // further back rather than less far.
           recorded: new Date().toISOString().slice(0, 10),
           variants: actual,
         },
@@ -468,12 +472,17 @@ test(`every catalog variant renders identically${SCOPE_NOTE}`, async ({ page }, 
     // the old line showed neither: `+` is an element that is new here, `-` one that is gone, and
     // a bare key is one that stayed and moved. An added hidden holder is a `+`, and that is the
     // difference between a stale baseline and a look that moved.
+    const appearedOrWent = (k: string): boolean => was[k] === undefined || now[k] === undefined;
     const mark = (k: string): string => {
       if (was[k] === undefined) return `+${k}`;
       if (now[k] === undefined) return `-${k}`;
       return k;
     };
-    drifted.push(`${r.id}: ${moved.length} element(s) — ${moved.slice(0, 4).map(mark).join(', ')}`);
+    // Those keys go FIRST, because only four of them fit on the line. `moved` is in alphabetical
+    // order, and one element inserted mid-subtree renumbers every later sibling - which fills
+    // those four slots with keys that merely moved and hides the one key that says why.
+    const shown = [...moved.filter(appearedOrWent), ...moved.filter((k) => !appearedOrWent(k))];
+    drifted.push(`${r.id}: ${moved.length} element(s) — ${shown.slice(0, 4).map(mark).join(', ')}`);
     const dir = testInfo.outputPath('rendered');
     mkdirSync(dir, { recursive: true });
     writeFileSync(
@@ -497,8 +506,9 @@ test(`every catalog variant renders identically${SCOPE_NOTE}`, async ({ page }, 
       'Per-element records are in this test’s output directory; read them before re-recording. ' +
       'FIRST ask whether the emitted MARKUP moved since that date and only the source baseline ' +
       'was re-recorded: `git log --since=<that date> -- e2e/catalog-baseline.json` names every ' +
-      'such commit, and a `+key` above whose record ends `|0,0,0,0` is an element added to the ' +
-      'markup that nothing draws — a re-record is then right, and says so in its message. ' +
+      'such commit. A `+key` above is an element the baseline never had; find that key in the ' +
+      'records and read the rect its line ends with, because `|0,0,0,0` is an element nothing ' +
+      'draws — a re-record is then right, and says in its message which designs gained what. ' +
       'ONLY IF IT IS NOT THAT is this a look that moved, which a token substitution cannot cause.',
   ).toEqual([]);
 });
