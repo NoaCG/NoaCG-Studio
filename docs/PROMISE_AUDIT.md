@@ -39,13 +39,71 @@ because the numbers shift when a row is added.
 | 20 | No lock-in: real HTML/CSS/JS, self-contained packages, runs from a local file with no internet | WORKS WITH A STATED LIMITATION | `src/export/selfContained.ts`; `e2e/exports.spec.ts` "no export target ships a relative reference its own package cannot resolve" and "every export target carries the fonts its own code references"; `e2e/offline.spec.ts`. Limitation: the single-file targets and the SPX folder run from a file; OGraf and LiveOS packages need an http(s) server (row 3). |
 | 21 | Make a video or animation (Remotion / HyperFrames), rendered to MP4 or WebM | WORKS WITH A STATED LIMITATION | `render-worker/render.mjs`; `e2e/video-project.spec.ts`, `e2e/video-hyperframes.spec.ts`, `e2e/render.spec.ts`. Limitation: describing one with AI needs a free account (`src/components/wizard/steps/VideoStep.tsx` SignInPrompt); anonymous rendering is capped at 15 s and two jobs an hour (`src/render/limits.ts` RENDER_LIMITS.anonymous). |
 | 22 | The NoaCG CLI: `npx @noacg/cli scaffold / validate / save`, `npx -y @noacg/cli mcp` | WORKS WITH A STATED LIMITATION | `save` needs `noacg login`, so a free account and one consent click (`cli/src/commands/save.ts` refuses without a key and names the Import door as the account-free road); everything else runs without one. Registry: `npm view @noacg/cli version` = 0.3.0, `latest`, Apache-2.0 (run 2026-09-08). Local: `npm --prefix cli ci && npm --prefix cli run build` exit 0; `npm --prefix cli test` 60 tests, 55 pass, 0 fail, 5 skipped (the bridge smoke tier, no dev server); `node cli/dist/index.js --version` = 0.3.0; `--help` lists every verb the page shows; `docs contract` prints the contract with no browser. The unscoped `noacg` does not exist on npm and never will (`docs/AGENT_CLI.md` "Distribution"). |
-| 23 | Claude Code and Codex plugin install lines on `/docs#claude-code` | WORKS WITH A STATED LIMITATION | `cli/plugin/`, `cli/plugin-mcp/`, `.claude-plugin/marketplace.json`; `e2e/docs.spec.ts` "the agent guide offers both install routes, and they are the real ones". Limitation: the install was last executed on 2026-08-22 (Claude Code) and 2026-08-27 (Codex) per `docs/AGENT_CLI.md`; not re-run in this audit. |
+| 23 | Claude Code and Codex plugin install lines on `/docs#claude-code` | WORKS NOW | `cli/plugin/`, `cli/plugin-mcp/`, `.claude-plugin/marketplace.json`; `e2e/docs.spec.ts` "the agent guide offers both install routes, and they are the real ones". **All four lines re-executed on a clean profile 2026-09-10, every one exit 0** - see "The clean-profile install run" below for what was reset, the timings and the three things it found. Previous executions: 2026-08-22 (Claude Code) and 2026-08-27 (Codex). |
 | 24 | An agent-made graphic imports into the studio and keeps its name and type | WORKS NOW | `src/model/importTemplate.ts` reads `v_noacg`; `e2e/import.spec.ts` "import zip: a NoaCG graphic package keeps its name and TYPE through the Import door"; `e2e/bridge.spec.ts` "a dual package round-trips through the bridge". |
 | 25 | NoaCG reads any OGraf package: manifest validated, operator surface derived, lifecycle driven | WORKS NOW (through the CLI) | `src/export/targets/ografImport.ts`, `src/control/ografContract.ts`, `src/bridge/ografHost.ts`; `noacg inspect` and `noacg validate` on a third-party package (`cli/src/commands/validate.ts`); `e2e/ograf-contract.spec.ts` "a third-party OGraf package reads as conformant and its operator surface is derived from the manifest" and "the OGraf host mounts a stranger package and drives every lifecycle call with 2xx". |
 | 26 | A third-party OGraf graphic in the studio: in the library, in a production, on the output URL, driven from the dashboard | NOT YET IMPLEMENTED | The Import door wants an `.html` entry (`src/model/importTemplate.ts` `importZipTemplate`); `ografImport.ts` is consumed only by `src/bridge/bridgeApi.ts`; `noacg save` refuses a package without NoaCG sources (`cli/src/commands/save.ts`); `docs/AGENT_SAVE.md` §6; the OGraf-first ladder in `docs/GOALS.md` (import v1, foreign-package playout on `/output`). On the page as direction only. |
 | 27 | NoaCG as the controller of a NoaCG production running on an OGraf renderer; `/output` speaking the OGraf Server API | NOT YET IMPLEMENTED | `docs/OGRAF.md` "Playing a NoaCG production on an OGraf renderer, today": the renderer owns loading, cueing and data, "there is no NoaCG-to-renderer control link today"; no OGraf route in `api/` or `src/output/`. On the page as direction only. |
 | 28 | Any graphic made here exports as an OGraf v1 Graphic, and every catalog graphic's manifest satisfies the schema (only the OGraf and LiveOS targets and the CLI's dual package write a manifest; SPX, CasparCG, overlay and H2R packages carry none) | WORKS NOW | `src/export/targets/ograf.ts`, `ografSchema.ts`; `e2e/ograf-conformance.spec.ts` "every catalog graphic emits a manifest that satisfies the OGraf v1 schema"; the CLI's dual package was driven in SuperFlyTV's ograf-server (`docs/OGRAF.md`, 2026-08-22) and the manifest checked against the EBU's published schema files with a mutation-tested harness (2026-08-26). |
 | 29 | `/ograf`: six free starter packages, built by the real exporter at click time, schema-validated on every download | WORKS WITH A STATED LIMITATION | `ograf.html` (six `[data-starter]` cards); `src/ograf/main.ts`; `e2e/ograf-starters.spec.ts` "a starter download is a valid OGraf package with the modification guide inside". Limitation: the schema the download is checked against is NoaCG's transcription of the EBU's, compared with the published files weekly (`scripts/check-ograf-schema.mjs`; `docs/OGRAF.md` "The transcription against the published files, weekly"). |
+
+## The clean-profile install run (row 23), 2026-09-10
+
+Row 23 used to be graded down purely for staleness, and `docs/DEMO_2026-09-25.md` B5 points here
+because these dates should live in exactly one place. This is that place.
+
+**What "clean profile" means here, precisely, because it decides what the run proves.** Not a new
+Windows account and not a new machine. A directory tree at `C:\noacg-be-clean` with `USERPROFILE`,
+`APPDATA`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `npm_config_cache` and `npm_config_prefix` all
+pointed into it, so every piece of state these four commands read or write was empty at the start:
+no configured marketplace, no installed plugin, no npm cache, no global npm prefix, and no
+`%APPDATA%\noacg` (which is where the CLI keeps its login key - `cli/src/config.ts` `configDir()`
+reads `APPDATA` on Windows, NOT the home directory, so resetting the profile alone is not enough
+and the first attempt read the real machine's key). `GIT_CONFIG_GLOBAL` was deliberately left
+pointing at the real `.gitconfig`, since git identity is not part of what this proves.
+
+**What it therefore does NOT prove.** Node 24.13.0, npm 11.6.2, Chrome, Edge and the `claude` and
+`codex` binaries were already installed and on `PATH`. A student starting from a bare OS installs
+those first, and this run says nothing about that half.
+
+**The four lines, in order, all exit 0**, with the prompt's own verification step under them.
+
+| line | time |
+|---|---|
+| `claude plugin marketplace add NoaCG/NoaCG-Studio` | 13.1 s |
+| `claude plugin install noacg@noacg-studio` | 0.7 s |
+| `codex plugin marketplace add NoaCG/NoaCG-Studio` | 21.5 s |
+| `codex plugin add noacg@noacg-studio` | 0.2 s |
+| `npx -y @noacg/cli doctor` (the prompt's own verify step, cold npm cache) | 18.0 s |
+
+`claude plugin list` then reports `noacg@noacg-studio` 0.3.1, scope user, enabled. What it
+delivered is read off the installed directory rather than that summary: the
+`skills/noacg-graphic/` tree and `commands/graphic.md` are there and no `.mcp.json` is, which is
+the split holding on the Claude side too. `doctor` names the deployment, the browser, the bridge
+version, the fresh config directory and "not logged in". The optional `noacg-mcp` plugin installs
+on Codex the same way and registers the server; `docs/AGENT_CLI.md` carries that walk.
+
+**Three things the run found, none of them a limitation on the promise.**
+
+- **The version stamp disagrees with the registry.** `main` stamps both plugin manifests 0.3.1
+  (`cli/package.json` is 0.3.1) while `npm view @noacg/cli dist-tags` is still `latest: 0.3.0`, so
+  today's install is a plugin calling itself 0.3.1 that drives 0.3.0. Nothing breaks; the plugin
+  ships the skill and the command, and the version it prints is cosmetic. Publishing is a separate
+  row's work and was deliberately not done here.
+- **A stale global install wins silently, forever.** `cli/plugin-mcp/mcp-server.mjs` prefers an
+  installed `@noacg/cli` over npx by design, so a machine that ever ran `npm i -g @noacg/cli` keeps
+  that version. This laptop carries a global **0.2.0**, and driving the server against it returned
+  the old seven-tool shape instead of 0.3.0's single `noacg` tool. `npm i -g @noacg/cli@latest`
+  fixes it, and the one command you would check with cannot show it: the docs prompt says to run
+  `npx -y @noacg/cli doctor`, which prints the version NPX just fetched, not the global the server
+  will import. (A bare `noacg doctor` from the stale global does print 0.2.0 - but nobody is told
+  to run it that way.) Filed as
+  `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`; `docs/AGENT_CLI.md` carries the
+  measurement.
+- **Adding the marketplace costs 107 MB of the user's disk.** Both agents clone the whole
+  repository to read `.claude-plugin/marketplace.json`. That is the host's behaviour and not
+  something this repo chooses, so there is nothing here to fix; it is recorded because it surprises
+  people and because the room on the 25th will do it on their own laptops.
 
 ## What changed on the page because of the grades
 
