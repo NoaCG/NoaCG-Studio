@@ -28,6 +28,12 @@ Not one job. The honest shape is a per-directory drain, each one small enough to
    `/docs` was rewritten sentence by sentence; the landing kept its selling voice and only had the
    punctuation swapped, because the owner had accepted its copy. Both files are now out of the
    baseline entirely.
+   **That acceptance was withdrawn on 2026-09-10.** Walking the landing page, the owner passed its
+   honesty and failed its voice: too long, too much marketing, and a slogan he named for deletion.
+   The landing page is back in scope, as its own job:
+   `docs/backlog/public-copy-should-read-finnish-plain.md`. Note what the punctuation-only fix
+   cost - the tells he reacts to are length and hype, which no baseline entry was ever going to
+   catch.
 2. **`src/components`** - 463 lines of product UI. Best done per surface (wizard, home,
    timeline) so it lands beside whoever is already editing that surface.
 3. **`src/templates`** - 5,254 lines inside emitted HTML, CSS and JS comments. The biggest

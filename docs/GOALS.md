@@ -183,6 +183,11 @@ What is built is on solid cards - export, the six starters, reading a stranger's
 the CLI (`src/export/targets/ografImport.ts`, `src/control/ografContract.ts`) - and the three
 ladder rungs below it are dashed cards marked as direction. When a rung lands, its card turns
 solid in the same commit, and its row in `docs/PROMISE_AUDIT.md` changes grade first.
+**The owner walked those cards on 2026-09-10 and kept them**: *"the direction marking is for things
+that don't work right now, am I right? I think it's fine. We just need to fix it at some point.
+There's no hurry for that yet, but it just needs to be on the to-do list."* So the dashed cards are
+ratified as a public device, and the three rungs they name stay ordered on this ladder rather than
+becoming their own push.
 
 - [ ] CasparCG Stage 1 accepted on real hardware (owner-queue, 2026-08-25)
 - [ ] GDD alignment: emit standard `gddType`, honest `stepCount` 0/-1, one step-walk
@@ -198,6 +203,10 @@ solid in the same commit, and its row in `docs/PROMISE_AUDIT.md` changes grade f
       puts NoaCG on the lists MXMZ is on
 - [ ] outreach, GATED behind a real production running on the above (owner, 2026-08-29):
       ecosystem listing (`docs/IBC_LISTING_CHECKLIST.md`), checker-CI, any EBU contact
+- [ ] **the code editor shows OGraf, not only SPX** - a target switch on the code view, read-only
+      to start, so a person can see how the graphic is built for the format they care about. Owner
+      2026-09-10, explicitly unhurried: *"a little bit of a vanity thing"*. Blocked by no rung
+      above it. `docs/backlog/monaco-shows-ograf-not-only-spx.md`
 - then: the controller speaking the Server API outward; the desktop client; the native SDI
   renderer - in that order, the last still parked on the 2026-08-16 ruling.
 - [ ] **GSAP licence**: obtain written clarification from Webflow/GSAP on the prohibited-uses
