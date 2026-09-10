@@ -3,7 +3,14 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-05
-state: unstarted
+state: advanced
+note: "measured end to end 2026-09-10 (commit 95bade71, scripts/playout-lag-bench.mjs). On the
+  BUILT app Take paints in 29 ms and Out in 30 ms, the preview rebuild costs one frame, and nothing
+  freezes the page longer than a frame; on the DEV SERVER the same gestures cost 93-214 ms and
+  freeze it for 60-100 ms every time. The ask still stands because the PUBLISHED path - where a
+  verb is a Supabase round trip before the operator's own monitor moves - is untested and needs a
+  configured backend."
+needs-owner: account
 asked: "I noticed some lag when I was playing out the quiz graphics, moving around the queue, and
   playing and stopping graphics. It's very important that our layout system is lag-free and
   reliable. This is existential for that playout software: that it works well... The lag happened,
@@ -12,60 +19,115 @@ asked: "I noticed some lag when I was playing out the quiz graphics, moving arou
 ---
 # Lag working the queue: take and out did not answer at once
 
-Owner, 2026-09-05, driving quiz graphics on the production dashboard. He is right about the stakes
-and they are the reason this is filed rather than fixed off a hunch: **an operator who cannot trust
-Take to be instant stops trusting the software**, and no feature makes up for that.
+Owner, 2026-09-05, driving quiz graphics on the production dashboard. He is right about the stakes:
+**an operator who cannot trust Take to be instant stops trusting the software**, and no feature
+makes up for that.
 
-## What was measured, so the next session does not start from zero
+**Measured end to end on 2026-09-10** with `scripts/playout-lag-bench.mjs`. The headline is not the
+one this file expected: on the app we actually ship, the dashboard is instant, and the lag lives in
+how the app was being RUN rather than in what it does.
 
-On the dev server, one production, three cues, two graphics on air (Windows laptop, 2026-09-05):
+## What the numbers say
 
-- **The click handler is not the cost.** TAKE, Re-take and OUT each return in **0.3-0.4 ms**, and
-  are done with their microtasks inside 13 ms.
-- **No main-thread jank in the dashboard.** A `longtask` observer across two cue selections
-  recorded **nothing** - no task over 50 ms in the host page.
-- **But every cue selection rebuilds the preview document.** The preview iframe's `srcdoc` is
-  replaced on each selection - **184 KB**, reparsed, with the graphic's fonts, GSAP and the fit
-  ladder booting behind it. Measured 18 ms from click to the new `srcdoc`, 29 ms to the iframe's
-  `load`; the graphic's own boot after that was not measured and is where the remaining cost has
-  to be. This is the one finding that matches "moving around the queue" specifically.
-- **Two polls run per stage**: 500 ms for the preview's overflow report, 1000 ms for the program
-  monitor's machine state, and the program poll asks EVERY graphic that is up. Each is one
-  postMessage round trip into a sandboxed document, so the cost grows with the number of graphics
-  on air - which is exactly the state he was in.
+Four stamps per gesture in one clock - the capture-phase click, the command reaching the stage, the
+graphic's own command handler returning, and the first animation frame after it - plus `froze`, the
+largest gap between consecutive animation frames in the host page, which is the freeze an operator
+feels. Median of six rounds, five gesture families interleaved. Milliseconds from the click.
 
-**Not reproduced.** Take and Out answered immediately in every attempt here. So this is an open
-investigation, not a diagnosed bug, and it needs his case rather than a synthetic one.
+**The BUILT app** (`npm run build`, then `npm run dev:worktree -- --preview`), at 4.1 GB free:
 
-## The confound to control for first
+| gesture | to command | to painted | froze |
+| --- | --- | --- | --- |
+| Take, on a selection that settled | 1.9 | **28.9** | 19.0 |
+| Out, on a graphic that is up | - | **29.6** | 18.1 |
+| move within one template | - | - | 18.2 |
+| move across templates (document rebuilt) | - | preview's first frame 32 | 19.4 |
+| move, then Take at once - no rebuild | 36.8 | 62.1 | 18.4 |
+| move, then Take at once - with rebuild | 52.8 | 78.8 | 19.3 |
 
-The machine was under memory pressure that day: the job queue refused a run for having **3.9 GB
-free against a 4.0 GB floor**, and this laptop routinely carries several agent sessions at about a
-gigabyte each. A browser swapping will lag on play and stop whatever the code does. Measure with
-the sessions closed before concluding anything about the product - and if it only lags under
-pressure, that is still worth knowing and is a different piece of work.
+**The DEV SERVER**, same fixture, same gestures, at about 2 GB free:
 
-## How to actually catch it
+| gesture | to command | to painted | froze |
+| --- | --- | --- | --- |
+| Take, on a selection that settled | 28.1 | **93.2** | 63.6 |
+| move, then Take at once - no rebuild | 112.3 | 182.2 | 72.6 |
+| move, then Take at once - with rebuild | 134.4 | 213.8 | 72.2 |
 
-Timestamps, not impressions, and taken where the operator's eye is - the PROGRAM monitor:
+Three to seven times slower, and it freezes the page for 60-100 ms on every single gesture - which
+is lag a person sees. A CPU profile of the dev server says why in one line: `jsxDEV` is the top
+frame in every gesture, and it is the top frame at 71 ms per second and a half with **nothing
+pressed at all**. React's development JSX runtime captures a stack per element, and StrictMode
+renders everything twice. Neither exists in the shipped bundle.
 
-1. Stamp `performance.now()` in the click handler, when the command reaches the stage, when the
-   graphic's `play()` returns, and on the first painted frame of the entrance. The gap that is
-   large is the answer; today nobody knows which of the four it is.
-2. Do it with the quiz he used - a bound behaviour, drawn state layers, several cues - not a lower
-   third. The quiz's drawn states each trigger a re-measure through `svgFitDue` -> `fitSvgText`
-   (declared in `src/templates/importedDesign/svg.ts`, called from the drawn-state setter in
-   `src/templates/importedDesign/behaviourRuntime.ts`), which is real work on a state change and
-   is absent from a simple graphic. There is no `importedDesign/drawnState.ts`; the earlier
-   citation named a file that has never existed.
-3. Drive the sequence he described: move up and down the rundown, play, stop, play again. If the
-   preview rebuild above is the cause, the lag will follow SELECTION rather than the verbs, and
-   that is a decisive, cheap experiment to run first.
+## The three answers
 
-## The likely first fix, if the rebuild is confirmed
+1. **The verbs are not the cost, and neither is stopping.** The command handler inside the graphic
+   returns in 0.0-0.1 ms, and Out paints in 29.6 ms against Take's 28.9 - the two halves of what he
+   reported are the same number. Nothing here freezes the page for longer than a single frame.
+2. **The cost follows SELECTION, but the preview rebuild is not it.** A Take pressed immediately
+   after moving in the rundown paints at 62 ms instead of 29. Of that 33 ms, **16 ms is the
+   document rebuild and the rest is the selection's own React render**: the family that moves
+   WITHIN one template - where no document can be replaced - is 62 ms, and the one that crosses a
+   template boundary is 79 ms. One frame apart.
+3. **This file's own "likely first fix" was wrong.** The preview really is composed once per
+   TEMPLATE, exactly as `ProductionPage.tsx` §preview documents: moving between two cues of the
+   same pool graphic replaced the `srcdoc` **zero times out of six**, in every run. The 2026-09-05
+   observation that "every cue selection rebuilds the preview document" was a selection that
+   happened to cross a template boundary each time. Replacing the document when the graphic
+   genuinely changes is not optional and costs one frame.
 
-The preview is documented as composed "ONCE per template" (`ProductionPage.tsx` §preview), and the
-measurement above says the document is nevertheless replaced on every selection. Either the
-memoisation key is finer than the template (so two cues of one graphic each get their own build),
-or something upstream of it changes identity per selection. A preview that survives a selection
-would make moving around the rundown free, which is the motion he was complaining about.
+Production SIZE does not move any of this: the same measurement over a pool of eight graphics and
+sixteen cues is within a frame of the pool of three, and the host still never freezes past 20 ms.
+Neither does memory pressure, on the built app: at 1 GB free - the machine nearly out - Take still
+painted in 37 ms and Out in 38.
+
+## So what was he seeing
+
+Two candidates are left, and they are not in this code.
+
+**He was on a dev server.** That is what a session hands him when it drives the app on his laptop,
+and the table above says it costs 60-100 ms of frozen page per gesture before anything else goes
+wrong. Under the memory pressure this machine routinely carries it is worse. **The 2026-09-12
+rehearsal must be run off a built app** - `npm run build`, then `npm run dev:worktree -- --preview`
+- and not off `npm run dev`. That is the difference between 29 ms and 93 ms to air, and it needs no
+code change.
+
+**Or the production was PUBLISHED, and this is the untested one.** Everything above is the OFFLINE
+path. On a published production `runVerb` (ProductionPage.tsx) takes a different road: it awaits
+`sendHostedControlBatch` - a Supabase RPC - and deliberately does NOT apply the command locally,
+because the log follower brings it back and applying twice would double every write. So the
+operator's own PROGRAM monitor does not move until a full server round trip plus a Realtime fan-out
+has completed. On a venue's wifi that is exactly "it didn't play out immediately", and no amount of
+work on the local path can touch it. **Nobody has measured it**, because this checkout has no
+backend configured (`.env` absent, `.env.bench` blank) - it needs a real Supabase project and a
+published production. That measurement is the next piece of work here, and it should be taken with
+the same instrument against `playwright.live.config.ts`'s configured mode.
+
+If the round trip IS the cost, the shape of the fix is already visible and is not free: apply the
+command locally at once and make the follower's echo idempotent. `PayloadStage`'s `data-plays`
+counter exists precisely because a duplicate `play` leaves no trace on screen, so "just apply
+locally too" is the change that has already been got wrong once.
+
+## How to re-run it
+
+```
+npm run dev:worktree                                     # the dev server, for the seed only
+node scripts/playout-lag-bench.mjs playout-lag-out --seed
+npm run build && npm run dev:worktree -- --preview       # the BUILT app, same port
+node scripts/playout-lag-bench.mjs playout-lag-out --measure --headless
+```
+
+The two phases exist because the fixture is built through the app's own modules, which a production
+bundle does not expose; the seed saves the browser profile (localStorage and IndexedDB both) and
+the measure phase restores it against the same origin. `--pool N` asks the question at the size of
+a bigger show.
+
+Free memory is recorded beside every number, because the 2026-09-05 reading was taken on a machine
+at 3.9 GB against a 4.0 GB floor and a browser that is swapping lags whatever the code does.
+
+The quiz's drawn states re-measure through `svgFitDue` -> `fitSvgText` (declared in
+`src/templates/importedDesign/svg.ts`, called from the drawn-state setter in
+`src/templates/importedDesign/behaviourRuntime.ts`), which is real work on a state change and is
+absent from a simple graphic - and it does not show up as lag in any family above. There is no
+`importedDesign/drawnState.ts`; the citation this file used to carry named a file that has never
+existed.
