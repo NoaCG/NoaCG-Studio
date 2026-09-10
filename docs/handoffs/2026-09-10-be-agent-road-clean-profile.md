@@ -26,8 +26,9 @@ Commits: `ee4a50b9` (the clean-profile run, the Codex split, the owner's three a
 `.gitconfig`, since git identity is not part of what an install line proves. Node, npm, Chrome,
 Edge and the two agent binaries were already on the machine and on `PATH`, so **this run says
 nothing about a student installing those first.** The full table of what was reset, why, and the
-timings is `docs/PROMISE_AUDIT.md`, "The clean-profile install run (row 23)" - that is now the one
-place these dates live, and `docs/DEMO_2026-09-25.md` B5 points at it rather than repeating it.
+timings is `docs/PROMISE_AUDIT.md`, "The clean-profile install run (row 23)". That section is the
+source; `docs/DEMO_2026-09-25.md` B5 copies the five timings for a reader on a phone and says so,
+so a re-run edits the audit first and the cell second.
 
 **`APPDATA` is the trap, and it cost the first attempt.** `cli/src/config.ts` `configDir()` reads
 `APPDATA` on Windows, never the home directory. Redirect only `USERPROFILE` and `noacg doctor`
@@ -46,8 +47,10 @@ must not do. The first run printed `login  noacg_ak_8b18c7…`; the corrected on
   `mcp-server.mjs` `resolveCli()` prefers an installed copy over npx on purpose, for startup cost,
   and walks `PATH` to find one. **This laptop carries a global 0.2.0**, and a stdio probe against
   it returned the old seven-tool shape; with that directory off `PATH` the npx fallback answered
-  with 0.3.x's single `noacg` tool. `noacg doctor` cannot reveal this, because it reports the
-  version npx resolved, not the one the MCP server will import.
+  with 0.3.x's single `noacg` tool. The check people are pointed at cannot reveal it: `doctor`
+  prints the version of the copy executing it, so a bare `noacg doctor` off the stale global would
+  say 0.2.0 - but the docs prompt says `npx -y @noacg/cli doctor`, which fetches `latest` and
+  reports that while the server keeps importing the global.
 
 **`npm i -g @noacg/cli@latest` on this laptop is not done, on purpose.** Changing shared machine
 state while other rows are measuring can corrupt their numbers with nothing to show for it. Whoever
@@ -77,9 +80,11 @@ undoes it.
 
 **Rows 2, 3 and 10, the hardware rows: re-owned to him, not before the 25th.** Their who column
 said "the 12th"; his "a few weeks at least" puts those ticks on or past the 25th itself. Each "if
-it stays open" cell now says what the beat actually does with no box. Four other places in the file
-still planned around the 12th - §0's rehearsal paragraph, §5's preamble, and the A3, A4 and A6
-status cells - and all of them are corrected in `406da881`. The acceptance boxes themselves did not
+it stays open" cell now says what the beat actually does with no box. Six other places in the file
+still planned around the 12th - §0's rehearsal paragraph, §5's preamble, and the A3, A4, A5 and A6
+status cells. Five were corrected in `406da881` and A5 in the check pass, which is also where §8
+stopped claiming the owner's date bar covered row 13, the deck he asked to keep being reminded
+about. The acceptance boxes themselves did not
 move and are still unticked; what moved is who is expected to tick them and when.
 
 **Row 13, the deck: unchanged, at his request.** He wants to keep being reminded.
@@ -90,15 +95,45 @@ cloud-playout step 7 and not the OBS half. §8.7a is now there, unticked.
 
 ## What is left, and why
 
-**§7 row 8's second half.** `e2e/configured/agent-access.spec.ts` **ran and passed on 2026-09-10 in
-18.9 s** against the real backend, which is the first time any file records when it last ran; that
-is dated in R2.4. The other half - one live `noacg login` + `noacg save` against `noacg.studio`
-with a stopwatch on the save and on the link - is described under "The live save" below.
+**§7 row 8's second half, and it is ENQUEUED rather than abandoned.**
+`e2e/configured/agent-access.spec.ts` **ran and passed on 2026-09-10 in 18.9 s** against the real
+backend, which is the first time any file records when it last ran; that is dated in R2.4. The
+other half is one live `noacg login` + `noacg save` against `noacg.studio` with a stopwatch on the
+save and on the link.
+
+The blocker was never the credentials - they are in the primary checkout's `.env` and copy into a
+worktree fine. It was the machine's one-browser-job rule: another worktree ran two `configured`
+suites back to back for over half an hour, `node scripts/e2e-runs.mjs --wait` gave up at its 30
+minute cap without starting anything, and the give-up message says the right thing - **enqueue,
+do not wait.** So the run is job **`j-0915`** on the shared runner
+(`node scripts/jobs.mjs log j-0915`), which starts it when a slot frees whether or not this
+session is alive.
+
+The driver is `C:
+oacg-be-clean\work\live-save.mjs`, deliberately OUTSIDE the checkout so it is
+never committed; it imports Playwright from this worktree's `node_modules` by absolute file URL,
+which is the one thing to fix if the path moves. What it does: `noacg login --no-browser`, take the
+consent URL it prints, sign in on the real deployment as the `E2E_EMAIL` account and press Allow
+with Playwright, then `scaffold` and `save`, timing each, then open the printed link in that same
+signed-in tab and wait for the graphic's name. **It saves as "BE live save 2026-09-10" into the
+E2E test account's library, not the owner's** - a deliberate choice over the trap the row prompt
+warned about, since that account is throwaway and this still exercises production end to end. If
+the job ran, delete that graphic when the number has been read.
+
+**What the numbers close, and what they do not.** They close R2.5's missing cloud leg, which is
+what stops anyone saying "minutes to air" as a measured claim. They do NOT close the eyes half of
+R2.1 and R2.4: the sign-in and the Allow press are scripted, not a human finger, and the legend's
+UNSEEN (eyes) is about the owner having looked. Whoever reads `j-0915` should date R2.5 and leave
+those two as they are.
 
 **The deck's speaker notes are now wrong and this row did not fix them.**
-`docs/presentation-2026-09-25/make-deck.mjs` line 404, and the built `.pptx` beside it, still say
-B5 was last executed 2026-08-22 and 2026-08-27 with the Codex split unverified, and still call §7
-rows 6 and 8 cheap to close. Rows 6 and 9 are gone. That file belongs to the deck row
+`docs/presentation-2026-09-25/make-deck.mjs` has four, and the built `.pptx` beside it carries
+them all. **Line 179** points at `2026-09-09-g-yle-network-diag-screenshot.md`, which this change
+deletes, and tells the presenter the screenshot is still an open owner item - reminding the owner
+of the one thing he asked not to be reminded of. **Line 404** says B5 was last executed 2026-08-22
+and 2026-08-27 with the Codex split unverified; **line 405** cites §7 rows 6 and 8, and rows 6 and
+9 are gone. **Line 464** says the renderer question rides in the same owner message as the network
+screenshot; it is its own file now. That file belongs to the deck row
 (`claude/aa-deck-repair` has a worktree), the generator refuses to overwrite the `.pptx` by design,
 and the owner may hand-edit it - so touching it from here would have been the wrong kind of help.
 **Whoever owns the deck next re-reads §7 before regenerating.**

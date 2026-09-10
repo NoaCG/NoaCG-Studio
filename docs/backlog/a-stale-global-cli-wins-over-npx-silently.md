@@ -10,9 +10,14 @@ fallback, walking `PATH` to find one. That preference is correct and deliberate:
 and a resident launcher process in every session, which is the whole reason the launcher exists
 (`docs/AGENT_CLI.md`, "What a session pays"). The defect is that the preference is permanent and
 silent. A machine that ran `npm i -g @noacg/cli` once keeps that version for every future session,
-however old it gets, and the one command anyone would run to check - `noacg doctor` - reports the
-version **npx** resolved, not the one the MCP server will import. The two can differ by a year and
-nothing anywhere says so.
+however old it gets.
+
+**What hides it is which `doctor` people are told to run.** `doctor` prints `cliVersion()`, the
+version of the copy executing it (`cli/src/commands/doctor.ts`), so a bare `noacg doctor` off a
+stale global reports 0.2.0 and gives the game away. But the docs prompt at `/docs#agent-install`
+and `docs/AGENT_CLI.md` both say `npx -y @noacg/cli doctor`, which fetches `latest` and reports
+that instead, while the MCP server goes on importing the global. The check everyone is pointed at
+is the one that cannot see the problem.
 
 This is not hypothetical and it is not only about strangers. **This laptop is the machine it is
 true of**, and the owner drives an agent on his own screen at the 25 September session
@@ -22,14 +27,18 @@ true of**, and the owner drives an agent on his own screen at the 25 September s
 
 Two separable pieces, and the first is worth doing even if the second is refused.
 
-1. **Say it.** The launcher already knows both numbers by the time it imports: the version it
-   resolved, and the version stamped on the plugin manifest beside it. One stderr line when the
-   resolved copy is older - the same channel that already prints the npx-fallback notice, so no new
-   mechanism. Roughly the size of that existing notice.
-2. **Decide whether `doctor` should report the MCP server's resolution too.** Today it answers for
-   the terminal road only, which is honest for what it measures and misleading for what people use
-   it to check. A second line naming what `resolveCli()` would pick, or an explicit statement that
-   `doctor` speaks for the terminal road only.
+1. **Say it, and be careful what it is compared against.** `resolveCli()` returns a path today and
+   reads no version at all, so the launcher would first have to read the resolved package's
+   `package.json`. **Do not compare it with the plugin manifest's stamped version**: the manifest
+   is stamped from `cli/package.json` at build time and runs ahead of the registry - 0.3.1 against
+   npm `latest` 0.3.0 as this is filed - so that comparison would tell every correctly installed
+   fresh machine that its CLI is stale. Compare against the registry's `latest`, cached, or against
+   a floor the server actually needs. One stderr line on the channel that already carries the
+   npx-fallback notice.
+2. **Decide whether `doctor` should report the MCP server's resolution too.** Today it reports the
+   version of the copy running it, which is honest for the terminal road and useless for the
+   question people use it to answer, because the prompt tells them to run it under `npx`. A second
+   line naming what `resolveCli()` would pick would answer both at once.
 
 Running `npm i -g @noacg/cli@latest` on this laptop is the immediate fix for this machine and is
 not the item; the item is that nobody would have found out. It was deliberately not run during the

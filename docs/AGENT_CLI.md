@@ -554,9 +554,14 @@ on the box falls back to npx, says so on stderr, and answers `tools/list` with t
 tool. But `resolveCli()` prefers an installed copy over npx ON PURPOSE, to avoid npx's per-session
 cost, and it walks `PATH` to find one. So a machine that ever ran `npm i -g @noacg/cli` keeps that
 version. On this laptop the global is **0.2.0**, and the same probe against it returned the old
-**seven-tool** shape from the 83 MB server. `npm i -g @noacg/cli@latest` is the whole fix, and
-nothing tells you that you need it: `noacg doctor` reports the version npx resolved, not the one
-the MCP server will import. Filed with both measurements as
+**seven-tool** shape from the 83 MB server. `npm i -g @noacg/cli@latest` is the whole fix.
+
+What makes it hard to notice is which `doctor` you are told to run. `doctor` prints
+`cliVersion()`, the version of the copy EXECUTING it (`cli/src/commands/doctor.ts`), so a bare
+`noacg doctor` off a stale global does print 0.2.0 and would give the game away. But the docs
+prompt and this page both say `npx -y @noacg/cli doctor`, which fetches `latest` and reports THAT
+- 0.3.0 - while the MCP server goes on importing the global. The check everyone is told to run is
+the one that cannot see the problem. Filed with both measurements as
 `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`. Worth closing before the tool has
 users, because on this laptop it is already true.
 
