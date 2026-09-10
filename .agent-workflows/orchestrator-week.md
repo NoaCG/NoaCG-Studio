@@ -65,18 +65,38 @@ This is the half the owner attends, so it is written for him and it is short. Re
 - `node scripts/owner-receipts.mjs` - what he has asked for, what advanced, what is still unstarted;
 - the backlog frontier: the `docs/backlog/` entries whose `serves:` is NOW, newest first.
 
-Then write **the week's plan as a list he can read in five minutes**: what the queue will work
-toward this week, in order, one line each, in plain words. Not tasks - directions. A line an
-outsider could not follow is a line he cannot check.
+Then write **the week's plan as something he can read in five minutes**: what the queue will work
+toward this week, in order, in plain words. Not tasks - directions. A line an outsider could not
+follow is a line he cannot check.
+
+**The shape is what decides whether that holds**, and the first session to run this page cold drifted
+straight past the sentence above (dry run, 2026-09-10): it wrote four bold-headed entries with a
+justifying paragraph under each, twelve lines for four directions, and what came out was a sprint
+board with reasons attached. So the shape is fixed rather than described. **One sentence per
+direction, four or five of them, no bold lead-ins, no sub-bullets**, and the last one says what is
+NOT being started this week - that line is the most useful thing on the page, because it is the only
+one that tells him what he is giving up. A direction needing a second sentence to justify itself is a
+task; the justification belongs in section 7, and its absence here is what keeps the page short.
+
+Then read it back cold before printing, against one question: **would this still make sense to
+someone who does not know what the queue is?** Bold headers and a reason under each are the tell -
+that is a board, and a board is what the 2026-09-05 ruling deleted.
 
 ### The two or three questions, and nothing else
 
 End Part A with **at most three questions**, and apply the ask-test the repo already has rather than
 a second one. The invariant `root/question-owner-names-reason-own-text` gives a question to the
 owner five possible reasons - `needs: account`, `money`, `identity`, `harness`, `alignment` - and
-this page owns exactly one of them. **Every question here is a `needs: alignment` question, and it
-must say so in its own text.** The other four reach him when they arise, through whatever session
-hits them; they do not wait for Tuesday.
+this page owns exactly one of them. **Every question here is a `needs: alignment` question, and its
+block must say so** - on the HEADING line, `### ALIGN-<date>-<n> - needs: alignment`, which the
+parser reads and he never has to. Not at the front of the question itself: the dry run put
+`needs: alignment.` as the first words of all three questions, so the first thing he read three
+times was a routing token from a contract he has never opened, in the half of the page written for
+him - and `rulingBlock` then copies it into `docs/OWNER_RULINGS.md` as the opening words of the
+permanent record of what he was asked. The requirement is unchanged and so is the invariant behind
+it; only the line it sits on moves, and it stays inside the block that gets carried forward. The
+other four reasons reach him when they arise, through whatever session hits them; they do not wait
+for Tuesday.
 
 So the filter is the orchestrator's §6 ask-test narrowed to that one reason:
 
@@ -114,12 +134,15 @@ From that moment the answer is on disk and nobody's memory is load-bearing.
 The id is `ALIGN-<the date>-<n>`, and the shape is exactly this, because
 `scripts/alignment-answers.mjs` parses it:
 
-    ### ALIGN-2026-09-15-1
+    ### ALIGN-2026-09-15-1 - needs: alignment
     **Question:** Does the SVG road still deserve the top of NOW, six weeks in?
     **Answer:**
 
-An empty `**Answer:**` is an open question. Fill that one line in when he answers, faithfully enough
-that the ruling can be written from it, and change nothing else in the block.
+An empty `**Answer:**` is an open question. Fill it in when he answers, faithfully enough that the
+ruling can be written from it, and change nothing else in the block. **Both fields run until the
+next blank line**, so wrap them like any other prose in this repository and write as much of what he
+said as it takes - the parser joins the lines. What ends an answer is the blank line before the next
+block, which is also why an unanswered question with the section's prose below it stays open.
 
 **His answers are then recorded by a session, not by this routine.** The answer belongs in
 `docs/OWNER_RULINGS.md` under its id, and in whichever doc it moves (`GOALS.md`, `PROGRAMMES.md`, a
