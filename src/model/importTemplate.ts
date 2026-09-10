@@ -260,8 +260,11 @@ export async function importZipTemplate(fileName: string, data: ArrayBuffer): Pr
     if (/^(?:https?:)?\/\//i.test(src)) continue; // CDN reference - not in the zip
     localJs.add(`${base}${src.replace(/^\.\//, '')}`.toLowerCase());
   }
+  // The libraries a package carries beside the template - GSAP, the flex-gap shim, the Lottie
+  // player, SPX's own interface file - are re-added by every composer and exporter and are never
+  // the template's code, so they stay out of the JS pane on the way back in.
   const importableJs = (n: string) =>
-    inBase(n) && n.toLowerCase().endsWith('.js') && !/gsap\.min\.js$|spx_interface\.js$/i.test(n);
+    inBase(n) && n.toLowerCase().endsWith('.js') && !/gsap\.min\.js$|flex-gap-shim\.js$|lottie\.min\.js$|spx_interface\.js$/i.test(n);
   const referencedJs = files.filter((n) => importableJs(n) && localJs.has(n.toLowerCase()));
   const jsFiles = referencedJs.length
     ? [...localJs].map((ref) => referencedJs.find((n) => n.toLowerCase() === ref)).filter((n): n is string => Boolean(n))

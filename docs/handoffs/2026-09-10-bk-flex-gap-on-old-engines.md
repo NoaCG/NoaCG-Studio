@@ -220,8 +220,14 @@ base had fallen at BH's tip; the merge and a `contracts:compile` re-run (no chan
   hold budget, and CI runs the same suite on a clean checkout of the merged tree - its run on the
   final sha is the gate. Read on `218bfd6f` (first round), run 34464694887: Build, Factory gates,
   E2E plan, Catalog calibration gate, E2E 1/9 through 9/9, Combined E2E report and CI gate all
-  `success`; the second round's run is named in the commit that adds this line's successor, and
-  the check stamp names the sha it covers.
+  `success`. The second round's first run (`dc8b7860`, run 34468234299) went red in one shard:
+  `e2e/bridge.spec.ts` round-trips the dual package through the bridge and found the JS pane 391
+  lines longer, because `importTemplate.ts` treated every referenced `.js` in a package as
+  template code except GSAP and SPX's interface file, so the new `js/flex-gap-shim.js` sibling
+  was folded in. The exclusion now names the shim and the Lottie player (which had the same
+  hole, unexercised because no spec round-trips a Lottie package). `bridge`, `exports` and
+  `control` (33 specs) were then run through the queue on this laptop and pass; the run on the
+  final sha is read in the check stamp.
 - `taste: not applicable` - no design file, no shared template machinery, no fit or alignment
   code; the shim is inert on every engine a preview or a thumbnail renders on, which the sweep's
   native side measures. The frames from the 2.3 server are the graphics looked at.
