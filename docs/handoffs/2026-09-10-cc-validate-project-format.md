@@ -151,7 +151,13 @@ of `configured/signed-in-ux.spec.ts`; sharing it would mean editing a spec this 
 and putting the helper in `e2e/_*`, which is CORE and would escalate every touch to the full
 suite). `verify: inline` - build green at its own exit code, affected suite 1307/1 as above.
 `taste: not applicable` - this is editor chrome; `docs/VISUAL_TASTE_REVIEW.md` is about graphics
-and no graphic changed. The chrome itself was looked at rather than assumed: screenshots of the
+and no graphic changed.
+
+One honest note on the stamp: the delegated review saw `392c3e0f`, and one commit landed after it
+(`28eb67b6`, six lines of YAML front matter naming the shas on the 1920x1880 receipt, which the
+review had already read as a file). The branch was re-stamped at the new tip rather than re-run.
+That is the workflow's "honestly re-stamp what was re-checked" - read the increment before
+believing this line, it is one paragraph. The chrome itself was looked at rather than assumed: screenshots of the
 topbar at 1440 and 1280 in the warned state, which is how the two-band design was confirmed to
 read (`⚠ 1920×1880 · 25 fps` beside `⚠ Saved · unsupported format` wide, `⚠ Saved` alone narrow).
 
