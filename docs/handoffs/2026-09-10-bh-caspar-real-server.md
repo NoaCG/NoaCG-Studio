@@ -91,15 +91,32 @@ unproven step of A6.
 
 ## Two machine problems this row hit, neither of them this branch's
 
-- **THE QUEUE RUNNER IS WEDGED, and it has been since about 06:36 UTC.** Runner pid 23880, started
-  from worktree `agent-a5655ec96bd2c8221`, is alive and has started nothing. Landings **j-0907
-  (PR 216), j-0908 (PR 218) and j-0909 (PR 219)** have sat in `waiting` for hours while
-  `scripts/jobs.mjs` prints them as `starting`, so three sessions believe their branches are in
-  flight and they are not. The scheduler puts them in its `start` list on every read, so it is the
-  runner loop that is stuck, not the decision. The remedy is the one `runner()`'s own comment
-  gives - stop the process and let the next `add` spawn a fresh one - and **this session could not
-  do it**: killing another session's process is refused here. Somebody with that permission should
-  kill 23880. Until then nothing lands, including this branch.
+- **Three landings sat in `waiting` for about 75 minutes while the listing called one of them
+  `starting`.** j-0907 (PR 216) was enqueued at 06:52 UTC, j-0908 (PR 218) at 06:52 and j-0909
+  (PR 219) at 07:05. A runner was live the whole time (pid 23880, up from 06:36, from worktree
+  `agent-a5655ec96bd2c8221`) and started none of them; it had no child processes. All three
+  finally started at **08:09:52** and completed, so nothing was permanently broken - but for over
+  an hour `node scripts/jobs.mjs` printed `starting j-0907` on every read while its `state` on
+  disk was `waiting` and `startedAt` was `null`. Three sessions had every reason to believe their
+  branches were in flight.
+
+  **The reporting mismatch is the part worth fixing.** The listing does not print what the runner
+  decided; it re-runs `schedule()` with its OWN `freeMemMb` sample, so under memory pressure the
+  two readings can disagree and the queue shows a state instead of whether that state is
+  progressing - which is the exact defect `ensureRunner`'s comment says it was rewritten to stop
+  reporting. Two candidate causes, neither confirmed: the RAM gate refusing them on the runner's
+  sample while the listing's sample cleared it, or the runner loop being blocked in an `await`
+  and recovering on a timeout. Nobody can tell from outside, because the runner is spawned with
+  `stdio: 'ignore'` and its reasons go nowhere.
+
+  **This session was part of the memory pressure** and should say so: believing the queue wedged,
+  it ran its Playwright walks directly instead of through `npm run queue`, which is the contention
+  the enqueue rule exists to prevent. The landings started once that work stopped. Whether that
+  was cause or coincidence is exactly what the missing runner log would have settled.
+
+  Diagnosing this properly needs the runner's decisions written somewhere a person can read them.
+  Killing the runner, which `runner()`'s own comment prescribes as the remedy, is refused in this
+  session's permissions - worth knowing before a night session tries it.
 - **`scripts/e2e-runs.mjs --orphans` cannot see a stray dev server.** A killed Playwright run
   leaves its `vite --port <live>` child behind; `--orphans` looks for Playwright processes and
   answers "nothing to clean up", while the guard hook refuses the next run because the port is
