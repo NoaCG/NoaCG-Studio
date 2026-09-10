@@ -2,7 +2,7 @@
 // render it.
 //
 // THE PROBLEM THIS EXISTS FOR. CasparCG 2.3.x — the common LTS and teaching install, and the
-// one the maintainer runs — carries a CEF from the Chromium 6x era. A modern CSS declaration
+// one the maintainer runs — carries a Chromium 71 CEF. A modern CSS declaration
 // there does not warn and does not degrade: the browser drops the whole declaration and paints
 // the element with no background at all. The 2026-08-06 acceptance pass found exactly that on
 // the Arena Quiz board — "just the blue line and the numbers", because every answer chip's
@@ -31,9 +31,12 @@
 // HONEST LIMITS, stated because a compatibility report that overclaims is worse than none:
 //  - It is a lexical scan. It reads the emitted CSS and JS with comments and string literals
 //    removed; it does not build a CSSOM or parse JS. A feature spelled unusually can be missed.
-//  - `gap` is reported at the FLEXBOX bar (Chromium 84) because the scan cannot see whether the
-//    element is a flex or a grid container, and grid gap has been supported since 66. That is
-//    the conservative direction: it may say "needs 84" where 66 would do, never the reverse.
+//  - `gap` is listed at the FLEXBOX bar (Chromium 84) because the scan cannot see whether the
+//    element is a flex or a grid container, and grid gap has been supported since 66. It no
+//    longer raises a template's required engine, because every composed document and every
+//    export carries src/assets/flexGapShim.js, which puts a flex gap back as margins on an
+//    engine that lacks it (`effect: 'shimmed'`). It is still LISTED, so a reader who exports the
+//    bare html/css for some other host knows the declaration is there.
 //  - The versions come from the features' own shipping records. The CasparCG engine mapping
 //    comes from the CasparCG changelog (docs/PLAYOUT_INTEGRATION.md §3) — only 2.3.2 has been
 //    run on real hardware here.
@@ -58,8 +61,12 @@ export interface EngineFeature {
    * an underline by a pixel). They are still LISTED, because the scan should never hide what it
    * saw, but they do not raise the graphic's required engine — otherwise one shared base rule
    * would stamp "needs Chromium 114" on all 430 designs and the report would be noise.
+   *
+   * `shimmed` is the fourth fact: the engine drops the declaration, and a script the studio
+   * ships in every document puts the effect back at runtime (flex `gap`, src/assets/
+   * flexGapShim.js). Listed like the others, and like `cosmetic` it never raises the bar.
    */
-  effect: 'drops-the-declaration' | 'kills-the-file' | 'cosmetic';
+  effect: 'drops-the-declaration' | 'kills-the-file' | 'cosmetic' | 'shimmed';
   test: RegExp;
 }
 
@@ -91,7 +98,7 @@ export const ENGINE_FEATURES: EngineFeature[] = [
   { id: 'css-text-decoration-thickness', label: 'text-decoration-thickness', since: 87, where: 'css', effect: 'cosmetic', test: /text-decoration-(thickness|skip-ink)\s*:/ },
   { id: 'css-property', label: '@property', since: 85, where: 'css', effect: 'drops-the-declaration', test: /@property\b/ },
   { id: 'css-content-visibility', label: 'content-visibility', since: 85, where: 'css', effect: 'drops-the-declaration', test: /content-visibility\s*:/ },
-  { id: 'css-gap', label: 'gap in a flex container', since: 84, where: 'css', effect: 'drops-the-declaration', test: /(?:^|[;{])\s*(gap|row-gap|column-gap)\s*:/m },
+  { id: 'css-gap', label: 'gap in a flex container', since: 84, where: 'css', effect: 'shimmed', test: /(?:^|[;{])\s*(gap|row-gap|column-gap)\s*:/m },
   { id: 'css-clamp', label: 'clamp() / min() / max()', since: 79, where: 'css', effect: 'drops-the-declaration', test: /\b(clamp|min|max)\s*\(/ },
   { id: 'css-backdrop-filter', label: 'backdrop-filter', since: 76, where: 'css', effect: 'drops-the-declaration', test: /(?:^|[;{])\s*backdrop-filter\s*:/m },
   { id: 'css-conic-gradient', label: 'conic-gradient()', since: 69, where: 'css', effect: 'drops-the-declaration', test: /\bconic-gradient\s*\(/ },
@@ -146,23 +153,25 @@ export const SUPPORTED_FLOOR = 117;
  * which prints the engine's own user-agent version. Everything else comes from a changelog and
  * should be treated as approximate until someone points a real machine at that URL.
  *
- * **The 2.3.0–2.3.2 row is now MEASURED, and it is 71.** That row used to say 75 and carry an
- * argument: vite.config.ts lowers the build target to es2017 because a 2.3.2 server could not
- * PARSE optional chaining (below 80), while the 2026-08-06 acceptance pass saw `inset` (87) and
- * flex `gap` (84) render on "a 2.3.x server" (at or above 88). On 2026-09-10 a 2.3.2 build
- * (`4de6d18f Dev`) reported `Chromium 71` on the output page's own `&debug=1` line, and the house
- * scorebug aired on it with its flex gaps COLLAPSED — label flush against number — beside the
- * same production on 2.5.0 where they are there. So the low bound was right and the high one
- * described some other machine. **The 2.3.3+ row is still an inference**: nothing here has run a
- * genuine 2.3.3 (the install named `v2.3.3-lts-stable` answers `VERSION` with 2.3.2).
+ * **The CasparCG 2.3 row is MEASURED, and it is 71 - one row, not two.** It used to be two rows,
+ * 75 and 88, both inferred and carrying an argument: vite.config.ts lowers the build target to
+ * es2017 because a 2.3.2 server could not PARSE optional chaining (below 80), while the
+ * 2026-08-06 acceptance pass saw `inset` (87) and flex `gap` (84) render on "a 2.3.x server"
+ * (at or above 88). On 2026-09-10 the install named `v2.3.3-lts-stable` reported `Chromium 71`
+ * on the output page's own `&debug=1` line, its libcef.dll is CEF 3.3578 (the Chromium 71
+ * branch), and the house scorebug aired on it with its flex gaps COLLAPSED, label flush against
+ * number, beside the same production on 2.5.0 where they are there. So the low bound was right
+ * and the high one described some other machine: the official 2.3.3 LTS release on GitHub
+ * (2021-03-16, the one zip a school downloads today) unpacks to a binary that answers `VERSION`
+ * with `2.3.2 4de6d18f Dev` and ships that same CEF. There is no 2.3 with Chromium 88 to
+ * download, so the row for it is gone.
  *
- * Both rows stay below the floor, so the report is honest about machines we do not support
- * rather than silently omitting them. Neither number can change a verdict for a supported
- * engine - the floor is 117.
+ * The row stays below the floor, so the report is honest about a machine we do not author for
+ * rather than silently omitting it. The number cannot change a verdict for a supported engine -
+ * the floor is 117.
  */
 export const PLAYOUT_ENGINES: PlayoutEngine[] = [
-  { id: 'casparcg-230', label: 'CasparCG 2.3.0–2.3.2', chromium: 71, note: 'measured 2026-09-10, below the supported floor' },
-  { id: 'casparcg-233', label: 'CasparCG 2.3.3+', chromium: 88, note: 'inferred, below the supported floor' },
+  { id: 'casparcg-23', label: 'CasparCG 2.3.x', chromium: 71, note: 'measured 2026-09-10 on the 2.3.3 LTS download, below the supported floor' },
   { id: 'obs-30', label: 'OBS Studio 30.x', chromium: 103, note: 'an OBS not updated since 2023 — below the floor' },
   { id: 'vmix', label: 'vMix 27+', chromium: 103, note: 'changelog only, never measured here' },
   { id: 'casparcg-24', label: 'CasparCG 2.4.x', chromium: SUPPORTED_FLOOR, note: 'THE SUPPORTED FLOOR' },
@@ -320,10 +329,20 @@ export function scanEngineSupport(template: SpxTemplate): EngineSupport {
   for (const f of findings) if (!byFeature.has(f.feature.id)) byFeature.set(f.feature.id, f);
   const unique = [...byFeature.values()].sort((a, b) => b.feature.since - a.feature.since);
   return {
-    // Cosmetic findings are listed but never raise the bar — see EngineFeature.effect.
-    minChromium: unique.reduce((max, f) => (f.feature.effect === 'cosmetic' ? max : Math.max(max, f.feature.since)), 0),
+    // Cosmetic and shimmed findings are listed but never raise the bar - see EngineFeature.effect.
+    minChromium: unique.reduce((max, f) => (raisesTheBar(f.feature.effect) ? Math.max(max, f.feature.since) : max), 0),
     findings: unique,
   };
+}
+
+/**
+ * Does a finding with this effect decide what engine a template needs? A dropped declaration and
+ * a syntax the engine cannot parse do; a typographic nicety and a feature the shipped shim puts
+ * back do not. One place answers, so the scanner, the verdicts and the catalog gate
+ * (scripts/engine-floor.mjs) cannot disagree.
+ */
+export function raisesTheBar(effect: EngineFeature['effect']): boolean {
+  return effect !== 'cosmetic' && effect !== 'shimmed';
 }
 
 export type EngineVerdict = 'fine' | 'degraded' | 'blank';
@@ -346,7 +365,7 @@ export function engineReports(support: EngineSupport): EngineReport[] {
   return PLAYOUT_ENGINES.map((engine) => {
     if (engine.chromium === null) return { engine, verdict: 'fine' as const, missing: [] };
     const missing = support.findings.filter(
-      (f) => f.feature.since > engine.chromium! && f.feature.effect !== 'cosmetic',
+      (f) => f.feature.since > engine.chromium! && raisesTheBar(f.feature.effect),
     );
     const verdict: EngineVerdict = missing.length === 0
       ? 'fine'

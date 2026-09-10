@@ -34,9 +34,6 @@
     "src/components/MotionPresetPicker.tsx": {
       "em-dash": 3
     },
-    "src/components/PlayoutCompatibility.tsx": {
-      "em-dash": 5
-    },
     "src/components/PreviewFrame.tsx": {
       "em-dash": 3
     },

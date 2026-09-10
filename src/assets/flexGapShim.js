@@ -1,0 +1,389 @@
+/*
+ * FLEX `gap` ON OLD PLAYOUT ENGINES - a runtime shim the studio's composers and exporters put
+ * beside GSAP. It is platform plumbing, not part of the template's own code.
+ *
+ * WHY. Flexbox `gap` shipped in Chromium 84. CasparCG 2.3.x - the LTS a school downloads today -
+ * renders on CEF 3.3578 (Chromium 71), which PARSES the declaration (grid has had `gap` since 66)
+ * and then ignores it in flex layout. Nothing errors and nothing is logged: the graphic airs with
+ * every flex gap collapsed. The house scorebug read `HOME3` on a real 2.3.2 server where 2.5.0
+ * reads `HOME 5` (measured 2026-09-10; docs/handoffs/2026-09-10-bk-flex-gap-on-old-engines.md).
+ *
+ * WHAT IT DOES. On an engine WITHOUT flex gap it puts the gap back as margins. Every in-flow flex
+ * item after the first gets the container's main-axis gap on the side that faces the item before
+ * it (left in a row, top in a column, mirrored for the `-reverse` directions and for rtl), added
+ * on top of whatever margin the stylesheet already gives it. A wrapped container also gets the
+ * cross-axis gap on every line after the first, found by reading where the browser actually
+ * broke the lines. It keeps up with the graphic afterwards: rows rebuilt with innerHTML, a chip
+ * that appears, a class toggle - a MutationObserver refits the containers that changed. Before
+ * every pass it UNDOES its own margins, so what it reads is always the authored value.
+ *
+ * WHAT IT DOES NOT DO. On Chromium 84 and newer (CasparCG 2.4 and 2.5, OBS, vMix, any browser)
+ * the feature test at the top passes and the script returns without touching the document: the
+ * template's own CSS does the work, as designed. It never edits the template's code, so what a
+ * person reads in the editor or in an export is still one plain `gap:` line. The one known
+ * limit is in a WRAPPED container: an item that fits its line without the gap in front of it
+ * but not with it can land one line earlier than native `gap` would put it. That band is one
+ * gap wide, and scripts/flex-gap-sweep.mjs measures every catalog design native-against-shimmed
+ * to show nothing settles in it. (Giving every item half a gap on both sides and the container
+ * minus half a gap makes that fit exact, at the price of widening every container's box by one
+ * gap - wrong wherever the container paints its own background or has a set width, which in
+ * this catalog is most of them. That is why the facing-side margin was kept.)
+ *
+ * PROVING IT ON A MODERN ENGINE. Set `window.NOACG_SIMULATE_NO_FLEX_GAP = true` before this
+ * script runs and it behaves as if the engine lacked flex gap AND zeroes each handled
+ * container's own gap, so a modern Chromium lays out exactly what CEF 71 would, and it lists the
+ * containers it handled in `window.NOACG_FLEX_GAP_HANDLED`. That is how the sweep compares the
+ * shim against native layout across the whole catalog, and counts with the shim's own rule.
+ *
+ * Plain ES5 in a classic script, on purpose: it has to parse on the engine it exists for.
+ */
+(function () {
+  // One copy per document. A second copy (a package re-imported with the tag left in, a host
+  // page that already carries one) would read the first copy's margins as authored and add the
+  // gap again, and the two observers would then answer each other without end.
+  if (window.__noacgFlexGapShim) return;
+  window.__noacgFlexGapShim = true;
+
+  var SIMULATE = window.NOACG_SIMULATE_NO_FLEX_GAP === true;
+  // In simulation, what the shim handled: the sweep reads its counts from here, so the number
+  // it reports is the shim's own model of a gapped container and can never drift from it.
+  var HANDLED = SIMULATE ? new Map() : null;
+  if (HANDLED) window.NOACG_FLEX_GAP_HANDLED = HANDLED;
+
+  // The feature test: a column flex box with a 1px row gap and two empty children is 1px tall
+  // only where flex gap works. It runs at parse time, so it hangs off <html>; <body> may not
+  // exist yet when this script sits in the head. `all: initial` keeps a template rule (a
+  // `div { min-height }`, say) from voting. A document that has no layout at all - the frame
+  // holding it is display:none - answers 0 whatever the engine, so the question is left open
+  // ('unknown') and asked again on the first resize, which a hidden frame gets when it is shown.
+  function flexGapState() {
+    if (!document.documentElement.clientWidth && !document.documentElement.clientHeight) return 'unknown';
+    var probe = document.createElement('div');
+    probe.style.cssText = 'all:initial;display:flex;flex-direction:column;row-gap:1px;position:absolute;visibility:hidden';
+    for (var i = 0; i < 2; i++) {
+      var child = document.createElement('div');
+      child.style.cssText = 'all:initial';
+      probe.appendChild(child);
+    }
+    document.documentElement.appendChild(probe);
+    var height = probe.scrollHeight;
+    document.documentElement.removeChild(probe);
+    return height === 1 ? 'has' : 'lacks';
+  }
+  var state = SIMULATE ? 'lacks' : flexGapState();
+  if (state === 'has') return;
+
+  // ── Bookkeeping: every inline property this shim writes, so it can take them back ──────────
+  // An element can carry writes in two roles: as an ITEM (the margins that stand in for its
+  // parent's gap) and as a BOX (in simulation, the zeroed gap of a container). They are undone
+  // separately, because refitting a container must not disturb the container's own children's
+  // containers.
+  var own = new WeakMap();
+
+  function write(el, role, prop, value, important) {
+    var list = own.get(el);
+    if (!list) {
+      list = [];
+      own.set(el, list);
+    }
+    var was = el.style.getPropertyValue(prop);
+    var wasPriority = el.style.getPropertyPriority(prop);
+    el.style.setProperty(prop, value, important ? 'important' : '');
+    // Remember the value as the CSSOM re-serialised it, not as it was written: `22.000000000000004px`
+    // reads back as `22px`, and undo() compares against what it reads.
+    list.push({ role: role, prop: prop, was: was, wasPriority: wasPriority, set: el.style.getPropertyValue(prop) });
+  }
+
+  function undo(el, role) {
+    var list = own.get(el);
+    if (!list) return;
+    var keep = [];
+    for (var i = list.length - 1; i >= 0; i--) {
+      var w = list[i];
+      if (w.role !== role) {
+        keep.unshift(w);
+        continue;
+      }
+      // Something else wrote this property since - a tween, the template's own JS. Its value
+      // wins, and from here on it is the authored value.
+      if (el.style.getPropertyValue(w.prop) !== w.set) continue;
+      if (w.was) el.style.setProperty(w.prop, w.was, w.wasPriority);
+      else el.style.removeProperty(w.prop);
+    }
+    if (keep.length) own.set(el, keep);
+    else own.delete(el);
+  }
+
+  // ── Reading the authored layout ────────────────────────────────────────────────────────────
+  function isFlex(display) {
+    return display === 'flex' || display === 'inline-flex';
+  }
+
+  function inFlow(cs) {
+    return cs.display !== 'none' && cs.position !== 'absolute' && cs.position !== 'fixed';
+  }
+
+  // A computed gap is `normal`, a px length, or (rarely) a percentage of the container's content
+  // box on that axis. Anything that is not a positive length is no gap.
+  function gapPx(value, box, axis) {
+    var n = parseFloat(value);
+    if (!(n > 0)) return 0;
+    if (String(value).indexOf('%') < 0) return n;
+    var cs = getComputedStyle(box);
+    var size = axis === 'x'
+      ? box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+      : box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    return (n / 100) * Math.max(0, size);
+  }
+
+  // A generated ::before or ::after that is in flow is a flex item too, and one this shim cannot
+  // give a margin. The gap beside it goes on its neighbour instead.
+  function pseudoInFlow(box, which) {
+    var cs = getComputedStyle(box, which);
+    var content = cs.content;
+    return content !== 'none' && content !== 'normal' && content !== '' && inFlow(cs);
+  }
+
+  function camel(prop) {
+    return prop.replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); });
+  }
+
+  // ── Fitting one container ──────────────────────────────────────────────────────────────────
+  function fixContainer(box) {
+    // Take back the last pass first, so every read below is of the authored value.
+    undo(box, 'box');
+    for (var c = box.firstElementChild; c; c = c.nextElementSibling) undo(c, 'item');
+
+    var cs = getComputedStyle(box);
+    var rowGap = isFlex(cs.display) ? gapPx(cs.rowGap, box, 'y') : 0;
+    var colGap = isFlex(cs.display) ? gapPx(cs.columnGap, box, 'x') : 0;
+    if (!rowGap && !colGap) {
+      if (HANDLED) HANDLED.delete(box);
+      return;
+    }
+
+    // In simulation the container's own gap must stop working, the way it does on CEF 71.
+    if (SIMULATE) {
+      write(box, 'box', 'row-gap', '0px', true);
+      write(box, 'box', 'column-gap', '0px', true);
+    }
+
+    // The items, in flex order: `order` first, then document order. A run of text straight
+    // inside a flex container is an item too (an anonymous one), and it has no style to write
+    // to - the gap beside it goes on its neighbouring element instead.
+    var items = [];
+    for (var node = box.firstChild; node; node = node.nextSibling) {
+      if (node.nodeType === 1) {
+        var ics = getComputedStyle(node);
+        if (!inFlow(ics)) continue;
+        items.push({ el: node, order: parseInt(ics.order, 10) || 0, index: items.length });
+      } else if (node.nodeType === 3 && node.nodeValue.replace(/\s+/g, '') !== '') {
+        items.push({ el: null, text: node, order: 0, index: items.length });
+      }
+    }
+    items.sort(function (a, b) { return a.order - b.order || a.index - b.index; });
+    var before = pseudoInFlow(box, '::before');
+    var after = pseudoInFlow(box, '::after');
+    var count = items.length + (before ? 1 : 0) + (after ? 1 : 0);
+    if (HANDLED) {
+      if (count < 2) HANDLED.delete(box);
+      else HANDLED.set(box, { items: count, rowGap: rowGap, columnGap: colGap });
+    }
+    if (count < 2) return;
+
+    var direction = cs.flexDirection;
+    var horizontal = direction.indexOf('row') === 0;
+    var reversed = direction.indexOf('reverse') > 0;
+    var rtl = cs.direction === 'rtl';
+    var mainGap = horizontal ? colGap : rowGap;
+    var crossGap = horizontal ? rowGap : colGap;
+    // The side of an item that faces the item before it in flex order, and the far side.
+    var backwards = horizontal ? reversed !== rtl : reversed;
+    var mainSide = horizontal ? (backwards ? 'margin-right' : 'margin-left') : (backwards ? 'margin-bottom' : 'margin-top');
+    var farSide = horizontal ? (backwards ? 'margin-left' : 'margin-right') : (backwards ? 'margin-top' : 'margin-bottom');
+
+    // The authored margin on a side, read before anything is written to that side. `null`
+    // means the margin is `auto`: getComputedStyle hands back the px the engine resolved it to,
+    // but an auto margin already takes every px of free space, so a gap written on top of it
+    // would push the item out past where the design ends it. Such a side is left alone.
+    function authored(item, side) {
+      if (item.el.computedStyleMap) {
+        var typed = item.el.computedStyleMap().get(side);
+        if (typed && typed.value === 'auto') return null;
+      }
+      return parseFloat(getComputedStyle(item.el)[camel(side)]) || 0;
+    }
+    function put(item, side, base, gap) {
+      if (base !== null) write(item.el, 'item', side, base + gap + 'px');
+    }
+    var i;
+    // Each element item's authored main-side margin, read before any write lands on that side.
+    for (i = 0; i < items.length; i++) items[i].mainAuthored = items[i].el ? authored(items[i], mainSide) : null;
+    // The gap between two neighbours goes on the later one's facing side when that is an element,
+    // otherwise on the earlier one's far side. `null` at either end stands for a pseudo-element.
+    function between(prev, next) {
+      if (next && next.el) put(next, mainSide, next.mainAuthored, mainGap);
+      else if (prev && prev.el) put(prev, farSide, authored(prev, farSide), mainGap);
+    }
+    if (before) between(null, items[0]);
+    for (i = 1; i < items.length; i++) between(items[i - 1], items[i]);
+    if (after) between(items[items.length - 1], null);
+    if (cs.flexWrap === 'nowrap' || items.length < 2) return;
+
+    // Wrapped: read where the browser broke the lines now that the main-axis margins are on. An
+    // item starts a new line when it lies wholly past the current line on the CROSS axis (below
+    // it in a row, beside it in a column) - the running edge of the line, so a short item next
+    // to a tall one is still on the same line, and a centred second line that is wider than the
+    // first is still a new one. A line start carries no main-axis margin (there is nothing
+    // before it), and every item past the first line carries the cross-axis gap.
+    var wrapReverse = cs.flexWrap === 'wrap-reverse';
+    var crossBackwards = horizontal ? wrapReverse : wrapReverse !== rtl;
+    var crossSide = horizontal
+      ? (crossBackwards ? 'margin-bottom' : 'margin-top')
+      : (crossBackwards ? 'margin-right' : 'margin-left');
+    function rectOf(item) {
+      if (item.el) return item.el.getBoundingClientRect();
+      var range = document.createRange();
+      range.selectNode(item.text);
+      return range.getBoundingClientRect();
+    }
+    // The near and far edge of a rect on the cross axis, in the direction lines advance.
+    function crossNear(r) { return horizontal ? (crossBackwards ? -r.bottom : r.top) : (crossBackwards ? -r.right : r.left); }
+    function crossFar(r) { return horizontal ? (crossBackwards ? -r.top : r.bottom) : (crossBackwards ? -r.left : r.right); }
+    var rects = [];
+    for (i = 0; i < items.length; i++) rects.push(rectOf(items[i]));
+    var line = 0;
+    var lineEnd = crossFar(rects[0]);
+    for (i = 1; i < items.length; i++) {
+      var r = rects[i];
+      if (crossNear(r) >= lineEnd - 0.5) {
+        line++;
+        if (items[i].el) put(items[i], mainSide, items[i].mainAuthored, 0);
+      }
+      if (crossFar(r) > lineEnd) lineEnd = crossFar(r);
+      if (line > 0 && crossGap && items[i].el) put(items[i], crossSide, authored(items[i], crossSide), crossGap);
+    }
+  }
+
+  // Every flex container under `root`, innermost first: an inner container's margins change its
+  // size, and the outer container's line breaks are read from that size.
+  function fixAll(root) {
+    if (!root || root.nodeType !== 1) return;
+    var all = root.querySelectorAll('*');
+    for (var i = all.length - 1; i >= 0; i--) {
+      if (isFlex(getComputedStyle(all[i]).display)) fixContainer(all[i]);
+    }
+    if (isFlex(getComputedStyle(root).display)) fixContainer(root);
+  }
+
+  // ── Keeping up with the graphic ────────────────────────────────────────────────────────────
+  // A mutation names the elements it touched; the containers that can have changed are those
+  // elements and their parents. GSAP writes an element's style attribute on every frame of a
+  // tween, and a transform or an opacity moves no flex item, so a style record whose layout
+  // properties did not change is dropped before it costs a read: the graphic's own motion must
+  // not turn into a refit sixty times a second on the engine this exists for.
+  var MOTION_ONLY = /^\s*(transform|translate|rotate|scale|opacity|visibility|filter|backdrop-filter|will-change|transform-origin|perspective|perspective-origin|backface-visibility|clip-path|mix-blend-mode)\s*:/i;
+  function layoutPart(styleText) {
+    var decls = String(styleText || '').split(';');
+    var kept = [];
+    for (var i = 0; i < decls.length; i++) {
+      if (decls[i].replace(/\s/g, '') !== '' && !MOTION_ONLY.test(decls[i])) kept.push(decls[i].replace(/\s+/g, ' '));
+    }
+    return kept.join(';');
+  }
+  function motionOnly(rec) {
+    return rec.type === 'attributes' && rec.attributeName === 'style'
+      && layoutPart(rec.oldValue) === layoutPart(rec.target.getAttribute('style'));
+  }
+
+  var observer = new MutationObserver(function (records) {
+    var seen = new Set();
+    var dirty = [];
+    function consider(node) {
+      if (!node || node.nodeType !== 1 || seen.has(node)) return;
+      seen.add(node);
+      dirty.push(node);
+    }
+    for (var i = 0; i < records.length; i++) {
+      var rec = records[i];
+      if (motionOnly(rec)) continue;
+      var target = rec.type === 'characterData' ? rec.target.parentNode : rec.target;
+      consider(target);
+      consider(target && target.parentNode);
+      for (var a = 0; a < rec.addedNodes.length; a++) {
+        var added = rec.addedNodes[a];
+        if (added.nodeType !== 1) continue;
+        var inner = added.querySelectorAll('*');
+        for (var d = inner.length - 1; d >= 0; d--) consider(inner[d]);
+        consider(added);
+      }
+      // An element taken out of a container keeps nothing of that container's gap: its margins
+      // were the gap between it and a neighbour it no longer has.
+      for (var x = 0; x < rec.removedNodes.length; x++) {
+        if (rec.removedNodes[x].nodeType === 1) undo(rec.removedNodes[x], 'item');
+      }
+    }
+    // Children before parents, for the same reason fixAll walks backwards. Sorted by depth,
+    // which is a total order; "does a contain b" is not one, and a sort on it can put a parent
+    // first.
+    function depth(node) {
+      var d = 0;
+      for (var n = node; n; n = n.parentNode) d++;
+      return d;
+    }
+    var depths = dirty.map(function (node) { return { node: node, depth: depth(node) }; });
+    depths.sort(function (a, b) { return b.depth - a.depth; });
+    dirty = depths.map(function (entry) { return entry.node; });
+    for (var k = 0; k < dirty.length; k++) {
+      if (isFlex(getComputedStyle(dirty[k]).display)) fixContainer(dirty[k]);
+    }
+    // The writes above are mutations too; drop them rather than answer them.
+    observer.takeRecords();
+  });
+
+  function start() {
+    fixAll(document.body);
+    observer.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeOldValue: true,
+      attributeFilter: ['style', 'class', 'hidden'],
+    });
+    observer.takeRecords();
+  }
+  // Load, the webfont swap and a resize can all land inside one second of each other; one
+  // pass on the next frame serves them all.
+  var refitPending = false;
+  function refitSoon() {
+    if (refitPending) return;
+    refitPending = true;
+    requestAnimationFrame(function () {
+      refitPending = false;
+      fixAll(document.body);
+      observer.takeRecords();
+    });
+  }
+
+  // Every moment that can change the answer or the layout comes through here: the first one
+  // starts the shim, the rest refit. A document whose engine could not be judged at parse time
+  // is judged now, and once the engine turns out to have flex gap nothing is ever touched.
+  var started = false;
+  function boot() {
+    if (state === 'unknown') state = flexGapState();
+    if (state !== 'lacks') return;
+    if (started) refitSoon();
+    else {
+      started = true;
+      start();
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  // A webfont swap and a resize both move line breaks without a DOM mutation.
+  window.addEventListener('load', boot);
+  window.addEventListener('resize', boot);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(boot, function () {});
+})();

@@ -6,6 +6,7 @@
 
 import JSZip from 'jszip';
 import gsapSource from '../../assets/gsap.min.js?raw';
+import { flexGapShimSource } from '../../assets/flexGapSupport';
 import lottieSource from '../../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isLottieAsset, parseDataUrl } from '../../assets/assetUtils';
 import { templateUsesLottie } from '../../assets/lottieSupport';
@@ -421,6 +422,7 @@ window.__noacgScheduledAction = function (entry) {
 <base href="__NOACG_BASE__">
 <style>html,body{width:${template.resolution.width}px;height:${template.resolution.height}px;overflow:hidden;margin:0;background:transparent}${template.css}</style>
 <script>${scriptSafe(RENDER_RUNTIME_JS)}</script>
+<script src="${lib.flexGap}"></script>
 <script src="${lib.gsap}"></script>
 <script>${scriptSafe(GSAP_DETACH_JS)}</script>${lottie}
 </head><body>${bodyContent(templateHtmlForModule(template))}
@@ -435,8 +437,10 @@ window.__noacgScheduledAction = function (entry) {
 export interface OgrafLibPaths {
   gsap: string;
   lottie: string;
+  /** The flex-gap shim for an older playout engine (src/assets/flexGapSupport.ts). */
+  flexGap: string;
 }
-const DEFAULT_LIB: OgrafLibPaths = { gsap: 'lib/gsap.min.js', lottie: 'lib/lottie.min.js' };
+const DEFAULT_LIB: OgrafLibPaths = { gsap: 'lib/gsap.min.js', lottie: 'lib/lottie.min.js', flexGap: 'lib/flex-gap-shim.js' };
 
 // ── The stylesheet, re-addressed from the document to the graphic's element ──────────────────
 
@@ -858,6 +862,19 @@ function ensureGsap() {
     s.onerror = () => { restore(); reject(new Error('Could not load ${lib.gsap}')); };
     document.head.appendChild(s);
   });
+}
+
+// The flex-gap shim, loaded the same way: on a host engine without flexbox gap it puts the
+// template's gaps back as margins; on any current renderer it exits at its first line.
+function ensureFlexGap() {
+  if (window.__noacgFlexGapShim) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = new URL('./${lib.flexGap}', import.meta.url).href;
+    s.onload = () => resolve(undefined);
+    s.onerror = () => reject(new Error('Could not load ${lib.flexGap}'));
+    document.head.appendChild(s);
+  });
 }${ensureLottieFn}
 
 const TEMPLATE_HTML = ${JSON.stringify(bodyContent(templateHtmlForModule(template)))};
@@ -1133,7 +1150,8 @@ class Graphic extends HTMLElement {
       await this._renderOfflineFrame(0);
       return { statusCode: 200 };
     }
-    await ensureGsap();${usesLottie ? '\n    await ensureLottie();' : ''}
+    await ensureGsap();
+    await ensureFlexGap();${usesLottie ? '\n    await ensureLottie();' : ''}
     // Inject the template's style + markup into this element (light DOM: the template's
     // own getElementById lookups keep working exactly as in SPX). The stylesheet is scoped to
     // the attribute _claimCanvas() stamps, and the element is the canvas it was authored for.
@@ -1399,6 +1417,7 @@ export async function addOgrafPackage(
     ),
   );
   write(lib.gsap, gsapSource);
+  write(lib.flexGap, flexGapShimSource);
   if (templateUsesLottie(template)) write(lib.lottie, lottieSource);
   if (opts.thumbnail) {
     const { file, data } = opts.thumbnail;

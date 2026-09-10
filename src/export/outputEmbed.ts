@@ -22,7 +22,7 @@
 //
 // TWO RULES THE EMITTED CODE OBEYS, both learned on real hardware (docs/CLOUD_PLAYOUT.md §3):
 //   1. ES5 ONLY - no `?.`, no `??`, no arrow functions, no `const`/`let`. CasparCG 2.3.x embeds a
-//      ~Chromium 65 CEF that rejects the whole file on the first modern token, showing a dead
+//      Chromium 71 CEF that rejects the whole file on the first modern token, showing a dead
 //      layer with nothing on air and no clue why.
 //   2. THE COLOR-SCHEME PAIR - the page declares <meta name="color-scheme" content="dark"> and
 //      paints every surface transparent. Chromium paints an iframe opaque when the schemes

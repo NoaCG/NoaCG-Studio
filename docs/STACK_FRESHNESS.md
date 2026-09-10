@@ -40,7 +40,7 @@ No automated dependency bumps, and no Dependabot. This is a deliberate call, not
   gate looks. **Checked 2026-08-03 against 2.9.2 and reverted.** It unblocks only on a
   `@remotion/vercel` release built against v2 — check its compiled code, not its peer range.
 - **The Vite build target must stay `es2017`** while CasparCG 2.3.x is supported
-  (docs/CLOUD_PLAYOUT.md §3). A 2.3.2 client embeds a ~Chromium 65 CEF that rejects `?.` and
+  (docs/CLOUD_PLAYOUT.md §3). A 2.3.2 client embeds a Chromium 71 CEF that rejects `?.` and
   `??` outright — a dead layer with nothing in the log. No automated gate catches this class.
 
 An auto-merged upgrade can satisfy every check in CI and still take playout off air. So the
