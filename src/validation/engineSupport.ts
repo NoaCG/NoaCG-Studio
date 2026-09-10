@@ -146,20 +146,22 @@ export const SUPPORTED_FLOOR = 117;
  * which prints the engine's own user-agent version. Everything else comes from a changelog and
  * should be treated as approximate until someone points a real machine at that URL.
  *
- * **The two CasparCG 2.3 rows are INFERENCES, and they are bounds rather than values.** The CEF
- * changed inside the 2.3 line, and this repo holds two observations from real servers that
- * cannot both describe one engine:
- *  - vite.config.ts lowers the whole app's build target to es2017 because a 2.3.2 server could
- *    not PARSE optional chaining — that engine is BELOW Chromium 80.
- *  - The 2026-08-06 acceptance pass found the Arena Quiz board missing only its `color-mix()`
- *    answer chips while every panel positioned with `inset` (87) and spaced with flex `gap`
- *    (84) rendered correctly — that engine is AT OR ABOVE 88.
- * Both are true of "CasparCG 2.3.x"; neither is true of a single number. They are kept as
- * separate rows, below the floor, so the report stays honest about a machine we do not support
- * rather than silently omitting it.
+ * **The 2.3.0–2.3.2 row is now MEASURED, and it is 71.** That row used to say 75 and carry an
+ * argument: vite.config.ts lowers the build target to es2017 because a 2.3.2 server could not
+ * PARSE optional chaining (below 80), while the 2026-08-06 acceptance pass saw `inset` (87) and
+ * flex `gap` (84) render on "a 2.3.x server" (at or above 88). On 2026-09-10 a 2.3.2 build
+ * (`4de6d18f Dev`) reported `Chromium 71` on the output page's own `&debug=1` line, and the house
+ * scorebug aired on it with its flex gaps COLLAPSED — label flush against number — beside the
+ * same production on 2.5.0 where they are there. So the low bound was right and the high one
+ * described some other machine. **The 2.3.3+ row is still an inference**: nothing here has run a
+ * genuine 2.3.3 (the install named `v2.3.3-lts-stable` answers `VERSION` with 2.3.2).
+ *
+ * Both rows stay below the floor, so the report is honest about machines we do not support
+ * rather than silently omitting them. Neither number can change a verdict for a supported
+ * engine - the floor is 117.
  */
 export const PLAYOUT_ENGINES: PlayoutEngine[] = [
-  { id: 'casparcg-230', label: 'CasparCG 2.3.0–2.3.2', chromium: 75, note: 'inferred, below the supported floor' },
+  { id: 'casparcg-230', label: 'CasparCG 2.3.0–2.3.2', chromium: 71, note: 'measured 2026-09-10, below the supported floor' },
   { id: 'casparcg-233', label: 'CasparCG 2.3.3+', chromium: 88, note: 'inferred, below the supported floor' },
   { id: 'obs-30', label: 'OBS Studio 30.x', chromium: 103, note: 'an OBS not updated since 2023 — below the floor' },
   { id: 'vmix', label: 'vMix 27+', chromium: 103, note: 'changelog only, never measured here' },

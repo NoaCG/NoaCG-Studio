@@ -21,7 +21,7 @@ installed browser, which auto-updates.
 
 | Playout system | Engine | How we know |
 |---|---|---|
-| CasparCG 2.3.0–2.3.2 | Chromium 75 | inferred — **unsupported**, see §2 |
+| CasparCG 2.3.0–2.3.2 | Chromium 71 | measured 2026-09-10 — **unsupported**, see §2 |
 | CasparCG 2.3.3+ | Chromium 88 | inferred — **unsupported**, see §2 |
 | OBS Studio 30.x | Chromium 103 | an OBS not updated since 2023 — below the floor |
 | vMix 27+ | Chromium 103 | changelog only, never measured here |
@@ -51,12 +51,14 @@ What is deliberately excluded, and why:
 
 - **CasparCG 2.3.x (75 / 88).** Unsupported. Clearing Chromium 75 would mean rewriting flex
   `gap` (272 designs), `backdrop-filter` (178) and the `inset` shorthand (138) out of the
-  catalogue — load-bearing layout, not decoration. Neither machine in use here runs 2.3 any more.
-  Both numbers are also inferences rather than measurements: a 2.3.2 server could not *parse*
-  optional chaining (so, below 80), while a 2.3.x server was seen rendering `inset` (87) and
-  `gap` (84) correctly (so, at or above 88). Both are true of "2.3.x"; neither is true of a
-  single number. `vite.config.ts` says "~Chromium 63" for the same line — nobody has reconciled
-  that, and nobody needs to while the tier is unsupported.
+  catalogue — load-bearing layout, not decoration. The 2.3.0–2.3.2 number is no longer an
+  inference: on 2026-09-10 a 2.3.2 build (`4de6d18f Dev`) reported **Chromium 71** on the output
+  page's `&debug=1` line, and the house scorebug aired on it with its flex gaps collapsed — the
+  same production on 2.5.0 has them. That settles a contradiction this section used to carry: a
+  2.3.2 server could not *parse* optional chaining (below 80), yet a "2.3.x" server was once seen
+  rendering `inset` (87) and `gap` (84), which must have been a different machine. `vite.config.ts`
+  still says "~Chromium 63", which is now merely conservative rather than unreconciled. **2.3.3+
+  remains an inference** — nothing here has run a genuine 2.3.3.
 - **OBS 30.x and vMix 27 (103).** Below the floor, so a design using `color-mix()` (111) loses
   its fills there. A current OBS is fine; vMix has never been measured here. Left as a known,
   recorded gap rather than a reason to migrate 189 declarations speculatively — revisit if a real
