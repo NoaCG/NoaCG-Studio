@@ -88,6 +88,34 @@ measured on the first page the way `spreadFirstPage` already spreads hue and fam
    graphics, and they should be innovative and beautiful."* A recurring drawing slot, fed by the
    gap table, is what makes the catalog grow without a person deciding each time what is missing.
 
+## 2026-09-10 addendum: named genres, and not a requirement for the 25th
+
+Asked at the weekly alignment session whether the catalog needs to look broader for the 25th, or
+whether the day rides entirely on someone importing their own graphic. Paraphrased from speech, so
+the intent binds and the wording does not - full answer in `docs/OWNER_RULINGS.md` §ALIGN-2026-09-10-2.
+
+> ... it's not a requirement for the day. It's more maybe just a vanity thing. ... For example
+> there are many types of graphics or looks that we don't have. We are going quite strong with the
+> streamer look and YouTube look but if you look at news, the UFC, the NFL, or night shows, I don't
+> think we have all those kinds of looks.
+
+So the survey in item 1 above names **news, UFC, NFL and night shows** as looks the catalog
+currently has nothing for, next to the streamer and YouTube looks it leans on - feed these into
+`docs/CATALOG_BY_PROGRAMME.md`'s gap table rather than treating them as a separate ask. And the
+26th's acceptance does not depend on this item: SVG import and playing out a custom graphic with
+working data fields is what the day rides on, not catalog width.
+
+He also raised a new capability while answering the same question, distinct from this item's scope:
+
+> One thing that I want to look into more is having animated backgrounds in the graphics. We don't
+> have a way to do it yet but we need to add it to our to-do list so that we can create animated
+> backgrounds. Through generating our own graphics templates we could create looping animations for
+> our graphics. ... we need to research, get references, and then create our own versions of those.
+
+That is a rendering capability (looping animated backgrounds), not a genre-variety gap, so it does
+not belong in this file's survey - noted here only so the ask is not lost; it wants its own backlog
+item if nobody files one first.
+
 ## Evidence
 
 Owner walk 2026-09-03, verbatim above. He set the review point himself: *"let's see again after
