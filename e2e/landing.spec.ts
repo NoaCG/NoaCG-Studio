@@ -51,14 +51,10 @@ test('the landing says the four things a stranger has to meet', async ({ page })
   // without a row in the audit is not allowed on the page.
   await page.goto('/');
 
-  // Free and open source, before the product tour, with the licence named. The claim is pinned to
-  // the HERO rather than to the lede: it lives in the kicker line above the headline, and the lede
-  // deliberately stopped repeating it on 2026-09-10, when the owner failed the page's voice for
-  // saying the same thing twice on one screen. What matters is that a stranger meets the claim
-  // before the tour, not which element carries it.
+  // Free and open source, before the product tour, with the licence named.
   const free = page.locator('#free');
   await expect(free).toContainText('AGPL-3.0');
-  await expect(page.locator('.hero')).toContainText(/free (?:and|&) open source/i);
+  await expect(page.locator('.hero .lede')).toContainText('free and open source');
 
   // The artwork card leads with SVG and links to the authoring guide.
   const importCard = page.locator('.way', { hasText: 'Bring your own artwork' });
