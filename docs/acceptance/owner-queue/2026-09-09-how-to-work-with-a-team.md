@@ -51,7 +51,11 @@ answered with more prose here. Three of them are worth your eye:
   The argument for it: every signed-in user already sees the disabled button and the dialog, so the
   page is only saying out loud what the screen is already admitting. The argument against: `/docs`
   is public and indexed. Say the word and the section comes off until stage 4 lands.
-- **The nav.** Fourteen entries now, up from thirteen. Your standing rule is "only the most
+- **The nav.** Fourteen entries, confirmed against `docs.html` on 2026-09-10, up from thirteen.
+  This is now the ONLY place the nav-length question is asked; `2026-09-06-h-two-new-docs-guides.md`
+  used to ask it too, with a stale count of twelve, and points here instead. The entries earlier
+  items wanted to argue about are "Pictures, logos & Lottie" and "Which package do I want". Your
+  standing rule is "only the most
   important information on the left".
 - **"What will happen when a production moves in".** Five bullets of design that you cannot try
   yet. It is labelled as design. If you would rather the page carried nothing it cannot demonstrate,

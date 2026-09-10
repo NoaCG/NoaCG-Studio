@@ -49,3 +49,30 @@ harness useful for exactly the work it is otherwise good at. No session may wide
 permission posture on its own argument, so it is filed rather than done
 (`docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md`). Until you say
 otherwise we enumerate file lists by hand. Branch `claude/ac-harness-verdict`.
+
+## Checked by an agent 2026-09-10, and NOT settled - one number does not reproduce
+
+Everything structural in "what to look at" is there. Both worker-written files exist and each
+carries exactly one editor's note. The judgement is the last section of `docs/HARNESS_ROUTING.md`.
+`scripts/harness-capabilities.json` carries the re-probed observations, including
+`codex-invocation-leaks-its-mcp-fleet`, with 24 entries dated 2026-09-09.
+
+**The headline count does not reproduce from the ledger, and the discrepancy is not resolved.**
+The verdict opens with "Of the nine delegated tasks on the outcome ledger in the last 24 hours,
+seven failed on our own prompt or invocation and only two are evidence about the worker at all."
+Reading `C:/Users/ahonemi/.noacg/delegation-outcomes.jsonl` directly - 29 lines, `at` timestamps,
+the same 24 hours ending at the tables' own cut of 2026-09-09T20:25:55Z - gives **five** tasks in
+that window, four with `cause: prompt` and one with `cause: worker`. Uncollapsed, so collapsing
+by label could only reduce it further, never reach nine.
+
+Four and one carries the same argument as seven and two: most failures are ours, and the worker
+evidence is an anecdote rather than a rate. **So the conclusion is not in doubt and no money
+decision changes.** What is in doubt is whether the verdict's window matches the tables' window,
+whether "delegated tasks" there means ledger rows or invocations - the same document uses "nine"
+for both in two different paragraphs - or whether rows landed after it was written. The ledger has
+grown since; its newest row is dated 2026-09-10.
+
+**This item stays open** because an agent settling it is supposed to have driven the thing and
+agreed, and one of its four questions came out different. The cheap fix is for whoever wrote the
+verdict to state the exact window and the exact filter beside the number, so it can be re-derived
+rather than re-argued.

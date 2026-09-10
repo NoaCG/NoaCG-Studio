@@ -23,3 +23,19 @@ merged pull requests.
 **What to look at.** Whether a dropped landing reads as help on the pull request (the local
 watcher names the failed check), and whether you want the admin bypass removed after a week of
 landings (the plan keeps it for emergencies).
+
+## Checked by an agent, 2026-09-10 - one question left, and it is now due
+
+The queue was exercised rather than inspected: pull request 231 was opened, carried `CI gate` and
+`Reviewed` as its checks, went through the merge queue and landed as `919d7d27`. `npm run jobs`
+lists it under "Landed through the queue" against the session that queued it, and prints
+"not queued" with the sentence "Only a branch's own session queues it" for a branch still in play.
+That is the whole mechanism working end to end on a real landing.
+
+**What is left is the one question this item asked you, and its week is up:**
+
+> whether you want the admin bypass removed after a week of landings (the plan keeps it for
+> emergencies).
+
+The queue has been landing since 2026-09-06, so that is four days of real use with no manual
+landing needed. Yes removes it; no keeps the emergency door. Nothing else on this item needs you.

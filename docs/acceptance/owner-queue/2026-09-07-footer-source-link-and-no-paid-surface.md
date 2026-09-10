@@ -18,7 +18,9 @@ belong in the footer, or should the repository link sit higher up where somebody
 to trust the project would actually look? The footer is where a stranger looks last, and "open
 source" is one of the three claims the landing page leads with. Second, does **Free forever,
 AGPL-3.0** read better or worse than the old **Free forever for the core**? The old one was wrong
-after your ruling, but it was also shorter, and the licence now appears twice on the page.
+after your ruling, but it was also shorter, and the licence appears **three times** on the page -
+checked live 2026-09-10, not twice as this item first said. That makes the second question a
+little sharper than it was written: the footer repetition is the third instance, not the second.
 
 The new link is styled identically to its siblings, verified in the browser: same colour, same
 13px, no underline, same 9px gap. It opens in the same tab, matching the other footer links.
