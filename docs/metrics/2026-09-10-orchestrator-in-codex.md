@@ -31,7 +31,9 @@ window `2026-09-11T03:00:00Z`, within about ten minutes of each other.
   identical inputs - the same handoff list, the same owner receipts, the same weekly candidates.
   That turns "the plans differ" into a number instead of a reading.
 
-The Codex session ran 44 turns and 5.6 M tokens over about eight minutes of wall clock.
+The Codex session ran 44 turns and 5.6 M tokens over about eight minutes of wall clock. **Its plan
+is committed unedited** as `docs/metrics/2026-09-10-orchestrator-in-codex-plan.md`, so every quote
+below can be checked and the diff re-derived without re-spending a Codex window.
 
 ### What this measurement is not
 
