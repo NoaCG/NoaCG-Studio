@@ -229,9 +229,26 @@ jobs:
       # trusted-publishing example, which is the version these docs are kept in step with.
       #
       # `inputs.dry_run` is null on a tag push, so `!inputs.dry_run` is true there: a tag publishes.
+      #
+      # WHY VERBOSE. npm's OIDC exchange is silent by design: every path in npm's own
+      # `lib/utils/oidc.js` returns undefined and logs at `verbose`, and the default level is
+      # `notice`. So a trusted publish npm cannot authenticate prints nothing at all, and then
+      # fails with `E404 Not Found - PUT` on a package that plainly exists - because npm carries
+      # on and sends the placeholder `_authToken` setup-node wrote, and the registry masks its
+      # 403 as a 404 so an unauthenticated caller cannot probe for private packages. At
+      # `verbose` the log carries one line naming the real answer: either `oidc Successfully
+      # retrieved and set token`, or `oidc Failed token exchange request with body message:`
+      # and npm's own reason. That line is the difference between an hour of comparing runs and
+      # reading one log - paid for on 2026-09-09, when 0.3.1 was refused because the repository
+      # had moved and nothing in the log said so.
+      #
+      # It leaks nothing. `oidc.js` never logs the credential it obtains, and npm redacts auth
+      # material from every log level except `notice` (`lib/utils/display.js`).
       - name: Publish
         if: ${{ !inputs.dry_run }}
         working-directory: cli
+        env:
+          NPM_CONFIG_LOGLEVEL: verbose
         run: npm publish
 
       # EVERY PUBLISHED VERSION SHOWS ON GITHUB. Zero releases on a repository reads as a dead
