@@ -557,7 +557,7 @@ What this round does not settle: the renderer drops a Graphic's instance when it
 cleared, so it still never calls an action after `dispose()` - the `409` for that case remains
 our own guarantee, exactly as after 2026-08-22.
 
-#### 2026-09-10: the walk, run end to end, with the fix in
+### 2026-09-10: the walk, run end to end, with the fix in
 
 The round above stopped short: `scopedWindow()` landed as `1ab04a20` and the walk had not been
 run to completion since - the confirmation above came from DOM reads and screen viewing during
