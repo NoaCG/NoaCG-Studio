@@ -929,11 +929,11 @@ async function liteGroundedResult(
   run: AiRunRecorder,
   priorSpec?: DesignSpec,
 ): Promise<AiTemplateChange> {
-  options?.onProgress?.('Designing with NoaCG Lite…');
+  options?.onProgress?.('Create with AI is designing your graphic…');
   const started = Date.now();
   const generated = await generateLiteDesign(prompt, context, priorSpec);
   const decision = generated.decision;
-  if (decision.status !== 'ready') throw new LiteRequestError('generation_failed', 'NoaCG Lite returned no design.');
+  if (decision.status !== 'ready') throw new LiteRequestError('generation_failed', 'Create with AI returned no design.');
   run.stage('lite-design-spec', started, undefined, generated.usage);
   run.managed('lite', generated.generationId);
   const spec = normalizeLiteSpec(decision.spec as DesignSpec, context.spec);
@@ -981,7 +981,7 @@ async function liteGroundedResult(
       const validation = compiled.validation ?? validateTemplate(compiled.template);
       if (validation.ok && !liteHoldFrameFindings(candidate, validation).length) break;
     }
-    if (!change) throw new Error('Lite had no compatible reference chassis to compile.');
+    if (!change) throw new Error('Create with AI had no compatible reference chassis to compile.');
     const finalValidation = change.validation ?? validateTemplate(change.template);
     const finalHoldFindings = liteHoldFrameFindings(change.spec ?? spec, finalValidation, change.path === 'grounded+skin');
     if (finalHoldFindings.length) {
@@ -994,7 +994,7 @@ async function liteGroundedResult(
             ...finalValidation.errors,
             ...finalHoldFindings.map((finding) => ({
               rule: `lite-hold-${finding}`,
-              message: `The rendered hold frame failed Lite's ${finding} check.`,
+              message: `The rendered hold frame failed Create with AI's ${finding} check.`,
             })),
           ],
         },
@@ -1231,7 +1231,7 @@ export const claudeProvider: AIProvider = {
   async generate(prompt, context, options) {
     return recorded('generate', async (run) => {
       if (options?.profile === 'lite') {
-        if (!context) throw new LiteRequestError('invalid_request', 'NoaCG Lite needs a generation context.');
+        if (!context) throw new LiteRequestError('invalid_request', 'Create with AI needs a generation context.');
         return liteGroundedResult(prompt, context, options, run);
       }
       const userContent: ContentBlock[] = [
@@ -1307,7 +1307,7 @@ export const claudeProvider: AIProvider = {
 
   async generateRaw(prompt, context, options) {
     if (options?.profile === 'lite') {
-      throw new LiteRequestError('unsupported_operation', 'NoaCG Lite does not generate unrestricted template code.');
+      throw new LiteRequestError('unsupported_operation', 'Create with AI does not generate unrestricted template code.');
     }
     return recorded('generate', async (run) => {
       options?.onProgress?.('Generating…');
@@ -1415,7 +1415,7 @@ export const claudeProvider: AIProvider = {
       if (!context || !options.spec || !detectPrefix(template.html) || !parseAnimData(template.js)) {
         throw new LiteRequestError(
           'unsupported_operation',
-          'NoaCG Lite can refine only a grounded Lite design. Create a new Lite graphic for a structural change.',
+          'Create with AI can refine only a graphic it designed. Create a new graphic for a structural change.',
         );
       }
       return recorded('modify', (run) => liteGroundedResult(prompt, contextFrom(template, context), options, run, options.spec));
@@ -1445,7 +1445,7 @@ export const claudeProvider: AIProvider = {
 
   async fix(template, options) {
     if (options?.profile === 'lite') {
-      throw new LiteRequestError('platform_validation', 'A Lite validation failure is a NoaCG platform defect and is not repaired with generated code.');
+      throw new LiteRequestError('platform_validation', 'Create with AI failed validation. This is a NoaCG platform defect and is not repaired with generated code.');
     }
     const validation = validateTemplate(template);
     const problems = validation.ok
@@ -1456,7 +1456,7 @@ export const claudeProvider: AIProvider = {
 
   async makeSpxReady(template, options) {
     if (options?.profile === 'lite') {
-      throw new LiteRequestError('unsupported_operation', 'NoaCG Lite does not rewrite existing template code.');
+      throw new LiteRequestError('unsupported_operation', 'Create with AI does not rewrite existing template code.');
     }
     return modifyAs(
       'make-ready',
@@ -1471,7 +1471,7 @@ export const claudeProvider: AIProvider = {
 
   async convertImport(prompt, imported, context, options) {
     if (options?.profile === 'lite') {
-      throw new LiteRequestError('unsupported_operation', 'NoaCG Lite does not convert imported templates.');
+      throw new LiteRequestError('unsupported_operation', 'Create with AI does not convert imported templates.');
     }
     const request = prompt.trim() || 'Bring it fully up to the house standards.';
     return modifyAs(

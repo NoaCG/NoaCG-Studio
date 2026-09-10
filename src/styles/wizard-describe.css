@@ -197,23 +197,6 @@
 }
 .ai-settings-head h2 { font-size: 14px; }
 
-/* The AI execution-tier picker (AI settings): Lite / Pro / Custom as radio cards. */
-.ai-tier { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-.ai-tier-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-.ai-tier-option input[type='radio'] { width: auto; margin-top: 2px; flex: none; }
-.ai-tier-option.selected { border-color: var(--accent); background: var(--bg-2); }
-.ai-tier-option:has(input:disabled) { opacity: 0.55; cursor: default; }
-.ai-tier-body { display: flex; flex-direction: column; gap: 2px; }
-.ai-tier-body .hint { margin: 0; }
-
 /* THE AGENT ROUTE (steps/ai/AgentRouteCard.tsx): the user's own coding agent is the PREFERRED
    way to make graphics with NoaCG, said before any tier and any key. One always-visible line
    in the step's own one-line-then-disclosure grammar, the two install lines as a selectable

@@ -44,13 +44,18 @@ async function withHostedPro(page: Page, allowance = { daily: 3, monthly: 10 }) 
   }));
 }
 
-async function openAiTier(page: Page) {
+async function openAiSettings(page: Page) {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   // There is no separate Pro entry card - Create with AI is the one AI door.
   await expect(page.locator('[data-entry="pro"]')).toHaveCount(0);
   await page.locator('[data-entry="ai"]').click();
-  await expect(page.getByTestId('ai-tier')).toBeVisible();
+  const button = page.getByRole('button', { name: /AI settings/ });
+  const sheet = page.getByTestId('ai-settings');
+  await expect(async () => {
+    if (!(await sheet.isVisible())) await button.click();
+    await expect(sheet).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 }
 
 test('pro: a status endpoint saying "available" is not enough on a build that cannot run it', async ({ page }) => {
@@ -58,18 +63,22 @@ test('pro: a status endpoint saying "available" is not enough on a build that ca
   // account, so a deployment with no backend cannot run it however the status answers. If this
   // ever passes as a visible tier, the two conditions have quietly become one.
   await withHostedPro(page);
-  await openAiTier(page);
-  await expect(page.getByTestId('ai-tier-pro')).toHaveCount(0);
-  await expect(page.getByTestId('ai-tier')).not.toContainText('NoaCG Pro');
+  await openAiSettings(page);
+  const sheet = page.getByTestId('ai-settings');
+  await expect(sheet.getByTestId('ai-tier')).toHaveCount(0);
+  await expect(sheet).not.toContainText('NoaCG Pro');
+  await expect(sheet.getByTestId('ai-pro-settings')).toHaveCount(0);
 });
 
 test('pro: with no hosted route at all, the tier is absent and nothing asks for a key', async ({ page }) => {
-  await openAiTier(page);
-  await expect(page.getByTestId('ai-tier-pro')).toHaveCount(0);
+  await openAiSettings(page);
+  const sheet = page.getByTestId('ai-settings');
+  await expect(sheet.getByTestId('ai-tier')).toHaveCount(0);
+  await expect(sheet).not.toContainText('NoaCG Pro');
   // ABSENT, not greyed: a tier listed as unavailable still advertises itself. And the panel
   // that remains never asks for a key to reach NoaCG's own models - the only key surface here
   // belongs to the bring-your-own-key tier, for the user's own provider.
-  await expect(page.getByTestId('ai-settings')).not.toContainText(/gateway/i);
-  await expect(page.getByTestId('ai-pro-settings')).toHaveCount(0);
+  await expect(sheet).not.toContainText(/gateway/i);
+  await expect(sheet.getByTestId('ai-pro-settings')).toHaveCount(0);
 });
 

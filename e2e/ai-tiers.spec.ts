@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
-// THE CREATE-WITH-AI DOOR: which tiers are offered, what they are called, and what the
-// bring-your-own-key surface says about money.
+// THE CREATE-WITH-AI DOOR: one hosted route, plus the secondary switch to the user's own
+// account. There is no tier or model choice on the hosted route.
 //
 // Every assertion here is about WORDING and WHICH OPTIONS EXIST, which is exactly the class of
 // defect no other gate can see: the shipped build called a bring-your-own-key mode "Custom
@@ -54,7 +54,7 @@ const CONFIG = {
 async function openAiSettings(page: Page) {
   await page.route('**/api/ai/config', (route) => route.fulfill({ json: CONFIG }));
   await page.route('**/api/ai/models**', (route) => route.fulfill({ json: OPENAI_MODELS }));
-  // Lite off, so the tier resolves to the bring-your-own-key surface - and the panel OPENS
+  // The hosted route is off, so the user's own account is forced on - and the panel OPENS
   // ITSELF, which is why nothing here clicks the ⚙ button: that decision lands an async tick
   // after this answer, so a blind click is as likely to close the panel as to open it.
   await page.route('**/api/ai/lite/status', (route) => route.fulfill({ json: { enabled: false } }));
@@ -72,19 +72,18 @@ async function openAiSettings(page: Page) {
   await expect(page.getByTestId('ai-settings')).toBeVisible();
 }
 
-test('the tiers are NoaCG Lite and Bring your own key — and Pro is not a door yet', async ({ page }) => {
+test('the sheet has no tier chooser and shows the hosted note plus one own-account switch', async ({ page }) => {
   await openAiSettings(page);
-  const tiers = page.getByTestId('ai-tier');
-  await expect(tiers.getByTestId('ai-tier-lite')).toContainText('NoaCG Lite');
-  await expect(tiers.getByTestId('ai-tier-custom')).toContainText('Bring your own key');
-  // The old label named a "provider" the tier never asked for.
-  await expect(tiers).not.toContainText('Custom provider');
-  // Built, and offered only where the server hosts it and the backend can meter it: a tier
-  // that cannot run here is absent, not greyed (the rule itself is e2e/pro.spec.ts's).
-  await expect(tiers.getByTestId('ai-tier-pro')).toHaveCount(0);
+  const sheet = page.getByTestId('ai-settings');
+  await expect(sheet.getByTestId('ai-tier')).toHaveCount(0);
+  await expect(sheet.getByRole('radiogroup')).toHaveCount(0);
+  await expect(sheet.getByTestId('ai-hosted-note')).toBeVisible();
+  await expect(sheet.getByTestId('ai-own-key')).toBeVisible();
+  await expect(sheet.getByTestId('ai-own-key').getByRole('checkbox')).toBeChecked();
+  await expect(sheet).not.toContainText(/NoaCG Lite|NoaCG Pro/);
 });
 
-test("the user's own coding agent is named as the preferred route before any tier and any key", async ({ page }) => {
+test("the user's own coding agent is named as the preferred route before either service route", async ({ page }) => {
   // Owner, 2026-08-26 and 2026-09-03 (docs/backlog/byo-key-and-create-with-ai-guidance.md):
   // steer users to their own Claude Code before any key entry - it is the PREFERRED route, not
   // a hint beside the tier picker. This build has nothing configured, so the key field is
@@ -102,16 +101,21 @@ test("the user's own coding agent is named as the preferred route before any tie
   // Honest about what it needs, and no brush-off for somebody with no agent.
   await expect(body).toContainText('a terminal');
   await expect(body).toContainText('No coding agent?');
-  // In the sheet the pointer comes BEFORE the tier picker - first, in document order.
+  // In the sheet the pointer comes BEFORE the hosted note and own-account switch.
   const sheet = page.getByTestId('ai-settings');
   const pointerFirst = await sheet.evaluate((el) => {
     const pointer = el.querySelector('[data-testid="ai-agent-pointer"]');
-    const tiers = el.querySelector('[data-testid="ai-tier"]');
-    return Boolean(pointer && tiers && pointer.compareDocumentPosition(tiers) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const hosted = el.querySelector('[data-testid="ai-hosted-note"]');
+    const ownKey = el.querySelector('[data-testid="ai-own-key"]');
+    return Boolean(
+      pointer && hosted && ownKey
+      && pointer.compareDocumentPosition(hosted) & Node.DOCUMENT_POSITION_FOLLOWING
+      && pointer.compareDocumentPosition(ownKey) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
   });
   expect(pointerFirst).toBe(true);
-  // And the key tier itself tells a coding-agent user they do not need it.
-  await expect(sheet.getByTestId('ai-tier-custom')).toContainText('you do not need this');
+  // And the own-account switch tells a coding-agent user they do not need it.
+  await expect(sheet.getByTestId('ai-own-key')).toContainText('you do not need this');
   // Hide, then the sheet's pointer brings it back.
   await page.getByTestId('ai-agent-route-toggle').click();
   await expect(body).toHaveCount(0);
@@ -148,9 +152,9 @@ test('a provider is asked for the credential IT issues, not for an "API key" it 
   await expect(page.getByRole('button', { name: 'Store key' })).toBeVisible();
 });
 
-test('the tier runs on a key the user owns, never on the funded route', async ({ page }) => {
+test('the own-account route runs on a key the user owns, never on the funded route', async ({ page }) => {
   // The saved route is the managed transport - the harness default, and what every bench sets.
-  // Entering the tier must move it onto a real bring-your-own-key provider, or the tier spends
+  // Entering the route must move it onto a real bring-your-own-key provider, or it spends
   // NoaCG's credential under a promise that says the opposite.
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({

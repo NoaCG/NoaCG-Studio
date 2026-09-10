@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { isBackendConfigured } from '../../../backend/config';
 import { loadGraphics } from '../../../model/library';
 import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
@@ -52,18 +51,6 @@ interface Props {
  */
 export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onBlank, onHome }: Props) {
   const advanced = useAdvancedMode((s) => s.advanced);
-  /**
-   * Does this build have NoaCG Lite to offer? "Create with AI" reads as a paid feature to
-   * anyone who has met one, and the entry card is the only place a visitor decides whether to
-   * open the door at all - so the price belongs there rather than three screens in.
-   *
-   * The gate is the BACKEND, checked synchronously: Lite's allowance is metered per account, so
-   * a build with no backend has no accounts and no Lite, and a self-hosted studio must not be
-   * promised a tier it cannot run (it also grows no auth UI at all - see the root AGENTS.md
-   * auth posture). The step itself asks the server whether Lite is enabled; the card cannot,
-   * because a status fetch on the app's first paint is a real cost for one clause of copy.
-   */
-  const liteOffered = isBackendConfigured();
   /** Is there anything to continue? Home holds graphics, productions and videos, so any of
    *  them counts. On a first-ever visit there is nothing, and offering the loudest card on
    *  the screen as a door to an empty room is a false lead - creation leads instead. */
@@ -192,7 +179,6 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
             </span>{' '}
             Describe the graphic you need and NoaCG adapts a proven design to it. Drop in a
             logo, mood board or brand colours.
-            {liteOffered && ' Free with NoaCG Lite.'}
           </span>
         </button>
         <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">

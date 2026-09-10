@@ -123,7 +123,7 @@ export default function AIPromptPanel() {
         </p>
         {liteEnabled && (
           <p className="hint">
-            NoaCG Lite creates and refines grounded graphics in New graphic. It does not rewrite
+            Create with AI creates and refines grounded graphics in New graphic. It does not rewrite
             an existing template's code. The controls below use the separately configured
             advanced or BYO provider path.
           </p>

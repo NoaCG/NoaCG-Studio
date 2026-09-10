@@ -61,8 +61,8 @@ async function checkedJson<T>(response: Response): Promise<T> {
     throw new LiteRequestError(
       code,
       code === 'shared_capacity' || code === 'fleet_capacity'
-        ? 'NoaCG Lite is temporarily busy. Please try again in a moment.'
-        : body?.error?.message ?? 'NoaCG Lite could not complete the request.',
+        ? 'Create with AI is temporarily busy. Please try again in a moment.'
+        : body?.error?.message ?? 'Create with AI could not complete the request.',
       body?.error?.retryable ?? false,
     );
   }

@@ -205,42 +205,6 @@ const PRO_STAGE_LABELS: Record<ProStage, string> = {
 };
 
 /**
- * The execution tiers as the settings panel offers them.
- *
- * A tier describes an OUTCOME, never the machinery that produces it: the managed tiers name no
- * vendor, no model and no transport, so replacing the engine behind one costs no copy and
- * misleads nobody in the meantime (owner, 2026-08-14). Only the bring-your-own-key tier names
- * vendors, because there the vendor IS the decision the user is making.
- *
- * `custom` keeps its stored id - see AI_TIERS in src/ai/settings.ts.
- */
-const TIER_OPTIONS: { id: AiTier; name: string; hint: string }[] = [
-  { id: 'lite', name: 'NoaCG Lite', hint: 'Included free — one excellent editable graphic per request, nothing to configure.' },
-  // Pro's hint says nothing about whose key pays because the answer is never the user's: a
-  // NoaCG tier runs on NoaCG's own service or it is not offered at all. It names the PACKAGE
-  // (§15.9) because that is the tier's stated promise and the thing Lite structurally cannot
-  // do - and it names an OUTCOME, never a mechanism, so replacing the engine costs no copy.
-  {
-    id: 'pro',
-    name: 'NoaCG Pro',
-    hint: 'An on-air look designed for your channel — and every graphic below built in it, '
-      + 'so they belong together. Nothing to configure.',
-  },
-  {
-    id: 'custom',
-    name: 'Bring your own key',
-    // The last clause is the steer at the KEY MOMENT itself: the full case for the agent route
-    // sits at the top of the step (AgentRouteCard), and the sheet's pointer is right above this
-    // picker, so here one sentence is enough. Loud where the decision is made, quiet where the
-    // key is typed - an interstitial in front of the field would be the brush-off the receipt
-    // warns against.
-    // "Account" rather than "key": Hugging Face issues tokens, not keys (credentialNoun), and
-    // the field below this picker is labelled with each provider's own word.
-    hint: 'Run it on your own account with OpenAI, Anthropic, Google or Hugging Face: any model that provider offers, at that provider’s prices. If you have Claude Code or Codex, you do not need this.',
-  },
-];
-
-/**
  * ONE transcript for the whole step: what the user said, what the AI said back, and every
  * set of directions it produced. `past` turns are earlier generations — they stay restorable,
  * so exploring a second idea never costs you the first one.
@@ -359,11 +323,6 @@ export default function AiStep({
     };
   }, [needsSignIn]);
   const [settings, setSettings] = useState(loadAiSettings);
-  // THE EXECUTION TIER. Lite and Pro are managed experiences of the SAME creation workflow;
-  // 'custom' is the bring-your-own-key surface. The saved preference wins where it is
-  // honourable: a saved tier this build does not offer falls back rather than failing, and no
-  // saved choice resolves to Lite when the server offers it (the historical default) else BYO
-  // key. A tier that is merely OFF is never listed as unavailable either - see the render.
   const liteOffered = Boolean(liteStatus?.enabled);
   // HOSTED PRO IS THE ONLY PRO (owner, 2026-08-14). A NoaCG tier runs on NoaCG's own service or
   // it is not offered - it never asks a customer for a key to reach our own models. So the tier
@@ -374,17 +333,16 @@ export default function AiStep({
   // with no backend cannot run it however the status answers.
   const proHosted = Boolean(proStatus?.available);
   const proOffered = proHosted && isBackendConfigured();
-  const fallbackTier: AiTier = liteOffered ? 'lite' : 'custom';
-  const tier: AiTier =
-    settings.tier === 'lite'
-      ? liteOffered ? 'lite' : fallbackTier
-      : settings.tier === 'pro'
-        ? proOffered ? 'pro' : fallbackTier
-        : settings.tier ?? fallbackTier;
+  // The wizard offers ONE hosted path and the user's own key. Hosted Pro's door is closed
+  // pending the measured comparison in docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md.
+  // Keep the proMode branches below intact so reopening it remains a one-line change.
+  const tier: AiTier = settings.tier === 'custom' ? 'custom' : liteOffered ? 'lite' : 'custom';
   const liteMode = tier === 'lite';
-  const proMode = tier === 'pro';
+  // Always false while the door above is closed. The widening cast is what keeps the Pro
+  // branches below compiling against a `tier` that can no longer narrow to 'pro' - remove it
+  // together with them, or when the door reopens, never on its own.
+  const proMode = (tier as AiTier) === 'pro';
   const liteActive = liteMode && Boolean(liteStatus?.available);
-  const tierOptions = TIER_OPTIONS.filter((option) => option.id !== 'pro' || proOffered);
 
   // THE BYO-KEY TIER RUNS ON A KEY THE USER OWNS. The saved route can point at the managed
   // transport (it is the harness default, and every bench sets it), which would spend NoaCG's
@@ -400,16 +358,14 @@ export default function AiStep({
     setSettings(loadAiSettings());
   }, [tier, settings.provider, settings.configuredProviders]);
 
-  /* The one-line read-back beside the ⚙ button (re-design/handoff.md §3a): which tier is
-     running and, on the tier where models are the user's own, what it will call. A managed
-     tier deliberately names no model — that is the point of it. */
+  /* The one-line read-back beside the settings button: whether NoaCG's hosted path needs no
+     key or, on the user's own account, what it will call. */
   const settingsSummary =
-    tier === 'lite' ? 'NoaCG Lite · included'
-    : tier === 'pro' ? 'NoaCG Pro · included'
-    : [
+    tier === 'custom' ? [
         AI_PROVIDERS.find((provider) => provider.id === settings.provider)?.label ?? settings.provider,
         settings.model,
-      ].filter(Boolean).join(' · ');
+      ].filter(Boolean).join(' · ')
+      : 'NoaCG · no key needed';
   const aiReady = liteMode ? liteActive : proMode ? true : aiConfigured(settings);
   // Opens itself ONCE, after the tier is known: a custom-tier visitor with no provider
   // configured needs the setup in front of them, a Lite visitor does not.
@@ -437,7 +393,7 @@ export default function AiStep({
   useEffect(() => {
     if (liteStatus === undefined || settingsAutoOpened.current) return;
     settingsAutoOpened.current = true;
-    if (!liteStatus?.enabled && loadAiSettings().tier !== 'pro' && !aiConfigured()) {
+    if (!liteStatus?.enabled && !aiConfigured()) {
       setShowSettings(true);
       setAgentRouteOpen(true);
     }
@@ -636,11 +592,11 @@ export default function AiStep({
         return;
       }
       if (liteMode && next.length >= (liteStatus?.limits.logos ?? 0)) {
-        setError('NoaCG Lite accepts only the configured number of compatible logo uploads.');
+        setError('Create with AI accepts only the configured number of compatible logo uploads.');
         break;
       }
       if (liteMode && file.size > (liteStatus?.limits.logoBytes ?? 2_000_000)) {
-        setError('The NoaCG Lite logo limit is 2 MB.');
+        setError('The logo limit is 2 MB.');
         continue;
       }
       const asset = { path: uniqueAssetPath(file.name, paths()), data: await fileToDataUrl(file) };
@@ -882,7 +838,7 @@ export default function AiStep({
         return;
       }
       if (liteActive) {
-        setError('NoaCG Lite does not convert imported templates. Open it as code, or remove it and describe one new lower third.');
+        setError('Create with AI does not convert imported templates. Open it as code, or remove it and describe one new lower third.');
         return;
       }
       if (proMode) {
@@ -1036,7 +992,7 @@ export default function AiStep({
     if (liteActive) {
       void run(
         (options) => getAiProvider('lite').generate(brief, context, options),
-        'Creating one NoaCG Lite graphic…',
+        'Creating your graphic…',
       ).then(() => {
         void loadLiteStatus().then(setLiteStatus).catch(() => undefined);
       });
@@ -1170,7 +1126,7 @@ export default function AiStep({
           why the caution costs this step no height. */}
       <div className="panel-section">
         <SectionHead
-          title={liteMode ? 'NoaCG Lite' : proMode ? 'NoaCG Pro' : 'Create with AI'}
+          title="Create with AI"
           summary={<span className="wz-testing-note">Still in testing - results vary</span>}
           testid="ai-testing-why"
         >
@@ -1183,11 +1139,10 @@ export default function AiStep({
             import your own artwork instead.
           </p>
           <p>
-            {liteMode
-              ? 'Included for free users. This quality release concentrates on one excellent editable lower third, then validates and exercises it in the live playout bench. Other graphic types are explained instead of being forced into a poor design.'
-              : proMode
-                ? 'An on-air look designed for your channel, and every graphic of the package below built in it — one generation, a set that visibly belongs together. Each lands as ordinary editable code with live text fields, real shapes, deterministic motion and every export target, checked in the live playout bench first.'
-                : 'Describe what you need, and optionally add artwork or an existing template. Every result is validated and exercised in a live playout test before you can create it, and lands as clean, editable code.'}
+            Describe the graphic you need and NoaCG designs one for you. Every result is validated
+            and exercised in a live playout test before you can create it, and lands as clean,
+            editable code. This route is still under construction - if you have Claude Code or
+            Codex, your own agent is the better way to make a graphic today.
           </p>
         </SectionHead>
         {/* Before the drop zone, the brief, the tiers and any key: the preferred route is the
@@ -1240,7 +1195,7 @@ export default function AiStep({
         <strong>{liteMode ? 'Drop an existing template to open as code' : 'Drop pictures or an existing template here'}</strong>
         <span className="hint">
           {liteMode ? (
-            <>Image input is paused while Lite concentrates on lower-third quality. Existing <code className="inline">.html</code> or <code className="inline">.zip</code> templates can still be opened unchanged.</>
+            <>Image input is paused while Create with AI concentrates on lower-third quality. Existing <code className="inline">.html</code> or <code className="inline">.zip</code> templates can still be opened unchanged.</>
           ) : (
             <>A logo to place, a design to follow, a mood board, or a shot of the real background —
               you say what each one is for after dropping it. An{' '}
@@ -1353,17 +1308,15 @@ export default function AiStep({
         <div style={{ marginTop: 12 }}>
           <SignInPrompt
             offerSignUp
-            feature={liteMode ? 'NoaCG Lite' : proMode ? 'NoaCG Pro' : 'Create with AI'}
-            reason={liteMode
-              ? 'Create with AI needs a free NoaCG account — it comes with the included NoaCG Lite allowance for common editable graphics.'
-              : 'Create with AI needs a free NoaCG account. It costs nothing, and you get a validated, editable template.'}
+            feature="Create with AI"
+            reason="Create with AI needs a free NoaCG account. It costs nothing, and you get a validated, editable template."
           />
         </div>
       ) : (
         <>
           {liteMode && !liteActive && (
             <p className="status-bad" style={{ marginTop: 10 }}>
-              NoaCG Lite is temporarily unavailable. Existing templates and the normal editor still work.
+              Create with AI is temporarily unavailable. Existing templates and the normal editor still work.
             </p>
           )}
           {/* THE THREAD: talk turns and earlier generations, oldest first. */}
@@ -1638,10 +1591,9 @@ export default function AiStep({
                 {moreOpen ? '▾' : '▸'} More control{activeSpec ? ' ●' : ''}
               </button>
             )}
-            {/* Always offered: the settings panel is where the execution TIER is chosen,
-                so a Lite or Pro user has to be able to reach it too. The button carries a
-                one-line read-back of what is configured (handoff §3a), so the common case
-                needs no click at all. */}
+            {/* Always offered: the settings panel is where the user can switch to their own AI
+                account. The button carries a one-line read-back, so the common case needs no
+                click at all. */}
             <div className="ai-settings-host">
               <button onClick={() => setShowSettings((s) => !s)} aria-expanded={showSettings}>
                 ⚙ AI settings
@@ -1702,45 +1654,41 @@ export default function AiStep({
                 <h2>AI settings</h2>
                 <button className="gallery-close" onClick={() => setShowSettings(false)} title="Close">✕</button>
               </div>
-              {/* THE EXECUTION TIER. Lite and Pro are managed experiences of this same
-                  creation workflow — no model picking, and no mechanism named; the BYO-key
-                  tier is the deliberate route where provider, key, and models are the user's
-                  own. A tier this build does not offer is ABSENT, not greyed: an unbuilt door
-                  described in the present tense is the defect this panel just fixed. */}
-              {/* FIRST in the sheet, above every tier: the route that needs no tier and no key.
+              {/* FIRST in the sheet: the route that needs no account and no key.
                   A pointer rather than a second copy of the card, so there is one place the
                   commands live and this line only reveals it. */}
               <p className="hint ai-agent-pointer" data-testid="ai-agent-pointer">
                 Have Claude Code or Codex? Your own agent is the preferred route, and it needs no
-                tier and no key.{' '}
+                account and no key.{' '}
                 <button type="button" className="link-btn" onClick={revealAgentRoute}>Show me ›</button>
               </p>
-              <div className="ai-tier" role="radiogroup" aria-label="AI tier" data-testid="ai-tier">
-                {tierOptions.map((option) => {
-                  const unavailable = option.id === 'lite' && !liteOffered;
-                  return (
-                    <label
-                      key={option.id}
-                      className={`ai-tier-option ${tier === option.id ? 'selected' : ''}`}
-                      data-testid={`ai-tier-${option.id}`}
-                    >
-                      <input
-                        type="radio"
-                        name="ai-tier"
-                        checked={tier === option.id}
-                        disabled={!!busy || unavailable}
-                        onChange={() => saveSetting({ tier: option.id })}
-                      />
-                      <span className="ai-tier-body">
-                        <strong>{option.name}</strong>
-                        <span className="hint">
-                          {unavailable ? 'Not offered by this server.' : option.hint}
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
+              <p className="hint" data-testid="ai-hosted-note">
+                {liteOffered
+                  ? 'Create with AI runs on NoaCG’s own service. There is nothing to choose and no key to supply, and it costs you nothing. It is still under construction, so do not rely on it for work that has to be right today.'
+                  : 'Create with AI on NoaCG’s own service is not available on this build. Your own coding agent above, or your own AI account below, are the routes here.'}
+              </p>
+              <label className="dlg-check" data-testid="ai-own-key">
+                <input
+                  type="checkbox"
+                  checked={tier === 'custom'}
+                  disabled={!!busy || !liteOffered}
+                  onChange={(e) => saveSetting({ tier: e.target.checked ? 'custom' : null })}
+                />
+                <span>
+                  <strong>Use your own AI account instead</strong>
+                  <span className="hint">
+                    Run it on your own account with OpenAI, Anthropic, Google or Hugging Face: any
+                    model that provider offers, at that provider’s prices. If you have Claude Code
+                    or Codex, you do not need this.
+                  </span>
+                </span>
+              </label>
+              {/* Fixed on, not merely ticked: with no hosted path there is nothing to switch
+                  back to, and a box that silently re-ticks itself is worse than one that says
+                  why it cannot move. */}
+              {!liteOffered && (
+                <p className="hint">This build has no hosted route, so your own account is the only one here.</p>
+              )}
               {/* Pro has NO chooser at all — no provider, no model, no key. The copy states the
                   outcome and stops there, so replacing what runs underneath costs no wording
                   and promises nothing about how it is done. */}
@@ -2104,7 +2052,7 @@ export default function AiStep({
               )}
               {validation && !validation.ok && liteMode && (
                 <p className="hint" style={{ marginTop: 8 }}>
-                  This is a NoaCG platform failure, so Lite will not spend another model call trying to rewrite generated code.
+                  This is a NoaCG platform failure, so no further model call is spent trying to rewrite generated code.
                 </p>
               )}
               {validation && !validation.ok && proMode && (

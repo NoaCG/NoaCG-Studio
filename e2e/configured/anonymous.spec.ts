@@ -43,12 +43,8 @@ test.describe('anonymous visitor (open editor)', () => {
     // student who has no account: it must name the free account and offer making one. A lone
     // "Sign in" told them to do something they cannot do.
     await page.goto('/app');
-    // THE PRICE IS ON THE CARD, before the door is opened. "Create with AI" reads as a paid
-    // feature to anyone who has met one, and the entry step is where a visitor decides whether
-    // to open it at all - a student who reads "AI" as "costs money" never clicks, and the gate
-    // below never gets to answer them. Offline builds say nothing (no backend, no accounts, no
-    // Lite), which e2e/wizard-entry-fit.spec.ts pins from the other side.
-    await expect(page.locator('[data-entry="ai"] .hint')).toContainText('Free with NoaCG Lite');
+    // The entry card has no edition or pricing language in configured mode either.
+    await expect(page.locator('[data-entry="ai"] .hint')).not.toContainText(/NoaCG Lite|Free with|included/);
     await page.locator('[data-entry="ai"]').click();
 
     const prompt = page.getByTestId('signin-prompt');
