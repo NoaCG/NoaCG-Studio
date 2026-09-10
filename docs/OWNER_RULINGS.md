@@ -741,3 +741,35 @@ moved is who is expected to tick them and when, not the box.
 Asked whether the reminder to open `docs/presentation-2026-09-25/NoaCG-2026-09-25.pptx` should be
 retired the way row 1 was, he said no. The row is unchanged and the owner-queue item filed with
 the deck stays. Keep surfacing it until he has opened it.
+
+---
+
+## ALIGN-2026-09-10-1
+
+**Asked at the weekly alignment session.** Three things I asked for a fortnight ago are unstarted and none of them serves the 25th: video through the cloud into CasparCG, how heavy the dashboard is to load, and an in-app assistant. Do they still matter?
+
+> All those three things are important but there is no hurry, so not before the 25th. The only thing I would be worried about is if the dashboard is heavy to load but I think we looked into it and didn't find any bugs so we are good to go for the 25th. The video through cloud and AI assistant can wait. There's no hurry with those. I think we need to get all the editors and North Star 2027 goals done at the same time or before these ones.
+
+---
+
+## ALIGN-2026-09-10-2
+
+**Asked at the weekly alignment session.** On the 25th, does the catalog itself need to look broader than it does, or does the day ride entirely on someone drawing their own graphic and playing it out? I have asked three times for more variety and we keep deferring it.
+
+> Good question. The key thing is that they can import their custom graphics, SVGs from Illustrator at least, and play them out and get the data fields working, etc. That is the main thing. But to test out graphics and to see what kind of graphics they can make, still I think the template catalog has to be even broader than it is today. But it's not a requirement for the day. It's more maybe just a vanity thing. I know it's quite difficult to decide what to add but it could be broader. For example there are many types of graphics or looks that we don't have. We are going quite strong with the streamer look and YouTube look but if you look at news, the UFC, the NFL, or night shows, I don't think we have all those kinds of looks. One thing that I want to look into more is having animated backgrounds in the graphics. We don't have a way to do it yet but we need to add it to our to-do list so that we can create animated backgrounds. Through generating our own graphics templates we could create looping animations for our graphics. I understand that we need to get references. It's very difficult to just come up with ideas so we need to research, get references, and then create our own versions of those. It's not a must before the 25th. It's one of those easy things, in my mind, that we can just throw tokens at when we launch the orchestrator every once in a while.
+
+---
+
+## ALIGN-2026-09-10-3
+
+**Asked at the weekly alignment session.** Two dashboard questions have been open since early August and only I can close them: whether pressing take a second time is how the next row goes on air, and whether space should send a graphic to preview first.
+
+> Great question. I think we need to have a checkbox for this so the operator can choose for themselves. One is that you press Space and it goes to the preview and then you press Space again and it goes to program. That would mean that when you go up and down the queue list, nothing gets automatically put into the preview. If the graphic that you have chosen is selected in the queue list and it's in the program, then when you press space again, it disappears from the program and is just in the preview. It works like a cut button on a mixer. This is the one option and I think that's one that many people will like so we need to build it. The other one is similar to what we have right now: everything is automatically in the preview. You just scroll down the queue list and it gets shown in the preview. When you press space, it goes live. If you press space again, the graphic goes out but if you have something else in the preview, then the graphics will go on top of each other if they are on different layers. If they are on the same layer, it will replace it. Does this make sense? There would be two different ways and both ways are clear in my head. Just ask if it feels confusing.
+
+---
+
+## ALIGN-2026-09-10-4
+
+**Asked at the weekly alignment session.** Two of the three big things are waiting on a word from you, not on more planning - the desktop app is parked by your own August decision, and the full editor is designed but not switched on. Do they stay locked?
+
+> Everything should be unlocked. There's no reason to lock anything. My deadlines are my problem and I will make sure that we meet those deadlines. I'll also let you know when we need to work on something that I need. One priority right now is to make Codex do some work because we are running out of Claude Code tokens each week so we have to be more economical and get more things done. That's something we should keep an eye on all the time. When we can use Codex efficiently, I will upgrade our Codex subscription and then we can use more of that.
