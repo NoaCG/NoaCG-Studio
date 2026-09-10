@@ -3,15 +3,22 @@
 //
 //   node scripts/playout-wire-probe.mjs [--takes N]
 //
-// Since 2026-09-10 a verb goes out twice from one press (src/control/commandRoads.ts): a Realtime
-// BROADCAST that every following surface applies on arrival, and the `control_send_many` insert
-// that stays the durable truth. This times both, for the same press, on the same wire, read by a
-// SECOND client - because that is what an operator's other page and the browser output renderer
-// are, and because a broadcast is never echoed back to whoever sent it.
+// Since 2026-09-10 a verb travels two roads from one press (src/control/commandRoads.ts), and one
+// call puts it on both: `control_send_many` inserts the durable row AND broadcasts the same
+// commands on the production's PRIVATE topic, in one transaction (migration 0056). This times
+// both, for the same press, on the same wire, read by a SECOND client - because that is what an
+// operator's other page and the browser output renderer are, and because a broadcast is never
+// echoed back to whoever sent it.
 //
 //   send    the RPC leaving this machine and its answer coming back
-//   fast    the broadcast reaching the other client
+//   fast    the database's broadcast reaching the other client, on `cmd-<show id>`
 //   slow    the inserted row reaching the other client over `postgres_changes`
+//
+// BOTH NUMBERS START AT THE SAME INSTANT - the press - so they are directly comparable, and both
+// now include the RPC's own round trip, because neither road exists until it commits. The first
+// version of this road broadcast from the CLIENT before the insert, which is why its `fast`
+// column was about 50 ms and this one's cannot be: what was bought with that difference is a road
+// a read-only output URL could push a command onto.
 //
 // `fast` is what the picture waits for now and `slow` is what it used to wait for, so the two
 // columns are the before and the after of the same press, taken a millisecond apart.
@@ -73,9 +80,22 @@ if (!url || !key || !email || !password) {
 const gb = (bytes) => Math.round((bytes / 1024 ** 3) * 100) / 100;
 const freeNow = () => ({ freeGb: gb(freemem()), totalGb: gb(totalmem()) });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const median = (xs) => {
+/**
+ * THE SPREAD, because a median hides the thing this instrument was built to find. The durable
+ * road's fan-out has two MODES - about 130 ms and about 650 ms - and which one a press gets looked
+ * random; a median over sixteen presses can report 130 while a quarter of them took five times
+ * that, and it is the slow quarter an operator remembers. So every summary prints the whole shape:
+ * fastest, median, slowest, and how many presses sat past twice the median.
+ */
+const spread = (xs) => {
+  if (!xs.length) return 'none arrived';
   const v = [...xs].sort((a, b) => a - b);
-  return v.length ? Number(v[Math.floor(v.length / 2)].toFixed(1)) : null;
+  const mid = Number(v[Math.floor(v.length / 2)].toFixed(1));
+  const stragglers = v.filter((x) => x > mid * 2).length;
+  return (
+    `median ${mid} ms  (${v[0].toFixed(0)} to ${v[v.length - 1].toFixed(0)} ms over ${v.length})` +
+    (stragglers > 0 ? `  - ${stragglers} past twice the median` : '')
+  );
 };
 
 const sb = createClient(url, key, { auth: { persistSession: false } });
@@ -128,7 +148,8 @@ if (watching.error) {
   process.exit(2);
 }
 
-const TOPIC = `control-${showId}`;
+const LOG_TOPIC = `control-${showId}`;
+const COMMAND_TOPIC = `cmd-${showId}`;
 const noteRow = (payload) => {
   const msg = payload?.new?.msg;
   if (msg) arrivals.push({ at: performance.now(), road: 'slow', t: msg.t ?? '?', press: msg.press ?? null });
@@ -140,38 +161,40 @@ const noteBroadcast = (frame) => {
   }
 };
 
+// THE TWO CHANNELS A FOLLOWING SURFACE JOINS, exactly as `subscribeControlEvents` joins them: the
+// public one for the log's rows, and the PRIVATE one for the command frames. Separate on purpose -
+// the durable road must not depend on the private topic's authorization.
 let joined = false;
 const channel = watcher
-  .channel(TOPIC)
+  .channel(LOG_TOPIC)
   .on(
     'postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'control_events', filter: `show_id=eq.${showId}` },
     noteRow,
   )
-  .on('broadcast', { event: 'cmd' }, noteBroadcast)
   .subscribe((status) => {
     if (status === 'SUBSCRIBED') joined = true;
   });
 
-// The SENDER's own channel, which is what the app broadcasts through: the joined socket
-// `sendControlVerb` reaches for. A different client from the watcher on purpose - `self` is false
-// by default, so a sender never hears itself and could not be timing its own frame.
-let senderJoined = false;
-const sending = sb.channel(TOPIC).subscribe((status) => {
-  if (status === 'SUBSCRIBED') senderJoined = true;
-});
+let commandsJoined = false;
+const commands = watcher
+  .channel(COMMAND_TOPIC, { config: { private: true } })
+  .on('broadcast', { event: 'cmd' }, noteBroadcast)
+  .subscribe((status) => {
+    if (status === 'SUBSCRIBED') commandsJoined = true;
+  });
 
 const joinStart = performance.now();
-while ((!joined || !senderJoined) && performance.now() - joinStart < 30_000) await sleep(50);
+while ((!joined || !commandsJoined) && performance.now() - joinStart < 30_000) await sleep(50);
 const joinMs = performance.now() - joinStart;
 if (!joined) {
-  console.error('the WATCHING channel never joined in 30 s - a published operator page would be falling back to the 30 s poll (CONTROL_POLL_MS).');
+  console.error('the LOG channel never joined in 30 s - a published operator page would be falling back to the 30 s poll (CONTROL_POLL_MS).');
 }
-// SAID OUT LOUD, because an unjoined SENDER is the way this instrument lies. supabase-js does not
-// queue a broadcast on a channel that is not joined; it posts it to the REST endpoint instead, so
-// every fastMs below would be measured against a road the app itself would never have used.
-if (!senderJoined) {
-  console.error('the SENDING channel never joined in 30 s - the fast numbers below are a REST fallback, not the road the app uses. Do not report them.');
+// SAID OUT LOUD, because a refused private join is the way this instrument lies: every `fastMs`
+// below would print `none` and read as a broadcaster that had gone quiet, when what actually
+// happened is that this reader was not allowed in (migration 0056's read policy).
+if (!commandsJoined) {
+  console.error(`the PRIVATE command channel (${COMMAND_TOPIC}) never joined in 30 s - the fast column below measures nothing. Check the read policy on realtime.messages.`);
 }
 
 console.log(`# playout wire probe - ${new Date().toISOString()} - ${JSON.stringify(freeNow())}`);
@@ -194,17 +217,18 @@ const roads = { take: { fast: [], slow: [] }, out: { fast: [], slow: [] } };
 
 /**
  * ONE PRESS, exactly as `sendControlVerb` puts it on the wire: an `oid` per command so the two
- * roads reconcile, the broadcast first and unawaited, then the atomic insert. `press` is this
+ * roads reconcile, and `fast: true` on the items the database may also broadcast. `press` is this
  * probe's own marker - `control_send_many` validates only `t` and `graphic` and inserts `msg`
- * verbatim, so it rides along and comes back on the row exactly as `oid` does.
+ * verbatim, so it rides along and comes back on the row exactly as `oid` does, while `fast` is
+ * read for the broadcast and never written to the log at all.
  */
 async function press(n, verb, items) {
   const marked = items.map((item) => ({
     graphic: item.graphic,
     msg: { ...item.msg, press: n, oid: `probe-${n}-${verb}-${item.msg.t}` },
+    fast: true,
   }));
   const sent = performance.now();
-  void sending.send({ type: 'broadcast', event: 'cmd', payload: { items: marked } }).catch(() => {});
   const { error } = await sb.rpc('control_send_many', { p_slug: slug, p_items: marked });
   const returned = performance.now();
   if (error) {
@@ -248,17 +272,15 @@ for (let i = 0; i < TAKES; i += 1) {
 }
 
 await watcher.removeChannel(channel);
-await sb.removeChannel(sending);
+await watcher.removeChannel(commands);
 await sb.from('control_shows').delete().eq('id', showId);
 
 console.log('');
-console.log(`# send (click -> RPC answered):  median ${median(sends)} ms over ${sends.length}`);
+console.log(`# send (click -> RPC answered):   ${spread(sends)}`);
 for (const verb of ['take', 'out']) {
   const { fast, slow } = roads[verb];
-  console.log(
-    `# ${verb.padEnd(5)} click -> another surface:  FAST ${median(fast)} ms over ${fast.length}` +
-      `   slow ${median(slow)} ms over ${slow.length}`,
-  );
+  console.log(`# ${verb.padEnd(5)} click -> another surface, FAST:  ${spread(fast)}`);
+  console.log(`# ${verb.padEnd(5)} click -> another surface, slow:  ${spread(slow)}`);
 }
 console.log('# the operator still waits for the app to apply and paint on top of the fast number.');
 // Counted against the presses that were actually ACCEPTED: a press whose RPC was refused returns

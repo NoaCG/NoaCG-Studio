@@ -197,6 +197,14 @@ export const CONFIGURED_TRIGGERS = [
   /^src\/control\/commandRoads\.ts$/,
   /^src\/components\/HostedControlPage\.tsx$/,
   /^src\/components\/home\/PayloadStage\.tsx$/,
+  // THE SCHEMA ITSELF. An RPC's body and an RLS policy are invisible to every offline spec by
+  // construction - offline there is no database to refuse anything - and they are where this
+  // product's security boundary actually lives. Migration 0056 moved the command frame into
+  // `control_send_many` and the fast road behind a policy, and the only thing that can judge
+  // either is a walk against a real project (e2e/configured/output-url-cannot-push.spec.ts,
+  // playout-both-roads.spec.ts). A migration that changed a grant and reported "covered" from the
+  // offline plan would be covered by nothing.
+  /^supabase\/migrations\//,
   // THE PRODUCTION DATA API and the panel that hands out its key (docs/DATA_API.md). Offline
   // there is no publish, no data_key row and no key to reveal, so the only honest proof that the
   // revealed string AUTHENTICATES is the configured walk

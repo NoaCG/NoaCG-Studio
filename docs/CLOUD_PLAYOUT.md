@@ -146,6 +146,14 @@ not yet published" hint when the library template or cue list is newer than the 
    previous → play → cue) as ONE atomic, log-ordered insert: one RPC round-trip of on-air
    latency instead of four, and it cannot fail halfway. Validated per item, burst-checked
    once for the batch, capped at 8 items (a verb, not an ingest API).
+   Since **migration 0056** it also BROADCASTS the same commands, in the same transaction, on
+   the production's private topic `cmd-<show id>` — the FAST ROAD every following surface
+   applies on arrival (median 97 ms against the durable row's 131 with a slow mode past 600).
+   An item rides it when the caller marks it `"fast": true`; that mark is transport and is never
+   inserted. RLS on `realtime.messages` lets anon READ that topic and gives no client an INSERT
+   policy, so the only writer is this function and the only key to it is the CONTROL slug — which
+   is what stops a holder of the read-only output URL pushing a command onto air
+   (`e2e/configured/output-url-cannot-push.spec.ts`).
 6. **Owner pruning** — a DELETE policy on `control_events` for the show's owner; the publish
    path deletes rows older than 7 days. Keeps the append-only log from growing without bound
    under a 24/7 output URL (the 0008 schema has no retention at all).

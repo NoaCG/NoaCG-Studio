@@ -4,16 +4,25 @@
 // paints in 515 ms and Out in 397 ms, against 30 ms for the same production unpublished in the
 // same browser a minute later. The RPC is the smaller half - 220 to 350 ms of every published
 // verb is the Realtime fan-out of the inserted row, which `postgres_changes` delivers bimodally
-// at about 130 ms or about 600 ms. A `broadcast` on the same backend was 50 ms, twelve times out
-// of twelve, with no slow mode.
+// at about 130 ms or about 600 ms. A `broadcast` on the same backend never showed that slow mode.
+//
+// Re-measured the same day on the road that shipped (16 takes and 16 outs, read from a second
+// client): the broadcast reaches another surface in a median of 97 ms against the durable row's
+// 131, and - the number that matters - its worst press was 288 ms where the row's was 788, with
+// five of 32 rows past twice their median and the broadcast never once bimodal. So the fast road
+// is not mainly FASTER, it is RELIABLE: what it removes is the half-second an operator remembers.
 //
 // So a verb now leaves the press on BOTH roads at once:
 //
-//   the FAST road   a Realtime broadcast on the production's own command channel, which every
-//                   following surface applies the moment it lands. The sender applies its own
-//                   items straight away and does not wait for anything.
-//   the SLOW road   `control_send_many` exactly as before - the durable, ordered truth that
-//                   recovery, the tail and a late-joining renderer read. Nothing is removed.
+//   the FAST road   a Realtime broadcast on the production's own PRIVATE command topic, emitted
+//                   by `control_send_many` itself and applied by every following surface the
+//                   moment it lands. The sender applies its own items straight away and does not
+//                   wait for anything.
+//   the SLOW road   the `control_send_many` insert exactly as before - the durable, ordered truth
+//                   that recovery, the tail and a late-joining renderer read. Nothing is removed.
+//
+// The two are written in ONE TRANSACTION (migration 0056), so they carry the same commands with
+// the same authority and a verb that fails to log is a verb that never aired.
 //
 // The log keeps being the thing that is RIGHT; the broadcast is the thing that is FAST. That is
 // what fixes AIR as well as the operator's own monitor: the output renderer never sent anything
@@ -45,6 +54,27 @@
 
 /** The command channel's broadcast event name. One event, one shape: `{ items }`. */
 export const COMMAND_EVENT = 'cmd';
+
+/**
+ * THE PRIVATE TOPIC A PRODUCTION'S COMMANDS TRAVEL ON, and why it is a separate channel from the
+ * `control-<show id>` one the log follower has always joined.
+ *
+ * Realtime resolves access to a PRIVATE topic through RLS on `realtime.messages` (migration
+ * 0056): anon and authenticated may read `cmd-<uuid>`, and nobody but the database may write one,
+ * because no insert policy exists. That is the whole boundary. It replaces the posture the first
+ * version of this road shipped with - a public topic, isolated only by its address - which was a
+ * hole rather than an isolation, because the show id is reachable from the READ-ONLY output
+ * capability (`control_output_by_slug` answers it, and a renderer needs it), so a link that could
+ * only render could push a `play` onto every screen in the building.
+ *
+ * SEPARATE FROM `control-<show id>` on purpose. That channel carries `postgres_changes`, which is
+ * the durable road and must never depend on this policy: if the private join were ever refused,
+ * a shared channel would take the log down with it. Two channels on one socket cost one extra
+ * join at page load and nothing per verb.
+ */
+export function commandTopic(showId: string): string {
+  return `cmd-${showId}`;
+}
 
 /**
  * HOW MANY APPLIED IDS A SURFACE REMEMBERS.
@@ -81,17 +111,16 @@ export function oidOf(msg: unknown): string | null {
 /**
  * READ A BROADCAST FRAME, or refuse it.
  *
- * Everything on this road arrives from another CLIENT rather than from the database, so it is
- * checked the way any other untrusted input is: an array of `{graphic, msg}` where `graphic` is a
- * non-empty string and `msg` is an object naming a command in `t`. Anything else is dropped in
- * silence - a malformed frame must cost a following surface nothing, and it certainly must not
- * reach a stage.
+ * A frame is checked the way any other input from the wire is: an array of `{graphic, msg}` where
+ * `graphic` is a non-empty string and `msg` is an object naming a command in `t`. Anything else is
+ * dropped in silence - a malformed frame must cost a following surface nothing, and it certainly
+ * must not reach a stage.
  *
- * This is a SHAPE check and not an authorisation one. The command channel is public, joined with
- * the publishable key, and isolated by its topic being derived from the production's own id - the
- * same capability model `realtimeControl.ts` ships for exported graphics, and with the same
- * consequence written down there: anybody who knows the topic can send on it. The durable log is
- * unaffected either way, because writing THAT still needs the control slug and passes RLS.
+ * This is a SHAPE check and not an authorisation one, and it no longer has to be: the only writer
+ * on this topic is `control_send_many`, which the sender reaches by holding the CONTROL slug
+ * (migration 0056). What arrives here has already passed the same check the durable row passed.
+ * The shape check stays anyway, because a stage is the last place to discover that an assumption
+ * about the wire was wrong.
  */
 export function readCommandFrame<M>(payload: unknown): { graphic: string; msg: M }[] | null {
   const items = (payload as { items?: unknown } | null)?.items;

@@ -218,8 +218,8 @@ async function boot(): Promise<void> {
    * Air used to be the WORST-placed seat in the house: the renderer never sends anything, so no
    * amount of applying optimistically on an operator's dashboard could reach it, and every
    * published verb arrived here 330-500 ms after the finger that pressed it. It now also listens
-   * on the broadcast road, which is 50 ms - and `applied` is what keeps the durable row that
-   * follows from playing the same entrance a second time.
+   * on the broadcast road, which is about 100 ms and has no slow mode - and `applied` is what
+   * keeps the durable row that follows from playing the same entrance a second time.
    *
    * `createdAt` is the row's own server time and is absent on the fast road. Only an `event`
    * needs it (it is where a clock's shared origin comes from), and an event is sent slow for
