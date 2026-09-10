@@ -2,11 +2,13 @@
 
 **Branch:** `claude/cg-harness-verdict-window`, queued. **Commits:** `7113f105` (the window and the
 filter), `94a9f8e9` (the night's routing section), `2304a1ec` (main taken in), `3c8d37ce` (the
-check's nine findings, and the backlog file). **Check stamp:** `3c8d37ce` PASS - review
-`delegated` 9/9 fixed, simplify `inline`, verify `inline`, taste not applicable. **CI:** run
-34538468694 green - Build, Factory gates, E2E plan, all nine E2E subset shards, the combined report
-and the CI gate. The shards ran because the branch took `main` in mid-check and picked up row CC's
-product code.
+check's nine findings, and the backlog file), then this handoff. **Check stamp:** PASS - review
+`delegated` 9/9 fixed, simplify `inline`, verify `inline`, taste not applicable. **The reviewed sha
+is `3c8d37ce`**; the stamp was re-written at the branch tip afterwards, and the whole increment
+after the review is this handoff file and the two lines of it you are reading. **CI:** run
+34538468694 on `3c8d37ce` green - Build, Factory gates, E2E plan, all nine E2E subset shards, the
+combined report and the CI gate. The shards ran because the branch took `main` in mid-check and
+picked up row CC's product code; the commits after it are documentation only.
 
 ## What landed
 
