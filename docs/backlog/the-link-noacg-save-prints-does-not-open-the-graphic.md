@@ -26,13 +26,24 @@ but the sentence we said out loud will have been wrong in front of them.
 
 ## What it would take
 
-Find out which of the two is true first, because they need different fixes:
+**Drive the third navigation shape first, because neither run below isolates the variable.** The
+passing spec does `page.goto('/app#/graphic/<id>')` as a FULL document load while already signed
+in. Of the two runs here, the warm tab was already in the app and then navigated to the link, which
+on a hash URL is a same-document change that never re-runs boot; and the cold tab signed in on the
+way, where landing on `#/home` after an auth redirect is ordinary behaviour. So the deployed-bundle
+difference is not yet separated from the navigation-shape difference. **The shape that matters is
+the student's**: a fresh tab opening the printed link in a browser that is already signed in. Drive
+that against production before concluding anything.
+
+Then find out which of these is true, because they need different fixes:
 
 1. The deployed router rewrites `#/graphic/<id>` to `#/home` before the record resolves, and never
    comes back. The hash was `#/home` on the very first sample in both runs and never changed, which
-   points here rather than at a slow sync.
-2. The record genuinely is not resolvable at that moment on production and the miss path differs
-   from the dev server's.
+   is weak evidence for this and the reason it is listed first.
+2. The record is not resolvable at that moment on production and the miss path differs from the dev
+   server's.
+3. Neither: the link works in the shape a student uses, and both runs here measured their own
+   navigation choices. This is a live possibility and checking it is cheap.
 
 Then either fix the routing or change what we promise, in all three places above at once - the
 beat, `save`'s printed line (`cli/src/commands/save.ts`), and the spec. **Whatever the fix, the

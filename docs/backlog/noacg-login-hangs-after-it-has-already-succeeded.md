@@ -9,13 +9,17 @@ row 8 (jobs `j-0918`, `j-0921`, `j-0929`).
 a room follows R2.4 along on their own machines. Observed on 2026-09-10 against `noacg.studio`:
 the login completed successfully - the key was minted and stored - and the process then **sat for
 923 seconds without exiting and without the terminal saying anything**, until it was killed. The
-person watching that terminal has no way to tell a finished login from a broken one, and the
-reasonable thing for them to do, Ctrl-C, is exactly wrong.
+person watching that terminal has no way to tell a finished login from a broken one. The saving
+grace is that Ctrl-C is harmless here, because the key is already on disk by then - but nobody
+knows that, so the likely reaction is to assume the login failed and run it again, minting a
+second key.
 
-It also defeats the CLI's own safety net. `cli/src/commands/login.ts` sets `DEFAULT_WAIT_SEC = 300`
-and a timer that closes the server and reports *"No reply from the browser within 300 s - run
-`noacg login` again."* At 923 s that message had not appeared either, so both the success path and
-the giving-up path end in the same silence.
+**The 300-second timeout is NOT implicated, and it would be easy to think it was.**
+`cli/src/commands/login.ts` sets `DEFAULT_WAIT_SEC = 300` with a timer that closes the server and
+reports *"No reply from the browser within 300 s"*, and that message never appeared at 923 s - but
+`login.ts:115` is `handoff.finally(() => clearTimeout(timer))`, so a successful handoff cancels
+that timer by design. Suppressing it was correct. This run says nothing about whether the
+giving-up path works, because it never took it.
 
 ## What it would take
 
