@@ -490,9 +490,20 @@ function svgFitDue(within) {
 }
 
 /** A line PLACED on the artwork rather than drawn in it - an HTML span, which measures and
- *  paints through different calls than an SVG text node does. */
+ *  paints through different calls than an SVG text node does.
+ *
+ *  ASKED OF THE NAMESPACE, because it is asked of things that are not lines at all. It used to
+ *  read "this node has no getComputedTextLength", which is a true test of "not an SVG <text>"
+ *  and only means "placed" while the caller already knows it is holding a line. svgUserScale
+ *  asks it of PANELS and FOLLOWERS - a rect, a path, a group, none of which have that method -
+ *  so every growing panel was read as placed and converted its grant at svgPlacedScale's
+ *  fallback of 1 instead of the frame's own scale. Invisible on a 1920x1080 artwork, where the
+ *  two are the same number; measured on the millimetre scorebug, whose user units are 3.78 px
+ *  each, it grew the plate 3.78 times too far and stood it 1040 px below the frame's bottom
+ *  edge (2026-09-10). A placed line is an HTML element; everything drawn is in the SVG
+ *  namespace, whatever tag it is. */
 function svgFitPlaced(el) {
-  return typeof el.getComputedTextLength !== 'function';
+  return el.namespaceURI !== 'http://www.w3.org/2000/svg';
 }
 
 /** Painted px per LAYOUT px for a placed line - what an entrance that scales the whole design
@@ -1779,7 +1790,12 @@ function svgLayoutEl(token) {
 /** Screen px per unit of the space an element's own measurements are written in - the frame a
  *  drawn layer's transform lives in (svgFrameScale, which says why it is the basis vector's
  *  LENGTH), and for a PLACED line the painted-to-layout ratio, since that is the space its width
- *  and its slot are both measured in. */
+ *  and its slot are both measured in.
+ *
+ *  ASKED OF PANELS AND FOLLOWERS AS WELL AS LINES. Growth is decided in screen px and spent by
+ *  writing a rect's width, a path's points or a follower's transform, all of which are user
+ *  units - so this is the only conversion between the two, and svgFitPlaced has to answer
+ *  correctly for a shape and not only for a line. */
 function svgUserScale(el) {
   // Both defined in the fit block above.
   return svgFitPlaced(el) ? svgPlacedScale(el) : svgFrameScale(el);
