@@ -3,7 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-10
-state: unstarted
+state: advanced
+note: "index.html rewritten in 62fd37b2 - 2211 words to 1767, the named slogan and every countable claim gone. /docs, the import step and the missing voice gate still stand."
 asked: "it could be shorter and more cut-to-the-chase type of text ... it could have the Finnish style: no jargon and hype, just what it is and what it does"
 ---
 # The public copy should read Finnish-plain, not like marketing
@@ -73,3 +74,49 @@ gate or a review step can actually check, and the landing page is where it gets 
 Both are taste rules with a clear owner statement behind them, which is what `contracts/rules/`
 is for. Filing them before the rewrite would be premature: write the copy first, then record the
 rule the copy proves.
+
+## What landed, 2026-09-10 (`index.html` only)
+
+The landing page was rewritten section by section. All three demands are met on that page:
+
+- **Shorter.** Body text 2211 -> 1767 words, a 20% cut. The rendered page went 11496px -> 10675px
+  at 1265px wide (measured in the dev server, before and after, on the same viewport).
+- **The named slogan is gone**, and so is the five-part closer "Make it. Brand it. Animate it.
+  Export it. Run the show." - the same construction he objected to, one section further down. The
+  free section now states the fact and asks for feedback, which is what he said should replace it.
+- **No countable claim is left.** "Four ways in", "One screen, four doors", "Six free starters" and
+  "OGraf v1" are out, said as what exists rather than how much of it. The step ordinals 01-05 and
+  the demo monitor's own clock and score stay: neither is a claim about what we have, and both are
+  wayfinding a reader uses. **If he disagrees about the step numbers, that is a one-line change.**
+
+Every graded claim, the three dashed direction cards and the "Bring your own artwork" wording are
+untouched, because he passed those on the same walk.
+
+### The finding worth acting on: words are not why the page feels long
+
+The word count fell 20% and the scroll only 7%. Most of the page's height is screenshots and card
+grids, not prose. **The page also tells its story twice**: the ways-to-start grid and the five-step
+walkthrough cover the same ground with their own screenshots, and operating is covered by the
+walkthrough's last step, the operating grid and the states grid. Cutting words cannot fix that;
+dropping one of the two tellings would, and that is a design decision with his taste in it, not a
+copy edit. **Worth putting to him: does the ways-to-start grid earn its place next to the
+walkthrough?**
+
+## What is left
+
+- **`/docs`** got the sentence-by-sentence tone pass in 2026-08-26 but not the length or hype pass,
+  and it has never been checked for magic numbers.
+- **The import step** carries the same complaint, filed separately as
+  `docs/backlog/import-step-copy-a-kid-can-read.md`, where he asked for "an /unslop for this too".
+- **The missing gate.** `scripts/check-copy.mjs` catches punctuation and banned phrases; it cannot
+  catch length, hype or a count. Proposed as its own row, because a gate lands alone:
+
+  1. **A countable-quantity rule that covers word-numbers**, not only digits. Today `design-count`
+     matches two-to-four digits before a catalog noun, so "Six free starters" and "Four ways in"
+     passed it. Extending it to `one|two|...|twelve` plus the same nouns would have caught both.
+  2. **A per-file word budget for the public pages**, baselined the way the tells are, refusing a
+     rise. That makes length a ratchet nobody can quietly undo, which is the actual failure here:
+     the page grew section by section with every section defensible on its own.
+  3. **A banned-hype list**, seeded from what this pass removed: broadcast-grade, production-ready,
+     plug-and-play, "zero extra work", "not just X", "isn't just X", "made simple". Each entry
+     needs the same test the existing rules pass - would a NoaCG-shaped sentence ever need it.
