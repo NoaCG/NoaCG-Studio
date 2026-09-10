@@ -19,17 +19,23 @@ Re-derived by reading `~/.noacg/delegation-outcomes.jsonl` on 2026-09-10.
 
 ## Why
 
-`scripts/codex-rescue.mjs:1031-1040` sets `DEFAULT_EFFORT = 'medium'` under the owner's 2026-09-09
-ruling, with `DEFAULT_EFFORT_REVIEW_ON = '2026-09-16'` and this sentence above it:
+`scripts/codex-rescue.mjs:1044-1045` sets `DEFAULT_EFFORT = 'medium'` and
+`DEFAULT_EFFORT_REVIEW_ON = '2026-09-16'` under the owner's 2026-09-09 ruling. The comment block
+above them, `:1031-1040`, carries this sentence:
 
 > the delegation ledger already records what settles it: model, effort, outcome and cause per task
 > class ... On or after the date above, read the ledger and either extend this with the evidence or
 > put it back to `high`.
 
-**It does not.** Read on 2026-09-10, the ledger holds 28 lines. Four of them ran at medium effort,
-and all four carry `cause: prompt`. `scripts/delegation-outcome.mjs`'s own help text says what that
-means: *"our spec or invocation - measures US, excluded from pool quality"*. Of the nine most recent
-lines, exactly one is attributed to the worker at all.
+**It does not.** Read on 2026-09-10, the ledger holds 29 lines. **Three** of them ran at medium
+effort, and all three carry `cause: prompt`. `scripts/delegation-outcome.mjs`'s own help text says
+what that means: *"our spec or invocation - measures US, excluded from pool quality"*. Of the nine
+lines before this one was written, exactly one is attributed to the worker at all.
+
+**Timestamp any count you take off this ledger.** It moves while you read it - the twenty-ninth line
+is this row's own delegation, appended between the first draft of this file and its review, and the
+draft said 28 lines and four medium rows on the strength of the earlier read. Row AC recorded the
+same hazard on 2026-09-09, when another session appended a row mid-verification.
 
 So on 2026-09-16 somebody will do the thing the comment tells them to do, read a ledger with zero
 worker-attributed medium-effort evidence in it, and reach a verdict from nothing. The likely outcome
@@ -55,7 +61,7 @@ decision rather than as a reading.
 
 ## Evidence
 
-The nine most recent ledger lines on 2026-09-10, by outcome and cause:
+The nine lines up to and including the last of 2026-09-09, by outcome and cause:
 
 | ran | harness / model | effort | outcome | cause |
 |---|---|---|---|---|

@@ -22,8 +22,10 @@ not do".
 The defect is fixed. The night loop told the orchestrator that `claude/ac-harness-verdict` had landed
 four minutes after it was created with nothing on it, and again an hour later when it really landed -
 so a planned follow-on could fire against work that did not exist. `scripts/wave-tick.mjs:154-171`
-now carries the fix, the cause and the two timestamped tick numbers, and four tests in
-`scripts/wave-tick.test.mjs` pin it.
+now carries the fix, the cause and the two timestamped tick numbers, and six tests in
+`scripts/wave-tick.test.mjs` pin it - the four the handoff named plus two the same commit
+(`84f8cc4d`) added for the neighbouring holes, that an empty branch is not finished work and that
+`nextState` records the had-its-own-commit answer rather than only the merged one.
 
 Two things did not get done, both deliberately and both for good reasons that have now expired.
 

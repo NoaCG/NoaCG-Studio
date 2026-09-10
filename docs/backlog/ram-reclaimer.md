@@ -25,7 +25,10 @@ idle for want of memory that no process was doing anything with.
 
 `scripts/ram-reclaim.mjs` already covers half the problem: when the runner has been starved for
 a quarter of an hour it closes processes a detector has PROVED orphaned - a killed run's browser
-shells, a dev server whose launch chain died, stale console hosts. That half is about wreckage.
+shells, a dev server whose launch chain died, stale console hosts, and **since 2026-09-09 an
+abandoned Codex delegation's whole process family** (`orphaned-codex-delegation-tree` in
+`RECLAIMABLE`, `scripts/ram-reclaim.mjs:44`), which was about 450 MB apiece and was the largest
+single leak on this laptop. That half is about wreckage.
 
 The other half is background desktop apps that are not orphaned at all. They are running exactly
 as their vendors intended and they are worth nothing on a machine being used to build software:
