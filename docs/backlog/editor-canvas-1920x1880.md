@@ -5,10 +5,13 @@ kind: finding
 raised: 2026-08-29
 state: advanced
 note: >-
-  2026-09-10 evening: the mechanism half is FIXED. validateProjectFormat now has callers at both
-  ends - a derived mark on the live format label and a word on the save status - and two tests in
+  2026-09-10 evening: the mechanism half is FIXED, in a601a68b (the callers and the guard tests)
+  and 392c3e0f (banding both warnings to the widths the topbar was measured at), on
+  claude/cc-validate-project-format. validateProjectFormat now has callers at both ends - a derived
+  mark on the live format label and a word on the save status - and two tests in
   e2e/project-format.spec.ts pin all three call sites. What stays open is only how a template came
-  to hold 1880, which needs the graphic and the owner does not remember which one it was.
+  to hold 1880: the import road is named below as a measured candidate, but proving it needs the
+  graphic and the owner does not remember which one it was.
 found: "screenshot of the failing editor showing `headline · 1920x1880 · 25 fps` in the header and in the resolution chip (owner's machine, not a paraphrase - the number is off the screenshot)"
 ---
 # A graphic came up in the editor at 1920x1880
