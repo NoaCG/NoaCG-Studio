@@ -48,7 +48,15 @@ function CasparAirRow({ outputUrl }: { outputUrl: string | null }) {
   // off as well, telling an operator the graphic was up a second after they took it down.
   // Measured against a real CasparCG 2.5.0 on 2026-09-10; the fake-agent spec could not see it,
   // because it asserted on `data-state` and never on the words.
-  const [outcome, setOutcome] = useState<{ what: 'air' | 'stop'; result: CasparResult } | null>(null);
+  // The ADDRESS is captured with it, and for the mirror of the reason `run` re-reads the settings
+  // below: this sentence is PAST tense. Rendering `casparAddress(settings)` re-derives it from
+  // present settings, so airing on 2-30 and then typing layer 40 for the next show turns a
+  // standing verdict into "✓ On 2-40" - a claim about a layer nothing was ever sent to.
+  const [outcome, setOutcome] = useState<{
+    what: 'air' | 'stop';
+    address: string;
+    result: CasparResult;
+  } | null>(null);
 
   // Read on every render, and again at the moment of the click, rather than latching a copy at
   // mount: Settings is a modal that can be opened and changed without this page unmounting, and
@@ -63,7 +71,7 @@ function CasparAirRow({ outputUrl }: { outputUrl: string | null }) {
     setOutcome(null);
     try {
       const result = what === 'air' ? await airOnCaspar(now, outputUrl!) : await stopOnCaspar(now);
-      setOutcome({ what, result });
+      setOutcome({ what, address: casparAddress(now), result });
     } finally {
       setBusy(null);
     }
@@ -90,9 +98,7 @@ function CasparAirRow({ outputUrl }: { outputUrl: string | null }) {
           >
             {outcome.result.state !== 'ok'
               ? outcome.result.detail
-              : outcome.what === 'air'
-                ? `✓ On ${casparAddress(settings)}`
-                : `✓ Off ${casparAddress(settings)}`}
+              : `✓ ${outcome.what === 'air' ? 'On' : 'Off'} ${outcome.address}`}
           </span>
         )
       }

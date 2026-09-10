@@ -49,9 +49,12 @@ strangers are running.
 
 What is deliberately excluded, and why:
 
-- **CasparCG 2.3.x (75 / 88).** Unsupported. Clearing Chromium 75 would mean rewriting flex
-  `gap` (272 designs), `backdrop-filter` (178) and the `inset` shorthand (138) out of the
-  catalogue — load-bearing layout, not decoration. The 2.3.0–2.3.2 number is no longer an
+- **CasparCG 2.3.x (71 / 88).** Unsupported, and the older half is worse than this bullet used to
+  say. Clearing Chromium 71 would mean rewriting flex `gap` (272 designs), `backdrop-filter` (178,
+  and 76 anyway) and the `inset` shorthand (138) out of the catalogue — load-bearing layout, not
+  decoration — and then `clamp()`/`min()`/`max()` (79, and `min()` is in
+  `src/templates/shared/base.ts`, so it is in every design), private class fields (74) and numeric
+  separators (75) on top. The 2.3.0–2.3.2 number is no longer an
   inference: on 2026-09-10 a 2.3.2 build (`4de6d18f Dev`) reported **Chromium 71** on the output
   page's `&debug=1` line, and the house scorebug aired on it with its flex gaps collapsed — the
   same production on 2.5.0 has them. That settles a contradiction this section used to carry: a

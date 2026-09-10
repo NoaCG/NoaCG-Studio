@@ -78,9 +78,18 @@ same agent round-tripped `VERSION` against 2.5.0. Nothing about that path was ve
 The trap is the origin. The button sends the output URL **of the page it is pressed on**, so pressing
 it on a dev server sends `http://localhost:5221/output?…` - a Vite dev bundle, untranspiled ESM,
 which Chromium 71 cannot parse. AMCP still answers `202`, the row still says `✓ On 1-20`, and the
-channel stays empty. The product cannot tell: the one command it sends succeeded. Press it on
-`https://noacg.studio`, where the built bundle is `es2017` with the shims in `output.html`, and the
-same production airs. Both frames are in the walk.
+channel stays empty. The product cannot tell: the one command it sends succeeded.
+
+That is exactly what the 2.3.2 run did, and the isolation is the pair of frames either side of it:
+the SAME production, same on-air state, sent by hand as `https://noacg.studio/output?production=…`,
+airs on the same server a minute later. So the Connect path is fine and the dev bundle is what 2.3.x
+chokes on. On 2.5.0 (Chromium 142) the button's dev-server URL renders too, which is how beat A6
+finished end to end there: press, take, score, and the graphic is up.
+
+**Nobody has pressed that button on `https://noacg.studio` yet.** These runs were all from a
+`localhost` page, which Chrome does not gate. From a public origin the browser's Local Network
+Access permission sits between the page and the loopback agent, and answering it needs a person -
+which is the one part of A6 the 25th still has to prove.
 
 Measured 2026-09-10 on this laptop, CasparCG 2.3.2 (`4de6d18f Dev`) and 2.5.0 (`69e8ad5 Stable`),
 screen consumer, 1080p5000. Branch `claude/bh-caspar-real-server`.
