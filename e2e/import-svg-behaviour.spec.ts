@@ -12,6 +12,7 @@ import {
   intoProduction,
   rowLabelled,
   tutorialShot,
+  tutorialShotAt,
   QUIZ_SVG,
   SCORE_SVG,
   SCOREBUG_SVG,
@@ -92,6 +93,10 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
   await expect(page.getByTestId('map-svg-fields')).toContainText('7 of 7');
 
   await shot(page, '1-scoreboard-mapping');
+  // The rest of the Fields step, which is below the fold at every window size the suite uses.
+  await tutorialShotAt(page, 'step-4b-what-it-does', page.getByTestId('map-svg-behaviour'));
+  await tutorialShotAt(page, 'step-4c-pictures-and-fonts', page.getByTestId('map-svg-fonts'));
+
   await intoProduction(page, 'Match scorebug', 'Saturday Match');
   await settleDurableWrites(page);
 
@@ -138,12 +143,16 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
   await page.getByTestId('cue-field-f0').fill('Ilves');
   await expect(unsent).toContainText('not on air yet');
   await expect(program.locator('#f0')).not.toHaveText('Ilves');
-  await tutorialShot(page, 'step-10-typed-not-on-air');
+  // Scrolled to the unsent note for the pack: it sits at the TOP of the cue editor, and driving
+  // the live number buttons has left the editor scrolled past it. The monitors do not scroll, so
+  // one frame can carry both halves of this beat - the warning, and air still showing the old
+  // name - which is the whole reason the beat exists.
+  await tutorialShotAt(page, 'step-10-typed-not-on-air', unsent);
 
   await page.getByTestId('verb-update').click();
   await expect(program.locator('#f0')).toHaveText('Ilves');
   await expect(unsent).toContainText('changes push live on');
-  await tutorialShot(page, 'step-11-updated');
+  await tutorialShotAt(page, 'step-11-updated', unsent);
 
   // Out plays the graphic off, and the tally returns to honest silence.
   await page.getByTestId('verb-out').click();

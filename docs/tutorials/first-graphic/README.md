@@ -2,7 +2,7 @@
 
 The input pack for one tutorial video. Hand this folder to whoever makes the video.
 
-**The video.** About four minutes. One person imports a scoreboard they drew, puts it in a
+**The video.** About five minutes. One person imports a scoreboard they drew, puts it in a
 production, and drives it live. No account, no terminal, no playout hardware.
 
 **Who it is for.** Somebody who has drawn a graphic in Illustrator, Figma or Inkscape and has
@@ -18,7 +18,7 @@ retypes live, and getting it there is five steps and one press.
 |---|---|
 | `SCRIPT.md` | The spoken words, in twelve beats. Everything under a beat heading is spoken word for word. |
 | `INSTRUCTIONS.md` | What is on screen for each beat, what to point at, and what the viewer has to see happen. |
-| `frames/` | `step-1-import-door.png` to `step-12-off-air.png`, one per beat. Not in git; refill it with the command below. |
+| `frames/` | Fourteen PNGs: `step-1-import-door.png` to `step-12-off-air.png`, plus `step-4b` and `step-4c` for the Fields step, which is three screens tall. Not in git; refill it with the command below. |
 
 ## Refilling `frames/`
 
@@ -36,9 +36,9 @@ On a machine that can only run one browser job at a time, queue it instead:
 npm run queue -- "npm run tutorial:shots -- first-graphic"
 ```
 
-Twelve PNGs land in `frames/`, and the command says how many it got. If the walk goes red, the
-road changed: fix the walk first, then re-shoot, then read `INSTRUCTIONS.md` against the new
-frames before the video is made from it.
+Fourteen PNGs land in `frames/`, and the command says how many it got. It takes about forty
+seconds. If the walk goes red, the road changed: fix the walk first, then re-shoot, then read
+`INSTRUCTIONS.md` against the new frames before the video is made from it.
 
 ## The file the video opens
 

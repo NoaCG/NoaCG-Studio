@@ -64,12 +64,57 @@ export const TIMER_SVG = fileURLToPath(
  */
 const TUTORIAL_SHOTS = process.env.NOACG_TUTORIAL_SHOTS ?? '';
 
+/**
+ * WAIT FOR THE PICTURE, NOT ONLY FOR THE FORM.
+ *
+ * A shutter fired the instant an assertion passes catches a step whose live preview has not
+ * painted yet: the first run of this capture produced a Fields step with an empty preview pane,
+ * which is a frame that teaches a broken product. `WizardPreview` stamps `data-doc-rev` on its
+ * stage once a rebuilt document has LOADED (the same contract as PreviewFrame's, e2e/_preview.ts),
+ * so a step that has a stage waits for one.
+ *
+ * The pause after it is for the entrance, and it is honest about being a pause: GSAP animates
+ * inline styles from rAF, so Playwright's `animations: 'disabled'` does not park it and nothing
+ * stamps its end. It is only ever paid on a capture run.
+ */
+async function settleForCamera(page: Page): Promise<void> {
+  await page.evaluate(() => document.fonts.ready).catch(() => {});
+  const stage = page.locator('.wz-stage');
+  if (await stage.count()) {
+    // BOTH HALVES, in this order. `data-doc-pending` is set synchronously the moment the template
+    // changes and only `data-doc-rev` says a document has LOADED, so either alone lets a shutter
+    // through on a stage that is between two documents - which is an empty preview pane.
+    await expect(stage.first()).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
+    await expect(stage.first()).toHaveAttribute('data-doc-rev', /\d/, { timeout: 20_000 });
+  }
+  await page.waitForTimeout(1_500);
+}
+
 export async function tutorialShot(page: Page, step: string): Promise<void> {
   if (!TUTORIAL_SHOTS) return;
   mkdirSync(TUTORIAL_SHOTS, { recursive: true });
+  await settleForCamera(page);
   // `animations: 'disabled'` parks CSS and Web animations at their end state, which is what a
   // settled surface looks like - the same choice scripts/docs-shots.mjs makes for the same reason.
   await page.screenshot({ path: `${TUTORIAL_SHOTS}/${step}.png`, animations: 'disabled' });
+}
+
+/**
+ * A SECOND FRAME OF A STEP THAT IS TALLER THAN THE WINDOW.
+ *
+ * The Fields step runs well past the fold - the behaviour picker, the text-fit answers, the
+ * pictures and the typefaces are all below it - and a pack whose only frame of that step is its
+ * top third teaches somebody to record a screen they have not seen. Scrolling happens ONLY on a
+ * capture run, so an ordinary run's scroll position is untouched.
+ */
+export async function tutorialShotAt(page: Page, step: string, target: Locator): Promise<void> {
+  if (!TUTORIAL_SHOTS) return;
+  // CENTRED, and never `scrollIntoViewIfNeeded`. The production page keeps its monitors and verb
+  // row STICKY over the cue editor, so an element scrolled up behind them still counts as in view
+  // and that helper does nothing - measured on the unsent-changes note, which stayed hidden under
+  // the monitors in the first two capture runs. Centring clears any sticky band at either end.
+  await target.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await tutorialShot(page, step);
 }
 
 /** The wizard's own Next. Scoped to the modal because the live walk runs with ADVANCED MODE on,

@@ -26,6 +26,7 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,7 +44,8 @@ const PACKS = {
   'first-graphic': {
     spec: 'import-svg-behaviour',
     grep: 'a numeric layer is a',
-    steps: 12,
+    // Twelve beats, plus the two extra frames of the Fields step, which is taller than the window.
+    steps: 14,
   },
 };
 
@@ -65,9 +67,16 @@ mkdirSync(frames, { recursive: true });
 
 console.log(`Shooting docs/tutorials/${name}/frames from ${pack.spec} ("${pack.grep}")…`);
 
+// PLAYWRIGHT'S OWN CLI, RUN BY THIS NODE, rather than `npx playwright`. Node 20 and later refuse
+// to spawn a `.cmd` shim without `shell: true` (the CVE-2024-27980 fix), so `npx.cmd` dies with
+// `spawn EINVAL` on Windows, and turning the shell on to get round that would put the frames path
+// through cmd.exe quoting. `createRequire` also resolves correctly from a LINKED WORKTREE, whose
+// node_modules is the primary checkout's.
+const playwrightCli = createRequire(import.meta.url).resolve('@playwright/test/cli');
+
 const child = spawn(
-  process.platform === 'win32' ? 'npx.cmd' : 'npx',
-  ['playwright', 'test', pack.spec, '-g', pack.grep],
+  process.execPath,
+  [playwrightCli, 'test', pack.spec, '-g', pack.grep],
   { cwd: ROOT, stdio: 'inherit', env: { ...process.env, NOACG_TUTORIAL_SHOTS: frames } },
 );
 
