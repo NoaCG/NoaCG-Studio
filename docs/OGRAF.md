@@ -557,6 +557,32 @@ What this round does not settle: the renderer drops a Graphic's instance when it
 cleared, so it still never calls an action after `dispose()` - the `409` for that case remains
 our own guarantee, exactly as after 2026-08-22.
 
+### 2026-09-10: the walk, run end to end, with the fix in
+
+The round above stopped short: `scopedWindow()` landed as `1ab04a20` and the walk had not been
+run to completion since - the confirmation above came from DOM reads and screen viewing during
+three partial runs, not from the script exiting green. That gap is now closed.
+
+`npm run queue -- "node scripts/ograf-external-walk.mjs --server <ograf-server-main>"`, queued as
+`j-1000` and read to a verdict with `node scripts/jobs.mjs wait j-1000` (exit 0). Built the same
+way as the 2026-09-09 round: fetched from `SuperFlyTV/ograf-server` main, `yarn && yarn build`,
+Node 24. Every beat in the transcript answered as the contract says it should, including the one
+this row exists to settle:
+
+```
+ok   the operator actions light the drawn states the designer named
+```
+
+The full sequence: upload `200`, `load`, `playAction`, `select` (`answer.selected/B`), `lock`
+(`answer.selected/B` and `locked` lit together), `revealChoice`, `judge`
+(`answer.correct/C`, `answer.wrong/A`, `answer.wrong/B`, `answer.wrong/D`), an unknown custom
+action answering `400` with our own message, `stopAction`, and `clear`. The frames, the uploaded
+zip and the full transcript are in `ograf-external-out/` (gitignored, rebuilt by re-running the
+walk) - `ograf-external-out/transcript.json` and `ograf-external-out/frames/`.
+
+**Verdict: PASS.** The beat "the operator actions light the drawn states the designer named"
+passes against `main` as of `4b7a121f`, with the `bringToFront` fix in and exercised end to end.
+
 ### 2026-08-29: the community checker's 83 rules
 
 The EBU schema is the gate; the community's de-facto bar for a *complete* package is the 83-rule
