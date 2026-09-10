@@ -460,8 +460,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /**
    * WHAT THE OPERATOR SEES, from whichever road the command arrived on.
    *
-   * A published verb travels twice (src/control/commandRoads.ts): a broadcast that lands in about
-   * 50 ms and the durable row behind it at 130-650. This page also presses the verbs itself, so
+   * A published verb travels twice (src/control/commandRoads.ts): the database's broadcast on the
+   * production's private topic, about 100 ms after the press, and the durable row behind it at
+   * 130-650 with a slow mode past 600. This page also presses the verbs itself, so
    * there is a third arrival that is faster than either - its own send. All three end up here and
    * `applied` decides which one counts, on the id the press minted.
    *
@@ -713,8 +714,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         showId: show.id,
         from: resolved.lastEventId,
         tail,
-        // THE FAST ROAD. The same verbs, broadcast on this channel and here hundreds of
-        // milliseconds before their rows are - which is what moves this page's PROGRAM monitor
+        // THE FAST ROAD. The same verbs, broadcast by the database on the production's private
+        // topic and here before their rows are - which is what moves this page's PROGRAM monitor
         // when the press came from another operator's phone.
         onCommand: applyCommand,
         onRow: (row) => {
@@ -1009,20 +1010,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // BOTH ROADS, from this one press (src/control/commandRoads.ts). `applyHere` moves this
         // page's own monitor in zero hops - it used to wait for the whole round trip, because
         // applying locally as well as off the log would have doubled every command it sent, and
-        // the minted id is what makes doing both safe. Every other surface has the broadcast at
-        // about 50 ms and the durable row behind it, and applies whichever won.
+        // the minted id is what makes doing both safe. Every other surface gets the database's
+        // own broadcast on the production's private topic, with the durable row behind it, and
+        // applies whichever won.
         for (const batch of batches) {
           await sendControlVerb({ slug: hostedSlug, showId, items: batch, applyHere: applyCommand });
         }
         return true;
       } catch (e) {
-        // A verb that AIRED and then failed to log is a different sentence from one that never
-        // happened, and an operator has to be told which they are looking at: the picture in
-        // front of them has moved and nothing recorded it, so the next surface to rebuild from
-        // the log will not know about it.
+        // A verb whose picture MOVED HERE and then failed to send is a different sentence from
+        // one that never happened, and an operator has to be told which they are looking at: this
+        // monitor applied the commands before the round trip, so what is in front of them is not
+        // what any other screen is showing. The broadcast and the row are written together, so a
+        // refused verb aired nowhere else - and a send that failed on the way BACK may have aired
+        // everywhere, which is why this says "may".
         setNote(
           verbAired(e)
-            ? `${label} reached the screens but was NOT logged (${(e as Error).message}). Send it again.`
+            ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
             : `${label} failed: ${(e as Error).message}`,
         );
         return false;

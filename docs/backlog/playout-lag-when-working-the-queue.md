@@ -22,9 +22,15 @@ note: "measured end to end 2026-09-10 on branch claude/bg-playout-lag, which lan
   e2e/configured/playout-both-roads.spec.ts as the cover (mutation-tested red before it was
   believed). Re-measured with the same probe: a second surface waits 51 ms for a Take and 52 ms for
   an Out with no slow mode at all, against 131/138 median and a quarter of presses at 404-637 ms on
-  the durable road. The sending page no longer waits for the wire at all. What is left is the
-  AUTHORISATION trade the fast road makes and the cross-device ordering limit, both stated in the
-  section below."
+  the durable road. The sending page no longer waits for the wire at all. The AUTHORISATION trade
+  that road made was CLOSED the same day on branch claude/bn-private-command-topic: the fast road
+  moved to a private topic only the database writes to (migrations 0056 and 0057), and
+  e2e/configured/output-url-cannot-push.spec.ts holds it there - proved red first, with a holder of
+  the read-only output URL playing a graphic on air. It cost about 35 ms, so a second surface now
+  waits a median of 87 ms read signed out, worst 215, against the durable road's 131-136 with the
+  odd press at 645. What is LEFT of this ask is the cross-device ordering limit stated in the
+  section below, and the owner walking the result himself
+  (docs/acceptance/owner-queue/2026-09-10-bn-output-url-cannot-operate-the-show.md)."
 needs-owner: none
 asked: "I noticed some lag when I was playing out the quiz graphics, moving around the queue, and
   playing and stopping graphics. It's very important that our layout system is lag-free and
@@ -280,21 +286,76 @@ the database inside `control_send_many` (`realtime.send`) on a private topic ano
 write; it costs the RPC's own 110 ms on top of the 50, so air would be about 180 ms rather than 80.
 That is a row of its own, not a reason to keep half a second.
 
+**CLOSED the same day** on `claude/bn-private-command-topic`, and the estimate above was
+pessimistic: it cost about 45 ms, not 110. What it actually took is the section below.
+
+### The fast road becomes a private topic (migration 0056)
+
+The hole was real and a spec now proves it: `e2e/configured/output-url-cannot-push.spec.ts` opens a
+browser context holding nothing but the output slug, resolves the show id and the graphic names
+from it (`control_output_by_slug` answers both, because a renderer needs them), and pushes a `play`
+on every topic reachable from there - public and private, over the socket and over Realtime's REST
+broadcast endpoint. Against the road as it shipped that morning, **the renderer played the forged
+entrance**: `Expected: "0" Received: "2"`, both the socket frame and the REST one landing (job
+j-0981). Nothing was written to the log, exactly as designed - and a graphic still went on air on
+every screen at the word of somebody who only ever held a read-only link.
+
+**What changed.** No client broadcasts any more. `control_send_many` emits the command frame itself,
+with `realtime.send(...)` on the PRIVATE topic `cmd-<show id>`, inside the same transaction as the
+insert. RLS on `realtime.messages` lets anon and authenticated READ that topic shape and gives
+nobody an INSERT policy at all, which under RLS is a refusal - so the only writer left is the RPC,
+which a sender reaches by holding the CONTROL slug. The sender marks which items may ride, with an
+item-level `"fast": true` that the RPC reads for the broadcast and never writes to the log; the
+rule for what may be fast stays on the client, where the press is.
+
+Three consequences worth having beyond the boundary itself:
+
+- **A verb that fails to log now airs nowhere.** The two roads commit together, so the "reached the
+  screens but was NOT logged" state is gone from every surface except the sending page's own
+  monitor, which still applies optimistically. Both pages say that instead, in those words.
+- **The public channel keeps carrying the log and nothing else.** No surface binds a command
+  handler to `control-<show id>` any more, so a frame pushed there reaches no listener. Realtime
+  treats a private topic and a public topic of the same name as different channels and passes
+  nothing between them, which is why the two can coexist safely at all.
+- **The private join is deliberately not reported as connection status.** It changes how FAST a
+  command arrives, never whether it does, so a refused join degrades to yesterday's speed rather
+  than reading on screen as a broken production.
+
 ### Measured after, with the same probe
 
-Sixteen presses, 2026-09-10, one client sending and a SECOND client reading - which is what another
-operator's page and the output renderer are, and what a broadcast's sender can never measure about
-itself (`self` is false, so nobody hears their own frame):
+Sixteen takes and sixteen outs, 2026-09-10, one client sending and a SECOND client reading - which
+is what another operator's page and the output renderer are, and what a broadcast's sender can
+never measure about itself (`self` is false, so nobody hears their own frame). Two readings: the
+client-broadcast road as `claude/bm-verbs-on-both-roads` shipped it, and the private topic that
+replaced it the same afternoon (job j-0982).
 
-| what a second surface waits | fast road | durable row |
-| --- | --- | --- |
-| Take | **51.5 ms** (48-59, all eight) | 131 ms median, one press in four at 404-637 |
-| Out | **51.6 ms** (48-54, all eight) | 137.9 ms median, the same two modes |
+| what a second surface waits | client broadcast | PRIVATE topic | durable row |
+| --- | --- | --- | --- |
+| Take | 51.5 ms (48-59) | **86.9 ms** (72-215, one press) | 136 ms, 2 of 16 past 270 (to 645) |
+| Out | 51.6 ms (48-54) | **88.3 ms** (74-107) | 131 ms (128-143) |
 
-About 30 ms of paint goes on top of both. The median is not the point: the durable road has two
-modes and picks one unpredictably, and in this run four of sixteen presses landed in the slow one.
-The broadcast did not do that once. The SENDING page is faster than either - it applies its own
-items before the insert is even awaited, which the minted id is what makes safe.
+Those are the SIGNED-OUT readings, because that is the seat: a browser source in OBS, the venue's
+playout machine and an operator's phone on the hosted URL all hold a slug and no account, and the
+command topic's read policy names `anon` and `authenticated` separately. The probe used to sign in;
+it no longer does, and if anon were ever refused this is the only instrument that would say so. The
+same run signed in reads 96.5 and 98.1 ms, which is the difference between two runs rather than
+between two roles.
+
+About 30 ms of paint goes on top of all of them, so a published Take now airs in about 120 ms
+against the 515 ms this file opened with.
+
+**The private topic costs about 35 ms and it buys the boundary.** The reason it is not slower is
+worth knowing: the broadcast arrives at the second client within a millisecond or two of the RPC
+answering its own sender (`fastMs` tracks `sendMs` press for press in the raw table), because both
+are released by the same commit. The estimate of "the RPC's own 110 ms on top of the 50" was wrong
+because it counted that round trip twice.
+
+**The median is still not the point.** The durable road has two modes and picks one unpredictably:
+two of these 32 rows landed past twice their own median, out at 645 ms, and the run before it had
+five out at 638-788. THE BROADCAST NEVER DID THAT - on either road, and the private one's single
+outlier is the first press of a run, the cold connection every column pays. BM's finding holds. The
+SENDING page remains faster than any of
+them: it applies its own items before the send is awaited, which the minted id is what makes safe.
 
 ## How to re-run it
 

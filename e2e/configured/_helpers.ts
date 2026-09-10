@@ -89,6 +89,43 @@ export async function wipeMyGraphics(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Publish nothing behind us. The test account is shared by every spec in this suite, and a
+ * production left published still holds its reserved control and output addresses on the next run
+ * (migration 0040), so a walk that publishes has to unpublish before it exits and before it
+ * starts.
+ *
+ * It lives here because three configured specs need it and each had grown its own copy. The two
+ * older copies (`playout-both-roads`, `hosted-control-recovery`) are identical and should collapse
+ * onto this one the next time either file is touched for a reason of its own.
+ */
+export async function clearPublishedShows(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    for (const s of loadShows()) {
+      if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
+      deleteShow(s.id);
+    }
+    const { syncNow } = await import('/src/backend/syncController.ts');
+    await syncNow();
+  });
+}
+
+/**
+ * The output renderer's own count of the DURABLE rows it has applied, off its `&debug=1` overlay.
+ *
+ * The overlay is the only thing that page ever says out loud, and `last row` is written from the
+ * durable row's own id - a broadcast carries no id and never touches it. So this number answers
+ * "was it RECORDED?", which is a different question from what is on screen, and the two together
+ * are what tell a forged command apart from a real one.
+ */
+export async function lastAppliedRow(air: Page): Promise<number> {
+  const text = await air.locator('pre').textContent();
+  const m = /last row: (\d+)/.exec(text ?? '');
+  return m ? Number(m[1]) : 0;
+}
+
 /** Remove every community submission owned by the signed-in test account (bulletproof teardown for a
  *  throwaway account that should only ever hold test rows). */
 export async function wipeMySubmissions(page: Page): Promise<void> {

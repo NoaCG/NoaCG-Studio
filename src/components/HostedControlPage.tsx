@@ -91,8 +91,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   /**
    * WHAT THIS OPERATOR SEES, from whichever road the command arrived on.
    *
-   * A published verb travels twice (src/control/commandRoads.ts): a broadcast that lands in about
-   * 50 ms and the durable row behind it at 130-650. This page also presses verbs of its own,
+   * A published verb travels twice (src/control/commandRoads.ts): the database's broadcast on the
+   * production's private topic, about 100 ms after the press, and the durable row behind it at
+   * 130-650 with a slow mode past 600. This page also presses verbs of its own,
    * which arrive faster than either. `applied` decides which arrival counts, on the id the press
    * minted - and nothing else could, because a second `play` re-runs an entrance and settles on
    * the picture that was already there. `PayloadStage` counts them as `data-plays` and
@@ -172,7 +173,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         showId: resolved.id,
         from: resolved.lastEventId,
         tail,
-        // THE FAST ROAD - the verbs, broadcast on this channel and here long before their rows.
+        // THE FAST ROAD - the verbs, broadcast by the database and here before their rows are.
         onCommand: applyCommand,
         onRow: (row) => {
           const msg = row.msg;
@@ -324,24 +325,24 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     );
   }
 
-  // A verb that AIRED and then failed to log is a different sentence from one that never
-  // happened: the picture has moved on every screen and nothing recorded it, so a renderer
-  // rebooting afterwards comes back to a production without it. That question is asked FIRST,
+  // A verb whose picture MOVED HERE and then failed to send is a different sentence from one that
+  // never happened: this page applied it to its own monitor before the round trip, so an operator
+  // is looking at something the other screens are not showing. That question is asked FIRST,
   // ahead of the rate limit - the log's 50-per-5-s cap is the likeliest way to reach this at all,
   // and "slow down a moment" would tell an operator whose graphic is up that nothing happened.
   const surfaceSendError = (e: Error) =>
     setError(
       verbAired(e)
-        ? `That reached the screens but was NOT logged (${e.message}). Send it again.`
+        ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
         : /slow down/i.test(e.message)
           ? 'Too many commands — slow down a moment.'
           : `Send failed: ${e.message}`,
     );
 
   /**
-   * ONE DOOR for every verb this page presses, on BOTH ROADS (src/control/commandRoads.ts): the
-   * broadcast that reaches the other surfaces in about 50 ms, this page's own monitor with no
-   * hop at all, and the durable insert that stays the truth. It answers whether the send LANDED,
+   * ONE DOOR for every verb this page presses, on BOTH ROADS (src/control/commandRoads.ts): this
+   * page's own monitor with no hop at all, and one send that both writes the durable row and has
+   * the database broadcast the same commands to every other surface. It answers whether it LANDED,
    * so a caller sending several batches can stop at the first refusal rather than pressing on.
    */
   const sendVerb = (items: ControlSendItem[]): Promise<boolean> =>

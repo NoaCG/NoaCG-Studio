@@ -218,8 +218,8 @@ async function boot(): Promise<void> {
    * Air used to be the WORST-placed seat in the house: the renderer never sends anything, so no
    * amount of applying optimistically on an operator's dashboard could reach it, and every
    * published verb arrived here 330-500 ms after the finger that pressed it. It now also listens
-   * on the broadcast road, which is 50 ms - and `applied` is what keeps the durable row that
-   * follows from playing the same entrance a second time.
+   * on the broadcast road, which is about 100 ms and has no slow mode - and `applied` is what
+   * keeps the durable row that follows from playing the same entrance a second time.
    *
    * `createdAt` is the row's own server time and is absent on the fast road. Only an `event`
    * needs it (it is where a clock's shared origin comes from), and an event is sent slow for
@@ -422,6 +422,13 @@ async function boot(): Promise<void> {
     // here also arrives as a durable row a few hundred milliseconds later, and `applyCommand`
     // drops whichever copy is second.
     onCommand: (items) => items.forEach((item) => applyCommand(item.graphic, item.msg, undefined)),
+    // THE FAST ROAD, on the debug overlay, because it is the only place its absence can be seen.
+    // A command channel that never joins costs no correctness - every command still arrives as a
+    // durable row - so nothing goes red and air simply goes back to being a few hundred
+    // milliseconds late. This line is what turns that into something an operator can read out to
+    // whoever asks why the graphics feel slow again.
+    onCommandStatus: (status) =>
+      dbg('commands', status === 'SUBSCRIBED' ? 'fast road joined' : `NOT JOINED (${status}) — the log road only`),
     onStatus: ({ status, everJoined }) => {
       const poll = `${Math.round(CONTROL_POLL_MS / 1000)} s`;
       dbg('realtime', everJoined ? `following (${status})` : `NOT JOINED (${status || 'no status'}) — polling every ${poll}`);

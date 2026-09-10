@@ -91,7 +91,12 @@ interface Show {
 - **`output_slug text unique`** — a second, independent capability: holding it authorizes
   RENDERING the production, nothing else. It never appears in `control_show_by_slug`, so a
   control-page operator cannot derive it, and the output URL cannot operate the show beyond
-  what rendering requires (`control_report`). Generated URL-safe
+  what rendering requires (`control_report`). **It does resolve the show's uuid**, because a
+  renderer needs it to follow the log — so the id is an ADDRESS and never an authority, and
+  anything keyed on it (a realtime topic, most of all) has to be able to refuse a writer on its
+  own. It could not for one morning in September 2026, and migration 0056 is that repair;
+  `e2e/configured/output-url-cannot-push.spec.ts` is what holds this paragraph to its word.
+  Generated URL-safe
   (`translate(encode(gen_random_bytes(9),'base64'),'+/','-_')`) — the 0008 slug's raw base64
   survives only inside a query parameter; this one must also survive being hand-typed.
 - **`output jsonb`** — the renderable payload, written at publish:
@@ -146,6 +151,14 @@ not yet published" hint when the library template or cue list is newer than the 
    previous → play → cue) as ONE atomic, log-ordered insert: one RPC round-trip of on-air
    latency instead of four, and it cannot fail halfway. Validated per item, burst-checked
    once for the batch, capped at 8 items (a verb, not an ingest API).
+   Since **migration 0056** it also BROADCASTS the same commands, in the same transaction, on
+   the production's private topic `cmd-<show id>` — the FAST ROAD every following surface
+   applies on arrival (median 97 ms against the durable row's 131 with a slow mode past 600).
+   An item rides it when the caller marks it `"fast": true`; that mark is transport and is never
+   inserted. RLS on `realtime.messages` lets anon READ that topic and gives no client an INSERT
+   policy, so the only writer is this function and the only key to it is the CONTROL slug — which
+   is what stops a holder of the read-only output URL pushing a command onto air
+   (`e2e/configured/output-url-cannot-push.spec.ts`).
 6. **Owner pruning** — a DELETE policy on `control_events` for the show's owner; the publish
    path deletes rows older than 7 days. Keeps the append-only log from growing without bound
    under a 24/7 output URL (the 0008 schema has no retention at all).

@@ -8,8 +8,6 @@
 // library at publish time (docs/SAVED_CONTENT_MODEL.md §4) — the hosted page renders them as
 // a read-only switcher, so picking one stages its data and airing it stays a deliberate take.
 
-import type { RealtimeChannel } from '@supabase/supabase-js';
-
 import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
 import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type GraphicDoc } from '../model/library';
@@ -23,7 +21,7 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
-import { COMMAND_EVENT, readCommandFrame, withOid } from './commandRoads';
+import { COMMAND_EVENT, commandTopic, readCommandFrame, withOid } from './commandRoads';
 import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { cueDataRows, type CueDataRow } from './cueData';
 
@@ -643,24 +641,15 @@ export async function controlOutputSeen(outputSlug: string): Promise<void> {
 
 // ── THE FAST ROAD (src/control/commandRoads.ts has the measurement and the whole argument) ────
 //
-// The command channel is the SAME Realtime channel the log follower already joins, so a verb's
-// broadcast rides a socket that is up and joined rather than paying its own connect. The registry
-// is how a sender reaches it: `subscribeControlEvents` puts the channel here WHEN IT JOINS and
-// takes it away when it stops being joined, and `sendControlVerb` looks it up. No channel
-// registered - a page that sends in the second before its follower is up, a surface that follows
-// nothing - means the fast road is absent and the verb goes durable-only, which is exactly what
-// shipped before this.
+// NOBODY HERE SENDS A BROADCAST. A verb leaves this machine once, as the `control_send_many` call
+// it always was, and the database emits the command frame on the production's private topic
+// inside that same transaction (migration 0056). So this file's job on the fast road is to say
+// WHICH items may ride it - the rule below - and to JOIN the topic as a reader.
 //
-// REGISTERED ON `SUBSCRIBED` RATHER THAN ON CREATION, and that is not a detail. `send` on a
-// channel that is not joined does not queue: supabase-js posts the frame to the broadcast REST
-// endpoint instead, printing a deprecation warning as it goes. Two things wrong with letting that
-// happen - the warning lands in the browser console of a renderer whose log an operator is being
-// asked to read, and a REST-delivered frame has no ordering guarantee against a socket frame
-// behind it, so two quick presses in that window can arrive inverted. The durable road is the
-// right answer for that first second.
-
-/** The JOINED command channel per show id. One following surface per page, so one entry. */
-const commandChannels = new Map<string, RealtimeChannel>();
+// The first version of this road had every client broadcasting for itself on a public topic, and
+// that is what made a read-only output URL able to move a picture: the topic was derivable from
+// the output capability and a public topic has no writers it can refuse. Moving the emission into
+// the RPC is what puts the fast road behind the same authority as the durable one.
 
 /**
  * SHOWS WHOSE FOLLOWER IS CATCHING UP, and why the fast road stands down while it is.
@@ -706,67 +695,68 @@ const SLOW_AFTER_EVENT_MS = 1200;
 const slowUntil = new Map<string, number>();
 const slowKey = (showId: string | null, graphic: string) => `${showId ?? '-'}:${graphic}`;
 
-/** What one verb put on which road. */
-export interface VerbRoads {
-  /** Every item as it went on the wire, ids and all - the durable insert carries these. */
-  items: ControlSendItem[];
-  /** The items that also went out on the FAST road. */
-  fast: ControlSendItem[];
-}
+/** One item as `control_send_many` receives it: the command, plus the transport-only mark that
+ *  says the database may put this one on the fast road (migration 0056 reads `fast` and inserts
+ *  `graphic` and `msg`, so the mark never reaches the log or a receiver). */
+type WireItem = ControlSendItem & { fast?: true };
 
 /**
  * SEND ONE VERB, on both roads, from one press.
  *
- * The order is the design: broadcast first, then this surface's own picture, then the durable
- * insert. The operator's own monitor therefore moves in zero hops, every other following surface
- * in about 50 ms, and the log - which is still the truth - is written on its own schedule.
+ * The order is the design: this surface's own picture first, then the one call that writes the
+ * durable row AND emits the command frame. The operator's own monitor therefore moves in zero
+ * hops, and every other following surface moves when the RPC's transaction commits and the
+ * private topic carries it - one road for authority, two speeds.
  *
- * WHEN THE INSERT THEN FAILS the picture has moved and the log does not agree. `play` cannot be
- * un-played, so the honest ending is to SAY so: this throws exactly as the plain send always did,
- * and the surfaces put it on screen. That is a real trade and it is the right way round - the
- * alternative is broadcasting only after the insert answers, which puts air back above 150 ms and
- * buys consistency the operator cannot see with lateness they can.
+ * WHEN THE SEND THEN FAILS, this page has already moved and nothing else has: the broadcast is
+ * written in the same transaction as the row, so a refused verb aired nowhere but here. `play`
+ * cannot be un-played, so the honest ending is to SAY so - this throws exactly as the plain send
+ * always did, with `aired` telling the surfaces which sentence to use.
  */
 export async function sendControlVerb(opts: {
   slug: string;
-  /** The production's show id — the command channel's key. Null when it is not known yet, which
-   *  simply means no fast road for this verb. */
+  /** The production's show id — the key the hold-back and the recovery stand-down are scoped by.
+   *  Null when it is not known yet, which means no fast road for this verb: with no id there is
+   *  no way to tell whether this surface is mid-catch-up, and the durable road is the honest
+   *  answer to "I cannot tell". */
   showId: string | null;
   items: ControlSendItem[];
-  /** Apply on THIS surface, called with the fast items the instant the broadcast leaves and
-   *  before the insert is awaited. */
+  /** Apply on THIS surface, called with the fast items before the send is awaited. */
   applyHere?: (items: ControlSendItem[]) => void;
-}): Promise<VerbRoads> {
+}): Promise<void> {
   const now = Date.now();
   const { showId } = opts;
-  const channel = showId && !recovering.has(showId) ? commandChannels.get(showId) : undefined;
-  const items: ControlSendItem[] = [];
+  // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
+  // above): the walk is fetching rows older than this press and a frame applied now would land
+  // ahead of them.
+  const fastRoad = !!showId && !recovering.has(showId);
+  const wire: WireItem[] = [];
   const fast: ControlSendItem[] = [];
   const held: string[] = [];
   for (const item of opts.items) {
     const stamped: ControlSendItem = { graphic: item.graphic, msg: withOid(item.msg) };
-    items.push(stamped);
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
     if (item.msg.t === 'event') {
       held.push(key);
       slowUntil.set(key, now + SLOW_AFTER_EVENT_MS);
-    } else if (channel && (slowUntil.get(key) ?? 0) <= now) fast.push(stamped);
+      wire.push(stamped);
+      continue;
+    }
+    const rides = fastRoad && (slowUntil.get(key) ?? 0) <= now;
+    if (rides) fast.push(stamped);
+    wire.push(rides ? { ...stamped, fast: true } : stamped);
   }
-  if (channel && fast.length > 0) {
-    // Not awaited: `send` resolves on the socket push, and waiting for that ack would spend the
-    // very milliseconds this road exists to save. It never rejects either - it answers 'ok',
-    // 'error' or 'timed out' - and a push that does not land costs nothing, because the durable
-    // row is already on its way and brings the same commands with the same ids.
-    void channel.send({ type: 'broadcast', event: COMMAND_EVENT, payload: { items: fast } });
-    opts.applyHere?.(fast);
-  }
+  // THIS PAGE'S OWN MONITOR, before the round trip. It is applying commands it has not sent yet,
+  // which is safe for the same reason the two roads are: the minted id means the echo it gets
+  // back - broadcast or durable row, whichever arrives - is recognised and dropped.
+  if (fast.length > 0) opts.applyHere?.(fast);
   try {
-    await sendHostedControlBatch(opts.slug, items);
+    await sendHostedControlBatch(opts.slug, wire);
   } catch (e) {
-    // THE PICTURE MOVED AND THE LOG DID NOT. The surfaces word their notice off this flag,
-    // because "Take failed" is a lie when the graphic is on screen everywhere.
+    // THE PICTURE MOVED HERE AND NOWHERE ELSE. The surfaces word their notice off this flag,
+    // because "Take failed" is a lie to an operator looking at the graphic on their own monitor.
     const failed = e as Error & { aired?: boolean };
     failed.aired = fast.length > 0;
     throw failed;
@@ -778,10 +768,10 @@ export async function sendControlVerb(opts: {
     const landed = Date.now() + SLOW_AFTER_EVENT_MS;
     for (const key of held) slowUntil.set(key, landed);
   }
-  return { items, fast };
 }
 
-/** Did this send put commands on screen before failing to log them? Read off the thrown error. */
+/** Did this send put commands on THIS surface's screen before failing? Read off the thrown
+ *  error. */
 export function verbAired(e: unknown): boolean {
   return (e as { aired?: unknown } | null)?.aired === true;
 }
@@ -801,8 +791,10 @@ export interface ControlCommandItem {
 }
 
 /** Send several commands as ONE atomic, log-ordered insert (`control_send_many`, 0029) —
- *  a multi-part verb must not pay one RPC round-trip per command or fail halfway through. */
-export async function sendHostedControlBatch(slug: string, items: ControlSendItem[]): Promise<void> {
+ *  a multi-part verb must not pay one RPC round-trip per command or fail halfway through. An item
+ *  marked `fast` is also broadcast on the production's private topic by the same transaction
+ *  (migration 0056); the mark itself is transport and is never written to the log. */
+export async function sendHostedControlBatch(slug: string, items: WireItem[]): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
   const { error } = await sb.rpc('control_send_many', { p_slug: slug, p_items: items });
@@ -941,6 +933,10 @@ export async function followControlLog(opts: {
   /** Called on every Realtime status change AND on every poll tick, so a surface with somewhere
    *  to show it can say "not joined — polling" instead of showing a stale picture in silence. */
   onStatus?: (status: ControlFollowStatus) => void;
+  /** The FAST road's own join status - a different question from `onStatus`, and one only a
+   *  surface with a debug line has anywhere to put. Never joining means commands still arrive,
+   *  on the durable road, at yesterday's speed. */
+  onCommandStatus?: (status: string) => void;
 }): Promise<() => void> {
   let lastId = opts.from;
   const apply = (row: ControlEventRow) => {
@@ -998,7 +994,7 @@ export async function followControlLog(opts: {
     report();
   }, onCommand && ((items) => {
     if (walks === 0) onCommand(items);
-  }));
+  }), opts.onCommandStatus);
   return () => {
     clearInterval(poll);
     walks = 0;
@@ -1032,9 +1028,15 @@ export async function subscribeControlEvents(
   showId: string,
   onRow: (row: ControlEventRow) => void,
   onStatus?: (status: string) => void,
-  /** The FAST road: commands broadcast on this same channel, delivered the moment they land and
-   *  long before their durable rows exist. Omitting it leaves the surface on the log alone. */
+  /** The FAST road: the same commands, broadcast by the database on the production's PRIVATE
+   *  topic and arriving before their durable rows do. Omitting it leaves the surface on the log
+   *  alone - and leaves the private channel unjoined, which is why a surface that follows nothing
+   *  costs nothing. */
   onCommand?: (items: ControlCommandItem[]) => void,
+  /** The command channel's own join status, reported separately from the log's for the reason
+   *  written at the join below: a surface with somewhere to show it can say the fast road is
+   *  missing, which is otherwise INVISIBLE - a dead fast road looks exactly like yesterday. */
+  onCommandStatus?: (status: string) => void,
 ): Promise<() => void> {
   const sb = await getSupabase();
   if (!sb) return () => {};
@@ -1045,13 +1047,6 @@ export async function subscribeControlEvents(
       { event: 'INSERT', schema: 'public', table: 'control_events', filter: `show_id=eq.${showId}` },
       (payload) => onRow(payload.new as ControlEventRow),
     )
-    // …and the same commands over BROADCAST, which the measurement says arrives in 50 ms against
-    // the row's 130-650. Both roads carry the same client-minted `oid`, so a surface applies each
-    // command once whichever one won (src/control/commandRoads.ts).
-    .on('broadcast', { event: COMMAND_EVENT }, (frame) => {
-      const items = readCommandFrame<ControlEventRow['msg']>((frame as { payload?: unknown }).payload);
-      if (items) onCommand?.(items);
-    })
     // EVERY status, not only SUBSCRIBED. SUBSCRIBED fires on every (re)join, not only the first
     // — that is where a consumer tail-fills the gap a dropped socket left (rows inserted while
     // away produce no postgres_changes replay, so without it a sleeping tab misses commands
@@ -1059,20 +1054,37 @@ export async function subscribeControlEvents(
     // (CHANNEL_ERROR, TIMED_OUT, CLOSED) were swallowed here, which is what made a channel that
     // never joins indistinguishable from a quiet show: the consumer decides what to do with
     // them, and `followControlLog` both polls under them and says so.
-    .subscribe((status) => {
-      // The senders on this page reach the fast road through here rather than opening a second
-      // socket - and only while this channel is actually JOINED, because `send` on one that is
-      // not falls back to an HTTP POST with a deprecation warning and no ordering guarantee
-      // against the socket frames behind it. Unregistered, a verb takes the durable road, which
-      // is what it did before this road existed.
-      if (status === 'SUBSCRIBED') commandChannels.set(showId, channel);
-      else if (commandChannels.get(showId) === channel) commandChannels.delete(showId);
-      onStatus?.(status);
-    });
+    .subscribe((status) => onStatus?.(status));
+
+  // ── THE FAST ROAD, on its own PRIVATE channel (src/control/commandRoads.ts). ────────────────
+  //
+  // Same socket, second join. It carries only broadcasts, and only the database writes to it, so
+  // a frame arriving here has already passed `control_send_many`'s checks and the control slug's
+  // authority - which is the difference between this and the public channel above, where anyone
+  // holding the show id could push a command until 2026-09-10.
+  //
+  // ITS STATUS IS REPORTED SEPARATELY from the log's, and never through `onStatus`. That signal
+  // drives "not joined — polling" and the tail-fill on rejoin, and both belong to the LOG: this
+  // channel joining or failing changes only how FAST a command arrives, never whether it does, so
+  // a refused private join must read as yesterday's speed rather than as a broken production.
+  //
+  // But it must read as SOMETHING. Nothing else on this page can tell: every command still
+  // arrives on the durable road, every spec still passes, and a fast road that quietly stopped
+  // being joined - a policy typo, a Realtime instance without `realtime.send` - is invisible
+  // until somebody times a Take. `realtime.send` swallows its own errors into a warning nobody
+  // reads (migration 0056), so this status is the one signal a surface has.
+  const commands = onCommand
+    ? sb
+        .channel(commandTopic(showId), { config: { private: true } })
+        .on('broadcast', { event: COMMAND_EVENT }, (frame) => {
+          const items = readCommandFrame<ControlEventRow['msg']>((frame as { payload?: unknown }).payload);
+          if (items) onCommand(items);
+        })
+        .subscribe((status) => onCommandStatus?.(status))
+    : null;
+
   return () => {
-    // Only if it is still OURS: a page that re-subscribes before tearing the old one down would
-    // otherwise unregister the channel that just replaced this one.
-    if (commandChannels.get(showId) === channel) commandChannels.delete(showId);
     void sb.removeChannel(channel);
+    if (commands) void sb.removeChannel(commands);
   };
 }
