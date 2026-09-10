@@ -3,7 +3,14 @@ kind: owner-action
 date: 2026-09-01
 needs: account
 ---
-# SMTP + Google OAuth provisioning - you committed to starting this week
+# Google sign-in, the only half of this still open
+
+**SMTP is DONE and confirmed by the owner (2026-09-10, again).** Automated mail works: password
+resets deliver from `noreply@noacg.studio`, and DKIM, SPF, the bounce MX and DMARC are all live and
+verified from public DNS. Nothing on the mail half needs anybody. What keeps this item open is
+Google OAuth, which the owner parked on 2026-09-05 and which blocks nothing.
+
+The history below is kept because it holds the reasoning for the order the two halves were done in.
 
 Date: 2026-09-01, rewritten 2026-09-04 with the provider chosen and the DNS question answered.
 

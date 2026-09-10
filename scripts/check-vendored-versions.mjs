@@ -110,6 +110,22 @@ const MANUAL_REVIEW = [
     intervalDays: 180,
   },
   {
+    // Owner, 2026-09-10: he asked whether main could go back to rebuilding on EVERY landing now
+    // that the build machine is Basic, without passing the $20 monthly credit. Nobody can answer
+    // that from what is measured. The known figure is $0.045 a build on the old Elastic machine
+    // (719 builds, $32.39); fitting 719 builds inside $20 needs under $0.028 a build, and working
+    // backwards from the modelled post-filter cycle gives $19-25, which straddles the limit.
+    // The current cycle is already measuring Basic WITH the skip filter, so the per-build cost
+    // arrives on its own around 2026-10-07 and the question becomes arithmetic. Read the cycle's
+    // actual build spend and build count, divide, and tell him the number.
+    id: 'vercel-build-cost',
+    what:
+      "the closed billing cycle's build spend and build count, to answer whether every-landing builds fit the $20 credit",
+    whyNoVersion: 'a billing cycle closes on a date, and nothing in git moves when it does',
+    lastReviewed: '2026-09-07',
+    intervalDays: 30,
+  },
+  {
     id: 'supabase-postgres',
     what: "the production project's Postgres version (dashboard → Infrastructure)",
     whyNoVersion: 'a platform upgrade is a dashboard action and never appears in git',

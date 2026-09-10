@@ -1,39 +1,59 @@
 ---
 kind: walk-p
 date: 2026-09-08
+answered: true
 ---
 # The landing page says what it can prove
 
 Every promise on the public page now has a graded row in `docs/PROMISE_AUDIT.md`, and the page
-was rewritten from that list. Free and open source is said first, your own artwork is described
-as the workflow it is, the coding agent is described at the status the audit gave it, and OGraf
-has its own section instead of two chips.
+was rewritten from that list.
 
-**Route, under a minute.** Open <https://noacg.studio>. Read the lede under the headline: its
-last sentence says free and open source, no edition to buy. Scroll past the screenshots to the
-new **Free and open source** section (kicker in amber, headline "No seat licence. No monthly
-bill."). Then click **OGraf** in the top nav: three solid cards and three dashed cards marked
-DIRECTION. From there, **Take one →** opens <https://noacg.studio/ograf>, whose hero now says
-"validated against the OGraf v1 schema" rather than "the EBU's published schema", with the badge
-under it matching. (The admin change is one placeholder: Admin → a user → the grant form's
-Reason field reads "Support case, school grant, abuse" instead of offering "trial".)
+**Route, under a minute.** Open <https://noacg.studio>.
 
-**What to look at.**
+**What to look at.** The owner walked this on 2026-09-10 and split his answer: the page's HONESTY
+passed and its VOICE failed. This item stays open on the voice half only.
 
-1. The dashed cards. They say import of a stranger's OGraf graphic, foreign packages on the
-   output URL, and the Server API are direction, not features. Is that the right amount of
-   honesty for a stranger, or does it read as a to-do list on a marketing page?
-2. The account sentence in the free section. It states the rule (an account only where a hosted
-   service does work for you) and the cases a visitor meets first: publishing a production, AI
-   on our service, saving from the CLI, rendering past the anonymous limits. It deliberately
-   gives no count, because the code asks in more places than a hand count keeps up with. The
-   video note used to claim it was the only part needing one; it was not.
-3. The artwork card is now titled **Bring your own artwork** rather than **Import your own
-   graphic**. "Import" is a verb about files; this one is about the work.
-4. The count is gone. "16 graphic types ship with their own operator buttons" was stale (36
-   today) and a number of that kind ages; the paragraph names the kinds instead.
+## Walked 2026-09-10 - honesty passed, voice failed
 
-**What was deliberately NOT changed.** The hero headline, the five-step walkthrough and its
-screenshots, and the "premium" vocabulary in `src/` (the 2026-09-07 item already ruled on it).
-No entitlement code was deleted: the Lite / Pro / BYO tiers and the school grants stay, and the
-render tier named `paid` stays as plumbing with its comment corrected.
+**Settled, and not to be re-asked:**
+
+- **The dashed DIRECTION cards stay.** > "the direction marking is for things that don't work right
+  now, am I right? I think it's fine. We just need to fix it at some point. There's no hurry for
+  that yet, but it just needs to be on the to-do list, and the orchestrator can take it." ...
+  > "The dasher direction cards are okay. Now, let's just make it a reality at some point."
+  The three rungs they name were already on the OGraf ladder in `docs/GOALS.md`; his read is
+  recorded there so a later session does not re-litigate the device.
+- **"Bring your own artwork" is right.** > "I like 'bring your own artwork.' That sounds better, so
+  that's a good choice."
+
+**Failed, and the reason this item is still open:** the copy reads as AI-written. Verbatim, and the
+whole of it, in `docs/backlog/public-copy-should-read-finnish-plain.md`:
+
+> it could be shorter and more cut-to-the-chase type of text ... it could have the Finnish style:
+> no jargon and hype, just what it is and what it does.
+>
+> The free, open-source is also too AI-like, I think we could remove: "No seat licence. No monthly
+> bill. No edition above this one." And just say that it's free and open source, and that we love to
+> hear your feedback. Let's not do too much marketing.
+>
+> with the numbers, the magic numbers: we don't have any magic numbers. Is it 16 or 36 templates or
+> test graphics? We don't have to put these magic numbers anywhere. Just say that we have them.
+
+Three demands: shorter, no hype, and no countable number on a public surface at all. The named
+deletion is the free-and-open-source triple slogan, replaced by the plain fact plus an invitation
+to send feedback.
+
+**Why this was not caught before.** The 2026-08-26 tone pass rewrote `/docs` sentence by sentence
+and deliberately spared the landing page's selling voice, swapping only its punctuation, on the
+grounds that he had accepted that copy. He withdrew the acceptance on 2026-09-10.
+`docs/backlog/copy-tells-drain.md` now records that.
+
+**This item closes when the landing copy has been rewritten and he has read it**, not when the
+backlog file exists.
+
+## Raised in the same breath, filed elsewhere
+
+The code editor should be able to show OGraf and not only SPX, switchable in settings and in the
+editor, so a person can see how the graphic is built. His own framing: *"a little bit of a vanity
+thing, so there's no hurry."* Filed as `docs/backlog/monaco-shows-ograf-not-only-spx.md` and hung
+on the OGraf ladder in `docs/GOALS.md`. Not part of this item.

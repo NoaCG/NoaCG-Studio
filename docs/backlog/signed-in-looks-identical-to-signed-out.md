@@ -1,11 +1,20 @@
 ---
 v: 2
 source: owner
-kind: finding
-raised: 2026-09-04
+kind: ask
+raised: 2026-09-10
 state: advanced
-found: "it is actually quite confusing to use NoaCG when you're not logged in because it looks exactly like you would be logged in. It's like there's no difference between being logged in or not. If it works, it's fine. I don't have a really good reason for people to be logged in, but just a note for us that we should keep that in mind."
-note: the header states which state it is in, and the widths it renders at are measured and pinned in both directions; what an account is FOR, said at the moment we ask for one, is untouched and is his call
+asked: "it is actually quite confusing to use NoaCG when you're not logged in because it looks exactly like you would be logged in. It's like there's no difference between being logged in or not. If it works, it's fine. I don't have a really good reason for people to be logged in, but just a note for us that we should keep that in mind."
+note: >-
+  PROMOTED FROM FINDING TO ASK on 2026-09-10. It was raised on 2026-09-04 as an observation he
+  made in passing, and the two lists exist so an observation is never quoted back at him as a
+  requirement. Walking the receipts he made it one in his own words: "that is a problem. I don't
+  think that's a bug. It's just something that we haven't thought about but we need to have a
+  clear indication when we are logged in and when we are not." So it stands as an ask from
+  2026-09-10, and the original observation is kept above as the quote that started it. What
+  landed: the header states which state it is in, and the widths it renders at are measured and
+  pinned in both directions. What is untouched: what an account is FOR, said at the moment we ask
+  for one, and now also the clear indication he just asked for, which the header alone may not be.
 ---
 # What is an account FOR? The state is visible now; the reason to want one is not
 
