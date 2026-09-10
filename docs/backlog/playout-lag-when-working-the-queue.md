@@ -4,7 +4,9 @@ source: owner
 kind: ask
 raised: 2026-09-05
 state: advanced
-note: "measured end to end 2026-09-10 (scripts/playout-lag-bench.mjs). On the BUILT app Take paints
+note: "measured end to end 2026-09-10 on branch claude/bg-playout-lag, which landed the instrument
+  (scripts/playout-lag-bench.mjs) and `dev-worktree --preview`, and changed no product code because
+  the measurement found nothing in the dashboard to fix. On the BUILT app Take paints
   in 30 ms, Out in 30 ms, a Take straight after moving in the rundown in 30 ms, and nothing freezes
   the page for longer than one frame. On the DEV SERVER, at his own memory conditions, the same
   gestures paint in 85-91 ms and drop three to four frames every time. The ask still stands because
