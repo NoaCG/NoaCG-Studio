@@ -19,6 +19,40 @@ production rather than a dev server produced the numbers R2.5 was missing and TW
 spec cannot see: the link `noacg save` prints does not open the graphic on `noacg.studio`, and
 `noacg login` hangs after it has already succeeded. Both are filed with their measurements.
 
+## READ THIS BEFORE RESOLVING THE MERGE: another branch has newer owner calls
+
+My row prompt said "you MINT `docs/DEMO_2026-09-25.md` this wave; no other row edits it." **That is
+not true in fact.** `claude/new-session-eedca0` (worktree `.claude/worktrees/new-session-db1287`,
+first commit "Re-cut the 25 September session script for the owner's three new calls") rewrites the
+same file, deletes the same owner-queue item, and edits the same
+`2026-09-09-g-the-25th-as-beats-with-a-gap-list.md`. `node scripts/merge-order.mjs` returns
+**hold** for both of us, symmetrically. I queued anyway because the workflow is explicit that
+nothing is held for another branch and the second one to land resolves `main` in.
+
+**Their calls are NEWER and on the hardware question they supersede mine.** They carry three more
+2026-09-10 owner decisions that never reached this row:
+
+- **§0 call 4 is REPLACED**: air stops at the NoaCG player in the cloud on the day. "No OBS on
+  student laptops, no CasparCG box, no playout configuration of any kind." The bring-your-box beats
+  stay written in §5 but none is on the clock and none gates the day.
+- **A new call 6**: the room draws in small groups in Illustrator and finishes at home, sending in
+  a lower-third quiz template and a scoreboard.
+- **G2 becomes two pages**, one for the students and one for the owner's running order.
+
+**So the semantic resolution, not just the textual one.** I re-owned §7 rows 2, 3 and 10 away from
+the 12th and wrote "what happens on the day without a box" into each. Under their call 4 there is
+no box on the day at all, so **those three rows are probably CUT rather than re-owned**, and A3, A4
+and A6 stop being beats on the clock. Take their version of §0 and of the hardware rows. Keep from
+mine: the B5 and R2.2 install evidence, R2.1/R2.4/R2.5 and their measurements, the PARTLY word and
+the legend that defines it, rows 14, 15 and 16, and the OWNER_QUEUE Dropped entry. Those touch
+nothing their calls decide.
+
+**A text merge of this file can come out wrong without conflicting.** Both branches rewrite
+overlapping regions of the same tables. After merging, re-derive §7 from the status column - every
+GAP, PARTLY or UNSEEN beat has exactly one row, WORKS beats have none, B0 is the OFF THE LEDGER
+carve-out, and no row number is reused. That check is mechanical and it is the one that catches a
+silent drop.
+
 ## What was actually run, and what it does not prove
 
 **The clean profile was a directory tree, not a Windows account.** `C:\noacg-be-clean` with
