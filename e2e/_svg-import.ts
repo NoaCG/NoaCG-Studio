@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { addToProductionFromFinish, startNewProject } from './_create';
 
@@ -41,6 +42,103 @@ export const TIMER_SVG = fileURLToPath(
   new URL('./fixtures/svg-corpus/illustrator-question-timer-board.svg', import.meta.url),
 );
 
+/**
+ * TUTORIAL FRAMES, off by default.
+ *
+ *   NOACG_TUTORIAL_SHOTS=<dir> npx playwright test <spec> -g "<one test title>"
+ *
+ * A tutorial pack (docs/tutorials/) is a spoken script, an instruction sheet and one picture per
+ * step. The pictures are the half that ROTS: a hand-taken folder of screenshots teaches a screen
+ * that no longer exists, and a PNG cannot fail a build. So the pack's frames are captured by the
+ * walk that already has to pass - if the import road changes shape, the spec goes red and the
+ * frames are re-shot from the road as it now is, in the same fix.
+ *
+ * The step names are the road's, not any one pack's, because every SVG import pack walks the same
+ * five wizard steps in the same order. The two beats after the wizard belong to whichever spec
+ * drives the production, so those are named there.
+ *
+ * Deliberately a SECOND switch beside NOACG_SHOTS, which import-svg-behaviour.spec.ts uses for its
+ * own review frames: those are numbered by a reviewer's reading order across the whole file and
+ * are taken wholesale, where these are one ordered sequence per walk. One directory holding both
+ * numbering schemes would read as a broken sequence.
+ */
+const TUTORIAL_SHOTS = process.env.NOACG_TUTORIAL_SHOTS ?? '';
+// Once, here, rather than before each of the fourteen shots: a directory that exists cannot stop
+// existing mid-walk, and the module is only loaded by a run that is about to take them.
+if (TUTORIAL_SHOTS) mkdirSync(TUTORIAL_SHOTS, { recursive: true });
+
+/**
+ * WAIT FOR THE PICTURE, NOT ONLY FOR THE FORM.
+ *
+ * A shutter fired the instant an assertion passes catches a step whose live preview has not
+ * painted yet: the first run of this capture produced a Fields step with an empty preview pane,
+ * which is a frame that teaches a broken product. `WizardPreview` stamps `data-doc-rev` on its
+ * stage once a rebuilt document has LOADED (the same contract as PreviewFrame's, e2e/_preview.ts),
+ * so a step that has a stage waits for one.
+ *
+ * The production page has no such stage, and its own wait is a different one: landing there builds
+ * the graphic's document through a cold Prettier format that `intoProduction` budgets 20 s for,
+ * and until it lands both monitors read "Building the output…" (home/PayloadStage). A frame taken
+ * then shows two empty monitors, which is what the instruction sheet tells the reader an EMPTY
+ * program monitor means - so the wrong reason would teach the wrong thing.
+ *
+ * The pause after them is for the entrance, and it is honest about being a pause: GSAP animates
+ * inline styles from rAF, so Playwright's `animations: 'disabled'` does not park it and nothing
+ * stamps its end. It is only ever paid on a capture run.
+ *
+ * NOTHING HERE MAY FAIL THE WALK. A camera that cannot settle is a bad picture, not a broken road,
+ * and a throw from inside a screenshot helper reports it as the second - so the waits are guarded
+ * and a failure is announced on stdout beside the frame it spoiled.
+ */
+async function settleForCamera(page: Page): Promise<void> {
+  await page.evaluate(() => document.fonts.ready).catch(() => {});
+  const stage = page.locator('.wz-stage');
+  try {
+    if (await stage.count()) {
+      // BOTH HALVES, in this order. `data-doc-pending` is set synchronously the moment the template
+      // changes and only `data-doc-rev` says a document has LOADED, so either alone lets a shutter
+      // through on a stage that is between two documents - which is an empty preview pane.
+      await expect(stage.first()).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
+      await expect(stage.first()).toHaveAttribute('data-doc-rev', /\d/, { timeout: 20_000 });
+    } else {
+      // A monitor with nothing to say about itself. `PayloadStage` renders `.prod-monitor-note`
+      // while it is building AND when the build failed, and neither is a picture of the product -
+      // so the wait is on the note being gone rather than on its words, and a failed build stalls
+      // here and warns instead of passing for settled.
+      await expect(page.locator('.prod-monitor-note')).toHaveCount(0, { timeout: 30_000 });
+    }
+  } catch {
+    console.warn('[tutorial-shots] the surface never settled; the next frame may be mid-build');
+  }
+  await page.waitForTimeout(1_500);
+}
+
+export async function tutorialShot(page: Page, step: string): Promise<void> {
+  if (!TUTORIAL_SHOTS) return;
+  await settleForCamera(page);
+  // `animations: 'disabled'` parks CSS and Web animations at their end state, which is what a
+  // settled surface looks like - the same choice scripts/docs-shots.mjs makes for the same reason.
+  await page.screenshot({ path: `${TUTORIAL_SHOTS}/${step}.png`, animations: 'disabled' });
+}
+
+/**
+ * A SECOND FRAME OF A STEP THAT IS TALLER THAN THE WINDOW.
+ *
+ * The Fields step runs well past the fold - the behaviour picker, the text-fit answers, the
+ * pictures and the typefaces are all below it - and a pack whose only frame of that step is its
+ * top third teaches somebody to record a screen they have not seen. Scrolling happens ONLY on a
+ * capture run, so an ordinary run's scroll position is untouched.
+ */
+export async function tutorialShotAt(page: Page, step: string, target: Locator): Promise<void> {
+  if (!TUTORIAL_SHOTS) return;
+  // CENTRED, and never `scrollIntoViewIfNeeded`. The production page keeps its monitors and verb
+  // row STICKY over the cue editor, so an element scrolled up behind them still counts as in view
+  // and that helper does nothing - measured on the unsent-changes note, which stayed hidden under
+  // the monitors in the first two capture runs. Centring clears any sticky band at either end.
+  await target.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await tutorialShot(page, step);
+}
+
 /** The wizard's own Next. Scoped to the modal because the live walk runs with ADVANCED MODE on,
  *  which puts the editor's `» Next` verb on the page behind it — an unscoped role match then
  *  resolves to two buttons and the walk dies on the first step. */
@@ -79,11 +177,15 @@ export async function dropSvg(page: Page, fixture: string): Promise<void> {
     .catch(() => false);
   if (!autoOpened) await startNewProject(page);
   await expect(modal).toBeVisible();
+  await tutorialShot(page, 'step-1-import-door');
   await page.locator('[data-entry="import-graphic"]').click();
+  await tutorialShot(page, 'step-2-drop-zone');
   await page.locator('.wz-drop input[type="file"]').setInputFiles(fixture);
   await expect(page.getByTestId('import-svg-card')).toBeVisible();
+  await tutorialShot(page, 'step-3-what-it-found');
   await wizardNext(page).click();
   await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+  await tutorialShot(page, 'step-4-fields');
 }
 
 /**
@@ -101,15 +203,19 @@ export async function intoProduction(page: Page, graphic: string, production: st
   // the second on a step that has not re-rendered.
   await wizardNext(page).click(); // Animation
   await expect(page.getByTestId('wz-stepcount')).toContainText('4');
+  await tutorialShot(page, 'step-5-animation');
   await wizardNext(page).click(); // Finish
   await expect(page.getByTestId('wz-stepcount')).toContainText('5');
   await page.getByTestId('wz-finish-name').fill(graphic);
   await page.getByTestId('wz-finish-production-pick').locator('select').selectOption('new');
   await page.getByTestId('wz-finish-production-name').fill(production);
+  // Both boxes FILLED, because the frame's whole job is to show that they are two boxes.
+  await tutorialShot(page, 'step-6-finish');
   await addToProductionFromFinish(page);
   // 20 s: landing on the page builds the graphic's document, and the cold Prettier format is the
   // same cost import-graphic.spec.ts documents.
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await tutorialShot(page, 'step-7-production');
 }
 
 /**

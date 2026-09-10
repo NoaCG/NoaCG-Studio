@@ -190,6 +190,13 @@ Layers of documentation, top to bottom:
 - `live_format_graphics_needs.xlsx` (repo root) — the 60-format source data behind
   `PACK_TAXONOMY.md` and the type frequencies.
 
+## Tutorial video packs
+
+- `tutorials/` - one folder per road, holding the spoken script, the on-screen instructions and a
+  gitignored `frames/` of screenshots captured by the e2e walk that drives that road. The pack is
+  the input a video is made from; the video itself is made elsewhere. Its own `README.md` is the
+  contract.
+
 ## The shelf
 
 - `backlog/` - the shelf: one file per unscheduled idea, a mandatory `## Why`, graduate-into-GOALS-or-die, and the drain order that puts it LAST behind owner feedback, handoffs and the current push. Its own `README.md` is the contract.
