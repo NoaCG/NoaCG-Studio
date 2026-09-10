@@ -17,6 +17,44 @@ shared list means N sessions appending at the same offset, which is a git confli
 `auto-merge.mjs` aborts on a conflict and stops, so the branch sits unlanded until a person looks
 at it. One file per session cannot collide, so the queue costs a night wave nothing.
 
+## Why a walk item has to say WHY it is his
+
+**Owner, 2026-09-10**, at the end of a walk of his phone list:
+
+> we need to find a way to get less into my queue because design and technical questions should be
+> possible to answer with the AI. It should be logical what we want to do.
+
+That is the THIRD time he has said a version of it. "A design default is NOT a taste question" is
+2026-09-03 and "a TECHNICAL problem is never his" is 2026-09-04, both below. Saying it in prose
+plainly does not hold, because the queue reached 96 items with 78 open anyway. So it is a key now.
+
+`needs:` had already closed this door for `owner-action`, and it worked. It did nothing for the far
+bigger list, because a `walk` or `walk-p` item never had to justify itself at all - everything
+observable landed on his desk by default. `because:` is the same mechanism one list further in.
+
+**Four reasons, and they are the ones this document already called genuinely his:**
+
+| `because:` | what it means | what it is NOT |
+|---|---|---|
+| `taste` | whether a shipped thing is any GOOD - his eye, no defensible general answer | "which of these two is better designed", which is a design default you decide |
+| `scope` | what the product IS or is not; a change to the thing rather than a setting | a behaviour that is obviously wrong, which is a bug you fix |
+| `direction` | where the product goes, including a call between two defensible options that point it different ways | a call between two options where one is plainly better |
+| `money` | it costs money, or it commits him to a cost | a cost you can measure and stay inside |
+
+**If none of the four fits, the item is not his.** Decide it, do it, and say in the item what you
+decided and why - so he can overrule a thing that exists rather than adjudicate one that does not.
+
+The worked example is from the same day. An agent walking the computer list called three import
+items taste. Two of them were not: which share of the artwork makes a layer a background plate is
+answered by the distribution already in the code, and whether a prefix reads `static:` or `d:` is a
+naming default. Only the third - whether dropping four boards should make four graphics - was
+really his, because it changes what the wizard is. That is a `scope` item, and the other two should
+have been decided and shipped.
+
+The gate is date-gated from 2026-09-11 for the reason every change here is: sessions file items
+while their branches are in flight, and a same-day requirement reds a build over a line the prompt
+never saw. The value is validated whenever it is present, at any date.
+
 ## The shape of an item
 
 ```markdown
@@ -24,6 +62,7 @@ at it. One file per session cannot collide, so the queue costs a night wave noth
 kind: walk          # walk | walk-p | owner-action | hardware | agent
 date: 2026-08-25    # when it was filed, so /walk can present newest first
 needs: account      # owner-action ONLY, and REQUIRED there: account | money | identity | harness
+because: taste      # walk and walk-p ONLY, and REQUIRED there: taste | scope | direction | money
 serves: now         # OPTIONAL - set it when the work serves docs/GOALS.md ## NOW
 ---
 # Short title
