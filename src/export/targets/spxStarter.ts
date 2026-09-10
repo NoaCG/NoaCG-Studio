@@ -10,6 +10,7 @@ import {
   addControlPanel,
   addSharedAssets,
   injectControlReceiver,
+  injectFlexGapShim,
   injectProjectFormatMeta,
   spxReadme,
 } from '../common';
@@ -45,9 +46,13 @@ export async function buildStarterInto(
   opts?: { entries?: ControlEntry[]; fileName?: string },
 ): Promise<void> {
   const fileName = opts?.fileName ?? `${slug(template.name)}.html`;
+  // The shim goes in at export, like the receiver: SPX hands this file to CasparCG's own engine,
+  // which on 2.3.x has no flex gap, and the template's code stays as the person wrote it.
   root.file(
     fileName,
-    injectControlReceiver(injectProjectFormatMeta(ensureExternalRefs(template.html), template), template),
+    injectFlexGapShim(
+      injectControlReceiver(injectProjectFormatMeta(ensureExternalRefs(template.html), template), template),
+    ),
   );
   root.file('css/template.css', cssForSubfolder(template.css));
   root.file('js/template.js', template.js);

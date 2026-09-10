@@ -88,7 +88,7 @@ CasparCG plays a web page through its **HTML producer**.
 
 | Server | Bundled browser engine | Consequence |
 |---|---|---|
-| **2.3.x** (the older LTS / teaching install) | CEF from the Chromium 6x-8x era | **Old, and no longer supported.** It rejects JavaScript syntax that every current browser accepts, and drops modern CSS silently. See below. |
+| **2.3.x** (the older LTS / teaching install) | CEF 3.3578 = Chromium 71 (measured 2026-09-10 on the `v2.3.3-lts-stable` download) | **Old, and not what designs are built against.** It rejects JavaScript syntax that every current browser accepts, and drops modern CSS silently. See below. |
 | **2.4.x** | CEF 117 | **The oldest version NoaCG supports.** Nothing special to do. |
 | **2.5.x** | CEF 142 | Current (measured 2026-08-07). |
 
@@ -102,7 +102,13 @@ compiled down, and the page carries shims for the APIs 2.3.x lacks. **You do not
 anything about this**; it is recorded here because if you write your own template code, or edit
 an exported one, the same bar applies to what you write.
 
-If you can choose, run 2.4 or newer. If you cannot — 2.3.x is fully supported.
+If you can choose, run 2.4 or newer. If you cannot, the live route still works on 2.3.x, and
+one CSS feature that engine lacks is handled for you: flexbox `gap` (Chromium 84) is parsed and
+then ignored there, so a scorebug would air as `HOME3` instead of `HOME 5`. Every export and the
+output page carry a small script that puts those gaps back as margins on that engine and does
+nothing on any newer one. What is NOT handled is listed in the next section: a design that uses
+`color-mix()`, the `inset` shorthand or `backdrop-filter` still renders differently on 2.3.x,
+and the export screen tells you which of those your graphic uses.
 
 ### The graphic's own CSS is a separate question, and the studio now answers it
 

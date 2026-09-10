@@ -21,8 +21,7 @@ installed browser, which auto-updates.
 
 | Playout system | Engine | How we know |
 |---|---|---|
-| CasparCG 2.3.0–2.3.2 | Chromium 71 | measured 2026-09-10 — **unsupported**, see §2 |
-| CasparCG 2.3.3+ | Chromium 88 | inferred — **unsupported**, see §2 |
+| CasparCG 2.3.x (the `v2.3.3-lts-stable` download) | Chromium 71 | measured 2026-09-10 — **unsupported for authoring**, see §2; flex `gap` is shimmed |
 | OBS Studio 30.x | Chromium 103 | an OBS not updated since 2023 — below the floor |
 | vMix 27+ | Chromium 103 | changelog only, never measured here |
 | **CasparCG 2.4.x** | **Chromium 117** | **THE SUPPORTED FLOOR** |
@@ -49,19 +48,28 @@ strangers are running.
 
 What is deliberately excluded, and why:
 
-- **CasparCG 2.3.x (71 / 88).** Unsupported, and the older half is worse than this bullet used to
-  say. Clearing Chromium 71 would mean rewriting flex `gap` (272 designs), `backdrop-filter` (178,
-  and 76 anyway) and the `inset` shorthand (138) out of the catalogue — load-bearing layout, not
-  decoration — and then `clamp()`/`min()`/`max()` (79, and `min()` is in
-  `src/templates/shared/base.ts`, so it is in every design), private class fields (74) and numeric
-  separators (75) on top. The 2.3.0–2.3.2 number is no longer an
-  inference: on 2026-09-10 a 2.3.2 build (`4de6d18f Dev`) reported **Chromium 71** on the output
-  page's `&debug=1` line, and the house scorebug aired on it with its flex gaps collapsed — the
-  same production on 2.5.0 has them. That settles a contradiction this section used to carry: a
-  2.3.2 server could not *parse* optional chaining (below 80), yet a "2.3.x" server was once seen
-  rendering `inset` (87) and `gap` (84), which must have been a different machine. `vite.config.ts`
-  still says "~Chromium 63", which is now merely conservative rather than unreconciled. **2.3.3+
-  remains an inference** — nothing here has run a genuine 2.3.3.
+- **CasparCG 2.3.x (71).** Not authored against, and one engine rather than the two this table
+  used to list. The number is measured: on 2026-09-10 the install named `v2.3.3-lts-stable`
+  reported **Chromium 71** on the output page's `&debug=1` line, its `libcef.dll` is CEF
+  3.3578 (the Chromium 71 branch), and the house scorebug aired on it with its flex gaps
+  collapsed — the same production on 2.5.0 has them. The "2.3.3+ = 88" row was an inference from
+  a 2.3.x server once seen rendering `inset` (87) and `gap` (84); that must have been a different
+  machine, because the official 2.3.3 LTS release (GitHub `v2.3.3-lts-stable`, 2021-03-16, the
+  one zip a school downloads today, 17,000 downloads) unpacks to a binary that answers `VERSION`
+  with `2.3.2 4de6d18f Dev` and ships CEF 3.3578. There is no 2.3 with Chromium 88 to download.
+
+  What that engine costs the catalogue, measured with `scripts/engine-floor.mjs --chromium 71`
+  on 2026-09-10 (504 designs): `color-mix()` 229, `backdrop-filter` 199, the `inset` shorthand
+  169, `clamp()`/`min()`/`max()` 18 (`min()` in `src/templates/shared/base.ts` carries its own
+  fallback), `aspect-ratio` 6 — and flex `gap`, lexically 319, which is handled: every composed
+  document and every export carries `src/assets/flexGapShim.js`, which puts a flex gap back as
+  margins on an engine without it and returns at its first line on any engine with it
+  (`scripts/flex-gap-sweep.mjs` measures every design native-against-shimmed). The rest stays
+  unhandled on purpose: a runtime `color-mix()` would mean re-parsing every stylesheet for
+  colour arithmetic, and `inset` and `backdrop-filter` are dropped from the CSSOM outright, so
+  a shim would have to work from the stylesheet text. Those are a decision about supporting
+  2.3 as a whole, not a spacing fix, and they are recorded as open in
+  `docs/handoffs/2026-09-10-bk-flex-gap-on-old-engines.md`.
 - **OBS 30.x and vMix 27 (103).** Below the floor, so a design using `color-mix()` (111) loses
   its fills there. A current OBS is fine; vMix has never been measured here. Left as a known,
   recorded gap rather than a reason to migrate 189 declarations speculatively — revisit if a real

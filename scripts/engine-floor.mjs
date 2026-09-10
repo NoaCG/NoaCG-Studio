@@ -22,7 +22,7 @@
 //
 // Usage (dev server must be running for this checkout — scripts/dev-port.mjs):
 //   node scripts/engine-floor.mjs                        # every design, against the FLOOR
-//   node scripts/engine-floor.mjs --engine casparcg-233  # against another engine
+//   node scripts/engine-floor.mjs --engine casparcg-23   # against another engine
 //   node scripts/engine-floor.mjs --chromium 80          # against a bare Chromium version
 //   node scripts/engine-floor.mjs quiz                   # one category
 //   node scripts/engine-floor.mjs --json out.json        # machine-readable report
@@ -118,10 +118,10 @@ for (let i = 0; i < targets.length; i += BATCH) {
             name,
             minChromium: support.minChromium,
             // Only what THIS bar cannot render, and only what actually costs the picture —
-            // a cosmetic finding is listed by the app but never counts as a failure, and the
-            // gate must not disagree with the surface it shares a scanner with.
+            // a cosmetic or shimmed finding is listed by the app but never counts as a failure,
+            // and the gate must not disagree with the surface it shares a scanner with.
             missing: support.findings
-              .filter((f) => f.feature.since > floor && f.feature.effect !== 'cosmetic')
+              .filter((f) => f.feature.since > floor && window.__eng.raisesTheBar(f.feature.effect))
               .map((f) => ({
                 feature: f.feature.id,
                 label: f.feature.label,

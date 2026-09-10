@@ -68,7 +68,7 @@ export default function PlayoutCompatibility({ template }: { template: SpxTempla
                 <div className="issue warn" key={f.feature.id}>
                   <span className="rule">Chromium {f.feature.since}</span>
                   <strong>{f.feature.label}</strong>
-                  {/* THREE effects, three sentences. A cosmetic finding is listed for honesty —
+                  {/* FOUR effects, four sentences. A cosmetic finding is listed for honesty —
                       the engine really does drop it — but describing it in the same words as a
                       missing panel would claim a design is broken on an engine where it is
                       simply set slightly differently, which is the opposite of what this
@@ -95,6 +95,7 @@ export default function PlayoutCompatibility({ template }: { template: SpxTempla
 function effectSentence(effect: EngineFeature['effect']): string {
   if (effect === 'kills-the-file') return ' — an engine without it cannot read the file at all, so the layer airs blank.';
   if (effect === 'cosmetic') return ' — a typographic refinement. An engine without it lays the text out slightly differently; nothing goes missing, so it does not decide the verdicts above.';
+  if (effect === 'shimmed') return ' - an engine without it ignores the declaration, and a small script every export and the output page carry puts the spacing back there as margins. It does nothing on newer engines and does not decide the verdicts above.';
   return ' — an engine without it drops the whole declaration, so whatever it paints is simply missing.';
 }
 

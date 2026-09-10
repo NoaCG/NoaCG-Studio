@@ -13,7 +13,7 @@ import { templateUsesLottie } from '../assets/lottieSupport';
 import { inlineBundledFonts } from './bundledFonts';
 import { fontLicenseComment } from '../model/fonts';
 import type { SpxTemplate } from '../model/types';
-import { appendToBody, injectProjectFormatMeta } from './common';
+import { appendToBody, flexGapShimTag, injectProjectFormatMeta } from './common';
 
 /**
  * Build the single-file HTML: strip external refs, inline everything. `extraBodyScripts` are
@@ -43,6 +43,8 @@ export async function composeSelfContainedHtml(
 
   const headInjection =
     licence +
+    // A CasparCG 2.3 server loads this very file into a Chromium 71 that has no flex gap.
+    `${flexGapShimTag()}\n` +
     `<script>/* GSAP (bundled) — no internet needed at playout. */\n${gsapSource}</script>\n` +
     // The Lottie player inlines only when the graphic uses it; its animation JSON is
     // already a data: URL here (inlineAssetRefs above), so file:// playout works.

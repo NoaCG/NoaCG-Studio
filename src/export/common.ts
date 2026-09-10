@@ -4,6 +4,7 @@
 import type JSZip from 'jszip';
 import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
+import flexGapShimSource from '../assets/flexGapShim.js?raw';
 import { isFontAsset, parseDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
 import { fetchBundledFont, referencedFontFiles } from './bundledFonts';
@@ -103,6 +104,24 @@ export async function addSharedAssets(zip: JSZip, template: SpxTemplate): Promis
 export function appendToBody(html: string, block: string): string {
   const at = html.toLowerCase().lastIndexOf('</body>');
   return at === -1 ? html + block : `${html.slice(0, at)}${block}\n${html.slice(at)}`;
+}
+
+/**
+ * The flex-gap shim as one inline script tag (src/assets/flexGapShim.js). Every HTML a playout
+ * engine can load carries it: CasparCG 2.3.x renders on Chromium 71, where flex `gap` is parsed
+ * and ignored, and the shim puts the gap back as margins there. On any newer engine it returns
+ * at its first line. Inline rather than a sibling file so the template's own HTML - the code the
+ * person reads and edits - keeps its plain `gap:` lines and its three script references, and a
+ * project saved before the shim existed still exports with it.
+ */
+export function flexGapShimTag(): string {
+  return `<script>/* Flex gap on older playout engines (CasparCG 2.3): see the note inside. */\n${flexGapShimSource}</script>`;
+}
+
+/** The exported page with the shim at the top of its head, before the template's own scripts. */
+export function injectFlexGapShim(html: string): string {
+  const head = /<head[^>]*>/i;
+  return head.test(html) ? html.replace(head, (m) => `${m}\n  ${flexGapShimTag()}`) : `${flexGapShimTag()}\n${html}`;
 }
 
 /**
