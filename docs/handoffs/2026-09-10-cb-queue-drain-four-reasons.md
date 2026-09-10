@@ -140,12 +140,12 @@ the item, so overruling one costs him a sentence.
 
 ## Blocked / blocking
 
-Nothing. The follow-ups are the five backlog receipts above, and the 36 agent items, which are a
+Nothing. The follow-ups are the five backlog receipts above, and the 41 agent items, which are a
 row of work rather than a note - `/walk agent` walks them.
 
 ## Files this branch touched
 
-75 files across three commits: `docs/acceptance/OWNER_QUEUE.md`; 67 under
+75 files across four commits: `docs/acceptance/OWNER_QUEUE.md`; 67 under
 `docs/acceptance/owner-queue/` (58 modified - 22 of them gaining a `because:`, 35 re-kinded to
 `agent` - and 9 removed); 5 new receipts under `docs/backlog/`; one corrected citation in
 `docs/backlog/the-text-step-breaks-when-you-play-with-it.md`; and this handoff. Twenty-three items
@@ -154,11 +154,18 @@ had one and this branch never touched it.
 
 ## Gates
 
-`npm run build` green, read off its own exit code rather than a pipe's, run twice - once over the
-edits and once over the committed tree, because a rewrap of the re-kind blocks landed after the
-first run. 1592 tests, `# fail 0`. `npm run check:owner-queue` green at 83 items, 63 of the 64 open
+`npm run build` green, read off its own exit code rather than a pipe's, run three times - after the
+edits, after the commit, and once more as `/check`'s verify leg over the corrected state. 1592
+tests, `# fail 0`, every time. `npm run check:owner-queue` green at 83 items, 63 of the 64 open
 `walk`/`walk-p`/`agent` items grouped into six places. **CI on the pushed branch: completed
 success**, run 34526795581.
+
+`/check`: **`review: delegated` 10 found / 10 fixed, `simplify: inline` 1/1, `verify: inline`,
+`taste: not applicable`** (nothing in a documentation change can move what a graphic looks like).
+The simplify leg is `inline` because the skill returned fan-out instructions, which
+`.agent-workflows/check.md` phase 3 defines as a leg that has not run; the angles were covered here
+instead. The review's scope was checked against `git diff --name-status` in this worktree before a
+word of it was believed, and it matched: base `0634d6bd`, 65 files plus 10 deletions.
 
 ## What the review caught, because it is the more useful half of this handoff
 
