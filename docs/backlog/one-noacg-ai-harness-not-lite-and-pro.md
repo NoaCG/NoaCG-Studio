@@ -3,8 +3,13 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-10
-state: active
-branch: claude/cf-one-ai-harness
+state: advanced
+note: >-
+  452bda6e closed the DOOR - one hosted Create with AI option, no tier chooser, no user-visible
+  Lite or Pro, stored tiers migrated on read - and 206665a4 fixed what the review found in it.
+  The ask still stands for parts 4 and 6: the hosted route still adapts a proven catalog design
+  rather than authoring like a coding agent, the measured comparison that decides which harness
+  survives has not run, and OpenRouter is not a BYO provider yet. See "What is still open" below.
 asked: "we need to change the harness names and just have one AI option ... It's a bit confusing to have to choose what model I should use"
 ---
 # One NoaCG AI harness, no tiers, no model chooser
