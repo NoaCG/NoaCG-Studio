@@ -38,18 +38,26 @@
 
   // The feature test: a column flex box with a 1px row gap and two empty children is 1px tall
   // only where flex gap works. It runs at parse time, so it hangs off <html>; <body> may not
-  // exist yet when this script sits in the head.
-  function engineHasFlexGap() {
+  // exist yet when this script sits in the head. `all: initial` keeps a template rule (a
+  // `div { min-height }`, say) from voting. A document that has no layout at all - the frame
+  // holding it is display:none - answers 0 whatever the engine, so the question is left open
+  // ('unknown') and asked again on the first resize, which a hidden frame gets when it is shown.
+  function flexGapState() {
+    if (!document.documentElement.clientWidth && !document.documentElement.clientHeight) return 'unknown';
     var probe = document.createElement('div');
-    probe.style.cssText = 'display:flex;flex-direction:column;row-gap:1px;position:absolute;visibility:hidden';
-    probe.appendChild(document.createElement('div'));
-    probe.appendChild(document.createElement('div'));
+    probe.style.cssText = 'all:initial;display:flex;flex-direction:column;row-gap:1px;position:absolute;visibility:hidden';
+    for (var i = 0; i < 2; i++) {
+      var child = document.createElement('div');
+      child.style.cssText = 'all:initial';
+      probe.appendChild(child);
+    }
     document.documentElement.appendChild(probe);
-    var has = probe.scrollHeight === 1;
+    var height = probe.scrollHeight;
     document.documentElement.removeChild(probe);
-    return has;
+    return height === 1 ? 'has' : 'lacks';
   }
-  if (!SIMULATE && engineHasFlexGap()) return;
+  var state = SIMULATE ? 'lacks' : flexGapState();
+  if (state === 'has') return;
 
   // ── Bookkeeping: every inline property this shim writes, so it can take them back ──────────
   // An element can carry writes in two roles: as an ITEM (the margins that stand in for its
@@ -64,14 +72,12 @@
       list = [];
       own.set(el, list);
     }
-    list.push({
-      role: role,
-      prop: prop,
-      was: el.style.getPropertyValue(prop),
-      wasPriority: el.style.getPropertyPriority(prop),
-      set: value,
-    });
+    var was = el.style.getPropertyValue(prop);
+    var wasPriority = el.style.getPropertyPriority(prop);
     el.style.setProperty(prop, value, important ? 'important' : '');
+    // Remember the value as the CSSOM re-serialised it, not as it was written: `22.000000000000004px`
+    // reads back as `22px`, and undo() compares against what it reads.
+    list.push({ role: role, prop: prop, was: was, wasPriority: wasPriority, set: el.style.getPropertyValue(prop) });
   }
 
   function undo(el, role) {
@@ -190,12 +196,12 @@
       if (base !== null) write(item.el, 'item', side, base + gap + 'px');
     }
     var i;
-    var mainAuthored = [];
-    for (i = 0; i < items.length; i++) mainAuthored.push(items[i].el ? authored(items[i], mainSide) : null);
+    // Each element item's authored main-side margin, read before any write lands on that side.
+    for (i = 0; i < items.length; i++) items[i].mainAuthored = items[i].el ? authored(items[i], mainSide) : null;
     // The gap between two neighbours goes on the later one's facing side when that is an element,
     // otherwise on the earlier one's far side. `null` at either end stands for a pseudo-element.
     function between(prev, next) {
-      if (next && next.el) put(next, mainSide, mainAuthored[next.index], mainGap);
+      if (next && next.el) put(next, mainSide, next.mainAuthored, mainGap);
       else if (prev && prev.el) put(prev, farSide, authored(prev, farSide), mainGap);
     }
     if (before) between(null, items[0]);
@@ -228,7 +234,7 @@
         : (backwards ? r.bottom >= p.bottom - 0.5 : r.top <= p.top + 0.5);
       if (wrapped) {
         line++;
-        if (items[i].el) put(items[i], mainSide, mainAuthored[items[i].index], 0);
+        if (items[i].el) put(items[i], mainSide, items[i].mainAuthored, 0);
       }
       if (line > 0 && crossGap && items[i].el) put(items[i], crossSide, authored(items[i], crossSide), crossGap);
     }
@@ -268,10 +274,17 @@
         consider(added);
       }
     }
-    // Children before parents, for the same reason fixAll walks backwards.
-    dirty.sort(function (a, b) {
-      return a !== b && a.contains(b) ? 1 : b.contains(a) ? -1 : 0;
-    });
+    // Children before parents, for the same reason fixAll walks backwards. Sorted by depth,
+    // which is a total order; "does a contain b" is not one, and a sort on it can put a parent
+    // first.
+    function depth(node) {
+      var d = 0;
+      for (var n = node; n; n = n.parentNode) d++;
+      return d;
+    }
+    var depths = dirty.map(function (node) { return { node: node, depth: depth(node) }; });
+    depths.sort(function (a, b) { return b.depth - a.depth; });
+    dirty = depths.map(function (entry) { return entry.node; });
     for (var k = 0; k < dirty.length; k++) {
       if (isFlex(getComputedStyle(dirty[k]).display)) fixContainer(dirty[k]);
     }
@@ -295,10 +308,24 @@
     observer.takeRecords();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
-  else start();
+  // Every moment that can change the answer or the layout comes through here: the first one
+  // starts the shim, the rest refit. A document whose engine could not be judged at parse time
+  // is judged now, and once the engine turns out to have flex gap nothing is ever touched.
+  var started = false;
+  function boot() {
+    if (state === 'unknown') state = flexGapState();
+    if (state !== 'lacks') return;
+    if (started) refit();
+    else {
+      started = true;
+      start();
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
   // A webfont swap and a resize both move line breaks without a DOM mutation.
-  window.addEventListener('load', refit);
-  window.addEventListener('resize', refit);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit, function () {});
+  window.addEventListener('load', boot);
+  window.addEventListener('resize', boot);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(boot, function () {});
 })();
