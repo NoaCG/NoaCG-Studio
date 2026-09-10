@@ -65,26 +65,30 @@ this, applied in order:
    is `scope`, `direction` or `money`, and it is his.
 2. **Is there a shipped result on screen whose quality has no defensible general answer and which
    no gate can assert?** Then it is `taste`, and it is his - *"is this any good"* stays his however
-   drivable the route is, which is already the rule two sections down.
+   drivable the route is, which is the rule "Re-kinding an item" already sets out below.
 3. **Otherwise it is not his.** Decide it, write the decision and the argument into the item, and
    re-kind or drop.
 
 **The sharp edge is step 2, and it cuts on ONE word: DECIDED.** A question an item raises and then
 argues to a conventional answer in its own text is decided, whoever wrote it and however it is
-phrased. Eleven items ended with a sentence shaped like *"say if you would rather…"* sitting
-directly under the paragraph that settled the same question from ordinary practice. That sentence
-is politeness, not a question, and taking it at face value is how the queue reached 92. The
-counter-error is as real: an item that says out loud that no gate can judge it, or that hands the
-owner two readings only one of which can be on screen, is his - and 22 of the 68 were.
+phrased. Well over a dozen of the 68 ended with a sentence shaped like *"say if you would rather…"*
+sitting directly under the paragraph that had already settled the same question from ordinary
+practice. That sentence is politeness, not a question, and reading it as one is how a directory of
+92 files came to put 68 items on his two lists. The counter-error is as real: an item that says out
+loud that no gate can judge it, or that hands him two readings only one of which can be on screen,
+is his - and 22 of the 68 were.
 
-**The three outcomes, and none of them is a delete on an agent's own verification.** An item that
-names a reason keeps it. An item whose remaining question is a claim about the product is re-kinded
-to `agent` with the note the re-kinding rule requires, and STAYS here until an agent drives it -
+**Three outcomes, and none of them is a delete on an agent's own verification.** An item that names
+a reason keeps it. An item whose remaining question is a claim about the product is re-kinded to
+`agent` with the note the re-kinding rule requires, and STAYS here until an agent drives it -
 re-kind and delete are separate commits by rule, and this drain made none of the delete commits.
 An item with nothing left to drive at all is dropped, with the decision and its argument in the log
-at the end of this file. Consolidation is the fourth move and it is not a drop: several items on
-one screen become one item carrying every question verbatim, the way the weekly alignment session
-was consolidated the same day.
+at the end of this file.
+
+**Consolidation is not one of the three and it is not a drop.** Several items opening one screen
+become one item carrying every question verbatim, the way four items waiting on the same Tuesday
+became `2026-09-10-the-first-weekly-alignment-session.md` the same day. It is the only move that
+shortens his list without deciding anything, so it is the first one to reach for.
 
 ## The shape of an item
 

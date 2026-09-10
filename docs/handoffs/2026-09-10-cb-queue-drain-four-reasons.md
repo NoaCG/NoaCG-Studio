@@ -18,6 +18,12 @@ walks; 7 consolidated into an item that opens the same screen; 3 dropped with th
 replaced them. Every drop and every consolidation is logged in `docs/acceptance/OWNER_QUEUE.md`
 under Dropped, which is the one place a file that left this directory unwalked is findable.
 
+The full standing of the directory afterwards: **22 `walk`/`walk-p`, 3 `owner-action`, 41 `agent`,
+4 `hardware`** - 70 open, plus 12 `done: true` records. **The agent list went from 5 to 41, and
+that is the honest cost of this drain.** The contract is explicit that an agent item nobody reads
+is worse than no item, because it looks handled - so those 41 are a row of work, not a note. Each
+carries a route and the note saying which half of the test it met.
+
 ## The test that did the cutting, and where it is written down
 
 It is in `docs/acceptance/OWNER_QUEUE.md` now, under "The test the 2026-09-10 drain used", so the
@@ -130,6 +136,14 @@ row of work rather than a note - `/walk agent` walks them.
 
 ## Files this branch touched
 
-`docs/acceptance/OWNER_QUEUE.md`, 58 files under `docs/acceptance/owner-queue/` (22 given a
-`because:`, 36 re-kinded, 10 removed), 5 new receipts under `docs/backlog/`, and one repointed
-citation in `docs/backlog/the-text-step-breaks-when-you-play-with-it.md`.
+75 files in one commit: `docs/acceptance/OWNER_QUEUE.md`; 68 under `docs/acceptance/owner-queue/`
+(22 given a `because:`, 36 re-kinded to `agent`, 10 removed); 5 new receipts under `docs/backlog/`;
+one repointed citation in `docs/backlog/the-text-step-breaks-when-you-play-with-it.md`; and this
+handoff.
+
+## Gates
+
+`npm run build` green, read off its own exit code rather than a pipe's, run twice - once over the
+edits and once over the committed tree, because a rewrap of the 36 re-kind blocks landed after the
+first run. `npm run check:owner-queue` green at 82 items, 62 of the 63 open `walk`/`walk-p`/`agent`
+items grouped into six places.
