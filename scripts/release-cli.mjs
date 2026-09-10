@@ -20,16 +20,22 @@
  *   npm run release:cli              preflight, tag, push, watch, verify from the registry
  *   npm run release:cli -- --check   preflight only: say what would be released, touch nothing
  *   npm run release:cli -- --no-smoke  skip the post-publish `npx` install of the real package
+ *   npm run release:cli -- --publisher-ok  release anyway when npm's trusted publisher looks stale
  *
  * The version comes from `cli/package.json` ON origin/main, never from the local tree: the thing
  * being released is a commit on main, and a worktree can be anywhere.
  */
 import { execFileSync } from 'node:child_process';
 
+// This script is the `fires:` mechanism for the repository-rename trap, so it says that rule where
+// the rule applies rather than leaving it in a contract nobody reads at release time.
+import * as rules from './rules.mjs';
+
 const PKG = '@noacg/cli';
 const args = process.argv.slice(2);
 const checkOnly = args.includes('--check') || args.includes('--dry-run');
 const smoke = !args.includes('--no-smoke');
+const publisherOk = args.includes('--publisher-ok');
 
 const run = (cmd, cmdArgs, opts = {}) =>
   execFileSync(cmd, cmdArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts }).trim();
@@ -100,6 +106,96 @@ const registry = async (path) => {
 
 const published = await registry(encodeURIComponent(PKG));
 const known = published ? Object.keys(published.versions) : [];
+
+// ---------------------------------------------------------------- who npm will trust
+
+/**
+ * npm's trusted publishing matches a publish against a stored ORGANISATION OR USER, REPOSITORY and
+ * WORKFLOW FILENAME. All three are exact and case-sensitive, and none of them can be read from
+ * here: npm exposes the stored configuration only to an authenticated account owner, and this
+ * script holds no credential by design.
+ *
+ * The comparison is still makeable, because the LAST published version's PROVENANCE is public and
+ * names the repository and workflow npm accepted. So the question this asks is not "what does npm
+ * hold" but the one that actually matters: is this repository, with this workflow file, the same
+ * pair npm accepted last time?
+ *
+ * On 2026-09-09 it was not. The repository had moved from `miwco/NoaCG-Studio` to
+ * `NoaCG/NoaCG-Studio` three days earlier, npm's stored copy did not follow, and the publish failed
+ * with `E404 Not Found - PUT` on a package that plainly exists - a message naming neither the
+ * repository nor the credential. Recreating the connection needs an interactive 2FA challenge, so
+ * it is always the account owner's job and never same-session work. Asking here costs two seconds
+ * and moves that discovery to BEFORE the tag exists.
+ */
+const WORKFLOW = '.github/workflows/release-cli.yml';
+const WORKFLOW_FILENAME = WORKFLOW.split('/').pop();
+
+/** The repository as GitHub names it TODAY. A local remote can still carry the pre-move name. */
+const currentRepository = () => {
+  try {
+    const full = run('gh', ['api', 'repos/{owner}/{repo}', '--jq', '.full_name']);
+    if (full) return { name: full, from: 'gh api' };
+  } catch {
+    // gh missing or not signed in - the remote is a worse answer, not no answer.
+  }
+  const url = git('remote', 'get-url', 'origin');
+  const match = url.match(/github\.com[:/]([^/]+\/[^/]+?)(?:\.git)?$/);
+  return match ? { name: match[1], from: 'origin remote' } : null;
+};
+
+/**
+ * The repository and workflow a published version's provenance names, or null when it carries none.
+ * 0.2.0 was hand-published without OIDC, so "no attestation" is a real answer here and must read as
+ * "nothing to compare", never as "something is wrong".
+ */
+const provenanceOf = async (v) => {
+  const doc = await registry(`-/npm/v1/attestations/${encodeURIComponent(`${PKG}@${v}`)}`);
+  const slsa = doc?.attestations?.find((a) => a.predicateType?.startsWith('https://slsa.dev/provenance'));
+  if (!slsa?.bundle?.dsseEnvelope?.payload) return null;
+  const payload = JSON.parse(Buffer.from(slsa.bundle.dsseEnvelope.payload, 'base64').toString('utf8'));
+  const workflow = payload?.predicate?.buildDefinition?.externalParameters?.workflow;
+  if (!workflow?.repository) return null;
+  return { repository: new URL(workflow.repository).pathname.replace(/^\//, ''), path: workflow.path };
+};
+
+const here = currentRepository();
+const lastPublished = published?.['dist-tags']?.latest;
+// A registry hiccup must not stop a release: this is advisory data, and everything it could refuse
+// the workflow refuses again. A MISMATCH is different - that is a real answer, and it refuses.
+const lastProvenance = lastPublished ? await provenanceOf(lastPublished).catch(() => null) : null;
+
+let publisherLine;
+if (!here) {
+  publisherLine = 'npm publisher UNCHECKED - neither `gh` nor the origin remote named a GitHub repository.';
+} else if (!lastProvenance) {
+  const why = lastPublished ? `${PKG}@${lastPublished} carries no provenance` : 'no version is published yet';
+  publisherLine = `npm must be holding ${here.name} + ${WORKFLOW_FILENAME} - nothing to compare it against, because ${why}.`;
+} else {
+  const drift = [];
+  if (lastProvenance.repository !== here.name) {
+    drift.push(`npm last accepted ${lastProvenance.repository}, but this is ${here.name} (${here.from})`);
+  }
+  if (lastProvenance.path !== WORKFLOW) {
+    drift.push(`npm last accepted the workflow ${lastProvenance.path}, but the release runs ${WORKFLOW}`);
+  }
+  if (drift.length > 0 && !publisherOk) {
+    const [org, repo] = here.name.split('/');
+    fail(
+      `the trusted publisher npm holds looks stale - ${drift.join('; ')}`,
+      `${rules.text('root/repository-rename-breaks-npm-trusted-publishing')}
+  Ask the owner to delete and re-add the connection on npmjs.com (${PKG} -> Settings -> Trusted
+  publishing) with organisation ${org}, repository ${repo}, workflow filename ${WORKFLOW_FILENAME},
+  and allowed actions including the direct \`npm publish\`. Then release. Pass --publisher-ok if you
+  already know npm is correct.`,
+    );
+  }
+  publisherLine = drift.length > 0
+    ? `npm's trusted publisher looks STALE, and --publisher-ok overrode the refusal: ${drift.join('; ')}.`
+    : `npm's trusted publisher matches: ${here.name} + ${WORKFLOW_FILENAME}, the pair it accepted for ${PKG}@${lastPublished}.`;
+}
+
+console.log(`\n${publisherLine}`);
+
 if (known.includes(version)) {
   fail(
     `${PKG}@${version} is already on the registry, and a version is never republished`,

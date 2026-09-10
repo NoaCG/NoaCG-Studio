@@ -602,10 +602,19 @@ no `--provenance` flag).
    npm run release:cli
    ```
    It reads the version from `cli/package.json` **on `origin/main`**, refuses if any of the six
-   version stamps disagree or if the registry already has that version, tags the commit, pushes,
-   watches the run, and then verifies the PUBLISHED package from the registry - version,
-   `latest`, the provenance attestation - and installs it with `npx` to ask its own version.
-   `npm run release:cli -- --check` does the preflight and stops without touching anything.
+   version stamps disagree, if the registry already has that version, or if npm's trusted publisher
+   looks stale, tags the commit, pushes, watches the run, and then verifies the PUBLISHED package
+   from the registry - version, `latest`, the provenance attestation - and installs it with `npx` to
+   ask its own version. `npm run release:cli -- --check` does the preflight and stops without
+   touching anything.
+
+   The publisher check is the one the 2026-09-09 failure needed. npm's stored organisation,
+   repository and workflow filename cannot be read without an account credential, but the **last
+   published version's provenance is public and names the repository and the workflow it accepted**,
+   so the script compares this repository against the one npm accepted last time and refuses a
+   release into a connection that no longer matches. It runs before every other refusal, so
+   `--check` answers on any tree rather than only in the window between a bump and its release. `--publisher-ok` overrides it, for the legitimate case
+   where the repository moved and the owner has already re-created the connection.
 
 The run also creates the matching **GitHub Release**, with notes generated from the commits since
 the previous one, so every version on npm is also a version a visitor to the repository page can
@@ -638,11 +647,24 @@ dry run asks GitHub to *generate* the release notes and prints them, which exerc
 about that step except the write. Unchecking `dry_run` publishes - the same thing a tag push
 does, for when a tagged run needs re-driving.
 
+**A dry run does not prove a publish will work.** `npm publish --dry-run` never authenticates, so
+every credential question is one a rehearsal cannot ask. On 2026-09-09 a dry run went green on every
+step three minutes before the real publish failed at the first byte that needed a credential. What a
+rehearsal proves is everything up to that point, which is most of the run and worth having.
+
 The packing proof (`npm pack --dry-run`) touches no registry, so it runs whatever state the version
 is in. The step after it (`npm publish --dry-run`) is the first that talks to the registry, and it
 runs **only when the version is free** - `npm publish --dry-run` refuses a version that already
 exists, so on a tree whose version is already published a dry run would otherwise only ever be able
 to fail. A real publish always reaches it, because a taken version is refused long before.
+
+**The publish step runs at `NPM_CONFIG_LOGLEVEL: verbose`**, which is the only way the log can say
+why a credential was refused. Every path through npm's OIDC exchange logs at `verbose` or quieter
+and the default level is `notice`, so at the default a failed exchange prints nothing at all and npm
+carries on with the placeholder token setup-node wrote. At `verbose` the log carries one line -
+`oidc Successfully retrieved and set token`, or `oidc Failed token exchange request with body
+message:` and npm's own reason. It leaks nothing: npm never logs the credential, and redacts auth
+material from every level except `notice`.
 
 **What the workflow refuses**, each one a way a release has gone wrong somewhere before:
 
@@ -658,28 +680,35 @@ to fail. A real publish always reaches it, because a taken version is refused lo
 `prepack` re-runs the full build, so the `dist/` that is packed is always built from the checkout
 being published - a stale local build cannot reach the registry even in principle.
 
-**Two things only the owner can do**, both one-time (`docs/acceptance/owner-queue/`):
+**The one thing only the owner can do** (`docs/acceptance/owner-queue/`), done once and needed again
+after any repository move: on npmjs.com → the package → Settings → **Trusted publishing**, a GitHub
+Actions publisher with organisation **`NoaCG`**, repository `NoaCG-Studio`, workflow filename
+**`release-cli.yml`** (the filename only, not a path), environment left blank, and **allowed actions
+including the direct `npm publish`**, not only `npm stage publish`. Every field is case-sensitive and
+none can be edited afterwards: a wrong value is fixed by deleting the connection and adding it again,
+which npm gates behind a 2FA challenge. `repository.url` in `cli/package.json` must match the GitHub
+repository - it does.
 
-- On npmjs.com → the package → Settings → **Trusted publishing**, add a GitHub Actions publisher:
-  organisation **`NoaCG`**, repository `NoaCG-Studio`, workflow filename **`release-cli.yml`** (the
-  filename only, not a path), environment left blank, and **allowed actions must include the direct
-  `npm publish`**, not only `npm stage publish`. Every field is case-sensitive, and none of them can
-  be edited afterwards: a wrong value is fixed by deleting the connection and adding it again.
-  `repository.url` in `cli/package.json` must match the GitHub repository - it does. The stored
-  organisation is still `miwco`, because the repository moved to `NoaCG` on 2026-09-06 (`ea7f569c`)
-  and npm does not follow a move, which is why 0.3.1 is refused
-  (`docs/acceptance/owner-queue/2026-09-09-ah-npm-still-thinks-the-repository-is-yours.md`). The
-  allowed-actions row is new: since 2026-09-03 npm defaults a fresh connection to staging only, and
-  a staging-only connection refuses a direct publish in the same unreadable way a missing one does.
-- Delete `NPM_TOKEN` from `.env` and **revoke both tokens** in npm account settings. npm is retiring
-  that kind of credential anyway: since early August 2026 a 2FA-bypass granular token can no longer
-  perform sensitive account operations, and from around January 2027 it cannot publish at all, only
-  stage a publish for a human to approve with 2FA
-  (github.blog changelog, 2026-07-08, `npm-install-time-security-and-gat-bypass2fa-deprecation`).
-  So there is no hand-publish fallback standing behind the workflow, and there will not be one again.
+That connection stored `miwco` until 2026-09-10, because the repository moved to `NoaCG` on
+2026-09-06 (`ea7f569c`) and npm does not follow a move. **It cost 0.3.1 a day and an hour of
+forensics**, because a publish npm cannot authenticate fails with a 404 on the PUT naming neither
+the repository nor the credential. Both halves of that are now guarded - `npm run release:cli`
+refuses before tagging, and the workflow logs the exchange - and the trap is written down as
+`root/repository-rename-breaks-npm-trusted-publishing`. The allowed-actions row is the other half
+of the same story: since 2026-09-03 npm defaults a fresh connection to staging only, and a
+staging-only connection refuses a direct publish in the same unreadable way a missing one does.
 
-Until the trusted publisher is configured, the workflow's dry run passes and a real publish fails
-at the registry call. That failure is safe and repeatable; nothing else about the run changes.
+**Still outstanding, and also only his:** `NPM_TOKEN` is gone from `.env`, but **both granular
+tokens want revoking** in npm account settings. npm is retiring that kind of credential anyway -
+since early August 2026 a 2FA-bypass granular token can no longer perform sensitive account
+operations, and from around January 2027 it cannot publish at all, only stage a publish for a human
+to approve with 2FA (github.blog changelog, 2026-07-08,
+`npm-install-time-security-and-gat-bypass2fa-deprecation`). So there is no hand-publish fallback
+standing behind the workflow, and there will not be one again.
+
+If the trusted publisher is ever wrong again, the workflow's dry run still passes and a real publish
+still fails at the registry call. That failure is safe and repeatable; nothing else about the run
+changes.
 
 **Appendix - the manual path (0.2.0, superseded).** 0.2.0 was published by hand: a granular token
 in `.env` as `NPM_TOKEN`, read by a gitignored root `.npmrc` holding `_authToken=${NPM_TOKEN}` (an
