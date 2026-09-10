@@ -37,10 +37,17 @@ this one is yours: a gate can count words, it cannot tell you the page reads Fin
 
 **It is 2211 words down to 1767, and 11496 pixels tall down to 10675** on the same screen.
 
-## What I did not touch, because you passed it
+## What survived, because you passed it
 
-The graded claims, all three dashed **Direction** cards and the note under them, and "Bring your
-own artwork" word for word.
+Every claim that has a graded row behind it still stands, and so does every device you named. To
+be exact about what that means, because "untouched" would not be true:
+
+- **The three dashed Direction cards are all still there**, each still marked Direction, and the
+  note under them ("Solid cards are built and measured...") is word for word. Their one-line
+  bodies were shortened. Nothing they claim changed.
+- **"Bring your own artwork" is word for word.** The paragraph under it was tightened - "Every
+  text layer" became "A text layer", and so on - but every mechanism it describes is still there,
+  including the one rule, keep text as text.
 
 ## Two things I decided, that you can overrule in a line
 

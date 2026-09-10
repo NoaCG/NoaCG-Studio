@@ -89,8 +89,12 @@ The landing page was rewritten section by section. All three demands are met on 
   the demo monitor's own clock and score stay: neither is a claim about what we have, and both are
   wayfinding a reader uses. **If he disagrees about the step numbers, that is a one-line change.**
 
-Every graded claim, the three dashed direction cards and the "Bring your own artwork" wording are
-untouched, because he passed those on the same walk.
+Every graded claim survives, and so does every device he passed on the same walk: all three dashed
+direction cards are still there and still marked Direction, the note under them is word for word,
+and the "Bring your own artwork" heading is word for word. Their one-line bodies and that card's
+paragraph were shortened; nothing they claim changed. The one honesty claim this pass dropped and
+had to put back is the anonymous render cap, caught by review and restored to the `#video` note
+where it belongs (`docs/PROMISE_AUDIT.md` row 21).
 
 ### The finding worth acting on: words are not why the page feels long
 
