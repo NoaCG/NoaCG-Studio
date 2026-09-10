@@ -46,6 +46,7 @@ ${stepCount > 1 ? `- This graphic has ${stepCount} steps: each further play/cont
 - ${name}.ograf.json  The OGraf manifest (name, data schema, step count).
 - graphic.mjs         The Graphic Web Component wrapping the template runtime.
 - lib/gsap.min.js     Bundled GSAP — no internet needed at playout.
+- lib/flex-gap-shim.js  Restores flex gaps on an older playout engine; inert on a current one.
 ${template.assets.length ? '- images/…            Images used by the template.\n' : ''}
 Everything is offline and self-contained. The same package also loads in any other
 OGraf v1 compatible renderer.

@@ -21,20 +21,34 @@
  * the feature test at the top passes and the script returns without touching the document: the
  * template's own CSS does the work, as designed. It never edits the template's code, so what a
  * person reads in the editor or in an export is still one plain `gap:` line. The one known
- * limit: an item that fits its line without the gap in front of it but not with it can land one
- * line earlier than native `gap` would put it. That band is one gap wide, and
- * scripts/flex-gap-sweep.mjs measures every catalog design native-against-shimmed to show
- * nothing settles in it.
+ * limit is in a WRAPPED container: an item that fits its line without the gap in front of it
+ * but not with it can land one line earlier than native `gap` would put it. That band is one
+ * gap wide, and scripts/flex-gap-sweep.mjs measures every catalog design native-against-shimmed
+ * to show nothing settles in it. (Giving every item half a gap on both sides and the container
+ * minus half a gap makes that fit exact, at the price of widening every container's box by one
+ * gap - wrong wherever the container paints its own background or has a set width, which in
+ * this catalog is most of them. That is why the facing-side margin was kept.)
  *
  * PROVING IT ON A MODERN ENGINE. Set `window.NOACG_SIMULATE_NO_FLEX_GAP = true` before this
  * script runs and it behaves as if the engine lacked flex gap AND zeroes each handled
- * container's own gap, so a modern Chromium lays out exactly what CEF 71 would. That is how the
- * sweep compares the shim against native layout across the whole catalog.
+ * container's own gap, so a modern Chromium lays out exactly what CEF 71 would, and it lists the
+ * containers it handled in `window.NOACG_FLEX_GAP_HANDLED`. That is how the sweep compares the
+ * shim against native layout across the whole catalog, and counts with the shim's own rule.
  *
  * Plain ES5 in a classic script, on purpose: it has to parse on the engine it exists for.
  */
 (function () {
+  // One copy per document. A second copy (a package re-imported with the tag left in, a host
+  // page that already carries one) would read the first copy's margins as authored and add the
+  // gap again, and the two observers would then answer each other without end.
+  if (window.__noacgFlexGapShim) return;
+  window.__noacgFlexGapShim = true;
+
   var SIMULATE = window.NOACG_SIMULATE_NO_FLEX_GAP === true;
+  // In simulation, what the shim handled: the sweep reads its counts from here, so the number
+  // it reports is the shim's own model of a gapped container and can never drift from it.
+  var HANDLED = SIMULATE ? new Map() : null;
+  if (HANDLED) window.NOACG_FLEX_GAP_HANDLED = HANDLED;
 
   // The feature test: a column flex box with a 1px row gap and two empty children is 1px tall
   // only where flex gap works. It runs at parse time, so it hangs off <html>; <body> may not
@@ -141,10 +155,12 @@
     for (var c = box.firstElementChild; c; c = c.nextElementSibling) undo(c, 'item');
 
     var cs = getComputedStyle(box);
-    if (!isFlex(cs.display)) return;
-    var rowGap = gapPx(cs.rowGap, box, 'y');
-    var colGap = gapPx(cs.columnGap, box, 'x');
-    if (!rowGap && !colGap) return;
+    var rowGap = isFlex(cs.display) ? gapPx(cs.rowGap, box, 'y') : 0;
+    var colGap = isFlex(cs.display) ? gapPx(cs.columnGap, box, 'x') : 0;
+    if (!rowGap && !colGap) {
+      if (HANDLED) HANDLED.delete(box);
+      return;
+    }
 
     // In simulation the container's own gap must stop working, the way it does on CEF 71.
     if (SIMULATE) {
@@ -168,7 +184,12 @@
     items.sort(function (a, b) { return a.order - b.order || a.index - b.index; });
     var before = pseudoInFlow(box, '::before');
     var after = pseudoInFlow(box, '::after');
-    if (items.length + (before ? 1 : 0) + (after ? 1 : 0) < 2) return;
+    var count = items.length + (before ? 1 : 0) + (after ? 1 : 0);
+    if (HANDLED) {
+      if (count < 2) HANDLED.delete(box);
+      else HANDLED.set(box, { items: count, rowGap: rowGap, columnGap: colGap });
+    }
+    if (count < 2) return;
 
     var direction = cs.flexDirection;
     var horizontal = direction.indexOf('row') === 0;
@@ -210,32 +231,36 @@
     if (cs.flexWrap === 'nowrap' || items.length < 2) return;
 
     // Wrapped: read where the browser broke the lines now that the main-axis margins are on. An
-    // item starts a new line when it sits at or behind the previous item on the main axis. A
-    // line start carries no main-axis margin (there is nothing before it), and every item past
-    // the first line carries the cross-axis gap.
+    // item starts a new line when it lies wholly past the current line on the CROSS axis (below
+    // it in a row, beside it in a column) - the running edge of the line, so a short item next
+    // to a tall one is still on the same line, and a centred second line that is wider than the
+    // first is still a new one. A line start carries no main-axis margin (there is nothing
+    // before it), and every item past the first line carries the cross-axis gap.
     var wrapReverse = cs.flexWrap === 'wrap-reverse';
+    var crossBackwards = horizontal ? wrapReverse : wrapReverse !== rtl;
     var crossSide = horizontal
-      ? (wrapReverse ? 'margin-bottom' : 'margin-top')
-      : (wrapReverse !== rtl ? 'margin-right' : 'margin-left');
+      ? (crossBackwards ? 'margin-bottom' : 'margin-top')
+      : (crossBackwards ? 'margin-right' : 'margin-left');
     function rectOf(item) {
       if (item.el) return item.el.getBoundingClientRect();
       var range = document.createRange();
       range.selectNode(item.text);
       return range.getBoundingClientRect();
     }
+    // The near and far edge of a rect on the cross axis, in the direction lines advance.
+    function crossNear(r) { return horizontal ? (crossBackwards ? -r.bottom : r.top) : (crossBackwards ? -r.right : r.left); }
+    function crossFar(r) { return horizontal ? (crossBackwards ? -r.top : r.bottom) : (crossBackwards ? -r.left : r.right); }
     var rects = [];
     for (i = 0; i < items.length; i++) rects.push(rectOf(items[i]));
     var line = 0;
+    var lineEnd = crossFar(rects[0]);
     for (i = 1; i < items.length; i++) {
       var r = rects[i];
-      var p = rects[i - 1];
-      var wrapped = horizontal
-        ? (backwards ? r.right >= p.right - 0.5 : r.left <= p.left + 0.5)
-        : (backwards ? r.bottom >= p.bottom - 0.5 : r.top <= p.top + 0.5);
-      if (wrapped) {
+      if (crossNear(r) >= lineEnd - 0.5) {
         line++;
         if (items[i].el) put(items[i], mainSide, items[i].mainAuthored, 0);
       }
+      if (crossFar(r) > lineEnd) lineEnd = crossFar(r);
       if (line > 0 && crossGap && items[i].el) put(items[i], crossSide, authored(items[i], crossSide), crossGap);
     }
   }
@@ -253,16 +278,35 @@
 
   // ── Keeping up with the graphic ────────────────────────────────────────────────────────────
   // A mutation names the elements it touched; the containers that can have changed are those
-  // elements and their parents. Attribute records arrive every frame while GSAP tweens, so the
-  // pass is scoped to them rather than the whole document.
+  // elements and their parents. GSAP writes an element's style attribute on every frame of a
+  // tween, and a transform or an opacity moves no flex item, so a style record whose layout
+  // properties did not change is dropped before it costs a read: the graphic's own motion must
+  // not turn into a refit sixty times a second on the engine this exists for.
+  var MOTION_ONLY = /^\s*(transform|translate|rotate|scale|opacity|visibility|filter|backdrop-filter|will-change|transform-origin|perspective|perspective-origin|backface-visibility|clip-path|mix-blend-mode)\s*:/i;
+  function layoutPart(styleText) {
+    var decls = String(styleText || '').split(';');
+    var kept = [];
+    for (var i = 0; i < decls.length; i++) {
+      if (decls[i].replace(/\s/g, '') !== '' && !MOTION_ONLY.test(decls[i])) kept.push(decls[i].replace(/\s+/g, ' '));
+    }
+    return kept.join(';');
+  }
+  function motionOnly(rec) {
+    return rec.type === 'attributes' && rec.attributeName === 'style'
+      && layoutPart(rec.oldValue) === layoutPart(rec.target.getAttribute('style'));
+  }
+
   var observer = new MutationObserver(function (records) {
+    var seen = new Set();
     var dirty = [];
     function consider(node) {
-      if (!node || node.nodeType !== 1 || dirty.indexOf(node) >= 0) return;
+      if (!node || node.nodeType !== 1 || seen.has(node)) return;
+      seen.add(node);
       dirty.push(node);
     }
     for (var i = 0; i < records.length; i++) {
       var rec = records[i];
+      if (motionOnly(rec)) continue;
       var target = rec.type === 'characterData' ? rec.target.parentNode : rec.target;
       consider(target);
       consider(target && target.parentNode);
@@ -272,6 +316,11 @@
         var inner = added.querySelectorAll('*');
         for (var d = inner.length - 1; d >= 0; d--) consider(inner[d]);
         consider(added);
+      }
+      // An element taken out of a container keeps nothing of that container's gap: its margins
+      // were the gap between it and a neighbour it no longer has.
+      for (var x = 0; x < rec.removedNodes.length; x++) {
+        if (rec.removedNodes[x].nodeType === 1) undo(rec.removedNodes[x], 'item');
       }
     }
     // Children before parents, for the same reason fixAll walks backwards. Sorted by depth,
@@ -299,13 +348,22 @@
       childList: true,
       characterData: true,
       attributes: true,
+      attributeOldValue: true,
       attributeFilter: ['style', 'class', 'hidden'],
     });
     observer.takeRecords();
   }
-  function refit() {
-    fixAll(document.body);
-    observer.takeRecords();
+  // Load, the webfont swap and a resize can all land inside one second of each other; one
+  // pass on the next frame serves them all.
+  var refitPending = false;
+  function refitSoon() {
+    if (refitPending) return;
+    refitPending = true;
+    requestAnimationFrame(function () {
+      refitPending = false;
+      fixAll(document.body);
+      observer.takeRecords();
+    });
   }
 
   // Every moment that can change the answer or the layout comes through here: the first one
@@ -315,7 +373,7 @@
   function boot() {
     if (state === 'unknown') state = flexGapState();
     if (state !== 'lacks') return;
-    if (started) refit();
+    if (started) refitSoon();
     else {
       started = true;
       start();

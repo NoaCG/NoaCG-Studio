@@ -7,7 +7,7 @@
 
 import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
-import flexGapShimSource from '../assets/flexGapShim.js?raw';
+import { flexGapShimTag } from '../assets/flexGapSupport';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
 import { settleGraphic, reportGraphicBox } from './settleGraphic';
@@ -173,7 +173,7 @@ body { position: relative; overflow: visible !important; margin: ${options.autho
   // 84): the shim puts the gap back as margins there and returns untouched everywhere else.
   // It rides in every composed document because this composer is what the output page airs
   // through, and the preview must lay out exactly what playout will (src/assets/flexGapShim.js).
-  const flexGapTag = `<script id="spx-flex-gap">\n${flexGapShimSource}\n</script>`;
+  const flexGapTag = flexGapShimTag();
   const gsapTag = `<script id="spx-gsap">\n${gsapSource}\n</script>`;
   // The bundled Lottie player rides along ONLY when the template uses it (unlike GSAP,
   // which every template animates with) — see src/assets/lottieSupport.ts.

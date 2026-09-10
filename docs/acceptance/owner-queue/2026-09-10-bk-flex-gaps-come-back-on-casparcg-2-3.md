@@ -7,8 +7,8 @@ date: 2026-09-10
 Row BH saw the house scorebug air on the 2.3 server as `HOME3` where 2.5 airs `HOME 5`. The cause
 is flexbox `gap`: Chromium 84 shipped it, and the 2.3 LTS a school downloads today renders on
 Chromium 71, which reads the declaration and ignores it. Nothing errors, so the graphic looks like a
-design mistake. Measured across the catalog, 286 of 504 designs carry such a gap between painted
-items (822 containers), and 283 of them move visibly when it collapses.
+design mistake. Measured across the catalog, 289 of 504 designs carry such a gap between painted
+items (857 containers), and 286 of them move visibly when it collapses.
 
 The fix is one small script that every export and the output page now carry beside GSAP
 (`src/assets/flexGapShim.js`). On an engine without flex gap it puts the gap back as margins; on
@@ -17,7 +17,13 @@ reads still says `gap: calc(24px * var(--scale))`, once.
 
 ## The route, under a minute
 
-Three designs are exported twice each into `C:\casparcg\templates\bk\` (and the 2.5 install's
+**In the app, from any machine:** open any design with a flex gap (Match Strip, `sb01`, is
+one), Export, and read the Playout compatibility panel. CasparCG 2.3.x shows as fine, and
+"What exactly does it use?" lists `gap in a flex container` with the sentence saying a small
+script puts the spacing back on an engine without it. Export the SPX package: the html carries
+one line, `<script src="js/flex-gap-shim.js">`, beside GSAP's, and the file is in `js/`.
+
+**On the real servers, on this laptop:** three designs are exported twice each into `C:\casparcg\templates\bk\` (and the 2.5 install's
 `template\bk\`): `<id>.html` as the app exports it today, `<id>-noshim.html` with the script cut
 out. Start ONE server (both want port 5250), then:
 

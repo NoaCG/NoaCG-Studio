@@ -127,10 +127,10 @@ export — a graphic that needs Chromium 111 is completely correct in SPX, in a 
 has not been updated since 2023, both of which embed a Chromium 103 engine. The per-system list
 on that screen is what tells you which case you are in.
 
-**Which CEF does my server actually have?** The 2.3 line shipped more than one, so the version
-number alone does not settle it. Load the production's output URL with `&debug=1` and read the
-`engine:` line on the status readout — that is the browser doing the rendering, reporting
-itself.
+**Which CEF does my server actually have?** The version string does not settle it: the
+official 2.3.3 LTS download answers `VERSION` with `2.3.2`, and a server built by someone else
+can carry any CEF. Load the production's output URL with `&debug=1` and read the `engine:` line
+on the status readout, which is the browser doing the rendering, reporting itself.
 
 Maintainers: `node scripts/engine-floor.mjs` sweeps the whole catalogue against a chosen engine
 (`--engine casparcg-24`, `--chromium 80`) and reports per design and per declaration.

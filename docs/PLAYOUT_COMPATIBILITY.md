@@ -58,18 +58,22 @@ What is deliberately excluded, and why:
   one zip a school downloads today, 17,000 downloads) unpacks to a binary that answers `VERSION`
   with `2.3.2 4de6d18f Dev` and ships CEF 3.3578. There is no 2.3 with Chromium 88 to download.
 
-  What that engine costs the catalogue, measured with `scripts/engine-floor.mjs --chromium 71`
-  on 2026-09-10 (504 designs): `color-mix()` 229, `backdrop-filter` 199, the `inset` shorthand
-  169, `clamp()`/`min()`/`max()` 18 (`min()` in `src/templates/shared/base.ts` carries its own
-  fallback), `aspect-ratio` 6 — and flex `gap`, lexically 319, which is handled: every composed
-  document and every export carries `src/assets/flexGapShim.js`, which puts a flex gap back as
-  margins on an engine without it and returns at its first line on any engine with it
-  (`scripts/flex-gap-sweep.mjs` measures every design native-against-shimmed). The rest stays
-  unhandled on purpose: a runtime `color-mix()` would mean re-parsing every stylesheet for
-  colour arithmetic, and `inset` and `backdrop-filter` are dropped from the CSSOM outright, so
-  a shim would have to work from the stylesheet text. Those are a decision about supporting
-  2.3 as a whole, not a spacing fix, and they are recorded as open in
-  `docs/handoffs/2026-09-10-bk-flex-gap-on-old-engines.md`.
+  **The rule for that tier, in three parts.** Designs are authored against the floor, so on 2.3
+  a design gets by construction only what Chromium 71 understands. On top of that the studio
+  restores at runtime what the engine PARSES but does not LAY OUT, because the CSSOM still
+  carries the value and a script can read it back: flex `gap` is the one such feature, and
+  `src/assets/flexGapShim.js` rides in every composed document and every export (inline in the
+  preview, the output page, the render and the single-file targets; as `js/flex-gap-shim.js`
+  beside GSAP in the SPX, show and dual packages; as `lib/flex-gap-shim.js` in the OGraf and
+  LiveOS packages), puts the gap back as margins there and returns at its first line on any
+  engine with it. What the engine DROPS from the CSSOM is not restored: `color-mix()` (229
+  designs), `backdrop-filter` (199), the `inset` shorthand (169), `clamp()`/`min()`/`max()` (18,
+  and `min()` in `src/templates/shared/base.ts` carries its own fallback) and `aspect-ratio`
+  (6), all measured with `scripts/engine-floor.mjs --chromium 71` on 2026-09-10 over 504
+  designs. Restoring those would mean re-parsing the stylesheet TEXT rather than reading the
+  CSSOM, which is a decision about supporting 2.3 as a whole, not a spacing fix; it is open in
+  `docs/handoffs/2026-09-10-bk-flex-gap-on-old-engines.md`. `scripts/flex-gap-sweep.mjs`
+  measures every design native-against-shimmed and is the gate on the shim.
 - **OBS 30.x and vMix 27 (103).** Below the floor, so a design using `color-mix()` (111) loses
   its fills there. A current OBS is fine; vMix has never been measured here. Left as a known,
   recorded gap rather than a reason to migrate 189 declarations speculatively — revisit if a real

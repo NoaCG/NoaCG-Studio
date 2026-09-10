@@ -162,6 +162,9 @@ export function importHtmlTemplate(
     // Our own injected control receiver is re-added at export time — drop it on import so
     // a round-trip stays faithful (same as we drop a bundled GSAP blob below).
     if (/spx-control-receiver/.test(attrs)) return '';
+    // The flex-gap shim likewise: every composer and exporter re-adds it, so it is stripped by
+    // its id here rather than recognised by its size or wording.
+    if (/noacg-flex-gap/.test(attrs)) return '';
     const trimmed = body.trim();
     if (!trimmed) return '';
     if (trimmed.length > 12000 && /gsap|GreenSock/i.test(trimmed.slice(0, 400))) return '';

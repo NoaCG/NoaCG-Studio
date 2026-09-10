@@ -159,8 +159,8 @@ export const SUPPORTED_FLOOR = 117;
  * 2026-08-06 acceptance pass saw `inset` (87) and flex `gap` (84) render on "a 2.3.x server"
  * (at or above 88). On 2026-09-10 the install named `v2.3.3-lts-stable` reported `Chromium 71`
  * on the output page's own `&debug=1` line, its libcef.dll is CEF 3.3578 (the Chromium 71
- * branch), and the house scorebug aired on it with its flex gaps COLLAPSED — label flush against
- * number — beside the same production on 2.5.0 where they are there. So the low bound was right
+ * branch), and the house scorebug aired on it with its flex gaps COLLAPSED, label flush against
+ * number, beside the same production on 2.5.0 where they are there. So the low bound was right
  * and the high one described some other machine: the official 2.3.3 LTS release on GitHub
  * (2021-03-16, the one zip a school downloads today) unpacks to a binary that answers `VERSION`
  * with `2.3.2 4de6d18f Dev` and ships that same CEF. There is no 2.3 with Chromium 88 to
@@ -329,7 +329,7 @@ export function scanEngineSupport(template: SpxTemplate): EngineSupport {
   for (const f of findings) if (!byFeature.has(f.feature.id)) byFeature.set(f.feature.id, f);
   const unique = [...byFeature.values()].sort((a, b) => b.feature.since - a.feature.since);
   return {
-    // Cosmetic and shimmed findings are listed but never raise the bar — see EngineFeature.effect.
+    // Cosmetic and shimmed findings are listed but never raise the bar - see EngineFeature.effect.
     minChromium: unique.reduce((max, f) => (raisesTheBar(f.feature.effect) ? Math.max(max, f.feature.since) : max), 0),
     findings: unique,
   };

@@ -13,7 +13,8 @@ import { templateUsesLottie } from '../assets/lottieSupport';
 import { inlineBundledFonts } from './bundledFonts';
 import { fontLicenseComment } from '../model/fonts';
 import type { SpxTemplate } from '../model/types';
-import { appendToBody, flexGapShimTag, injectProjectFormatMeta } from './common';
+import { flexGapShimTag } from '../assets/flexGapSupport';
+import { appendToBody, injectProjectFormatMeta } from './common';
 
 /**
  * Build the single-file HTML: strip external refs, inline everything. `extraBodyScripts` are

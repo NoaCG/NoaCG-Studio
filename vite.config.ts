@@ -103,7 +103,7 @@ export default defineConfig(({ command, mode }) => {
       // es2017, not es2020: CasparCG 2.3.x LTS (the common student/school install) embeds a
       // Chromium 71 CEF (CEF 3.3578 - read off libcef.dll and the output page's own `&debug=1`
       // line on the v2.3.3-lts-stable download, 2026-09-10; an earlier guess here said 63) that
-      // cannot PARSE optional chaining / nullish coalescing — the output page died there with
+      // cannot PARSE optional chaining / nullish coalescing. The output page died there with
       // "Uncaught SyntaxError: Unexpected token ?" on a real server.
       // Lowering the target transpiles the syntax across every bundle (runtime APIs are
       // shimmed in output.html, the one page those renderers load).

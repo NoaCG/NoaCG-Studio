@@ -10,11 +10,11 @@ import {
   addControlPanel,
   addSharedAssets,
   injectControlReceiver,
-  injectFlexGapShim,
   injectProjectFormatMeta,
   spxReadme,
 } from '../common';
 import { ensureExternalRefs } from '../../model/externalRefs';
+import { ensureFlexGapShimRef } from '../../assets/flexGapSupport';
 import { slug } from '../../model/slug';
 import { onAirGuideMd } from '../onAirGuide';
 import { fieldReferenceMd } from '../fieldReference';
@@ -46,12 +46,14 @@ export async function buildStarterInto(
   opts?: { entries?: ControlEntry[]; fileName?: string },
 ): Promise<void> {
   const fileName = opts?.fileName ?? `${slug(template.name)}.html`;
-  // The shim goes in at export, like the receiver: SPX hands this file to CasparCG's own engine,
-  // which on 2.3.x has no flex gap, and the template's code stays as the person wrote it.
+  // The flex-gap shim's reference goes in at export, like the receiver: SPX hands this file to
+  // CasparCG's own engine, which on 2.3.x has no flex gap, and the template's code stays as the
+  // person wrote it - one script line more, pointing at the file addSharedAssets writes.
   root.file(
     fileName,
-    injectFlexGapShim(
-      injectControlReceiver(injectProjectFormatMeta(ensureExternalRefs(template.html), template), template),
+    injectControlReceiver(
+      injectProjectFormatMeta(ensureFlexGapShimRef(ensureExternalRefs(template.html)), template),
+      template,
     ),
   );
   root.file('css/template.css', cssForSubfolder(template.css));

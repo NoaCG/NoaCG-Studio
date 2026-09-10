@@ -42,23 +42,31 @@ those features, 92 more needed only the gap fix); if it can run 2.5, everything 
   `backdrop-filter` 199, `inset` 169, `clamp()/min()/max()` 18, `aspect-ratio` 6. 60 designs are
   clean; 92 are broken by gap and nothing else; 352 stay wrong after a gap fix.
 - Rendered, `scripts/flex-gap-sweep.mjs` (new, this row): every design composed and settled at
-  1920x1080, then every flex gap zeroed the way CEF 71 does it. **286 designs carry a flex gap
-  between two or more painted items - 822 containers - and 283 of them move visibly when it
+  1920x1080, then every flex gap zeroed the way CEF 71 does it. **289 designs carry a flex gap
+  between two or more painted items - 857 containers - and 286 of them move visibly when it
   collapses**, by up to 688px (the crawl) and typically 20-100px. That is the real number: not
   273 files, not 319 designs, and it is nine tenths of the catalog's flex gaps being load-bearing.
 
 ## The mechanism (step 4), and why the others lost
 
-**Chosen: a runtime shim, `src/assets/flexGapShim.js`, injected beside GSAP by the three
-composers** - `preview/composeDocument.ts` (the editor, every preview, and the output page),
-`export/selfContained.ts` (the CasparCG, H2R and HTML-overlay single files) and
-`export/targets/spxStarter.ts` (the SPX folder and the show and dual packages, inlined at export
-the way the control receiver already is). A feature test runs first; on Chromium 84+ the script
-returns at line one. Below that it reads each flex container's computed gap, direction, wrap and
-in-flow items from the live layout and writes the gap as inline margins on the items, undoing its
-own writes before every pass so it always reads the authored value, and a MutationObserver refits
-whatever a rebuild or a class toggle touched. Wrapped containers get the cross gap on every line
-after the first, found from where the browser actually broke the lines.
+**Chosen: a runtime shim, `src/assets/flexGapShim.js`, carried beside GSAP by everything that
+composes or exports a document.** `src/assets/flexGapSupport.ts` is its one home and says how it
+travels: inline, as one tag with the id `noacg-flex-gap`, in `preview/composeDocument.ts` (the
+editor, every preview, the output page), `render/composeRenderDocument.ts` and
+`export/selfContained.ts` (the CasparCG, H2R and HTML-overlay single files); as the sibling file
+`js/flex-gap-shim.js` referenced by one html line beside GSAP's in the SPX, show and dual packages
+(`ensureFlexGapShimRef` at export, `addSharedAssets` writes the file); as `lib/flex-gap-shim.js`
+loaded by the OGraf module the way it loads GSAP. The importer strips the inline tag by its id,
+like the control receiver, so a round trip never carries two. A feature test runs first; on
+Chromium 84+ the script returns at line one, and a second copy in one document returns too. Below
+that it reads each flex container's computed gap, direction, wrap and in-flow items (elements,
+bare text runs, in-flow `::before`/`::after`) from the live layout and writes the gap as inline
+margins on the items, undoing its own writes before every pass so it always reads the authored
+value. A MutationObserver refits whatever a rebuild or a class toggle touched, ignoring a style
+write that changed only transform, opacity or their kin (a GSAP tween writes one every frame),
+and takes its margins back off an element removed from its container. Wrapped containers get the
+cross gap on every line after the first, found from where the browser actually broke the lines
+(an item wholly past the line's cross-axis edge starts the next one).
 
 Why the others lost:
 
@@ -93,6 +101,34 @@ document with no layout (a display:none host frame) answers the feature probe wi
 engine, which would have switched the shim on in a modern browser; the observer's child-before-
 parent sort used "contains", which is not a total order; and the authored-margin array was
 indexed pre-sort and filled post-sort, wrong for a container using `order`.
+
+Then the review's eight fan-out legs reached the orchestrator and came back through the relay,
+about forty findings, and the second round fixed what they were right about (commit "Carry the
+flex-gap shim everywhere a document goes, and stop it churning under a tween"): a GSAP tween
+writes the tweened element's style attribute every frame, and the observer refitted its flex
+parent every frame - now a style record that changed only transform, opacity and their kin is
+dropped on a string compare, with `attributeOldValue`; an element removed from a container kept
+its margins - now `undo` runs on removal; nothing stopped two copies of the shim feeding each
+other's margins without end - now a window guard; the export tag had no id and the importer
+stripped it by the accident of its size and a word in its comment - now `noacg-flex-gap`,
+stripped by id; the SPX splice landed before the charset meta - now the folder packages carry a
+reference line at the end of the head and the file beside GSAP; the OGraf and LiveOS packages
+did not carry the shim while the scanner said every export did - now they do; the panel hid the
+listed `gap` finding on a clean design - now the list is offered whenever the scan found
+something; the sweep counted with a different item model than the shim fixes - now it reads the
+shim's own list from the simulated frame; the sweep's `<head>` regex also matched `<header>`;
+wrap detection compared main-axis positions and missed a centred second line that is wider than
+the first - now it reads the cross axis against the line's running edge; and startup ran the full
+pass up to four times inside a second - now load, fonts and resize share one frame.
+
+Weighed and declined, with the reason: the half-gap mechanism (every item half a gap on both
+sides, the container minus half a gap) makes the wrap fit identical to native, but widens every
+container's box by one gap, wrong wherever a container paints its own background or has a set
+width, which in this catalog is most of them; the one-gap band where the facing-side margin can
+differ from native holds no catalog design, and the shim's header says so. Replacing
+`effect: 'shimmed'` with an orthogonal marker so the verdict could differ per target became
+unnecessary once every target carries the shim. Rewriting the comments in `qz01`, `gt03` and
+`dc01` that avoid `gap` by hand moves the catalog emit baseline and is a row of its own (below).
 
 ## The scanner's verdicts
 
@@ -172,6 +208,19 @@ base had fallen at BH's tip; the merge and a `contracts:compile` re-run (no chan
 - `scripts/flex-gap-sweep.mjs` runs by hand; it is not in CI or the nightly. It costs one browser
   for about eight minutes. Adding it to the catalog battery with `--fail` is the gate that keeps
   the shim honest when a design starts doing something new with flex.
-- The OGraf and LiveOS packages do not carry the shim: their renderer is a modern page, and the
-  OGraf `graphic.mjs` loads its libraries through its own loader, so it was left alone on
-  purpose rather than half-wired.
+- `src/templates/quiz/qz01.ts`, `gameTimers/gt03.ts` and `scoreboards/dc01.ts` each carry a
+  paragraph explaining why they avoid flex `gap` for an older CasparCG. The shim makes that
+  paragraph wrong, and the AI adapt path reads design comments as reference style, so it will go
+  on turning `gap` into sibling margins for a reason the product now handles. Rewording them is
+  three comment edits plus a deliberate re-record of `e2e/catalog-baseline.json` (emitted code
+  is byte-compared), which is why it is not in this branch.
+- The engine number is restated by hand in about fourteen comments and doc tables while
+  `PLAYOUT_ENGINES` is declared the single home. A check beside `check-client-neutral.mjs` that
+  reads `engineSupport.ts` and asserts the doc rows match would end the rewrites; this branch
+  was the third.
+- The sweep's `--expose-gc` lesson (a double-render sweep must collect between batches, or a
+  16 GB laptop thrashes) belongs in `contracts/rules` with a `scripts/` scope; it is in this
+  handoff's prose only.
+- The sweep spends about five minutes of a run in fixed settle sleeps and walks every element's
+  ancestors for `painted`; polling `gsap.globalTimeline.isActive()` with the sleep as a cap and
+  one top-down pass would take a third off. Not done because the run is a gate, not a hot path.

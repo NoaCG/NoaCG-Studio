@@ -93,7 +93,6 @@ await page.evaluate(
           ? '#' + el.id
           : el.tagName.toLowerCase();
     const isFlex = (d) => d === 'flex' || d === 'inline-flex';
-    const inFlow = (cs) => cs.display !== 'none' && cs.position !== 'absolute' && cs.position !== 'fixed';
     // Painted, as a viewer would judge it: no display:none / visibility:hidden / opacity 0 on the
     // element or any ancestor, and a box that is not empty.
     const painted = (el, w) => {
@@ -124,24 +123,24 @@ await page.evaluate(
         return { label: label(el), painted: painted(el, w), x: r.left, y: r.top, w: r.width, h: r.height };
       });
     // The containers that actually carry a gap between items - the number the whole sweep exists
-    // to report - and the px each would lose on the main axis.
+    // to report - read off the SHIMMED frame, where the shim lists what it handled
+    // (`window.NOACG_FLEX_GAP_HANDLED`, kept only in simulation). Counting here with a second
+    // rule would drift from the shim's the first time the shim learned a new kind of item; this
+    // way the count is the shim's own, by construction. The px each loses is on the main axis.
     const liveContainers = (w) => {
       const out = [];
-      for (const el of w.document.body.querySelectorAll('*')) {
+      const handled = w.NOACG_FLEX_GAP_HANDLED;
+      if (!handled) throw new Error('the shimmed frame has no NOACG_FLEX_GAP_HANDLED - did the shim run in simulation?');
+      for (const [el, info] of handled) {
+        if (!el.isConnected) continue;
         const cs = w.getComputedStyle(el);
-        if (!isFlex(cs.display)) continue;
-        const rowGap = parseFloat(cs.rowGap) || 0;
-        const colGap = parseFloat(cs.columnGap) || 0;
-        if (!(rowGap > 0) && !(colGap > 0)) continue;
-        const items = Array.from(el.children).filter((c) => inFlow(w.getComputedStyle(c)));
-        if (items.length < 2) continue;
         const horizontal = cs.flexDirection.indexOf('row') === 0;
-        const mainGap = horizontal ? colGap : rowGap;
+        const mainGap = horizontal ? info.columnGap : info.rowGap;
         out.push({
           label: label(el),
-          items: items.length,
+          items: info.items,
           mainGap,
-          losesPx: mainGap * (items.length - 1),
+          losesPx: mainGap * (info.items - 1),
           wrap: cs.flexWrap !== 'nowrap',
           painted: painted(el, w),
         });
@@ -193,8 +192,11 @@ await page.evaluate(
             let doc = window.__comp.composeDocument(v.create({}));
             if (simulate) {
               // The flag has to be set before the shim runs; the shim sits at the end of <head>.
+              // `<head` followed by a space or `>`, so a body's <header> can never be mistaken
+              // for it and leave both frames laying out natively, which would pass vacuously.
               const flag = '<script>window.NOACG_SIMULATE_NO_FLEX_GAP = true;</script>';
-              doc = /<head[^>]*>/i.test(doc) ? doc.replace(/<head[^>]*>/i, (m) => m + flag) : flag + doc;
+              const head = /<head(\s[^>]*)?>/i;
+              doc = head.test(doc) ? doc.replace(head, (m) => m + flag) : flag + doc;
             }
             f.srcdoc = doc;
           } catch (e) {
@@ -222,7 +224,7 @@ await page.evaluate(
           const sw = shimmed.contentWindow;
           freeze(nw);
           freeze(sw);
-          const containers = liveContainers(nw);
+          const containers = liveContainers(sw);
           const before = boxes(nw);
           collapse(nw);
           nw.document.body.getBoundingClientRect(); // force the collapsed layout

@@ -573,6 +573,10 @@ const CORE = [
   // full suite is a superset - and it fails toward running MORE, the direction this script
   // says its safety comes from.
   /^src\/assets\/gsap\.min\.js$/,
+  // The flex-gap shim and its carrier are inlined into every composed document and every
+  // export the same way GSAP is, so an edit there has the same fan-out.
+  /^src\/assets\/flexGapShim\.js$/,
+  /^src\/assets\/flexGapSupport\.ts$/,
   /^e2e\/_/,
   // The suite's own machinery, which lives under scripts/ but is imported by the Playwright
   // configs and by the offline globalSetup: the port every spec connects to, the worker count,
