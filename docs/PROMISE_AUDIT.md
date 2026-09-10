@@ -76,8 +76,10 @@ those first, and this run says nothing about that half.
 | `codex plugin add noacg@noacg-studio` | 0.2 s |
 | `npx -y @noacg/cli doctor` (the prompt's own verify step, cold npm cache) | 18.0 s |
 
-`claude plugin list` then shows `noacg@noacg-studio` 0.3.1 enabled, carrying the skill and the
-`/noacg:graphic` command and no MCP server. `doctor` names the deployment, the browser, the bridge
+`claude plugin list` then reports `noacg@noacg-studio` 0.3.1, scope user, enabled. What it
+delivered is read off the installed directory rather than that summary: the
+`skills/noacg-graphic/` tree and `commands/graphic.md` are there and no `.mcp.json` is, which is
+the split holding on the Claude side too. `doctor` names the deployment, the browser, the bridge
 version, the fresh config directory and "not logged in". The optional `noacg-mcp` plugin installs
 on Codex the same way and registers the server; `docs/AGENT_CLI.md` carries that walk.
 
