@@ -63,6 +63,12 @@ button.reset-armed {
   .topbar button { padding: 6px 9px; }
   .topbar .brand-home { padding: 2px 3px; }
 }
+/* An unknown authored format is a warning, not the decorative resolution line the narrow-width
+   rule hides. Keep that warning visible and use the same amber signal as an armed reset. */
+.topbar .topbar-meta[data-format-unsupported='true'] {
+  display: inline;
+  color: var(--amber);
+}
 /* The last step before the mobile layout takes over: at 1100 the bar was still 18px over with
    the save word already gone, so the spacing tightens rather than a control disappearing. It
    starts at 1240 rather than at the width that was failing - 1200 cleared by three pixels, which

@@ -20,6 +20,7 @@ import { saveProject } from '../model/project';
 import { commitDurableWrites } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
+import { validateProjectFormat } from '../model/projectFormat';
 
 /** Persist the working slot's save link NOW — the autosave subscription only fires on a
  *  template change, and a Save that changes nothing else must still survive a reload. */
@@ -68,7 +69,9 @@ export async function saveCurrentGraphic(opts?: {
     s.setSaved({ ...s.saved, status: 'failed' });
     return 'failed';
   }
-  s.setSaved({ graphicId: doc.id, dirty: false, status: 'idle' });
+  // An unknown catalogue format is not a broken document, so the save lands and reports it.
+  const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
+  s.setSaved({ graphicId: doc.id, dirty: false, status: 'idle', formatIssues });
   persistLink();
   return 'saved';
 }
@@ -93,7 +96,10 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
   if (doc.template.name !== s.template.name) {
     useTemplateStore.setState({ template: { ...s.template, name: doc.name } });
   }
-  useTemplateStore.getState().setSaved({ graphicId: doc.id, dirty: false, status: 'idle' });
+  // An unknown catalogue format is not a broken document, so the save lands and reports it.
+  const workingTemplate = useTemplateStore.getState().template;
+  const formatIssues = validateProjectFormat(workingTemplate.resolution, workingTemplate.fps);
+  useTemplateStore.getState().setSaved({ graphicId: doc.id, dirty: false, status: 'idle', formatIssues });
   persistLink();
   return { ok: true, error: null };
 }

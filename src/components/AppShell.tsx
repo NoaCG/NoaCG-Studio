@@ -17,6 +17,7 @@ import ModerationQueue from './ModerationQueue';
 import BrandLogo from './BrandLogo';
 import NewGraphicButton from './NewGraphicButton';
 import SaveControls from './save/SaveControls';
+import ProjectFormatMeta from './ProjectFormatMeta';
 import { BetaFeedbackButton } from './feedback/BetaFeedback';
 import InsertTemplateDialog from './InsertTemplateDialog';
 import { useRouter } from '../app/router';
@@ -336,9 +337,7 @@ export default function AppShell() {
         </a>
         <span className="divider-dot" aria-hidden="true">·</span>
         <span className="tpl-name">{template.name}</span>
-        <span className="topbar-meta mono muted">
-          {template.resolution.width}×{template.resolution.height} · {template.fps}&thinsp;fps
-        </span>
+        <ProjectFormatMeta template={template} className="topbar-meta mono muted" testId="topbar-project-format" />
         <SaveControls />
         {/* THE NAVIGATION PAIR, straight after the identity lockup and always on the LEFT
             (owner walk, 2026-08-29): logo · what you are working on · its save state, then Home,

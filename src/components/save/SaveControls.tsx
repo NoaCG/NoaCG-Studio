@@ -57,15 +57,17 @@ export default function SaveControls() {
   }, [menuOpen]);
 
   const status =
-    saved.status === 'saving' ? { text: 'Saving…', cls: 'save-status' }
-    : saved.status === 'failed' ? { text: 'Save failed', cls: 'save-status save-status-bad' }
-    : !saved.graphicId ? { text: 'Not saved', cls: 'save-status save-status-dirty' }
-    : saved.dirty ? { text: 'Unsaved changes', cls: 'save-status save-status-dirty' }
-    : { text: 'Saved', cls: 'save-status save-status-ok' };
+    saved.status === 'saving' ? { text: 'Saving…', cls: 'save-status', title: undefined }
+    : saved.status === 'failed' ? { text: 'Save failed', cls: 'save-status save-status-bad', title: undefined }
+    : !saved.graphicId ? { text: 'Not saved', cls: 'save-status save-status-dirty', title: undefined }
+    : saved.dirty ? { text: 'Unsaved changes', cls: 'save-status save-status-dirty', title: undefined }
+    : saved.formatIssues?.length
+      ? { text: 'Saved · unsupported format', cls: 'save-status save-status-dirty', title: saved.formatIssues.join(' ') }
+    : { text: 'Saved', cls: 'save-status save-status-ok', title: undefined };
 
   return (
     <span className="save-controls" ref={wrapRef}>
-      <span className={status.cls} data-testid="save-status">{status.text}</span>
+      <span className={status.cls} data-testid="save-status" title={status.title}>{status.text}</span>
       <button
         className={saved.dirty || !saved.graphicId ? 'primary save-btn' : 'save-btn'}
         onClick={save}
