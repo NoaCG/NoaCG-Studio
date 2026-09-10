@@ -438,7 +438,11 @@ export function enqueuesWork(text) {
  * scripts that bring their own server (Playwright configs do; nothing here does).
  */
 export const DEV_SERVER_DEPENDENT_SCRIPTS =
-  'ai-lite-calibrate|ai-lite-regress|ai-vision-dataset|catalog-geometry|catalog-sameness|engine-floor'
+  // `docs-shots` connects to `http://localhost:<dev-port.mjs>` and photographs the wizard for the
+  // public docs page. It was already on the browser-job list above and missing from this one, so a
+  // queued run with no server started, failed on connection refused, and read as a broken script.
+  'docs-shots'
+  + '|ai-lite-calibrate|ai-lite-regress|ai-vision-dataset|catalog-geometry|catalog-sameness|engine-floor'
   + '|factory|field-coverage|footprint-stability-sweep|import-suggest-audit|lite-on-pro-bank'
   + '|make-render-manifest|numerals|occlusion-sweep|overflow-sweep|pack8-shots|palette-freedom'
   + '|plate-legibility-sweep|pro-harness-spike|pro-iterate-spike|pro-spike|pro-taste-rejudge|pro-type-calibrate|probe-composition'
