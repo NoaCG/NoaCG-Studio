@@ -63,6 +63,14 @@ button.reset-armed {
   .topbar button { padding: 6px 9px; }
   .topbar .brand-home { padding: 2px 3px; }
 }
+/* An authored format the catalogue does not offer is worn in amber, the same signal as an armed
+   reset. It does NOT come back below 1400: the ladder above was measured element by element, and
+   a 1366 bar that is signed in has about 70px of slack, while this line is ~140px. Putting it
+   back there is exactly the overflow the ladder exists to prevent, and the warning is not lost -
+   the canvas chip carries it at every width, and the save word carries its own. */
+.topbar .topbar-meta[data-format-unsupported='true'] {
+  color: var(--amber);
+}
 /* The last step before the mobile layout takes over: at 1100 the bar was still 18px over with
    the save word already gone, so the spacing tightens rather than a control disappearing. It
    starts at 1240 rather than at the width that was failing - 1200 cleared by three pixels, which
