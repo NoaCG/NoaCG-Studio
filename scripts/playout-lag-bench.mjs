@@ -33,11 +33,11 @@
 // `longtask` observer missed on 2026-09-05.
 //
 // WHAT IT FOUND on 2026-09-10 is in docs/backlog/playout-lag-when-working-the-queue.md, and the
-// short version is worth carrying here so nobody re-derives the trap: on the BUILT app a Take
-// paints in 29 ms and an Out in 30 ms, the preview rebuild costs ONE FRAME, and nothing freezes
-// the page for longer than a frame. On the DEV SERVER the same gestures take three to seven
-// times as long. Any latency number taken against `npm run dev` is a measurement of React's
-// development runtime, which is why this script has a `--measure` phase at all.
+// short version is worth carrying here so nobody re-derives the traps: on the BUILT app every
+// gesture paints in about 30 ms - Take, Out, and a Take pressed straight after moving in the
+// rundown - and the page never drops a frame. On the DEV SERVER the same gestures paint in 85-91
+// ms and drop three to four. Any latency number taken against `npm run dev` is a measurement of
+// React's development runtime, which is why this script has a `--measure` phase at all.
 //
 // Named `*-bench*` on purpose: that puts it inside SWEEP_SCRIPTS (scripts/command-match.mjs), so
 // it queues behind any other browser-driving job on this machine rather than competing with one.
@@ -52,10 +52,31 @@ import { execSync } from 'node:child_process';
 import { outDir } from './out-dir.mjs';
 
 const args = process.argv.slice(2);
-const positional = args.filter((a) => !a.startsWith('-'));
+/** Flags that consume the next argument - so its VALUE is never mistaken for the out-dir. */
+const VALUE_FLAGS = new Set(['--rounds', '--pool']);
+const positional = args.filter((a, i) => !a.startsWith('-') && !VALUE_FLAGS.has(args[i - 1]));
 const headless = args.includes('--headless');
-const roundsArg = args.indexOf('--rounds');
-const ROUNDS = roundsArg >= 0 ? Number(args[roundsArg + 1]) : 6;
+
+/**
+ * A whole-number flag value, or a refusal.
+ *
+ * `Number(undefined)` and `Number('six')` are both NaN, and NaN loses every comparison silently:
+ * `for (r = 0; r < NaN; r++)` runs zero times, so a mistyped `--rounds` used to write a results
+ * file with an empty `runs` array, print the summary header with no rows under it, and exit 0.
+ * A bench that reports nothing while claiming success is worse than one that refuses.
+ */
+function intFlag(name, fallback) {
+  const at = args.indexOf(name);
+  if (at < 0) return fallback;
+  const value = Number(args[at + 1]);
+  if (!Number.isFinite(value) || value < 1 || !Number.isInteger(value)) {
+    console.error(`${name} takes a whole number of at least 1; got ${JSON.stringify(args[at + 1] ?? null)}.`);
+    process.exit(2);
+  }
+  return value;
+}
+
+const ROUNDS = intFlag('--rounds', 6);
 /**
  * TWO PHASES, because the number that matters can only come off the BUILT app.
  *
@@ -81,8 +102,9 @@ mkdirSync(out, { recursive: true });
 const port = execSync('node scripts/dev-port.mjs').toString().trim();
 const base = `http://localhost:${port}`;
 
-const gb = (bytes) => (bytes / 1024 ** 3).toFixed(2);
-const freeNow = () => ({ freeGb: Number(gb(freemem())), totalGb: Number(gb(totalmem())) });
+/** Bytes as gigabytes, two decimals - a number, not a string, because it goes into JSON. */
+const gb = (bytes) => Math.round((bytes / 1024 ** 3) * 100) / 100;
+const freeNow = () => ({ freeGb: gb(freemem()), totalGb: gb(totalmem()) });
 
 // ── The probes, injected at document start into EVERY frame ────────────────────────────────
 //
@@ -106,26 +128,23 @@ const FRAME_PROBE = `(() => {
       // A state poll is a round trip every 500-1000 ms and would drown the record; only the
       // commands a VERB sends are kept.
       if (!cmd || cmd === 'state' || cmd === 'measure') return fn.apply(this, arguments);
-      const rec = { cmd, arrived: abs(), played: null, painted: null, nextFrame: null };
+      const rec = { cmd, arrived: abs(), played: null, painted: null };
       try {
         return fn.apply(this, arguments);
       } finally {
         rec.played = abs();
         marks.push(rec);
-        requestAnimationFrame(() => {
-          rec.painted = abs();
-          requestAnimationFrame(() => { rec.nextFrame = abs(); });
-        });
+        requestAnimationFrame(() => { rec.painted = abs(); });
       }
     };
     return origAdd(type, wrapped, opts);
   };
   // The document's own boot, for the preview rebuild: parse start, then the first frame it can
   // draw in. The graphic's fonts, GSAP and the fit ladder all land between these two.
-  marks.push({ cmd: '__parse', arrived: abs(), played: abs(), painted: null, nextFrame: null });
+  marks.push({ cmd: '__parse', arrived: abs(), played: abs(), painted: null });
   window.addEventListener('load', () => {
     const t = abs();
-    const rec = { cmd: '__load', arrived: t, played: t, painted: null, nextFrame: null };
+    const rec = { cmd: '__load', arrived: t, played: t, painted: null };
     marks.push(rec);
     requestAnimationFrame(() => { rec.painted = abs(); });
   });
@@ -143,7 +162,10 @@ const HOST_PROBE = `(() => {
   const abs = () => performance.timeOrigin + performance.now();
   const h = { frames: [], clicks: [], plays: [], srcdoc: [], previewLoads: [] };
   window.__lagHost = h;
-  const tick = () => { h.frames.push(abs()); if (h.frames.length > 4000) h.frames.shift(); requestAnimationFrame(tick); };
+  // Trimmed in rare batches rather than shifted per frame: this runs in the page whose latency
+  // is the subject, and an O(n) shift on every animation frame would be the instrument creating
+  // what it measures. HOST_READ empties it once per gesture, so the cap is a safety net.
+  const tick = () => { h.frames.push(abs()); if (h.frames.length > 8000) h.frames.splice(0, 4000); requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
   document.addEventListener('click', (ev) => {
     const el = ev.target instanceof Element ? ev.target.closest('[data-testid],.pd-cue-label') : null;
@@ -152,16 +174,22 @@ const HOST_PROBE = `(() => {
   const stage = document.querySelector('[data-testid="program-stage"]');
   if (stage) new MutationObserver(() => h.plays.push({ t: abs(), plays: Number(stage.getAttribute('data-plays') || 0) }))
     .observe(stage, { attributes: true, attributeFilter: ['data-plays'] });
+  // Returns whether the observers are on a LIVE element, so a caller can tell "the document was
+  // not rebuilt" apart from "nothing was watching". The element mark is what makes re-calling
+  // this free on the common path where React kept the same node.
   const attachPreview = () => {
     const frame = document.querySelector('[data-testid="production-preview"] iframe');
-    if (!frame || frame.__lagAttached) return;
+    if (!frame) return false;
+    if (frame.__lagAttached) return true;
     frame.__lagAttached = true;
     new MutationObserver(() => h.srcdoc.push({ t: abs(), bytes: (frame.getAttribute('srcdoc') || '').length }))
       .observe(frame, { attributes: true, attributeFilter: ['srcdoc'] });
     frame.addEventListener('load', () => h.previewLoads.push(abs()));
+    return true;
   };
   attachPreview();
-  // The frame node is React-stable, but the preview is absent until a cue is selected.
+  // The preview subtree is absent until a cue is selected, and conditional after that, so this
+  // is re-called before every measured gesture rather than once.
   window.__lagAttachPreview = attachPreview;
 })();`;
 
@@ -173,12 +201,20 @@ const HOST_READ = `(() => {
   return out;
 })();`;
 
-/** The largest gap between consecutive animation frames in a window - the freeze an operator feels. */
+/**
+ * The largest gap between consecutive animation frames in a window - the freeze an operator feels.
+ *
+ * The left edge is CLAMPED to `from` rather than taken from the previous frame, because the frame
+ * before the gesture is by definition before it: an unclamped difference charges a stall that
+ * merely ENDED after the click to the click itself, and Playwright's own click preparation
+ * (scroll into view, hit testing) runs on the page in exactly that window. Charging the driver's
+ * work to the product is the one direction this number must not be wrong in.
+ */
 function frozeMs(frames, from) {
   let worst = 0;
   for (let i = 1; i < frames.length; i++) {
     if (frames[i] < from) continue;
-    worst = Math.max(worst, frames[i] - frames[i - 1]);
+    worst = Math.max(worst, frames[i] - Math.max(frames[i - 1], from));
   }
   return Number(worst.toFixed(1));
 }
@@ -228,8 +264,7 @@ const GRAPHICS = ['Arena Quiz', 'Quiet Score', 'Hairline'];
  * cross a template boundary; the 2026-09-12 rehearsal is a quiz plus a scoreboard plus whatever
  * else the night needs. Pass `--pool 8` to ask the question at that size.
  */
-const poolArg = args.indexOf('--pool');
-const POOL = poolArg >= 0 ? Math.max(3, Number(args[poolArg + 1])) : GRAPHICS.length;
+const POOL = Math.max(GRAPHICS.length, intFlag('--pool', GRAPHICS.length));
 
 let showId;
 let fixture;
@@ -355,12 +390,27 @@ async function frameMarks() {
 async function gesture(name, act, settleMs = 1200) {
   await page.evaluate(HOST_READ); // drop whatever the settle before this produced
   await frameMarks();
+  // Re-arm the preview observers EVERY time. `attachPreview` marks the element it attached to,
+  // so re-calling it is free when the node is the same one - and the node is not guaranteed to
+  // be: the preview subtree is conditionally rendered, and a remount would silently leave a
+  // fresh iframe with no `srcdoc` observer on it. `srcdocReplaced: 0` is the exact reading the
+  // whole "composed once per template" conclusion rests on, and a dead observer and a real
+  // no-rebuild look identical in the output. `observing` below says which one it was.
+  const observing = await page.evaluate(() => window.__lagAttachPreview?.() ?? false);
   const t0 = Date.now();
   await act();
   await page.waitForTimeout(settleMs);
   const host = await page.evaluate(HOST_READ);
   const marks = await frameMarks();
+  // TWO CLICKS, TWO CLOCKS. The families that move and then take fire two separate driver calls,
+  // and between them Playwright resolves a locator, runs its actionability checks and makes a
+  // CDP round trip - none of which an operator's hand pays. So the SELECTION half is measured
+  // from the first click and the VERB half from the last, and `interClickMs` publishes the gap
+  // between them rather than burying it inside the verb's number. Measuring both halves from
+  // the first click is what made an earlier pass of this bench report a Take as 33 ms slower
+  // after a selection when most of that was the driver.
   const click = host.clicks.length ? host.clicks[0].t : t0;
+  const verbClick = host.clicks.length ? host.clicks[host.clicks.length - 1].t : t0;
   const command = host.plays.length ? host.plays[0].t : null;
   // The command a VERB sends, not the settle burst the preview gets on selection.
   const verbMark = marks.find((m) => m.cmd === 'play' || m.cmd === 'stop' || m.cmd === 'dispatch') ?? null;
@@ -370,17 +420,24 @@ async function gesture(name, act, settleMs = 1200) {
     clickedWhat: host.clicks.length ? host.clicks[0].what : null,
     // The rebuild half: did the preview document get replaced at all, and how big was it?
     srcdocReplaced: host.srcdoc.length,
-    srcdocBytes: host.srcdoc.length ? host.srcdoc[host.srcdoc.length - 1].bytes : null,
+    srcdocBytes: host.srcdoc.length ? host.srcdoc[0].bytes : null,
     toSrcdocMs: host.srcdoc.length ? round(host.srcdoc[0].t - click) : null,
     toPreviewLoadMs: host.previewLoads.length ? round(host.previewLoads[0] - click) : null,
     toPreviewFirstFrameMs: bootMark && bootMark.painted ? round(bootMark.painted - click) : null,
-    // The verb half.
-    toCommandMs: command === null ? null : round(command - click),
-    toPlayedMs: verbMark ? round(verbMark.played - click) : null,
-    toPaintedMs: verbMark && verbMark.painted ? round(verbMark.painted - click) : null,
+    // The verb half - from the VERB'S own click, so a two-click family is comparable with a
+    // one-click one. `interClickMs` is the driver's, and is reported so it can be subtracted
+    // from nothing and believed as nothing.
+    interClickMs: host.clicks.length > 1 ? round(verbClick - click) : null,
+    toCommandMs: command === null ? null : round(command - verbClick),
+    toPlayedMs: verbMark ? round(verbMark.played - verbClick) : null,
+    toPaintedMs: verbMark && verbMark.painted ? round(verbMark.painted - verbClick) : null,
     handlerMs: verbMark ? round(verbMark.played - verbMark.arrived) : null,
-    // What the operator feels, whichever half caused it.
+    // What the operator feels, whichever half caused it - measured across the WHOLE gesture, so
+    // from the first click, because a freeze the selection caused is one he still waits out.
     frozeMs: frozeMs(host.frames, click),
+    // False = the preview observers were not on a live element for this gesture, so a
+    // `srcdocReplaced: 0` above means "not watched", not "not rebuilt".
+    observing,
     freeGb: freeNow().freeGb,
   };
 }
@@ -415,7 +472,19 @@ const OTHER = fixture.labels[1];
 const runs = [];
 const note = (o) => { runs.push(o); console.log(JSON.stringify(o)); };
 
-const buildLabel = measureOnly ? "dist (the BUILT app)" : "src (the DEV server - React dev runtime, not the product)";
+/**
+ * WHICH BUILD IS ACTUALLY ON THE PORT - asked of the server, never inferred from the flag.
+ *
+ * `--measure` says which PHASE this is, not what is being served: pointing it at a dev server is
+ * a legitimate thing to do (it is how the dev-versus-build comparison is taken), and a record
+ * that read the flag would then file a dev-server reading as "the BUILT app". Vite's dev server
+ * injects `/@vite/client` into every page it serves and a built bundle never contains it, so the
+ * question has a one-line answer that cannot drift.
+ */
+const servedHtml = await (await fetch(`${base}/app`)).text();
+const buildLabel = servedHtml.includes('/@vite/client')
+  ? 'src (the DEV SERVER - React development runtime, not the product)'
+  : 'dist (the BUILT app)';
 console.log(`# playout lag bench — ${new Date().toISOString()} — ${JSON.stringify(freeNow())} — headless=${headless} — serving ${buildLabel}`);
 console.log(`# fixture: ${fixture.graphics.join(', ')} / ${fixture.labels.length} cues`);
 
@@ -493,13 +562,18 @@ const median = (xs) => {
   return v.length ? Number(v[Math.floor(v.length / 2)].toFixed(1)) : null;
 };
 const families = [...new Set(runs.map((r) => r.gesture.split(':')[0]))];
-console.log('\n# family                 n  srcdoc  toSrcdoc  toPvwFrame  toCommand  toPlayed  toPainted  froze');
+// `toCommand`, `toPlayed` and `toPainted` are from the VERB's click; `toSrcdoc` and `toPvwFrame`
+// from the selection's. `gap` is the driver's time between the two clicks in a two-click family -
+// it belongs to Playwright, not to the app, and is printed so it is never read as either.
+console.log('\n# family                 n  srcdoc      gap  toSrcdoc  toPvwFrame  toCommand  toPlayed  toPainted  froze');
 for (const f of families) {
   const rows = runs.filter((r) => r.gesture.split(':')[0] === f);
   const cell = (k) => String(median(rows.map((r) => r[k])) ?? '-').padStart(9);
+  const blind = rows.filter((r) => r.observing === false).length;
   console.log(
     `# ${f.padEnd(22)}${String(rows.length).padStart(2)}${String(median(rows.map((r) => r.srcdocReplaced)) ?? '-').padStart(8)}`
-    + `${cell('toSrcdocMs')}${cell('toPreviewFirstFrameMs')}${cell('toCommandMs')}${cell('toPlayedMs')}${cell('toPaintedMs')}${cell('frozeMs')}`,
+    + `${cell('interClickMs')}${cell('toSrcdocMs')}${cell('toPreviewFirstFrameMs')}${cell('toCommandMs')}${cell('toPlayedMs')}${cell('toPaintedMs')}${cell('frozeMs')}`
+    + (blind ? `   ${blind} round(s) NOT OBSERVED - the srcdoc column is blind for those` : ''),
   );
 }
 console.log(`\nWritten to ${join(out, 'playout-lag.json')}`);

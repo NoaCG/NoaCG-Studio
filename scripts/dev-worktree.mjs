@@ -79,6 +79,17 @@
 // nothing about the argument above is weakened. Run `npm run build` first; `vite preview` on a
 // stale or missing `dist/` serves a stale or missing app and says nothing about it.
 //
+// IT SERVES NO `/api`, AND THAT FAILS QUIETLY. All six API plugins (`renderDevPlugin`,
+// `aiDevPlugin`, `eventsDevPlugin`, `adminDevPlugin`, `meDevPlugin`, `dataDevPlugin`) implement
+// `configureServer` and nothing else, so `vite preview` never installs them. A request to
+// `/api/me/entitlement` or `/api/render` then does not 404 - the SPA fallback answers it with
+// `index.html` and a 200, the caller's `response.json()` throws, and a caller that degrades on
+// error (myEntitlement.ts does) reports its default as though the server had said so. Nothing
+// anywhere says the handler was missing. So this mode is right for measuring how the shipped
+// bundle BEHAVES and wrong for reproducing anything that crosses `/api`; for those, use the dev
+// server. The startup line below says so every time, because a caveat only in a header is one
+// nobody reads at the moment it matters.
+//
 // CLI:
 //   node scripts/dev-worktree.mjs        start the server for this checkout (npm run dev:worktree)
 //   node scripts/dev-worktree.mjs --preview  serve the BUILT dist/ on the same port
@@ -107,12 +118,28 @@ function where() {
     `Serving:   ${servesBuild ? 'dist/ - the BUILT app (run `npm run build` first)' : 'src/ - the dev server'}`,
     `App:       ${url}/app`,
     `Sweeps:    --base ${url}   (e.g. node scripts/svg-import-sweep.mjs --base ${url})`,
+    ...(servesBuild
+      ? [
+          '',
+          'NO /api IN THIS MODE. The API plugins are dev-server only, so `vite preview` serves',
+          'index.html with a 200 for every /api/* request instead of 404ing. Render, AI, events,',
+          'admin, /api/me and /api/data all fail silently here - use the plain dev server for',
+          'anything that crosses them. This mode is for how the SHIPPED bundle behaves.',
+        ]
+      : []),
   ].join('\n');
 }
 
 if (process.argv.includes('--print')) {
   console.log(where());
   process.exit(0);
+}
+
+// Before the port probe and before anything is printed: refusing after announcing a URL reads as
+// a server that started and then died.
+if (servesBuild && !existsSync(join(repoRoot, 'dist', 'index.html'))) {
+  console.error(`No built app at ${join(repoRoot, 'dist')} - run \`npm run build\` in this checkout first.`);
+  process.exit(1);
 }
 
 // The reservation is this checkout's identity, so a busy port is never "just pick another one":
@@ -170,10 +197,6 @@ console.log(`${where()}\n`);
 // says nothing about the preview one, and a preview server on a number nobody else derives would
 // break the single-source-of-port rule this file is built on.
 const viteArgs = servesBuild ? ['preview', '--port', String(record.port), '--strictPort'] : [];
-if (servesBuild && !existsSync(join(repoRoot, 'dist', 'index.html'))) {
-  console.error(`No built app at ${join(repoRoot, 'dist')} - run \`npm run build\` in this checkout first.`);
-  process.exit(1);
-}
 const child = spawn(process.execPath, [viteBin, ...viteArgs], {
   cwd: repoRoot,
   stdio: 'inherit',
