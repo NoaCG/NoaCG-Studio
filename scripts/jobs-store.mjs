@@ -49,14 +49,23 @@ export const KINDS = Object.freeze(['gate', 'merge', 'sweep']);
  * that is heavy here is heavy everywhere rather than in a second opinion that can drift.
  *
  * `walk` is the cost of ONE browser, and it exists because charging every unrecognised command a
- * whole suite cost a night's work: 2026-09-09, j-0888 was a single-page OGraf renderer walk and
- * sat refused for about three hours with "only 2.0-3.2 GB RAM free, needs 4.0" while six other
- * sessions landed around it. The session could not capture the frames for the beat it had just
- * proven, and pull request 212 shipped without pictures. Half a suite is a JUDGEMENT, not a
- * measurement: a suite is a dev server and four browser workers, a walk is that server and one
- * page, and half leaves the floor at 2 GB - reachable on this box, which 4 GB is not while the
- * owner has a browser open. Retune it from the logs the way `freeMemFloorMb` says to, once one
- * says what a walk actually costs.
+ * whole suite cost a night's work: 2026-09-09, j-0888 was an OGraf renderer walk and sat refused
+ * for about three hours with "only 2.0-3.2 GB RAM free, needs 4.0" while six other sessions
+ * landed around it. The session could not capture the frames for the beat it had just proven, and
+ * pull request 212 shipped without pictures. Half a suite is a JUDGEMENT, not a measurement: a
+ * suite is a dev server and four browser workers, a walk is that server and one page, and half
+ * leaves the floor at 2 GB - reachable on this box, which 4 GB is not while the owner has a
+ * browser open. Retune it from the logs the way `freeMemFloorMb` says to, once one says what a
+ * walk actually costs.
+ *
+ * AND READ j-0888 AS THE WEAKER EVIDENCE IT TURNED OUT TO BE. Its script landed on 2026-09-10 as
+ * `scripts/ograf-external-walk.mjs`, and reading it counts one `chromium.launch`, TWO pages and
+ * TWO spawned servers - heavier than the walk this default assumes, lighter than the four-worker
+ * suite it was charged. The same commit put it in `SWEEP_SCRIPTS`, so it now prices at a full 1.0
+ * by name. What j-0888 still proves is the half of this that is not a judgement call: the session
+ * KNEW its job was not a suite and had no way to say so. What it no longer proves is that 0.5 is
+ * the right guess for an unknown command. If the logs say the common unknown is nearer a whole
+ * browser, this is the number to move, and that measurement is the one to make first.
  *
  * IT FOLLOWS THAT TWO WALKS MAY RUN BY DAY WHERE ONE SUITE COULD, AND FOUR AT NIGHT. That is the
  * unit meaning what it says rather than a hole: the day budget spends at most ONE suite-equivalent

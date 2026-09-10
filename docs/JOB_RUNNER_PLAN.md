@@ -119,11 +119,18 @@ is heavy everywhere rather than in a second opinion that can drift.
 
 **The asymmetry decides the default, and it cuts both ways.** Charging an expensive job too little
 puts two dev servers and eight browser workers on a 16 GB laptop. Charging a cheap one too much
-stops it running at all: on 2026-09-09 a single-page renderer walk (j-0888) was charged a suite,
-and because the RAM floor scales with the cost it demanded 4 GB free and sat refused for about
-three hours while six other branches landed. So an unrecognised command is assumed to open ONE
-browser - never free, never a battery - and anything genuinely suite-sized is either on
-`command-match.mjs`'s list, queued `--kind sweep`, or given a `--cost`.
+stops it running at all: on 2026-09-09 a renderer walk (j-0888) was charged a suite, and because
+the RAM floor scales with the cost it demanded 4 GB free and sat refused for about three hours
+while six other branches landed. So an unrecognised command is assumed to open ONE browser - never
+free, never a battery - and anything genuinely suite-sized is either on `command-match.mjs`'s
+list, queued `--kind sweep`, or given a `--cost`.
+
+Read j-0888 as the weaker evidence it turned out to be, though. Its script landed the next day as
+`scripts/ograf-external-walk.mjs`, and it opens two pages and spawns two servers - heavier than
+the walk this default assumes, and the same commit listed it in `SWEEP_SCRIPTS`, so it prices at
+1.0 today. What it still proves is that a session which KNEW its job was small had no way to say
+so. Whether 0.5 is the right guess for an unknown command is open, and it is the number to move if
+the logs say otherwise.
 
 Budget, recomputed before every start and never cached:
 
