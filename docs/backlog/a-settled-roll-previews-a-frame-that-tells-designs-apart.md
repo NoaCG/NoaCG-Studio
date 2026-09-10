@@ -32,6 +32,12 @@ side in Browse (cr01, cr02, cr11, cr13) plus the Crawl design, which is the same
 
 ## Evidence
 
-`docs/acceptance/owner-queue/2026-09-06-d-a-credit-roll-that-runs-through.md`, "One thing you may
-not like, and it is a choice you can reverse". The related live-numbers gap on the same designs is
+**The four designs are `cr01`, `cr02`, `cr11` and `cr13`, plus the Crawl**, and the state to look
+at is what each shows in Browse without pressing play. The change that produced it landed on
+2026-09-06 on branch `claude/d-scroll-speed-and-through`, which made a roll run all the way through
+so that its settle is the closing mark rather than a frame of names; the preview settle recipe is
+what parks a graphic there. Filed to the owner queue the same day as
+`d-a-credit-roll-that-runs-through`, which recorded the consequence and offered it back.
+
+The related live-numbers gap on the same designs is
 `docs/backlog/a-live-number-that-does-not-move-a-credit-roll.md`.

@@ -10,9 +10,8 @@ its own text: a tally repaints them on every vote, so a typed value would vanish
 votes is the rehearsal road. The rest is two of the owner's three reported bugs, fixed and
 measured, which an agent confirms.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # THE VOTE BADGE FILLS ITS PILL, AND THE DEAD FIELDS ARE GONE
 

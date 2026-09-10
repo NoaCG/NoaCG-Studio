@@ -11,9 +11,8 @@ a thirty-second question never warns, no paint on artwork nobody drew, and Pause
 from the states. Nothing is left but whether the countdown behaves as described, which an agent
 drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A countdown you can hold, on artwork you drew
 

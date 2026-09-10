@@ -7,9 +7,8 @@ date: 2026-09-10
 The item says so itself: 'Nothing needs you. This is a fix to something we shipped the same day,
 not a decision waiting on you.' The route is drivable in a second browser window.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # An output URL renders the show and cannot operate it - 2026-09-10
 

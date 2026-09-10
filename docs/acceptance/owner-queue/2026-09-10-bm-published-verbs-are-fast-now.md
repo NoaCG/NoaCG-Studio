@@ -7,9 +7,8 @@ date: 2026-09-10
 Sixteen presses on the wire, before and after. The item asks nothing; it reports a fix to a lag
 the owner reported, and the probe re-derives it in thirty seconds.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A published Take is fast now, and so is air
 

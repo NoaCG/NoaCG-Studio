@@ -10,9 +10,8 @@ designer's artwork). The other, how much room a centred line gets, is a number t
 rather than a taste call - decided below. The rest is a claim an agent drives on two named
 fixtures.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A line whose exporter wrote its anchor now gets the alignment work too
 

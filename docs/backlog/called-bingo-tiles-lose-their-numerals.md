@@ -31,6 +31,14 @@ new game.
 
 ## Evidence
 
-`docs/acceptance/owner-queue/2026-09-06-bingo-caller-board.md`, "What to look at", third bullet.
+**The file is `e2e/fixtures/svg-shows/bingo-board.svg`**: twenty-five tiles, a hidden amber plate
+and a hidden white ring per number, the numerals named `Number 1` to `Number 25`. A called tile
+shows its amber plate with the numeral drawn white on top - white on the board's dark ground is
+right, and the same white on amber is the one pairing there below ordinary contrast. The board and
+the `row-set` recipe behind it landed on 2026-09-06 on branch
+`claude/add-control-row-set-field-d1d013`, and the route that shows it is the wizard's Import
+graphic door with `Call it` pressed on any number. Filed to the owner queue the same day as
+`bingo-caller-board`, which raised it as a question and had it decided on 2026-09-10.
+
 The decorative-numerals trap the same board avoided is
 `docs/backlog/decorative-numerals-arrive-as-fields.md`.

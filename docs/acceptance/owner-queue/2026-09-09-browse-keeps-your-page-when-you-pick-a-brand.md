@@ -7,9 +7,8 @@ date: 2026-09-09
 The question is which of three re-ordering controls is right, and it has an answer that satisfies
 both arguments in the item rather than trading them off - decided below.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # Three Browse controls re-order your results and only one of them keeps your place
 

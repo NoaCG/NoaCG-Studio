@@ -9,9 +9,8 @@ the avatar is the door. The half that was genuinely his - whether there is a goo
 in at all - is parked with his words on docs/backlog/signed-in-looks-identical-to-signed-out.md,
 which is where a parked ask belongs.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # YOU CAN SEE WHETHER YOU ARE SIGNED IN - AND IT NO LONGER SHOVES YOUR AVATAR OFF THE BAR
 

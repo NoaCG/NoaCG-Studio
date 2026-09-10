@@ -47,7 +47,17 @@ measurement above, and any centred score in a plate.
 
 ## Evidence
 
-`docs/acceptance/owner-queue/2026-09-04-a-stated-anchor-is-not-an-opt-out.md`, "How much room a
-CENTRED line gets - and the arithmetic says 'none'", which carries the three measured pairs. The
-plate-share distribution that settles the neighbouring threshold is in
-`docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md`.
+**The measurement, stated here rather than pointed at**, because it was taken on an owner-queue
+item and that directory is emptied one item at a time. On `figma-centred-title-card`, walked
+through the real importer on 2026-09-04, the three centred lines were offered **453, 701 and 319**
+units of room against drawn widths of **453, 702 and 319** - the offer equals the drawn width to
+within one unit on all three. The rule that produces it is the fit ladder's room calculation, and
+`e2e/fixtures/svg-corpus/figma-centred-title-card.svg` is the file that re-derives it.
+
+The same accident one level down, already fixed and so already regression-covered: a centred badge
+in a 260-unit pill was offered 143 units, and `PLEASE VOTE NOW` aired at 12.1 px where it now airs
+at 20.5 px. Filed to the owner queue on 2026-09-05 as `the-badge-fills-its-pill`; the durable copy
+is the fix itself and the spec that pins it.
+
+Landed history: `git log 0634d6bd -- e2e/fixtures/svg-corpus/figma-centred-title-card.svg` and the
+2026-09-04 alignment work on branch `claude/p-alignment-across-corpus`.

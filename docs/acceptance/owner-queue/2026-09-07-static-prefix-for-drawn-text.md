@@ -9,9 +9,8 @@ docs/acceptance/OWNER_QUEUE.md names this item as its worked example of what is 
 a prefix reads static: or d: is a naming default'. Decided below, in the direction the contract
 already argued.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # `static:` on a layer name: text that is drawing, not a field
 

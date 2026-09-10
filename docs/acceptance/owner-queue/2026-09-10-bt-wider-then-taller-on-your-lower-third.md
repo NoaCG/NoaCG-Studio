@@ -1,17 +1,25 @@
 ---
-kind: agent
+kind: walk
 date: 2026-09-10
+because: taste
 serves: now
 ---
-## Re-kinded to `agent`, 2026-09-10 - the four reasons drain
+## Kept as the owner's, 2026-09-10 - the four reasons drain
 
-The item says so itself: 'Nothing needs you. This is a walk, not a decision.' Both growth rungs
-and the unit-conversion fix are measured, and the whole fixture corpus is swept for the defect on
-every build.
+This item was re-kinded to `agent` during the drain and put back the same day, because the review
+of that drain caught what the re-kind had missed. Its own text says *"Nothing needs you. This is a
+walk, not a decision."* - but it now carries three items' worth of one road: this walk, plus the
+option naming and the growth fix it absorbed below, both of which were `serves: now` items on his
+own lists.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+That road is the one he has reported broken three times, most recently in the sentence this walk
+was built to answer: *"we need to ensure that all our shapes can grow when we want them to grow
+vertically as well."* Whether a plate that goes 1040 to 1640 and then 190 to 257 looks like the
+graphic he drew is his eye, and no gate asserts it. `because: taste`.
+
+It is also the wrong shape to re-kind an absorbing item in the commit that deletes what it
+absorbed: the re-kinding rule wants the conversion reviewable on its own, and folding three items
+into one and moving that one off his lists in a single step is exactly what it refuses.
 
 # The plate you walked now gets wider and then taller
 

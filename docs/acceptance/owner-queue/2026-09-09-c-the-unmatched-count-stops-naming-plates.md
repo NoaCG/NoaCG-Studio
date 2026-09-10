@@ -10,9 +10,8 @@ layer a background plate is answered by the distribution already measured, and t
 that measurement - 132 drawings at or above 95%, every one a plate, with an empty band from 95% to
 99.8%. The notice has never been read on screen, which is a claim an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # The mapping step's unmatched notice stops calling background plates spare layers
 

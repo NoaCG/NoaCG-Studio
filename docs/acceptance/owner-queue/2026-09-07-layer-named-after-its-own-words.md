@@ -9,9 +9,8 @@ The rule is evidence-led and stated: a group holding several text layers cannot 
 of them. Whether the explaining line sits inline or on hover is a design default, and the third-
 way-round case is a logic claim an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A slot named after its own placeholder keeps its name
 

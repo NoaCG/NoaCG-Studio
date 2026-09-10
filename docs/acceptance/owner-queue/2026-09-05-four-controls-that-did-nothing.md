@@ -9,9 +9,8 @@ Every one of the five is a factual claim about the product - this control wrote 
 read - and the hide-versus-grey judgement is argued from the owner's own nit quoted at the top of
 the item. An agent drives each control's absence and presence.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # Four controls that did nothing, and one that lied about what it was doing
 

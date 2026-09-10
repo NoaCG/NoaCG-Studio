@@ -9,9 +9,8 @@ Whether Guess clears itself after a press is answered by the feature beside it -
 letter so Take back can undo it, and clearing it would break the undo. The button hint's wording
 is a copy default.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # The puzzle board: one press reveals a letter, one takes it back
 

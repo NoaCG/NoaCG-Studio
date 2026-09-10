@@ -31,6 +31,12 @@ refused outside a secure context.
 
 ## Evidence
 
-`docs/acceptance/owner-queue/2026-09-06-i-your-own-agent-comes-first.md`, "What to look at", third
-bullet. The card's own remaining owner question - whether it reads as the better road you already
-own - stays on that item.
+**The surfaces are the AI step's *Preferred* card, `⚙ AI settings`, and the `Bring your own key`
+description**, all landed on 2026-09-06 on branch `claude/i-steer-to-the-cli`. Behind the card's
+*Show me*, the two Claude Code install lines and the two Codex lines are a block that selects whole
+on one click and offers no copy control. The steer they carry is the owner's ruling of 2026-08-26,
+re-confirmed 2026-09-03: *"That is the preferred way of using AI with NoaCG"*, recorded in
+`docs/OWNER_RULINGS.md`.
+
+Filed to the owner queue on 2026-09-06 as `i-your-own-agent-comes-first`, where the card's own
+remaining owner question - whether it reads as the better road you already own - stays.

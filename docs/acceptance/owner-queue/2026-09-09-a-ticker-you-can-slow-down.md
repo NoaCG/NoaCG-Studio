@@ -10,9 +10,8 @@ percentage - and 100% meaning 'as drawn' is the only defensible default. Where a
 under the content is a form-layout default. The rotator's hold is filed on the shelf with its
 shape.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A ticker an operator can slow down
 

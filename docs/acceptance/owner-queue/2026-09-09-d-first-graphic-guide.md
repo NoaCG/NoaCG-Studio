@@ -9,9 +9,8 @@ What a first-timer needs from a step-by-step guide is research rather than taste
 was written by walking the road with a running build. That the page renders and its quoted strings
 still match the wizard is a claim an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # The /docs guide that walks an SVG all the way to air
 

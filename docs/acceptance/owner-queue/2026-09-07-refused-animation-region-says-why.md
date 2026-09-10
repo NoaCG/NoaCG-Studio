@@ -8,9 +8,8 @@ Its route is a JavaScript console snippet against a dev server, and its question
 developer-facing error message reads like machine output - which the repo's own copy rule answers
 and an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A refused animation region now says which line is missing
 

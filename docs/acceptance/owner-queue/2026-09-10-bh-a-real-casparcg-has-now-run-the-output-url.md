@@ -7,9 +7,8 @@ date: 2026-09-10
 Four measurements against two real servers, every one of them a number rather than a judgement.
 Nothing in it asks the owner anything.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A real CasparCG has now run the output URL, and it corrects two numbers we had wrong
 

@@ -8,9 +8,8 @@ The occasion vocabulary is gated - a sixth value that fewer than three designs c
 build - and every refusal is recorded with its rule. A vocabulary with a written gate and recorded
 refusals is decided, not adjudicated.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # Finding a graphic by what it is FOR
 

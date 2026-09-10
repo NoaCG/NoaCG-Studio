@@ -9,9 +9,8 @@ a configurable amount row is the customization surface he ruled out on 2026-08-2
 clamp choice is argued from the operator's own box disagreeing with the graphic. What is left is
 that the four-team board behaves as described, which an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A score tracker on your own artwork, for as many teams as you drew
 

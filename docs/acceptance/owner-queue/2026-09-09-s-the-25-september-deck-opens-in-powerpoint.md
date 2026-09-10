@@ -1,7 +1,7 @@
 ---
 kind: walk
 date: 2026-09-09
-because: taste
+because: direction
 serves: now
 ---
 # The 25 September deck, as a file you double-click

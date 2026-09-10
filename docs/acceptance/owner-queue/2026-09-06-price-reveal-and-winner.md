@@ -8,9 +8,8 @@ serves: now
 Its only question is whether the recipe's name and its one box read right. 'Reveal' is the plain
 word for what it does; naming a control after its action is the default.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # Bids and the actual price: typed text sealed until one press, a winner by choice
 

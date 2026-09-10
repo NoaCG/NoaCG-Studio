@@ -8,9 +8,8 @@ The one judgement it asks for, whether 'outro' should narrow to the credits shel
 defensible general answer given in the item: an ambiguous word should not choose for the person
 typing it. Everything else in the item is a defect that turned CI red.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # Asking for credits by name gets you credits, and nothing else
 

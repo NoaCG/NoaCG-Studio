@@ -9,9 +9,8 @@ The authoring rule it asks about - draw the answers as they look revealed, hide 
 is the vote board's own rule applied to words, so consistency settles it. The missing un-reveal
 button is argued from what the show does.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A survey board: reveal in any order, three strikes, the total adds itself up
 

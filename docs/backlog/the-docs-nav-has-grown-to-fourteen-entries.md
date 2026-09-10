@@ -35,6 +35,12 @@ third number.
 
 ## Evidence
 
-`docs/acceptance/owner-queue/2026-09-09-how-to-work-with-a-team.md`, "The nav", which carries the
-fourteen counted off `docs.html` on 2026-09-10 and records that the earlier item's twelve was
-already wrong when it was written.
+**Fourteen entries, counted off `docs.html` itself on 2026-09-10**, up from ten on 2026-08-26 and
+thirteen before "Working with other people" landed on 2026-09-09. The file is the count, so the
+number re-derives from the nav markup rather than from any note about it. The owner's rule is his
+2026-08-26 walk, *"only the most important information on the left"*, in `docs/OWNER_RULINGS.md`.
+
+The two entries earlier notes wanted to argue about are "Pictures, logos & Lottie" and "Which
+package do I want", both landed 2026-09-06 on branch `claude/h-docs-guides`. One owner-queue item
+asked this question with a stale count of twelve and was corrected to point at the other; both were
+resolved by this receipt on 2026-09-10.

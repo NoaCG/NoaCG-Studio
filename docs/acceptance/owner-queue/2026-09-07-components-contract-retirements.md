@@ -8,9 +8,8 @@ Which paragraphs of a contract became rules is agent machinery, and nothing was 
 whole file is kept verbatim in contracts/records/. The one visible change, three corrected
 tooltips, is a claim an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # src/components contract: seventeen paragraphs kept out, and three tooltips corrected
 

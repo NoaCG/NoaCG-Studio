@@ -9,9 +9,8 @@ Its own first line is 'nothing you can see on air, deliberately'. The two visibl
 generated code table and a generated docs page, both gated by the build - developer-facing
 machinery, and the owner would have to ask an AI what a NOACG_BEHAVIOUR table should look like.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # The same four behaviours, one table, and a naming page that cannot drift
 

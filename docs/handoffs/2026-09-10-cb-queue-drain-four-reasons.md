@@ -6,41 +6,42 @@ judged those 68 one at a time.
 
 ## The two depth numbers
 
-`ls docs/acceptance/owner-queue/ | wc -l` - **92 before, 82 after.** That number moves least,
+`ls docs/acceptance/owner-queue/ | wc -l` - **92 before, 83 after.** That number moves least,
 because a re-kinded item stays in the directory.
 
-**The number that is his list moves from 68 to 22.** Open `walk` and `walk-p` items - the two lists
-`/walk` presents to him - went 68 -> 22: four on the phone in three places, eighteen at the computer
-in six. `node scripts/check-owner-queue.mjs --routes` prints the grouping.
+**The number that is his list moves from 68 to 23.** Open `walk` and `walk-p` items - the two lists
+`/walk` presents to him - went 68 -> 23: four on the phone in three places, nineteen at the computer
+in six. `node scripts/check-owner-queue.mjs --routes` prints the grouping and is where both numbers
+come from.
 
-The rest: 36 items re-kinded to `agent`, which takes them off his lists and onto the one an agent
-walks; 7 consolidated into an item that opens the same screen; 3 dropped with the decision that
+The rest: 35 items re-kinded to `agent`, which takes them off his lists and onto the one an agent
+walks; 7 consolidated into an item that opens the same screen; 2 dropped with the decision that
 replaced them. Every drop and every consolidation is logged in `docs/acceptance/OWNER_QUEUE.md`
 under Dropped, which is the one place a file that left this directory unwalked is findable.
 
-The full standing of the directory afterwards: **22 `walk`/`walk-p`, 3 `owner-action`, 41 `agent`,
-4 `hardware`** - 70 open, plus 12 `done: true` records. **The agent list went from 5 to 41, and
+The full standing of the directory afterwards: **23 `walk`/`walk-p`, 3 `owner-action`, 41 `agent`,
+4 `hardware`** - 71 open, plus 12 `done: true` records. **The agent list went from 5 to 41, and
 that is the honest cost of this drain.** The contract is explicit that an agent item nobody reads
 is worse than no item, because it looks handled - so those 41 are a row of work, not a note. Each
 carries a route and the note saying which half of the test it met.
 
 ## The test that did the cutting, and where it is written down
 
-It is in `docs/acceptance/OWNER_QUEUE.md` now, under "The test the 2026-09-10 drain used", so the
-next drain does not re-derive it. In short: does answering it change the product (scope, direction,
-money); or is there a shipped result on screen whose quality has no defensible general answer and
-which no gate can assert (taste); otherwise it is not his.
+The test itself is in `docs/acceptance/OWNER_QUEUE.md`, under "The test the 2026-09-10 drain used",
+so the next drain reads it rather than re-deriving it. Read it there; it is not repeated here.
 
-**The whole thing turns on one word: DECIDED.** A question an item raises and then argues to a
-conventional answer in its own text is decided, whoever wrote it. Eleven items ended with a
-sentence shaped like *"say if you would rather…"* sitting directly under the paragraph that had
-already settled the same question from ordinary practice. That sentence is politeness, not a
-question, and reading it as one is how the queue reached 92.
+What is worth carrying in a handoff is what the contract cannot say about itself. **The test turns
+on one word - DECIDED - and the reason it needs a section at all is that the queue's own items are
+written in a voice that hides the distinction.** Well over a dozen of the 68 ended with a sentence
+shaped like *"say if you would rather…"* sitting directly under the paragraph that had already
+settled the same question from ordinary practice. Filing sessions write that sentence out of good
+manners. Reading it as a question is how a directory of 92 files came to put 68 items on his two
+lists, and no gate can catch it, because the item is well written either way.
 
 **Two of the 68 are named by the contract itself** as its worked example of what is not his -
 `static:` versus `d:` as a prefix, and which share of the artwork makes a layer a background plate.
-Both were still sitting on his list a day after the example was written. Both are decided in their
-items now.
+Both were still sitting on his list a day after that example was written, which is the measure of
+how little a paragraph in a contract does on its own.
 
 ## What is left for him, and why each one is
 
@@ -48,22 +49,30 @@ items now.
 and two landing-page items - whether the page's voice is right after he failed it on 2026-09-10,
 and the Create with AI card, which he turned into a product decision in the same walk.
 
-**Eighteen at the computer**, and the honest shape of them is three groups. Nine open Import
-graphic and are his own artwork behaving - the live vote, the stagger, the box binding on his
-rotated quiz board, the OGraf renderer round, and three of the seven game-show boards where the
-remaining question is a scope one (a clickable number grid, a two-key bracket recipe, batch import).
-Four are about what the product IS or says in public. Five are single looks - the CasparCG operator
-page, the password-reset page, the library's production pills, the credit roll's ending, the
-type-aware size floor on a TV.
+**Nineteen at the computer**, in the six places the gate itself groups them into - read them off
+`--routes` rather than off any narrative here, which is what the first draft of this handoff got
+wrong by counting one item twice and dropping another:
 
-Ten of the twenty-two carry a decision written into them today, so his minute is spent on the half
-that is his rather than on a question already answered underneath it.
+- **Import graphic, 10** (8 serve NOW) - his own artwork behaving. The live vote, the stagger, the
+  box binding on his rotated quiz board, the growth road on the lower third he reported broken
+  three times, the OGraf renderer round, the CasparCG operator page, and three of the seven
+  game-show boards where what is left is a scope call - a clickable number grid, a two-key bracket
+  recipe, batch import.
+- **The studio, 5** (3 NOW) - the credit roll's ending, the AI card's steer, the library's
+  production pills, the type-aware size floor on a TV, and the password-reset page.
+- **The docs site, 1** - whether a half-built feature belongs on a public indexed page.
+- **A checkout, 1** - the weekly alignment session's own format, plus the P2 gate ruling.
+- **The public site, 1** - the footer's source link and the licence wording.
+- **On its own, 1** - the 25 September deck, which absorbed the slide-4 item.
+
+Eleven of the twenty-three carry a decision written into them today, so his minute is spent on the
+half that is his rather than on a question already answered underneath it.
 
 ## What was decided rather than asked, and what it cost
 
-Sixteen questions were settled and written into the item that raised them, with the argument, so he
-can overrule a thing that exists. Five needed code this row does not own and became backlog
-receipts:
+Every question the drain settled is written into the item that raised it, with the argument, so he
+can overrule a thing that exists rather than adjudicate one that does not. Five needed code this row
+does not own and became backlog receipts:
 
 - `docs/backlog/a-centred-line-is-handed-its-own-width-as-room.md` - **the biggest one.** The room
   rule hands a line sitting on its box's middle exactly the width it already occupies (453, 701 and
@@ -136,14 +145,45 @@ row of work rather than a note - `/walk agent` walks them.
 
 ## Files this branch touched
 
-75 files in one commit: `docs/acceptance/OWNER_QUEUE.md`; 68 under `docs/acceptance/owner-queue/`
-(22 given a `because:`, 36 re-kinded to `agent`, 10 removed); 5 new receipts under `docs/backlog/`;
-one repointed citation in `docs/backlog/the-text-step-breaks-when-you-play-with-it.md`; and this
-handoff.
+75 files across three commits: `docs/acceptance/OWNER_QUEUE.md`; 67 under
+`docs/acceptance/owner-queue/` (58 modified - 22 of them gaining a `because:`, 35 re-kinded to
+`agent` - and 9 removed); 5 new receipts under `docs/backlog/`; one corrected citation in
+`docs/backlog/the-text-step-breaks-when-you-play-with-it.md`; and this handoff. Twenty-three items
+carry a `because:` in the end, because `2026-09-10-bs-tutorial-pack-for-the-import-road.md` already
+had one and this branch never touched it.
 
 ## Gates
 
 `npm run build` green, read off its own exit code rather than a pipe's, run twice - once over the
-edits and once over the committed tree, because a rewrap of the 36 re-kind blocks landed after the
-first run. `npm run check:owner-queue` green at 82 items, 62 of the 63 open `walk`/`walk-p`/`agent`
-items grouped into six places.
+edits and once over the committed tree, because a rewrap of the re-kind blocks landed after the
+first run. 1592 tests, `# fail 0`. `npm run check:owner-queue` green at 83 items, 63 of the 64 open
+`walk`/`walk-p`/`agent` items grouped into six places. **CI on the pushed branch: completed
+success**, run 34526795581.
+
+## What the review caught, because it is the more useful half of this handoff
+
+`/check`'s review leg came back with ten findings on a documentation-only change, and every one of
+them was real. Three are worth carrying forward:
+
+1. **`docs/backlog/README.md` forbids exactly the citation shape all five new receipts used.**
+   "Never cite a file that is designed to disappear" - an item on the shelf outlives
+   `docs/acceptance/owner-queue/`, which is emptied on purpose. Every receipt pointed at a queue
+   item for its facts, and one pointed at three items this same change re-kinded to `agent`, so its
+   whole Evidence section would have dangled the first time `/walk agent` ran. All five now state
+   the fact and cite the durable thing. **The lesson is procedural: I read that README's shape
+   section and not its rules, on a change that wrote five files into that folder.**
+2. **Three consolidations folded a `walk` item into an item the same commit re-kinded to `agent`.**
+   That satisfies the separate-commits condition by the letter and strains it in substance, because
+   there is no commit in which the conversion is reviewable before the absorbed files are gone. The
+   worst case was reversed - `bt` is a `walk` again - and the other two are named in the Dropped log
+   rather than left implicit.
+3. **A drop is the only outcome nobody can recover from his list, so a split argument is not enough
+   for one.** `2026-09-07-pull-request-descriptions-for-people.md` was dropped on an argument that
+   answered one of its three questions. It is back, as `agent`.
+
+The other seven were arithmetic and record-keeping in this handoff and the Dropped log, all
+corrected: a consolidated file missing from the log, `answered: true` stripped from an item that had
+earned it, a retracted count left standing, a files-touched breakdown that did not add up, and a
+summary of his desk list that counted one item twice and dropped another. That last one matters
+most of the small ones - it is the paragraph he would read to see what is left for him, and it is
+now taken straight from `--routes` rather than narrated.

@@ -9,9 +9,8 @@ All three are copy or default calls the item argues, with both alternatives to '
 production' rejected with reasons - a door that refuses to fire, and a guessed name that collides.
 The measured row budget settles the second.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # The import wizard now says the three things only the guide said
 

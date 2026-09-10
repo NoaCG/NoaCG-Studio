@@ -8,9 +8,8 @@ serves: now
 Its own route says nothing in the UI changed and this is a 'does it still behave' look. Four
 corner bugs animating and keyframing as before is a regression claim an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # An animation NoaCG converted could throw the first time an operator pressed Take
 

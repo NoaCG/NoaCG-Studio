@@ -9,9 +9,8 @@ Its only question is whether three grouped button sections on one control page r
 as clutter. Grouping related controls under headings is what every control surface does; that is a
 design default.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # A guest lineup with a segment bug and a coming-up strip on one card
 

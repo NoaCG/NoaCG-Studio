@@ -7,9 +7,8 @@ date: 2026-09-10
 A rendering defect on an old engine, measured across 504 designs and fixed by a feature-tested
 shim. Every claim is a frame you can print.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # Flex gaps come back on CasparCG 2.3, and the same file is untouched on 2.5
 

@@ -9,9 +9,8 @@ A labelled dropdown in a wizard footer reads as a choice; that is the default, n
 The other two questions - the control absent rather than greyed with no brands, and the logo half
 - are claims an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # Pick a brand when you make a graphic, and the logo lands in it
 

@@ -9,9 +9,8 @@ A small grey hint under a form field is the convention, and the item argues the 
 what twelve amber lines on a valid board would read as. The real gap is that the step was built
 without a browser, so its layout has never been looked at - which is a claim an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # The mapping step explains itself, and offers to do the rest
 

@@ -9,9 +9,8 @@ The nav-length question was already moved out of this item to 2026-09-09-how-to-
 team.md with the right count. What is left is docs voice, which the repo's own copy rule governs,
 and the fact that nobody has rendered the page - a claim an agent drives.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # Three more guides on /docs: countdowns, artwork that is not an SVG, and which package to take
 

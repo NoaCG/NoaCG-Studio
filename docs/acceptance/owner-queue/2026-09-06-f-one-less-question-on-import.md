@@ -9,9 +9,8 @@ It was settled by measurement rather than by taste: 172 combinations swept throu
 importer, the second answer right on 0 of the 35 rows that offered it. Whether a row still says
 enough is a copy default the item argues.
 
-Re-kinding and deleting are separate commits by rule, so this item stays here until an
-agent drives the route below and records what it saw. The original text follows,
-unchanged.
+It stays here until an agent drives the route below and records what it saw. Its original
+text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
 
 # One less question on import: everything moves out of the way
 
