@@ -451,8 +451,8 @@ Driven over stdio with `CLAUDE_PLUGIN_ROOT` set to that cache directory, the ser
 `initialize` and `tools/list` with the single `noacg` tool. So the manual skill copy and the
 separate `codex mcp add` that this document used to require are both gone, and Codex now installs
 in the same two commands as Claude Code. The `.codex-plugin/plugin.json` manifest carries the
-Codex-side interface metadata; the marketplace entry it is found through is the Claude one. Nothing shrinks the CLAUDE side below two
-commands: `claude plugin install` resolves `plugin@marketplace` only against a marketplace that is
+Codex-side interface metadata; the marketplace entry it is found through is the Claude one.
+Nothing shrinks the CLAUDE side below two commands: `claude plugin install` resolves `plugin@marketplace` only against a marketplace that is
 already configured, and a repo shorthand in that position fails with *"Plugin "noacg" not found in
 marketplace "NoaCG/NoaCG-Studio""*.
 

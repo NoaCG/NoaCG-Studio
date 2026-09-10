@@ -10,13 +10,14 @@ row: BE
 **What this row owed.** §7 rows 6, 8 and 9 of `docs/DEMO_2026-09-25.md`, each backed by a dated
 run, plus the owner's three answers of 2026-09-10 applied in the same commit.
 
-**Rows 6 and 9 are closed and deleted.** All four install lines run on a clean profile and exit 0,
-and the `noacg-mcp` split is verified on Codex, so the "not yet re-verified" hedge is gone from
-`docs/AGENT_CLI.md`. **Row 8 is PARTLY closed** and stays in the table; what remains is named
-below and is smaller than what it was.
+**All three rows are closed and deleted.** The four install lines run on a clean profile and exit
+0, the `noacg-mcp` split is verified on Codex, and the live save was walked against
+`noacg.studio` with both stopwatches on it.
 
-Commits: `ee4a50b9` (the clean-profile run, the Codex split, the owner's three answers),
-`406da881` (the remaining references to the 12th, and the stale-CLI backlog file).
+**Closing row 8 opened row 14**, and that is the part worth reading. Walking the save against
+production rather than a dev server produced the numbers R2.5 was missing and TWO defects a green
+spec cannot see: the link `noacg save` prints does not open the graphic on `noacg.studio`, and
+`noacg login` hangs after it has already succeeded. Both are filed with their measurements.
 
 ## What was actually run, and what it does not prove
 
@@ -95,36 +96,66 @@ cloud-playout step 7 and not the OBS half. §8.7a is now there, unticked.
 
 ## What is left, and why
 
-**§7 row 8's second half, and it is ENQUEUED rather than abandoned.**
-`e2e/configured/agent-access.spec.ts` **ran and passed on 2026-09-10 in 18.9 s** against the real
-backend, which is the first time any file records when it last ran; that is dated in R2.4. The
-other half is one live `noacg login` + `noacg save` against `noacg.studio` with a stopwatch on the
-save and on the link.
+**Row 8 is closed, and here is what it cost to close honestly.** The credentials were never the
+blocker. The machine's one-browser-job rule was: another worktree ran two `configured` suites back
+to back for over half an hour, and `node scripts/e2e-runs.mjs --wait` gave up at its 30 minute cap
+having started nothing. Its give-up message is right and I should have read it sooner - **enqueue,
+do not wait** (`node scripts/jobs.mjs add`). Everything after that ran as queue jobs, `j-0918`
+through `j-0929`.
 
-The blocker was never the credentials - they are in the primary checkout's `.env` and copy into a
-worktree fine. It was the machine's one-browser-job rule: another worktree ran two `configured`
-suites back to back for over half an hour, `node scripts/e2e-runs.mjs --wait` gave up at its 30
-minute cap without starting anything, and the give-up message says the right thing - **enqueue,
-do not wait.** So the run is job **`j-0915`** on the shared runner
-(`node scripts/jobs.mjs log j-0915`), which starts it when a slot frees whether or not this
-session is alive.
+The numbers, all against `https://noacg.studio` with the published 0.3.0 through `npx`:
 
-The driver is `C:
-oacg-be-clean\work\live-save.mjs`, deliberately OUTSIDE the checkout so it is
-never committed; it imports Playwright from this worktree's `node_modules` by absolute file URL,
-which is the one thing to fix if the path moves. What it does: `noacg login --no-browser`, take the
-consent URL it prints, sign in on the real deployment as the `E2E_EMAIL` account and press Allow
-with Playwright, then `scaffold` and `save`, timing each, then open the printed link in that same
-signed-in tab and wait for the graphic's name. **It saves as "BE live save 2026-09-10" into the
-E2E test account's library, not the owner's** - a deliberate choice over the trap the row prompt
-warned about, since that account is throwaway and this still exercises production end to end. If
-the job ran, delete that graphic when the number has been read.
+| what | time | exit |
+|---|---|---|
+| `noacg login --key` (store the scoped key) | 2.5 s | 0 |
+| `noacg scaffold --type scoreboard --design neutral` | 4.6 s | 0 |
+| **`noacg save` into the live library** | **9.3 s** | 0 |
+| the graphic visible in the library after opening the printed link | 5.0 s | - |
 
-**What the numbers close, and what they do not.** They close R2.5's missing cloud leg, which is
-what stops anyone saying "minutes to air" as a measured claim. They do NOT close the eyes half of
-R2.1 and R2.4: the sign-in and the Allow press are scripted, not a human finger, and the legend's
-UNSEEN (eyes) is about the owner having looked. Whoever reads `j-0915` should date R2.5 and leave
-those two as they are.
+R2.5 now says what can be claimed: 24.8 s for the seven local verbs plus 9.3 s for the cloud leg,
+so "about forty seconds of tool time from an empty folder to a graphic in your library" - stated as
+the two numbers, because they are two runs on two days. "Minutes to air" is an understatement for
+this leg now rather than an unmeasured claim. The last hop, a production's output URL, still has no
+time; that needs a published production and belongs to A1.
+
+**Why the key came in through `--key` rather than the browser handoff, and why that is not a
+shortcut.** The account half was done by the REAL consent page: job `j-0921` drove Allow on
+production with its own loopback listener, `GET /callback` and `POST /complete` both arrived, the
+state matched, and `POST /api/me/agent-keys` with `action: redeem` answered 201 with scopes
+`["graphics:create"]`. So nothing about the account was faked; the measurement simply starts one
+step later, using the CLI's own documented paste fallback, because `noacg login`'s browser handoff
+hangs (below).
+
+**Two defects, both filed, both invisible to the specs that cover them.**
+
+- `docs/backlog/the-link-noacg-save-prints-does-not-open-the-graphic.md`. R2.4's beat says the link
+  "opens at once", `save` prints "or at once on that link", and
+  `e2e/configured/agent-access.spec.ts` asserts it and PASSES. On production the hash is `#/home`
+  on the first sample and never becomes `#/graphic/<id>` - reproduced on a warm signed-in tab (25 s
+  of polling) and a cold one (30 s, 61 s total). The graphic is there and renders correctly; only
+  the routing promise is false. The spec passes because it drives a local dev server.
+- `docs/backlog/noacg-login-hangs-after-it-has-already-succeeded.md`. `login` minted and stored the
+  key and then sat for **923 s** without exiting and without printing anything, including its own
+  300 s giving-up message. Killed by hand.
+
+**I got that second one wrong first, and the correction is the lesson.** I filed it as "the CLI
+never received the code", because the captured output ended on "Waiting for you to allow access…".
+Two mistakes stacked: my driver concatenated `stdout + stderr` and printed the last three lines, so
+it showed only the tail of stderr, and `login` writes progress through `out.log()` which
+`cli/src/output.ts` always sends to stderr while the success line goes to stdout. What disproved it
+was cleanup: the Settings list showed a key named `noacg CLI on Legion-001`, created that day, "last
+used never" - the default name `login` gives a key on this machine. Nothing else could have written
+it, so the login had succeeded. The first file was deleted and rewritten rather than patched.
+
+**What this row created on `noacg.studio`, and what is already cleaned up.** Two agent keys on the
+E2E test account (`noacg_ak_769af3…` "BE probe" and `noacg_ak_d3143c…` "noacg CLI on Legion-001")
+were **revoked through Settings -> Account -> Agent access, both 200, zero rows remaining**
+(`j-0929`). **One graphic is still there and wants deleting by hand**: a scoreboard named **"BE"**
+in the E2E account's library, `76de10ef-cce8-46ec-b6ca-a4f1a49f7ed9`. It is NOT in the owner's
+library - saving into the throwaway test account was a deliberate choice over the row prompt's
+suggestion, since it exercises production identically and is cleanable. `DELETE
+/api/me/graphics/<id>` answered 404 from a page fetch, so the route wants a bearer token rather
+than the session cookie; deleting it from the library UI is the quick way.
 
 **The deck's speaker notes are now wrong and this row did not fix them.**
 `docs/presentation-2026-09-25/make-deck.mjs` has four, and the built `.pptx` beside it carries
@@ -162,6 +193,17 @@ evidence lands cleanly on top of them.
   selectors the specs use. Checked by grepping the served bundle on 2026-09-10.
 - **A deep link to a saved graphic is private.** Measuring "the link opens" in a fresh signed-out
   context measures a timeout, not a page. The subject is the tab that ran `noacg login`.
+- **`noacg login` and every progress line go to STDERR**, through `out.log()`. Only the result goes
+  to stdout. Script the CLI accordingly, and never diagnose it from a `2>&1` redirect, which hides
+  which stream said what - that cost this row a wrong defect report.
+- **The job runner shells through cmd**, so a `VAR=value command` prefix fails with "'VAR' is not
+  recognized". Pass values as arguments.
+- **Wait for a settings list to stop saying "Loading…" before counting rows.** Counting too early
+  reported zero agent keys and nearly became a third defect report; the section actually loads in
+  about 2 seconds and there were two keys in it.
+- **`/api/me/agent-keys` and `/api/me/graphics/<id>` want a bearer token, not the session cookie.**
+  A `fetch` from the signed-in page answers 401 and 404. The UI is the reliable route for cleanup,
+  and it is what `e2e/configured/agent-access.spec.ts` drives too.
 - **`noacg login --no-browser` prints the consent URL**, which is what makes the whole live leg
   scriptable at all: `https://noacg.studio/app?agent=<state>&port=<port>&name=…&challenge=…`, then
   it waits up to 300 s on a loopback listener. Verified 2026-09-10.
@@ -175,3 +217,15 @@ evidence lands cleanly on top of them.
 
 No money, no account we do not hold, nothing published past `main`. The one thing waiting on him is
 unchanged and was already his: `2026-09-10-be-which-ograf-renderer-yle-runs.md`, one message.
+
+## The three things to plan before the 25th
+
+None is this row's to start and all three have a file.
+
+1. `docs/backlog/the-link-noacg-save-prints-does-not-open-the-graphic.md` - §7 row 14, and the only
+   one of the three that a room will see happen.
+2. `docs/backlog/noacg-login-hangs-after-it-has-already-succeeded.md` - the terminal goes silent
+   after a login that worked, on the one step of R2.4 that needs a human.
+3. `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md` - and separately, somebody should
+   just run `npm i -g @noacg/cli@latest` on this laptop, checking
+   `node scripts/e2e-runs.mjs` first.

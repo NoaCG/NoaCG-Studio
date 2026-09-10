@@ -1,4 +1,4 @@
-# A stale global `@noacg/cli` wins over npx forever, and nothing says so
+# A stale global `@noacg/cli` wins over npx forever, and the check people run cannot see it
 
 **Filed:** 2026-09-10. **Source:** measurement, the clean-profile install run for
 `docs/DEMO_2026-09-25.md` B5 (`docs/PROMISE_AUDIT.md`, "The clean-profile install run (row 23)").
