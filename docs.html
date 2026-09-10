@@ -63,6 +63,7 @@
         <a href="#casparcg">CasparCG</a>
         <p class="group">Run the show</p>
         <a href="#dashboard">The playout dashboard</a>
+        <a href="#teams">Working with other people</a>
         <a href="#audience">Audience join pages</a>
         <a href="#behaviour">Graphics with behaviour</a>
         <a href="#data">Live data</a>
@@ -1292,6 +1293,162 @@ CG 1-20 STOP</code></pre>
               other cue. There is one picture layer per production, so stills replace rather than
               stack.</li>
           </ul>
+        </section>
+
+        <!-- ═══════════════════════ TEAMS ═══════════════════════ -->
+        <section id="teams">
+          <h2>Working with other people</h2>
+          <p>
+            Two different things both get called sharing, and they have different answers. Running
+            one show from several devices needs no accounts at all. Letting several people
+            <em>prepare</em> the same show, each signed in as themselves, is what a team is for.
+          </p>
+
+          <h3 id="teams-links">Running a show together needs no accounts</h3>
+          <p>
+            Publish the production and it mints links that work for whoever holds them. The control
+            page drives the show from a second laptop or a phone at the desk, the presenter view
+            shows the host what is coming without giving them operator controls, the output URL is
+            what a browser source loads, and the audience join page collects votes and messages.
+            All of them sit behind the <strong>Links</strong> button in the production page header,
+            each with a Copy button beside it. Three people can run one show this way today, with
+            one account between them and nothing to set up.
+            <a href="#dashboard">The playout dashboard</a> and
+            <a href="#audience">audience join pages</a> cover what each link does.
+          </p>
+          <p>
+            What links do not settle is who may <strong>edit the rundown</strong>, who may
+            <strong>republish a changed graphic</strong>, and whose account the show dies with. That
+            is still the one account that made it, whoever is holding the links. A team is how that
+            changes.
+          </p>
+
+          <h3 id="teams-make">Make a team</h3>
+          <p>
+            Sign in first. Teams are an account feature and they change nothing else about the
+            product: an offline build has no team surfaces at all, and a signed-out visitor sees no
+            mention of a team unless somebody sends them a join link, which asks them to sign in or
+            make an account.
+          </p>
+          <ol>
+            <li>Open a production you own and press <strong>Share with a team&hellip;</strong> in
+              its header. The same item is in the <strong>&#8943;</strong> (More actions) menu on
+              a production's card in <strong>Productions</strong>. There is no team entry in the
+              topbar or in Settings, and a production is the only door.</li>
+            <li>Press <strong>&#65291; New team&hellip;</strong>. It is the quiet text button under
+              the list, not the amber one in the footer.</li>
+            <li>Fill both boxes, because they are not the same box. <strong>Team name</strong> is
+              what the class or the crew is called. <strong>Your name, as teammates see it</strong>
+              is you, prefilled from the part of your email before the @ and editable. Teammates see
+              that name and nothing else. Email addresses are never shown to anybody.</li>
+            <li>Press <strong>Create team</strong>. The next screen is the join code and the member
+              list, with you on it as the owner.</li>
+          </ol>
+
+          <h3 id="teams-join">Get somebody in</h3>
+          <p>
+            <strong>Send the link.</strong> The team screen shows a large join code and, under it, a
+            link ending <code>#/join-team/&lt;code&gt;</code> with a <strong>Copy link</strong>
+            button. <strong>The link is the route.</strong> The screen that takes a code exists only
+            at a join link, and nothing else in the app leads to it, so a code read out to a room
+            gets nobody in who does not already hold a link. Paste the link into the class chat, or
+            send it however you already talk to each other. There is no email invitation.
+          </p>
+          <p>
+            Read that the other way round too, because it is the part that bites. Anybody who has
+            ever held a join link to any team, including last term's, is one paste away from using a
+            code they overheard. Treat a code like the link it belongs to.
+          </p>
+          <p>
+            The person who receives it opens the link in their own browser, signs in or makes an
+            account, types the name teammates will see, and presses <strong>Join team</strong>.
+            Nothing else is asked. Joining shares nothing from their library, and nothing from
+            yours.
+          </p>
+          <p>
+            Anyone in the team can pass the link on. Only the owner can press <strong>Rotate
+            code</strong>, which mints a new code and retires the old one for joining. Everybody
+            already in the team stays in, so rotating is the answer to a link that reached the wrong
+            chat.
+          </p>
+          <p>
+            Your own display name is fixed at the moment you join: joining again through the
+            team's current link with a different name replaces it, and that is the only way to
+            change it. A rotation retires the link you were sent, so get the new one from somebody
+            in the team before you try.
+          </p>
+
+          <h3 id="teams-roles">Who can do what</h3>
+          <p>
+            Two roles, and no more. Whoever made the team is its <strong>owner</strong>, everyone
+            else is a <strong>member</strong>. In a class the teacher is the owner.
+          </p>
+          <p>
+            Every Yes below is reached through the same door, so it carries the same condition:
+            <strong>you need a production of your own to open</strong>. A member who joined a class
+            team and has made nothing yet cannot see the join code, the member list, or the way out.
+            Make a production of your own, even an empty one, and the door is there.
+          </p>
+          <div class="doc-table"><table>
+            <tr><th></th><th>Owner</th><th>Member</th></tr>
+            <tr><td>See the join code, and pass the link on</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>See who else is in the team</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Rotate the join code</td><td>Yes</td><td>No</td></tr>
+            <tr><td>Remove somebody from the team</td><td>Yes</td><td>No</td></tr>
+            <tr><td>Leave the team</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Delete the team</td><td>Yes</td><td>No</td></tr>
+          </table></div>
+          <p>
+            There is no Leave button for an owner. An owner gets out by deleting the team, which
+            cannot be undone and takes the productions the team holds with it. That button asks a
+            second time before it does anything. Removing somebody, or being removed, takes nothing
+            away from their own library.
+          </p>
+
+          <p class="callout truth">
+            <span class="lbl">What has been verified</span>
+            Making a team, handing out its link, joining through it, reading the member list,
+            rotating the code and deleting the team have all been run against the live backend.
+            Removing a member and leaving a team are implemented and refused correctly by the
+            database, but they have not yet been run with a second person in the team, so treat
+            them as expected rather than proven. <strong>Moving a production into a team does not
+            work at all.</strong> The <strong>Move to team</strong> button in that dialog is
+            deliberately switched off, because the list a moved production would appear in has not
+            shipped yet. So a team you make today is the group, standing ready for the production
+            that will go into it, and the way to work on a show together in the meantime is the
+            links above.
+          </p>
+
+          <h3 id="teams-move">What will happen when a production moves in</h3>
+          <p>
+            None of this can be tried yet. It is written down because it is what moving a production
+            will commit you to, and that is worth knowing before the button turns on.
+          </p>
+          <ul>
+            <li><strong>A production has one home.</strong> Moving it into a team takes it out of
+              your personal list and gives it to the team. Only the team owner can move it back or
+              delete it.</li>
+            <li><strong>Every member can edit its rundown, republish its graphics and operate
+              it.</strong> If two people save at once, the second save is refused and says who got
+              there first, rather than quietly overwriting them.</li>
+            <li><strong>Graphics travel as copies</strong>, the way they already do when a graphic
+              joins a production. Nobody's library is opened to anybody, and the original stays
+              personal.</li>
+            <li><strong>The links do not move.</strong> Whoever republishes it, the output URL and
+              the control page URL stay the strings you already gave to OBS or CasparCG.</li>
+            <li><strong>Preparing it will need to be online.</strong> A team production lives on the
+              server rather than in the copy your browser keeps, so there is no offline edit for it.
+              A personal production is unchanged and still works offline.</li>
+          </ul>
+
+          <h3 id="teams-storage">Whose storage it counts against</h3>
+          <p>
+            Nothing is enforced yet. Storage and project counts are recorded and not limited, on
+            personal and team space alike. The answer for when limits arrive is already decided: a
+            team production's bytes count against the <strong>team owner</strong>, the one account
+            that can also delete it. Graphics stay where they have always been, in the library of
+            whoever saved them.
+          </p>
         </section>
 
         <!-- ═══════════════════════ AUDIENCE ═══════════════════════ -->
