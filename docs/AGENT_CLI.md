@@ -127,6 +127,13 @@ One package, one command, and the whole door: install `@noacg/cli` and you have 
 machine-readable output. Exit codes: `0` clean, `1` the graphic has findings (validate) or the
 request was refused, `2` a usage/IO error.
 
+**npm 12 blocks dependency install scripts by default** (a `postinstall` in a dependency does not
+run unless it is approved with `npm install-scripts approve`). That costs an installer of this
+package nothing: no package in the CLI dependency tree declares `preinstall`, `install` or
+`postinstall` (`cli/package-lock.json` has no `hasInstallScript` entry), and none is fetched from
+git or a remote URL, which npm 12 also blocks. Keep it that way - a dependency that needs an
+install script would turn `npx @noacg/cli` into a package that installs half-built and warns.
+
 | Command | What it does |
 |---|---|
 | `noacg doctor` | Reports the browser it will use, the bridge it reaches at `NOACG_URL` and its protocol version, and whether a key is held for it (`whoami` asks the deployment if it is still valid). |
@@ -628,11 +635,23 @@ being published - a stale local build cannot reach the registry even in principl
 
 **Two things only the owner can do**, both one-time (`docs/acceptance/owner-queue/`):
 
-- On npmjs.com → the package → Settings → **Trusted publishers**, add a GitHub Actions publisher:
-  organisation `miwco`, repository `NoaCG-Studio`, workflow filename **`release-cli.yml`** (the
-  filename only, not a path), environment left blank. Every field is case-sensitive, and
-  `repository.url` in `cli/package.json` must match the GitHub repository - it does.
-- Delete `NPM_TOKEN` from `.env` and **revoke both tokens** in npm account settings.
+- On npmjs.com → the package → Settings → **Trusted publishing**, add a GitHub Actions publisher:
+  organisation **`NoaCG`**, repository `NoaCG-Studio`, workflow filename **`release-cli.yml`** (the
+  filename only, not a path), environment left blank, and **allowed actions must include the direct
+  `npm publish`**, not only `npm stage publish`. Every field is case-sensitive, and none of them can
+  be edited afterwards: a wrong value is fixed by deleting the connection and adding it again.
+  `repository.url` in `cli/package.json` must match the GitHub repository - it does. The stored
+  organisation is still `miwco`, because the repository moved to `NoaCG` on 2026-09-06 (`ea7f569c`)
+  and npm does not follow a move, which is why 0.3.1 is refused
+  (`docs/acceptance/owner-queue/2026-09-09-ah-npm-still-thinks-the-repository-is-yours.md`). The
+  allowed-actions row is new: since 2026-09-03 npm defaults a fresh connection to staging only, and
+  a staging-only connection refuses a direct publish in the same unreadable way a missing one does.
+- Delete `NPM_TOKEN` from `.env` and **revoke both tokens** in npm account settings. npm is retiring
+  that kind of credential anyway: since early August 2026 a 2FA-bypass granular token can no longer
+  perform sensitive account operations, and from around January 2027 it cannot publish at all, only
+  stage a publish for a human to approve with 2FA
+  (github.blog changelog, 2026-07-08, `npm-install-time-security-and-gat-bypass2fa-deprecation`).
+  So there is no hand-publish fallback standing behind the workflow, and there will not be one again.
 
 Until the trusted publisher is configured, the workflow's dry run passes and a real publish fails
 at the registry call. That failure is safe and repeatable; nothing else about the run changes.
