@@ -141,12 +141,13 @@ const slug = created.data.slug;
  */
 const arrivals = [];
 
+// SIGNED OUT, ON PURPOSE - the seat this measures is anonymous. A browser source in OBS, the
+// venue's playout machine and an operator's phone on the hosted URL all hold a slug and no
+// account, so they read both roads as `anon`. Signing this client in would exercise the
+// `authenticated` half of the command topic's read policy (migration 0056) and leave the half
+// every real renderer uses unmeasured: if anon were refused, the fast column would print `none`
+// here and nowhere else.
 const watcher = createClient(url, key, { auth: { persistSession: false } });
-const watching = await watcher.auth.signInWithPassword({ email, password });
-if (watching.error) {
-  console.error(`the watching client could not sign in: ${watching.error.message}`);
-  process.exit(2);
-}
 
 const LOG_TOPIC = `control-${showId}`;
 const COMMAND_TOPIC = `cmd-${showId}`;

@@ -944,6 +944,10 @@ export async function followControlLog(opts: {
   /** Called on every Realtime status change AND on every poll tick, so a surface with somewhere
    *  to show it can say "not joined — polling" instead of showing a stale picture in silence. */
   onStatus?: (status: ControlFollowStatus) => void;
+  /** The FAST road's own join status - a different question from `onStatus`, and one only a
+   *  surface with a debug line has anywhere to put. Never joining means commands still arrive,
+   *  on the durable road, at yesterday's speed. */
+  onCommandStatus?: (status: string) => void;
 }): Promise<() => void> {
   let lastId = opts.from;
   const apply = (row: ControlEventRow) => {
@@ -1001,7 +1005,7 @@ export async function followControlLog(opts: {
     report();
   }, onCommand && ((items) => {
     if (walks === 0) onCommand(items);
-  }));
+  }), opts.onCommandStatus);
   return () => {
     clearInterval(poll);
     walks = 0;
@@ -1040,6 +1044,10 @@ export async function subscribeControlEvents(
    *  alone - and leaves the private channel unjoined, which is why a surface that follows nothing
    *  costs nothing. */
   onCommand?: (items: ControlCommandItem[]) => void,
+  /** The command channel's own join status, reported separately from the log's for the reason
+   *  written at the join below: a surface with somewhere to show it can say the fast road is
+   *  missing, which is otherwise INVISIBLE - a dead fast road looks exactly like yesterday. */
+  onCommandStatus?: (status: string) => void,
 ): Promise<() => void> {
   const sb = await getSupabase();
   if (!sb) return () => {};
@@ -1066,10 +1074,16 @@ export async function subscribeControlEvents(
   // authority - which is the difference between this and the public channel above, where anyone
   // holding the show id could push a command until 2026-09-10.
   //
-  // ITS STATUS IS DELIBERATELY NOT REPORTED to `onStatus`. That signal drives "not joined —
-  // polling" and the tail-fill on rejoin, and both belong to the LOG: this channel joining or
-  // failing changes only how fast a command arrives, never whether it does. A refused private
-  // join therefore reads on screen as yesterday's speed rather than as a broken production.
+  // ITS STATUS IS REPORTED SEPARATELY from the log's, and never through `onStatus`. That signal
+  // drives "not joined — polling" and the tail-fill on rejoin, and both belong to the LOG: this
+  // channel joining or failing changes only how FAST a command arrives, never whether it does, so
+  // a refused private join must read as yesterday's speed rather than as a broken production.
+  //
+  // But it must read as SOMETHING. Nothing else on this page can tell: every command still
+  // arrives on the durable road, every spec still passes, and a fast road that quietly stopped
+  // being joined - a policy typo, a Realtime instance without `realtime.send` - is invisible
+  // until somebody times a Take. `realtime.send` swallows its own errors into a warning nobody
+  // reads (migration 0056), so this status is the one signal a surface has.
   const commands = onCommand
     ? sb
         .channel(commandTopic(showId), { config: { private: true } })
@@ -1077,7 +1091,7 @@ export async function subscribeControlEvents(
           const items = readCommandFrame<ControlEventRow['msg']>((frame as { payload?: unknown }).payload);
           if (items) onCommand(items);
         })
-        .subscribe()
+        .subscribe((status) => onCommandStatus?.(status))
     : null;
 
   return () => {

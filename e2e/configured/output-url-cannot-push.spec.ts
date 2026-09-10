@@ -27,10 +27,22 @@ import { haveCreds, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 // broadcast endpoint, on the public topic and on the private one, and then the walk asks the only
 // question that matters: DID THE GRAPHIC PLAY? Air answers with its own count.
 //
-// AND THEN IT TAKES FOR REAL. Without that second half this spec would pass against a renderer
-// that had simply stopped listening, which is the failure mode a security test most often
-// degrades into. The desk presses Take, air goes to 1, and that proves the forged command was
-// dropped rather than merely unheard.
+// THE REAL TAKE COMES FIRST, and again at the end. Without them this spec would pass against a
+// renderer that had simply stopped listening, which is the failure mode a security test most
+// often degrades into: the first take gives the count a MEASURED baseline rather than a zero read
+// off an overlay that has not printed anything yet, and the second proves the road the forged
+// command could not use is still open to whoever may use it.
+//
+// THE PLAY IS THE DETECTOR, and it stands for every verb. A forged `stop` is at least as bad as a
+// forged `play` - taking the show off air mid-programme - and it is in the batch below, but only
+// an entrance leaves a count behind. It needs no assertion of its own: both verbs arrive through
+// one handler on one road (`onCommand` into `applyCommand`), so a road that cannot carry a play
+// cannot carry a stop either.
+//
+// THE RENDERER IS ANONYMOUS, in a context of its own with no session. That is what a browser
+// source in OBS or the venue's playout machine is, and the command topic's read policy names
+// `anon` and `authenticated` separately (migration 0056) - opened on the signed-in context, this
+// walk would exercise the half no renderer ever uses.
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -57,7 +69,7 @@ async function lastRow(air: Page): Promise<number> {
   return m ? Number(m[1]) : 0;
 }
 
-test('an output URL can render the show and cannot push a command onto it', async ({ page, context, browser }) => {
+test('an output URL can render the show and cannot push a command onto it', async ({ page, browser }) => {
   test.setTimeout(360_000);
   await signIn(page);
   await page.keyboard.press('Escape'); // the wizard signIn leaves open — not this walk
@@ -90,19 +102,36 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   }, showName);
   expect(slugs.output, 'publishing must mint an output slug').toBeTruthy();
 
-  // ── AIR, following live before anything is pressed. ────────────────────────────────────────
-  const air = await context.newPage();
+  // ── AIR, in an anonymous context, following live before anything is pressed. ───────────────
+  const venue = await browser.newContext();
+  const air = await venue.newPage();
   air.on('pageerror', (e) => console.log('[output pageerror]', e.message));
   await air.goto(`/output?production=${encodeURIComponent(slugs.output as string)}&debug=1`);
   await expect(air.locator('pre')).toContainText('realtime:', { timeout: 60_000 });
   const airPlays = () => air.evaluate(() => document.body.getAttribute('data-plays'));
   await expect.poll(airPlays, { timeout: 30_000 }).toBe('0');
+
+  // ── ONE REAL TAKE, so both baselines below are measured rather than assumed. ────────────────
+  //
+  // `last row` is only printed once a durable row has been applied, so on a freshly published
+  // production it is absent and reads as 0 - a "before" that would look identical to a broken
+  // overlay. One press makes it a number this walk has watched move.
+  await page.getByTestId('verb-take').click();
+  await expect.poll(airPlays, { timeout: 60_000 }).toBe('1');
   const rowsBefore = await lastRow(air);
+  expect(rowsBefore, 'the renderer never reported applying a durable row').toBeGreaterThan(0);
 
   // ── THE HOLDER OF THE READ-ONLY LINK. ──────────────────────────────────────────────────────
   //
   // Its own browser context: no session, no localStorage, no memory of this production. All it
   // has is the output slug and the publishable key every visitor to the site holds.
+  //
+  // ASSERTED, NOT ASSUMED: with either of these empty, all four REST pushes below are refused for
+  // a missing key or a 404 rather than by the absent insert policy, every assertion still holds,
+  // and the walk reports a boundary it never touched.
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY ?? '';
+  expect(SUPABASE_URL, 'no VITE_SUPABASE_URL - the REST half of this attack cannot be aimed').toBeTruthy();
+  expect(anonKey, 'no VITE_SUPABASE_ANON_KEY - the REST half would be refused for the wrong reason').toBeTruthy();
   const stranger = await browser.newContext();
   const attacker = await stranger.newPage();
   await attacker.goto('/output?production=none');
@@ -121,8 +150,14 @@ test('an output URL can render the show and cannot push a command onto it', asyn
       const graphic = row.output?.graphics?.[0]?.key;
       if (!graphic) return { error: 'the published payload named no graphic' };
 
+      // A play AND a stop: a stranger putting a graphic on air and a stranger taking the show off
+      // it are the same wire and the same handler, and the second is the one a live programme
+      // would notice most.
       const frame = (attempt: string) => ({
-        items: [{ graphic, msg: { t: 'play', oid: `forged-${attempt}-${Date.now()}` } }],
+        items: [
+          { graphic, msg: { t: 'play', oid: `forged-play-${attempt}-${Date.now()}` } },
+          { graphic, msg: { t: 'stop', oid: `forged-stop-${attempt}-${Date.now()}` } },
+        ],
       });
 
       // EVERY TOPIC REACHABLE FROM THE SHOW ID, public and private. `control-<id>` is the channel
@@ -169,29 +204,31 @@ test('an output URL can render the show and cannot push a command onto it', asyn
       }
       return { showId, graphic, sent };
     },
-    { outputSlug: slugs.output as string, url: SUPABASE_URL, key: process.env.VITE_SUPABASE_ANON_KEY ?? '' },
+    { outputSlug: slugs.output as string, url: SUPABASE_URL, key: anonKey },
   );
   console.log('[read-only push attempts]', JSON.stringify(push, null, 2));
   expect(push.error, 'the attack could not even be attempted, so nothing was proved').toBeUndefined();
 
   // ── THE CLAIM. Nothing played, and nothing was recorded. ───────────────────────────────────
   //
-  // Five seconds is two orders of magnitude past the fast road's measured 50-180 ms
+  // Five seconds is fifty times the fast road's measured 97 ms
   // (docs/backlog/playout-lag-when-working-the-queue.md), so a forged command that was going to
   // land has landed by now.
   await air.waitForTimeout(5_000);
-  expect(await airPlays(), 'a holder of the output URL made the graphic play').toBe('0');
+  expect(await airPlays(), 'a holder of the output URL made the graphic play').toBe('1');
   expect(await lastRow(air), 'a forged command reached the durable log').toBe(rowsBefore);
 
   // ── AND THE ROAD IS OPEN TO WHOEVER MAY USE IT. ────────────────────────────────────────────
   //
   // The half that stops this walk passing against a renderer that was not listening at all.
-  await page.getByTestId('verb-take').click();
-  await expect.poll(airPlays, { timeout: 60_000 }).toBe('1');
+  // Re-take rather than Take: the cue is already up, and this asks for its entrance again.
+  await page.getByTestId('verb-retake').click();
+  await expect.poll(airPlays, { timeout: 60_000 }).toBe('2');
 
   await attacker.close();
   await stranger.close();
   await air.close();
+  await venue.close();
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
 });
