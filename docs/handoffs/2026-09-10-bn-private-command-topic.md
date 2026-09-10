@@ -1,8 +1,19 @@
 # 2026-09-10 - row BN, the fast road becomes a private topic
 
-Branch `claude/bn-private-command-topic`, worktree `agent-a4641dddaaf6d9b70`. Four commits plus one
+Branch `claude/bn-private-command-topic`, worktree `agent-a4641dddaaf6d9b70`. Seven commits plus one
 merge of `main`, off row BM's tip - which landed as `588f42ad` while this ran, so the branch's
-merge base is main and the diff is this row's own twelve files.
+merge base is main and the diff is this row's own files.
+
+`/check` ran on the branch: **review: delegated** (the code-review skill returned five findings and
+its own scope, which matched `git diff --name-only $(git merge-base origin/main HEAD)` exactly -
+one critical, fixed in migration 0057; three medium and one low, all fixed), **simplify: inline**
+(the skill returned fan-out instructions, so the four angles were worked here), **verify: inline**
+(`npm run build`, the configured walks above, the wire probe, and the offline affected suite -
+1304 passed, with one failure that is main's and is filed as
+`docs/backlog/catalog-render-drift-after-the-flex-gap-shim.md`), **taste: not applicable** -
+nothing in this change can move what a graphic looks like. The affected suite ran on the tree
+before the last three commits, which touch one spec, one migration and comments; CI's nine shards
+cover the final sha.
 
 ## What the row was asked and what came back
 
@@ -38,7 +49,8 @@ play?
 | --- | --- |
 | the first draft against the road as BM shipped it | **red - `Expected: "0" Received: "2"`, j-0981** |
 | the FINAL text against the same code (src from `main`) | **red - `Expected: "1" Received: "3"`, j-0988** |
-| with the private topic and migration 0056 | green, j-0983 and j-0989 |
+| with the private topic and migration 0056 | green, j-0994 |
+| `playout-both-roads` beside it, unchanged | green, j-0989 and j-0992 |
 
 The counts are worth reading twice: on top of the operator's own real Take, the stranger's socket
 frame AND their REST call both landed, so a read-only link put the graphic on air twice over. Both
