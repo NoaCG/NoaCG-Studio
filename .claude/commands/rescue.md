@@ -26,7 +26,9 @@ liveness against job status, and cancels with argv that no shell can rewrite.
 ## Procedure
 
 1. **Launch.** One Bash call, from this session - never through a subagent, whose lifetime is the
-   whole problem:
+   whole problem. Set the call's actual cwd to the assigned feature worktree; a path inside the
+   prompt does not set it. Keep read-only git available for build gates, even when the worker
+   must not commit, push or merge. Plugin sandbox restrictions do not describe native Codex:
 
    `node scripts/codex-rescue.mjs launch "<the task>"`
 

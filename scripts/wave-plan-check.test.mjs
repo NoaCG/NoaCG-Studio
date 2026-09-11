@@ -181,7 +181,7 @@ test('a night plan must carry a Window ends line; a day plan need not', () => {
   const asDay = checkPlan(GOOD, { exists, handoffs, receipts, now: NOW, night: false });
   assert.ok(!asDay.problems.some((problem) => /Window ends/.test(problem)), 'a day plan is not asked for a window');
 
-  const withWindow = checkPlan(`${GOOD}\nWindow ends: 2026-09-02T07:00:00+03:00\n`, { exists, handoffs, receipts, now: NOW, night: true });
+  const withWindow = checkPlan(`${GOOD}\nWindow ends: ${new Date(NOW + 10 * 60 * 60_000).toISOString()}\n`, { exists, handoffs, receipts, now: NOW, night: true });
   assert.deepEqual(withWindow.problems, [], 'a night plan with a parseable window passes');
 });
 
@@ -299,6 +299,35 @@ test('tableUnder returns the first table under a matching heading, keyed by colu
   assert.equal(table.rows[0].letter, 'A');
   assert.equal(tableUnder('# Plan\n', /candidates/i), null);
   assert.equal(tableUnder('## Candidates\n\nno table\n', /candidates/i).header, null);
+});
+
+test('night windows accept ten hours and the exact ceiling but refuse expired and excessive shifts', () => {
+  const windowProblems = (hours) => checkPlan(`${GOOD}\nWindow ends: ${new Date(NOW + hours * 60 * 60_000).toISOString()}\n`,
+    { exists, handoffs, receipts, now: NOW, night: true }).problems;
+  assert.deepEqual(windowProblems(10), []);
+  assert.deepEqual(windowProblems(24), []);
+  assert.ok(windowProblems(72).some((p) => /24-hour/.test(p)));
+  assert.ok(windowProblems(24 + 1 / 3600).some((p) => /24-hour/.test(p)));
+  assert.ok(windowProblems(0).some((p) => /future/.test(p)));
+  assert.ok(windowProblems(-1).some((p) => /future/.test(p)));
+});
+
+test('rechecking a running shift uses its original start, not another 24 hours from now', () => {
+  const start = NOW - 20 * 60 * 60_000;
+  const plan = (end) => `${GOOD}\nWindow starts: ${new Date(start).toISOString()}\nWindow ends: ${new Date(end).toISOString()}\n`;
+  const options = { exists, handoffs, receipts, now: NOW, night: true };
+  assert.deepEqual(checkPlan(plan(start + 24 * 60 * 60_000), options).problems, []);
+  assert.ok(checkPlan(plan(NOW + 10 * 60 * 60_000), options).problems.some((p) => /24-hour/.test(p)));
+});
+
+test('night windows reject malformed, reversed and not-yet-started windows', () => {
+  const end = new Date(NOW + 10 * 60 * 60_000).toISOString();
+  const options = { exists, handoffs, receipts, now: NOW, night: true };
+  assert.ok(checkPlan(`${GOOD}\nWindow ends: Infinity`, options).problems.some((p) => /Window ends/.test(p)));
+  assert.ok(checkPlan(`${GOOD}\nWindow starts: nonsense\nWindow ends: ${end}`, options).problems.some((p) => /parseable timestamp/.test(p)));
+  const reversed = checkPlan(`${GOOD}\nWindow starts: ${end}\nWindow ends: ${end}`, options).problems;
+  assert.ok(reversed.some((p) => /after Window starts/.test(p)));
+  assert.ok(reversed.some((p) => /wait until/.test(p)));
 });
 
 test('browserWord reads a cell starting with yes or no, ignores markdown, and is null for anything else', () => {

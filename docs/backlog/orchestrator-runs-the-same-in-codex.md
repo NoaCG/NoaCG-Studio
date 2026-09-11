@@ -11,15 +11,21 @@ touches: .agent-workflows/orchestrator.md, .agent-workflows/orchestrator/prompts
 covered-by: scripts/check-shared-instructions.mjs, scripts/wave-plan-check.test.mjs, docs/metrics/2026-09-10-orchestrator-in-codex.md
 needs-owner: none
 note: >-
+  2026-09-11 implementation on codex/orchestrator-cross-harness adds native host routes,
+  Claude CLI ownership/results, Antigravity worktree grant checks, original-duration accounting
+  and enforced unattended windows. The 2026-09-10 plugin-worker restrictions are now scoped to
+  that launch path. See docs/metrics/2026-09-11-cross-harness-orchestrator.md for reproductions
+  and live startup outcomes. STILL OPEN: successful authenticated Claude-from-Codex work and a
+  complete unattended cross-host shift; the live Claude probe reached an expired login.
   5ed1be97 and c7ad7ff3 landed the comparison the ask is about, plus the delegate's own plan as
   evidence. Codex $orchestrator planned the 2026-09-10 night wave from the same commit, window and
   inputs as the live Claude plan; both were scored by the same exported checkPlan() - Claude 4
   rows / 0 problems, Codex 3 rows / 4 problems. The method, the thirteen differences and their
   classification are in docs/metrics/2026-09-10-orchestrator-in-codex.md, and the delegate's plan
   itself in docs/metrics/2026-09-10-orchestrator-in-codex-plan.md. Both Codex adapters now name the
-  four mechanisms the shared procedure assumes. STILL MISSING: five gaps in the shared workflow,
-  written out below and deliberately NOT applied, because that file belonged to another session
-  that night.
+  four mechanisms the shared procedure assumed. The five historical gaps below were not applied
+  that night because the shared workflow belonged to another session; the 2026-09-11 entry above
+  supersedes their blanket Codex restrictions.
 ---
 # The orchestrator produces the same plan in Codex as in Claude Code
 

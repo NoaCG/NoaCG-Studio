@@ -418,3 +418,23 @@ by optional lookup, and therefore PASSES WHEN IT FINDS NOTHING - is the sweep th
 `type-floor.mjs` matched nothing after its constants moved and reported PASS over 502 unmeasured
 variants, and a rule declaring `fires: test:<spec>` vanishes from every loaded surface with no gate
 seeing it. Three instances, one evening, three different mechanisms.
+
+## The coordinator was mistaken for its delegate (2026-09-11)
+
+The owner clarified that the Codex comparison had run through Claude's plugin. That plugin really
+sets read-only/workspace-write and never-approve, but the adapter turned those settings into a
+claim about all Codex hosts. A native Codex session could already run subagents, query GitHub and
+write the durable store. The correction scopes observations to launch path and permissions, with
+native host routes kept out of Claude's ordinary planning path.
+
+An Antigravity write preflight checked that ANY write grant existed. The grant was for Claude's
+worktrees; the assigned Codex tree was elsewhere. The preflight now compares the directory before
+invocation. The duration join also kept a repair's newer launch rather than the task's original
+start, turning 128 minutes into five; first launch and attempts are now distinct. A 72-hour night
+plan passed the old checker despite the core's ceiling; explicit original start/end now pin it.
+
+The native Claude smoke proved why launch readback matters. One call's variadic option consumed
+the prompt, and a resume of that failed-before-init job had no conversation to resume. Both
+returned IDs. A corrected fresh launch reached Claude and reported expired login. The receipt
+in `docs/metrics/2026-09-11-cross-harness-orchestrator.md` records the IDs and actual outcomes.
+No failure was reported as a working route, and no permissions were widened to complete the probe.

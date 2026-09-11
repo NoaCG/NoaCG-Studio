@@ -1,8 +1,8 @@
 # Section 5 - the prompts
 
-One fenced block per session, in START order, and **each is what THIS SESSION hands the Agent tool**
-(`launch.md`) - printed too, so the owner reads what was started; pasting one into a session he
-opens is the fallback for a row the classifier refused, never the plan. Compact - target ~20 lines.
+One fenced block per session, in START order, handed to the verified host route (`launch.md`)
+and printed so the owner can read what started. A user-opened session is the fallback for a
+classifier-refused row, never the default. Compact - target ~20 lines.
 The pool decision each block rests on is `routing.md`.
 
 Open the section with a **one-line run order** naming the letters and nothing else, so the user sees
@@ -11,16 +11,17 @@ the shape before reading a prompt: *"Start now: A, B, C, D. E follows on A landi
 ```
 SESSION A - <three-word name>
 BRANCH <tool>/a-<name>
-MODEL  opus high - <what KIND of thinking this task rewards>
+MODEL  <available model and effort> - <what KIND of thinking this task rewards>
 START  now
 TOUCHES <files>   MINTS <slot, or ->
 GOAL   One sentence: what is true when this is done.
 WHY    The real problem it solves, or the goal it serves.
 READ   file, file, file.
+DELEGATE <if used: pool, tools/read-write mode, absolute worktree, result route; evidence in GOAL/GATE>
 DO     1. …  2. …  3. …
 CORE   which steps are the core; the rest is the tail a short session cuts first.
 TRAPS  only what is written in no repo file
-GATE   npm run build, then push and read the CI run - check WHICH jobs ran. Commit each verified step.
+GATE   npm run build and the necessary focused checks. Commit the verified outcome; queueing starts CI.
 QUEUE  Then, as your LAST THREE actions and in this order:
        1. run /check (review, simplify, verify) on the branch - name each leg's mode;
        2. write docs/handoffs/<date>-a-<slug>.md: what is left and why, evidence and traps that

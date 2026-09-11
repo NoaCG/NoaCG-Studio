@@ -81,10 +81,9 @@ it to look.
   reaches this session the minute it does, named by failing spec, and `main` turning green again is
   a line too - the "owner got the email, the loop never heard" gap. Say in one line that both
   watches run; never poll or sleep in the foreground - the Monitors' events are the only wake-up.
-- **In Codex** there is no Monitor, so a night wave there is planned with **no follow-on rows and
-  no refill at all** - the work is collapsed into bigger prompts instead, and its morning report
-  comes from re-invoking this workflow. Say that out loud in section 7 rather than leaving the user
-  to notice the difference.
+- **In native Codex**, use `hosts.md`'s active waits and, when available, one recorded thread
+  heartbeat. Follow-ons and refill obey the SAME rules below. A restricted plugin worker without
+  a wake-up route cannot promise an unattended wave; that is a route limitation, not a host ban.
 
 Each tick, in this order, and nothing else:
 
@@ -113,7 +112,7 @@ Each tick, in this order, and nothing else:
    call - a working session has results arriving and never qualifies, so an empty list is silence
    about every session, not an all-clear about any. `claude-agents.mjs` answers what the harness
    LISTS as running, and never sees an Agent-tool subagent, a Codex session or another machine.
-   Neither answers "is this row alive"; the three-signal test below does.
+   Neither answers "is this row alive"; the test below requires coverage of the actual host (`hosts.md`).
    **A wait is one of three things**: a permission prompt nobody answered, a call still running, or
    a session no longer running at all. The inventory separates the third, so every waiting line
    carries whether a process holds it; the first two are inseparable, the tick says so rather than
@@ -171,6 +170,14 @@ the user's word. A row that overruns the window is not a failure - it lands afte
 and the queue refuses only an unlanded conflict, never a late one. **Never a fixed cadence and
 never a fraction of the night**: the wake-up is the Monitor's events, the stop is the measured
 horizon, and both are readings rather than guesses.
+
+**Useful output is the objective, not occupancy.** Prefer one coherent outcome per branch over
+several small PRs that repeat the same integration gate. Refill independent work while GitHub
+lands; never widen a frozen queued branch. Preserve the original launch record across repairs.
+After two failed attempts at the same acceptance claim without new evidence, hold that item,
+record the reproduction and change the assignment or pool before further work. This does not
+stop independent frontier work. Recheck capacity before refill and reserve enough to verify and
+report what is already running. The report separates new outcomes, repairs and landing wait.
 
 **A REFUSAL THE BRANCH DID NOT CAUSE IS REPAIRED BY THE LOOP, NOT REPORTED.** Read the watcher job's
 log and the pull request to a verdict and name which kind it is (`report.md`). Two are the

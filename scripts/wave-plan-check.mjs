@@ -55,7 +55,7 @@ import { alignmentState, mentionsId } from './alignment-answers.mjs';
 import { drain, handoffFiles, newestWavePlan, parseHandoffSection } from './handoff-drain.mjs';
 import { inStore, wavePlansDir } from './wave-plan-store.mjs';
 import { isStanding, readReceipts } from './owner-receipts.mjs';
-import { parseWindowEnd } from './wave-horizon.mjs';
+import { parseWindowEnd, parseWindowStart } from './wave-horizon.mjs';
 import { candidateProblems, parseCandidateSection, planDate, summaryLine, weeklyCandidates } from './weekly-candidates.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -402,8 +402,21 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
   }
   // A night wave refills unattended, and the refill loop stops on the horizon, so the window the
   // horizon measures against must be written down. A day plan has no unattended window and no loop.
-  if (night && parseWindowEnd(text) === null) {
-    problems.push('a night plan needs a "Window ends: <iso>" line - wave-horizon.mjs reads it to know when to stop refilling');
+  if (night) {
+    const end = parseWindowEnd(text);
+    const start = parseWindowStart(text);
+    const hasStart = /^\s*(?:[-*]\s*)?(?:\*\*)?window starts\s*(?:\*\*)?:/im.test(text);
+    if (end === null) {
+      problems.push('a night plan needs a "Window ends: <iso>" line - wave-horizon.mjs reads it to know when to stop refilling');
+    } else {
+      if (end <= now) problems.push('a night plan Window ends must be in the future - this unattended window has ended');
+      // Old end-only plans remain usable. New plans pin their original start, so rechecking a
+      // partially completed shift does not silently grant another 24 hours.
+      if (end - (start ?? now) > 24 * 60 * 60_000) problems.push('a night plan window must not exceed the 24-hour unattended ceiling');
+      if (start !== null && end <= start) problems.push('a night plan Window ends must be after Window starts');
+    }
+    if (hasStart && start === null) problems.push('a night plan Window starts must be a parseable timestamp');
+    if (start !== null && start > now) problems.push('a night plan Window starts is in the future - wait until the authorized window starts before launching');
   }
   const rows = drain(handoffs, parseHandoffSection(text), { now });
   for (const row of rows.filter((entry) => entry.flag === 'UNCLASSIFIED')) {

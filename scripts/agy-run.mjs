@@ -522,7 +522,7 @@ export function effortVerdict({ model, effort, installedVersion, observation = E
  * warning is reserved for a prompt that declares no tool set at all (no `read_file` in it): on a
  * machine with no command grant that is the prompt shape that reaches for a shell and gets nothing.
  */
-export function grantPreflight(settingsText, { write = false, prompt = '' } = {}) {
+export function grantPreflight(settingsText, { write = false, prompt = '', cwd = null } = {}) {
   if (settingsText === null || settingsText === undefined) {
     return { refusal: null, warning: 'the agy grant file could not be read, so nothing about its permissions is checked here.' };
   }
@@ -549,6 +549,30 @@ export function grantPreflight(settingsText, { write = false, prompt = '' } = {}
       warning: null,
     };
   }
+  // A grant for Claude's worktree root does not cover a Codex-managed checkout. Check the
+  // measured directory form before spending, rather than accepting any write_file entry.
+  // Other pattern forms remain unknown: this is a preflight, not agy's permission engine.
+  if (write && cwd) {
+    const targets = allow.map((entry) => /^write_file\((.*)\)$/.exec(entry)?.[1]).filter(Boolean);
+    const directoryTargets = targets.filter((target) => /[\\/]$/.test(target)
+      && !/[[\]{}*+?^$|]/.test(target));
+    const covered = targets.includes('*') || directoryTargets.some((target) => {
+      const pathApi = /^(?:[A-Za-z]:[\\/]|\\\\)/.test(target) ? path.win32 : path.posix;
+      const relative = pathApi.relative(pathApi.normalize(target), pathApi.normalize(cwd));
+      return !pathApi.isAbsolute(relative) && relative !== '..'
+        && !relative.startsWith(`..${pathApi.sep}`);
+    });
+    if (!covered) {
+      const unknown = targets.some((target) => !directoryTargets.includes(target));
+      if (unknown) {
+        return { refusal: null, warning: `write_file grants use an unverified pattern form; coverage of ${cwd} is unknown. Check the effective grants before delegating writes.` };
+      }
+      return {
+        refusal: `no write_file directory grant covers this worktree: ${cwd}. Route this write to a worktree already covered by the configured grants, or use another harness. Machine permissions were not changed.`,
+        warning: null,
+      };
+    }
+  }
   return {
     refusal: null,
     warning: has('command') || /(^|[^\w])read_file([^\w]|$)/.test(String(prompt ?? '')) ? null
@@ -573,7 +597,7 @@ export function invocationPreflight({ prompt, write, model, effort, roots, insta
   const verdict = effortVerdict({ model, effort, installedVersion });
   if (verdict?.refusal) refusals.push(verdict.refusal);
   if (verdict?.warning) warnings.push(verdict.warning);
-  const grants = grantPreflight(settingsText, { write, prompt });
+  const grants = grantPreflight(settingsText, { write, prompt, cwd: roots?.worktree });
   if (grants.refusal) refusals.push(grants.refusal);
   if (grants.warning) warnings.push(grants.warning);
   return { refusals, warnings };

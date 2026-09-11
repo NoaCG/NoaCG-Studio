@@ -9,16 +9,15 @@ nothing here overrides it. Any text the user typed after `$orchestrator` is the 
 workflow refers to: handoffs from finished sessions, owner feedback on the newest build, or both.
 With none, plan from repository state alone and say so.
 
-**The four it assumes**, measured 2026-09-10 (`docs/metrics/2026-09-10-orchestrator-in-codex.md`).
-Do everything around each, and say which one bit in the section the procedure puts it in.
+Load `.agent-workflows/orchestrator/hosts.md` before grounding. It distinguishes a native Codex
+coordinator from a Codex worker launched through Claude's plugin; the worker's measured sandbox
+does not describe the coordinator. Probe the current session instead of assuming capabilities.
 
-- **No Agent tool.** This session cannot launch a row, so the core's "this session LAUNCHES its own
-  rows" has no arm here: section 5's prompts are what the USER pastes into sessions he opens.
-- **No Monitor.** No watch loop, no refill, no follow-on rows (`orchestrator/night.md`), and the
-  morning report comes from re-invoking this workflow (`orchestrator/report.md`).
-- **No network.** `gh` cannot run, so a landing refusal and the morning CI verdict are reported
-  UNCHECKED rather than asserted from a local file.
-- **Writes reach only the directory this session started in.** The wave-state store lives under the
-  primary checkout's `.git`, so from a worktree the plan cannot go there and `wave-plan-check.mjs`
-  refuses a plan outside it. Score it anyway - `checkPlan()` in that script is exported and pure -
-  and write the plan to a file IN this checkout, named in your reply, so it outlives the scrollback.
+Use available native subagents for Codex rows, the Claude CLI bridge for Claude rows, and the
+existing Antigravity wrapper with grants covering the assigned worktree. Every implementation
+row owns a separate feature worktree. A native subagent shares its parent's directory unless
+explicitly directed to that worktree; do not assume automatic isolation.
+
+An unattended request uses the same bounded candidate/refill procedure on either host. Native
+waits keep an active turn running; a supported thread heartbeat can resume between turns from
+the durable plan. Never promise a wake-up without arming and recording its actual mechanism.
