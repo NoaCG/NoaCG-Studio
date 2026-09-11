@@ -203,7 +203,6 @@ export function parseRelayArgs(argv) {
   };
 }
 
-/** Seconds since a job last wrote a log line, so a hang is reported instead of awaited forever. */
 /**
  * THE USAGE LIMIT READS AS A CRASH, AND IS NOT ONE. When Codex runs out of its account's usage
  * mid-job, the plugin records the job `failed/failed`, the same words it uses for a worker that
@@ -233,6 +232,7 @@ function usageLimitIn(logFile) {
   return usageLimitLine(readFileSync(logFile, 'utf8'));
 }
 
+/** Seconds since a job last wrote a log line, so a hang is reported instead of awaited forever. */
 export function logIdleSeconds(logFile, nowMs = Date.now()) {
   if (!logFile || !existsSync(logFile)) return null;
   return Math.max(0, Math.round((nowMs - statSync(logFile).mtimeMs) / 1000));

@@ -93,9 +93,13 @@ function unconfirmedSpecs(retry) {
   return 'the retry job re-ran nothing - a shard died before reporting, or the failing spec is one this landing edited - so the specs have no second verdict';
 }
 
-/** Why a failed Build or Factory job is not yet evidence. Only called when it was not confirmed. */
+/**
+ * Why a failed job is not yet evidence. Only called when it was not confirmed. The `rerun` job
+ * repeats Build and Factory only, so a failed job of any other kind (the catalog gate, the E2E
+ * plan) never gets a second run, and the reason says so rather than implying it passed.
+ */
 function unconfirmedJob(rerun) {
-  if (rerun === 'success') return 'the failed job passed when it was re-run on the same commit - a flaky test, reported rather than reverted';
+  if (rerun === 'success') return 'the failed job passed when it was re-run on the same commit - a flaky test, reported rather than reverted (only Build and Factory are re-run; any other failed job had no second run)';
   return `the failed job never got a second run (re-run job: ${rerun}), so this may be a flake`;
 }
 
