@@ -50,7 +50,19 @@ export function readStatus(info, id, alive = (pid) => { try { process.kill(pid, 
   if (!/^[a-zA-Z0-9-]+$/.test(id ?? '')) throw new Error('Invalid worker id');
   const metadata = JSON.parse(readFileSync(path.join(info.directory, id, 'metadata.json'), 'utf8'));
   // A missing process never establishes successful completion, and PID reuse is not identity proof.
-  if (metadata.status === 'running') return { ...metadata, status: 'unknown', processPresent: Boolean(metadata.pid && alive(metadata.pid)), reason: 'No terminal receipt yet; process presence alone cannot establish worker identity' };
+  if (metadata.status === 'running' || metadata.status === 'unknown') {
+    const supervisorPresent = metadata.pid != null ? Boolean(alive(metadata.pid)) : null;
+    const workerPresent = metadata.childPid != null ? Boolean(alive(metadata.childPid)) : null;
+    const processPresent = Boolean(metadata.pid && supervisorPresent); // Legacy field stays boolean.
+    return {
+      ...metadata,
+      status: 'unknown',
+      processPresent,
+      supervisorPresent,
+      workerPresent,
+      reason: metadata.reason ?? 'No terminal receipt yet; process presence alone cannot establish worker identity',
+    };
+  }
   return metadata;
 }
 
