@@ -22,14 +22,14 @@ slide 5.
   the guide. Three slides stay on screen while the room works (4, 5, 6) and they carry only what a
   live product cannot: what to do now, where to go, and the two sentences to say before they are
   asked. Is seven the right count, or would you cut one?
-- **Slide 5, the numbers.** "24.8 s" is the tool time of the seven CLI verbs, measured on
-  2026-09-09 (`docs/AGENT_CLI.md`, "Time to air, measured"), and the sentence beside it adds the
-  9.3 s `save` into the live library measured on 2026-09-10. They are two runs on two days, so the
-  slide says two numbers rather than adding them into one clock. The hop from the library to air
-  is still untimed, and the slide says so. If you would rather the room hear nothing about the
-  untimed hop, delete that sentence; do not replace it with a time.
-- **The notes.** Every slide's notes name the beat ids, their status on the day the deck was built
-  (WORKS, UNSEEN, GAP), the dates, and the file that proves each claim, so you can tweak a slide the night before
+- **Slide 5, the number.** "24.8 s" is the tool time of the seven CLI verbs, measured on
+  2026-09-09 (`docs/AGENT_CLI.md`, "Time to air, measured"). The sentence next to it says nobody
+  has timed the leg from the library to air with a stopwatch. That wording is deliberate: "minutes
+  to air" end to end is not proven, because the cloud save leg has never been walked, and the
+  slide does not say it. If you would rather the room hear nothing about the untimed leg, delete
+  the sentence; do not replace it with a time.
+- **The notes.** Every slide's notes name the beat ids, their status on 2026-09-09 (WORKS, UNSEEN,
+  GAP), the dates, and the file that proves each claim, so you can tweak a slide the night before
   without re-reading the script. Slide 6's notes carry what is not on the slide and why (CasparCG
   Connect, NoaCG driving an OGraf renderer).
 - **The type.** Arial and Consolas, not the brand faces, because Space Grotesk, IBM Plex Sans and
@@ -64,15 +64,7 @@ not a presenter's workaround. It stays filed as
 Advanced-mode "Open in the editor" is wired to the same non-saving call), and the slide note comes
 out when the product is fixed.
 
-## Rebuilt 2026-09-11, so this is the deck to open
-
-Your 2026-09-10 calls made the 2026-09-09 deck wrong on three slides, and the file on disk is now
-a rebuild against them (`docs/DEMO_2026-09-25.md`, beat O2, says slide by slide what changed).
-The on-air slide, 6, ends the day at our own player with no OBS and no box; slide 4 carries the
-small-group take-home; slide 7 names both one-page indexes. Slide 3's picture still shows OBS,
-CasparCG and OGraf on the right, drawn dim and headed "your systems, later", because that is where
-the same URL goes in the studio session. If you would rather the picture stopped at the player,
-delete the right-hand column; nothing else on the slide leans on it.
-
-Nobody has edited the file by hand, so the rebuild lost nothing. From your first edit on, the
-generator refuses to write over it.
+**Read this one AFTER the deck is rebuilt.** `docs/backlog/deck-contradicts-the-2026-09-10-calls.md`
+records that the file on disk now contradicts the script on three slides, worst on slide 5, which
+still shows four playout targets and sends the room to point OBS at the output URL - the thing you
+cut on 2026-09-10. Opening it before the rebuild would show you a deck we already know is wrong.
