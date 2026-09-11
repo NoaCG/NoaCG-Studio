@@ -1554,3 +1554,20 @@ subject the routing table's opening paragraph names three sections for. That par
 three, and the rule sits in the second-pool table row instead, where everyone reads it. Naming a
 fourth section is an edit to how this whole file is read, and it belongs to whoever owns that
 paragraph rather than to a row appending evidence under it.
+
+## Coordinator and delegate are different roles, 2026-09-11
+
+The native Codex coordinator now uses the same planner and can own review, verification and
+queueing. Earlier entries reserving those responsibilities for Claude describe the sandboxed
+rescue route, not a model limitation. Keep that rescue path for Claude-launched Codex workers;
+set the actual launch cwd and allow the read-only git commands its build gates need.
+
+Measured causes, corrected preflight and live probe outcomes are recorded in
+`docs/metrics/2026-09-11-cross-harness-orchestrator.md`. Antigravity's existing grants cover
+Claude worktrees but not native Codex worktrees; an uncovered write now fails before spend.
+Its no-command-grant tasks still need enumerated files. No machine permissions were broadened.
+
+Native Claude background launch from Codex reached the assigned cwd, then reported expired login.
+An earlier successful auth-status lookup was insufficient. Read the worker result before declaring
+that route usable. Native Codex subagent work and targeted local tests succeeded; a complete
+unattended cross-host shift remains unverified. The adapter is `.agent-workflows/orchestrator/hosts.md`.

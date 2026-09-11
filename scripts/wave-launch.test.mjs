@@ -16,19 +16,30 @@ test('percentile is nearest-rank and empty answers null, never zero', () => {
   assert.equal(percentile([10, 20, 30, 40, 50], 0.5), 30);
 });
 
-test('joinDurations takes the first merge enqueued after the launch, and the newest launch per branch', () => {
+test('repair attempts preserve original elapsed time, even when the ledger is out of order', () => {
   const launches = [
+    { branch: 'claude/a', at: T(123), letter: 'A', size: 'small' },
     { branch: 'claude/a', at: T(0), letter: 'A', size: 'standard' },
-    { branch: 'claude/a', at: T(5), letter: 'A', size: 'standard' }, // a corrected re-launch, newer
   ];
   const jobs = [
-    { kind: 'merge', branch: 'claude/a', enqueuedAt: T(3) }, // before the newest launch - ignored
-    { kind: 'merge', branch: 'claude/a', enqueuedAt: T(95) }, // the real queueing
+    { kind: 'merge', branch: 'claude/a', enqueuedAt: T(-3) }, // before the task - ignored
+    { kind: 'merge', branch: 'claude/a', enqueuedAt: T(128) },
   ];
-  const landings = [{ branch: 'claude/a', at: T(100) }];
+  const landings = [{ branch: 'claude/a', at: T(160) }];
   const [row] = joinDurations(launches, jobs, landings);
-  assert.equal(row.toQueueMin, 90); // 95 - 5
-  assert.equal(row.toLandMin, 95); // 100 - 5
+  assert.equal(row.toQueueMin, 128);
+  assert.equal(row.toLandMin, 160);
+  assert.equal(row.size, 'standard', 'a small repair does not reclassify the entire task');
+  assert.deepEqual(row.attempts.map((attempt) => attempt.launchedAt), [T(0), T(123)]);
+});
+
+test('a repair after queueing retains first declaration and separately records attempts', () => {
+  const launches = [0, 123, 123].map((min) => ({ v: 1, branch: 'claude/a', at: T(min), size: 'standard' }));
+  const jobs = [95, 128].map((min) => ({ kind: 'merge', branch: 'claude/a', enqueuedAt: T(min) }));
+  const [row] = joinDurations(launches, jobs, []);
+  assert.equal(row.toQueueMin, 95);
+  assert.equal(row.attempts.length, 2, 'duplicate records do not inflate the attempt count');
+  assert.equal(row.toLandMin, null);
 });
 
 test('a launched row with no merge yet reports null, so the caller can count what is still running', () => {

@@ -1,18 +1,18 @@
 # Grounding - what to read, in what order
 
-Load this FIRST, before any other read. This session has to survive a whole day of follow-up
+Native Codex or a changed execution route reads `hosts.md` first; Claude's usual route begins here.
+This session has to survive a day of follow-up
 questions, so its window is the scarce resource. Reading is tiered, and grounding is done when
 every command in the cheap set has been run in this invocation and the plan-time state is written
 into the wave-state file - a plan grounded in yesterday's numbers is grounded in nothing.
 
 ## Before any read: the home
 
-**`node scripts/orchestrator-home.mjs`.** It fetches and puts this session in its permanent home -
-`.claude/worktrees/orchestrator`, detached at `origin/main`, created if absent and fast-forwarded
-if behind (exception 4). Everything below is then read from the path it prints, so the plan is
-made against what actually landed rather than against whatever commit this session started from.
-Run every later command of the session from that directory. The wave-state file goes to the store,
-not here - the tick, the drain and the plan check all resolve it there, from any checkout.
+**`node scripts/orchestrator-home.mjs`**, using the host route in `hosts.md`. It fetches and updates
+the permanent detached home (exception 4). Read from its printed path with explicit cwd, so the
+plan is grounded in what landed. A pinned-cwd harness uses the verified-current fallback there.
+The wave-state file goes to the shared store, not a disposable checkout; the tick, drain and plan
+check resolve it from any worktree. Failed store access is a limitation to report, not a Codex rule.
 
 It is idempotent and refuses rather than clobbers: a dirty home is left alone and reported (reads
 there are stale), and a path git does not know as a worktree, a home holding a branch, or any git

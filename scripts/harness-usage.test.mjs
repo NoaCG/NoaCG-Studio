@@ -1069,6 +1069,34 @@ test('the grant file is a lower bound: a missing grant refuses, a present one pr
   assert.match(grantPreflight('{not json').warning, /not valid JSON/);
 });
 
+test('write grants must cover the actual worktree before a delegation can spend', () => {
+  const settings = JSON.stringify({ permissions: { allow: [
+    'read_file(*)', 'write_file(C:/claude/NoaCG-Studio/.claude/worktrees/)',
+  ] } });
+  const check = (cwd, extra = {}) => grantPreflight(settings, {
+    write: true, prompt: 'TOOLS: read_file and write_file, NO SHELL.', cwd, ...extra,
+  });
+  assert.equal(check('C:/claude/NoaCG-Studio/.claude/worktrees/agent-a').refusal, null);
+  assert.equal(check('c:\\claude\\NoaCG-Studio\\.claude\\worktrees\\agent-a').refusal, null);
+  assert.match(check('C:/Users/ahonemi/.codex/worktrees/173a/NoaCG-Studio').refusal, /no write_file directory grant covers/);
+  assert.match(check('C:/claude/NoaCG-Studio/.claude/worktrees-other/agent-a').refusal, /no write_file directory grant covers/);
+  assert.match(check('C:/claude/NoaCG-Studio/.claude/worktrees/../outside').refusal, /no write_file directory grant covers/);
+  assert.equal(check('C:/Users/ahonemi/.codex/worktrees/173a/NoaCG-Studio', { write: false }).refusal, null);
+  const unrestricted = JSON.stringify({ permissions: { allow: ['read_file(*)', 'write_file(*)'] } });
+  assert.equal(grantPreflight(unrestricted, { write: true, cwd: 'C:/somewhere' }).refusal, null);
+  const unknown = JSON.stringify({ permissions: { allow: ['read_file(*)', 'write_file(C:/pattern/.*)'] } });
+  assert.match(grantPreflight(unknown, { write: true, cwd: 'C:/somewhere' }).warning, /coverage.*unknown/);
+
+  // The runtime uses the checkout obtained from git, not paths guessed from the prompt.
+  const result = invocationPreflight({
+    prompt: 'TOOLS: read_file and write_file, NO SHELL.', write: true,
+    roots: { worktree: 'C:/Users/ahonemi/.codex/worktrees/173a/NoaCG-Studio', primary: 'C:/claude/NoaCG-Studio' },
+    settingsText: settings,
+  });
+  assert.equal(result.refusals.length, 1);
+  assert.match(result.refusals[0], /no write_file directory grant covers/);
+});
+
 test('the whole preflight collects every refusal and every warning, and says nothing on a clean call', () => {
   const clean = invocationPreflight({
     prompt: 'TOOLS: read_file and write_file, NO SHELL. Edit C:/claude/NoaCG-Studio/.claude/worktrees/agent-a1/docs/A.md.',

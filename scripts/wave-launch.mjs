@@ -14,8 +14,8 @@
 // ledger; the live orchestrator appends one line per launch.
 //
 // One JSON line per launch in `<git-common-dir>/noacg-jobs/wave-launches.jsonl`, beside the job
-// store and under its lifetime rules. Append-only, never edited: a wrong line is followed by a
-// corrected one, and the join below takes the newest record per branch.
+// store and under its lifetime rules. Append-only, never edited. Re-launching a branch records
+// another attempt; it must never erase the time already spent on that task.
 
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -52,6 +52,7 @@ export function readLaunches(dir) {
 export function recordLaunch(dir, { letter, branch, size, plan = null, now = Date.now() }) {
   if (!branch || !/^[\w./-]+$/.test(branch)) throw new Error('record needs --branch <name>');
   if (!SIZES.includes(size)) throw new Error(`record needs --size one of ${SIZES.join(', ')}`);
+  if (!Number.isFinite(now)) throw new Error('record needs a finite launch timestamp');
   ensureJobsDir(dir);
   const row = { v: LEDGER_VERSION, at: now, letter: letter ?? null, branch, size, plan };
   appendFileSync(ledgerPath(dir), `${JSON.stringify(row)}\n`, 'utf8');
@@ -65,12 +66,17 @@ export function recordLaunch(dir, { letter, branch, size, plan = null, now = Dat
  * yet are returned with `toQueueMin: null` so a caller can count what is still running.
  */
 export function joinDurations(launches, jobs, landings) {
-  const newest = new Map();
+  const byBranch = new Map();
   for (const row of launches) {
-    const seen = newest.get(row.branch);
-    if (!seen || row.at > seen.at) newest.set(row.branch, row);
+    if (!row?.branch || !Number.isFinite(row.at)) continue;
+    if (!byBranch.has(row.branch)) byBranch.set(row.branch, new Map());
+    // An identical timestamp is a repeated record, not another attempt. Legacy v1 rows already
+    // contain everything this grouping needs; no ledger rewrite or persisted schema change.
+    byBranch.get(row.branch).set(row.at, row);
   }
-  return [...newest.values()].map((launch) => {
+  return [...byBranch.values()].map((records) => {
+    const attempts = [...records.values()].sort((a, b) => a.at - b.at);
+    const launch = attempts[0];
     const queued = jobs
       .filter((job) => job.kind === 'merge' && job.branch === launch.branch && Number.isFinite(job.enqueuedAt) && job.enqueuedAt >= launch.at)
       .sort((a, b) => a.enqueuedAt - b.enqueuedAt)[0];
@@ -81,6 +87,12 @@ export function joinDurations(launches, jobs, landings) {
       size: SIZES.includes(launch.size) ? launch.size : 'standard',
       launchedAt: launch.at,
       plan: launch.plan ?? null,
+      attempts: attempts.map((attempt) => ({
+        launchedAt: attempt.at,
+        letter: attempt.letter ?? null,
+        size: SIZES.includes(attempt.size) ? attempt.size : 'standard',
+        plan: attempt.plan ?? null,
+      })),
       toQueueMin: queued ? Math.round((queued.enqueuedAt - launch.at) / 60_000) : null,
       toLandMin: landed ? Math.round((landed.at - launch.at) / 60_000) : null,
     };

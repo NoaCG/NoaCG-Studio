@@ -34,11 +34,10 @@ it **never touches another worktree** - not to check something, not to merge, no
    worktree, named in the wave table before the wave started (`orchestrator/night.md`).
 3. **The wave-state file** - the plan's durable copy, below. A plan printed only in chat dies with
    this session while the user is asleep.
-4. **Its own home** - `node scripts/orchestrator-home.mjs` creates or fast-forwards ONE permanent
-   worktree, `.claude/worktrees/orchestrator`, detached at `origin/main`. Infrastructure: never a
-   branch, never a commit, never deleted. It exists because **the main checkout belongs to the
-   landing queue**, which rewrites that tree at every integration, and a throwaway worktree is
-   pinned at the commit it was cut from. The session lives there; the wave-state file does not.
+4. **Launch infrastructure** - `node scripts/orchestrator-home.mjs` maintains the detached home;
+   `orchestrator/hosts.md` also permits creating each assigned row's EMPTY feature worktree and
+   launch receipts, never editing or adopting another worker's tree. Historically **the main checkout
+   belongs to the landing queue**; GitHub now lands remotely. Plan from fetched `origin/main`.
 
 **Landing authority belongs to GitHub's merge queue.** Never merge, and never push by hand. A branch
 reaches `main` declared finished by its own session - but re-arming a declared landing's watcher,
@@ -111,7 +110,7 @@ session enters the watch loop (`orchestrator/night.md`) and stays there until th
 At the path `node scripts/wave-plan-store.mjs --path <date> <day|night>` prints - the store beside
 the job store, NEVER a checkout, because a plan in a worktree dies with it. It holds, under
 headings the check reads by name: `## Wave table` (columns L, goal, START, TOUCHES, MINTS, POOL,
-browser); every prompt verbatim in fenced blocks; the `Pools at plan time:` and `Window ends: <iso>`
+browser); every prompt verbatim; `Pools at plan time:`, `Window starts: <iso>`, `Window ends: <iso>`
 lines (read by `wave-horizon.mjs`), and on a night wave a `## Candidates` list the refill loop draws
 on (`orchestrator/night.md`); `## Handoffs`, one line per file read (`- consumed: <file> -> row B`);
 `## Weekly review` and `## Owner receipts`, one line per item `weekly-candidates.mjs` and
@@ -170,7 +169,8 @@ These fire while the wave table is being written, before any module is loaded.
 
 | Load | When |
 | --- | --- |
-| [`orchestrator/grounding.md`](orchestrator/grounding.md) | **first, before any other read** (*every plan*) - the home, the cheap set, the tiered read |
+| [`orchestrator/hosts.md`](orchestrator/hosts.md) | native Codex, or changing execution route; before grounding |
+| [`orchestrator/grounding.md`](orchestrator/grounding.md) | after host selection (*every plan*) - the home, the cheap set, the tiered read |
 | [`orchestrator/collisions.md`](orchestrator/collisions.md) | the collision pass (*every plan*), and consuming the handoff folder |
 | [`orchestrator/pushback.md`](orchestrator/pushback.md) | section 4 (*every plan*) |
 | [`orchestrator/prompts.md`](orchestrator/prompts.md) | writing the prompts (*every plan*) - the block, the line rules, the confirmation pass |

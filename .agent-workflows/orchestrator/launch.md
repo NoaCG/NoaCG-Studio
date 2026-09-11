@@ -5,9 +5,9 @@ Loaded when a wave's rows are launched, day or night - after the plan has passed
 row is running in its own worktree, every held row is in section 4 with its full prompt, and the
 wave-state file says which is which.
 
-**Launch directly; a chip only when the start IS the owner's decision.** **The PRIMARY launch path
-is the Agent tool** - a background subagent in its own worktree, model per the wave row. The
-headless CLI (`claude -p`) is the alternative and needs live CLI auth, verified that day.
+**Launch directly; a chip only when the start IS the owner's decision.** `hosts.md` selects the
+execution route. **In Claude Code the PRIMARY launch path is the Agent tool**, with its existing
+definitions below. Native Codex uses its subagents or the authenticated Claude CLI, not those definitions.
 
 **Record every launch**, initial rows and refills alike, with
 `node scripts/wave-launch.mjs record --letter <L> --branch <branch> --size <small|standard|large>`.
@@ -15,7 +15,7 @@ It is one appended ledger line, and it is the only place a row's launch-to-queue
 the number `wave-horizon.mjs` reads to decide whether another unit still fits the night. A launch
 nobody records is a night the horizon cannot learn from, so the seed never improves.
 
-**The Agent tool CALL carries a model and no reasoning effort, but an agent DEFINITION carries
+**Claude's Agent tool CALL carries a model and no reasoning effort, but an agent DEFINITION carries
 both**, so a row is launched by NAMING ITS AGENT rather than by naming a model and hoping the
 effort follows. The rungs of the routing ladder live in `.claude/agents/`, one file each, carrying
 the model, the effort and `isolation: worktree`:
@@ -79,8 +79,8 @@ mechanism working. The item goes to the owner with the evidence and the one comm
 it - never re-phrased, never routed around, and never handed to a different session in the hope
 that it lands differently. Evidence: `incidents.md` "the two classifier refusals".
 
-**A wave session that spawns its own subagents never receives their completion notifications -
-they route to the orchestrator session instead.** A prompt that sanctions a fan-out says so:
+**Claude-launched rows can send their subagent notifications to the launcher when they end a turn.**
+This measured Claude behavior is not a native Codex restriction. A Claude prompt sanctioning fan-out says:
 collect results via FILES at agreed paths, never wait on notifications. **A stray report that
 reaches the orchestrator is relayed with `node scripts/relay.mjs write --branch <branch> --from
 <who>`**, which the owning branch's QUEUE step reads before it can land - `add-merge` refuses a

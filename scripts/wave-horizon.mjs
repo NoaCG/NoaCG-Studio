@@ -42,7 +42,16 @@ export const MIN_SAMPLES = 5;
 
 /** The `Window ends: <iso>` line of a wave plan, as epoch ms, or null. */
 export function parseWindowEnd(text) {
-  const match = /^\s*(?:[-*]\s*)?(?:\*\*)?window ends\s*(?:\*\*)?:\s*`?([^`\s]+)`?/im.exec(String(text).replace(/\r\n/g, '\n'));
+  return parseWindowTime(text, 'ends');
+}
+
+/** Optional for legacy plans; new plans retain this original start across refills. */
+export function parseWindowStart(text) {
+  return parseWindowTime(text, 'starts');
+}
+
+function parseWindowTime(text, edge) {
+  const match = new RegExp('^\\s*(?:[-*]\\s*)?(?:\\*\\*)?window ' + edge + '\\s*(?:\\*\\*)?:\\s*`?([^`\\s]+)`?', 'im').exec(String(text).replace(/\r\n/g, '\n'));
   if (!match) return null;
   const at = Date.parse(match[1]);
   return Number.isFinite(at) ? at : null;

@@ -162,6 +162,11 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       // A file-list diff calls every one of these collisions disjoint, so the plan has to hand
       // out the scarce slots itself.
       'The plan ALLOCATES these up front',
+      // Cross-host ownership must not regress into treating a sandboxed plugin worker as
+      // every Codex session, or Claude's inventory as proof a Codex branch is abandoned.
+      'Implementation workers never share a working tree.',
+      "Missing from Claude's inventory does not mean dead in Codex.",
+      'Never reset the window or start a second wave.',
     ],
   ],
   [
