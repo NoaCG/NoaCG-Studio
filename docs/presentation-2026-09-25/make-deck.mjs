@@ -8,11 +8,12 @@
  * command. Nothing in `npm run build` runs this.
  *
  * Content of record: `docs/DEMO_2026-09-25.md`. Every sentence on a slide traces to that file's
- * evidence column, and the speaker notes name the beat, its status on 2026-09-09 and the file
- * that proves it.
+ * evidence column, and the speaker notes name the beat, its status on the date each note gives
+ * (2026-09-10 for slides 1, 4, 6 and 7, 2026-09-09 for the rest) and the file that proves it.
  *
  * THIS SCRIPT IS ALLOWED TO DRIFT FROM THE DECK, AND NOTHING CHECKS THAT IT HAS NOT. The deck
- * was built from this exact script on 2026-09-09 and never again: from the first hand edit on,
+ * was built from this script on 2026-09-09 and rebuilt from it on 2026-09-10, with nobody's hand
+ * edit in between, and the two matched on that day. From the first hand edit on,
  * the deck is the one that is true, and this file is the record of how it started. No gate
  * lints it (`eslint .` scopes its rules to src/, scripts/, e2e/, api/ and render-worker/) and no
  * gate runs it (`pptxgenjs` is not a project dependency), so a broken generator stays green.
@@ -359,10 +360,12 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     { text: ' road in the Typefaces row, on the Fields step.', options: {} },
   ], { x: rx + pad, y: 5.6, w: tw, h: 0.85, fontSize: 14, color: MID, lineSpacingMultiple: 1.15 });
 
-  text(s, [
-    { text: 'The guide, step by step:  ', options: { fontSize: 14, color: FAINT } },
-    { text: 'noacg.studio/docs#first-graphic', options: { fontSize: 14, fontFace: MONO, color: AMBER } },
-  ], { x: M, y: 6.75, w: CW - 1.2, h: 0.3 });
+  // foot() hands its argument to text(), which takes runs as readily as a string, so the guide
+  // rides in the slide's own foot line with the URL set apart in mono amber.
+  foot(s, [
+    { text: 'The guide, step by step:  ', options: {} },
+    { text: 'noacg.studio/docs#first-graphic', options: { fontFace: MONO, color: AMBER } },
+  ]);
 
   s.addNotes(
     '§3, R1.1 to R1.7. Status on 2026-09-10: WORKS on the shipped samples for the six road beats, with one exception. R1.4, behaviour on artwork nobody at NoaCG drew, is pinned by e2e/import-svg-behaviour.spec.ts, but you have not looked at your OWN quiz board since the three text-box fixes (docs/TEXT_BOX_BINDING.md). The 12th is that walk.\n\n' +
@@ -486,7 +489,7 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     '§5, and §0 call 4 (owner, 2026-09-10) is why this slide is short. ON THE DAY AIR STOPS AT THE NOACG PLAYER IN THE CLOUD: a graphic is imported and played on our own hosted player, and seeing it work there is the proof the room gets. No OBS on a student laptop, no CasparCG box, no playout configuration of any kind. Real playout is a separate studio session later. This replaces the earlier call, which prepared four targets and chose between them on the day - if you are holding a printed deck older than 2026-09-10, the four-target slide is the one it has.\n\n' +
     'A1 WORKS. A2 WORKS except the eyes-on half of the imported quiz over the hosted log (docs/acceptance/IMPORTED_QUIZ_HOSTED_WALK.md step 2), which the 12th is.\n\n' +
     'IF SOMEBODY ASKS FOR THEIR OWN SYSTEM, the beats are still written in §5 and still true. Take one, do not take four, and do not put it on the clock. The cheapest is A5, an exported package played from a file with no network at all: WORKS, proven on the owner\'s own server, and the CasparCG package has carried an operator page since 2026-09-04.\n\n' +
-    'WHAT A REAL CASPARCG NOW SAYS (2026-09-10, docs/acceptance/owner-queue/2026-09-10-bh-a-real-casparcg-has-now-run-the-output-url.md). Both servers on this laptop have aired a published production through their screen consumer, so A4 (CG 1-20 ADD with the output URL) and A6 (Connect through the CLI agent) both work on a real 2.3.2 and a real 2.5.0. Three things from that walk are worth having if it comes up. 2.3.x is Chromium 71, measured, not the 75 or 88 the compatibility table used to infer; its flex gaps collapse, which src/assets/flexGapShim.js now puts back, while color-mix, backdrop-filter, the inset shorthand, clamp/min/max and aspect-ratio are still dropped there (docs/PLAYOUT_COMPATIBILITY.md §2). A channel restart drops the layer, and one re-issued CG ADD brings the graphic back at its LIVE state rather than the cue\'s authored one. And Put on air sends the output URL OF THE PAGE IT IS PRESSED ON, so pressing it on a dev server sends a URL 2.3.x cannot parse while AMCP still answers 202 and the row still says it worked.\n\n' +
+    'WHAT A REAL CASPARCG NOW SAYS (2026-09-10, docs/acceptance/owner-queue/2026-09-10-bh-a-real-casparcg-has-now-run-the-output-url.md). Both servers on this laptop have aired a published production through their screen consumer. A4 (CG 1-20 ADD with the output URL) works on a real 2.3.2 and a real 2.5.0. A6 (Put on air through the CLI agent) aired end to end on 2.5.0 only: on 2.3.2 AMCP answered 202 and the channel stayed empty, for the origin reason below, and the same production loaded by hand aired on that server a minute later. Three things from that walk are worth having if it comes up. 2.3.x is Chromium 71, measured, not the 75 or 88 the compatibility table used to infer; its flex gaps collapse, which src/assets/flexGapShim.js now puts back, while color-mix, backdrop-filter, the inset shorthand, clamp/min/max and aspect-ratio are still dropped there (docs/PLAYOUT_COMPATIBILITY.md §2). A channel restart drops the layer, and one re-issued CG ADD brings the graphic back at its LIVE state rather than the cue\'s authored one. And Put on air sends the output URL OF THE PAGE IT IS PRESSED ON, so pressing it on a dev server sends a URL 2.3.x cannot parse while AMCP still answers 202 and the row still says it worked.\n\n' +
     'WHAT IS STILL UNPROVEN THERE: SDI, a Decklink card, the venue\'s network, and pressing Put on air from https://noacg.studio, where the browser\'s Local Network Access prompt needs a person. The acceptance lines in docs/STUDENT_RELEASE_ACCEPTANCE.md §1 sit unticked and the owner ticks them; none of it is on the 25th.\n\n' +
     'A7, OGRAF. The catalog packages, the agent packages and, on 2026-09-09, an imported quiz board WITH its behaviour have all been driven in SuperFly\'s ograf-server (docs/OGRAF.md). Which renderer Yle runs is still not recorded: docs/acceptance/owner-queue/2026-09-10-be-which-ograf-renderer-yle-runs.md.\n\n' +
     'A8 is not a beat. Said out loud if asked: today NoaCG packages and the renderer controls.\n\n' +
@@ -521,8 +524,13 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   panel(s, ix, 1.82, iw, 1.69);
   head(s, 'In your hand, and afterwards a file', ix + ipad, 2.04, iw - 2 * ipad);
   text(s, [
-    { text: 'For the room', options: { bold: true, color: PAPER } },
-    { text: ' - the road in order, both URLs, a link into every section below, and the take-home brief.', options: { breakLine: true, paraSpaceAfter: 5 } },
+    // PARAGRAPH SPACING GOES ON THE PARAGRAPH'S FIRST RUN. pptxgenjs 4 writes an <a:pPr> before
+    // EVERY run of a multi-run paragraph (measured 2026-09-10 across this whole deck), while the
+    // schema allows one, as the first child. A reader that keeps only the first would drop a
+    // spacing option set on a later run, though LibreOffice honours it and shows the gap. Put on
+    // the first run, it lands in the first <a:pPr> - step() does the same.
+    { text: 'For the room', options: { bold: true, color: PAPER, paraSpaceAfter: 5 } },
+    { text: ' - the road in order, both URLs, a link into every section below, and the take-home brief.', options: { breakLine: true } },
     { text: 'For whoever runs it', options: { bold: true, color: PAPER } },
     { text: ' - the same beats as a running order, who drives each, and the clock.', options: {} },
   ], { x: ix + ipad, y: 2.3, w: iw - 2 * ipad, h: 0.98, fontSize: 14, color: MID });
