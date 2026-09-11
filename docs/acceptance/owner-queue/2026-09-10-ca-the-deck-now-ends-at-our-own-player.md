@@ -57,4 +57,26 @@ save, your edits win and the generator never overwrites them.
   close one shared 10 minutes. Slide 6 already carries that 10, and the old "5 min" made the
   slides add up to 95.
 
+## Folded in 2026-09-11 from the first deck item
+
+`2026-09-09-s-the-25-september-deck-opens-in-powerpoint.md` opened the same file at the same
+double-click and asked for the same walk, so it is folded in here. Three things from it survive.
+
+**A question that is genuinely yours** (direction). Slide 4's step 05 reads "Finish: name it,
+then take the production door. It saves the graphic and puts it in a show." Is that the
+instruction you want to give the room, or would you rather they were told to press Export and
+take the package home? It is sharper since your call 6: what the room does with its graphic in
+the session and what each group takes home are now two different answers.
+
+**Decided, not asked: the `Create project` door gets fixed rather than worked around.** Slide 4's
+notes tell whoever presents not to say "Create project" out loud, because that button does not
+save. A control whose name promises something it does not do is a defect, so the answer is not a
+presenter's workaround. It is filed as `docs/backlog/create-project-is-a-door-that-saves-nothing.md`,
+covering Finish's Advanced-mode "Open in the editor" too, and the slide note comes out when the
+product is fixed.
+
+**The type.** The deck is set in Arial and Consolas, because the brand faces are not installed on
+this laptop and a `.pptx` cannot carry a fallback stack. If you install them, **Home > Replace >
+Replace Fonts** swaps Arial for Space Grotesk and Consolas for JetBrains Mono in one go.
+
 Filed 2026-09-10. Branch `claude/ca-deck-and-demo-doc`.
