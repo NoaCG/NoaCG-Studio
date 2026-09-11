@@ -215,7 +215,7 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
 
   s.addNotes(
     'O1. Every sentence on this slide has a row in docs/PROMISE_AUDIT.md, cited by its promise text: "Free and open source, AGPL-3.0, no paid edition"; "No lock-in: real HTML/CSS/JS, self-contained packages, runs from a local file with no internet" (WORKS WITH A STATED LIMITATION: the single-file targets and the SPX folder run from a file; an OGraf or LiveOS package is ES modules and needs an http server, which is why the slide says single-file); "Exports to SPX Graphics, CasparCG, OBS and vMix, H2R, LiveOS, OGraf"; "No account to create, edit and export"; "A production ... one persistent output URL" (the free account).\n\n' +
-    'IF ASKED. CasparCG Connect through the CLI agent has not been run against real hardware; the exported package has (docs/STUDENT_RELEASE_ACCEPTANCE.md §2).\n\n' +
+    'IF ASKED. The exported package has run on the owner\'s own CasparCG since 2026-08-05 (docs/STUDENT_RELEASE_ACCEPTANCE.md §2). Since 2026-09-10 the output URL and CasparCG Connect have both aired on a real 2.3.2 and a real 2.5.0, on a screen consumer (§5 A4 and A6). SDI, a Decklink card and pressing Put on air from noacg.studio are still unproven.\n\n' +
     'Source: docs/DEMO_2026-09-25.md §2 O1; docs/PROMISE_AUDIT.md.',
   );
 }
@@ -253,13 +253,13 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   const c5 = { x: 11.35, w: W - M - 11.35 };
 
   head(s, 'Road 1 and road 2', c1.x, 1.85, 4);
-  text(s, "THE ROOM'S SYSTEMS", { x: W - M - 3, y: 1.85, w: 3, h: 0.26, fontFace: MONO, fontSize: 11, color: AMBER, charSpacing: 2, align: 'right' });
+  text(s, 'YOUR SYSTEMS, LATER', { x: W - M - 3, y: 1.85, w: 3, h: 0.26, fontFace: MONO, fontSize: 11, color: AMBER, charSpacing: 2, align: 'right' });
 
   node(c1.x, topY, c1.w, 'Your artwork', 'Illustrator, Figma or Inkscape. An SVG.', { you: true });
   node(c1.x, botY, c1.w, 'Your coding agent', 'Claude Code, Codex, or the CLI alone.', { you: true });
   node(c2.x, midY, c2.w, 'Library', 'One record, either road.');
   node(c3.x, midY, c3.w, 'Production', 'Cues. Take, Update, Out.');
-  node(c4.x, midY, c4.w, 'One URL', 'The output, live.', { hot: true });
+  node(c4.x, midY, c4.w, 'One URL', 'Plays on our player.', { hot: true });
 
   // Both roads meet in the library.
   arrow(s, c1.x + c1.w, cy(topY), c2.x - (c1.x + c1.w), cy(midY) - cy(topY), DIM);
@@ -268,19 +268,21 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   arrow(s, c2.x + c2.w, cy(midY), c3.x - (c2.x + c2.w), 0, DIM);
   arrow(s, c3.x + c3.w, cy(midY), c4.x - (c3.x + c3.w), 0, DIM);
 
-  // The URL fans out to whatever the room runs; these three are the amber lines.
+  // The URL also reaches what the room already runs, but NOT ON THE DAY: §0 call 4 (2026-09-10)
+  // ends air at our own player and moves every playout box to a later studio session. So the
+  // three targets and their arrows are dim, and the one amber box is the URL itself.
   const tH = 0.7;
   const targets = ['OBS', 'CasparCG', 'OGraf'];
   const tYs = [cy(topY) - tH / 2, cy(midY) - tH / 2, cy(botY) - tH / 2];
   targets.forEach((name, i) => {
     panel(s, c5.x, tYs[i], c5.w, tH);
-    text(s, name, { x: c5.x, y: tYs[i], w: c5.w, h: tH, fontFace: DISPLAY, fontSize: 14, bold: true, align: 'center', valign: 'middle' });
+    text(s, name, { x: c5.x, y: tYs[i], w: c5.w, h: tH, fontFace: DISPLAY, fontSize: 14, bold: true, color: DIM, align: 'center', valign: 'middle' });
   });
   const fx = c4.x + c4.w;
   const fw = c5.x - fx;
-  arrow(s, fx, cy(topY), fw, cy(midY) - cy(topY), AMBER, true);
-  arrow(s, fx, cy(midY), fw, 0, AMBER);
-  arrow(s, fx, cy(midY), fw, cy(botY) - cy(midY), AMBER);
+  arrow(s, fx, cy(topY), fw, cy(midY) - cy(topY), DIM, true);
+  arrow(s, fx, cy(midY), fw, 0, DIM);
+  arrow(s, fx, cy(midY), fw, cy(botY) - cy(midY), DIM);
 
   // The second door out of the library: a package, played with no network.
   text(s, 'Or export a package from the library and play the file with no network at all.', { x: c2.x, y: midY + nodeH + 0.2, w: 2.9, h: 0.6, fontSize: 12.5, color: DIM, lineSpacingMultiple: 1.15 });
@@ -290,7 +292,8 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   s.addNotes(
     'O2. This is the deck the script asked for: one picture plus the beat headings. Say the shape out loud now so the room knows why on-air comes last: an imported SVG and an agent-made graphic both become a library record, both go into a production, and both air through one output URL (§0, call 2).\n\n' +
     'ORDER. Road 1 goes first because the whole room can do it with no terminal, no subscription and no account (§0, call 3).\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §0 calls 2 and 3, §2 O2.',
+    'THE RIGHT-HAND COLUMN IS LATER, NOT TODAY. On the day the URL plays on our own hosted player and nowhere else (§0 call 4, owner 2026-09-10). OBS, CasparCG and OGraf are drawn dim because they are where the same URL or package goes in a studio session afterwards. Say that once, here, so nobody spends the session waiting for the box.\n\n' +
+    'Source: docs/DEMO_2026-09-25.md §0 calls 2, 3 and 4, §2 O2.',
   );
 }
 
@@ -400,8 +403,11 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   text(s, [
     cmd('npx -y @noacg/cli scaffold --type scoreboard --design neutral --out ./sb'), nl,
     cmd('npx -y @noacg/cli validate ./sb --screenshots ./shots'), nl,
-    cmd('npx -y @noacg/cli login          '), note('# once; a browser asks one question'), nl,
-    cmd('npx -y @noacg/cli save ./sb      '), note('# prints a link that opens at once'),
+    // NOT "prints a link that opens at once", which R2.4 measured false on noacg.studio: the link
+    // lands on Home, with the graphic in Recent graphics. And `login` goes quiet after Allow
+    // although the key is already stored. §7 row 14 carries both, and both workarounds are here.
+    cmd('npx -y @noacg/cli login          '), note('# once; quiet after Allow? Ctrl-C is safe'), nl,
+    cmd('npx -y @noacg/cli save ./sb      '), note('# then open it from Home, Recent graphics'),
   ], { x: M + 0.3, y: codeY + 0.22, w: CW - 0.6, h: codeH - 0.4, fontFace: MONO, fontSize: 14, lineSpacingMultiple: 1.25 });
 
   // The measured number, and the honest sentence about the leg nobody has timed.
@@ -413,7 +419,9 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     // the studio through BridgeClient.connect(), which launches one (cli/src/bridgeClient.ts:158).
     // validate is the slow one for what it does INSIDE that browser. The slide says "they all"
     // about the four verbs printed above it, which are four of those seven.
-    { text: ', measured by hand on 2026-09-09. They all start a browser to reach the studio; validate is 10.7 s of it because it also runs the gate and writes three full-size frames. The rest of the clock is what the agent spends designing, plus the hop to a player. Nobody has put a stopwatch on that last leg end to end yet, so this is the number there is.', options: {} },
+    // TWO NUMBERS, SAID AS TWO (R2.5): two runs, on two days, under different conditions. Adding
+    // them into one clock would claim a single walk that nobody made.
+    { text: ', measured by hand on 2026-09-09. They all start a browser to reach the studio; validate is 10.7 s of it. Then save put a graphic in the live library in 9.3 s, on 2026-09-10. The hop from the library to air is still untimed.', options: {} },
   ], { x: M, y: 5.0, w: lw, h: 1.7, fontSize: 14.5, color: MID, lineSpacingMultiple: 1.2 });
 
   // With an agent: the three steps.
@@ -427,9 +435,10 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   s.addNotes(
     '§4. R2.1 is for everyone, subscription or not. R2.3: you drive one agent on the screen; the evidence is the 2026-08-22 round, 25 of 25 cells validator-clean and every one airable in your own blind read (benchmarks/agent/rounds/2026-08-22/VERDICT.md).\n\n' +
     'THE NUMBER. docs/AGENT_CLI.md, "Time to air, measured": one walk, one machine, 2026-09-09, against a dev server on the branch\'s own build (not 0.3.0 from npm), from an empty folder. 24.8 s is doctor + types + scaffold + validate + inspect + screenshot + pack. Setup once per machine is another 8.7 s.\n\n' +
-    'R2.5: THE CLOUD LEG IS UNTIMED. The measurement stopped at the package\'s own fallback player. The cloud save and the studio\'s output URL were not walked: save refused against the dev server (the CLI\'s key store is per origin) and writing into the live library from an unattended session was not done. The script carries that leg as §7 row 8, the live save with a stopwatch on it. Do not say "minutes to air" as a measured claim; the slide\'s wording is the honest one.\n\n' +
-    'UNSEEN SINCE 2026-08-23. R2.1 against noacg.studio and R2.4 the live save (§7 row 8), and B5 the install lines on a fresh machine, last executed 2026-08-22 for Claude Code and 2026-08-27 for Codex, with the Codex side of the noacg-mcp split not re-verified (§7 row 6). Both are cheap to close before the day.\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §4, §7 rows 6, 8; docs/AGENT_CLI.md "Time to air, measured".',
+    'R2.5: TWO NUMBERS, AND THE LAST HOP IS UNTIMED. 24.8 s is the seven local verbs, a local build against a dev server on 2026-09-09. 9.3 s is save into the live library, the published 0.3.0 against noacg.studio on 2026-09-10. About thirty-five seconds of tool time from an empty folder to a graphic in your library, said as the two numbers. The hop from the library to a production\'s output URL has not been timed (§7 row 15). Do not round up to a minute and do not say "minutes to air".\n\n' +
+    'R2.4, THE TWO DEFECTS THE LIVE SAVE FOUND (§7 row 14). The link save prints lands on Home, not on the graphic; the graphic is in Recent graphics 5 s later, so say "it is in your library" and open it from there. And login stores the key and then hangs instead of exiting: warn the room that the terminal goes quiet after they press Allow, and that Ctrl-C is safe. The two comments in the code panel say both.\n\n' +
+    'ON THIS LAPTOP, BEFORE THE DAY (§7 row 16). The global @noacg/cli here is 0.2.0 and the MCP server prefers it over npx, so R2.3 would run a year of fixes behind with nothing on screen saying so. One command: npm i -g @noacg/cli@latest.\n\n' +
+    'Source: docs/DEMO_2026-09-25.md §4 R2.1 to R2.5, §7 rows 14, 15 and 16; docs/AGENT_CLI.md "Time to air, measured".',
   );
 }
 

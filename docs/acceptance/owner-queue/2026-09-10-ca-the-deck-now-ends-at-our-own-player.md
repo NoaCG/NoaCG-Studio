@@ -35,6 +35,14 @@ under each one.
 - **Slide 1** changed only in small ways. The subline no longer promises the room's own hardware
   on the day, and the notes carry the new clock (10 / 20 / 25 / 25 / 10).
 
+- **Slides 3 and 5 changed on 2026-09-11**, after a second read against the script found them
+  still stale. Slide 3's picture showed OBS, CasparCG and OGraf in amber under "the room's
+  systems"; they are now dim, under **YOUR SYSTEMS, LATER**. Slide 5 promised that `save` prints a
+  link that opens at once and that `login` just finishes, and on `noacg.studio` neither is true
+  (§7 row 14); the code panel now carries both workarounds, and the number text adds the 9.3 s
+  live save beside the 24.8 s. Slide 2's notes no longer say CasparCG Connect never met real
+  hardware.
+
 Say whether it is any good. Edit anything you like, straight in PowerPoint. From the moment you
 save, your edits win and the generator never overwrites them.
 
