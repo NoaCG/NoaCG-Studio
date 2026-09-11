@@ -9,7 +9,8 @@ lands on its own.
 
 `.agent-workflows/orchestrator/night.md`, where the night loop names its three liveness signals,
 now says that the transcript signal cannot see a session that is inside one long tool call. A
-silent transcript whose last tool call has no result is a call still running, not a dead session.
+silent transcript holding a call with no result yet is a call still running, not a dead session,
+and in a batch of calls that one need not be the last entry.
 On 2026-09-11 the loop called row CA dead after two quiet hours while CA sat inside a single
 browser call, and CA came back hours later and landed the deck as pull request 250.
 
