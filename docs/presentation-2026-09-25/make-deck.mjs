@@ -8,11 +8,13 @@
  * command. Nothing in `npm run build` runs this.
  *
  * Content of record: `docs/DEMO_2026-09-25.md`. Every sentence on a slide traces to that file's
- * evidence column, and the speaker notes name the beat, its status on 2026-09-09 and the file
- * that proves it.
+ * evidence column, and the speaker notes name the beat, its status on the day the deck was built
+ * and the file that proves it.
  *
  * THIS SCRIPT IS ALLOWED TO DRIFT FROM THE DECK, AND NOTHING CHECKS THAT IT HAS NOT. The deck
- * was built from this exact script on 2026-09-09 and never again: from the first hand edit on,
+ * was first built from this script on 2026-09-09, and rebuilt from it on 2026-09-11 after the
+ * owner's 2026-09-10 calls made three slides wrong; nobody had edited it by hand in between. From
+ * the first hand edit on,
  * the deck is the one that is true, and this file is the record of how it started. No gate
  * lints it (`eslint .` scopes its rules to src/, scripts/, e2e/, api/ and render-worker/) and no
  * gate runs it (`pptxgenjs` is not a project dependency), so a broken generator stays green.
@@ -172,15 +174,15 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
 
   text(s, '25 SEPTEMBER 2026  ·  STUDENTS AND YLE  ·  HANDS ON', { x: M, y: 2.35, w: CW, h: 0.3, fontFace: MONO, fontSize: 12, color: AMBER, charSpacing: 2 });
   text(s, 'Your own graphics,\non your own systems.', { x: M, y: 2.8, w: CW, h: 1.9, fontFace: DISPLAY, fontSize: 56, bold: true, charSpacing: -1.5, lineSpacingMultiple: 0.98 });
-  text(s, 'Draw one, or ask your coding agent for one. Put it on air from a browser. Then run it on whatever you already have in the room.', { x: M, y: 4.85, w: 9.2, h: 1.0, fontSize: 22, color: MID, lineSpacingMultiple: 1.15 });
-  foot(s, 'Ninety minutes. You drive; we drive only what needs a playout box or an agent subscription.');
+  text(s, 'Draw one, or ask your coding agent for one. Put it on air from a browser, on our player. Then take it to whatever you already run.', { x: M, y: 4.85, w: 9.2, h: 1.1, fontSize: 22, color: MID, lineSpacingMultiple: 1.15 });
+  foot(s, 'Ninety minutes. You drive; we drive only the agent on the screen.');
 
   s.addNotes(
-    'BEFORE THE ROOM, NOT IN IT. B0, the network: the 2026-08-20 Yle demo failed on Yle\'s network, and the diag screenshot from that network (https://noacg.studio/app?diag=1) is still an open owner item, docs/acceptance/owner-queue/2026-09-09-g-yle-network-diag-screenshot.md. If it has not arrived, the phone hotspot is the plan and you say so in the room. This deck opens from a file and needs no network.\n' +
+    'BEFORE THE ROOM, NOT IN IT. B0, the network: the 2026-08-20 Yle demo failed on Yle\'s network, and the diag screenshot from that network (https://noacg.studio/app?diag=1) is the owner\'s own, off the ledger since 2026-09-10 - "I will take care of the Yle network screenshot when I get there, you do not have to remind me" - so nothing here reminds him again. If it has not happened, the phone hotspot is the plan and you say so in the room. That fallback carries more weight since §0 call 4: with air ending at our own hosted player, a network that blocks the app takes the whole session rather than one beat. This deck opens from a file and needs no network.\n\n' +
     'B1: the morning of, check https://noacg.studio/version.json against the tip of main.\n\n' +
-    'THE CLOCK. 10 opening, 30 road 1, 25 road 2, 20 on air, 5 close. A beat that runs long is cut at the next beat\'s boundary, never stretched.\n\n' +
-    'WHO DRIVES. They do, on their own laptops. We drive the CasparCG box, the OGraf renderer and one agent on the screen.\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §0 (the five calls, timing), §1 (B0, B1).',
+    'THE CLOCK, re-cut 2026-09-10 for calls 4 and 6: 10 opening, 20 road 1, 25 drawing in small groups, 25 road 2, 10 on air and the close. A beat that runs long is cut at the next beat\'s boundary, never stretched.\n\n' +
+    'WHO DRIVES. They do, on their own laptops, for everything the day now contains. We drive one agent on the screen. Nobody drives a playout box: §0 call 4 took OBS, CasparCG and the OGraf renderer off the day, and they are a studio session later.\n\n' +
+    'Source: docs/DEMO_2026-09-25.md §0 (the six calls, the re-cut timing), §1 (B0, B1).',
   );
 }
 
@@ -214,7 +216,7 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
 
   s.addNotes(
     'O1. Every sentence on this slide has a row in docs/PROMISE_AUDIT.md, cited by its promise text: "Free and open source, AGPL-3.0, no paid edition"; "No lock-in: real HTML/CSS/JS, self-contained packages, runs from a local file with no internet" (WORKS WITH A STATED LIMITATION: the single-file targets and the SPX folder run from a file; an OGraf or LiveOS package is ES modules and needs an http server, which is why the slide says single-file); "Exports to SPX Graphics, CasparCG, OBS and vMix, H2R, LiveOS, OGraf"; "No account to create, edit and export"; "A production ... one persistent output URL" (the free account).\n\n' +
-    'IF ASKED. CasparCG Connect through the CLI agent has not been run against real hardware; the exported package has (docs/STUDENT_RELEASE_ACCEPTANCE.md §2).\n\n' +
+    'IF ASKED. The exported package has run on the owner\'s own CasparCG since 2026-08-05 (docs/STUDENT_RELEASE_ACCEPTANCE.md §2). Since 2026-09-10 the output URL and CasparCG Connect have both aired on a real 2.3.2 and a real 2.5.0, on a screen consumer (§5 A4 and A6). SDI, a Decklink card and pressing Put on air from noacg.studio are still unproven.\n\n' +
     'Source: docs/DEMO_2026-09-25.md §2 O1; docs/PROMISE_AUDIT.md.',
   );
 }
@@ -252,13 +254,13 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   const c5 = { x: 11.35, w: W - M - 11.35 };
 
   head(s, 'Road 1 and road 2', c1.x, 1.85, 4);
-  text(s, "THE ROOM'S SYSTEMS", { x: W - M - 3, y: 1.85, w: 3, h: 0.26, fontFace: MONO, fontSize: 11, color: AMBER, charSpacing: 2, align: 'right' });
+  text(s, 'YOUR SYSTEMS, LATER', { x: W - M - 3, y: 1.85, w: 3, h: 0.26, fontFace: MONO, fontSize: 11, color: AMBER, charSpacing: 2, align: 'right' });
 
   node(c1.x, topY, c1.w, 'Your artwork', 'Illustrator, Figma or Inkscape. An SVG.', { you: true });
   node(c1.x, botY, c1.w, 'Your coding agent', 'Claude Code, Codex, or the CLI alone.', { you: true });
   node(c2.x, midY, c2.w, 'Library', 'One record, either road.');
   node(c3.x, midY, c3.w, 'Production', 'Cues. Take, Update, Out.');
-  node(c4.x, midY, c4.w, 'One URL', 'The output, live.', { hot: true });
+  node(c4.x, midY, c4.w, 'One URL', 'Plays on our player.', { hot: true });
 
   // Both roads meet in the library.
   arrow(s, c1.x + c1.w, cy(topY), c2.x - (c1.x + c1.w), cy(midY) - cy(topY), DIM);
@@ -267,19 +269,21 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   arrow(s, c2.x + c2.w, cy(midY), c3.x - (c2.x + c2.w), 0, DIM);
   arrow(s, c3.x + c3.w, cy(midY), c4.x - (c3.x + c3.w), 0, DIM);
 
-  // The URL fans out to whatever the room runs; these three are the amber lines.
+  // The URL also reaches what the room already runs, but NOT ON THE DAY: §0 call 4 (2026-09-10)
+  // ends air at our own player and moves every playout box to a later studio session. So the
+  // three targets and their arrows are dim, and the one amber box is the URL itself.
   const tH = 0.7;
   const targets = ['OBS', 'CasparCG', 'OGraf'];
   const tYs = [cy(topY) - tH / 2, cy(midY) - tH / 2, cy(botY) - tH / 2];
   targets.forEach((name, i) => {
     panel(s, c5.x, tYs[i], c5.w, tH);
-    text(s, name, { x: c5.x, y: tYs[i], w: c5.w, h: tH, fontFace: DISPLAY, fontSize: 14, bold: true, align: 'center', valign: 'middle' });
+    text(s, name, { x: c5.x, y: tYs[i], w: c5.w, h: tH, fontFace: DISPLAY, fontSize: 14, bold: true, color: DIM, align: 'center', valign: 'middle' });
   });
   const fx = c4.x + c4.w;
   const fw = c5.x - fx;
-  arrow(s, fx, cy(topY), fw, cy(midY) - cy(topY), AMBER, true);
-  arrow(s, fx, cy(midY), fw, 0, AMBER);
-  arrow(s, fx, cy(midY), fw, cy(botY) - cy(midY), AMBER);
+  arrow(s, fx, cy(topY), fw, cy(midY) - cy(topY), DIM, true);
+  arrow(s, fx, cy(midY), fw, 0, DIM);
+  arrow(s, fx, cy(midY), fw, cy(botY) - cy(midY), DIM);
 
   // The second door out of the library: a package, played with no network.
   text(s, 'Or export a package from the library and play the file with no network at all.', { x: c2.x, y: midY + nodeH + 0.2, w: 2.9, h: 0.6, fontSize: 12.5, color: DIM, lineSpacingMultiple: 1.15 });
@@ -289,23 +293,24 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   s.addNotes(
     'O2. This is the deck the script asked for: one picture plus the beat headings. Say the shape out loud now so the room knows why on-air comes last: an imported SVG and an agent-made graphic both become a library record, both go into a production, and both air through one output URL (§0, call 2).\n\n' +
     'ORDER. Road 1 goes first because the whole room can do it with no terminal, no subscription and no account (§0, call 3).\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §0 calls 2 and 3, §2 O2.',
+    'THE RIGHT-HAND COLUMN IS LATER, NOT TODAY. On the day the URL plays on our own hosted player and nowhere else (§0 call 4, owner 2026-09-10). OBS, CasparCG and OGraf are drawn dim because they are where the same URL or package goes in a studio session afterwards. Say that once, here, so nobody spends the session waiting for the box.\n\n' +
+    'Source: docs/DEMO_2026-09-25.md §0 calls 2, 3 and 4, §2 O2.',
   );
 }
 
 // =============================================================================================
-// 4. ROAD 1: YOUR OWN GRAPHIC. Script §3, beats R1.1 to R1.6. The left half is what the room
-//    does now; the right half is the two sentences the script says to say before they are asked.
+// 4. ROAD 1: YOUR OWN GRAPHIC. Script §3 under owner call 6 (2026-09-10). The take-home is the
+//    session's main work, so the right column leads with it before the two practical cautions.
 // =============================================================================================
 {
   const s = newSlide(4);
-  label(s, 'Road 1  ·  30 min  ·  You drive');
+  label(s, 'Road 1  ·  20 min  ·  You drive');
   heading(s, 'Your own graphic');
 
   const lx = M;
   const lw = 7.0;
   const steps = [
-    ['Draw it to the five rules, or take a sample.', '/docs#svg-rules  ·  samples: lower-third, scorebug, quiz-board'],
+    ['Take the lower-third sample, or a file you drew to the five rules.', '/docs#svg-rules  ·  samples: lower-third, scorebug, quiz-board'],
     ['Drop it. The layer names become the field names.', 'noacg.studio/app  >  New graphic  >  Import graphic'],
     ['Type a name longer than you drew for. Watch what the panel does.', 'the Fields step: wider, then a new line, and only then smaller'],
     ['Pick what it does. The quiz board locks and reveals; the scorebug counts.', 'the Fields step  >  Behaviour'],
@@ -316,20 +321,37 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     // See docs/backlog/create-project-is-a-door-that-saves-nothing.md.
     ['Finish: name it, then take the production door. It saves the graphic and puts it in a show.', 'the Finish step  >  Add to the production'],
   ];
-  steps.forEach(([main, pointer], i) => step(s, i + 1, lx, 1.9 + i * 0.98, lw, main, pointer));
+  steps.forEach(([main, pointer], i) => step(s, i + 1, lx, 1.9 + i * 0.94, lw, main, pointer));
 
   const rx = 8.1;
   const rw = W - M - rx;
-  const pad = 0.3;
-  panel(s, rx, 1.9, rw, 1.95);
-  head(s, 'Say it before they ask', rx + pad, 1.9 + pad, rw - 2 * pad);
+  // ONE INSET FOR THE WHOLE COLUMN. Every head, body and pointer starts at rx + pad, so the left
+  // edges line up down the column; a body nudged wider to win a line reads as a misprint from the
+  // back of a room. When copy does not fit, the size or the panel height moves, never the inset.
+  const pad = 0.22;
+  const tw = rw - 2 * pad; // the one text width in this column
+
+  panel(s, rx, 1.9, rw, 2.15);
+  head(s, 'The take-home  ·  25 min in groups', rx + pad, 2.12, tw);
+  text(s, [
+    { text: 'Small groups, in Illustrator: ', options: {} },
+    { text: 'a lower-third quiz template', options: { bold: true, color: PAPER } },
+    { text: ' and ', options: {} },
+    { text: 'a scoreboard', options: { bold: true, color: PAPER } },
+    { text: '. Started here, finished in your own time, sent in.', options: {} },
+  ], { x: rx + pad, y: 2.44, w: tw, h: 1.15, fontSize: 14, color: MID, lineSpacingMultiple: 1.15 });
+  text(s, '/docs#svg-rules  ·  /docs#svg-export', { x: rx + pad, y: 3.7, w: tw, h: 0.25, fontFace: MONO, fontSize: 12, color: DIM });
+
+  // THE TWO CAUTIONS SHARE ONE PANEL. They are one thought - what to say before the room asks -
+  // and the take-home above them needs the height that a second head and a second pair of pads
+  // would have spent.
+  panel(s, rx, 4.25, rw, 2.35);
+  head(s, 'Say it before they ask', rx + pad, 4.47, tw);
   text(s, [
     { text: 'If a long name does not grow the way you meant, the answer is one dropdown on the Fields step: ', options: {} },
     { text: 'When the text is too long', options: { bold: true } },
     { text: '.', options: {} },
-  ], { x: rx + pad, y: 1.9 + pad + 0.35, w: rw - 2 * pad, h: 1.2, fontSize: 16, color: MID, lineSpacingMultiple: 1.15 });
-
-  panel(s, rx, 4.0, rw, 1.3);
+  ], { x: rx + pad, y: 4.79, w: tw, h: 0.85, fontSize: 14, color: MID, lineSpacingMultiple: 1.15 });
   text(s, [
     { text: 'A typeface Google does not have, or a licensed one, takes the ', options: {} },
     { text: 'upload', options: { bold: true } },
@@ -337,19 +359,23 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     // button), which on this road is Start, Design, Fields, Animation, Finish - two screens
     // before the end, not the last one.
     { text: ' road in the Typefaces row, on the Fields step.', options: {} },
-  ], { x: rx + pad, y: 4.0 + pad, w: rw - 2 * pad, h: 0.9, fontSize: 16, color: MID, lineSpacingMultiple: 1.15 });
+  ], { x: rx + pad, y: 5.72, w: tw, h: 0.85, fontSize: 14, color: MID, lineSpacingMultiple: 1.15 });
 
-  panel(s, rx, 5.45, rw, 1.05);
-  head(s, 'The guide', rx + pad, 5.45 + pad, rw - 2 * pad);
-  text(s, 'noacg.studio/docs#first-graphic', { x: rx + pad, y: 5.45 + pad + 0.32, w: rw - 2 * pad, h: 0.35, fontFace: MONO, fontSize: 16, color: AMBER });
+  text(s, [
+    { text: 'The guide, step by step:  ', options: { fontSize: 14, color: FAINT } },
+    { text: 'noacg.studio/docs#first-graphic', options: { fontSize: 14, fontFace: MONO, color: AMBER } },
+  ], { x: M, y: 6.75, w: CW - 1.2, h: 0.3 });
 
   s.addNotes(
-    '§3, R1.1 to R1.6. Status on 2026-09-09: WORKS on the shipped samples for all six beats, with one exception. R1.4, behaviour on artwork nobody at NoaCG drew, is pinned by e2e/import-svg-behaviour.spec.ts, but you have not looked at your OWN quiz board since the three text-box fixes (docs/TEXT_BOX_BINDING.md). The 12th is that walk.\n\n' +
+    '§3, R1.1 to R1.7. Status on 2026-09-10: WORKS on the shipped samples for the six road beats, with one exception. R1.4, behaviour on artwork nobody at NoaCG drew, is pinned by e2e/import-svg-behaviour.spec.ts, but you have not looked at your OWN quiz board since the three text-box fixes (docs/TEXT_BOX_BINDING.md). The 12th is that walk.\n\n' +
+    'TWO PIECES OF DRAWING, AND THEY MUST NOT BE CONFUSED (§0 call 6, owner 2026-09-10). What the room imports and plays inside the session is ONE SIMPLE GRAPHIC, a lower third, because the session is proving the road works end to end. The real artwork is the take-home: small groups draw a lower-third quiz template and a scoreboard in Illustrator, start them here, finish them in their own time and send them in. The 25 minutes on the panel are the re-cut clock in §0, and they come out of what road 1 and on air used to have.\n\n' +
+    'R1.7 HAS ONE HOLE AND IT IS NOT IN THE PRODUCT. How a finished file comes BACK - where a group sends it, in what format, and what we do with it - is not written anywhere yet. §7 row 17; one paragraph in the student one-page index (G2) closes it. If the room asks and it is still open, take an address and say we will write back rather than inventing a route at the front.\n\n' +
+    'WHY THE SAMPLES ARE THE ROAD IN THE ROOM. docs/svg-samples/quiz-board.svg and scorebug.svg are the two files e2e/import-svg-behaviour.spec.ts drives all the way through behaviour, so a group that follows their layer naming gets a working quiz and a working scoreboard rather than a static picture. R1.4 is what their own file will do when it comes back.\n\n' +
     'R1.3 ON THEIR OWN FILE. The growth default is measured off the geometry and for some exporter shapes it disagrees with what the designer meant (docs/backlog/svg-growth-default-across-exporters.md). That is why the dropdown sentence is said out loud rather than waited for.\n\n' +
     'THE ROAD, IN SCREENS. Start, Design, Fields, Animation, Finish (src/components/wizard/CreationWizard.tsx, STEP_TITLES_SVG). "Create project" sits in the footer beside Design, Fields and Animation - not on Start, not on Finish - and it does NOT save: it builds with defaults for everything not yet reached and hands you to the code editor (create() calls applyDraftProject() with no arguments). The two doors the default studio shows on Finish, the production one and Export, both save. DO NOT name Create project in the room: send people to Finish and to a door by name. docs/backlog/create-project-is-a-door-that-saves-nothing.md is the open question about whether that button should be renamed or should save.\n\n' +
     'R1.5. A Yle designer\'s licensed face takes the upload road, in the Typefaces row on the FIELDS step - two screens before the end. The Google door is offered only where Google has the family.\n\n' +
     'NOT A BEAT. The live-vote encore needs a fixture brought by hand and has two open backlog items; only if the room is ahead of the clock.\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §3; the guide is docs.html #first-graphic, landed 2026-09-09.',
+    'Source: docs/DEMO_2026-09-25.md §0 call 6, §3 R1.1 to R1.7, §7 row 17; the guide is docs.html #first-graphic, landed 2026-09-09.',
   );
 }
 
@@ -373,8 +399,11 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   text(s, [
     cmd('npx -y @noacg/cli scaffold --type scoreboard --design neutral --out ./sb'), nl,
     cmd('npx -y @noacg/cli validate ./sb --screenshots ./shots'), nl,
-    cmd('npx -y @noacg/cli login          '), note('# once; a browser asks one question'), nl,
-    cmd('npx -y @noacg/cli save ./sb      '), note('# prints a link that opens at once'),
+    // NOT "prints a link that opens at once", which R2.4 measured false on noacg.studio: the link
+    // lands on Home, with the graphic in Recent graphics. And `login` goes quiet after Allow
+    // although the key is already stored. §7 row 14 carries both, and both workarounds are here.
+    cmd('npx -y @noacg/cli login          '), note('# once; quiet after Allow? Ctrl-C is safe'), nl,
+    cmd('npx -y @noacg/cli save ./sb      '), note('# then open it from Home, Recent graphics'),
   ], { x: M + 0.3, y: codeY + 0.22, w: CW - 0.6, h: codeH - 0.4, fontFace: MONO, fontSize: 14, lineSpacingMultiple: 1.25 });
 
   // The measured number, and the honest sentence about the leg nobody has timed.
@@ -386,7 +415,9 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     // the studio through BridgeClient.connect(), which launches one (cli/src/bridgeClient.ts:158).
     // validate is the slow one for what it does INSIDE that browser. The slide says "they all"
     // about the four verbs printed above it, which are four of those seven.
-    { text: ', measured by hand on 2026-09-09. They all start a browser to reach the studio; validate is 10.7 s of it because it also runs the gate and writes three full-size frames. The rest of the clock is what the agent spends designing, plus the hop to a player. Nobody has put a stopwatch on that last leg end to end yet, so this is the number there is.', options: {} },
+    // TWO NUMBERS, SAID AS TWO (R2.5): two runs, on two days, under different conditions. Adding
+    // them into one clock would claim a single walk that nobody made.
+    { text: ', measured by hand on 2026-09-09. They all start a browser to reach the studio; validate is 10.7 s of it. Then save put a graphic in the live library in 9.3 s, on 2026-09-10. The hop from the library to air is still untimed.', options: {} },
   ], { x: M, y: 5.0, w: lw, h: 1.7, fontSize: 14.5, color: MID, lineSpacingMultiple: 1.2 });
 
   // With an agent: the three steps.
@@ -400,20 +431,20 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   s.addNotes(
     '§4. R2.1 is for everyone, subscription or not. R2.3: you drive one agent on the screen; the evidence is the 2026-08-22 round, 25 of 25 cells validator-clean and every one airable in your own blind read (benchmarks/agent/rounds/2026-08-22/VERDICT.md).\n\n' +
     'THE NUMBER. docs/AGENT_CLI.md, "Time to air, measured": one walk, one machine, 2026-09-09, against a dev server on the branch\'s own build (not 0.3.0 from npm), from an empty folder. 24.8 s is doctor + types + scaffold + validate + inspect + screenshot + pack. Setup once per machine is another 8.7 s.\n\n' +
-    'R2.5: THE CLOUD LEG IS UNTIMED. The measurement stopped at the package\'s own fallback player. The cloud save and the studio\'s output URL were not walked: save refused against the dev server (the CLI\'s key store is per origin) and writing into the live library from an unattended session was not done. The script carries that leg as §7 row 8, the live save with a stopwatch on it. Do not say "minutes to air" as a measured claim; the slide\'s wording is the honest one.\n\n' +
-    'UNSEEN SINCE 2026-08-23. R2.1 against noacg.studio and R2.4 the live save (§7 row 8), and B5 the install lines on a fresh machine, last executed 2026-08-22 for Claude Code and 2026-08-27 for Codex, with the Codex side of the noacg-mcp split not re-verified (§7 row 6). Both are cheap to close before the day.\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §4, §7 rows 6, 8; docs/AGENT_CLI.md "Time to air, measured".',
+    'R2.5: TWO NUMBERS, AND THE LAST HOP IS UNTIMED. 24.8 s is the seven local verbs, a local build against a dev server on 2026-09-09. 9.3 s is save into the live library, the published 0.3.0 against noacg.studio on 2026-09-10. About thirty-five seconds of tool time from an empty folder to a graphic in your library, said as the two numbers. The hop from the library to a production\'s output URL has not been timed (§7 row 15). Do not round up to a minute and do not say "minutes to air".\n\n' +
+    'R2.4, THE TWO DEFECTS THE LIVE SAVE FOUND (§7 row 14). The link save prints lands on Home, not on the graphic; the graphic is in Recent graphics 5 s later, so say "it is in your library" and open it from there. And login stores the key and then hangs instead of exiting: warn the room that the terminal goes quiet after they press Allow, and that Ctrl-C is safe. The two comments in the code panel say both.\n\n' +
+    'ON THIS LAPTOP, BEFORE THE DAY (§7 row 16). The global @noacg/cli here is 0.2.0 and the MCP server prefers it over npx, so R2.3 would run a year of fixes behind with nothing on screen saying so. One command: npm i -g @noacg/cli@latest.\n\n' +
+    'Source: docs/DEMO_2026-09-25.md §4 R2.1 to R2.5, §7 rows 14, 15 and 16; docs/AGENT_CLI.md "Time to air, measured".',
   );
 }
 
 // =============================================================================================
-// 6. ON AIR. Script §5. Both roads have put a graphic in the library; from here the beats are
-//    the same. The four targets are the four the script prepares. A6 (Connect) is not shown
-//    unless the 12th proves it, and A8 is not a beat.
+// 6. ON AIR. Script §5 under owner call 4 (2026-09-10). The day ends at the hosted player, so
+//    the other playout targets are named as a later studio session rather than offered as choices.
 // =============================================================================================
 {
   const s = newSlide(6);
-  label(s, "On air  ·  20 min  ·  You drive, then the room's boxes");
+  label(s, 'On air  ·  10 min  ·  Everyone, on our own player');
   heading(s, 'One production, one URL');
 
   const gap = 0.2;
@@ -435,48 +466,59 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     text(s, runs, { x: x + pad, y: sy + pad + 0.32, w: sw - 2 * pad, h: sh - pad - 0.35, fontSize: 15, color: MID, lineSpacingMultiple: 1.15 });
   });
 
-  // The four targets, prepared in advance and picked on the day: who, the target, the route.
-  const tw = (CW - 3 * gap) / 4;
-  const ty = sy + sh + 0.2;
-  const th = 2.85;
-  const targets = [
-    ['Everyone', 'OBS, on your laptop', "Browser source, the output URL, 1920x1080, your channel's fps.", '/docs#obs'],
-    ["The room's box", 'CasparCG 2.3, the URL', 'CG 1-20 ADD 1 "<URL>" 1, loaded once, then cued from the dashboard.', '/docs#casparcg-url'],
-    ['No network', 'CasparCG or SPX, a file', 'Export the package, play the file, drive it from the bundled control panel.', '/docs#export'],
-    ['For Yle', 'An OGraf renderer', 'Export as an OGraf package, or take a starter from noacg.studio/ograf.', 'noacg.studio/ograf'],
-  ];
-  targets.forEach(([who, title, body, pointer], i) => {
-    const x = M + i * (tw + gap);
-    panel(s, x, ty, tw, th);
-    text(s, who.toUpperCase(), { x: x + pad, y: ty + pad, w: tw - 2 * pad, h: 0.22, fontFace: MONO, fontSize: 10.5, color: AMBER, charSpacing: 2 });
-    text(s, title, { x: x + pad, y: ty + pad + 0.32, w: tw - 2 * pad, h: 0.75, fontFace: DISPLAY, fontSize: 18, bold: true, lineSpacingMultiple: 1.05 });
-    text(s, body, { x: x + pad, y: ty + pad + 1.1, w: tw - 2 * pad, h: 0.8, fontSize: 14, color: MID, lineSpacingMultiple: 1.15 });
-    text(s, pointer, { x: x + pad, y: ty + th - pad - 0.28, w: tw - 2 * pad, h: 0.28, fontFace: MONO, fontSize: 12, color: PAPER, valign: 'bottom' });
-  });
+  // WHERE THE DAY ENDS, on the left and outlined, and what is deliberately NOT happening, on the
+  // right and quieter. Both panels inset every line by the same `pad` as the step row above them.
+  // The right panel's smaller type is the hierarchy, not a way to squeeze copy in: it is an aside.
+  const airW = 8.3;
+  const airT = airW - 2 * pad;
+  panel(s, M, 3.7, airW, 2.85, { line: { color: AMBER, width: 1.5 } });
+  head(s, 'Today, this is air', M + pad, 3.98, airT);
+  text(s, 'The output URL is the player.', { x: M + pad, y: 4.34, w: airT, h: 0.4, fontFace: DISPLAY, fontSize: 22, bold: true });
+  text(s, 'A browser tab on noacg.studio, playing your graphic at full size. Nothing to install, no box to configure, no setting to get right. Take a cue on the dashboard and it is up on the tab in front of the room.', { x: M + pad, y: 4.84, w: airT, h: 1.3, fontSize: 16, color: MID, lineSpacingMultiple: 1.15 });
+  text(s, '/docs#dashboard', { x: M + pad, y: 6.2, w: airT, h: 0.25, fontFace: MONO, fontSize: 12, color: PAPER });
+
+  const laterX = 9.2;
+  const laterW = W - M - laterX;
+  const laterT = laterW - 2 * pad;
+  panel(s, laterX, 3.7, laterW, 2.85);
+  head(s, 'Not today', laterX + pad, 3.98, laterT);
+  text(s, 'Your own systems, later', { x: laterX + pad, y: 4.3, w: laterT, h: 0.3, fontFace: DISPLAY, fontSize: 16, bold: true });
+  text(s, 'OBS, a CasparCG box, an SPX rundown, an OGraf renderer. Each is a package or a URL away and written up, for a studio session rather than a room of laptops.', { x: laterX + pad, y: 4.72, w: laterT, h: 1.45, fontSize: 13, color: MID, lineSpacingMultiple: 1.15 });
+  text(s, '/docs#export', { x: laterX + pad, y: 6.2, w: laterT, h: 0.25, fontFace: MONO, fontSize: 12, color: PAPER });
 
   foot(s, 'Publishing a production needs a free account. Nothing before it does.');
 
   s.addNotes(
-    '§5. A1 WORKS. A2 WORKS except the eyes-on half of the imported quiz over the hosted log (docs/acceptance/IMPORTED_QUIZ_HOSTED_WALK.md step 2), which the 12th is. Status of the four targets on 2026-09-09:\n\n' +
-    'OBS (A3): UNSEEN (box). The route is written and the output page\'s recovery is pinned, but no written tick exists for the OBS half because §1 of docs/STUDENT_RELEASE_ACCEPTANCE.md has no OBS line. You have done it; on the 12th you write the line and tick it.\n\n' +
-    'CASPARCG WITH THE URL (A4): UNSEEN (box). The output page is compiled down to what 2.3.x runs; unseen on a real box until the 12th ticks the §8.7 line. If it is red there, the file export is the fallback in the same room.\n\n' +
-    'CASPARCG OR SPX WITH A FILE (A5): WORKS, proven on your own server; the CasparCG package has carried an operator page since 2026-09-04.\n\n' +
-    'OGRAF (A7): catalog and agent packages were driven in SuperFly\'s ograf-server on 2026-08-18 and 2026-08-22 (docs/OGRAF.md). An imported-SVG graphic WITH behaviour has not been driven in an external renderer (§7 row 7), and which renderer Yle runs is asked in the same owner message as the network screenshot.\n\n' +
-    'NOT ON THE SLIDE. A6, CasparCG Connect through the CLI agent: show it only if the 12th proves it on hardware; A4 does the same job by hand. A8, NoaCG driving a production on an OGraf renderer with the renderer in control: not a beat; if asked, today NoaCG packages and the renderer controls.\n\n' +
+    '§5, and §0 call 4 (owner, 2026-09-10) is why this slide is short. ON THE DAY AIR STOPS AT THE NOACG PLAYER IN THE CLOUD: a graphic is imported and played on our own hosted player, and seeing it work there is the proof the room gets. No OBS on a student laptop, no CasparCG box, no playout configuration of any kind. Real playout is a separate studio session later. This replaces the earlier call, which prepared four targets and chose between them on the day - if you are holding a printed deck older than 2026-09-10, the four-target slide is the one it has.\n\n' +
+    'A1 WORKS. A2 WORKS except the eyes-on half of the imported quiz over the hosted log (docs/acceptance/IMPORTED_QUIZ_HOSTED_WALK.md step 2), which the 12th is.\n\n' +
+    'IF SOMEBODY ASKS FOR THEIR OWN SYSTEM, the beats are still written in §5 and still true. Take one, do not take four, and do not put it on the clock. The cheapest is A5, an exported package played from a file with no network at all: WORKS, proven on the owner\'s own server, and the CasparCG package has carried an operator page since 2026-09-04.\n\n' +
+    'WHAT A REAL CASPARCG NOW SAYS (2026-09-10, docs/acceptance/owner-queue/2026-09-10-bh-a-real-casparcg-has-now-run-the-output-url.md). Both servers on this laptop have aired a published production through their screen consumer, so A4 (CG 1-20 ADD with the output URL) and A6 (Connect through the CLI agent) both work on a real 2.3.2 and a real 2.5.0. Three things from that walk are worth having if it comes up. 2.3.x is Chromium 71, measured, not the 75 or 88 the compatibility table used to infer; its flex gaps collapse, which src/assets/flexGapShim.js now puts back, while color-mix, backdrop-filter, the inset shorthand, clamp/min/max and aspect-ratio are still dropped there (docs/PLAYOUT_COMPATIBILITY.md §2). A channel restart drops the layer, and one re-issued CG ADD brings the graphic back at its LIVE state rather than the cue\'s authored one. And Put on air sends the output URL OF THE PAGE IT IS PRESSED ON, so pressing it on a dev server sends a URL 2.3.x cannot parse while AMCP still answers 202 and the row still says it worked.\n\n' +
+    'WHAT IS STILL UNPROVEN THERE: SDI, a Decklink card, the venue\'s network, and pressing Put on air from https://noacg.studio, where the browser\'s Local Network Access prompt needs a person. The acceptance lines in docs/STUDENT_RELEASE_ACCEPTANCE.md §1 sit unticked and the owner ticks them; none of it is on the 25th.\n\n' +
+    'A7, OGRAF. The catalog packages, the agent packages and, on 2026-09-09, an imported quiz board WITH its behaviour have all been driven in SuperFly\'s ograf-server (docs/OGRAF.md). Which renderer Yle runs is still not recorded: docs/acceptance/owner-queue/2026-09-10-be-which-ograf-renderer-yle-runs.md.\n\n' +
+    'A8 is not a beat. Said out loud if asked: today NoaCG packages and the renderer controls.\n\n' +
     'B2. Email confirmation is off, so a sign-up works at once. If the dialog still says "Check your email to confirm your account", tell the room to ignore that line (docs/backlog/sign-up-says-check-your-email-with-confirmations-off.md).\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §5, §7 rows 2, 3, 7, 10, 11; docs/STUDENT_RELEASE_ACCEPTANCE.md §1, §2.',
+    'Source: docs/DEMO_2026-09-25.md §0 call 4, §5, §7 rows 3 and 10. Row 2, the output URL on a real CasparCG, closed on 2026-09-10 with the walk above.',
   );
 }
 
 // =============================================================================================
-// 7. CLOSE. Script §6, G1. The guide is the docs page; the anchors are the ones the script
-//    names. G2, the printed one-page index, is a GAP and is not on this slide.
+// 7. CLOSE. Script §6 under owner call 5 (2026-09-10). G2 is two one-page indexes, so the slide
+//    names the room's handout and the owner's running order beside the guide they both point into.
 // =============================================================================================
 {
   const s = newSlide(7);
   label(s, 'Close  ·  5 min');
   heading(s, 'The guide is the docs page.');
-  text(s, 'noacg.studio/docs', { x: M, y: 1.95, w: CW, h: 0.8, fontFace: MONO, fontSize: 40, color: AMBER });
+  text(s, 'noacg.studio/docs', { x: M, y: 1.95, w: 5.9, h: 0.8, fontFace: MONO, fontSize: 40, color: AMBER });
+
+  panel(s, 6.9, 1.85, W - M - 6.9, 1.65);
+  head(s, 'In your hand, and afterwards a file', 7.12, 2.07, W - M - 6.9 - 0.44);
+  text(s, [
+    { text: 'For the room', options: { bold: true, color: PAPER } },
+    { text: ' - the road in order, both URLs, a link into every section below, and the take-home brief.', options: { breakLine: true } },
+    { text: 'For whoever runs it', options: { bold: true, color: PAPER } },
+    { text: ' - the same beats as a running order, who drives each, and the clock.', options: {} },
+  ], { x: 7.12, y: 2.39, w: W - M - 6.9 - 0.44, h: 1.04, fontSize: 14, color: MID });
 
   const cols = [
     ['Road 1', [['#first-graphic', 'the whole road, step by step'], ['#svg', 'rules, layers, fonts, export']]],
@@ -487,9 +529,9 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   const cw = (CW - 2 * gap) / 3;
   cols.forEach(([title, items], i) => {
     const x = M + i * (cw + gap);
-    head(s, title, x, 3.25, cw);
+    head(s, title, x, 3.55, cw);
     items.forEach(([anchor, desc], k) => {
-      const y = 3.65 + k * 0.7;
+      const y = 3.95 + k * 0.7;
       text(s, anchor, { x, y, w: cw, h: 0.32, fontFace: MONO, fontSize: 18, color: PAPER });
       text(s, desc, { x, y: y + 0.34, w: cw, h: 0.3, fontSize: 14, color: DIM });
     });
@@ -498,8 +540,9 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
 
   s.addNotes(
     'G1. The end-to-end SVG page is /docs#first-graphic, landed 2026-09-09; the CLI page was end to end already. Each section is pinned by e2e/docs.spec.ts.\n\n' +
-    'G2, THE PRINTED ONE-PAGE INDEX, DOES NOT EXIST and is not on this slide (§7 row 12). If the laptop dies, print this deck\'s notes pages: one slide per page with these notes under it.\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §6, §7 row 12.',
+    'G2 IS TWO PAGES, NOT ONE (owner, 2026-09-10, §0 call 5), and it is still a GAP: §7 row 12, written in the week of the 22nd. The student page is the one that is handed out and then shared as a file afterwards, and the take-home brief from R1.7 lives on it - which is also where §7 row 17, how a finished file comes back, gets its one paragraph. The owner page is your running order: the same beats, who drives each, and the clock from §0. Until both exist, print this deck\'s notes pages, one slide per page with the notes under it.\n\n' +
+    'THE ANCHORS ON THIS SLIDE ARE THE GUIDE, NOT THE DAY. #obs and #casparcg stay on the list because the guide covers them and people take it home; the session itself stops at our own player (§0 call 4), which is what slide 6 says.\n\n' +
+    'Source: docs/DEMO_2026-09-25.md §0 calls 4 and 5, §6 G1 and G2, §7 rows 12 and 17.',
   );
 }
 
