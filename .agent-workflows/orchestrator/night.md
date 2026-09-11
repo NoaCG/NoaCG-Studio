@@ -194,7 +194,11 @@ branch, so an unqueued live branch costs nobody anything until its own session q
 2026-09-05: *"You shouldn't need me for landing branches."*). No live session is in it, so there is
 no declaration being pre-empted - there is no declarer. **The test is THREE liveness signals that
 must ALL be quiet - any one of them speaking means alive:** the harness's live-session inventory,
-the branch tip's age, and the mtime of the session's transcript. **`blocked-sessions.mjs` is not
+the branch tip's age, and the mtime of the session's transcript. **The transcript is blind
+during a pending tool call**: a silent transcript holding a call with no result yet is a call still
+running, not a dead session, and in a batch that call need not be the last entry (`waitingOn()` in
+`blocked-sessions.mjs` finds it). On 2026-09-11 the loop called row CA dead after two quiet hours
+while it sat inside one browser call, and it came back hours later. **`blocked-sessions.mjs` is not
 one of the three** - it answers a different question (step 2). **The inventory ALONE is not
 enough and reading it that way is the trap**: it fails open for subagents, and on 2026-09-05 it
 reported a row idle while that row was committing every four minutes and about to queue itself
