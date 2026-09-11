@@ -402,3 +402,33 @@ The quiz's drawn states re-measure through `svgFitDue` -> `fitSvgText` (declared
 absent from a simple graphic - and it does not show up as lag in any family above. There is no
 `importedDesign/drawnState.ts`; the citation this file used to carry named a file that has never
 existed.
+
+## Traps
+
+These came out of the 2026-09-10 measurements and are written down nowhere else.
+
+- **A linked worktree needs the main checkout's `.env` copied in before vite can see the
+  backend.** Run `cp C:/claude/NoaCG-Studio/.env .env` from the worktree root. Vite reads the
+  file from the checkout root, so without it the dev server serves an app with no backend. The
+  scripts reach across on their own through `read-dotenv.mjs`'s `ambientEnv`, which falls back to
+  the main checkout. A missing `.env` is a technical problem, never `needs-owner: account`.
+- **Never force past a queue refusal for a live-backend job.** On 2026-09-10 the queue refused
+  the published bench for over an hour, first on free memory and then with "2 run(s) outside this
+  queue": another session was running two `configured/live` suites against the same backend and
+  the same E2E account. `e2e/configured/hosted-control-recovery.spec.ts` deletes every show it can
+  see, so overlapping would have risked the bench's published fixture and confused the suite's
+  assertions. The refusal was right.
+- **A finished bench job can be recorded as `failed`.** j-0917 ran to completion, printed both
+  summary tables and wrote `playout-lag-out/playout-lag.json`, and the job store still recorded
+  `"exitCode": null, "reapedAsDead": true`. Read the log before believing the state. The
+  published-path numbers above are that job's.
+- **A socket probe cannot run from Node.** `realtime-js` there uses the `ws` package rather than
+  the global `WebSocket`, so wrapping the global captures nothing. In a browser the wrapper has to
+  go in at document start with `context.addInitScript`, which is how the bench installs it.
+  Wrapping from inside `page.evaluate` runs after the SDK bundle has captured the global,
+  intercepts nothing, and looks exactly like a wrong parse path.
+- **Do not run `scripts/playout-wire-probe.mjs` while a `configured/live` suite is on the
+  machine.** It needs no browser slot, but it signs in as the same E2E account (`E2E_EMAIL`) and
+  writes real `control_shows` and `control_events` rows. Its own cleanup matches only the title
+  "Wire probe" and so cannot touch a suite's fixtures, but a suite can still delete the probe's
+  production mid-run.

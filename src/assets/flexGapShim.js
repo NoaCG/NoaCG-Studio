@@ -6,7 +6,7 @@
  * renders on CEF 3.3578 (Chromium 71), which PARSES the declaration (grid has had `gap` since 66)
  * and then ignores it in flex layout. Nothing errors and nothing is logged: the graphic airs with
  * every flex gap collapsed. The house scorebug read `HOME3` on a real 2.3.2 server where 2.5.0
- * reads `HOME 5` (measured 2026-09-10; docs/handoffs/2026-09-10-bk-flex-gap-on-old-engines.md).
+ * reads `HOME 5` (measured 2026-09-10; docs/PLAYOUT_COMPATIBILITY.md §2).
  *
  * WHAT IT DOES. On an engine WITHOUT flex gap it puts the gap back as margins. Every in-flow flex
  * item after the first gets the container's main-axis gap on the side that faces the item before

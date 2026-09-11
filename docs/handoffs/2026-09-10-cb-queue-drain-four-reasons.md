@@ -114,7 +114,8 @@ separate commits by rule, and this row made none of the delete commits. Anyone t
 36 agent items and delete them in one pass is doing the thing the re-kinding rule exists to refuse.
 
 **One citation could not be repointed and is covered instead.**
-`docs/handoffs/2026-09-10-bj-published-path-lag.md` cites
+Row bj's handoff (deleted 2026-09-11, its traps carried to
+`docs/backlog/playout-lag-when-working-the-queue.md`) cited
 `2026-09-10-bj-published-take-is-half-a-second.md`, which was folded into `bm`. A handoff is a dated
 snapshot and rewriting one is worse than leaving it, so the Dropped log names it as the forwarding
 address. The one live citation, in `docs/backlog/the-text-step-breaks-when-you-play-with-it.md`, was

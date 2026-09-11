@@ -46,8 +46,7 @@ cr02 cr03 cr04 cr06 cr08 cr11 cr12 cr13   (same shape)
 ```
 
 **That drift is settled, and the answer arrived on 2026-09-10** (branch
-`claude/bp-catalog-drift-after-the-shim`; the reasoning is in
-`docs/handoffs/2026-09-10-bp-catalog-drift-after-the-shim.md`). It was the operator speed control
+`claude/bp-catalog-drift-after-the-shim`). It was the operator speed control
 and nothing else - the first-frame paint guessed at above is not involved. `cde2a2da` (2026-09-06)
 appends a `<div class="noacg-data-source">` holding the speed value to nine credits designs, and
 `1a9269c0` with `4b6642e5` (2026-09-09) does the same to fifteen tickers; the count is 24, not the
@@ -55,6 +54,13 @@ appends a `<div class="noacg-data-source">` holding the speed value to nine cred
 beside it and left this one behind. The holder is `display: none`, its rect is `0,0,0,0`, and its
 fingerprint is identical to a holder already in the file, so nothing a viewer can see moved at all.
 The baseline is re-recorded on that branch and the spec is green here again.
+
+The proof rests on two counts. The designs whose emitted HTML changed in those three commits are
+exactly the designs that drift, 24 and 24 with none left over, and in each one the drift is one
+new holder key, the last in document order, with the element count up by exactly one. And of the
+9,793 elements the render comparison covers across all 504 designs (no design reaches the spec's
+80-element cap, so there is no unmeasured tail), none moved in computed style or rect after the
+flex-gap shim landed. That clears the shim positively rather than by elimination.
 
 **What that settles is one instance. It does not touch the Why above**, and the four days the red
 stood are the argument for it: nine designs went red on 2026-09-06, fifteen more on 2026-09-09, and
@@ -97,6 +103,21 @@ the failure message prints that day and hands over
 `git log --since=<that date> -- e2e/catalog-baseline.json`, and a drifted key the baseline never
 had is marked `+` and shown first. That shortens the wrong path a reader takes. It does not close
 it, because it still needs a person to be standing there reading.
+
+## Reading a red from this gate
+
+**A `#count` move means the markup changed, not the look.** It is the loudest line in the render
+failure, and a computed style or a rect cannot change how many elements a design has - only the
+DOM can. A `display: none` holder's record is a constant (rect `0,0,0,0`, everything else
+inherited), so a holder key in the drift list means a holder was added or removed, never that one
+moved.
+
+**Before filing a backlog item about a red here, grep the shelf for the problem rather than the
+symptom.** The 2026-09-10 row searched for the drift, found
+`catalog-render-drift-after-the-flex-gap-shim.md`, and drafted a third item. This file owned the
+problem the whole time, filed under the GATE two days earlier, and only a code review caught the
+duplicate. With 231 files on the shelf that day, a name you would have chosen yourself is not a
+reliable search.
 
 ## Not this branch's work
 

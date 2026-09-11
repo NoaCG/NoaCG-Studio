@@ -86,4 +86,6 @@ this one.
 **Next-wave candidate.** It does not compete with the 2026-09-12 student production for the
 calendar, but it is the highest-value thing in this folder because it is the only one with a named
 owner blocker behind it. It should be sized properly in its own session before it is scheduled -
-the transport is cheap and items 1 to 4 above are where the real work is.
+the transport is cheap and items 1 to 4 above are where the real work is. On 2026-09-10 the owner
+said it matters but can wait until after the 25th, behind the editors and the North Star 2027
+goals (ALIGN-2026-09-10-1 in `docs/OWNER_RULINGS.md`).

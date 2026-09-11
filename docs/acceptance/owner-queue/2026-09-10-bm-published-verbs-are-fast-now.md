@@ -80,9 +80,9 @@ unpublished) and told the owner what to do about Saturday:
 That advice was true for about six hours and is wrong now: a published Take reaches a second screen
 in 51 ms and airs in about 80 ms, and this item is the fix that made it so. Leaving both on the
 queue would have handed him a measurement and its own contradiction in the same list, so bj is
-folded in here and deleted. Its numbers survive above as the "before" column, and its handoff,
-`docs/handoffs/2026-09-10-bj-published-path-lag.md`, still cites it by filename - that citation
-resolves through this item and through the Dropped log in `docs/acceptance/OWNER_QUEUE.md`.
+folded in here and deleted. Its numbers survive above as the "before" column, and anything that
+still cites bj by filename resolves through this item and through the Dropped log in
+`docs/acceptance/OWNER_QUEUE.md`.
 
 The one thing bj said that this item does not repeat: on the old road the shape was **either about
 130 ms or about 600 ms, unpredictably**, measured three ways - a plain script with no browser, an

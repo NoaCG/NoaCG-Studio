@@ -353,6 +353,14 @@ history of the rows worked by hand. **Do not fix a flaky spec without reproducin
 spec fix without a reproduction is exactly the recurring-breakage pattern this file exists to end,
 and on this evidence the more common failure is softening an assertion that was telling the truth.
 
+**A local-only red is not a flake in this sense, and the known ones are listed here so nobody
+bisects them.** On 2026-09-10 the full offline suite on a RAM-bound Windows laptop, at nine
+workers, failed `e2e/wizard-brand.spec.ts:85`, `:93` and `e2e/wizard-finish.spec.ts:114` on
+`claude/bm-verbs-on-both-roads`, a branch that touches no wizard code. Re-run alone (job j-0974),
+all 22 tests in those two files passed, and `main`'s own CI at `272bcecb` was green. With no
+same-SHA CI receipt none of the three qualifies for `e2e/quarantine.json`; reproduce under load
+before treating them as anything more.
+
 ### 6. SELF-REQUESTED / CONFIG-GAP - 10 runs
 
 `workflow_dispatch` runs failing because someone is iterating on the workflow itself (8, one
