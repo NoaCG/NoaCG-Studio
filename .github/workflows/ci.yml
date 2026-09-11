@@ -784,6 +784,74 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # ONE SECOND RUN FOR A FAILED BUILD OR FACTORY JOB, on a push to main. A failed spec has had one
+  # since phase 1c (`e2e-retry`); a failed Build was treated as deterministic and reverted on a
+  # single run, until run 34537651787 on e06cd2d4 (2026-09-10) failed one unit test out of 1592 and
+  # passed on a re-run of the identical tree - after the revert of a whole landed row had been
+  # queued with auto-merge on (pull request 246, closed by hand). So this job runs the failed job's
+  # own steps once more on the same commit, and `after-gate` reverts only if they fail again
+  # (`shouldRevert` in scripts/red-main-issue.mjs).
+  #
+  # IT DOES NOT TURN THE GATE GREEN, unlike the E2E retry. A spec that fails and then passes goes
+  # on the record in e2e/quarantine.json; a unit test has no quarantine, so its failure stays red
+  # and the red-main issue names it as a flaky test. Only the revert waits for this verdict.
+  #
+  # Not in the merge group: a failed Build there bounces the landing back to the queue, which
+  # reverts nothing.
+  rerun:
+    name: Re-run (failed Build or Factory job, same commit)
+    needs: [build, factory]
+    if: ${{ !cancelled() && (needs.build.result == 'failure' || needs.factory.result == 'failure') && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: ./.github/actions/node-modules
+
+      # The steps of the job that failed, and only those: a Factory failure does not pay for a
+      # second build. Each is a copy of the step it repeats, so a change to one is a change to both.
+      - name: Build (typecheck + lint + bundle), again
+        if: ${{ needs.build.result == 'failure' }}
+        run: npm run build
+
+      - name: CLI package (typecheck + build + offline tests), again
+        if: ${{ needs.build.result == 'failure' }}
+        run: npm --prefix cli ci && npm --prefix cli run typecheck && npm --prefix cli run build && npm --prefix cli test
+
+      - uses: ./.github/actions/playwright-chromium
+        if: ${{ needs.factory.result == 'failure' }}
+
+      - name: Factory-tier tests, again
+        if: ${{ needs.factory.result == 'failure' }}
+        run: node scripts/gates.mjs run --gate factory
+
+      - name: Run factory gates, again
+        if: ${{ needs.factory.result == 'failure' }}
+        run: |
+          npm run dev &
+          DEV_PID=$!
+          trap 'kill "$DEV_PID" 2>/dev/null || true' EXIT
+          PORT="$(node scripts/dev-port.mjs)"
+          READY=0
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:${PORT}/app" > /dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Dev server did not become ready on port ${PORT}" >&2
+            exit 1
+          fi
+          node scripts/factory.mjs --json factory-report.json
+
   # CONVENIENCE, NOT A GATE. This job runs no test and asserts nothing about the code: it
   # stitches the shards' blob reports into one browsable HTML report. It is deliberately absent
   # from the `gate` job's `needs` below, and the reason is written there.
@@ -967,7 +1035,7 @@ jobs:
   # success; the branch and pull-request runs skip it entirely.
   after-gate:
     name: After the gate
-    needs: [gate, e2e-retry]
+    needs: [gate, e2e-retry, rerun]
     if: ${{ always() && needs.gate.result != 'skipped' && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1013,8 +1081,9 @@ jobs:
       # go unreported. `planRedMainComment` reads the per-job conclusions instead.
       #
       # THE REVERT rides on the same step, because the issue must name it. On a main push whose
-      # failure survived the second run (the retry re-ran the specs and they failed) or was never a
-      # spec, and whose last main commit with a verdict was green, scripts/revert-landing.mjs
+      # failure survived a second run on the same commit (the retry re-ran the failed specs, or
+      # the `rerun` job re-ran a failed Build or Factory job, and it failed again), and whose last
+      # main commit with a verdict was green, scripts/revert-landing.mjs
       # reverts everything since that commit on a branch and queues it; every other case is
       # written into the issue as the reason nothing was reverted. `shouldRevert` in
       # red-main-issue.mjs is the rule, with its tests.
@@ -1029,6 +1098,7 @@ jobs:
           REF: ${{ github.ref }}
           RETRY_RESULT: ${{ needs.e2e-retry.result }}
           RETRY_SPECS: ${{ needs.e2e-retry.outputs.specs }}
+          RERUN_RESULT: ${{ needs.rerun.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/red-main-issue.mjs
 

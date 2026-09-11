@@ -145,7 +145,51 @@ test('a main push whose specs failed twice, after a green verdict, is reverted f
   const decision = shouldRevert({ ...MAIN, items: SPEC, retry: 'failure', retried: 1, previous: GREEN });
   assert.equal(decision.revert, true);
   assert.equal(decision.since, GREEN.sha);
-  assert.equal(shouldRevert({ ...MAIN, items: ['job: Build'], retry: 'skipped', previous: GREEN }).revert, true, 'a red build had no retry and is still deterministic');
+  assert.equal(shouldRevert({ ...MAIN, items: ['job: Build'], rerun: 'failure', previous: GREEN }).revert, true, 'a build that failed again on its re-run is a break');
+});
+
+// A FAILURE THAT WAS NEVER A SPEC IS NOT DETERMINISTIC ON ITS OWN. The rule used to say it was, and
+// run 34537651787 refuted it: on e06cd2d4 (2026-09-10 22:34 UTC) one unit test out of 1592 failed
+// inside the Build job, a re-run of the identical tree was green, and the rule had already opened
+// pull request 246 reverting a whole landed row with auto-merge on. It was closed only because
+// somebody happened to be awake. So a failed Build or Factory job gets one re-run on the same
+// commit, exactly as a failed spec does, and only a second failure is evidence.
+test('a Build failure that passes when re-run on the same commit is a flake, not a revert', () => {
+  const decision = shouldRevert({ ...MAIN, items: ['job: Build'], retry: 'skipped', rerun: 'success', previous: GREEN });
+  assert.equal(decision.revert, false);
+  assert.match(decision.reason, /passed when it was re-run/);
+});
+
+test('a Build failure that never got its re-run reverts nothing', () => {
+  for (const rerun of ['skipped', 'cancelled']) {
+    const decision = shouldRevert({ ...MAIN, items: ['job: Build'], rerun, previous: GREEN });
+    assert.equal(decision.revert, false, rerun);
+    assert.match(decision.reason, /never got a second run/, rerun);
+  }
+});
+
+test('a build break that fails twice still reverts - the re-run must not become "never revert"', () => {
+  for (const items of [['job: Build'], ['job: Factory gates'], ['job: Build', 'job: Factory gates']]) {
+    const decision = shouldRevert({ ...MAIN, items, retry: 'skipped', rerun: 'failure', previous: GREEN });
+    assert.equal(decision.revert, true, items.join(', '));
+    assert.equal(decision.since, GREEN.sha);
+    assert.match(decision.reason, /survived a second run/);
+  }
+});
+
+test('a flake on one side never shields a break confirmed on the other', () => {
+  // Until 2026-09-11 a spec retry that passed returned "flake" before the build was looked at, so a
+  // real build break landing beside a flaky spec was never reverted.
+  const both = ['e2e/x.spec.ts', 'job: Build'];
+  assert.equal(shouldRevert({ ...MAIN, items: both, retry: 'success', rerun: 'failure', previous: GREEN }).revert, true, 'build broke twice, spec was a flake');
+  assert.equal(shouldRevert({ ...MAIN, items: both, retry: 'failure', retried: 1, rerun: 'success', previous: GREEN }).revert, true, 'specs broke twice, build was a flake');
+  const neither = shouldRevert({ ...MAIN, items: both, retry: 'success', rerun: 'success', previous: GREEN });
+  assert.equal(neither.revert, false, 'both flaked');
+  assert.match(neither.reason, /flake/);
+});
+
+test('a run that names no failure at all has nothing confirmed, so nothing is reverted', () => {
+  assert.equal(shouldRevert({ ...MAIN, items: [], rerun: 'skipped', previous: GREEN }).revert, false);
 });
 
 test('the last verdict is looked up only once the cheap rules have passed', () => {
