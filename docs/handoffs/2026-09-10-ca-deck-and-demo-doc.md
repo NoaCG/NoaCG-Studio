@@ -15,9 +15,9 @@ real CasparCG runs of the same day.
   hole. Neither page exists yet.
 - **A6, one press of Put on air from `https://noacg.studio`** (§7 row 10, now PARTLY). The
   browser's Local Network Access prompt needs a person, so nothing here can do it.
-- `docs/acceptance/owner-queue/2026-09-09-s-the-25-september-deck-opens-in-powerpoint.md` is the
-  deck's original walk item. It was outside this row's file list, so it was left alone, and it
-  still reads true. The new item names the three changed slides.
+- The deck's original walk item, from 2026-09-09, was folded into
+  `docs/acceptance/owner-queue/2026-09-10-ca-the-deck-now-ends-at-our-own-player.md` on
+  2026-09-11, with its surviving question, so the owner has one deck item to walk.
 
 ## Decisions taken here, each one revertable
 

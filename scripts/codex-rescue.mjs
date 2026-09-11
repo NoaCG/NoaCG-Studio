@@ -203,6 +203,35 @@ export function parseRelayArgs(argv) {
   };
 }
 
+/**
+ * THE USAGE LIMIT READS AS A CRASH, AND IS NOT ONE. When Codex runs out of its account's usage
+ * mid-job, the plugin records the job `failed/failed`, the same words it uses for a worker that
+ * died - but the work may be finished. Row CF, 2026-09-10, job task-mtw1bety-31w06y: Codex had
+ * already reported the full build green, hit its 5-hour limit during one last build, and `poll`
+ * said failed/failed over a tree that was complete and correct. The only place the difference is
+ * written down is the job's own log, whose last error line read
+ * `Codex error: You’ve hit your usage limit. ... try again at 4:05 AM.`
+ *
+ * Returns that line from the log's tail, without its timestamp, or null. Only a line Codex marks
+ * as its own error counts, so a job whose OUTPUT merely talks about usage limits is not misread.
+ */
+export function usageLimitLine(logText) {
+  const lines = String(logText ?? '').split(/\r?\n/);
+  for (let index = lines.length - 1; index >= Math.max(0, lines.length - USAGE_LIMIT_TAIL_LINES); index -= 1) {
+    if (/\bCodex error:.*\busage limit\b/i.test(lines[index])) return lines[index].replace(/^\[[^\]]*\]\s*/, '').trim();
+  }
+  return null;
+}
+
+/** How far back from the end of a log the usage-limit error is looked for. It is the last word. */
+const USAGE_LIMIT_TAIL_LINES = 40;
+
+/** The usage-limit line of a job's log, or null when there is no log or no such line. */
+function usageLimitIn(logFile) {
+  if (!logFile || !existsSync(logFile)) return null;
+  return usageLimitLine(readFileSync(logFile, 'utf8'));
+}
+
 /** Seconds since a job last wrote a log line, so a hang is reported instead of awaited forever. */
 export function logIdleSeconds(logFile, nowMs = Date.now()) {
   if (!logFile || !existsSync(logFile)) return null;
@@ -328,7 +357,12 @@ function reconciledJobs(dir) {
     const patch = reconcileJob(job);
     if (patch) persistPatch(dir, patch);
     const merged = patch ? { ...job, ...patch } : job;
-    return { ...merged, logIdleSeconds: logIdleSeconds(merged.logFile) };
+    return {
+      ...merged,
+      logIdleSeconds: logIdleSeconds(merged.logFile),
+      // Only a failed job is asked: a running one has not stopped, and a completed one did not fail.
+      usageLimit: merged.status === 'failed' ? usageLimitIn(merged.logFile) : null,
+    };
   });
 }
 
@@ -1012,11 +1046,15 @@ async function askUnclaimedBrokers({ log = console.log, workspace = null, table 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
 
 function summarize(job) {
-  const bits = [`${job.id}  ${job.status}/${job.phase ?? '-'}`];
+  // `failed/rate-limited` rather than the plugin's `failed/failed`, which reads as a crash.
+  const bits = [`${job.id}  ${job.status}/${job.usageLimit ? 'rate-limited' : (job.phase ?? '-')}`];
   if (job.pid) bits.push(`pid ${job.pid}`);
   if (job.deadPid) bits.push(`dead pid ${job.deadPid}`);
   if (job.logIdleSeconds != null && ACTIVE.has(job.status)) {
     bits.push(`log idle ${job.logIdleSeconds}s${job.logIdleSeconds >= STALL_SECONDS ? ' (STALLED)' : ''}`);
+  }
+  if (job.usageLimit) {
+    bits.push(`Codex ran out of usage, which is not a crash: the work may be complete, so check the tree before believing "failed". ${job.usageLimit}`);
   }
   if (job.errorMessage) bits.push(job.errorMessage);
   return bits.join('  ');

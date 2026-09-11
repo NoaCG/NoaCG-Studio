@@ -22,7 +22,24 @@ import {
   reconcileJob,
   relayArgs,
   splitOwnArgs,
+  usageLimitLine,
 } from './codex-rescue.mjs';
+
+// ── A usage limit is not a crash ──────────────────────────────────────────────────────────────────
+
+test('a job whose log ends on Codex running out of usage is named rate-limited, not crashed', () => {
+  // The last lines of the real log of job task-mtw1bety-31w06y (row CF, 2026-09-10), which the
+  // plugin recorded as failed/failed after Codex had already reported the build green.
+  const log = [
+    '[2026-09-10T22:10:40.101Z] Running command: npm run build',
+    '[2026-09-10T22:11:05.723Z] Codex error: You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 4:05 AM.',
+    '[2026-09-10T22:11:06.001Z] Broker shutting down.',
+  ].join('\n');
+  assert.match(usageLimitLine(log), /^Codex error: You’ve hit your usage limit\..*try again at 4:05 AM\.$/);
+  assert.equal(usageLimitLine('[t] Codex error: stream disconnected before completion\n[t] Broker shutting down.'), null, 'another error is still a failure');
+  assert.equal(usageLimitLine('[t] agent: the usage limit lives in aiLiteRateLimit.ts\n[t] Codex error: exit 1'), null, 'output that only MENTIONS a limit is not the error');
+  assert.equal(usageLimitLine(''), null);
+});
 
 // ── Defect 2: a killed job must stop reading as running ──────────────────────────────────────────
 

@@ -167,4 +167,4 @@ read (`⚠ 1920×1880 · 25 fps` beside `⚠ Saved · unsupported format` wide, 
 - `docs/backlog/editor-canvas-1920x1880.md` - the receipt, now carrying the fix, the width lesson
   and the import road.
 - `e2e/project-format.spec.ts`, last two tests - the guard.
-- `docs/handoffs/2026-09-10-owner-walk-and-the-because-gate.md` item 1 - the ask this row answers.
+- The ask this row answers came from the owner's 2026-09-10 walk; the receipt above carries it.

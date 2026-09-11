@@ -903,8 +903,9 @@ three mechanisms have had their turn, all in `ci.yml`:
    first and queues the release after `RELEASE_AFTER` consecutive passes. A spec leaves
    quarantine by passing, never by being forgotten; a spec the change edits stays in the
    blocking plan, so the fix for a flake is tested. `npm run quarantine list` shows what is in.
-3. **The revert.** On a `main` push whose failure survived the second run (the retry re-ran the
-   specs and they failed) or was never a spec (a red build is deterministic), and whose last
+3. **The revert.** On a `main` push whose failure survived a second run on the same commit (the
+   retry re-ran the failed specs and they failed, or the `rerun` job ran a failed Build or
+   Factory job again and it failed), and whose last
    `main` commit WITH a verdict was green, the `After the gate` job reverts everything since that
    commit - every first-parent commit, newest first - on `revert/<sha7>` and queues it
    (`scripts/revert-landing.mjs`). The last verdict, not the previous push: a superseded `main`

@@ -21,6 +21,13 @@ between two endings: the shim is misfiring, or the new geometry is correct and t
 be re-recorded with `UPDATE_RENDER_BASELINE=1`. Do not re-record before knowing which - the spec's
 own failure message says a token substitution cannot cause this.
 
+**The "likely cause" below was refuted on 2026-09-10 by row BP**
+(`claude/bp-catalog-drift-after-the-shim`). The catalog spec renders into an iframe that has a
+width and a height, so the shim's probe answers cleanly and the shim returns at parse time; the
+drift was 24 hidden speed-field holders that `cde2a2da`, `1a9269c0` and `4b6642e5` added to the
+markup, and a hidden holder cannot move. The verdict lives in
+`catalog-render-baseline-only-runs-on-one-laptop.md`.
+
 The likely cause is worth checking first. PR 229 (`claude/bk-flex-gap-on-old-engines`, landed as
 `2115083a`) added `src/assets/flexGapShim.js` and then carried it "everywhere a document goes". The
 shim writes margins to in-flow flex items on engines that lack flex `gap`, and its own header

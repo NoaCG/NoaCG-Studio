@@ -71,9 +71,18 @@ What is deliberately excluded, and why:
   and `min()` in `src/templates/shared/base.ts` carries its own fallback) and `aspect-ratio`
   (6), all measured with `scripts/engine-floor.mjs --chromium 71` on 2026-09-10 over 504
   designs. Restoring those would mean re-parsing the stylesheet TEXT rather than reading the
-  CSSOM, which is a decision about supporting 2.3 as a whole, not a spacing fix; it is open in
-  `docs/handoffs/2026-09-10-bk-flex-gap-on-old-engines.md`. `scripts/flex-gap-sweep.mjs`
-  measures every design native-against-shimmed and is the gate on the shim.
+  CSSOM, which is a decision about supporting 2.3 as a whole, not a spacing fix, and nobody has
+  made it yet. `inset` is the one that hurts most. `sb01`'s slab and score chips are
+  `position:absolute; inset:0` pseudo-elements, and on the real 2.3 server they are simply not
+  there, so the frames show white text straight on video. A shim for it would have to expand the
+  shorthand in the text of each inline `<style>` block, and the SPX folder package's
+  `css/template.css` would have to be fetched first, which CEF may refuse over `file://`. Measure
+  that before designing anything. `color-mix()` has the same shape with colour arithmetic on
+  top. Whatever is decided gets measured on the same two servers the gap shim was.
+  `scripts/flex-gap-sweep.mjs` measures every design native-against-shimmed, but it runs by hand
+  (one browser, about eight minutes) and is not in CI or the nightly, so nothing re-checks the
+  shim when a design starts doing something new with flex
+  (`docs/backlog/flex-gap-shim-follow-ups.md`).
 - **OBS 30.x and vMix 27 (103).** Below the floor, so a design using `color-mix()` (111) loses
   its fills there. A current OBS is fine; vMix has never been measured here. Left as a known,
   recorded gap rather than a reason to migrate 189 declarations speculatively — revisit if a real

@@ -5,8 +5,8 @@
 //
 // Chromium's answer to a red tree is a sheriff who reverts the culprit; the queue keeps moving
 // and the author fixes forward on a branch. This is that answer without the sheriff
-// (docs/WORKFLOW_ARCHITECTURE.md §3, phase 1c). ci.yml calls it after a main run whose failed
-// specs were re-run once on the same commit and failed again, when the last main commit WITH A
+// (docs/WORKFLOW_ARCHITECTURE.md §3, phase 1c). ci.yml calls it after a main run whose failure
+// was run a second time on the same commit and failed again, when the last main commit WITH A
 // VERDICT was green - so everything since is the culprit by the only evidence there is. Landings
 // arrive faster than full runs finish, and a superseded run cancels itself, so "since" is the
 // last verdict, not the previous push: the range may hold several landings, and the pull request
@@ -66,7 +66,7 @@ export function revertTitle(commits, sha) {
 export function revertBody({ commits, sha, since, runUrl, failing }) {
   return [
     `main went red at ${sha} (${runUrl}): ${failing || 'see the run'}.`,
-    'The failed specs were re-run once on the same commit and failed again, and the last main commit',
+    'The failure survived a second run on the same commit, and the last main commit',
     `with a verdict (${String(since).slice(0, 7)}) was green, so everything since it is reverted. Fix forward on a`,
     'branch and land it through the queue.',
     '',

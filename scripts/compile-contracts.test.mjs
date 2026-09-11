@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { chmodSync, mkdtempSync, mkdirSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -13,7 +13,48 @@ import {
   kernelBudget, loadRules, parseRule, rulesFor, scopeOwner, similarity, splitList, symbolsOf,
   validateAgainstTree,
 } from './contracts-lib.mjs';
-import { drift, ownedDirectories, plan, write } from './compile-contracts.mjs';
+import { contractsUnder, drift, ownedDirectories, plan, write } from './compile-contracts.mjs';
+
+// THE WALK SHARES THE CHECKOUT WITH EVERYTHING ELSE RUNNING IN IT. On 2026-09-10 a compile died
+// inside the merge driver's test on CI (run 34537651787) while the build's other tests were
+// creating and deleting `.tmp-api-runtime-*` directories at the root; doing the same by hand
+// reproduces it as `ENOENT: scandir`. These pin both halves of the fix without racing for it.
+test('the contract walk never enters a scratch directory, and survives one that vanishes under it', () => {
+  const root = store({
+    'AGENTS.md': 'root\n',
+    'src/a/AGENTS.md': 'a\n',
+    '.tmp-api-runtime-x/AGENTS.md': 'scratch\n',
+    'gone/AGENTS.md': 'listed, then deleted\n',
+  });
+  try {
+    assert.deepEqual(contractsUnder(root).sort(), ['AGENTS.md', 'gone/AGENTS.md', 'src/a/AGENTS.md']);
+    // `gone` is listed by its parent and deleted before the walk reads it - the race, on cue.
+    const vanishing = (dir, options) => {
+      if (path.basename(dir) === 'gone') throw Object.assign(new Error(`ENOENT: scandir '${dir}'`), { code: 'ENOENT' });
+      return readdirSync(dir, options);
+    };
+    assert.deepEqual(contractsUnder(root, '', [], vanishing).sort(), ['AGENTS.md', 'src/a/AGENTS.md']);
+    // The ROOT missing is not an empty tree: a compile of nothing would erase every contract.
+    assert.throws(() => contractsUnder(path.join(root, 'no-such-root')), /ENOENT/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('write leaves a file whose bytes are already right untouched', () => {
+  // Read-only makes a rewrite observable without timing: writing to it throws, skipping it does
+  // not. The second call proves the fixture would catch a write.
+  const root = store({ 'same.md': 'unchanged\n' });
+  const file = path.join(root, 'same.md');
+  chmodSync(file, 0o444);
+  try {
+    assert.doesNotThrow(() => write(new Map([['same.md', 'unchanged\n']]), root));
+    assert.throws(() => write(new Map([['same.md', 'changed\n']]), root), /EACCES|EPERM/);
+  } finally {
+    chmodSync(file, 0o644);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 const GOOD = `---
 v: 1

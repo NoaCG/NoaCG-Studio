@@ -57,6 +57,23 @@ option 1 above decides whether it is worth anything: have the hook record its mi
 before writing a stripper for unmarked report-shaped lines. (Found 2026-09-04, carried here when
 that handoff was drained.)
 
+## The opposite error: it refuses a session that does hold its wake-up
+
+Added 2026-09-11. The same matcher also fires on a session that is RIGHT to end its turn. The
+orchestrator's night loop holds a live persistent Monitor, and `.agent-workflows/orchestrator/night.md`
+defines that loop as a turn that ends on the Monitor's events: they are "the only wake-up". A
+session that says it is waiting on its Monitor is describing the one wake-up that works, yet
+`monitor` sits in the observer class at `scripts/stop-wait.mjs` line 39, the list of things that
+cannot wake a session. It fired twice on 2026-09-11 on the orchestrator's night session, after the
+Monitor had already woken that session about a dozen times.
+
+So the word list is wrong in both directions: it misses a wait on an observer whose noun is not
+listed, and it refuses a wait on an observer that really does wake the session. Adding an
+exception for the word would reopen the 2026-09-04 miss, where "the monitor" meant nothing that
+could wake anyone. Option 3 above answers both errors, because the durable fact is state. For this
+direction the state is "this session holds a live Monitor task", which the hook cannot see today.
+Until it can, this error costs one extra turn per fire, which is the cheap direction.
+
 ## Evidence
 
 - `scripts/stop-wait.mjs` - the patterns, the quoted-span stripper, and the header recording the

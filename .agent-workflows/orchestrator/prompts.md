@@ -71,7 +71,9 @@ QUEUE  Then, as your LAST THREE actions and in this order:
 - **READ points, it never summarizes.** Name the files; the session reads them at current HEAD.
 - **TRAPS carries only what exists nowhere but a chat.** A trap already in a repo file gets a
   pointer. Reprinting an area contract is how these get fat.
-- **DO is verifiable steps**, not a topic list. Reproduce-before-fixing for any bug.
+- **DO is verifiable steps**, not a topic list. Reproduce-before-fixing for any bug. A row whose
+  artefact is a BINARY names how it inspects it - a `.pptx` read as zipped XML or rendered to PNG,
+  never opened in a browser, the call row CA hung on and never came back from (2026-09-10).
 - **BRANCH is a LABEL until the row renames it.** `isolation: worktree` mints `worktree-agent-<id>`,
   nothing applies the BRANCH line, and no check compares them - so DO step 1 is `git branch -m
   <branch>` and a confirm it took, since it fails when that name already exists (`launch.md`).
@@ -81,8 +83,7 @@ QUEUE  Then, as your LAST THREE actions and in this order:
   gets step one's context free. Everything in it belongs to the same `TOUCHES` set.
 - **CORE says where a long session may stop.** A prompt with six steps and no stated core is a
   prompt that lands nothing when step four goes wrong.
-- **GATE is `npm run build` plus CI**, because the per-change suite belongs to CI, not the laptop
-  - add a local browser job only for the work from the collision pass that CI cannot do.
+- **GATE is `npm run build` plus CI**; add a local browser job only for what CI cannot do.
 - **QUEUE is mandatory on every prompt and is the last thing in it**, because the session running
   it may never see this file. Landing is serialized, not permissioned: a finished session queues
   itself and the machine-wide queue lands it - gated on CI, one branch at a time, pushing when it
@@ -108,8 +109,7 @@ QUEUE  Then, as your LAST THREE actions and in this order:
   what it enforces.
 - **A continuation prompt printed only in chat does not exist.** The handoff FILE is the one
   channel the next orchestrator reads. Chat is for the human watching; the file is for the system.
-- A row that **delegates** says so in the prompt and names its fallback pool, on `routing.md`'s
-  terms (step 3 and its Done-when line).
+- A row that **delegates** says so and names its fallback pool, on `routing.md`'s terms (step 3).
 - **A prompt that sanctions a fan-out says: collect results via FILES at agreed paths, never wait
   on notifications.** A launched session never receives its own subagents' completion
   notifications - they route to this orchestrator, which relays any stray report to the owning

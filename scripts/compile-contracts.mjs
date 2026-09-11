@@ -81,15 +81,39 @@ export function ownedDirectories(root) {
   return owned;
 }
 
-/** Directories the walk never enters - none holds a contract, and the first two are enormous. */
+/**
+ * Directories the walk never enters - none holds a contract, and the first two are enormous. A
+ * `.tmp-` directory is scratch that another process made and is about to delete
+ * (`scripts/api-runtime-build.mjs` makes one per API compile, several per test run), so it is
+ * skipped by name as well.
+ */
 const SKIP = new Set(['node_modules', 'dist', '.git', 'coverage', 'playwright-report', 'test-results']);
+const isScratch = (name) => name.startsWith('.tmp-');
 
-/** Every nested `AGENTS.md` in the tree, repo-relative and posix. */
-function contractsUnder(root, dir = '', out = []) {
-  for (const entry of readdirSync(path.join(root, dir), { withFileTypes: true })) {
+/**
+ * Every nested `AGENTS.md` in the tree, repo-relative and posix.
+ *
+ * A DIRECTORY THAT VANISHES MID-WALK IS SKIPPED, NOT FATAL. The walk lists a directory and then
+ * reads each child, and anything else running in the checkout can delete a child in between.
+ * On 2026-09-10 the compile inside the merge driver's unit test died on CI (run 34537651787) with
+ * its reason thrown away, and main went red on it. Walking the checkout while other processes
+ * create and delete `.tmp-` directories reproduces that death: `ENOENT: scandir`, twice in ten
+ * compiles. A directory that no longer exists holds no contract anybody will load. The ROOT
+ * vanishing is still an error. `readdir` is a parameter so the test can make a directory vanish
+ * on cue instead of racing for it.
+ */
+export function contractsUnder(root, dir = '', out = [], readdir = readdirSync) {
+  let entries;
+  try {
+    entries = readdir(path.join(root, dir), { withFileTypes: true });
+  } catch (error) {
+    if (dir !== '' && error?.code === 'ENOENT') return out;
+    throw error;
+  }
+  for (const entry of entries) {
     const rel = dir ? `${dir}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      if (!SKIP.has(entry.name)) contractsUnder(root, rel, out);
+      if (!SKIP.has(entry.name) && !isScratch(entry.name)) contractsUnder(root, rel, out, readdir);
     } else if (entry.name === NESTED_CONTRACT) out.push(rel);
   }
   return out;
@@ -137,6 +161,11 @@ export function drift(outputs, root = ROOT, owned = new Set()) {
 export function write(outputs, root = ROOT, owned = new Set()) {
   for (const [rel, content] of outputs) {
     const file = path.join(root, rel);
+    // A file whose bytes are already right is left alone. `writeFileSync` truncates before it
+    // writes, so rewriting an identical file still leaves a moment in which a concurrent reader
+    // finds it empty - and the merge driver's test regenerates every contract in the real
+    // checkout while the build's other tests are reading them.
+    if (existsSync(file) && readFileSync(file, 'utf8') === content) continue;
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, content, 'utf8');
   }

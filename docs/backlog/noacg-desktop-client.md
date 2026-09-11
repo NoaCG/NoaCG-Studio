@@ -3,8 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-08-27
-state: parked
-note: "own SDI/NDI playout is parked by the owner's 2026-08-16 ruling (docs/NATIVE_PLAYOUT_RESEARCH.md)"
+state: unstarted
+note: "unlocked by the owner on 2026-09-10 (ALIGN-2026-09-10-4 in docs/OWNER_RULINGS.md), which supersedes the 2026-08-16 parking recorded in docs/NATIVE_PLAYOUT_RESEARCH.md; nothing has landed against it yet"
 asked: "a local NoaCG client that owns the box, with CasparCG rented as the engine (owner sketch in the 2026-08-27 wave input)"
 ---
 # NoaCG Desktop - our own local client that owns the box, with CasparCG rented as the engine
@@ -58,7 +58,8 @@ Explicitly NOT in scope: replacing the CasparCG Server. That is where the cost l
 - `docs/NATIVE_PLAYOUT_RESEARCH.md` - the full four-route costing, the market survey, and the
   reason the framing is "whose local box".
 - Owner ruling, 2026-08-16: Option A chosen, the programme PARKED, video playout stays local in a
-  client. Recorded in memory as `native-playout-and-pictures`.
+  client. Recorded in memory as `native-playout-and-pictures`. The parking was lifted on
+  2026-09-10 by ALIGN-2026-09-10-4.
 - `docs/CLOUD_PLAYOUT.md` §7 already predicted a local process holding an outbound connection and
   consuming the same log. It was written for data connectors; a playout agent is the same shape
   pointed at pixels instead of values.
@@ -67,8 +68,11 @@ Explicitly NOT in scope: replacing the CasparCG Server. That is where the cost l
 
 ## Status
 
-**Parked, deliberately, and this file is the sketch kept.** It is not next-wave work: it competes
-with nothing on the 2026-09-12 road, and the whole argument for it starts only after the north star
-is true for real users. Its close relative,
+**Unlocked on 2026-09-10.** Asked at the weekly alignment session whether the desktop app stays
+parked by his August decision, the owner answered "Everything should be unlocked. There's no reason
+to lock anything" (ALIGN-2026-09-10-4 in `docs/OWNER_RULINGS.md`). That ends the 2026-08-16 parking
+for this item, so it now waits its turn on the shelf like any other ask rather than being held
+back on principle. Replacing the CasparCG Server stays out of scope, because that is this item's
+shape, not a lock. Its close relative,
 [video through the playout wrapper](video-through-playout-wrapper.md), is the part of this idea
 that the owner has an active production pain for, and that one IS a next-wave candidate.

@@ -54,7 +54,10 @@ test('a conflicted generated contract is replaced by what the store currently re
   const result = run([path.join(dir, 'base.md'), ours, path.join(dir, 'theirs.md'), '.claude/rules/everywhere.md']);
   assert.equal(result.status, 0);
   const written = readFileSync(ours, 'utf8');
-  assert.ok(!written.includes('<<<<<<<'), 'the conflict is gone');
+  // The driver's own words go into the message: it keeps git's file whenever the compile fails,
+  // and on 2026-09-10 this assertion failed on CI saying only "the conflict is gone", with the
+  // reason the compile died thrown away.
+  assert.ok(!written.includes('<<<<<<<'), `the conflict is gone - the driver said: ${result.out || '(nothing)'}`);
   assert.equal(written, readFileSync(path.join(ROOT, '.claude/rules/everywhere.md'), 'utf8'));
   rmSync(dir, { recursive: true, force: true });
 });

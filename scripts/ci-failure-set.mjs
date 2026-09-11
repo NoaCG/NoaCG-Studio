@@ -41,7 +41,9 @@ const FAILED = new Set(['failure', 'timed_out']);
  * says nothing either; excluding it means a run whose ONLY failure is the gate hashes to
  * `unknown` and therefore always speaks up. That is the right direction to be wrong in.
  */
-const DERIVED_JOBS = new Set(['CI gate']);
+// The re-run of a failed Build or Factory job (ci.yml `rerun`) fails only when the job it repeats
+// failed first, so its failure is that same fault seen twice, not a second one to name.
+const DERIVED_JOBS = new Set(['CI gate', 'Re-run (failed Build or Factory job, same commit)']);
 
 /**
  * Main's completed PUSH runs of one workflow, newest first, one per commit. Only pushes count - a

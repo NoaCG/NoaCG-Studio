@@ -40,11 +40,19 @@ export const TITLE = 'CI is red on main';
  * The evidence a revert needs (docs/WORKFLOW_ARCHITECTURE.md §3, "sheriffs + auto-revert"):
  *   - a push to main, so something landed here;
  *   - a verdict: a run that only ran out of clock reverts nothing;
- *   - for a spec failure, a SECOND RUN that happened and failed: the retry job re-ran the failed
- *     specs (`retried` > 0) and they failed again. A retry that passed is a flake; one that was
+ *   - a SECOND RUN that happened and failed, for at least one of the things that failed. For a
+ *     spec, the retry job re-ran the failed specs (`retried` > 0) and they failed again. For a
+ *     failed Build or Factory job, ci.yml's `rerun` job ran that job's steps again on the same
+ *     commit (`rerun`) and they failed again. A second run that passed is a flake; one that was
  *     cancelled, skipped, or refused before re-running anything (a shard that died before
- *     reporting, a spec the change itself edited) is no verdict about the specs, so nothing is
- *     reverted on it. A failure that was never a spec (a red build) is deterministic on its own;
+ *     reporting, a spec the change itself edited) is no verdict, so nothing is reverted on it.
+ *     A flake on one side never shields a failure confirmed on the other: a build that broke twice
+ *     beside a spec that flaked is still a break.
+ *
+ *     THERE IS NO FAILURE THAT IS DETERMINISTIC ON ITS OWN. This rule used to say a red build
+ *     was, and skipped the second run for it. Run 34537651787 refuted that on 2026-09-10: on
+ *     e06cd2d4 one unit test of 1592 failed inside the Build job, the identical tree was green on
+ *     re-run, and this rule had already queued pull request 246 reverting a landed row;
  *   - the last main commit WITH a verdict was green, so everything since it is the culprit by the
  *     only evidence there is. A main that was already red is not this landing's doing, and
  *     stacking a revert on a red main would revert an innocent landing; that case is written into
@@ -53,17 +61,46 @@ export const TITLE = 'CI is red on main';
  *
  * @returns {{ revert: boolean, reason: string, since?: string }}
  */
-export function shouldRevert({ event = '', ref = '', exhausted = false, retry = 'skipped', retried = 0, items = [], previous = () => ({ sha: null, conclusion: 'unknown' }) } = {}) {
+export function shouldRevert({ event = '', ref = '', exhausted = false, retry = 'skipped', retried = 0, rerun = 'skipped', items = [], previous = () => ({ sha: null, conclusion: 'unknown' }) } = {}) {
   if (event !== 'push' || ref !== 'refs/heads/main') return { revert: false, reason: 'not a push to main, so nothing landed here' };
   if (exhausted) return { revert: false, reason: 'the run reached no verdict, so nothing is known to be broken' };
-  if (retry === 'success') return { revert: false, reason: 'the failed specs passed on their second run - a flake, quarantined rather than reverted' };
-  const specFailed = items.some((i) => /^e2e\//.test(i) || /^job: E2E/.test(i));
-  if (specFailed && retry !== 'failure') return { revert: false, reason: `the failed specs never got a second run (retry job: ${retry}), so this may be a flake` };
-  if (specFailed && retried === 0) return { revert: false, reason: 'the retry job re-ran nothing - a shard died before reporting, or the failing spec is one this landing edited - so the specs have no second verdict' };
+  const specFailed = items.some(isSpecItem);
+  const jobFailed = items.some((i) => !isSpecItem(i));
+  const specConfirmed = specFailed && retry === 'failure' && retried > 0;
+  const jobConfirmed = jobFailed && rerun === 'failure';
+  if (!specConfirmed && !jobConfirmed) {
+    const why = [];
+    if (specFailed) why.push(unconfirmedSpecs(retry));
+    if (jobFailed) why.push(unconfirmedJob(rerun));
+    if (why.length === 0) why.push('no failure was named, so none was confirmed by a second run');
+    return { revert: false, reason: why.join('; ') };
+  }
   const last = typeof previous === 'function' ? previous() : previous;
   if (last?.conclusion === 'failure') return { revert: false, reason: `main was already red at ${String(last.sha).slice(0, 7)}, before this landing, so it is not the culprit - fix main forward` };
   if (last?.conclusion !== 'success' || !last?.sha) return { revert: false, reason: 'no earlier main commit has a verdict of its own, so nothing can be blamed on this evidence' };
   return { revert: true, since: last.sha, reason: `main was green at ${String(last.sha).slice(0, 7)} and the failure survived a second run on the same commit` };
+}
+
+/** A failure the E2E retry job re-runs: a spec file, or an E2E shard that died naming none. */
+function isSpecItem(item) {
+  return /^e2e\//.test(item) || /^job: E2E/.test(item);
+}
+
+/** Why a spec failure is not yet evidence. Only called when it was not confirmed. */
+function unconfirmedSpecs(retry) {
+  if (retry === 'success') return 'the failed specs passed on their second run - a flake, quarantined rather than reverted';
+  if (retry !== 'failure') return `the failed specs never got a second run (retry job: ${retry}), so this may be a flake`;
+  return 'the retry job re-ran nothing - a shard died before reporting, or the failing spec is one this landing edited - so the specs have no second verdict';
+}
+
+/**
+ * Why a failed job is not yet evidence. Only called when it was not confirmed. The `rerun` job
+ * repeats Build and Factory only, so a failed job of any other kind (the catalog gate, the E2E
+ * plan) never gets a second run, and the reason says so rather than implying it passed.
+ */
+function unconfirmedJob(rerun) {
+  if (rerun === 'success') return 'the failed job passed when it was re-run on the same commit - a flaky test, reported rather than reverted (only Build and Factory are re-run; any other failed job had no second run)';
+  return `the failed job never got a second run (re-run job: ${rerun}), so this may be a flake`;
 }
 
 /**
@@ -154,12 +191,23 @@ export function planRedMainComment({ existing = null, bodies = [], sha = '', has
 }
 
 /** The issue body / comment text. The failing specs are IN it, so the alarm names the fault. */
-export function issueBody({ sha, runUrl, items, hash, retry = 'skipped', retried = 0, revert = null }) {
+export function issueBody({ sha, runUrl, items, hash, retry = 'skipped', retried = 0, rerun = 'skipped', revert = null }) {
   const lines = [`Commit ${sha} failed CI: ${runUrl}`, '', `Failing: ${describeFailureSet(items, { max: 12 })}`];
-  if (retry === 'failure' && retried > 0) lines.push('', `The ${retried} failed spec file(s) were re-run once on this same commit and failed again, so this is not a flake.`);
-  else if (retry === 'failure') lines.push('', 'The retry job could not re-run the failed specs (a shard died before reporting, or the failing spec is one this landing edited) - open its log.');
-  else if (retry === 'skipped') lines.push('', 'No second run: the failure was not in the E2E shards, or this was not a main push.');
-  else if (retry === 'cancelled') lines.push('', 'The retry job ran out of time, so the failed specs have no second verdict.');
+  // One sentence per kind of failure that is present, each saying what its second run found.
+  // Neither sentence may claim a second run the other kind had.
+  if (items.some(isSpecItem)) {
+    if (retry === 'failure' && retried > 0) lines.push('', `The ${retried} failed spec file(s) were re-run once on this same commit and failed again, so this is not a flake.`);
+    else if (retry === 'failure') lines.push('', 'The retry job could not re-run the failed specs (a shard died before reporting, or the failing spec is one this landing edited) - open its log.');
+    else if (retry === 'success') lines.push('', 'The failed specs passed when re-run on this same commit - a flake, written into e2e/quarantine.json.');
+    else if (retry === 'cancelled') lines.push('', 'The retry job ran out of time, so the failed specs have no second verdict.');
+    else lines.push('', 'No second run of the failed specs: this was not a main push.');
+  }
+  if (items.length === 0 || items.some((i) => !isSpecItem(i))) {
+    if (rerun === 'failure') lines.push('', 'The failed job was re-run once on this same commit and failed again, so this is not a flake.');
+    else if (rerun === 'success') lines.push('', 'The failed job passed when re-run on this same commit: a flaky test, not this landing. Nothing is reverted for it; the test needs fixing.');
+    else if (rerun === 'cancelled') lines.push('', 'The re-run of the failed job ran out of time, so it has no second verdict.');
+    else lines.push('', 'No second run of the failed job: this was not a main push, or the re-run job did not start.');
+  }
   if (revert?.status === 'queued') {
     lines.push('', `Reverting the batch: ${revert.url} - queued through the merge queue; main is green again when it lands, and this issue closes on that run.`);
   } else if (revert) {
@@ -212,7 +260,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   } catch {
     retried = 0;
   }
-  const verdict = shouldRevert({ event, ref, exhausted, retry, retried, items, previous: () => lastVerdictBefore({ repo, sha }) });
+  const rerun = process.env.RERUN_RESULT || 'skipped';
+  const verdict = shouldRevert({ event, ref, exhausted, retry, retried, rerun, items, previous: () => lastVerdictBefore({ repo, sha }) });
   let revert;
   if (verdict.revert) {
     console.log(`Reverting: ${verdict.reason}`);
