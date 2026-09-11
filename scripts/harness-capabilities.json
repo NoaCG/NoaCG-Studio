@@ -6,9 +6,9 @@
       "id": "agy-headless-auto-denies-ungranted-tools",
       "harness": "Antigravity",
       "kind": "observation",
-      "measuredOn": "1.1.28",
-      "measuredAt": "2026-09-09",
-      "claim": "SPLIT BY ACTION on 1.1.28 - it is neither refuted nor true as one sentence, and the two earlier verdicts were both over-general. LISTING NO LONGER AUTO-DENIES: the reprobe call (npm run agy:read, no command grant, \"list the files in <dir>\") returned a complete directory listing in 6.5 s, CHECKED against the filesystem rather than merely observed to be non-empty - 16 files, every size correct, including one 120 bytes long created four minutes earlier. SEARCH STILL AUTO-DENIES: on the same night and the same build, a repo-wide citation sweep spent 8.8 s and about 18 K tokens and returned an EMPTY response, because a model asked to search reaches for grep_search, which is still not a grantable action (docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md, ledger label ad-handoff-citation-sweep). So the wrapper's no-command-grant warning is NOT stale - it is right about search and wrong about listing, and should be narrowed rather than removed. ROUTING CONSEQUENCE: never send Antigravity a task whose question is \"find every file that mentions X\", because the enumeration is the answer rather than the input; enumerate the files yourself and it reads them faultlessly. The earlier refutations, on 1.1.27 and on the first 1.1.28 pass, each probed ONE action and generalised - the same mistake this file records under the subagent-notification correction. Previously refuted on 1.1.27 (2026-09-09) without the accuracy check, and measured true on 1.1.25 (2026-09-03): headless agy auto-denied any tool with no grant and still returned status SUCCESS with an empty response; only read_file, command and write_file were real grant actions (list_dir, grep_search, codebase_search were accepted into settings.json and dropped as invalid).",
+      "measuredOn": "1.2.1",
+      "measuredAt": "2026-09-11",
+      "claim": "RE-MEASURED on 1.2.1 (2026-09-11), both calls, and the split still holds. LISTING WORKS: with no command grant, npm run agy:read listed a probe directory of four files in 8.3 s, every relative path and byte size CHECKED against the filesystem (6, 14, 120 and 17 bytes, one file in a subdirectory). SEARCH STILL AUTO-DENIES: asked to find every file containing a string, it returned an EMPTY response after 18.2 s, and agy printed its own reason - a tool required the command permission that headless mode cannot prompt for. A NEW CAVEAT on 1.2.1, recorded separately as agy-plan-mode-answers-with-a-plan: the bare listing prompt came back as a plan.md three times out of three instead of the listing, and only a prompt that said \"answer directly, do not write a plan\" returned the answer. SPLIT BY ACTION on 1.1.28 - it is neither refuted nor true as one sentence, and the two earlier verdicts were both over-general. LISTING NO LONGER AUTO-DENIES: the reprobe call (npm run agy:read, no command grant, \"list the files in <dir>\") returned a complete directory listing in 6.5 s, CHECKED against the filesystem rather than merely observed to be non-empty - 16 files, every size correct, including one 120 bytes long created four minutes earlier. SEARCH STILL AUTO-DENIES: on the same night and the same build, a repo-wide citation sweep spent 8.8 s and about 18 K tokens and returned an EMPTY response, because a model asked to search reaches for grep_search, which is still not a grantable action (docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md, ledger label ad-handoff-citation-sweep). So the wrapper's no-command-grant warning is NOT stale - it is right about search and wrong about listing, and should be narrowed rather than removed. ROUTING CONSEQUENCE: never send Antigravity a task whose question is \"find every file that mentions X\", because the enumeration is the answer rather than the input; enumerate the files yourself and it reads them faultlessly. The earlier refutations, on 1.1.27 and on the first 1.1.28 pass, each probed ONE action and generalised - the same mistake this file records under the subagent-notification correction. Previously refuted on 1.1.27 (2026-09-09) without the accuracy check, and measured true on 1.1.25 (2026-09-03): headless agy auto-denied any tool with no grant and still returned status SUCCESS with an empty response; only read_file, command and write_file were real grant actions (list_dir, grep_search, codebase_search were accepted into settings.json and dropped as invalid).",
       "reprobe": "TWO calls, and one alone answers nothing. (1) With no command grant, ask it to LIST a directory: an accurate listing means listing is allowed. (2) With no command grant, ask it to FIND every file containing a string: an empty response means search is still auto-denied. Record the two separately; the actions do not move together.",
       "source": "docs/HARNESS_ROUTING.md, \"Three facts about this machine that were not true when this file last said them\"; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
     },
@@ -16,9 +16,9 @@
       "id": "agy-claude-models-reject-effort",
       "harness": "Antigravity",
       "kind": "observation",
-      "measuredOn": "1.1.27",
-      "measuredAt": "2026-09-09",
-      "claim": "claude-sonnet-4-6 and claude-opus-4-6-thinking reject --effort outright (status ERROR, 0 s, 0 tokens); the Gemini and GPT-OSS ids carry their tier in the model name.",
+      "measuredOn": "1.2.1",
+      "measuredAt": "2026-09-11",
+      "claim": "RE-MEASURED on 1.2.1 (2026-09-11): still true. --effort low on claude-sonnet-4-6 and on claude-opus-4-6-thinking both returned status ERROR, verbatim `--effort is not supported for model`. claude-sonnet-4-6 and claude-opus-4-6-thinking reject --effort outright (status ERROR, 0 s, 0 tokens); the Gemini and GPT-OSS ids carry their tier in the model name.",
       "reprobe": "Any --effort call on those ids: scripts/agy-run.mjs downgrades its refusal to a warning on a version other than measuredOn, so the next such call IS the probe. Update EFFORTLESS_MODELS there and measuredOn here with the result.",
       "source": "docs/HARNESS_ROUTING.md, \"Task B - the SECOND POOL\""
     },
@@ -26,9 +26,9 @@
       "id": "agy-no-usage-surface",
       "harness": "Antigravity",
       "kind": "observation",
-      "measuredOn": "1.1.27",
-      "measuredAt": "2026-09-09",
-      "claim": "agy keeps no cumulative usage on disk and has no usage or quota subcommand; per-run usage exists once on stdout, which is why scripts/agy-run.mjs is the only record of Antigravity spend.",
+      "measuredOn": "1.2.1",
+      "measuredAt": "2026-09-11",
+      "claim": "RE-MEASURED on 1.2.1 (2026-09-11): still true. agy --help lists no usage or quota subcommand (the subcommands are agent(s), changelog, help, install, mcp, mic-serve, models, plugin(s), remote-control, update), and a text scan of ~/.gemini/antigravity-cli/ after six runs found no token field for any of them. The older hits in conversations/*.db are file contents agy had read (test fixtures with usage objects), not its own accounting. agy keeps no cumulative usage on disk and has no usage or quota subcommand; per-run usage exists once on stdout, which is why scripts/agy-run.mjs is the only record of Antigravity spend.",
       "reprobe": "agy --help for a usage/quota subcommand, and a text scan of ~/.gemini/antigravity-cli/ for a token field after one run.",
       "source": "scripts/agy-run.mjs header; docs/HARNESS_ROUTING.md \"Cost, and what a usage meter can read\""
     },
@@ -36,9 +36,9 @@
       "id": "agy-model-inventory",
       "harness": "Antigravity",
       "kind": "observation",
-      "measuredOn": "1.1.27",
-      "measuredAt": "2026-09-09",
-      "claim": "Fourteen models in two pools: eleven Gemini ids (3.8/3.7/3.6 flash at three tiers, 3.1 pro at two) on the Gemini meter; claude-sonnet-4-6, claude-opus-4-6-thinking and gpt-oss-120b-medium on the second meter. gemini-3.7-flash-high remains the measured default for comprehension (3.8 tied on correctness and was 5.3x slower).",
+      "measuredOn": "1.2.1",
+      "measuredAt": "2026-09-11",
+      "claim": "RE-MEASURED on 1.2.1 (2026-09-11): unchanged, the same fourteen ids in the same order, so the 3.8-vs-3.7 recheck is not due. Fourteen models in two pools: eleven Gemini ids (3.8/3.7/3.6 flash at three tiers, 3.1 pro at two) on the Gemini meter; claude-sonnet-4-6, claude-opus-4-6-thinking and gpt-oss-120b-medium on the second meter. gemini-3.7-flash-high remains the measured default for comprehension (3.8 tied on correctness and was 5.3x slower).",
       "reprobe": "agy models; then the 3.8-vs-3.7 recheck in docs/HARNESS_ROUTING.md if the list changed.",
       "source": "docs/HARNESS_ROUTING.md, \"The Antigravity model inventory, measured 2026-09-03\""
     },
@@ -56,9 +56,9 @@
       "id": "codex-agents-has-no-json",
       "harness": "Codex",
       "kind": "observation",
-      "measuredOn": "0.154.0-alpha.6",
-      "measuredAt": "2026-09-09",
-      "claim": "codex agents is a TUI with no --json or list-and-exit mode, so Codex jobs cannot join the third liveness signal the way claude agents --json does; codex queue is fire-and-forget into a thread you already hold.",
+      "measuredOn": "0.155.0-alpha.3.7",
+      "measuredAt": "2026-09-11",
+      "claim": "RE-MEASURED on 0.155.0-alpha.3.7 (2026-09-11): still true. codex agents --help offers -c, --remote, --enable, --disable, --remote-auth-token-env, -C/--cd and --no-alt-screen, and nothing that lists and exits or emits JSON. codex agents is a TUI with no --json or list-and-exit mode, so Codex jobs cannot join the third liveness signal the way claude agents --json does; codex queue is fire-and-forget into a thread you already hold.",
       "reprobe": "codex agents --help for a --json flag.",
       "source": "docs/HARNESS_ROUTING.md, \"The two unmeasured Codex surfaces, probed 2026-09-03\""
     },
@@ -66,9 +66,9 @@
       "id": "codex-rate-limits-only-when-it-runs",
       "harness": "Codex",
       "kind": "observation",
-      "measuredOn": "0.154.0-alpha.6",
-      "measuredAt": "2026-09-09",
-      "claim": "Codex writes a rate_limits snapshot into its rollout only when one of its own sessions runs, so the capacity reading can be absent or stale; availability is three-valued (headroom / low / UNKNOWN) and is never probed with a paid call.",
+      "measuredOn": "0.155.0-alpha.3.7",
+      "measuredAt": "2026-09-11",
+      "claim": "RE-MEASURED on 0.155.0-alpha.3.7 (2026-09-11): still true, with one sharpening. A run REFUSED for the usage limit still writes a rate_limits snapshot, but its primary and secondary windows are null (limit_id premium, credits balance 0, rate_limit_reached_type null), so harness:usage prints \"5-hour window not reported\" and \"weekly window not reported\". The capacity reading is UNKNOWN at exactly the moment the pool is empty, and nothing in the snapshot says the limit was hit. Only the run's own stderr does (`You've hit your usage limit ... try again at <time>`). Codex writes a rate_limits snapshot into its rollout only when one of its own sessions runs, so the capacity reading can be absent or stale; availability is three-valued (headroom / low / UNKNOWN) and is never probed with a paid call.",
       "reprobe": "npm run harness:usage after a Codex session; the snapshot line names its own timestamp.",
       "source": "docs/HARNESS_ROUTING.md, \"Owner ruling 2026-09-01: route by pool capacity\""
     },
@@ -136,9 +136,9 @@
       "id": "codex-writable-root-is-the-launching-session-cwd",
       "harness": "Codex",
       "kind": "observation",
-      "measuredOn": "0.154.0-alpha.11",
-      "measuredAt": "2026-09-09",
-      "claim": "CONFIRMED with one correction on 0.154.0-alpha.11, re-derived from scratch by a controlled pair of delegations four minutes apart from one session. The writable set is THE LAUNCHING SESSION'S WORKING DIRECTORY PLUS THE TEMP DIRECTORIES, not the working directory alone. Probe A wrote a file under the launching session's own worktree and got every fact in it right. Probe B, same launcher and same flags, was handed two targets in one run: a path in a SIBLING WORKTREE was refused, and the refusal on this build is an OS access error, not a sandbox policy message - verbatim, `New-Item : Access to the path 'C:\\claude\\NoaCG-Studio\\.claude\\worktrees\\new-session-db1287\\.codex-probe-b.txt' is denied.` - while a path under %LOCALAPPDATA%\\Temp in the SAME RUN succeeded. Both outcomes were checked on disk. The mechanism is printed by Codex itself on every run and needs no probing at all: the startup banner of `codex exec` reads `sandbox: workspace-write [workdir, /tmp, $TMPDIR]`. Consequence for a reader of this entry: the temp directory is writable, so a delegation can stage a file it cannot place, and a session that only reads the summary can record a task as attempted while nothing moved. Everything below still holds. A delegation's writable root is THE LAUNCHING SESSION'S WORKING DIRECTORY, and nothing else outside temp. Measured three times on 2026-09-09, and the third attempt CONFIRMS the rule by succeeding. First, handed the ordinary row recipe ('make a feature branch in its own worktree before the work starts'), the delegate was denied writing C:/claude/NoaCG-Studio/.git/refs/heads/<branch> and stopped having changed no file. Then, given a worktree created for it in advance and told to run no git at all, it refused again and said why in plain terms: the target 'is outside that writable root, and approval is disabled', naming the launching session's own worktree as the only writable path. It read both target files correctly and reported its analysis, so reads are unrestricted; only writes are pinned. CONSEQUENCE FOR ROUTING: pre-creating a worktree does NOT help, because the root follows the launcher, not the prompt. A delegation can only edit files under the directory the launching session is sitting in. Either launch it from a session whose cwd IS the worktree the work belongs in, or have it edit in the launcher's own checkout and move the result. Third attempt, launched from a session whose OWN working directory was the target worktree: it created a new module and edited three existing files there without complaint. So the rule is positive as well as negative - delegate from the session that sits where the result belongs and it simply works. This is the mechanical reason such delegations get recorded as attempted and never landed, and it is not fixed by choosing the harness more often.",
+      "measuredOn": "0.155.0-alpha.3.7",
+      "measuredAt": "2026-09-11",
+      "claim": "RE-MEASURED on 0.155.0-alpha.3.7 (2026-09-11) by the cheapest probe only: the startup banner of `codex exec` still reads `sandbox: workspace-write [workdir, /tmp, $TMPDIR]`, so the writable set is unchanged. The two-write re-derivation was not run, because the usage limit refused the model call. CONFIRMED with one correction on 0.154.0-alpha.11, re-derived from scratch by a controlled pair of delegations four minutes apart from one session. The writable set is THE LAUNCHING SESSION'S WORKING DIRECTORY PLUS THE TEMP DIRECTORIES, not the working directory alone. Probe A wrote a file under the launching session's own worktree and got every fact in it right. Probe B, same launcher and same flags, was handed two targets in one run: a path in a SIBLING WORKTREE was refused, and the refusal on this build is an OS access error, not a sandbox policy message - verbatim, `New-Item : Access to the path 'C:\\claude\\NoaCG-Studio\\.claude\\worktrees\\new-session-db1287\\.codex-probe-b.txt' is denied.` - while a path under %LOCALAPPDATA%\\Temp in the SAME RUN succeeded. Both outcomes were checked on disk. The mechanism is printed by Codex itself on every run and needs no probing at all: the startup banner of `codex exec` reads `sandbox: workspace-write [workdir, /tmp, $TMPDIR]`. Consequence for a reader of this entry: the temp directory is writable, so a delegation can stage a file it cannot place, and a session that only reads the summary can record a task as attempted while nothing moved. Everything below still holds. A delegation's writable root is THE LAUNCHING SESSION'S WORKING DIRECTORY, and nothing else outside temp. Measured three times on 2026-09-09, and the third attempt CONFIRMS the rule by succeeding. First, handed the ordinary row recipe ('make a feature branch in its own worktree before the work starts'), the delegate was denied writing C:/claude/NoaCG-Studio/.git/refs/heads/<branch> and stopped having changed no file. Then, given a worktree created for it in advance and told to run no git at all, it refused again and said why in plain terms: the target 'is outside that writable root, and approval is disabled', naming the launching session's own worktree as the only writable path. It read both target files correctly and reported its analysis, so reads are unrestricted; only writes are pinned. CONSEQUENCE FOR ROUTING: pre-creating a worktree does NOT help, because the root follows the launcher, not the prompt. A delegation can only edit files under the directory the launching session is sitting in. Either launch it from a session whose cwd IS the worktree the work belongs in, or have it edit in the launcher's own checkout and move the result. Third attempt, launched from a session whose OWN working directory was the target worktree: it created a new module and edited three existing files there without complaint. So the rule is positive as well as negative - delegate from the session that sits where the result belongs and it simply works. This is the mechanical reason such delegations get recorded as attempted and never landed, and it is not fixed by choosing the harness more often.",
       "reprobe": "Cheapest first: run any `codex exec` and read the `sandbox:` line of its startup banner, which names the writable set outright. To re-derive it, delegate ONE run that attempts two writes - one into a different worktree, one into the temp directory - and asks for each outcome separately; check both on disk rather than believing the report.",
       "source": "docs/HARNESS_ROUTING.md - the delegate that cannot make its own branch; re-derived and corrected by the 2026-09-09 harness verdict, docs/metrics/2026-09-09-harness-verdict.md"
     },
@@ -161,6 +161,16 @@
       "claim": "The Agent tool takes `isolation` (worktree or remote) but no working-directory parameter, so a new subagent starts either in a FRESH worktree or in the launcher's own checkout - never in an existing worktree. And no SendMessage is callable from a main session: the Agent tool's own description tells you to use SendMessage to continue an agent, but the tool is not in the session's tool list. Together they mean an orchestrator can neither ADOPT a dead row's worktree nor WAKE the row that owns it. Measured on row CA of the 2026-09-10 night wave: it stalled holding the only copy of the rebuilt 25 September deck as uncommitted files in its worktree, and the rescue had to be a new row that copied the files out by path into its own branch.",
       "reprobe": "Read the Agent tool's parameter schema for a cwd or working-directory field, and the session's tool list for SendMessage. Either one present refutes the matching half; record the halves separately.",
       "source": "the 2026-09-11 deck rescue, `docs/DEMO_2026-09-25.md` beat O2 and the commit that rebuilt the deck"
+    },
+    {
+      "id": "agy-plan-mode-answers-with-a-plan",
+      "harness": "Antigravity",
+      "kind": "observation",
+      "measuredOn": "1.2.1",
+      "measuredAt": "2026-09-11",
+      "claim": "On 1.2.1, `--mode plan` (what npm run agy:read passes) can answer a question with a plan instead of the answer. The prompt \"List every file under <dir>, recursively, with each file's size in bytes\" returned \"I have created the implementation plan ... please review\" and a plan.md under ~/.gemini/antigravity-cli/brain/ three times out of three (12.8-13.5 s, about 34 K input tokens each), and the result carried no error. The plan itself named all four files correctly, so the reading happened and only the answer was withheld. The same prompt prefixed with \"Tools: read_file and directory listing only, NO SHELL. Answer directly in this reply; do not write a plan.\" returned the correct listing once out of once, and a plain one-file read question answered directly without the prefix. So a task that sounds like work gets planned, and a read-only delegation that comes back as a plan is a failed delegation that looks like a success. Not yet known: whether 1.1.28 did the same for this wording, and how reliably the prefix holds beyond one run.",
+      "reprobe": "Run the bare listing prompt above through npm run agy:read three times and count how many return a plan instead of the listing; then the same with the answer-directly prefix.",
+      "source": "2026-09-11 capability re-probe after the agy 1.2.0 -> 1.2.1 update; ledger labels reprobe-0911-list, reprobe-0911-list-bare1, reprobe-0911-list-bare2, reprobe-0911-list2, reprobe-0911-readq"
     }
   ]
 }
