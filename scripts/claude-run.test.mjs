@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, readdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, readdirSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -75,6 +75,135 @@ test('same-worktree duplicate is refused and unfinished state is unknown even wi
   } });
   await duplicate;
   assert.equal(result.status, 'completed');
+});
+
+test('readStatus exposes supervisorPresent and workerPresent separately when supervisor PID is dead but child PID is alive', (t) => {
+  const f = fixture(t);
+  const info = workspace(f.cwd);
+  const id = '00000000-0000-0000-0000-000000000001';
+  const workerDir = path.join(info.directory, id);
+  mkdirSync(workerDir, { recursive: true });
+  const supervisorPid = 41001;
+  const childPid = 41002;
+  const metadata = {
+    version: 1,
+    id,
+    cwd: info.cwd,
+    branch: 'feature/test',
+    pid: supervisorPid,
+    childPid,
+    status: 'running',
+    startedAt: new Date().toISOString(),
+    timeoutSeconds: 3600,
+  };
+  writeFileSync(path.join(workerDir, 'metadata.json'), JSON.stringify(metadata, null, 2));
+
+  // Supervisor PID dead, child PID alive -> supervisorPresent: false, workerPresent: true, status: unknown
+  const sampled = [];
+  const status = readStatus(info, id, (pid) => { sampled.push(pid); return pid === childPid; });
+  assert.deepEqual(sampled, [supervisorPid, childPid], 'sample each PID once so compatibility fields cannot contradict the same snapshot');
+  assert.equal(status.status, 'unknown');
+  assert.equal(status.supervisorPresent, false);
+  assert.equal(status.workerPresent, true);
+  assert.equal(status.processPresent, false);
+  assert.equal(status.id, id);
+  assert.equal(status.cwd, info.cwd);
+
+  // Supervisor PID alive, child PID dead -> supervisorPresent: true, workerPresent: false, status: unknown
+  const supervisorOnly = readStatus(info, id, (pid) => pid === supervisorPid);
+  assert.equal(supervisorOnly.status, 'unknown');
+  assert.equal(supervisorOnly.supervisorPresent, true);
+  assert.equal(supervisorOnly.workerPresent, false);
+  assert.equal(supervisorOnly.processPresent, true);
+
+  // Neither alive -> supervisorPresent: false, workerPresent: false, status: unknown
+  const neitherAlive = readStatus(info, id, () => false);
+  assert.equal(neitherAlive.status, 'unknown');
+  assert.equal(neitherAlive.supervisorPresent, false);
+  assert.equal(neitherAlive.workerPresent, false);
+  assert.equal(neitherAlive.processPresent, false);
+
+  // Both alive -> supervisorPresent: true, workerPresent: true, status: unknown
+  const bothAlive = readStatus(info, id, () => true);
+  assert.equal(bothAlive.status, 'unknown');
+  assert.equal(bothAlive.supervisorPresent, true);
+  assert.equal(bothAlive.workerPresent, true);
+  assert.equal(bothAlive.processPresent, true);
+});
+
+test('readStatus treats absent childPid as null workerPresent rather than false', (t) => {
+  const f = fixture(t);
+  const info = workspace(f.cwd);
+  const id = '00000000-0000-0000-0000-000000000002';
+  const workerDir = path.join(info.directory, id);
+  mkdirSync(workerDir, { recursive: true });
+  const supervisorPid = 42001;
+  const metadata = {
+    version: 1,
+    id,
+    cwd: info.cwd,
+    branch: 'feature/test',
+    pid: supervisorPid,
+    childPid: null,
+    status: 'running',
+    startedAt: new Date().toISOString(),
+    timeoutSeconds: 3600,
+  };
+  writeFileSync(path.join(workerDir, 'metadata.json'), JSON.stringify(metadata, null, 2));
+
+  // Child PID is null -> workerPresent is null, supervisor is alive
+  const status = readStatus(info, id, (pid) => pid === supervisorPid);
+  assert.equal(status.status, 'unknown');
+  assert.equal(status.supervisorPresent, true);
+  assert.equal(status.workerPresent, null);
+  assert.equal(status.processPresent, true);
+
+  // Child PID completely omitted from metadata -> workerPresent is null
+  const idOmitted = '00000000-0000-0000-0000-000000000003';
+  const workerDirOmitted = path.join(info.directory, idOmitted);
+  mkdirSync(workerDirOmitted, { recursive: true });
+  const metadataOmitted = { ...metadata, id: idOmitted };
+  delete metadataOmitted.childPid;
+  writeFileSync(path.join(workerDirOmitted, 'metadata.json'), JSON.stringify(metadataOmitted, null, 2));
+
+  const statusOmitted = readStatus(info, idOmitted, () => false);
+  assert.equal(statusOmitted.status, 'unknown');
+  assert.equal(statusOmitted.supervisorPresent, false);
+  assert.equal(statusOmitted.workerPresent, null);
+  assert.equal(statusOmitted.processPresent, false);
+});
+
+test('readStatus provides presence diagnostics for terminal unknown receipts', (t) => {
+  const f = fixture(t);
+  const info = workspace(f.cwd);
+  const id = '00000000-0000-0000-0000-000000000004';
+  const workerDir = path.join(info.directory, id);
+  mkdirSync(workerDir, { recursive: true });
+  const supervisorPid = 43001;
+  const childPid = 43002;
+  const metadata = {
+    version: 1,
+    id,
+    cwd: info.cwd,
+    branch: 'feature/test',
+    pid: supervisorPid,
+    childPid,
+    status: 'unknown',
+    reason: 'Worker tree termination unconfirmed; ownership lock retained for manual recovery',
+    startedAt: new Date().toISOString(),
+    finishedAt: new Date().toISOString(),
+    timeoutSeconds: 3600,
+  };
+  writeFileSync(path.join(workerDir, 'metadata.json'), JSON.stringify(metadata, null, 2));
+
+  // Child PID is still alive after unconfirmed termination
+  const status = readStatus(info, id, (pid) => pid === childPid);
+  assert.equal(status.status, 'unknown');
+  assert.equal(status.supervisorPresent, false);
+  assert.equal(status.workerPresent, true);
+  assert.equal(status.processPresent, false);
+  assert.equal(status.reason, 'Worker tree termination unconfirmed; ownership lock retained for manual recovery');
+  assert.ok(status.finishedAt);
 });
 
 test('timeout terminates the worker and records failure', async (t) => {

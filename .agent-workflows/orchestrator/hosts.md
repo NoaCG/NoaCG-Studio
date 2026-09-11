@@ -10,6 +10,7 @@ Record the coordinator host, version, available agent/wait/automation tools, fil
 GitHub access and durable plan path in the wave-state file. Use the tools actually exposed.
 `gh repo view` establishes GitHub access; a CLI version or installed plugin does not.
 Never change permissions to make a capability probe pass. Failure leaves the route unavailable.
+Do not repeat expensive model probes once auth and route capability are verified; preserve original receipts.
 
 | coordinator | Codex work | Claude work | Antigravity work |
 | --- | --- | --- | --- |
@@ -46,6 +47,7 @@ App handoff moves an existing task and its git state, not a background worker's 
 **Missing from Claude's inventory does not mean dead in Codex.** Check native agent/task status
 and the recorded worker result, alongside branch and transcript evidence. If the owning harness
 cannot be queried, ownership is UNKNOWN: do not queue, adopt, clean or replace that branch.
+Stop on unknown ownership; never perform arbitrary PID kills or permission changes.
 The orphan-adoption procedure in `night.md` applies only when all its signals cover the owner.
 
 ## Claude workers launched from Codex
@@ -53,7 +55,8 @@ The orphan-adoption procedure in `night.md` applies only when all its signals co
 Check `claude --version` and `claude auth status` without exposing credentials, then verify one
 useful bounded call: login status can lapse before model execution. A subscription login differs
 from an API key; do not start paid API work merely because a key is present. A login-expired
-result marks this route unavailable until reauthentication. For a working `--bg` route:
+result marks this route unavailable until reauthentication.
+For a working `--bg` route:
 
     claude --bg --name <wave-letter-name> --model opus --effort high -- <prompt>
     claude agents --json --all
@@ -70,6 +73,14 @@ Native background mode owns process survival and resumption; do not build a seco
 Do not apply print-only flags to background mode. Inherited grants still apply, so a permission
 wait is reported and the independent rows continue. Never disable hooks or approval controls.
 
+**Live Claude CLI 2.1.268 background and resume behavior:**
+
+- `--bg --resume` creates a COPY session if the original process is still running, even if its state is reported as `done`.
+- `claude stop <id>` acknowledgement can precede actual process exit.
+- Always verify that the worker's own PID is absent from inventory (`claude agents --json --all`) before executing resume.
+- In the measured stopped-session probe, resume then returned the SAME ID with saved options; always record and check the returned identity rather than assuming it.
+- Stop on unknown ownership; avoid arbitrary PID kills and do not alter permissions.
+
 For a bounded foreground review, or a host without background mode, use:
 
     node scripts/claude-run.mjs run --cwd <feature-worktree> --prompt-file <absolute-file> --read-only --timeout-seconds 180
@@ -77,7 +88,11 @@ For a bounded foreground review, or a host without background mode, use:
 Omit `--read-only` only for an assigned implementation row. The bridge sends stdin, inherits
 permissions, records local job/results, and refuses duplicate workers for one worktree. Its
 `status`/`result --cwd <worktree> --id <id>` commands recover receipts. Keep its persistent shell
-session alive until completion. It does not detach or promise survival after the host is killed.
+session alive until completion. The bridge provides no durable supervision after its host is killed.
+A killed supervisor can leave a live child worker process; PID presence is not identity proof.
+`readStatus` reports `supervisorPresent` and `workerPresent` separately (with `processPresent`
+retained as a boolean supervisor-presence field for compatibility) and keeps status as `unknown` when no confirmed
+terminal receipt exists. Ownership locks are retained on unconfirmed termination for manual recovery.
 Result status and denied tools matter; a claimed success still needs independent verification.
 
 ## Codex overnight execution
