@@ -162,6 +162,9 @@ test('the step-by-step walk keeps the road, the three surprises and its handoffs
   await page.goto('/docs');
   const walk = page.locator('#first-graphic');
 
+  // No account is needed until publishing: creating, editing and exporting all work anonymously.
+  await expect(walk).toContainText('No account is needed until you publish');
+
   // (a) The five steps, in order, by the names the wizard's own rail uses. A renamed step leaves
   // a reader looking for a heading that is not on their screen, which is the failure this guide
   // exists to prevent, and nothing else on the page names them. The NUMBERS are in the strings on

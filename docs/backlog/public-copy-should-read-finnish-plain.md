@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-09-10
 state: advanced
-note: "index.html rewritten in 62fd37b2 - 2211 words to 1767, the named slogan and every countable claim gone. /docs, the import step and the missing voice gate still stand."
+note: "index.html rewritten in 62fd37b2 - 2211 words to 1767. On codex/b-first-graphic-guide, the three opening paragraphs of /docs#first-graphic are shortened from 169 to 74 words and the ten-minute promise removed. The remaining /docs copy, import step and missing voice gate still stand."
 asked: "it could be shorter and more cut-to-the-chase type of text ... it could have the Finnish style: no jargon and hype, just what it is and what it does"
 ---
 # The public copy should read Finnish-plain, not like marketing
