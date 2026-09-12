@@ -116,6 +116,48 @@ Never reset the window or start a second wave. Native waits handle prompt comple
 heartbeat resumes between turns. If no wake-up tool exists, stay in the active turn; if it cannot
 continue, report partial completion and the missing mechanism instead of claiming a night is armed.
 
+### Guarded pilot resume on either host
+
+For a saved JSON `bounded-production-pilot`, pause its owned heartbeat using the host's automation
+tool, then use **one command** for validation, claiming and dispatch:
+
+```text
+node scripts/resume-dispatch.mjs --state <absolute-pilot.json> -- <executable> <literal-arguments...>
+```
+
+Run this from the feature worktree. The executable is the same bounded, permission-preserving
+harness adapter already selected for the row. A failure from this command ends the attempt:
+never issue a separate provider call afterwards. Do not convert the JSON through a shell date
+type or hand-write the claim. This path is shared by Claude Code and Codex; it calls neither
+provider until all guards and the durable claim succeed.
+
+The supported state has `version: 1`, `kind: bounded-production-pilot`, an absolute `worktree`,
+the expected feature `branch`, UTC `startedAt` and `deadline` strings ending in `Z`,
+`phase: awaiting_resume`, `resumeCount: 0`, and `refill: { status: pending, launchCount: 0 }`.
+Other fields are preserved. An explicitly user-authorized continuation adds `continuation`
+with its own `startedAt`, `deadline` and nonempty `authorizedBy`; it cannot replace an open
+original window, and neither window may exceed 24 hours. The command checks the saved record,
+not whether the user actually authorized it: the coordinator must record real authorization.
+An expired window is never extended automatically.
+
+The controller retains an exclusive `<state>.dispatch-lock` after accepting an attempt, even
+if spawning or a later write fails. `launchCount` counts the claimed attempt, not proof that a
+worker ran. Concurrent wakes, repeated wakes and uncertain crashes must reconcile that claim,
+the saved command/PIDs and `<state>.dispatch.log`; never delete it because a PID is absent.
+Unclaimed validation refusals release their lock and leave the state unchanged. Use a new,
+explicitly authorized pilot for another attempt, not a reset of this pilot's counters.
+
+`awaiting_result_review` and `refill.status: exited` report transport completion only. Read the
+saved stdout/stderr log, inspect exit code and validate the actual result before marking the
+review passed. An empty answer or zero exit code alone is not a review. The launch deadline
+prevents new work; the harness adapter still owns its worker timeout and termination protocol.
+This controller does not schedule wake-ups or promise exactly-once execution after a crash;
+it refuses to launch again when execution is uncertain.
+
+Cheap acceptance: `node --test scripts/resume-dispatch.test.mjs`. It uses temporary Git worktrees
+and local Node children only, including concurrent CLI processes and simulated disk failures.
+Passing it does not replace the later live refill smoke test or prove an overnight shift.
+
 Local execution requires its host to remain available. No adapter promises work while that machine
 is asleep, the app is closed, authentication expires or the subscription is exhausted. GitHub PRs
 already queued land independently. Pause only this wave's heartbeat after the report; do not
