@@ -48,6 +48,11 @@ claimed; the changed brand feature is local/offline and introduced no backend ch
 
 ## Next work
 
+**Superseded by later owner direction, 2026-09-17:** the
+[unified roadmap](../EDITOR_DELIVERY_ROADMAP.md) now governs continuation. Complete its
+baseline and review before further product implementation. The paragraph below records
+the earlier recommendation; it is no longer an instruction to start brand application.
+
 After landing, start a fresh feature branch from current main. Finish shared editor brand
 application as a single undo transaction, then collection customization under
 STARTER_COLLECTIONS_PLAN.md. Animation work begins with the Phase 0 owner/reference walk
