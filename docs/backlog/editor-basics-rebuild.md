@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-09-14
 state: advanced
-note: Animation contracts revised after independent review in 888cc6cd; baseline and implementation remain outstanding. Brand and collection work has a separate receipt.
+note: Animation contracts in 888cc6cd; unified roadmap and current-source/rendered baseline added on 2026-09-17. Comparative/performance baseline and owner review remain open; further implementation is paused.
 asked: "Paraphrase: create a plan to rebuild our editor using the OGraf Studio research because basic animation and keyframe editing do not feel good enough, then implement it."
 serves: P7
 size: large
@@ -22,6 +22,12 @@ experience. The owner's request is to improve the basics using Studio as the ref
 add another inventory of capabilities or wait for the full-stack renderer programme.
 
 ## What it would take
+
+Latest owner direction, 2026-09-17: first finish the
+[unified roadmap](../EDITOR_DELIVERY_ROADMAP.md) and
+[baseline](../research/editor-baseline-2026-09-17.md). Further product implementation is on
+hold for baseline evidence and owner review. Follow the roadmap's M0-M8 order and completion
+register; ordinary editing, animation, brands and production form one finished-product gate.
 
 Brand creation and the collection-to-production route now have their own
 [plan](../STARTER_COLLECTIONS_PLAN.md) and [receipt](starter-collections.md).
