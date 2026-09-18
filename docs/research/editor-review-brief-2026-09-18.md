@@ -4,6 +4,10 @@
 `codex/editor-baseline-design`. Commit/push authorized; product implementation remains on
 hold. This review brief indexes the plan, not a second source of requirements.
 
+The [copyable independent-review request](editor-second-opinion-request-2026-09-18.md)
+defines the review scope and required report. Owner feedback and per-slice delivery receipts
+are specified in the master's "Step-by-step delivery and owner feedback" section.
+
 ## Read in this order
 
 1. [EDITOR_PLAN.md](../EDITOR_PLAN.md): destination, all release slices, E01-E24 coverage,
