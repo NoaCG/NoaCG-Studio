@@ -1,6 +1,6 @@
 # Editor animation and preview contract
 
-Updated 2026-09-18. [EDITOR_PLAN.md](EDITOR_PLAN.md) owns scope, order and acceptance. This document
+Updated 2026-09-19. [EDITOR_PLAN.md](EDITOR_PLAN.md) owns scope, order and acceptance. This document
 owns the proposed source, interaction and preview mechanisms. Implementation remains paused.
 Independent review of d5e8c1db is accepted with the corrections below.
 The old rebuild plan is archived with the consolidation evidence; its mode and phase order
@@ -299,9 +299,9 @@ organize assets. A group layer adds its own transform, parent bar and local chil
 breadcrumb back while keeping the canvas visible. Preserve child offsets, masks, field IDs,
 history and exported rendering. Root Step/Out flags alone control broadcast holds.
 
-Scope ruling pending (needs: alignment): propose that R1.2b ships this group layer, while
-instanced reusable precompositions become named task P-COMP after R1.5. Until the owner
-approves, the existing R1.2 reusable-precomposition requirement remains; do not silently defer it.
+Owner scope ruling, 2026-09-19: R1.2b ships this group layer with its own transform, parent
+bar and local ruler. Instanced reusable precompositions are named task P-COMP after R1.5.
+This replaces the previous R1.2 reusable-precomposition obligation, not the full-scope requirement.
 A group is not labelled reusable precomp. P-COMP must define shared definition versus instance
 ownership, instance overrides, field-ID namespacing, nested local timelines, cycles, detach,
 undo/save/reopen and all output targets. It remains part of full-scope completion.
@@ -517,7 +517,7 @@ exit and simulator/export parity; d nested Illustrator/catalog, IDs, trim and tw
 users. Earlier slices must prove the foundations they use, not postpone correctness to d.
 Include stale acks, same-path asset-byte changes, reverse seek, 125% zoom and an owner-machine
 blank-stage reproduction attempt. R1.2a owns Bezier/cue/Next contracts, b E05-E07/B04/tools and
-grouping (precomp scope pending), c loops and legacy machine/call regression. R1.4 may proceed
+grouping (scope approved; reusable instances in P-COMP), c loops and legacy machine/call regression. R1.4 may proceed
 in parallel from R1.1c using the stable registry without waiting for R1.2/R1.3; integration
 acceptance still verifies the actual shared editor/runtime revision.
 R1.5 owns fuller unaided user tasks, licence clarification, default switch and named outputs.

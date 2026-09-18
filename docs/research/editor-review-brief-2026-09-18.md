@@ -2,7 +2,7 @@
 
 2026-09-18. Independent review of d5e8c1db: **ready with named corrections**.
 Corrections are recorded, not implemented. Branch: codex/editor-baseline-design.
-Product implementation remains on hold. Group/precomp scope ruling is pending.
+Product implementation remains on hold. Group/precomp scope approved by owner 2026-09-19.
 This brief indexes the plan; EDITOR_PLAN.md is the single scope authority.
 
 ## Read in this order
@@ -29,7 +29,7 @@ shapes, assets and typography; templates/starter graphics, Home brands/overrides
 installation; embedded AI/BYOK, CLI and paired MCP; Lottie/paint/effects; structured GDD/live data;
 OGraf/SPX/CasparCG/NoaCG production and named-host evidence. Optional Monaco stays beside canvas.
 Node authoring remains excluded; existing behavior and node lessons survive. Reusable precomps
-remain required for full completion; only their release placement awaits a scope ruling.
+remain required for full completion and follow R1.5 as P-COMP, approved 2026-09-19.
 
 ## Decisions recorded before R1.0
 
@@ -54,12 +54,12 @@ at the named slice exits; recording them does not authorize starting R1.0.
 | R1.1c | R1.1b | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt, undo/save/reopen/export/production parity |
 | R1.1d | R1.1c and stable-ID gate | Nested Illustrator/catalog fixtures, trim without retiming, two first-time users; repeat latency/fidelity checks |
 | R1.2a | R1.1d and shared Bezier gate | Full transform animation, key gestures/easing, exact splits, Step/Next, cue-side editing and cross-cue spans |
-| R1.2b | R1.2a; group/precomp ruling | E05-E07/B04: typography/fit/assets/images/full tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins and group layer |
+| R1.2b | R1.2a; scope approved | E05-E07/B04: typography/fit/assets/images/full tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins and group layer |
 | R1.2c | R1.2a and relevant group behavior | Local loops, interrupted Out/replay and legacy behavior regression |
 | R1.3 | Stable shared operations from R1.1c; later tools registered as shipped | Grounded basic AI/BYOK, real-model evidence and CLI round-trip |
 | R1.4 | R1.1c stable registry; may run parallel with R1.1d/R1.2/R1.3 | Gallery, starter set, Home brand/overrides, selected-set installation/recovery and rehearsal; no AI dependency |
 | R1.5 | All required R1 portions, GSAP clarification | Comparative/human/performance/output-host checks and explicit owner default-switch approval |
-| P-COMP | Proposed after R1.5, scope ruling pending | Instanced reusable precompositions with definition/instance, field, history and export parity |
+| P-COMP | After R1.5; scope approved | Instanced reusable precompositions with definition/instance, field, history and export parity |
 | R2.1/R2.2 | Relevant R1 contracts | Lottie then paint/mask/composable effects |
 | R3.1/R3.2 | Relevant R1/R2 contracts | Structured/live data then complete paired co-authoring |
 
@@ -80,9 +80,9 @@ E/B ledger and handoff. No screenshot/build closes the full product journey.
 - B13 is split across R1.0, R1.1b-d, R1.2a/c, not assigned solely to R1.2. Label ruler units and
   test seconds/frames against document FPS without rewriting source time.
 - Before R1.5: clarify the exact GSAP licence/version/plugin/export/CLI obligations.
-- needs: alignment, pending owner answer: R1.2b group layer with its own transform, parent bar
-  and local ruler; instanced reusable precompositions become P-COMP after R1.5. Until approved,
-  the previous R1.2 precomp obligation remains. Do not conflate groups and reusable instances.
+- Owner approved 2026-09-19: R1.2b group layer with its own transform, parent bar and local
+  ruler; instanced reusable precompositions are P-COMP after R1.5. This supersedes their former
+  R1.2 placement. Do not conflate groups and reusable instances; both remain in the destination.
 
 ## Reuse rationale and remaining evidence
 
