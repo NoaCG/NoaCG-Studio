@@ -1,6 +1,6 @@
 # Editor plan
 
-Owner direction, updated 2026-09-18. Planning and mockups only. Product implementation remains on
+Owner direction, updated 2026-09-19. Planning and mockups only. Product implementation remains on
 hold until the owner explicitly resumes it. This is the single authority for editor scope,
 order and completion. It replaces the delivery roadmap and professional-direction documents.
 Review entry point: [review brief](research/editor-review-brief-2026-09-18.md), including the
@@ -98,8 +98,8 @@ workflow. This is the destination; only measured evidence can establish that com
   No compulsory layer chooser. At a flag edits use the arriving side, except a selected layer
   whose bar starts there: edit its departing side. Keep quiz/custom actions intact.
 - Folders/bins and a transformable group with parent bar/local ruler are distinct from reusable
-  instanced precompositions. Scope ruling pending: propose groups in R1.2b and named P-COMP
-  after R1.5; existing R1.2 precomp obligation stays until owner approval. Nothing is dropped.
+  instanced precompositions. Owner approved 2026-09-19: groups ship in R1.2b; named P-COMP
+  delivers reusable instances after R1.5. Both remain required for full completion.
 - New Text is editable in playout by default; honor wizard exclusions and driven fields.
   Stable schema keys survive label changes. OGraf/YLE acceptance includes a named runtime host.
 - Keep Linear, Easy Ease In, Easy Ease Out, Easy Ease and Hold (five choices total). Inspector,
@@ -120,12 +120,12 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 | R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
 | R1.1d Fidelity and trim | Nested Illustrator/catalog fixtures, stable IDs on first SVG edit, span trimming, two first-time users on the basic journey; B01-B05/B11/B13 applicable portions. |
 | R1.2a Animation | Shared Bezier string/evaluator gate, exact curve splits, full transform animation/easing, key gestures, Step/Next, cue-side editing and cross-cue bars/keys. B03/B05-B07/B13. |
-| R1.2b Everyday tools and grouping | E05-E07/B04: typography/fit, images/assets, full canvas tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins, group transform/parent bar/local ruler. Reusable precomp scope pending as above. |
+| R1.2b Everyday tools and grouping | E05-E07/B04: typography/fit, images/assets, full canvas tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins, group transform/parent bar/local ruler. Reusable instances follow in P-COMP after R1.5. |
 | R1.2c Loops | Local loops, interruption/replay, legacy behavior and output parity. B07/B13/B14 local-loop portion. |
 | R1.3 Shared AI and source round-trip | Grounded helper, bounded edits, budgeted free tier/BYOK and CLI round-trip through shared operations; real-model evaluation, conflict/cancel/undo. B17/B18 core. |
 | R1.4 Templates, brands and rundown | Gallery/curated set, Home brands/overrides, subset customization and durable installation/retry/revert/rehearsal. B08-B10. May run in parallel from R1.1c on the stable registry; does not require R1.2/R1.3. |
 | R1.5 Acceptance and default switch | Comparative/user/performance and real-host checks, GSAP licence clarification, owner acceptance; then replace default editing interactions while preserving runtime/source behavior. |
-| P-COMP (proposed after R1.5) | Named task for instanced reusable precompositions: definition/instance ownership, editable local timelines, field IDs/overrides, cycles, history/save/export parity. Scheduling requires the pending scope ruling; remains required for full completion. |
+| P-COMP (after R1.5) | Named task for instanced reusable precompositions: definition/instance ownership, editable local timelines, field IDs/overrides, cycles, history/save/export parity. Schedule approved 2026-09-19; remains required for full completion. |
 | R2.1 Lottie | Profile/import, native FPS/speed, trims, In/loop/Out ranges, reverse seek, interruption, bundled exports. B14 Lottie portion. |
 | R2.2 Paint and effects | Gradients, masks, ordered effects, supported animation, AI operations and target parity. B15. |
 | R3.1 Structured live graphics | Recursive GDD fields/bindings, arrays/collections, validated feeds, staleness/replay and target mappings. B16. |
@@ -226,14 +226,14 @@ New sessions resume these records and the actual branch state.
 | Work | State |
 |---|---|
 | Planning inventory | Closed by classification; evidence gaps assigned, not passed |
-| Consolidated scope and revised mockups | Review corrections recorded; group/precomp scope ruling pending; mockups remain historical |
-| R1.0-R1.5 / P-COMP | Not started; existing import/runtime/Home brand foundations retained; P-COMP schedule pending |
+| Consolidated scope and revised mockups | Review corrections recorded; group/precomp scope approved 2026-09-19; mockups remain historical |
+| R1.0-R1.5 / P-COMP | Not started; existing foundations retained; P-COMP follows R1.5 |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 | Product implementation permission | On hold |
 
-The next action is the group/precomp scope ruling, then explicit implementation authorization. A planning commit/merge/build does not start product work. Each authorized slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
+The scope ruling is recorded; the next action is explicit implementation authorization. A planning commit/merge/build does not start product work. Each authorized slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived

@@ -5,7 +5,7 @@ All earlier E/B identities are retained; no task is passed by moving it between 
 M0 closes as an inventory. Product implementation remains on owner hold.
 Updated after independent review of d5e8c1db: decisions are recorded below; no closing test
 has been executed for the replacement editor. The corrected ordering supersedes prior receipts.
-Group/precomposition scope is awaiting the requested owner alignment ruling.
+Owner approved group/precomposition scope on 2026-09-19; product tests remain unverified.
 
 | Task | Exact outcome | Responsible slice | Current evidence |
 |---|---|---|---|
@@ -97,8 +97,8 @@ Owner correction supersedes earlier Add step/Edit Out dialog and no-cross-cue wo
   Out has no jump. No off-by-one or reveal-at-hold flash. Existing quiz/timer behavior survives.
 - B02: folders change no rendering/timing. Group transform/parent-bar/local-ruler edits preserve
   child artwork, relative keys, field IDs, undo/save/reopen and three exports. Root flags alone
-  control holds. Instanced reusable precomps remain required; proposed P-COMP after R1.5 needs
-  owner approval. Until that ruling, their previous R1.2 obligation remains.
+  control holds. Owner approved 2026-09-19: R1.2b delivers groups; instanced reusable precomps
+  follow R1.5 as P-COMP and remain required for full completion.
 - The earlier automatic-Out controls are deferred from the basic authoring flow; preserve
   existing timed graphics and test them when related source is edited.
 
@@ -145,7 +145,7 @@ before broadening the editor. R1.5 repeats fuller SVG and collection-to-rundown 
 | G05 ruler consistency | R1.0 onward | At 25 fps the same position reads 1.0 s or frame 25, and frame 30 at 30 fps. Ticks, cursor, input and flags agree; a one-frame nudge is 1/FPS effective seconds at speed 0.5/1/2. Toggling units changes no stored key time. Mockup mixed-unit labels are not the contract. |
 | G06 registry-only parallel path | R1.4 start from R1.1c | Gallery/brand/install operations use the tested registry revision and run without AI or unfinished R1.2 tools. Integration fixture applies brand, undoes, installs a subset, reloads/retries and rehearses against actual shared source/runtime. Parallel work does not waive B08-B10. |
 | G07 GSAP and reuse rights | R1.5 | Identify exact GSAP version/plugins/licence text/date, builder use, redistribution in exports/CLI and notices; review rights/provenance and inspect clean bundles. Unresolved restrictions block release. Third-party AGPL helpers/runtime absent from CLI/shared dependency closure/emitted graphics. No assumption of permissive rights from zero price. |
-| G08 group versus instances | Owner scope ruling before committing to the reduced R1.2 scope | Pending needs: alignment. Proposed R1.2b group has transform, parent bar and local ruler; test nested pose/keys/fields/history/export. Named P-COMP after R1.5 tests shared definition/instance overrides, IDs, cycles/detach, save/reopen and exports. Until approved, the old R1.2 reusable-precomp requirement remains; full completion always includes it. |
+| G08 group versus instances | Scope approved 2026-09-19; product evidence at R1.2b and P-COMP exits | Owner approved: R1.2b group has transform, parent bar and local ruler; test nested pose/keys/fields/history/export. Named P-COMP after R1.5 tests shared definition/instance overrides, IDs, cycles/detach, save/reopen and exports. This replaces the old R1.2 reusable-precomp obligation; full completion still requires it. Implementation evidence remains unverified. |
 
 The reuse policy preserves sole-holder dual-licensing freedom: third-party AGPL code cannot
 be relicensed merely because our application is also AGPL. Its addition would need additional
