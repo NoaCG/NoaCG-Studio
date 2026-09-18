@@ -1,0 +1,15 @@
+import {createRequire} from 'node:module';import{readFileSync,writeFileSync}from'node:fs';import{dirname}from'node:path';import{fileURLToPath,pathToFileURL}from'node:url';
+const out=dirname(fileURLToPath(import.meta.url));const project='C:/Users/ahonemi/.codex/worktrees/editor-baseline-design/NoaCG-Studio';const require=createRequire(project+'/package.json');
+const{resolveValue,stepSeconds}=await import(pathToFileURL(project+'/src/blocks/animEval.ts'));const{parseAnimData,spliceAnimData}=await import(pathToFileURL(project+'/src/blocks/animData.ts'));const{runInNewContext}=await import('node:vm');const sandbox={exports:{},module:{},setTimeout,clearTimeout};runInNewContext(readFileSync(project+'/src/assets/gsap.min.js','utf8'),sandbox);const{gsap}=sandbox.exports;gsap.ticker.sleep();
+const data={version:2,root:'#root',speed:1,steps:[{name:'Enter',duration:1,ease:'none',layers:{'#name':{x:[{time:0,value:-80},{time:1,value:0,ease:'power2.out'}]}}}]};
+const samples=[0,.25,.5,.75,1].map(t=>({time:t,editor:resolveValue(data,'#name','x',0,t),runtimeEaseValue:-80+80*gsap.parseEase('power2.out')(t)}));
+const input=JSON.parse(readFileSync(out+'/f4-noacg.json','utf8'));const original=parseAnimData(input.js);const fixtures={};
+fixtures.legacy={...input,name:'F5 legacy version 1',js:input.js.replace('"version": 2','"version": 1')};
+fixtures.unknown={...input,name:'F5 unknown version 999',js:input.js.replace('"version": 2','"version": 999')};
+const loops=structuredClone(original);loops.steps[0].loops={'#stress-0':{x:{repeat:-1,yoyo:true,repeatDelay:.25}}};loops.steps[0].calls=[{time:.5,call:'ownerHook'}];
+fixtures.loopsAndCalls={...input,name:'F5 loop and lifecycle call',js:spliceAnimData(input.js,loops)+'\nfunction ownerHook(){ window.ownerHookCalls=(window.ownerHookCalls||0)+1; }\n'};
+const custom=structuredClone(original);custom.steps[0].layers['#stress-0'].x[1].ease='ownerCurve';
+fixtures.custom={...input,name:'F5 handwritten source and named custom ease',css:input.css+'\n/* handwritten sentinel */\n.custom{isolation:isolate}',js:'gsap.registerEase("ownerCurve", function(p){ return p*p*p; });\n'+spliceAnimData(input.js,custom)+'\n// handwritten sentinel\n'};
+const report={method:'Direct execution of trusted repository pure modules; no graphic JS evaluated',samples,easingMismatch:samples.some(s=>s.editor!==s.runtimeEaseValue),speed2EffectiveDuration:stepSeconds({...data,speed:2},0),fixtureReadback:Object.fromEntries(Object.entries(fixtures).map(([k,t])=>[k,parseAnimData(t.js)]))};
+writeFileSync(out+'/f5-source-fixtures.json',JSON.stringify(fixtures,null,2));writeFileSync(out+'/source-contract-observations.json',JSON.stringify(report,null,2));console.log(JSON.stringify({samples,easingMismatch:report.easingMismatch,versions:Object.fromEntries(Object.entries(report.fixtureReadback).map(([k,x])=>[k,x?.version??null]))},null,2));
+if(!report.easingMismatch||report.fixtureReadback.unknown!==null||report.fixtureReadback.legacy?.version!==2)throw Error('Unexpected baseline result');

@@ -1,0 +1,238 @@
+{
+  "at": "2026-09-17T16:32:09.824Z",
+  "actions": [],
+  "gestures": [
+    {
+      "editor": "noacg",
+      "width": 1366,
+      "drags": [
+        {
+          "start": 1789662739292,
+          "end": 1789662743000,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662744072,
+          "end": 1789662747770,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662748752,
+          "end": 1789662752438,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662753423,
+          "end": 1789662756978,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662757952,
+          "end": 1789662761522,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662762506,
+          "end": 1789662766074,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662767038,
+          "end": 1789662770596,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662771602,
+          "end": 1789662775157,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662776137,
+          "end": 1789662779706,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662780694,
+          "end": 1789662784297,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        }
+      ]
+    },
+    {
+      "editor": "noacg",
+      "width": 1920,
+      "drags": [
+        {
+          "start": 1789662787254,
+          "end": 1789662790937,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662792029,
+          "end": 1789662795697,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662796684,
+          "end": 1789662800310,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662801284,
+          "end": 1789662804879,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662805850,
+          "end": 1789662809443,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662810421,
+          "end": 1789662813991,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662814961,
+          "end": 1789662818526,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662819496,
+          "end": 1789662823058,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662824066,
+          "end": 1789662827627,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662828603,
+          "end": 1789662832158,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        }
+      ]
+    }
+  ]
+}

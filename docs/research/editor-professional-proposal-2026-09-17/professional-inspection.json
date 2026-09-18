@@ -1,0 +1,50 @@
+{
+  "errors": [],
+  "layouts": [
+    {
+      "viewport": 1366,
+      "width": 1334,
+      "scrollWidth": 1334,
+      "height": 735.296875
+    },
+    {
+      "viewport": 1920,
+      "width": 1888,
+      "scrollWidth": 1888,
+      "height": 968.953125
+    },
+    {
+      "viewport": 1024,
+      "width": 992,
+      "scrollWidth": 992,
+      "height": 735.296875
+    },
+    {
+      "viewport": 320,
+      "width": 288,
+      "scrollWidth": 288,
+      "height": 1505.109375
+    }
+  ],
+  "checks": {
+    "no overflow 1366": true,
+    "no overflow 1920": true,
+    "no overflow 1024": true,
+    "no overflow 320": true,
+    "direct ruler scrubs": true,
+    "playhead drag updates frame": true,
+    "canvas changes with playhead": true,
+    "Out marker retimes": true,
+    "Out marker undo": true,
+    "key drag retimes independently": true,
+    "key undo": true,
+    "AI keeps canvas visible": true,
+    "example edits entrance": true,
+    "AI edit undo": true,
+    "data sample updates canvas": true,
+    "data preserves authored title": true,
+    "rehearsal reaches hold": true,
+    "automatic Out finishes": true,
+    "zero runtime errors": true
+  }
+}

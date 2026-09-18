@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-18",
+  "scope": "planning, design study and evidence only; product implementation on hold",
+  "build": {
+    "job": "j-1339",
+    "exitCode": 0,
+    "testFiles": 121,
+    "passed": 1798,
+    "skipped": 1
+  },
+  "browser": {
+    "job": "j-1342",
+    "exitCode": 0,
+    "checks": 37,
+    "errors": []
+  },
+  "missingLocalLinks": [],
+  "EIdentities": 24,
+  "BIdentities": 18,
+  "nonDocumentChanges": [],
+  "sha256": {
+    "editor-transform-study.html": "8893d7da39dbfaa34e90f14a1345b928e07731bda9be9c2fc47bb38f1f967fb4",
+    "editor-transform-study-preview.html": "3286556d29e2bd93e1cd830498a9dcd70e4546f5e08f489d97d7473b6b091bfd",
+    "transform-inspection.mjs": "c10d5c8caf78553f1930113d7c70ba159d44df77f5555d561b29dacad93571a4",
+    "transform-inspection.json": "b84dc49b15ec2a5b9812a4a4e122c8665c3783840cfa08aa99f49004de93857f"
+  }
+}

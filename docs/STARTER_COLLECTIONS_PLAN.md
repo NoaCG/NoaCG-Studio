@@ -1,14 +1,13 @@
 # Starter Collections and the shared brand library
 
-**Current delivery authority, 2026-09-17:** [EDITOR_DELIVERY_ROADMAP.md](EDITOR_DELIVERY_ROADMAP.md)
-owns combined scope, sequencing and acceptance. This document owns the brand/collection
-mechanisms. Further product implementation is paused for the owner's roadmap/baseline review;
-the earlier instruction to continue brand application first is superseded.
+Current delivery authority: [EDITOR_PLAN.md](EDITOR_PLAN.md). This document owns brand,
+collection and installation mechanisms, delivered in R1.4 after the imported-SVG/animation
+foundation. Further product implementation remains on owner hold.
 
 Owner-approved scope, 2026-09-17: **Choose a NoaCG Starter Collection -> select/create a
 brand -> adjust graphics in the editor -> add to production -> rehearse and run.** Most
-users must finish this route without code or keyframes. The detailed animation workflow
-remains a second primary task in the same editor, not a separate product.
+users must finish this route without code or keyframes. The imported-SVG-to-animation workflow is the first delivery slice; this customization
+journey uses the same editor and must complete within R1.
 
 Home's Brand looks becomes **Brands**, the library of named `SavedLook` records already
 used by the wizard. Complete the creator for name, logo, colours and fonts, with live
@@ -46,15 +45,15 @@ Implementation order for this route:
    test logo/font export, long content, save/reopen, individual overrides, collection-wide
    changes and actual production playback. This is an acceptance target, not a current claim.
 
-The Home brand foundation was delivered before the animation comparison. Remaining brand
-work follows the unified roadmap; Phase 0 remains mandatory before the animation rewrite.
+The Home brand foundation has landed. Remaining editor integration follows R1.4 in the
+consolidated plan; baseline measurements are assigned to their consuming slices.
 The Studio inspection requirement applies to comparable brand/token/property behaviour;
 NoaCG's production semantics continue to come from its own existing command path.
 
 
 ## Decisions, 2026-09-17
 
-This is an independently landable P7 workstream, linked to the
+This is the R1.4 mechanism contract, linked to the
 [animation editor rebuild](EDITOR_REBUILD_PLAN.md). It reuses the same editor and canonical
 source, not a second editor. Home creation is implemented at `97601da7`; direct editor
 application, collection customization and production installation remain unbuilt.
@@ -104,7 +103,7 @@ closing with unconfirmed writes offers retry or explicit discard. Creating a bra
 reset collection edits. Undo remains scoped to the active graphic; collection-wide changes
 have an explicit preview and recovery operation, not an implied cross-document undo stack.
 
-Before M7 implementation, trace and document the existing live activation path. Required
+Before R1.4 implementation, trace and document the existing live activation path. Required
 policy: editing/installing library documents must not change an already active rendered
 graphic. It retains its activated content until an explicit safe activation through the
 existing production command path. If that isolation cannot be guaranteed, refuse replacement

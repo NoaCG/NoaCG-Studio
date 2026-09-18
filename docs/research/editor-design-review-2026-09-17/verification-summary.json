@@ -1,0 +1,167 @@
+{
+  "state": "M0 incomplete; design review awaits owner",
+  "selectionScrubObservations": [
+    {
+      "editor": "noacg",
+      "width": 1366,
+      "selections": 30,
+      "scrubs": 10,
+      "poseSamples": 687,
+      "errors": []
+    },
+    {
+      "editor": "studio",
+      "width": 1366,
+      "selections": 30,
+      "scrubs": 10,
+      "poseSamples": 1373,
+      "errors": []
+    },
+    {
+      "editor": "noacg",
+      "width": 1920,
+      "selections": 30,
+      "scrubs": 10,
+      "poseSamples": 701,
+      "errors": []
+    },
+    {
+      "editor": "studio",
+      "width": 1920,
+      "selections": 30,
+      "scrubs": 10,
+      "poseSamples": 1115,
+      "errors": []
+    }
+  ],
+  "studioDrags": [
+    {
+      "editor": "studio",
+      "width": 1366,
+      "attempts": 10,
+      "sourceChanged": 10,
+      "undoExact": 10,
+      "redoExact": 10,
+      "error": null
+    },
+    {
+      "editor": "studio",
+      "width": 1920,
+      "attempts": 10,
+      "sourceChanged": 10,
+      "undoExact": 10,
+      "redoExact": 10,
+      "error": null
+    }
+  ],
+  "noacgDrags": [
+    {
+      "editor": "noacg",
+      "width": 1366,
+      "attempts": 10,
+      "sourceChanged": 10,
+      "undoExact": 10,
+      "redoExact": 10,
+      "error": null
+    },
+    {
+      "editor": "noacg",
+      "width": 1920,
+      "attempts": 10,
+      "sourceChanged": 10,
+      "undoExact": 10,
+      "redoExact": 10,
+      "error": null
+    }
+  ],
+  "mockup": {
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1334,
+        "mode": "layout",
+        "scrollWidth": 1334,
+        "height": 756.671875
+      },
+      {
+        "width": 1334,
+        "mode": "animate",
+        "scrollWidth": 1334,
+        "height": 756.671875
+      },
+      {
+        "width": 1888,
+        "mode": "layout",
+        "scrollWidth": 1888,
+        "height": 809.96875
+      },
+      {
+        "width": 1888,
+        "mode": "animate",
+        "scrollWidth": 1888,
+        "height": 809.96875
+      },
+      {
+        "width": 992,
+        "mode": "layout",
+        "scrollWidth": 992,
+        "height": 930.921875
+      },
+      {
+        "width": 288,
+        "mode": "layout",
+        "scrollWidth": 288,
+        "height": 1567.171875
+      }
+    ],
+    "sourceUpdated": true,
+    "undo": true,
+    "fitPreservesArtwork": true,
+    "js": "1// NOACG_ANIM.steps[0].layers[\"#name\"]\n2{\n3  \"x\": [\n4    { \"time\": 0, \"value\": -80 },\n5    { \"time\": 0.8, \"value\": 0,\n6      \"ease\": \"power2.out\" }\n7  ],\n8  \"opacity\": [\n9    { \"time\": 0, \"value\": 0 },\n10    { \"time\": 0.3, \"value\": 1 }\n11  ]\n12}"
+  },
+  "sourceProbe": "source-contract-observations.json",
+  "queueRecords": {
+    "j-1310": {
+      "state": "done",
+      "exitCode": 0,
+      "reapedAsDead": null,
+      "giveUpReason": null
+    },
+    "j-1311": {
+      "state": "failed",
+      "exitCode": null,
+      "reapedAsDead": true,
+      "giveUpReason": null
+    },
+    "j-1313": {
+      "state": "done",
+      "exitCode": 0,
+      "reapedAsDead": null,
+      "giveUpReason": null
+    },
+    "j-1314": {
+      "state": "done",
+      "exitCode": 0,
+      "reapedAsDead": null,
+      "giveUpReason": null
+    },
+    "j-1315": {
+      "state": "done",
+      "exitCode": 0,
+      "reapedAsDead": null,
+      "giveUpReason": null
+    },
+    "j-1316": {
+      "state": "done",
+      "exitCode": 0,
+      "reapedAsDead": null,
+      "giveUpReason": null
+    },
+    "j-1317": {
+      "state": "done",
+      "exitCode": 0,
+      "reapedAsDead": null,
+      "giveUpReason": null
+    }
+  }
+}

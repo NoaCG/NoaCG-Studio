@@ -23,9 +23,9 @@ would violate NoaCG's source authority and discard unsupported authored code.
 
 ## What it would take
 
-The owner-requested [editor rebuild plan](../EDITOR_REBUILD_PLAN.md), dated 2026-09-14,
-now supplies the implementation sequence. Its dated [preview protocol](../EDITOR_REBUILD_PLAN.md#preview-updates-and-revision-ownership)
-and [shared sampler decision](../EDITOR_REBUILD_PLAN.md#shared-easing-and-hold-semantics)
+The owner-requested [consolidated editor plan](../EDITOR_PLAN.md), dated 2026-09-17,
+now owns the implementation sequence; product implementation remains on owner hold. Its dated [preview protocol](../EDITOR_REBUILD_PLAN.md#source-patches-and-preview-protocol)
+and [shared sampler decision](../EDITOR_REBUILD_PLAN.md#out-loops-and-easing)
 own those contracts; this receipt must not restate or independently redesign them. Fold this contract work into its foundations and
 timing phases; do not schedule a competing track-schema rewrite. Current source already
 has independent property tracks, so the first question is interaction/evaluation quality.

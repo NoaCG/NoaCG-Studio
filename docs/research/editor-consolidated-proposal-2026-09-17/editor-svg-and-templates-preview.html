@@ -1,0 +1,1454 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Editor Svg And Templates</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Editor Svg And Templates" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Editor Svg And Templates&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;noacg-editor-proposal&quot; aria-label=&quot;NoaCG editor design proposal&quot;&gt;
+&lt;style&gt;
+#noacg-editor-proposal{--ed-bg:light-dark(#f2f3f5,#202226);--ed-panel:light-dark(#fff,#292c31);--ed-raised:light-dark(#e9ecf0,#32363d);--ed-line:light-dark(#cbd1d9,#444951);--ed-text:light-dark(#202630,#e7eaf0);--ed-muted:light-dark(#566273,#acb5c2);--ed-accent:light-dark(#006998,#66c6f3);--ed-select:light-dark(#e1f0fa,#233f50);--ed-key:light-dark(#916600,#f0c773);--brand:#37c5d5;background:var(--ed-bg);color:var(--ed-text);font:12px/1.45 Inter,Segoe UI,sans-serif;box-sizing:border-box;min-width:0;width:100%}
+#noacg-editor-proposal *{box-sizing:border-box}#noacg-editor-proposal button,#noacg-editor-proposal input,#noacg-editor-proposal select{font:inherit;color:inherit;min-width:0}#noacg-editor-proposal button{border:1px solid var(--ed-line);border-radius:3px;background:var(--ed-raised);padding:5px 9px;cursor:pointer;white-space:nowrap}#noacg-editor-proposal button:hover{background:var(--ed-select)}#noacg-editor-proposal button[aria-pressed=true]{color:var(--ed-accent);background:var(--ed-select);border-color:var(--ed-accent)}#noacg-editor-proposal button:disabled{opacity:.5;cursor:default}#noacg-editor-proposal input,#noacg-editor-proposal select{background:var(--ed-bg);border:1px solid var(--ed-line);border-radius:3px;padding:5px;width:100%}#noacg-editor-proposal [hidden]{display:none!important}#noacg-editor-proposal .ed-top{min-height:45px;display:flex;align-items:center;gap:9px;padding:7px 12px;border-bottom:1px solid var(--ed-line);flex-wrap:wrap}#noacg-editor-proposal .ed-logo{font-size:16px;font-weight:600;letter-spacing:-.5px;margin-right:6px}#noacg-editor-proposal .ed-project{color:var(--ed-muted);flex:1;min-width:150px}#noacg-editor-proposal .ed-draft{color:var(--ed-muted);font-size:11px}#noacg-editor-proposal .ed-strong{border-color:var(--ed-accent);color:var(--ed-accent)}#noacg-editor-proposal .ed-main{display:grid;grid-template-columns:250px minmax(0,1fr) 280px;height:480px;min-width:0}#noacg-editor-proposal .ed-left,#noacg-editor-proposal .ed-right{background:var(--ed-panel);min-width:0}#noacg-editor-proposal .ed-left{border-right:1px solid var(--ed-line)}#noacg-editor-proposal .ed-right{border-left:1px solid var(--ed-line)}#noacg-editor-proposal .ed-tabs{display:flex;gap:3px;align-items:center;border-bottom:1px solid var(--ed-line);padding:6px 8px;min-height:35px;flex-wrap:wrap}#noacg-editor-proposal .ed-tabs button{background:transparent;border-color:transparent;padding:3px 7px}#noacg-editor-proposal .ed-tabs button[aria-pressed=true]{border-bottom-color:var(--ed-accent);color:var(--ed-accent)}#noacg-editor-proposal .ed-dock-body{padding:12px}#noacg-editor-proposal .ed-label{display:block;color:var(--ed-muted);font-size:11px;margin:8px 0 5px}#noacg-editor-proposal .ed-import-card{border:1px solid var(--ed-line);padding:12px;background:var(--ed-bg);margin-bottom:12px}#noacg-editor-proposal .ed-small{color:var(--ed-muted);font-size:11px}#noacg-editor-proposal .ed-tree-line{padding:5px 0;display:flex;align-items:center;gap:7px}#noacg-editor-proposal .ed-tree-line.child{padding-left:17px}#noacg-editor-proposal .ed-tag{font-size:10px;color:var(--ed-muted);margin-left:auto}#noacg-editor-proposal .ed-wide{width:100%;margin-top:10px}#noacg-editor-proposal .ed-center{min-width:0;display:flex;flex-direction:column}#noacg-editor-proposal .ed-tools{display:flex;align-items:center;gap:5px;padding:6px 9px;border-bottom:1px solid var(--ed-line);flex-wrap:wrap}#noacg-editor-proposal .ed-tools button{padding:4px 7px}#noacg-editor-proposal .ed-spacer{flex:1}#noacg-editor-proposal .ed-stage-area{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;padding:26px 24px 15px;background:light-dark(#d8dde3,#1b1e22)}#noacg-editor-proposal .ed-stage-ruler{position:absolute;top:0;left:0;right:0;height:20px;display:flex;justify-content:space-around;color:var(--ed-muted);background:var(--ed-bg);font:10px/20px monospace;border-bottom:1px solid var(--ed-line)}#noacg-editor-proposal .ed-stage{width:100%;max-height:100%;aspect-ratio:16/9;display:block;background:#101d2b;box-shadow:0 3px 14px #0004}#noacg-editor-proposal .ed-stage-footer{display:flex;justify-content:space-between;padding:5px 10px;gap:10px;color:var(--ed-muted);font-size:11px;flex-wrap:wrap}#noacg-editor-proposal .ed-heading{padding:6px 10px;border-bottom:1px solid var(--ed-line);font-weight:600;font-size:11px;letter-spacing:.35px;display:flex;justify-content:space-between}#noacg-editor-proposal .ed-layers{padding:5px 0}#noacg-editor-proposal .ed-layer{display:flex;align-items:center;gap:8px;width:100%;border:0!important;border-radius:0!important;background:transparent!important;text-align:left;padding:5px 12px!important}#noacg-editor-proposal .ed-layer.active{background:var(--ed-select)!important;color:var(--ed-accent)}#noacg-editor-proposal .ed-eye{color:var(--ed-muted)}#noacg-editor-proposal .ed-inspector{padding:9px 12px}#noacg-editor-proposal .ed-property{display:grid;grid-template-columns:25px 60px minmax(0,1fr) 26px;align-items:center;gap:4px;margin:6px 0}#noacg-editor-proposal .ed-property button{padding:3px 2px}#noacg-editor-proposal .ed-prop-title{margin-top:5px;color:var(--ed-muted);font-size:11px}#noacg-editor-proposal .ed-inspector details{border-top:1px solid var(--ed-line);padding:7px 0}#noacg-editor-proposal details:not([open])&gt;*:not(summary){display:none}#noacg-editor-proposal .ed-inspector summary{cursor:pointer}#noacg-editor-proposal .ed-inspector .ed-scope{font-size:11px;color:var(--ed-accent);padding:3px 0 7px}#noacg-editor-proposal .ed-bottom{border-top:1px solid var(--ed-line);background:var(--ed-panel);min-height:270px}#noacg-editor-proposal .ed-transport{display:flex;align-items:center;gap:7px;padding:8px 10px;flex-wrap:wrap;border-bottom:1px solid var(--ed-line)}#noacg-editor-proposal .ed-transport select{width:68px}#noacg-editor-proposal .ed-time{font:12px monospace;min-width:138px;color:var(--ed-accent)}#noacg-editor-proposal .ed-cue{margin-left:auto;color:var(--ed-key);font-size:11px}#noacg-editor-proposal .ed-timeline{display:grid;grid-template-columns:225px minmax(0,1fr);min-width:0}#noacg-editor-proposal .ed-track-labels{border-right:1px solid var(--ed-line)}#noacg-editor-proposal .ed-track-labels&gt;div{height:28px;border-bottom:1px solid var(--ed-line);display:flex;align-items:center;gap:7px;padding:0 10px;font-size:11px}#noacg-editor-proposal .ed-track-labels .ed-ruler-label{height:54px;color:var(--ed-muted);align-items:flex-start;padding-top:8px}#noacg-editor-proposal .ed-track-labels .ed-subtrack{padding-left:30px;color:var(--ed-accent)}#noacg-editor-proposal .ed-track-labels button{padding:1px 3px;background:transparent;border:0}#noacg-editor-proposal .ed-tracks{position:relative;min-width:0;--gridline:var(--ed-line);background:repeating-linear-gradient(to right,transparent 0,transparent calc(10% - 1px),color-mix(in srgb,var(--ed-line) 38%,transparent) calc(10% - 1px),color-mix(in srgb,var(--ed-line) 38%,transparent) 10%)}#noacg-editor-proposal .ed-ruler{height:54px;border-bottom:1px solid var(--ed-line);position:relative;touch-action:none;cursor:ew-resize}#noacg-editor-proposal .ed-ticks{display:flex;justify-content:space-between;padding:5px 8px;font:10px monospace;color:var(--ed-muted)}#noacg-editor-proposal .ed-marker{position:absolute;top:29px;font-size:10px;color:var(--ed-muted);white-space:nowrap}#noacg-editor-proposal .ed-marker:nth-of-type(2){left:1%}#noacg-editor-proposal .ed-marker:nth-of-type(3){left:34%}#noacg-editor-proposal .ed-marker:nth-of-type(4){left:67%}#noacg-editor-proposal .ed-marker:nth-of-type(5){right:2%}#noacg-editor-proposal .ed-lane{height:28px;border-bottom:1px solid var(--ed-line);position:relative}#noacg-editor-proposal .ed-exists{position:absolute;top:5px;bottom:5px;left:0;width:96%;background:color-mix(in srgb,var(--ed-accent) 17%,transparent);border:1px solid color-mix(in srgb,var(--ed-accent) 45%,transparent);border-radius:2px;font-size:10px;padding-left:7px;color:var(--ed-muted)}#noacg-editor-proposal .ed-exists.late{left:34%;width:62%}#noacg-editor-proposal .ed-exists.loop{background:repeating-linear-gradient(135deg,transparent 0,transparent 5px,color-mix(in srgb,var(--ed-accent) 20%,transparent) 5px,color-mix(in srgb,var(--ed-accent) 20%,transparent) 7px)}#noacg-editor-proposal .ed-key{position:absolute;top:7px;width:10px;height:10px;transform:translateX(-50%) rotate(45deg);background:var(--ed-key);border:1px solid var(--ed-panel)}#noacg-editor-proposal .ed-playhead{position:absolute;top:0;bottom:0;left:30%;width:1px;background:var(--ed-accent);pointer-events:none;z-index:2}#noacg-editor-proposal .ed-playhead:before{content:&#x27;&#x27;;display:block;width:10px;height:13px;background:var(--ed-accent);transform:translateX(-4px);clip-path:polygon(0 0,100% 0,100% 65%,50% 100%,0 65%)}#noacg-editor-proposal .ed-break{position:absolute;top:24px;bottom:0;width:6px;background:var(--ed-panel);border-left:1px dashed var(--ed-muted);border-right:1px dashed var(--ed-muted);opacity:.8;pointer-events:none}#noacg-editor-proposal .ed-break.one{left:33%}#noacg-editor-proposal .ed-break.two{left:66%}#noacg-editor-proposal .ed-timeline-footer{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;font-size:10px;color:var(--ed-muted);flex-wrap:wrap}#noacg-editor-proposal .ed-loop-panel{border-top:1px solid var(--ed-line);padding:8px 12px;background:var(--ed-select);display:flex;gap:12px;align-items:center;flex-wrap:wrap}#noacg-editor-proposal .ed-loop-panel input{width:120px}#noacg-editor-proposal .ed-loop-panel label{display:flex;align-items:center;gap:8px}#noacg-editor-proposal .ed-code{margin:0;padding:12px;white-space:pre-wrap;color:var(--ed-accent);font:11px/1.6 monospace;min-height:224px}#noacg-editor-proposal .ed-gallery{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}#noacg-editor-proposal .ed-template{padding:0!important;text-align:left;white-space:normal!important;background:var(--ed-bg)!important}#noacg-editor-proposal .ed-thumb{height:55px;background:#142438;position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:8px;font-size:8px;color:#fff}#noacg-editor-proposal .ed-thumb&gt;span{background:var(--brand);height:15px;width:85%;display:block;border-left:3px solid #fff}#noacg-editor-proposal .ed-template-name{padding:5px 6px;display:block;font-size:10px}#noacg-editor-proposal .ed-thumb.logo&gt;span{width:23px;height:23px;border:0;border-radius:50%;margin-left:auto}#noacg-editor-proposal .ed-thumb.screen{align-items:center;justify-content:center}#noacg-editor-proposal .ed-thumb.screen&gt;span{height:3px;width:80%}#noacg-editor-proposal .ed-thumb.score&gt;span{height:19px;width:70%;margin-bottom:14px}#noacg-editor-proposal .ed-checks{display:flex;flex-wrap:wrap;gap:5px 12px;margin:8px 0;font-size:11px}#noacg-editor-proposal .ed-checks label{display:flex;align-items:center;gap:5px}#noacg-editor-proposal .ed-checks input{width:auto}#noacg-editor-proposal .ed-note{padding:8px;background:var(--ed-select);color:var(--ed-accent);font-size:11px}#noacg-editor-proposal .ed-brand-row{display:flex;gap:8px;align-items:center}#noacg-editor-proposal .ed-brand-row label{flex:1}#noacg-editor-proposal .ed-chat-input{width:100%;margin:12px 0 5px;min-height:70px;background:var(--ed-bg);color:var(--ed-text);border:1px solid var(--ed-line);padding:8px;font:inherit}#noacg-editor-proposal .ed-status{padding:5px 12px;border-top:1px solid var(--ed-line);color:var(--ed-muted);font-size:11px;min-height:27px}#noacg-editor-proposal .ed-seek{width:90px!important;padding:0!important;accent-color:var(--ed-accent)}
+/* Desktop docks have explicit height budgets; the SVG must shrink inside its flex area. */
+#noacg-editor-proposal .ed-center{min-height:0}#noacg-editor-proposal .ed-main{grid-template-rows:minmax(0,1fr)}#noacg-editor-proposal .ed-left,#noacg-editor-proposal .ed-right{min-height:0}#noacg-editor-proposal .ed-right{overflow-y:auto}#noacg-editor-proposal .ed-stage{height:100%;aspect-ratio:auto;background:transparent;box-shadow:none}#noacg-editor-proposal .ed-layer{padding:3px 12px!important;line-height:16px}#noacg-editor-proposal .ed-inspector details{margin:0;padding:5px 0}#noacg-editor-proposal .ed-inspector summary{padding:0;margin:0}#noacg-editor-proposal .ed-inspector{padding:6px 12px}#noacg-editor-proposal .ed-heading{padding:5px 10px}#noacg-editor-proposal .ed-property{margin:4px 0}#noacg-editor-proposal .ed-bottom&gt;.ed-tabs{min-height:30px;padding:3px 8px}#noacg-editor-proposal .ed-transport{padding:5px 10px}#noacg-editor-proposal .ed-lane,#noacg-editor-proposal .ed-track-labels&gt;div{height:22px}#noacg-editor-proposal .ed-ruler,#noacg-editor-proposal .ed-track-labels .ed-ruler-label{height:42px}#noacg-editor-proposal .ed-marker{top:23px}#noacg-editor-proposal .ed-marker:nth-of-type(1){left:1%;right:auto}#noacg-editor-proposal .ed-marker:nth-of-type(2){left:34%;right:auto}#noacg-editor-proposal .ed-marker:nth-of-type(3){left:67%;right:auto}#noacg-editor-proposal .ed-marker:nth-of-type(4){left:auto;right:2%}#noacg-editor-proposal .ed-key{top:5px}#noacg-editor-proposal .ed-exists{top:3px;bottom:3px}#noacg-editor-proposal .ed-timeline-footer{padding:4px 10px}#noacg-editor-proposal .ed-gallery{gap:6px;margin:7px 0}#noacg-editor-proposal .ed-thumb{height:40px}#noacg-editor-proposal .ed-dock-body{padding:9px 12px}#noacg-editor-proposal .ed-brand-row{margin:0}#noacg-editor-proposal .ed-code{min-height:240px}
+#noacg-editor-proposal .ed-stage{position:absolute;left:24px;top:26px;width:calc(100% - 48px);height:calc(100% - 41px);max-height:none}
+@media(min-width:1650px){#noacg-editor-proposal .ed-main{height:690px;grid-template-columns:270px minmax(0,1fr) 300px}}
+@media(max-width:1400px){#noacg-editor-proposal .ed-main{grid-template-columns:minmax(0,1fr) 280px;height:415px}#noacg-editor-proposal .ed-left{display:none}#noacg-editor-proposal[data-dock=open] .ed-main{grid-template-columns:250px minmax(0,1fr) 280px}#noacg-editor-proposal[data-dock=open] .ed-left{display:block}}
+@media(max-width:1400px){#noacg-editor-proposal .ed-gallery{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}#noacg-editor-proposal .ed-thumb{height:32px;padding:5px}#noacg-editor-proposal .ed-template-name{padding:3px;min-height:32px}#noacg-editor-proposal #ed-gallery-panel&gt;div.ed-small:first-of-type{display:none}#noacg-editor-proposal #ed-gallery-panel .ed-label{margin:4px 0}#noacg-editor-proposal #ed-gallery-panel .ed-wide{margin-top:3px}#noacg-editor-proposal #ed-gallery-panel .ed-checks{margin:5px 0;gap:4px 7px}}
+@media(max-width:1400px){#noacg-editor-proposal .ed-thumb{height:26px}#noacg-editor-proposal .ed-gallery{margin:4px 0}}
+@media(max-width:1100px){#noacg-editor-proposal .ed-main{grid-template-columns:minmax(0,1fr) 240px}#noacg-editor-proposal[data-dock=open] .ed-main{grid-template-columns:240px minmax(0,1fr)}#noacg-editor-proposal[data-dock=open] .ed-right{display:none}#noacg-editor-proposal .ed-timeline{grid-template-columns:180px minmax(0,1fr)}#noacg-editor-proposal .ed-marker{font-size:9px}}
+@media(max-width:650px){#noacg-editor-proposal .ed-main,#noacg-editor-proposal[data-dock=open] .ed-main{display:flex;flex-direction:column;height:auto}#noacg-editor-proposal .ed-center{order:0}#noacg-editor-proposal .ed-left{order:1;border:0}#noacg-editor-proposal .ed-right{order:2;display:block!important;border:0}#noacg-editor-proposal .ed-stage-area{min-height:170px;padding:24px 12px 10px}#noacg-editor-proposal .ed-stage{max-height:300px}#noacg-editor-proposal .ed-project{order:3;width:100%;flex-basis:100%}#noacg-editor-proposal .ed-timeline{grid-template-columns:116px minmax(0,1fr)}#noacg-editor-proposal .ed-track-labels&gt;div{padding:0 5px;font-size:10px;gap:3px}#noacg-editor-proposal .ed-track-labels .ed-subtrack{padding-left:12px}#noacg-editor-proposal .ed-exists{font-size:0}#noacg-editor-proposal .ed-marker{font-size:9px}#noacg-editor-proposal .ed-marker .ed-marker-extra{display:none}#noacg-editor-proposal .ed-ticks span:nth-child(even){display:none}#noacg-editor-proposal .ed-cue{margin-left:0}#noacg-editor-proposal .ed-draft{margin-left:auto}#noacg-editor-proposal .ed-gallery{grid-template-columns:repeat(3,1fr)}#noacg-editor-proposal .ed-tools{gap:3px}#noacg-editor-proposal .ed-tools button{padding:4px 5px}}
+@media(pointer:coarse){#noacg-editor-proposal button{min-height:40px}#noacg-editor-proposal .ed-property{grid-template-columns:40px 60px minmax(0,1fr) 40px}#noacg-editor-proposal input{font-size:16px}}
+&lt;/style&gt;
+&lt;header class=&quot;ed-top&quot;&gt;&lt;strong class=&quot;ed-logo&quot;&gt;NoaCG&lt;/strong&gt;&lt;span class=&quot;ed-project&quot; id=&quot;ed-project-name&quot;&gt;Studio news / Illustrator lower third&lt;/span&gt;&lt;button id=&quot;ed-import&quot;&gt;Import SVG&lt;/button&gt;&lt;button id=&quot;ed-templates&quot; class=&quot;ed-strong&quot;&gt;Templates&lt;/button&gt;&lt;button id=&quot;ed-project-toggle&quot; aria-label=&quot;Open Project dock&quot;&gt;Project&lt;/button&gt;&lt;button id=&quot;ed-save&quot;&gt;Save&lt;/button&gt;&lt;button id=&quot;ed-production&quot;&gt;Use in production&lt;/button&gt;&lt;span class=&quot;ed-draft&quot;&gt;DESIGN PROPOSAL · 03&lt;/span&gt;&lt;/header&gt;
+&lt;div class=&quot;ed-main&quot;&gt;
+&lt;aside class=&quot;ed-left&quot; aria-label=&quot;Project and templates&quot;&gt;
+&lt;div class=&quot;ed-tabs&quot;&gt;&lt;button id=&quot;ed-project-tab&quot; aria-pressed=&quot;true&quot;&gt;Project&lt;/button&gt;&lt;button id=&quot;ed-gallery-tab&quot; aria-pressed=&quot;false&quot;&gt;Templates&lt;/button&gt;&lt;button id=&quot;ed-chat-tab&quot; aria-pressed=&quot;false&quot;&gt;AI&lt;/button&gt;&lt;/div&gt;
+&lt;div class=&quot;ed-dock-body&quot; id=&quot;ed-project-panel&quot;&gt;&lt;span class=&quot;ed-label&quot;&gt;IMPORTED ARTWORK&lt;/span&gt;&lt;div class=&quot;ed-import-card&quot;&gt;&lt;strong&gt;news-lower-third.svg&lt;/strong&gt;&lt;div class=&quot;ed-small&quot;&gt;Illustrator · 1920 × 1080&lt;/div&gt;&lt;div class=&quot;ed-small&quot;&gt;6 layers · 2 groups · editable text&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;ed-tree-line&quot;&gt;▾ Artwork &lt;span class=&quot;ed-tag&quot;&gt;SVG&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-tree-line child&quot;&gt;▾ Title group&lt;/div&gt;&lt;div class=&quot;ed-tree-line child&quot;&gt;▾ Detail group &lt;span class=&quot;ed-tag&quot;&gt;Step 2&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-tree-line&quot;&gt;▾ Assets &lt;span class=&quot;ed-tag&quot;&gt;3&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-tree-line child&quot;&gt;Aa Inter / Logo / Background&lt;/div&gt;&lt;span class=&quot;ed-label&quot;&gt;BRAND FROM HOME&lt;/span&gt;&lt;select class=&quot;ed-brand&quot; aria-label=&quot;Project brand&quot;&gt;&lt;option value=&quot;coast&quot;&gt;Coast News&lt;/option&gt;&lt;option value=&quot;ember&quot;&gt;Ember Sports&lt;/option&gt;&lt;/select&gt;&lt;div class=&quot;ed-tree-line&quot;&gt;Fields &lt;span class=&quot;ed-tag&quot;&gt;Headline · Name · Location&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-tree-line&quot;&gt;Collection &lt;span class=&quot;ed-tag&quot;&gt;News essentials&lt;/span&gt;&lt;/div&gt;&lt;button class=&quot;ed-wide&quot; id=&quot;ed-browse&quot;&gt;Browse reusable graphics&lt;/button&gt;&lt;/div&gt;
+&lt;div class=&quot;ed-dock-body&quot; id=&quot;ed-gallery-panel&quot; hidden&gt;&lt;strong&gt;Make it yours&lt;/strong&gt;&lt;div class=&quot;ed-small&quot;&gt;Individual graphics and coordinated sets&lt;/div&gt;&lt;label class=&quot;ed-label&quot; for=&quot;ed-category&quot;&gt;Graphic category&lt;/label&gt;&lt;select id=&quot;ed-category&quot;&gt;&lt;option&gt;All graphics&lt;/option&gt;&lt;option&gt;News essentials&lt;/option&gt;&lt;option&gt;Sports&lt;/option&gt;&lt;option&gt;Screens&lt;/option&gt;&lt;/select&gt;&lt;div class=&quot;ed-gallery&quot; id=&quot;ed-gallery-grid&quot;&gt;&lt;button class=&quot;ed-template&quot; data-type=&quot;Lower third&quot;&gt;&lt;span class=&quot;ed-thumb&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;ed-template-name&quot;&gt;Lower third&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;ed-template&quot; data-type=&quot;Headline&quot;&gt;&lt;span class=&quot;ed-thumb&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;ed-template-name&quot;&gt;Headline&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;ed-template&quot; data-type=&quot;Logo bug&quot;&gt;&lt;span class=&quot;ed-thumb logo&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;ed-template-name&quot;&gt;Logo bug&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;ed-template&quot; data-type=&quot;Holding screen&quot;&gt;&lt;span class=&quot;ed-thumb screen&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;ed-template-name&quot;&gt;Holding screen&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;ed-template&quot; data-type=&quot;End screen&quot;&gt;&lt;span class=&quot;ed-thumb screen&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;ed-template-name&quot;&gt;End screen&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;ed-template&quot; data-type=&quot;Scoreboard&quot;&gt;&lt;span class=&quot;ed-thumb score&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;ed-template-name&quot;&gt;Scoreboard&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;label class=&quot;ed-label&quot;&gt;Apply a Home brand&lt;select class=&quot;ed-brand&quot; aria-label=&quot;Template brand&quot;&gt;&lt;option value=&quot;coast&quot;&gt;Coast News&lt;/option&gt;&lt;option value=&quot;ember&quot;&gt;Ember Sports&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;div class=&quot;ed-small&quot;&gt;News essentials · choose your set&lt;/div&gt;&lt;div class=&quot;ed-checks&quot;&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot; checked data-item=&quot;Lower third&quot;&gt;Lower third&lt;/label&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot; checked data-item=&quot;Headline&quot;&gt;Headline&lt;/label&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot; checked data-item=&quot;Logo bug&quot;&gt;Logo bug&lt;/label&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot; data-item=&quot;Holding screen&quot;&gt;Holding&lt;/label&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot; data-item=&quot;End screen&quot;&gt;End&lt;/label&gt;&lt;/div&gt;&lt;button class=&quot;ed-wide ed-strong&quot; id=&quot;ed-add-set&quot;&gt;Review 3 graphics for rundown&lt;/button&gt;&lt;/div&gt;
+&lt;div class=&quot;ed-dock-body&quot; id=&quot;ed-chat-panel&quot; hidden&gt;&lt;strong&gt;Ask about this graphic&lt;/strong&gt;&lt;div class=&quot;ed-small&quot;&gt;Headline selected · current document&lt;/div&gt;&lt;textarea class=&quot;ed-chat-input&quot; aria-label=&quot;Ask NoaCG&quot; placeholder=&quot;Make the entrance slower…&quot;&gt;&lt;/textarea&gt;&lt;button id=&quot;ed-ai-preview&quot;&gt;Preview example proposal&lt;/button&gt;&lt;div class=&quot;ed-note&quot; id=&quot;ed-ai-note&quot; hidden&gt;Proposal: extend the headline entrance from 18 to 24 frames. Review → Apply → Undo. No model is connected in this mockup.&lt;/div&gt;&lt;span class=&quot;ed-label&quot;&gt;Basic helper · Bring your own key&lt;/span&gt;&lt;div class=&quot;ed-small&quot;&gt;CLI-created graphics open in this same workspace.&lt;/div&gt;&lt;/div&gt;
+&lt;/aside&gt;
+&lt;section class=&quot;ed-center&quot; aria-label=&quot;Always visible composition canvas&quot;&gt;&lt;div class=&quot;ed-tools&quot;&gt;&lt;button aria-label=&quot;Selection tool&quot; aria-pressed=&quot;true&quot;&gt;↖ Select&lt;/button&gt;&lt;button data-tool=&quot;Text&quot;&gt;T Text&lt;/button&gt;&lt;button data-tool=&quot;Shapes&quot;&gt;▭ Shape&lt;/button&gt;&lt;button data-tool=&quot;Image&quot;&gt;Image&lt;/button&gt;&lt;button data-tool=&quot;Lottie&quot;&gt;Lottie&lt;/button&gt;&lt;span class=&quot;ed-spacer&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-small&quot;&gt;1920 × 1080&lt;/span&gt;&lt;button id=&quot;ed-fit&quot;&gt;Fit&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;ed-stage-area&quot;&gt;&lt;div class=&quot;ed-stage-ruler&quot;&gt;&lt;span&gt;0&lt;/span&gt;&lt;span&gt;400&lt;/span&gt;&lt;span&gt;800&lt;/span&gt;&lt;span&gt;1200&lt;/span&gt;&lt;span&gt;1600&lt;/span&gt;&lt;span&gt;1920&lt;/span&gt;&lt;/div&gt;
+&lt;svg class=&quot;ed-stage&quot; viewBox=&quot;0 0 960 540&quot; role=&quot;img&quot; aria-label=&quot;Graphic preview: Coast News lower third with a second reveal for the reporter and location&quot;&gt;&lt;defs&gt;&lt;linearGradient id=&quot;ed-sky&quot; x2=&quot;0&quot; y2=&quot;1&quot;&gt;&lt;stop stop-color=&quot;#173349&quot;/&gt;&lt;stop offset=&quot;1&quot; stop-color=&quot;#516f7b&quot;/&gt;&lt;/linearGradient&gt;&lt;linearGradient id=&quot;ed-panel-fill&quot;&gt;&lt;stop stop-color=&quot;#0b1527&quot;/&gt;&lt;stop offset=&quot;1&quot; stop-color=&quot;#183247&quot;/&gt;&lt;/linearGradient&gt;&lt;/defs&gt;&lt;rect width=&quot;960&quot; height=&quot;540&quot; fill=&quot;url(#ed-sky)&quot;/&gt;&lt;path d=&quot;M0 290L135 195 275 285 440 162 620 273 780 213 960 282V540H0Z&quot; fill=&quot;#2b505e&quot;/&gt;&lt;path d=&quot;M0 347Q225 308 510 362T960 330V540H0Z&quot; fill=&quot;#25434e&quot;/&gt;&lt;path d=&quot;M0 406Q255 359 500 413T960 393V540H0Z&quot; fill=&quot;#1e353f&quot;/&gt;&lt;text x=&quot;40&quot; y=&quot;42&quot; font-family=&quot;sans-serif&quot; font-size=&quot;14&quot; fill=&quot;#abc2cd&quot;&gt;COMPOSITION PREVIEW&lt;/text&gt;&lt;g id=&quot;ed-graphic&quot;&gt;&lt;g id=&quot;ed-logo-group&quot;&gt;&lt;rect x=&quot;48&quot; y=&quot;365&quot; width=&quot;74&quot; height=&quot;74&quot; rx=&quot;5&quot; fill=&quot;var(--brand)&quot;/&gt;&lt;text x=&quot;85&quot; y=&quot;410&quot; text-anchor=&quot;middle&quot; font-family=&quot;sans-serif&quot; font-size=&quot;26&quot; font-weight=&quot;700&quot; fill=&quot;#10212d&quot; id=&quot;ed-logo-text&quot;&gt;CN&lt;/text&gt;&lt;/g&gt;&lt;g id=&quot;ed-title-group&quot;&gt;&lt;rect x=&quot;136&quot; y=&quot;365&quot; width=&quot;724&quot; height=&quot;74&quot; rx=&quot;2&quot; fill=&quot;url(#ed-panel-fill)&quot;/&gt;&lt;rect x=&quot;136&quot; y=&quot;365&quot; width=&quot;5&quot; height=&quot;74&quot; fill=&quot;var(--brand)&quot;/&gt;&lt;text id=&quot;ed-headline&quot; x=&quot;158&quot; y=&quot;412&quot; font-family=&quot;sans-serif&quot; font-size=&quot;29&quot; font-weight=&quot;600&quot; fill=&quot;#f9fafb&quot;&gt;A new chapter for our coastline&lt;/text&gt;&lt;rect id=&quot;ed-selection&quot; x=&quot;151&quot; y=&quot;380&quot; width=&quot;669&quot; height=&quot;43&quot; fill=&quot;none&quot; stroke=&quot;#77cfff&quot; stroke-width=&quot;1.5&quot; stroke-dasharray=&quot;4 3&quot;/&gt;&lt;rect x=&quot;148&quot; y=&quot;377&quot; width=&quot;6&quot; height=&quot;6&quot; fill=&quot;#77cfff&quot;/&gt;&lt;rect x=&quot;817&quot; y=&quot;420&quot; width=&quot;6&quot; height=&quot;6&quot; fill=&quot;#77cfff&quot;/&gt;&lt;/g&gt;&lt;g id=&quot;ed-detail-group&quot;&gt;&lt;rect x=&quot;136&quot; y=&quot;439&quot; width=&quot;724&quot; height=&quot;34&quot; fill=&quot;var(--brand)&quot;/&gt;&lt;text x=&quot;158&quot; y=&quot;462&quot; font-family=&quot;sans-serif&quot; font-size=&quot;16&quot; font-weight=&quot;600&quot; fill=&quot;#10212d&quot;&gt;MAYA ANDERSSON&lt;/text&gt;&lt;text x=&quot;840&quot; y=&quot;462&quot; text-anchor=&quot;end&quot; font-family=&quot;sans-serif&quot; font-size=&quot;14&quot; fill=&quot;#10212d&quot;&gt;HELSINKI · LIVE&lt;/text&gt;&lt;/g&gt;&lt;/g&gt;&lt;text x=&quot;40&quot; y=&quot;515&quot; font-family=&quot;sans-serif&quot; font-size=&quot;12&quot; fill=&quot;#a1b7c0&quot;&gt;Imported groups retained&lt;/text&gt;&lt;text x=&quot;920&quot; y=&quot;515&quot; text-anchor=&quot;end&quot; font-family=&quot;sans-serif&quot; font-size=&quot;12&quot; fill=&quot;#a1b7c0&quot;&gt;Safe area 90%&lt;/text&gt;&lt;/svg&gt;
+&lt;/div&gt;&lt;div class=&quot;ed-stage-footer&quot;&gt;&lt;span id=&quot;ed-canvas-caption&quot;&gt;Illustrator import · Headline selected&lt;/span&gt;&lt;span&gt;Transparent output · backdrop for preview&lt;/span&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;aside class=&quot;ed-right&quot; aria-label=&quot;Layers and properties&quot;&gt;&lt;div class=&quot;ed-heading&quot;&gt;LAYERS &lt;span class=&quot;ed-small&quot;&gt;6 layers&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-layers&quot;&gt;&lt;button class=&quot;ed-layer&quot;&gt;&lt;span class=&quot;ed-eye&quot;&gt;▾&lt;/span&gt;Title group &lt;span class=&quot;ed-tag&quot;&gt;Step 1&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;ed-layer active&quot;&gt;&lt;span class=&quot;ed-eye&quot;&gt;T&lt;/span&gt;Headline &lt;span class=&quot;ed-tag&quot;&gt;◉&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;ed-layer&quot;&gt;&lt;span class=&quot;ed-eye&quot;&gt;▭&lt;/span&gt;Title panel&lt;/button&gt;&lt;button class=&quot;ed-layer&quot;&gt;&lt;span class=&quot;ed-eye&quot;&gt;▾&lt;/span&gt;Detail group &lt;span class=&quot;ed-tag&quot;&gt;Step 2&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;ed-layer&quot;&gt;&lt;span class=&quot;ed-eye&quot;&gt;T&lt;/span&gt;Name / Location&lt;/button&gt;&lt;button class=&quot;ed-layer&quot;&gt;&lt;span class=&quot;ed-eye&quot;&gt;◇&lt;/span&gt;Logo &lt;span class=&quot;ed-tag&quot;&gt;↻&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;ed-heading&quot;&gt;PROPERTIES &lt;span class=&quot;ed-small&quot;&gt;Headline&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-inspector&quot;&gt;&lt;div class=&quot;ed-prop-title&quot;&gt;Transform&lt;/div&gt;&lt;div class=&quot;ed-property&quot;&gt;&lt;button id=&quot;ed-arm-x&quot; aria-label=&quot;Animate X position&quot; aria-pressed=&quot;true&quot;&gt;◴&lt;/button&gt;&lt;label for=&quot;ed-x&quot;&gt;X position&lt;/label&gt;&lt;input id=&quot;ed-x&quot; type=&quot;number&quot; value=&quot;158&quot; step=&quot;1&quot;&gt;&lt;button id=&quot;ed-key-x&quot; aria-label=&quot;Add or remove X keyframe&quot;&gt;◇&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;ed-property&quot;&gt;&lt;button id=&quot;ed-arm-opacity&quot; aria-label=&quot;Animate opacity&quot; aria-pressed=&quot;false&quot;&gt;◴&lt;/button&gt;&lt;label for=&quot;ed-opacity&quot;&gt;Opacity&lt;/label&gt;&lt;input id=&quot;ed-opacity&quot; type=&quot;number&quot; value=&quot;100&quot; min=&quot;0&quot; max=&quot;100&quot;&gt;&lt;button id=&quot;ed-key-opacity&quot; aria-label=&quot;Add or remove opacity keyframe&quot;&gt;◇&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;ed-scope&quot; id=&quot;ed-scope&quot;&gt;X: animated · edits create a key here&lt;/div&gt;&lt;details&gt;&lt;summary&gt;Text and brand&lt;/summary&gt;&lt;label class=&quot;ed-label&quot; for=&quot;ed-text&quot;&gt;Headline&lt;/label&gt;&lt;input id=&quot;ed-text&quot; value=&quot;A new chapter for our coastline&quot;&gt;&lt;div class=&quot;ed-small&quot; style=&quot;margin-top:5px&quot;&gt;Inter Semibold · 58 px · Brand heading&lt;/div&gt;&lt;/details&gt;&lt;details&gt;&lt;summary&gt;Paint, mask and effects&lt;/summary&gt;&lt;div class=&quot;ed-small&quot;&gt;Imported appearance preserved. New authoring follows in R2.&lt;/div&gt;&lt;/details&gt;&lt;details&gt;&lt;summary&gt;Operator field&lt;/summary&gt;&lt;div class=&quot;ed-small&quot;&gt;Headline → headline · text&lt;/div&gt;&lt;/details&gt;&lt;/div&gt;&lt;/aside&gt;
+&lt;/div&gt;
+&lt;section class=&quot;ed-bottom&quot; aria-label=&quot;Animation timeline&quot;&gt;&lt;div class=&quot;ed-tabs&quot;&gt;&lt;button id=&quot;ed-timeline-tab&quot; aria-pressed=&quot;true&quot;&gt;Timeline&lt;/button&gt;&lt;button id=&quot;ed-code-tab&quot; aria-pressed=&quot;false&quot;&gt;Code (optional)&lt;/button&gt;&lt;span class=&quot;ed-spacer&quot;&gt;&lt;/span&gt;&lt;button id=&quot;ed-undo&quot;&gt;Undo&lt;/button&gt;&lt;span class=&quot;ed-small&quot;&gt;25 fps&lt;/span&gt;&lt;/div&gt;&lt;div id=&quot;ed-timeline-panel&quot;&gt;&lt;div class=&quot;ed-transport&quot;&gt;&lt;button id=&quot;ed-take&quot;&gt;Take&lt;/button&gt;&lt;button id=&quot;ed-next&quot;&gt;Next ▷&lt;/button&gt;&lt;button id=&quot;ed-out&quot;&gt;Out&lt;/button&gt;&lt;button id=&quot;ed-frame&quot; aria-label=&quot;Advance one frame&quot;&gt;+1f&lt;/button&gt;&lt;span class=&quot;ed-time&quot; id=&quot;ed-clock&quot;&gt;00:00:18 · 18f&lt;/span&gt;&lt;input type=&quot;range&quot; class=&quot;ed-seek&quot; id=&quot;ed-seek&quot; aria-label=&quot;Composition playhead&quot; min=&quot;0&quot; max=&quot;72&quot; value=&quot;18&quot;&gt;&lt;label for=&quot;ed-speed&quot; class=&quot;ed-small&quot;&gt;Speed&lt;/label&gt;&lt;select id=&quot;ed-speed&quot;&gt;&lt;option value=&quot;0.5&quot;&gt;0.5×&lt;/option&gt;&lt;option value=&quot;1&quot; selected&gt;1×&lt;/option&gt;&lt;option value=&quot;2&quot;&gt;2×&lt;/option&gt;&lt;/select&gt;&lt;label for=&quot;ed-ease&quot; class=&quot;ed-small&quot;&gt;Ease&lt;/label&gt;&lt;select id=&quot;ed-ease&quot; style=&quot;width:95px&quot;&gt;&lt;option&gt;Ease out&lt;/option&gt;&lt;option&gt;Linear&lt;/option&gt;&lt;option&gt;Ease in&lt;/option&gt;&lt;option&gt;Ease in-out&lt;/option&gt;&lt;option&gt;Hold&lt;/option&gt;&lt;/select&gt;&lt;button id=&quot;ed-loop&quot;&gt;Edit loop&lt;/button&gt;&lt;span class=&quot;ed-cue&quot; id=&quot;ed-cue&quot;&gt;Step 1 held · Next reveals detail&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;ed-timeline&quot;&gt;&lt;div class=&quot;ed-track-labels&quot;&gt;&lt;div class=&quot;ed-ruler-label&quot;&gt;Layers / properties&lt;/div&gt;&lt;div&gt;▾ Title group&lt;/div&gt;&lt;div class=&quot;ed-subtrack&quot;&gt;◴ X position &lt;span class=&quot;ed-spacer&quot;&gt;&lt;/span&gt;◇&lt;/div&gt;&lt;div&gt;▾ Detail group &lt;span class=&quot;ed-spacer&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-small&quot;&gt;Step 2&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-subtrack&quot;&gt;◴ Opacity&lt;/div&gt;&lt;div&gt;◇ Logo &lt;span class=&quot;ed-spacer&quot;&gt;&lt;/span&gt;↻&lt;/div&gt;&lt;div class=&quot;ed-subtrack&quot;&gt;◴ Scale loop&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;ed-tracks&quot;&gt;&lt;div class=&quot;ed-ruler&quot; id=&quot;ed-ruler&quot; aria-label=&quot;Drag to scrub composition&quot;&gt;&lt;div class=&quot;ed-ticks&quot;&gt;&lt;span&gt;0f&lt;/span&gt;&lt;span&gt;12f&lt;/span&gt;&lt;span&gt;24f&lt;/span&gt;&lt;span&gt;36f&lt;/span&gt;&lt;span&gt;48f&lt;/span&gt;&lt;span&gt;60f&lt;/span&gt;&lt;span&gt;72f&lt;/span&gt;&lt;/div&gt;&lt;span class=&quot;ed-marker&quot;&gt;◆ In&lt;/span&gt;&lt;span class=&quot;ed-marker&quot;&gt;◆ Step 2&lt;span class=&quot;ed-marker-extra&quot;&gt; · Detail&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;ed-marker&quot;&gt;◆ Out&lt;/span&gt;&lt;span class=&quot;ed-marker&quot;&gt;End&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-lane&quot;&gt;&lt;span class=&quot;ed-exists&quot;&gt;Step 1 · Title&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-lane&quot; id=&quot;ed-x-lane&quot;&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:0%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:25%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:67%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:96%&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-lane&quot;&gt;&lt;span class=&quot;ed-exists late&quot;&gt;Step 2 · Reporter and location&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-lane&quot;&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:34%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:58%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:67%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:96%&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-lane&quot;&gt;&lt;span class=&quot;ed-exists loop&quot; id=&quot;ed-loop-clip&quot;&gt;Loop · continues during hold&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ed-lane&quot;&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:0%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:16.5%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-key&quot; style=&quot;left:33%&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;span class=&quot;ed-break one&quot;&gt;&lt;/span&gt;&lt;span class=&quot;ed-break two&quot;&gt;&lt;/span&gt;&lt;div class=&quot;ed-playhead&quot; id=&quot;ed-playhead&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;ed-loop-panel&quot; id=&quot;ed-loop-panel&quot; hidden&gt;&lt;strong&gt;Logo · local loop&lt;/strong&gt;&lt;span&gt;0f ── ◆ ── 12f ── ◆ ── 24f ↻&lt;/span&gt;&lt;label&gt;Local frame&lt;input type=&quot;range&quot; id=&quot;ed-loop-frame&quot; min=&quot;0&quot; max=&quot;24&quot; value=&quot;0&quot;&gt;&lt;/label&gt;&lt;span class=&quot;ed-small&quot;&gt;Independent clock · canvas retained&lt;/span&gt;&lt;button id=&quot;ed-close-loop&quot;&gt;Close loop&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;ed-timeline-footer&quot;&gt;&lt;span&gt;◆ Keyframe · ◴ Animate property · Dashed breaks = wait for cue&lt;/span&gt;&lt;span id=&quot;ed-duration&quot;&gt;In 24f / Step 2 24f / Out 24f · stored frames at 25 fps&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;pre class=&quot;ed-code&quot; id=&quot;ed-code-panel&quot; hidden&gt;// Optional source dock. The canvas stays visible.
+// Visual edits patch the imported source; unknown artwork is preserved.
+&amp;lt;g id=&quot;title-group&quot;&amp;gt;
+  &amp;lt;text id=&quot;headline&quot; x=&quot;158&quot; y=&quot;412&quot;&amp;gt;A new chapter for our coastline&amp;lt;/text&amp;gt;
+&amp;lt;/g&amp;gt;
+
+// Step 1: title entrance → hold
+// Step 2: detail reveal → hold
+// Out: authored exit, triggered by playout
+// No node editor in this release.&lt;/pre&gt;&lt;/section&gt;&lt;div class=&quot;ed-status&quot; id=&quot;ed-status&quot; aria-live=&quot;polite&quot;&gt;Design preview · no files are imported, saved or sent to production.&lt;/div&gt;
+&lt;script&gt;
+(()=&gt;{const root=document.getElementById(&#x27;noacg-editor-proposal&#x27;);const q=id=&gt;root.querySelector(&#x27;#&#x27;+id);const state={frame:18,speed:1,x:158,opacity:100,armedX:true,armedOpacity:false,text:&#x27;A new chapter for our coastline&#x27;,brand:&#x27;coast&#x27;,graphic:&#x27;Illustrator lower third&#x27;,keys:[0,18,48,69]};let history=[],timer=0;const design={inspector:280,selection:true};const announce=text=&gt;q(&#x27;ed-status&#x27;).textContent=text;const snap=()=&gt;{history.push(JSON.stringify(state));q(&#x27;ed-undo&#x27;).disabled=false;};const ease=p=&gt;{switch(q(&#x27;ed-ease&#x27;).value){case&#x27;Linear&#x27;:return p;case&#x27;Ease in&#x27;:return p*p;case&#x27;Ease in-out&#x27;:return p&lt;.5?2*p*p:1-Math.pow(-2*p+2,2)/2;case&#x27;Hold&#x27;:return p&gt;=1?1:0;default:return 1-Math.pow(1-p,3);}};const stop=()=&gt;{cancelAnimationFrame(timer);timer=0;};
+function render(){root.style.setProperty(&#x27;--brand&#x27;,state.brand===&#x27;coast&#x27;?&#x27;#37c5d5&#x27;:&#x27;#f3a449&#x27;);root.querySelectorAll(&#x27;.ed-brand&#x27;).forEach(x=&gt;x.value=state.brand);q(&#x27;ed-logo-text&#x27;).textContent=state.brand===&#x27;coast&#x27;?&#x27;CN&#x27;:&#x27;ES&#x27;;q(&#x27;ed-headline&#x27;).textContent=state.text;q(&#x27;ed-text&#x27;).value=state.text;q(&#x27;ed-x&#x27;).value=state.x;q(&#x27;ed-opacity&#x27;).value=state.opacity;q(&#x27;ed-arm-x&#x27;).setAttribute(&#x27;aria-pressed&#x27;,state.armedX);q(&#x27;ed-arm-opacity&#x27;).setAttribute(&#x27;aria-pressed&#x27;,state.armedOpacity);q(&#x27;ed-key-opacity&#x27;).textContent=state.armedOpacity?&#x27;◆&#x27;:&#x27;◇&#x27;;q(&#x27;ed-scope&#x27;).textContent=&#x27;X: &#x27;+(state.armedX?&#x27;animated · edits create a key here&#x27;:&#x27;base value · no keys&#x27;);q(&#x27;ed-project-name&#x27;).textContent=(state.brand===&#x27;coast&#x27;?&#x27;Coast News&#x27;:&#x27;Ember Sports&#x27;)+&#x27; / &#x27;+state.graphic;const frame=Math.round(state.frame/state.speed);q(&#x27;ed-clock&#x27;).textContent=&#x27;00:&#x27;+String(Math.floor(frame/25)).padStart(2,&#x27;0&#x27;)+&#x27;:&#x27;+String(frame%25).padStart(2,&#x27;0&#x27;)+&#x27; · &#x27;+frame+&#x27;f&#x27;;q(&#x27;ed-seek&#x27;).value=state.frame;q(&#x27;ed-playhead&#x27;).style.left=(state.frame/72*100)+&#x27;%&#x27;;q(&#x27;ed-key-x&#x27;).textContent=state.keys.includes(Math.round(state.frame))?&#x27;◆&#x27;:&#x27;◇&#x27;;q(&#x27;ed-x-lane&#x27;).replaceChildren(...state.keys.map(f=&gt;{const n=document.createElement(&#x27;span&#x27;);n.className=&#x27;ed-key&#x27;;n.style.left=(f/72*100)+&#x27;%&#x27;;return n;}));q(&#x27;ed-x-lane&#x27;).style.opacity=state.armedX?1:.2;const inP=ease(Math.min(1,state.frame/18)),outP=state.frame&lt;48?1:1-ease(Math.min(1,(state.frame-48)/21));q(&#x27;ed-title-group&#x27;).setAttribute(&#x27;transform&#x27;,&#x27;translate(&#x27;+((state.x-158)-(1-inP)*170)+&#x27;,0)&#x27;);q(&#x27;ed-title-group&#x27;).style.opacity=inP*outP*state.opacity/100;q(&#x27;ed-logo-group&#x27;).style.opacity=inP*outP;q(&#x27;ed-detail-group&#x27;).style.opacity=state.frame&lt;24?0:ease(Math.min(1,(state.frame-24)/18))*outP;q(&#x27;ed-selection&#x27;).style.display=design.selection?&#x27;&#x27;:&#x27;none&#x27;;
+const screen=state.graphic.includes(&#x27;screen&#x27;),logo=state.graphic===&#x27;Logo bug&#x27;;
+q(&#x27;ed-title-group&#x27;).style.display=logo?&#x27;none&#x27;:&#x27;&#x27;;q(&#x27;ed-detail-group&#x27;).style.display=screen||logo||state.graphic===&#x27;Scoreboard&#x27;?&#x27;none&#x27;:&#x27;&#x27;;
+q(&#x27;ed-logo-group&#x27;).setAttribute(&#x27;transform&#x27;,logo?&#x27;translate(765,-315) scale(.8)&#x27;:screen?&#x27;translate(395,-250)&#x27;:&#x27;&#x27;);
+if(screen)q(&#x27;ed-title-group&#x27;).setAttribute(&#x27;transform&#x27;,&#x27;translate(0,-160)&#x27;);
+q(&#x27;ed-cue&#x27;).textContent=state.frame&lt;24?&#x27;Step 1 held · Next reveals detail&#x27;:state.frame&lt;48?&#x27;Step 2 held · Out on command&#x27;:state.frame&lt;70?&#x27;Out · leaving&#x27;:&#x27;Off air&#x27;;q(&#x27;ed-next&#x27;).disabled=state.frame&gt;=48;q(&#x27;ed-duration&#x27;).textContent=&#x27;In &#x27;+Math.round(24/state.speed)+&#x27;f / Step 2 &#x27;+Math.round(24/state.speed)+&#x27;f / Out &#x27;+Math.round(24/state.speed)+&#x27;f · effective at &#x27;+state.speed+&#x27;×&#x27;;q(&#x27;ed-ruler&#x27;).querySelectorAll(&#x27;.ed-ticks span&#x27;).forEach((n,i)=&gt;n.textContent=Math.round(i*12/state.speed)+&#x27;f&#x27;);}
+function dock(name){root.dataset.dock=&#x27;open&#x27;;[&#x27;project&#x27;,&#x27;gallery&#x27;,&#x27;chat&#x27;].forEach(v=&gt;{q(&#x27;ed-&#x27;+v+&#x27;-panel&#x27;).hidden=v!==name;q(&#x27;ed-&#x27;+v+&#x27;-tab&#x27;).setAttribute(&#x27;aria-pressed&#x27;,v===name);});}
+function play(from,to){stop();const started=performance.now();state.frame=from;function tick(now){state.frame=Math.min(to,from+(now-started)/1000*25*state.speed);render();if(state.frame&lt;to)timer=requestAnimationFrame(tick);}timer=requestAnimationFrame(tick);}
+q(&#x27;ed-project-tab&#x27;).onclick=()=&gt;dock(&#x27;project&#x27;);q(&#x27;ed-gallery-tab&#x27;).onclick=()=&gt;dock(&#x27;gallery&#x27;);q(&#x27;ed-chat-tab&#x27;).onclick=()=&gt;dock(&#x27;chat&#x27;);q(&#x27;ed-templates&#x27;).onclick=()=&gt;dock(&#x27;gallery&#x27;);q(&#x27;ed-browse&#x27;).onclick=()=&gt;dock(&#x27;gallery&#x27;);q(&#x27;ed-project-toggle&#x27;).onclick=()=&gt;{root.dataset.dock=root.dataset.dock===&#x27;open&#x27;?&#x27;closed&#x27;:&#x27;open&#x27;;};q(&#x27;ed-import&#x27;).onclick=()=&gt;{stop();snap();state.graphic=&#x27;Illustrator lower third&#x27;;state.text=&#x27;A new chapter for our coastline&#x27;;state.frame=18;dock(&#x27;project&#x27;);q(&#x27;ed-canvas-caption&#x27;).textContent=&#x27;Illustrator import · Headline selected&#x27;;render();announce(&#x27;Example wizard result opened: grouped SVG, editable text and mapped fields. Actual import is not connected in this design preview.&#x27;);};
+q(&#x27;ed-take&#x27;).onclick=()=&gt;play(0,18);q(&#x27;ed-next&#x27;).onclick=()=&gt;play(24,42);q(&#x27;ed-out&#x27;).onclick=()=&gt;play(48,72);q(&#x27;ed-frame&#x27;).onclick=()=&gt;{stop();state.frame=Math.min(72,state.frame+state.speed);render();};q(&#x27;ed-seek&#x27;).oninput=e=&gt;{stop();state.frame=+e.target.value;render();};q(&#x27;ed-speed&#x27;).onchange=e=&gt;{state.speed=+e.target.value;render();};q(&#x27;ed-ease&#x27;).onchange=render;
+let dragStart=null;const scrub=e=&gt;{const b=q(&#x27;ed-ruler&#x27;).getBoundingClientRect();state.frame=Math.round(Math.max(0,Math.min(1,(e.clientX-b.left)/b.width))*72);render();};q(&#x27;ed-ruler&#x27;).onpointerdown=e=&gt;{stop();dragStart=state.frame;e.currentTarget.setPointerCapture(e.pointerId);scrub(e);};q(&#x27;ed-ruler&#x27;).onpointermove=e=&gt;{if(dragStart!==null)scrub(e);};q(&#x27;ed-ruler&#x27;).onpointerup=()=&gt;dragStart=null;q(&#x27;ed-ruler&#x27;).onpointercancel=()=&gt;{if(dragStart!==null){state.frame=dragStart;dragStart=null;render();}};root.addEventListener(&#x27;keydown&#x27;,e=&gt;{if(e.key===&#x27;Escape&#x27;&amp;&amp;dragStart!==null){state.frame=dragStart;dragStart=null;render();announce(&#x27;Scrub cancelled.&#x27;);}});
+q(&#x27;ed-arm-x&#x27;).onclick=()=&gt;{snap();state.armedX=!state.armedX;state.keys=state.armedX?[...new Set([0,Math.round(state.frame)])]:[];if(!state.armedX)state.x=158;render();announce(&#x27;X animation &#x27;+(state.armedX?&#x27;enabled at the playhead.&#x27;:&#x27;disabled; inherited base restored. Undo restores keys.&#x27;));};q(&#x27;ed-arm-opacity&#x27;).onclick=()=&gt;{snap();state.armedOpacity=!state.armedOpacity;render();announce(&#x27;Opacity &#x27;+(state.armedOpacity?&#x27;armed for keys&#x27;:&#x27;uses its base value&#x27;)+&#x27;.&#x27;);};q(&#x27;ed-key-x&#x27;).onclick=()=&gt;{snap();state.armedX=true;const f=Math.round(state.frame);state.keys=state.keys.includes(f)?state.keys.filter(x=&gt;x!==f):[...state.keys,f].sort((a,b)=&gt;a-b);if(!state.keys.length)state.armedX=false;render();};q(&#x27;ed-key-opacity&#x27;).onclick=()=&gt;{snap();state.armedOpacity=!state.armedOpacity;render();};q(&#x27;ed-x&#x27;).onchange=e=&gt;{snap();state.x=+e.target.value;if(state.armedX&amp;&amp;!state.keys.includes(Math.round(state.frame)))state.keys.push(Math.round(state.frame));render();announce(state.armedX?&#x27;X key added at the playhead.&#x27;:&#x27;X base value updated.&#x27;);};q(&#x27;ed-opacity&#x27;).onchange=e=&gt;{snap();state.opacity=Math.max(0,Math.min(100,+e.target.value));render();};q(&#x27;ed-text&#x27;).onchange=e=&gt;{snap();state.text=e.target.value;render();};q(&#x27;ed-undo&#x27;).onclick=()=&gt;{stop();if(history.length){Object.assign(state,JSON.parse(history.pop()));render();announce(&#x27;Previous edit restored.&#x27;);}q(&#x27;ed-undo&#x27;).disabled=!history.length;};
+const openLoop=()=&gt;{q(&#x27;ed-loop-panel&#x27;).hidden=false;announce(&#x27;Local loop ruler opened. The composition canvas stays visible.&#x27;);};q(&#x27;ed-loop&#x27;).onclick=openLoop;q(&#x27;ed-loop-clip&#x27;).ondblclick=openLoop;q(&#x27;ed-close-loop&#x27;).onclick=()=&gt;q(&#x27;ed-loop-panel&#x27;).hidden=true;q(&#x27;ed-loop-frame&#x27;).oninput=e=&gt;{const s=1+.06*Math.sin(+e.target.value/24*Math.PI*2);q(&#x27;ed-logo-group&#x27;).setAttribute(&#x27;transform&#x27;,&#x27;translate(85,402) scale(&#x27;+s+&#x27;) translate(-85,-402)&#x27;);};
+root.querySelectorAll(&#x27;.ed-brand&#x27;).forEach(el=&gt;el.onchange=e=&gt;{snap();state.brand=e.target.value;render();announce(&#x27;Brand preview applied to the graphic and collection thumbnails.&#x27;);});root.querySelectorAll(&#x27;.ed-template&#x27;).forEach(el=&gt;el.onclick=()=&gt;{snap();state.graphic=el.dataset.type;state.frame=42;state.text=state.graphic===&#x27;Scoreboard&#x27;?&#x27;HOME  2 : 1  AWAY&#x27;:state.graphic===&#x27;Holding screen&#x27;?&#x27;We will be right back&#x27;:state.graphic===&#x27;End screen&#x27;?&#x27;Thank you for watching&#x27;:state.graphic===&#x27;Headline&#x27;?&#x27;The stories that matter&#x27;:state.graphic===&#x27;Logo bug&#x27;?&#x27;Coast News&#x27;:&#x27;Your headline goes here&#x27;;q(&#x27;ed-canvas-caption&#x27;).textContent=&#x27;Template · &#x27;+state.graphic+&#x27; · brand applied&#x27;;render();announce(state.graphic+&#x27; selected. This is an illustrative template preview, not an installed production graphic.&#x27;);});q(&#x27;ed-category&#x27;).onchange=e=&gt;root.querySelectorAll(&#x27;.ed-template&#x27;).forEach(el=&gt;el.hidden=e.target.value===&#x27;Sports&#x27;?el.dataset.type!==&#x27;Scoreboard&#x27;:e.target.value===&#x27;Screens&#x27;?!el.dataset.type.includes(&#x27;screen&#x27;):e.target.value===&#x27;News essentials&#x27;?el.dataset.type===&#x27;Scoreboard&#x27;:false);
+const selected=()=&gt;[...root.querySelectorAll(&#x27;[data-item]:checked&#x27;)].map(e=&gt;e.dataset.item);root.querySelectorAll(&#x27;[data-item]&#x27;).forEach(el=&gt;el.onchange=()=&gt;{q(&#x27;ed-add-set&#x27;).textContent=&#x27;Review &#x27;+selected().length+&#x27; graphics for rundown&#x27;;q(&#x27;ed-add-set&#x27;).disabled=!selected().length;});q(&#x27;ed-add-set&#x27;).onclick=()=&gt;announce(&#x27;Rundown preview: &#x27;+selected().join(&#x27;, &#x27;)+&#x27;. Brand: &#x27;+(state.brand===&#x27;coast&#x27;?&#x27;Coast News&#x27;:&#x27;Ember Sports&#x27;)+&#x27;. Nothing has been installed.&#x27;);q(&#x27;ed-production&#x27;).onclick=()=&gt;{dock(&#x27;gallery&#x27;);announce(&#x27;Choose a branded set or the current graphic, then review its rundown entries. This is a design preview.&#x27;);};q(&#x27;ed-save&#x27;).onclick=()=&gt;announce(&#x27;Save/reopen is part of the plan. This preview makes no filesystem or product changes.&#x27;);q(&#x27;ed-fit&#x27;).onclick=()=&gt;announce(&#x27;Canvas fitted to the available workspace.&#x27;);q(&#x27;ed-ai-preview&#x27;).onclick=()=&gt;q(&#x27;ed-ai-note&#x27;).hidden=false;root.querySelectorAll(&#x27;[data-tool]&#x27;).forEach(el=&gt;el.onclick=()=&gt;announce(el.dataset.tool+&#x27; placement shown for workspace planning; authoring is not implemented here.&#x27;));root.querySelectorAll(&#x27;.ed-layer&#x27;).forEach(el=&gt;el.onclick=()=&gt;announce(&#x27;This interaction study keeps Headline selected. Layer selection and hierarchy are required acceptance tasks.&#x27;));
+const codeTab=code=&gt;{q(&#x27;ed-code-panel&#x27;).hidden=!code;q(&#x27;ed-timeline-panel&#x27;).hidden=code;q(&#x27;ed-code-tab&#x27;).setAttribute(&#x27;aria-pressed&#x27;,code);q(&#x27;ed-timeline-tab&#x27;).setAttribute(&#x27;aria-pressed&#x27;,!code);};q(&#x27;ed-code-tab&#x27;).onclick=()=&gt;codeTab(true);q(&#x27;ed-timeline-tab&#x27;).onclick=()=&gt;codeTab(false);q(&#x27;ed-undo&#x27;).disabled=true;render();if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:render});tweak.addToggle(design,&#x27;selection&#x27;,{label:&#x27;Show selection bounds&#x27;});}
+})();
+&lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

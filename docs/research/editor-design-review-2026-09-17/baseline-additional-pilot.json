@@ -1,0 +1,490 @@
+{
+  "at": "2026-09-17T16:15:14.953Z",
+  "actions": [
+    {
+      "name": "default SVG mapping",
+      "text": "NoaCG\nSTUDIO\n·\nImport graphic\n· Imported SVG design\nHome\n+ New graphic\nSTEP 3 / 5\n✕\n✓\nStart\nChoose mode\n✓\nDesign\nYour artwork\n3\nFields\nMap text layers\n4\nAnimation\nIn & out motion\n5\nFinish\nName & save\n\nPROJECT FORMAT\n\n16:9 · 1920×1080 · 25 fps\n\nChange ▾\nHJK\n2\n1\nKuPS\n12:00\nVEIKKAUSLIIGA MATCHDAY 21\nChoose what the operator can change\n\nTick what can be retyped. Hover a row to see it in the preview.\n\nEDITABLE TEXT\n7 of 7 editable on air\nⓘ\n\nBlack plate\ngets wider\ngets wider, then taller\ngets taller\nstays as drawn\n\nFIELD NAME\nTEXT\nALIGNED left, middle\nFIELD NAME\nTEXT (NUMBER)\nALIGNED right, middle\nFIELD NAME\nTEXT (NUMBER)\nALIGNED right, middle\nFIELD NAME\nTEXT\nALIGNED right, middle\nFIELD NAME\nTEXT\nALIGNED centred, middle\nBINDS AS\nText\nCountdown\n\nOrange plate\ngets wider\ngets wider, then taller\ngets taller\nstays as drawn\n\nFIELD NAME\nTEXT\nALIGNED left, middle\nFIELD NAME\nTEXT\nALIGNED right, middle\nADD A FIELD\nnothing added\nⓘ\n＋ Draw a field on the artwork\nWHAT IT DOES\n2 numbers, each with + and −\nⓘ\nBEHAVIOUR\nNothing extra. The number layers already get + and −.\nQuiz. Select an answer, lock it in, reveal it.\nLive vote. The room votes; the bars move; you show the result.\nScore tracker. A point per press, per team, and a new game.\nCountdown. It starts on air; you hold it, let it go, reset it.\nMeter. A bar that fills toward a target as the figure the operator types goes up.\nAlert. It plays, holds for eight seconds, and takes itself off - or Next takes it off sooner.\nSurvey board. Reveal the answers in any order, count the strikes, and the round total adds itself up.\nStepped list. Entries revealed one per Next press, from the last number down to one.\nLineup. The guest who is on now lit, the ones already on dimmed, and Next moves along the list.\nPuzzle board. A phrase over the tiles you drew; letters appear as you reveal them, and Solve shows the rest.\nReveal. Text you type stays sealed behind the cover you drew until one press reveals it.\nBingo caller. Every number you drew lights as it is called; the newest is ringed and written large.\nWHEN THE TEXT IS TOO LONG\nevery box stays the size you drew — read from your artwork\nⓘ\n\nEvery box stays the size you drew, so nothing on this graphic moves.\n\nPICTURES\n0 of 1 swappable on air\nⓘ\nFIELD NAME\nTYPEFACES\n3 of 3 embedded in the template\nⓘ\nArchivo\n✓ Bundled with NoaCG\nJetBrains Mono\n✓ Bundled with NoaCG\nInter\n✓ Bundled with NoaCG\n← Back\nCreate project\nNext →\nPROJECT 1920×1080 · 25 FPS\n⌖ ZOOM TO GRAPHIC\n▶ REPLAY\n■ OUT"
+    },
+    {
+      "name": "default SVG finish",
+      "editorDoor": 0
+    },
+    {
+      "name": "SVG into production",
+      "url": "http://127.0.0.1:5291/app#/production/f36b04b5-e060-47d0-a497-3d8b6e9ac3ce",
+      "templateName": "Baseline scorebug",
+      "text": "NoaCG\nSTUDIO\n+ New graphic\n←\nBaseline laboratory\n○ NOT PUBLISHED\n00:00:00\nPlayout\nData\nAudience\n▶ Start production\n Export…\n■ All out\nPREVIEW\nBaseline scorebug\nPROGRAM — ON AIR\nnothing on air\n\nNothing on air\n\n⟳ TAKE\nSPACE\n⟳ Re-take\nR\n✎ Update\nU\n» Next\nN\n■ Out\n0\n○ nothing on air\nSPACE previews first\nEDITING PREVIEW CUE · 1\nchanges air on ⟳ Take\nF0 · Home team\nF1 · Home score\n−\n+\nSTEP\nF2 · Away score\n−\n+\nSTEP\nF3 · Away team\nF4 · Match clock\nF5 · Competition\nF6 · Stage\nOPERATOR NOTE\nPLAYOUT LAYER\n± LIVE NUMBERS act on air\n\nOne press changes the figure on the live graphic and keeps this cue in step — no ✎ Update needed. Typing a value above still stages it for ✎ Update instead.\n\nHome score\n−\n+\nAway score\n−\n+\nCONTROLS\nas the graphic declared them\nActivity\nCue rundown\n1\n＋\n⣿\n1\nBaseline scorebug\nL20 · Imported · Baseline scorebug\nPVW\n⋯\nAdd a graphic from your library…\nBaseline scorebug\n＋ Add\n＋ New graphic for this production…\n＋ Add pictures…"
+    },
+    {
+      "name": "saved SVG production reload",
+      "url": "http://127.0.0.1:5291/app#/production/f36b04b5-e060-47d0-a497-3d8b6e9ac3ce",
+      "text": "NoaCG\nSTUDIO\n+ New graphic\n←\nBaseline laboratory\n○ NOT PUBLISHED\n00:00:00\nPlayout\nData\nAudience\n▶ Start production\n Export…\n■ All out\nPREVIEW\nBaseline scorebug\nPROGRAM — ON AIR\nnothing on air\n\nNothing on air\n\n⟳ TAKE\nSPACE\n⟳ Re-take\nR\n✎ Update\nU\n» Next\nN\n■ Out\n0\n○ nothing on air\nSPACE previews first\nEDITING PREVIEW CUE · 1\nchanges air on ⟳ Take\nF0 · Home team\nF1 · Home score\n−\n+\nSTEP\nF2 · Away score\n−\n+\nSTEP\nF3 · Away team\nF4 · Match clock\nF5 · Competition\nF6 · Stage\nOPERATOR NOTE\nPLAYOUT LAYER\n± LIVE NUMBERS act on air\n\nOne press changes the figure on the live graphic and keeps this cue in step — no ✎ Update needed. Typing a value above still stages it for ✎ Update instead.\n\nHome score\n−\n+\nAway score\n−\n+\nCONTROLS\nas the graphic declared them\nActivity\nCue rundown\n1\n＋\n⣿\n1\nBaseline scorebug\nL20 · Imported · Baseline scorebug\nPVW\n⋯\nAdd a graphic from your library…\nBaseline scorebug\n＋ Add\n＋ New graphic for this production…\n＋ Add pictures…"
+    }
+  ],
+  "gestures": [
+    {
+      "editor": "noacg",
+      "width": 1366,
+      "drags": [
+        {
+          "start": 1789661728102,
+          "end": 1789661731713,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "8af0992940d2d903c6a4db915abc1c3e4468e997bd9d503755943682d14e50f2",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661732583,
+          "end": 1789661736162,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661736972,
+          "end": 1789661740544,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661741363,
+          "end": 1789661744937,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661745751,
+          "end": 1789661749329,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661750139,
+          "end": 1789661753712,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661754526,
+          "end": 1789661758091,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661758898,
+          "end": 1789661762463,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661763266,
+          "end": 1789661766826,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661767647,
+          "end": 1789661771206,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        }
+      ]
+    },
+    {
+      "editor": "studio",
+      "width": 1366,
+      "drags": [
+        {
+          "start": 1789661773697,
+          "end": 1789661777762,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661778737,
+          "end": 1789661782787,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661783664,
+          "end": 1789661787779,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661788658,
+          "end": 1789661792645,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661793526,
+          "end": 1789661797513,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661798395,
+          "end": 1789661802409,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661803290,
+          "end": 1789661807255,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661808149,
+          "end": 1789661812179,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661813057,
+          "end": 1789661817075,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661817958,
+          "end": 1789661821921,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        }
+      ]
+    },
+    {
+      "editor": "noacg",
+      "width": 1920,
+      "drags": [
+        {
+          "start": 1789661824724,
+          "end": 1789661828334,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "8af0992940d2d903c6a4db915abc1c3e4468e997bd9d503755943682d14e50f2",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661829218,
+          "end": 1789661832795,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661833605,
+          "end": 1789661837177,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661837979,
+          "end": 1789661841543,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661842348,
+          "end": 1789661845946,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661846744,
+          "end": 1789661850314,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661851112,
+          "end": 1789661854670,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661855490,
+          "end": 1789661859056,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661859859,
+          "end": 1789661863421,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789661864228,
+          "end": 1789661867789,
+          "before": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "after": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "undo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "redo": "938653cc83231587e35019b5e4ed0e9df21e82bcd55e5f9d3cd034f887466c19",
+          "changed": false,
+          "undoExact": true,
+          "redoExact": true
+        }
+      ]
+    },
+    {
+      "editor": "studio",
+      "width": 1920,
+      "drags": [
+        {
+          "start": 1789661870312,
+          "end": 1789661874300,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661875289,
+          "end": 1789661879453,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661880348,
+          "end": 1789661884529,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661885410,
+          "end": 1789661889526,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661890431,
+          "end": 1789661894557,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661895440,
+          "end": 1789661899558,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661900445,
+          "end": 1789661904484,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661905379,
+          "end": 1789661909539,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661910421,
+          "end": 1789661914644,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        },
+        {
+          "start": 1789661915545,
+          "end": 1789661919655,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": false,
+          "redoExact": true
+        }
+      ]
+    }
+  ]
+}

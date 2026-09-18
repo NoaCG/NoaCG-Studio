@@ -1,0 +1,161 @@
+{
+  "kind": "design-study-only",
+  "checks": {
+    "old distant prompt reproduced": true,
+    "popover adjacent 1920": true,
+    "popover inside width 1920": true,
+    "no overflow 1920": true,
+    "popover does not move canvas 1920": true,
+    "popover adjacent 1366": true,
+    "popover inside width 1366": true,
+    "no overflow 1366": true,
+    "popover does not move canvas 1366": true,
+    "popover adjacent 1024": true,
+    "popover inside width 1024": true,
+    "no overflow 1024": true,
+    "popover does not move canvas 1024": true,
+    "popover adjacent 320": true,
+    "popover inside width 320": true,
+    "no overflow 320": true,
+    "popover does not move canvas 320": true,
+    "rectangle from canvas": true,
+    "rectangle has timeline bar": true,
+    "shape begins at playhead": true,
+    "ellipse created": true,
+    "Shift creates circle": true,
+    "canvas handle scales shape": true,
+    "scale gesture one undo": true,
+    "text placed and edited": true,
+    "cancel drawing leaves no layer": true,
+    "Escape closes prompt": true,
+    "Escape retains Out flag": true,
+    "Escape adds no keys": true,
+    "Escape restores enabled control focus": true,
+    "no runtime errors": true
+  },
+  "errors": [],
+  "layouts": [
+    {
+      "viewport": 1920,
+      "width": 1888,
+      "scroll": 1888,
+      "button": {
+        "x": 1816.921875,
+        "y": 614,
+        "width": 61.078125,
+        "height": 28,
+        "top": 614,
+        "right": 1878,
+        "bottom": 642,
+        "left": 1816.921875
+      },
+      "prompt": {
+        "x": 1568,
+        "y": 491.203125,
+        "width": 310,
+        "height": 114.796875,
+        "top": 491.203125,
+        "right": 1878,
+        "bottom": 606,
+        "left": 1568
+      }
+    },
+    {
+      "viewport": 1366,
+      "width": 1334,
+      "scroll": 1334,
+      "button": {
+        "x": 1262.921875,
+        "y": 464,
+        "width": 61.078125,
+        "height": 28,
+        "top": 464,
+        "right": 1324,
+        "bottom": 492,
+        "left": 1262.921875
+      },
+      "prompt": {
+        "x": 1014,
+        "y": 341.203125,
+        "width": 310,
+        "height": 114.796875,
+        "top": 341.203125,
+        "right": 1324,
+        "bottom": 456,
+        "left": 1014
+      }
+    },
+    {
+      "viewport": 1024,
+      "width": 992,
+      "scroll": 992,
+      "button": {
+        "x": 920.921875,
+        "y": 464,
+        "width": 61.078125,
+        "height": 28,
+        "top": 464,
+        "right": 982,
+        "bottom": 492,
+        "left": 920.921875
+      },
+      "prompt": {
+        "x": 672,
+        "y": 341.203125,
+        "width": 310,
+        "height": 114.796875,
+        "top": 341.203125,
+        "right": 982,
+        "bottom": 456,
+        "left": 672
+      }
+    },
+    {
+      "viewport": 320,
+      "width": 288,
+      "scroll": 288,
+      "button": {
+        "x": 189.59375,
+        "y": 698.578125,
+        "width": 61.078125,
+        "height": 28,
+        "top": 698.578125,
+        "right": 250.671875,
+        "bottom": 726.578125,
+        "left": 189.59375
+      },
+      "prompt": {
+        "x": 8,
+        "y": 575.78125,
+        "width": 272,
+        "height": 114.796875,
+        "top": 575.78125,
+        "right": 280,
+        "bottom": 690.578125,
+        "left": 8
+      }
+    }
+  ],
+  "before": {
+    "button": {
+      "x": 1262.921875,
+      "y": 542.796875,
+      "width": 61.078125,
+      "height": 28,
+      "top": 542.796875,
+      "right": 1324,
+      "bottom": 570.796875,
+      "left": 1262.921875
+    },
+    "prompt": {
+      "x": 0,
+      "y": 45,
+      "width": 1334,
+      "height": 78.796875,
+      "top": 45,
+      "right": 1334,
+      "bottom": 123.796875,
+      "left": 0
+    }
+  }
+}

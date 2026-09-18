@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NoaCG SVG import sample 2 of 3 - EVERY FIELD TYPE THE IMPORT CAN PROPOSE.
+       "2" / "1"     -> plain figures, so the mapping step proposes ftype NUMBER
+       "12:00"       -> clock-shaped, so the row offers Text or COUNTDOWN (12 minutes)
+       <image>       -> a picture field: an operator can swap the crest, empty restores this one
+       f: prefix     -> "f:Competition" is marked editable by name (optional sugar)
+       <tspan> pair  -> two notes PLACED APART on one baseline bind as two separate fields
+     Full-frame 1920x1080, transparent background. See docs/SVG_AUTHORING.md. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <style>
+      .sb-team { font-family: Archivo; font-weight: 700; letter-spacing: 2px; }
+      .sb-score { font-family: Archivo; font-weight: 700; }
+      .sb-clock { font-family: 'JetBrains Mono'; font-weight: 500; }
+      .sb-meta { font-family: Inter; font-weight: 500; }
+    </style>
+  </defs>
+
+  <g id="ScoreboardParent" transform="translate(40 30) rotate(5 400 120) scale(0.9)">
+  <g id="Bug">
+    <rect x="660" y="60" width="600" height="86" rx="6" fill="#0d1017" opacity="0.94"/>
+    <rect x="920" y="60" width="80" height="86" fill="#161b24"/>
+    <rect x="660" y="146" width="600" height="34" rx="0" fill="#f6a623"/>
+  </g>
+
+  <g id="Home">
+    <text id="Home_x20_team" data-name="Home team" class="sb-team" x="700" y="116" font-size="34" fill="#ffffff">HJK</text>
+    <text id="Home_x20_score" data-name="Home score" class="sb-score" x="900" y="116" font-size="38" fill="#ffffff" text-anchor="end">2</text>
+  </g>
+
+  <g id="Away">
+    <text id="Away_x20_score" data-name="Away score" class="sb-score" x="1020" y="116" font-size="38" fill="#ffffff">1</text>
+    <text id="Away_x20_team" data-name="Away team" class="sb-team" x="1220" y="116" font-size="34" fill="#ffffff" text-anchor="end">KuPS</text>
+  </g>
+
+  <!-- A clock-shaped readout. The mapping step asks whether it is TEXT (a time of day) or a
+       COUNTDOWN; picked as a countdown, the operator field becomes its length in minutes. -->
+  <text id="Match_x20_clock" data-name="Match clock" class="sb-clock" x="960" y="116" font-size="30" fill="#f6a623" text-anchor="middle">12:00</text>
+
+  <!-- Two notes on ONE baseline, placed at opposite ends of the strip - Illustrator's idiom for
+       a strap that carries a competition and a stage. The GAP between them is what makes them two
+       operator fields: lines of one paragraph sit flush against each other, and would be one.
+       (A text object you pressed Return inside is one field either way - see the quiz sample.) -->
+  <text id="Strap" class="sb-meta" font-size="20" fill="#10131a">
+    <tspan id="f_x3A_Competition" data-name="f:Competition" x="700" y="170">VEIKKAUSLIIGA</tspan>
+    <tspan id="Stage" x="1220" y="170" text-anchor="end">MATCHDAY 21</tspan>
+  </text>
+
+  <!-- A picture layer. One transparent pixel here so the sample stays small; drop a real crest
+       in the editor, or leave the operator field empty to restore whatever the SVG carries. -->
+  <image id="Home_x20_crest" data-name="Home crest" x="668" y="76" width="54" height="54"
+         href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="/>
+</g>
+</svg>
