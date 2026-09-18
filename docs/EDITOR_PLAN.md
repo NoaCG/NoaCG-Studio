@@ -4,7 +4,8 @@ Owner direction, updated 2026-09-18. Planning and mockups only. Product implemen
 hold until the owner explicitly resumes it. This is the single authority for editor scope,
 order and completion. It replaces the delivery roadmap and professional-direction documents.
 Review entry point: [review brief](research/editor-review-brief-2026-09-18.md), including the
-latest interaction study, retained full-workspace design and the questions for a second opinion.
+latest interaction study and retained full-workspace design. Review of d5e8c1db: ready with
+named corrections, now recorded below. Earlier mockups are evidence, not the corrected contract.
 
 ## Destination
 
@@ -47,7 +48,7 @@ workflow. This is the destination; only measured evidence can establish that com
 ## Three journeys
 
 1. Illustrator -> SVG -> existing import wizard -> optional Open in editor -> select real layers -> animate ->
-   scrub/undo/save/reopen -> export/rehearse. First implementation task; direct wizard-to-production remains primary.
+   scrub/undo/save/reopen -> export/rehearse. First complete editing journey after R1.0; direct wizard-to-production remains primary.
 2. Gallery -> Starter Collection or individual graphic -> brand -> choose subset -> customize ->
    install into a new/existing rundown -> rehearse and run. Visible in the revised mockup.
 3. Reopen an imported or templated graphic -> local override or AI edit -> preview -> explicitly
@@ -67,7 +68,8 @@ workflow. This is the destination; only measured evidence can establish that com
   is a distinct operation. Numeric and pointer edits share animation, history and source.
 - Full 2D Anchor X/Y, Position X/Y, linked/unlinked Scale X/Y, turns+degrees Rotation and
   0-100% Opacity. Scrubbable numbers, anchor handle and familiar keyboard controls. Box
-  Width/Height is separate from Scale and preserves SVG layout/text/behavior ownership.
+  Width/Height is separate from Scale. Position shows parent coordinates for placed/absolute/SVG
+  targets and labelled Layout offset for flow-laid catalog lines; source stores runtime values.
 - Per-property stopwatch enables animation; armed edits write keys at the playhead, unarmed
   edits change the base value. Diamond adds/removes the current key. No global Layout/Animate
   mode. An explicit Edit base value action preserves keys on an already animated property.
@@ -75,24 +77,29 @@ workflow. This is the destination; only measured evidence can establish that com
   Full key-side semantics, first/last keys and mixed selections follow the detailed contract.
 - One composition playhead and displayed clock. Markers are In, Step N and Out. Display the
   concatenated effective durations of step-local tracks; live holds are indefinite cue breaks.
-  Every layer has a visible duration bar with trim handles; moving it carries its keys. Bars
-  span cues or snap to a Step start. Explicit cross-cue moves update source ownership safely.
+  Optional per-step spans define visibility sets. Read-only bars arrive in R1.0, body moves
+  with keys in R1.1b, trim without retiming in R1.1d; cross-cue moves follow in R1.2a.
 - Stored time remains speed-relative; effective time = stored time / speed. Frame nudges use
-  document-FPS effective frames. Time unit/zoom changes do not rewrite key data.
+  document-FPS effective frames. Ruler/readout always identify seconds or frames; 1 s = FPS frames. Units/zoom never rewrite keys.
 - Authoring transport seeks/plays finite segments. Rehearsal Take/Next/Out exercises the authored
   sequence locally; production sends those commands live. No States tab, node graph or visual
   logic programming. Existing state-machine playback/source must survive unchanged.
-- Playhead -> Add Out places the wait/exit flag and offers Reverse entrance or manual keys.
-  The reverse prompt opens beside Add Out, stays on screen and supports keyboard focus/Escape.
-  Reversal includes all still-visible In/Next layers. Playback parks at the flag until Out.
-  No duration forms or auto-Out timer in the initial workflow; existing timed behavior survives.
+- Out always marks the end of the last pre-Out segment, including an empty exit. Set Out at
+  playhead moves it; whenever the exit has no keys, offer reverse/manual beside that button.
+  Save/reopen preserves this; one-step In never becomes Out. Before R1.2a's shared Bezier gate,
+  refuse Set Out before the last In key. Interrupted Out tweens from live values to final exit
+  keys with no initial set/jump; simulator and exports use the same upgraded interpreter.
+  Holds remain indefinite. No new auto-Out timer; existing timed behavior survives.
+
 - One completed gesture or operation batch is one undo; Escape cancels exactly. Source/asset
   revision checks reject stale edits and preview replies. Scrubbing causes no operator side effects.
 - Playhead -> Add Step places a flag there. Play parks at it; Next runs to the next flag.
   Additive reveals are authored by snapping layer bars to flags; drag flags/keys to set timing.
-  No compulsory layer chooser. Keep quiz/custom actions intact.
-- Collapsible layer folders and asset bins organize work. Real editable precompositions follow
-  core In/Out and Next in R1.2; they are not folders renamed, and retain field/export parity.
+  No compulsory layer chooser. At a flag edits use the arriving side, except a selected layer
+  whose bar starts there: edit its departing side. Keep quiz/custom actions intact.
+- Folders/bins and a transformable group with parent bar/local ruler are distinct from reusable
+  instanced precompositions. Scope ruling pending: propose groups in R1.2b and named P-COMP
+  after R1.5; existing R1.2 precomp obligation stays until owner approval. Nothing is dropped.
 - New Text is editable in playout by default; honor wizard exclusions and driven fields.
   Stable schema keys survive label changes. OGraf/YLE acceptance includes a named runtime host.
 - Keep Linear, Easy Ease In, Easy Ease Out, Easy Ease and Hold (five choices total). Inspector,
@@ -103,45 +110,48 @@ workflow. This is the destination; only measured evidence can establish that com
 
 ## Release trains
 
-Each train has small verified slices. Only R1 replaces the default editor after owner acceptance;
-R2/R3 extend it. No second permanent editor or separate template-customization product.
+Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No second permanent editor or separate template-customization product.
 
 | Train / slice | Deliverable and exit demonstration |
 |---|---|
-| R1.1 Simple In/hold/Out and SVG handoff | FIRST: text + box, off-canvas start key, canvas drag at 1 s creates the second key; Canvas text/rectangle/ellipse creation and scale handles, visible layer bars with move/trim, Add Out at playhead, reverse/manual exit, indefinite hold and playout parity (B13 basic portion). Wizard Finish -> Edit without Advanced-mode hunting; imported layer identity, nested transforms, 2D transform/anchor foundations, wizard behavior/field preservation, first keys, revision-safe preview and one undo/cancel. Complete B01-B03/B05 on the nominated Illustrator-style fixture before widening tools. Measure B11 here. |
-| R1.2 Everyday animation | Professional workspace, complete 2D transform controls, text/style/assets/shapes, independent tracks, five key-side ease choices, snapping/copy/nudge, draggable Step flags and layer bars, named reveals/Next, folders/bins then real precompositions, local loops and rehearsal/export parity. Repeat on catalog source. B02-B07/B13 and the local-loop part of B14. |
-| R1.3 Shared AI and source round-trip | Grounded helper, bounded text/style/base/key/timing edits, free-service limits and BYOK, CLI-created editable source, cancel/conflict/undo. Small real-model quality evaluation before offering the helper; deterministic fixtures alone are insufficient. B17/B18 core. |
-| R1.4 Templates, brands and rundown | Visible gallery/category discovery, curated set/subset, shared brand application and overrides, per-item customization, durable installation/retry/revert, rehearsal. Add brand operations to the shared registry. B08-B10. |
-| R1.5 Acceptance and default switch | First-time users complete both priority journeys, performance and clean-host/real-output checks pass, owner accepts. Only then retire old editing interactions; keep compatible runtime/source behavior. |
-| R2.1 Lottie | Import/profile report, trim/native FPS/speed, marker or manual In/loop/Out ranges, deterministic reverse seek, interruption and locally bundled exports. B14 Lottie portion. |
-| R2.2 Paint and composable effects | Linear/radial gradients, path/alpha masks, ordered blur/shadow/colour adjustment, supported parameter animation and target parity. B15. Extend shared AI tools for these operations. |
-| R3.1 Structured live graphics | Recursive GDD fields/bindings, array-driven prototype collections, JSON feed validation/staleness and recorded replay, target-specific mappings. B16. |
-| R3.2 Complete co-authoring | Paired live-document MCP bridge, concurrent edits, all shipped capabilities exposed through shared tools, broader model evaluations. B17/B18 full. Optional supported subscription-agent adapters remain separate spikes. |
+| R1.0 Foundation | Flagged route on preview deployments: professional shell, selection, read-only bars, scrub, operation registry/history, preview protocol and latency harness. Record D01-D05 decisions before starting; tests close in their assigned slices. B01/B02/B11/B13 foundation only. |
+| R1.1a Base edits and tools | Wizard Finish -> optional Edit; source-backed Position/Layout offset, text/rectangle/ellipse creation and basic scaling. B01/B03/B04 core; keep wizard behavior/fields. |
+| R1.1b Keys and bar moves | Text + box: off-canvas first key, move playhead 1 s, canvas drag creates second key; visible spans and bar-body moves carry keys. B05/B13 key/bar portions; no trim UI yet. |
+| R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
+| R1.1d Fidelity and trim | Nested Illustrator/catalog fixtures, stable IDs on first SVG edit, span trimming, two first-time users on the basic journey; B01-B05/B11/B13 applicable portions. |
+| R1.2a Animation | Shared Bezier string/evaluator gate, exact curve splits, full transform animation/easing, key gestures, Step/Next, cue-side editing and cross-cue bars/keys. B03/B05-B07/B13. |
+| R1.2b Everyday tools and grouping | E05-E07/B04: typography/fit, images/assets, full canvas tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins, group transform/parent bar/local ruler. Reusable precomp scope pending as above. |
+| R1.2c Loops | Local loops, interruption/replay, legacy behavior and output parity. B07/B13/B14 local-loop portion. |
+| R1.3 Shared AI and source round-trip | Grounded helper, bounded edits, budgeted free tier/BYOK and CLI round-trip through shared operations; real-model evaluation, conflict/cancel/undo. B17/B18 core. |
+| R1.4 Templates, brands and rundown | Gallery/curated set, Home brands/overrides, subset customization and durable installation/retry/revert/rehearsal. B08-B10. May run in parallel from R1.1c on the stable registry; does not require R1.2/R1.3. |
+| R1.5 Acceptance and default switch | Comparative/user/performance and real-host checks, GSAP licence clarification, owner acceptance; then replace default editing interactions while preserving runtime/source behavior. |
+| P-COMP (proposed after R1.5) | Named task for instanced reusable precompositions: definition/instance ownership, editable local timelines, field IDs/overrides, cycles, history/save/export parity. Scheduling requires the pending scope ruling; remains required for full completion. |
+| R2.1 Lottie | Profile/import, native FPS/speed, trims, In/loop/Out ranges, reverse seek, interruption, bundled exports. B14 Lottie portion. |
+| R2.2 Paint and effects | Gradients, masks, ordered effects, supported animation, AI operations and target parity. B15. |
+| R3.1 Structured live graphics | Recursive GDD fields/bindings, arrays/collections, validated feeds, staleness/replay and target mappings. B16. |
+| R3.2 Complete co-authoring | Paired live-document MCP, concurrent edits, all shipped tools and broader model evaluations. B17/B18 full. Subscription-agent adapters remain separate spikes. |
 
 Node-graph authoring is outside R1-R3. Preserve code, schema, tests and lessons under the
 [deferred node-editor record](research/editor-node-editor-deferred-2026-09-17.md). A future
 proposal needs a clear user task and owner scope decision. This hold does not remove existing
 runtime behaviors or rewrite the separate P2 research programme.
 
-Native Lottie path editing, full vector/path drawing, motion paths, expressions,
-arbitrary reparenting, automatic brand propagation and general-purpose package
-authoring remain deferred. Existing imported gradients/masks must retain fidelity in R1 even
+Native Lottie path editing, full vector/path drawing, motion paths, expressions, arbitrary reparenting, automatic brand propagation and general-purpose package authoring remain deferred. Existing imported gradients/masks must retain fidelity in R1 even
 though creating/editing those effects arrives in R2. New loops are required in R1.
 
 ## Coverage register
 
-Existing E and B identities are retained. Split rows close only when every required portion
-has passed. Optional E18/B12 never blocks release if Monaco is omitted.
+Existing E/B identities are retained; split rows close only when all portions pass. Optional E18/B12 never blocks release if Monaco is omitted.
 
 | Requirement | Release / evidence |
 |---|---|
-| E01 entry and return | R1.1, R1.4 / B01, B08 |
-| E02 layers, hierarchy, selection and lock | R1.1-R1.2 / B02 |
-| E03 fit/zoom/pan/panels | R1.1-R1.2 / B01, B02, B11 |
+| E01 entry and return | R1.0 route; R1.1a handoff; R1.4 gallery / B01, B08 |
+| E02 layers, hierarchy, selection and lock | R1.0 selection; R1.1d fidelity; R1.2b tools / B02 |
+| E03 fit/zoom/pan/panels | R1.0-R1.2 / B01, B02, B11 |
 | E04 base transforms, pivot and parent coordinates | R1.1-R1.2 / B03 |
-| E05 typography/content/fit | R1.1-R1.2 / B04 |
-| E06 text/shapes/images and asset replacement | R1.1 core tools; R1.2 full / B04 |
-| E07 duplicate/delete/reorder/align/distribute/group movement | R1.2 / B02, B04 |
+| E05 typography/content/fit | R1.2b / B04 |
+| E06 text/shapes/images and asset replacement | R1.1a core; R1.2b full / B04 |
+| E07 duplicate/delete/reorder/align/distribute/group movement | R1.2b / B02, B04 |
 | E08 per-property animation, diamonds and deterministic seek | R1.1-R1.2 / B05 |
 | E09 multi-key retime/copy/snap/zoom/nudge | R1.2 / B06 |
 | E10 easing and Hold parity | R1.1-R1.2 / B05, B06 |
@@ -157,12 +167,10 @@ has passed. Optional E18/B12 never blocks release if Monaco is omitted.
 | E20 gradient/mask/effect authoring | R2.2 / B15; preserve imported appearance in R1 |
 | E21 structured/live data and runtime collections | R3.1 / B16; preserve current fields in R1 |
 | E22 embedded free basic AI/BYOK editing | R1.3 core, R1.4 brands, R2-R3 extensions / B18 |
-| E23 shared UI/CLI/MCP and editable round-trip | R1.1 registry, R1.3 CLI, R3.2 paired bridge / B17 |
-| E24 professional timeline, direct playhead and Out triggers | R1.1-R1.2 / B13 |
+| E23 shared UI/CLI/MCP and editable round-trip | R1.0 registry, R1.3 CLI, R3.2 paired bridge / B17 |
+| E24 professional timeline, direct playhead and Out triggers | R1.0 scrub; R1.1b-d core; R1.2a/c Next/loops / B13 |
 
-Exact tasks B01-B18, per-slice outstanding evidence and source fixtures are in the
-[acceptance register](research/editor-acceptance-register-2026-09-17.md). This is the one live
-task ledger; historical receipts retain their original dates/results and no longer govern order.
+The [acceptance register](research/editor-acceptance-register-2026-09-17.md) is the live B01-B18 task/evidence ledger, including D01-D05 closing tests and later gates. Historical receipts do not govern order.
 
 ## Baseline closure and acceptance
 
@@ -172,15 +180,14 @@ sampler mismatch, F4 stress inputs and F5 source-preservation inputs. The 120 se
 40 scrub observations are diagnostic; they do not establish input-to-pixel latency.
 
 Assign remaining paired B02-B07 walks, transform fixtures, performance instrumentation and
-owner blank-stage reproduction to R1.1-R1.2. Human task walks belong to R1.5, with earlier
-feedback at slice exits. Lottie/data/agent fixtures belong to R2/R3. Nothing unmeasured becomes
+owner blank-stage reproduction to R1.0-R1.2. Two first-time users test R1.1d; fuller adoption
+walks repeat at R1.5, with owner feedback at every slice exit. Lottie/data/agent fixtures belong to R2/R3. Nothing unmeasured becomes
 a pass. Closing the planning inventory does not release the owner's implementation hold.
 
 For every slice, demonstrate the end-to-end user task and refusal case, source/pixel agreement,
 undo/cancel, save/reopen and relevant exports. Use mapped browser checks through the queue,
 build/lint, and critical 1366x768/1920x1080 review. Keep the canvas visible at 125% browser zoom.
-Target selection feedback <=100 ms, continuous visible feedback >=30 Hz on F4, no visible
-freeze >100 ms, and final pointer-up pose <=150 ms; record machine and distributions.
+Target selection feedback <=100 ms, visible feedback >=30 Hz on F4, no freeze >100 ms, final pointer-up pose <=150 ms; record machine and distributions.
 
 R1 adoption requires the imported-SVG primary task and template-to-rundown task, including
 2-3 first-time users: ordinary edits within one minute each; keyframe task and collection
@@ -199,7 +206,7 @@ Before each slice, record its prerequisites, exact user task, affected code seam
 non-goals, failure/rollback cases and mapped verification. Split it again if one review cannot
 demonstrate a coherent outcome; later trains also need this breakdown before work starts.
 Do not postpone foundational correctness until a later evidence slice: R1.1a/b must already
-prove the transforms, timing and source transactions they use; R1.1c broadens that proof.
+prove the transforms, timing and source transactions they use; R1.1d broadens that proof.
 
 At each slice exit, provide a runnable route/fixture, a short numbered walkthrough with expected
 results, screenshots or a recording, exact branch/commit, automated evidence and known limits.
@@ -212,36 +219,31 @@ The default-editor switch and full-scope acceptance remain explicit owner decisi
 
 Update the E/B ledger and slice handoff at each checkpoint: completed evidence, remaining gaps,
 feedback, decisions and exact next task. Do not mark a whole release complete from one demo.
-A new session resumes these records and the actual branch state, not conversational memory.
+New sessions resume these records and the actual branch state.
 
 ## Completion and continuation
 
 | Work | State |
 |---|---|
 | Planning inventory | Closed by classification; evidence gaps assigned, not passed |
-| Consolidated scope and revised mockups | Ready for owner review and second opinion; authorized for branch commit/push |
-| R1.1-R1.5 | Not started; existing import/runtime/Home brand foundations retained |
+| Consolidated scope and revised mockups | Review corrections recorded; group/precomp scope ruling pending; mockups remain historical |
+| R1.0-R1.5 / P-COMP | Not started; existing import/runtime/Home brand foundations retained; P-COMP schedule pending |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 | Product implementation permission | On hold |
 
-The next action is owner review and an independent second opinion on this planning package. No product work
-starts automatically after a planning commit, merge or green build. Once authorized, each
-slice gets a bounded branch, evidence and handoff; CI/review precedes the normal merge queue.
+The next action is the group/precomp scope ruling, then explicit implementation authorization. A planning commit/merge/build does not start product work. Each authorized slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
 
-Read [animation and preview contract](EDITOR_REBUILD_PLAN.md) and
-[collections/brand contract](STARTER_COLLECTIONS_PLAN.md) for mechanisms, not duplicate roadmaps.
+Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived
-plans, references and decisions. Studio helpers remain research input; write our own helpers.
+plans, references and decisions. Write our own helpers: third-party AGPL code would remove
+sole-holder freedom to dual-license the combined work without additional rights. Project policy
+prohibits that code in the Apache CLI or emitted packages; see the mechanism's licence gates.
 
-[Revised mockup](research/editor-consolidated-proposal-2026-09-17/README.md): SVG workspace,
-template gallery, brand/set selection and named reveal timeline. Design evidence only.
-
-[Adobe/SVG/OGraf comparison](research/editor-adobe-svg-contract-2026-09-18.md) records the
-current-code audit and corrected interactions. [Transform interaction study](research/editor-transform-proposal-2026-09-18/README.md)
-retains the full transform and optional wizard Finish design; its cue forms are superseded below.
-
-The [timeline-first correction](research/editor-timeline-first-2026-09-18.md) supersedes the
-previous mockup's Add step/Edit Out forms. Basic In -> hold -> Out is the first acceptance
-task; timeline flags, visible layer bars and canvas-driven keys are fundamental, not polish.
+[Workspace/gallery](research/editor-consolidated-proposal-2026-09-17/README.md),
+[Adobe/SVG audit](research/editor-adobe-svg-contract-2026-09-18.md),
+[transform study](research/editor-transform-proposal-2026-09-18/README.md) and
+[timeline study](research/editor-timeline-first-2026-09-18.md) remain design evidence.
+The corrected permanent Out, Set Out, phase ordering and ruler contract above supersede
+conflicting mockup labels/behavior; updating those prototypes is not part of this docs-only change.
