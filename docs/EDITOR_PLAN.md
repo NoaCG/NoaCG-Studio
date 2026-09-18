@@ -192,6 +192,28 @@ machine. R1 is not full-scope Studio parity. Overall completion requires all req
 portions through R3, comparable quality and a demonstrated creation-to-production advantage.
 Retain a real CasparCG/output receipt; browser playback alone is not hardware acceptance.
 
+## Step-by-step delivery and owner feedback
+
+Use the ordered sub-slices in the [review brief](research/editor-review-brief-2026-09-18.md).
+Before each slice, record its prerequisites, exact user task, affected code seams, E/B coverage,
+non-goals, failure/rollback cases and mapped verification. Split it again if one review cannot
+demonstrate a coherent outcome; later trains also need this breakdown before work starts.
+Do not postpone foundational correctness until a later evidence slice: R1.1a/b must already
+prove the transforms, timing and source transactions they use; R1.1c broadens that proof.
+
+At each slice exit, provide a runnable route/fixture, a short numbered walkthrough with expected
+results, screenshots or a recording, exact branch/commit, automated evidence and known limits.
+Put product-visible work in its own owner-queue file. Invite owner testing at every step; record
+"awaiting owner review" separately from engineering verification. Feedback is welcome whenever
+the owner is available, but the team must catch ordinary defects without relying on the owner.
+Independent work may continue after implementation authorization; dependent work cannot rely on
+a failed contract. Resolve feedback that changes a dependency before building on that assumption.
+The default-editor switch and full-scope acceptance remain explicit owner decisions.
+
+Update the E/B ledger and slice handoff at each checkpoint: completed evidence, remaining gaps,
+feedback, decisions and exact next task. Do not mark a whole release complete from one demo.
+A new session resumes these records and the actual branch state, not conversational memory.
+
 ## Completion and continuation
 
 | Work | State |
