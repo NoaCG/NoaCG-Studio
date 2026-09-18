@@ -1,0 +1,19 @@
+{
+ "id": "j-1348",
+ "kind": "sweep",
+ "command": "node C:/Users/ahonemi/.codex/visualizations/2026/09/13/01a09c14-d153-7960-aadf-a5c103191ba6/canvas-inspection.mjs",
+ "checkout": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-baseline-design\\NoaCG-Studio",
+ "branch": "codex/editor-baseline-design",
+ "after": [],
+ "capMinutes": 4,
+ "retryOf": null,
+ "retryCount": 0,
+ "cost": 0.5,
+ "enqueuedAt": 1789717784408,
+ "state": "done",
+ "startedAt": 1789717793135,
+ "finishedAt": 1789717796981,
+ "exitCode": 0,
+ "pid": 36392,
+ "logPath": "C:\\claude\\NoaCG-Studio\\.git\\noacg-jobs\\logs\\j-1348.log"
+}

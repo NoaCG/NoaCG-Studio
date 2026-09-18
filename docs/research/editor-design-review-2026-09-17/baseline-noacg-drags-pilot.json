@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-17T16:26:25.012Z",
+  "actions": [],
+  "gestures": [
+    {
+      "editor": "noacg",
+      "width": 1366,
+      "drags": [
+        {
+          "start": 1789662394505,
+          "end": 1789662398239,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "8be94d2d7b93b4ceaee5c2a2b5fdbcb405a68fc23c2e85c2aba6b2e96dc16872",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        }
+      ],
+      "error": "TimeoutError: locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('inspector-part-label') to be visible\u001b[22m\n"
+    },
+    {
+      "editor": "noacg",
+      "width": 1920,
+      "drags": [
+        {
+          "start": 1789662413953,
+          "end": 1789662417657,
+          "before": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "after": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "undo": "0bdddbff1546f6e2ed3ec62e6caaa6e4dda05619baa271239a577e6eafce6906",
+          "redo": "f0faae3d878a68ce29cf98f02f13072216d10772e7943243b43240cd147f2935",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        }
+      ],
+      "error": "TimeoutError: locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('inspector-part-label') to be visible\u001b[22m\n"
+    }
+  ]
+}

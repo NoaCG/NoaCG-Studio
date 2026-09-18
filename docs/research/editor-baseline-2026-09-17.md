@@ -1,5 +1,9 @@
 # Editor baseline: evidence and repeatable acceptance tasks
 
+> Historical receipt. Current decisions/order: [EDITOR_PLAN.md](../EDITOR_PLAN.md).
+> M0 inventory is closed; outstanding evidence lives in the [acceptance register](editor-acceptance-register-2026-09-17.md).
+> Old phase gates and superseded UI proposals below are preserved as history only.
+
 Date: 2026-09-17. Planning/source baseline for the
 [unified roadmap](../EDITOR_DELIVERY_ROADMAP.md). **Not a completed usability or performance
 baseline.** Product implementation is paused by the owner pending clarity and review.
@@ -225,3 +229,22 @@ font readiness and missing assets must be checked in a fresh host without editor
 The planning documents may be reviewed and committed while these evidence items remain open.
 **M0 is not complete and M1 is not authorized by this receipt.** The next session must finish
 the pending baseline work rather than jump to brand application or a timeline rewrite.
+
+## Additional review evidence, 2026-09-17
+
+Read the [baseline supplement](editor-design-review-2026-09-17/baseline-supplement.md) for
+actual default catalog/SVG entry observations, reference-editor screenshots, fixed stress
+fixtures, sampling limitations and the mockup checks. It updates the evidence ledger without
+turning partial tasks or automated scripts into human acceptance. M0 remains open.
+
+B12 is conditional on shipping optional Monaco (roadmap E18): edit CSS in Monaco, move the same title visually, add an opacity
+key, apply a brand logo, undo all four in order, redo, save/reopen and export. Exercise invalid
+JS and an external code edit during a gesture. It is not an implementation-entry or whole-editor blocker when Monaco is deferred. The new
+combined transaction is not implemented and B12 is not passed by retaining the dependency.
+
+The owner rejected the first mockup on 2026-09-17. Read the revised
+[professional direction](../EDITOR_PROFESSIONAL_DIRECTION.md) for required B13-B18: direct
+playhead/Out triggers, Lottie/loops, gradients/masks/effects, structured live data, CLI/MCP
+round-trip and embedded AI. These new cases are specified but NOT measured. Add their fixed
+fixtures and classify current capability before closing M0; do not reinterpret older stress
+measurements as their acceptance.

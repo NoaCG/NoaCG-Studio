@@ -1,0 +1,32 @@
+[
+  {
+    "path": "components/numericScrub.ts",
+    "lines": 46,
+    "sha256": "a14a618b033e141d58ac2fb9613ebdea96a2dc445af2fd6482c1a8237ef88574"
+  },
+  {
+    "path": "canvas/stageZoom.ts",
+    "lines": 49,
+    "sha256": "cc96311cb0f763104b2eeb27b63f3dd0c22bcb45d18b5b48c8f04e5f82494a92"
+  },
+  {
+    "path": "canvas/canvasRuler.ts",
+    "lines": 58,
+    "sha256": "65027db87a4bc8d7f831c6a182f35e67993acb6e13f7a3428a3164aab5b83dc6"
+  },
+  {
+    "path": "canvas/axisConstrainedDrag.ts",
+    "lines": 19,
+    "sha256": "bfdf32dac7a199212ea0cf6e0b5f5785a0d7b4c6fe189d31e100fdf40e288580"
+  },
+  {
+    "path": "panels/timelineFormatting.ts",
+    "lines": 41,
+    "sha256": "4406553d8e1e070a60fc25577d50d27c2720cc6c133b43af5f5aefb8c38ca053"
+  },
+  {
+    "path": "panels/timelineGutterResize.ts",
+    "lines": 16,
+    "sha256": "1bbdd836603b00744a228aa9d155e9f2651cd37a2cb65b21c978fef20309547d"
+  }
+]

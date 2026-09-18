@@ -1,0 +1,472 @@
+{
+  "kind": "design-prototype-only",
+  "errors": [],
+  "layouts": [
+    {
+      "viewport": 1920,
+      "width": 1888,
+      "scrollWidth": 1888,
+      "height": 1032.890625,
+      "canvas": {
+        "x": 294,
+        "y": 111.390625,
+        "width": 1270,
+        "height": 582.671875,
+        "top": 111.390625,
+        "right": 1564,
+        "bottom": 694.0625,
+        "left": 294
+      },
+      "timeline": {
+        "x": 0,
+        "y": 735,
+        "width": 1888,
+        "height": 270.890625,
+        "top": 735,
+        "right": 1888,
+        "bottom": 1005.890625,
+        "left": 0
+      },
+      "boxes": {
+        ".ed-center": {
+          "rect": {
+            "x": 270,
+            "y": 45,
+            "width": 1318,
+            "height": 690,
+            "top": 45,
+            "right": 1588,
+            "bottom": 735,
+            "left": 270
+          },
+          "minHeight": "0px",
+          "height": "690px",
+          "position": "static",
+          "flex": "0 1 auto"
+        },
+        ".ed-stage-area": {
+          "rect": {
+            "x": 270,
+            "y": 85.390625,
+            "width": 1318,
+            "height": 623.671875,
+            "top": 85.390625,
+            "right": 1588,
+            "bottom": 709.0625,
+            "left": 270
+          },
+          "minHeight": "0px",
+          "height": "623.672px",
+          "position": "relative",
+          "flex": "1 1 0%"
+        },
+        ".ed-stage": {
+          "rect": {
+            "x": 294,
+            "y": 111.390625,
+            "width": 1270,
+            "height": 582.671875,
+            "top": 111.390625,
+            "right": 1564,
+            "bottom": 694.0625,
+            "left": 294
+          },
+          "minHeight": "0px",
+          "height": "582.672px",
+          "position": "absolute",
+          "flex": "0 1 auto"
+        },
+        ".ed-right": {
+          "rect": {
+            "x": 1588,
+            "y": 45,
+            "width": 300,
+            "height": 690,
+            "top": 45,
+            "right": 1888,
+            "bottom": 735,
+            "left": 1588
+          },
+          "minHeight": "0px",
+          "height": "690px",
+          "position": "static",
+          "flex": "0 1 auto"
+        },
+        ".ed-inspector": {
+          "rect": {
+            "x": 1589,
+            "y": 240.875,
+            "width": 299,
+            "height": 214.828125,
+            "top": 240.875,
+            "right": 1888,
+            "bottom": 455.703125,
+            "left": 1589
+          },
+          "minHeight": "0px",
+          "height": "214.828px",
+          "position": "static",
+          "flex": "0 1 auto"
+        }
+      }
+    },
+    {
+      "viewport": 1366,
+      "width": 1334,
+      "scrollWidth": 1334,
+      "height": 757.890625,
+      "canvas": {
+        "x": 24,
+        "y": 111.390625,
+        "width": 1006,
+        "height": 307.671875,
+        "top": 111.390625,
+        "right": 1030,
+        "bottom": 419.0625,
+        "left": 24
+      },
+      "timeline": {
+        "x": 0,
+        "y": 460,
+        "width": 1334,
+        "height": 270.890625,
+        "top": 460,
+        "right": 1334,
+        "bottom": 730.890625,
+        "left": 0
+      },
+      "boxes": {
+        ".ed-center": {
+          "rect": {
+            "x": 0,
+            "y": 45,
+            "width": 1054,
+            "height": 415,
+            "top": 45,
+            "right": 1054,
+            "bottom": 460,
+            "left": 0
+          },
+          "minHeight": "0px",
+          "height": "415px",
+          "position": "static",
+          "flex": "0 1 auto"
+        },
+        ".ed-stage-area": {
+          "rect": {
+            "x": 0,
+            "y": 85.390625,
+            "width": 1054,
+            "height": 348.671875,
+            "top": 85.390625,
+            "right": 1054,
+            "bottom": 434.0625,
+            "left": 0
+          },
+          "minHeight": "0px",
+          "height": "348.672px",
+          "position": "relative",
+          "flex": "1 1 0%"
+        },
+        ".ed-stage": {
+          "rect": {
+            "x": 24,
+            "y": 111.390625,
+            "width": 1006,
+            "height": 307.671875,
+            "top": 111.390625,
+            "right": 1030,
+            "bottom": 419.0625,
+            "left": 24
+          },
+          "minHeight": "0px",
+          "height": "307.672px",
+          "position": "absolute",
+          "flex": "0 1 auto"
+        },
+        ".ed-right": {
+          "rect": {
+            "x": 1054,
+            "y": 45,
+            "width": 280,
+            "height": 415,
+            "top": 45,
+            "right": 1334,
+            "bottom": 460,
+            "left": 1054
+          },
+          "minHeight": "0px",
+          "height": "415px",
+          "position": "static",
+          "flex": "0 1 auto"
+        },
+        ".ed-inspector": {
+          "rect": {
+            "x": 1055,
+            "y": 240.875,
+            "width": 279,
+            "height": 214.828125,
+            "top": 240.875,
+            "right": 1334,
+            "bottom": 455.703125,
+            "left": 1055
+          },
+          "minHeight": "0px",
+          "height": "214.828px",
+          "position": "static",
+          "flex": "0 1 auto"
+        }
+      }
+    },
+    {
+      "viewport": 1024,
+      "width": 992,
+      "scrollWidth": 992,
+      "height": 757.890625,
+      "canvas": {
+        "x": 24,
+        "y": 111.390625,
+        "width": 704,
+        "height": 307.671875,
+        "top": 111.390625,
+        "right": 728,
+        "bottom": 419.0625,
+        "left": 24
+      },
+      "timeline": {
+        "x": 0,
+        "y": 460,
+        "width": 992,
+        "height": 270.890625,
+        "top": 460,
+        "right": 992,
+        "bottom": 730.890625,
+        "left": 0
+      },
+      "boxes": {
+        ".ed-center": {
+          "rect": {
+            "x": 0,
+            "y": 45,
+            "width": 752,
+            "height": 415,
+            "top": 45,
+            "right": 752,
+            "bottom": 460,
+            "left": 0
+          },
+          "minHeight": "0px",
+          "height": "415px",
+          "position": "static",
+          "flex": "0 1 auto"
+        },
+        ".ed-stage-area": {
+          "rect": {
+            "x": 0,
+            "y": 85.390625,
+            "width": 752,
+            "height": 348.671875,
+            "top": 85.390625,
+            "right": 752,
+            "bottom": 434.0625,
+            "left": 0
+          },
+          "minHeight": "0px",
+          "height": "348.672px",
+          "position": "relative",
+          "flex": "1 1 0%"
+        },
+        ".ed-stage": {
+          "rect": {
+            "x": 24,
+            "y": 111.390625,
+            "width": 704,
+            "height": 307.671875,
+            "top": 111.390625,
+            "right": 728,
+            "bottom": 419.0625,
+            "left": 24
+          },
+          "minHeight": "0px",
+          "height": "307.672px",
+          "position": "absolute",
+          "flex": "0 1 auto"
+        },
+        ".ed-right": {
+          "rect": {
+            "x": 752,
+            "y": 45,
+            "width": 240,
+            "height": 415,
+            "top": 45,
+            "right": 992,
+            "bottom": 460,
+            "left": 752
+          },
+          "minHeight": "0px",
+          "height": "415px",
+          "position": "static",
+          "flex": "0 1 auto"
+        },
+        ".ed-inspector": {
+          "rect": {
+            "x": 753,
+            "y": 240.875,
+            "width": 239,
+            "height": 214.828125,
+            "top": 240.875,
+            "right": 992,
+            "bottom": 455.703125,
+            "left": 753
+          },
+          "minHeight": "0px",
+          "height": "214.828px",
+          "position": "static",
+          "flex": "0 1 auto"
+        }
+      }
+    },
+    {
+      "viewport": 320,
+      "width": 288,
+      "scrollWidth": 288,
+      "height": 1292.015625,
+      "canvas": {
+        "x": 24,
+        "y": 230.890625,
+        "width": 240,
+        "height": 129,
+        "top": 230.890625,
+        "right": 264,
+        "bottom": 359.890625,
+        "left": 24
+      },
+      "timeline": {
+        "x": 0,
+        "y": 837.46875,
+        "width": 288,
+        "height": 411.671875,
+        "top": 837.46875,
+        "right": 288,
+        "bottom": 1249.140625,
+        "left": 0
+      },
+      "boxes": {
+        ".ed-center": {
+          "rect": {
+            "x": 0,
+            "y": 134.109375,
+            "width": 288,
+            "height": 292.65625,
+            "top": 134.109375,
+            "right": 288,
+            "bottom": 426.765625,
+            "left": 0
+          },
+          "minHeight": "0px",
+          "height": "292.656px",
+          "position": "static",
+          "flex": "0 1 auto"
+        },
+        ".ed-stage-area": {
+          "rect": {
+            "x": 0,
+            "y": 204.890625,
+            "width": 288,
+            "height": 170,
+            "top": 204.890625,
+            "right": 288,
+            "bottom": 374.890625,
+            "left": 0
+          },
+          "minHeight": "170px",
+          "height": "170px",
+          "position": "relative",
+          "flex": "1 1 0%"
+        },
+        ".ed-stage": {
+          "rect": {
+            "x": 24,
+            "y": 230.890625,
+            "width": 240,
+            "height": 129,
+            "top": 230.890625,
+            "right": 264,
+            "bottom": 359.890625,
+            "left": 24
+          },
+          "minHeight": "0px",
+          "height": "129px",
+          "position": "absolute",
+          "flex": "0 1 auto"
+        },
+        ".ed-right": {
+          "rect": {
+            "x": 0,
+            "y": 426.765625,
+            "width": 288,
+            "height": 410.703125,
+            "top": 426.765625,
+            "right": 288,
+            "bottom": 837.46875,
+            "left": 0
+          },
+          "minHeight": "0px",
+          "height": "410.703px",
+          "position": "static",
+          "flex": "0 1 auto"
+        },
+        ".ed-inspector": {
+          "rect": {
+            "x": 0,
+            "y": 622.640625,
+            "width": 288,
+            "height": 214.828125,
+            "top": 622.640625,
+            "right": 288,
+            "bottom": 837.46875,
+            "left": 0
+          },
+          "minHeight": "0px",
+          "height": "214.828px",
+          "position": "static",
+          "flex": "0 1 auto"
+        }
+      }
+    }
+  ],
+  "checks": {
+    "no overflow 1920": true,
+    "canvas above timeline 1920": true,
+    "no overflow 1366": true,
+    "canvas above timeline 1366": true,
+    "no overflow 1024": true,
+    "canvas above timeline 1024": true,
+    "no overflow 320": true,
+    "canvas above timeline 320": true,
+    "initial SVG artwork present": true,
+    "no global mode": true,
+    "Next reveals detail": true,
+    "direct scrub": true,
+    "scrub samples hidden reveal": true,
+    "effective frame nudge": true,
+    "armed edit creates current key": true,
+    "undo value": true,
+    "property base scope": true,
+    "local loop keeps canvas": true,
+    "source dock keeps canvas": true,
+    "visible category gallery": true,
+    "Home brand preview": true,
+    "selected set rundown preview": true,
+    "gallery fits dock": true,
+    "category selection": true,
+    "logo template distinct": true,
+    "screen template distinct": true,
+    "no runtime errors": true
+  },
+  "browser": "149.0.7827.55",
+  "galleryBounds": {
+    "dock": 460,
+    "content": 447.984375
+  }
+}

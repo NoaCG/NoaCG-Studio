@@ -1,0 +1,270 @@
+{
+  "at": "2026-09-17T16:23:44.031Z",
+  "actions": [
+    {
+      "name": "default SVG mapping",
+      "text": "NoaCG\nSTUDIO\n·\nImport graphic\n· Imported SVG design\nHome\n+ New graphic\nSTEP 3 / 5\n✕\n✓\nStart\nChoose mode\n✓\nDesign\nYour artwork\n3\nFields\nMap text layers\n4\nAnimation\nIn & out motion\n5\nFinish\nName & save\n\nPROJECT FORMAT\n\n16:9 · 1920×1080 · 25 fps\n\nChange ▾\nHJK\n2\n1\nKuPS\n12:00\nVEIKKAUSLIIGA MATCHDAY 21\nChoose what the operator can change\n\nTick what can be retyped. Hover a row to see it in the preview.\n\nEDITABLE TEXT\n7 of 7 editable on air\nⓘ\n\nBlack plate\ngets wider\ngets wider, then taller\ngets taller\nstays as drawn\n\nFIELD NAME\nTEXT\nALIGNED left, middle\nFIELD NAME\nTEXT (NUMBER)\nALIGNED right, middle\nFIELD NAME\nTEXT (NUMBER)\nALIGNED right, middle\nFIELD NAME\nTEXT\nALIGNED right, middle\nFIELD NAME\nTEXT\nALIGNED centred, middle\nBINDS AS\nText\nCountdown\n\nOrange plate\ngets wider\ngets wider, then taller\ngets taller\nstays as drawn\n\nFIELD NAME\nTEXT\nALIGNED left, middle\nFIELD NAME\nTEXT\nALIGNED right, middle\nADD A FIELD\nnothing added\nⓘ\n＋ Draw a field on the artwork\nWHAT IT DOES\n2 numbers, each with + and −\nⓘ\nBEHAVIOUR\nNothing extra. The number layers already get + and −.\nQuiz. Select an answer, lock it in, reveal it.\nLive vote. The room votes; the bars move; you show the result.\nScore tracker. A point per press, per team, and a new game.\nCountdown. It starts on air; you hold it, let it go, reset it.\nMeter. A bar that fills toward a target as the figure the operator types goes up.\nAlert. It plays, holds for eight seconds, and takes itself off - or Next takes it off sooner.\nSurvey board. Reveal the answers in any order, count the strikes, and the round total adds itself up.\nStepped list. Entries revealed one per Next press, from the last number down to one.\nLineup. The guest who is on now lit, the ones already on dimmed, and Next moves along the list.\nPuzzle board. A phrase over the tiles you drew; letters appear as you reveal them, and Solve shows the rest.\nReveal. Text you type stays sealed behind the cover you drew until one press reveals it.\nBingo caller. Every number you drew lights as it is called; the newest is ringed and written large.\nWHEN THE TEXT IS TOO LONG\nevery box stays the size you drew — read from your artwork\nⓘ\n\nEvery box stays the size you drew, so nothing on this graphic moves.\n\nPICTURES\n0 of 1 swappable on air\nⓘ\nFIELD NAME\nTYPEFACES\n3 of 3 embedded in the template\nⓘ\nArchivo\n✓ Bundled with NoaCG\nJetBrains Mono\n✓ Bundled with NoaCG\nInter\n✓ Bundled with NoaCG\n← Back\nCreate project\nNext →\nPROJECT 1920×1080 · 25 FPS\n⌖ ZOOM TO GRAPHIC\n▶ REPLAY\n■ OUT"
+    },
+    {
+      "name": "default SVG finish",
+      "editorDoor": 0
+    },
+    {
+      "name": "SVG into production",
+      "url": "http://127.0.0.1:5291/app#/production/99d29fda-67e4-4f00-9919-5cda36ab7da9",
+      "templateName": "Baseline scorebug",
+      "text": "NoaCG\nSTUDIO\n+ New graphic\n←\nBaseline laboratory\n○ NOT PUBLISHED\n00:00:00\nPlayout\nData\nAudience\n▶ Start production\n Export…\n■ All out\nPREVIEW\nBaseline scorebug\nPROGRAM — ON AIR\nnothing on air\n\nNothing on air\n\n⟳ TAKE\nSPACE\n⟳ Re-take\nR\n✎ Update\nU\n» Next\nN\n■ Out\n0\n○ nothing on air\nSPACE previews first\nEDITING PREVIEW CUE · 1\nchanges air on ⟳ Take\nF0 · Home team\nF1 · Home score\n−\n+\nSTEP\nF2 · Away score\n−\n+\nSTEP\nF3 · Away team\nF4 · Match clock\nF5 · Competition\nF6 · Stage\nOPERATOR NOTE\nPLAYOUT LAYER\n± LIVE NUMBERS act on air\n\nOne press changes the figure on the live graphic and keeps this cue in step — no ✎ Update needed. Typing a value above still stages it for ✎ Update instead.\n\nHome score\n−\n+\nAway score\n−\n+\nCONTROLS\nas the graphic declared them\nActivity\nCue rundown\n1\n＋\n⣿\n1\nBaseline scorebug\nL20 · Imported · Baseline scorebug\nPVW\n⋯\nAdd a graphic from your library…\nBaseline scorebug\n＋ Add\n＋ New graphic for this production…\n＋ Add pictures…"
+    },
+    {
+      "name": "saved SVG production reload",
+      "url": "http://127.0.0.1:5291/app#/production/99d29fda-67e4-4f00-9919-5cda36ab7da9",
+      "text": "NoaCG\nSTUDIO\n+ New graphic\n←\nBaseline laboratory\n○ NOT PUBLISHED\n00:00:00\nPlayout\nData\nAudience\n▶ Start production\n Export…\n■ All out\nPREVIEW\nBaseline scorebug\nPROGRAM — ON AIR\nnothing on air\n\nNothing on air\n\n⟳ TAKE\nSPACE\n⟳ Re-take\nR\n✎ Update\nU\n» Next\nN\n■ Out\n0\n○ nothing on air\nSPACE previews first\nEDITING PREVIEW CUE · 1\nchanges air on ⟳ Take\nF0 · Home team\nF1 · Home score\n−\n+\nSTEP\nF2 · Away score\n−\n+\nSTEP\nF3 · Away team\nF4 · Match clock\nF5 · Competition\nF6 · Stage\nOPERATOR NOTE\nPLAYOUT LAYER\n± LIVE NUMBERS act on air\n\nOne press changes the figure on the live graphic and keeps this cue in step — no ✎ Update needed. Typing a value above still stages it for ✎ Update instead.\n\nHome score\n−\n+\nAway score\n−\n+\nCONTROLS\nas the graphic declared them\nActivity\nCue rundown\n1\n＋\n⣿\n1\nBaseline scorebug\nL20 · Imported · Baseline scorebug\nPVW\n⋯\nAdd a graphic from your library…\nBaseline scorebug\n＋ Add\n＋ New graphic for this production…\n＋ Add pictures…"
+    }
+  ],
+  "gestures": [
+    {
+      "editor": "noacg",
+      "width": 1366,
+      "drags": [],
+      "error": "TimeoutError: locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('inspector-part-label') to be visible\u001b[22m\n"
+    },
+    {
+      "editor": "studio",
+      "width": 1366,
+      "drags": [
+        {
+          "start": 1789662251278,
+          "end": 1789662255705,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662256850,
+          "end": 1789662261292,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662262375,
+          "end": 1789662266843,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662267928,
+          "end": 1789662272341,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662273423,
+          "end": 1789662277805,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662278893,
+          "end": 1789662283171,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662284260,
+          "end": 1789662288507,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662289593,
+          "end": 1789662294020,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662295115,
+          "end": 1789662299387,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662300457,
+          "end": 1789662304672,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "43a91e27f517007374fe22ac9f9a087cbbb5ac86e3af8e3572ff46a5941389fe",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        }
+      ]
+    },
+    {
+      "editor": "noacg",
+      "width": 1920,
+      "drags": [],
+      "error": "TimeoutError: locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('inspector-part-label') to be visible\u001b[22m\n"
+    },
+    {
+      "editor": "studio",
+      "width": 1920,
+      "drags": [
+        {
+          "start": 1789662321789,
+          "end": 1789662326222,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662327412,
+          "end": 1789662331896,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662332971,
+          "end": 1789662337478,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662338585,
+          "end": 1789662343052,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662344149,
+          "end": 1789662348640,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662349740,
+          "end": 1789662354189,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662355274,
+          "end": 1789662359795,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662360871,
+          "end": 1789662365350,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662366439,
+          "end": 1789662370964,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        },
+        {
+          "start": 1789662372077,
+          "end": 1789662376608,
+          "before": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "after": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "undo": "1d1d224639fcfd0dbe0071cf9c4c7f03359a2f70d13508a39ba5c50e0d266dfe",
+          "redo": "61951107ae11668611022ebbcac0453851a0cc2533217a4accd4335326c62aa1",
+          "changed": true,
+          "undoExact": true,
+          "redoExact": true
+        }
+      ]
+    }
+  ]
+}

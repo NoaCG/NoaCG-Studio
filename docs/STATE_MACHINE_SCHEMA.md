@@ -1,5 +1,10 @@
 # The state-machine model (NOACG_ANIM version 2)
 
+Current editor scope is [EDITOR_PLAN.md](EDITOR_PLAN.md): imported SVG animation first,
+templates/brands/rundown in R1, node-graph UI deferred. This file preserves existing runtime,
+import or research knowledge; it does not authorize adding a node editor to the new workspace.
+
+
 The contract for how a graphic's STATES live in the code. Phase 1 of the template-library /
 state-machine / control-layer stage put the model in the schema, the runtime, the serializer
 and the validator; Phase 4 added the NODE EDITOR on top (the machine graph surface,

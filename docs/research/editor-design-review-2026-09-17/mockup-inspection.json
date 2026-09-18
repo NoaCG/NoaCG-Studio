@@ -1,0 +1,45 @@
+{
+  "errors": [],
+  "layouts": [
+    {
+      "width": 1334,
+      "mode": "layout",
+      "scrollWidth": 1334,
+      "height": 756.671875
+    },
+    {
+      "width": 1334,
+      "mode": "animate",
+      "scrollWidth": 1334,
+      "height": 756.671875
+    },
+    {
+      "width": 1888,
+      "mode": "layout",
+      "scrollWidth": 1888,
+      "height": 809.96875
+    },
+    {
+      "width": 1888,
+      "mode": "animate",
+      "scrollWidth": 1888,
+      "height": 809.96875
+    },
+    {
+      "width": 992,
+      "mode": "layout",
+      "scrollWidth": 992,
+      "height": 930.921875
+    },
+    {
+      "width": 288,
+      "mode": "layout",
+      "scrollWidth": 288,
+      "height": 1567.171875
+    }
+  ],
+  "sourceUpdated": true,
+  "undo": true,
+  "fitPreservesArtwork": true,
+  "js": "1// NOACG_ANIM.steps[0].layers[\"#name\"]\n2{\n3  \"x\": [\n4    { \"time\": 0, \"value\": -80 },\n5    { \"time\": 0.8, \"value\": 0,\n6      \"ease\": \"power2.out\" }\n7  ],\n8  \"opacity\": [\n9    { \"time\": 0, \"value\": 0 },\n10    { \"time\": 0.3, \"value\": 1 }\n11  ]\n12}"
+}

@@ -1,0 +1,36 @@
+{
+  "scope": "docs/research/design review only; product implementation on hold",
+  "branch": "codex/editor-baseline-design",
+  "authorization": "commit and push for second opinion; no merge queue",
+  "jobs": {
+    "j-1347": {
+      "exitCode": 0,
+      "command": "npm run build"
+    },
+    "j-1348": {
+      "exitCode": 0,
+      "command": "node C:/Users/ahonemi/.codex/visualizations/2026/09/13/01a09c14-d153-7960-aadf-a5c103191ba6/canvas-inspection.mjs"
+    },
+    "j-1350": {
+      "exitCode": 0,
+      "command": "node C:/Users/ahonemi/.codex/visualizations/2026/09/13/01a09c14-d153-7960-aadf-a5c103191ba6/canvas-regression.mjs"
+    }
+  },
+  "checks": {
+    "canvas-inspection.json": 31,
+    "canvas-regression-inspection.json": 34
+  },
+  "masterLines": 225,
+  "coverage": {
+    "E": 24,
+    "B": 18
+  },
+  "missingLinks": [],
+  "nonDocsChanges": false,
+  "hashes": {
+    "editor-review-canvas.html": "4f71b4b90fa518a3b3a941a68b1668b3213a0f042c0229e32bef193ea2839933",
+    "editor-review-canvas-preview.html": "6ed17d38c73ea6f747fa0670f6775fd82f09277264166d7d30d5891aee7cda97",
+    "canvas-inspection.json": "97d2f37fa9aa4bcdfa57574142a7bba54429b8fa439c25aa46fe33f1e11f128a",
+    "canvas-regression-inspection.json": "72ed58631d388a165975deb2afaf7105ce9029cc95756987a44c5cfd2b12fb2e"
+  }
+}

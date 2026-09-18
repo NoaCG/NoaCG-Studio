@@ -1,0 +1,12 @@
+{
+  "scope": "planning and local design study only; implementation on hold; uncommitted",
+  "build": "j-1344 exit 0",
+  "browser": "j-1345 exit 0; 34 checks",
+  "missingLinks": [],
+  "applicationChanges": false,
+  "hashes": {
+    "editor-timeline-first.html": "2ad47ea95eb978b35502a453aa12059ccec65dfd1fa0b4bb46a8c68e5260d88c",
+    "editor-timeline-first-preview.html": "3ce83a21527ae3c19e2207a33159fe216134f412ca724ea58dba15b78151a9ef",
+    "timeline-inspection.json": "c04968e4ff0def122c7245deb1b456ff34579bb9dd55db756d970d3b05d4e7d2"
+  }
+}

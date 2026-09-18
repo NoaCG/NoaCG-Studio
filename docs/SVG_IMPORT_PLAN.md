@@ -1,5 +1,10 @@
 # SVG import - your own graphic, playable
 
+Current editor scope is [EDITOR_PLAN.md](EDITOR_PLAN.md): imported SVG animation first,
+templates/brands/rundown in R1, node-graph UI deferred. This file preserves existing runtime,
+import or research knowledge; it does not authorize adding a node editor to the new workspace.
+
+
 **Status: binding plan, owner-directed 2026-08-20 (north-star material, wanted working in weeks).**
 Origin: the Yle demo. Their designer insight - **SVG is code** - names the gap our raster Import
 Graphic cannot close: erase fails on textured art, and AI recreation produces "inspired by", never

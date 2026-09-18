@@ -1,3 +1,5 @@
+> Historical handoff. Continue from [EDITOR_PLAN.md](../EDITOR_PLAN.md) and [the consolidation handoff](2026-09-17-editor-plan-consolidation.md). Earlier ordering is superseded; implementation remains on hold.
+
 # Editor review follow-up, 2026-09-17
 
 ## Result and limits

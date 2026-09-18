@@ -32,7 +32,7 @@ Layers of documentation, top to bottom:
 | Doc | Contract for |
 |---|---|
 | `ARCHITECTURE.md` | The modular monolith: domain registry, allowed import edges, debts. Machine-enforced (eslint + dependency-cruiser). Also holds the two reference maps the root `AGENTS.md` points at - §8 the repository map (what lives in each directory, and which carry their own `AGENTS.md`) and §9 the ten pages and their URLs. |
-| `STATE_MACHINE_SCHEMA.md` | What a graphic IS: `NOACG_ANIM` v2, states/transitions/events, the default path, snap, versioning doctrine (§5), the node editor. |
+| `STATE_MACHINE_SCHEMA.md` | What a graphic IS: `NOACG_ANIM` v2, states/transitions/events, the default path, snap, versioning doctrine (§5); existing node-editor mechanics are preserved but deferred from the rebuild. |
 | `GRAPHIC_TYPES.md` | The type registry: type vs design, the six promotion gates, the factory. |
 | `PACK_TAXONOMY.md` | The 60 reference formats → packs mapping, the nine sports discipline packs, and the gap list. |
 | `SPORTS_PACK.md` | The sports pack: 5 types × 4 families, the match clock, the fixtures board, and the capability matrix of every shared type it uses or extends. |
@@ -57,7 +57,7 @@ Layers of documentation, top to bottom:
 | `PROMISE_AUDIT.md` | What the landing page may claim: one row per promise `index.html` and `ograf.html` make, graded WORKS NOW / WORKS WITH A STATED LIMITATION / NOT YET IMPLEMENTED, each with the spec, source line or run that proves it. The page never outranks its row. Re-run before any landing rewrite. |
 | `SPX_TEMPLATE_FORMAT.md` | The external SPX contract this product targets (reference; keep in sync with SPX). |
 | `TEMPLATE_CATEGORIES.md` | The index of what lives under `src/templates/`: the two registries and the twenty categories, each pointing at its own contract. Orientation only - a category's rules are in its own `AGENTS.md`. |
-| `TIMELINE_INTERACTION_MODEL.md` | The editing surfaces' interaction contract (selection, keyframes, playhead, what NoaCG deliberately does not copy from NLEs). |
+| `TIMELINE_INTERACTION_MODEL.md` | Archived legacy interaction contract; current proposed mechanisms are in EDITOR_REBUILD_PLAN.md. |
 | `IMPORT_MVP.md` | The Import Graphic flow: the structure contract, fit modes, Prepare/erase, 9-slice stretch. Shipped; doubles as the domain record. |
 | `RENDER.md` | The render service: manifest kinds, virtual clock, tiers, security posture, deploy checklist. |
 | `ADMIN.md` | The private admin surface and the entitlement system: the resolver and its precedence, plans/grants/overrides, roles, the 404-not-403 gate, the audit log, the internal-account usage scope, the beta feedback inbox, migrations 0017+. |
@@ -143,7 +143,7 @@ Layers of documentation, top to bottom:
 | `CONTROL_PANEL_ROAD.md` | A PLAN, rewritten 2026-08-28 from the owner's brief. It builds nothing: how a user's own graphic gets a control panel, restated as a road. |
 | `CONTROL_PANEL_ANY_GRAPHIC.md` | A PLAN, 2026-09-15: one control-panel approach for any graphic - catalog, imported SVG, agent-made, foreign OGraf. The control contract is the answer; the agent road must be taught to write it; the production control profile is two primitives, ARRANGE and COMBINE. Proves the Elämäni biisi case on paper and says what must exist by 2026-10-20. |
 | `DESIGN_RULES_PLAN.md` | RATIFIED PLAN 2026-08-18: legible, robust, airable BY MEASUREMENT - the owner's brief mapped onto the architecture that exists, and sequenced. |
-| `EDITOR_RESEARCH.md` | The direction document for the NoaCG authoring system, written to the owner's master brief (2026-08-28). Second edition; it replaces the first entirely. |
+| `EDITOR_RESEARCH.md` | Archived authoring research; current direction is EDITOR_PLAN.md. |
 | `BEHAVIOUR_AUTHORING_RESEARCH.md` | The P2 standing research thread, round 1 (2026-09-01): why the node editor failed as a non-programmer authoring surface, six candidate interaction models with a shortlist of two, the eight-brief challenge-graphic set every candidate is proven against, and the round-2 protocol with its evidence gate. Mockups in `docs/design/behaviour-authoring/`. |
 | `JOB_RUNNER_PLAN.md` | One queue per machine for browser-driving work and merges. Steps 1, 3 and 5 BUILT (2026-08-25); step 2 revised on contact; step 4 not started. The queue IS the merge lock. |
 | `ORCHESTRATION_NEXT.md` | RATIFIED 2026-09-01 with corrections: the master stays `opus high` and Opus is also a major worker pool; Fable consults; both Antigravity pools exploited, Codex availability-routed; verification layers by risk; a ledger routes delegation. Three phases, evidence-gated. |
@@ -165,9 +165,9 @@ Layers of documentation, top to bottom:
 | `GOALS_ARCHIVE.md` | Every milestone that shipped up to 2026-08-07, with its date and rationale, plus the ratified decisions behind them. The live roadmap is `GOALS.md`. |
 | `OWNER_RULINGS.md` | The dated log of rulings the owner gave in session, moved out of the memory store on 2026-09-03. Read it as EVIDENCE, not authority: several predate the landing queue and the student-release pivot, `GOALS.md` outranks all of it, and the precedence order is in `MISTAKE_TRIGGERS.md`. |
 | `ERA5_PLAN.md` | Why the server era is shaped as it is (Supabase, AGPL split, offline invariance). Shipped through 5.6; 5.7 payments open. |
-| `TIMELINE_PLAN.md` | The pre-v2 timeline direction + the Loopic/SPX competitive research. Superseded by Timeline v2. |
-| `WYSIWYG_PLAN.md` | The first canvas-editing slices and their guardrails. Shipped and extended. |
-| `TIMELINE_V2_PLAN.md` | The declarative-timeline rewrite: the audit, the twelve decisions, the category migration story. Complete. |
+| `TIMELINE_PLAN.md` | Archived pre-v2 timeline research; forward direction is EDITOR_PLAN.md. |
+| `WYSIWYG_PLAN.md` | Archived first-editor history and failure lessons; superseded as forward direction. |
+| `TIMELINE_V2_PLAN.md` | Archived v2 implementation history and migration evidence; forward direction is EDITOR_PLAN.md. |
 | `DYNAMIC_MOTION_SCOPE.md` | Why measured motion is a named-builder primitive (`dynamics`) and not an expression language. Shipped. |
 | `PRESET_MODEL_REVIEW.md` | The keyframe model's expressive range: which gaps closed (most) and which stay open by choice (stagger knob, springs, per-property duration, motion paths). |
 | `THEME_DEFAULTS_REVIEW.md` | The family-token audit behind the applied 2026-07-21 defaults. Open remnant: the `labelColor` / `displayTracking` re-modelling questions. |
@@ -187,10 +187,12 @@ Layers of documentation, top to bottom:
 | `VIDEO_MODEL_BENCHMARK.md` | How video models are benchmarked as TRANSPORTS rather than separate generators: every selected model enters the existing harness and produces the same Motion Director plan. |
 | `CONTROL_PANEL_RESEARCH.md` | Measured 2026-08-30: what competing tools let a user do between a drawing and a control panel, and which of those capabilities OGraf obliges us to keep. Names the owner's capability bar; authorizes nothing. |
 | `OGRAF_ECOSYSTEM.md` | Research dossier, 2026-08-29, extending `OGRAF_FIRST_REVIEW.md`: a verdict per open-source project in the ecosystem, and the interop boundaries. **Nothing here authorizes implementation.** |
-| `OGRAF_STUDIO_RESEARCH.md` | Pinned 2026-09-13 primary editor/agent case study: Zero Density OGraf Studio, direct Eyevinn comparison, Ferryman/GDD/conformance refresh, licence boundaries and subsystem build-versus-reuse verdicts. Research only. |
-| `EDITOR_DELIVERY_ROADMAP.md` | Master delivery and completion register for one editor: ordinary editing, animation, shared brands, Starter Collections and production. Required capabilities, M0-M8 slices, evidence gates and session handoffs. Product implementation paused for owner review of the unified roadmap and baseline. |
-| `EDITOR_REBUILD_PLAN.md` | Detailed interaction plan under the unified editor roadmap: Studio-based reference, layout/animation context, keyframes, preview/layout/easing contracts and real-user acceptance. Implementation awaits the roadmap's baseline and owner review gate. |
-| `STARTER_COLLECTIONS_PLAN.md` | Owner-authorized 2026-09-17 template-first workflow: shared brands, TemplatePack collections, stable installation identity, guarded production revert and a separate acceptance gate. Home creator built; subsequent slices outstanding. |
+| `OGRAF_STUDIO_RESEARCH.md` | Redirect to the retained pinned Studio/Eyevinn research, licence boundaries and reuse evidence; current scope is EDITOR_PLAN.md. |
+| `EDITOR_DELIVERY_ROADMAP.md` | Redirect to EDITOR_PLAN.md; former roadmap retained as historical evidence. |
+| `EDITOR_PLAN.md` | Single editor authority: SVG-import animation first; template gallery, brands and rundown in R1; R2 effects/Lottie; R3 data/co-authoring. Node UI deferred. Planning only. |
+| `EDITOR_PROFESSIONAL_DIRECTION.md` | Redirect to EDITOR_PLAN.md; former direction retained as historical evidence. |
+| `EDITOR_REBUILD_PLAN.md` | Detailed SVG, per-property animation, step/loop and revision-safe preview mechanisms under EDITOR_PLAN.md. |
+| `STARTER_COLLECTIONS_PLAN.md` | Collection/brand/rundown mechanisms under EDITOR_PLAN.md: stable installation identity and guarded revert. Home creator built; R1.4 acceptance outstanding. |
 | `OGRAF_FULL_STACK_PLAN.md` | Research-only editor/controller/Server API/renderer architecture, identity and recovery contracts, CasparCG acceptance matrix, dependency-ordered work packages and native-renderer boundaries. |
 | `STUDENT_RELEASE_ACCEPTANCE.md` | The owner acceptance checklist of the CLOSED student release (`GOALS_ARCHIVE.md`). The agent-automatable half is done and named, so nothing a spec already pins is re-tested by hand; the rest needs real hardware. |
 
@@ -224,3 +226,5 @@ Two files sit beside it without duplicating it (ratified 2026-09-01): `NORTH_STA
 one-year vision, claims and evidence model - direction, not a work list; `PROGRAMMES.md` is the
 authorization register - which long-running programmes the orchestrator may advance, and their
 state. The roadmap says what the push is; the register says what else is legal to work on.
+
+- [Editor review package](research/editor-review-brief-2026-09-18.md) - current unified roadmap, latest canvas/timeline mockup, retained whole-workspace and reuse evidence, and second-opinion questions. Monaco optional; implementation paused.

@@ -1,0 +1,150 @@
+{
+  "kind": "design-study-only",
+  "browser": "149.0.7827.55",
+  "errors": [],
+  "checks": {
+    "no overflow 1920": true,
+    "canvas stays above timeline 1920": true,
+    "canvas remains visible 1920": true,
+    "no overflow 1366": true,
+    "canvas stays above timeline 1366": true,
+    "canvas remains visible 1366": true,
+    "no overflow 1024": true,
+    "canvas stays above timeline 1024": true,
+    "canvas remains visible 1024": true,
+    "no overflow 320": true,
+    "canvas stays above timeline 320": true,
+    "canvas remains visible 320": true,
+    "five transform groups": true,
+    "first stopwatch key only at current time": true,
+    "armed value writes second key": true,
+    "interpolated value": true,
+    "disable retains sampled value": true,
+    "undo restores keys and sample": true,
+    "previous key navigation": true,
+    "next key navigation": true,
+    "diamond removes key": true,
+    "linked scale changes both": true,
+    "unlinked scale independent": true,
+    "unwrapped revolutions": true,
+    "center anchor preserves parked pose": true,
+    "panel width separate from scale": true,
+    "number scrub moves value": true,
+    "number scrub one undo": true,
+    "operator checkbox visible size": true,
+    "decorative text opt out": true,
+    "operator field opt out undo": true,
+    "add step form visible": true,
+    "step inserted before Out": true,
+    "auto out settings distinct": true,
+    "both Finish routes present": true,
+    "optional handoff no production install": true,
+    "no runtime errors": true
+  },
+  "layouts": [
+    {
+      "viewport": 1920,
+      "width": 1888,
+      "scroll": 1888,
+      "canvas": {
+        "x": 14,
+        "y": 98,
+        "width": 1516,
+        "height": 551.203125,
+        "top": 98,
+        "right": 1530,
+        "bottom": 649.203125,
+        "left": 14
+      },
+      "timeline": {
+        "x": 0,
+        "y": 692,
+        "width": 1888,
+        "height": 249,
+        "top": 692,
+        "right": 1888,
+        "bottom": 941,
+        "left": 0
+      },
+      "height": 971
+    },
+    {
+      "viewport": 1366,
+      "width": 1334,
+      "scroll": 1334,
+      "canvas": {
+        "x": 14,
+        "y": 98,
+        "width": 976,
+        "height": 291.203125,
+        "top": 98,
+        "right": 990,
+        "bottom": 389.203125,
+        "left": 14
+      },
+      "timeline": {
+        "x": 0,
+        "y": 432,
+        "width": 1334,
+        "height": 249,
+        "top": 432,
+        "right": 1334,
+        "bottom": 681,
+        "left": 0
+      },
+      "height": 711
+    },
+    {
+      "viewport": 1024,
+      "width": 992,
+      "scroll": 992,
+      "canvas": {
+        "x": 14,
+        "y": 98,
+        "width": 634,
+        "height": 291.203125,
+        "top": 98,
+        "right": 648,
+        "bottom": 389.203125,
+        "left": 14
+      },
+      "timeline": {
+        "x": 0,
+        "y": 432,
+        "width": 992,
+        "height": 249,
+        "top": 432,
+        "right": 992,
+        "bottom": 681,
+        "left": 0
+      },
+      "height": 711
+    },
+    {
+      "viewport": 320,
+      "width": 288,
+      "scroll": 288,
+      "canvas": {
+        "x": 14,
+        "y": 145.59375,
+        "width": 260,
+        "height": 127.40625,
+        "top": 145.59375,
+        "right": 274,
+        "bottom": 273,
+        "left": 14
+      },
+      "timeline": {
+        "x": 0,
+        "y": 802.765625,
+        "width": 288,
+        "height": 283,
+        "top": 802.765625,
+        "right": 288,
+        "bottom": 1085.765625,
+        "left": 0
+      },
+      "height": 1115.765625
+    }
+  ]
+}
