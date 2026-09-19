@@ -425,7 +425,7 @@ export async function planForWorkingTree({ base = null, index = null, integratio
  * @param {string[]|null} ids  null for a full run
  * @param {string[]} categories
  */
-function batteryFor(ids, categories) {
+export function batteryFor(ids, categories) {
   // ONE SPELLING FOR ALL SIX GATES. The specs need the scope as an environment variable (a
   // Playwright spec has no argv), but `VAR=value cmd` is a POSIX-ism that does not run under the
   // cmd.exe the job runner spawns - so scripts/catalog-specs.mjs takes `--only` like everything
@@ -440,6 +440,13 @@ function batteryFor(ids, categories) {
       `node scripts/numerals.mjs${only}`,
     ],
     specs: [`node scripts/catalog-specs.mjs${only}`],
+    // THE FACTORY IS CI'S OWN JOB ("Factory gates"), and it was missing from this list. It runs
+    // checks nothing above does - the literal-token drift scan, the pack and matrix validation,
+    // the promotion gates on every type's designs - so a branch could run this whole battery
+    // green and still be refused at the merge. It did: on 2026-09-19 nine new designs passed
+    // everything printed here and failed CI on one hand-typed accent glow. It takes no `--only`
+    // because its checks are about the catalog as a whole; it is one browser job like the rest.
+    factory: ['node scripts/factory.mjs'],
     look: categories.map((c) => `node scripts/l3-sweep.mjs ./l3-shots ${c}`),
   };
 }
@@ -497,7 +504,7 @@ async function main() {
   console.log('\n  1. the cheap gate first - seconds, no dev server, run it now:');
   for (const c of battery.cheap) console.log(`       ${c}`);
   console.log('\n  2. the rendered sweeps - one browser job at a time, so enqueue them:');
-  for (const c of [...battery.sweeps, ...battery.specs]) console.log(`       npm run queue -- "${c}"`);
+  for (const c of [...battery.sweeps, ...battery.specs, ...battery.factory]) console.log(`       npm run queue -- "${c}"`);
   if (battery.look.length) {
     console.log('\n  3. and a look at the result for each affected category (screenshots, never a gate;');
     console.log('     it writes into the out-dir you name, so keep that out of the commit):');
