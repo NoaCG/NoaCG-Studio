@@ -2,7 +2,8 @@
 
 2026-09-17. Live task/evidence ledger under [EDITOR_PLAN.md](../EDITOR_PLAN.md).
 All earlier E/B identities are retained; no task is passed by moving it between releases.
-M0 closes as an inventory. Product implementation remains on owner hold.
+M0 closes as an inventory. The owner's 2026-09-19 request authorizes bounded R1.0 implementation.
+See the R1.0 evidence receipt below; historical observations do not close later slices.
 Updated after independent review of d5e8c1db: decisions are recorded below; no closing test
 has been executed for the replacement editor. The corrected ordering supersedes prior receipts.
 Owner approved group/precomposition scope on 2026-09-19; product tests remain unverified.
@@ -159,3 +160,32 @@ be relicensed merely because our application is also AGPL. Its addition would ne
 rights for a differently licensed combined distribution. Such source must never reach the
 Apache CLI or emitted packages under the project's chosen boundary; the mechanism document
 records the primary licence references. Historical reference fixtures stay isolated research.
+
+
+## R1.0 implementation receipt - 2026-09-19
+
+The owner authorized this bounded slice over the historical hold. Branch
+`codex/editor-r1-foundation` contains planning baseline `39adb2ed`.
+[Runnable review, actual screenshots and verification](editor-r1-foundation/README.md)
+and [file-level inventory/ownership](editor-r1-foundation/implementation.md) are the receipt.
+
+| Gate | R1.0 evidence and remaining boundary |
+|---|---|
+| D05 / B01 foundation / E01 | Flag off/on, actual catalog and wizard SVG fixtures, Home return and confirmed save/reopen verified. Optional Finish -> Edit remains R1.1a. |
+| B02 foundation / E02 | Shared timeline/canvas/Outline selection and multi-select verified. Nested unnamed identity, lock/reorder tools remain in their allocated slices. |
+| E03 / B11 foundation | Permanent canvas, fit/zoom/pan, responsive laptop/desktop layout and latency harness delivered. Fixed dock dimensions in this slice; later panel-resize and editing gestures remain unverified. |
+| B13 foundation / E24 / G05 | Read-only source layer bars; forward/reverse scrub; explicit seconds/frames at 25/30 fps and speed 0.5/1/2; frame nudge and Escape verified. Set Out, keys, bar edits, cue interruption and export parity remain open. |
+| E12 / E17 / E23 foundation | Atomic operation/history harness; transient cancellation, exact source/pixel Undo, revision/stale refusal, unknown-data refusal and retired-session refusal verified. UI/CLI/MCP authoring follows the roadmap. |
+| E12 / preview protocol | Source/assets/generation/request/window checks; hot key update, actual same-path asset pixels, startup error/recovery and callback-free scrub verified. |
+| B19 / E25 ownership | Document-port contract and isolated session harness verified. Product still has one working graphic. Durable multi-document/project migration remains R1.4a. |
+| D04 | Existing source-derived read-only/static bars delivered. Additive/disjoint span writer/runtime agreement closes in R1.1b/d; no such mutation is exposed here. |
+
+Engineering evidence does not close the full B01/B02/B11/B13/B19 tasks or owner review.
+Cold catalog/SVG openings showed artwork. The reproduced zero-time hot-update defect and
+retired-session defect are fixed with regressions. The owner's historical blank-stage
+condition is not universally claimed resolved.
+
+**Next:** hand back R1.0 for review, then R1.1a only: optional Finish -> Edit, D03
+Position/Layout offset, Text/Rectangle/Ellipse creation and basic scaling, with single
+source transactions, unchanged existing motion/fields, cancel/undo/save/reopen/export
+checks and measured drag feedback. No R1.1b key/bar authoring is included.

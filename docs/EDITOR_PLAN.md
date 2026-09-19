@@ -1,7 +1,7 @@
 # Editor plan
 
-Owner direction, updated 2026-09-19. Planning and mockups only. Product implementation remains on
-hold for the requested whole-workspace alignment before R1.0. This is the single authority for
+Owner direction, updated 2026-09-19. The owner authorized the bounded R1.0 implementation,
+superseding the historical planning hold. R1.1a waits for the R1.0 review handback. This is the single authority for
 scope, order and completion; it replaces the earlier delivery/professional-direction documents.
 Review entry point: [review brief](research/editor-review-brief-2026-09-18.md) and the
 [whole workspace](research/editor-whole-workspace-2026-09-19/README.md) plus [workflow decisions](research/editor-workflow-review-2026-09-19/README.md).
@@ -228,13 +228,13 @@ New sessions resume these records and the actual branch state.
 |---|---|
 | Planning inventory | Closed by classification; evidence gaps assigned, not passed |
 | Consolidated scope and revised mockups | Whole-workspace direction accepted; 2026-09-19 workflow refinements recorded for review |
-| R1.0-R1.5 / P-COMP | Not started; existing foundations retained; P-COMP follows R1.5 |
+| R1.0-R1.5 / P-COMP | R1.0 foundation implemented; review/evidence in research/editor-r1-foundation. Later slices not started; P-COMP follows R1.5 |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 | Product implementation permission | On hold |
 
-Next: review workflow refinements before R1.0, then record the file-level replacement/retirement inventory and multi-document ownership boundary. A planning commit/build does not start product work. Each slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
+Next: review the bounded [R1.0 implementation](research/editor-r1-foundation/README.md), then authorize the next R1.1a base-edit/tool slice. The file-level inventory and document ownership are recorded with it. Each slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived

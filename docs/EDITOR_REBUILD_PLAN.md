@@ -1,7 +1,8 @@
 # Editor animation and preview contract
 
 Updated 2026-09-19. [EDITOR_PLAN.md](EDITOR_PLAN.md) owns scope, order and acceptance. This document
-owns the proposed source, interaction and preview mechanisms. Implementation remains paused.
+owns the source, interaction and preview mechanisms. The owner authorized R1.0 on 2026-09-19;
+the earlier implementation hold is superseded for that bounded slice.
 Independent review of d5e8c1db is accepted with the corrections below.
 The old rebuild plan is archived with the consolidation evidence; its mode and phase order
 are superseded. Existing application behavior remains the source of truth until replaced.
