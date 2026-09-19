@@ -192,6 +192,48 @@ test('the wizard shell answers a hover in amber, exactly as the entry cards do',
   await expect.poll(() => border('.wz-dot:not(:disabled)')).toBe(amber);
 });
 
+test('the wizard header and the Home topbar are the same bar, to the pixel', async ({ page }) => {
+  // The wizard is FULL-SCREEN and opens OVER the Home page it was launched from - `.wz-modal`
+  // covers the viewport and Home stays mounted underneath - so the brand lockup is not
+  // re-drawn on a new page, it is REPLACED in its own corner. Any difference in where it lands
+  // is a lurch on the one press a lecture audience watches. Measured before this was fixed:
+  // the bar 53px against 69px, the logo at (20,14) against (32,22), all of it header padding.
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+
+  /** Whichever bar this surface wears, and where it puts the brand mark. */
+  const bar = () =>
+    page.evaluate(() => {
+      const el = document.querySelector('.wz-header') ?? document.querySelector('.topbar')!;
+      const logo = el.querySelector('.brand-home svg')!.getBoundingClientRect();
+      return {
+        height: Math.round(el.getBoundingClientRect().height),
+        logoX: Math.round(logo.x),
+        logoY: Math.round(logo.y),
+      };
+    });
+
+  const inWizard = await bar();
+  await page.getByTestId('wz-home').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const onHome = await bar();
+
+  // Not "close enough": both bars carry the same 32px content row and the same BrandLogo in the
+  // same `.brand-home`, so identical padding is identical geometry. A delta here is the lurch.
+  expect(inWizard).toEqual(onHome);
+
+  // And the wizard's header is the one that moved. The ten-odd DIALOGS that borrow `.wz-header`
+  // keep the roomier dialog padding, which is what the `.wz-wizard` scope on the rule protects -
+  // without this, a later "simplify" that drops the scope passes the check above and silently
+  // reshapes Settings, Save and Export too.
+  await page.getByTestId('home-settings').click();
+  const dialog = await page.evaluate(
+    () => getComputedStyle(document.querySelector('.settings-modal .wz-header')!).padding,
+  );
+  expect(dialog).toBe('18px 28px');
+});
+
 test('a cold entry from the landing page paints nothing under the wizard', async ({ page }) => {
   // THE DEFECT, on every single entry into the app from the landing page: `#/new` rendered the
   // HOME dashboard under the full-screen wizard, and the wizard could not be in the frame that
