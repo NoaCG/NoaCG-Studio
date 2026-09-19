@@ -2821,34 +2821,35 @@ test('svg import: growth is symmetrical and a line stops at whatever is drawn be
   expect(huge.name.right).toBeLessThanOrEqual(huge.panelRight);
   // …and the residual gap is the mirrored inset itself, not slack: growth is spent, not wasted.
   //
-  // TWO RULERS, AND THEY DISAGREE BY PLATFORM. The fit measures a drawn line with
-  // getComputedTextLength - user units, which no transform or entrance can move - and by that
-  // ruler it lands on its budget everywhere. The PAINTED rectangle is another matter: under
-  // Windows it agrees to half a pixel, and under CI's Linux text rendering this 90-character bold
-  // line paints about 0.9% narrower than its computed length (1507 against 1520, at the same
-  // 33px the fit chose on both). So "growth is spent, not wasted" is asserted in the fit's own
-  // ruler, tightly, and the painted edge gets one hard side and one loose one.
+  // "SPENT" IS ASKED AS A QUESTION A RENDERER CANNOT BEND: WOULD ONE MORE PIXEL OF TYPE HAVE
+  // FITTED? The leftover itself is not a platform-free number. Windows lays glyphs out at
+  // fractional sizes, so width is linear in size and this line lands half a pixel short of its
+  // room. CI's Linux renderer hints, which sizes glyphs at WHOLE pixels: the same bold line is
+  // 1507 wide anywhere from 33 to 33.49px and 1552 at 34, so against a 1520 room it stops 13
+  // short and no size does better. Bounding the leftover went red there twice with nothing
+  // wrong. What holds on both is that the chosen size is the largest that fits - and a size
+  // search that undershoots fails it on either.
   const drawnInset = rest.name.left - rest.panelLeft;
   const grownGap = huge.panelRight - huge.name.right;
-  const fit = await frame.locator('#f0').evaluate((el) => ({
-    fontSize: getComputedStyle(el).fontSize,
-    textLength: +(el as unknown as SVGTextContentElement).getComputedTextLength().toFixed(1),
-  }));
+  const fit = await frame.locator('#f0').evaluate((el) => {
+    const line = el as unknown as SVGTextContentElement & { style: CSSStyleDeclaration };
+    const size = parseFloat(getComputedStyle(line).fontSize);
+    const textLength = line.getComputedTextLength();
+    const inline = line.style.fontSize;
+    line.style.fontSize = `${size + 1}px`;
+    const onePixelUp = line.getComputedTextLength();
+    line.style.fontSize = inline;
+    return { size, textLength: +textLength.toFixed(1), onePixelUp: +onePixelUp.toFixed(1) };
+  });
+  const room = huge.panelRight - drawnInset - rest.name.left;
   // The numbers ride the failure, because this machine rasterises one platform and CI the other:
   // a red here that says only "63 is not < 53" cannot be told from a wrong cap without a re-run.
-  const measured = JSON.stringify({ drawnInset, panelRight: huge.panelRight, name: huge.name, ...fit });
-  // SPENT: the room runs from where the line starts to the mirrored inset, and the computed
-  // length fills it to within the size search's last step. A search that undershoots - or a cap
-  // that hands out room the line never takes - fails here on every platform.
-  const unspent = huge.panelRight - drawnInset - (rest.name.left + fit.textLength);
-  expect(unspent, measured).toBeGreaterThanOrEqual(-0.5);
-  expect(unspent, measured).toBeLessThan(3);
-  // PAINTED, the hard side: a gap SMALLER than the inset is the text eating the margin it is
-  // mirroring, which is the whole defect this asserts against, on any renderer.
+  const measured = JSON.stringify({ drawnInset, room, panelRight: huge.panelRight, name: huge.name, ...fit });
+  expect(fit.textLength, measured).toBeLessThanOrEqual(room + 0.5);
+  expect(fit.onePixelUp, measured).toBeGreaterThan(room);
+  // And the one painted bound that is a guarantee anywhere: a gap SMALLER than the inset is the
+  // text eating the margin it is mirroring, which is the whole defect this asserts against.
   expect(grownGap, measured).toBeGreaterThanOrEqual(drawnInset - 0.5);
-  // PAINTED, the loose side: 2% of the painted line covers what hinted advances take off a long
-  // line, and is still far under the 3% undershoot this was mutation-tested against.
-  expect(grownGap, measured).toBeLessThan(drawnInset + 0.02 * (huge.name.right - huge.name.left));
 
   // NEIGHBOURS DO NOT OVERLAP. A long Location used to run to 860 straight through the 19:30
   // Slot drawn at 700, because its room was measured out to the panel's edge. Its room is now
