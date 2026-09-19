@@ -9,6 +9,7 @@
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
 import { defineVariant, lineMasks } from './shared';
+import { STAR_CLIP } from '../shared/gameShowShapes';
 
 export const lt69: TemplateVariant = defineVariant(
   {
@@ -72,7 +73,7 @@ ${lineMasks(o)}
   height: calc(46px * var(--scale));
   margin-top: calc(-23px * var(--scale));  /* centred on the pill, whatever its height */
   background: var(--accent);
-  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  clip-path: ${STAR_CLIP};
   filter: drop-shadow(0 0 calc(8px * var(--scale)) var(--accent));
   will-change: transform;          /* line-reveal can grow this */
 }

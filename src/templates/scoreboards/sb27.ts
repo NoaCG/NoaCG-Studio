@@ -10,6 +10,7 @@
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { defineScoreboardVariant } from './shared';
 import { DUEL_NAMES, duelFields, duelRuntimeJs } from './duelShared';
+import { STAR_CLIP } from '../shared/gameShowShapes';
 
 export const sb27: TemplateVariant = defineScoreboardVariant(
   {
@@ -130,7 +131,7 @@ export const sb27: TemplateVariant = defineScoreboardVariant(
   height: calc(46px * var(--scale));
   margin: 0 calc(22px * var(--scale));
   background: var(--accent);
-  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  clip-path: ${STAR_CLIP};
   filter: drop-shadow(0 0 calc(8px * var(--scale)) var(--accent));  /* a filter, because clip-path would cut a box-shadow */
   will-change: transform;          /* the Point timeline scales it */
 }

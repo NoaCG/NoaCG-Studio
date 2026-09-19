@@ -33,7 +33,12 @@ are the same assembler with three `QuizContent` flags. `variableAnswers` adds an
 dropdown after the other hidden sources: the markup always draws four rows, `applyAnswerCount()`
 hides the ones past the count with `quiz-option-off`, and the root carries `data-answers="N"` for
 a layout that depends on it (qz13's third label runs full width at 3). The panel keeps its stage
-width at every count. `audience: false` and `lock: false` take the audience chips and the lock
+width at every count. **An unused row is parked out of the flow and invisible, never
+`display: none`**: the stage fit calibrates every line from its own laid-out box, and a row with
+no box came back from a later question fitted into nothing. For the same reason
+`applyAnswerCount()` lets go of the panel's reserved height when the count CHANGES, because that
+reserve is a floor and a board going from four answers to two kept a four-answer panel.
+`showBoardRowsHtml()` in shared.ts is the one place the row markup is written. `audience: false` and `lock: false` take the audience chips and the lock
 moment OUT of the emitted runtime, because a function no arrow can ever call reads as though it
 works. Absent, all three flags emit what the classic boards always did, byte for byte.
 **A show board's state is never colour alone and a dimmed row keeps its ground**

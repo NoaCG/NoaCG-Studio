@@ -123,6 +123,47 @@ for (const id of QUIZ_DESIGNS) {
     expect(verdict.rows).toEqual(['quiz-dim', 'quiz-wrong', 'quiz-correct', 'quiz-dim quiz-option-off']);
   });
 
+  test(`${id}: a count changed ON AIR resizes the board both ways and never shrinks an answer`, async ({ page }) => {
+    // The operator duplicates the graphic per question, so the count arrives by update() on a
+    // board whose stage fit has already measured it. Two things went wrong here and both were
+    // silent: the panel's reserved height is a floor, so four answers -> two kept a four-answer
+    // panel; and a row hidden with display:none has no box to measure, so two answers -> four
+    // fitted the returning answers into nothing and shipped them small.
+    const sizes = await page.evaluate(async (id) => {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const frame = document.createElement('iframe');
+      frame.style.cssText = 'position:absolute;left:-9999px;width:1920px;height:1080px';
+      document.body.appendChild(frame);
+      const template = variantById(id)!.create({ content: { answerCount: '2' } });
+      await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = composeDocument(template); });
+      const doc = frame.contentDocument!;
+      const win = frame.contentWindow as unknown as { update(data: string): void; play(): void };
+      await doc.fonts.ready;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      win.update('{}');
+      win.play();
+      const measure = () => ({
+        box: Math.round(doc.querySelector('.quiz-box')!.getBoundingClientRect().height),
+        fonts: [1, 2, 3, 4].map((n) => parseFloat(getComputedStyle(doc.getElementById(`f${n}`)!).fontSize)),
+      });
+      const two = measure();
+      win.update(JSON.stringify({ f7: '4' }));
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const four = measure();
+      win.update(JSON.stringify({ f7: '2' }));
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const twoAgain = measure();
+      frame.remove();
+      return { two, four, twoAgain };
+    }, id);
+    expect(sizes.four.box).toBeGreaterThan(sizes.two.box);
+    expect(sizes.twoAgain.box).toBe(sizes.two.box);
+    // Every answer keeps the size the design drew it at, including the two that came back.
+    expect(new Set(sizes.four.fonts).size).toBe(1);
+    expect(sizes.four.fonts).toEqual(sizes.two.fonts);
+  });
+
   test(`${id}: the emitted runtime carries no lock and no audience result`, async ({ page }) => {
     const run = await drive(page, id, {}, []);
     // A function no arrow can ever call reads as though it works, and the generated file is

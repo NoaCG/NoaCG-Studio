@@ -12,14 +12,9 @@
 // a hatch across it and its words struck through.
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
-import { defineQuizVariant, SHOW_BOARD_CONTENT } from './shared';
+import { defineQuizVariant, SHOW_BOARD_CONTENT, showBoardRowsHtml } from './shared';
 
 const CONTENT = SHOW_BOARD_CONTENT;
-
-/** One answer label. The FACE is the painted sticker; the row around it is what the presets
- *  tween, so the tilt, the press and the shadow all live on the face and no tween flattens them. */
-const row = (n: number, letter: string, answer: string) =>
-  `        <div class="quiz-option quiz-option-${n}"><div class="quiz-face"><span class="quiz-letter">${letter}</span><span class="quiz-text" id="f${n}">${answer}</span></div></div>`;
 
 export const qz13: TemplateVariant = defineQuizVariant(
   {
@@ -57,7 +52,7 @@ export const qz13: TemplateVariant = defineQuizVariant(
       <!-- The answers. A row past "Answers shown" is hidden by the runtime, and the grid
            re-flows: three answers put the third across the full width, two sit side by side. -->
       <div class="quiz-options">
-${CONTENT.answers.map((answer, i) => row(i + 1, 'ABCD'[i], answer)).join('\n')}
+${showBoardRowsHtml(CONTENT)}
       </div>
     </div>`,
     css: `/* The box: layout only. The presets tween it (rise + fade), and it paints nothing. */

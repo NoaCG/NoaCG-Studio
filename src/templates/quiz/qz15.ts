@@ -16,21 +16,10 @@
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
-import { defineQuizVariant, SHOW_BOARD_CONTENT } from './shared';
+import { defineQuizVariant, SHOW_BOARD_CONTENT, showBoardRowsHtml } from './shared';
+import { pixelCorners } from '../shared/gameShowShapes';
 
 const CONTENT = SHOW_BOARD_CONTENT;
-
-/** A rectangle with one square step cut out of each corner - the pixel corner. */
-const pixelCorners = (px: number): string => {
-  const s = `calc(${px}px * var(--scale))`;
-  const e = `calc(100% - ${px}px * var(--scale))`;
-  return `polygon(0 ${s}, ${s} ${s}, ${s} 0, ${e} 0, ${e} ${s}, 100% ${s}, 100% ${e}, ${e} ${e}, ${e} 100%, ${s} 100%, ${s} ${e}, 0 ${e})`;
-};
-
-/** One answer slot. The FACE is the painted slot; the row around it is what the presets tween
- *  and where the player-select cursor hangs. */
-const row = (n: number, letter: string, answer: string) =>
-  `        <div class="quiz-option quiz-option-${n}"><div class="quiz-face"><span class="quiz-letter">${letter}</span><span class="quiz-text" id="f${n}">${answer}</span></div></div>`;
 
 export const qz15: TemplateVariant = defineQuizVariant(
   {
@@ -66,7 +55,7 @@ export const qz15: TemplateVariant = defineQuizVariant(
       </div>
       <!-- The answers. A row past "Answers shown" is hidden by the runtime; the screen gets shorter. -->
       <div class="quiz-options">
-${CONTENT.answers.map((answer, i) => row(i + 1, 'ABCD'[i], answer)).join('\n')}
+${showBoardRowsHtml(CONTENT)}
       </div>
     </div>`,
     css: `${labelFontFaceCss(fontById('jetbrains-mono'))}

@@ -12,14 +12,9 @@
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
-import { defineQuizVariant, SHOW_BOARD_CONTENT } from './shared';
+import { defineQuizVariant, SHOW_BOARD_CONTENT, showBoardRowsHtml } from './shared';
 
 const CONTENT = SHOW_BOARD_CONTENT;
-
-/** One answer pill. The FACE is the painted pill; the row around it is what the presets tween,
- *  so a fade on the face (the dim) never fights the entrance's inline opacity on the row. */
-const row = (n: number, letter: string, answer: string) =>
-  `        <div class="quiz-option quiz-option-${n}"><div class="quiz-face"><span class="quiz-letter">${letter}</span><span class="quiz-text" id="f${n}">${answer}</span></div></div>`;
 
 /** A strip of marquee bulbs: evenly spaced dots in the accent, drawn with one gradient. */
 const BULBS = 'radial-gradient(circle, var(--accent) 0, var(--accent) calc(4px * var(--scale)), transparent calc(5.5px * var(--scale)))';
@@ -59,7 +54,7 @@ export const qz14: TemplateVariant = defineQuizVariant(
       </div>
       <!-- The answers. A row past "Answers shown" is hidden by the runtime; the stack closes up. -->
       <div class="quiz-options">
-${CONTENT.answers.map((answer, i) => row(i + 1, 'ABCD'[i], answer)).join('\n')}
+${showBoardRowsHtml(CONTENT)}
       </div>
     </div>`,
     css: `${labelFontFaceCss(fontById('oswald'))}

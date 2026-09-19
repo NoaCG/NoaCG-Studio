@@ -15,13 +15,7 @@ import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
 import { defineScoreboardVariant } from './shared';
 import { DUEL_NAMES, duelFields, duelRuntimeJs } from './duelShared';
-
-/** A rectangle with one square step cut out of each corner - the pixel corner. */
-const pixelCorners = (px: number): string => {
-  const s = `calc(${px}px * var(--scale))`;
-  const e = `calc(100% - ${px}px * var(--scale))`;
-  return `polygon(0 ${s}, ${s} ${s}, ${s} 0, ${e} 0, ${e} ${s}, 100% ${s}, 100% ${e}, ${e} ${e}, ${e} 100%, ${s} 100%, ${s} ${e}, 0 ${e})`;
-};
+import { pixelCorners } from '../shared/gameShowShapes';
 
 export const sb28: TemplateVariant = defineScoreboardVariant(
   {

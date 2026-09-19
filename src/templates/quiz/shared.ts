@@ -201,6 +201,20 @@ export const SHOW_BOARD_CONTENT: QuizContent = {
   lock: false,
 };
 
+/**
+ * The show boards' answer rows, shared so all three designs carry the same contract.
+ *
+ * Each row wraps its content in `.quiz-face`. The ROW is what the presets tween (x, opacity,
+ * the reveal's pop), so a design paints, presses, rings or fades the FACE instead: a rule on the
+ * row would lose to the entrance's inline opacity, and a transform on it would fight GSAP's.
+ */
+export function showBoardRowsHtml(content: QuizContent): string {
+  return content.answers
+    .map((answer, i) =>
+      `        <div class="quiz-option quiz-option-${i + 1}"><div class="quiz-face"><span class="quiz-letter">${QUIZ_LETTERS[i]}</span><span class="quiz-text" id="f${i + 1}">${answer}</span></div></div>`)
+    .join('\n');
+}
+
 /** This board's letters: 'AB' for a true/false board, 'ABC', 'ABCD'. */
 function lettersFor(content: QuizContent): string {
   return QUIZ_LETTERS.slice(0, content.answers.length);
@@ -419,7 +433,16 @@ function applyAnswerCount() {
     options[i].classList.toggle('quiz-option-off', i >= count);
   }
   var root = document.querySelector('.quiz');
-  if (root) root.setAttribute('data-answers', String(count));
+  if (!root) return;
+  // A CHANGED count is a different board height, so the height the stage reserved for the old
+  // one is let go and the fit that follows every update() reserves this one. Without it the
+  // reserve is a floor: a board that went from four answers to two kept a four-answer panel.
+  var before = root.getAttribute('data-answers');
+  if (before !== null && before !== String(count)) {
+    var box = document.querySelector('.quiz-box');
+    if (box) { box.removeAttribute('data-stage-room'); box.style.minHeight = ''; }
+  }
+  root.setAttribute('data-answers', String(count));
 }
 ` : ''}
 // The PAINT SIGNATURE: what the board currently shows, as one string — the machine state plus
@@ -706,10 +729,21 @@ ${
   will-change: transform, opacity; /* the rows stagger in and pop on reveal */
 }
 
-${content.variableAnswers ? `/* ── A row this question does not use (applyAnswerCount). Removed from the layout rather than
-      faded, so a three-answer question is a shorter board and not a board with a hole in it. ── */
+${content.variableAnswers ? `/* ── A row this question does not use (applyAnswerCount). Taken OUT OF THE FLOW rather than
+      faded, so a three-answer question is a shorter board and not a board with a hole in it -
+      and deliberately not display:none. The stage fit measures every line once, from the design's
+      own words, to learn the room it was drawn for; a row that is not laid out has no room to
+      measure, and when a later question brought it back its answer was fitted into nothing and
+      shipped three sizes small. Out of the flow and invisible, it still has its own box. ── */
+.quiz-options {
+  position: relative;              /* the box an unused row is parked against */
+}
 .quiz-option-off {
-  display: none !important;        /* outranks the design's own display on .quiz-option */
+  position: absolute !important;   /* out of the flow: the rows below close up (outranks a design's own position) */
+  left: 0;
+  right: 0;
+  visibility: hidden;              /* drawn nowhere, and still measurable */
+  pointer-events: none;
 }
 
 ` : ''}${hasAudience(content) ? `/* ── Audience result chips — the per-answer percentages the audience state paints. The chip
