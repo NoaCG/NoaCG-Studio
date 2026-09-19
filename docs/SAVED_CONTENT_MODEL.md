@@ -5,6 +5,11 @@ step 3 - the audit found only empty folder shells, so removal needed no data mig
 This is the binding contract for how finished work is saved, organized, reopened, and
 controlled.
 
+Planned editor extension (2026-09-19, not shipped): [workflow decision](research/editor-workflow-review-2026-09-19/README.md)
+adds versioned authoring-project manifests referencing standalone GraphicDoc IDs and per-document
+draft sessions in R1.4a. It does not revive retired packages or change production/on-air copy
+semantics. The singleton working slot below describes today's code, not the future tab contract.
+
 ## 1. The shape
 
 ```text

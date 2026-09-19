@@ -4,7 +4,7 @@ Owner direction, updated 2026-09-19. Planning and mockups only. Product implemen
 hold for the requested whole-workspace alignment before R1.0. This is the single authority for
 scope, order and completion; it replaces the earlier delivery/professional-direction documents.
 Review entry point: [review brief](research/editor-review-brief-2026-09-18.md) and the
-[complete workspace and each phase's purpose](research/editor-whole-workspace-2026-09-19/README.md).
+[whole workspace](research/editor-whole-workspace-2026-09-19/README.md) plus [workflow decisions](research/editor-workflow-review-2026-09-19/README.md).
 Review of d5e8c1db: ready with named corrections, recorded below. Mockups are not product evidence.
 
 ## Destination
@@ -13,19 +13,19 @@ Review of d5e8c1db: ready with named corrections, recorded below. Mockups are no
 An Illustrator SVG goes through the existing import wizard into an immediately usable editor.
 Its artwork, groups, text, fields, fonts and assets remain intact; users select, move, resize,
 restyle and animate supported parts without rebuilding the design. The canvas stays visible.
-Basic text, shapes and images can also be authored here. Import fidelity comes before new tools.
+Text, shapes, images and a bounded Pen tool are authored here. Import fidelity precedes new tools.
 
 ### Animation and effects
 A professional layer/property timeline authors In, named reveals, Out and seamless local loops.
 The playhead directly scrubs the graphic, with independent keys, predictable easing and undo.
-Later releases add Lottie clips and paint/effect authoring. Existing complex graphics keep their
+Later slices add Lottie/image-sequence clips and paint/effects; video authoring waits. Existing graphics keep their
 source and playback. The node editor is deferred and absent from the proposed workspace.
 
 ### Reusable designs and brands
 The visible template gallery offers existing graphic categories and coordinated Starter
 Collections. Choose graphics, apply a Home brand, replace content/logo/font, adjust individual
 items and install the selected set into a rundown. The first curated set covers lower third,
-headline, logo bug, holding and end screen; browsing is not limited to those five graphic types.
+headline, logo bug, holding and end screen. Projects hold several graphics with their own timelines; Home retains each saved graphic for bulk reuse.
 
 ### Live data
 Preserve current operator fields immediately. Extend visual binding to text/images/colours,
@@ -56,14 +56,14 @@ workflow. This is the destination; only measured evidence can establish that com
 
 ## Interaction contracts
 
-- Compact professional chrome. Chat/Project at left, permanent canvas with tools/rulers/Fit in
-  the centre, Layers above Properties at right, timeline below. At 1366x768 collapse the left
-  dock first, retain a roughly 280 px inspector and at least 240 px timeline. Resizing never
-  hides the whole canvas. The right tree and timeline share identities and selection.
-- The Project dock exposes Assets, Brands, Fields and Collection; the app bar exposes Import
-  SVG and Templates. A template gallery must show real graphic previews/categories, not only
-  a project-file list. Choosing a graphic opens the same editor as imported artwork.
-- Canvas toolbar: Select, Text, Rectangle, Ellipse and Image. Draw shapes/text boxes on the
+- Project/Chat at left, permanent canvas/tools in the centre, Properties at right, timeline below.
+  Timeline owns the layer list, + Layer, groups/folders and property access. Optional Outline
+  replaces Properties for nested SVG inspection; no permanent duplicate Layers list/store.
+  At 1366x768 collapse the left dock first; retain canvas, ~280 px inspector and >=240 px timeline.
+- Project exposes Graphics, Assets, Brands, Fields and Collection; tabs switch graphics in one editor.
+  Assets supports Import files and OS file drop; placing an asset creates a layer/bar. Reuse existing import.
+  Import SVG keeps the wizard; Templates opens real previews. Home/editor share selected-set production handoff.
+- Canvas toolbar: Select, Text, Rectangle, Ellipse, Pen and Image. Draw shapes/text boxes on the
   canvas; Shift constrains square/circle. Selection handles scale artwork; box/layout resizing
   is a distinct operation. Numeric and pointer edits share animation, history and source.
 - Full 2D Anchor X/Y, Position X/Y, linked/unlinked Scale X/Y, turns+degrees Rotation and
@@ -102,8 +102,8 @@ workflow. This is the destination; only measured evidence can establish that com
   delivers reusable instances after R1.5. Both remain required for full completion.
 - New Text is editable in playout by default; honor wizard exclusions and driven fields.
   Stable schema keys survive label changes. OGraf/YLE acceptance includes a named runtime host.
-- Keep Linear, Easy Ease In, Easy Ease Out, Easy Ease and Hold (five choices total). Inspector,
-  sampler and output agree; existing custom curves remain intact. New Bezier tools are deferred.
+- Linear, Easy Ease In/Out, Easy Ease, Bounce, Overshoot and Hold Keyframe share one batch action:
+  marquee/Ctrl/Cmd/Shift selection, toolbar or right-click. Shared evaluator/export parity; new curve graph UI deferred.
 - UI, chat and external tools use one operation registry over deterministic readable patches.
   Show supported targets and concrete errors. Arbitrary unknown source is preserved, never
   flattened or regenerated to make an unavailable control appear editable.
@@ -119,14 +119,14 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 | R1.1b Keys and bar moves | Text + box: off-canvas first key, move playhead 1 s, canvas drag creates second key; visible spans and bar-body moves carry keys. B05/B13 key/bar portions; no trim UI yet. |
 | R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
 | R1.1d Fidelity and trim | Nested Illustrator/catalog fixtures, stable IDs on first SVG edit, span trimming, two first-time users on the basic journey; B01-B05/B11/B13 applicable portions. |
-| R1.2a Animation | Shared Bezier string/evaluator gate, exact curve splits, full transform animation/easing, key gestures, Step/Next, cue-side editing and cross-cue bars/keys. B03/B05-B07/B13. |
-| R1.2b Everyday tools and grouping | E05-E07/B04: typography/fit, images/assets, full canvas tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins, group transform/parent bar/local ruler. Reusable instances follow in P-COMP after R1.5. |
+| R1.2a Animation | Shared Bezier/named-ease evaluator gate; exact splits, full transforms, marquee/modifier multi-key selection and dropdown/context easing including Bounce/Overshoot/Hold; Step/Next/cross-cue editing. B03/B05-B07/B13. |
+| R1.2b Everyday tools and grouping | E05-E07/B04: typography/fit, file/drop import, images/assets, bounded Pen, full canvas tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins, group transform/parent bar/local ruler. Reusable instances follow in P-COMP after R1.5. |
 | R1.2c Loops | Local loops, interruption/replay, legacy behavior and output parity. B07/B13/B14 local-loop portion. |
-| R1.3 Shared AI and source round-trip | Grounded helper, bounded edits, budgeted free tier/BYOK and CLI round-trip through shared operations; real-model evaluation, conflict/cancel/undo. B17/B18 core. |
-| R1.4 Templates, brands and rundown | Gallery/curated set, Home brands/overrides, subset customization and durable installation/retry/revert/rehearsal. B08-B10. May run in parallel from R1.1c on the stable registry; does not require R1.2/R1.3. |
+| R1.3a/b AI and source round-trip | a: grounded help-only chat; b: previewed bounded edits and CLI through shared operations. Budgeted free tier/BYOK, real-model evaluation, conflict/cancel/undo. B17/B18. |
+| R1.4a-d Projects, brands and rundown | a: durable multi-graphic projects/drafts; b: gallery/starters/brands; c: shared Home/editor bulk save/install and playout availability; d: recovery/rehearsal. B08-B10/B19. Parallel from R1.1c registry, independent of R1.2/R1.3. |
 | R1.5 Acceptance and default switch | Comparative/user/performance and real-host checks, GSAP licence clarification, owner acceptance; then replace default editing interactions while preserving runtime/source behavior. |
 | P-COMP (after R1.5) | Named task for instanced reusable precompositions: definition/instance ownership, editable local timelines, field IDs/overrides, cycles, history/save/export parity. Schedule approved 2026-09-19; remains required for full completion. |
-| R2.1 Lottie | Profile/import, native FPS/speed, trims, In/loop/Out ranges, reverse seek, interruption, bundled exports. B14 Lottie portion. |
+| R2.1a/b Animated assets | a: Lottie profile/import; b: numbered image sequences. Source FPS/speed, trims, In/loop/Out, reverse seek, interruption, memory budgets and bundled exports. B14. Video authoring later. |
 | R2.2 Paint and effects | Gradients, masks, ordered effects, supported animation, AI operations and target parity. B15. |
 | R3.1 Structured live graphics | Recursive GDD fields/bindings, arrays/collections, validated feeds, staleness/replay and target mappings. B16. |
 | R3.2 Complete co-authoring | Paired live-document MCP, concurrent edits, all shipped tools and broader model evaluations. B17/B18 full. Subscription-agent adapters remain separate spikes. |
@@ -136,7 +136,7 @@ Node-graph authoring is outside R1-R3. Preserve code, schema, tests and lessons 
 proposal needs a clear user task and owner scope decision. This hold does not remove existing
 runtime behaviors or rewrite the separate P2 research programme.
 
-Native Lottie path editing, full vector/path drawing, motion paths, expressions, arbitrary reparenting, automatic brand propagation and general-purpose package authoring remain deferred. Existing imported gradients/masks must retain fidelity in R1 even
+Native Lottie path editing, advanced vector/Boolean/path morphing, motion paths, expressions, arbitrary reparenting and automatic brand propagation remain deferred. The bounded Pen is R1.2b; authoring projects are R1.4a. Existing imported gradients/masks must retain fidelity in R1 even
 though creating/editing those effects arrives in R2. New loops are required in R1.
 
 ## Coverage register
@@ -163,14 +163,15 @@ Existing E/B identities are retained; split rows close only when all portions pa
 | E16 operator fields and output parity | R1.2, R1.4, R2-R3 extensions / B07, B10, B14-B16 |
 | E17 responsive, legible, reliable interaction | Every slice / B01-B11 |
 | E18 optional docked Monaco | Optional after shared transaction / B12 conditional |
-| E19 local loops and Lottie clips | R1.2 loops; R2.1 Lottie / B13, B14 |
+| E19 local loops and animation clips | R1.2 loops; R2.1a Lottie / b image sequences / B13, B14 |
 | E20 gradient/mask/effect authoring | R2.2 / B15; preserve imported appearance in R1 |
 | E21 structured/live data and runtime collections | R3.1 / B16; preserve current fields in R1 |
 | E22 embedded free basic AI/BYOK editing | R1.3 core, R1.4 brands, R2-R3 extensions / B18 |
 | E23 shared UI/CLI/MCP and editable round-trip | R1.0 registry, R1.3 CLI, R3.2 paired bridge / B17 |
 | E24 professional timeline, direct playhead and Out triggers | R1.0 scrub; R1.1b-d core; R1.2a/c Next/loops / B13 |
+| E25 multiple graphics per project and Home reuse | R1.0 ownership contract; R1.4a/c durable workspace/library/production / B19 |
 
-The [acceptance register](research/editor-acceptance-register-2026-09-17.md) is the live B01-B18 task/evidence ledger, including D01-D05 closing tests and later gates. Historical receipts do not govern order.
+The [acceptance register](research/editor-acceptance-register-2026-09-17.md) is the live B01-B19 task/evidence ledger, including D01-D05 closing tests and later gates. Historical receipts do not govern order.
 
 ## Baseline closure and acceptance
 
@@ -226,14 +227,14 @@ New sessions resume these records and the actual branch state.
 | Work | State |
 |---|---|
 | Planning inventory | Closed by classification; evidence gaps assigned, not passed |
-| Consolidated scope and revised mockups | Corrections/group scope recorded; complete workspace study dated 2026-09-19 awaits owner alignment |
+| Consolidated scope and revised mockups | Whole-workspace direction accepted; 2026-09-19 workflow refinements recorded for review |
 | R1.0-R1.5 / P-COMP | Not started; existing foundations retained; P-COMP follows R1.5 |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 | Product implementation permission | On hold |
 
-Next: review the complete workspace before R1.0, then record the file-level replacement/retirement inventory. A planning commit/build does not start product work. Each slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
+Next: review workflow refinements before R1.0, then record the file-level replacement/retirement inventory and multi-document ownership boundary. A planning commit/build does not start product work. Each slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived
@@ -245,5 +246,5 @@ prohibits that code in the Apache CLI or emitted packages; see the mechanism's l
 [Adobe/SVG audit](research/editor-adobe-svg-contract-2026-09-18.md),
 [transform study](research/editor-transform-proposal-2026-09-18/README.md) and
 [timeline study](research/editor-timeline-first-2026-09-18.md) remain design evidence.
-The 2026-09-19 whole-workspace study shows permanent Out, Set Out and labelled ruler units.
+The latest workflow study adds graphic tabs, optional Outline, Pen, import and multi-key easing.
 Earlier prototypes stay historical; mechanism/acceptance contracts override simplified mockup behavior.

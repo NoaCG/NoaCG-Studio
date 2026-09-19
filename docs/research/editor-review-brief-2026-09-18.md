@@ -5,9 +5,14 @@ Corrections are recorded, not implemented. Branch: codex/editor-baseline-design.
 Product implementation remains on hold. Group/precomp scope approved by owner 2026-09-19.
 This brief indexes the plan; EDITOR_PLAN.md is the single scope authority.
 
+Latest owner review: the whole-workspace direction is accepted; [workflow refinements](editor-workflow-review-2026-09-19/README.md)
+now add file/drop import, optional Outline, Pen, easing batches and multi-graphic projects.
+R1.3 splits help then edits; R1.4a-d adds durable projects/Home reuse; R2.1a/b covers Lottie/sequences.
+Read the current EDITOR_PLAN.md slice table for these superseding details and B19 coverage.
+
 ## Read in this order
 
-1. [EDITOR_PLAN.md](../EDITOR_PLAN.md): complete destination, corrected sequence, E01-E24 and checkpoints.
+1. [EDITOR_PLAN.md](../EDITOR_PLAN.md): complete destination, corrected sequence, E01-E25 and checkpoints.
 2. [EDITOR_REBUILD_PLAN.md](../EDITOR_REBUILD_PLAN.md): D01-D05 source/interaction/runtime decisions.
 3. [Acceptance register](editor-acceptance-register-2026-09-17.md): closing tests, slice gates and unverified evidence.
 4. [STARTER_COLLECTIONS_PLAN.md](../STARTER_COLLECTIONS_PLAN.md): Home brands, gallery and production installation.
@@ -60,11 +65,11 @@ at the named slice exits; recording them does not authorize starting R1.0.
 | R1.2a | R1.1d and shared Bezier gate | Full transform animation, key gestures/easing, exact splits, Step/Next, cue-side editing and cross-cue spans |
 | R1.2b | R1.2a; scope approved | E05-E07/B04: typography/fit/assets/images/full tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins and group layer |
 | R1.2c | R1.2a and relevant group behavior | Local loops, interrupted Out/replay and legacy behavior regression |
-| R1.3 | Stable shared operations from R1.1c; later tools registered as shipped | Grounded basic AI/BYOK, real-model evidence and CLI round-trip |
-| R1.4 | R1.1c stable registry; may run parallel with R1.1d/R1.2/R1.3 | Gallery, starter set, Home brand/overrides, selected-set installation/recovery and rehearsal; no AI dependency |
+| R1.3a/b | Stable registry from R1.1c | a grounded help-only chat; b bounded editing, real-model evidence and CLI round-trip |
+| R1.4a-d | R1.1c registry; parallel with R1.1d/R1.2/R1.3 | a durable multi-graphic projects; b starters/brands; c Home/editor bulk installation; d recovery/rehearsal; B19; no AI dependency |
 | R1.5 | All required R1 portions, GSAP clarification | Comparative/human/performance/output-host checks and explicit owner default-switch approval |
 | P-COMP | After R1.5; scope approved | Instanced reusable precompositions with definition/instance, field, history and export parity |
-| R2.1/R2.2 | Relevant R1 contracts | Lottie then paint/mask/composable effects |
+| R2.1a/b, R2.2 | Relevant R1 contracts | Lottie, image sequences, then paint/mask/composable effects; video authoring later |
 | R3.1/R3.2 | Relevant R1/R2 contracts | Structured/live data then complete paired co-authoring |
 
 Each row gets a bounded branch, fixture and exact route before implementation. At its exit,
