@@ -259,3 +259,80 @@ Sources for the Swamp half: the project manual at swamp-club.com/manual, in part
 Works"; the repository at github.com/systeminit/swamp (AGPL-3.0 plus the Swamp Extension and
 Definition Exception, Deno, file sizes measured 2026-09-19); `OSS-FAQ.md` in that repository for the
 trademark terms; and Dieter Plaetinck's independent write-up of building three workflows on it.
+
+## 10. The same question asked about the site, where no agent is present
+
+Asked 2026-09-19, after the above: leave the CLI aside, and leave the SVG import alone because it
+has to work on Friday. Is there anywhere on the noacg.studio site itself that a Swamp workflow
+could do real work? The owner named quiz question import and the AI graphic creation tool as
+guesses.
+
+**No, and the reason is shape rather than quality.**
+
+### The runtime does not meet
+
+The site is a browser application plus Vercel serverless functions plus Supabase. The function
+budget is twelve and has been hit once already, which silently stopped production deploying for
+four days, so every new area costs a slot (`api/me/[...path].ts` explains why every area is a
+catch-all). Swamp is a Deno binary that wants a long-lived host: `swamp serve` with webhook
+endpoints, cron triggers and its own `.swamp` data directory. Anything Swamp did for the site would
+be a new always-on machine, a new auth boundary, a second runtime to operate and patch, and, since
+we would be running it as a service, the sharp end of AGPL section 13. None of the three candidates
+below is worth that, and all three sit in a user request path where a hop to another host is a
+latency cost with nothing bought.
+
+### The three candidates, each checked
+
+**Quiz question import.** This is a file parse in the browser. `src/model/csv.ts` is a real
+RFC 4180 parser with separator detection, written precisely because a quiz bank whose questions
+contain commas "imports as a table with the right number of rows and the wrong number of columns,
+which reads as working until it is on air". `ProductionDataWorkspace.tsx` already calls
+`parseTableFile` on a dropped file, and the resulting dataset rows already load into cues with Next
+(`e2e/quiz-pilot.spec.ts` runs a question bank that way). One deterministic step, no secrets, no
+fan-out, and it has to work offline. There is nothing here for a workflow engine to sequence, and
+the owner's own ask filed the same day routes the remaining piece at the CLI rather than at a server
+pipeline.
+
+**The AI graphic creation tool.** This is the strongest candidate on paper and the clearest no in
+practice, because the product already has this workflow engine and it is better than a YAML DAG
+would be. The Pro harness (`src/ai/pro/harness/`) is a phased agent loop with budgets, per-phase
+tools, findings, critique rounds, verdicts and patching, sitting on a typed task registry
+(`api/_lib/aiTaskRegistry.ts`) that already carries schema refs and versions, allowed tiers, token
+and image limits, timeouts, retries, a route policy with fallbacks and a cost ledger. That is
+Swamp's model-and-workflow shape, already built, already domain-specific. Its steps are not shell
+calls to external systems; they are judgements like "assemble at the catalog chassis's drawn zone"
+and "bound polish to appended CSS and the root's inner HTML", governed by about thirty compiled
+rules in `src/ai/AGENTS.md`. Re-expressing that as workflow YAML would trade type safety for
+generality we have no use for.
+
+**Render jobs.** Already a durable job ledger with states, deadlines and quota principals
+(`api/_lib/jobStore.ts`), a worker, sandboxed execution, and a nightly cleanup cron in
+`vercel.json`. Solved, in the place it belongs.
+
+### What Swamp is actually shaped for, and where that shape does exist here
+
+Swamp's own product page leads with incident response: an alert fires, several third-party systems
+are queried, a dossier comes out, with secrets and audit history included. The site barely touches
+third-party systems at run time. The one that matters, the AI gateway, already has a typed registry,
+a route policy with fallbacks and a ledger.
+
+The place that shape *does* exist is operations, and it is outside the product: `night-report.mjs`,
+`alarm-issues.mjs`, `weekly-candidates.mjs`, `catalog-cost.mjs`, `check:freshness`, and the admin
+overview's counts. Scheduled, multi-source, artifact-producing, credential-using. There is even a
+named gap: `alarm-issues.mjs` records that five workflows file rolling issues when something landed
+is red and "NOTHING EVER READ THEM BACK", and the fix was a paragraph printed where somebody is
+already reading, which still requires opening a laptop session.
+
+Even there the answer is no, for one reason: GitHub Actions already runs those workflows on cron
+with secrets, and the scripts are already written and tested. Swamp would replace something that
+works with something that needs a host.
+
+### If we do want to try the technology
+
+Try it where it was designed to be used, which is a repository with a coding agent in it, and
+nowhere near Friday. The contained experiment is to take one existing multi-step chain in this repo
+that an agent already re-derives each time, express it as a Swamp model plus workflow, and compare:
+does it come out more reliable and more reviewable than the `.mjs` script and the skill paragraph it
+replaces? That evaluates Swamp honestly, costs nothing user-facing, and touches no shipped surface.
+If it wins there, the case for it anywhere else gets easier to make. If it does not, we have the
+answer for the price of an afternoon.
