@@ -1,7 +1,7 @@
 # Editor plan
 
 Owner direction, updated 2026-09-19. The owner authorized the bounded R1.0 implementation,
-superseding the historical planning hold. R1.1a waits for the R1.0 review handback. This is the single authority for
+superseding the historical planning hold. R1.0 is merged and live; the requested next-session handoff scopes R1.1a only. Owner usability acceptance is still open. This is the single authority for
 scope, order and completion; it replaces the earlier delivery/professional-direction documents.
 Review entry point: [review brief](research/editor-review-brief-2026-09-18.md) and the
 [whole workspace](research/editor-whole-workspace-2026-09-19/README.md) plus [workflow decisions](research/editor-workflow-review-2026-09-19/README.md).
@@ -114,7 +114,7 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 
 | Train / slice | Deliverable and exit demonstration |
 |---|---|
-| R1.0 Foundation | Flagged route on preview deployments: professional shell, selection, read-only bars, scrub, operation registry/history, preview protocol and latency harness. Record D01-D05 decisions before starting; tests close in their assigned slices. B01/B02/B11/B13 foundation only. |
+| R1.0 Foundation | Merged/live via PR #331; foundation engineering checks passed, owner acceptance open. Flagged route: professional shell, selection, read-only bars, scrub, operation registry/history, preview protocol and latency harness. Record D01-D05 decisions before starting; tests close in their assigned slices. B01/B02/B11/B13 foundation only. |
 | R1.1a Base edits and tools | Wizard Finish -> optional Edit; source-backed Position/Layout offset, text/rectangle/ellipse creation and basic scaling. B01/B03/B04 core; keep wizard behavior/fields. |
 | R1.1b Keys and bar moves | Text + box: off-canvas first key, move playhead 1 s, canvas drag creates second key; visible spans and bar-body moves carry keys. B05/B13 key/bar portions; no trim UI yet. |
 | R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
@@ -183,7 +183,7 @@ sampler mismatch, F4 stress inputs and F5 source-preservation inputs. The 120 se
 Assign remaining paired B02-B07 walks, transform fixtures, performance instrumentation and
 owner blank-stage reproduction to R1.0-R1.2. Two first-time users test R1.1d; fuller adoption
 walks repeat at R1.5, with owner feedback at every slice exit. Lottie/data/agent fixtures belong to R2/R3. Nothing unmeasured becomes
-a pass. Closing the planning inventory does not release the owner's implementation hold.
+a pass. Planning closure alone is not implementation evidence; the explicit R1.0 authorization and delivery receipt supersede that historical hold.
 
 For every slice, demonstrate the end-to-end user task and refusal case, source/pixel agreement,
 undo/cancel, save/reopen and relevant exports. Use mapped browser checks through the queue,
@@ -228,13 +228,13 @@ New sessions resume these records and the actual branch state.
 |---|---|
 | Planning inventory | Closed by classification; evidence gaps assigned, not passed |
 | Consolidated scope and revised mockups | Whole-workspace direction accepted; 2026-09-19 workflow refinements recorded for review |
-| R1.0-R1.5 / P-COMP | R1.0 foundation implemented; review/evidence in research/editor-r1-foundation. Later slices not started; P-COMP follows R1.5 |
+| R1.0 | Merged and deployed as cfb28e74 (PR #331); local, CI and live checks passed. Owner usability/first-time-user acceptance remains open |
+| R1.1a-R1.5 / P-COMP | R1.1a is the next bounded implementation task; handoff requested, no R1.1a code started. Later slices and default switch are not authorized by this handoff; P-COMP follows R1.5 |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
-| Product implementation permission | On hold |
 
-Next: review the bounded [R1.0 implementation](research/editor-r1-foundation/README.md), then authorize the next R1.1a base-edit/tool slice. The file-level inventory and document ownership are recorded with it. Each slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
+Next: start from freshly fetched main containing PR #331 and this documentation update, then follow the [R1.1a handoff](handoffs/2026-09-19-editor-r1.1a.md) for optional Finish -> Edit, base edits and core creation/scaling only. The [R1.0 receipt](research/editor-r1-foundation/README.md) distinguishes engineering passes from open owner review. Record any new owner feedback before changing dependent contracts. Each slice gets its own branch, evidence and handoff; CI/review precedes the merge queue.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived

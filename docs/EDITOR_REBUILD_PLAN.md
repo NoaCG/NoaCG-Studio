@@ -2,7 +2,7 @@
 
 Updated 2026-09-19. [EDITOR_PLAN.md](EDITOR_PLAN.md) owns scope, order and acceptance. This document
 owns the source, interaction and preview mechanisms. The owner authorized R1.0 on 2026-09-19;
-the earlier implementation hold is superseded for that bounded slice.
+the earlier implementation hold is superseded for that bounded slice. R1.0 landed in PR #331 and is live as cfb28e74; the [next-session handoff](handoffs/2026-09-19-editor-r1.1a.md) scopes R1.1a. Owner usability acceptance remains open.
 Independent review of d5e8c1db is accepted with the corrections below.
 The old rebuild plan is archived with the consolidation evidence; its mode and phase order
 are superseded. Existing application behavior remains the source of truth until replaced.
@@ -26,11 +26,11 @@ edits/tools; R1.1b keys/bar bodies; R1.1c Set Out/hold/interrupt/export; R1.1d n
 trim and two first-time users. Closing tests and slice owners are in the acceptance register.
 These are planning decisions before R1.0, not claims that future tests have already passed.
 
-R1.0 uses a flagged route available on preview deployments, with permanent canvas/shell,
+R1.0 uses a flagged route now available on the live site through the wizard Alpha link, with permanent canvas/shell,
 selection, read-only bars, scrub, shared operation registry, history, revision protocol and
 input-to-pixel latency harness. The default editor does not switch. Test flag off/on, fixture
 load/selection/scrub, registry undo/conflict through a harness, stale replies and both viewports.
-No product implementation or deployment is authorized by recording this plan.
+The owner explicitly authorized R1.0 implementation and landing; PR #331 and the live receipt prove delivery. Recording later mechanisms does not pass their tests or authorize a default-editor switch.
 
 ## First complete editing journey: simple In, hold and Out
 

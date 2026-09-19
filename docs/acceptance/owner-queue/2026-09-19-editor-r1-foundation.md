@@ -14,8 +14,8 @@ The bounded engineering receipt and actual screenshots are in
 
 ## Route in under a minute
 
-Open [the implementation preview](http://localhost:5284/app?editor=foundation#/editor-foundation)
-while this worktree's preview server is running. It displays the current working graphic.
+Open [the deployed Alpha](https://noacg.studio/app?editor=foundation#/editor-foundation)
+from the wizard homepage or directly. PR #331 deployed cfb28e74; live verification j-1422 passed. It displays the current working graphic.
 Click a timeline layer, scrub the ruler, and switch Properties/Outline. Use Fit and
 Space-drag. Home and Existing editor are in the header. The review document has the
 restart command and catalog/imported-SVG fixture routes.
@@ -28,4 +28,4 @@ Engineering checks and machine measurements are recorded separately from your re
 
 Action: review this bounded foundation. The exact next task is R1.1a base edits/tools and
 the optional wizard Edit handoff, as specified in the linked receipt. Work stops here
-before that slice.
+before that slice. The owner requested a fresh-session R1.1a handoff; this is not a recorded usability acceptance, so answered remains false.

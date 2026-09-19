@@ -32,10 +32,10 @@ The captures below are actual product renders. They are separate from the planni
 ## Wizard shortcut and phone viewing
 
 The wizard homepage now has an **Open editor Alpha** link beside its headline (below it
-on a phone). It opens the current graphic without requiring Advanced mode. Once this
-branch is deployed, the same route is available at
+on a phone). It opens the current graphic without requiring Advanced mode. Since PR #331, this
+route is deployed and available at
 [the live editor Alpha](https://noacg.studio/app?editor=foundation#/editor-foundation).
-The link itself does not imply that this branch has been merged or deployed.
+The deployed commit is cfb28e74; production was checked after deployment, not inferred from a local build.
 
 Phone portrait and landscape layouts keep the canvas full-width, then stack Properties
 and the timeline below it. Scroll to inspect the panels. This provides phone viewing
@@ -170,11 +170,11 @@ port while running the source specs.
 - Dock sizing is responsive and fixed in this slice; manual resizing and wider workspace
   preferences remain in the later E03 allocation. 125% evidence uses an equivalent CSS
   viewport and device scale, not a manual browser zoom session.
-- No hosted deployment or owner/first-time-user acceptance is claimed. Review is pending.
+- Hosted deployment and the live entry/preview checks passed (receipt below). Owner usability and first-time-user acceptance remain pending; physical phone Safari and receiving-host parity were not tested.
 
 ## Exact next task: R1.1a
 
-On a new bounded branch after this review, implement optional wizard Finish -> Edit,
+Start from updated main using the [R1.1a handoff](../../handoffs/2026-09-19-editor-r1.1a.md). On a new bounded branch, implement optional wizard Finish -> Edit,
 source-backed Position/Layout offset, Text/Rectangle/Ellipse creation and basic scaling.
 Extend the operation registry and transient preview path; each completed gesture is one
 deterministic source patch and one undo step. No key authoring or bar moves yet.
@@ -185,3 +185,32 @@ runtime mapping, including translate(100,80)/rotate(30)/scale(2). Verify numeric
 agreement, Escape, undo/redo, animation, save/reopen and relevant exports. Preserve wizard
 fields and the direct production path. Repeat laptop/desktop/125% inspection and measure
 actual drag feedback through this revision protocol.
+
+## Landed and live - 2026-09-19
+
+[PR #331](https://github.com/NoaCG/NoaCG-Studio/pull/331) merged to main at
+18:52:18 UTC as cfb28e74b4f584a582d1b813d774d087d461b388 and deployed successfully.
+The original implementation commits were rebased onto current main before landing.
+[Live version/result](live-result.json) records the matching production commit and
+the fresh-browser check time. Live job j-1422 passed the wizard shortcut, cold direct
+route, ready artwork, no preview/page errors and 390x844 responsive geometry.
+
+![Live wizard Alpha shortcut](wizard-live.png)
+![Live desktop foundation](editor-live-desktop.png)
+![Live phone viewing](editor-live-phone.png)
+
+After integration with updated main, local build passed (1,801 infrastructure tests,
+one documented skip) and j-1419 passed 45/45 editor/wizard checks. The new Alpha tab
+stop required an explicit update to the existing keyboard focus regression.
+[PR CI](https://github.com/NoaCG/NoaCG-Studio/actions/runs/35461381515) passed all
+842 browser tests across nine groups, plus build/factory gates.
+[Merge-group CI](https://github.com/NoaCG/NoaCG-Studio/actions/runs/35461988180)
+also passed. Earlier counts and latency distributions above remain their original
+measured receipts; no production latency benchmark is claimed.
+
+The owner requested the live shortcut and phone access, and reported the missing link
+before this branch was landed. Engineering verified the deployed correction; no later
+owner usability result is recorded. The queue explicitly disclosed that the inherited
+planning archive did not receive a formal whole-branch review verdict. Owner review,
+physical-phone Safari, two-first-time-user walks and receiving-host acceptance stay open.
+The [next-session prompt](../../handoffs/2026-09-19-editor-r1.1a.md) bounds R1.1a.
