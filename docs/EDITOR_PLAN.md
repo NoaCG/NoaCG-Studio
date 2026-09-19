@@ -1,11 +1,11 @@
 # Editor plan
 
 Owner direction, updated 2026-09-19. Planning and mockups only. Product implementation remains on
-hold until the owner explicitly resumes it. This is the single authority for editor scope,
-order and completion. It replaces the delivery roadmap and professional-direction documents.
-Review entry point: [review brief](research/editor-review-brief-2026-09-18.md), including the
-latest interaction study and retained full-workspace design. Review of d5e8c1db: ready with
-named corrections, now recorded below. Earlier mockups are evidence, not the corrected contract.
+hold for the requested whole-workspace alignment before R1.0. This is the single authority for
+scope, order and completion; it replaces the earlier delivery/professional-direction documents.
+Review entry point: [review brief](research/editor-review-brief-2026-09-18.md) and the
+[complete workspace and each phase's purpose](research/editor-whole-workspace-2026-09-19/README.md).
+Review of d5e8c1db: ready with named corrections, recorded below. Mockups are not product evidence.
 
 ## Destination
 
@@ -226,14 +226,14 @@ New sessions resume these records and the actual branch state.
 | Work | State |
 |---|---|
 | Planning inventory | Closed by classification; evidence gaps assigned, not passed |
-| Consolidated scope and revised mockups | Review corrections recorded; group/precomp scope approved 2026-09-19; mockups remain historical |
+| Consolidated scope and revised mockups | Corrections/group scope recorded; complete workspace study dated 2026-09-19 awaits owner alignment |
 | R1.0-R1.5 / P-COMP | Not started; existing foundations retained; P-COMP follows R1.5 |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 | Product implementation permission | On hold |
 
-The scope ruling is recorded; the next action is explicit implementation authorization. A planning commit/merge/build does not start product work. Each authorized slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
+Next: review the complete workspace before R1.0, then record the file-level replacement/retirement inventory. A planning commit/build does not start product work. Each slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived
@@ -245,5 +245,5 @@ prohibits that code in the Apache CLI or emitted packages; see the mechanism's l
 [Adobe/SVG audit](research/editor-adobe-svg-contract-2026-09-18.md),
 [transform study](research/editor-transform-proposal-2026-09-18/README.md) and
 [timeline study](research/editor-timeline-first-2026-09-18.md) remain design evidence.
-The corrected permanent Out, Set Out, phase ordering and ruler contract above supersede
-conflicting mockup labels/behavior; updating those prototypes is not part of this docs-only change.
+The 2026-09-19 whole-workspace study shows permanent Out, Set Out and labelled ruler units.
+Earlier prototypes stay historical; mechanism/acceptance contracts override simplified mockup behavior.

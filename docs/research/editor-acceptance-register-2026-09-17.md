@@ -6,6 +6,10 @@ M0 closes as an inventory. Product implementation remains on owner hold.
 Updated after independent review of d5e8c1db: decisions are recorded below; no closing test
 has been executed for the replacement editor. The corrected ordering supersedes prior receipts.
 Owner approved group/precomposition scope on 2026-09-19; product tests remain unverified.
+The [whole-workspace review](editor-whole-workspace-2026-09-19/README.md) now shows canvas,
+assets/layers, tools, timeline, gallery and wizard handoff together with each phase's purpose.
+Its browser inspection verifies only the design study; no E/B/D product task is closed by it.
+Owner alignment on this complete view is the current pre-R1.0 checkpoint.
 
 | Task | Exact outcome | Responsible slice | Current evidence |
 |---|---|---|---|
