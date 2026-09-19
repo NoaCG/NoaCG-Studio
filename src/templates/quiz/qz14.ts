@@ -189,7 +189,7 @@ ${showBoardRowsHtml(CONTENT)}
   background: var(--accent);
   box-shadow: 0 0 0 calc(4px * var(--scale)) var(--panel-bg),
               0 0 0 calc(7px * var(--scale)) var(--accent),
-              0 0 calc(40px * var(--scale)) color-mix(in srgb, var(--accent) 70%, transparent);
+              var(--accent-glow);  /* the gap, the outer ring, then the family's glow */
 }
 .quiz-correct .quiz-text {
   color: var(--accent-ink);
