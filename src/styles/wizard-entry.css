@@ -17,9 +17,39 @@
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--bg-panel);
-  transition: border-color 0.14s;
+  transition: border-color 0.14s, background 0.14s;
 }
+/* THE ROW ANSWERS A HOVER THE WAY A CARD DOES, because the body button gave its own chrome up
+   to the row (below) — so if the row does not answer, nothing does, and the one full-width
+   thing on the step sat dead under the pointer while every card beside it lit up in amber.
+   That grey nudge was also the only hover in the wizard breaking the shell's own rule (the
+   "ONE AMBER ANSWER" note in wizard-and-dialogs.css), which this row's own two shortcuts keep.
+   IT TAKES THE BORDER AND THE FILL, NOT THE LIFT. `translateY(-2px)` is what says "a card you
+   pick up"; on a 1180x72 shelf it reads as the whole band twitching, and the pointer is often
+   over a shortcut when it fires — so the button about to be clicked would move under the
+   cursor. The resting state stays grey, so Home is still not the action the step recommends;
+   only the ANSWER is unified, never the weighting.
+   IT IS THE BODY BUTTON THAT ASKS FOR IT, not the row. A hover says what a CLICK will do: the
+   body opens Home and the whole row is the Home object, so the whole row lights. A shortcut
+   opens a section, and it already lights itself — an amber row around an amber button is two
+   nested highlights for one target, and the reader cannot tell which owns the click. Over a
+   shortcut the row falls back to the plain grey below, which still says "this button belongs
+   to this row" without arguing with it. */
 .wz-continue-row:hover { border-color: var(--border-strong); }
+.wz-continue-row:has(> .wz-continue-card:hover) {
+  border-color: var(--accent);
+  background: var(--bg-2);
+}
+/* THE KEYBOARD GETS THE SAME ANSWER. There is no project-wide focus-visible rule, so tabbing
+   to the body button drew the browser's default ring around the inner 948px button — which
+   exposes exactly the nested-card shape the row's whole design exists to hide. The ring is
+   routed to the row's own border and fill instead. The two shortcuts keep their default
+   rings: a ring around one discrete button is right there. */
+.wz-continue-card:focus-visible { outline: none; }
+.wz-continue-row:has(> .wz-continue-card:focus-visible) {
+  border-color: var(--accent);
+  background: var(--bg-2);
+}
 /* The body button gives its own chrome up to the row: no border, no lift, no background of
    its own. It is still the whole clickable area left of the shortcuts. */
 .wz-continue-card {
