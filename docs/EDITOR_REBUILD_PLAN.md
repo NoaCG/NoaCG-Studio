@@ -406,6 +406,19 @@ cannot cross the last In key. Closing test: split an eased segment at 40%, compa
 samples/endpoints/tangents before/after in inspector, simulator and export; reverse named
 .in/.out presets and verify ease ownership moves to the correct destination key.
 
+## Replacement and retirement before R1.0
+
+The [complete workspace study](research/editor-whole-workspace-2026-09-19/README.md) maps panels
+and each phase to user outcomes. Before code changes, inventory actual files as keep/refactor/
+replace/retire, naming the removal slice for every replaced route, store, adapter and dependency.
+Bound workspace composition, code-derived selection, registry/history, canvas gestures,
+timeline gestures and preview protocol separately; never persist the mockup's local scene data.
+Every implementation brief states user problem, useful outcome, preserved behavior, module/
+operation boundaries, closing test and owner review route, with existing E/B acceptance IDs.
+The old editor is a temporary rollout fallback. Remove replaced paths after their consumers
+migrate and checks pass; R1.5 closes default-switch and retirement evidence, leaving one editor.
+Keep working import/runtime/export behavior until its explicit replacement is proven.
+
 ## Source patches and preview protocol
 
 Keep `SpxTemplate`, `animData`, `animEdit`, `timelineLens`, interpreter/export adapters and sound

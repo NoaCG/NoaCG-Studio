@@ -11,15 +11,19 @@ This brief indexes the plan; EDITOR_PLAN.md is the single scope authority.
 2. [EDITOR_REBUILD_PLAN.md](../EDITOR_REBUILD_PLAN.md): D01-D05 source/interaction/runtime decisions.
 3. [Acceptance register](editor-acceptance-register-2026-09-17.md): closing tests, slice gates and unverified evidence.
 4. [STARTER_COLLECTIONS_PLAN.md](../STARTER_COLLECTIONS_PLAN.md): Home brands, gallery and production installation.
-5. [Canvas/timeline study](editor-canvas-review-2026-09-18/README.md),
-   [workspace/gallery](editor-consolidated-proposal-2026-09-17/README.md),
-   [transform study](editor-transform-proposal-2026-09-18/README.md): historical design evidence.
+5. [Complete workspace, workflows and phase purposes](editor-whole-workspace-2026-09-19/README.md):
+   latest desktop screenshots, gallery, canvas tools and timeline in one local design study.
+   [Canvas/timeline](editor-canvas-review-2026-09-18/README.md), [workspace/gallery](editor-consolidated-proposal-2026-09-17/README.md)
+   and [transforms](editor-transform-proposal-2026-09-18/README.md) remain historical evidence.
 
 The previous [review request](editor-second-opinion-request-2026-09-18.md) describes the
 d5e8c1db review input. Its old phase order is superseded here. Likewise the mockups' Add Out
 label, missing initial Out, first-pass trim timing and mixed seconds/frame ruler are superseded
-by the permanent Out / Set Out and explicitly labelled unit contract. No prototype has been
-updated or counted as product acceptance by this planning-only correction.
+by the permanent Out / Set Out and explicitly labelled unit contract. The new 2026-09-19
+whole-workspace study illustrates those controls and the asset/template journeys. Its local
+interactions are not product acceptance. The owner requested this alignment before R1.0.
+The mechanism now requires a file-level keep/refactor/replace/retire inventory before code;
+the study explains each slice's user purpose, scope limits and closing demonstration.
 
 ## Complete scope retained
 
