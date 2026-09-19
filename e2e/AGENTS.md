@@ -113,11 +113,8 @@ belong where specs are written rather than in the contract every session loads.
   that geometry genuinely IS exact and font-free - the panel edge is a computed cap - but where
   the TEXT lands inside it belongs to the fit's size search, which settles within a fraction of a
   pixel of its budget rather than on it, so the last step leaves a remainder that depends on the
-  face's own metrics. (Until 2026-09-19 it stopped at the FIRST size that fitted, and the same spec
-  went red again at 63 against 50 when the name began rendering Bold: Linux's hinted advances are
-  not linear in size. That one was a product fault, fixed in `fitSvgText`, not a loose bound.)
-  **A local pass is no evidence here**, because this machine only ever rasterises one of the two
-  platforms. So: bound it, decide which DIRECTION is the defect (here a
+  face's own metrics. **A local pass is no evidence here**, because this machine only ever
+  rasterises one of the two platforms. So: bound it, decide which DIRECTION is the defect (here a
   gap SMALLER than the inset is text eating its own margin, while larger is only unspent slack,
   so only the small side is asserted hard), and mutation-test the bound - otherwise it is a number
   that happened to hold rather than a test. The same caution applies to any expected value derived
