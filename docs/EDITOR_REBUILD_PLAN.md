@@ -6,6 +6,17 @@ Independent review of d5e8c1db is accepted with the corrections below.
 The old rebuild plan is archived with the consolidation evidence; its mode and phase order
 are superseded. Existing application behavior remains the source of truth until replaced.
 
+## Workflow additions, 2026-09-19
+
+[Workflow decisions](research/editor-workflow-review-2026-09-19/README.md) specify timeline-owned
+layers and optional Outline, file/drop import, bounded Pen, multi-key easing and multi-document
+ownership. They supersede the fixed right Layers dock, five-ease cap and blanket Pen deferral.
+R1.0 records document-scoped session/history/preview boundaries; R1.4a ships durable graphic
+tabs/project manifests over GraphicDoc, not duplicate embedded templates or retired Packets.
+R1.2b adds minimal readable SVG Pen paths and reused file/drop import. R1.3a chat is help-only;
+R1.3b adds reviewed mutations. R2.1a/b cover Lottie/image sequences; new video authoring waits.
+Closing tests extend B02/B04/B06/B08-B10/B14/B17-B18 and add B19; the study is not product proof.
+
 ## Decisions before R1.0 and delivery order
 
 D01 permanent Out, D02 interrupted exit, D03 Position/runtime values and D04 additive spans
@@ -61,7 +72,7 @@ Unsupported source outside the changed region remains byte-preserved.
 
 ## Canvas authoring and selection handles
 
-Keep Select, Text, Rectangle, Ellipse and Image tools beside the canvas, not only in the
+Keep Select, Text, Rectangle, Ellipse, Pen and Image tools beside the canvas, not only in the
 inspector. Text click creates point text; dragging creates a text box. Rectangle/Ellipse
 drag defines initial geometry; Shift constrains square/circle. Image opens the existing
 asset picker. Creation emits a real source element and timeline bar at the playhead;
@@ -385,11 +396,19 @@ Compare endpoints and velocity where applicable; inspect boundary frames for vis
 No arbitrary asset can be made seamless by a checkbox. Backward seek must sample absolute time,
 not incrementally replay whichever wall-clock state happened previously.
 
-Offer Linear, Easy Ease In, Easy Ease Out, Easy Ease and Hold. Apply In to the approach
+Offer Linear, Easy Ease In, Easy Ease Out, Easy Ease, Bounce, Overshoot and Hold Keyframe. Apply In to the approach
 to selected keys, Out to their departure, and Easy Ease to both sides. Hold is outgoing:
 retain the selected key's value until the next key. Declare multi-key scope and leave
 unselected neighboring key-side settings intact. This is a behavior change from the old
 draft's destination-only menu, not a cosmetic rename of GSAP preset names.
+
+Bounce and fixed Overshoot settle into selected keys by default. Marquee and Ctrl/Cmd/Shift
+toggle build one multi-key selection; toolbar and right-click call the same atomic operation.
+Right-click preserves an existing selection. Count/mixed-state display and keyboard context
+access are required; unsupported batches refuse without partial edits. See B06's expanded test.
+Named bounce/back evaluators must be shared with the emitted interpreter. Bounce is piecewise,
+not one cubic bezier: exact split/mirror support or an explicit refusal is required. Test peaks,
+equal-endpoint slices, clamping of bounded properties and unchanged neighboring key sides.
 
 The current format stores incoming-segment ease. A source-backed adapter must preserve old
 tracks and encode key-side presets without lossy rewriting, with any breaking migration

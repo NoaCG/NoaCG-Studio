@@ -1,5 +1,7 @@
 # Whole-editor destination and review
 
+Follow-up: the owner accepted this overall direction. The [workflow refinements](../editor-workflow-review-2026-09-19/README.md) now supersede its fixed Layers dock and add graphic tabs, Pen, imports and expanded easing; this original study remains review history.
+
 2026-09-19. Design review before R1.0. This is a proposed workspace, not the shipped editor.
 [EDITOR_PLAN.md](../../EDITOR_PLAN.md) remains the single scope and sequence authority.
 The owner requested this whole view before implementation; implementation has not started.

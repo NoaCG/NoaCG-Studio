@@ -1,0 +1,73 @@
+{
+  "kind": "planning mockup - no product acceptance",
+  "checks": {
+    "fits width 1920": true,
+    "canvas visible 1920": true,
+    "fits desktop height 1920": true,
+    "fits width 1366": true,
+    "canvas visible 1366": true,
+    "fits desktop height 1366": true,
+    "fits width 1024": true,
+    "canvas visible 1024": true,
+    "fits desktop height 1024": true,
+    "fits width 320": true,
+    "canvas visible 320": true,
+    "properties has right dock": true,
+    "optional Outline reveals hierarchy": true,
+    "graphic switches": true,
+    "first graphic edit retained": true,
+    "undo scoped to first graphic": true,
+    "other graphic unchanged by undo": true,
+    "file chooser receipt": true,
+    "OS drop receipt": true,
+    "timeline value edits shared property": true,
+    "timeline property edit undo": true,
+    "pen creates custom layer and bar": true,
+    "pen writes cubic closed path": true,
+    "pen one undo": true,
+    "Ctrl key multiselect": true,
+    "dropdown applies selection": true,
+    "context menu retains selection": true,
+    "context action applies batch": true,
+    "marquee spans property rows": true,
+    "grouped rows illustrated": true,
+    "Home lists three graphics": true,
+    "Home subset reaches production review": true,
+    "production destination visible": true,
+    "production write explicitly disabled": true,
+    "starter creates another graphic tab": true,
+    "adding starter retains existing graphic": true,
+    "no script errors": true
+  },
+  "layouts": [
+    {
+      "width": 1920,
+      "viewport": 1888,
+      "scroll": 1888,
+      "height": 1042.65625,
+      "canvas": 493.671875
+    },
+    {
+      "width": 1366,
+      "viewport": 1334,
+      "scroll": 1334,
+      "height": 743.65625,
+      "canvas": 215.671875
+    },
+    {
+      "width": 1024,
+      "viewport": 992,
+      "scroll": 992,
+      "height": 743.65625,
+      "canvas": 215.671875
+    },
+    {
+      "width": 320,
+      "viewport": 288,
+      "scroll": 288,
+      "height": 1981.59375,
+      "canvas": 153.28125
+    }
+  ],
+  "errors": []
+}

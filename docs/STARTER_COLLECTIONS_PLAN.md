@@ -18,7 +18,7 @@ graphic remains available alongside creating a brand from scratch.
 Starter Collections are curated compatible designs, initially a lower third, headline,
 logo bug and holding/end screens. The collection picker previews the whole set and lets
 the user include only the graphics needed. Extend the existing kit creation path and
-production save path rather than introducing another grouping beside productions.
+production save path. Authoring projects group GraphicDoc references; productions alone own live pools/cues.
 Keep downloadable finished graphics packs interoperable with this route.
 
 Brand application uses declared palette/font/shape roles and logo slots. Preview changes
@@ -50,6 +50,19 @@ consolidated plan; baseline measurements are assigned to their consuming slices.
 The Studio inspection requirement applies to comparable brand/token/property behaviour;
 NoaCG's production semantics continue to come from its own existing command path.
 
+
+## Multi-graphic workspace and reuse, 2026-09-19
+
+The owner now requires multiple graphics/timelines in one authoring project. See the
+[workflow contract](research/editor-workflow-review-2026-09-19/README.md) for identities,
+per-document drafts/history, migration and Home/production semantics. This is authoring
+organization, not a revived Packet/package library or a second live-production container.
+R1.4a-d refine this route: a durable projects/draft switching; b templates/brands per member;
+c shared Home/editor selected-set installation and immediate playout availability; d recovery,
+export and rehearsal. They can begin after R1.1c registry stability without waiting for AI.
+Saved graphics remain standalone on Home; removing a project does not delete them. Both entry
+points use the same installation operation and confirmed-write status. An already active
+production retains its activated revision until explicit safe replacement. B19 joins B08-B10.
 
 ## Decisions, 2026-09-17
 
@@ -111,7 +124,7 @@ of the active item and explain how to take it off air first. A durable write or 
 preview alone is not proof of on-air isolation. Test installation during active playback,
 retry and subsequent intentional activation.
 
-Use the existing four-step order above; no new implementation phase is introduced. Each
+Use the refined R1.4a-d order above; it now includes project/draft ownership. Each
 slice needs mapped browser checks, durable-write failure/retry evidence and its own owner
 acceptance route. Include multiple collections with identical graphic names, renamed items,
 legacy adoption, interrupted installation, later edits before revert, unsupported artwork,
