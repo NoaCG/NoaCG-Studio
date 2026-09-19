@@ -2821,29 +2821,34 @@ test('svg import: growth is symmetrical and a line stops at whatever is drawn be
   expect(huge.name.right).toBeLessThanOrEqual(huge.panelRight);
   // …and the residual gap is the mirrored inset itself, not slack: growth is spent, not wasted.
   //
-  // Bounded on BOTH sides but not pinned to a single number, because only one side of it is a
-  // guarantee. The panel edge is exact and font-free (it is the cap, asserted above). Where the
-  // TEXT lands inside it is not: the size search stops as soon as the block fits its budget
-  // rather than landing on it, so the last step can leave a pixel unspent, and how much depends
-  // on the face's own metrics - this measured 50 on Windows and 51 on CI's Linux fonts, and
-  // pinning it to ±0.5 failed the shard while nothing was wrong. What must never happen is the
-  // gap coming out SMALLER than the inset: that is the text eating the margin it is mirroring,
-  // which is the whole defect this asserts against.
+  // TWO RULERS, AND THEY DISAGREE BY PLATFORM. The fit measures a drawn line with
+  // getComputedTextLength - user units, which no transform or entrance can move - and by that
+  // ruler it lands on its budget everywhere. The PAINTED rectangle is another matter: under
+  // Windows it agrees to half a pixel, and under CI's Linux text rendering this 90-character bold
+  // line paints about 0.9% narrower than its computed length (1507 against 1520, at the same
+  // 33px the fit chose on both). So "growth is spent, not wasted" is asserted in the fit's own
+  // ruler, tightly, and the painted edge gets one hard side and one loose one.
   const drawnInset = rest.name.left - rest.panelLeft;
   const grownGap = huge.panelRight - huge.name.right;
+  const fit = await frame.locator('#f0').evaluate((el) => ({
+    fontSize: getComputedStyle(el).fontSize,
+    textLength: +(el as unknown as SVGTextContentElement).getComputedTextLength().toFixed(1),
+  }));
   // The numbers ride the failure, because this machine rasterises one platform and CI the other:
   // a red here that says only "63 is not < 53" cannot be told from a wrong cap without a re-run.
-  const measured = JSON.stringify({
-    drawnInset,
-    panelRight: huge.panelRight,
-    nameRight: huge.name.right,
-    fontSize: await frame.locator('#f0').evaluate((el) => getComputedStyle(el).fontSize),
-  });
+  const measured = JSON.stringify({ drawnInset, panelRight: huge.panelRight, name: huge.name, ...fit });
+  // SPENT: the room runs from where the line starts to the mirrored inset, and the computed
+  // length fills it to within the size search's last step. A search that undershoots - or a cap
+  // that hands out room the line never takes - fails here on every platform.
+  const unspent = huge.panelRight - drawnInset - (rest.name.left + fit.textLength);
+  expect(unspent, measured).toBeGreaterThanOrEqual(-0.5);
+  expect(unspent, measured).toBeLessThan(3);
+  // PAINTED, the hard side: a gap SMALLER than the inset is the text eating the margin it is
+  // mirroring, which is the whole defect this asserts against, on any renderer.
   expect(grownGap, measured).toBeGreaterThanOrEqual(drawnInset - 0.5);
-  // The upper bound is the fit LANDING on its budget rather than merely getting under it
-  // (fitSvgText walks a one-line block back up). Before it did, the same bold name left 13px of
-  // the grown banner empty under Linux's hinted advances while Windows left half a pixel.
-  expect(grownGap, measured).toBeLessThan(drawnInset + 3);
+  // PAINTED, the loose side: 2% of the painted line covers what hinted advances take off a long
+  // line, and is still far under the 3% undershoot this was mutation-tested against.
+  expect(grownGap, measured).toBeLessThan(drawnInset + 0.02 * (huge.name.right - huge.name.left));
 
   // NEIGHBOURS DO NOT OVERLAP. A long Location used to run to 860 straight through the 19:30
   // Slot drawn at 700, because its room was measured out to the panel's edge. Its room is now

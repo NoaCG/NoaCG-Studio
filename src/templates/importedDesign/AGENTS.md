@@ -127,9 +127,7 @@ measured defect; §3 holds the evidence:
   below it inside its panel, re-asked at every size, dropping a LINE rather than printing through
   the layer below. Every bound is measured off the rest pose, never a constant.
 - **The shrink is FLOORED at 55%**, and past the floor the block is SQUEEZED to its budget
-  (`svgSqueeze`), because nothing may ever paint outside the panel. **A ONE-LINE block LANDS on
-  its budget**: width is not linear in size under hinted advances, so the ratio jump is walked
-  back up by measured halvings, inside the same fit.
+  (`svgSqueeze`), because nothing may ever paint outside the panel.
 - **Measure exactly, and from the DESIGN**: screen px convert through the element's CTM, never an
   advance/ink ratio; the drawn text is read in the real face and never re-taken from what is on
   screen, or a playout renderer's first `update()` becomes a budget nothing can overflow (owner

@@ -1554,7 +1554,6 @@ function fitSvgText() {
     // be reached by anything the second can hold - condensing to 70% fills the panel the designer
     // drew, where shrinking on past it leaves the growth unspent (measured: 16px of a lower
     // third's grown banner standing empty).
-    var over = 0;                               // the smallest size measured as too WIDE on one line
     for (var attempt = 0; attempt < 2; attempt++) {
       var stopAt = attempt === 0 ? floor : hardFloor;
       for (var pass = 0; pass < 8; pass++) {
@@ -1584,34 +1583,7 @@ function fitSvgText() {
         tall = ceiling > 0 && !!el.getBBox && el.getBBox().height > ceiling + 0.5;
         if (!tall) break;
       }
-      if (width <= budget + 0.5 && !tall) {
-        // LAND ON THE BUDGET, DO NOT MERELY GET UNDER IT. The ratio jump assumes a line's width
-        // scales with its size, and it only nearly does: a renderer that hints its glyph advances
-        // rounds every one of them at every size, so a 90-character name comes out a dozen pixels
-        // narrower than the ratio promised and that much of the room stands empty - on a GROWN
-        // banner, room the panel was widened to give. Measured 2026-09-19: 0.5px unspent under
-        // Windows, 13px under Linux, same face, same value. So a one-line block that fitted with
-        // room to spare is walked back UP between the size that fits and the smallest one known
-        // not to - a handful of measured halvings, still inside this one fit. Only where the block
-        // can never be more than one line: a wrapping block's next size may buy a whole line, and
-        // that search is the 0.9 walk above, not this one.
-        if (maxLines === 1 && over > size && budget - width > 1) {
-          var fits = size;
-          for (var refine = 0; refine < 6 && over - fits > 0.05; refine++) {
-            var mid = (fits + over) / 2;
-            el.style.fontSize = mid.toFixed(2) + 'px';
-            svgPaintLines(el, [value], mid, lineHeight, room);
-            var midTall = ceiling > 0 && !!el.getBBox && el.getBBox().height > ceiling + 0.5;
-            if (svgBlockWidth(el) <= budget + 0.5 && !midTall) fits = mid;
-            else over = mid;
-          }
-          size = fits;
-          el.style.fontSize = size.toFixed(2) + 'px';
-          svgPaintLines(el, [value], size, lineHeight, room);
-        }
-        break;
-      }
-      if (maxLines === 1 && !tall && (over === 0 || size < over)) over = size;
+      if (width <= budget + 0.5 && !tall) break;
       // TWO FLOORS, AND THEY ANSWER DIFFERENT QUESTIONS (owner ruling, 2026-09-05).
       //
       // 55% is where the value is REPORTED as too long - the operator's warning, unchanged, and

@@ -111,12 +111,14 @@ belong where specs are written rather than in the contract every session loads.
   designer drew, within half a pixel. It measured 50 on this laptop and 51 on CI's Linux fonts and
   took a shard red with nothing wrong: the assertion was tighter than the thing it asserted. Half
   that geometry genuinely IS exact and font-free - the panel edge is a computed cap - but where
-  the TEXT lands inside it belongs to the fit's size search, which settles within a fraction of a
-  pixel of its budget rather than on it, so the last step leaves a remainder that depends on the
+  the TEXT lands inside it belongs to the fit's size search, which stops as soon as the block fits
+  its budget rather than landing on it, so the last step leaves a remainder that depends on the
   face's own metrics. **A local pass is no evidence here**, because this machine only ever
   rasterises one of the two platforms. So: bound it, decide which DIRECTION is the defect (here a
   gap SMALLER than the inset is text eating its own margin, while larger is only unspent slack,
-  so only the small side is asserted hard), and mutation-test the bound - otherwise it is a number
+  so only the small side is asserted hard - and what the fit SPENT is asserted in the fit's own
+  ruler, `getComputedTextLength`, because a long line's painted rectangle and its computed length
+  differ by platform), and mutation-test the bound - otherwise it is a number
   that happened to hold rather than a test. The same caution applies to any expected value derived
   from `getComputedTextLength`, a text node's `getBoundingClientRect`, or a font-size the fit
   chose.
