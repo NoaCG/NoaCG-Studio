@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { TimelineView } from './timelineView';
 
 interface Props {
@@ -9,6 +9,7 @@ interface Props {
 export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo }: Props) {
   const [units, setUnits] = useState<'seconds' | 'frames'>('seconds');
   const ruler = useRef<HTMLDivElement>(null);
+  const tracks = useRef<HTMLDivElement>(null);
   const startTime = useRef<number | null>(null);
   const extent = Math.max(2, view.duration * 1.15);
   const interval = extent <= 5 ? 0.5 : extent <= 12 ? 1 : Math.ceil(extent / 10);
@@ -18,6 +19,17 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     const box = ruler.current?.getBoundingClientRect();
     if (box) seek(Math.max(0, Math.min(view.duration, (clientX - box.left) / box.width * extent)));
   };
+  useLayoutEffect(() => {
+    const scroller = tracks.current;
+    const row = scroller?.querySelector('.ef-track.is-selected');
+    if (!scroller || !row || selection.length !== 1) return;
+    // Keep canvas selections and newly created layers visible without scrolling the
+    // page or moving the horizontal time range. Account for the sticky ruler above.
+    const bounds = scroller.getBoundingClientRect(), item = row.getBoundingClientRect();
+    const top = bounds.top + (ruler.current?.parentElement?.getBoundingClientRect().height ?? 0);
+    if (item.top < top) scroller.scrollTop += item.top - top;
+    else if (item.bottom > bounds.bottom) scroller.scrollTop += item.bottom - bounds.bottom;
+  }, [selection, view.parts]);
   return <section className="ef-timeline" aria-label="Timeline" data-testid="foundation-timeline">
     <div className="ef-toolbar"><strong>Timeline</strong><span className="ef-muted">Layer spans · read only</span>
       <span className="ef-spacer" /><button disabled={!canUndo} onClick={undo}>Undo</button><button disabled={!canRedo} onClick={redo}>Redo</button>
@@ -34,7 +46,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       </select></label>
     </div>
     {view.reason ? <p className="ef-notice">{view.reason}</p> : null}
-    <div className="ef-track-scroll">
+    <div className="ef-track-scroll" ref={tracks}>
       <div className="ef-ruler-row"><span className="ef-layer-heading">Layers</span>
         <div ref={ruler} className="ef-ruler" role="slider" aria-label="Playhead" tabIndex={0}
           aria-valuemin={0} aria-valuemax={view.duration} aria-valuenow={time} aria-valuetext={display(time)}

@@ -503,7 +503,7 @@ export interface NewPlacedLineSpec {
 }
 
 /**
- * The HTML line a new placed element is inserted AFTER: the last mask (or the artwork), so
+ * The source offset a new placed element is inserted AFTER: the last mask (or the artwork), so
  * the design unit keeps its top-down reading order. The artwork may be an inlined `<svg>`
  * spanning many lines (templates/importedDesign/svg.ts) — its class sits on the OPENING tag,
  * and inserting right after that line would put HTML inside the SVG; so for an svg art the
@@ -511,18 +511,31 @@ export interface NewPlacedLineSpec {
  * ours (an SVG root keeps whatever class the designer gave it; ours is appended). -1 when the
  * template has no design unit at all.
  */
-function placedInsertIndex(lines: string[], prefix: string): number {
+function placedInsertOffset(lines: string[], prefix: string): number {
+  // A formatter can put the class on a different line from <svg. Match complete tags,
+  // then balance their closing tags, so inserted HTML never lands inside SVG or a mask.
+  const source = lines.join('\n');
   const inBoxRe = new RegExp(`class="[^"]*\\b${escapeRe(prefix)}-(?:mask|art)\\b[^"]*"`);
-  let insertAt = -1;
-  lines.forEach((l, i) => {
-    if (!inBoxRe.test(l)) return;
-    insertAt = i;
-    if (/<svg\b/i.test(l) && !/<\/svg>/i.test(l)) {
-      const close = lines.findIndex((m, j) => j > i && /<\/svg>/i.test(m));
-      if (close !== -1) insertAt = close;
+  let end = -1;
+  const tags = [...source.matchAll(/<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<\/?([\w:-]+)\b[^>]*>/gi)];
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i];
+    if (!tag[2] || tag[0].startsWith('</') || !inBoxRe.test(tag[0])) continue;
+    let close = tag;
+    if (!/^(?:img|input|br|hr)$/i.test(tag[2]) && !tag[0].endsWith('/>')) {
+      let depth = 1;
+      for (let j = i + 1; j < tags.length; j++) {
+        if (tags[j][2]?.toLowerCase() !== tag[2].toLowerCase()) continue;
+        depth += tags[j][0].startsWith('</') ? -1 : tags[j][0].endsWith('/>') ? 0 : 1;
+        if (depth === 0) { close = tags[j]; break; }
+      }
+      if (close === tag) return -1;
     }
-  });
-  return insertAt;
+    end = Math.max(end, close.index! + close[0].length);
+  }
+  // Return a byte offset, not a line index: compact imports can close their parent on
+  // the same line. The callers splice exactly after the matched artwork or mask.
+  return end;
 }
 
 /**
@@ -583,7 +596,7 @@ export function addPlacedLine(
   // mask an entrance can slide the text inside); the span carries the TYPE. Inserted after
   // the last mask (or the artwork), so the design unit keeps its top-down reading order.
   const lines = template.html.split('\n');
-  const insertAt = placedInsertIndex(lines, prefix);
+  const insertAt = placedInsertOffset(lines, prefix);
   if (insertAt === -1) return null;
   // The new line FITS by default: it keeps one row and condenses if the operator's value
   // outgrows the room between it and the artwork's right edge (or the explicit slot the
@@ -610,13 +623,11 @@ export function addPlacedLine(
       ),
     );
 
-  lines.splice(
-    insertAt + 1,
-    0,
+  const snippet = [
     `    <!-- ${spec.title} (${fieldId}) — SPX writes this field's value straight into the element. -->`,
     `    <div class="${prefix}-mask" id="${wrapperId}"${driver ? ' data-stretch' : ''}><span id="${fieldId}" data-fit="shrink">${escapeHtml(sample)}</span></div>`,
-  );
-  const html = lines.join('\n');
+  ].join('\n');
+  const html = template.html.slice(0, insertAt) + '\n' + snippet + template.html.slice(insertAt);
 
   // The rules, in the assembler's idiom — which is exactly what placedLines/lineFontSize
   // read back, so the canvas drag, nudge, and resize handle work on the new line unchanged.
@@ -700,15 +711,13 @@ export function addPlacedImageSlot(
     : Math.round(boxWidth * (9 / 16) * 0.72);
 
   const lines = template.html.split('\n');
-  const insertAt = placedInsertIndex(lines, prefix);
+  const insertAt = placedInsertOffset(lines, prefix);
   if (insertAt === -1) return null;
-  lines.splice(
-    insertAt + 1,
-    0,
+  const snippet = [
     `    <!-- ${spec.title} (${fieldId}) — an image slot: SPX fills it from the images/ folder. -->`,
     `    <div class="${prefix}-mask" id="${wrapperId}"><img id="${fieldId}" alt="" /></div>`,
-  );
-  const html = lines.join('\n');
+  ].join('\n');
+  const html = template.html.slice(0, insertAt) + '\n' + snippet + template.html.slice(insertAt);
 
   const css = appendCss(
     template.css,

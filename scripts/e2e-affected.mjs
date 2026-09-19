@@ -100,6 +100,7 @@ const isEntrypoint =
 // ── Source-area → spec globs ────────────────────────────────────────────────
 // Order does not matter; every matching rule contributes its specs (union).
 const MAP = [
+  [/^src\/components\/editorFoundation\/|^src\/blocks\/(baseEdits|designLayout)\.ts$|^src\/components\/wizard\/(CreationWizard|steps\/FinishStep)\.tsx$/, ['editor-base-edits.spec.ts']],
   [/^src\/components\/editorFoundation\/|^src\/app\/router\.ts$|^src\/App\.tsx$|^src\/templates\//, ['editor-foundation.spec.ts', 'editor-alpha-entry.spec.ts']],
   [/^src\/components\/brand\/|^src\/components\/home\/(HomePage|sections\/LooksSection)\.tsx$|^src\/model\/(brand|packets)\.ts$/, ['brand-editor.spec.ts']],
   [/^(?:terms|privacy)\.html$|^src\/legal\.css$/, ['legal.spec.ts']],

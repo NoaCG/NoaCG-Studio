@@ -117,6 +117,17 @@ Singular/unsupported parent transforms get a specific capability explanation and
 
 ### Position source adapter (D03)
 
+R1.1a's bounded implementation is locally verified on `codex/editor-r1-1a`:
+[source/gesture walkthrough and measured evidence](research/editor-r1-1a/README.md).
+It extends the shared registry with base placement, text-box size and layer creation.
+Transient stylesheets use one correlated preview request in flight; completed gestures
+remain one source transaction. Base transform changes rebuild GSAP's transient cached
+pose, restoring authored SVG transform attributes. New layers belong to the graphic root,
+outside existing panel masks. Competing authored constraints and directly animated scale
+(or an SVG element's own animated position) have explicit source-preserving refusals.
+This closes D03 core for the actual catalog/SVG/F4 fixtures, not later full transform
+composition, unnamed/nested identity breadth or owner/receiving-host acceptance.
+
 Persist runtime-native track values, never substitute screen/world coordinates into motion
 tracks. For placed/absolute/SVG artwork, the inspector derives the supported parent-coordinate
 position from base placement and current motion; its inverse adapter writes the corresponding

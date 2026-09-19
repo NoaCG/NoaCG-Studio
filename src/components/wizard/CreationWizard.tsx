@@ -1316,6 +1316,20 @@ export default function CreationWizard() {
     });
   };
 
+  // Apply the final formatted document once. Opt in without a reload/autosave race,
+  // and retain the walk-back warning before a stale wizard draft can replace edits.
+  const createAndEditArtwork = () => {
+    void applyDraftProject(true, true).then((template) => {
+      if (!template) return;
+      const url = new URL(window.location.href);
+      url.searchParams.set('editor', 'foundation');
+      window.history.replaceState(window.history.state, '', url);
+      noteMade(template.name, null, { view: 'editor-foundation' });
+      useRouter.getState().replace({ view: 'editor-foundation' });
+      closeGallery();
+    });
+  };
+
   /**
    * The export door: create it, SAVE it, and go straight to the export window — the editor is
    * never revealed. The save is not optional here. This branch exists for someone who is done,
@@ -2342,6 +2356,7 @@ export default function CreationWizard() {
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
                 onAddToProduction={createAndAddToProduction}
+                onEditArtwork={createAndEditArtwork}
                 onOpenEditor={create}
                 showEditorDoor={advanced}
                 onExport={createAndExport}

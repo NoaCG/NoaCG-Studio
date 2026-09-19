@@ -7,8 +7,13 @@ export interface Envelope {
 export interface RenderedPart {
   selector: string; x: number; y: number; width: number; height: number;
   opacity: number; transform: string;
+  /** Parent vectors in composition pixels, including authored document scaling. */
+  parent?: [number, number, number, number];
+  corners?: { x: number; y: number }[];
+  anchor?: { x: number; y: number };
 }
 export interface PreviewReply extends Envelope {
+  drawingSpace?: [number, number, number, number, number, number] | null;
   kind: 'ready' | 'pose' | 'error'; parts?: RenderedPart[]; message?: string;
   renderedAt?: number; frameIntervals?: number[]; longTasks?: number[];
 }

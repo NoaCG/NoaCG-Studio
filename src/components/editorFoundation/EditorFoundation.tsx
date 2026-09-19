@@ -20,6 +20,7 @@ export default function EditorFoundation() {
   const session = activeEditorSession();
   const [clock, setClock] = useState({ documentId: session.documentId, time: session.port.view().time });
   const [projectOpen, setProjectOpen] = useState(false);
+  const [linked, setLinked] = useState(true);
   const view = useMemo(() => readTimeline(template), [template]);
   const time = Math.min(view.duration, clock.documentId === session.documentId ? clock.time : session.port.view().time);
   const seek = (next: number) => { recordFoundationInput('scrub'); setSessionTime(next); setClock({ documentId: session.documentId, time: next }); };
@@ -45,13 +46,13 @@ export default function EditorFoundation() {
       <button onClick={() => useRouter.getState().navigate({ view: 'home', section: null })}>Home</button>
       <NewGraphicButton />
       <span className="ef-document-name">{template.name}</span><span className="ef-spacer" />
-      <span className="ef-release">R1.0 preview</span>
+      <span className="ef-release">Editor Alpha</span>
       <SaveControls />
       <button onClick={() => useRouter.getState().navigate({ view: 'editor' })}>Existing editor</button>
     </header>
     <div className="ef-document-strip"><button aria-expanded={projectOpen} onClick={() => setProjectOpen(!projectOpen)}>Project</button>
       <span className="ef-document-tab">{template.name}</span><span className="ef-spacer" />
-      <span className="ef-muted">Inspect · select · scrub</span></div>
+      <span className="ef-muted">Draw · refine · scrub</span></div>
     <div className="ef-workspace">
       <aside className="ef-project" aria-label="Project">
         <h2>Project</h2><span className="ef-section-label">Current graphic</span>
@@ -63,11 +64,11 @@ export default function EditorFoundation() {
         {template.fields.map(field => <p className="ef-field" key={field.field}>{field.title || field.field}<code>{field.field}</code></p>)}
         <p className="ef-muted">This view follows the open graphic. Project tabs and shared library workflows follow in R1.4.</p>
       </aside>
-      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} />
-      <Inspector view={view} template={template} selection={selection} select={select} />
+      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} />
+      <Inspector view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} />
     </div>
     <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={seek} select={select}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
-    <footer className="ef-status"><span>Source-backed editor foundation</span><span>Canvas and timeline edits arrive in R1.1</span></footer>
+    <footer className="ef-status"><span>Source-backed artwork · R1.1a</span><span>Base edits preserve motion · Key authoring follows separately</span></footer>
   </main>;
 }
