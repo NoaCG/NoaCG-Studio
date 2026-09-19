@@ -1,5 +1,11 @@
 # Rebuild the basic graphic editor around a dependable animation workflow
 
+**Current delivery authority, 2026-09-17:** [EDITOR_DELIVERY_ROADMAP.md](EDITOR_DELIVERY_ROADMAP.md)
+unifies ordinary editing, animation, brands, Starter Collections and production. It owns
+scope/order/status; this document owns detailed interaction semantics. The owner has paused
+product implementation pending the unified roadmap and baseline review. Earlier authorization
+and sequencing below are historical where they conflict with that planning hold.
+
 **Implementation plan, 2026-09-14. Requested by the owner after the Studio research.**
 Planning was delivered first. On 2026-09-17 the owner authorized implementation, starting with
 the shared brand foundation in [STARTER_COLLECTIONS_PLAN.md](STARTER_COLLECTIONS_PLAN.md).
@@ -81,7 +87,8 @@ production safety and the requirement for real-user acceptance remain.
 
 The separate [Starter Collections plan](STARTER_COLLECTIONS_PLAN.md) owns template-first
 creation, the shared brand library and production installation. This plan owns animation
-editing quality in that same editor; neither workstream waits for the other's complete delivery.
+editing quality in that same editor. The unified roadmap sequences both workstreams and
+adds explicit ordinary-editing obligations; neither is a separate product or completion claim.
 
 One persistent editing workspace, reachable by Edit from the graphic the user just created,
 imported or opened. Exact route wiring is part of Phase 0; this is not a claim of a new route.
@@ -295,7 +302,7 @@ this source audit is not a new claim of a browser reproduction:
 | Space over stage swallowed | Code fix exists in `spaceKey.ts` and the stage key path; verify tap-to-play versus held pan in the owner walk. |
 | Finished run never reported | Closed in code by run-identity-guarded completion in `src/preview/simulatorRuntime.ts`; regression-check finished playback. |
 | Blank stage on owner's machine | Open, still needs reproduction in the owner's environment; do not invent a cause from headless success. |
-| Align and distribute absent | Open; inspect actual selection/layout reach before proposing a later tool. Not silently claimed by this rebuild. |
+| Align and distribute absent | Open; now explicitly required for eligible targets in unified roadmap E07/M2. Baseline must identify target reach; no implementation is claimed. |
 | Branch phase cannot scrub | Closed in code through `src/blocks/timelineLens.ts` and simulator branch targeting; repeat branch seeks in baseline. |
 | Catalog per-element typography reach | Still limited to the emitted style contract; Phase 0 records supported fields, and Phase 2 exposes supported catalog typography through the Inspector with readable patches. |
 
@@ -314,7 +321,8 @@ Do not declare a phase usable solely because automated checks pass.
 | 4. Broadcast animation basics | Cue boundary editing, explicit scale timing, direct Out, existing-loop lifecycle regression and update/behaviour coexistence. | A two-step reveal and looping scoreboard survive Next, data updates, exit during motion and replay. Preserve quiz/timer/dynamic-motion behaviour. Phase 3 first. |
 | 5. Adoption and removal | Make accepted workspace the default, remove replaced interaction code and stale instructions, update capability claims. | Real-user tasks pass; legacy/handwritten templates preserve source; exported packages pass target checks. Retain rollback through version control, not a permanent second UI. |
 
-The implementation can proceed through these phases without another research programme.
+After the unified roadmap's implementation-entry gate is cleared, implementation can proceed
+through these phases without another research programme.
 Within each phase, fix reproduced basics first. Existing green functionality should be kept
 where it already meets the task; do not rewrite it for visual resemblance alone. Do not
 parallelize changes to canonical tracks, source serialization and gesture transactions until
@@ -389,8 +397,10 @@ contract deliberately replaces it. Keep their underlying source/runtime safety a
 
 The owner has explicitly asked for this editor plan despite prior parked research labels.
 This plan completes that planning request and records the intended implementation sequence.
-Implementation was authorized on 2026-09-17 and starts with the shared brand library in the separate Starter Collections plan. The animation baseline and remaining phases are still outstanding; unrelated roadmap
-programmes remain parked.
+Implementation was initially authorized on 2026-09-17, starting with the shared Home brand
+library. The owner's later instruction that day pauses further product implementation until
+the unified roadmap and editor baseline are clear. The animation baseline and remaining
+phases are still outstanding. This pause concerns this rebuild, not unrelated programmes.
 CasparCG production reliability, working creation and SVG workflows remain immediate needs;
 this rebuild directly serves them. No native renderer or Server API build is a prerequisite.
 

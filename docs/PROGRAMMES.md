@@ -55,7 +55,7 @@ immediate steering document; this file carries the year's authorized work and it
 | P4 | Data & Automation | **AUTHORIZED** (2026-09-15); IDEA | design first; data-tree Phase 3 convergence before any connector |
 | P5 | Agent Platform | AUTHORIZED per item | the GOALS agent-door boxes; each new key scope and the npm publish are owner actions |
 | P6 | OGraf and Interoperability | AUTHORIZED | may start now; the NOW date (`docs/GOALS.md`, `## NOW`) is the forecast of when it matters, not a wait (owner 2026-09-03). The ladder is GOALS.md "NEXT - OGraf-first", unchanged |
-| P7 | Creation & Advanced Editor | **ACTIVE** for editor rebuild and Starter Collections (owner, 2026-09-17; prior authorization ALIGN-2026-09-10-4, 2026-09-15) | One editor, two linked workstreams: `EDITOR_REBUILD_PLAN.md` owns animation quality; `STARTER_COLLECTIONS_PLAN.md` owns quick branded creation and production handoff. Fable review incorporated. The owner-confirmed WYSIWYG failure analysis still informs both; other advanced scope remains DESIGN. |
+| P7 | Creation & Advanced Editor | **ACTIVE planning/baseline; further product implementation on owner hold** (2026-09-17) | `EDITOR_DELIVERY_ROADMAP.md` owns the complete editor outcome and M0-M8 delivery gates. Detailed editor and Starter Collections plans remain linked; Home brand creator landed. Owner review and baseline precede further implementation. Other advanced scope remains DESIGN. |
 | H0 | Reliability (horizontal) | AUTHORIZED | stages attach where first needed; owns the soak driver and the fault harness |
 
 ## P1 Teams
@@ -169,6 +169,14 @@ Owner actions: the GSAP written clarification; the ecosystem-listing PR and any 
 
 ## P7 Creation & Advanced Editor
 
+Latest owner direction, 2026-09-17: complete the
+[unified delivery roadmap](EDITOR_DELIVERY_ROADMAP.md) and
+[editor baseline](research/editor-baseline-2026-09-17.md), but do not start further product
+implementation until everything is clear. The roadmap makes ordinary editing, animation,
+brands, Starter Collections and production one completion gate. It supersedes brand-first
+continuation in the earlier handoff. Implementation remains on hold pending baseline evidence
+and owner review; planning approval is not permission to begin the next product slice.
+
 Owner-requested follow-up, 2026-09-14: [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md) turns
 the Studio research into a concrete basic-editor implementation sequence after the owner's
 usability rejection. Planning is delivered; product implementation and user acceptance are
@@ -185,8 +193,8 @@ Before major timeline or agent-authoring design, read the pinned Studio/Eyevinn 
 backlog items are design handoffs inside the existing code-as-truth direction, not a second
 scene-model programme (2026-09-13).
 
-State: ACTIVE for the owner-authorized editor rebuild and Starter Collections (2026-09-17,
-recorded in their plans). Other advanced editor scope remains DESIGN.
+State: ACTIVE for unified planning and baseline; further editor/Starter Collections product
+implementation is on the owner's 2026-09-17 hold. Other advanced editor scope remains DESIGN.
 Incremental creation/import/preset work continues under existing plans. **The required failure
 account is written (2026-09-01): `docs/WYSIWYG_PLAN.md` "Why attempt one did not land"** - the
 editor was a destination no task led into, judged through front-door defects; what landed

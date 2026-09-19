@@ -1,5 +1,10 @@
 # Starter Collections and the shared brand library
 
+**Current delivery authority, 2026-09-17:** [EDITOR_DELIVERY_ROADMAP.md](EDITOR_DELIVERY_ROADMAP.md)
+owns combined scope, sequencing and acceptance. This document owns the brand/collection
+mechanisms. Further product implementation is paused for the owner's roadmap/baseline review;
+the earlier instruction to continue brand application first is superseded.
+
 Owner-approved scope, 2026-09-17: **Choose a NoaCG Starter Collection -> select/create a
 brand -> adjust graphics in the editor -> add to production -> rehearse and run.** Most
 users must finish this route without code or keyframes. The detailed animation workflow
@@ -41,8 +46,8 @@ Implementation order for this route:
    test logo/font export, long content, save/reopen, individual overrides, collection-wide
    changes and actual production playback. This is an acceptance target, not a current claim.
 
-The brand foundation can start before the animation comparison because it does not change
-timeline/canvas interactions. Phase 0 remains mandatory before the animation rewrite.
+The Home brand foundation was delivered before the animation comparison. Remaining brand
+work follows the unified roadmap; Phase 0 remains mandatory before the animation rewrite.
 The Studio inspection requirement applies to comparable brand/token/property behaviour;
 NoaCG's production semantics continue to come from its own existing command path.
 
@@ -91,6 +96,21 @@ existing cues and map only confirmed installed ids into the new starter rundown.
 installation uses the same operation identity. Reject name-based upsert as the default.
 
 ### Acceptance and scope
+
+Collection drafts must survive switching graphics, Back, in-context brand creation/editing
+and reload. Reuse existing durable draft/document storage with an explicit versioned format
+if a new persisted shape is necessary. Save status distinguishes pending/confirmed/failed;
+closing with unconfirmed writes offers retry or explicit discard. Creating a brand does not
+reset collection edits. Undo remains scoped to the active graphic; collection-wide changes
+have an explicit preview and recovery operation, not an implied cross-document undo stack.
+
+Before M7 implementation, trace and document the existing live activation path. Required
+policy: editing/installing library documents must not change an already active rendered
+graphic. It retains its activated content until an explicit safe activation through the
+existing production command path. If that isolation cannot be guaranteed, refuse replacement
+of the active item and explain how to take it off air first. A durable write or successful
+preview alone is not proof of on-air isolation. Test installation during active playback,
+retry and subsequent intentional activation.
 
 Use the existing four-step order above; no new implementation phase is introduced. Each
 slice needs mapped browser checks, durable-write failure/retry evidence and its own owner
