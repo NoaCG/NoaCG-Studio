@@ -7,7 +7,7 @@ import MiniPreview from '../MiniPreview';
 /** Every style family in the catalog. Local to this surface: fonts.ts exports the TYPE, not
  *  the value list. Which of these a given kit can actually be built in is computed per pack -
  *  see `familiesFor`. */
-const FAMILIES: StyleTag[] = ['noacg', 'minimal', 'editorial', 'sport', 'glass', 'cinematic'];
+const FAMILIES: StyleTag[] = ['noacg', 'minimal', 'editorial', 'sport', 'glass', 'cinematic', 'sticker', 'showtime', 'arcade'];
 
 /**
  * The looks a kit can genuinely be built in, by asking `resolvePack` rather than trusting a

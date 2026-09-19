@@ -91,6 +91,9 @@ import { lt63 } from './lt63';
 import { lt64 } from './lt64';
 import { lt66 } from './lt66';
 import { lt67 } from './lt67';
+import { lt68 } from './lt68';
+import { lt69 } from './lt69';
+import { lt70 } from './lt70';
 
 
 /** The matrix above, in browse order: the generalist straps, grouped by style family. */
@@ -150,6 +153,10 @@ const GENERAL_LOWER_THIRDS: TemplateVariant[] = [
   lt61, // Poster Slab - a condensed poster billing on a cut slab
   lt66, // Top Corner - the corner block: a standing slab in the top corner, name stacked in caps
   lt62, // House Weather - current conditions: place, tabular temperature, condition, wind
+  // The three game-show families - each the lower third of a quiz + score + strap set
+  lt68, // Sticker Strap - neo-brutal paper label, ink title strip (lower-third type, sticker)
+  lt69, // Showtime Strap - marquee pill led by a lit star (lower-third type, showtime)
+  lt70, // Arcade Strap - pixel-cornered neon player tag (lower-third type, arcade)
   // Modern social / glass
   lt08, // Frosted Card — backdrop-blur glass card (logo slot)
   lt09, // Gradient Pill — compact pill, name + handle inline

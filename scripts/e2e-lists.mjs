@@ -85,6 +85,10 @@ export const FOCUS = [
   'production-persistence.spec.ts',
   'productions.spec.ts',
   'quiz-pilot.spec.ts',
+  // The 2026-09-25 lecture runs a two-player quiz: this is the board, the score and the three
+  // looks the students pick between, driven through the pick / reveal arc and the wizard's
+  // "Answers shown" choice.
+  'quiz-show.spec.ts',
   'project.spec.ts',
   'project-format.spec.ts',
   // The BOOT SURFACE - that opening the studio never paints a screen it was not going to stay

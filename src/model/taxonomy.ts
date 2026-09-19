@@ -445,6 +445,9 @@ export const STYLE_FAMILY_LABELS: Record<StyleTag, string> = {
   sport: 'Sport',
   glass: 'Glass',
   noacg: 'NoaCG',
+  sticker: 'Sticker',
+  showtime: 'Showtime',
+  arcade: 'Arcade',
 };
 
 // ── Facet H: motion ─────────────────────────────────────────────────────────
@@ -863,6 +866,18 @@ const ALIASES_EN: Record<string, AliasTargets> = {
   'documentary': { styles: ['cinematic'] },
   'film': { styles: ['cinematic'] },
   'title card': { styles: ['cinematic'] },
+  // The three game-show families, by the words people actually reach for.
+  'brutalist': { styles: ['sticker'] },
+  'neo-brutal': { styles: ['sticker'] },
+  'sticker': { styles: ['sticker'] },
+  'showtime': { styles: ['showtime'] },
+  'vaudeville': { styles: ['showtime'] },
+  'game show': { styles: ['showtime', 'sticker', 'arcade'] },
+  'retro': { styles: ['showtime', 'arcade'] },
+  'arcade': { styles: ['arcade'] },
+  'pixel': { styles: ['arcade'] },
+  'neon': { styles: ['arcade'] },
+  '8-bit': { styles: ['arcade'] },
   'futuristic': { styles: ['glass'] },
   'tech': { styles: ['glass'] },
   'glass': { styles: ['glass'] },

@@ -28,6 +28,9 @@ import { sb23 } from './sb23';
 import { sb24 } from './sb24';
 import { sb25 } from './sb25';
 import { dc01 } from './dc01';
+import { sb26 } from './sb26';
+import { sb27 } from './sb27';
+import { sb28 } from './sb28';
 
 export const SCOREBOARDS: TemplateVariant[] = [
   sb01, // Match Strip — sport leaning slab (sibling lt05/lt06)
@@ -61,6 +64,10 @@ export const SCOREBOARDS: TemplateVariant[] = [
   // ── The podium board: game-show contestant scores (types/podiumScore.ts) ──
   sb21, // Volt Podiums — sport slab, four name-over-points columns, spotlight (sibling sb01)
   sb22, // House Podiums — noacg void strip, amber chip columns, spotlight (sibling sb03)
+  // ── The duel score: two players, a quiz show's running score (types/duelScore.ts) ──
+  sb26, // Sticker Score — neo-brutal labels either side of an accent diamond (sibling qz13/lt68)
+  sb27, // Showtime Score — one marquee pill, medallion scores, a lit star (sibling qz14/lt69)
+  sb28, // Arcade Score — pixel-cornered neon bar, glowing figures (sibling qz15/lt70)
   // ── The speaking timer: a debate's two clocks (types/speakingTimer.ts) ──
   dc01, // Debate Floor — minimal flat panel, two equal halves, the floor rail (sibling lt01)
 ];

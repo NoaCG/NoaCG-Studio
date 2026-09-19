@@ -37,6 +37,8 @@ import { headToHeadType, matchupType, playerCardType } from './matchups';
 import { bracketType, rosterType, standingsType, timingTowerType } from './competitionBoards';
 import { awardRevealType, nomineeRevealType, verdictCardType, winnerCardType } from './reveals';
 import { quizBoardType } from './quizBoard';
+import { quizShowType } from './quizShow';
+import { duelScoreType } from './duelScore';
 import { threeAnswerBoardType, twoAnswerBoardType } from './answerBoard';
 import { scoreboardType } from './scoreboard';
 import { podiumScoreType } from './podiumScore';
@@ -72,6 +74,8 @@ export const TYPES: GraphicType[] = [
   speakingTimerType,  // the debating board: two clocks, one floor (agent round 2026-08-22)
   podiumScoreType,    // the game-show board: per-contestant steppers + the roster's spotlight arc
   quizBoardType,      // the flagship
+  quizShowType,       // the show board: pick, reveal, and an answer count that is a field
+  duelScoreType,      // the two-player score strip a quiz show keeps up all evening
   // ── The title / topic / information pack ──
   // These have no frequency count: the reference sheet asked "which graphics does this
   // format need", and it named the OPENER and the TOPIC card, which the two types above
