@@ -1,8 +1,8 @@
 # Editor rebuild: corrected review package
 
 2026-09-18. Independent review of d5e8c1db: **ready with named corrections**.
-Corrections are recorded, not implemented. Branch: codex/editor-baseline-design.
-Product implementation remains on hold. Group/precomp scope approved by owner 2026-09-19.
+This is the historical planning review of codex/editor-baseline-design; later delivery evidence is recorded separately.
+Status updated 2026-09-19: R1.0 is merged and live via PR #331. Follow the [R1.1a handoff](../handoffs/2026-09-19-editor-r1.1a.md) from updated main; owner usability acceptance remains open. Group/precomp scope was approved by the owner on 2026-09-19.
 This brief indexes the plan; EDITOR_PLAN.md is the single scope authority.
 
 Latest owner review: the whole-workspace direction is accepted; [workflow refinements](editor-workflow-review-2026-09-19/README.md)
@@ -50,8 +50,8 @@ remain required for full completion and follow R1.5 as P-COMP, approved 2026-09-
 | D04 spans | Optional per-step visibility sets, deterministic cue-side sampling; read-only bars, then body-move, then trim | R1.1b/d: static/disjoint/cross-hold spans; move carries keys, trim preserves them; legacy/no-span save/seek/export parity |
 | D05 sequence | R1.0 foundation followed by R1.1a-d; correctness proven in each consuming slice | R1.0: flagged preview route, shell/selection/bars/scrub, registry/history/protocol and latency harness; R1.1d: two first-time users |
 
-These decisions are closed in planning. Their product tests remain unverified and must pass
-at the named slice exits; recording them does not authorize starting R1.0.
+These decisions are closed in planning. Their product tests must pass
+at the named slice exits; consult the acceptance register for the R1.0 portions now verified.
 
 ## Implementation order after authorization
 
