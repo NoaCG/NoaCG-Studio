@@ -55,7 +55,7 @@ immediate steering document; this file carries the year's authorized work and it
 | P4 | Data & Automation | **AUTHORIZED** (2026-09-15); IDEA | design first; data-tree Phase 3 convergence before any connector |
 | P5 | Agent Platform | AUTHORIZED per item | the GOALS agent-door boxes; each new key scope and the npm publish are owner actions |
 | P6 | OGraf and Interoperability | AUTHORIZED | may start now; the NOW date (`docs/GOALS.md`, `## NOW`) is the forecast of when it matters, not a wait (owner 2026-09-03). The ladder is GOALS.md "NEXT - OGraf-first", unchanged |
-| P7 | Creation & Advanced Editor | **ACTIVE** for editor rebuild and Starter Collections (owner, 2026-09-17; prior authorization ALIGN-2026-09-10-4, 2026-09-15) | One editor, two linked workstreams: `EDITOR_REBUILD_PLAN.md` owns animation quality; `STARTER_COLLECTIONS_PLAN.md` owns quick branded creation and production handoff. Fable review incorporated. The owner-confirmed WYSIWYG failure analysis still informs both; other advanced scope remains DESIGN. |
+| P7 | Creation & Advanced Editor | **ACTIVE planning; product implementation on owner hold** (2026-09-17) | `EDITOR_PLAN.md` owns SVG-first R1, templates/brands/rundown, R2 motion/effects and R3 data/co-authoring. Node editor deferred; existing work preserved. |
 | H0 | Reliability (horizontal) | AUTHORIZED | stages attach where first needed; owns the soak driver and the fault harness |
 
 ## P1 Teams
@@ -169,33 +169,22 @@ Owner actions: the GSAP written clarification; the ecosystem-listing PR and any 
 
 ## P7 Creation & Advanced Editor
 
-Owner-requested follow-up, 2026-09-14: [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md) turns
-the Studio research into a concrete basic-editor implementation sequence after the owner's
-usability rejection. Planning is delivered; product implementation and user acceptance are
-not complete. [Receipt](backlog/editor-basics-rebuild.md).
+Current authority: [EDITOR_PLAN.md](EDITOR_PLAN.md), updated 2026-09-18.
+[Review package](research/editor-review-brief-2026-09-18.md) is ready for second opinion;
+committing/pushing the planning checkpoint is authorized, product work remains paused.
+Plan/mockup consolidation is authorized; product implementation remains on hold. R1 begins
+with Illustrator SVG -> existing wizard -> visual animation and completes templates, shared
+brands, basic AI edits and rundown installation. R2 adds Lottie/effects; R3 adds structured
+live data and paired co-authoring. Each release has bounded, observed acceptance slices.
 
-The owner authorized planning then implementation on 2026-09-17 and accepted the independent
-review follow-up. [STARTER_COLLECTIONS_PLAN.md](STARTER_COLLECTIONS_PLAN.md) independently owns
-brands, curated TemplatePack customization and production handoff; [its receipt](backlog/starter-collections.md)
-tracks that route. Animation quality stays in the editor rebuild receipt. Both share one editor,
-with separate phase exits; neither claims owner acceptance from a green build.
-
-Before major timeline or agent-authoring design, read the pinned Studio/Eyevinn comparison in
-[OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md). Its property-track and revision/evidence
-backlog items are design handoffs inside the existing code-as-truth direction, not a second
-scene-model programme (2026-09-13).
-
-State: ACTIVE for the owner-authorized editor rebuild and Starter Collections (2026-09-17,
-recorded in their plans). Other advanced editor scope remains DESIGN.
-Incremental creation/import/preset work continues under existing plans. **The required failure
-account is written (2026-09-01): `docs/WYSIWYG_PLAN.md` "Why attempt one did not land"** - the
-editor was a destination no task led into, judged through front-door defects; what landed
-(one-canvas SVG, marquee) was task-entered gestures on the user's own artwork; attempt two is
-eight testable requirements, dependent on P2 findings, scheduled so
-build -> real use -> rejection/improvement -> retest completes before August 2027 - the final
-two months are proving and hardening.
-AI-tier gates stay exactly as GOALS.md holds them; this programme does not touch AI sequencing.
-Claims: `docs/NORTH_STAR_2027.md` §5 P7.
+The node editor is outside these releases. Preserve its source/runtime/tests and
+[lessons](research/editor-node-editor-deferred-2026-09-17.md); timeline-authored reveals are
+triggered in playout. This does not cancel the separate P2 research programme. Baseline
+inventory is closed with unmeasured work assigned to slices, not represented as passing.
+Read [animation mechanisms](EDITOR_REBUILD_PLAN.md), [collection mechanisms](STARTER_COLLECTIONS_PLAN.md)
+and the [acceptance ledger](research/editor-acceptance-register-2026-09-17.md). Historical
+editor plans are evidence only. A planning landing never authorizes product implementation.
+Claims: `docs/NORTH_STAR_2027.md` section 5 P7.
 
 ## H0 Reliability (horizontal)
 

@@ -1,0 +1,231 @@
+{
+  "kind": "planning mockup only - not product acceptance",
+  "checks": {
+    "no horizontal overflow 1920": true,
+    "canvas remains visible 1920": true,
+    "Project stays above timeline 1920": true,
+    "whole editor fits desktop height 1920": true,
+    "no horizontal overflow 1366": true,
+    "canvas remains visible 1366": true,
+    "Project stays above timeline 1366": true,
+    "whole editor fits desktop height 1366": true,
+    "no horizontal overflow 1024": true,
+    "canvas remains visible 1024": true,
+    "Project stays above timeline 1024": true,
+    "whole editor fits desktop height 1024": true,
+    "no horizontal overflow 736": true,
+    "canvas remains visible 736": true,
+    "no horizontal overflow 320": true,
+    "canvas remains visible 320": true,
+    "permanent Out flag": true,
+    "five layers and bars": true,
+    "six starter previews": true,
+    "template opens in same editor": true,
+    "Home brand preview applied": true,
+    "two wizard finish routes": true,
+    "import study opens same workspace": true,
+    "asset gets layer and bar": true,
+    "undo restores asset insertion": true,
+    "rectangle creates bar": true,
+    "Shift creates circle": true,
+    "canvas scale handle works": true,
+    "one undo reverses scale": true,
+    "canvas text created": true,
+    "new text automatically editable": true,
+    "field appears in Project": true,
+    "armed edit adds second key": true,
+    "reverse prompt beside button": true,
+    "reverse adds exit keys": true,
+    "live exit begins from live position": true,
+    "empty exit hides without source visibility mutation": true,
+    "seek after cut restores graphic": true,
+    "frame ruler has integer labels": true,
+    "one second equals 25 frames": true,
+    "light theme applied": true,
+    "no script errors": true
+  },
+  "layouts": [
+    {
+      "viewport": 1920,
+      "width": 1888,
+      "scroll": 1888,
+      "height": 1040.265625,
+      "canvas": {
+        "x": 270,
+        "y": 105.390625,
+        "width": 1293,
+        "height": 529.671875,
+        "top": 105.390625,
+        "right": 1563,
+        "bottom": 635.0625,
+        "left": 270
+      },
+      "project": {
+        "x": 0,
+        "y": 124.328125,
+        "width": 249,
+        "height": 546.671875,
+        "top": 124.328125,
+        "right": 249,
+        "bottom": 671,
+        "left": 0
+      },
+      "timeline": {
+        "x": 0,
+        "y": 671,
+        "width": 1888,
+        "height": 342.328125,
+        "top": 671,
+        "right": 1888,
+        "bottom": 1013.328125,
+        "left": 0
+      }
+    },
+    {
+      "viewport": 1366,
+      "width": 1334,
+      "scroll": 1334,
+      "height": 739.265625,
+      "canvas": {
+        "x": 240,
+        "y": 105.390625,
+        "width": 794,
+        "height": 249.671875,
+        "top": 105.390625,
+        "right": 1034,
+        "bottom": 355.0625,
+        "left": 240
+      },
+      "project": {
+        "x": 0,
+        "y": 124.328125,
+        "width": 219,
+        "height": 266.671875,
+        "top": 124.328125,
+        "right": 219,
+        "bottom": 391,
+        "left": 0
+      },
+      "timeline": {
+        "x": 0,
+        "y": 391,
+        "width": 1334,
+        "height": 321.328125,
+        "top": 391,
+        "right": 1334,
+        "bottom": 712.328125,
+        "left": 0
+      }
+    },
+    {
+      "viewport": 1024,
+      "width": 992,
+      "scroll": 992,
+      "height": 739.265625,
+      "canvas": {
+        "x": 215,
+        "y": 105.390625,
+        "width": 507,
+        "height": 249.671875,
+        "top": 105.390625,
+        "right": 722,
+        "bottom": 355.0625,
+        "left": 215
+      },
+      "project": {
+        "x": 0,
+        "y": 124.328125,
+        "width": 194,
+        "height": 266.671875,
+        "top": 124.328125,
+        "right": 194,
+        "bottom": 391,
+        "left": 0
+      },
+      "timeline": {
+        "x": 0,
+        "y": 391,
+        "width": 992,
+        "height": 321.328125,
+        "top": 391,
+        "right": 992,
+        "bottom": 712.328125,
+        "left": 0
+      }
+    },
+    {
+      "viewport": 736,
+      "width": 704,
+      "scroll": 704,
+      "height": 1640.546875,
+      "canvas": {
+        "x": 20,
+        "y": 105.390625,
+        "width": 664,
+        "height": 273.671875,
+        "top": 105.390625,
+        "right": 684,
+        "bottom": 379.0625,
+        "left": 20
+      },
+      "project": {
+        "x": 0,
+        "y": 495.328125,
+        "width": 704,
+        "height": 439.796875,
+        "top": 495.328125,
+        "right": 704,
+        "bottom": 935.125,
+        "left": 0
+      },
+      "timeline": {
+        "x": 0,
+        "y": 1262.28125,
+        "width": 704,
+        "height": 351.328125,
+        "top": 1262.28125,
+        "right": 704,
+        "bottom": 1613.609375,
+        "left": 0
+      }
+    },
+    {
+      "viewport": 320,
+      "width": 288,
+      "scroll": 288,
+      "height": 1899.703125,
+      "canvas": {
+        "x": 20,
+        "y": 187.953125,
+        "width": 248,
+        "height": 153.28125,
+        "top": 187.953125,
+        "right": 268,
+        "bottom": 341.234375,
+        "left": 20
+      },
+      "project": {
+        "x": 0,
+        "y": 457.5,
+        "width": 288,
+        "height": 439.796875,
+        "top": 457.5,
+        "right": 288,
+        "bottom": 897.296875,
+        "left": 0
+      },
+      "timeline": {
+        "x": 0,
+        "y": 1386.84375,
+        "width": 288,
+        "height": 442.046875,
+        "top": 1386.84375,
+        "right": 288,
+        "bottom": 1828.890625,
+        "left": 0
+      }
+    }
+  ],
+  "errors": [],
+  "liveExitNote": "Visual illustration only; numeric continuity/export tests belong to R1.1c."
+}

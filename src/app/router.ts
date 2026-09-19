@@ -48,6 +48,7 @@ export type ProductionSub = 'data' | 'audience';
 
 export type Route =
   | { view: 'editor' }
+  | { view: 'editor-foundation' }
   | { view: 'home'; section: string | null }
   | { view: 'graphic'; id: string }
   | { view: 'control'; id: string }
@@ -62,6 +63,8 @@ const STEP_SEGMENT = 'step';
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   switch (parts[0]) {
+    case 'editor-foundation':
+      return { view: 'editor-foundation' };
     case 'home':
       return { view: 'home', section: parts[1] ?? null };
     case 'package':
@@ -99,6 +102,8 @@ export function routeHash(route: Route): string {
   switch (route.view) {
     case 'editor':
       return '';
+    case 'editor-foundation':
+      return '#/editor-foundation';
     case 'home':
       return route.section ? `#/home/${encodeURIComponent(route.section)}` : '#/home';
     case 'graphic':

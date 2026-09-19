@@ -1,3 +1,5 @@
+> Historical handoff. Continue from [EDITOR_PLAN.md](../EDITOR_PLAN.md) and [the consolidation handoff](2026-09-17-editor-plan-consolidation.md). Earlier ordering is superseded; implementation remains on hold.
+
 # Editor review follow-up, 2026-09-17
 
 ## Result and limits
@@ -47,6 +49,11 @@ gate passed all 35 checks in 3.8 minutes. Overall integration result: passed. No
 claimed; the changed brand feature is local/offline and introduced no backend changes.
 
 ## Next work
+
+**Superseded by later owner direction, 2026-09-17:** the
+[unified roadmap](../EDITOR_DELIVERY_ROADMAP.md) now governs continuation. Complete its
+baseline and review before further product implementation. The paragraph below records
+the earlier recommendation; it is no longer an instruction to start brand application.
 
 After landing, start a fresh feature branch from current main. Finish shared editor brand
 application as a single undo transaction, then collection customization under

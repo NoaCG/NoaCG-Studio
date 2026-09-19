@@ -1,0 +1,19 @@
+{
+  "date": "2026-09-17",
+  "branch": "codex/editor-baseline-design",
+  "base": "49a2f31ee72a6ebc938b03639355b9a5e92e8b09",
+  "product_changes": false,
+  "implementation": "on owner hold",
+  "git": "uncommitted for design review",
+  "build": {
+    "job": "j-1336",
+    "state": "done",
+    "exitCode": 0
+  },
+  "mockup": {
+    "job": "j-1337",
+    "checks": 27,
+    "runtime_errors": 0
+  },
+  "baseline": "inventory only; no product acceptance tasks newly passed"
+}

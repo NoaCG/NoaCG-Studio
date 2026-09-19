@@ -1,0 +1,1478 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Editor Transform Study</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Editor Transform Study" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Editor Transform Study&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;nc-transform-study&quot; aria-label=&quot;NoaCG transform interaction study&quot;&gt;
+&lt;style&gt;
+#nc-transform-study{--nc-bg:light-dark(#f4f5f7,#202226);--nc-panel:light-dark(#fff,#292c31);--nc-deep:light-dark(#e5e8ed,#191c20);--nc-line:light-dark(#ccd1d9,#42464d);--nc-text:light-dark(#242a35,#e0e3e9);--nc-muted:light-dark(#596476,#a6afbd);--nc-accent:light-dark(#0961a9,#58b7ec);--nc-active:light-dark(#dcecff,#263e50);background:var(--nc-bg);color:var(--nc-text);font:12px/1.4 system-ui,sans-serif;position:relative;overflow:hidden;color-scheme:light dark}
+#nc-transform-study *{box-sizing:border-box}#nc-transform-study [hidden]{display:none!important}#nc-transform-study button,#nc-transform-study input,#nc-transform-study select{font:inherit;color:var(--nc-text);background:var(--nc-panel);border:1px solid var(--nc-line);border-radius:3px;min-height:27px;min-width:0}#nc-transform-study button{cursor:pointer;padding:3px 8px}#nc-transform-study button:hover{background:var(--nc-active)}#nc-transform-study button:disabled{opacity:.45;cursor:default}#nc-transform-study button[aria-pressed=true]{color:var(--nc-accent);background:var(--nc-active)}#nc-transform-study input,#nc-transform-study select{padding:3px 5px}#nc-transform-study input[type=number]{appearance:textfield;-moz-appearance:textfield;color:var(--nc-accent);font-variant-numeric:tabular-nums}#nc-transform-study input::-webkit-inner-spin-button{appearance:none}#nc-transform-study input[type=checkbox]{min-height:16px}#nc-transform-study .nc-primary{background:var(--nc-active);border-color:var(--nc-accent)}#nc-transform-study .nc-bar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-bottom:1px solid var(--nc-line)}#nc-transform-study .nc-grow{flex:1}#nc-transform-study .nc-muted{color:var(--nc-muted)}#nc-transform-study .nc-name{font-weight:600}#nc-transform-study .nc-workspace{display:grid;grid-template-columns:minmax(0,1fr) 344px;height:560px}#nc-transform-study .nc-stage{min-width:0;display:flex;flex-direction:column;background:var(--nc-deep)}#nc-transform-study .nc-preview{flex:1;min-height:0;position:relative;margin:14px}#nc-transform-study .nc-preview&gt;svg{width:100%;height:100%;position:absolute;inset:0}#nc-transform-study .nc-stage-footer{padding:6px 12px;display:flex;gap:8px;color:var(--nc-muted)}#nc-transform-study .nc-inspector{border-left:1px solid var(--nc-line);overflow:auto;background:var(--nc-panel)}#nc-transform-study .nc-section{padding:9px 11px;border-bottom:1px solid var(--nc-line)}#nc-transform-study .nc-section h3{font-size:12px;font-weight:600;margin:0 0 8px}#nc-transform-study .nc-layer{padding:5px 8px;border-left:2px solid transparent}#nc-transform-study .nc-layer.selected{background:var(--nc-active);border-left-color:var(--nc-accent)}#nc-transform-study .nc-prop{display:grid;grid-template-columns:26px 78px minmax(0,1fr);gap:5px;align-items:center;min-height:37px}#nc-transform-study .nc-values{display:flex;gap:4px;align-items:center}#nc-transform-study .nc-values input{width:100%;max-width:78px}#nc-transform-study .nc-values label{display:flex;align-items:center;gap:3px;flex:1;color:var(--nc-muted)}#nc-transform-study .nc-values .nc-turn{max-width:46px}#nc-transform-study .nc-stopwatch{padding:1px;display:grid;place-items:center}#nc-transform-study .nc-stopwatch svg{width:16px;height:16px}#nc-transform-study .nc-under{display:flex;align-items:center;gap:6px;margin-top:8px}#nc-transform-study .nc-under input{flex:1;width:70px}#nc-transform-study .nc-field{display:block;width:100%;margin-top:6px}#nc-transform-study details summary{cursor:pointer;padding:7px 0}#nc-transform-study .nc-timeline{border-top:1px solid var(--nc-line);background:var(--nc-panel)}#nc-transform-study .nc-timeline .nc-bar{padding:6px 10px}#nc-transform-study .nc-timeline-grid{display:grid;grid-template-columns:292px minmax(0,1fr)}#nc-transform-study .nc-row-label{padding:3px 10px;display:flex;align-items:center;gap:5px;min-height:29px;border-bottom:1px solid var(--nc-line)}#nc-transform-study .nc-row-label button{padding:0 5px;min-height:22px}#nc-transform-study .nc-row-label .nc-val{color:var(--nc-muted);font-size:11px;margin-left:auto;font-variant-numeric:tabular-nums}#nc-transform-study .nc-lane,#nc-transform-study .nc-ruler,#nc-transform-study .nc-cues{position:relative;min-width:0;border-left:1px solid var(--nc-line);border-bottom:1px solid var(--nc-line);background:var(--nc-deep)}#nc-transform-study .nc-lane{height:29px;background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(10% - 1px),var(--nc-line) calc(10% - 1px),var(--nc-line) 10%)}#nc-transform-study .nc-lane:after,#nc-transform-study .nc-ruler:after{content:&#x27;&#x27;;position:absolute;pointer-events:none;left:var(--nc-playhead);width:1px;top:0;bottom:0;background:var(--nc-accent)}#nc-transform-study .nc-ruler{height:30px;display:flex;justify-content:space-between;align-items:center;padding:0 4px;cursor:ew-resize;touch-action:none}#nc-transform-study .nc-cues{display:flex;min-height:33px}#nc-transform-study .nc-cues button{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:0;background:var(--nc-active);font-size:11px;border-width:0 1px 0 0;text-align:left}#nc-transform-study .nc-key{position:absolute;top:2px;transform:translateX(-50%);border:0;background:transparent;color:var(--nc-accent);padding:0 3px;min-height:24px;font-size:18px}#nc-transform-study .nc-key:first-child{transform:translateX(0)}#nc-transform-study .nc-key[aria-pressed=true]{color:light-dark(#946500,#ffd27d)}#nc-transform-study .nc-status{padding:6px 10px;border-top:1px solid var(--nc-line);min-height:30px;color:var(--nc-muted)}#nc-transform-study .nc-form{background:var(--nc-active)}#nc-transform-study .nc-form label{display:flex;align-items:center;gap:8px;margin:7px 0}#nc-transform-study .nc-form label&gt;input,#nc-transform-study .nc-form label&gt;select{flex:1;width:100px}#nc-transform-study .nc-form label&gt;input[type=checkbox]{flex:0;width:auto}#nc-transform-study .nc-form .nc-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}#nc-transform-study .nc-finish{padding:18px;background:var(--nc-panel);border-bottom:1px solid var(--nc-line)}#nc-transform-study .nc-finish h3{margin:0 0 8px;font-size:14px}#nc-transform-study .nc-finish .nc-bar{padding:8px 0 0;border:0}#nc-transform-study .nc-finish .nc-chips{display:flex;gap:12px;flex-wrap:wrap;color:var(--nc-muted)}#nc-transform-study #nc-anchor{cursor:move;touch-action:none}
+#nc-transform-study .nc-form label&gt;input[type=checkbox],#nc-transform-study .nc-under input[type=checkbox]{flex:0 0 16px;width:16px;appearance:auto}
+@media(min-width:1600px){#nc-transform-study .nc-workspace{height:650px}}@media(max-width:1400px){#nc-transform-study .nc-workspace{height:390px;grid-template-columns:minmax(0,1fr) 330px}}@media(max-width:800px){#nc-transform-study .nc-workspace{grid-template-columns:minmax(0,1fr) 290px;height:440px}#nc-transform-study .nc-prop{grid-template-columns:24px 66px minmax(0,1fr)}#nc-transform-study .nc-section{padding:8px}#nc-transform-study .nc-timeline-grid{grid-template-columns:230px minmax(0,1fr)}#nc-transform-study .nc-val{display:none}}@media(max-width:600px){#nc-transform-study .nc-workspace{height:auto;display:flex;flex-direction:column}#nc-transform-study .nc-stage{height:250px}#nc-transform-study .nc-inspector{overflow:visible;border-left:0}#nc-transform-study .nc-timeline-grid{grid-template-columns:150px minmax(0,1fr)}#nc-transform-study .nc-row-label{padding:3px 4px;gap:2px;font-size:11px}#nc-transform-study .nc-row-label button{padding:0 3px}#nc-transform-study .nc-cues button{font-size:11px;padding:4px}#nc-transform-study .nc-ruler span:nth-child(even){display:none}}@media(pointer:coarse){#nc-transform-study button,#nc-transform-study input,#nc-transform-study select{min-height:44px}#nc-transform-study input{font-size:16px}#nc-transform-study .nc-prop{min-height:50px}#nc-transform-study .nc-lane{height:44px}#nc-transform-study .nc-key{min-height:44px;min-width:30px}#nc-transform-study .nc-workspace{height:auto;min-height:440px}#nc-transform-study .nc-stage{min-height:280px}}
+&lt;/style&gt;
+&lt;header class=&quot;nc-bar&quot;&gt;&lt;span class=&quot;nc-name&quot;&gt;NoaCG&lt;/span&gt;&lt;span class=&quot;nc-muted&quot;&gt;/ Coast News / Imported lower third&lt;/span&gt;&lt;span class=&quot;nc-grow&quot;&gt;&lt;/span&gt;&lt;button id=&quot;nc-finish-toggle&quot;&gt;Wizard Finish&lt;/button&gt;&lt;button id=&quot;nc-undo&quot; disabled&gt;Undo&lt;/button&gt;&lt;span class=&quot;nc-muted&quot;&gt;Design study&lt;/span&gt;&lt;/header&gt;
+&lt;section class=&quot;nc-finish&quot; id=&quot;nc-finish&quot; hidden aria-label=&quot;Import wizard Finish preview&quot;&gt;&lt;h3&gt;Your graphic is ready&lt;/h3&gt;&lt;div class=&quot;nc-chips&quot;&gt;&lt;span&gt;SVG artwork&lt;/span&gt;&lt;span&gt;2 editable fields&lt;/span&gt;&lt;span&gt;In / Next / Out&lt;/span&gt;&lt;span&gt;Existing behavior retained&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;nc-bar&quot;&gt;&lt;button class=&quot;nc-primary&quot; id=&quot;nc-direct&quot;&gt;Add to production&lt;/button&gt;&lt;button id=&quot;nc-open-editor&quot;&gt;Open in editor&lt;/button&gt;&lt;button id=&quot;nc-export&quot;&gt;Export&lt;/button&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;main class=&quot;nc-workspace&quot;&gt;
+&lt;section class=&quot;nc-stage&quot; aria-label=&quot;Composition&quot;&gt;&lt;div class=&quot;nc-bar&quot;&gt;&lt;span class=&quot;nc-name&quot;&gt;Composition&lt;/span&gt;&lt;span class=&quot;nc-muted&quot;&gt;1920 × 1080 · 25 fps&lt;/span&gt;&lt;span class=&quot;nc-grow&quot;&gt;&lt;/span&gt;&lt;button id=&quot;nc-anchor-tool&quot; aria-pressed=&quot;false&quot;&gt;Anchor tool&lt;/button&gt;&lt;button id=&quot;nc-center-anchor&quot;&gt;Center anchor&lt;/button&gt;&lt;/div&gt;
+&lt;div class=&quot;nc-preview&quot;&gt;&lt;svg id=&quot;nc-stage-svg&quot; viewBox=&quot;0 0 1920 1080&quot; role=&quot;img&quot; aria-label=&quot;Lower third graphic with adjustable anchor, position, scale, rotation and opacity&quot;&gt;&lt;defs&gt;&lt;linearGradient id=&quot;nc-bg-gradient&quot; x2=&quot;0&quot; y2=&quot;1&quot;&gt;&lt;stop stop-color=&quot;#183b52&quot;/&gt;&lt;stop offset=&quot;1&quot; stop-color=&quot;#587c80&quot;/&gt;&lt;/linearGradient&gt;&lt;linearGradient id=&quot;nc-hill-gradient&quot; x2=&quot;1&quot; y2=&quot;1&quot;&gt;&lt;stop stop-color=&quot;#2e5355&quot;/&gt;&lt;stop offset=&quot;1&quot; stop-color=&quot;#182d39&quot;/&gt;&lt;/linearGradient&gt;&lt;/defs&gt;&lt;rect width=&quot;1920&quot; height=&quot;1080&quot; fill=&quot;url(#nc-bg-gradient)&quot;/&gt;&lt;path d=&quot;M0 530 Q350 270 650 570 T1310 440 T1920 520V1080H0Z&quot; fill=&quot;url(#nc-hill-gradient)&quot;/&gt;&lt;path d=&quot;M0 750 Q540 600 1000 820 T1920 700V1080H0Z&quot; fill=&quot;#132c3b&quot; opacity=&quot;.65&quot;/&gt;&lt;rect x=&quot;96&quot; y=&quot;54&quot; width=&quot;1728&quot; height=&quot;972&quot; fill=&quot;none&quot; stroke=&quot;#abc2c7&quot; stroke-dasharray=&quot;8 12&quot; opacity=&quot;.32&quot;/&gt;
+&lt;g id=&quot;nc-art&quot;&gt;&lt;rect id=&quot;nc-box&quot; width=&quot;1440&quot; height=&quot;126&quot; rx=&quot;2&quot; fill=&quot;#f6f5ee&quot;/&gt;&lt;rect width=&quot;12&quot; height=&quot;126&quot; fill=&quot;#0b99cc&quot;/&gt;&lt;text x=&quot;44&quot; y=&quot;78&quot; fill=&quot;#152735&quot; font-family=&quot;Arial,sans-serif&quot; font-size=&quot;47&quot; font-weight=&quot;600&quot; id=&quot;nc-title&quot;&gt;A new chapter for our coastline&lt;/text&gt;&lt;g id=&quot;nc-detail&quot;&gt;&lt;rect y=&quot;126&quot; width=&quot;1440&quot; height=&quot;62&quot; fill=&quot;#122231&quot;/&gt;&lt;text x=&quot;44&quot; y=&quot;166&quot; fill=&quot;#edf2f4&quot; font-family=&quot;Arial,sans-serif&quot; font-size=&quot;27&quot;&gt;ELENA NIEMI · COAST NEWS&lt;/text&gt;&lt;/g&gt;&lt;rect id=&quot;nc-bounds&quot; x=&quot;-3&quot; y=&quot;-3&quot; width=&quot;1446&quot; height=&quot;194&quot; fill=&quot;none&quot; stroke=&quot;#55c5ff&quot; stroke-width=&quot;3&quot; vector-effect=&quot;non-scaling-stroke&quot;/&gt;&lt;/g&gt;
+&lt;g id=&quot;nc-anchor&quot; aria-label=&quot;Drag anchor point&quot;&gt;&lt;circle r=&quot;14&quot; fill=&quot;#183b52&quot; stroke=&quot;#81d4ff&quot; stroke-width=&quot;4&quot;/&gt;&lt;path d=&quot;M-22 0H22M0 -22V22&quot; stroke=&quot;#81d4ff&quot; stroke-width=&quot;3&quot;/&gt;&lt;/g&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class=&quot;nc-stage-footer&quot;&gt;&lt;span id=&quot;nc-cue-status&quot;&gt;In · frame 20&lt;/span&gt;&lt;span class=&quot;nc-grow&quot;&gt;&lt;/span&gt;&lt;span&gt;Local preview&lt;/span&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;aside class=&quot;nc-inspector&quot; aria-label=&quot;Layer properties&quot;&gt;
+&lt;section class=&quot;nc-section&quot;&gt;&lt;h3&gt;Layers&lt;/h3&gt;&lt;div class=&quot;nc-layer selected&quot;&gt;▾ Lower third &lt;span class=&quot;nc-muted&quot;&gt;/ SVG group&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;nc-layer&quot;&gt;　T Headline&lt;/div&gt;&lt;div class=&quot;nc-layer&quot;&gt;　T Reporter · Next reveal&lt;/div&gt;&lt;div class=&quot;nc-layer&quot;&gt;　▱ Background panel&lt;/div&gt;&lt;/section&gt;
+&lt;form class=&quot;nc-section nc-form&quot; id=&quot;nc-step-form&quot; hidden&gt;&lt;h3&gt;Add step&lt;/h3&gt;&lt;label&gt;Name &lt;input id=&quot;nc-step-name&quot; value=&quot;Reveal location&quot; required&gt;&lt;/label&gt;&lt;label&gt;After &lt;select id=&quot;nc-step-after&quot;&gt;&lt;/select&gt;&lt;/label&gt;&lt;label&gt;Duration &lt;input type=&quot;number&quot; id=&quot;nc-step-duration&quot; value=&quot;20&quot; min=&quot;1&quot; max=&quot;250&quot; required&gt; frames&lt;/label&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;nc-step-reveal&quot;&gt;Reveal selected layer&lt;/label&gt;&lt;div class=&quot;nc-actions&quot;&gt;&lt;button type=&quot;submit&quot; class=&quot;nc-primary&quot;&gt;Add step&lt;/button&gt;&lt;button type=&quot;button&quot; id=&quot;nc-step-cancel&quot;&gt;Cancel&lt;/button&gt;&lt;/div&gt;&lt;/form&gt;
+&lt;form class=&quot;nc-section nc-form&quot; id=&quot;nc-out-form&quot; hidden&gt;&lt;h3&gt;Out transition&lt;/h3&gt;&lt;label&gt;Duration &lt;input type=&quot;number&quot; id=&quot;nc-out-duration&quot; value=&quot;25&quot; min=&quot;1&quot; max=&quot;250&quot; required&gt; frames&lt;/label&gt;&lt;label&gt;Trigger &lt;select id=&quot;nc-out-trigger&quot;&gt;&lt;option value=&quot;manual&quot;&gt;Manual Out&lt;/option&gt;&lt;option value=&quot;auto&quot;&gt;Automatic after hold&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;label id=&quot;nc-auto-row&quot; hidden&gt;After hold &lt;input type=&quot;number&quot; id=&quot;nc-out-delay&quot; value=&quot;5&quot; min=&quot;0&quot; step=&quot;.1&quot;&gt; seconds&lt;/label&gt;&lt;div class=&quot;nc-actions&quot;&gt;&lt;button type=&quot;submit&quot; class=&quot;nc-primary&quot;&gt;Apply&lt;/button&gt;&lt;button type=&quot;button&quot; id=&quot;nc-out-cancel&quot;&gt;Cancel&lt;/button&gt;&lt;/div&gt;&lt;/form&gt;
+&lt;section class=&quot;nc-section&quot;&gt;&lt;h3&gt;Transform &lt;span class=&quot;nc-muted&quot; id=&quot;nc-at-frame&quot;&gt;· frame 20&lt;/span&gt;&lt;/h3&gt;&lt;div id=&quot;nc-properties&quot;&gt;&lt;/div&gt;&lt;div class=&quot;nc-under&quot;&gt;&lt;button id=&quot;nc-link&quot; aria-pressed=&quot;true&quot;&gt;Link scale X/Y&lt;/button&gt;&lt;span class=&quot;nc-muted&quot;&gt;px · % · degrees&lt;/span&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;section class=&quot;nc-section&quot;&gt;&lt;details&gt;&lt;summary&gt;Size / Layout&lt;/summary&gt;&lt;div class=&quot;nc-under&quot;&gt;&lt;label for=&quot;nc-width&quot;&gt;Panel width&lt;/label&gt;&lt;input id=&quot;nc-width&quot; type=&quot;number&quot; value=&quot;1440&quot; min=&quot;400&quot; max=&quot;1700&quot;&gt;&lt;span&gt;px&lt;/span&gt;&lt;/div&gt;&lt;/details&gt;&lt;details&gt;&lt;summary&gt;Operator fields&lt;/summary&gt;&lt;label for=&quot;nc-field-text&quot;&gt;Headline&lt;/label&gt;&lt;input class=&quot;nc-field&quot; id=&quot;nc-field-text&quot; value=&quot;A new chapter for our coastline&quot;&gt;&lt;label class=&quot;nc-under&quot;&gt;&lt;input id=&quot;nc-editable&quot; type=&quot;checkbox&quot; checked&gt; Editable in playout&lt;/label&gt;&lt;div class=&quot;nc-muted&quot;&gt;Field ID: f0 · stable across label changes&lt;/div&gt;&lt;/details&gt;&lt;/section&gt;
+&lt;/aside&gt;&lt;/main&gt;
+&lt;section class=&quot;nc-timeline&quot; aria-label=&quot;Timeline&quot;&gt;&lt;div class=&quot;nc-bar&quot;&gt;&lt;span class=&quot;nc-name&quot;&gt;Timeline&lt;/span&gt;&lt;button id=&quot;nc-take&quot;&gt;Take&lt;/button&gt;&lt;button id=&quot;nc-next&quot;&gt;Next&lt;/button&gt;&lt;button id=&quot;nc-out&quot;&gt;Out&lt;/button&gt;&lt;span class=&quot;nc-grow&quot;&gt;&lt;/span&gt;&lt;label&gt;Frame &lt;input id=&quot;nc-frame&quot; aria-label=&quot;Current frame&quot; type=&quot;number&quot; value=&quot;20&quot; min=&quot;0&quot; style=&quot;width:60px&quot;&gt;&lt;/label&gt;&lt;button id=&quot;nc-add-step&quot;&gt;+ Step&lt;/button&gt;&lt;button id=&quot;nc-edit-out&quot;&gt;Edit Out&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;nc-timeline-grid&quot; id=&quot;nc-timeline-grid&quot;&gt;&lt;div class=&quot;nc-row-label&quot;&gt;&lt;span class=&quot;nc-muted&quot;&gt;Composition time · 25 fps&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;nc-ruler&quot; id=&quot;nc-ruler&quot; aria-label=&quot;Timeline ruler&quot;&gt;&lt;/div&gt;&lt;div class=&quot;nc-row-label&quot;&gt;▾ Lower third &lt;span class=&quot;nc-val&quot;&gt;Linear keys&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;nc-cues&quot; id=&quot;nc-cues&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;footer class=&quot;nc-status&quot; id=&quot;nc-status&quot; role=&quot;status&quot;&gt;Lower third selected · local interaction study&lt;/footer&gt;
+&lt;script&gt;
+(()=&gt;{
+const root=document.getElementById(&#x27;nc-transform-study&#x27;);
+const q=id=&gt;root.querySelector(&#x27;#&#x27;+id);
+const groups=[{id:&#x27;anchor&#x27;,name:&#x27;Anchor point&#x27;,dims:[&#x27;X&#x27;,&#x27;Y&#x27;],base:[0,0]},{id:&#x27;position&#x27;,name:&#x27;Position&#x27;,dims:[&#x27;X&#x27;,&#x27;Y&#x27;],base:[220,775]},{id:&#x27;scale&#x27;,name:&#x27;Scale&#x27;,dims:[&#x27;X&#x27;,&#x27;Y&#x27;],base:[100,100]},{id:&#x27;rotation&#x27;,name:&#x27;Rotation&#x27;,dims:[&#x27;turns&#x27;,&#x27;°&#x27;],base:[0]},{id:&#x27;opacity&#x27;,name:&#x27;Opacity&#x27;,dims:[&#x27;%&#x27;],base:[100]}];
+let state={frame:20,linked:true,width:1440,text:&#x27;A new chapter for our coastline&#x27;,editable:true,anchorTool:false,selectedCue:0,outTrigger:&#x27;manual&#x27;,outDelay:5,cues:[{name:&#x27;In&#x27;,duration:25},{name:&#x27;Reporter&#x27;,duration:25},{name:&#x27;Out&#x27;,duration:25}],props:{}};
+for(const g of groups)state.props[g.id]={base:[...g.base],keys:[]};
+state.props.position.keys=[{t:0,v:[140,775]},{t:20,v:[220,775]}];
+const history=[];let timer=0,drag=null,scrub=false;
+const clone=v=&gt;JSON.parse(JSON.stringify(v));
+const say=t=&gt;q(&#x27;nc-status&#x27;).textContent=t;
+const total=()=&gt;state.cues.reduce((a,c)=&gt;a+c.duration,0);
+const stops=()=&gt;{let sum=0;return state.cues.map(c=&gt;{const start=sum;sum+=c.duration;return start;});};
+function sample(id,t=state.frame){const p=state.props[id],k=p.keys;if(!k.length)return [...p.base];if(t&lt;=k[0].t)return [...k[0].v];for(let i=1;i&lt;k.length;i++)if(t&lt;=k[i].t){const a=k[i-1],b=k[i],u=(t-a.t)/(b.t-a.t);return a.v.map((v,j)=&gt;v+(b.v[j]-v)*u);}return [...k[k.length-1].v];}
+function snapshot(){history.push(clone(state));q(&#x27;nc-undo&#x27;).disabled=false;}
+function stop(){cancelAnimationFrame(timer);timer=0;}
+function put(id,value){const p=state.props[id];if(!p.keys.length){p.base=[...value];return;}const key=p.keys.find(k=&gt;k.t===state.frame);if(key)key.v=[...value];else p.keys.push({t:state.frame,v:[...value]});p.keys.sort((a,b)=&gt;a.t-b.t);}
+function display(id){const v=sample(id);return id===&#x27;rotation&#x27;?[Math.trunc(v[0]/360),+(v[0]%360).toFixed(2)]:v;}
+function applyValue(id,index,value){if(!Number.isFinite(value))return;const values=sample(id);if(id===&#x27;rotation&#x27;){const d=display(id);d[index]=value;values[0]=d[0]*360+d[1];}else if(id===&#x27;scale&#x27;&amp;&amp;state.linked){const old=values[index];if(old===0&amp;&amp;value!==0){say(&#x27;Unlink scale to change a zero axis.&#x27;);return;}const ratio=old===0?1:value/old;values[index]=value;values[1-index]*=ratio;}else values[index]=id===&#x27;opacity&#x27;?Math.max(0,Math.min(100,value)):value;put(id,values);}
+function arm(id){stop();snapshot();const p=state.props[id],value=sample(id);if(p.keys.length){p.base=value;p.keys=[];say(groups.find(g=&gt;g.id===id).name+&#x27; animation removed; current value retained. Undo restores keys.&#x27;);}else{p.keys=[{t:state.frame,v:value}];say(&#x27;One key created at frame &#x27;+state.frame+&#x27;.&#x27;);}render();}
+function diamond(id){stop();snapshot();const p=state.props[id],value=sample(id),at=p.keys.findIndex(k=&gt;k.t===state.frame);if(at&gt;=0){p.keys.splice(at,1);if(!p.keys.length)p.base=value;}else{p.keys.push({t:state.frame,v:value});p.keys.sort((a,b)=&gt;a.t-b.t);}render();}
+function seek(t){stop();state.frame=Math.max(0,Math.min(total(),Math.round(t)));render();}
+function navigate(id,direction){const keys=state.props[id].keys.filter(k=&gt;direction&lt;0?k.t&lt;state.frame:k.t&gt;state.frame);if(keys.length)seek(direction&lt;0?keys[keys.length-1].t:keys[0].t);}
+for(const g of groups){
+ const row=document.createElement(&#x27;div&#x27;);row.className=&#x27;nc-prop&#x27;;row.dataset.property=g.id;
+ const clock=document.createElement(&#x27;button&#x27;);clock.className=&#x27;nc-stopwatch&#x27;;clock.type=&#x27;button&#x27;;clock.setAttribute(&#x27;aria-label&#x27;,g.name+&#x27; animation&#x27;);clock.innerHTML=&#x27;&lt;i data-lucide=&quot;timer&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&#x27;;clock.onclick=()=&gt;arm(g.id);row.append(clock);
+ const label=document.createElement(&#x27;span&#x27;);label.textContent=g.name;row.append(label);
+ const values=document.createElement(&#x27;div&#x27;);values.className=&#x27;nc-values&#x27;;g.dims.forEach((dim,index)=&gt;{const l=document.createElement(&#x27;label&#x27;);l.textContent=dim;const input=document.createElement(&#x27;input&#x27;);input.type=&#x27;number&#x27;;input.step=&#x27;any&#x27;;input.setAttribute(&#x27;aria-label&#x27;,g.name+&#x27; &#x27;+dim);input.dataset.group=g.id;input.dataset.index=index;if(dim===&#x27;turns&#x27;)input.className=&#x27;nc-turn&#x27;;input.onchange=()=&gt;{snapshot();applyValue(g.id,index,+input.value);render();};
+ input.onpointerdown=e=&gt;{if(e.button!==0)return;stop();drag={kind:&#x27;number&#x27;,id:g.id,index,startX:e.clientX,initial:display(g.id)[index],before:clone(state),moved:false,pointer:e.pointerId,el:input};};
+ input.onpointermove=e=&gt;{if(!drag||drag.el!==input||drag.kind!==&#x27;number&#x27;)return;const delta=e.clientX-drag.startX;if(!drag.moved&amp;&amp;Math.abs(delta)&lt;4)return;if(!drag.moved){input.setPointerCapture(e.pointerId);drag.moved=true;}const multiplier=e.shiftKey?10:(e.ctrlKey||e.metaKey)?.1:1;state=clone(drag.before);applyValue(g.id,index,Math.round((drag.initial+delta*multiplier)*100)/100);render();};
+ input.onpointerup=()=&gt;finishDrag();input.onpointercancel=()=&gt;cancelDrag();l.append(input);values.append(l);});row.append(values);q(&#x27;nc-properties&#x27;).append(row);
+ const tl=document.createElement(&#x27;div&#x27;);tl.className=&#x27;nc-row-label&#x27;;const n=document.createElement(&#x27;span&#x27;);n.textContent=g.name;tl.append(n);const prev=document.createElement(&#x27;button&#x27;);prev.textContent=&#x27;‹&#x27;;prev.setAttribute(&#x27;aria-label&#x27;,&#x27;Previous &#x27;+g.name+&#x27; key&#x27;);prev.onclick=()=&gt;navigate(g.id,-1);tl.append(prev);const key=document.createElement(&#x27;button&#x27;);key.textContent=&#x27;◇&#x27;;key.dataset.diamond=g.id;key.setAttribute(&#x27;aria-label&#x27;,&#x27;Add or remove &#x27;+g.name+&#x27; key&#x27;);key.onclick=()=&gt;diamond(g.id);tl.append(key);const next=document.createElement(&#x27;button&#x27;);next.textContent=&#x27;›&#x27;;next.setAttribute(&#x27;aria-label&#x27;,&#x27;Next &#x27;+g.name+&#x27; key&#x27;);next.onclick=()=&gt;navigate(g.id,1);tl.append(next);const val=document.createElement(&#x27;span&#x27;);val.className=&#x27;nc-val&#x27;;val.dataset.value=g.id;tl.append(val);const lane=document.createElement(&#x27;div&#x27;);lane.className=&#x27;nc-lane&#x27;;lane.dataset.lane=g.id;q(&#x27;nc-timeline-grid&#x27;).append(tl,lane);
+}
+function finishDrag(){if(drag?.moved){history.push(drag.before);q(&#x27;nc-undo&#x27;).disabled=false;say(&#x27;Transform updated. One gesture, one undo.&#x27;);}drag=null;}
+function cancelDrag(){if(drag){state=drag.before;drag=null;render();say(&#x27;Gesture cancelled.&#x27;);}}
+function moveAnchor(newAnchor){const a=sample(&#x27;anchor&#x27;),p=sample(&#x27;position&#x27;),s=sample(&#x27;scale&#x27;),r=sample(&#x27;rotation&#x27;)[0]*Math.PI/180,dx=(newAnchor[0]-a[0])*s[0]/100,dy=(newAnchor[1]-a[1])*s[1]/100;put(&#x27;anchor&#x27;,newAnchor);put(&#x27;position&#x27;,[p[0]+Math.cos(r)*dx-Math.sin(r)*dy,p[1]+Math.sin(r)*dx+Math.cos(r)*dy]);}
+function stagePoint(e){const pt=q(&#x27;nc-stage-svg&#x27;).createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;return pt.matrixTransform(q(&#x27;nc-stage-svg&#x27;).getScreenCTM().inverse());}
+q(&#x27;nc-anchor&#x27;).onpointerdown=e=&gt;{if(!state.anchorTool)return;stop();e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);drag={kind:&#x27;anchor&#x27;,before:clone(state),origin:stagePoint(e),moved:false};};
+q(&#x27;nc-anchor&#x27;).onpointermove=e=&gt;{if(drag?.kind!==&#x27;anchor&#x27;)return;state=clone(drag.before);const pt=stagePoint(e),dx=pt.x-drag.origin.x,dy=pt.y-drag.origin.y,s=sample(&#x27;scale&#x27;),r=sample(&#x27;rotation&#x27;)[0]*Math.PI/180,a=sample(&#x27;anchor&#x27;);if(s[0]===0||s[1]===0){say(&#x27;Uncollapse zero scale before moving the anchor.&#x27;);return;}moveAnchor([a[0]+(Math.cos(r)*dx+Math.sin(r)*dy)*100/s[0],a[1]+(-Math.sin(r)*dx+Math.cos(r)*dy)*100/s[1]]);drag.moved=true;render();};q(&#x27;nc-anchor&#x27;).onpointerup=finishDrag;q(&#x27;nc-anchor&#x27;).onpointercancel=cancelDrag;
+function render(){
+ const t=total();state.frame=Math.min(t,state.frame);root.style.setProperty(&#x27;--nc-playhead&#x27;,(state.frame/t*100)+&#x27;%&#x27;);q(&#x27;nc-frame&#x27;).max=t;q(&#x27;nc-frame&#x27;).value=state.frame;q(&#x27;nc-at-frame&#x27;).textContent=&#x27;· frame &#x27;+state.frame;q(&#x27;nc-link&#x27;).setAttribute(&#x27;aria-pressed&#x27;,state.linked);q(&#x27;nc-anchor-tool&#x27;).setAttribute(&#x27;aria-pressed&#x27;,state.anchorTool);q(&#x27;nc-anchor&#x27;).style.pointerEvents=state.anchorTool?&#x27;auto&#x27;:&#x27;none&#x27;;q(&#x27;nc-undo&#x27;).disabled=!history.length;
+ for(const g of groups){const p=state.props[g.id],v=display(g.id);root.querySelector(&#x27;[data-property=&quot;&#x27;+g.id+&#x27;&quot;] button&#x27;).setAttribute(&#x27;aria-pressed&#x27;,!!p.keys.length);root.querySelectorAll(&#x27;input[data-group=&quot;&#x27;+g.id+&#x27;&quot;]&#x27;).forEach((el,i)=&gt;el.value=+v[i].toFixed(2));const exact=p.keys.some(k=&gt;k.t===state.frame),d=root.querySelector(&#x27;[data-diamond=&quot;&#x27;+g.id+&#x27;&quot;]&#x27;);d.textContent=exact?&#x27;◆&#x27;:&#x27;◇&#x27;;d.setAttribute(&#x27;aria-pressed&#x27;,exact);root.querySelector(&#x27;[data-value=&quot;&#x27;+g.id+&#x27;&quot;]&#x27;).textContent=v.map(n=&gt;+n.toFixed(1)).join(&#x27;, &#x27;);const lane=root.querySelector(&#x27;[data-lane=&quot;&#x27;+g.id+&#x27;&quot;]&#x27;);lane.replaceChildren(...p.keys.map(k=&gt;{const b=document.createElement(&#x27;button&#x27;);b.className=&#x27;nc-key&#x27;;b.textContent=&#x27;◆&#x27;;b.style.left=k.t/t*100+&#x27;%&#x27;;b.setAttribute(&#x27;aria-label&#x27;,g.name+&#x27; key at frame &#x27;+k.t);b.setAttribute(&#x27;aria-pressed&#x27;,k.t===state.frame);b.onclick=()=&gt;seek(k.t);return b;}));}
+ const a=sample(&#x27;anchor&#x27;),p=sample(&#x27;position&#x27;),s=sample(&#x27;scale&#x27;),r=sample(&#x27;rotation&#x27;)[0];q(&#x27;nc-art&#x27;).setAttribute(&#x27;transform&#x27;,`translate(${p[0]} ${p[1]}) rotate(${r}) scale(${s[0]/100} ${s[1]/100}) translate(${-a[0]} ${-a[1]})`);const positions=stops(),outStart=positions.at(-1),exit=state.frame&lt;=outStart?1:Math.max(0,1-(state.frame-outStart)/state.cues.at(-1).duration);q(&#x27;nc-art&#x27;).setAttribute(&#x27;opacity&#x27;,sample(&#x27;opacity&#x27;)[0]/100*exit);q(&#x27;nc-anchor&#x27;).setAttribute(&#x27;transform&#x27;,`translate(${p[0]} ${p[1]})`);q(&#x27;nc-anchor&#x27;).style.display=state.anchorTool?&#x27;&#x27;:&#x27;none&#x27;;q(&#x27;nc-detail&#x27;).setAttribute(&#x27;opacity&#x27;,state.frame&lt;25?0:1);q(&#x27;nc-title&#x27;).textContent=state.text;q(&#x27;nc-box&#x27;).setAttribute(&#x27;width&#x27;,state.width);q(&#x27;nc-bounds&#x27;).setAttribute(&#x27;width&#x27;,state.width+6);q(&#x27;nc-width&#x27;).value=state.width;q(&#x27;nc-field-text&#x27;).value=state.text;q(&#x27;nc-editable&#x27;).checked=state.editable;
+ const ci=positions.reduce((last,start,i)=&gt;state.frame&gt;=start?i:last,0);q(&#x27;nc-cue-status&#x27;).textContent=state.cues[ci].name+&#x27; · frame &#x27;+state.frame+(ci&lt;state.cues.length-1?&#x27; · hold until cue&#x27;:&#x27; · &#x27;+state.outTrigger+&#x27; exit&#x27;);q(&#x27;nc-ruler&#x27;).replaceChildren(...Array.from({length:6},(_,i)=&gt;{const el=document.createElement(&#x27;span&#x27;);el.textContent=Math.round(i*t/5)+&#x27;f&#x27;;return el;}));q(&#x27;nc-cues&#x27;).replaceChildren(...state.cues.map((cue,i)=&gt;{const b=document.createElement(&#x27;button&#x27;);b.textContent=cue.name+(i&lt;state.cues.length-1?&#x27; ▷&#x27;:&#x27;&#x27;)+&#x27; · &#x27;+cue.duration+&#x27;f&#x27;;b.style.flex=cue.duration;b.setAttribute(&#x27;aria-label&#x27;,&#x27;Select &#x27;+cue.name+&#x27; step&#x27;);b.setAttribute(&#x27;aria-pressed&#x27;,state.selectedCue===i);b.onclick=()=&gt;{state.selectedCue=i;seek(positions[i]);if(i===state.cues.length-1)openOut();else say(cue.name+&#x27; selected. + Step inserts after this cue.&#x27;);};return b;}));
+}
+function play(from,to){stop();const began=performance.now();state.frame=from;function tick(now){state.frame=Math.min(to,Math.round(from+(now-began)*.025));render();if(state.frame&lt;to)timer=requestAnimationFrame(tick);}timer=requestAnimationFrame(tick);}
+q(&#x27;nc-take&#x27;).onclick=()=&gt;play(0,state.cues[0].duration);q(&#x27;nc-next&#x27;).onclick=()=&gt;{const ss=stops(),i=ss.findIndex((start,index)=&gt;index&gt;0&amp;&amp;start&gt;=state.frame);if(i&gt;0&amp;&amp;i&lt;state.cues.length-1)play(ss[i],ss[i]+state.cues[i].duration);else say(&#x27;No further Next cue. Use Out to leave.&#x27;);};q(&#x27;nc-out&#x27;).onclick=()=&gt;play(stops().at(-1),total());q(&#x27;nc-frame&#x27;).onchange=e=&gt;seek(+e.target.value);
+const seekPointer=e=&gt;{const box=q(&#x27;nc-ruler&#x27;).getBoundingClientRect();seek((e.clientX-box.left)/box.width*total());};q(&#x27;nc-ruler&#x27;).onpointerdown=e=&gt;{scrub=true;e.currentTarget.setPointerCapture(e.pointerId);seekPointer(e);};q(&#x27;nc-ruler&#x27;).onpointermove=e=&gt;{if(scrub)seekPointer(e);};q(&#x27;nc-ruler&#x27;).onpointerup=()=&gt;scrub=false;q(&#x27;nc-ruler&#x27;).onpointercancel=()=&gt;scrub=false;
+q(&#x27;nc-link&#x27;).onclick=()=&gt;{snapshot();state.linked=!state.linked;render();};q(&#x27;nc-anchor-tool&#x27;).onclick=()=&gt;{state.anchorTool=!state.anchorTool;render();say(state.anchorTool?&#x27;Drag the anchor crosshair. Position compensates at this frame.&#x27;:&#x27;Anchor tool closed.&#x27;);};q(&#x27;nc-center-anchor&#x27;).onclick=()=&gt;{snapshot();moveAnchor([state.width/2,94]);render();say(&#x27;Anchor centered; visible pose retained at this frame.&#x27;);};q(&#x27;nc-width&#x27;).onchange=e=&gt;{snapshot();state.width=Math.max(400,Math.min(1700,+e.target.value));render();};q(&#x27;nc-field-text&#x27;).onchange=e=&gt;{snapshot();state.text=e.target.value;render();};q(&#x27;nc-editable&#x27;).onchange=e=&gt;{snapshot();state.editable=e.target.checked;render();say(&#x27;Operator exposure changed in this study only.&#x27;);};q(&#x27;nc-undo&#x27;).onclick=()=&gt;{stop();if(history.length){state=history.pop();render();say(&#x27;Previous edit restored.&#x27;);}};
+q(&#x27;nc-add-step&#x27;).onclick=()=&gt;{q(&#x27;nc-out-form&#x27;).hidden=true;const sel=q(&#x27;nc-step-after&#x27;);sel.replaceChildren(...state.cues.slice(0,-1).map((c,i)=&gt;{const op=document.createElement(&#x27;option&#x27;);op.value=i;op.textContent=c.name;return op;}));sel.value=Math.min(state.selectedCue,state.cues.length-2);q(&#x27;nc-step-form&#x27;).hidden=false;q(&#x27;nc-step-form&#x27;).scrollIntoView({block:&#x27;nearest&#x27;});q(&#x27;nc-step-name&#x27;).focus();};q(&#x27;nc-step-cancel&#x27;).onclick=()=&gt;q(&#x27;nc-step-form&#x27;).hidden=true;
+q(&#x27;nc-step-form&#x27;).onsubmit=e=&gt;{e.preventDefault();snapshot();const index=+q(&#x27;nc-step-after&#x27;).value+1,duration=+q(&#x27;nc-step-duration&#x27;).value,insertion=stops()[index];state.cues.splice(index,0,{name:q(&#x27;nc-step-name&#x27;).value.trim()||&#x27;Step &#x27;+index,duration});for(const p of Object.values(state.props))for(const k of p.keys)if(k.t&gt;=insertion)k.t+=duration;state.selectedCue=index;state.frame=insertion;q(&#x27;nc-step-form&#x27;).hidden=true;render();say(&#x27;Step added before Out.&#x27;+(q(&#x27;nc-step-reveal&#x27;).checked?&#x27; Reveal assignment is shown as intent; the study does not compile behavior.&#x27;:&#x27; Existing keys keep their cue timing.&#x27;));};
+function openOut(){q(&#x27;nc-step-form&#x27;).hidden=true;q(&#x27;nc-out-form&#x27;).hidden=false;q(&#x27;nc-out-duration&#x27;).value=state.cues.at(-1).duration;q(&#x27;nc-out-trigger&#x27;).value=state.outTrigger;q(&#x27;nc-out-delay&#x27;).value=state.outDelay;q(&#x27;nc-auto-row&#x27;).hidden=state.outTrigger!==&#x27;auto&#x27;;q(&#x27;nc-out-form&#x27;).scrollIntoView({block:&#x27;nearest&#x27;});}
+q(&#x27;nc-edit-out&#x27;).onclick=openOut;q(&#x27;nc-out-cancel&#x27;).onclick=()=&gt;q(&#x27;nc-out-form&#x27;).hidden=true;q(&#x27;nc-out-trigger&#x27;).onchange=e=&gt;q(&#x27;nc-auto-row&#x27;).hidden=e.target.value!==&#x27;auto&#x27;;q(&#x27;nc-out-form&#x27;).onsubmit=e=&gt;{e.preventDefault();const end=stops().at(-1)+(+q(&#x27;nc-out-duration&#x27;).value);if(Object.values(state.props).some(p=&gt;p.keys.some(k=&gt;k.t&gt;end))){say(&#x27;Out duration would cut off a key. Move the key first.&#x27;);return;}snapshot();state.cues.at(-1).duration=+q(&#x27;nc-out-duration&#x27;).value;state.outTrigger=q(&#x27;nc-out-trigger&#x27;).value;state.outDelay=+q(&#x27;nc-out-delay&#x27;).value;q(&#x27;nc-out-form&#x27;).hidden=true;render();say(&#x27;Out settings saved in the study. Live automatic timers are not simulated.&#x27;);};
+q(&#x27;nc-finish-toggle&#x27;).onclick=()=&gt;q(&#x27;nc-finish&#x27;).hidden=!q(&#x27;nc-finish&#x27;).hidden;q(&#x27;nc-open-editor&#x27;).onclick=()=&gt;{q(&#x27;nc-finish&#x27;).hidden=true;say(&#x27;Wizard result opened for adjustment. No production entry created.&#x27;);};q(&#x27;nc-direct&#x27;).onclick=()=&gt;say(&#x27;Primary Finish route: save and add to production. Design preview only; nothing installed.&#x27;);q(&#x27;nc-export&#x27;).onclick=()=&gt;say(&#x27;Alternative Finish route: save and export. Design preview only; no package generated.&#x27;);
+// Keep these actions local even when the containing preview forbids form navigation.
+for(const form of [q(&#x27;nc-step-form&#x27;),q(&#x27;nc-out-form&#x27;)]){const button=form.querySelector(&#x27;[type=submit]&#x27;);button.onclick=e=&gt;{e.preventDefault();if(form.reportValidity())form.onsubmit(e);};form.addEventListener(&#x27;keydown&#x27;,e=&gt;{if(e.key===&#x27;Enter&#x27;&amp;&amp;e.target.tagName===&#x27;INPUT&#x27;){e.preventDefault();button.click();}});}
+root.addEventListener(&#x27;keydown&#x27;,e=&gt;{if(e.key===&#x27;Escape&#x27;){cancelDrag();q(&#x27;nc-step-form&#x27;).hidden=true;q(&#x27;nc-out-form&#x27;).hidden=true;}if(e.target.matches(&#x27;input,textarea,select&#x27;))return;if((e.ctrlKey||e.metaKey)&amp;&amp;e.key.toLowerCase()===&#x27;z&#x27;){e.preventDefault();q(&#x27;nc-undo&#x27;).click();}});
+render();if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});
+})();
+&lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

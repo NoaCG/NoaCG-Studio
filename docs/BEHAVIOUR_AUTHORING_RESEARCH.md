@@ -1,5 +1,10 @@
 # Behaviour authoring - the P2 research thread
 
+Current editor scope is [EDITOR_PLAN.md](EDITOR_PLAN.md): imported SVG animation first,
+templates/brands/rundown in R1, node-graph UI deferred. This file preserves existing runtime,
+import or research knowledge; it does not authorize adding a node editor to the new workspace.
+
+
 **Comparison update, 2026-09-13:** [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md) finds
 rich visual tracks and data collections, but Studio's declared custom actions currently only
 acknowledge calls. It is therefore animation/binding evidence, not a replacement for this

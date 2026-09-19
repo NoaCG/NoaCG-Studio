@@ -178,10 +178,10 @@ price target is a commitment**: a tier that cannot be served inside it changes R
 
 The custom road that used to be listed here graduated into [`PROGRAMMES.md`](PROGRAMMES.md) on
 2026-09-01: **TEAMS**, several people holding ONE production, is **P1, in DESIGN now**; the
-**WYSIWYG canvas** is **P7**, where a second attempt starts by saying what was wrong with the first
-(`docs/WYSIWYG_PLAN.md`); the **node editor**, also tried and also not landed, is part of the
-**P2** question, whose answer is not assumed to be a third editor; and the **Singular.live class**
-- live data, automation, multi-operator - is **P3 + P4**.
+**editor rebuild** is **P7**, governed by [`EDITOR_PLAN.md`](EDITOR_PLAN.md). The **node editor**
+is deferred from that rebuild; code and lessons remain. The separate **P2** question is not
+assumed to need another editor. The **Singular.live class** - live data, automation and
+multi-operator - is **P3 + P4**.
 
 The rest is real work, deliberately not now; each has a plan doc, and none is current until pulled
 up or its programme activates.

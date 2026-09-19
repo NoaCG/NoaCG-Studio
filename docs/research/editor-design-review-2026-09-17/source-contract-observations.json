@@ -1,0 +1,4251 @@
+{
+  "method": "Direct execution of trusted repository pure modules; no graphic JS evaluated",
+  "samples": [
+    {
+      "time": 0,
+      "editor": -80,
+      "runtimeEaseValue": -80
+    },
+    {
+      "time": 0.25,
+      "editor": -60,
+      "runtimeEaseValue": -33.75
+    },
+    {
+      "time": 0.5,
+      "editor": -40,
+      "runtimeEaseValue": -10
+    },
+    {
+      "time": 0.75,
+      "editor": -20,
+      "runtimeEaseValue": -1.25
+    },
+    {
+      "time": 1,
+      "editor": 0,
+      "runtimeEaseValue": 0
+    }
+  ],
+  "easingMismatch": true,
+  "speed2EffectiveDuration": 0.5,
+  "fixtureReadback": {
+    "legacy": {
+      "version": 2,
+      "root": "#stress-root",
+      "speed": 1,
+      "steps": [
+        {
+          "name": "Enter",
+          "duration": 4,
+          "ease": "none",
+          "layers": {
+            "#stress-0": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-1": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-2": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-3": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-4": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-5": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-6": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-7": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-8": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-9": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-10": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-11": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-12": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-13": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-14": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-15": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-16": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-17": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-18": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-19": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-20": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-21": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-22": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-23": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-24": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-25": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-26": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-27": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-28": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-29": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Out",
+          "duration": 0.5,
+          "ease": "none",
+          "layers": {}
+        }
+      ]
+    },
+    "unknown": null,
+    "loopsAndCalls": {
+      "version": 2,
+      "root": "#stress-root",
+      "speed": 1,
+      "steps": [
+        {
+          "name": "Enter",
+          "duration": 4,
+          "ease": "none",
+          "calls": [
+            {
+              "time": 0.5,
+              "call": "ownerHook"
+            }
+          ],
+          "loops": {
+            "#stress-0": {
+              "x": {
+                "repeat": -1,
+                "yoyo": true,
+                "repeatDelay": 0.25
+              }
+            }
+          },
+          "layers": {
+            "#stress-0": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-1": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-2": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-3": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-4": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-5": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-6": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-7": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-8": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-9": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-10": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-11": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-12": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-13": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-14": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-15": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-16": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-17": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-18": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-19": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-20": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-21": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-22": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-23": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-24": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-25": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-26": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-27": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-28": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-29": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Out",
+          "duration": 0.5,
+          "ease": "none",
+          "layers": {}
+        }
+      ]
+    },
+    "custom": {
+      "version": 2,
+      "root": "#stress-root",
+      "speed": 1,
+      "steps": [
+        {
+          "name": "Enter",
+          "duration": 4,
+          "ease": "none",
+          "layers": {
+            "#stress-0": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80,
+                  "ease": "ownerCurve"
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-1": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-2": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-3": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-4": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-5": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-6": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-7": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-8": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-9": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-10": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-11": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-12": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-13": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-14": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-15": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-16": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-17": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-18": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-19": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-20": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-21": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-22": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-23": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-24": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-25": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-26": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-27": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-28": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            },
+            "#stress-29": {
+              "x": [
+                {
+                  "time": 0,
+                  "value": 0
+                },
+                {
+                  "time": 1,
+                  "value": 80
+                },
+                {
+                  "time": 2,
+                  "value": 0
+                },
+                {
+                  "time": 3,
+                  "value": 80
+                },
+                {
+                  "time": 4,
+                  "value": 0
+                }
+              ],
+              "opacity": [
+                {
+                  "time": 0,
+                  "value": 0.6
+                },
+                {
+                  "time": 1,
+                  "value": 1
+                },
+                {
+                  "time": 2,
+                  "value": 0.6
+                },
+                {
+                  "time": 3,
+                  "value": 1
+                },
+                {
+                  "time": 4,
+                  "value": 0.6
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Out",
+          "duration": 0.5,
+          "ease": "none",
+          "layers": {}
+        }
+      ]
+    }
+  }
+}

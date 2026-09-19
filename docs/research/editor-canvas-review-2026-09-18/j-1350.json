@@ -1,0 +1,19 @@
+{
+ "id": "j-1350",
+ "kind": "sweep",
+ "command": "node C:/Users/ahonemi/.codex/visualizations/2026/09/13/01a09c14-d153-7960-aadf-a5c103191ba6/canvas-regression.mjs",
+ "checkout": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-baseline-design\\NoaCG-Studio",
+ "branch": "codex/editor-baseline-design",
+ "after": [],
+ "capMinutes": 4,
+ "retryOf": null,
+ "retryCount": 0,
+ "cost": 0.5,
+ "enqueuedAt": 1789717905560,
+ "state": "done",
+ "startedAt": 1789717915200,
+ "finishedAt": 1789717926007,
+ "exitCode": 0,
+ "pid": 24692,
+ "logPath": "C:\\claude\\NoaCG-Studio\\.git\\noacg-jobs\\logs\\j-1350.log"
+}

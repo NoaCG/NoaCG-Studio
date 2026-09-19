@@ -1,0 +1,1263 @@
+{
+  "browser": "149.0.7827.55",
+  "debounceMs": 350,
+  "capturedAt": "2026-09-17T16:09:38.786Z",
+  "noacg": {
+    "url": "http://127.0.0.1:5291/app#/home",
+    "text": "NoaCG\nSTUDIO\n·\nHome\n+ New graphic\nProductions\n0\nGraphics\n0\nVideos\n0\nBrands\n0\n Productions\n\nA production is the live unit: its graphics, a prepared CUE rundown, one persistent browser-output URL for CasparCG/OBS/vMix, and one control page for operating — see each production’s page for all of it.\n\nNo productions yet — name one below, then add graphics and cues.\n\nNew production\n\nName it, add graphics, publish for a live URL.\n\n＋ Create\n Recent graphics\nNOTHING SAVED YET\n\nCreate a graphic with + New graphic — it lands here, ready to add to a production, and syncs across your devices while you are signed in.\n\n+ New graphic",
+    "buttons": [
+      "NoaCGStudio",
+      "+ New graphic",
+      "",
+      "Productions0",
+      "Graphics0",
+      "Videos0",
+      "Brands0",
+      "＋ Create",
+      "+ New graphic"
+    ],
+    "inputs": [
+      {
+        "placeholder": "Production name…",
+        "type": "text",
+        "value": ""
+      },
+      {
+        "placeholder": "Search graphics…",
+        "type": "text",
+        "value": ""
+      }
+    ],
+    "browse": "NoaCG\nSTUDIO\n·\nHome\n+ New graphic\nProductions\n0\nGraphics\n0\nVideos\n0\nBrands\n0\n Productions\n\nA production is the live unit: its graphics, a prepared CUE rundown, one persistent browser-output URL for CasparCG/OBS/vMix, and one control page for operating — see each production’s page for all of it.\n\nNo productions yet — name one below, then add graphics and cues.\n\nNew production\n\nName it, add graphics, publish for a live URL.\n\n＋ Create\n Recent graphics\nNOTHING SAVED YET\n\nCreate a graphic with + New graphic — it lands here, ready to add to a production, and syncs across your devices while you are signed in.\n\n+ New graphic\nNoaCG\nSTUDIO\n·\nNew graphic\nHome\n+ New graphic\nSTEP 6 / 6\n✕\n✓\nStart\nChoose mode\n✓\nBrowse\nPick a design\n✓\nFields\nOperator inputs\n✓\nStyle\nColors & typeface\n✓\nAnimation\nIn & out motion\n6\nFinish\nName & save\n\nPROJECT FORMAT\n\n16:9 · 1920×1080 · 25 fps\n\nChange ▾\nNAME THIS GRAPHIC\n\nUsed in the library, on the topbar, and as the exported folder name.\n\nWHAT YOU BUILT\nDesign\nHairline\nEdit\nProject format\n16:9 · 1920×1080 · 25 fps\nEdit\nFields\n2 text lines\nEdit\nLook\nIvory · Inter\nEdit\nMotion\nLine reveal\nEdit\nPRODUCTION\n＋ New production…\n\nA production is what airs: its graphics, the cue rundown, the output URL, and the control page. Name it for the show, like Friday Show or Class Quiz, not for this graphic.\n\n▶\nAdd to the production — go live\nSaves it to your library, pools it into the production with its first cue ready.\n⬇\nExport it\nJust the files — OGraf, CasparCG, SPX, LiveOS, an OBS/vMix overlay, or a rendered video. Saved to your library first.\nHow did we do?\nLet us know if you ran into any issues creating your graphic.\n← Back\nPROJECT 1920×1080 · 25 FPS\n⌖ ZOOM TO GRAPHIC\n▶ REPLAY\n■ OUT",
+    "editorDoorCount": 0
+  },
+  "studio": {
+    "url": "http://127.0.0.1:5292",
+    "text": "Studio\nUntitled Template\nNew\nOpen\nOpen URL\nImport OGraf\nSave Project\nEdit\nWindow\nAgent bridge offline\n⠇\nLayers\n⠇\nChat\n↗\n×\n\nNo layers yet. Add one from the canvas toolbar.\n\n⠇\nResources\n↗\n×\nPatterns\n0\nComponents\n0\nImages\n0\nFonts\n0\nSource attachments\n0\n+ Recipe…\nLower Third\nBug / DOG\nTicker / Crawl\nScoreboard\nClock\n-500\n0\n500\n1000\n1500\n2000\n2500\n-500\n0\n500\n1000\n1500\n⠇\nProperties\n⠇\nBrand Kit\n⠇\nData\n⠇\nPreview & Export\n↗\n×\n\nNothing selected — editing composition settings.\n\nComposition\nName\nPreset\nFull HD 1080p · 25 fps\nFull HD 1080p · 29.97 fps\nFull HD 1080p · 30 fps\nFull HD 1080p · 50 fps\nFull HD 1080p · 59.94 fps\nFull HD 1080p · 60 fps\nUHD 2160p · 25 fps\nUHD 2160p · 29.97 fps\nUHD 2160p · 30 fps\nUHD 2160p · 50 fps\nUHD 2160p · 59.94 fps\nUHD 2160p · 60 fps\nWidth\nHeight\nFrame rate\nUpdate crossfade frames\nmilliseconds\n0 exact frames at 25 fps\nRender modes\nReal-time\nNon-real-time\nBackground\nTransparent output\nColor\nCanvas layout\nRulers\nAction safe · EBU R 95 (3.5%)\nTitle safe · EBU R 95 (5%)\nCenter marker\nOutside canvas · 20% gray\nSnapping\nSnap to grid\nSnap to guides\nSnap to layers\nPresentation background\nNone\nBig Buck Bunny · looping video\nStill image\nGrid\nThreshold\nBounds\nAllow outside\nContain in canvas\nOverflow preview\nShow pasteboard objects\nClip to canvas\nGuides\n+ Vertical\n+ Horizontal\n⠇\nTimeline\n↗\n×\n−1f\n+1f\nPause at Steps\n0\n/\n24 f\n·\n00:00.960\n+ Step\n◆ Add Keyframe\n100%\nNo layers\n0\n5\n10\n15\n20\n25\n30\n35\n40\n45\n50\n55\n60",
+    "buttons": [
+      "New",
+      "Open",
+      "Open URL",
+      "Import OGraf",
+      "Save Project",
+      "Edit",
+      "Window",
+      "↗",
+      "×",
+      "↗",
+      "×",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "↗",
+      "×",
+      "+ Vertical",
+      "+ Horizontal",
+      "↗",
+      "×",
+      "−1f",
+      "",
+      "",
+      "+1f",
+      "+ Step",
+      "◆ Add Keyframe",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "inputs": [
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "file",
+        "value": ""
+      },
+      {
+        "placeholder": "",
+        "type": "file",
+        "value": ""
+      },
+      {
+        "placeholder": "",
+        "type": "file",
+        "value": ""
+      },
+      {
+        "placeholder": "",
+        "type": "file",
+        "value": ""
+      },
+      {
+        "placeholder": "",
+        "type": "text",
+        "value": "Main"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "1920"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "1080"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "25"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "0"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "0"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "color",
+        "value": "#000000"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "10"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "6"
+      },
+      {
+        "placeholder": "",
+        "type": "text",
+        "value": "Brand Kit"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "0"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "72"
+      },
+      {
+        "placeholder": "",
+        "type": "number",
+        "value": "12"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "checkbox",
+        "value": "on"
+      },
+      {
+        "placeholder": "",
+        "type": "range",
+        "value": "12"
+      }
+    ],
+    "recipe": {
+      "text": "Studio\nUntitled Template\nNew\nOpen\nOpen URL\nImport OGraf\nSave Project\nEdit\nWindow\nAgent bridge offline\n⠇\nLayers\n⠇\nChat\n↗\n×\n\nRow centre parents · edges reorder · drop in Chat to reference\n\n⠿\n● Lower Third · Subheadline\n🔓\nG\n✕\n⠿\n● Lower Third · Headline\n🔓\nG\n✕\n⠿\n● Lower Third · Accent\n🔓\nG\n✕\n⠿\n● Lower Third · Panel\n🔓\nG\n✕\n⠇\nResources\n↗\n×\nPatterns\n0\nComponents\n0\nImages\n0\nFonts\n0\nSource attachments\n0\n+ Recipe…\nLower Third\nBug / DOG\nTicker / Crawl\nScoreboard\nClock\nRepeat ×3\n⇤\n↔\n⇥\n↥\n↕\n↧\nH≡\nV≡\nUngroup\nHeadline\nSecondary line\n-500\n0\n500\n1000\n1500\n2000\n2500\n-500\n0\n500\n1000\n1500\n⠇\nProperties\n⠇\nBrand Kit\n⠇\nData\n⠇\nPreview & Export\n↗\n×\nName\nZ order\nof 4\n\n1 is back; 4 is front.\n\nTransform — frame 0\nX\nY\nW\nH\nRotation\nAlpha\n%\nIncoming easing (this key)\nNone (Linear)\nQuad In\nQuad Out\nQuad In / Out\nCubic In\nCubic Out\nCubic In / Out\nQuart In\nQuart Out\nQuart In / Out\nQuint In\nQuint Out\nQuint In / Out\nSine In\nSine Out\nSine In / Out\nExpo In\nExpo Out\nExpo In / Out\nCirc In\nCirc Out\nCirc In / Out\nBack In\nBack Out\nBack In / Out\nBounce In\nBounce Out\nBounce In / Out\nElastic In\nElastic Out\nElastic In / Out\nText\n\nText Content is data-driven — values below are design-time defaults.\n\nContent\nColor\nStroke Color\nStroke Width\nSize\nWeight\nAlign\nLeft\nCenter\nRight\nFont\nSystem UI\nArial\nArial Narrow\nHelvetica Neue\nVerdana\nTahoma\nTrebuchet MS\nGeorgia\nTimes New Roman\nCourier New\nConsolas\nImpact\nTemplate font: system-ui, sans-serif\nLine height\nTracking\nBaseline\nMinimum size\nVertical\nTop\nMiddle\nBottom\nTransform\nNone\nUppercase\nLowercase\nCapitalize\nText sizing\nAuto size box\nShrink text to box\nFit to width\nSqueeze\nFixed box\nOverflow\nVisible\nClip\nEllipsis\n\nAuto size changes the authored box. Shrink only reduces text to its minimum-size floor. Fit to width scales proportionally. Squeeze fills the box by deforming glyph width and height independently.\n\nBrand tokens\nText colour\nUnlinked\nStroke\nUnlinked\nStroke width\nUnlinked\nFont family\nUnlinked\nFont size\nUnlinked\nFont weight\nUnlinked\nShadow colour\nUnlinked\n\nCreate brand tokens in Brand Kit first.\n\nEffects stack\n\nEffects run from top to bottom. Reorder to change the result; bypass keeps settings and animation.\n\nBlur\nDrop shadow\nGlow\nBrightness\nContrast\nSaturation\nHue rotation\nAdd effect\nBlur\n↑\n↓\nDuplicate\nRemove\nRadius\nDrop shadow\n↑\n↓\nDuplicate\nRemove\nOffset X\nOffset Y\nSoftness\nColor\nOpacity\n\nAnimate numeric parameters in Timeline. Brand Kit and Data bindings are available above.\n\nCompositing\nBlend mode\nnormal\nmultiply\nscreen\noverlay\ndarken\nlighten\ncolor dodge\ncolor burn\nhard light\nsoft light\ndifference\nexclusion\nLayer mask\nMask source\nNone\nLower Third · Panel\nLower Third · Accent\nMask source only\nLayout relationships\nClip children\nLocked\nParent\nNone\nLower Third · Panel\nLower Third · Accent\nLower Third · Headline\nHorizontal\nLeft\nRight\nLeft + Right\nCenter\nScale\nVertical\nTop\nBottom\nTop + Bottom\nCenter\nScale\n\nPersistent group: group-6eeae7e9-287e-4b81-896c-b25a61389018\n\nData Bindings\nField\nLower Third Headline\nLower Third Subheadline\nProperty\nText Content\nText Color\nShadow Color\nOutline Color\nRemove\n+ Add Binding\nSemantic intent\nRole\nNone\nBackground\nContainer\nAccent\nHeadline\nSubheadline\nLabel\nValue\nLogo\nImage\nIcon\nMask\nDecorative\nTicker\nScore\nCustom\nTags\nIntent\n⠇\nTimeline\n↗\n×\n−1f\n+1f\nPause at Steps\n0\n/\n24 f\n·\n00:00.960\n+ Step\n◆ Add Keyframe\n100%\n-\nLower Third\n4\n+\nLower Third · Subheadline\n+\nLower Third · Headline\n+\nLower Third · Accent\n+\nLower Third · Panel\n0\n5\n10\n15\n20\n25\n30\n35\n40\n45\n50\n55\n60",
+      "buttons": [
+        {
+          "text": "New",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Open",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Open URL",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Import OGraf",
+          "title": "Best-effort conversion from an OGraf .zip package or *.ograf.json manifest.",
+          "aria": null
+        },
+        {
+          "text": "Save Project",
+          "title": "Save editable .ogs source. Use Export .ograf.zip for a playout package.",
+          "aria": null
+        },
+        {
+          "text": "Edit",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Window",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "⠇\nLayers",
+          "title": "Drag to reorder, dock, or float · Double-click to float",
+          "aria": null
+        },
+        {
+          "text": "⠇\nChat",
+          "title": "Drag to reorder, dock, or float · Double-click to float",
+          "aria": null
+        },
+        {
+          "text": "↗",
+          "title": "Open in new window",
+          "aria": "Open Layers in new window"
+        },
+        {
+          "text": "×",
+          "title": "Close Layers",
+          "aria": "Close Layers"
+        },
+        {
+          "text": "",
+          "title": "Hide layer",
+          "aria": "Hide layer"
+        },
+        {
+          "text": "🔓",
+          "title": "Lock layer",
+          "aria": null
+        },
+        {
+          "text": "G",
+          "title": "Toggle guide layer (excluded from export)",
+          "aria": null
+        },
+        {
+          "text": "✕",
+          "title": "Delete layer",
+          "aria": null
+        },
+        {
+          "text": "",
+          "title": "Hide layer",
+          "aria": "Hide layer"
+        },
+        {
+          "text": "🔓",
+          "title": "Lock layer",
+          "aria": null
+        },
+        {
+          "text": "G",
+          "title": "Toggle guide layer (excluded from export)",
+          "aria": null
+        },
+        {
+          "text": "✕",
+          "title": "Delete layer",
+          "aria": null
+        },
+        {
+          "text": "",
+          "title": "Hide layer",
+          "aria": "Hide layer"
+        },
+        {
+          "text": "🔓",
+          "title": "Lock layer",
+          "aria": null
+        },
+        {
+          "text": "G",
+          "title": "Toggle guide layer (excluded from export)",
+          "aria": null
+        },
+        {
+          "text": "✕",
+          "title": "Delete layer",
+          "aria": null
+        },
+        {
+          "text": "",
+          "title": "Hide layer",
+          "aria": "Hide layer"
+        },
+        {
+          "text": "🔓",
+          "title": "Lock layer",
+          "aria": null
+        },
+        {
+          "text": "G",
+          "title": "Toggle guide layer (excluded from export)",
+          "aria": null
+        },
+        {
+          "text": "✕",
+          "title": "Delete layer",
+          "aria": null
+        },
+        {
+          "text": "Send",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "⠇\nResources",
+          "title": "Drag to reorder, dock, or float · Double-click to float",
+          "aria": null
+        },
+        {
+          "text": "↗",
+          "title": "Open in new window",
+          "aria": "Open Resources in new window"
+        },
+        {
+          "text": "×",
+          "title": "Close Resources",
+          "aria": "Close Resources"
+        },
+        {
+          "text": "",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Repeat ×3",
+          "title": "Materialize the selected item as a three-item horizontal data repeater",
+          "aria": null
+        },
+        {
+          "text": "",
+          "title": "Add Rectangle",
+          "aria": "Add Rectangle"
+        },
+        {
+          "text": "",
+          "title": "Add Ellipse",
+          "aria": "Add Ellipse"
+        },
+        {
+          "text": "",
+          "title": "Add Text",
+          "aria": "Add Text"
+        },
+        {
+          "text": "",
+          "title": "Add Image",
+          "aria": "Add Image"
+        },
+        {
+          "text": "",
+          "title": "Add Path",
+          "aria": "Add Path"
+        },
+        {
+          "text": "",
+          "title": "Add Procedural Pattern",
+          "aria": "Add Procedural Pattern"
+        },
+        {
+          "text": "",
+          "title": "Add Image Sequence",
+          "aria": "Add Image Sequence"
+        },
+        {
+          "text": "",
+          "title": "Add Lottie JSON",
+          "aria": "Add Lottie JSON"
+        },
+        {
+          "text": "",
+          "title": "Send to Back",
+          "aria": "Send to Back"
+        },
+        {
+          "text": "",
+          "title": "Send Backward",
+          "aria": "Send Backward"
+        },
+        {
+          "text": "",
+          "title": "Bring Forward",
+          "aria": "Bring Forward"
+        },
+        {
+          "text": "",
+          "title": "Bring to Front",
+          "aria": "Bring to Front"
+        },
+        {
+          "text": "⇤",
+          "title": "Align left",
+          "aria": null
+        },
+        {
+          "text": "↔",
+          "title": "Align horizontal centers",
+          "aria": null
+        },
+        {
+          "text": "⇥",
+          "title": "Align right",
+          "aria": null
+        },
+        {
+          "text": "↥",
+          "title": "Align top",
+          "aria": null
+        },
+        {
+          "text": "↕",
+          "title": "Align vertical centers",
+          "aria": null
+        },
+        {
+          "text": "↧",
+          "title": "Align bottom",
+          "aria": null
+        },
+        {
+          "text": "H≡",
+          "title": "Distribute horizontally",
+          "aria": null
+        },
+        {
+          "text": "V≡",
+          "title": "Distribute vertically",
+          "aria": null
+        },
+        {
+          "text": "Ungroup",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "⠇\nProperties",
+          "title": "Drag to reorder, dock, or float · Double-click to float",
+          "aria": null
+        },
+        {
+          "text": "⠇\nBrand Kit",
+          "title": "Drag to reorder, dock, or float · Double-click to float",
+          "aria": null
+        },
+        {
+          "text": "⠇\nData",
+          "title": "Drag to reorder, dock, or float · Double-click to float",
+          "aria": null
+        },
+        {
+          "text": "⠇\nPreview & Export",
+          "title": "Drag to reorder, dock, or float · Double-click to float",
+          "aria": null
+        },
+        {
+          "text": "↗",
+          "title": "Open in new window",
+          "aria": "Open Properties in new window"
+        },
+        {
+          "text": "×",
+          "title": "Close Properties",
+          "aria": "Close Properties"
+        },
+        {
+          "text": "Add effect",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "↑",
+          "title": "",
+          "aria": "Move Blur up"
+        },
+        {
+          "text": "↓",
+          "title": "",
+          "aria": "Move Blur down"
+        },
+        {
+          "text": "Duplicate",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Remove",
+          "title": "Remove this effect and its own animation/bindings",
+          "aria": null
+        },
+        {
+          "text": "↑",
+          "title": "",
+          "aria": "Move Drop shadow up"
+        },
+        {
+          "text": "↓",
+          "title": "",
+          "aria": "Move Drop shadow down"
+        },
+        {
+          "text": "Duplicate",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Remove",
+          "title": "Remove this effect and its own animation/bindings",
+          "aria": null
+        },
+        {
+          "text": "Remove",
+          "title": "",
+          "aria": "Remove binding 1"
+        },
+        {
+          "text": "+ Add Binding",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Apply Pack",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Remove applied pack",
+          "title": "This older applied pack has no saved original styles. Removal detaches its tokens; use Undo or saved source to recover earlier styling.",
+          "aria": null
+        },
+        {
+          "text": "+ Token",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "+ Add Field",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "✕",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "✕",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "+ Register Prototype",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "+ Add Action",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Reset to defaults",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Fullscreen",
+          "title": "Fill this window's display with the graphic. Space/Right: next step; Left: previous step; Escape: exit.",
+          "aria": null
+        },
+        {
+          "text": "⏮ Prev step",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Next step ⏭",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Take Out",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Run broadcast QA",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Run compatibility test",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "Export .ograf.zip",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "⠇\nTimeline",
+          "title": "Drag to reorder, dock, or float · Double-click to float",
+          "aria": null
+        },
+        {
+          "text": "↗",
+          "title": "Open in new window",
+          "aria": "Open Timeline in new window"
+        },
+        {
+          "text": "×",
+          "title": "Close Timeline",
+          "aria": "Close Timeline"
+        },
+        {
+          "text": "−1f",
+          "title": "Previous frame (←)",
+          "aria": "Previous frame"
+        },
+        {
+          "text": "",
+          "title": "Play (Space)",
+          "aria": "Play timeline"
+        },
+        {
+          "text": "",
+          "title": "Stop and return to frame 0",
+          "aria": "Stop playback and return to frame zero"
+        },
+        {
+          "text": "+1f",
+          "title": "Next frame (→)",
+          "aria": "Next frame"
+        },
+        {
+          "text": "+ Step",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "◆ Add Keyframe",
+          "title": "",
+          "aria": null
+        },
+        {
+          "text": "-",
+          "title": "",
+          "aria": "Collapse Lower Third"
+        },
+        {
+          "text": "Lower Third\n4",
+          "title": "Lower Third · Click selects layers · Double-click renames",
+          "aria": "Select timeline group Lower Third"
+        },
+        {
+          "text": "+",
+          "title": "",
+          "aria": "Expand Lower Third · Subheadline properties"
+        },
+        {
+          "text": "Lower Third · Subheadline",
+          "title": "Select Lower Third · Subheadline",
+          "aria": null
+        },
+        {
+          "text": "+",
+          "title": "",
+          "aria": "Expand Lower Third · Headline properties"
+        },
+        {
+          "text": "Lower Third · Headline",
+          "title": "Select Lower Third · Headline",
+          "aria": null
+        },
+        {
+          "text": "+",
+          "title": "",
+          "aria": "Expand Lower Third · Accent properties"
+        },
+        {
+          "text": "Lower Third · Accent",
+          "title": "Select Lower Third · Accent",
+          "aria": null
+        },
+        {
+          "text": "+",
+          "title": "",
+          "aria": "Expand Lower Third · Panel properties"
+        },
+        {
+          "text": "Lower Third · Panel",
+          "title": "Select Lower Third · Panel",
+          "aria": null
+        },
+        {
+          "text": "",
+          "title": "",
+          "aria": "Step 1 at frame 12. Drag or use Alt+Left/Right to move."
+        },
+        {
+          "text": "",
+          "title": "",
+          "aria": "End at frame 24. Drag or use Alt+Left/Right to move."
+        },
+        {
+          "text": "",
+          "title": "",
+          "aria": "Current frame 0. Drag to scrub the timeline."
+        }
+      ],
+      "inputs": [
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "file",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "file",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "file",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "file",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Lower Third · Subheadline",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "4",
+          "aria": "Z order"
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "206",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "898",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "1100",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "43",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "0",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "range",
+          "value": "100",
+          "aria": "Object alpha"
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "100",
+          "aria": "Object alpha percentage"
+        },
+        {
+          "placeholder": "",
+          "type": "color",
+          "value": "#cbd7e5",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "color",
+          "value": "#000000",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "0",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "29",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "500",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "1.2",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "0",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "0",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "17",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": "Enable Blur"
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Blur",
+          "aria": "Effect name 1"
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "0",
+          "aria": "Blur Radius"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": "Enable Drop shadow"
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Drop shadow",
+          "aria": "Effect name 2"
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "8",
+          "aria": "Drop shadow Offset X"
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "8",
+          "aria": "Drop shadow Offset Y"
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "12",
+          "aria": "Drop shadow Softness"
+        },
+        {
+          "placeholder": "",
+          "type": "color",
+          "value": "#000000",
+          "aria": "Drop shadow Color"
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "0.65",
+          "aria": "Drop shadow Opacity"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": "Mask source only"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": null
+        },
+        {
+          "placeholder": "primary, breaking-news",
+          "type": "text",
+          "value": "lower-third, secondary, editable",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Brand Kit",
+          "aria": "Brand kit name"
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "headline",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Lower Third Headline",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Headline",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": null
+        },
+        {
+          "placeholder": "Operator-facing help text",
+          "type": "text",
+          "value": "Primary on-air headline.",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "80",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "JSON Schema regular expression",
+          "type": "text",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "subheadline",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Lower Third Subheadline",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Secondary line",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": null
+        },
+        {
+          "placeholder": "Operator-facing help text",
+          "type": "text",
+          "value": "Secondary on-air context line.",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "120",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "JSON Schema regular expression",
+          "type": "text",
+          "value": "",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "0",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "72",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "number",
+          "value": "12",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Headline",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Secondary line",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Headline",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "text",
+          "value": "Secondary line",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox",
+          "value": "on",
+          "aria": null
+        },
+        {
+          "placeholder": "",
+          "type": "range",
+          "value": "12",
+          "aria": "Timeline horizontal zoom"
+        }
+      ]
+    }
+  },
+  "mockup": {
+    "errors": [],
+    "viewports": [
+      {
+        "width": 1888,
+        "scrollWidth": 1888,
+        "height": 810
+      },
+      {
+        "width": 1334,
+        "scrollWidth": 1334,
+        "height": 757
+      },
+      {
+        "width": 992,
+        "scrollWidth": 992,
+        "height": 931
+      },
+      {
+        "width": 288,
+        "scrollWidth": 288,
+        "height": 1590
+      }
+    ],
+    "edit": "1<!-- Lower third / editable fields -->\n2<section class=\"lower-third\">\n3  <img class=\"logo\" src=\"assets/logo.svg\">\n4  <h1 id=\"name\">Jamie Chen</h1>\n5  <p id=\"role\">Senior correspondent</p>\n6</section>",
+    "undo": "Alex Morgan"
+  }
+}

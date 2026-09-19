@@ -1,0 +1,19 @@
+{
+ "id": "j-1347",
+ "kind": "gate",
+ "command": "npm run build",
+ "checkout": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-baseline-design\\NoaCG-Studio",
+ "branch": "codex/editor-baseline-design",
+ "after": [],
+ "capMinutes": 10,
+ "retryOf": null,
+ "retryCount": 0,
+ "cost": 0.4,
+ "enqueuedAt": 1789717662125,
+ "state": "done",
+ "startedAt": 1789717663779,
+ "finishedAt": 1789717918895,
+ "exitCode": 0,
+ "pid": 4804,
+ "logPath": "C:\\claude\\NoaCG-Studio\\.git\\noacg-jobs\\logs\\j-1347.log"
+}

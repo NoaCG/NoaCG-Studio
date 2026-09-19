@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import AppShell from './components/AppShell';
+import EditorFoundation from './components/editorFoundation/EditorFoundation';
 import VideoAppShell from './components/video/VideoAppShell';
 import SendIn from './showchat/SendIn';
 import HostedControlPage from './components/HostedControlPage';
@@ -434,7 +435,8 @@ export default function App() {
   // Home's own 'spx-data-changed' listener instead.
   // ...but only the WARM path has a Home worth preserving — see `bootedOnWizard` above.
   const surface =
-    route.view === 'home' ? <HomePage key="home" route={route} />
+    route.view === 'editor-foundation' ? (bootQuery.get('editor') === 'foundation' ? <EditorFoundation /> : <HomePage key="home" route={{ view: 'home', section: null }} />)
+    : route.view === 'home' ? <HomePage key="home" route={route} />
     : route.view === 'control' ? <GraphicControlPage id={route.id} />
     : route.view === 'production' ? <ProductionPage id={route.id} sub={route.sub ?? null} />
     // A join link's SURFACE is Home - the dialog itself mounts below, with the app-level

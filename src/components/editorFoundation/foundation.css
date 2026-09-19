@@ -1,0 +1,125 @@
+/* Permanent workspace: collapse the project dock first, never the stage or timeline.
+   All rules are scoped so opting out leaves the existing editor unchanged. */
+.ef-shell {
+  --ef-bg: #191d23; --ef-panel: #252a32; --ef-border: #3b4450; --ef-muted: #aab9cb;
+  height: 100dvh; min-height: 540px; display: grid;
+  grid-template-rows: 48px 36px minmax(170px, 1fr) clamp(240px, 31vh, 340px) 24px;
+  background: var(--ef-bg); color: #edf3fb; font: 12px/1.45 Arial, sans-serif;
+}
+.ef-shell * { box-sizing: border-box; }
+.ef-shell button, .ef-shell select {
+  font: inherit; color: inherit; background: #303640; border: 1px solid #46515f;
+  border-radius: 3px; padding: 5px 9px; cursor: pointer; min-height: 28px;
+}
+.ef-shell button:hover:not(:disabled) { background: #414b59; border-color: #8195aa; }
+.ef-shell button:disabled { opacity: .38; cursor: default; }
+.ef-shell button:focus-visible, .ef-shell select:focus-visible, .ef-shell [tabindex]:focus-visible {
+  outline: 2px solid #8bd5f6; outline-offset: -2px;
+}
+.ef-shell h2 { font-size: 12px; margin: 0 0 16px; }
+.ef-header, .ef-document-strip, .ef-toolbar, .ef-transport, .ef-caption, .ef-status {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+}
+.ef-header { padding: 6px 12px; border-bottom: 1px solid var(--ef-border); }
+.ef-brand { font-size: 18px; letter-spacing: -.8px; margin-right: 8px; }
+.ef-spacer { flex: 1; }
+.ef-document-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: 12px; }
+.ef-release { color: var(--ef-muted); font-size: 10px; white-space: nowrap; }
+.ef-document-strip { padding: 4px 12px; background: #22272e; border-bottom: 1px solid var(--ef-border); }
+.ef-document-tab { background: #234459; border: 1px solid #5b9cbe; padding: 4px 14px; border-radius: 3px; }
+.ef-workspace { display: grid; grid-template-columns: 230px minmax(0, 1fr) 280px; min-height: 0; }
+.ef-project, .ef-inspector { background: var(--ef-panel); min-height: 0; overflow: auto; }
+.ef-project { padding: 14px 12px; border-right: 1px solid var(--ef-border); }
+.ef-current-graphic { padding: 10px; border: 1px solid #56788f; background: #203d4e; }
+.ef-section-label { display: block; color: var(--ef-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .7px; margin: 22px 0 9px; }
+.ef-assets { display: grid; gap: 6px; overflow-wrap: anywhere; }
+.ef-assets > div { padding: 9px; background: #1c2229; border: 1px solid var(--ef-border); }
+.ef-field { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--ef-border); }
+.ef-field code { color: var(--ef-muted); }
+.ef-muted { color: var(--ef-muted); }
+.ef-canvas { min-width: 0; min-height: 0; display: grid; grid-template-rows: 38px minmax(0, 1fr) 26px; }
+.ef-toolbar { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); background: #252a32; }
+.ef-toolbar select { width: auto; }
+.ef-tool { border: 1px solid #619abb; background: #23485c; padding: 4px 10px; border-radius: 3px; color: #9bdcff; }
+.ef-viewport { position: relative; overflow: hidden; min-height: 0; touch-action: none; background: #151a20; }
+.ef-artboard {
+  position: absolute; left: 50%; top: 50%; transform-origin: center;
+  background-color: #222a33;
+  background-image: linear-gradient(45deg,#28323c 25%,transparent 25%),linear-gradient(-45deg,#28323c 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#28323c 75%),linear-gradient(-45deg,transparent 75%,#28323c 75%);
+  background-size: 32px 32px; background-position: 0 0,0 16px,16px -16px,-16px 0;
+  box-shadow: 0 0 0 1px #65768a,0 12px 48px #0006; pointer-events: none;
+}
+.ef-artboard iframe { display: block; border: 0; width: 100%; height: 100%; }
+.ef-selection { position: absolute; inset: 0; overflow: visible; }
+.ef-stage-status, .ef-stage-error { position: absolute; left: 16px; top: 12px; background: #202934; border: 1px solid #63788b; padding: 10px 14px; max-width: calc(100% - 32px); }
+.ef-stage-error { color: #ffd9ac; display: grid; gap: 10px; }
+.ef-caption { justify-content: space-between; padding: 3px 10px; color: var(--ef-muted); font-size: 10px; gap: 20px; }
+.ef-inspector { border-left: 1px solid var(--ef-border); }
+.ef-inspector .ef-toolbar { position: sticky; top: 0; }
+.ef-shell [aria-selected=true], .ef-outline-item[aria-pressed=true] { border-color: #86c7e8; background: #254456; }
+.ef-inspector-body { padding: 16px; }
+.ef-inspector dl { display: grid; grid-template-columns: 74px 1fr; gap: 10px; }
+.ef-inspector dt { color: var(--ef-muted); }
+.ef-inspector dd { margin: 0; overflow-wrap: anywhere; }
+.ef-text-preview { background: #1b2128; border: 1px solid var(--ef-border); padding: 10px; overflow-wrap: anywhere; }
+.ef-outline-item { display: grid; width: 100%; text-align: left; margin-bottom: 6px; }
+.ef-outline-item code { color: var(--ef-muted); font-size: 10px; }
+.ef-timeline { min-height: 240px; display: grid; grid-template-rows: 34px 38px auto minmax(0, 1fr) 24px; border-top: 1px solid #536273; background: var(--ef-panel); }
+.ef-timeline > .ef-track-scroll { grid-row: 4; }
+.ef-timeline > .ef-caption { grid-row: 5; }
+.ef-transport { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); }
+.ef-transport output { color: #91dbff; font: 12px monospace; min-width: 74px; }
+.ef-transport label { display: flex; gap: 8px; align-items: center; }
+.ef-notice { margin: 0; padding: 6px 12px; color: #edc490; }
+.ef-track-scroll { overflow: auto; min-height: 0; }
+.ef-ruler-row, .ef-track { display: grid; grid-template-columns: 230px minmax(0, 1fr); }
+.ef-ruler-row { position: sticky; top: 0; z-index: 2; background: #242a32; height: 48px; border-bottom: 1px solid #536273; }
+.ef-layer-heading { padding: 13px 12px; color: var(--ef-muted); border-right: 1px solid #536273; }
+.ef-ruler { position: relative; cursor: ew-resize; touch-action: none; margin-right: 28px; }
+.ef-tick { position: absolute; top: 4px; font: 10px monospace; color: #bdcadd; white-space: nowrap; }
+.ef-flag { position: absolute; bottom: 3px; border-left: 1px solid #eac477; padding: 2px 4px; color: #eac477; font-size: 10px; white-space: nowrap; }
+.ef-playhead-head { position: absolute; top: 0; bottom: 0; width: 1px; background: #7fd5ff; pointer-events: none; }
+.ef-playhead-head::before { content: ''; position: absolute; left: -4px; top: 0; width: 9px; height: 8px; background: #7fd5ff; clip-path: polygon(0 0,100% 0,100% 55%,50% 100%,0 55%); }
+.ef-track { height: 30px; border-bottom: 1px solid #39424d; }
+.ef-shell .ef-layer { border: 0; border-right: 1px solid #536273; border-radius: 0; text-align: left; padding: 3px 12px; min-height: 0; background: transparent; display: flex; align-items: center; gap: 12px; overflow: hidden; white-space: nowrap; }
+.ef-layer > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.ef-layer-number { color: #8b9bad; font-size: 10px; }
+.ef-layer-icon { color: #b6cfe1; width: 12px; }
+.ef-track.is-selected { background: #224458; }
+.ef-track-lane { position: relative; margin-right: 28px; background: repeating-linear-gradient(90deg,transparent,transparent calc(10% - 1px),#ffffff06 10%); }
+.ef-shell .ef-bar { position: absolute; top: 5px; height: 20px; min-height: 0; background: #455f73; border: 1px solid #638199; border-radius: 2px; padding: 1px 7px; text-align: left; font-size: 10px; overflow: hidden; white-space: nowrap; cursor: pointer; }
+.ef-track.is-selected .ef-bar { background: #568dab; border-color: #8ac4df; }
+.ef-playhead-line { position: absolute; top: 0; bottom: 0; width: 1px; background: #7fd5ff; pointer-events: none; }
+.ef-status { justify-content: space-between; padding: 3px 12px; color: var(--ef-muted); border-top: 1px solid var(--ef-border); font-size: 10px; }
+@media (max-width: 1500px) {
+  .ef-workspace { grid-template-columns: minmax(0, 1fr) 280px; position: relative; }
+  .ef-project { display: none; }
+  .ef-project-open .ef-project { display: block; position: absolute; z-index: 4; top: 0; bottom: 0; left: 0; width: 230px; box-shadow: 8px 0 24px #0006; }
+}
+@media (max-width: 1150px) {
+  .ef-document-name, .ef-release { display: none; }
+  .ef-caption { font-size: 9px; }
+}
+
+/* Phone access is for looking around the alpha. Keep the stage full-width and let the
+   page scroll through Properties and the timeline rather than compressing the stage. */
+@media (max-width: 700px), (max-width: 900px) and (max-height: 500px) {
+  .ef-shell { height: auto; min-height: 100dvh; grid-template-rows: auto 36px auto 280px auto; }
+  .ef-header { flex-wrap: wrap; gap: 6px; }
+  .ef-header > .ef-spacer { display: none; }
+  .ef-document-tab { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+  .ef-document-strip > .ef-muted { display: none; }
+  .ef-workspace { display: flex; flex-direction: column; }
+  .ef-canvas { flex: none; height: 340px; grid-template-rows: 38px minmax(0, 1fr) 38px; }
+  .ef-canvas > .ef-toolbar > .ef-muted { display: none; }
+  .ef-inspector { flex: none; height: 200px; border-left: 0; border-top: 1px solid var(--ef-border); }
+  .ef-caption, .ef-status { flex-wrap: wrap; gap: 3px 10px; }
+  .ef-ruler-row, .ef-track { grid-template-columns: 130px minmax(0, 1fr); }
+  .ef-shell .ef-layer { gap: 6px; padding-inline: 6px; }
+  .ef-ruler, .ef-track-lane { margin-right: 30px; }
+  .ef-tick { font-size: 8px; }
+  .ef-timeline > .ef-toolbar > .ef-muted { display: none; }
+  .ef-transport { flex-wrap: wrap; gap: 4px; }
+  .ef-transport > .ef-muted { display: none; }
+  .ef-timeline { grid-template-rows: 34px auto auto minmax(0, 1fr) 38px; }
+}

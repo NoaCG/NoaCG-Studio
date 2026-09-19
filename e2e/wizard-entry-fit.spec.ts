@@ -394,9 +394,11 @@ test('the Home row answers a hover like an entry card, and its shortcuts do not'
   // state. Counting Tab presses from the top does not work either - the wizard is an overlay and
   // HOME STAYS MOUNTED UNDERNEATH IT, so ten of the page's twenty-two focusables belong to the
   // page behind and the count moves with whatever is saved. Seeding focus on the control
-  // immediately before it and pressing Tab once is stable whatever is behind. (That the overlay
+  // before the hero, then passing the Alpha shortcut, is stable whatever is behind. (That the overlay
   // does not trap focus at all is a separate, pre-existing thing.)
   await page.locator('.wz-header .gallery-close').evaluate((el: HTMLElement) => el.focus());
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Open editor Alpha', exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   expect(
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.entry ?? null),

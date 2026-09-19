@@ -1,0 +1,138 @@
+{
+  "kind": "design-study-only",
+  "errors": [],
+  "checks": {
+    "no overflow 1920": true,
+    "canvas above timeline 1920": true,
+    "no overflow 1366": true,
+    "canvas above timeline 1366": true,
+    "no overflow 1024": true,
+    "canvas above timeline 1024": true,
+    "no overflow 320": true,
+    "canvas above timeline 320": true,
+    "layer duration bars visible": true,
+    "no duration forms": true,
+    "Out placed at playhead": true,
+    "reverse offered": true,
+    "reverse creates explicit keys": true,
+    "reverse exit endpoint": true,
+    "In parks at Out": true,
+    "hold does not advance": true,
+    "Out finishes and clears": true,
+    "manual Out adds no keys": true,
+    "new layer begins at step": true,
+    "second key from changed setting": true,
+    "later layer included in reversed exit": true,
+    "new layer hidden during preceding hold": true,
+    "Next stops at Out": true,
+    "new layer visible after Next": true,
+    "trim changes bar end": true,
+    "trim preserves key timing": true,
+    "moving bar carries keys": true,
+    "canvas drag creates key at playhead": true,
+    "canvas drag undo removes new key": true,
+    "static layer survives until final exit end": true,
+    "static layer remains visible at Out hold": true,
+    "flag drag changes boundary": true,
+    "flag drag preserves absolute keys": true,
+    "no runtime errors": true
+  },
+  "layouts": [
+    {
+      "width": 1888,
+      "scroll": 1888,
+      "canvas": {
+        "x": 0,
+        "y": 117.796875,
+        "width": 1618,
+        "height": 487.203125,
+        "top": 117.796875,
+        "right": 1618,
+        "bottom": 605,
+        "left": 0
+      },
+      "timeline": {
+        "x": 0,
+        "y": 605,
+        "width": 1888,
+        "height": 248,
+        "top": 605,
+        "right": 1888,
+        "bottom": 853,
+        "left": 0
+      }
+    },
+    {
+      "width": 1334,
+      "scroll": 1334,
+      "canvas": {
+        "x": 0,
+        "y": 117.796875,
+        "width": 1064,
+        "height": 337.203125,
+        "top": 117.796875,
+        "right": 1064,
+        "bottom": 455,
+        "left": 0
+      },
+      "timeline": {
+        "x": 0,
+        "y": 455,
+        "width": 1334,
+        "height": 248,
+        "top": 455,
+        "right": 1334,
+        "bottom": 703,
+        "left": 0
+      }
+    },
+    {
+      "width": 992,
+      "scroll": 992,
+      "canvas": {
+        "x": 0,
+        "y": 117.796875,
+        "width": 722,
+        "height": 337.203125,
+        "top": 117.796875,
+        "right": 722,
+        "bottom": 455,
+        "left": 0
+      },
+      "timeline": {
+        "x": 0,
+        "y": 455,
+        "width": 992,
+        "height": 248,
+        "top": 455,
+        "right": 992,
+        "bottom": 703,
+        "left": 0
+      }
+    },
+    {
+      "width": 288,
+      "scroll": 288,
+      "canvas": {
+        "x": 0,
+        "y": 141.59375,
+        "width": 288,
+        "height": 217.203125,
+        "top": 141.59375,
+        "right": 288,
+        "bottom": 358.796875,
+        "left": 0
+      },
+      "timeline": {
+        "x": 0,
+        "y": 654.578125,
+        "width": 288,
+        "height": 279,
+        "top": 654.578125,
+        "right": 288,
+        "bottom": 933.578125,
+        "left": 0
+      }
+    }
+  ]
+}
