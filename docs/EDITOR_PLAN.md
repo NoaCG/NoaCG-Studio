@@ -130,9 +130,9 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 | R2.2 Paint and effects | Gradients, masks, ordered effects, supported animation, AI operations and target parity. B15. |
 | R3.1 Structured live graphics | Recursive GDD fields/bindings, arrays/collections, validated feeds, staleness/replay and target mappings. B16. |
 | R3.2 Complete co-authoring | Paired live-document MCP, concurrent edits, all shipped tools and broader model evaluations. B17/B18 full. Subscription-agent adapters remain separate spikes. |
+| P-GPU (optional, after R1 acceptance/R2.2/R3.1) | Qualify vgpu for source-backed effect presets; then shared preview/export runtime and explicit fallbacks only if B20 host/performance checks pass. [Research and boundaries](research/editor-webgpu-vgpu-2026-09-19.md). |
 
-Node-graph authoring is outside R1-R3. Preserve code, schema, tests and lessons under the
-[deferred node-editor record](research/editor-node-editor-deferred-2026-09-17.md). A future
+Node-graph authoring is outside R1-R3. Preserve code, schema, tests and lessons under the [deferred node-editor record](research/editor-node-editor-deferred-2026-09-17.md). A future
 proposal needs a clear user task and owner scope decision. This hold does not remove existing
 runtime behaviors or rewrite the separate P2 research programme.
 
@@ -171,7 +171,7 @@ Existing E/B identities are retained; split rows close only when all portions pa
 | E24 professional timeline, direct playhead and Out triggers | R1.0 scrub; R1.1b-d core; R1.2a/c Next/loops / B13 |
 | E25 multiple graphics per project and Home reuse | R1.0 ownership contract; R1.4a/c durable workspace/library/production / B19 |
 
-The [acceptance register](research/editor-acceptance-register-2026-09-17.md) is the live B01-B19 task/evidence ledger, including D01-D05 closing tests and later gates. Historical receipts do not govern order.
+The [acceptance register](research/editor-acceptance-register-2026-09-17.md) is the live B01-B19 and optional B20 task/evidence ledger, including D01-D05 closing tests and later gates. Historical receipts do not govern order.
 
 ## Baseline closure and acceptance
 

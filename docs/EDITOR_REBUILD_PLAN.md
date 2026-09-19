@@ -501,6 +501,8 @@ R2 paint authors linear/radial gradients and stops, path/alpha masks with explic
 and ordered blur/shadow/colour adjustment. Prevent cyclic/dangling masks. Preserve unknown
 effects; animate only documented numeric parameters. Preview and target exports must agree.
 
+Optional P-GPU follows working R1/R2.2/R3.1; it does not gate them. The [vgpu assessment](research/editor-webgpu-vgpu-2026-09-19.md) defines its qualification spike and B20. Effects are source-backed canvas layers/presets with typed parameters, host-owned time, shared preview/export bytes and explicit fallbacks. Keep core artwork in HTML/SVG. Preserve R1 document/history/revision/cleanup seams; add no GPU dependency, persisted scene model, generic renderer registry or sandbox change now. GPU completion barriers and target packaging are later evidence-driven work.
+
 R3 data binds typed text/image/colour targets to scalar/nested/object-array fields. Runtime
 collections use one prototype, stable item keys, layout/count/empty/overflow policy. They are
 different from Starter Collections of templates. Separate schema/defaults, sample data and
