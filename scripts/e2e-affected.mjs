@@ -269,7 +269,13 @@ const MAP = [
   // renamed or re-declared moves what a brief retrieves.
   // The quiz runtime is also the exported control panel's recovery subject and the audience
   // pack's answer boards - the generic src/templates rule below unions with this one.
-  [/^src\/templates\/quiz\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'audience-pack.spec.ts', 'production-controls.spec.ts', 'quiz-pilot.spec.ts']],
+  [/^src\/templates\/quiz\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'audience-pack.spec.ts', 'production-controls.spec.ts', 'quiz-pilot.spec.ts', 'quiz-show.spec.ts']],
+  // THE QUIZ SHOW SET: the show board (answer count as a field, no lock), the two-player duel
+  // score, and the three game-show families they ship in. quiz-show.spec.ts is the only place
+  // the pick / reveal arc, the hidden rows and the duel runtime's leader mark are driven. The
+  // family tokens and palettes ride along because those nine designs are their only readers.
+  [/^src\/templates\/(types\/(quizShow|duelScore)\.ts|scoreboards\/(duelShared|sb2[678])\.ts|lowerThirds\/lt(68|69|70)\.ts)$/, ['quiz-show.spec.ts']],
+  [/^src\/model\/themeTokens\.ts$/, ['quiz-show.spec.ts']],
   // The four types whose MACHINE the per-graphic control page is generated from. A type file is
   // where a state, an arrow or a control label is authored, and control-panel-types.spec.ts is
   // the only place the resulting BUTTONS and their greying are driven on that page - so an edit
@@ -312,7 +318,7 @@ const MAP = [
   // count-from-zero fix changed an infographic emit, every branch plan skipped the one spec that
   // compares the two representations, and the mismatch surfaced in the nightly. The pin lives in
   // scripts/e2e-affected.test.mjs and is derived from that import rather than from this list.
-  [/^src\/templates\//, ['anim-engine.spec.ts', 'catalog-baseline.spec.ts', 'package.spec.ts', 'images.spec.ts', 'stage-fit-determinism.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts', 'competition-pack.spec.ts', 'holding-pack.spec.ts', 'full-frame-offering.spec.ts', 'public-service.spec.ts', 'template-escaping.spec.ts', 'sports.spec.ts', 'audience-pack.spec.ts', 'community.spec.ts', 'library.spec.ts', 'library-productions.spec.ts', 'exports.spec.ts', 'wizard-kit.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts', 'wizard-setup-fields.spec.ts', 'end-credits.spec.ts', 'counting-settle.spec.ts', 'productions.spec.ts']],
+  [/^src\/templates\//, ['anim-engine.spec.ts', 'catalog-baseline.spec.ts', 'package.spec.ts', 'images.spec.ts', 'stage-fit-determinism.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts', 'competition-pack.spec.ts', 'holding-pack.spec.ts', 'full-frame-offering.spec.ts', 'public-service.spec.ts', 'template-escaping.spec.ts', 'sports.spec.ts', 'audience-pack.spec.ts', 'community.spec.ts', 'library.spec.ts', 'library-productions.spec.ts', 'exports.spec.ts', 'wizard-kit.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts', 'wizard-setup-fields.spec.ts', 'end-credits.spec.ts', 'counting-settle.spec.ts', 'productions.spec.ts', 'quiz-show.spec.ts']],
   // The Import-graphic capability lives behind its own folder and its own index
   // (src/components/wizard/import/, docs/WORKFLOW_ARCHITECTURE.md §5.5 wizard row 2), so a
   // change inside it selects the import road's own specs and the four others that assert on

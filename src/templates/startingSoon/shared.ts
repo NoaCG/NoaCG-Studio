@@ -147,6 +147,14 @@ function holdingBackgroundCss(family: TemplateVariant['styleTag']): string {
     radial-gradient(circle at 78% 76%, rgba(255, 255, 255, 0.09), transparent 38%)`,
     noacg: `radial-gradient(circle at 76% 28%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 34%),
     linear-gradient(125deg, transparent 0 62%, rgba(246, 166, 35, 0.055) 62% 62.3%, transparent 62.3%)`,
+    // The three game-show families. None ships a full-frame design yet, so these are the
+    // grounds one would start from: halftone dots, a warm stage spot, and a scanline grid.
+    sticker: `radial-gradient(color-mix(in srgb, var(--accent) 22%, transparent) 1.5px, transparent 2px) 0 0 / 14px 14px,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 46%)`,
+    showtime: `radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 56%),
+    linear-gradient(180deg, transparent 60%, rgba(0, 0, 0, 0.5))`,
+    arcade: `repeating-linear-gradient(0deg, transparent 0 3px, rgba(0, 0, 0, 0.35) 3px 4px),
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 46%)`,
   };
 
   return `/* Full-frame programme background. The solid base guarantees opaque output. */

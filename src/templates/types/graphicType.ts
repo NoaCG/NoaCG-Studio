@@ -882,7 +882,18 @@ export function variantFromType(type: GraphicType, design: TypeDesign): Template
  * itself can be supplied, never as a value to type.
  */
 export function setupFields(type: GraphicType): TypeField[] {
-  const live = new Set((type.controls ?? []).flatMap((control) => control.payload ?? []));
+  // Every member of the payload family counts, not `payload` alone: a field a press SETS (the
+  // show board's "Pick B" writing the selected answer), moves, or appends to is live state for
+  // exactly the reason a carried one is - the first press on air overwrites whatever was typed.
+  const live = new Set(
+    (type.controls ?? []).flatMap((control) => [
+      ...(control.payload ?? []),
+      ...Object.keys(control.set ?? {}),
+      ...Object.keys(control.adjust ?? {}),
+      ...Object.keys(control.add ?? {}),
+      ...Object.keys(control.remove ?? {}),
+    ]),
+  );
   return type.fields.filter(
     (f) => f.role !== 'line' && f.role !== 'logo' && f.kind !== 'image' && !live.has(f.key),
   );

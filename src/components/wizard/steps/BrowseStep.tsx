@@ -75,7 +75,29 @@ interface Props {
  *  switch answers to it: a design grid answers "which graphic", a kit picker "which show". */
 export type BuildMode = 'one' | 'kit';
 
-type SortMode = 'relevance' | 'simplest';
+type SortMode = 'relevance' | 'simplest' | 'name' | 'name-desc';
+
+/**
+ * The sort orders, each with the sentence that says what it DOES. The sentence is shown under
+ * the control for whichever order is chosen: "Relevance" and "Simplest first" are the product's
+ * own words, and a reader who cannot tell what an order means cannot tell whether the design
+ * they are looking for should be near the top (owner, 2026-09-19).
+ */
+const SORTS: { id: SortMode; label: string; meaning: string }[] = [
+  {
+    id: 'relevance',
+    label: 'Relevance',
+    meaning:
+      'Best match first: designs that fit your search words, programme and brand lead. With nothing chosen, this is the curated order of the catalog.',
+  },
+  {
+    id: 'simplest',
+    label: 'Simplest first',
+    meaning: 'Easiest to run first: basic designs before advanced ones, then the ones with fewer fields to fill in.',
+  },
+  { id: 'name', label: 'Name (A to Z)', meaning: 'Alphabetical by design name.' },
+  { id: 'name-desc', label: 'Name (Z to A)', meaning: 'Reverse alphabetical by design name.' },
+];
 
 /**
  * HOW MANY DESIGNS THE STEP RENDERS AT ONCE, and how many one press adds (handoff §2b:
@@ -376,14 +398,25 @@ export default function BrowseStep({
   const shownLimit = paging.key === resultKey ? paging.shown : PAGE_SIZE;
   const showMore = () => setPaging({ key: resultKey, shown: shownLimit + PAGE_SIZE });
 
-  const sortResults = (list: BrowseResult[]) =>
-    sort === 'simplest'
-      ? [...list].sort(
+  // A numeric-aware compare, so "Card 9" sorts before "Card 10".
+  const byName = (a: BrowseResult, b: BrowseResult) =>
+    a.meta.name.localeCompare(b.meta.name, undefined, { numeric: true, sensitivity: 'base' });
+  const sortResults = (list: BrowseResult[]) => {
+    switch (sort) {
+      case 'simplest':
+        return [...list].sort(
           (a, b) =>
             COMPLEXITY_RANK[a.meta.complexity] - COMPLEXITY_RANK[b.meta.complexity] ||
             a.meta.fieldCounts.visible - b.meta.fieldCounts.visible,
-        )
-      : list;
+        );
+      case 'name':
+        return [...list].sort(byName);
+      case 'name-desc':
+        return [...list].sort((a, b) => byName(b, a));
+      default:
+        return list;
+    }
+  };
 
   const formatOptions = filters.family
     ? FORMATS.filter((f) => f.family === filters.family)
@@ -724,10 +757,16 @@ export default function BrowseStep({
             </span>
           )}
           <select value={sort} onChange={(e) => sortSet(e.target.value as SortMode)} aria-label="Sort results">
-            <option value="relevance">Relevance</option>
-            <option value="simplest">Simplest first</option>
+            {SORTS.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
           </select>
         </div>
+        {/* What the chosen order means, in a sentence - beside the control, not in a tooltip a
+            touch screen never shows. */}
+        <span className="wz-browse-sort-meaning" data-testid="wz-browse-sort-meaning">
+          {SORTS.find((option) => option.id === sort)?.meaning}
+        </span>
         <div className="wz-browse-chips">
           {activeStrict.map((chip) => (
             <button key={chip.label} className="wz-filter active" onClick={chip.clear} title="Remove this filter">

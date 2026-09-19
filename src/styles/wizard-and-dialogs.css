@@ -1698,6 +1698,9 @@ details:not([open]) > *:not(summary) { display: none; }
    the number, not a warning. It may wrap on a narrow step, so it opts out of the row's
    nowrap. */
 .wz-browse-ignored { color: var(--text-dim); font-size: 12px; white-space: normal; }
+/* What the chosen sort order means. It may wrap, and it takes the row's spare width so the
+   filter chips after it drop to their own line rather than squeezing it. */
+.wz-browse-sort-meaning { flex: 1 1 260px; min-width: 0; color: var(--text-dim); font-size: 12px; line-height: 1.35; }
 .wz-browse-section { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 14px 0 8px; }
 /* "Show 12 more" (handoff §2b): full width under the grid, quiet, and the width IS the point —
    it belongs to the whole result, not to the last card in the row above it. */

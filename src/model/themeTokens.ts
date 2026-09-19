@@ -113,6 +113,11 @@ export const TOKEN_COMMENTS: Record<keyof ThemeTokens, string> = {
  *  Same stack `--font-numeric` falls back to, declared once in model/fonts.ts. */
 const MONO_LABEL = MONO_STACK;
 
+/** The showtime label face: condensed caps under the family's high-contrast serif, the way a
+ *  theatre bill sets the billing under the title. Design-owned, like the house mono - a design
+ *  that reads the token ships the face with `labelFontFaceCss(fontById('oswald'))`. */
+const BILLING_LABEL = '"Oswald", "Arial Narrow", Arial, sans-serif';
+
 /**
  * The four families. Values are DESIGN_LANGUAGE §8's, cross-checked against a census of what
  * the 52 catalog stylesheets actually ship — per family AND per element role, because a
@@ -266,6 +271,69 @@ export const FAMILY_TOKENS: Record<StyleTag, ThemeTokens> = {
     labelColor: 'var(--accent)',
     displayWeight: '700',
     displayTracking: '-0.01em',
+  },
+  // ── The three GAME-SHOW families (2026-09-19). Each is drawn around one shape idea, and the
+  // tokens below ARE that idea, so a quiz board, a score strip and a lower third in one family
+  // agree without any of them restating it.
+  //
+  // STICKER - neo-brutal. The outline and the shadow are the same ink as the text, so the look
+  // follows any palette: on the cream default they are black, on a dark palette they turn
+  // white and the sticker still reads as a sticker. The shadow has NO blur and sits down-right,
+  // which is the whole signature; the keyline slot carries the thick outline so a design asks
+  // for both in one `box-shadow` list, exactly as the other families do.
+  sticker: {
+    panelBlur: 'none',
+    panelRadius: '0',
+    panelShadow: 'calc(10px * var(--scale)) calc(10px * var(--scale)) 0 var(--text-color)',
+    panelKeyline: 'inset 0 0 0 calc(5px * var(--scale)) var(--text-color)',
+    accentWeight: 'calc(14px * var(--scale))',
+    accentGlow: NO_SHADOW,
+    // Ink ON the accent is the text ink, not the panel: the panel is a LIGHT cream here, and
+    // cream on orange is the one pairing in this family that does not hold.
+    accentInk: 'var(--text-color)',
+    fontLabel: 'var(--font-heading)',
+    fontNumeric: 'var(--font-heading)',
+    labelTracking: '0.06em',
+    labelColor: 'var(--text-color)',
+    displayWeight: '900',
+    displayTracking: '-0.02em',
+  },
+  // SHOWTIME - the theatre marquee. Full pills, a cream keyline INSIDE the edge (a printed
+  // border, the way a cinema sign frames its letters), and a soft warm lift. The label face is
+  // the family's second voice: condensed caps under a high-contrast serif.
+  showtime: {
+    panelBlur: 'none',
+    panelRadius: 'calc(999px * var(--scale))',
+    panelShadow: '0 calc(12px * var(--scale)) calc(34px * var(--scale)) rgba(0, 0, 0, 0.45)',
+    panelKeyline: 'inset 0 0 0 calc(3px * var(--scale)) var(--accent)',
+    accentWeight: 'calc(6px * var(--scale))',
+    accentGlow: '0 0 calc(14px * var(--scale)) color-mix(in srgb, var(--accent) 70%, transparent)',
+    accentInk: '#2a0710',
+    fontLabel: BILLING_LABEL,
+    fontNumeric: 'var(--font-heading)',
+    labelTracking: '0.22em',
+    labelColor: 'var(--accent)',
+    displayWeight: '800',
+    displayTracking: '0',
+  },
+  // ARCADE - the cabinet screen. The corners are stair-stepped by a clip-path each design
+  // draws (a radius cannot express a pixel), so the radius token is 0 and the neon rim lives in
+  // the keyline slot. The glow is the second family after the house one to own a glow, and for
+  // the same reason: light is what the look is made of.
+  arcade: {
+    panelBlur: 'none',
+    panelRadius: '0',
+    panelShadow: '0 0 calc(26px * var(--scale)) color-mix(in srgb, var(--accent) 45%, transparent)',
+    panelKeyline: 'inset 0 0 0 calc(4px * var(--scale)) var(--accent)',
+    accentWeight: 'calc(8px * var(--scale))',
+    accentGlow: '0 0 calc(18px * var(--scale)) color-mix(in srgb, var(--accent) 80%, transparent)',
+    accentInk: '#120b2e',
+    fontLabel: MONO_LABEL,
+    fontNumeric: 'var(--font-heading)',
+    labelTracking: '0.12em',
+    labelColor: 'var(--accent)',
+    displayWeight: '800',
+    displayTracking: '0.02em',
   },
 };
 

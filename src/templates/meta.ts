@@ -180,6 +180,23 @@ export const TYPE_META: Record<string, DeclaredTemplateMeta> = {
     },
     extraCapabilities: ['quiz-states', 'operator-states', 'multi-step'],
   },
+  // The SHOW board: the same graphic to browse for - a quiz question - with a shorter arc and
+  // an answer count that is a field. `answerCount` has no honest semantic and falls through.
+  'quiz-show': {
+    category: 'poll-quiz', subtype: 'quiz-question', structures: ['rows', 'full-panel'],
+    coverage: 'panel',
+    semantics: {
+      question: 'question', answerA: 'answer', answerB: 'answer', answerC: 'answer',
+      answerD: 'answer', correctAnswer: 'answer', selectedAnswer: 'answer',
+    },
+    extraCapabilities: ['quiz-states', 'operator-states', 'multi-step'],
+  },
+  // The two-player score: the podium board's browse home (a game-show score, not a match's).
+  'duel-score': {
+    category: 'scoreboard', subtype: 'podium', structures: ['strip', 'multi-person'],
+    semantics: { playerA: 'name', scoreA: 'score', playerB: 'name', scoreB: 'score' },
+    extraCapabilities: ['score-controls', 'operator-states'],
+  },
 
   // ── The title / topic / information pack (templates/pack4/) ─────────────────
   // The seven shapes the opener and the topic card were being made to stand in for. Each names

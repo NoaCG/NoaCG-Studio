@@ -17,8 +17,21 @@
  *
  * Both are full families: they carry a FAMILY_TOKENS row (model/themeTokens.ts), palettes, font
  * affinities, and wizard filter chips, exactly like the original four.
+ *
+ * 'sticker', 'showtime' and 'arcade' are the three GAME-SHOW families (2026-09-19). Each ships a
+ * quiz board, a two-player score strip and a lower third, so a quiz show can be built in one
+ * look, and they are drawn to be as far from each other as from the six above:
+ * - **sticker** - the neo-brutal voice. A flat light panel, a thick ink outline and a hard
+ *   offset shadow with no blur; rows tilt a fraction of a degree like stuck-on labels.
+ * - **showtime** - the theatre marquee. Deep warm pills inside a cream keyline, a row of
+ *   bulbs along the edge, and a high-contrast serif for the words.
+ * - **arcade** - the cabinet screen. Stair-stepped pixel corners, a neon rim, scanlines, and
+ *   a squared technical face with mono labels.
+ * Like editorial and cinematic they are BROWSE families: no kit resolves into them.
  */
-export type StyleTag = 'minimal' | 'sport' | 'glass' | 'noacg' | 'editorial' | 'cinematic';
+export type StyleTag =
+  | 'minimal' | 'sport' | 'glass' | 'noacg' | 'editorial' | 'cinematic'
+  | 'sticker' | 'showtime' | 'arcade';
 
 export interface BundledFont {
   id: string;
@@ -145,7 +158,7 @@ export const FONTS: BundledFont[] = [
     family: 'Space Grotesk',
     file: 'space-grotesk.woff2',
     weights: [400, 700],
-    styleTags: ['noacg', 'minimal', 'glass'],
+    styleTags: ['noacg', 'minimal', 'glass', 'sticker'],
     fallback: 'Arial, sans-serif',
     blurb: 'Modern grotesque with a technical edge — the NoaCG house display face.',
     tabularFigures: true,
@@ -155,7 +168,7 @@ export const FONTS: BundledFont[] = [
     family: 'JetBrains Mono',
     file: 'jetbrains-mono.woff2',
     weights: [400, 700],
-    styleTags: ['noacg'],
+    styleTags: ['noacg', 'arcade'],
     fallback: 'Consolas, "Courier New", monospace',
     blurb: 'Technical monospace — labels, data, timecode (the NoaCG house label face).',
     tabularFigures: true,
@@ -175,7 +188,7 @@ export const FONTS: BundledFont[] = [
     family: 'Archivo',
     file: 'archivo.woff2',
     weights: [400, 900],
-    styleTags: ['sport', 'minimal', 'editorial'],
+    styleTags: ['sport', 'minimal', 'editorial', 'sticker'],
     fallback: 'Arial, sans-serif',
     blurb: 'Sturdy grotesque; heavy weights hit hard.',
     tabularFigures: true,
@@ -185,7 +198,7 @@ export const FONTS: BundledFont[] = [
     family: 'Oswald',
     file: 'oswald.woff2',
     weights: [400, 700],
-    styleTags: ['sport', 'editorial'],
+    styleTags: ['sport', 'editorial', 'showtime'],
     fallback: '"Arial Narrow", Arial, sans-serif',
     blurb: 'Condensed broadcast workhorse — big names, tight space.',
     tabularFigures: false,
@@ -210,7 +223,7 @@ export const FONTS: BundledFont[] = [
     family: 'Playfair Display',
     file: 'playfair-display.woff2',
     weights: [400, 900],
-    styleTags: ['editorial', 'cinematic'],
+    styleTags: ['editorial', 'cinematic', 'showtime'],
     fallback: 'Georgia, "Times New Roman", serif',
     blurb: 'Editorial display serif — mastheads, culture, title cards.',
     tabularFigures: false,
@@ -294,7 +307,7 @@ export const FONTS: BundledFont[] = [
     family: 'Saira',
     file: 'saira.woff2',
     weights: [400, 900],
-    styleTags: ['sport'],
+    styleTags: ['sport', 'arcade'],
     fallback: 'Arial, sans-serif',
     blurb: 'Semi-condensed technical family — sport data and names.',
     tabularFigures: true,
