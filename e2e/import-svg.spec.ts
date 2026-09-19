@@ -2831,8 +2831,19 @@ test('svg import: growth is symmetrical and a line stops at whatever is drawn be
   // which is the whole defect this asserts against.
   const drawnInset = rest.name.left - rest.panelLeft;
   const grownGap = huge.panelRight - huge.name.right;
-  expect(grownGap).toBeGreaterThanOrEqual(drawnInset - 0.5);
-  expect(grownGap).toBeLessThan(drawnInset + 3);
+  // The numbers ride the failure, because this machine rasterises one platform and CI the other:
+  // a red here that says only "63 is not < 53" cannot be told from a wrong cap without a re-run.
+  const measured = JSON.stringify({
+    drawnInset,
+    panelRight: huge.panelRight,
+    nameRight: huge.name.right,
+    fontSize: await frame.locator('#f0').evaluate((el) => getComputedStyle(el).fontSize),
+  });
+  expect(grownGap, measured).toBeGreaterThanOrEqual(drawnInset - 0.5);
+  // The upper bound is the fit LANDING on its budget rather than merely getting under it
+  // (fitSvgText walks a one-line block back up). Before it did, the same bold name left 13px of
+  // the grown banner empty under Linux's hinted advances while Windows left half a pixel.
+  expect(grownGap, measured).toBeLessThan(drawnInset + 3);
 
   // NEIGHBOURS DO NOT OVERLAP. A long Location used to run to 860 straight through the 19:30
   // Slot drawn at 700, because its room was measured out to the panel's edge. Its room is now
