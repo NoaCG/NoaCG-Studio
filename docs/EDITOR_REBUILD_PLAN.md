@@ -456,6 +456,8 @@ Preserve existing IDs and repair only references affected by minting; redo reuse
 IDs. Test unnamed siblings/nested nodes, duplicate IDs in an input, cancel-before-commit, undo/
 redo and save/reopen with field/track/selection identity and unrelated source intact.
 
+The [semantic-command/WebMCP assessment](research/editor-webmcp-commands-2026-09-19.md) maps the merged R1 registry (currently only key.set) and reusable block/CLI services. Each authoring slice extends that registry for its UI. R1.3b supplies shared runtime schemas, bounded state queries, asynchronous receipts and selection/session conflict checks. Optional P-WEBMCP follows R1.3b as a feature-detected imperative adapter; R3.2 paired MCP reuses the handlers. UI and built-in AI call commands directly. Keep view queries and validated export/publish services distinct from source mutations; expose meaningful actions, not controls or store internals. B21 records adapter tests; no WebMCP dependency or tool exposure is added now.
+
 One shared operation registry accepts document ID, expected source/asset revision, operation
 batch and transaction identity. Validate capability/types/references, apply atomically, return
 changed targets/readable diff/new revision, then report matching preview readiness. Stale input

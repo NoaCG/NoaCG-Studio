@@ -122,7 +122,7 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 | R1.2a Animation | Shared Bezier/named-ease evaluator gate; exact splits, full transforms, marquee/modifier multi-key selection and dropdown/context easing including Bounce/Overshoot/Hold; Step/Next/cross-cue editing. B03/B05-B07/B13. |
 | R1.2b Everyday tools and grouping | E05-E07/B04: typography/fit, file/drop import, images/assets, bounded Pen, full canvas tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins, group transform/parent bar/local ruler. Reusable instances follow in P-COMP after R1.5. |
 | R1.2c Loops | Local loops, interruption/replay, legacy behavior and output parity. B07/B13/B14 local-loop portion. |
-| R1.3a/b AI and source round-trip | a: grounded help-only chat; b: previewed bounded edits and CLI through shared operations. Budgeted free tier/BYOK, real-model evaluation, conflict/cancel/undo. B17/B18. |
+| R1.3a/b AI and source round-trip | a: grounded help/context; b: reviewed edits through shared semantic commands, CLI round-trip, free tier/BYOK and model/concurrency tests. B17/B18. Optional P-WEBMCP adapter follows b; [inspection, scope and B21](research/editor-webmcp-commands-2026-09-19.md). |
 | R1.4a-d Projects, brands and rundown | a: durable multi-graphic projects/drafts; b: gallery/starters/brands; c: shared Home/editor bulk save/install and playout availability; d: recovery/rehearsal. B08-B10/B19. Parallel from R1.1c registry, independent of R1.2/R1.3. |
 | R1.5 Acceptance and default switch | Comparative/user/performance and real-host checks, GSAP licence clarification, owner acceptance; then replace default editing interactions while preserving runtime/source behavior. |
 | P-COMP (after R1.5) | Named task for instanced reusable precompositions: definition/instance ownership, editable local timelines, field IDs/overrides, cycles, history/save/export parity. Schedule approved 2026-09-19; remains required for full completion. |
@@ -167,11 +167,11 @@ Existing E/B identities are retained; split rows close only when all portions pa
 | E20 gradient/mask/effect authoring | R2.2 / B15; preserve imported appearance in R1 |
 | E21 structured/live data and runtime collections | R3.1 / B16; preserve current fields in R1 |
 | E22 embedded free basic AI/BYOK editing | R1.3 core, R1.4 brands, R2-R3 extensions / B18 |
-| E23 shared UI/CLI/MCP and editable round-trip | R1.0 registry, R1.3 CLI, R3.2 paired bridge / B17 |
+| E23 shared UI/AI/CLI/MCP and editable round-trip | R1.0 registry, R1.3 semantic commands/CLI, optional P-WEBMCP, R3.2 paired bridge / B17; optional B21 |
 | E24 professional timeline, direct playhead and Out triggers | R1.0 scrub; R1.1b-d core; R1.2a/c Next/loops / B13 |
 | E25 multiple graphics per project and Home reuse | R1.0 ownership contract; R1.4a/c durable workspace/library/production / B19 |
 
-The [acceptance register](research/editor-acceptance-register-2026-09-17.md) is the live B01-B19 and optional B20 task/evidence ledger, including D01-D05 closing tests and later gates. Historical receipts do not govern order.
+The [acceptance register](research/editor-acceptance-register-2026-09-17.md) is the live B01-B19 and optional B20-B21 task/evidence ledger, including D01-D05 closing tests and later gates. Historical receipts do not govern order.
 
 ## Baseline closure and acceptance
 

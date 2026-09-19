@@ -163,3 +163,7 @@ records the primary licence references. Historical reference fixtures stay isola
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.
+
+## Optional P-WEBMCP evidence
+
+B21 belongs to P-WEBMCP.0/1 after R1.3b and does not gate core editor adoption. The [semantic command assessment](editor-webmcp-commands-2026-09-19.md) gives the source inventory and closing fixtures. All adapter evidence is unverified: shared handler/source/history/pixel equivalence; stale document/selection/session, retries/cancel and human interleaving; native registration/execution/lifecycle on a named browser; graceful absence/policy refusal; no exposure in generated graphics; preserved export/publish authorization. R1.3 B17/B18 still own the required shared commands and AI quality; R3.2 still owns paired external MCP. Research does not imply that these actions are implemented.

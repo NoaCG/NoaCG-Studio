@@ -93,6 +93,10 @@ E/B ledger and handoff. No screenshot/build closes the full product journey.
   ruler; instanced reusable precompositions are P-COMP after R1.5. This supersedes their former
   R1.2 placement. Do not conflate groups and reusable instances; both remain in the destination.
 
+## Optional WebMCP adapter
+
+[Source inspection and plan](editor-webmcp-commands-2026-09-19.md) retain the existing operation/session foundation, extend semantic commands with each UI slice, and add optional P-WEBMCP after R1.3b. It is a transport adapter, not another mutation API or a dependency of built-in AI. B21 qualifies native browser integration and command equivalence; R3.2 paired MCP consumes the same handlers. No runtime prototype is warranted while R1 authoring commands are still being built.
+
 ## Optional later GPU effects
 
 [Research dated 2026-09-19](editor-webgpu-vgpu-2026-09-19.md) adds P-GPU.0 qualification and conditional P-GPU.1 presets after working R1/R2.2/R3.1. HTML/SVG/CSS stays default; vgpu is the first candidate. B20 owns actual-host, fallback, bundle and performance evidence. Current work preserves existing source/time/revision seams only; no new GPU infrastructure or R1 acceptance burden.
