@@ -27,6 +27,22 @@ test('a conflicting pull request is a refusal even while its auto-merge request 
   assert.deepEqual(watchVerdict(open({ mergeable: 'UNKNOWN' })), { verdict: 'waiting' }, 'GitHub has not computed it yet');
 });
 
+test('a failed gate on the pull request is a refusal while its auto-merge request still stands', () => {
+  const red = { name: 'CI gate', status: 'COMPLETED', conclusion: 'FAILURE' };
+  const shard = { name: 'E2E 3/9 (subset)', status: 'COMPLETED', conclusion: 'FAILURE' };
+  const verdict = watchVerdict(open(), [shard, shard, red, red, { name: 'Build', status: 'COMPLETED', conclusion: 'SUCCESS' }]);
+  assert.equal(verdict.verdict, 'refused');
+  assert.equal(verdict.reason, 'E2E 3/9 (subset), CI gate failed on the pull request, so the queue never took it');
+  // One of the two runs still going, or green, is not a verdict: GitHub reads the newest.
+  assert.deepEqual(watchVerdict(open(), [red, { name: 'CI gate', status: 'IN_PROGRESS', conclusion: '' }]), { verdict: 'waiting' });
+  assert.deepEqual(watchVerdict(open(), [red, { name: 'CI gate', status: 'COMPLETED', conclusion: 'SUCCESS' }]), { verdict: 'waiting' });
+  // A red shard with no gate verdict yet is still waiting, and so is a gate nobody has reported.
+  assert.deepEqual(watchVerdict(open(), [shard]), { verdict: 'waiting' });
+  assert.deepEqual(watchVerdict(open(), []), { verdict: 'waiting' });
+  // Inside the queue the pull request's own checks are history; the merge group decides.
+  assert.deepEqual(watchVerdict(open({ mergeQueueEntry: { state: 'AWAITING_CHECKS', position: 1 } }), [red]), { verdict: 'waiting' });
+});
+
 test('auto-merge off without a merge is a refusal, naming the failed checks when there are any', () => {
   const checks = [{ name: 'CI gate', conclusion: 'FAILURE' }, { name: 'Build', conclusion: 'SUCCESS' }, { context: 'noacg/reviewed', state: 'SUCCESS' }];
   assert.deepEqual(watchVerdict(open({ autoMergeRequest: null }), checks), { verdict: 'refused', reason: 'CI gate failed on the pull request' });
