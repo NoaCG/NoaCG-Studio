@@ -68,7 +68,13 @@
      nothing and the preview iframe rendered outside its own box. A fixed share of the
      viewport keeps the preview real; the step scrolls in what is left. */
   .wz-side { flex: 0 0 38vh; border-left: none; border-top: 1px solid var(--border); }
-  .wz-header { padding: 12px 14px; gap: 10px; }
+  /* `.wz-wizard .wz-header` is named too, and only so this rule can WIN. The full-screen
+     wizard takes the app topbar's padding on desktop (wizard-and-dialogs.css), and that
+     selector outranks a bare `.wz-header` — so without the second half here a phone would wear
+     the desktop bar. Equal specificity, and this file is imported after that one, so source
+     order settles it. */
+  .wz-header,
+  .wz-wizard .wz-header { padding: 12px 14px; gap: 10px; }
   /* THE RAIL LIES DOWN. A phone has no 216px of width to give a permanent column, so the
      rail becomes a scrolling strip of chips above the step: numbers for every step, the word
      only for the one you are on, and the sub-line dropped entirely. Six labelled pills

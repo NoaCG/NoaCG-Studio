@@ -252,9 +252,9 @@ test('the hero names both routes to air and EVERY export target, in the sentence
   await expect(page.locator('.wz-header .brand-home')).toBeVisible();
 });
 
-test('the Home row carries its two section shortcuts', async ({ page }) => {
-  // The row appears only when there IS saved work - a first-ever visit gets no door to an
-  // empty room. Seed one graphic, then reload onto Entry.
+/** Land on the Entry step with the Home row showing. The row appears only when there IS saved
+ *  work - a first-ever visit gets no door to an empty room - so seed one graphic and reload. */
+async function entryWithSavedWork(page: Page) {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
@@ -267,8 +267,12 @@ test('the Home row carries its two section shortcuts', async ({ page }) => {
     await commitDurableWrites();
   });
   await page.goto('/app');
+  await expect(page.getByTestId('wz-continue')).toBeVisible();
+}
+
+test('the Home row carries its two section shortcuts', async ({ page }) => {
+  await entryWithSavedWork(page);
   const row = page.getByTestId('wz-continue');
-  await expect(row).toBeVisible();
 
   // ONE ROW: the body button and the two shortcuts share a line, and the shortcuts are
   // SIBLINGS of the body button - a button nested in a button is invalid markup.
@@ -296,6 +300,116 @@ test('the Home row carries its two section shortcuts', async ({ page }) => {
   await row.locator('[data-entry="continue-productions"]').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
   expect(page.url()).toContain('#/home/productions');
+});
+
+test('the Home row answers a hover like an entry card, and its shortcuts do not', async ({ page }) => {
+  // The owner's report, the same one e2e/wizard-shell.spec.ts answers for the HEADER: the cards
+  // light up amber and the thing beside them stays grey. The Home row was the last of it. Its
+  // body button gives its border, fill and lift up to the ROW so the three controls read as one
+  // object, and nothing had taken over answering for it - so the one full-width thing on the
+  // step sat dead under the pointer while every card beside it lit up.
+  await entryWithSavedWork(page);
+
+  const styleOf = (sel: string) =>
+    page.evaluate((s) => {
+      const cs = getComputedStyle(document.querySelector(s)!);
+      return { border: cs.borderColor, background: cs.backgroundColor, transform: cs.transform };
+    }, sel);
+
+  // The two values the tokens resolve to, read off a THROWAWAY element - the same probe
+  // e2e/wizard-shell.spec.ts uses, and for the same reason. Border and background are both
+  // transitioned here, so reading a real control to learn what "the answer" is captures a
+  // mid-fade: this spec first asked the hovered card and got `rgb(235,160,36)` on its way to
+  // `rgb(246,166,35)`, and then held every later assertion to the wrong colour. No literal is
+  // written down either way, so a repaint of the palette moves the test with it.
+  const token = (property: string, value: string) =>
+    page.evaluate(
+      ([p, v]) => {
+        const probe = document.createElement('div');
+        probe.style.setProperty(p, v);
+        document.body.append(probe);
+        const resolved = getComputedStyle(probe).getPropertyValue(p);
+        probe.remove();
+        return resolved;
+      },
+      [property, value],
+    );
+  const amber = await token('border-color', 'var(--accent)');
+  const fill = await token('background-color', 'var(--bg-2)');
+
+  const IDENTITY = ['none', 'matrix(1, 0, 0, 1, 0, 0)'];
+  const resting = await styleOf('.wz-continue-row');
+
+  // THE REFERENCE: this is the answer the cards already give, stated first so everything below
+  // is pinned to the CARDS' behaviour rather than merely to a pair of tokens. The `ai` card, not
+  // the first one - `--primary` gives that one a tinted resting border of its own.
+  await page.hover('[data-entry="ai"]');
+  await expect
+    .poll(async () => {
+      const { border, background } = await styleOf('[data-entry="ai"]');
+      return { border, background };
+    })
+    .toEqual({ border: amber, background: fill });
+  const card = await styleOf('[data-entry="ai"]');
+
+  // THE BODY GETS THAT ANSWER, both properties.
+  await page.hover('[data-entry="continue"]');
+  await expect
+    .poll(async () => {
+      const { border, background } = await styleOf('.wz-continue-row');
+      return { border, background };
+    })
+    .toEqual({ border: amber, background: fill });
+
+  // …BUT NOT THE LIFT. `translateY(-2px)` says "a card you pick up"; on a 1180x72 shelf it reads
+  // as the whole band twitching, and the two shortcuts ride INSIDE the row - so the button about
+  // to be clicked would move under the cursor. The card keeps its lift, which is what makes this
+  // a deliberate difference rather than a rule that was forgotten.
+  expect(IDENTITY).toContain((await styleOf('.wz-continue-row')).transform);
+  expect(IDENTITY).not.toContain(card.transform);
+
+  // OVER A SHORTCUT THE ROW STANDS DOWN. A hover says what a CLICK will do: a shortcut opens a
+  // section rather than Home, and it already answers in amber for itself - an amber row wrapped
+  // around an amber button is two highlights for one target and neither owns the click.
+  // Both read in ONE evaluate, so the row and the shortcut are sampled in the same frame rather
+  // than either side of a transition tick.
+  await page.hover('[data-entry="continue-graphics"]');
+  await expect
+    .poll(async () =>
+      page.evaluate((amberValue) => {
+        const row = getComputedStyle(document.querySelector('.wz-continue-row')!);
+        const shortcut = getComputedStyle(document.querySelector('[data-entry="continue-graphics"]')!);
+        return {
+          rowAmber: row.borderColor === amberValue,
+          rowFill: row.backgroundColor,
+          shortcut: shortcut.borderColor,
+        };
+      }, amber),
+    )
+    .toEqual({ rowAmber: false, rowFill: resting.background, shortcut: amber });
+
+  // THE KEYBOARD GETS THE SAME ANSWER, and the inner button's own ring goes. It is ARRIVED AT
+  // BY A REAL TAB PRESS: `.focus()` on the button lands there without the keyboard modality, so
+  // `:focus-visible` never matches and every assertion below would pass against the resting
+  // state. Counting Tab presses from the top does not work either - the wizard is an overlay and
+  // HOME STAYS MOUNTED UNDERNEATH IT, so ten of the page's twenty-two focusables belong to the
+  // page behind and the count moves with whatever is saved. Seeding focus on the control
+  // immediately before it and pressing Tab once is stable whatever is behind. (That the overlay
+  // does not trap focus at all is a separate, pre-existing thing.)
+  await page.locator('.wz-header .gallery-close').evaluate((el: HTMLElement) => el.focus());
+  await page.keyboard.press('Tab');
+  expect(
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.entry ?? null),
+  ).toBe('continue');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const row = getComputedStyle(document.querySelector('.wz-continue-row')!);
+        const body = getComputedStyle(document.querySelector('[data-entry="continue"]')!);
+        return { border: row.borderColor, background: row.backgroundColor, outline: body.outlineStyle };
+      }),
+    )
+    .toEqual({ border: amber, background: fill, outline: 'none' });
 });
 
 test('the video strip is one line, quieter than any shipped mode', async ({ page }) => {
