@@ -100,3 +100,26 @@
   .ef-document-name, .ef-release { display: none; }
   .ef-caption { font-size: 9px; }
 }
+
+/* Phone access is for looking around the alpha. Keep the stage full-width and let the
+   page scroll through Properties and the timeline rather than compressing the stage. */
+@media (max-width: 700px), (max-width: 900px) and (max-height: 500px) {
+  .ef-shell { height: auto; min-height: 100dvh; grid-template-rows: auto 36px auto 280px auto; }
+  .ef-header { flex-wrap: wrap; gap: 6px; }
+  .ef-header > .ef-spacer { display: none; }
+  .ef-document-tab { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+  .ef-document-strip > .ef-muted { display: none; }
+  .ef-workspace { display: flex; flex-direction: column; }
+  .ef-canvas { flex: none; height: 340px; grid-template-rows: 38px minmax(0, 1fr) 38px; }
+  .ef-canvas > .ef-toolbar > .ef-muted { display: none; }
+  .ef-inspector { flex: none; height: 200px; border-left: 0; border-top: 1px solid var(--ef-border); }
+  .ef-caption, .ef-status { flex-wrap: wrap; gap: 3px 10px; }
+  .ef-ruler-row, .ef-track { grid-template-columns: 130px minmax(0, 1fr); }
+  .ef-shell .ef-layer { gap: 6px; padding-inline: 6px; }
+  .ef-ruler, .ef-track-lane { margin-right: 30px; }
+  .ef-tick { font-size: 8px; }
+  .ef-timeline > .ef-toolbar > .ef-muted { display: none; }
+  .ef-transport { flex-wrap: wrap; gap: 4px; }
+  .ef-transport > .ef-muted { display: none; }
+  .ef-timeline { grid-template-rows: 34px auto auto minmax(0, 1fr) 38px; }
+}

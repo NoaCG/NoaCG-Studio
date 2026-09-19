@@ -187,3 +187,14 @@
   white-space: nowrap;
 }
 
+
+/* The alpha is a secondary shortcut beside the headline, spending no extra laptop row.
+   Phones put it below the headline, ahead of the longer introduction and creation cards. */
+.wz-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: center; }
+.wz-hero-sub { grid-column: 1 / -1; }
+.wz-editor-alpha { display: inline-flex; align-items: center; min-height: 36px; white-space: nowrap; font-size: 13px; }
+.wz-editor-alpha:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+@media (max-width: 768px) {
+  .wz-hero { grid-template-columns: minmax(0, 1fr); }
+  .wz-editor-alpha { justify-self: start; margin-bottom: 8px; }
+}

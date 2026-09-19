@@ -29,6 +29,32 @@ serve it. Removing the flag leaves the existing application in charge.
 
 The captures below are actual product renders. They are separate from the planning mockups.
 
+## Wizard shortcut and phone viewing
+
+The wizard homepage now has an **Open editor Alpha** link beside its headline (below it
+on a phone). It opens the current graphic without requiring Advanced mode. Once this
+branch is deployed, the same route is available at
+[the live editor Alpha](https://noacg.studio/app?editor=foundation#/editor-foundation).
+The link itself does not imply that this branch has been merged or deployed.
+
+Phone portrait and landscape layouts keep the canvas full-width, then stack Properties
+and the timeline below it. Scroll to inspect the panels. This provides phone viewing
+access; the foundation remains a desktop editor and full touch authoring is not part
+of R1.0.
+
+The initial 390px viewport reproduction squeezed the canvas to 110px. The follow-up
+checks cover the shortcut, unchanged source, Home/Back navigation, visible preview,
+ruler scrubbing, horizontal overflow and useful canvas dimensions. Existing wizard
+height-budget and foundation checks run alongside them. The actual viewport captures
+are [wizard entry](alpha-entry-desktop.png), [phone portrait](alpha-editor-phone.png)
+and [phone landscape](alpha-editor-landscape.png). These are Chromium viewport checks,
+not a claim of physical-device Safari verification.
+
+Follow-up browser receipt: 33/33 passed, one worker, no retries (j-1417): four Alpha
+entry/phone checks, 12 foundation checks and 17 existing wizard entry checks.
+The follow-up full build also exited 0, including lint, TypeScript, production output
+and the infrastructure suite (1,798 passed, one documented skip, zero failures).
+
 ## Architecture
 
 [Implementation brief and inventory](implementation.md) records keep/refactor/replace/retire
