@@ -228,7 +228,39 @@ test('the wizard offers the answer count and the correct answer, and not the con
   expect(fields['Answers shown']).toBe('2');
 });
 
-test('each game-show family is a Browse style chip holding its three graphics', async ({ page }) => {
+test('the Quiz Show kit builds in the three game-show looks and in no other', async ({ page }) => {
+  const kit = await page.evaluate(async () => {
+    const { packById, resolvePack } = await import('/src/templates/packs.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const pack = packById('quiz-show')!;
+    const looks: Record<string, string[]> = {};
+    const problems: string[] = [];
+    for (const family of ['noacg', 'minimal', 'editorial', 'cinematic', 'sport', 'glass', 'sticker', 'showtime', 'arcade'] as const) {
+      try {
+        const cells = resolvePack({ ...pack, family });
+        looks[family] = cells.map((cell) => cell.designId);
+        for (const cell of cells) {
+          const variant = variantById(cell.designId)!;
+          if (variant.styleTag !== family) problems.push(`${cell.designId} is ${variant.styleTag}, not ${family}`);
+          if (!validateTemplate(variant.create()).ok) problems.push(`${cell.designId} does not validate`);
+        }
+      } catch {
+        // not a look this kit resolves in
+      }
+    }
+    return { looks, problems, types: pack.types.length };
+  });
+  expect(Object.keys(kit.looks).sort()).toEqual(['arcade', 'showtime', 'sticker']);
+  expect(kit.problems).toEqual([]);
+  // Every type of the kit resolves to its own design in each look: a whole show, eight graphics.
+  for (const designs of Object.values(kit.looks)) {
+    expect(new Set(designs).size).toBe(kit.types);
+    expect(kit.types).toBe(8);
+  }
+});
+
+test('each game-show family holds the eight graphics of the kit', async ({ page }) => {
   const families = await page.evaluate(async () => {
     const { CATALOG } = await import('/src/templates/catalog.ts');
     const all = Object.values(CATALOG).flat();
@@ -240,6 +272,6 @@ test('each game-show family is a Browse style chip holding its three graphics', 
     );
   });
   for (const family of ['sticker', 'showtime', 'arcade']) {
-    expect(families[family]).toEqual(['lower-third', 'quiz', 'scoreboard']);
+    expect(families[family]).toEqual(['corner-bug', 'game-timer', 'info-card', 'infographic', 'lower-third', 'quiz', 'scoreboard', 'starting-soon']);
   }
 });

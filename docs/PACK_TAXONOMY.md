@@ -202,6 +202,22 @@ way, and the holding / credits / ceremony set ships as EXTRAS rather than types 
 | Combat Sports | glass | round clock, the fight card, the tale of the tape, the decision |
 | Club & School Sports | minimal | full club names, no crests needed, nothing that costs bitrate |
 
+### The Quiz Show kit, and the three looks it lives in
+
+| Pack | Family | Types (curated order) |
+|---|---|---|
+| Quiz Show | sticker (also showtime, arcade) | title-card, lower-third, quiz-show, duel-score, countdown, key-facts, logo-bug, sign-off |
+
+The twenty-second pack, and the only one that resolves OUTSIDE the four production families. It
+is a two-player game show in one look: the opener, the strap, the quiz board whose answer count
+is a field, the running score, an answer clock, a how-to-play card, the show mark and the closing
+card. `quiz-show` and `duel-score` ship designs only in `sticker`, `showtime` and `arcade`, so
+those are the three looks the kit picker offers for it, and it offers them for no other pack.
+
+It declares no `paletteId`: a pack palette is imposed on every graphic, and these three families'
+palettes share nothing, so each design keeps its own default. And like the discipline packs it
+claims no reference format. The sheet's "Quiz / game show livestream" row is Classroom's.
+
 **A discipline pack declares NO reference formats, and that is the taxonomy point.** The sheet
 counts FORMATS, and it has one row for "Sports broadcast / match coverage" and one for "Local
 sports / amateur sports" — both owned by Match Day. A tennis kit is not a new format; it is the

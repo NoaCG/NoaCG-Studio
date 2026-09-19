@@ -27,6 +27,9 @@ import { ss18 } from './ss18';
 import { ss19 } from './ss19';
 import { ss20 } from './ss20';
 import { ss21 } from './ss21';
+import { ss22 } from './ss22';
+import { ss23 } from './ss23';
+import { ss24 } from './ss24';
 
 export const STARTING_SOON: TemplateVariant[] = [
   // ── Before the show ──
@@ -53,6 +56,10 @@ export const STARTING_SOON: TemplateVariant[] = [
   ss14, // minimal - typed sign-off with logo slot
   ss15, // sport - typed sign-off with logo slot
   ss16, // glass - typed sign-off with logo slot
+  // The three game-show families' sign-offs (type: sign-off)
+  ss22, // sticker - a big paper label on a halftone accent field
+  ss23, // showtime - a bulb-lit plaque on a burgundy curtain
+  ss24, // arcade - a pixel-cornered neon panel on a scanline screen
 ];
 
 export function startingSoonById(id: string): TemplateVariant | undefined {
