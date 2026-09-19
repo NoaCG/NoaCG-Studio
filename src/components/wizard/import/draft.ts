@@ -709,7 +709,8 @@ export interface SvgFontDraft {
   /** The same face as a real family name, for the bundled library and Google Fonts
    *  (assets/svgImport.ts `fontLookup`: "Archivo-Bold" looks up as "Archivo" at 700). */
   lookup: string;
-  /** The weight the name implied, or null. Used when fetching, never when declaring. */
+  /** The weight the name implied, or null. Used when fetching a face, and when declaring a
+   *  bundled VARIABLE file under the artwork's name, which has to be pinned to it. */
   weight: number | null;
   /** A bundled face whose family name matches. */
   fontId: string | null;
@@ -1445,6 +1446,7 @@ export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
     fonts: draft.svgFonts.map((f) => ({
       family: f.family,
       fontId: f.fontId ?? undefined,
+      ...(f.weight !== null ? { weight: f.weight } : {}),
       customFont: f.customFont ?? undefined,
     })),
   };

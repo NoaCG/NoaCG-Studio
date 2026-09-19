@@ -17,6 +17,7 @@ correct on purpose, they are pretty on purpose, and a student is meant to open o
 | File | Graphic kind | The one lesson |
 |---|---|---|
 | `lower-third.svg` | Lower third | the plain happy path - three live text layers, named |
+| `sticker-lower-third.svg` | Lower third | a catalog look rebuilt by hand: a stroked panel that grows, and a hard shadow drawn as two strips so one widens and the other travels. The worked example in `SVG_AUTHORING.md` section 6b |
 | `illustrator-export.svg` | Lower third | the exporter's own habits: PostScript font names, a kerned headline, two labels on one baseline, a repeated layer name, a switched-off draft |
 | `outlined-title.svg` | Full-frame title | text converted to outlines (the fallback road) beside one live text layer |
 | `scorebug.svg` | Scoreboard | every field type the import can propose - number, countdown, picture, `f:` prefix, two labels placed apart on one baseline |

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!-- The catalog's "Sticker Strap" lower third, rebuilt as a layered Illustrator file.
+     Layers panel, top to bottom: Title, Name, Accent tab, Panel, Shadow right, Shadow bottom -
+     all inside one layer called "Lower third". The two text layers are LIVE text. "Panel" is a
+     plain rectangle with a 4 pt stroke, which is what lets NoaCG widen it. The hard shadow is
+     two thin rectangles and NOT a copy of the panel: the import takes the smallest rectangle
+     around a line of text as that text's box, so nothing else may sit behind the words.
+     Exported with File > Export > Export As > SVG: Styling Internal CSS, Font SVG, Images Embed,
+     Object IDs Layer Names, Decimal 2, Minify off, Responsive off (so the file keeps its
+     1920 x 1080 size when it is opened again). -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="1920px" height="1080px" viewBox="0 0 1920 1080" style="enable-background:new 0 0 1920 1080;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#111111;}
+	.st1{fill:#FFF8E7;stroke:#111111;stroke-width:4;stroke-miterlimit:10;}
+	.st2{fill:#FF5C39;stroke:#111111;stroke-width:4;stroke-miterlimit:10;}
+	.st3{font-family:'Archivo-Black';}
+	.st4{font-size:50px;}
+	.st5{letter-spacing:-1;}
+	.st6{fill:#444444;}
+	.st7{font-family:'Archivo-Bold';}
+	.st8{font-size:26px;}
+</style>
+<g id="Lower_x20_third" data-name="Lower third">
+	<rect id="Shadow_x20_bottom" data-name="Shadow bottom" x="150" y="986" class="st0" width="700" height="16"/>
+	<rect id="Shadow_x20_right" data-name="Shadow right" x="842" y="858" class="st0" width="8" height="144"/>
+	<rect id="Panel" x="140" y="848" class="st1" width="700" height="142"/>
+	<rect id="Accent_x20_tab" data-name="Accent tab" x="118" y="824" transform="matrix(0.9781 0.2079 -0.2079 0.9781 179.0 -10.6)" class="st2" width="44" height="44"/>
+	<text id="Name" transform="matrix(1 0 0 1 182 915)" class="st0 st3 st4 st5">Alex Rivera</text>
+	<text id="Title" transform="matrix(1 0 0 1 184 960)" class="st6 st7 st8">Contestant · Helsinki</text>
+</g>
+</svg>

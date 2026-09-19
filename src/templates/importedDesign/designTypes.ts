@@ -385,6 +385,11 @@ export interface DesignSvgFont {
   family: string;
   /** A bundled face whose family name matches — its @font-face ships with the template. */
   fontId?: string;
+  /** The weight the artwork's own NAME for the face states ("Archivo-Black" is 900), when it
+   *  states one. Illustrator says the weight nowhere else, so a bundled variable file declared
+   *  under that name has to be pinned to it (svg.ts `aliasFontFaceCss`). Optional and additive:
+   *  a design saved before it existed declares the face as it always did. */
+  weight?: number;
   /** A fetched (Google) or uploaded face, embedded as an asset like any custom font.
    *  Its `family` must equal the SVG's family name for the @font-face to apply. */
   customFont?: CustomFont;
