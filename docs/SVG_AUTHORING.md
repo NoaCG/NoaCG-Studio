@@ -9,7 +9,7 @@ This page is for the person holding the design app. The engineering contract is
 
 **Where to drop it:** `/app` -> **New graphic** -> **Import graphic** -> the drop zone.
 
-**Try it first.** Twenty-three files in [`svg-samples/`](svg-samples/README.md) are ready to drop -
+**Try it first.** Twenty-four files in [`svg-samples/`](svg-samples/README.md) are ready to drop -
 one for almost every kind of graphic the catalog has, and each one teaches a single thing about
 importing. The README there says which, file by file, and they open in Illustrator so you can keep
 working on them.
@@ -590,6 +590,107 @@ Do not run *Path > Object to Path* on text you want editable.
 `<flowRoot>`, a draft SVG element no browser ever implemented, so it is invisible in every
 browser-based renderer. That includes NoaCG's preview and every export target. The import says so
 when it sees one. Select it and use *Text > Convert to Text* before exporting.
+
+## 6b. A worked example: the Sticker lower third, drawn in Illustrator
+
+The catalog's "Sticker Strap" lower third is a paper label with a black outline, a hard offset
+shadow and an orange tab on its corner. This section rebuilds it by hand in Illustrator
+and imports it. The finished file is
+[`svg-samples/sticker-lower-third.svg`](svg-samples/sticker-lower-third.svg). Open it beside
+these steps. `e2e/import-svg-sticker-sample.spec.ts` walks that exact file through the import
+wizard, so what this section promises is what the importer does.
+
+### Draw it
+
+1. *File > New*, 1920 x 1080 px, RGB. The artboard is the video frame.
+2. In the Layers panel, rename the layer to `Lower third`. Everything below goes inside it.
+3. Draw six objects. Rename each one in the Layers panel as you make it, by double-clicking its
+   name. The order in the panel is the paint order, top row in front:
+
+| Layers panel, top to bottom | What you draw | Values |
+|---|---|---|
+| `Title` | Point type: `Contestant · Helsinki` | Archivo Bold, 26 pt, fill `#444444` |
+| `Name` | Point type: `Alex Rivera` | Archivo Black, 50 pt, fill `#111111`, tracking -20 |
+| `Accent tab` | Rectangle 44 x 44, rotated 12 degrees, over the panel's top-left corner | fill `#FF5C39`, stroke `#111111` 4 pt |
+| `Panel` | Rectangle 700 x 142, its top-left corner at x 140, y 848 | fill `#FFF8E7`, stroke `#111111` 4 pt |
+| `Shadow right` | Rectangle 8 x 144, its top-left corner at x 842, y 858 | fill `#111111`, no stroke |
+| `Shadow bottom` | Rectangle 700 x 16, its top-left corner at x 150, y 986 | fill `#111111`, no stroke |
+
+Five things in that table are the whole lesson.
+
+- **The two text objects are live point type.** Click once with the Type tool and type. Do not
+  drag a text box (that makes area type, which exports as a fixed-width block), and do not run
+  *Type > Create Outlines*. A live text object becomes a field. Outlines become a drawing.
+- **The layer names are the field labels.** The operator's form will say "Name" and "Title"
+  because those are the names in the Layers panel. `<Rectangle>` would read as an unnamed layer.
+- **`Panel` is a plain rectangle, and it is the only shape behind the words.** The import takes
+  the smallest rectangle around a line of text as that text's box, and that box is what widens
+  when a longer name arrives. The outline is a stroke on the panel, so it widens with it.
+- **The hard shadow is two thin rectangles, not a copy of the panel.** A copy of the panel
+  shifted 10 px would also sit behind the words, and the import could not tell which of the two
+  is the box. Two strips never sit behind the text, and each one follows the panel by a rule of
+  its own. `Shadow right` starts where the panel's right edge ends, so it MOVES when that edge
+  moves. `Shadow bottom` runs the panel's full width and is tucked 6 px under its bottom edge,
+  so it reaches both of the panel's sides and WIDENS with it.
+- **Keep a full-width strip close to the panel's sides.** A shape widens with the box only when
+  both of its sides sit within 2% of the box's width from the box's own sides. The panel is
+  about 700 px wide, so that is 14 px, and the strip's 10 px offset is inside it.
+
+Set the text against the panel's left edge, as the table does. Text set against a left edge
+tells the import the label widens to the right, away from the frame edge you composed it on.
+
+Do not use Illustrator's *Effect > Stylize > Drop Shadow* for this. It exports as a filter or a
+bitmap, and neither can stretch with a panel.
+
+### Export it
+
+*File > Export > Export As...*, format SVG, tick *Use Artboards*, then in the SVG Options
+dialog:
+
+| Setting | Value |
+|---|---|
+| Styling | Internal CSS |
+| Font | SVG |
+| Images | Embed |
+| Object IDs | Layer Names |
+| Decimal | 2 |
+| Minify | off |
+| Responsive | off |
+
+*Object IDs: Layer Names* is the one that matters most. Without it the layers export as
+`Layer_1` and the labels are lost. Do not use *Save As > SVG*: it wraps the drawing in
+Illustrator's own editing data, and the import has to report and strip it.
+
+Open the exported file in a text editor once. You should find your layer names as `id`
+attributes. A space is written `_x20_`, so `Accent tab` reads `id="Accent_x20_tab"`, and the
+original spelling sits beside it in `data-name`. The import reads both.
+
+### Import it
+
+1. `/app` > **New graphic** > **Import graphic**, and drop the file.
+2. The first screen lists what it found in the file.
+3. On the Fields step both rows arrive ticked and are labelled Name and Title. The box is
+   headed Panel, and its answer to "when the text is too long" is already "gets wider, then
+   taller". Nothing has to be chosen.
+4. Pick an in and out animation, name the graphic, and create it.
+5. In the editor's Data tab, type a long name and press Update. The label widens to the right,
+   the bottom shadow widens with it, the right shadow moves with its edge, and the tab stays on
+   its corner.
+
+### Fonts
+
+Archivo is one of the bundled families, so both weights resolve by name when the file is
+dropped. Illustrator writes them as `Archivo-Black` and `Archivo-Bold`, and the import reads
+those as Archivo at weight 900 and 700. A font NoaCG does not bundle is reported when the file is
+dropped, and the import's Fonts section lets you upload the font file so it ships with the graphic.
+
+### Taking it further
+
+The same file shape carries a quiz board or a score strip. The layer names change, and the
+moments are layers you switch off with the eye icon. Section 5b lists the exact names: `Question`,
+`Answer A`, `A selected`, `A correct` and `A wrong` for a quiz, and `Player 1`, `Score 1` and
+`Flash 1` for a score. [`svg-samples/quiz-board.svg`](svg-samples/quiz-board.svg) is a finished
+quiz drawn that way.
 
 ## 7. Check this before you drop the file
 

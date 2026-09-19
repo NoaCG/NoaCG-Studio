@@ -6,6 +6,9 @@ import { ss14 } from '../startingSoon/ss14';
 import { ss15 } from '../startingSoon/ss15';
 import { ss16 } from '../startingSoon/ss16';
 import { ss17 } from '../startingSoon/ss17';
+import { ss22 } from '../startingSoon/ss22';
+import { ss23 } from '../startingSoon/ss23';
+import { ss24 } from '../startingSoon/ss24';
 import { optionalLine, type GraphicType } from './graphicType';
 
 export const signOffType: GraphicType = {
@@ -125,6 +128,35 @@ export const signOffType: GraphicType = {
         next: 'The next session begins Friday at 20:00',
       },
       create: (_type, options) => ss16.create(options),
+    },
+    // The three GAME-SHOW cells (sticker, showtime, arcade). Each was designed FOR this type, as
+    // one graphic of the quiz show kit (packs.ts, 'quiz-show').
+    {
+      id: 'ss22',
+      name: 'Sticker Sign-off',
+      description: 'A big paper label on a halftone accent field: closing line on an ink strip, a heavy thank-you, the next broadcast.',
+      styleTag: 'sticker',
+      palette: paletteById('tangerine'),
+      fontId: 'archivo',
+      create: (_type, options) => ss22.create(options),
+    },
+    {
+      id: 'ss23',
+      name: 'Showtime Sign-off',
+      description: 'A bulb-lit marquee plaque on a burgundy curtain: billing caps, a serif thank-you, a lit star.',
+      styleTag: 'showtime',
+      palette: paletteById('marquee'),
+      fontId: 'playfair-display',
+      create: (_type, options) => ss23.create(options),
+    },
+    {
+      id: 'ss24',
+      name: 'Arcade Sign-off',
+      description: 'A pixel-cornered neon panel on a scanline screen: mono closing line, squared-caps thank-you, a row of pixels.',
+      styleTag: 'arcade',
+      palette: paletteById('neon-cyan'),
+      fontId: 'saira',
+      create: (_type, options) => ss24.create(options),
     },
   ],
 };

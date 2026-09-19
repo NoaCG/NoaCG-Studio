@@ -116,7 +116,9 @@ belong where specs are written rather than in the contract every session loads.
   face's own metrics. **A local pass is no evidence here**, because this machine only ever
   rasterises one of the two platforms. So: bound it, decide which DIRECTION is the defect (here a
   gap SMALLER than the inset is text eating its own margin, while larger is only unspent slack,
-  so only the small side is asserted hard), and mutation-test the bound - otherwise it is a number
+  so only the small side is asserted hard - and "the room was spent" is asked as whether one more
+  pixel of type would have fitted, because a hinting renderer sizes glyphs at whole pixels and the
+  leftover is then a step of the size, not a number to bound), and mutation-test the bound - otherwise it is a number
   that happened to hold rather than a test. The same caution applies to any expected value derived
   from `getComputedTextLength`, a text node's `getBoundingClientRect`, or a font-size the fit
   chose.

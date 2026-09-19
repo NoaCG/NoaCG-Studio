@@ -363,7 +363,7 @@ for (const t of types) for (const id of t.designs) typeOf.set(id, t);
 const catsWithType = new Set(types.map((t) => t.category));
 const orphans = built.filter((v) => !reachable.has(v.id));
 const mechanism = (v) =>
-  ['editorial', 'cinematic', 'sticker', 'showtime', 'arcade'].includes(v.styleTag) ? 'A. a Browse-only family no kit resolves'
+  ['editorial', 'cinematic'].includes(v.styleTag) ? 'A. a Browse-only family no kit resolves'
     : typeOf.has(v.id) ? 'B. a sibling of a type whose family cell another design holds'
       : !catsWithType.has(v.category) ? 'C. a category with no graphic type at all'
         : 'D. a type-less design no pack lists as an extra';

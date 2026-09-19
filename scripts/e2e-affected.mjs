@@ -277,6 +277,14 @@ const MAP = [
   // family tokens and palettes ride along because those nine designs are their only readers.
   [/^src\/templates\/(types\/(quizShow|duelScore)\.ts|scoreboards\/(duelShared|sb2[678])\.ts|lowerThirds\/lt(68|69|70)\.ts)$/, ['quiz-show.spec.ts']],
   [/^src\/model\/themeTokens\.ts$/, ['quiz-show.spec.ts']],
+  // The rest of the Quiz Show kit: five more designs per game-show family and the pack that
+  // gathers all eight. quiz-show.spec.ts holds the kit's resolution (three looks and no other).
+  [/^src\/templates\/(infoCards\/card8[456]|infographics\/ig4[012]|infographics\/pack4\/gameShowFacts|cornerBug\/bug(38|39|40)|gameTimers\/gt0[789]|startingSoon\/ss2[234]|shared\/gameShowShapes)\.ts$/, ['quiz-show.spec.ts']],
+  // THE WORKED ILLUSTRATOR EXAMPLE. docs/SVG_AUTHORING.md section 6b is written around this one
+  // file, and the spec walks it through the real import wizard - so a change to the sample, or to
+  // the importer that reads it, has to re-prove what the guide promises.
+  [/^docs\/svg-samples\/sticker-lower-third\.svg$/, ['import-svg-sticker-sample.spec.ts']],
+  [/^src\/(assets\/svgImport\.ts|templates\/importedDesign\/)/, ['import-svg-sticker-sample.spec.ts']],
   // The four types whose MACHINE the per-graphic control page is generated from. A type file is
   // where a state, an arrow or a control label is authored, and control-panel-types.spec.ts is
   // the only place the resulting BUTTONS and their greying are driven on that page - so an edit

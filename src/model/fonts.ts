@@ -27,7 +27,9 @@
  *   bulbs along the edge, and a high-contrast serif for the words.
  * - **arcade** - the cabinet screen. Stair-stepped pixel corners, a neon rim, scanlines, and
  *   a squared technical face with mono labels.
- * Like editorial and cinematic they are BROWSE families: no kit resolves into them.
+ * One kit resolves into them, the Quiz Show kit (templates/packs.ts): eight graphic types ship a
+ * design in each, which is a whole two-player show. Every other pack reaches for types these
+ * families do not draw, so the kit picker offers them for that one kit and no other.
  */
 export type StyleTag =
   | 'minimal' | 'sport' | 'glass' | 'noacg' | 'editorial' | 'cinematic'

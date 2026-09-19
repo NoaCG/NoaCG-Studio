@@ -44,6 +44,9 @@ import { bug34 } from './bug34';
 import { bug35 } from './bug35';
 import { bug36 } from './bug36';
 import { bug37 } from './bug37';
+import { bug38 } from './bug38';
+import { bug39 } from './bug39';
+import { bug40 } from './bug40';
 
 export const CORNER_BUGS: TemplateVariant[] = [
   // The general logo bug — a mark and a caption (type: sponsor-bug).
@@ -100,6 +103,10 @@ export const CORNER_BUGS: TemplateVariant[] = [
   bug35, // Venue Chip — sport
   bug36, // Quiet Location Chip — minimal
   bug37, // House Temp — the weather pack's corner temperature bug (noacg)
+  // The three game-show families' logo-only marks (type: logo-bug)
+  bug38, // Sticker Mark - the mark on a small paper label (sibling lt68)
+  bug39, // Showtime Mark - the mark on a small marquee plaque (sibling lt69)
+  bug40, // Arcade Mark - the mark in a pixel-cornered neon frame (sibling lt70)
 ];
 
 export function cornerBugById(id: string): TemplateVariant | undefined {
