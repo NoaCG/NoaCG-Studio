@@ -42,15 +42,18 @@ The rule is scoped twice, and both scopes are load-bearing:
 - **`.wz-wizard`** keeps the ten-odd dialogs that borrow `.wz-header` - Settings, Save, Export,
   Community - on their roomier `18px 28px`. They are dialogs and should read as dialogs. The
   full-screen wizard is a PAGE, which is the whole argument for its header being a topbar.
-- **`min-width: 769px`** keeps `mobile.css`'s `.wz-header { padding: 12px 14px }` winning on a
-  phone, which a bare `.wz-wizard .wz-header` would outrank on specificity whatever the file order.
+- **`mobile.css` names `.wz-wizard` too**, so the phone's `12px 14px` still wins: equal
+  specificity, and that file is imported after this one. It was a `min-width: 769px` wrapper
+  first, which works at every width a test asks about and leaves a gap between the two queries -
+  at a fractional viewport width of 768.5, from a zoom or a device pixel ratio, neither matches
+  and the header falls back to the dialog padding. Checked at 375, 768 and 769px.
 
 Nothing states a background: `.wz-modal` is already `--bg-2`, the same colour the topbar paints,
 and a second place holding one colour is how two surfaces drift apart later.
 
 ## Route (under a minute)
 
-1. `npm run dev:worktree`, open `/app`, and go **Home** (the button in the wizard header).
+1. `npm run dev`, open `/app`, and go **Home** (the button in the wizard header).
 2. Look at the NoaCG lockup in the top-left corner, then press **+ New graphic**.
    - **Before:** the logo hopped down and to the right as the bar got taller.
    - **Now:** it does not move. Press **Home** and **+ New graphic** a few times in a row - the
@@ -76,8 +79,9 @@ to 134px - so the step has more air, not less.
 
 ## What changed
 
-`src/styles/wizard-and-dialogs.css` adds one `@media (min-width: 769px)` block scoping the topbar's
-padding and a 14px gap to `.wz-wizard .wz-header`, plus the Feedback button's own size back. The
-reasoning is commented there. `e2e/wizard-shell.spec.ts` pins it: the two bars must report the same
-height and the same logo position, and a Settings dialog header must still be `18px 28px` - so a
-later change that drops the scope fails rather than silently reshaping every dialog.
+`src/styles/wizard-and-dialogs.css` gives `.wz-wizard .wz-header` the topbar's padding and a 14px
+gap, and hands the Feedback button its own size back; `src/styles/mobile.css` names the same
+selector so a phone still wins. The reasoning is commented in both. `e2e/wizard-shell.spec.ts` pins
+it: the two bars must report the same height and the same logo position, and a Settings dialog
+header must still differ from the wizard's - so a later change that drops the `.wz-wizard` scope
+fails rather than silently reshaping every dialog in the app.

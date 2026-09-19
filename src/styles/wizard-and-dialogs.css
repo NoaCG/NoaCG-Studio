@@ -67,11 +67,16 @@
    inside the same `.brand-home`, so taking the topbar's `10px 16px` lands the logo on the
    identical x and y and the bar on the identical 53px. Not approximately: to the pixel.
 
-   IT IS SCOPED TWICE, and both scopes are load-bearing. `.wz-wizard` keeps the ten-odd
-   dialogs that borrow `.wz-header` (Settings, Save, Export, Community…) on their roomier
-   `18px 28px` — they are dialogs and should read as dialogs. And `min-width: 769px` keeps
-   mobile.css's `.wz-header { padding: 12px 14px }` winning on a phone, which a bare
-   `.wz-wizard .wz-header` would outrank on specificity whatever the file order.
+   THE `.wz-wizard` SCOPE IS LOAD-BEARING: it keeps the ten-odd dialogs that borrow
+   `.wz-header` (Settings, Save, Export, Community…) on their roomier `18px 28px` — they are
+   dialogs and should read as dialogs. e2e/wizard-shell.spec.ts fails if it is ever dropped.
+
+   THE PHONE IS HANDLED IN mobile.css, NOT BY A `min-width` HERE. This rule outranks that
+   file's `.wz-header { padding: 12px 14px }` on specificity, so mobile.css names `.wz-wizard`
+   too and wins on source order (it is imported after this file). A `min-width: 769px` wrapper
+   here would have done the job at every width a test asks about and left a gap between the two
+   queries — at a fractional viewport width of 768.5, from a zoom or a device pixel ratio,
+   neither matches and the header falls back to the dialog padding.
 
    THE GAP IS 14px, NOT THE TOPBAR'S 6. `.topbar` drops to 6px below 1400 because the EDITOR
    shell's bar is crowded there; this bar has ~500px of slack, and copying a crowding
@@ -83,14 +88,12 @@
    The step gains the 16px, which is the safe direction for e2e/wizard-entry-fit.spec.ts: it
    is more room at 1366x768 and 1440x900, and the 1280x500 window it requires to overflow
    still does. */
-@media (min-width: 769px) {
-  .wz-wizard .wz-header { padding: 10px 16px; gap: 14px; }
-  /* The one control on BOTH bars. `.fb-open` asks for 12px (feedback.css) and lost to
-     `.wz-wizard button`'s 15px above, so Feedback was 3px bigger here than on Home. Scoped to
-     the header, so nothing else in the wizard changes; it is not the tallest child, so the
-     53px stands. */
-  .wz-wizard .wz-header .fb-open { font-size: 12px; padding: 4px 9px; }
-}
+.wz-wizard .wz-header { padding: 10px 16px; gap: 14px; }
+/* The one control on BOTH bars. `.fb-open` asks for 12px (feedback.css) and lost to
+   `.wz-wizard button`'s 15px above, so Feedback was 3px bigger here than on Home. Scoped to
+   the header, so nothing else in the wizard changes; it is not the tallest child, so the
+   53px stands. */
+.wz-wizard .wz-header .fb-open { font-size: 12px; padding: 4px 9px; }
 .wz-header {
   display: flex;
   align-items: center;

@@ -34,22 +34,25 @@
    opens a section, and it already lights itself — an amber row around an amber button is two
    nested highlights for one target, and the reader cannot tell which owns the click. Over a
    shortcut the row falls back to the plain grey below, which still says "this button belongs
-   to this row" without arguing with it. */
+   to this row" without arguing with it.
+   THE KEYBOARD IS THE SAME ANSWER, which is why it shares this rule. There is no project-wide
+   focus-visible rule, so tabbing to the body button drew the browser's default ring around the
+   inner 948px button — exposing exactly the nested-card shape the row's design exists to hide.
+   The ring is routed to the row's own border and fill instead, below. The two shortcuts keep
+   their default rings: a ring around one discrete button is right there. */
 .wz-continue-row:hover { border-color: var(--border-strong); }
-.wz-continue-row:has(> .wz-continue-card:hover) {
-  border-color: var(--accent);
-  background: var(--bg-2);
-}
-/* THE KEYBOARD GETS THE SAME ANSWER. There is no project-wide focus-visible rule, so tabbing
-   to the body button drew the browser's default ring around the inner 948px button — which
-   exposes exactly the nested-card shape the row's whole design exists to hide. The ring is
-   routed to the row's own border and fill instead. The two shortcuts keep their default
-   rings: a ring around one discrete button is right there. */
-.wz-continue-card:focus-visible { outline: none; }
+.wz-continue-row:has(> .wz-continue-card:hover),
 .wz-continue-row:has(> .wz-continue-card:focus-visible) {
   border-color: var(--accent);
   background: var(--bg-2);
 }
+/* DROPPING THE RING IS ITSELF BEHIND `:has()`, and that is the whole point of writing it as a
+   descendant of the row rather than as a rule of its own. Where `:has()` is unsupported neither
+   this nor the rule above applies, so the button keeps the browser's own ring — ugly, but a
+   focus indicator. A bare `.wz-continue-card:focus-visible { outline: none }` would still have
+   applied there and left a keyboard user with NO indicator at all, which is the one outcome
+   this must not have. */
+.wz-continue-row:has(> .wz-continue-card:focus-visible) > .wz-continue-card { outline: none; }
 /* The body button gives its own chrome up to the row: no border, no lift, no background of
    its own. It is still the whole clickable area left of the shortcuts. */
 .wz-continue-card {

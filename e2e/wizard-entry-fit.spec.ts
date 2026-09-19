@@ -371,14 +371,45 @@ test('the Home row answers a hover like an entry card, and its shortcuts do not'
   // OVER A SHORTCUT THE ROW STANDS DOWN. A hover says what a CLICK will do: a shortcut opens a
   // section rather than Home, and it already answers in amber for itself - an amber row wrapped
   // around an amber button is two highlights for one target and neither owns the click.
+  // Both read in ONE evaluate, so the row and the shortcut are sampled in the same frame rather
+  // than either side of a transition tick.
   await page.hover('[data-entry="continue-graphics"]');
   await expect
-    .poll(async () => {
-      const row = await styleOf('.wz-continue-row');
-      const shortcut = await styleOf('[data-entry="continue-graphics"]');
-      return { rowAmber: row.border === amber, rowFill: row.background, shortcut: shortcut.border };
-    })
+    .poll(async () =>
+      page.evaluate((amberValue) => {
+        const row = getComputedStyle(document.querySelector('.wz-continue-row')!);
+        const shortcut = getComputedStyle(document.querySelector('[data-entry="continue-graphics"]')!);
+        return {
+          rowAmber: row.borderColor === amberValue,
+          rowFill: row.backgroundColor,
+          shortcut: shortcut.borderColor,
+        };
+      }, amber),
+    )
     .toEqual({ rowAmber: false, rowFill: resting.background, shortcut: amber });
+
+  // THE KEYBOARD GETS THE SAME ANSWER, and the inner button's own ring goes. It is ARRIVED AT
+  // BY A REAL TAB PRESS: `.focus()` on the button lands there without the keyboard modality, so
+  // `:focus-visible` never matches and every assertion below would pass against the resting
+  // state. Counting Tab presses from the top does not work either - the wizard is an overlay and
+  // HOME STAYS MOUNTED UNDERNEATH IT, so ten of the page's twenty-two focusables belong to the
+  // page behind and the count moves with whatever is saved. Seeding focus on the control
+  // immediately before it and pressing Tab once is stable whatever is behind. (That the overlay
+  // does not trap focus at all is a separate, pre-existing thing.)
+  await page.locator('.wz-header .gallery-close').evaluate((el: HTMLElement) => el.focus());
+  await page.keyboard.press('Tab');
+  expect(
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.entry ?? null),
+  ).toBe('continue');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const row = getComputedStyle(document.querySelector('.wz-continue-row')!);
+        const body = getComputedStyle(document.querySelector('[data-entry="continue"]')!);
+        return { border: row.borderColor, background: row.backgroundColor, outline: body.outlineStyle };
+      }),
+    )
+    .toEqual({ border: amber, background: fill, outline: 'none' });
 });
 
 test('the video strip is one line, quieter than any shipped mode', async ({ page }) => {

@@ -43,7 +43,7 @@ answer was unified, never the weighting.
 
 ## Route (under a minute)
 
-1. `npm run dev:worktree`, open `/app`. The wizard's entry step is the first screen.
+1. `npm run dev`, open `/app`. The wizard's entry step is the first screen.
 2. The **Home** row only appears when there is saved work. If it is missing, make any graphic
    first (Start from a template, pick anything, Finish), then press **+ New graphic**.
 3. Hover the left part of the Home row - the ⌂ glyph, "Home", or its grey line.
@@ -73,6 +73,9 @@ argument: the two shortcut buttons ride inside the row, so the row rising takes 
 
 ## What changed
 
-`src/styles/wizard-entry.css`: `.wz-continue-row:has(> .wz-continue-card:hover)` carries the amber
-answer, the plain `:hover` keeps the grey for the shortcut case, and a matching `:focus-visible`
-pair routes the keyboard ring to the row. The reasoning is commented there.
+`src/styles/wizard-entry.css`: one `:has()` rule carries the amber answer for both `:hover` and
+`:focus-visible` on the body button, the plain `:hover` keeps the grey for the shortcut case, and
+the rule that drops the inner ring sits behind `:has()` too - so where `:has()` is unsupported the
+browser's own ring stays rather than a keyboard user being left with no indicator at all. The
+reasoning is commented there. `e2e/wizard-entry-fit.spec.ts` pins all four states against the
+cards' own answer rather than a colour literal.

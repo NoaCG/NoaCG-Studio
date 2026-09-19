@@ -215,6 +215,13 @@ test('the wizard header and the Home topbar are the same bar, to the pixel', asy
     });
 
   const inWizard = await bar();
+  // Read while the wizard is still on screen - `.wz-wizard` is gone the moment Home is pressed,
+  // and a null here would make the dialog comparison at the end pass against nothing.
+  const wizardPad = await page.evaluate(
+    () => getComputedStyle(document.querySelector('.wz-wizard .wz-header')!).padding,
+  );
+  expect(wizardPad).toBeTruthy();
+
   await page.getByTestId('wz-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
   const onHome = await bar();
@@ -225,13 +232,15 @@ test('the wizard header and the Home topbar are the same bar, to the pixel', asy
 
   // And the wizard's header is the one that moved. The ten-odd DIALOGS that borrow `.wz-header`
   // keep the roomier dialog padding, which is what the `.wz-wizard` scope on the rule protects -
-  // without this, a later "simplify" that drops the scope passes the check above and silently
-  // reshapes Settings, Save and Export too.
+  // without it, a later "simplify" that drops the scope passes the check above and silently
+  // reshapes Settings, Save and Export too. Asserted as a DIFFERENCE rather than against a
+  // literal `18px 28px`: dropping the scope makes the two equal, which is the defect, while
+  // a deliberate re-spacing of dialogs is somebody's decision and not this test's business.
   await page.getByTestId('home-settings').click();
-  const dialog = await page.evaluate(
+  const dialogPad = await page.evaluate(
     () => getComputedStyle(document.querySelector('.settings-modal .wz-header')!).padding,
   );
-  expect(dialog).toBe('18px 28px');
+  expect(dialogPad).not.toBe(wizardPad);
 });
 
 test('a cold entry from the landing page paints nothing under the wizard', async ({ page }) => {
