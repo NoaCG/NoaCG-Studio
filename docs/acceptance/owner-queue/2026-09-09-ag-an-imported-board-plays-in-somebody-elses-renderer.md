@@ -61,6 +61,6 @@ once the renderer is built.
 
 ## If you disagree
 
-Say so and A7 goes back to GAP with your note as the reason. It was closed on a machine's reading
+Say so and this goes back to GAP with your note as the reason. It was closed on a machine's reading
 of the renderer's DOM plus a controlled comparison; the taste call on what those states look like
 is yours.

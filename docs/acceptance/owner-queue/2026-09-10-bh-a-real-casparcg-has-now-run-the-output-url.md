@@ -90,8 +90,8 @@ channel stays empty. The product cannot tell: the one command it sends succeeded
 That is exactly what the 2.3.2 run did, and the isolation is the pair of frames either side of it:
 the SAME production, same on-air state, sent by hand as `https://noacg.studio/output?production=…`,
 airs on the same server a minute later. So the Connect path is fine and the dev bundle is what 2.3.x
-chokes on. On 2.5.0 (Chromium 142) the button's dev-server URL renders too, which is how beat A6
-finished end to end there: press, take, score, and the graphic is up.
+chokes on. On 2.5.0 (Chromium 142) the button's dev-server URL renders too, which is how
+CasparCG Connect finished end to end there: press, take, score, and the graphic is up.
 
 **Nobody has pressed that button on `https://noacg.studio` yet.** These runs were all from a
 `localhost` page, which Chrome does not gate. From a public origin the browser's Local Network

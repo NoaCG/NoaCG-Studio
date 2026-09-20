@@ -438,6 +438,40 @@ test('Getting started points a coding-agent owner at the CLI', async ({ page }) 
   await expect(callout).not.toContainText('npx');
 });
 
+// PRINTING. The page is a dark one and a browser drops backgrounds by default, so without the
+// print block in src/docs/docs.css every word prints as near-white ink on white paper and the
+// sheet comes out blank. That block is pure CSS - no gate reads it, and deleting it would break
+// nothing a build can see - so this is what stands between it and a silent regression. Until
+// 2026-09-20 the cover rode on a spec for two dated handout sections; they are gone and the
+// print block is not, so the assertion is kept and pointed at the block itself.
+test('the docs page prints as it reads, in ink rather than in white', async ({ page }) => {
+  await page.goto('/docs');
+  await page.emulateMedia({ media: 'print' });
+
+  // The conversion: dark text on a white page. `--paper` is the body colour and `--void` the
+  // background, and both are redeclared for print.
+  const ink = await page.evaluate(() => {
+    const cs = getComputedStyle(document.body);
+    return { color: cs.color, background: cs.backgroundColor };
+  });
+  expect(ink).toEqual({ color: 'rgb(0, 0, 0)', background: 'rgb(255, 255, 255)' });
+
+  // The nav is a screen affordance and its grid track goes with it, or every sheet carries an
+  // empty column down the left.
+  await expect(page.locator('.doc-nav')).toBeHidden();
+
+  // And the whole page prints, rather than one section of it. Naming a section in the address
+  // must not select it: that rule existed for the handout sheets and was removed with them.
+  // The emulation is re-stated after the navigation on purpose - if it ever stopped persisting,
+  // dropping it would leave this half asserting screen visibility and passing for nothing.
+  await page.goto('/docs#casparcg');
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('#claude-code')).toBeVisible();
+  await expect(page.locator('#getting-started')).toBeVisible();
+
+  await page.emulateMedia({ media: null });
+});
+
 test('the docs page routes back into the product', async ({ page }) => {
   await page.goto('/docs');
   // At least one door into the studio, and it opens the creation wizard like the landing's CTAs.

@@ -622,7 +622,7 @@ test('an email domain is read strictly, so a malformed address matches no plan',
   // Every one of these must be null. A domain guess that is WRONG hands a stranger a plan.
   for (const bad of [
     null, undefined, '', 'northvale.edu', '@northvale.edu', 'student@', 'student@@northvale.edu',
-    'a@b@northvale.edu', 'student@northvale', 'student@.fi', 'student@northvale.', 'student@.',
+    'a@b@northvale.edu', 'student@northvale', 'student@.edu', 'student@northvale.', 'student@.',
   ]) {
     assert.equal(emailDomain(bad), null, `${JSON.stringify(bad)} must not resolve to a domain`);
   }
