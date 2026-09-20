@@ -118,6 +118,7 @@ import {
   verbAired,
   withLiveCue,
   type ControlEventRow,
+  type ControlFollowStatus,
   type ControlSendItem,
   type LiveCueMap,
   type ResolvedControlShow,
@@ -315,6 +316,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  answered, and never written by anything this operator does. The boot recovery below is
    *  keyed on it for exactly that reason. */
   const [bootLive, setBootLive] = useState<LiveCueMap | null>(null);
+  /**
+   * HAS THE LIVE LOG CONNECTION EVER JOINED, and what Realtime last said about it.
+   *
+   * `followControlLog` has reported this since it was written, for a surface willing to show
+   * it - and until now no surface asked. That is why a production whose channel never joins
+   * looks exactly like a quiet one: commands still arrive, on the durable road, whenever the
+   * 30-second poll comes round, and nothing on screen says the fast road is missing.
+   *
+   * It is the question three hosted failures on 2026-09-20 left open and nobody could answer
+   * from the artifact, because the answer was never rendered. Null until the follower reports
+   * anything, which is also the offline and unpublished case - there is no channel to judge.
+   */
+  const [follow, setFollow] = useState<ControlFollowStatus | null>(null);
   /** Each graphic's last reported MACHINE state, keyed by pool name. Two sources converge on
    *  the same answer: the local PROGRAM monitor's own state replies (fresh — the stage posts
    *  one after every applied command), and the wire's {t:'live'} report rows, which also cover
@@ -929,6 +943,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         showId: show.id,
         from: resolved.lastEventId,
         tail,
+        // Reported on every status change AND on every poll tick, so this stays true rather
+        // than recording only the first answer.
+        onStatus: (s) => {
+          if (alive) setFollow(s);
+        },
         // THE FAST ROAD. The same verbs, broadcast by the database on the production's private
         // topic and here before their rows are - which is what moves this page's PROGRAM monitor
         // when the press came from another operator's phone.
@@ -2249,6 +2268,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       rendererFresh={rendererFresh}
       outputSeenAt={outputSeenAt}
       liveLayers={liveLayers}
+      follow={follow}
       onHome={() => navigate({ view: 'home', section: null })}
       onBack={() => navigate({ view: 'home', section: 'productions' })}
       onAllOut={() => void outAll()}
@@ -3223,6 +3243,7 @@ function ProductionShell({
   rendererFresh,
   outputSeenAt,
   liveLayers,
+  follow,
   sub,
   onTab,
   onHome,
@@ -3240,6 +3261,7 @@ function ProductionShell({
   rendererFresh: boolean;
   outputSeenAt: string | null;
   liveLayers: { layer: number }[];
+  follow: ControlFollowStatus | null;
   sub: ProductionSub | null;
   /** Back to Playout IN THIS TAB. The workspaces are links now, never calls into here. */
   onTab: () => void;
@@ -3285,6 +3307,19 @@ function ProductionShell({
           {hostedSlug ? '● SHOW' : '○ NOT PUBLISHED'}
         </span>
         <span className="pd-clock mono">{elapsed(now - openedAt)}</span>
+        {/* NOT JOINED, AND ONLY THEN. A healthy production says nothing new here: the line
+            appears when the log's channel has never joined, which is the state that used to
+            be invisible. Commands do still arrive - the durable road polls every 30 s - so
+            this says SLOW rather than broken, and it is deliberately not an error colour. */}
+        {follow && !follow.everJoined && (
+          <span
+            className="pd-mode pd-mode-idle"
+            data-testid="production-follow"
+            title={`The live connection has not joined (last status: ${follow.status || 'none'}). Commands still arrive on the slower road, about every 30 seconds.`}
+          >
+            ○ not joined, polling
+          </span>
+        )}
         {/* The workspaces (docs/INTERACTIVE_PLAYOUT_PLAN.md D6): Playout is the operating
             surface, Data the production's own tables. One shared record underneath — a row
             typed on the Data tab is loadable into a cue the moment you switch back.
