@@ -175,7 +175,8 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'git rev-parse --short HEAD',
       'whether the working tree is clean',
       'last known verification command/result tied to that commit',
-      'Do not run verification during handoff.',
+      // Verification already current is reused, never re-run; a fix made during handoff is verified.
+      'Do not re-run verification that is',
       'Create or update no files',
       // A handoff exists so the NEXT session can judge the work, not obey a list. The why is
       // what makes that judgement possible, and it is the first thing to go when a handoff is
@@ -191,11 +192,13 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'This is a TEST, not an impression.',
       'git merge-base --is-ancestor HEAD main',
       'git merge-base --is-ancestor HEAD origin/main',
-      // Handoff must stay read-only, and must stay OUT of worktree cleanup entirely - the owner
-      // does not want the option raised here, and since 2026-08-30 the cleanup workflow decides
-      // eligibility itself, so a handoff has nothing to add. This marker replaced two that
-      // pinned handoff's own cleanup report, removed 2026-08-08.
-      "Read, don't write.",
+      // Handoff FIXES what it finds (owner ruling 2026-09-20: a session reported a stale local
+      // `main` as the owner's action when one fast-forward would have settled it). Pinned with
+      // its limit, because the two only work together. It must also stay OUT of worktree cleanup
+      // entirely - the owner does not want the option raised here, and since 2026-08-30 the
+      // cleanup workflow decides eligibility itself, so a handoff has nothing to add.
+      'Fix what you find, then report what you fixed.',
+      'never merge into `main` yourself',
       'Never remove a worktree, and never offer to.',
     ],
   ],
