@@ -82,6 +82,11 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
         <h1 className="wz-hero-title">
           Create live graphics. <span>Run the show.</span>
         </h1>
+        {/* A normal link opts into the alpha on a fresh boot and is bookmarkable on any host.
+            It opens the current graphic; it never creates or replaces a document. */}
+        <a className="wz-editor-alpha" href="/app?editor=foundation#/editor-foundation">
+          Open editor <span className="wz-beta-tag">Alpha</span>
+        </a>
         {/* THE SUBTITLE CARRIES BOTH ROUTES TO AIR, and every export target rather than a
             sample of three: naming SPX, CasparCG and OGraf alone read as the whole list, which
             told an OBS, vMix, H2R or LiveOS user this was not for them.

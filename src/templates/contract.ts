@@ -475,6 +475,16 @@ export const PALETTES: Palette[] = [
   { id: 'frost',    name: 'Frost',        styleTags: ['glass'],   accent: '#7dd3fc', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)',  panel: 'rgba(255, 255, 255, 0.10)' },
   { id: 'orchid',   name: 'Orchid',       styleTags: ['glass'],   accent: '#c084fc', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)',  panel: 'rgba(255, 255, 255, 0.10)' },
   { id: 'mint',     name: 'Mint',         styleTags: ['glass', 'minimal'], accent: '#34d399', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)', panel: 'rgba(255, 255, 255, 0.10)' },
+  // Sticker (neo-brutal: an OPAQUE light panel and one ink - the outline and the hard shadow
+  // are drawn in the text colour, so the ink has to be near-black on these two)
+  { id: 'tangerine',name: 'Tangerine',    styleTags: ['sticker'], accent: '#ff5c39', text: '#111111', textDim: 'rgba(17,17,17,0.72)', panel: 'rgb(255, 248, 231)' },
+  { id: 'bubblegum',name: 'Bubblegum',    styleTags: ['sticker'], accent: '#ff7ac3', text: '#14112b', textDim: 'rgba(20,17,43,0.72)', panel: 'rgb(241, 250, 255)' },
+  // Showtime (the marquee: deep warm grounds, and the accent is the BULB colour)
+  { id: 'marquee',  name: 'Marquee',      styleTags: ['showtime'], accent: '#ffc93c', text: '#fff3d6', textDim: 'rgba(255,243,214,0.74)', panel: 'rgb(74, 15, 30)' },
+  { id: 'emerald-room', name: 'Emerald Room', styleTags: ['showtime'], accent: '#f4d58d', text: '#fdf6e3', textDim: 'rgba(253,246,227,0.74)', panel: 'rgb(9, 54, 44)' },
+  // Arcade (the cabinet screen: a near-black violet ground and a neon rim)
+  { id: 'neon-cyan', name: 'Neon Cyan',   styleTags: ['arcade'], accent: '#00f0ff', text: '#e8f7ff', textDim: 'rgba(232,247,255,0.72)', panel: 'rgb(18, 11, 46)' },
+  { id: 'insert-coin', name: 'Insert Coin', styleTags: ['arcade'], accent: '#ff3d9a', text: '#fff6e0', textDim: 'rgba(255,246,224,0.72)', panel: 'rgb(16, 8, 28)' },
 ];
 
 export function paletteById(id: string): Palette {

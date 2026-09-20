@@ -339,6 +339,38 @@ deliberately sparse outside those jobs, and a template pack (`src/templates/pack
 name either as its family until its required cells are filled. An empty cell is work not yet done,
 not a defect.
 
+### The three game-show families
+
+**sticker**, **showtime** and **arcade** were added on 2026-09-19 for a two-player quiz show. Each
+ships eight graphics, which is a whole show: a title card, a lower third, a quiz show board
+(`types/quizShow.ts`), a two-player score (`types/duelScore.ts`), a countdown, a key-facts board,
+a logo bug and a sign-off. The Quiz Show kit (`src/templates/packs.ts`) creates all eight in one
+look, and it is the only pack that resolves in these families. They were drawn to be as far from
+each other as from the six above, so picking one is a real decision.
+
+Their full-frame ground (the sign-off) is the family's too: a flat accent field with ink halftone
+dots, a burgundy curtain lit from above, and a violet screen with scanlines and a horizon glow.
+
+| Token | sticker | showtime | arcade |
+|---|---|---|---|
+| Idea | neo-brutal labels stuck onto the picture | a theatre marquee | an arcade cabinet screen |
+| Accent geometry | a tilted square tab or diamond with the same outline and hard shadow | a lit five-point star; rows of bulbs drawn with one `radial-gradient` | a column of three stacked pixels; a dashed rule of pixels |
+| Panel | OPAQUE light paper, outline `inset 0 0 0 5px var(--text-color)`, tilted ±0.6 to ±0.8° on a painted layer | deep warm ground lit from above, a bulb-coloured keyline inside the edge and a dark surround outside it | near-black violet with scanlines under the type; the rim is a second clipped layer in the accent |
+| Radius | 0 | full pill (`999px`), a stadium when the content is tall | 0. Corners are stair-stepped with a `clip-path`, 6 to 12 px steps |
+| Shadow | hard offset `10px 10px 0 var(--text-color)`, NO blur | soft warm lift `0 12px 34px rgba(0,0,0,0.45)`, accent glow on lit elements | none. The glow is `filter: drop-shadow`, because `clip-path` cuts a box-shadow away |
+| Type | Archivo 900, −0.02 em, sentence case | Playfair Display 800 for words, Oswald caps at 0.22 em for labels | Saira 800 caps with phosphor `text-shadow`; JetBrains Mono labels at 0.12 em |
+| Default palette | Tangerine: cream `rgb(255,248,231)`, ink `#111`, accent `#ff5c39` | Marquee: burgundy `rgb(74,15,30)`, cream text, bulb gold `#ffc93c` | Neon Cyan: `rgb(18,11,46)`, accent `#00f0ff` |
+| Motion feel | snaps. CSS state changes use `steps(2)`, never an ease | lights up: fades and soft springs; bulbs switch in `steps(2)`, they do not slide | draws on: mask-wipes; blinks, flashes and jitters all run in hard `steps()` |
+
+Two rules hold across all three, and a new design in these families keeps them:
+
+- **A state is never colour alone.** The pick, the correct answer and a wrong pick each change
+  shape as well: a pressed-in label, a second ring, a blinking cursor; a drawn tick; a hatch, a
+  dashed edge, a glitch with a drawn cross. The tick and the cross are drawn with borders and
+  bars, never typed, because a playout machine without a symbol font shows an empty box.
+- **A dimmed element keeps its ground.** What fades is the content, the rim or the shadow. A
+  translucent panel over moving picture stops reading as the object the family is built around.
+
 The **noacg** family is the product's own on-air look (BRAND-MANUAL §3: void `#0a0c10`, amber
 `#f6a623`, paper `#e8edf2`; markets up/down `#4ac47a`/`#e57a7d`), derived from the seven
 `NoaCG-Brand-Kit/overlays/` pieces. It exists so the product's built-in output showcases the

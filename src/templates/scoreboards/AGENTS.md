@@ -53,6 +53,15 @@ apart the way the match clock does — stamped, plain, and a resend of the cue's
 **Its two halves are `flex: 1 1 0`, never a px basis** - the owner's 2026-08-23 ruling that a
 two-sided board gives both sides equal space and wraps a long name inside its own half rather
 than sizing the graphic by it (benchmarks/agent/rounds/2026-08-22/VERDICT.md).
+**sb26-sb28 are the DUEL SCORE** (types/duelScore.ts; sticker, showtime and arcade): two
+players, a quiz show's running score. Their contract and runtime live in **duelShared.ts** - the
+four fields labelled Player and Score, and a `rebuildScoreboard()` that marks the LEADER as a
+class on the root (`scoreboard-lead-a` / `-b`, neither on a tie) by comparing the two numbers on
+every write. Who leads is never a field or a state. They set `matchClock: false` and so declare
+their own `markFinal()`. A point rides a parallel group of one state with self-transitions, so
+scoring never replays the entrance. All three are drawn symmetric top to bottom, because where
+the strip sits is its ZONE: top-centre by default, bottom-centre from the wizard's Position grid.
+
 ### shared/matchClock.ts - the SPORTS CLOCK
 
 It lives in `shared/` and is documented here because the match boards are what drive it.

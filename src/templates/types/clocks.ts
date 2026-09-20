@@ -13,6 +13,9 @@ import { gt01 } from '../gameTimers/gt01';
 import { gt02 } from '../gameTimers/gt02';
 import { gt05 } from '../gameTimers/gt05';
 import { gt06 } from '../gameTimers/gt06';
+import { gt07 } from '../gameTimers/gt07';
+import { gt08 } from '../gameTimers/gt08';
+import { gt09 } from '../gameTimers/gt09';
 import { ss01 } from '../startingSoon/ss01';
 import { ss02 } from '../startingSoon/ss02';
 import { ss03 } from '../startingSoon/ss03';
@@ -175,6 +178,50 @@ export const countdownType: GraphicType = {
       animationPresets: ['timer-run', 'timer-line-reveal'],
       defaultZone: 'top-center',
       create: (_type, options) => gt06.create(options),
+    },
+    // The three GAME-SHOW cells (sticker, showtime, arcade). Each was designed FOR this type, as
+    // one graphic of the quiz show kit (packs.ts, 'quiz-show').
+    {
+      id: 'gt07',
+      name: 'Sticker Clock',
+      description: 'A paper label with an ink title strip, a big heavy clock and an accent bar along the bottom.',
+      styleTag: 'sticker',
+      palette: paletteById('tangerine'),
+      fontId: 'archivo',
+      // Authored without a mark, like every countdown so far: the type permits one, and this
+      // design has nowhere drawn for it.
+      logo: 'none',
+      animationPresets: ['timer-line-reveal', 'timer-run'],
+      defaultZone: 'top-center',
+      create: (_type, options) => gt07.create(options),
+    },
+    {
+      id: 'gt08',
+      name: 'Showtime Clock',
+      description: 'A marquee pill: the round in billing caps, a lit star, and the clock in a ringed dark well.',
+      styleTag: 'showtime',
+      palette: paletteById('marquee'),
+      fontId: 'playfair-display',
+      // Authored without a mark, like every countdown so far: the type permits one, and this
+      // design has nowhere drawn for it.
+      logo: 'none',
+      animationPresets: ['timer-line-reveal', 'timer-run'],
+      defaultZone: 'top-center',
+      create: (_type, options) => gt08.create(options),
+    },
+    {
+      id: 'gt09',
+      name: 'Arcade Clock',
+      description: 'A pixel-cornered neon panel: mono round name, a big glowing clock, a row of pixels.',
+      styleTag: 'arcade',
+      palette: paletteById('neon-cyan'),
+      fontId: 'saira',
+      // Authored without a mark, like every countdown so far: the type permits one, and this
+      // design has nowhere drawn for it.
+      logo: 'none',
+      animationPresets: ['timer-line-reveal', 'timer-run'],
+      defaultZone: 'top-center',
+      create: (_type, options) => gt09.create(options),
     },
   ],
 };

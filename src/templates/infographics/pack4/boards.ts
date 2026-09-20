@@ -30,7 +30,7 @@ import { factRowsRuntimeJs, recapRowsRuntimeJs } from './listRuntimes';
 const P = 'infographic';
 
 /** The two operator fields both boards carry: the rows source, then the heading. */
-function boardFields(o: ResolvedOptions, rowsTitle: string, headingTitle: string): {
+export function boardFields(o: ResolvedOptions, rowsTitle: string, headingTitle: string): {
   fields: SpxField[];
   rowsText: string;
   headingText: string;
@@ -48,7 +48,7 @@ function boardFields(o: ResolvedOptions, rowsTitle: string, headingTitle: string
 }
 
 /** The shared board markup: a heading, then the rows the runtime renders, then the source. */
-function boardHtml(comment: string, headingText: string, rowsText: string, sourceLabel: string): string {
+export function boardHtml(comment: string, headingText: string, rowsText: string, sourceLabel: string): string {
   return `    <!-- ${comment} -->
     <div class="${P}-box">
       <!-- The accent motif — the design's one loud color moment. -->

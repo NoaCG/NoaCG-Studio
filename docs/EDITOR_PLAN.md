@@ -114,7 +114,7 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 
 | Train / slice | Deliverable and exit demonstration |
 |---|---|
-| R1.0 Foundation | Flagged route on preview deployments: professional shell, selection, read-only bars, scrub, operation registry/history, preview protocol and latency harness. Record D01-D05 decisions before starting; tests close in their assigned slices. B01/B02/B11/B13 foundation only. |
+| R1.0 Foundation | Merged/live via PR #331; foundation engineering checks passed, owner acceptance open. Flagged route: professional shell, selection, read-only bars, scrub, operation registry/history, preview protocol and latency harness. Record D01-D05 decisions before starting; tests close in their assigned slices. B01/B02/B11/B13 foundation only. |
 | R1.1a Base edits and tools | Usable static graphic: Finish -> Edit; create text/shapes, edit wording/basic font/size/colours/opacity, position/scale, undo and save/reopen. R1.1a follow-up closes B01/B03/B04 core; preserve wizard fields. |
 | R1.1b Keys and bar moves | Text + box: off-canvas first key, move playhead 1 s, canvas drag creates second key; visible spans and bar-body moves carry keys. B05/B13 key/bar portions; no trim UI yet. |
 | R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
@@ -216,7 +216,7 @@ Put product-visible work in its own owner-queue file. Invite review of team-prov
 the owner is available, but the team must catch ordinary defects without relying on the owner.
 Independent work may continue after implementation authorization; dependent work cannot rely on
 a failed contract. Resolve feedback that changes a dependency before building on that assumption.
-The default-editor switch and full-scope acceptance remain explicit owner decisions.
+Verified slices queue and deploy live without waiting for owner review; preserve phone access. Default-switch/full-scope acceptance stay separate.
 
 Update the E/B ledger and slice handoff at each checkpoint: completed evidence, remaining gaps,
 feedback, decisions and exact next task. Do not mark a whole release complete from one demo.
@@ -228,11 +228,11 @@ New sessions resume these records and the actual branch state.
 |---|---|
 | Planning inventory | Closed by classification; evidence gaps assigned, not passed |
 | Consolidated scope and revised mockups | Whole-workspace direction accepted; 2026-09-19 workflow refinements recorded for review |
-| R1.0-R1.5 / P-COMP | R1.0 merged (#331); owner reports R1.1a delivered but basic authoring unusable. Follow-up owns fixes; static outcome remains open. P-COMP follows R1.5 |
+| R1.0 | Merged and deployed as cfb28e74 (PR #331); local, CI and live checks passed. Owner usability/first-time-user acceptance remains open |
+| R1.1a-R1.5 / P-COMP | Owner reports R1.1a delivered; usable static authoring remains open for its follow-up. Verified slices land without waiting for owner review; P-COMP follows R1.5 |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
-| Product implementation permission | R1 underway; no default-switch or full-product acceptance implied |
 
 Next: the R1.1a implementation follow-up closes the usable static-graphic task and records evidence before calling it ready for review. Keep engineering slices bounded; demonstrate cumulative user outcomes. Each slice retains its branch, evidence, review and merge-queue handoff.
 

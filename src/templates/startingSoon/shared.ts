@@ -147,6 +147,21 @@ function holdingBackgroundCss(family: TemplateVariant['styleTag']): string {
     radial-gradient(circle at 78% 76%, rgba(255, 255, 255, 0.09), transparent 38%)`,
     noacg: `radial-gradient(circle at 76% 28%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 34%),
     linear-gradient(125deg, transparent 0 62%, rgba(246, 166, 35, 0.055) 62% 62.3%, transparent 62.3%)`,
+    // The three game-show families. Each paints its OWN ground over the neutral base, because a
+    // full frame is where a look either carries or collapses: a flat accent field printed with
+    // ink halftone dots, a burgundy curtain lit from above, and a violet screen with scanlines
+    // and a horizon glow. The last layer of each is a solid wash of a palette colour, so the
+    // Style panel retints the whole frame. These are IMAGES only: this value lands in
+    // `background-image`, which takes no position or size, and one stray `/ 26px` drops the whole
+    // declaration. A design that wants its dots tiled sets `background-size` itself (ss22 does).
+    sticker: `radial-gradient(color-mix(in srgb, var(--text-color) 22%, transparent) 3px, transparent 3.5px),
+    linear-gradient(var(--accent), var(--accent))`,
+    showtime: `radial-gradient(ellipse at 50% -10%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 58%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 46px, transparent 46px 92px),
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-bg) 78%, #000000), color-mix(in srgb, var(--panel-bg) 30%, #000000))`,
+    arcade: `repeating-linear-gradient(0deg, transparent 0 3px, rgba(0, 0, 0, 0.35) 3px 4px),
+    radial-gradient(ellipse at 50% 108%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-bg) 60%, #000000), var(--panel-bg))`,
   };
 
   return `/* Full-frame programme background. The solid base guarantees opaque output. */

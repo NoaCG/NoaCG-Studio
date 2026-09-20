@@ -128,6 +128,31 @@ export interface QuizContent {
   answers: string[];
   /** Which letter is right, in this board's own alphabet. */
   correct: string;
+  /**
+   * Whether the board carries an "Answers shown" choice, so ONE graphic serves a true/false
+   * question, a three-way and a four-way. Absent = the row count is fixed at `answers.length`,
+   * which is what every board before the show board emits.
+   *
+   * It is DATA, like the pick: the operator duplicates the graphic in the rundown once per
+   * question and sets each copy's count, so a show's questions need not agree on how many
+   * answers they have. The rows past the count are hidden by a class (`quiz-option-off`) and
+   * the root carries `data-answers="N"`, which is what a design's stylesheet keys a layout
+   * change on. The panel keeps its stage width whatever the count - only its height follows.
+   */
+  variableAnswers?: boolean;
+  /**
+   * Whether the board carries the AUDIENCE RESULT (the per-answer percentage chips and the
+   * field that feeds them). Absent = yes. The show board declines it: its arc is three moments -
+   * the question, the pick, the correct answer - and a field nothing on its control page ever
+   * shows would be a knob that turns nothing.
+   */
+  audience?: boolean;
+  /**
+   * Whether the board carries the LOCK moment ("locked in" dims the unpicked rows). Absent =
+   * yes. A board whose machine has no lock state declines it, for the audience flag's reason:
+   * `applyLock()` with no arrow that can ever call it is code that reads as though it works.
+   */
+  lock?: boolean;
 }
 
 /** The four-answer board's original content — the default, so existing variants are unchanged. */
@@ -161,6 +186,34 @@ export const THREE_ANSWER_CONTENT: QuizContent = {
   answers: ['Atlantic', 'Pacific', 'Indian'],
   correct: 'B',
 };
+
+/**
+ * The SHOW BOARD's content (types/quizShow.ts): four rows of which a question uses two, three
+ * or four, and an arc of three moments - the question, the contestant's pick, the correct
+ * answer. It declines the lock and the audience result, so its runtime carries neither.
+ */
+export const SHOW_BOARD_CONTENT: QuizContent = {
+  question: 'Which city hosted the first modern Olympic Games?',
+  answers: ['Paris', 'Athens', 'London', 'Rome'],
+  correct: 'B',
+  variableAnswers: true,
+  audience: false,
+  lock: false,
+};
+
+/**
+ * The show boards' answer rows, shared so all three designs carry the same contract.
+ *
+ * Each row wraps its content in `.quiz-face`. The ROW is what the presets tween (x, opacity,
+ * the reveal's pop), so a design paints, presses, rings or fades the FACE instead: a rule on the
+ * row would lose to the entrance's inline opacity, and a transform on it would fight GSAP's.
+ */
+export function showBoardRowsHtml(content: QuizContent): string {
+  return content.answers
+    .map((answer, i) =>
+      `        <div class="quiz-option quiz-option-${i + 1}"><div class="quiz-face"><span class="quiz-letter">${QUIZ_LETTERS[i]}</span><span class="quiz-text" id="f${i + 1}">${answer}</span></div></div>`)
+    .join('\n');
+}
 
 /** This board's letters: 'AB' for a true/false board, 'ABC', 'ABCD'. */
 function lettersFor(content: QuizContent): string {
@@ -198,13 +251,31 @@ function quizFields(content: QuizContent): SpxField[] {
     // Per-answer audience percentages in row order ("34 | 52 | 9 | 5"), painted as row chips
     // by the `audience` state. Data exactly like the two above — arriving numbers never show
     // themselves; the operator's `audience` event does.
-    {
-      field: `f${letters.length + 3}`,
-      ftype: 'textfield',
-      title: 'Audience results',
-      value: '',
-    },
+    ...(hasAudience(content)
+      ? [{
+          field: `f${letters.length + 3}`,
+          ftype: 'textfield' as const,
+          title: 'Audience results',
+          value: '',
+        }]
+      : []),
+    // How many of the rows this question uses (see QuizContent.variableAnswers). A dropdown,
+    // because "2, 3 or 4" is a genuinely constrained choice.
+    ...(content.variableAnswers
+      ? [{
+          field: hiddenIds(content).count,
+          ftype: 'dropdown' as const,
+          title: 'Answers shown',
+          value: String(letters.length),
+          items: Array.from({ length: letters.length - 1 }, (_, i) => ({ text: String(i + 2), value: String(i + 2) })),
+        }]
+      : []),
   ];
+}
+
+/** Whether this board carries the audience result (QuizContent.audience; absent = yes). */
+function hasAudience(content: QuizContent): boolean {
+  return content.audience !== false;
 }
 
 /**
@@ -276,16 +347,27 @@ function assertRowsMatchAnswers(name: string, html: string, optionCount: number)
   );
 }
 
-/** The ids of the three hidden data sources on a board of n answers. */
-function hiddenIds(content: QuizContent): { correct: string; selected: string; results: string } {
+/** The ids of the hidden data sources on a board of n answers. `count` is the "Answers shown"
+ *  source, which sits after the audience results when the board carries both. */
+function hiddenIds(content: QuizContent): { correct: string; selected: string; results: string; count: string } {
   const n = content.answers.length;
-  return { correct: `f${n + 1}`, selected: `f${n + 2}`, results: `f${n + 3}` };
+  return {
+    correct: `f${n + 1}`,
+    selected: `f${n + 2}`,
+    results: `f${n + 3}`,
+    count: `f${n + (hasAudience(content) ? 4 : 3)}`,
+  };
 }
 
 /** The quiz runtime: the standard scaffold plus the Continue-driven answer reveal. */
 function quizRuntimeJs(name: string, animationBlock: string, content: QuizContent): string {
   const letters = lettersFor(content);
   const id = hiddenIds(content);
+  // The three optional parts of the runtime (see QuizContent). Each is emitted only for a board
+  // that can reach it, so the generated file never carries a function nothing calls.
+  const aud = hasAudience(content);
+  const lock = content.lock !== false;
+  const variable = !!content.variableAnswers;
   return `// ${name} — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().
 
 // motionSpeed(): the template's speed knob. The NOACG_ANIM data block owns it; a legacy
@@ -300,7 +382,7 @@ ${setFieldValueJs}
 
 // clearReveal(): remove a previous reveal so the graphic is back to the neutral state
 // (fresh data, replay, or a second question all start un-revealed). It clears the SELECTION
-// and the lock too: a visual reset that left a board looking judged would be a lie, and snap
+${lock ? '// and the lock too' : '// too'}: a visual reset that left a board looking judged would be a lie, and snap
 // clears inline styles but never classes.
 function clearReveal() {
   var options = document.querySelectorAll('.quiz-option');
@@ -308,14 +390,14 @@ function clearReveal() {
     options[i].classList.remove('quiz-correct');
     options[i].classList.remove('quiz-dim');
     options[i].classList.remove('quiz-sel');
-    options[i].classList.remove('quiz-wrong');
+    options[i].classList.remove('quiz-wrong');${aud ? `
     var chip = options[i].querySelector('.quiz-aud');
-    if (chip) chip.parentNode.removeChild(chip);
+    if (chip) chip.parentNode.removeChild(chip);` : ''}
   }
   var root = document.querySelector('.quiz');
-  if (root) {
-    root.classList.remove('quiz-locked');
-    root.classList.remove('quiz-audience');
+  if (root) {${lock ? `
+    root.classList.remove('quiz-locked');` : ''}${aud ? `
+    root.classList.remove('quiz-audience');` : ''}
     root.removeAttribute('data-noacg-paint'); // the paint signature died with the marks
   }
 }
@@ -331,22 +413,53 @@ function quizRow(letter) {
   var name = String(letter || '').trim().toUpperCase();
   var index = name ? '${letters}'.indexOf(name) : -1;
   var options = document.querySelectorAll('.quiz-option');
-  return index === -1 ? null : (options[index] || null);
+${variable ? `  var row = index === -1 ? null : (options[index] || null);
+  // A row this question does not use is not an answer: a pick or a correct letter naming it
+  // resolves to nothing, exactly like an unknown letter.
+  return (row && row.classList.contains('quiz-option-off')) ? null : row;` : `  return index === -1 ? null : (options[index] || null);`}
 }
-
+${variable ? `
+// applyAnswerCount(): show as many answer rows as this question has. The count is DATA - the
+// hidden #${id.count} - so one graphic serves a true/false question and a four-way, and a copy
+// of it in the rundown can differ from the next. Rows past the count get 'quiz-option-off'
+// (the stylesheet hides them) and the root carries data-answers="N" for any layout that
+// depends on the count. The panel's WIDTH never follows: it is the stage's.
+function applyAnswerCount() {
+  var src = document.getElementById('${id.count}');
+  var options = document.querySelectorAll('.quiz-option');
+  var count = parseInt(src ? src.textContent : '', 10);
+  if (!(count >= 2 && count <= options.length)) count = options.length;  // unknown = show all
+  for (var i = 0; i < options.length; i++) {
+    options[i].classList.toggle('quiz-option-off', i >= count);
+  }
+  var root = document.querySelector('.quiz');
+  if (!root) return;
+  // A CHANGED count is a different board height, so the height the stage reserved for the old
+  // one is let go and the fit that follows every update() reserves this one. Without it the
+  // reserve is a floor: a board that went from four answers to two kept a four-answer panel.
+  var before = root.getAttribute('data-answers');
+  if (before !== null && before !== String(count)) {
+    var box = document.querySelector('.quiz-box');
+    if (box) { box.removeAttribute('data-stage-room'); box.style.minHeight = ''; }
+  }
+  root.setAttribute('data-answers', String(count));
+}
+` : ''}
 // The PAINT SIGNATURE: what the board currently shows, as one string — the machine state plus
 // the two letters that drive the marks. ONLY a FULL repaint may stamp it (paintQuizState, and
 // revealAnswer — which clears first): a partial painter certifying it would lie after a SNAP,
-// where the target state's own call fires (applyLock) but the previous state's classes remain
+// where the target state's own call fires (${lock ? 'applyLock' : 'applySelection'}) but the previous state's classes remain
 // (snap clears inline styles, never classes) — a stamped signature then made the trailing
 // data write's repaint a no-op and the stale verdict stayed on air. clearReveal removes it.
 function quizPaintSig() {
   var state = (typeof noacgMachineState === 'function') ? ((noacgMachineState().groups || {}).main || '') : '';
   var pickedEl = document.getElementById('${id.selected}');
   var correctEl = document.getElementById('${id.correct}');
-  var resultsEl = document.getElementById('${id.results}');
-  return state + '|' + (correctEl ? correctEl.textContent : '') + '|' + (pickedEl ? pickedEl.textContent : '')
-    + '|' + (resultsEl ? resultsEl.textContent : '');
+${aud ? `  var resultsEl = document.getElementById('${id.results}');
+` : ''}${variable ? `  var countEl = document.getElementById('${id.count}');
+` : ''}  return state + '|' + (correctEl ? correctEl.textContent : '') + '|' + (pickedEl ? pickedEl.textContent : '')${aud ? `
+    + '|' + (resultsEl ? resultsEl.textContent : '')` : ''}${variable ? `
+    + '|' + (countEl ? countEl.textContent : '')` : ''};
 }
 function markQuizPaint() {
   var root = document.querySelector('.quiz');
@@ -364,7 +477,7 @@ function applySelection() {
   gsap.fromTo(row, { scale: 1.04 }, { scale: 1, duration: 0.25 / motionSpeed(), ease: 'back.out(1.6)' });
 }
 
-// applyLock(): the answer is locked in. The dimming says so; the MACHINE is what actually
+${lock ? `// applyLock(): the answer is locked in. The dimming says so; the MACHINE is what actually
 // makes it final, by simply having no "select" arrow leaving this state. Neither this nor
 // applySelection stamps the paint signature — they are PARTIAL painters (see quizPaintSig).
 function applyLock() {
@@ -372,7 +485,7 @@ function applyLock() {
   if (root) root.classList.add('quiz-locked');
 }
 
-// applyAudienceResult(): paint the per-answer percentages from #${id.results} ("34 | 52 | 9 | 5",
+` : ''}${aud ? `// applyAudienceResult(): paint the per-answer percentages from #${id.results} ("34 | 52 | 9 | 5",
 // row order) as a chip on each option row. textContent only — the numbers may one day arrive
 // from an audience backend, and nothing that came from outside the studio runs as markup. An
 // empty slot removes its chip, so a partial result renders honestly. Stamps the signature: it
@@ -406,11 +519,13 @@ function applyAudienceResult() {
   markQuizPaint();
 }
 
-// paintQuizState(): repaint the board from the MACHINE's current state plus the fields. Both
+` : ''}// paintQuizState(): repaint the board from the MACHINE's current state plus the fields. Both
 // update() and snap recovery land here, for one reason each: a data write must never erase a
-// selection the machine still holds (a live Update mid-lock used to wipe the lock visual while
+${lock ? `// selection the machine still holds (a live Update mid-lock used to wipe the lock visual while
 // the state chip still said "Locked in"), and a snap replays states with suppressed callbacks,
-// so the call-driven marks (selection, lock, reveal) have to be re-applied from the fields
+// so the call-driven marks (selection, lock, reveal) have to be re-applied from the fields` : `// selection the machine still holds (a typo fixed after the pick would otherwise wipe the
+// highlight while the state chip still said it was picked), and a snap replays states with
+// suppressed callbacks, so the call-driven marks (selection, reveal) have to be re-applied from the fields`}
 // afterwards — which the recovery sequence's trailing update() does by calling this. In the
 // entrance state (or with no machine at all) it paints the neutral board, exactly as the old
 // unconditional clearReveal() did.
@@ -425,7 +540,7 @@ function paintQuizState() {
   // correct row re-pop on air. Every painter stamps the signature; clearReveal removes it.
   var root = document.querySelector('.quiz');
   if (root && root.getAttribute('data-noacg-paint') === quizPaintSig()) return;
-  if (state === 'audience') {
+${aud ? `  if (state === 'audience') {
     // The verdict underneath repaints when it is MISSING (a recovery) or when it is on the
     // WRONG ROW — an operator who typed the answer key wrong has to be able to correct it on
     // air, and this state used to refuse: the guard asked only whether a verdict existed, so a
@@ -438,10 +553,10 @@ function paintQuizState() {
     applyAudienceResult();         // stamps
     return;
   }
-  if (state === 'reveal') { revealAnswer(); return; }   // clears first, then paints + stamps
+` : ''}  if (state === 'reveal') { revealAnswer(); return; }   // clears first, then paints + stamps
   clearReveal();
-  if (state === 'selected' || state === 'locked') applySelection();
-  if (state === 'locked' || state === 'sealed') applyLock();
+${lock ? `  if (state === 'selected' || state === 'locked') applySelection();
+  if (state === 'locked' || state === 'sealed') applyLock();` : `  if (state === 'selected') applySelection();`}
   markQuizPaint();                 // this WAS a full repaint (clear + state's marks) — certify it
 }
 
@@ -454,8 +569,9 @@ function update(data) {
     var el = document.getElementById(key);
     if (el) setFieldValue(el, fields[key]);
   }
-  paintQuizState();                // fresh data on a neutral board stays neutral; a board whose
-                                   // machine holds a pick, a lock or a verdict keeps showing it
+${variable ? `  applyAnswerCount();              // the rows this question uses, before anything is marked on them
+` : ''}  paintQuizState();                // fresh data on a neutral board stays neutral; a board whose
+                                   // machine holds a pick${lock ? ', a lock' : ''} or a verdict keeps showing it
   // Designs on a stage hold their lines to the rows they were drawn for (no-op otherwise).
   if (typeof fitStagedText === 'function') fitStagedText();
 }
@@ -468,7 +584,8 @@ function revealAnswer() {
   var index = '${letters}'.indexOf(letter);        // A -> row 0, B -> row 1, …
   var options = document.querySelectorAll('.quiz-option');
   if (index === -1 || !options[index]) return;  // unknown letter — do nothing
-  var picked = document.getElementById('${id.selected}');
+${variable ? `  if (options[index].classList.contains('quiz-option-off')) return;  // a row this question does not use
+` : ''}  var picked = document.getElementById('${id.selected}');
   var pickedLetter = picked ? picked.textContent.trim().toUpperCase() : '';
   clearReveal();                   // a second Continue press stays clean
   for (var i = 0; i < options.length; i++) {
@@ -510,7 +627,15 @@ function stop() {
 function next() {
   return (typeof revealNextStep === 'function') ? revealNextStep() : null;
 }
-
+${variable ? `
+// First paint: hide the rows this question does not use before the entrance runs. Guarded,
+// because an exported package may load this file from <head>, before the rows exist.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', applyAnswerCount);
+} else {
+  applyAnswerCount();
+}
+` : ''}
 ${animationBlock}
 `;
 }
@@ -558,10 +683,13 @@ ${design.html}
     <!-- Hidden selected-answer source — the contestant's pick (field ${id.selected}). It is DATA: one
          "selected" state plus this letter, never one state per answer. -->
     <div id="${id.selected}" class="noacg-data-source"></div>
-    <!-- Hidden audience-results source (field ${id.results}) — per-answer percentages in row
+${hasAudience(content) ? `    <!-- Hidden audience-results source (field ${id.results}) — per-answer percentages in row
          order, "34 | 52 | 9 | 5". The audience state paints them as row chips. -->
     <div id="${id.results}" class="noacg-data-source"></div>
-  </div>`,
+` : ''}${content.variableAnswers ? `    <!-- Hidden answers-shown source (field ${id.count}) - how many of the rows this question
+         uses. applyAnswerCount() hides the rest; the panel keeps its width either way. -->
+    <div id="${id.count}" class="noacg-data-source">${optionCount}</div>
+` : ''}  </div>`,
   });
 
   const css = `/* ${meta.name} — generated by NoaCG Studio. Edit freely: this file is yours. */
@@ -601,7 +729,24 @@ ${
   will-change: transform, opacity; /* the rows stagger in and pop on reveal */
 }
 
-/* ── Audience result chips — the per-answer percentages the audience state paints. The chip
+${content.variableAnswers ? `/* ── A row this question does not use (applyAnswerCount). Taken OUT OF THE FLOW rather than
+      faded, so a three-answer question is a shorter board and not a board with a hole in it -
+      and deliberately not display:none. The stage fit measures every line once, from the design's
+      own words, to learn the room it was drawn for; a row that is not laid out has no room to
+      measure, and when a later question brought it back its answer was fitted into nothing and
+      shipped three sizes small. Out of the flow and invisible, it still has its own box. ── */
+.quiz-options {
+  position: relative;              /* the box an unused row is parked against */
+}
+.quiz-option-off {
+  position: absolute !important;   /* out of the flow: the rows below close up (outranks a design's own position) */
+  left: 0;
+  right: 0;
+  visibility: hidden;              /* drawn nowhere, and still measurable */
+  pointer-events: none;
+}
+
+` : ''}${hasAudience(content) ? `/* ── Audience result chips — the per-answer percentages the audience state paints. The chip
       anchors to its row's right edge; rows get position only while the result shows, so a
       design's own layout is untouched the rest of the time. Numerals stay tabular so a live
       count never changes width as its digits change. ── */
@@ -618,7 +763,7 @@ ${
   opacity: 0.92;
 }
 
-/* ── Design ── */
+` : ''}/* ── Design ── */
 ${design.css}
 
 ${dataSourceCss}

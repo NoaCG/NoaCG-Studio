@@ -20,11 +20,33 @@ import {
   parseArgs,
   persistTick,
   summaryLine,
+  watchedBranch,
   wavePlanFresh,
 } from './wave-tick.mjs';
 
 const NOW = Date.parse('2026-09-01T22:00:00Z');
 const MINUTE = 60_000;
+
+test('the merge queue\'s own temporary refs are not branches this wave watches', () => {
+  // Real names from the 2026-09-16 tick log, where they were a quarter of every wake-up.
+  assert.equal(watchedBranch('gh-readonly-queue/main/pr-320-dede9dde20bf346e9913a14ca365c9f29e92096a'), false);
+  assert.equal(watchedBranch('gh-readonly-queue/main/pr-319-67a678849051bbe8a6947096500d22b300794053'), false);
+  // A row is still a row, including one whose name merely mentions the queue.
+  assert.equal(watchedBranch('claude/tm-one-edit-one-write'), true);
+  assert.equal(watchedBranch('claude/d-queue-walks-itself'), true);
+  assert.equal(watchedBranch('main'), false);
+  assert.equal(watchedBranch('HEAD'), false);
+  assert.equal(watchedBranch(''), false);
+});
+
+test('a queue ref left in the saved state is forgotten, never announced as a deleted branch', () => {
+  // The upgrade tick: the state was written while the ref was still building, so it is stored
+  // ahead of main with no landing. It must not read as a branch somebody deleted.
+  const building = { ahead: true, landed: false, landingState: 'not-queued' };
+  const previous = { branches: { 'gh-readonly-queue/main/pr-320-dede': building, 'claude/tm-one-edit': building } };
+  const current = { at: NOW, branches: [], blocked: [], jobs: [], landedBranchNames: [] };
+  assert.deepEqual(deltaBetween(previous, current), ['BRANCH GONE claude/tm-one-edit - deleted since last tick with no landing recorded for it']);
+});
 
 test('worker state changes produce one delta and unchanged reports stay quiet', () => {
   const report = { state: 'ready', sha: 'a'.repeat(40), nextAction: 'review result' };

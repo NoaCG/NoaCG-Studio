@@ -6,7 +6,7 @@
 // them checks the direction the classifier is allowed to be wrong in - toward measuring MORE.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { declaringFiles, importerGraph, planFor, quickVerdict } from './catalog-affected.mjs';
+import { batteryFor, declaringFiles, importerGraph, planFor, quickVerdict } from './catalog-affected.mjs';
 
 /** A small stand-in catalog: two lower thirds in their own files, two frames sharing one. */
 const SOURCES = [
@@ -169,4 +169,17 @@ test('an unknown id declared in a template file is ignored, and the file escalat
     triggersCatalog,
   });
   assert.equal(p.mode, 'full');
+});
+
+test('the battery names every gate CI runs on a catalog change, the factory included', () => {
+  // The battery is what a session runs BEFORE queueing, so a gate CI runs and this list omits
+  // is a refusal waiting at the merge. The factory was that gate until 2026-09-19.
+  const scoped = batteryFor(['qz13', 'sb26'], ['quiz', 'scoreboard']);
+  const all = [...scoped.cheap, ...scoped.sweeps, ...scoped.specs, ...scoped.factory];
+  for (const script of ['check-catalog-emit', 'type-floor', 'overflow-sweep', 'field-coverage', 'numerals', 'catalog-specs', 'factory']) {
+    assert.ok(all.some((command) => command.includes(`scripts/${script}.mjs`)), `${script} is missing from the battery`);
+  }
+  // The factory judges the catalog as a whole and takes no slice; everything else is scoped.
+  assert.deepEqual(scoped.factory, ['node scripts/factory.mjs']);
+  assert.ok(scoped.sweeps.every((command) => command.endsWith('--only qz13,sb26')));
 });

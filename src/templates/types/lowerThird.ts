@@ -13,6 +13,9 @@ import { lt11 } from '../lowerThirds/lt11';
 import { lt15 } from '../lowerThirds/lt15';
 import { lt25 } from '../lowerThirds/lt25';
 import { lt32 } from '../lowerThirds/lt32';
+import { lt68 } from '../lowerThirds/lt68';
+import { lt69 } from '../lowerThirds/lt69';
+import { lt70 } from '../lowerThirds/lt70';
 import type { GraphicType } from './graphicType';
 import { sampleName } from '../shared/sampleNames';
 
@@ -158,6 +161,45 @@ export const lowerThirdType: GraphicType = {
       // Cinematic motion is slow and still: a fade leads and nothing overshoots.
       animationPresets: ['fade', 'blur-in', 'line-reveal', 'slide-up', 'mask-wipe'],
       create: (_type, options) => lt32.create(options),
+    },
+    // ── The three GAME-SHOW cells. Each was designed FOR this type (a real accent element, the two
+    // declared lines, the shared optional logo band), as the lower third of a set whose other two
+    // members are a quiz show board (types/quizShow.ts) and a two-player score (types/duelScore.ts).
+    {
+      id: 'lt68',
+      name: 'Sticker Strap',
+      description: 'A flat paper label with a thick ink outline and a hard shadow - the name on paper, the title on an ink strip.',
+      styleTag: 'sticker',
+      palette: paletteById('tangerine'),
+      fontId: 'archivo',
+      samples: { name: 'Alex Rivera', title: 'Contestant · Helsinki' },
+      // The family snaps: the stinger leads, and the type's line-reveal default is not drawn for.
+      animationPresets: ['snap-stinger', 'slide-up', 'mask-wipe', 'fade', 'slide-down'],
+      create: (_type, options) => lt68.create(options),
+    },
+    {
+      id: 'lt69',
+      name: 'Showtime Strap',
+      description: 'A theatre-marquee pill led by a lit star - the name in serif over a title in billing caps.',
+      styleTag: 'showtime',
+      palette: paletteById('marquee'),
+      fontId: 'playfair-display',
+      samples: { name: 'Vivian Laine', title: 'Host of the evening' },
+      // A marquee lights up; it does not slam.
+      animationPresets: ['fade', 'pop-spring', 'slide-up', 'mask-wipe', 'slide-down'],
+      create: (_type, options) => lt69.create(options),
+    },
+    {
+      id: 'lt70',
+      name: 'Arcade Strap',
+      description: 'A pixel-cornered neon player tag with scanlines - the name in squared caps, the title in mono.',
+      styleTag: 'arcade',
+      palette: paletteById('neon-cyan'),
+      fontId: 'saira',
+      samples: { name: 'Mika Storm', title: 'Player one · 3 wins' },
+      // A screen draws itself on: the wipe leads.
+      animationPresets: ['mask-wipe', 'snap-stinger', 'slide-up', 'fade', 'slide-down'],
+      create: (_type, options) => lt70.create(options),
     },
     //
     // lt07 is NOT promotable here either, and the reason it taught is worth keeping even though

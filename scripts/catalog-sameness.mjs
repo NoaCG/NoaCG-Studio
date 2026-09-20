@@ -51,7 +51,7 @@ const PROBE = `(async () => {
 
   // What the kit picker can put in front of a user, in ANY look - the KIT_MATRIX_GAPS
   // "offered" number, asked through the resolver the create path runs.
-  const families = ['minimal', 'sport', 'glass', 'noacg', 'editorial', 'cinematic'];
+  const families = ['minimal', 'sport', 'glass', 'noacg', 'editorial', 'cinematic', 'sticker', 'showtime', 'arcade'];
   const reachable = new Set();
   for (const pack of PACKS) {
     for (const fam of families) {

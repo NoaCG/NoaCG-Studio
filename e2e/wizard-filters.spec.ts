@@ -641,3 +641,46 @@ test('the first page shows the CATEGORY, not its first twelve entries', async ({
   expect(spread.lowerThird.hues).toBeGreaterThanOrEqual(4);
   expect(spread.lowerThird.families).toBeGreaterThanOrEqual(4);
 });
+
+test('a known design is found by name, and the sort control says what each order means', async ({ page }) => {
+  await toBrowseStep(page);
+
+  // BY NAME. The search box reaches a design through its own name, so somebody who knows what
+  // a graphic is called does not have to guess which category or style it was filed under.
+  await page.locator('.wz-browse-search').fill('Sticker Quiz');
+  await expect(page.locator('.wz-variant', { hasText: 'Sticker Quiz' }).first()).toBeVisible();
+  await page.locator('.wz-browse-search').fill('');
+
+  // UNDER ITS CATEGORY. The three quiz show boards sit with the other quiz boards.
+  await chooseType(page, 'Quiz');
+  const sort = page.getByLabel('Sort results');
+  const meaning = page.getByTestId('wz-browse-sort-meaning');
+
+  // Each order states what it does - "Relevance" and "Simplest first" are the product's words,
+  // and nobody can use an order they cannot read.
+  await expect(meaning).toContainText('Best match first');
+  await sort.selectOption('simplest');
+  await expect(meaning).toContainText('fewer fields');
+
+  // ALPHABETICAL, both ways, over the WHOLE result and not just the page on screen: the first
+  // card is the alphabetically first quiz design in the catalog.
+  const names = await page.evaluate(async () => {
+    const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
+    return allTemplateMeta()
+      .map(({ meta }) => meta)
+      .filter((m) => m.category === 'poll-quiz' && m.subtype === 'quiz-question')
+      .map((m) => m.name)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  });
+  await sort.selectOption('name');
+  await expect(meaning).toContainText('Alphabetical');
+  const shown = page.locator('.wz-variant-cap strong');
+  const firstAz = await shown.first().textContent();
+  const listed = await shown.allTextContents();
+  expect(listed).toEqual([...listed].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })));
+  await sort.selectOption('name-desc');
+  await expect(shown.first()).not.toHaveText(firstAz ?? '');
+  const reversed = await shown.allTextContents();
+  expect(reversed).toEqual([...reversed].sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' })));
+  expect(names).toContain('Sticker Quiz');
+});

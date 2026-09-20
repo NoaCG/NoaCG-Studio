@@ -5,19 +5,20 @@ All earlier E/B identities are retained; no task is passed by moving it between 
 M0 closes as an inventory. R1 implementation is underway; the historical owner hold is superseded.
 Historical baseline after independent review of d5e8c1db: decisions were recorded below; no closing test
 had then been executed for the replacement editor. Later slice receipts own measured passes.
-Owner approved group/precomposition scope on 2026-09-19; product tests remain unverified.
+See the R1.0 implementation and live receipts below for measured foundation passes.
+Owner approved group/precomposition scope on 2026-09-19; its product tests remain unverified.
 The [whole-workspace review](editor-whole-workspace-2026-09-19/README.md) now shows canvas,
 assets/layers, tools, timeline, gallery and wizard handoff together with each phase's purpose.
 Its browser inspection verifies only the design study; no E/B/D product task is closed by it.
 Owner accepted the overall view. [Workflow refinements](editor-workflow-review-2026-09-19/README.md)
 now govern the optional Outline, imports/Pen, easing batches, AI help-first and project/library
-ownership. The design checkpoint passed no product test; current review readiness is recorded below.
+ownership. Those planning refinements are not product passes. The R1.0 implementation and deployment receipts below record the later measured foundation results.
 
 | Task | Exact outcome | Responsible slice | Current evidence |
 |---|---|---|---|
-| B01 | Fresh default session: create a catalog graphic, find Edit, select title; return Home and reopen it. Repeat from SVG import and saved graphic. No undocumented Advanced-mode prerequisite | R1.0 route; R1.1a/d wizard; R1.4 gallery | Partial historical observations; full task unverified |
-| B02 | Find a nested layer, select overlapping artwork, multi-select, lock/unlock, rename and reorder within its parent; selection stays consistent across panels | R1.0 selection; R1.1d nested; R1.2b tools | Partial historical observations; full task unverified |
-| B03 | Move base X by 40 px, resize and rotate supported artwork; numeric and canvas results agree. Cancel a second drag, undo and redo; animation offsets and siblings remain intact | R1.1-R1.2 | Partial historical observations; full task unverified |
+| B01 | Fresh default session: create a catalog graphic, find Edit, select title; return Home and reopen it. Repeat from SVG import and saved graphic. No undocumented Advanced-mode prerequisite | R1.0 route; R1.1a/d wizard; R1.4 gallery | R1.0 foundation portion verified below; full task remains open |
+| B02 | Find a nested layer, select overlapping artwork, multi-select, lock/unlock, rename and reorder within its parent; selection stays consistent across panels | R1.0 selection; R1.1d nested; R1.2b tools | R1.0 foundation portion verified below; full task remains open |
+| B03 | Move base X by 40 px, resize and rotate supported artwork; numeric and canvas results agree. Cancel a second drag, undo and redo; animation offsets and siblings remain intact | R1.1-R1.2 | Unverified for the replacement editor; B03/D03 core starts in R1.1a |
 | B04 | File chooser/OS drop parity; Pen open/closed paths, curve handles where supported, cancel/undo/export; change title/font/colour; test a long title; replace logo; add a rectangle, ellipse, image and text; duplicate/delete, align/distribute eligible objects; reopen and verify source/bindings | R1.1a usable content/basic type/colour/shapes; R1.2b rich typography/fit and full E06-E07 | Unverified for the replacement editor |
 | B05 | Animate title X -80 to 0 in 1 s; opacity 0 to 1 in 0.3 s; set the starting X key to Easy Ease Out; move end to 0.8 s; scrub both ways, undo/redo, save/reopen and play export | R1.1-R1.2 | Unverified for the replacement editor |
 | B06 | Marquee/Ctrl/Cmd/Shift-select keys across rows; dropdown/right-click parity for Linear/Ease/Bounce/Overshoot/Hold, mixed selection and atomic refusal; select two X keys, retime together, nudge one frame, snap/bypass, copy/paste; occupied target refuses atomically; explicit cross-cue moves preserve source ownership. Set outgoing Hold on the first key and sample immediately before/at the following key; opacity unchanged | R1.2 | Unverified for the replacement editor |
@@ -25,15 +26,15 @@ ownership. The design checkpoint passed no product test; current review readines
 | B08 | From Home choose collection, select three items, choose/create brand, customize one item, install into production with cues, rehearse and run; no code/keyframes required | R1.4 | Unverified for the replacement editor |
 | B09 | Apply brand, undo including visible logo, redo; locally override title colour, change saved brand, explicitly reapply with override preserved; untouched graphics stay unchanged | R1.4 | Unverified for the replacement editor |
 | B10 | Interrupt selected-set installation, reload and retry; no duplicates. Attempt revert after later edit; conflict is visible. Export and play bundled font/logo on a clean host and named production target | R1.4-R1.5 | Unverified for the replacement editor |
-| B11 | Repeated selection, canvas drags, scrubs and panel resize in 30-layer/300-key scene; measure visible feedback and inspect both viewports | R1.0 harness; every interactive slice | Partial historical observations; full task unverified |
+| B11 | Repeated selection, canvas drags, scrubs and panel resize in 30-layer/300-key scene; measure visible feedback and inspect both viewports | R1.0 harness; every interactive slice | R1.0 foundation portion verified below; full task remains open |
 | B12 | If Monaco ships: CSS edit, visual move, opacity key, brand apply, chronological undo/redo, invalid source and concurrent edit, save/reopen/export. | Optional Monaco only | Conditional; excluded from release gate if Monaco is deferred |
-| B13 | Direct ruler/playhead seek with labelled seconds/frames; permanent Out and Set Out at playhead; empty/manual/reverse exit, hold and interruption without jump; named Next, span/body/trim semantics, effective clocks and existing timed behavior. | R1.0 scrub/units; R1.1b keys/body; R1.1c Out/parity; R1.1d trim; R1.2a Next/cross-cue; R1.2c loops | Unverified for the replacement editor |
+| B13 | Direct ruler/playhead seek with labelled seconds/frames; permanent Out and Set Out at playhead; empty/manual/reverse exit, hold and interruption without jump; named Next, span/body/trim semantics, effective clocks and existing timed behavior. | R1.0 scrub/units; R1.1b keys/body; R1.1c Out/parity; R1.1d trim; R1.2a Next/cross-cue; R1.2c loops | R1.0 scrub/units verified below; all authoring/parity portions open |
 | B14 | R2.1b: numbered image sequence ordering/gaps/source FPS, trim/loop/reverse seek/memory budget and offline export; R1: supported HTML/SVG property loops with repeat/yoyo, independent local ruler, deterministic backward seek and finite Out. R2: imported Lottie at differing FPS, trims/ranges, seamless repeated loop, reverse seek, interruption/Out and clean-host packages; reject missing assets/unsupported features honestly | R1.2 loops; R2.1a Lottie / b image sequences | Unverified for the replacement editor |
 | B15 | Gradient stops/geometry, mask/source, ordered effects and animated supported parameters; undo/save/reopen/export parity; reject cyclic/dangling masks | R2.2 | Unverified for the replacement editor |
 | B16 | Bind text/image/colour to object/array values; grow/shrink/reorder collection by stable item ID; missing fields and empty/overflow states; stale feed/reconnect and deterministic replay; target compatibility | R3.1 | Unverified for the replacement editor |
 | B17 | CLI-generated graphic -> visual edit -> MCP edit -> save/reopen -> three exports/internal rehearsal; exact unrelated source preservation; stale concurrent edit refused | R1.3 core; R3.2 paired bridge | Unverified for the replacement editor |
 | B18 | Free helper explanation/basic edit, BYOK and external tool equivalence; selection context; cancel, invalid tools, stale revision, undo, quota/timeout and offline fallback; real model task quality separately measured | R1.3 core; R3.2 full | Unverified for the replacement editor |
-| B19 | One project holds lower third + intro; edit/switch/undo independently, reload both drafts, save, find on Home, bulk add to two rundowns and open playout. Master edits leave existing/on-air copies unchanged. Failed save/install, rename, project removal and legacy migration preserve documents | R1.0 ownership boundary; R1.4a/c/d | Unverified |
+| B19 | One project holds lower third + intro; edit/switch/undo independently, reload both drafts, save, find on Home, bulk add to two rundowns and open playout. Master edits leave existing/on-air copies unchanged. Failed save/install, rename, project removal and legacy migration preserve documents | R1.0 ownership boundary; R1.4a/c/d | Isolated document-port harness verified; product project journey open |
 
 ## Current usable-authoring checkpoint
 
@@ -57,7 +58,7 @@ is a dated source of fixture definitions, not a growing implementation-entry che
 |---|---|---|
 | Illustrator/catalog base adapters, source patches, nested transforms and stable IDs | R1.1a core; R1.1d full fixture | Each consuming gesture slice, not postponed to d |
 | Owner-machine blank-stage reproduction or explicitly unreproduced attempt with environment | R1.0-R1.1d | Claim that the blank-stage problem is resolved |
-| Input-to-pixel latency, revisions/acks, long tasks, reverse seek, 125% zoom | R1.0 harness onward | Shared interaction acceptance at each slice; repeat at R1.5 |
+| Editing-gesture latency and broader fixtures; R1.0 selection/scrub/revision baseline passed below | Each interactive slice | Measure each new gesture; repeat at R1.5 |
 | Paired B02-B07 sequences and first/last-key, mixed axes, per-step inheritance | R1.1-R1.2 | Relevant animation slice acceptance |
 | Templates/gallery, brands and installation recovery | R1.4 | Full creation-to-rundown acceptance |
 | Two first-time users on basic editing; fuller journey walks and real receiving-host acceptance | R1.1d early users; R1.5 adoption | Early feedback before widening; default switch after full adoption gates |
@@ -128,7 +129,7 @@ Owner correction supersedes earlier Add step/Edit Out dialog and no-cross-cue wo
 ## Independent review decisions and closing tests, 2026-09-18
 
 These decisions must be recorded before R1.0 (done in planning). The following tests close
-implementation at the indicated slice; all remain unverified. They extend B tasks, not replace
+implementation at the indicated slice; only the portions explicitly closed by the receipts below are verified. They extend B tasks, not replace
 them. Unsupported foreign source is preserved; required named fixtures must receive adapters.
 
 | Decision | Closing test and failure condition | Slice / tasks |
@@ -163,6 +164,68 @@ be relicensed merely because our application is also AGPL. Its addition would ne
 rights for a differently licensed combined distribution. Such source must never reach the
 Apache CLI or emitted packages under the project's chosen boundary; the mechanism document
 records the primary licence references. Historical reference fixtures stay isolated research.
+
+
+## R1.0 implementation receipt - 2026-09-19
+
+The owner authorized this bounded slice over the historical hold. Branch
+`codex/editor-r1-foundation` carries the authorized content of planning baseline `39adb2ed`.
+[Runnable review, actual screenshots and verification](editor-r1-foundation/README.md)
+and [file-level inventory/ownership](editor-r1-foundation/implementation.md) are the receipt.
+
+| Gate | R1.0 evidence and remaining boundary |
+|---|---|
+| D05 / B01 foundation / E01 | Flag off/on, actual catalog and wizard SVG fixtures, Home return and confirmed save/reopen verified. Optional Finish -> Edit remains R1.1a. |
+| B02 foundation / E02 | Shared timeline/canvas/Outline selection and multi-select verified. Nested unnamed identity, lock/reorder tools remain in their allocated slices. |
+| E03 / B11 foundation | Permanent canvas, fit/zoom/pan, responsive laptop/desktop layout and latency harness delivered. Fixed dock dimensions in this slice; later panel-resize and editing gestures remain unverified. |
+| B13 foundation / E24 / G05 | Read-only source layer bars; forward/reverse scrub; explicit seconds/frames at 25/30 fps and speed 0.5/1/2; frame nudge and Escape verified. Set Out, keys, bar edits, cue interruption and export parity remain open. |
+| E12 / E17 / E23 foundation | Atomic operation/history harness; transient cancellation, exact source/pixel Undo, revision/stale refusal, unknown-data refusal and retired-session refusal verified. UI/CLI/MCP authoring follows the roadmap. |
+| E12 / preview protocol | Source/assets/generation/request/window checks; hot key update, actual same-path asset pixels, startup error/recovery and callback-free scrub verified. |
+| B19 / E25 ownership | Document-port contract and isolated session harness verified. Product still has one working graphic. Durable multi-document/project migration remains R1.4a. |
+| D04 | Existing source-derived read-only/static bars delivered. Additive/disjoint span writer/runtime agreement closes in R1.1b/d; no such mutation is exposed here. |
+
+Engineering evidence does not close the full B01/B02/B11/B13/B19 tasks or owner review.
+Cold catalog/SVG openings showed artwork. The reproduced zero-time hot-update defect and
+retired-session defect are fixed with regressions. The owner's historical blank-stage
+condition is not universally claimed resolved.
+
+**Historical handoff at R1.0 delivery:** R1.0 is merged/live; use the [fresh-session handoff](../handoffs/2026-09-19-editor-r1.1a.md) from updated main for R1.1a only: optional Finish -> Edit, D03
+Position/Layout offset, Text/Rectangle/Ellipse creation and basic scaling, with single
+source transactions, unchanged existing motion/fields, cancel/undo/save/reopen/export
+checks and measured drag feedback. No R1.1b key/bar authoring is included.
+
+## Landing, live verification and owner feedback - 2026-09-19
+
+- [PR #331](https://github.com/NoaCG/NoaCG-Studio/pull/331) merged at 18:52:18 UTC as
+  cfb28e74b4f584a582d1b813d774d087d461b388. Fresh remote-main containment passed.
+  Production version.json reported that same commit; Vercel reported deployment success.
+- Rebased local build exited 0: lint/typecheck/build and 1,801 infrastructure tests passed,
+  one documented skip, zero failures. Local integration j-1419 passed 45/45 browser checks.
+  It caught and corrected the existing keyboard test's assumption that Close tabs directly
+  to Home; the new test checks Close -> Alpha -> Home.
+- [PR CI](https://github.com/NoaCG/NoaCG-Studio/actions/runs/35461381515) passed:
+  build, factory gates and all nine browser groups, 842 browser tests passed.
+  [Merge-group CI](https://github.com/NoaCG/NoaCG-Studio/actions/runs/35461988180)
+  also completed successfully with all nine groups and CI gate. These are engineering
+  results, not a formal whole-branch review verdict: the inherited planning archive was
+  explicitly declared unreviewed through the queue workflow.
+- Live Chromium check j-1422 opened the wizard Alpha link and cold direct route, confirmed
+  the new editor and settled artwork, no preview errors or page exceptions, then checked
+  a 390x844 phone viewport without horizontal overflow. Actual desktop/phone images and
+  the deployed version are preserved in [the live receipt](editor-r1-foundation/README.md#landed-and-live---2026-09-19).
+  This is viewport evidence, not physical-phone Safari or receiving-host acceptance.
+
+Owner feedback: the owner requested an obvious Alpha link on the wizard homepage and
+phone viewing access, then reported that the link was missing and the direct URL showed
+the old editor. At that time the code was local, not merged or deployed. The owner
+authorized landing; the live checks above verify the resulting fix. No subsequent owner
+usability verdict was supplied. Both owner-queue review items stay unanswered.
+
+D05 and the R1.0 portions of B01/B02/B11/B13, G05 and ownership/protocol evidence passed.
+B01/B03/B04 core and D03 in R1.1a remain open, as do every later key/bar/Out/trim/easing,
+multi-document, user, host and licence gate. The original owner-machine blank-stage
+condition is not claimed universally resolved. R1.1a must measure actual drag feedback;
+the selection/scrub timings cannot be reused as a drag pass.
 
 ## Optional P-GPU evidence
 

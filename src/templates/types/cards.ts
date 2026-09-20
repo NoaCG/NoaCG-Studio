@@ -32,6 +32,9 @@ import { card14 } from '../infoCards/card14';
 import { card15 } from '../infoCards/card15';
 import { card16 } from '../infoCards/card16';
 import { card17 } from '../infoCards/card17';
+import { card84 } from '../infoCards/card84';
+import { card85 } from '../infoCards/card85';
+import { card86 } from '../infoCards/card86';
 import {
   card59,
   EDITORIAL_TITLE_SAMPLES,
@@ -198,6 +201,44 @@ export const titleCardType: GraphicType = {
       animationPresets: ['fade', 'line-reveal', 'slide-up'],
       defaultZone: 'mid-left',
       create: (_type, options) => card67.create(options),
+    },
+    // The three GAME-SHOW cells (sticker, showtime, arcade). Each was designed FOR this type, as
+    // one graphic of the quiz show kit (packs.ts, 'quiz-show').
+    {
+      id: 'card84',
+      name: 'Sticker Title',
+      description: 'A big paper label as the show opener: kicker on an ink strip, a huge tight title, an accent tab on the corner.',
+      styleTag: 'sticker',
+      palette: paletteById('tangerine'),
+      fontId: 'archivo',
+      samples: { title: 'Quiz Night Live', kicker: 'Round one', subtitle: 'Two players · ten questions' },
+      animationPresets: ['snap-stinger', 'mask-wipe', 'slide-up', 'fade', 'slide-down'],
+      defaultZone: 'mid-center',
+      create: (_type, options) => card84.create(options),
+    },
+    {
+      id: 'card85',
+      name: 'Showtime Title',
+      description: 'A bulb-lit marquee plaque as the show opener: billing-caps kicker, a big serif title, a lit star.',
+      styleTag: 'showtime',
+      palette: paletteById('marquee'),
+      fontId: 'playfair-display',
+      samples: { title: 'Quiz Night Live', kicker: 'Round one', subtitle: 'Two players · ten questions' },
+      animationPresets: ['fade', 'blur-in', 'mask-wipe', 'slide-up', 'slide-down'],
+      defaultZone: 'mid-center',
+      create: (_type, options) => card85.create(options),
+    },
+    {
+      id: 'card86',
+      name: 'Arcade Title',
+      description: 'A pixel-cornered neon title screen: mono kicker, a big glowing squared-caps title, a row of pixels.',
+      styleTag: 'arcade',
+      palette: paletteById('neon-cyan'),
+      fontId: 'saira',
+      samples: { title: 'Quiz Night Live', kicker: 'Round one', subtitle: 'Two players · ten questions' },
+      animationPresets: ['mask-wipe', 'snap-stinger', 'fade', 'slide-up', 'slide-down'],
+      defaultZone: 'mid-center',
+      create: (_type, options) => card86.create(options),
     },
     // card04 is NOT promotable here: it supports three lines and this type declares five, and a
     // compiled variant takes the TYPE's capabilities. Promotion would offer two more lines than

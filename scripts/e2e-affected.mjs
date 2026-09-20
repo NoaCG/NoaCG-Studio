@@ -100,6 +100,7 @@ const isEntrypoint =
 // ── Source-area → spec globs ────────────────────────────────────────────────
 // Order does not matter; every matching rule contributes its specs (union).
 const MAP = [
+  [/^src\/components\/editorFoundation\/|^src\/app\/router\.ts$|^src\/App\.tsx$|^src\/templates\//, ['editor-foundation.spec.ts', 'editor-alpha-entry.spec.ts']],
   [/^src\/components\/brand\/|^src\/components\/home\/(HomePage|sections\/LooksSection)\.tsx$|^src\/model\/(brand|packets)\.ts$/, ['brand-editor.spec.ts']],
   [/^(?:terms|privacy)\.html$|^src\/legal\.css$/, ['legal.spec.ts']],
   [/^src\/backend\/events\.ts$|^api\/(events\.ts|_lib\/funnelEvents)/, ['analytics.spec.ts']],
@@ -269,7 +270,21 @@ const MAP = [
   // renamed or re-declared moves what a brief retrieves.
   // The quiz runtime is also the exported control panel's recovery subject and the audience
   // pack's answer boards - the generic src/templates rule below unions with this one.
-  [/^src\/templates\/quiz\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'audience-pack.spec.ts', 'production-controls.spec.ts', 'quiz-pilot.spec.ts']],
+  [/^src\/templates\/quiz\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'audience-pack.spec.ts', 'production-controls.spec.ts', 'quiz-pilot.spec.ts', 'quiz-show.spec.ts']],
+  // THE QUIZ SHOW SET: the show board (answer count as a field, no lock), the two-player duel
+  // score, and the three game-show families they ship in. quiz-show.spec.ts is the only place
+  // the pick / reveal arc, the hidden rows and the duel runtime's leader mark are driven. The
+  // family tokens and palettes ride along because those nine designs are their only readers.
+  [/^src\/templates\/(types\/(quizShow|duelScore)\.ts|scoreboards\/(duelShared|sb2[678])\.ts|lowerThirds\/lt(68|69|70)\.ts)$/, ['quiz-show.spec.ts']],
+  [/^src\/model\/themeTokens\.ts$/, ['quiz-show.spec.ts']],
+  // The rest of the Quiz Show kit: five more designs per game-show family and the pack that
+  // gathers all eight. quiz-show.spec.ts holds the kit's resolution (three looks and no other).
+  [/^src\/templates\/(infoCards\/card8[456]|infographics\/ig4[012]|infographics\/pack4\/gameShowFacts|cornerBug\/bug(38|39|40)|gameTimers\/gt0[789]|startingSoon\/ss2[234]|shared\/gameShowShapes)\.ts$/, ['quiz-show.spec.ts']],
+  // THE WORKED ILLUSTRATOR EXAMPLE. docs/SVG_AUTHORING.md section 6b is written around this one
+  // file, and the spec walks it through the real import wizard - so a change to the sample, or to
+  // the importer that reads it, has to re-prove what the guide promises.
+  [/^docs\/svg-samples\/sticker-lower-third\.svg$/, ['import-svg-sticker-sample.spec.ts']],
+  [/^src\/(assets\/svgImport\.ts|templates\/importedDesign\/)/, ['import-svg-sticker-sample.spec.ts']],
   // The four types whose MACHINE the per-graphic control page is generated from. A type file is
   // where a state, an arrow or a control label is authored, and control-panel-types.spec.ts is
   // the only place the resulting BUTTONS and their greying are driven on that page - so an edit
@@ -312,7 +327,7 @@ const MAP = [
   // count-from-zero fix changed an infographic emit, every branch plan skipped the one spec that
   // compares the two representations, and the mismatch surfaced in the nightly. The pin lives in
   // scripts/e2e-affected.test.mjs and is derived from that import rather than from this list.
-  [/^src\/templates\//, ['anim-engine.spec.ts', 'catalog-baseline.spec.ts', 'package.spec.ts', 'images.spec.ts', 'stage-fit-determinism.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts', 'competition-pack.spec.ts', 'holding-pack.spec.ts', 'full-frame-offering.spec.ts', 'public-service.spec.ts', 'template-escaping.spec.ts', 'sports.spec.ts', 'audience-pack.spec.ts', 'community.spec.ts', 'library.spec.ts', 'library-productions.spec.ts', 'exports.spec.ts', 'wizard-kit.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts', 'wizard-setup-fields.spec.ts', 'end-credits.spec.ts', 'counting-settle.spec.ts', 'productions.spec.ts']],
+  [/^src\/templates\//, ['anim-engine.spec.ts', 'catalog-baseline.spec.ts', 'package.spec.ts', 'images.spec.ts', 'stage-fit-determinism.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts', 'competition-pack.spec.ts', 'holding-pack.spec.ts', 'full-frame-offering.spec.ts', 'public-service.spec.ts', 'template-escaping.spec.ts', 'sports.spec.ts', 'audience-pack.spec.ts', 'community.spec.ts', 'library.spec.ts', 'library-productions.spec.ts', 'exports.spec.ts', 'wizard-kit.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts', 'wizard-setup-fields.spec.ts', 'end-credits.spec.ts', 'counting-settle.spec.ts', 'productions.spec.ts', 'quiz-show.spec.ts']],
   // The Import-graphic capability lives behind its own folder and its own index
   // (src/components/wizard/import/, docs/WORKFLOW_ARCHITECTURE.md §5.5 wizard row 2), so a
   // change inside it selects the import road's own specs and the four others that assert on
@@ -355,7 +370,7 @@ const MAP = [
   // - and none of them was mapped. Rewriting one line of the result card's copy on 2026-08-26
   // broke 21 assertions across seven AI specs, and the affected plan selected none of them.
   [/^src\/components\/wizard\/(?!import\/)/, ['ai.spec.ts', 'ai-lite.spec.ts', 'ai-more-control.spec.ts', 'adapt-first.spec.ts', 'image-purpose.spec.ts', 'project-format.spec.ts',
-    'motion-presets.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'import-name-collision.spec.ts', 'library.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'text-tools.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts', 'google-fonts.spec.ts', 'design-rules-product.spec.ts', 'end-credits.spec.ts']],
+    'motion-presets.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'editor-alpha-entry.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'import-name-collision.spec.ts', 'library.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'text-tools.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts', 'google-fonts.spec.ts', 'design-rules-product.spec.ts', 'end-credits.spec.ts']],
   // WHAT HAPPENS WHEN A WRITE FAILS is its own contract (e2e/storage-full.spec.ts) and it cuts
   // across the storage layer, the two save paths over it, and the surface that announces the
   // failure. It is mapped separately because the failure mode it guards - a door that saves

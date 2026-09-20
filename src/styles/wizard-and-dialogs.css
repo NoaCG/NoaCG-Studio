@@ -55,6 +55,45 @@
 .wz-wizard .wz-entry-card strong { font-size: 17px; }
 .wz-wizard .wz-finish-name { font-size: 16px; }
 .wz-wizard .wz-footer button.wz-next { font-size: 15px; }
+/* ── THE WIZARD'S HEADER IS A TOPBAR, NOT A DIALOG HEADER ────────────────────────────────
+   `.wz-wizard` is FULL-SCREEN, so it is a PAGE, and it opens OVER the Home page it was
+   launched from — `.wz-modal` covers the viewport exactly and Home stays mounted underneath.
+   The brand lockup is on both bars, in the same corner, so pressing "+ New graphic" replaced
+   one logo with another 12px to the right and 8px down, in a bar 16px taller. Measured at
+   1366x768 before this rule: bar 53px against 69px, logo at (20,14) against (32,22).
+
+   Every one of those deltas was header PADDING and nothing else. Both bars carry the same
+   32px content row — `.gallery-close` here, a button there — and the same `BrandLogo size={24}`
+   inside the same `.brand-home`, so taking the topbar's `10px 16px` lands the logo on the
+   identical x and y and the bar on the identical 53px. Not approximately: to the pixel.
+
+   THE `.wz-wizard` SCOPE IS LOAD-BEARING: it keeps the ten-odd dialogs that borrow
+   `.wz-header` (Settings, Save, Export, Community…) on their roomier `18px 28px` — they are
+   dialogs and should read as dialogs. e2e/wizard-shell.spec.ts fails if it is ever dropped.
+
+   THE PHONE IS HANDLED IN mobile.css, NOT BY A `min-width` HERE. This rule outranks that
+   file's `.wz-header { padding: 12px 14px }` on specificity, so mobile.css names `.wz-wizard`
+   too and wins on source order (it is imported after this file). A `min-width: 769px` wrapper
+   here would have done the job at every width a test asks about and left a gap between the two
+   queries — at a fractional viewport width of 768.5, from a zoom or a device pixel ratio,
+   neither matches and the header falls back to the dialog padding.
+
+   THE GAP IS 14px, NOT THE TOPBAR'S 6. `.topbar` drops to 6px below 1400 because the EDITOR
+   shell's bar is crowded there; this bar has ~500px of slack, and copying a crowding
+   compromise buys nothing. 14px is the number `.topbar` itself uses whenever it is allowed
+   to — above 1520px, which includes a projector at 1920, where the two then match exactly.
+   No background is stated: `.wz-modal` is already `--bg-2`, and a second place holding the
+   same colour is how two surfaces drift apart later.
+
+   The step gains the 16px, which is the safe direction for e2e/wizard-entry-fit.spec.ts: it
+   is more room at 1366x768 and 1440x900, and the 1280x500 window it requires to overflow
+   still does. */
+.wz-wizard .wz-header { padding: 10px 16px; gap: 14px; }
+/* The one control on BOTH bars. `.fb-open` asks for 12px (feedback.css) and lost to
+   `.wz-wizard button`'s 15px above, so Feedback was 3px bigger here than on Home. Scoped to
+   the header, so nothing else in the wizard changes; it is not the tallest child, so the
+   53px stands. */
+.wz-wizard .wz-header .fb-open { font-size: 12px; padding: 4px 9px; }
 .wz-header {
   display: flex;
   align-items: center;
@@ -1698,6 +1737,9 @@ details:not([open]) > *:not(summary) { display: none; }
    the number, not a warning. It may wrap on a narrow step, so it opts out of the row's
    nowrap. */
 .wz-browse-ignored { color: var(--text-dim); font-size: 12px; white-space: normal; }
+/* What the chosen sort order means. It may wrap, and it takes the row's spare width so the
+   filter chips after it drop to their own line rather than squeezing it. */
+.wz-browse-sort-meaning { flex: 1 1 260px; min-width: 0; color: var(--text-dim); font-size: 12px; line-height: 1.35; }
 .wz-browse-section { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 14px 0 8px; }
 /* "Show 12 more" (handoff §2b): full width under the grid, quiet, and the width IS the point —
    it belongs to the whole result, not to the last card in the row above it. */
