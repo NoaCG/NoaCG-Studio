@@ -46,7 +46,11 @@ test('a production whose live connection never joins says so, and a healthy one 
 
   // ── NOT JOINED: open the same published production with the socket opened and never joined. ──
   const blind = await context.newPage();
-  await blind.routeWebSocket(/supabase\.co\/realtime/, () => {
+  // MATCHED ON THE PATH, not on the host. `supabase.co/realtime` is what the sibling specs use,
+  // and it is wrong here: this suite runs against a LOCAL stack on 127.0.0.1, so that pattern
+  // matches nothing, the socket connects normally and the spec asserts a line that correctly
+  // never appears. `/realtime/v1/` is the path both a local stack and a hosted project serve.
+  await blind.routeWebSocket(/\/realtime\/v1\//, () => {
     /* opened, never joined - exactly what a refused or silently dead channel looks like */
   });
   await blind.goto(page.url());
