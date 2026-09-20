@@ -17,7 +17,7 @@ Window ends: 2026-09-11T03:00:00Z
 
 | L | goal | START | TOUCHES | MINTS | POOL | browser |
 | --- | --- | --- | --- | --- | --- | --- |
-| CA | Make the 25 September deck and demo ledger agree with the owner's 10 September calls and the measured CasparCG result | now | `docs/DEMO_2026-09-25.md`; `docs/STUDENT_RELEASE_ACCEPTANCE.md`; `docs/presentation-2026-09-25/make-deck.mjs`; `docs/presentation-2026-09-25/NoaCG-2026-09-25.pptx`; `docs/backlog/deck-contradicts-the-2026-09-10-calls.md`; one CA acceptance file; one CA handoff | the 25 September deck binary regeneration | agy-gemini, fallback codex - bounded cross-file artifact work with a visual acceptance checklist | no |
+| CA | Make a slide deck and its ledger agree with the owner's 10 September calls and the measured CasparCG result | now | the deck, its generator, `docs/STUDENT_RELEASE_ACCEPTANCE.md`, one acceptance file and one handoff, all since removed | a deck binary regeneration | agy-gemini, fallback codex - bounded cross-file artifact work with a visual acceptance checklist | no |
 | CB | Turn the 92-file owner queue into a list containing only work that genuinely needs the owner, and drain the handoffs already spent | now | pre-2026-09-11 files under `docs/acceptance/owner-queue/`; related `docs/backlog/` receipts except the CA and CC reserved receipts; consumed and spent files under `docs/handoffs/`; one CB handoff | the owner-queue drain batch and the handoff deletion batch | codex, fallback agy-gemini after enumeration - long, rule-bound document triage | no |
 | CC | Refuse unsupported project resolution and frame-rate values at load and save without losing the user's record | now | `src/model/projectFormat.ts`; `src/model/project.ts`; `src/store/templateStore.ts`; `src/store/saveActions.ts`; `e2e/project-format.spec.ts`; `scripts/e2e-affected.mjs` only if its mapping is incomplete; `docs/backlog/editor-canvas-1920x1880.md`; one CC acceptance file; one CC handoff | the project-format E2E mapping | codex, fallback opus - reproduce-first implementation with a narrow acceptance test | yes |
 
@@ -143,22 +143,9 @@ The owner-queue depth is 92 files. It is a record, never a gate; CB is planned p
 
 Start now: CA, CB, CC. No follow-ons. No refill.
 
-```text
-SESSION CA - deck and demo
-BRANCH claude/ca-deck-and-demo-doc
-MODEL  agy-gemini / gemini-3.7-flash-high - bounded artifact and cross-file consistency work; fallback codex / gpt-5.6-sol high
-START  now
-TOUCHES docs/DEMO_2026-09-25.md; docs/STUDENT_RELEASE_ACCEPTANCE.md; docs/presentation-2026-09-25/make-deck.mjs; docs/presentation-2026-09-25/NoaCG-2026-09-25.pptx; docs/backlog/deck-contradicts-the-2026-09-10-calls.md; docs/acceptance/owner-queue/2026-09-10-ca-deck-matches-the-day.md; docs/handoffs/2026-09-10-ca-deck-and-demo-doc.md   MINTS the 25 September deck binary regeneration
-GOAL   The generated deck, its notes, and the demo ledgers tell one current story: the day stops at the NoaCG player, the take-home and two indexes are visible, and A4/A6 carry the real CasparCG result without claiming SDI, the hosted-origin permission, or venue networking was proven.
-WHY    The deck the owner has not opened yet contradicts three decisions made on 10 September, and its worst slide teaches the room to configure playout paths deliberately cut from the day.
-READ   docs/backlog/deck-contradicts-the-2026-09-10-calls.md; docs/handoffs/2026-09-10-owner-walk-and-the-because-gate.md; docs/handoffs/2026-09-10-bh-caspar-real-server.md; docs/DEMO_2026-09-25.md; docs/STUDENT_RELEASE_ACCEPTANCE.md; docs/presentation-2026-09-25/make-deck.mjs; docs/presentation-2026-09-25/README.md if present.
-DELEGATE Resolve your worktree with `git rev-parse --show-toplevel`, write acceptance conditions first, then use `npm run agy -- --write` with literal absolute paths to exactly the seven existing files named above and no directory search. Antigravity may edit the markdown and generator; the owning session keeps regeneration, visual inspection, verification, commits, and landing. If the wrapper refuses or returns no usable patch, record the prompt defect and use the Codex rescue workflow.
-DO     1. Rename the branch to `claude/ca-deck-and-demo-doc` and confirm it. 2. Invoke the Presentations skill, update A4/A6 and the gap rows from BH's measured evidence, and correct slides 3, 5, and 7 plus notes without restoring a cut demo path. 3. Preserve the old PPTX outside the generator's output path, regenerate, render every slide and notes page, inspect critically for clipping, hierarchy, spacing, and contradictions, and discard the backup only after the new artifact passes. 4. Re-read every status sentence against BH's limits, update the backlog receipt, and add the one-minute owner route.
-CORE   Steps 1-3 are the core. If the window tightens, cut prose polish before any truth correction or visual inspection.
-TRAPS  No chat-only trap. The generator overwrite refusal, Chromium 71 finding, collapsed 2.3 flex gaps, hosted-origin permission gap, and screen-consumer-versus-hardware limit are all in the READ files.
-GATE   Run `npm run build`; run the presentation skill's structural and rendered-slide checks; push and read the CI run to a verdict, including which jobs ran. Commit each verified step.
-QUEUE  Then, as your LAST THREE actions and in this order: 1. run /check (review delegated, simplify inline, verify inline, taste answered on the rendered deck); 2. write docs/handoffs/2026-09-10-ca-deck-and-demo-doc.md with what is left and why, evidence, chat-only traps, anything needing the owner, and commit/check/acceptance pointers; 3. run /queue-merge. Commit and queue only green work that stands alone; leave unfinished work uncommitted and describe it. Do not commit after queueing, never merge main yourself, and never end waiting on a CI run, landing, watcher, or background process.
-```
+The CA row prompt is not reproduced here. It drove a presentation file and the session script
+that went with it, both removed from the repository on 2026-09-20; what it measured about
+routing is in the sections above and below.
 
 ```text
 SESSION CB - queue drain

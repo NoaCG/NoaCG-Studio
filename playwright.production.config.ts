@@ -7,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
 // the gap between that and https://noacg.studio is not theoretical: on 2026-09-10 the deep link
 // `noacg save` prints was measured failing on production while the spec that asserts it passed on
 // the dev server, and the difference hid for six days because nothing here ever loaded the
-// deployed bundle (docs/DEMO_2026-09-25.md §7 row 14).
+// deployed bundle.
 //
 // WHAT MAY RUN HERE. Production is a real deployment with real users' data in it, so this suite
 // is deliberately tiny and deliberately ANONYMOUS: only tests tagged `@production`, which must

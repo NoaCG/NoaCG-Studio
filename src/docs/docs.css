@@ -223,29 +223,6 @@ td strong { color: var(--paper); }
 }
 .callout.truth .lbl { color: var(--faint); }
 
-/* ── The two session indexes (#session-student, #session-owner) ──
-   One printed sheet each, for the live session of 25 September. On screen they are ordinary
-   sections at the end of the page; everything that makes them a handout is in the print block
-   at the bottom of this file. The type is a step tighter than a guide's because an index is
-   scanned, not read. */
-.one-pager h2 { font-size: 21px; }
-.one-pager h3 { font-size: 15px; margin: 20px 0 6px; }
-.one-pager ol, .one-pager ul { margin-bottom: 8px; }
-/* The student sheet's road is ONE numbered run broken by three headings, so the number comes from
-   a counter that spans all three lists. Written as `<ol start="7">` it was a hand-kept number:
-   adding a step to road 1 gave the sheet two 7s and nothing would have failed. */
-.one-pager { counter-reset: road; }
-.one-pager .road { list-style: none; margin-left: 26px; }
-.one-pager .road li { counter-increment: road; position: relative; }
-.one-pager .road li::before {
-  content: counter(road) ".";
-  position: absolute; left: -26px; width: 22px; text-align: right;
-  font-family: var(--mono); font-size: 13px; color: var(--faint);
-}
-.one-pager .two-urls { font-size: 16px; line-height: 1.9; }
-/* The instruction is about pressing Ctrl+P, so on paper it is already spent. */
-.one-pager .print-note { color: var(--faint); }
-
 /* Footer */
 footer {
   display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: space-between;
@@ -276,7 +253,7 @@ footer a:hover { color: var(--paper); }
   }
   @page { margin: 14mm; }
   body { background: #ffffff; }
-  .doc-nav, .cmd-copy, .print-note { display: none; }
+  .doc-nav, .cmd-copy { display: none; }
   a { text-decoration: underline; }
   /* The nav is gone from every print, so its grid track has to go with it or the sheet carries a
      230px empty column and a 48px gutter down the left of every page. */
@@ -284,48 +261,7 @@ footer a:hover { color: var(--paper); }
   .doc-grid { display: block; padding: 0; }
   /* Four backgrounds are written as literals rather than as variables, so the block above does not
      reach them. With the browser's "Background graphics" option ON they print as they are: a table
-     header is then `--faint` on a mid grey at about 1.5:1, and the owner sheet IS a table. */
+     header is then `--faint` on a mid grey at about 1.5:1, and several guides print tables. */
   th, .callout, code, .doc-shot img { background: transparent; }
   th { color: #333333; }
-
-  /* ONE INDEX ON ONE SHEET. `:target` is the section the address names, so opening
-     /docs#session-student and printing gives that index and nothing else; with no index named
-     the page prints as it reads. `:has()` is what lets the header, the nav and the other
-     sections answer to a target that is not them. */
-  body:has(.one-pager:target) header.top,
-  body:has(.one-pager:target) .doc-hero,
-  body:has(.one-pager:target) footer,
-  body:has(.one-pager:target) .doc-body > section:not(:target) { display: none; }
-
-  /* The sheet itself. It starts at the top of the paper, and the whole index has to fit, so
-     the type drops to print sizes rather than the screen's. */
-  .one-pager:target { border-top: 0; margin-top: 0; padding: 0; }
-  .one-pager:target h2 { font-size: 17pt; margin: 0 0 5pt; }
-  .one-pager:target h3 { font-size: 11pt; margin: 9pt 0 3pt; }
-  .one-pager:target p,
-  .one-pager:target li,
-  .one-pager:target th,
-  .one-pager:target td { font-size: 9pt; line-height: 1.4; }
-  .one-pager:target p { margin: 4pt 0; }
-  .one-pager:target li { margin: 2pt 0; }
-  .one-pager:target .road li::before { font-size: 8pt; }
-  .one-pager:target th, .one-pager:target td { padding: 3pt 6pt; }
-  .one-pager:target .two-urls { font-size: 11pt; line-height: 1.6; }
-  .one-pager:target .kicker { font-size: 8pt; }
-
-  /* A link is only its words on paper, so each one prints the address it would have gone to,
-     including the one that leaves the site: the take-home tells a group to open two files in the
-     practice library, and "practice library" alone is nothing they can type.
-
-     A link whose own text IS the address is marked `.plain-url` and keeps it, or the sheet reads
-     "noacg.studio/app (noacg.studio/app)". The attribute selector is there to win the tie: without
-     it that rule and the `[href^="/"]` one have the same specificity and cancellation would rest
-     on which line comes second. */
-  .one-pager:target a[href^="#"]::after { content: " (noacg.studio/docs" attr(href) ")"; }
-  .one-pager:target a[href^="/"]::after { content: " (noacg.studio" attr(href) ")"; }
-  .one-pager:target a[href^="http"]::after { content: " (" attr(href) ")"; }
-  .one-pager:target a[href^="#"]::after,
-  .one-pager:target a[href^="/"]::after,
-  .one-pager:target a[href^="http"]::after { color: var(--faint); font-size: 8pt; word-break: break-all; }
-  .one-pager:target a.plain-url[href]::after { content: none; }
 }

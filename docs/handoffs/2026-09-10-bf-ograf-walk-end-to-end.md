@@ -58,9 +58,8 @@ re-running it, not committed).
 
 ## What is left
 
-Nothing on this beat. A7's claim in `docs/DEMO_2026-09-25.md` (untouched by this row, per its
-own TRAPS) now has both a code-level confirmation (2026-09-09) and an independent end-to-end run
-against the landed fix (this row) behind it.
+Nothing on this beat. The OGraf claim now has both a code-level confirmation (2026-09-09) and an
+independent end-to-end run against the landed fix (this row) behind it.
 
 Two things this row did NOT touch, both already on record elsewhere:
 - **Which renderer Yle actually runs** stays open - `docs/OGRAF.md` and the owner-queue item both

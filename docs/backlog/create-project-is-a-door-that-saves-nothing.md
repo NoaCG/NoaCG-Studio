@@ -22,10 +22,9 @@ So a control labelled "Create project" is, on that reading, a navigation shortcu
 that persists nothing, while the two doors a user reaches by finishing the wizard both save on
 purpose. The question is whether that is the behaviour we want.
 
-The date is what makes it worth a file rather than a shrug. **On 2026-09-25 a room of students and
-YLE people uses this wizard.** A button that says "Create project" and leaves nothing behind is the
-shape of thing that loses somebody's work in front of an audience - and the audience is the point
-of that day.
+A live demonstration is what makes it worth a file rather than a shrug. **A room full of
+first-time users drives this wizard.** A button that says "Create project" and leaves nothing
+behind is the shape of thing that loses somebody's work in front of an audience.
 
 Three answers are all defensible and the item is not decided:
 
@@ -58,7 +57,7 @@ belongs in an owner-queue walk rather than in whichever fix is quickest.
 ## Read in the source on 2026-09-09 by `claude/aa-deck-repair`, and one thing corrected
 
 Still not reproduced in the running app - the walk above is still the first step. But the code was
-read, because the 25 September deck was sending the room through this button and had to stop:
+read, because a slide deck was sending an audience through this button and had to stop:
 
 - **The call graph is as quoted.** `create()` is `applyDraftProject()` with no arguments, and its
   own comment says so out loud: *"The editor door (and the quiet from-any-step shortcut): create

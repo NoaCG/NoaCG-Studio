@@ -317,7 +317,7 @@ any unconfirmed identities** on that user.
 With confirmations off, every email/password identity we mint is unconfirmed. So once Google
 sign-in is provisioned:
 
-> A student signs up with `x@arcada.fi` + password, then later clicks "Continue with Google"
+> A student signs up with `x@northvale.edu` + password, then later clicks "Continue with Google"
 > on the same address. Supabase links Google to the same user - the account and all their
 > work survive - **and deletes the unconfirmed email identity, so their password stops
 > working.**

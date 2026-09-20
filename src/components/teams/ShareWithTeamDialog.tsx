@@ -251,7 +251,7 @@ function Dialog() {
                   autoFocus
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
-                  placeholder="e.g. Arcada TV-26"
+                  placeholder="e.g. Northvale TV-26"
                   data-testid="new-team-name"
                 />
               </label>

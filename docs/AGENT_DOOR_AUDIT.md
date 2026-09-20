@@ -71,7 +71,7 @@ Somebody with a long Windows user name, or a redirected profile, will not be.
 
 ### The plugin installs, and then quietly stops being the plugin
 
-This laptop - the one the 2026-09-25 demo runs from - loads **0.2.0**, nineteen days old:
+This laptop - the one demos run from - loads **0.2.0**, nineteen days old:
 
 ```
 $ claude plugin list
@@ -86,7 +86,7 @@ about this, and the plugin reports itself enabled and healthy either way. Codex 
 holds 0.3.3, so this is specific to the Claude Code install.
 
 Filed: `docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md`. The one-line
-repair for this laptop before the 25th is `claude plugin marketplace update noacg-studio`, and I
+repair for this laptop is `claude plugin marketplace update noacg-studio`, and I
 have deliberately not run it: it would swap the skill text under other sessions working tonight.
 
 **2026-09-17: the silence is fixed, the install is not.** `noacg doctor` now prints the installed
@@ -116,13 +116,9 @@ route, not an extra step). The cost in this chain is not the tools, it is the de
 between `scaffold` and `validate`, which is the agent's thinking and is supposed to be where the
 time goes.
 
-`validate --screenshots` standing on its own had never been run before tonight - `docs/DEMO_2026-09-25.md`
-carries that as a stated gap in R2.1's cell, noted by SE as a completeness gap in method. It works:
-exit 0, three frames written. That gap is closed in fact, but **R2.1's cell still says it is open**
-(`docs/DEMO_2026-09-25.md:179`, "standalone `validate ./sb --screenshots ./shots` still has not been
-run on its own"). I have deliberately not edited that cell: section 7 of that document has already
-produced two merge conflicts between rows this week, and this branch does not own it. Whoever next
-touches R2.1 can strike the sentence and cite this file.
+`validate --screenshots` standing on its own had never been run before tonight, noted by SE as a
+completeness gap in method. It works: exit 0, three frames written. That gap is closed in fact,
+and this file is the evidence for it.
 
 **Exit codes are honest**, which matters more than it sounds because an agent reads them. Checked by
 redirecting rather than piping, since a pipeline reports the pipe's status:
@@ -390,6 +386,6 @@ the documented commands all ran as written - so there was nothing trivially safe
 **Yes to both, on the road this is strongest on - two commands and sixteen seconds to install, one
 sentence to a broadcast-credible graphic, and 8.4 seconds from `save` to that graphic readable on a
 public output URL, all of it run tonight - provided the marketplace line is treated as step one
-rather than a footnote and this laptop's own nineteen-day-old plugin is updated before the 25th; the
+rather than a footnote and this laptop's own nineteen-day-old plugin is updated; the
 one thing I would not promise a stranger is that they can hand over their own SVG through an agent,
 because the door has no answer for that and an agent will quietly redraw it instead.**

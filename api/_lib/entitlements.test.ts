@@ -615,14 +615,14 @@ test('same-rank grants are last-wins, so the loader must hand them over ordered'
 // normalization, one-domain-one-plan - is exercised by migration 0045's own self-check.
 
 test('an email domain is read strictly, so a malformed address matches no plan', () => {
-  assert.equal(emailDomain('student@arcada.fi'), 'arcada.fi');
-  assert.equal(emailDomain('  Student@Arcada.FI  '), 'arcada.fi', 'case and padding are not identity');
-  assert.equal(emailDomain('first.last+tag@arcada.fi'), 'arcada.fi');
+  assert.equal(emailDomain('student@northvale.edu'), 'northvale.edu');
+  assert.equal(emailDomain('  Student@Northvale.EDU  '), 'northvale.edu', 'case and padding are not identity');
+  assert.equal(emailDomain('first.last+tag@northvale.edu'), 'northvale.edu');
 
   // Every one of these must be null. A domain guess that is WRONG hands a stranger a plan.
   for (const bad of [
-    null, undefined, '', 'arcada.fi', '@arcada.fi', 'student@', 'student@@arcada.fi',
-    'a@b@arcada.fi', 'student@arcada', 'student@.fi', 'student@arcada.', 'student@.',
+    null, undefined, '', 'northvale.edu', '@northvale.edu', 'student@', 'student@@northvale.edu',
+    'a@b@northvale.edu', 'student@northvale', 'student@.edu', 'student@northvale.', 'student@.',
   ]) {
     assert.equal(emailDomain(bad), null, `${JSON.stringify(bad)} must not resolve to a domain`);
   }
@@ -633,8 +633,8 @@ test('a domain plan is an ASSIGNED plan, so a grant and an override still outran
   // the whole safety argument: a domain widens WHO gets a plan, never what a plan outranks.
   // If that ever stopped being true, a domain could quietly defeat a deliberate per-user deny.
   const domainPlan: PlanShape = {
-    key: 'arcada',
-    name: 'Arcada',
+    key: 'northvale',
+    name: 'Northvale',
     features: { 'ai.pro': true },
     limits: {},
     renderTier: 'free',

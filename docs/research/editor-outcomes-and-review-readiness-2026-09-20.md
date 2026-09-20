@@ -63,7 +63,7 @@ Existing E/B acceptance IDs remain the detailed evidence owners.
 | Animate that graphic, R1.1b/c | Author an entrance and exit, hold until triggered, and rehearse locally; this is the first small broadcast-animation workflow. | Start from the saved customized graphic; enable position/opacity animation, create two keys by moving playhead and artwork, scrub, move layer bars, Set Out/reverse or manual exit, hold/Out including mid-In interruption; save/reopen and compare simulator/export. | Can timing be understood and adjusted naturally on the timeline? | B05/B13 core and B07 early Out; broader easing/Next still follows in R1.2a. |
 | Refine real imported artwork, R1.1d | Illustrator/wizard designs survive useful edits, so users do not need to redraw them. | Repeat basic edits/animation on nested SVG and catalog fixtures; preserve fields, quiz/timer/custom actions and unknown source; trim bars; stable IDs and round-trip; planned first-time-user checks. | Is the existing import workflow intact and the supported editing useful? | B01-B05/B11/B13 applicable portions. |
 | Everyday animation and organization, R1.2a-c | Build and revise richer graphics without layer/keyframe chaos. | Full 2D/easing/multi-key/Step/Next tasks, assets, long-title fit, duplicate/delete/reorder/alignment, groups and local loops; separately report each complete task rather than waiting for one giant review. | Familiar controls, clarity and speed on realistic graphics. | B02-B07/B13/B14 local-loop portion; advanced B04 tools remain here. |
-| Reusable graphics into production, R1.4a-d | A student chooses a starter, customizes it and runs it from a rundown. | Choose a real starter/brand, change content/logo/type/colours, save multiple graphics, reopen from Home, add selected graphics to a rundown, update operator text and run In/Out in NoaCG; retry failures without duplication. | Can a student finish this route without developer help? | B08-B10/B19; may proceed in parallel from R1.1c registry. |
+| Reusable graphics into production, R1.4a-d | A non-technical user chooses a starter, customizes it and runs it from a rundown. | Choose a real starter/brand, change content/logo/type/colours, save multiple graphics, reopen from Home, add selected graphics to a rundown, update operator text and run In/Out in NoaCG; retry failures without duplication. | Can a non-technical user finish this route without developer help? | B08-B10/B19; may proceed in parallel from R1.1c registry. |
 | Assisted editing, R1.3a/b | Help and bounded edits reduce effort without changing the wrong graphic. | Grounded answer, requested edit, preview, accept/cancel/undo and stale selection handling, with real-model tests and a working manual path. | Are assistance and edits useful and trustworthy? | B17/B18; does not gate basic manual authoring. |
 | Replacement editor, R1.5 | Adopt a reliable editor for the required R1 tasks. | Required cumulative journeys, comparative quality/performance, relevant real output host and first-time-user evidence, no unresolved critical task blockers. | Explicit default-switch acceptance. | Required R1 portions, not full R2/R3 parity. |
 
@@ -89,8 +89,8 @@ Each review handoff says, in this order:
 4. Team evidence for that task, exact commit/deployment, and material remaining limits.
 5. The next useful outcome. Request owner time only when there is something usable to assess.
 
-For the September 25 teaching session, choose an actually rehearsed student workflow and a
-separately labelled editor demonstration from these outcomes. Do not promise the full rebuild by
-that date. The team rehearses the selected route on the intended deployment and records blockers
-before asking the owner to use it with students; a known working wizard/production route can
-remain the teaching path while editor authoring progresses.
+For any live demonstration, choose an actually rehearsed user workflow and a separately labelled
+editor demonstration from these outcomes. Do not promise the full rebuild by a fixed date. The
+team rehearses the selected route on the intended deployment and records blockers before asking
+the owner to show it to anyone; a known working wizard/production route can remain the
+demonstration path while editor authoring progresses.

@@ -11,7 +11,7 @@ measurement rather than a standing contract. Route for the owner:
 **The verdict.** Yes for Yle and yes for students on the road this is strongest on - two commands and
 sixteen seconds to install, one sentence to a broadcast-credible graphic, 8.4 s from `save` to that
 graphic readable on a public output URL - provided the marketplace-add line is treated as step one
-and this laptop's own plugin is updated before the 25th. The one thing I would not promise a
+and this laptop's own plugin is updated. The one thing I would not promise a
 stranger is that they can hand over their own SVG through an agent.
 
 Everything in the file was run tonight on this laptop against the published 0.3.3. Three things are
@@ -62,7 +62,7 @@ in the worktree it runs from; **I copied the primary checkout's `.env` into this
 it there** (gitignored, `.gitignore:219`). Delete it when this worktree is removed.
 
 **It waited 19 minutes for a turn** behind another session's browser job (`j-1225`). One browser job
-per machine, working as intended - but budget for it if anyone plans to re-measure on the 25th.
+per machine, working as intended - but budget for it if anyone plans to re-measure to a deadline.
 
 **Scratch state I created.** Removed: `~/.claude-tcaudit`, `~/.claude-tcaudit2`, `~/.claude-tca3..5`.
 Left behind because a Codex process holds its sqlite files open: `C:\Users\ahonemi\tc-codexhome`
@@ -78,7 +78,7 @@ a clean machine: Claude Code ships with no marketplaces configured, so the marke
 mandatory. Making the bare command work means being listed in `anthropics/claude-plugins-official`,
 which is a pull request from an account. `needs: account`. Nothing else in this audit needs him.
 
-**One thing to do to this laptop before 2026-09-25**, not a question: it loads plugin **0.2.0** from
+**One thing to do to this laptop**, not a question: it loads plugin **0.2.0** from
 a marketplace checkout last refreshed 2026-08-28, still pinned to the pre-rename `miwco/NoaCG-Studio`
 (GitHub 301s it). One command - `claude plugin marketplace update noacg-studio`. I did not run it:
 it would swap the skill text under sessions working tonight.
@@ -105,10 +105,9 @@ as written, once `--out` is included, which the audit's table now does.
 
 ## One thing I deliberately did not touch
 
-`docs/DEMO_2026-09-25.md:179` (R2.1) still reads "standalone `validate ./sb --screenshots ./shots`
-still has not been run on its own". It has now, cleanly, and the audit says so - but section 7 of
-that document has produced two merge conflicts between rows this week and this branch does not own
-it. Whoever next edits R2.1 can strike that sentence and cite `docs/AGENT_DOOR_AUDIT.md`.
+A gap list elsewhere still read "standalone `validate ./sb --screenshots ./shots` still has not
+been run on its own". It has now, cleanly, and `docs/AGENT_DOOR_AUDIT.md` says so - but that
+document had produced two merge conflicts between rows this week and this branch did not own it.
 
 ## `/check`
 

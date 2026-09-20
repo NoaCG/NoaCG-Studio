@@ -1,17 +1,16 @@
-// SAVE TO AIR, measured against the real deployment: the last hop of the agent road
-// (docs/DEMO_2026-09-25.md, the R2.5 beat).
+// SAVE TO AIR, measured against the real deployment: the last hop of the agent road.
 //
-// The room hears 24.8 s for the seven authoring verbs and 9.3 s for `noacg save` into the live
-// library. Nobody had ever timed the hop AFTER the library: a production's output URL, the thing
-// a viewer actually sees. This script times it, end to end, against `https://noacg.studio` with
-// the E2E test account - never a dev server, because R2.4 was already caught overclaiming on the
-// strength of one (a dev server is not this).
+// The numbers we quote are 24.8 s for the seven authoring verbs and 9.3 s for `noacg save` into
+// the live library. Nobody had ever timed the hop AFTER the library: a production's output URL,
+// the thing a viewer actually sees. This script times it, end to end, against
+// `https://noacg.studio` with the E2E test account - never a dev server, because the deep-link
+// claim was already caught overclaiming on the strength of one (a dev server is not this).
 //
 // The walk, all of it driven:
 //   1. `noacg scaffold` a scoreboard with this run's stamp in it, with the LOCAL build;
 //   2. `noacg login`, consent pressed in the driven browser - the interactive handoff, not the
 //      `--key` paste fallback, so the number reflects the login a room will actually run;
-//   3. `noacg save` into the live library. The clock for R2.5 starts when it returns;
+//   3. `noacg save` into the live library. The clock for the last hop starts when it returns;
 //   4. wait for the studio's own library to show it, then make a production of that one graphic
 //      and publish it - the route `save` prints, with the editor never opened;
 //   5. open the PUBLIC output URL and press TAKE; stop the clock when the graphic is on air
@@ -207,7 +206,7 @@ try {
     + `${((exited.at - loginStarted) / 1000).toFixed(1)} s after it started, with the tab open`);
   mark('logged in');
 
-  // ── SAVE. The R2.5 clock starts the moment this returns. ──
+  // ── SAVE. The last-hop clock starts the moment this returns. ──
   const save = await noacg(['save', work]);
   if (save.code !== 0) throw new Error(`save exited ${save.code}: ${save.stdout}${save.stderr}`);
   const saved = JSON.parse(save.stdout);
@@ -384,7 +383,7 @@ try {
   await shot(output, '4-output-second-take');
 
   const seconds = (from, to) => ((to - from) / 1000).toFixed(1);
-  console.log('\n=== R2.5, the last hop, measured against %s ===', origin);
+  console.log('\n=== the last hop, save to air, measured against %s ===', origin);
   console.log(`graphic "${graphicName}" -> production "${showName}" -> ${outputUrl}`);
   for (let i = 1; i < marks.length; i++) {
     console.log(`  ${marks[i].label}: +${seconds(marks[i - 1].at, marks[i].at)} s`);

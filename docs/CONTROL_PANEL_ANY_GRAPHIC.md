@@ -270,10 +270,9 @@ board. A recipe is the wrong tool for a graphic that is prompted rather than dra
 ## 5. What has to exist for 2026-10-20, and what waits
 
 Ordered by what would sink the demo. **These rows start now** (owner, 2026-09-15,
-ALIGN-2026-09-15-4: "we don't have to wait until the 25th if we have everything ready for the
-25th"). What the 25th still needs is its own list - `docs/DEMO_2026-09-25.md` §7 and the owner
-walks under `docs/GOALS.md` NOW - and none of the rows below touches a file or a surface that
-list depends on: the skill, the profile and the data tree are not on the day's beats. The
+ALIGN-2026-09-15-4: work that is ready does not wait for its date). What the earlier dates still
+need is the owner walks under `docs/GOALS.md` NOW, and none of the rows below touches a file or a
+surface those depend on: the skill, the profile and the data tree are not on them. The
 early-October production needs only the scoreboards and quiz boards that already exist. **The rows
 below are what we BUILD; §5a is what the DAY needs**, and the two are not the same list.
 
@@ -281,7 +280,7 @@ below are what we BUILD; §5a is what the DAY needs**, and the two are not the s
 |---|---|---|---|---|
 | 1 | **LANDED 2026-09-15, pull request 270.** **The skill teaches the contract.** Retire "a later capability"; add §2a as a section of `references/contract.md` with a worked machine and controls block; make the three gates explicit steps of the loop - validate, inspect and SHOW the user the buttons, bench; teach the default-path contract and reported fields. One generated source, every shipped copy follows (`cli/scripts/build-skill.mjs`). | Without it the agent scaffolds a typeless graphic and ships state as fields - the measured failure mode of the 2026-08-22 round's free cells | one row; a CLI release after it (`npm run release:cli`, which a session may run) | one row, week of the 28th |
 | 2 | **LANDED 2026-09-15, pull request 270**, in the same row. **Close the open gate in GOALS.** "Agent-authored machines - the owner gate is armed" is answered by the brief; record it in `docs/OWNER_RULINGS.md` and move the GOALS line. | A doc that says the question is open will stop the next session | minutes | the same row |
-| 3 | **WALKED 2026-09-15, pull request 271** - in-app only; publishing needed an env a linked worktree has not got. **Walk the proof case ourselves, once, end to end and timed.** Prompt Claude Code with the shipped skill, build both graphics, `save`, one production, publish, drive §3c from the dashboard, and file the owner-queue item with the route and the stopwatch. Fix what it finds; §3d says where to look first. | "Within minutes in front of the producer" is a number, and the numbers we have are 24.8 s of tool time for the seven verbs and, since 2026-09-16, the last hop as well: 7.4 s from `noacg save` returning to the graphic readable on a production's output URL, of which 0.7 s is the take (`docs/DEMO_2026-09-25.md`, R2.5) | a day, plus whatever it finds | one row, first week of October |
+| 3 | **WALKED 2026-09-15, pull request 271** - in-app only; publishing needed an env a linked worktree has not got. **Walk the proof case ourselves, once, end to end and timed.** Prompt Claude Code with the shipped skill, build both graphics, `save`, one production, publish, drive §3c from the dashboard, and file the owner-queue item with the route and the stopwatch. Fix what it finds; §3d says where to look first. | "Within minutes in front of the producer" is a number, and the numbers we have are 24.8 s of tool time for the seven verbs and, since 2026-09-16, the last hop as well: 7.4 s from `noacg save` returning to the graphic readable on a production's output URL, of which 0.7 s is the take | a day, plus whatever it finds | one row, first week of October |
 | 4 | **LANDED 2026-09-15, pull request 274** - 24 arrows, and a `bench-events-skipped` finding for what it cannot reach. **The bench's event cap** (§3d.1): raise `MAX_BENCH_EVENTS` for a machine that declares more, or have `validate` say which buttons it did not press. | Gate 3 has to mean what §2c says it means on the first real graphic that needs it | an hour, plus one bench run | one row, with row 3 |
 | 5 | **LANDED 2026-09-15, pull request 275** - migration 0058. **The profile's model and storage** (§6e): `Show.profile` v1 with ARRANGE and COMBINE, its parse/serialize/validate beside `shows.ts`, pinned at publish, baked at export, deletable in one action. Unit-tested offline. | Everything after it reads this shape; a wrong shape here is a migration later | a day | one row, week of the 28th |
 | 6 | **LANDED 2026-09-15, pull requests 276 and 277** - migration 0059; the field half was refused in §7b and the acceptance text amended to match. **ARRANGE on all three dashboard deployments** (§6e): order, section, rename, hide, pin applied to the generated ⚡ block and the cue editor's fields; the "Controls" panel on the production page. Pinned by a spec on each deployment. | The football principle, on the surface the operator holds | two days | one row, after row 5 |
@@ -348,8 +347,8 @@ and the evidence for each line. It is short because most of it is already standi
    seven authoring verbs and **5.8 s** to import the pack and land on the production page, both on
    walk 1 (`docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`); and
    **7.4 s** from `noacg save` returning to a readable frame on a public output URL, measured by
-   `scripts/save-to-air-bench.mjs` against `noacg.studio` (`docs/DEMO_2026-09-25.md` R2.5, which
-   also says how to quote it). None of them contains a human thinking, and nobody has done the
+   `scripts/save-to-air-bench.mjs` against `noacg.studio`. None of them contains a human
+   thinking, and nobody has done the
    minute with an audience watching - which is the half the producers will actually judge.
 
 4. **Nothing else, and this is the part worth saying out loud.** The day needs no broadcast chain,
@@ -570,8 +569,8 @@ Made here, recorded so they can be reverted rather than adjudicated:
 4. Reordering is paint; the agent road sorts in its own JS; the SVG road waits for `arrange`.
 5. "+1 to whoever was right" is presses first, then a combined control whose +1 steps are
    ticks, and never an internal bump.
-6. The rows start now and touch nothing the 25th depends on (§5); the wait was lifted by the
-   owner on 2026-09-15.
+6. The rows start now and touch nothing the earlier dates depend on (§5); the wait was lifted
+   by the owner on 2026-09-15.
 7. The profile is two primitives, ARRANGE and COMBINE, and a step carries `after` and `ask` and
    nothing else (§6b). A third primitive or a third mark needs a graphic that cannot be served
    without it, walked and recorded.

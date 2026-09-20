@@ -31,7 +31,7 @@ step one, not a footnote. Making the bare command work means being listed in
 `anthropics/claude-plugins-official`, which is a pull request from an account. That is yours to
 decide; nothing else in this audit is.
 
-**One thing to do to this laptop before the 25th.** It loads plugin **0.2.0**, nineteen days old,
+**One thing to do to this laptop.** It loads plugin **0.2.0**, nineteen days old,
 from a marketplace checkout last refreshed on 2026-08-28. One command fixes it -
 `claude plugin marketplace update noacg-studio` - and I deliberately did not run it tonight, because
 it swaps the skill text under other sessions that were working while I measured.

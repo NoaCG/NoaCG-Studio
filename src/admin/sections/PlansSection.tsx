@@ -219,7 +219,7 @@ function PlanEditor({
           <textarea
             rows={3}
             value={draft.autoAssignEmailDomains.join('\n')}
-            placeholder="arcada.fi"
+            placeholder="northvale.edu"
             onChange={(event) =>
               patch({
                 autoAssignEmailDomains: event.target.value

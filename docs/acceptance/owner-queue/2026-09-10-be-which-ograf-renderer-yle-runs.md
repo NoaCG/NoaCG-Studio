@@ -21,11 +21,11 @@ Ask the Yle contact one question: which OGraf renderer do they run, if any?
 
 ## What to look at
 
-The OGraf beat (`docs/DEMO_2026-09-25.md` A7) has been driven end to end in SuperFly.tv's
-ograf-server, on our own machine - load, play, select, lock, reveal, stop and clear on an imported
-quiz board, 2026-09-09 (`docs/OGRAF.md`). That is the only renderer anyone here has run. If Yle
-brings a different one on the 25th it is untried, and A7 says so in its own status cell.
+The OGraf road has been driven end to end in SuperFly.tv's ograf-server, on our own machine -
+load, play, select, lock, reveal, stop and clear on an imported quiz board, 2026-09-09
+(`docs/OGRAF.md`). That is the only renderer anyone here has run. If Yle brings a different one
+it is untried.
 
-An answer lets a session prepare against their renderer before the day. No answer is survivable:
-we show it in ograf-server and say out loud that theirs is untried. Delete this file when the
-question has an answer, or when the 25th has passed.
+An answer lets a session prepare against their renderer beforehand. No answer is survivable: we
+show it in ograf-server and say out loud that theirs is untried. Delete this file when the
+question has an answer, or when it stops mattering.

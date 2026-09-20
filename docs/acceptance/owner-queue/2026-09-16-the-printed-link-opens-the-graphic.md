@@ -6,7 +6,7 @@ serves: now
 ---
 # The link `noacg save` prints opens the graphic, and survives not being signed in
 
-R2.4's sentence for the 25th is "it puts it in the library and prints a link that opens at once".
+What `noacg save` promises is "it puts it in the library and prints a link that opens at once".
 The boot used to throw that address away: a `#/graphic/<id>` it could not resolve in the first
 moment was replaced with `#/home`, and the only copy of the link the reader had went with it.
 Measured on `noacg.studio` this morning: a browser with no session lost the link **846 ms** after

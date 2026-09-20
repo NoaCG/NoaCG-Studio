@@ -62,10 +62,8 @@ script) on top of CA's landed deck instead. `cleanup-worktrees` may take it.
 - **The commit-message hook blocks any message naming Codex or Claude**, including one about the
   delegation tooling itself; `ALLOW_AI_MENTION=1` in the command is its documented bypass.
 - **LibreOffice is at `C:\Program Files\LibreOffice\program\soffice.exe` and PyMuPDF is
-  importable**, so a deck is checked with no browser: `soffice --headless --convert-to pdf`, then
-  `pymupdf` renders each page to PNG. `pdftoppm` is not installed.
-- The owner-queue item for the deck is now one file,
-  `docs/acceptance/owner-queue/2026-09-10-ca-the-deck-now-ends-at-our-own-player.md`.
+  importable**, so a slide file is checked with no browser: `soffice --headless --convert-to pdf`,
+  then `pymupdf` renders each page to PNG. `pdftoppm` is not installed.
 
 ## check
 

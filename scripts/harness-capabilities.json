@@ -158,9 +158,9 @@
       "kind": "observation",
       "measuredOn": "2.1.263",
       "measuredAt": "2026-09-11",
-      "claim": "The Agent tool takes `isolation` (worktree or remote) but no working-directory parameter, so a new subagent starts either in a FRESH worktree or in the launcher's own checkout - never in an existing worktree. And no SendMessage is callable from a main session: the Agent tool's own description tells you to use SendMessage to continue an agent, but the tool is not in the session's tool list. Together they mean an orchestrator can neither ADOPT a dead row's worktree nor WAKE the row that owns it. Measured on row CA of the 2026-09-10 night wave: it stalled holding the only copy of the rebuilt 25 September deck as uncommitted files in its worktree, and the rescue had to be a new row that copied the files out by path into its own branch.",
+      "claim": "The Agent tool takes `isolation` (worktree or remote) but no working-directory parameter, so a new subagent starts either in a FRESH worktree or in the launcher's own checkout - never in an existing worktree. And no SendMessage is callable from a main session: the Agent tool's own description tells you to use SendMessage to continue an agent, but the tool is not in the session's tool list. Together they mean an orchestrator can neither ADOPT a dead row's worktree nor WAKE the row that owns it. Measured on row CA of the 2026-09-10 night wave: it stalled holding the only copy of a rebuilt slide deck as uncommitted files in its worktree, and the rescue had to be a new row that copied the files out by path into its own branch.",
       "reprobe": "Read the Agent tool's parameter schema for a cwd or working-directory field, and the session's tool list for SendMessage. Either one present refutes the matching half; record the halves separately.",
-      "source": "the 2026-09-11 deck rescue, `docs/DEMO_2026-09-25.md` beat O2 and the commit that rebuilt the deck"
+      "source": "the 2026-09-11 deck rescue and the commit that rebuilt the deck"
     },
     {
       "id": "agy-plan-mode-answers-with-a-plan",

@@ -88,10 +88,10 @@ measured on the first page the way `spreadFirstPage` already spreads hue and fam
    graphics, and they should be innovative and beautiful."* A recurring drawing slot, fed by the
    gap table, is what makes the catalog grow without a person deciding each time what is missing.
 
-## 2026-09-10 addendum: named genres, and not a requirement for the 25th
+## 2026-09-10 addendum: named genres, and not a requirement for the near dates
 
-Asked at the weekly alignment session whether the catalog needs to look broader for the 25th, or
-whether the day rides entirely on someone importing their own graphic. Paraphrased from speech, so
+Asked at the weekly alignment session whether the catalog needs to look broader for the next
+demonstration, or whether it rides entirely on someone importing their own graphic. Paraphrased from speech, so
 the intent binds and the wording does not - full answer in `docs/OWNER_RULINGS.md` §ALIGN-2026-09-10-2.
 
 > ... it's not a requirement for the day. It's more maybe just a vanity thing. ... For example
@@ -106,9 +106,9 @@ kind, and News and Sports already exist as genre columns there with their own H/
 he is naming is a missing dimension that table does not carry at all: a VISUAL REGISTER (a
 broadcast-news look, a UFC look, an NFL look, a late-night look) distinct from which graphic kinds a
 genre runs. That is item 3's territory, the per-design default palette and entrance, not item 1's
-gap table - record these named registers there when item 3 is picked up. And the 25th's acceptance
-does not depend on this item: SVG import and playing out a custom graphic with working data fields
-is what the day rides on, not catalog width.
+gap table - record these named registers there when item 3 is picked up. And no near date's
+acceptance depends on this item: SVG import and playing out a custom graphic with working data
+fields is what they ride on, not catalog width.
 
 He also raised a new capability while answering the same question, distinct from this item's scope:
 

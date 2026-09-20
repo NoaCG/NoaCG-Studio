@@ -22,10 +22,8 @@ it, for three reasons, in order of weight.
    (`docs/backlog/the-shipped-poll-sample-cannot-be-imported-as-a-live-vote.md`). The only board
    that binds lives in the test corpus. A tutorial that opens with "download this file" and points
    at `e2e/fixtures/` is a tutorial nobody can follow.
-2. **This is the road the 25 September room walks**, and more to the point it is the road they walk
-   again at home. The owner's own call 6 that day puts one simple import in the session and sends
-   each group away with a lower-third quiz template and a scoreboard to finish alone
-   (`docs/DEMO_2026-09-25.md` §0). A video is worth most where nobody is sitting beside them.
+2. **This is the road a newcomer walks first**, and more to the point it is the road they walk
+   again alone afterwards. A video is worth most where nobody is sitting beside them.
 3. **Every other tutorial assumes this one.** A live-vote video that starts at the binding step is
    a video for somebody who has already imported an SVG once.
 
@@ -80,8 +78,8 @@ it spent writing and then checking the script against the frames, which is the h
 skipped.
 
 The two obvious next roads: **the quiz board** (`quiz-board.svg`, walked by
-`import-svg-behaviour.spec.ts` "drawn layers are proposed from their names"), which is the other
-piece the 25 September room takes home; and **the live vote**, once the poll sample is fixed.
+`import-svg-behaviour.spec.ts` "drawn layers are proposed from their names"); and **the live
+vote**, once the poll sample is fixed.
 
 ## What needs the owner
 

@@ -196,7 +196,7 @@ test('the wizard header and the Home topbar are the same bar, to the pixel', asy
   // The wizard is FULL-SCREEN and opens OVER the Home page it was launched from - `.wz-modal`
   // covers the viewport and Home stays mounted underneath - so the brand lockup is not
   // re-drawn on a new page, it is REPLACED in its own corner. Any difference in where it lands
-  // is a lurch on the one press a lecture audience watches. Measured before this was fixed:
+  // is a lurch on the one press an audience watches. Measured before this was fixed:
   // the bar 53px against 69px, the logo at (20,14) against (32,22), all of it header padding.
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/app');

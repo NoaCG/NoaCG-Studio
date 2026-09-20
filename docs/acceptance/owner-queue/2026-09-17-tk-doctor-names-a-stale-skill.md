@@ -4,7 +4,7 @@ date: 2026-09-17
 ---
 # `noacg doctor` says when the door is serving last month's instructions
 
-This laptop - the machine the 2026-09-25 demo runs from - has been loading a `noacg-graphic` skill
+This laptop - the machine demos run from - has been loading a `noacg-graphic` skill
 nineteen days old, and nothing said so. `claude plugin list` reports `noacg@noacg-studio` 0.2.0
 while the marketplace ships 0.3.3, and nothing auto-updates a Claude Code marketplace. `noacg
 doctor` now names it, and names the command that fixes it.

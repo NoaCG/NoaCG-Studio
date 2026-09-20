@@ -7,37 +7,34 @@ CasparCG servers - 2.3.2 (`4de6d18f Dev`, the install named `v2.3.3-lts-stable`)
 hardware item `2026-08-25-casparcg-connect-against-real-hardware.md` carries what is now proven
 and what is still not, and stays open.
 
-## The status changes DEMO_2026-09-25.md and STUDENT_RELEASE_ACCEPTANCE.md owe
+## What this run settles, and the status changes it owes
 
-Row BE owns both files this wave, so this row did not touch them. Apply these:
+This row did not edit the acceptance documents, because another row owned them this wave. Apply
+these:
 
-1. **`DEMO_2026-09-25.md` beat A4** - status goes from **UNSEEN (box)** to **SEEN (screen
-   consumer)**. The output URL was loaded with `CG 1-20 ADD 1 "<url>" 1` on both servers, cued
-   from the dashboard, updated live, and it recovers its on-air state after a channel restart and
-   after a full server `RESTART`. The 12th's job on the school's box is now SDI and the venue's
-   network, not whether the beat works.
-2. **`DEMO_2026-09-25.md` beat A4, the compatibility sentence** - "compiled down to Chromium 75/88
-   with shims, which is what 2.3.x runs" is now wrong on the number. The measured engine on the
-   2.3.2 install is **Chromium 71**. Worth going further: on 2.3.2 the scorebug airs with its flex
-   gaps COLLAPSED, so if 2.3 is what the room runs, A4 will look subtly wrong on the projector.
-   **Consider naming 2.5 as the demo server** - it is on this laptop, it reports Chromium 142, and
-   the graphic renders as designed there.
-3. **`DEMO_2026-09-25.md` beat A6** - status goes from **UNSEEN (box)** to **SEEN, with one gate
-   left**. `npx @noacg/cli caspar agent` held a real AMCP socket, Put on air aired the production,
-   a score typed on the production page changed it live, and Take off cleared the channel. The gate
-   left is the ORIGIN (see below), and it is worth a line in the beat.
-4. **`DEMO_2026-09-25.md` section 7 row 2** - "A4 the output URL on a real CasparCG 2.3 box":
-   the acceptance target (§8.7 ticked) is met on a screen consumer. Remaining risk is the box.
-5. **`DEMO_2026-09-25.md` section 7 row 10** - "A6 CasparCG Connect on hardware": the hardware
-   item does NOT close (a screen consumer is not hardware), but the beat is no longer unseen, and
-   "the beat is cut; A4 covers it by hand" is no longer the likely outcome.
-6. **`STUDENT_RELEASE_ACCEPTANCE.md` §1, the `§8.7` line** - tick it, with the qualifier. Its
+1. **The output URL on a real box** goes from never-run to **seen on a screen consumer**. It was
+   loaded with `CG 1-20 ADD 1 "<url>" 1` on both servers, cued from the dashboard, updated live,
+   and it recovers its on-air state after a channel restart and after a full server `RESTART`.
+   What is left for real hardware is SDI and the venue's network, not whether it works.
+2. **The compatibility sentence is wrong on the number.** "Compiled down to Chromium 75/88 with
+   shims, which is what 2.3.x runs" does not match the measurement: the engine on the 2.3.2
+   install is **Chromium 71**. Worth going further: on 2.3.2 the scorebug airs with its flex gaps
+   COLLAPSED, so on a 2.3 server it looks subtly wrong on a projector. **Prefer 2.5 for a
+   demonstration** - it is on this laptop, it reports Chromium 142, and the graphic renders as
+   designed there.
+3. **CasparCG Connect** goes from never-run to **seen, with one gate left**.
+   `npx @noacg/cli caspar agent` held a real AMCP socket, Put on air aired the production, a score
+   typed on the production page changed it live, and Take off cleared the channel. The gate left
+   is the ORIGIN (see below).
+4. **The hardware acceptance item does NOT close** - a screen consumer is not hardware - but
+   neither road is unseen any more.
+5. **`STUDENT_RELEASE_ACCEPTANCE.md` §1, the `§8.7` line** - tick it, with the qualifier. Its
    three clauses each hold: transparent (proven by compositing over a layer underneath), correct
    scale at 1920x1080, recovers after `RESTART`. Add what the walk found: a channel restart DROPS
    the layer on both versions - what survives is the ON-AIR STATE, restored by re-issuing the same
    one command with nothing touched on the dashboard.
 
-## The one thing that will bite on demo day
+## The one thing that will bite in front of an audience
 
 **The Put on air button sends the output URL of the origin the page is on.** Pressed on a dev
 server it sends `http://localhost:<port>/output?…`, which is an untranspiled Vite bundle; CasparCG

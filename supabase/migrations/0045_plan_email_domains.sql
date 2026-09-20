@@ -17,7 +17,7 @@
 -- It also stays true to "plans are data": no code branches on a plan key, and adding next
 -- year's partner domain is a row edit rather than a deploy.
 --
--- Content-free: a domain, never an address. The column holds `arcada.fi`, and matching happens
+-- Content-free: a domain, never an address. The column holds `northvale.edu`, and matching happens
 -- server-side against `auth.users.email`, which never leaves the server.
 
 alter table public.plans
@@ -39,7 +39,7 @@ begin
   new.auto_assign_email_domains := coalesce((
     select array_agg(distinct domain order by domain)
     from (
-      -- Whitespace comes off FIRST: an operator pasting ' @Arcada.FI ' has spaces before the
+      -- Whitespace comes off FIRST: an operator pasting ' @Northvale.EDU ' has spaces before the
       -- '@', so stripping '@' from an untrimmed string strips nothing at all.
       select pg_catalog.ltrim(pg_catalog.btrim(pg_catalog.lower(value)), '@') as domain
       from pg_catalog.unnest(coalesce(new.auto_assign_email_domains, '{}')) as value
@@ -56,7 +56,7 @@ create trigger plans_normalize_domains_trg
   for each row execute function public.plans_normalize_domains();
 
 -- ONE domain may only ever belong to ONE plan. Without this two plans could both claim
--- `arcada.fi` and the resolver's answer would depend on row order - the same non-determinism
+-- `northvale.edu` and the resolver's answer would depend on row order - the same non-determinism
 -- migration 0021 exists to prevent for grants, one table over.
 --
 -- Postgres cannot express that as a constraint on `plans`: a uniqueness rule spanning the
@@ -114,24 +114,24 @@ declare
 begin
   insert into public.plans (key, name, description, features, limits, render_tier, auto_assign_email_domains)
   values ('0045-check-a', '0045 check A', 'temporary', '{}'::jsonb, '{}'::jsonb, 'free',
-          array['  @Arcada.FI ', 'arcada.fi', 'not a domain', ''])
+          array['  @Northvale.EDU ', 'northvale.edu', 'not a domain', ''])
   returning id into v_a;
 
   -- (a) Normalization: lowercased, '@' stripped, trimmed, deduped, junk dropped.
   select auto_assign_email_domains into v_domains from public.plans where id = v_a;
-  if v_domains is distinct from array['arcada.fi'] then
+  if v_domains is distinct from array['northvale.edu'] then
     raise exception '0045 self-check (a) FAILED: normalized to %', v_domains;
   end if;
 
   -- (b) The uniqueness table tracked it.
-  if not exists (select 1 from public.plan_email_domains where domain = 'arcada.fi' and plan_id = v_a) then
+  if not exists (select 1 from public.plan_email_domains where domain = 'northvale.edu' and plan_id = v_a) then
     raise exception '0045 self-check (b) FAILED: the domain was not indexed';
   end if;
 
   -- (c) A SECOND plan cannot claim the same domain.
   begin
     insert into public.plans (key, name, description, features, limits, render_tier, auto_assign_email_domains)
-    values ('0045-check-b', '0045 check B', 'temporary', '{}'::jsonb, '{}'::jsonb, 'free', array['arcada.fi'])
+    values ('0045-check-b', '0045 check B', 'temporary', '{}'::jsonb, '{}'::jsonb, 'free', array['northvale.edu'])
     returning id into v_b;
     raise exception '0045 self-check (c) FAILED: two plans claimed one domain';
   exception when unique_violation then

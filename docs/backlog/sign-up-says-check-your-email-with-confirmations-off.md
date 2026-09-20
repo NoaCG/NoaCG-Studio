@@ -7,8 +7,7 @@ state: unstarted
 ---
 # The sign-up dialog tells every new account to check its email, and there is no email
 
-**Filed:** 2026-09-09 by `claude/g-demo-25-september`, found by its review while writing the
-accounts beat of `docs/DEMO_2026-09-25.md`.
+**Filed:** 2026-09-09, found by a review of the account sign-up road.
 
 ## Why
 
@@ -18,9 +17,9 @@ confirmation is off" (`GET /auth/v1/settings` returns `"mailer_autoconfirm": tru
 once.
 
 `src/components/auth/SignInDialog.tsx` line 115 still says, after every sign-up, "Check your
-email to confirm your account, then sign in." A student in the room on 2026-09-25 goes to an inbox
-for a message that never comes, and anyone driving the UI to check whether confirmations are on
-concludes they are.
+email to confirm your account, then sign in." A first-time user goes to an inbox for a message
+that never comes, and anyone driving the UI to check whether confirmations are on concludes they
+are.
 
 ## What it would take
 

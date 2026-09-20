@@ -19,7 +19,7 @@ done: true
 >   for me to approve a plan if it's a huge plan that needs to be approved."* A session that thinks
 >   an authorization is unnecessary should argue it rather than wait for it.
 > - **Production-proven is his to produce** - *"production proofing is done when I actually do it
->   for real with students or YLE."* That rung was never automatable and is not treated as a gap.
+>   for real."* That rung was never automatable and is not treated as a gap.
 # The North Star 2027 programme system, integrated - review before more programmes activate
 
 Date: 2026-09-01

@@ -51,8 +51,8 @@ download exactly the file they are watching being imported, and open it in Illus
 
 It was chosen over the plain lower third because it carries every field type the import can
 propose - two numbers, a clock, a picture and plain text - so one video covers what a viewer will
-meet on their own artwork, and because a scoreboard is one of the two pieces the 25 September
-session sends people home to finish alone.
+meet on their own artwork, and because a scoreboard is one of the two pieces people most often
+build first on their own.
 
 ## What this pack does not cover
 

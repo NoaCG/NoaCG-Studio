@@ -49,8 +49,8 @@ because the numbers shift when a row is added.
 
 ## The clean-profile install run (row 23), 2026-09-10
 
-Row 23 used to be graded down purely for staleness, and `docs/DEMO_2026-09-25.md` B5 points here
-because these dates should live in exactly one place. This is that place.
+Row 23 used to be graded down purely for staleness. These dates should live in exactly one
+place, and this is that place.
 
 **What "clean profile" means here, precisely, because it decides what the run proves.** Not a new
 Windows account and not a new machine. A directory tree at `C:\noacg-be-clean` with `USERPROFILE`,
@@ -105,7 +105,7 @@ on Codex the same way and registers the server; `docs/AGENT_CLI.md` carries that
 - **Adding the marketplace costs 107 MB of the user's disk.** Both agents clone the whole
   repository to read `.claude-plugin/marketplace.json`. That is the host's behaviour and not
   something this repo chooses, so there is nothing here to fix; it is recorded because it surprises
-  people and because the room on the 25th will do it on their own laptops.
+  people and because a room following along does it on their own laptops.
 
 ## What changed on the page because of the grades
 

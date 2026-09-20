@@ -7,8 +7,8 @@ row: BE
 ---
 # BE - the agent road, re-run on a profile that had never seen it
 
-**What this row owed.** §7 rows 6, 8 and 9 of `docs/DEMO_2026-09-25.md`, each backed by a dated
-run, plus the owner's three answers of 2026-09-10 applied in the same commit.
+**What this row owed.** Three gap-list rows on the agent road, each backed by a dated run, plus
+the owner's three answers of 2026-09-10 applied in the same commit.
 
 **All three rows are closed and deleted.** The four install lines run on a clean profile and exit
 0, the `noacg-mcp` split is verified on Codex, and the live save was walked against
@@ -21,12 +21,10 @@ spec cannot see: the link `noacg save` prints does not open the graphic on `noac
 
 ## READ THIS BEFORE RESOLVING THE MERGE: another branch has newer owner calls
 
-My row prompt said "you MINT `docs/DEMO_2026-09-25.md` this wave; no other row edits it." **That is
-not true in fact.** `claude/new-session-eedca0` (worktree `.claude/worktrees/new-session-db1287`,
-first commit "Re-cut the 25 September session script for the owner's three new calls") rewrites the
-same file, deletes the same owner-queue item, and edits the same
-`2026-09-09-g-the-25th-as-beats-with-a-gap-list.md`. `node scripts/merge-order.mjs` returns
-**hold** for both of us, symmetrically. I queued anyway because the workflow is explicit that
+My row prompt claimed sole ownership of the gap-list document this wave. **That is not true in
+fact.** `claude/new-session-eedca0` (worktree `.claude/worktrees/new-session-db1287`) rewrites the
+same file, deletes the same owner-queue item, and edits the same walk item.
+`node scripts/merge-order.mjs` returns **hold** for both of us, symmetrically. I queued anyway because the workflow is explicit that
 nothing is held for another branch and the second one to land resolves `main` in.
 
 **Their calls are NEWER and on the hardware question they supersede mine.** They carry three more
@@ -62,8 +60,7 @@ silent drop.
 Edge and the two agent binaries were already on the machine and on `PATH`, so **this run says
 nothing about a student installing those first.** The full table of what was reset, why, and the
 timings is `docs/PROMISE_AUDIT.md`, "The clean-profile install run (row 23)". That section is the
-source; `docs/DEMO_2026-09-25.md` B5 copies the five timings for a reader on a phone and says so,
-so a re-run edits the audit first and the cell second.
+source, and a re-run edits it first and anything quoting it second.
 
 **`APPDATA` is the trap, and it cost the first attempt.** `cli/src/config.ts` `configDir()` reads
 `APPDATA` on Windows, never the home directory. Redirect only `USERPROFILE` and `noacg doctor`
@@ -90,12 +87,11 @@ must not do. The first run printed `login  noacg_ak_8b18c7…`; the corrected on
 **`npm i -g @noacg/cli@latest` on this laptop is not done, on purpose.** Changing shared machine
 state while other rows are measuring can corrupt their numbers with nothing to show for it. Whoever
 picks up the backlog file should check `node scripts/e2e-runs.mjs` and the worktree activity first.
-Before the 25th it must happen, because the owner drives an agent on his own screen at R2.3.
+It must happen before the owner next drives an agent on his own screen at R2.3.
 
 ## The owner's three answers, applied
 
-All three are in `docs/OWNER_RULINGS.md` under "2026-09-10 - three answers on the 25 September gap
-list", quoted.
+All three were recorded in `docs/OWNER_RULINGS.md` on 2026-09-10, quoted.
 
 **Row 1, the Yle network screenshot: retired, not closed.** The row is gone, the beat's status cell
 says off the ledger, and §7's preamble now carries the one carve-out that makes the table's own
@@ -113,9 +109,9 @@ renderer question was re-filed on its own as
 both referring files were repointed. If he meant to drop that question too, deleting one file
 undoes it.
 
-**Rows 2, 3 and 10, the hardware rows: re-owned to him, not before the 25th.** Their who column
-said "the 12th"; his "a few weeks at least" puts those ticks on or past the 25th itself. Each "if
-it stays open" cell now says what the beat actually does with no box. Six other places in the file
+**Rows 2, 3 and 10, the hardware rows: re-owned to him, and not soon.** Their who column said
+"the 12th"; his "a few weeks at least" puts those ticks weeks out. Each "if it stays open" cell
+now says what the beat actually does with no box. Six other places in the file
 still planned around the 12th - §0's rehearsal paragraph, §5's preamble, and the A3, A4, A5 and A6
 status cells. Five were corrected in `406da881` and A5 in the check pass, which is also where §8
 stopped claiming the owner's date bar covered row 13, the deck he asked to keep being reminded
@@ -195,23 +191,17 @@ suggestion, since it exercises production identically and is cleanable. `DELETE
 /api/me/graphics/<id>` answered 404 from a page fetch, so the route wants a bearer token rather
 than the session cookie; deleting it from the library UI is the quick way.
 
-**The deck's speaker notes are now wrong and this row did not fix them.**
-`docs/presentation-2026-09-25/make-deck.mjs` has four, and the built `.pptx` beside it carries
-them all. **Line 179** points at `2026-09-09-g-yle-network-diag-screenshot.md`, which this change
-deletes, and tells the presenter the screenshot is still an open owner item - reminding the owner
-of the one thing he asked not to be reminded of. **Line 404** says B5 was last executed 2026-08-22
-and 2026-08-27 with the Codex split unverified; **line 405** cites §7 rows 6 and 8, and this branch
-closed rows 6, 8 and 9. **Line 464** says the renderer question rides in the same owner message as the network
-screenshot; it is its own file now. That file belongs to the deck row
-(`claude/aa-deck-repair` has a worktree), the generator refuses to overwrite the `.pptx` by design,
-and the owner may hand-edit it - so touching it from here would have been the wrong kind of help.
-**Whoever owns the deck next re-reads §7 before regenerating.**
+**A generated presentation elsewhere in the tree quoted four of these facts and this row did not
+fix them.** It cited a deleted owner-queue item, a stale execution date for the clean-profile run,
+two gap-list rows this branch closed, and a renderer question that had since become its own file.
+That file belonged to another row and its generator refuses to overwrite the built output by
+design, so touching it from here would have been the wrong kind of help.
 
 **Row BH's CasparCG results are not in this file.** BH is driving the real 2.3.3 install on this
 laptop this wave and its handoff will name status changes for A4, A6, §7 rows 2 and 10 and the
-§8.7 acceptance line. This row minted `docs/DEMO_2026-09-25.md` and deliberately left those status
-verdicts alone: rows 2 and 10 were re-owned in the who and consequence columns only, so BH's
-evidence lands cleanly on top of them.
+§8.7 acceptance line. This row owned the gap list and deliberately left those status verdicts
+alone: rows 2 and 10 were re-owned in the who and consequence columns only, so BH's evidence
+lands cleanly on top of them.
 
 ## The check, leg by leg
 
@@ -307,7 +297,7 @@ is eliminated rather than left hanging.
 Worth keeping as a habit: the finding survived being challenged, and got sharper for it. The
 challenge cost one queued job.
 
-## The three things to plan before the 25th
+## The three things still to plan
 
 None is this row's to start and all three have a file.
 

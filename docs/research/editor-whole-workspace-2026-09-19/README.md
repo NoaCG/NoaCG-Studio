@@ -74,8 +74,8 @@ The full property contract remains in [the mechanism](../../EDITOR_REBUILD_PLAN.
 
 ## Each phase must produce a useful outcome
 
-These are bounded implementation slices and review checkpoints, not a promise to finish R1
-before the September 25 lecture. Wizard/catalog lecture preparation stays priority one.
+These are bounded implementation slices and review checkpoints, not a promise to finish R1 by
+any particular date. Wizard and catalog work stays priority one.
 The optional editor demo uses only a verified slice. Feedback can change later designs;
 the following user outcomes and existing-document preservation cannot be traded for a screenshot.
 
