@@ -77,3 +77,13 @@ app navigating after all, the fix belongs in whatever subscribes to `saved.graph
 **Not a retry and not a `waitForTimeout`.** `playwright.config.ts` says out loud that the suite
 runs with no retries so CI collects diagnostics on the first failure instead of disguising the
 flake, and quarantining this spec would hide the one signal anyone has.
+
+## Investigation in progress, 2026-09-20
+
+A fresh worktree at bd33874c passed both line-245 export variants (job j-1544,
+22.8 seconds). The failing run 35511897692's trace shows the main frame still at
+`/app?editor=foundation#/editor-foundation` after the failed evaluate, with the graphic
+named Export proof and the save control reporting Saved. There is no Vite full-reload
+WebSocket message or new main-document request. The router preserves the query string.
+Playwright rewrites several Chromium protocol errors into the same navigation message;
+temporary CI diagnostics retain the original error before selecting a fix.
