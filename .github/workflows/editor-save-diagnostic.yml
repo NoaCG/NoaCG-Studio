@@ -8,7 +8,7 @@ jobs:
   diagnose:
     if: github.ref_name == 'codex/editor-save-context-fix' || github.head_ref == 'codex/editor-save-context-fix'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -28,7 +28,7 @@ jobs:
           fs.writeFileSync(file, source.replaceAll(message, 'throw new Error("Original browser error: " + error.message);'));
           NODE
       - name: Reproduce with CI tracing
-        run: npx playwright test e2e/editor-base-edits.spec.ts --workers=1 --trace=on
+        run: npm run test:e2e -- e2e/editor-base-edits.spec.ts e2e/import-analysis.spec.ts e2e/import-canvas.spec.ts e2e/landing.spec.ts e2e/motion-presets.spec.ts e2e/package.spec.ts e2e/playout-drills.spec.ts e2e/pro.spec.ts e2e/production-controls.spec.ts e2e/wizard-preview.spec.ts e2e/wizard-setup-fields.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
