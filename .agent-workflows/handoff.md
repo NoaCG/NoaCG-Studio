@@ -102,7 +102,8 @@ language:
 - `NOT SAFE TO ARCHIVE YET` - anything else, **including every case where the answer is merely
   unproven**. Uncommitted or unpushed changes, an untracked file worth keeping, work that should
   have landed on `main` but did not, a required migration or env step, or an unfinished task known
-  only here. Say in one line exactly what to do first.
+  only here. Reached only after trying to fix it (see Rules): say in one line what is left and
+  why this session could not do it.
 
 Two ways this verdict goes wrong, so test for both. A green, verified FEATURE branch is **not**
 archive-ready - the work is real but it lives in exactly one place, and this chat is the only
@@ -111,7 +112,7 @@ confirm before claiming the work was pushed - a read-only `git fetch origin main
 network read this workflow may make. When containment cannot be established, the verdict is
 `NOT SAFE TO ARCHIVE YET`, never the optimistic guess.
 
-## How to ground it (read-only)
+## How to ground it
 
 Do this work for yourself - almost none of it reaches the response. Run the checks; don't print
 commands for the user to run.
@@ -124,16 +125,25 @@ commands for the user to run.
   whether the work actually reached `main`/`origin/main` when the session's story says it did.
 - **Validation** - reuse existing evidence: a `npm run build` already run, the landing job's CI
   gate, any `e2e/` or in-browser check already done. `npm run build` (tsc + eslint +
-  vite) is the gate; focused script tests may also apply. Do not run verification during
-  handoff. If code changed after the last check, record verification as the next required action.
+  vite) is the gate; focused script tests may also apply. Do not re-run verification that is
+  already current. If code changed after the last check, including through a fix made here, run
+  it rather than recording it as somebody else's next action.
 
 A finding reaches the response only if it is actionable, and then it belongs in the prompt as
 remaining work. If the answer is the boring expected one, say nothing.
 
 ## Rules
 
-- **Read, don't write.** Never merge, push, commit, delete, clean, stash, reset, or rewrite
-  history, run builds, or execute tests. Report problems; never silently fix them.
+- **Fix what you find, then report what you fixed.** A problem this workflow turns up is work,
+  not a line in the response: commit finished work that is sitting uncommitted, land a finished
+  branch with the queue-merge workflow, fast-forward a local `main` that is behind
+  (`git -C <main checkout> pull --ff-only`, when that checkout is clean and on `main`), correct a
+  doc the session made wrong. Verify a fix the way any other change is verified, and run the
+  checks in "Bottom line" AFTER the fixes, so the verdict describes the repository as you leave
+  it. What stays off the table is what cannot be taken back or is not this session's: never
+  delete, clean, reset, stash or rewrite history, never merge into `main` yourself, and never
+  touch another session's branch. A problem you could not fix is the only kind that reaches the
+  owner, with the reason it needs him.
 - **Say nothing about worktree cleanup** - not whether this worktree could be removed, not what
   removal would destroy, not that the option exists. The owner asked for that noise to stay out of
   a handoff, and the cleanup-worktrees workflow now decides eligibility itself from containment

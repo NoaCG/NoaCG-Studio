@@ -88,6 +88,9 @@ import { card80 } from './card80';
 import { card81 } from './card81';
 import { card82 } from './card82';
 import { card83 } from './card83';
+import { card84 } from './card84';
+import { card85 } from './card85';
+import { card86 } from './card86';
 
 export const INFO_CARDS: TemplateVariant[] = [
   // ── Information cards ──
@@ -180,6 +183,10 @@ export const INFO_CARDS: TemplateVariant[] = [
   card81, // Lowercase Title - no capitals anywhere, on paper (sibling lt60)
   card82, // Poster Topic - outlined index numeral beside a condensed topic (sibling lt61)
   card83, // Stacked Words - the type IS the composition, with a vertical spine label
+  // The three game-show families' openers (title-card type)
+  card84, // Sticker Title - one big paper label, kicker on an ink strip (sibling lt68)
+  card85, // Showtime Title - a bulb-lit marquee plaque (sibling lt69)
+  card86, // Arcade Title - a pixel-cornered neon title screen (sibling lt70)
 ];
 
 export function infoCardById(id: string): TemplateVariant | undefined {

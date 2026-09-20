@@ -18,7 +18,7 @@ import { BridgeClient, type BridgeValidation, type SpxTemplate } from '../bridge
 import { ografBench } from '../ografBench.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { shoot } from '../screenshot.js';
-import { packageEntries, readPackageInput, removeStaleGenerated, unzipTo } from '../workspace.js';
+import { markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo } from '../workspace.js';
 
 const STATE_WORD: Record<string, string> = { pass: 'PASS', warn: 'WARN', fail: 'FAIL', untested: 'UNTESTED' };
 
@@ -90,6 +90,11 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
   const bench = flagBool(args, 'bench', true);
   const houseContract = flagBool(args, 'house-contract', true);
   const shotsDir = flagString(args, 'screenshots');
+  // BEFORE the package is read: a frames folder inside the package has to be marked while the
+  // folder is still being zipped, or the last run's frames go in as the graphic's assets.
+  if (shotsDir && (await fs.stat(path.resolve(input)).catch(() => null))?.isDirectory()) {
+    await markFramesDir(shotsDir, input);
+  }
   const { bytes, fileName, isDirectory } = await readPackageInput(input);
   const bridge = await BridgeClient.connect();
   try {

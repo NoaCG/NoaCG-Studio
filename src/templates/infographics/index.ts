@@ -42,6 +42,9 @@ import { ig36 } from './ig36';
 import { ig37 } from './ig37';
 import { ig38 } from './ig38';
 import { ig39 } from './ig39';
+import { ig40 } from './ig40';
+import { ig41 } from './ig41';
+import { ig42 } from './ig42';
 
 export const INFOGRAPHICS: TemplateVariant[] = [
   ig01, // Big stat count-up
@@ -86,6 +89,10 @@ export const INFOGRAPHICS: TemplateVariant[] = [
   ig37, // House Forecast - the weather pack's 3-day board: day, condition, high/low
   ig38, // Results Rail - the count-night side dashboard: one washed row per district
   ig39, // Key Figures - the printed two-column stat list: label left, big figure right
+  // The three game-show families' key-facts boards (key-facts type) - a show's how-to-play card
+  ig40, // Sticker Facts - a paper label, terms on accent chips (sibling lt68)
+  ig41, // Showtime Facts - a playbill on a marquee plaque (sibling lt69)
+  ig42, // Arcade Facts - an instructions screen (sibling lt70)
 ];
 
 export function infographicById(id: string): TemplateVariant | undefined {

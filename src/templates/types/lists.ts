@@ -6,6 +6,7 @@
 // the derived linear machine walks their single step, and the measured builder rides alongside
 // it untouched, which is the same arrangement the two data boards already prove.
 
+import { paletteById } from '../../model/wizard';
 import { ig14 } from '../infographics/ig14';
 import { ig15 } from '../infographics/ig15';
 import { ig16 } from '../infographics/ig16';
@@ -14,6 +15,10 @@ import { ig18 } from '../infographics/ig18';
 import { ig19 } from '../infographics/ig19';
 import { ig20 } from '../infographics/ig20';
 import { ig21 } from '../infographics/ig21';
+import { ig40 } from '../infographics/ig40';
+import { ig41 } from '../infographics/ig41';
+import { ig42 } from '../infographics/ig42';
+import { GAME_SHOW_FACTS_SAMPLES } from '../infographics/pack4/gameShowFacts';
 import {
   IG14_SAMPLES,
   IG15_SAMPLES,
@@ -100,6 +105,44 @@ export const keyFactsType: GraphicType = {
       animationPresets: ['rows-cascade'],
       defaultZone: 'mid-right',
       create: (_type, options) => ig17.create(options),
+    },
+    // The three GAME-SHOW cells (sticker, showtime, arcade). Each was designed FOR this type, as
+    // one graphic of the quiz show kit (packs.ts, 'quiz-show').
+    {
+      id: 'ig40',
+      name: 'Sticker Facts',
+      description: 'A paper label of key facts: heading on an ink strip, each term on an accent chip.',
+      styleTag: 'sticker',
+      palette: paletteById('tangerine'),
+      fontId: 'archivo',
+      samples: GAME_SHOW_FACTS_SAMPLES,
+      animationPresets: ['rows-cascade'],
+      defaultZone: 'mid-center',
+      create: (_type, options) => ig40.create(options),
+    },
+    {
+      id: 'ig41',
+      name: 'Showtime Facts',
+      description: 'A playbill of key facts on a marquee plaque: serif heading, terms in billing caps.',
+      styleTag: 'showtime',
+      palette: paletteById('marquee'),
+      fontId: 'playfair-display',
+      samples: GAME_SHOW_FACTS_SAMPLES,
+      animationPresets: ['rows-cascade'],
+      defaultZone: 'mid-center',
+      create: (_type, options) => ig41.create(options),
+    },
+    {
+      id: 'ig42',
+      name: 'Arcade Facts',
+      description: 'An instructions screen of key facts: squared-caps heading, mono terms in the neon.',
+      styleTag: 'arcade',
+      palette: paletteById('neon-cyan'),
+      fontId: 'saira',
+      samples: GAME_SHOW_FACTS_SAMPLES,
+      animationPresets: ['rows-cascade'],
+      defaultZone: 'mid-center',
+      create: (_type, options) => ig42.create(options),
     },
   ],
 };

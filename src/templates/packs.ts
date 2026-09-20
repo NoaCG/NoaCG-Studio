@@ -540,6 +540,35 @@ export const PACKS: TemplatePack[] = [
       'Quiz / game show livestream',
     ],
   },
+  // THE QUIZ SHOW KIT, and the first kit in the three GAME-SHOW families (sticker, showtime,
+  // arcade - model/fonts.ts). It is a whole two-player game show in one look: the opener, the
+  // host and contestant strap, the quiz board whose answer count is a field, the running score,
+  // an answer clock, a how-to-play card, the show mark and the closing card.
+  //
+  // It resolves in exactly those three looks and no others, because `quiz-show` and `duel-score`
+  // ship designs only there - which is the point: the looks were drawn as a set, and the picker
+  // measures what resolves rather than assuming (KitPicker `familiesFor`).
+  //
+  // It declares NO paletteId on purpose. A pack palette is imposed on every graphic the kit
+  // creates, and this kit re-resolves into three families whose palettes share nothing: Tangerine
+  // on the marquee would be cream text on a cream panel. Each design's own default already IS
+  // its family's palette, so the kit arrives in one look without one.
+  //
+  // And it claims no format: the sheet's "Quiz / game show livestream" row is Classroom's, and a
+  // format belongs to exactly one pack (see `TemplatePack.formats`).
+  {
+    id: 'quiz-show',
+    name: 'Quiz Show',
+    description: 'A two-player game show in one look: opener, quiz board, running score, answer clock, rules card, straps and the closing card.',
+    family: 'sticker',
+    types: [
+      'title-card', 'lower-third',
+      'quiz-show', 'duel-score', 'countdown',
+      'key-facts', 'logo-bug',
+      'sign-off',
+    ],
+    formats: [],
+  },
   {
     id: 'church',
     name: 'Church & Ceremony',

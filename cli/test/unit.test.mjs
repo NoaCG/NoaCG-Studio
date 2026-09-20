@@ -32,7 +32,7 @@ import { test } from 'node:test';
 
 import { readDoc, skillDir } from '../dist/commands/docs.js';
 import { flagBool, flagList, flagNumber, flagString, parseArgs, table, UsageError } from '../dist/output.js';
-import { isGeneratedFile, packageEntries, readPackageInput, removeStaleGenerated, unzipTo, zipDirectory } from '../dist/workspace.js';
+import { FRAMES_MARKER, isGeneratedFile, markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo, zipDirectory } from '../dist/workspace.js';
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
 import { cliVersion, noacgUrl } from '../dist/config.js';
 import { parseFieldList } from '../dist/commands/scaffold.js';
@@ -167,6 +167,26 @@ test('zipDirectory -> packageEntries round trips under one top folder, with / se
   const entries = await packageEntries(bytes);
   assert.deepEqual([...entries.keys()].sort(), ['css/style.css', 'my_graphic.html']);
   assert.equal(Buffer.from(entries.get('css/style.css')).toString('utf8'), 'body{}');
+});
+
+test('frames the CLI wrote inside a package, and the last thumbnail, are never read back in as the graphic', async () => {
+  const dir = await tmpdir();
+  const pkg = path.join(dir, 'my-graphic');
+  await fs.mkdir(path.join(pkg, 'images'), { recursive: true });
+  await fs.writeFile(path.join(pkg, 'my_graphic.html'), '<h1>hi</h1>');
+  await fs.writeFile(path.join(pkg, 'images', 'logo.png'), 'a real asset');
+  await fs.writeFile(path.join(pkg, 'thumbnail.png'), 'the frame of an earlier validate');
+
+  // `--screenshots ./shots` from inside the package: marked, so the frames stay out of the zip.
+  assert.equal(await markFramesDir(path.join(pkg, 'shots'), pkg), true);
+  await fs.writeFile(path.join(pkg, 'shots', 'onair.png'), 'an old frame');
+  // Outside the package, and the package folder itself, are left alone.
+  assert.equal(await markFramesDir(path.join(dir, 'elsewhere'), pkg), false);
+  assert.equal(await markFramesDir(pkg, pkg), false);
+  await assert.rejects(fs.stat(path.join(pkg, FRAMES_MARKER)), 'the package folder is never marked, or nothing would be packaged');
+
+  const entries = await packageEntries(await zipDirectory(pkg));
+  assert.deepEqual([...entries.keys()].sort(), ['images/logo.png', 'my_graphic.html']);
 });
 
 test('packageEntries strips one top folder only when every entry shares it', async () => {

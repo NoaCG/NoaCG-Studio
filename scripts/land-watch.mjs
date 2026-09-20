@@ -24,6 +24,7 @@ import { jobsDir, NO_VERDICT_EXIT } from './jobs-store.mjs';
 
 const POLL_MS = 30_000;
 const CAP_MS = 60 * 60_000;
+const CONFIRM_MS = 10_000;
 
 /**
  * Pure: what the pull request's state means for the watcher.
@@ -53,14 +54,39 @@ export function watchVerdict(pr, checks = [], { expectSha = null } = {}) {
   if (pr.state === 'OPEN' && pr.mergeable === 'CONFLICTING') {
     return { verdict: 'refused', reason: 'the pull request conflicts with main and cannot enter the queue - integrate main, resolve, and queue again' };
   }
+  const failed = (checks ?? []).filter((c) => FAILED.test(c.conclusion ?? c.state ?? ''));
+  const failedNames = [...new Set(failed.map((c) => c.name ?? c.context))].join(', ');
+  // A REQUIRED CHECK THAT FAILED ON THE PULL REQUEST IS THE SAME TRAP AS THE CONFLICT ABOVE: the
+  // auto-merge request stands, the queue never takes the pull request, and it read as waiting
+  // until the cap - an hour of this machine's one landing slot, with every other session's
+  // landing and every local suite parked behind a verdict GitHub had already given. Measured
+  // 2026-09-19 on #332: `CI gate` failed at 20:08 UTC and the watcher was still "waiting in the
+  // merge queue" at 20:28. Only while the queue has NOT taken it, because inside the queue the
+  // pull request's own checks are history and the merge group's run is what decides. And only
+  // once no run of the gate is still going or has passed: a push and a pull_request run both
+  // report under that name, and one of them being red while the other is running is not a verdict.
+  if (pr.state === 'OPEN' && pr.autoMergeRequest && !pr.mergeQueueEntry && gateRefused(checks)) {
+    return { verdict: 'refused', reason: `${failedNames} failed on the pull request, so the queue never took it` };
+  }
   // Auto-merge is the request; once the queue takes the pull request the request reads null and
   // the queue entry carries the state (AWAITING_CHECKS, MERGEABLE, ...). Either one is waiting.
   if (pr.state === 'OPEN' && (pr.autoMergeRequest || pr.mergeQueueEntry)) return { verdict: 'waiting' };
-  const failed = (checks ?? []).filter((c) => /^(FAILURE|ERROR|CANCELLED|TIMED_OUT)$/i.test(c.conclusion ?? c.state ?? ''));
   const reason = failed.length > 0
-    ? `${failed.map((c) => c.name ?? c.context).join(', ')} failed on the pull request`
+    ? `${failedNames} failed on the pull request`
     : `the pull request is ${String(pr.state).toLowerCase()} and no longer queued for auto-merge`;
   return { verdict: 'refused', reason };
+}
+
+const FAILED = /^(FAILURE|ERROR|CANCELLED|TIMED_OUT)$/i;
+/** The required check of `ci.yml`, by the name the ruleset requires (scripts/landing-ruleset.mjs). */
+const GATE = 'CI gate';
+
+/** Pure: every run of the gate has finished, none of them passed and at least one failed. */
+function gateRefused(checks) {
+  const gates = (checks ?? []).filter((c) => (c.name ?? c.context) === GATE);
+  if (gates.length === 0) return false;
+  const settled = gates.every((c) => (c.status ?? 'COMPLETED') === 'COMPLETED' && (c.conclusion ?? c.state));
+  return settled && gates.every((c) => FAILED.test(c.conclusion ?? c.state ?? ''));
 }
 
 function gh(args) {
@@ -85,6 +111,11 @@ function viewPr(number) {
   return gh(['api', 'graphql', '-f', `query=${query}`])?.data?.repository?.pullRequest ?? null;
 }
 
+/** The pull request's checks as `gh` reports them, or none when it gives no answer. */
+function rollup(number) {
+  return gh(['pr', 'view', String(number), '--json', 'statusCheckRollup'])?.statusCheckRollup ?? [];
+}
+
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
 async function main() {
@@ -98,9 +129,13 @@ async function main() {
   }
   const started = Date.now();
   let lastSaid = '';
+  let refusedOnce = false;
   while (Date.now() - started < CAP_MS) {
     const view = viewPr(pr);
-    const { verdict, sha } = watchVerdict(view, [], { expectSha });
+    // The checks are only read while they can decide something: an open pull request the queue
+    // has not taken. Inside the queue they are history, and one `gh` call a tick is enough.
+    const undecided = view?.state === 'OPEN' && !view.mergeQueueEntry;
+    const { verdict, sha } = watchVerdict(view, undecided ? rollup(pr) : [], { expectSha });
     if (verdict === 'landed') {
       const dir = jobsDir();
       if (dir) {
@@ -109,13 +144,24 @@ async function main() {
       console.log(`land-watch: ${branch} landed on main as ${String(sha).slice(0, 8)} (${view.url})`);
       return 0;
     }
+    // A REFUSAL IS READ TWICE BEFORE IT IS BELIEVED. In the moment the queue merges a pull
+    // request GitHub has already cleared the auto-merge request and the queue entry while the
+    // state still reads OPEN - which is, field for field, what a pull request dropped from the
+    // queue looks like. #342 was reported "refused: open and no longer queued for auto-merge" in
+    // the same minute it merged (2026-09-20), and a session acting on that would have re-queued
+    // landed work. A real refusal is still there ten seconds later; a merge is not.
+    if (verdict === 'refused' && !refusedOnce) {
+      refusedOnce = true;
+      await sleep(CONFIRM_MS);
+      continue;
+    }
     if (verdict === 'refused') {
-      const checks = gh(['pr', 'view', String(pr), '--json', 'statusCheckRollup'])?.statusCheckRollup ?? [];
-      const detail = watchVerdict(view, checks, { expectSha });
+      const detail = watchVerdict(view, rollup(pr), { expectSha });
       console.error(`land-watch: the landing of ${branch} was refused: ${detail.reason}`);
       console.error(`  ${view?.url ?? ''} - fix it, run /check, and npm run queue:merge again.`);
       return 1;
     }
+    refusedOnce = false;
     const line = view ? `waiting in the merge queue - ${view.url}` : 'waiting (gh gave no answer this tick)';
     if (line !== lastSaid) {
       console.log(`land-watch: ${line}`);

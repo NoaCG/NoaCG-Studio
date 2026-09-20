@@ -34,9 +34,35 @@ export function isGeneratedFile(relPath: string): boolean {
   return !relPath.includes('/') && GENERATED.some((re) => re.test(name));
 }
 
+/**
+ * The file that marks a folder as FRAMES THIS TOOL WROTE - screenshots to look at, never part of
+ * the graphic. `validate --screenshots ./shots`, run from inside the package as the scaffold's
+ * own hint suggests, puts them in the package folder, and a package is read by zipping that
+ * folder. Unmarked, the frames were imported as the graphic's assets, and everything downstream
+ * went wrong quietly: the regenerated package was unzipped back over the folder and wrote the
+ * OLD frames over the ones just taken (so an edit appeared to change nothing, under a green
+ * result), the control page grew from 41 KB to 987 KB, and `save` would have carried them into
+ * the library.
+ */
+export const FRAMES_MARKER = '.noacg-frames';
+
+/** Mark `framesDir` when it sits inside `packageDir` (and is not the package folder itself). */
+export async function markFramesDir(framesDir: string, packageDir: string): Promise<boolean> {
+  const rel = path.relative(path.resolve(packageDir), path.resolve(framesDir));
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return false;
+  await fs.mkdir(path.resolve(framesDir), { recursive: true });
+  await fs.writeFile(
+    path.join(path.resolve(framesDir), FRAMES_MARKER),
+    'Screenshots written by the noacg CLI. This folder is not part of the graphic and is never packaged.\n',
+  );
+  return true;
+}
+
 async function walk(dir: string, base = dir): Promise<string[]> {
   const out: string[] = [];
-  for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  if (dir !== base && entries.some((e) => e.isFile() && e.name === FRAMES_MARKER)) return out;
+  for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === 'node_modules' || entry.name === '.git') continue;
@@ -55,6 +81,10 @@ export async function zipDirectory(dir: string): Promise<Uint8Array> {
   const JSZip = await loadJsZip();
   const zip = new JSZip();
   for (const rel of await walk(abs)) {
+    // The thumbnail is an OUTPUT of the last validate, never an input to this one. Read back in,
+    // it came out of the regenerated package again and was written over the fresh one, so the
+    // thumbnail a graphic was saved with was the frame of its very first validate.
+    if (rel === 'thumbnail.png') continue;
     zip.file(`${top}/${rel}`, await fs.readFile(path.join(abs, rel)));
   }
   return zip.generateAsync({ type: 'uint8array' });

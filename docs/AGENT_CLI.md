@@ -678,6 +678,11 @@ no `--provenance` flag).
 1. Bump `version` in `cli/package.json`, then run `npm --prefix cli run build`. **That second step
    is not optional**: `cli/scripts/build-skill.mjs` stamps the version onto every plugin's two manifests
    and the root marketplace entry, and the workflow refuses a tree where they disagree.
+   **Write the version's section in `cli/CHANGELOG.md` in the same commit**, for someone who uses
+   the CLI: what was wrong or missing, what it does now, what they have to do. That section is
+   published as the GitHub Release, word for word. `cli/scripts/release-notes.mjs --check` runs in
+   the build and at the top of the release workflow, and refuses a version with no section, a
+   stub, a list of pull requests or a username.
 2. Commit, and land it on `main` the normal way (`/queue-merge`).
 3. Then one command, from any checkout:
    ```bash

@@ -632,7 +632,7 @@ test('the picker only ever offers cells that resolve', async ({ page }) => {
   const problems = await page.evaluate(async () => {
     const { PACKS, resolvePack } = await import('/src/templates/packs.ts');
     const { kitChoices, kitSelection } = await import('/src/templates/kit.ts');
-    const FAMILIES = ['noacg', 'minimal', 'editorial', 'sport', 'glass', 'cinematic'] as const;
+    const FAMILIES = ['noacg', 'minimal', 'editorial', 'sport', 'glass', 'cinematic', 'sticker', 'showtime', 'arcade'] as const;
     const found: string[] = [];
     for (const pack of PACKS) {
       for (const family of FAMILIES) {

@@ -342,10 +342,14 @@ not a defect.
 ### The three game-show families
 
 **sticker**, **showtime** and **arcade** were added on 2026-09-19 for a two-player quiz show. Each
-ships exactly three graphics: a quiz show board (`types/quizShow.ts`), a two-player score
-(`types/duelScore.ts`) and a lower third. They are Browse families like editorial and cinematic,
-so no pack names one yet. They were drawn to be as far from each other as from the six above, so
-picking one is a real decision.
+ships eight graphics, which is a whole show: a title card, a lower third, a quiz show board
+(`types/quizShow.ts`), a two-player score (`types/duelScore.ts`), a countdown, a key-facts board,
+a logo bug and a sign-off. The Quiz Show kit (`src/templates/packs.ts`) creates all eight in one
+look, and it is the only pack that resolves in these families. They were drawn to be as far from
+each other as from the six above, so picking one is a real decision.
+
+Their full-frame ground (the sign-off) is the family's too: a flat accent field with ink halftone
+dots, a burgundy curtain lit from above, and a violet screen with scanlines and a horizon glow.
 
 | Token | sticker | showtime | arcade |
 |---|---|---|---|

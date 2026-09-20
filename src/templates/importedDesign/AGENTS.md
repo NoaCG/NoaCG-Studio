@@ -63,6 +63,16 @@ offered on the shape the designer named and `id="fN"` lands on the `<image>` the
 to (`svgPictureTarget`) - the only node whose href a swap can repaint. Which is why the id rename
 carries the references: the pattern's `<use>` finds the picture by id.
 
+**A BUNDLED FACE DECLARED UNDER THE ARTWORK'S NAME IS PINNED TO THE WEIGHT THAT NAME STATES**
+(`aliasFontFaceCss`, `DesignSvgFont.weight`). Illustrator writes `font-family:'Archivo-Black'` and
+no `font-weight` anywhere, because in its world that name is one static file. Ours is one variable
+file covering 400-900, so an alias declared with the whole range answered the artwork's
+weight-less text with the default, and a Black headline arrived in Regular with nothing reporting
+it. The alias is declared as the ONE weight instead; a request is clamped into a face's declared
+range, so a range of one value has one answer. The computed `font-weight` reads 400 either way,
+which is why `e2e/import-svg-sticker-sample.spec.ts` checks the emitted face and the rendered
+width, never the computed style.
+
 **ONE FIT for the whole graphic** (§6b): the ladder measures the PLACED lines too, so `update()`
 calls one hook, not two. A placed line's ROOM is its own SLOT - the width its wrapper declares,
 AUTHORED rather than found, so it beats any rectangle a container search might turn up under it;

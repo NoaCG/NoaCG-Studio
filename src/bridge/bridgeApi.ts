@@ -458,6 +458,20 @@ export function defaultData(template: SpxTemplate): Record<string, string> {
   return out;
 }
 
+/** The longest a doubled line is allowed to be in the stress frame. */
+const STRESS_TEXT_CAP = 96;
+
+/** A doubled value, cut to the cap at a WORD, never inside one. The frame is read by whoever
+ *  judges the design - a person or an agent - and "Olympic Gam" at the end of a question reads
+ *  as the DESIGN truncating text, which sends them looking for a clipping fault that is not
+ *  there. One unbroken word longer than the cap is kept whole: it is the stress. */
+function stressText(value: string): string {
+  const doubled = `${value} ${value}`;
+  if (doubled.length <= STRESS_TEXT_CAP) return doubled;
+  const cut = doubled.lastIndexOf(' ', STRESS_TEXT_CAP);
+  return cut > 0 ? doubled.slice(0, cut) : doubled;
+}
+
 /** The stress frame: every text doubled, every number widened - the bench's own stress recipe
  *  in data form, so a screenshot shows what a long name and a big score do to the design. */
 export function stressData(template: SpxTemplate): Record<string, string> {
@@ -465,10 +479,13 @@ export function stressData(template: SpxTemplate): Record<string, string> {
   for (const f of template.fields) {
     if (!(f.field in out)) continue;
     const v = out[f.field];
-    if (f.ftype === 'textfield') out[f.field] = v ? `${v} ${v}`.slice(0, 96) : 'Stress value stress value';
+    if (f.ftype === 'textfield') out[f.field] = v ? stressText(v) : 'Stress value stress value';
     else if (f.ftype === 'textarea') out[f.field] = v ? `${v}\n${v}` : 'Stress line one\nStress line two\nStress line three';
     else if (f.ftype === 'number') out[f.field] = '888';
-    else if (f.ftype === 'dropdown' && f.items?.length) out[f.field] = f.items.reduce((a, b) => (b.value.length > a.length ? b.value : a), f.items[0].value);
+    // The longest option, and among equals the LAST: a list of same-length options is usually a
+    // count or a letter ("Answers shown" 2|3|4), and its first entry is the emptiest frame the
+    // graphic has - the quiz board was stressed with two of its four answer rows hidden.
+    else if (f.ftype === 'dropdown' && f.items?.length) out[f.field] = f.items.reduce((a, b) => (b.value.length >= a.length ? b.value : a), f.items[0].value);
   }
   return out;
 }

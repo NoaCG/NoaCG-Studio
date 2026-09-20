@@ -37,6 +37,9 @@ import { bug13 } from '../cornerBug/bug13';
 import { bug14 } from '../cornerBug/bug14';
 import { bug15 } from '../cornerBug/bug15';
 import { bug16 } from '../cornerBug/bug16';
+import { bug38 } from '../cornerBug/bug38';
+import { bug39 } from '../cornerBug/bug39';
+import { bug40 } from '../cornerBug/bug40';
 import { bug17 } from '../cornerBug/bug17';
 import { bug18 } from '../cornerBug/bug18';
 import { bug19 } from '../cornerBug/bug19';
@@ -345,6 +348,38 @@ export const logoBugType: GraphicType = {
       fontId: 'inter',
       animationPresets: ['fade', 'blur-in', 'slide-down', 'slide-up', 'pop-spring'],
       create: (_type, options) => bug16.create(options),
+    },
+    // The three GAME-SHOW cells (sticker, showtime, arcade). Each was designed FOR this type, as
+    // one graphic of the quiz show kit (packs.ts, 'quiz-show').
+    {
+      id: 'bug38',
+      name: 'Sticker Mark',
+      description: 'Logo only: the mark on a small paper label with a thick ink outline and a hard shadow.',
+      styleTag: 'sticker',
+      palette: paletteById('tangerine'),
+      fontId: 'archivo',
+      animationPresets: ['pop-spring', 'fade', 'slide-down', 'slide-up', 'blur-in'],
+      create: (_type, options) => bug38.create(options),
+    },
+    {
+      id: 'bug39',
+      name: 'Showtime Mark',
+      description: 'Logo only: the mark on a small marquee plaque with a bulb-coloured keyline.',
+      styleTag: 'showtime',
+      palette: paletteById('marquee'),
+      fontId: 'playfair-display',
+      animationPresets: ['fade', 'pop-spring', 'slide-down', 'slide-up', 'blur-in'],
+      create: (_type, options) => bug39.create(options),
+    },
+    {
+      id: 'bug40',
+      name: 'Arcade Mark',
+      description: 'Logo only: the mark in a small pixel-cornered frame with a glowing neon rim.',
+      styleTag: 'arcade',
+      palette: paletteById('neon-cyan'),
+      fontId: 'saira',
+      animationPresets: ['fade', 'slide-down', 'slide-up', 'pop-spring', 'blur-in'],
+      create: (_type, options) => bug40.create(options),
     },
   ],
 };

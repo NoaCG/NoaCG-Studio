@@ -1,6 +1,6 @@
 {
   "name": "@noacg/cli",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "The NoaCG CLI: scaffold, validate, inspect, screenshot and save broadcast graphics for NoaCG Studio, from a coding agent or your own terminal. Runs as an MCP server too (noacg mcp), against any NoaCG deployment.",
   "license": "Apache-2.0",
   "author": "NoaCG Studio (https://noacg.studio)",
@@ -34,6 +34,7 @@
     "dist",
     "skill",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {
@@ -43,7 +44,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "node scripts/build-skill.mjs && tsc -p tsconfig.json",
+    "build": "node scripts/build-skill.mjs && node scripts/release-notes.mjs --check && tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:skill": "node scripts/build-skill.mjs --check",
     "test": "node --test \"test/**/*.test.mjs\"",

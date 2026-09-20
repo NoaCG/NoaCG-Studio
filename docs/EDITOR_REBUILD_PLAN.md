@@ -2,7 +2,7 @@
 
 Updated 2026-09-19. [EDITOR_PLAN.md](EDITOR_PLAN.md) owns scope, order and acceptance. This document
 owns the source, interaction and preview mechanisms. The owner authorized R1.0 on 2026-09-19;
-the earlier implementation hold is superseded for that bounded slice. R1.0 landed in PR #331 and is live as cfb28e74; the [next-session handoff](handoffs/2026-09-19-editor-r1.1a.md) scopes R1.1a. Owner usability acceptance remains open.
+R1.0 landed in PR #331 and is live as cfb28e74. The [outcome/delivery contract](research/editor-outcomes-and-review-readiness-2026-09-20.md) supersedes the historical hold: usable static-authoring follow-up is next, verified slices deploy without waiting for owner review, and default-switch acceptance remains separate.
 Independent review of d5e8c1db is accepted with the corrections below.
 The old rebuild plan is archived with the consolidation evidence; its mode and phase order
 are superseded. Existing application behavior remains the source of truth until replaced.
@@ -468,6 +468,8 @@ Preserve existing IDs and repair only references affected by minting; redo reuse
 IDs. Test unnamed siblings/nested nodes, duplicate IDs in an input, cancel-before-commit, undo/
 redo and save/reopen with field/track/selection identity and unrelated source intact.
 
+The [semantic-command/WebMCP assessment](research/editor-webmcp-commands-2026-09-19.md) maps the merged R1 registry (currently only key.set) and reusable block/CLI services. Each authoring slice extends that registry for its UI. R1.3b supplies shared runtime schemas, bounded state queries, asynchronous receipts and selection/session conflict checks. Optional P-WEBMCP follows R1.3b as a feature-detected imperative adapter; R3.2 paired MCP reuses the handlers. UI and built-in AI call commands directly. Keep view queries and validated export/publish services distinct from source mutations; expose meaningful actions, not controls or store internals. B21 records adapter tests; no WebMCP dependency or tool exposure is added now.
+
 One shared operation registry accepts document ID, expected source/asset revision, operation
 batch and transaction identity. Validate capability/types/references, apply atomically, return
 changed targets/readable diff/new revision, then report matching preview readiness. Stale input
@@ -512,6 +514,8 @@ Lottie is a timed asset layer, not an editable After Effects composition.
 R2 paint authors linear/radial gradients and stops, path/alpha masks with explicit sources,
 and ordered blur/shadow/colour adjustment. Prevent cyclic/dangling masks. Preserve unknown
 effects; animate only documented numeric parameters. Preview and target exports must agree.
+
+Optional P-GPU follows working R1/R2.2/R3.1; it does not gate them. The [vgpu assessment](research/editor-webgpu-vgpu-2026-09-19.md) defines its qualification spike and B20. Effects are source-backed canvas layers/presets with typed parameters, host-owned time, shared preview/export bytes and explicit fallbacks. Keep core artwork in HTML/SVG. Preserve R1 document/history/revision/cleanup seams; add no GPU dependency, persisted scene model, generic renderer registry or sandbox change now. GPU completion barriers and target packaging are later evidence-driven work.
 
 R3 data binds typed text/image/colour targets to scalar/nested/object-array fields. Runtime
 collections use one prototype, stable item keys, layout/count/empty/overflow policy. They are
