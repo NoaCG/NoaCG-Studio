@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-09-20
 state: advanced
-note: "Landed: the stress frame cuts at a word and stresses the last of equal options (PR 337), and validate no longer reads its own screenshots and thumbnail back in, CLI 0.3.4 (PR 338). Still stands: the seven items below, and 0.3.4 is not on npm until the owner pushes the cli-v0.3.4 tag."
+note: "Landed: the stress frame cuts at a word and stresses the last of equal options (PR 337), and validate no longer reads its own screenshots and thumbnail back in, CLI 0.3.4 (PR 338). 0.3.4 is on npm since 2026-09-20 (tag cli-v0.3.4). Still stands: the seven items below."
 asked: "This experience I had with creating graphics through Claude Code here with you and getting them into NOA CG, I want everyone to be able to have this great experience I just had. Is the CLI tool and the MCP server working this well? I want everyone to be able to create complicated graphics this easily."
 serves: P7
 size: standard
