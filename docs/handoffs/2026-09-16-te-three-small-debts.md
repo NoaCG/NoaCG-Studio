@@ -61,13 +61,13 @@ filed in this same commit:
 
 | handoff | open item(s) | traced to |
 |---|---|---|
-| sa | §7 row 14 (closed once 0.3.3 published) | `docs/DEMO_2026-09-25.md` R2.1/R2.4, both WORKS; `docs/backlog/noacg-login-hangs-after-it-has-already-succeeded.md` already deleted at `2987bd37` |
+| sa | gap-list row 14 (closed once 0.3.3 published) | the CLI rows R2.1/R2.4, both WORKS; `docs/backlog/noacg-login-hangs-after-it-has-already-succeeded.md` already deleted at `2987bd37` |
 | sc | copy-gate blind spot; two taste questions | `docs/backlog/copy-gate-does-not-scan-generated-operator-surfaces.md`; `docs/acceptance/owner-queue/2026-09-16-sc-two-space-modes.md` |
-| sd | sheet never proofed on paper (§7 row 18) | `docs/DEMO_2026-09-25.md` §7 row 18, still UNSEEN (eyes); `docs/acceptance/owner-queue/2026-09-16-sd-two-one-page-session-indexes.md` |
+| sd | printed sheet never proofed on paper | the sheets and their walk item were removed on 2026-09-20 with the rest of the teaching-session material |
 | si | main work (landed); 3 deferred UI/copy fixes never filed | owner-queue `2026-09-16-si-what-an-account-is-for.md`; filed `docs/backlog/session-expired-reopen-shows-the-free-account-line.md`, `docs/backlog/auth-state-is-read-per-consumer-not-from-one-store.md`, `docs/backlog/no-wall-line-says-export-when-the-gate-is-a-cloud-render.md` |
 | sj | none - "nothing blocking" | landed at `cebe51dd`; `scripts/stop-wait.mjs` MAX_REFUSALS/REFUSAL_WINDOW_MS confirmed present |
 | es | coordinator must observe the landing; instruction-context-rot receipt | landed as `20d4b094`/`9e166c2c`; `docs/backlog/instruction-context-rot-after-spec-pilot.md` |
-| sb | publish 0.3.3; login terminal watch; save-link-on-Home; deck read cold | 0.3.3 published (confirmed via `npm view`, row SE); owner-queue `2026-09-16-noacg-login-gives-the-terminal-back.md`; Home-link fixed per `docs/DEMO_2026-09-25.md` R2.4 (deep-link-boot.spec.ts); owner-queue `2026-09-10-ca-the-deck-now-ends-at-our-own-player.md` |
+| sb | publish 0.3.3; login terminal watch; save-link-on-Home | 0.3.3 published (confirmed via `npm view`, row SE); owner-queue `2026-09-16-noacg-login-gives-the-terminal-back.md`; Home-link fixed, pinned by `deep-link-boot.spec.ts` |
 | se | main work (landed); `doctor` not separately naming `resolveCli()` | owner-queue `2026-09-16-se-stale-global-cli-warns.md`; filed `docs/backlog/cli-doctor-does-not-name-what-resolvecli-would-resolve-to.md` |
 | sg | rung 5 next; outline-row narrowing | `docs/TEXT_BOX_BINDING.md` "Growth, per box" (row TD is rung 5, running concurrently); owner-queue `2026-09-16-sg-growth-per-box.md` |
 | sk | alignmentState deeper fix (this row's own); 2 owner-queue receipts misdate the class | fixed in this branch (step 3 above); filed `docs/backlog/two-owner-queue-receipts-misdate-the-20-october-class.md` (sk itself declined to edit the receipts - "not mine to rewrite" - so I didn't either; the decision is the queue owner's) |

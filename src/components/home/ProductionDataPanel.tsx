@@ -197,7 +197,7 @@ export default function ProductionDataPanel({
 
       {/* WHAT THIS TAB IS FOR, in three short paragraphs, closed by default. The owner opened this
           tab on 2026-09-15 and could not tell what the button did or how the boxes worked, and he
-          built the product; the students on 2026-09-25 get one look. A drawer costs nothing once
+          built the product; a first-time operator gets one look. A drawer costs nothing once
           learned, and a paragraph that is always open is one more thing to scroll past on air. */}
       <details className="pd-explain" data-testid="data-explain">
         <summary>How this tab works</summary>

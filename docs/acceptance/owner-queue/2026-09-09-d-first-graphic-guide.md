@@ -25,8 +25,8 @@ graphic. The direct address is `/docs#first-graphic`. From `claude/d-import-road
 
 **What to look at.**
 
-The guide is the road you asked for on the 25th: a file a student drew, and a graphic an operator
-takes to air. It is one screen of reading and it points everywhere else rather than repeating it.
+The guide is the road you asked for: a file somebody drew, and a graphic an operator takes to
+air. It is one screen of reading and it points everywhere else rather than repeating it.
 
 Four things are worth checking against your own sense of what a first-timer needs:
 

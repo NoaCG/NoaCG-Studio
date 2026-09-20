@@ -23,7 +23,7 @@ the live tree was kept off the show record in the first place, and the tables ar
 air. Different budget from the tables, and a different investigation.
 
 Shipping "one edit, one write" for the Data *panel* while the Data *workspace* two tabs over still
-does this is a half-kept promise, and a student on 2026-09-25 types into both.
+does this is a half-kept promise, and an operator types into both.
 
 ## What it would take
 

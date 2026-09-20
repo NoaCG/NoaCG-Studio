@@ -8,7 +8,7 @@ serves: now
 
 The gap the last walk left is closed. A production carrying an ARRANGE, a combined control with a
 delayed step and two ticks, and three fields bound to production data is now published and driven
-on the HOSTED control page - the surface you and a class hold on 2026-10-20 - and the whole walk
+on the HOSTED control page - the surface you hold on 2026-10-20 - and the whole walk
 runs in CI on every landing from here on, against a real Supabase stack and a throwaway account.
 
 Until today nobody had ever seen a profile on that page, on any machine. The in-app page had it,

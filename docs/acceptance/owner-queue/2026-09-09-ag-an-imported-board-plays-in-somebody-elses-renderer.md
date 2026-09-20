@@ -4,11 +4,11 @@ date: 2026-09-09
 because: taste
 serves: now
 ---
-# A student's own drawing, behaving, in a renderer nobody here wrote
+# Somebody else's own drawing, behaving, in a renderer nobody here wrote
 
-Beat A7 of the 25 September script was the last GAP in the on-air section, and it is the one the
-Yle half of the day rests on: a graphic somebody drew in Illustrator, imported here, exported as
-OGraf, and driven in somebody else's renderer. Everything proven before this was a NoaCG design or
+The OGraf road was the last GAP in the on-air section, and it is the one a broadcaster's interest
+rests on: a graphic somebody drew in Illustrator, imported here, exported as OGraf, and driven in
+somebody else's renderer. Everything proven before this was a NoaCG design or
 a CLI scaffold.
 
 It works now, in SuperFly.tv's ograf-server. Getting there found a defect, and it was the bad

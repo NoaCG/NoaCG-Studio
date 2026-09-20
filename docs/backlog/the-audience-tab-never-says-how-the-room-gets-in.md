@@ -19,8 +19,8 @@ unpublished production gets the **⟳ Simulate 3 arrivals** button in that slot 
 all, so the person who most needs telling is the one who is not told.
 
 ## Why it matters now
-The 25 September session is students with a hall and no broadcast channel. On this screen the
-product offers them two things they do not have and hides the one they do.
+A follow-along session is a hall full of phones and no broadcast channel. On this screen the
+product offers two things such a room does not have and hides the one it does.
 
 ## What it would take
 The unpublished case needs a sentence in the same slot, saying that the audience link appears when

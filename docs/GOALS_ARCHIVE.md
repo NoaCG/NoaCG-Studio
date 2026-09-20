@@ -1950,7 +1950,7 @@ defect was the platform's. The argument is in the archive; the rule it operation
       a frontier model on that transport is fundable once it is affordable; the four DIRECT
       provider APIs need the user's own key.
 - [ ] **A school account earns more AI.** A verified address on a configured school domain
-      (`@arcada.fi` first) issues a **grant**, which already outranks the plan and carries its own
+      issues a **grant**, which already outranks the plan and carries its own
       reason and expiry (`src/entitlements/contract.ts`) - no new concept needed. The first honest
       reason to sign in that is not a paywall.
 
@@ -1981,7 +1981,7 @@ get all of them in **one unified look**, landing together in one production.
 The live-file item as it stood, verbatim:
 
 > - [ ] **Agent-authored machines - answered 2026-09-15, the skill not yet taught.** The rows
->       that close it after the 25th: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5.
+>       that close it: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5.
 
 Closed by the CLI's 0.3.2 skill. The owner retired the 2026-08-08 "AI never authors machines"
 rule on 2026-08-27 and named three gates instead (`docs/CONTROL_PANEL_ROAD.md` §9); the gates
@@ -2092,9 +2092,8 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 > keeps full control through **Advanced mode** - the editor, one toggle away, never required. The
 > generated HTML/CSS/JS is the single source of truth and stays clean and readable.
 >
-> **The dates: 2026-09-25, students and Yle people try NoaCG hands on and their own graphics
-> play; an early-October production on the scoreboards and quiz boards; 2026-10-20, Elämäni biisi on
-> Yle.** NOW lists what they need. Work that serves none of them is still current when it makes sense.
+> **The dates: an early-October production on the scoreboards and quiz boards; 2026-10-20,
+> Elämäni biisi on Yle.** NOW lists what they need. Work that serves none of them is still current when it makes sense.
 >
 > **The year beyond this file**: [`NORTH_STAR_2027.md`](NORTH_STAR_2027.md) (ratified 2026-09-01)
 > is the one-year north star and evidence model; [`PROGRAMMES.md`](PROGRAMMES.md) is the live
@@ -2150,13 +2149,12 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 > > A student draws **their own graphic** - any graphic, not a lower third - gives it **the behaviour
 > > their show needs**, and plays it out from the dashboard. **Without writing a line of code.**
 >
-> **The date is 2026-09-25** (ruling: `docs/OWNER_RULINGS.md`, 2026-09-09). Students and YLE people
-> try NoaCG hands on, and we owe one presentation and one step-by-step guide over SVG import ending
-> on their systems and the CLI from Codex or Claude Code to the NoaCG player. Beats, routes and the
-> gap list are **`docs/DEMO_2026-09-25.md`**. **The 2026-09-12 production did not happen**
-> (owner, 2026-09-15); the next is early October, on the **QUIZ** (lock / reveal) and the
-> **SCOREBOARD** (score + / -) as they exist. The student draws the graphic; we supply the behaviour.
-> The student release before this is CLOSED (archive).
+> **What is owed** (ruling: `docs/OWNER_RULINGS.md`, 2026-09-09): one step-by-step guide over SVG
+> import ending on somebody else's system, and the CLI from Codex or Claude Code to the NoaCG
+> player. **The 2026-09-12 production did not happen** (owner, 2026-09-15); the next is early
+> October, on the **QUIZ** (lock / reveal) and the **SCOREBOARD** (score + / -) as they exist.
+> The user draws the graphic; we supply the behaviour. The student release before this is CLOSED
+> (archive).
 >
 > **A WALK THAT IS OWED NEVER BLOCKS WORK** (owner, 2026-08-30, unprompted and twice): *"It's up to
 > me to test what I need to test. You don't have to block any work just because I haven't tested
@@ -2189,8 +2187,8 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 >       footer checkbox copies a look nobody chose, and a logo has no road into a brand). Plan and
 >       the two wave rows: **`docs/BRAND_PLAN.md`**; level 2 (the PDF brand bible) stays parked there.
 >
-> **CUSTOMIZING that behaviour is not needed for the 25th** (owner, 2026-08-22 - *"what if I don't
-> want to be able to lock it?"*), and it is no longer held for it (owner, 2026-09-15). It is the P2
+> **CUSTOMIZING that behaviour is not needed for the near dates** (owner, 2026-08-22 - *"what if
+> I don't want to be able to lock it?"*), and it is no longer held for them (owner, 2026-09-15). It is the P2
 > question one level up; the rows in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 are its first step.
 >
 > ### The playout dashboard
@@ -2200,8 +2198,8 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 > TAKE spanning them at every window size**. The Preview VERB is gone from the in-app and hosted
 > pages, deliberately kept in the exported controller (archive, 2026-08-30).
 >
-> - [x] **Two Space-key modes, as an operator setting** (owner, ALIGN-2026-09-10-3; build before
->       the 25th, 2026-09-15). Space previews and Space again airs, like a mixer's cut; or selection
+> - [x] **Two Space-key modes, as an operator setting** (owner, ALIGN-2026-09-10-3; build it,
+>       2026-09-15). Space previews and Space again airs, like a mixer's cut; or selection
 >       is preview and Space airs, as today. Shipped 2026-09-16 - `docs/PLAYOUT_DASHBOARD.md` §2f
 >       (the backlog file that held the ask is gone; his words are quoted there verbatim).
 > - [ ] **The production control profile, for 2026-10-20** (owner, 2026-09-15): two primitives,

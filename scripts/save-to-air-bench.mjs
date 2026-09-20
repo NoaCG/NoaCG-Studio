@@ -1,8 +1,7 @@
-// SAVE TO AIR, measured against the real deployment: the last hop of the agent road
-// (docs/DEMO_2026-09-25.md, the R2.5 beat).
+// SAVE TO AIR, measured against the real deployment: the last hop of the agent road.
 //
-// The room hears 24.8 s for the seven authoring verbs and 9.3 s for `noacg save` into the live
-// library. Nobody had ever timed the hop AFTER the library: a production's output URL, the thing
+// The numbers we quote are 24.8 s for the seven authoring verbs and 9.3 s for `noacg save` into
+// the live library. Nobody had ever timed the hop AFTER the library: a production's output URL, the thing
 // a viewer actually sees. This script times it, end to end, against `https://noacg.studio` with
 // the E2E test account - never a dev server, because R2.4 was already caught overclaiming on the
 // strength of one (a dev server is not this).

@@ -1867,7 +1867,7 @@ work.
 
 ### Operational state
 
-The cohort domain was cleared from the `arcada` plan the same hour, so no student can reach
+The cohort domain was cleared from the cohort plan the same hour, so no member of it can reach
 Pro; the owner's own grant stands so the investigation can continue. The hosted ROUTE is
 verified and correct and is not implicated: cost reconciled exactly (concept image $0.0671020 -
 the documented flat rate - plus interpret $0.0184629, summing to the $0.0855649 on the
@@ -2115,8 +2115,9 @@ validator's own words. **No verdict is printed anywhere on it.**
 **Still owed after this**: a real HOSTED generation a person watched - these 18 ran through the
 bench's route, not through `/api/ai/pro-generations`. The hosted WALK is now covered end to end
 with a stub (above), and the entitlement gate is what stops the throwaway test account from
-running the real thing locally: `ai.pro` is owner + `@arcada.fi` only, and granting it to a test
-account to make a spec pass would be the gate telling itself what it wants to hear.
+running the real thing locally: `ai.pro` is the owner plus one configured cohort domain, and
+granting it to a test account to make a spec pass would be the gate telling itself what it wants
+to hear.
 
 #### And the one that went through the PRODUCT - ledger `28807ce7`, 2026-08-16
 

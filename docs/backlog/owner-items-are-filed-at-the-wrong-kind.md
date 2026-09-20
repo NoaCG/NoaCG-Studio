@@ -33,7 +33,7 @@ were *"I'm very confused how we have 81. The number should get smaller at some p
 that a deep queue stops being read at all. This is worse than a long list: an item that opens with
 a route and closes with "nothing here needs a decision from you" spends his attention to tell him
 it did not need it. It also hides the items that DO need him, which on the same walk were real -
-five product calls about the 25 September session, an address, a landing-page verdict and a build
+five product calls about a live session, an address, a landing-page verdict and a build
 budget.
 
 Two of the three are not even fully wrong. Each ends with one genuine sentence-sized question for

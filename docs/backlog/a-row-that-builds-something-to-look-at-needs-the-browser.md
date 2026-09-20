@@ -13,11 +13,9 @@ needs-owner: none
 
 # A row that builds something to look at needs the browser, and a `file://` artifact needs its route named
 
-**Filed:** 2026-09-09. **Source:** the row that built and then withdrew the HTML deck for
-25 September, "The browser question, in my own words" in
-`git show a2ab4097:docs/handoffs/2026-09-09-n-presentation-25-september.md`. The row's own view,
-recorded here because the row's file is consumed and the wave plan that gave it `browser:no` is
-gitignored.
+**Filed:** 2026-09-09. **Source:** a row that built and then withdrew an HTML slide deck, under
+the heading "The browser question, in my own words". The row's own view, recorded here because the
+row's file is consumed and the wave plan that gave it `browser:no` is gitignored.
 
 ## Why
 
@@ -51,7 +49,7 @@ one.
 
 ## Evidence
 
-- `git show a2ab4097:docs/handoffs/2026-09-09-n-presentation-25-september.md` - the four defects,
+- the row's own handoff, since removed - the four defects,
   the timestamps, and the row's own argument. Its predecessor is `77376353`; `ff9b4ce5` withdrew it.
 - The sibling `.pptx` row reached the same place from the other direction: it verified without a
   browser by unzipping the XML, opening the deck through PowerPoint COM and rasterising a

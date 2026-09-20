@@ -36,10 +36,10 @@ drawing without code is the easier half. It is programme **P2**, which carries t
 two surfaces already tried: a standing thread with no date that decides whether NoaCG serves
 productions bigger than one school.
 
-**The dates: 2026-09-25, students and Yle people try NoaCG hands on and their own graphics play;
-an early-October production on the scoreboards and quiz boards; 2026-10-20, the Elämäni biisi
-DEMONSTRATION - a follow-along score in the room, run on SPX, shown to the programme's producers to
-prove how easily the graphic is made. Not an air date, not Yle's playout** (owner, 2026-09-16).
+**The dates: an early-October production on the scoreboards and quiz boards; 2026-10-20, the
+Elämäni biisi DEMONSTRATION - a follow-along score in the room, run on SPX, shown to the
+programme's producers to prove how easily the graphic is made. Not an air date, not Yle's
+playout** (owner, 2026-09-16).
 NOW lists what they need; work that serves none of them is still current when it makes sense. The
 year beyond this file is [`NORTH_STAR_2027.md`](NORTH_STAR_2027.md), whose evidence model stops a
 capability being called complete because its implementation exists. **Who we are replacing**,
@@ -58,9 +58,8 @@ buys something.
 
 **The goal, owner 2026-08-22:** a student draws **their own graphic** - any graphic, not a lower
 third - gives it **the behaviour their show needs**, and plays it out from the dashboard, **without
-writing a line of code.** On **2026-09-25** students and Yle people try that hands on, and we owe
-one presentation and one step-by-step guide over SVG import and the CLI to the NoaCG player, with
-beats, routes and the gap list in **`docs/DEMO_2026-09-25.md`**. The next production is early
+writing a line of code.** The two roads a newcomer takes are SVG import and the CLI to the NoaCG
+player, and both are written up step by step on the public docs page. The next production is early
 October, on the **QUIZ** (lock / reveal) and the **SCOREBOARD** (score + / -) as they exist: the
 student draws the graphic, we supply the behaviour, and **a walk that is owed never blocks work**
 (owner, 2026-08-30).
@@ -87,8 +86,7 @@ student draws the graphic, we supply the behaviour, and **a walk that is owed ne
       the output embed that keeps the profile has never run on a real SPX server. §5a is the day's
       own list.
 
-**CUSTOMIZING that behaviour is not needed for the 25th**, and is no longer held for it (owner,
-2026-09-15): it is the P2 question one level up, first step `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5.
+**CUSTOMIZING that behaviour is not held for the October dates** (owner, 2026-09-15): it is the P2 question one level up, first step `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5.
 
 ---
 
@@ -114,8 +112,7 @@ standard already specifies.**
 standard inside what we already build. **The LADDER below is what stays parked**: each rung is a NEW
 surface, ordered after the push rather than blocked by it, and shown publicly as a dashed card in
 the landing page's `#ograf` section until the commit that lands it turns that card solid. **Yle**
-would try NoaCG inside a production of their own in roughly a month; one message is owed them now,
-the demo script's B0.
+would try NoaCG inside a production of their own in roughly a month; one message is owed them now.
 
 - [ ] CasparCG Stage 1 accepted on real hardware (owner-queue, 2026-08-25)
 - [ ] GDD alignment: standard `gddType`, honest `stepCount` 0/-1, one step-walk

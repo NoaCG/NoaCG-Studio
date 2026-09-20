@@ -438,12 +438,12 @@ the schema does not encode is still a rule the operator sees broken. The externa
 not automated - it is a hand check whose result is the section above, to be repeated when the
 generated Web Component or the manifest changes shape.
 
-### 2026-09-09: a student's own drawing, with behaviour, in the same renderer
+### 2026-09-09: somebody else's own drawing, with behaviour, in the same renderer
 
 Both rounds above drove a package NoaCG designed: a catalog graphic, then a CLI scaffold. The
-graphic the 25 September session actually promises is neither. It is an SVG somebody drew in
-Illustrator, imported here, carrying behaviour proposed from its own layer names - and it had
-never been in a renderer nobody here wrote. `docs/DEMO_2026-09-25.md` beat A7 said so.
+graphic the SVG road actually promises is neither. It is an SVG somebody drew in Illustrator,
+imported here, carrying behaviour proposed from its own layer names - and it had never been in a
+renderer nobody here wrote.
 
 The walk is a script now rather than a memory: **`scripts/ograf-external-walk.mjs`**. It drives
 the real import door and the real export dialog in the app, uploads the package through the

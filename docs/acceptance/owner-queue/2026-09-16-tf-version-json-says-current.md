@@ -7,10 +7,9 @@ date: 2026-09-16
 `https://noacg.studio/version.json` carries two new fields alongside `commit`:
 `lastDeployAffectingCommit` (the newest commit, at or before the build, that can change what
 production serves) and `deployedCommitIsCurrent` (`commit === lastDeployAffectingCommit`, or
-`null` when it could not be determined - never a guessed `true`). B1 of
-`docs/DEMO_2026-09-25.md` points whoever checks the site on the morning of the 25th at reading
-this file; this is what makes the read answer itself instead of needing a manual diff against
-`scripts/deploy-affecting-paths.mjs`.
+`null` when it could not be determined - never a guessed `true`). Anyone checking before a
+demo reads this file; this is what makes the read answer itself instead of needing a manual diff
+against `scripts/deploy-affecting-paths.mjs`.
 
 ## Route, under a minute
 

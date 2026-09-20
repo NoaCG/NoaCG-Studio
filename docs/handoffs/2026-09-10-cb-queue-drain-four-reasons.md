@@ -45,9 +45,10 @@ how little a paragraph in a contract does on its own.
 
 ## What is left for him, and why each one is
 
-**Four on the phone.** The 25 September beats and their re-cut timing; the tutorial pack's script;
-and two landing-page items - whether the page's voice is right after he failed it on 2026-09-10,
-and the Create with AI card, which he turned into a product decision in the same walk.
+**Four on the phone.** A demonstration's beats and their re-cut timing; the tutorial pack's
+script; and two landing-page items - whether the page's voice is right after he failed it on
+2026-09-10, and the Create with AI card, which he turned into a product decision in the same
+walk.
 
 **Nineteen at the computer**, in the six places the gate itself groups them into - read them off
 `--routes` rather than off any narrative here, which is what the first draft of this handoff got
@@ -63,7 +64,7 @@ wrong by counting one item twice and dropping another:
 - **The docs site, 1** - whether a half-built feature belongs on a public indexed page.
 - **A checkout, 1** - the weekly alignment session's own format, plus the P2 gate ruling.
 - **The public site, 1** - the footer's source link and the licence wording.
-- **On its own, 1** - the 25 September deck, which absorbed the slide-4 item.
+- **On its own, 1** - a slide deck, which absorbed the slide-4 item.
 
 Eleven of the twenty-three carry a decision written into them today, so his minute is spent on the
 half that is his rather than on a question already answered underneath it.

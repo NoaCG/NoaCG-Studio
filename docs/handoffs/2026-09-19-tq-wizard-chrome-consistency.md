@@ -3,7 +3,7 @@
 Branch `claude/new-session-bde252`, worktree `.claude/worktrees/new-session-bde252`.
 **LANDED** on `origin/main` as `77c87d25` (PR #329), tip `597ed36a`. Working tree clean.
 
-Owner-raised, from a walk before a lecture on 2026-09-19: "the home card doesn't get the
+Owner-raised, from a walk on 2026-09-19: "the home card doesn't get the
 interaction animation when you hover over it", and "the size of the top bar tab on the home
 screen and on the wizard home screen... they're different sizes". Both are now fixed and have
 owner-queue walks: `docs/acceptance/owner-queue/2026-09-19-the-home-row-answers-a-hover.md` and

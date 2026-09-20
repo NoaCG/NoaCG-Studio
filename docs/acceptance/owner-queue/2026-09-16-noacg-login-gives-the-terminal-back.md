@@ -7,9 +7,9 @@ serves: now
 # `noacg login` gives the terminal back
 
 On 2026-09-10 against `noacg.studio`, `login` minted the key, stored it, printed "Logged in to…"
-and then sat for 923 s until it was killed. On the 25th a room runs this command on their own
-machines, and a person who cannot tell a finished login from a broken one runs it again and mints a
-second key. `@noacg/cli` 0.3.3 ends that: the listener's sockets are dropped when it closes, so the
+and then sat for 923 s until it was killed. A room full of people runs this command on their own
+machines, and a person who cannot tell a finished login from a broken one runs it again and mints
+a second key. `@noacg/cli` 0.3.3 ends that: the listener's sockets are dropped when it closes, so the
 prompt comes back about a third of a second after you press Allow.
 
 ## Route, about a minute

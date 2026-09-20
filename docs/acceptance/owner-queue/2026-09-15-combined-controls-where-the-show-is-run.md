@@ -7,7 +7,7 @@ serves: now
 # The combined control, on the page the show is actually run from
 
 One press, several rows, some of them later - now on the hosted control page, which is the surface
-you and a class will be holding on 2026-10-20. Same button, same ticks, same countdown, same
+you will be holding on 2026-10-20. Same button, same ticks, same countdown, same
 cancel as the in-app page: one component draws it and one resolver decides what it sends, so the
 two cannot drift into two behaviours.
 

@@ -38,10 +38,10 @@ At a machine, for the pictures:
 
 ## The question that is yours
 
-**Is the script in your product's voice, and is it the video you would put your students in front
-of?** That is taste and nothing else answers it. Everything else here was decided rather than
+**Is the script in your product's voice, and is it the video you would put a first-time user in
+front of?** That is taste and nothing else answers it. Everything else here was decided rather than
 asked: the road, the sample, the length, and one pack per road as the unit.
 
 The second pack is cheap now - the capture rides the same helpers, so it is a table row plus the
-words. The obvious next two are the quiz board, which is the other piece the 25 September room
-takes home, and the live vote once it has a board a viewer can download.
+words. The obvious next two are the quiz board and the live vote, once the latter has a board a
+viewer can download.

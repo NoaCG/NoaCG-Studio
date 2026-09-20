@@ -16,9 +16,8 @@ Until today every claim about CasparCG in this repository came from a fake: `e2e
 answers the agent's HTTP surface with `page.route`, and the CLI's fifteen AMCP tests talk to a listener
 we wrote ourselves. The two CasparCG servers sitting on this laptop had never been used.
 
-Both have now aired a published production. Demo beats A4 (load the output URL by hand) and A6
-(CasparCG Connect) both work on a real server, and the walk turned up four things worth knowing
-before the 25th.
+Both have now aired a published production. Loading the output URL by hand and CasparCG Connect
+both work on a real server, and the walk turned up four things worth knowing.
 
 **What a screen consumer proves, and what it does not.** These runs used the `<screen />` consumer
 that both installs ship with: a real server, a real AMCP socket on 5250, a real Chromium Embedded
@@ -97,7 +96,7 @@ finished end to end there: press, take, score, and the graphic is up.
 **Nobody has pressed that button on `https://noacg.studio` yet.** These runs were all from a
 `localhost` page, which Chrome does not gate. From a public origin the browser's Local Network
 Access permission sits between the page and the loopback agent, and answering it needs a person -
-which is the one part of A6 the 25th still has to prove.
+which is the one part of CasparCG Connect still unproven.
 
 Measured 2026-09-10 on this laptop, CasparCG 2.3.2 (`4de6d18f Dev`) and 2.5.0 (`69e8ad5 Stable`),
 screen consumer, 1080p5000. Branch `claude/bh-caspar-real-server`.

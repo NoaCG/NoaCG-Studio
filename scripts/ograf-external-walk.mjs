@@ -1,9 +1,9 @@
 // AN IMPORTED-SVG GRAPHIC THAT BEHAVES, DRIVEN IN SOMEBODY ELSE'S OGRAF RENDERER.
 //
 // docs/OGRAF.md records two hand walks against SuperFly.tv's ograf-server (2026-08-18 and
-// 2026-08-22). Both drove a CATALOG or CLI-made package. The graphic the 25 September session
-// actually promises - a student's own drawing, imported as SVG, carrying behaviour - had never
-// been through a renderer nobody here wrote, and that is the whole claim the day rests on.
+// 2026-08-22). Both drove a CATALOG or CLI-made package. The graphic the SVG road
+// actually promises - somebody else's own drawing, imported as SVG, carrying behaviour - had
+// never been through a renderer nobody here wrote, and that is the whole claim.
 //
 // This script is that walk, written down so it is repeatable rather than remembered. It does
 // exactly what a person would do, in one process:

@@ -132,8 +132,8 @@ export function catalogSummaryRows(variant: TemplateVariant, draft: WizardDraft)
     // TYPEFACES, and the one thing about them that can differ ON AIR. An unresolved family is
     // never a blocker (the designer may know the playout machine has it), but it is the only
     // way a pixel-exact import stops being pixel-exact, and until now it was stated on the
-    // mapping step alone — a step "Next" walks straight past. The last screen before Create is
-    // where it has to be readable.
+    // mapping step alone — a step "Next" walks straight past. The Finish step, the last screen
+    // of the road, is where it has to be readable.
     if (draft.svgFonts.length > 0) {
       const missing = draft.svgFonts.filter((f) => !f.fontId && !f.customFont);
       rows.push({

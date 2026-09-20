@@ -215,10 +215,10 @@ jobs:
     name: Deep link on the deployed bundle
     # WHAT CURL CANNOT ASK. The two checks above prove production SERVES the right commit and
     # that its pages answer. Neither can see what the app does with the URL once it runs, and
-    # that is where the beat a room follows on 25 September lives: `noacg save` prints
+    # that is where the agent road's last step lives: `noacg save` prints
     # `<origin>/app#/graphic/<id>` and the app used to replace that address with `#/home` a
     # second after the click - measured on production 2026-09-16 at 846 ms, while the spec that
-    # asserts the opposite passed on a dev server (docs/DEMO_2026-09-25.md §7 row 14).
+    # asserts the opposite passed on a dev server.
     #
     # It runs ANONYMOUSLY and writes nothing: playwright.production.config.ts admits only tests
     # tagged `@production`, which is the whole reason this can run here at all - the configured

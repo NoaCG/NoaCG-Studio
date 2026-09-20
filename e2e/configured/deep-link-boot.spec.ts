@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
 
-// THE DEEP LINK, AT BOOT (docs/AGENT_SAVE.md, docs/DEMO_2026-09-25.md R2.4). `noacg save` prints
+// THE DEEP LINK, AT BOOT (docs/AGENT_SAVE.md). `noacg save` prints
 // `<origin>/app#/graphic/<id>` and promises it opens the graphic at once. The link is a boot
 // input like any other, and a boot that cannot resolve it immediately used to REPLACE it with
 // `#/home` - so the address, the only copy of it the reader was given, was gone a second after

@@ -372,8 +372,8 @@ Rulings, in the owner's own framing; paraphrased where marked.
   not a reason for the useful frontier to stop moving.**
 - **Dates express ordering, dependencies, targets and priority - never "not before" gates.** If
   something planned for December is ready, useful and safe now, do it now unless a real dependency
-  makes waiting valuable. The owner manages real-world timing with students and Yle; the
-  orchestrator keeps NoaCG moving. Software is never finished: find the most valuable actionable
+  makes waiting valuable. The owner manages real-world timing with the people he shows it to;
+  the orchestrator keeps NoaCG moving. Software is never finished: find the most valuable actionable
   work, improve, verify, land, reassess, continue.
 - **Economy is something the orchestrator actively checks**, at whichever layer is
   architecturally right (plan-time routing, post-wave spend review, the outcome ledger) - not
@@ -573,23 +573,24 @@ draft for the night wave" are 4 and the split in §10.
 Given the morning after the SVG behaviour system (phases 0 to 5 of `docs/SVG_BEHAVIOUR_PLAN.md`)
 landed on `main` as `8c1b39ba`.
 
-**The two taste lines stay as shipped until the students have used them.** `show:` and `choice:`
+**The two taste lines stay as shipped until real users have used them.** `show:` and `choice:`
 remain the only two layer-name prefixes, and "require lock before reveal" remains a checkbox in
-the mapping step. Both may change after the first student test; neither changes before it.
+the mapping step. Both may change after the first user test; neither changes before it.
 
 > We can keep "show" and "choice" as the two layer name prefixes right now, and also the checkbox
-> for "require lock before review". We can change them after we have tested it with the students.
+> for "require lock before review". We can change them after we have tested it with real users.
 
 **The quiz is done; the next work is the OTHER graphics.** The quiz already has its hard-coded
 control page and now opens bound, so no more effort goes there. The list to work through is the
 one we already have (the challenge set in `docs/BEHAVIOUR_AUTHORING_RESEARCH.md` §4 and the
-worked examples in `docs/SVG_BEHAVIOUR_PLAN.md` §9), filtered by what the students will produce:
-GAME SHOWS and LATE-NIGHT TALK SHOWS. Complicated graphics that fit those shows are the test.
+worked examples in `docs/SVG_BEHAVIOUR_PLAN.md` §9), filtered by the two programme types that
+come up first: GAME SHOWS and LATE-NIGHT TALK SHOWS. Complicated graphics that fit those shows
+are the test.
 
 > Because we already have the hard-coded quiz backend control panel for the graphics, I would like
 > to see the other graphics. We had a list of them, so I would want us to first figure out those
-> and not concentrate on the quiz because we already have that one working. With our students,
-> we're going to be doing game shows and late-night talk shows. Any complicated graphic that would
+> and not concentrate on the quiz because we already have that one working. The programmes in
+> view are game shows and late-night talk shows. Any complicated graphic that would
 > fit those shows would be a good way to test what we can do. We could just investigate what type
 > of graphics could fit those shows. What does American TV already use that needs special
 > commands? Try to build it, import it, and see if our system works.
@@ -690,57 +691,6 @@ One caveat worth carrying, because it explains why the ledger is thin: the two a
 failed on 2026-09-09 failed on OUR invocation, not the model - a delegation can only write inside the
 directory the launching session sits in, and the standard row recipe opens by asking for a branch.
 Both are logged `cause: prompt` and excluded from pool quality for that reason.
-
-## 2026-09-09 - the date is the 25th, and the 12th is no longer the pressure
-
-Paraphrased from speech in the day-wave brief, so the intent binds and the wording does not:
-
-> The Friday deadline we have in a few days is okay, you don't have to stress about that. The
-> deadline is the 25th: students and YLE people trying NoaCG. We owe one presentation and a
-> step-by-step guide, over two capabilities - SVG import, ending in their custom graphics playing
-> on their systems, and the CLI working smoothly enough that a graphic goes from Codex or Claude
-> Code to the NoaCG player in minutes.
-
-What it changes: `docs/GOALS.md` `## NOW` names 2026-09-25 and the two deliverables, and the
-session is scripted as beats with a costed gap list in `docs/DEMO_2026-09-25.md`. What it does not
-change: the 2026-09-12 student production still happens, as the rehearsal. He relaxed its
-pressure; he did not cancel the quiz or the scoreboard. For the question of what current work
-serves, this supersedes the 2026-08-22 ruling that named the 12th.
-
----
-
-## 2026-09-10 - three answers on the 25 September gap list
-
-Given in a wave session, on three rows of `docs/DEMO_2026-09-25.md` §7. Paraphrased from speech,
-so the intent binds and the wording does not.
-
-**The Yle venue network screenshot (§7 row 1, beat B0) is his, off the ledger.**
-
-> I will take care of the Yle network screenshot when I get there, you do not have to remind me.
-
-What it changes: the row and the owner-queue item `2026-09-09-g-yle-network-diag-screenshot.md`
-are both deleted, and B0's status cell says he owns it off-ledger. What it does not change: the
-fallback. If the app does not boot on the venue network on the day we bring our own connection
-and say so in the room, exactly as before. He owns getting the screenshot, not the consequence of
-not having one.
-
-**The hardware rows (§7 rows 2, 3 and 10; beats A3, A4, A6) are no longer owned by the 12th.**
-
-> A few weeks at least.
-
-That is his estimate for when the CasparCG and OBS ticks can actually happen, and a few weeks
-from the 10th lands on or past the 25th. So the three rows stop naming 2026-09-12 as the date
-that closes them and say what happens on the day WITHOUT the box, which is the honest planning
-answer: A3 is run by the students on their own laptops, which is what that beat always was; A4
-runs on our CasparCG rather than the room's; A6 is cut, and A4 covers it by hand. The acceptance
-lines in `docs/STUDENT_RELEASE_ACCEPTANCE.md` stay exactly where they are and stay unticked; what
-moved is who is expected to tick them and when, not the box.
-
-**The deck (§7 row 13, beat O2) stays open, and he wants the reminder.**
-
-Asked whether the reminder to open `docs/presentation-2026-09-25/NoaCG-2026-09-25.pptx` should be
-retired the way row 1 was, he said no. The row is unchanged and the owner-queue item filed with
-the deck stays. Keep surfacing it until he has opened it.
 
 ---
 
@@ -880,10 +830,9 @@ the tree; bind all by title).
 > just check what we need. You could also tell me what I need to check before the 25th, and then
 > we can start working on other things too.
 
-What it settles: the ten rows in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 start now. What the 25th
-needs is its own list - `docs/DEMO_2026-09-25.md` §7, where the rows he owns are 3, 10, 11 and
-13, and the owner walks under `docs/GOALS.md` NOW - and none of the control-panel rows touches a
-file or a surface that list depends on.
+What it settles: the ten rows in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 start now. What the
+earlier dates need is the owner walks under `docs/GOALS.md` NOW, and none of the control-panel
+rows touches a file or a surface those depend on.
 
 In the same message he asked how an election night is thought about: many graphics showing the
 same party and candidate figures in different looks, the numbers gathered by a feed or an
@@ -907,8 +856,7 @@ anything in the quiz or the scoreboard go wrong on the day? Nothing in the repo 
 answer decides whether this week starts with fixes.
 
 > We didn't have the production on the 12th so the next production is at the beginning of October.
-> Everything should be done by the 25th, when we have the lecture with the students and the Yle
-> people. Nothing to fix right now.
+> Everything should be done by the 25th. Nothing to fix right now.
 
 What it settles: the 2026-09-12 rehearsal named in `docs/GOALS.md` NOW did not happen, so no
 finding from it exists. The next real production is early October, on the scoreboards and quiz
@@ -985,9 +933,9 @@ Which one leads?
 > can make this graphic in our CG. I'm thinking I am just going to prompt it in Claude Code and
 > import it into our playout dashboard in a few minutes, etc.
 
-> A few important dates are: the 25th with the lecture; a few days after that we will have the
-> production, where we're going to need the scoreboards and quiz boards; a few weeks after that I
-> want to demo this, and it's called Elämäni biisi, shown on Yle.
+> A few important dates are: the 25th; a few days after that we will have the production, where
+> we're going to need the scoreboards and quiz boards; a few weeks after that I want to demo
+> this, and it's called Elämäni biisi, shown on Yle.
 
 The dictation said "It's Up" and "Elemente BC"; he confirmed both are Elämäni biisi, the only show
 meant. What it settles: the editor and the control panel for any graphic both lead, and the desktop
@@ -1032,8 +980,7 @@ What it changes:
 - **Every programme in `docs/PROGRAMMES.md` is AUTHORIZED**, citing this and ALIGN-2026-09-10-4.
   The scope edges that return an ACTIVE programme to him are unchanged.
 - **A deadline is owed a clear list, never the whole machine.** A session planning around a date
-  says plainly what the date needs, which for the 25th is `docs/DEMO_2026-09-25.md` §7, and plans
-  the rest on merit.
+  says plainly what the date needs, and plans the rest on merit.
 - **A concrete production case proves a general capability and never becomes the design target.**
   ALIGN-2026-09-15-2 said this about the control profile; it now holds for every owner production.
 - **Copying OGraf Studio code is allowed as an option**, subject to the exact-file licence review
