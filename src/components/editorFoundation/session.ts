@@ -87,7 +87,12 @@ export class EditorSession {
     const before = this.current;
     const beforeView = this.gesture?.view ?? structuredClone(this.port.view());
     this.ownWrite = true;
-    try { this.port.apply(patch.template); this.sync(); } finally { this.ownWrite = false; }
+    try {
+      this.port.apply(patch.template); this.sync();
+      if (request.operations.some(op => op.kind === 'layer.create')) {
+        this.port.restore({ ...this.port.view(), selectedParts: patch.changedTargets });
+      }
+    } finally { this.ownWrite = false; }
     this.past = [...this.past, { before, after: this.current, beforeView, afterView: structuredClone(this.port.view()) }].slice(-30);
     this.future = [];
     this.gesture = null;

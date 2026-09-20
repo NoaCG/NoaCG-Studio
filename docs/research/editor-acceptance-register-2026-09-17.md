@@ -16,10 +16,10 @@ ownership. Those planning refinements are not product passes. The R1.0 implement
 
 | Task | Exact outcome | Responsible slice | Current evidence |
 |---|---|---|---|
-| B01 | Fresh default session: create a catalog graphic, find Edit, select title; return Home and reopen it. Repeat from SVG import and saved graphic. No undocumented Advanced-mode prerequisite | R1.0 route; R1.1a/d wizard; R1.4 gallery | R1.0 foundation portion verified below; full task remains open |
+| B01 | Fresh default session: create a catalog graphic, find Edit, select title; return Home and reopen it. Repeat from SVG import and saved graphic. No undocumented Advanced-mode prerequisite | R1.0 route; R1.1a/d wizard; R1.4 gallery | R1.0 foundation and R1.1a core locally verified; owner/two-user and full gallery task remain open |
 | B02 | Find a nested layer, select overlapping artwork, multi-select, lock/unlock, rename and reorder within its parent; selection stays consistent across panels | R1.0 selection; R1.1d nested; R1.2b tools | R1.0 foundation portion verified below; full task remains open |
-| B03 | Move base X by 40 px, resize and rotate supported artwork; numeric and canvas results agree. Cancel a second drag, undo and redo; animation offsets and siblings remain intact | R1.1-R1.2 | Unverified for the replacement editor; B03/D03 core starts in R1.1a |
-| B04 | File chooser/OS drop parity; Pen open/closed paths, curve handles where supported, cancel/undo/export; change title/font/colour; test a long title; replace logo; add a rectangle, ellipse, image and text; duplicate/delete, align/distribute eligible objects; reopen and verify source/bindings | R1.1a usable content/basic type/colour/shapes; R1.2b rich typography/fit and full E06-E07 | Unverified for the replacement editor |
+| B03 | Move base X by 40 px, resize and rotate supported artwork; numeric and canvas results agree. Cancel a second drag, undo and redo; animation offsets and siblings remain intact | R1.1-R1.2 | R1.1a position/basic scale core locally verified; rotation, armed edits and full transform composition remain open |
+| B04 | File chooser/OS drop parity; Pen open/closed paths, curve handles where supported, cancel/undo/export; change title/font/colour; test a long title; replace logo; add a rectangle, ellipse, image and text; duplicate/delete, align/distribute eligible objects; reopen and verify source/bindings | R1.1a usable content/basic type/colour/shapes; R1.2b rich typography/fit and full E06-E07 | Text/Rectangle/Ellipse creation portion locally verified; usable content/basic styling and full E05-E07 task remain open |
 | B05 | Animate title X -80 to 0 in 1 s; opacity 0 to 1 in 0.3 s; set the starting X key to Easy Ease Out; move end to 0.8 s; scrub both ways, undo/redo, save/reopen and play export | R1.1-R1.2 | Unverified for the replacement editor |
 | B06 | Marquee/Ctrl/Cmd/Shift-select keys across rows; dropdown/right-click parity for Linear/Ease/Bounce/Overshoot/Hold, mixed selection and atomic refusal; select two X keys, retime together, nudge one frame, snap/bypass, copy/paste; occupied target refuses atomically; explicit cross-cue moves preserve source ownership. Set outgoing Hold on the first key and sample immediately before/at the following key; opacity unchanged | R1.2 | Unverified for the replacement editor |
 | B07 | Rehearse two reveals, update a score during motion and hold, run Out during entry, replay; scrub without firing score/timer/external effects | R1.1c early Out; R1.2a Next; R1.2c loop regression | Unverified for the replacement editor |
@@ -153,7 +153,7 @@ before broadening the editor. R1.5 repeats fuller SVG and collection-to-rundown 
 | G01 shared ease strings and exact reversal | R1.2a | Shared cubic-bezier and named bounce/back evaluators in sampler and interpreter/export; exact piecewise/mirrored/sliced evaluation or explicit refusal, including equal-endpoint cases; split at 40% and compare dense samples/endpoints/tangents. Named .in/.out swap mirrors exactly; incoming ease moves to the other key in the reversed segment. Unsupported ease is preserved/refused, never silently defaulted. Until this gate passes Set Out before the last In key refuses atomically with unchanged source/history. |
 | G02 playhead-at-flag edit side | First relevant flag editing, complete R1.2a | Existing held layer edits the arriving segment; a layer whose bar starts there edits departing local zero. Mixed selection is atomic and each target segment is identified. No early reveal, off-by-one or mutation of the wrong step. |
 | G03 unnamed SVG identity | R1.1d | First committed edit mints collision-free IDs in that transaction; inspection/cancel creates none. Nested unnamed/duplicate-ID fixtures, references, tracks and operator fields survive undo/redo/save/reopen without unrelated source changes. |
-| G04 everyday tools allocation | R1.2b | Close E05-E07/B04 in full: typography/long-text fit, image/logo replacement, canvas tools, duplicate/delete/reorder/align/distribute/group movement and field/source/export parity. R1.1a closes only its core creation portion. |
+| G04 everyday tools allocation | R1.2b | Close E05-E07/B04 in full: typography/long-text fit, image/logo replacement, canvas tools, duplicate/delete/reorder/align/distribute/group movement and field/source/export parity. R1.1a has verified its creation portion; basic content/type/colour belongs to its usable-static-authoring follow-up. Rich typography/fit and the remaining everyday tools stay in R1.2b. |
 | G05 ruler consistency | R1.0 onward | At 25 fps the same position reads 1.0 s or frame 25, and frame 30 at 30 fps. Ticks, cursor, input and flags agree; a one-frame nudge is 1/FPS effective seconds at speed 0.5/1/2. Toggling units changes no stored key time. Mockup mixed-unit labels are not the contract. |
 | G06 registry-only parallel path | R1.4 start from R1.1c | Gallery/brand/install operations use the tested registry revision and run without AI or unfinished R1.2 tools. Integration fixture applies brand, undoes, installs a subset, reloads/retries and rehearses against actual shared source/runtime. Parallel work does not waive B08-B10/B19 or per-document ownership tests. |
 | G07 GSAP and reuse rights | R1.5 | Identify exact GSAP version/plugins/licence text/date, builder use, redistribution in exports/CLI and notices; review rights/provenance and inspect clean bundles. Unresolved restrictions block release. Third-party AGPL helpers/runtime absent from CLI/shared dependency closure/emitted graphics. No assumption of permissive rights from zero price. |
@@ -222,10 +222,32 @@ authorized landing; the live checks above verify the resulting fix. No subsequen
 usability verdict was supplied. Both owner-queue review items stay unanswered.
 
 D05 and the R1.0 portions of B01/B02/B11/B13, G05 and ownership/protocol evidence passed.
-B01/B03/B04 core and D03 in R1.1a remain open, as do every later key/bar/Out/trim/easing,
+At this R1.0 receipt's date, B01/B03/B04 core and D03 in R1.1a remained open, as did every later key/bar/Out/trim/easing,
 multi-document, user, host and licence gate. The original owner-machine blank-stage
 condition is not claimed universally resolved. R1.1a must measure actual drag feedback;
 the selection/scrub timings cannot be reused as a drag pass.
+
+## R1.1a engineering receipt - 2026-09-20
+
+Implemented only R1.1a on `codex/editor-r1-1a`, in its dedicated worktree from fetched
+`origin/main` at handoff merge `15b8f3fc`. [Walkthrough, screenshots, raw measurements
+and adapter boundaries](editor-r1-1a/README.md). No merge, deployment, owner usability
+verdict or receiving-host acceptance is claimed.
+
+| Gate | Verified bounded evidence |
+|---|---|
+| B01 core | Optional Finish -> Edit and unchanged direct production; identical final catalog, Illustrator, quiz, countdown and stretch-layout documents, fields, assets and sample values; no Advanced prerequisite or automatic production/library insertion |
+| B03 / D03 core | +40 px labelled flow offset; unchanged siblings and motion; translated/rotated/scaled SVG parent inverse mapping; numeric/canvas parity, scale/zoom/Shift/Alt, zero/negative scale, cancel and atomic undo/redo; repeated scale after reopen and scaled exported geometry |
+| B04 creation portion | Rectangle/Ellipse, Shift constraint, point/box text, actual operator fields, visible selection/bar, text-box reflow, cancel/undo, preserved imported SVG bytes and save/reopen; SPX/CasparCG/OGraf packages execute and update the added field |
+| Interaction evidence | Nine production drag cases: 38.6-59.4 Hz, drag p95 <=28.2 ms, selection <=54.7 ms, feedback gap <=40.4 ms, pointer-up <=46.9 ms; no long tasks/page errors; one undo restores each 90-move drag exactly |
+| Integration | `j-1466`: 991 affected browser tests and 35 catalog checks passed from fork point `15b8f3fc`. Final focused `j-1485`: 34 tests passed. Final build exited 0: lint/types/bundle/gates and 1,801 infrastructure tests passed, one platform skip |
+| Render inspection | Actual 1920x1080, 1366x768, equivalent 125%, phone and Finish screenshots. Fixed invisible additions under authored panel masks, glyph-only box selection, native-rate reply starvation, cached scale, SVG pose restoration and selected rows falling below the laptop viewport |
+
+Directly animated scale, or an SVG element's own animated position, has an explicit
+refusal rather than competing base properties. Existing panel masks remain meaningful.
+Full B03/B04, broad R1.1d identity fixtures, physical phones, first-time users, R1.0 owner
+acceptance and the original blank-stage report remain open. The [R1.1a owner item](../acceptance/owner-queue/2026-09-20-editor-r1-1a.md)
+is unanswered. No R1.1b keys/bar/Out authoring was implemented. This is engineering progress, not workflow-review readiness; continue with the usable-static-authoring follow-up.
 
 ## Optional P-GPU evidence
 

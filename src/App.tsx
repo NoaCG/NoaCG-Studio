@@ -435,7 +435,7 @@ export default function App() {
   // Home's own 'spx-data-changed' listener instead.
   // ...but only the WARM path has a Home worth preserving — see `bootedOnWizard` above.
   const surface =
-    route.view === 'editor-foundation' ? (bootQuery.get('editor') === 'foundation' ? <EditorFoundation /> : <HomePage key="home" route={{ view: 'home', section: null }} />)
+    route.view === 'editor-foundation' ? (new URLSearchParams(window.location.search).get('editor') === 'foundation' ? <EditorFoundation /> : <HomePage key="home" route={{ view: 'home', section: null }} />)
     : route.view === 'home' ? <HomePage key="home" route={route} />
     : route.view === 'control' ? <GraphicControlPage id={route.id} />
     : route.view === 'production' ? <ProductionPage id={route.id} sub={route.sub ?? null} />

@@ -64,6 +64,8 @@ interface Props {
   onAddToProduction: (dest: ProductionDest) => void;
   /** Create the project and land in the editor — the classic ending. Saving stays manual. */
   onOpenEditor: () => void;
+  /** Optional canvas refinement of the final document, without installing a cue. */
+  onEditArtwork?: () => void;
   /** ADVANCED MODE only: the editor door renders when true (default studio hides it). */
   showEditorDoor: boolean;
   /** Create it, save it to the library, and go straight to the export window. */
@@ -228,6 +230,7 @@ export default function FinishStep({
   defaultProductionId,
   onAddToProduction,
   onOpenEditor,
+  onEditArtwork,
   showEditorDoor,
   onExport,
   busy,
@@ -484,6 +487,10 @@ export default function FinishStep({
             {libraryFace.sentence}
           </span>
         </button>
+        {onEditArtwork && <button className="wz-entry-card" onClick={onEditArtwork} disabled={busy} data-testid="wz-finish-edit-artwork">
+          <span className="wz-entry-head"><strong>Edit this graphic <span className="wz-beta-tag">Alpha</span></strong></span>
+          <span className="hint">Move and scale artwork, or add text and shapes. Save when ready; no production item is added.</span>
+        </button>}
         {showEditorDoor && (
           <button
             className="wz-entry-card"

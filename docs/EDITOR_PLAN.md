@@ -115,7 +115,7 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 | Train / slice | Deliverable and exit demonstration |
 |---|---|
 | R1.0 Foundation | Merged/live via PR #331; foundation engineering checks passed, owner acceptance open. Flagged route: professional shell, selection, read-only bars, scrub, operation registry/history, preview protocol and latency harness. Record D01-D05 decisions before starting; tests close in their assigned slices. B01/B02/B11/B13 foundation only. |
-| R1.1a Base edits and tools | Usable static graphic: Finish -> Edit; create text/shapes, edit wording/basic font/size/colours/opacity, position/scale, undo and save/reopen. R1.1a follow-up closes B01/B03/B04 core; preserve wizard fields. |
+| R1.1a Base edits and tools | Usable static graphic: Finish -> Edit; create text/shapes, edit wording/basic font/size/colours/opacity, position/scale, undo and save/reopen. Base placement, creation and scaling are engineering-verified ([receipt](research/editor-r1-1a/README.md)); the follow-up must finish usable static authoring before B04 core or workflow readiness can close. Preserve wizard fields. |
 | R1.1b Keys and bar moves | Text + box: off-canvas first key, move playhead 1 s, canvas drag creates second key; visible spans and bar-body moves carry keys. B05/B13 key/bar portions; no trim UI yet. |
 | R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
 | R1.1d Fidelity and trim | Nested Illustrator/catalog fixtures, stable IDs on first SVG edit, span trimming, two first-time users on the basic journey; B01-B05/B11/B13 applicable portions. |
@@ -229,12 +229,13 @@ New sessions resume these records and the actual branch state.
 | Planning inventory | Closed by classification; evidence gaps assigned, not passed |
 | Consolidated scope and revised mockups | Whole-workspace direction accepted; 2026-09-19 workflow refinements recorded for review |
 | R1.0 | Merged and deployed as cfb28e74 (PR #331); local, CI and live checks passed. Owner usability/first-time-user acceptance remains open |
-| R1.1a-R1.5 / P-COMP | Owner reports R1.1a delivered; usable static authoring remains open for its follow-up. Verified slices land without waiting for owner review; P-COMP follows R1.5 |
+| R1.1a | Base placement, creation and scaling implemented and locally verified from handoff merge `15b8f3fc`; [walkthrough, screenshots and measurements](research/editor-r1-1a/README.md). Engineering progress only; usable static authoring and owner acceptance remain open. Verified slices land without waiting for owner review. |
+| R1.1b-R1.5 / P-COMP | Not started by this implementation. Later slices and default switch remain separate work; P-COMP follows R1.5 |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 
-Next: the R1.1a implementation follow-up closes the usable static-graphic task and records evidence before calling it ready for review. Keep engineering slices bounded; demonstrate cumulative user outcomes. Each slice retains its branch, evidence, review and merge-queue handoff.
+Next: complete the usable static-graphic task in the R1.1a follow-up before key authoring. The [owner feedback](acceptance/owner-queue/2026-09-20-editor-r1-1a.md) and [engineering receipt](research/editor-r1-1a/README.md) record the current tools and missing editing controls. Keep engineering slices bounded; demonstrate cumulative user outcomes before requesting workflow review. Each slice retains its branch, evidence, review and merge-queue handoff.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived

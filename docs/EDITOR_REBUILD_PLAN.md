@@ -117,6 +117,17 @@ Singular/unsupported parent transforms get a specific capability explanation and
 
 ### Position source adapter (D03)
 
+R1.1a's bounded implementation is locally verified on `codex/editor-r1-1a`:
+[source/gesture walkthrough and measured evidence](research/editor-r1-1a/README.md).
+It extends the shared registry with base placement, text-box size and layer creation.
+Transient stylesheets use one correlated preview request in flight; completed gestures
+remain one source transaction. Base transform changes rebuild GSAP's transient cached
+pose, restoring authored SVG transform attributes. New layers belong to the graphic root,
+outside existing panel masks. Competing authored constraints and directly animated scale
+(or an SVG element's own animated position) have explicit source-preserving refusals.
+This closes D03 core for the actual catalog/SVG/F4 fixtures, not later full transform
+composition, unnamed/nested identity breadth or owner/receiving-host acceptance.
+
 Persist runtime-native track values, never substitute screen/world coordinates into motion
 tracks. For placed/absolute/SVG artwork, the inspector derives the supported parent-coordinate
 position from base placement and current motion; its inverse adapter writes the corresponding
@@ -457,7 +468,7 @@ Preserve existing IDs and repair only references affected by minting; redo reuse
 IDs. Test unnamed siblings/nested nodes, duplicate IDs in an input, cancel-before-commit, undo/
 redo and save/reopen with field/track/selection identity and unrelated source intact.
 
-The [semantic-command/WebMCP assessment](research/editor-webmcp-commands-2026-09-19.md) maps the merged R1 registry (currently only key.set) and reusable block/CLI services. Each authoring slice extends that registry for its UI. R1.3b supplies shared runtime schemas, bounded state queries, asynchronous receipts and selection/session conflict checks. Optional P-WEBMCP follows R1.3b as a feature-detected imperative adapter; R3.2 paired MCP reuses the handlers. UI and built-in AI call commands directly. Keep view queries and validated export/publish services distinct from source mutations; expose meaningful actions, not controls or store internals. B21 records adapter tests; no WebMCP dependency or tool exposure is added now.
+The [semantic-command/WebMCP assessment](research/editor-webmcp-commands-2026-09-19.md) maps the R1.0 registry (key.set) and reusable block/CLI services. R1.1a adds base.set, box.resize and layer.create; each subsequent authoring slice extends the same registry for its UI. R1.3b supplies shared runtime schemas, bounded state queries, asynchronous receipts and selection/session conflict checks. Optional P-WEBMCP follows R1.3b as a feature-detected imperative adapter; R3.2 paired MCP reuses the handlers. UI and built-in AI call commands directly. Keep view queries and validated export/publish services distinct from source mutations; expose meaningful actions, not controls or store internals. B21 records adapter tests; no WebMCP dependency or tool exposure is added now.
 
 One shared operation registry accepts document ID, expected source/asset revision, operation
 batch and transaction identity. Validate capability/types/references, apply atomically, return
