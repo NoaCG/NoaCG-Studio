@@ -65,8 +65,10 @@ test('a production whose live connection never joins says so, and a healthy one 
   await blind.unrouteAll({ behavior: 'ignoreErrors' });
   await blind.close();
 
-  // Leave the throwaway account clean.
-  await page.getByTestId('production-links-toggle').click();
+  // Leave the throwaway account clean. NO links toggle here: the block starts VISIBLE, and the
+  // sibling specs only press the toggle at the end because they hid it earlier. Pressing it once
+  // from a clean start HIDES the block, and Unpublish inside it is then unreachable.
+  await expect(page.getByTestId('production-links')).toBeVisible();
   await page.getByRole('button', { name: /Unpublish/ }).click();
   await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED', { timeout: 20_000 });
   await page.evaluate(async () => {
