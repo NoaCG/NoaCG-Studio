@@ -7,9 +7,9 @@ and source inspection, not a claim that the full action surface or browser adapt
 
 ## Existing implementation: reuse, not replacement
 
-Inspected merged foundation at origin/main 15b8f3fc, including the R1.1a handoff. The planning
-branch predates those commits; the source inventory here describes merged code, not that older
-checkout. Recheck the consuming slice because R1 authoring work is actively progressing.
+Inspected merged foundation at origin/main 15b8f3fc, including the R1.1a handoff. This is a
+dated source snapshot, not a statement about every later branch. Recheck the consuming slice
+because R1 authoring work is actively progressing.
 
 | Existing code | What it already provides | Remaining work |
 |---|---|---|
@@ -191,4 +191,4 @@ S2. [Draft Community Group Report, September 17](https://webmachinelearning.gith
 S3. [Google imperative API, updated September 11](https://developer.chrome.com/docs/ai/webmcp/imperative-api).
 S4. [Google Chrome modern-web guidance](https://github.com/GoogleChrome/modern-web-guidance/blob/main/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md).
 S5. [Google tool-security guidance, updated September 1](https://developer.chrome.com/docs/ai/webmcp/secure-tools).
-Local evidence: merged R1 source files listed above, [foundation implementation inventory](https://github.com/NoaCG/NoaCG-Studio/blob/15b8f3fc/docs/research/editor-r1-foundation/implementation.md), [mechanisms](../EDITOR_REBUILD_PLAN.md), [acceptance register](editor-acceptance-register-2026-09-17.md), and [CLI architecture](../AGENT_CLI.md). The foundation inventory is on main; this planning branch's older base does not contain it yet.
+Local evidence: merged R1 source files listed above, [foundation implementation inventory](https://github.com/NoaCG/NoaCG-Studio/blob/15b8f3fc/docs/research/editor-r1-foundation/implementation.md), [mechanisms](../EDITOR_REBUILD_PLAN.md), [acceptance register](editor-acceptance-register-2026-09-17.md), and [CLI architecture](../AGENT_CLI.md). The foundation inventory link pins the inspected revision.
