@@ -34,6 +34,7 @@
     "dist",
     "skill",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {
@@ -43,7 +44,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "node scripts/build-skill.mjs && tsc -p tsconfig.json",
+    "build": "node scripts/build-skill.mjs && node scripts/release-notes.mjs --check && tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:skill": "node scripts/build-skill.mjs --check",
     "test": "node --test \"test/**/*.test.mjs\"",
