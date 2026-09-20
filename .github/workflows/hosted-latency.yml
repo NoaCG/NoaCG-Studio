@@ -314,12 +314,34 @@ jobs:
           SUMMARY: ${{ steps.assert.outputs.summary }}
           FAILHASH: ${{ steps.assert.outputs.failhash }}
           HARDFAIL: ${{ steps.assert.outputs.hardfail }}
+          FAILING: ${{ steps.assert.outputs.failinglist }}
         run: |
           TITLE="Hosted-latency suite is red"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           MARKER="hosted-failure-set: ${FAILHASH:-unknown}"
-          BODY="$(printf 'The hosted-latency suite failed at %s.\n\n%s\n\nThis tier runs the SAME specs as the nightly but against the hosted staging project, so a failure here that the nightly does not show is the interesting case: it is hosted-only, and most likely latency-shaped. The run summary records the measured round trip and the slowest specs. It can also go red for reasons outside the repository - a paused free project (7 days idle), or staging schema drift.\n\nRun: %s\n\n<!-- %s -->' \
-            "${{ github.sha }}" "${SUMMARY:-the suite never produced a report}" "$RUN_URL" "$MARKER")"
+          # WHICH SPECS, AND AGAINST WHICH PROJECT. Both halves were learned the same day.
+          #
+          # The body used to carry the summary COUNT alone - "49 ran, 0 skipped, 0 failed, 3
+          # flaky" - and nothing else. On 2026-09-20 answering "what broke" meant downloading
+          # the job log and reading 900 lines, and all three specs had failed identically: the
+          # dashboard stuck on "not on air" with every verb disabled. Three lines would have
+          # said so, so now they do.
+          #
+          # And the environment line used to say "a paused free project (7 days idle)" without
+          # naming WHICH project is free. The owner pays for Supabase, read that against his
+          # PRODUCTION project and correctly ruled it out - which is the wrong conclusion,
+          # because this suite points at `noacg-staging`, a separate project in a separate FREE
+          # organisation (see this file's header). A cause the reader can dismiss on true but
+          # irrelevant grounds is worse than one left unsaid.
+          #
+          # An `if`, not `[ -n ... ] && ...`: a step runs under `bash -e`, so the `&&` form
+          # would exit the whole step non-zero on the path where nothing was unclean.
+          SPECS="${FAILING:-}"
+          if [ -n "$SPECS" ]; then
+            SPECS="$(printf 'Not clean this run:\n\n%s' "$SPECS")"
+          fi
+          BODY="$(printf 'The hosted-latency suite failed at %s.\n\n%s\n\n%s\n\nThis tier runs the SAME specs as the nightly but against a hosted database, so a failure here that the nightly does not show is the interesting case: it is hosted-only, and most likely latency-shaped. The run summary records the measured round trip and the slowest specs.\n\nIT DOES NOT TOUCH PRODUCTION. The target is `noacg-staging`, a separate project in a separate FREE organisation, so "a paused free project" below is about THAT project and not about the paid production one. It can also go red for reasons outside the repository - a paused free project (7 days idle), or staging schema drift.\n\nRun: %s\n\n<!-- %s -->' \
+            "${{ github.sha }}" "${SUMMARY:-the suite never produced a report}" "${SPECS:-}" "$RUN_URL" "$MARKER")"
           EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
           if [ -z "$EXISTING" ]; then
             gh issue create --title "$TITLE" --body "$BODY"

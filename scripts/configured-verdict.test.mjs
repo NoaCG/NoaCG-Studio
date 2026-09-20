@@ -7,7 +7,7 @@
 // because it read each spec's LAST result and a flake ends `passed`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verdict, isUnclean, allSpecs, repoRelative } from './configured-verdict.mjs';
+import { verdict, isUnclean, allSpecs, repoRelative, failingLine } from './configured-verdict.mjs';
 import { failureSet } from './ci-failure-set.mjs';
 
 const spec = (file, title, ...results) => ({ file, title, tests: [{ results: results.map((status) => ({ status })) }] });
@@ -154,4 +154,21 @@ test('a clean run names nothing at all', () => {
   const v = verdict(withRoot(report({ expected: 42, unexpected: 0, flaky: 0, skipped: 0 }, [spec('a.spec.ts', 'x', 'passed')])), { minTests: 0, allowedSkips: '', workspace: WORKSPACE });
   assert.deepEqual(v.failing, []);
   assert.equal(v.green, true);
+});
+
+// THE FLAKE'S OWN LINE. A flake is red here on purpose, and the rolling issue is the surface a
+// person actually reads - so it has to carry the spec and BOTH of its statuses. Reading the
+// last status alone would print "passed" beside a spec the suite went red over, which is the
+// shape that made the 2026-09-20 alarm unreadable: three specs failed identically and the
+// issue said only "3 flaky".
+test('a flake is named with the transition that made it red, not with its last status', () => {
+  const specs = [spec('output-cold-boot.spec.ts', 'a cue taken before the renderer exists', 'timedOut', 'passed')];
+  const v = verdict(withRoot(report({ expected: 0, unexpected: 0, flaky: 1, skipped: 0 }, specs)), { minTests: 0, allowedSkips: '', workspace: WORKSPACE });
+  assert.equal(v.green, false);
+  assert.deepEqual(v.failing.map((f) => f.statuses), [['timedOut', 'passed']]);
+  // The exact line the issue body prints, through the exported formatter the body uses.
+  assert.equal(
+    v.failing.map(failingLine).join('\n'),
+    '- `output-cold-boot.spec.ts` - a cue taken before the renderer exists (timedOut then passed)',
+  );
 });
