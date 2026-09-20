@@ -24,6 +24,7 @@ import { jobsDir, NO_VERDICT_EXIT } from './jobs-store.mjs';
 
 const POLL_MS = 30_000;
 const CAP_MS = 60 * 60_000;
+const CONFIRM_MS = 10_000;
 
 /**
  * Pure: what the pull request's state means for the watcher.
@@ -128,6 +129,7 @@ async function main() {
   }
   const started = Date.now();
   let lastSaid = '';
+  let refusedOnce = false;
   while (Date.now() - started < CAP_MS) {
     const view = viewPr(pr);
     // The checks are only read while they can decide something: an open pull request the queue
@@ -142,12 +144,24 @@ async function main() {
       console.log(`land-watch: ${branch} landed on main as ${String(sha).slice(0, 8)} (${view.url})`);
       return 0;
     }
+    // A REFUSAL IS READ TWICE BEFORE IT IS BELIEVED. In the moment the queue merges a pull
+    // request GitHub has already cleared the auto-merge request and the queue entry while the
+    // state still reads OPEN - which is, field for field, what a pull request dropped from the
+    // queue looks like. #342 was reported "refused: open and no longer queued for auto-merge" in
+    // the same minute it merged (2026-09-20), and a session acting on that would have re-queued
+    // landed work. A real refusal is still there ten seconds later; a merge is not.
+    if (verdict === 'refused' && !refusedOnce) {
+      refusedOnce = true;
+      await sleep(CONFIRM_MS);
+      continue;
+    }
     if (verdict === 'refused') {
       const detail = watchVerdict(view, rollup(pr), { expectSha });
       console.error(`land-watch: the landing of ${branch} was refused: ${detail.reason}`);
       console.error(`  ${view?.url ?? ''} - fix it, run /check, and npm run queue:merge again.`);
       return 1;
     }
+    refusedOnce = false;
     const line = view ? `waiting in the merge queue - ${view.url}` : 'waiting (gh gave no answer this tick)';
     if (line !== lastSaid) {
       console.log(`land-watch: ${line}`);
