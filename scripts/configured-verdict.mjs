@@ -28,7 +28,7 @@
 // $GITHUB_STEP_SUMMARY and key=value pairs to $GITHUB_OUTPUT when those are set. Exits 0 always:
 // the CALLER decides what a non-green verdict costs, because the two workflows differ there.
 import { appendFileSync, readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 /** Every spec in the report, at any nesting depth. Playwright nests suites per file and per
  *  describe, so a flat pick of `.specs[]` from every object is the honest way to reach them all. */
@@ -86,6 +86,17 @@ export function repoRelative(file, rootDir, workspace) {
   if (dir === root) return String(file);
   return dir.startsWith(`${root}/`) ? `${dir.slice(root.length + 1)}/${file}` : null;
 }
+
+/**
+ * One not-clean spec as the rolling issue prints it.
+ *
+ * BOTH statuses, never just the last one. A flake ends `passed` and is red here on purpose, so
+ * printing the last status alone would put "passed" beside a spec the suite went red over.
+ * Exported because the issue body and its test must not drift - a test that rebuilt this string
+ * itself would pass while the real one was wrong.
+ */
+export const failingLine = (s) =>
+  `- \`${s.file}\` - ${s.title} (${s.statuses.join(' then ')})`;
 
 export function verdict(report, { minTests, allowedSkips, workspace = '' }) {
   const stats = report?.stats ?? {};
@@ -169,6 +180,14 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
   const emit = (name, value) => {
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
   };
+  // A MULTILINE output needs the delimiter form, and the delimiter has to be a string the
+  // value cannot contain: a spec title carrying it would close the block early and the rest
+  // of the list would be read as further key=value pairs.
+  const emitBlock = (name, value) => {
+    if (!process.env.GITHUB_OUTPUT) return;
+    const end = `__${name}_${randomUUID()}__`;
+    appendFileSync(process.env.GITHUB_OUTPUT, `${name}<<${end}\n${value}\n${end}\n`);
+  };
 
   let report = null;
   try {
@@ -223,5 +242,12 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
     emit('summary', v.summary);
     emit('failhash', v.failHash);
     emit('hardfail', String(v.unexpected));
+    // WHICH SPECS, not merely how many. The rolling issue carried the summary line alone -
+    // "49 ran, 0 skipped, 0 failed, 3 flaky" - so the first question a reader has on opening
+    // it, what broke, could only be answered by downloading a job log and reading 900 lines.
+    // On 2026-09-20 that cost most of a session, and all three specs had failed the same way:
+    // the dashboard stuck on "not on air" with every verb disabled. One line each would have
+    // said so. Empty when nothing was unclean, which is the green path and writes no issue.
+    emitBlock('failinglist', v.failing.map(failingLine).join('\n'));
   }
 }
