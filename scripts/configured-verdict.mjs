@@ -248,6 +248,9 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
     // On 2026-09-20 that cost most of a session, and all three specs had failed the same way:
     // the dashboard stuck on "not on air" with every verb disabled. One line each would have
     // said so. Empty when nothing was unclean, which is the green path and writes no issue.
-    emitBlock('failinglist', v.failing.map(failingLine).join('\n'));
+    // Only when there is something to name. An empty block still yields one empty LINE, and
+    // `[ -n ]` in the caller is true for a newline - so a run that went red on unexpected
+    // skips, which never populates `failing`, would print the heading with nothing under it.
+    if (v.failing.length) emitBlock('failinglist', v.failing.map(failingLine).join('\n'));
   }
 }

@@ -333,6 +333,7 @@ jobs:
           # because this suite points at `noacg-staging`, a separate project in a separate FREE
           # organisation (see this file's header). A cause the reader can dismiss on true but
           # irrelevant grounds is worse than one left unsaid.
+          #
           # An `if`, not `[ -n ... ] && ...`: a step runs under `bash -e`, so the `&&` form
           # would exit the whole step non-zero on the path where nothing was unclean.
           SPECS="${FAILING:-}"
