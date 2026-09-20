@@ -13,6 +13,15 @@ async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect(page.locator('.ef-stage-error')).toHaveCount(0);
 }
+async function saveThroughDialog(page: Page, name: string) {
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill(name);
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(page.locator('.ef-document-name')).toHaveText(name);
+  await ready(page);
+}
 async function preview(page: Page) { return (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!; }
 async function seed(page: Page, name = 'catalog', nested = false) {
   await page.goto('/app?editor=foundation#/editor-foundation');
@@ -59,7 +68,7 @@ test('D03 flow offset preserves siblings, exact motion, cancellation, atomic his
   expect(await source(page)).toEqual(original);
   await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page);
   expect(await source(page)).toEqual(moved);
-  await page.evaluate(async () => { await (await import('/src/store/saveActions.ts')).saveGraphicAs('R1.1a saved', { kind: 'standalone' }); });
+  await saveThroughDialog(page, 'R1.1a saved');
   await settleDurableWrites(page); await page.reload(); await ready(page);
   expect((await source(page)).css).toBe(moved.css);
 });
@@ -255,7 +264,11 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
   await page.getByRole('button', { name: 'text tool', exact: true }).click();
   await page.mouse.click(stage.x + stage.width / 2, stage.y + stage.height / 2); await ready(page);
   const edited = await source(page), field = edited.fields.at(-1)!.field;
-  await page.evaluate(async () => { await (await import('/src/store/saveActions.ts')).saveGraphicAs('Export proof', { kind: 'standalone' }); });
+  // Save through the user surface: a CDP-awaited save promise can be collected when
+  // the renamed preview reloads, even though the save and main page both survive.
+  const url = page.url();
+  await saveThroughDialog(page, 'Export proof');
+  await expect(page).toHaveURL(url);
   await settleDurableWrites(page); await page.reload(); await ready(page);
   const reopened = await source(page);
   expect(reopened.html).toBe(edited.html); expect(reopened.css).toBe(edited.css); expect(reopened.js).toBe(initial.js);
@@ -361,7 +374,7 @@ test('B03 base scaling preserves an animated catalog line through reload', async
   const before = await rect(page, '#f0');
   await numeric(page, 'Scale X %', 150);
   await expect.poll(async () => (await rect(page, '#f0')).width).toBeCloseTo(before.width * 1.5, 1);
-  await page.evaluate(async () => { await (await import('/src/store/saveActions.ts')).saveGraphicAs('Scale proof', { kind: 'standalone' }); });
+  await saveThroughDialog(page, 'Scale proof');
   await settleDurableWrites(page); await page.reload(); await ready(page);
   await expect.poll(async () => (await rect(page, '#f0')).width).toBeCloseTo(before.width * 1.5, 1);
   await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
