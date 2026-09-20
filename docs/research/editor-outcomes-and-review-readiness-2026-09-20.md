@@ -36,6 +36,22 @@ ask the owner to inspect every internal slice or use owner acceptance as a gate 
 engineering progress. Product-visible work still gets its required owner-queue record; label
 partial records "engineering progress - workflow not ready" and link the remaining outcome.
 
+## Delivery and asynchronous owner feedback
+
+Owner direction, 2026-09-20: finished, verified engineering slices go promptly through the
+repository merge queue to main and the normal live deployment. Do not park them locally or
+wait for owner review, a full workflow milestone or the next planning session. Push and queue
+from the owning implementation session after its required checks/review; CI gates the landing.
+Confirm the deployed revision and give a live URL with a short statement of what is available.
+Retain the public Alpha entry and phone access so the owner can inspect progress while away.
+
+Workflow-review readiness controls when to request the owner's time, not when to merge.
+Owner feedback is asynchronous; a fresh session can continue from updated main and the durable
+handoff without waiting for a response. Record known limits and the next concrete task.
+Keep incomplete editor work on its intended Alpha route until the planned default-switch gate;
+that does not stop it reaching the live site. Correct regressions promptly or use the normal
+revert path. Required verification and truthful readiness claims still apply.
+
 ## Usable outcomes and what to check
 
 These are cumulative review checkpoints, not new phase numbers or extra product scope.
