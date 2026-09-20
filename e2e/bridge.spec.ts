@@ -218,6 +218,23 @@ test('a template the share-safety screen refuses is never benched', async ({ pag
   expect(result.readiness.some((r) => r.endsWith('=untested')), 'live rows report untested when the bench did not run').toBe(true);
 });
 
+test('the stress frame cuts a doubled line at a word and shows every answer row', async ({ page }) => {
+  await toBridge(page);
+  const stress = await page.evaluate(() => {
+    const b = window.noacgBridge;
+    const { template } = b.scaffold({ type: 'quiz-show', design: 'qz13' });
+    const idOf = (title: string) => (template.fields as { title: string; field: string }[]).find((f) => f.title === title)!.field;
+    const data = b.stressData(template) as Record<string, string>;
+    return { question: data[idOf('Question')], shown: data[idOf('Answers shown')] };
+  });
+  // The doubled question is 99 characters against a cap of 96. Cut mid-word it ended "Olympic
+  // Gam", which reads as the design clipping its text; it now ends on the last whole word.
+  expect(stress.question.length).toBeLessThanOrEqual(96);
+  expect(stress.question.endsWith('Olympic')).toBe(true);
+  // Options of equal length stress the LAST one: two answers shown is the emptiest board.
+  expect(stress.shown).toBe('4');
+});
+
 test('the operator surface of a scaffold is derived from its fields and machine', async ({ page }) => {
   await toBridge(page);
   const result = await page.evaluate(() => {
