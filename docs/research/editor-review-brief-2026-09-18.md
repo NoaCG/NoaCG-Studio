@@ -2,7 +2,7 @@
 
 2026-09-18. Independent review of d5e8c1db: **ready with named corrections**.
 Corrections are recorded, not implemented. Branch: codex/editor-baseline-design.
-Product implementation remains on hold. Group/precomp scope approved by owner 2026-09-19.
+R1 is underway; the historical planning hold is superseded. Group/precomp scope approved 2026-09-19.
 This brief indexes the plan; EDITOR_PLAN.md is the single scope authority.
 
 Latest owner review: the whole-workspace direction is accepted; [workflow refinements](editor-workflow-review-2026-09-19/README.md)
@@ -51,14 +51,14 @@ remain required for full completion and follow R1.5 as P-COMP, approved 2026-09-
 | D05 sequence | R1.0 foundation followed by R1.1a-d; correctness proven in each consuming slice | R1.0: flagged preview route, shell/selection/bars/scrub, registry/history/protocol and latency harness; R1.1d: two first-time users |
 
 These decisions are closed in planning. Their product tests remain unverified and must pass
-at the named slice exits; recording them does not authorize starting R1.0.
+at the named slice exits; the subsequent R1 authorization supersedes the historical hold.
 
 ## Implementation order after authorization
 
 | Slice | Dependency | Bounded outcome / review route |
 |---|---|---|
 | R1.0 | Recorded D01-D05, implementation authorization | Flagged preview-deployment editor route; shell, selection, read-only bars/scrub, registry/history, revision protocol, latency harness |
-| R1.1a | R1.0 | Wizard Finish -> Edit; base Position/Layout offset and text/shape/basic scale tools |
+| R1.1a | R1.0 | Usable static graphic: Finish -> Edit, text/shape creation, content/basic font/size/colour/opacity, position/scale, undo/save/reopen; follow-up closes owner-reported gaps |
 | R1.1b | R1.1a | Text+box: off-canvas first key, canvas drag at 1 s creates second key; span-backed bar-body moves |
 | R1.1c | R1.1b | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt, undo/save/reopen/export/production parity |
 | R1.1d | R1.1c and stable-ID gate | Nested Illustrator/catalog fixtures, trim without retiming, two first-time users; repeat latency/fidelity checks |
@@ -85,13 +85,17 @@ E/B ledger and handoff. No screenshot/build closes the full product journey.
   in/out swap is the exact mirror; incoming-segment ease moves to the other reversed key.
 - At cue flags: edits target the arriving side except a layer whose bar starts there.
 - Before R1.1d: mint stable IDs on first committed edit of unnamed SVG nodes, with atomic undo.
-- E05-E07/B04 explicitly close in R1.2b (core new text/shapes start in R1.1a).
+- E05 basic content/type/colour and B04 usable text/shapes close in the R1.1a follow-up; rich typography/fit and full E06-E07 tools still close in R1.2b.
 - B13 is split across R1.0, R1.1b-d, R1.2a/c, not assigned solely to R1.2. Label ruler units and
   test seconds/frames against document FPS without rewriting source time.
 - Before R1.5: clarify the exact GSAP licence/version/plugin/export/CLI obligations.
 - Owner approved 2026-09-19: R1.2b group layer with its own transform, parent bar and local
   ruler; instanced reusable precompositions are P-COMP after R1.5. This supersedes their former
   R1.2 placement. Do not conflate groups and reusable instances; both remain in the destination.
+
+## Usable workflow review
+
+The [2026-09-20 outcome checkpoints](editor-outcomes-and-review-readiness-2026-09-20.md) supersede invitations to test every technical slice. R1.1a creation alone is engineering progress; static authoring stays open until content/appearance changes and save/reopen work. Agents prove the complete task before requesting owner review and report engineering, workflow and owner-acceptance status separately. The implementation follow-up owns the reported fixes.
 
 ## Optional WebMCP adapter
 

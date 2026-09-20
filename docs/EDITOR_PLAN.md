@@ -1,7 +1,7 @@
 # Editor plan
 
-Owner direction, updated 2026-09-19. Planning and mockups only. Product implementation remains on
-hold for the requested whole-workspace alignment before R1.0. This is the single authority for
+Owner direction, updated 2026-09-20. R1 implementation is underway; the earlier planning hold is
+superseded. See the outcome checkpoints below for what is usable. This is the single authority for
 scope, order and completion; it replaces the earlier delivery/professional-direction documents.
 Review entry point: [review brief](research/editor-review-brief-2026-09-18.md) and the
 [whole workspace](research/editor-whole-workspace-2026-09-19/README.md) plus [workflow decisions](research/editor-workflow-review-2026-09-19/README.md).
@@ -115,7 +115,7 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 | Train / slice | Deliverable and exit demonstration |
 |---|---|
 | R1.0 Foundation | Flagged route on preview deployments: professional shell, selection, read-only bars, scrub, operation registry/history, preview protocol and latency harness. Record D01-D05 decisions before starting; tests close in their assigned slices. B01/B02/B11/B13 foundation only. |
-| R1.1a Base edits and tools | Wizard Finish -> optional Edit; source-backed Position/Layout offset, text/rectangle/ellipse creation and basic scaling. B01/B03/B04 core; keep wizard behavior/fields. |
+| R1.1a Base edits and tools | Usable static graphic: Finish -> Edit; create text/shapes, edit wording/basic font/size/colours/opacity, position/scale, undo and save/reopen. R1.1a follow-up closes B01/B03/B04 core; preserve wizard fields. |
 | R1.1b Keys and bar moves | Text + box: off-canvas first key, move playhead 1 s, canvas drag creates second key; visible spans and bar-body moves carry keys. B05/B13 key/bar portions; no trim UI yet. |
 | R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
 | R1.1d Fidelity and trim | Nested Illustrator/catalog fixtures, stable IDs on first SVG edit, span trimming, two first-time users on the basic journey; B01-B05/B11/B13 applicable portions. |
@@ -149,7 +149,7 @@ Existing E/B identities are retained; split rows close only when all portions pa
 | E02 layers, hierarchy, selection and lock | R1.0 selection; R1.1d fidelity; R1.2b tools / B02 |
 | E03 fit/zoom/pan/panels | R1.0-R1.2 / B01, B02, B11 |
 | E04 base transforms, pivot and parent coordinates | R1.1-R1.2 / B03 |
-| E05 typography/content/fit | R1.2b / B04 |
+| E05 typography/content/fit | R1.1a usable content/basic type/colour; R1.2b rich typography/fit / B04 |
 | E06 text/shapes/images and asset replacement | R1.1a core; R1.2b full / B04 |
 | E07 duplicate/delete/reorder/align/distribute/group movement | R1.2b / B02, B04 |
 | E08 per-property animation, diamonds and deterministic seek | R1.1-R1.2 / B05 |
@@ -182,8 +182,8 @@ sampler mismatch, F4 stress inputs and F5 source-preservation inputs. The 120 se
 
 Assign remaining paired B02-B07 walks, transform fixtures, performance instrumentation and
 owner blank-stage reproduction to R1.0-R1.2. Two first-time users test R1.1d; fuller adoption
-walks repeat at R1.5, with owner feedback at every slice exit. Lottie/data/agent fixtures belong to R2/R3. Nothing unmeasured becomes
-a pass. Closing the planning inventory does not release the owner's implementation hold.
+walks repeat at R1.5, with owner feedback at usable workflow checkpoints. Lottie/data/agent fixtures belong to R2/R3. Nothing unmeasured becomes
+a pass. The historical planning hold is superseded; a technical slice does not establish usability.
 
 For every slice, demonstrate the end-to-end user task and refusal case, source/pixel agreement,
 undo/cancel, save/reopen and relevant exports. Use mapped browser checks through the queue,
@@ -202,7 +202,7 @@ Retain a real CasparCG/output receipt; browser playback alone is not hardware ac
 
 ## Step-by-step delivery and owner feedback
 
-Use the ordered sub-slices in the [review brief](research/editor-review-brief-2026-09-18.md).
+Use the [ordered slices](research/editor-review-brief-2026-09-18.md) and [usable outcomes / ready criteria](research/editor-outcomes-and-review-readiness-2026-09-20.md).
 Before each slice, record its prerequisites, exact user task, affected code seams, E/B coverage,
 non-goals, failure/rollback cases and mapped verification. Split it again if one review cannot
 demonstrate a coherent outcome; later trains also need this breakdown before work starts.
@@ -211,8 +211,8 @@ prove the transforms, timing and source transactions they use; R1.1d broadens th
 
 At each slice exit, provide a runnable route/fixture, a short numbered walkthrough with expected
 results, screenshots or a recording, exact branch/commit, automated evidence and known limits.
-Put product-visible work in its own owner-queue file. Invite owner testing at every step; record
-"awaiting owner review" separately from engineering verification. Feedback is welcome whenever
+Put product-visible work in its own owner-queue file. Invite review of team-proven usable tasks; record
+"engineering verified", "ready for workflow review" and "owner accepted" separately. Feedback is welcome whenever
 the owner is available, but the team must catch ordinary defects without relying on the owner.
 Independent work may continue after implementation authorization; dependent work cannot rely on
 a failed contract. Resolve feedback that changes a dependency before building on that assumption.
@@ -228,13 +228,13 @@ New sessions resume these records and the actual branch state.
 |---|---|
 | Planning inventory | Closed by classification; evidence gaps assigned, not passed |
 | Consolidated scope and revised mockups | Whole-workspace direction accepted; 2026-09-19 workflow refinements recorded for review |
-| R1.0-R1.5 / P-COMP | Not started; existing foundations retained; P-COMP follows R1.5 |
+| R1.0-R1.5 / P-COMP | R1.0 merged (#331); owner reports R1.1a delivered but basic authoring unusable. Follow-up owns fixes; static outcome remains open. P-COMP follows R1.5 |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
-| Product implementation permission | On hold |
+| Product implementation permission | R1 underway; no default-switch or full-product acceptance implied |
 
-Next: review workflow refinements before R1.0, then record the file-level replacement/retirement inventory and multi-document ownership boundary. A planning commit/build does not start product work. Each slice gets a bounded branch, evidence and handoff; CI/review precedes the merge queue.
+Next: the R1.1a implementation follow-up closes the usable static-graphic task and records evidence before calling it ready for review. Keep engineering slices bounded; demonstrate cumulative user outcomes. Each slice retains its branch, evidence, review and merge-queue handoff.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived

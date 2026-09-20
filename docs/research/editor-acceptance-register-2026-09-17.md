@@ -2,23 +2,23 @@
 
 2026-09-17. Live task/evidence ledger under [EDITOR_PLAN.md](../EDITOR_PLAN.md).
 All earlier E/B identities are retained; no task is passed by moving it between releases.
-M0 closes as an inventory. Product implementation remains on owner hold.
-Updated after independent review of d5e8c1db: decisions are recorded below; no closing test
-has been executed for the replacement editor. The corrected ordering supersedes prior receipts.
+M0 closes as an inventory. R1 implementation is underway; the historical owner hold is superseded.
+Historical baseline after independent review of d5e8c1db: decisions were recorded below; no closing test
+had then been executed for the replacement editor. Later slice receipts own measured passes.
 Owner approved group/precomposition scope on 2026-09-19; product tests remain unverified.
 The [whole-workspace review](editor-whole-workspace-2026-09-19/README.md) now shows canvas,
 assets/layers, tools, timeline, gallery and wizard handoff together with each phase's purpose.
 Its browser inspection verifies only the design study; no E/B/D product task is closed by it.
 Owner accepted the overall view. [Workflow refinements](editor-workflow-review-2026-09-19/README.md)
 now govern the optional Outline, imports/Pen, easing batches, AI help-first and project/library
-ownership. The current pre-R1.0 checkpoint reviews these refinements; no product test is passed.
+ownership. The design checkpoint passed no product test; current review readiness is recorded below.
 
 | Task | Exact outcome | Responsible slice | Current evidence |
 |---|---|---|---|
 | B01 | Fresh default session: create a catalog graphic, find Edit, select title; return Home and reopen it. Repeat from SVG import and saved graphic. No undocumented Advanced-mode prerequisite | R1.0 route; R1.1a/d wizard; R1.4 gallery | Partial historical observations; full task unverified |
 | B02 | Find a nested layer, select overlapping artwork, multi-select, lock/unlock, rename and reorder within its parent; selection stays consistent across panels | R1.0 selection; R1.1d nested; R1.2b tools | Partial historical observations; full task unverified |
 | B03 | Move base X by 40 px, resize and rotate supported artwork; numeric and canvas results agree. Cancel a second drag, undo and redo; animation offsets and siblings remain intact | R1.1-R1.2 | Partial historical observations; full task unverified |
-| B04 | File chooser/OS drop parity; Pen open/closed paths, curve handles where supported, cancel/undo/export; change title/font/colour; test a long title; replace logo; add a rectangle, ellipse, image and text; duplicate/delete, align/distribute eligible objects; reopen and verify source/bindings | R1.1a core creation; R1.2b full E05-E07 | Unverified for the replacement editor |
+| B04 | File chooser/OS drop parity; Pen open/closed paths, curve handles where supported, cancel/undo/export; change title/font/colour; test a long title; replace logo; add a rectangle, ellipse, image and text; duplicate/delete, align/distribute eligible objects; reopen and verify source/bindings | R1.1a usable content/basic type/colour/shapes; R1.2b rich typography/fit and full E06-E07 | Unverified for the replacement editor |
 | B05 | Animate title X -80 to 0 in 1 s; opacity 0 to 1 in 0.3 s; set the starting X key to Easy Ease Out; move end to 0.8 s; scrub both ways, undo/redo, save/reopen and play export | R1.1-R1.2 | Unverified for the replacement editor |
 | B06 | Marquee/Ctrl/Cmd/Shift-select keys across rows; dropdown/right-click parity for Linear/Ease/Bounce/Overshoot/Hold, mixed selection and atomic refusal; select two X keys, retime together, nudge one frame, snap/bypass, copy/paste; occupied target refuses atomically; explicit cross-cue moves preserve source ownership. Set outgoing Hold on the first key and sample immediately before/at the following key; opacity unchanged | R1.2 | Unverified for the replacement editor |
 | B07 | Rehearse two reveals, update a score during motion and hold, run Out during entry, replay; scrub without firing score/timer/external effects | R1.1c early Out; R1.2a Next; R1.2c loop regression | Unverified for the replacement editor |
@@ -34,6 +34,10 @@ ownership. The current pre-R1.0 checkpoint reviews these refinements; no product
 | B17 | CLI-generated graphic -> visual edit -> MCP edit -> save/reopen -> three exports/internal rehearsal; exact unrelated source preservation; stale concurrent edit refused | R1.3 core; R3.2 paired bridge | Unverified for the replacement editor |
 | B18 | Free helper explanation/basic edit, BYOK and external tool equivalence; selection context; cancel, invalid tools, stale revision, undo, quota/timeout and offline fallback; real model task quality separately measured | R1.3 core; R3.2 full | Unverified for the replacement editor |
 | B19 | One project holds lower third + intro; edit/switch/undo independently, reload both drafts, save, find on Home, bulk add to two rundowns and open playout. Master edits leave existing/on-air copies unchanged. Failed save/install, rename, project removal and legacy migration preserve documents | R1.0 ownership boundary; R1.4a/c/d | Unverified |
+
+## Current usable-authoring checkpoint
+
+2026-09-20 owner feedback: R1.1a creation buttons work, but text and colours cannot be changed. This is a reported gap, not a reproduced test in this documentation update. B04 core/static authoring remains open pending the implementation follow-up's reproduction, fixes and complete-task evidence. Retain any measured component passes; none closes the user outcome. The [outcome/checkpoint contract](editor-outcomes-and-review-readiness-2026-09-20.md) defines team proof before owner review, including content/basic type/colour, undo and save/reopen. No new product evidence is claimed here.
 
 ## Evidence in hand
 
