@@ -285,7 +285,32 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   // ── Live status: the renderer heartbeat + which cue is on air ON EACH LAYER. Several
   // graphics are up at once by design, so this is a map keyed by graphic name. ──
-  const [liveCue, setLiveCue] = useState<LiveCueMap>({});
+  const [liveCue, setLiveCueState] = useState<LiveCueMap>({});
+  /**
+   * HOW MANY TIMES THE LIVE MAP HAS MOVED HERE, and the only reason it is counted.
+   *
+   * The boot resolve below reads the production over the wire and then SEEDS this map with
+   * the answer. That read is a round trip - about a millisecond against a local stack and
+   * ~170 ms from a runner to hosted staging - and a Take pressed while it is in flight moves
+   * the map first. The answer then lands carrying the picture from BEFORE that press and
+   * replaces it, so the dashboard says nothing is on air about a graphic that is.
+   *
+   * Nothing recovers it. The take's own rows come back through `applyCommand`, which claims
+   * each message once and already claimed these at send time (`applyHere`), so the row that
+   * would restore the marker is dropped as a duplicate - correctly, for its own purpose.
+   * The page stays wrong until it is reloaded, with Out, Update and Next all greyed because
+   * they are gated on this map, so the operator cannot even take the graphic off.
+   *
+   * Measured on hosted staging 2026-09-20: `relay-cold-boot` hung for its whole 300 s budget
+   * on a disabled Out button, and the page snapshot at that moment read "PROGRAM - ON AIR
+   * nothing on air" while the server's `live_cue` held the take the spec had just asserted.
+   * Only the hosted tier ever saw it, which is what that tier is for.
+   */
+  const liveCueMoves = useRef(0);
+  const setLiveCue = useCallback<typeof setLiveCueState>((next) => {
+    liveCueMoves.current += 1;
+    setLiveCueState(next);
+  }, []);
   /** What the WIRE said was live when this page resolved the production - null until it has
    *  answered, and never written by anything this operator does. The boot recovery below is
    *  keyed on it for exactly that reason. */
@@ -576,7 +601,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         }
       }
     },
-    [applyProgram, rememberAired],
+    // `setLiveCue` is stable (a useCallback with no deps), but it is no longer React's own
+    // setter identity, so it is declared rather than assumed.
+    [applyProgram, rememberAired, setLiveCue],
   );
 
   const cues = useMemo(() => show?.cues ?? [], [show]);
@@ -863,16 +890,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     let unsubscribe: (() => void) | null = null;
     const tail = (after: number) => hostedControlTail(hostedSlug, after);
     void (async () => {
+      // Read BEFORE the await: if a verb moves the live map while this round trip is in
+      // flight, the answer below is older than the screen and must not overwrite it.
+      const movesAtRequest = liveCueMoves.current;
       const resolved = await controlShowBySlug(hostedSlug);
       if (!alive || !resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
       liveReportsRef.current = resolved.live;
-      setLiveCue(resolved.liveCue);
-      // …and the recovery is triggered by THE WIRE'S OWN ANSWER, never by `liveCue` moving —
-      // see the effect below for what that distinction cost.
-      setBootLive(resolved.liveCue);
+      // THE SEED IS A WHOLESALE REPLACE, so it is skipped outright when this operator has
+      // already acted. Merging the two was the other option and it is worse: the wire's map
+      // is a snapshot, not a diff, so a layer this operator took OFF while the read was in
+      // flight would come back on air. What is lost by skipping is the seeding of layers
+      // another operator drove, and the follower's rows carry those in anyway.
+      if (liveCueMoves.current === movesAtRequest) {
+        setLiveCue(resolved.liveCue);
+        // …and the recovery is triggered by THE WIRE'S OWN ANSWER, never by `liveCue` moving —
+        // see the effect below for what that distinction cost.
+        setBootLive(resolved.liveCue);
+      }
       // Seed each graphic's machine state from its last published report — the page may be
       // opening onto a production another operator drove mid-sequence.
       for (const [graphic, report] of Object.entries(resolved.live)) {
