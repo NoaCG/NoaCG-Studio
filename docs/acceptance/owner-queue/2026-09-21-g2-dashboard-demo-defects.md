@@ -31,6 +31,8 @@ broken in front of students. These are the ones fixed here.
   test now reads that off the monitor's own document after each Out. My best reading is that the
   rehearsal's automated browser pane stopped repainting the monitor while it was hidden. On your
   laptop, Out should clear PROGRAM within about half a second.
+  Row O confirmed that reading on 2026-09-22: the pane ran zero animation frames while it said it
+  was visible, and forcing frames cleared the picture (`docs/handoffs/2026-09-21-o-out-clears-program.md`).
 
 ## The route, under a minute
 

@@ -64,6 +64,11 @@ being removed tonight.
    OBS output clears was not measurable without an account. Workaround: after Out, trust the
    header and the OBS picture, not the monitor. Row G owns the dashboard files tonight and has
    the pointer.
+   **Settled on 2026-09-22 (row O): this was the rehearsal's browser pane, not the product.**
+   The pane ran no animation frames at all, so every exit froze where it started. The same Out
+   in an ordinary browser against noacg.studio empties PROGRAM in about a second, on the quiz
+   and the scoreboard, alone, side by side and with All out. No workaround is needed.
+   `docs/handoffs/2026-09-21-o-out-clears-program.md` has the measurements.
 2. **Update after a reveal carries the reveal onto the next question.** Typing the next
    question and pressing Update puts the new question on air with the old verdict still shown.
    Workaround: press Re-take, which resets the board to the question state with the new text.
