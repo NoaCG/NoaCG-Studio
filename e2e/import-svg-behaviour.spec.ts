@@ -2364,3 +2364,89 @@ test('a slanted polygon plate told to get wider grows by its points and keeps it
 
   expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
 });
+
+// THE FILES THE PUBLIC DOCS HAND OUT (public/docs/examples/), which is what a student downloads
+// from the Graphics page and what the demo imports on the live site. The shipped samples above
+// are walked already; these two are separate files with their own layer names (Team A / Score A,
+// a `static:` letter column), and nothing walked them past the docs page's own link check.
+const DOCS_QUIZ = fileURLToPath(new URL('../public/docs/examples/quiz.svg', import.meta.url));
+const DOCS_SCORE = fileURLToPath(new URL('../public/docs/examples/scoreboard.svg', import.meta.url));
+
+test('the docs example quiz imports as a quiz and runs select, lock and reveal with every line on its row', async ({ page }) => {
+  test.slow(); // the import, a production, a take, the three quiz verbs and an update
+  const errors = consoleErrors(page);
+  await openImportDoor(page, DOCS_QUIZ);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await expect(page.getByTestId('map-svg-quiz-count')).toHaveValue('4');
+  // The letter column is `static:` - drawn, never an operator field.
+  await expect(page.getByTestId('map-svg-fields')).toContainText('5 of 9');
+  await intoProduction(page, 'Docs quiz', 'Docs Quiz Night');
+  await settleDurableWrites(page);
+
+  await page.getByTestId('cue-field-f5-opt-A').click();
+  await page.getByTestId('cue-field-f6-opt-C').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('#f1')).toHaveText('Mercury');
+
+  const rows: [string, Rect][] = [
+    ['#f1', { left: 420, top: 380, right: 1500, bottom: 472 }],
+    ['#f2', { left: 420, top: 500, right: 1500, bottom: 592 }],
+    ['#f3', { left: 420, top: 620, right: 1500, bottom: 712 }],
+    ['#f4', { left: 420, top: 740, right: 1500, bottom: 832 }],
+  ];
+  for (const [id, plate] of rows) expectInside(await boxOnAir(air, id), plate);
+
+  await page.getByRole('button', { name: /Select answer/ }).click();
+  await expect(air.locator('[data-noacg-role~="answer.selected/C"]')).toHaveClass(/imported-design-on/);
+  await page.getByRole('button', { name: /Lock it in/ }).click();
+  await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  await expect(air.locator('[data-noacg-role~="answer.correct/A"]')).toHaveClass(/imported-design-on/);
+  await expect(air.locator('[data-noacg-role~="answer.wrong/C"]')).toHaveClass(/imported-design-on/);
+
+  // THE LONG-TEXT TAIL: a question twice the drawn length stays on the board, above the rows.
+  await page
+    .getByTestId('cue-field-f0')
+    .fill('Which planet in our solar system is closest to the Sun, and how long is its year?');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f0')).toContainText('how long is its year?');
+  expectInside(await boxOnAir(air, '#f0'), { left: 360, top: 148, right: 1560, bottom: 380 });
+  expect(await overflowOnAir(air)).toEqual([]);
+
+  expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
+});
+
+test('the docs example scoreboard imports as a score tracker, +1 raises the drawn goal flag, and a long name stays on the board', async ({ page }) => {
+  test.slow(); // the import, a production, a take, three presses and an update
+  const errors = consoleErrors(page);
+  await openImportDoor(page, DOCS_SCORE);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('score');
+  await expect(page.getByTestId('map-svg-score-count')).toHaveValue('2');
+  await intoProduction(page, 'Docs scoreboard', 'Docs Match');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('#f1')).toHaveText('2');
+
+  await page.getByTestId('cue-action-score1').click();
+  await expect(air.locator('#f1')).toHaveText('3');
+  await expect(air.locator('[data-noacg-role~="team.flash/1"]')).toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-unscore1').click();
+  await expect(air.locator('#f1')).toHaveText('2');
+  await expect(air.locator('[data-noacg-role~="team.flash/1"]')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-score2').click();
+  await expect(air.locator('#f2')).toHaveText('2');
+  await expect(air.locator('[data-noacg-role~="team.flash/2"]')).toHaveClass(/imported-design-on/);
+
+  // THE LONG-TEXT TAIL: the home name stays in its half of the board, clear of the score.
+  await page.getByTestId('cue-field-f0').fill('KIEKKO-ESPOO AKATEMIA');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f0')).toContainText('AKATEMIA');
+  expectInside(await boxOnAir(air, '#f0'), { left: 80, top: 60, right: 330, bottom: 144 });
+  expect(await overflowOnAir(air)).toEqual([]);
+
+  expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
+});
