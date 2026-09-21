@@ -25,6 +25,7 @@ interface Props {
   fileError: string | null;
   /** A dropped SVG, parsed + sanitized + inventoried (docs/SVG_IMPORT_PLAN.md). */
   svg: SvgImportResult | null;
+  /** The parsed file, with the file's own name riding on it (`fileName`). */
   onSvg: (svg: SvgImportResult) => void;
   onClearSvg: () => void;
 }
@@ -214,7 +215,7 @@ export default function ImportDesignStep({
     const svgFile = dropped.find(isSvgFile);
     if (svgFile) {
       try {
-        onSvg(importSvgMarkup(await svgFile.text()));
+        onSvg({ ...importSvgMarkup(await svgFile.text()), fileName: svgFile.name });
         setMultiDropNotice(multiDropMessage(dropped, svgFile, 'svg'));
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));

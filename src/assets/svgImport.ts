@@ -150,6 +150,9 @@ export interface SvgImportResult {
   /** The sanitized SVG markup, candidates tagged with data-noacg-candidate. Serialized once
    *  from the parsed document; not prettified, attributes untouched. */
   markup: string;
+  /** The dropped file's name, set by the drop that knew it (the wizard names the graphic after
+   *  it until the Finish step is given a name). Absent when the markup came from anywhere else. */
+  fileName?: string;
   /** Design-space size in px, from the viewBox (else width/height attributes). */
   width: number;
   height: number;

@@ -4343,11 +4343,14 @@ test('svg import: every alignment grid writes its own answer beside the heading'
 // walks both pinned window sizes: it gained one line asserting no row is taller than 56 px.)
 
 // 3. THE TWO NAME BOXES NEVER DEFAULT TO THE SAME WORD. On the commonest first run - an empty
-// library, so the picker is already on "New production" - both boxes start empty, and the
-// production used to take the GRAPHIC's name: a graphic called "Imported SVG design" inside a
-// production called "Imported SVG design", found a week later in a library holding three of
-// them. A show that holds one strap is not called "Interview strap".
-test('svg import: an unnamed production is not named after the graphic', async ({ page }) => {
+// library, so the picker is already on "New production" - the production used to take the
+// GRAPHIC's name: a graphic called "Imported SVG design" inside a production called "Imported
+// SVG design", found a week later in a library holding three of them. A show that holds one
+// strap is not called "Interview strap". And the graphic itself is named after the FILE that was
+// dropped (row E's walk, 2026-09-21: two unnamed imports were both "Imported SVG design" and the
+// second replaced the first in the production), with the catalog name as the placeholder for a
+// reader who clears it.
+test('svg import: an unnamed production is not named after the graphic, and the graphic is named after its file', async ({ page }) => {
   await page.goto('/app');
   await dropSvg2(page, SCOREBUG_SVG);
   // Settle on the STEP COUNTER between the two clicks. Clicking Next twice in a row without one
@@ -4358,9 +4361,9 @@ test('svg import: an unnamed production is not named after the graphic', async (
   await expect(page.getByTestId('wz-stepcount')).toContainText('5');
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 
-  // Both boxes empty, and each says what ITS OWN empty means - the rule the graphic box already
-  // followed and the production box did not.
-  await expect(page.getByTestId('wz-finish-name')).toHaveValue('');
+  // The graphic box carries the file's name (scorebug.svg), and each box says what ITS OWN empty
+  // means - the rule the graphic box already followed and the production box did not.
+  await expect(page.getByTestId('wz-finish-name')).toHaveValue('Scorebug');
   await expect(page.getByTestId('wz-finish-name')).toHaveAttribute('placeholder', 'Imported SVG design');
   await page.getByTestId('wz-finish-production-pick').locator('select').selectOption('new');
   const prod = page.getByTestId('wz-finish-production-name');
@@ -4375,9 +4378,9 @@ test('svg import: an unnamed production is not named after the graphic', async (
   await page.getByTestId('wz-finish-production-go').click();
   const dest = page.getByTestId('wz-finish-production-confirm-dest');
   await expect(dest).toContainText('Untitled production');
-  await expect(dest).not.toContainText('Imported SVG design');
+  await expect(dest).not.toContainText('Scorebug');
   await expect(page.getByTestId('wz-finish-production-confirm'))
-    .toContainText('Imported SVG design goes into this production');
+    .toContainText('Scorebug goes into this production');
 
   // And the write matches what the dialog promised, rather than the UI guessing one name while
   // the model applies another.
@@ -4386,7 +4389,7 @@ test('svg import: an unnamed production is not named after the graphic', async (
   // The page that airs carries TWO names now, and they are different words: the show it is,
   // and the one graphic in it. That is the whole of what this case is about.
   await expect(page.getByTestId('production-page')).toContainText('Untitled production');
-  await expect(page.getByTestId('production-page')).toContainText('Imported SVG design');
+  await expect(page.getByTestId('production-page')).toContainText('Scorebug');
 });
 
 // ── WIZARD EXITS IN THE DEFAULT STUDIO (owner, 2026-09-21) ──────────────────────────────────

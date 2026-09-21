@@ -11,6 +11,7 @@ import {
   draftName,
   draftResolution,
   formatDraftPatch,
+  graphicNameFromFile,
   initialDraft,
   mergeDraft,
   proposeSvgBehaviour,
@@ -2070,6 +2071,14 @@ export default function CreationWizard() {
                     designOriginal: null,
                     designErases: [],
                     designFields: [],
+                    // NAMED AFTER THE FILE until the Finish step is given a name: a name the
+                    // reader typed stays, and a name an earlier drop gave is replaced by this
+                    // drop's, so swapping quiz.svg for scoreboard.svg does not ship a scoreboard
+                    // called Quiz. Blank still falls back to the catalog name in `draftName`.
+                    name:
+                      draft.name.trim() && draft.name !== graphicNameFromFile(draft.designSvg?.fileName ?? '')
+                        ? draft.name
+                        : graphicNameFromFile(result.fileName ?? ''),
                     category: 'imported-design',
                     variantId: 'svg01',
                     lines: [],
@@ -2084,7 +2093,9 @@ export default function CreationWizard() {
                   setMode('svg');
                 }}
                 onClearSvg={() => {
-                  patch({ designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null });
+                  // The name the file gave goes with the file; a name the reader typed stays.
+                  const fromFile = graphicNameFromFile(draft.designSvg?.fileName ?? '');
+                  patch({ designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null, name: draft.name === fromFile ? '' : draft.name });
                   setMode('design');
                 }}
                 templateFile={importedFile}
