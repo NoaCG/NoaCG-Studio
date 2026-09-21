@@ -83,7 +83,21 @@ test('a published quiz and scoreboard run across the dashboard and two hosted ta
   await expect(page.getByTestId('live-cue-chip')).toContainText('Quiz board', WIRE);
   await a.getByRole('button', { name: /Select answer/ }).click();
   await a.getByRole('button', { name: /Lock it in/ }).click();
+  // NO RENDERER IS OPEN YET, which is a class rehearsing before OBS is up. The chip reads the
+  // page's own PROGRAM monitor then; it used to read renderer reports alone and stayed empty.
   await expect(a.getByTestId('hosted-state-chip')).toContainText('Locked', WIRE);
+
+  // ── Now the real renderer, as OBS loads it. It boots mid-show and reports from then on. ──
+  const outputSlug = await page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
+  }, showName);
+  expect(outputSlug).toBeTruthy();
+  const output = await context.newPage();
+  watchErrors(output, 'output', errors);
+  await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}&debug=1`);
+  const air = output.frameLocator('iframe[title="Quiz board"]');
+  await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/, WIRE);
 
   // ── Tab B runs the score beside it: take, +1 twice, -1 once. ──
   await hostedSelect(b, 'Team score');
@@ -134,6 +148,7 @@ test('a published quiz and scoreboard run across the dashboard and two hosted ta
   expect(errors).toEqual([]);
 
   await a.close();
+  await output.close();
   await b.close();
   await clearPublishedShows(page);
   await wipeMyGraphics(page);

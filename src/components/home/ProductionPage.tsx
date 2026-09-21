@@ -2410,10 +2410,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             <h2>
               <span className="pd-dot" aria-hidden="true" />
               PROGRAM — ON AIR
-              <span className="pd-what">
+              {/* The names can run past the monitor's width and end in an ellipsis, so the title
+                  carries them whole. The badge names EVERY live layer, in the names' order: with a
+                  quiz and a score both up it used to show one layer beside two names. */}
+              <span className="pd-what" title={liveLayers.map((l) => `${l.label} (layer ${l.layer})`).join(', ')}>
                 {liveLayers.length === 0 ? 'nothing on air' : liveLayers.map((l) => l.label).join(' · ')}
               </span>
-              {liveLayers[0] && <span className="pd-layer-badge">L{liveLayers[0].layer}</span>}
+              {liveLayers.length > 0 && (
+                <span className="pd-layer-badge">{liveLayers.map((l) => `L${l.layer}`).join(' · ')}</span>
+              )}
             </h2>
             <div className="pd-screen">
               <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: stageAspect }}>
