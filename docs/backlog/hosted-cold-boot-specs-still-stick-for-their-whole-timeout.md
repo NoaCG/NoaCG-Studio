@@ -3,7 +3,8 @@ v: 2
 source: derived
 kind: finding
 raised: 2026-09-20
-state: unstarted
+state: advanced
+note: "Pull requests 347 (take guard) and 349 (join-status text) landed. The first hosted run to include both, 35621780852 on 2026-09-21, was 50/50 with no flakes and closed #341. One green run is not proof of a cause, so the finding stays open until a few more scheduled runs agree."
 found: "The hosted cold-boot specs still hang for their entire test timeout and pass on retry. A staleness window in the production page was found and guarded, but it was NOT shown to be the cause, so issue #341 is still open."
 serves: NOW
 size: medium
@@ -18,7 +19,7 @@ diagnosis that did not survive being tested.
 
 ## Why
 
-It is the only thing keeping issue #341 open, and every red run costs whoever reads it the work
+It kept issue #341 open until 2026-09-21, and every red run costs whoever reads it the work
 of telling it apart from a real regression.
 
 ## Where it stands
@@ -36,6 +37,34 @@ production page's boot resolve was found, guarded, and then could NOT be made to
 symptom: a spec that delayed the resolve by 8 seconds and pressed Take inside that window passed
 against the unguarded code. The guard was kept as hardening; the spec was removed rather than
 left on main pinning nothing.
+
+## Measured 2026-09-21
+
+The runs of `hosted-latency.yml` from the last green before the symptom until now, read from the
+job logs:
+
+| Run | Date (UTC) | Commit | Staging round trip | Result |
+| --- | --- | --- | --- | --- |
+| 35070863910 | 09-16 07:53 | `16ed46e9` | - | green |
+| 35498134985 | 09-20 07:54 | `cf45d972` | ~194 ms | 3 flaky: `relay-cold-boot` and `output-cold-boot` hit their whole timeout, `quiz-output` failed once. All passed on retry. |
+| 35516988408 | 09-20 14:36 | `53bd2f0e` | ~171 ms | 1 flaky: `relay-cold-boot` hit its whole timeout, passed on retry in 28 s. |
+| 35621780852 | 09-21 15:51 | `bde57a83` | ~182 ms | **50 passed, 0 flaky.** Closed #341. |
+
+Both red runs predate pull requests 347 and 349. The green one is the first run to contain them.
+The local-stack nightly (`configured-suite.yml`) was green on every run from 09-20 19:00 onward,
+so the symptom still reproduces only against the hosted project.
+
+I did not treat that green run as a diagnosis. The earlier investigation could not make the
+guarded window produce the symptom, and the symptom was intermittent before the guard existed
+(runs on 09-09, 09-13 and 09-16 were green). What the run does establish is narrower: on the
+code the demo will ship, the three cold-boot and reboot specs pass first time against a hosted
+database at ~180 ms. If the symptom comes back, step 1 below still applies and the snapshot now
+carries the join-status text.
+
+Staging was awake on 09-21. The run above signed in and queried it, and `post-land.yml` read
+its migration ledger at 15:11 ("Staging holds all 60 migration(s)"). A free project pauses after
+7 idle days, so the earliest it can pause is 09-28, and the scheduled run on Wednesday 09-23
+02:40 resets that clock again.
 
 ## What it would take
 
