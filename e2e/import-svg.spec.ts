@@ -4231,8 +4231,11 @@ test('svg import: plates well inside the frame are boxes, and group the checklis
   await dropSvg2(page, SCOREBUG_SVG);
   const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
   await expect(heads).toHaveCount(2);
-  await expect(heads.nth(0)).toContainText('plate');
-  await expect(heads.nth(1)).toContainText('plate');
+  // Headed by the designer's own word: the plates sit in a group called Bug, and a three-letter
+  // name is a name (stageMeasure.ts, isReadableBoxName), so the two read "Bug 1" and "Bug 2"
+  // rather than the colour the step falls back to for an unnamed shape.
+  await expect(heads.nth(0)).toContainText('Bug 1');
+  await expect(heads.nth(1)).toContainText('Bug 2');
 });
 
 // AND THE CHECKLIST NEVER RE-SORTS ITSELF. A group is a run of consecutive rows, so showing which
