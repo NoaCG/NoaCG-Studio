@@ -37,6 +37,22 @@ async function shot(page: Page, name: string): Promise<void> {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/walk-${name}.png` });
 }
 
+/**
+ * What one layer of the PROGRAM monitor is actually PAINTING: the computed opacity of the
+ * graphic's root (the exit ends by setting it to 0) and its machine's main state. Read inside the
+ * layer's own document, because the header and the tally only say what the page believes.
+ */
+async function programPicture(page: Page, title: string): Promise<{ opacity: string; main: string } | null> {
+  const handle = await page.locator(`[data-testid="program-stage"] iframe[title="${title}"]`).elementHandle();
+  const frame = await handle?.contentFrame();
+  if (!frame) return null;
+  return (await frame.evaluate(`(() => {
+    const root = document.querySelector(NOACG_ANIM.root);
+    const state = window.noacgMachineState ? window.noacgMachineState() : null;
+    return { opacity: root ? getComputedStyle(root).opacity : 'no root', main: state && state.groups ? state.groups.main : 'none' };
+  })()`)) as { opacity: string; main: string };
+}
+
 /** The PROGRAM monitor holds one frame per layer, titled with its graphic's name. */
 const quiz = (page: Page) => page.frameLocator('[data-testid="program-stage"] iframe[title="Quiz board"]');
 const score = (page: Page) => page.frameLocator('[data-testid="program-stage"] iframe[title="Team score"]');
@@ -83,16 +99,6 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   // ── The scoreboard: take it BESIDE the quiz, +1 twice, -1 once, then a typed name. ──
   await selectCue(page, 'Team score');
   await page.getByTestId('verb-take').click();
-  // The score tracker runs several state groups at once, and its chip reads the author's state
-  // NAMES only - never the machine's group ids ("main: On air · flag: No flag · result: Live").
-  await expect(chip).toHaveText(/ · /);
-  await expect(chip).not.toContainText(':');
-  // Both bands of the cue editor are headed by their team, however the designer ordered the
-  // fields: the away band's first field is its score, and it used to read "Side B".
-  await expect(page.getByTestId('cue-band-label-side-A')).toBeVisible();
-  for (const side of ['A', 'B']) {
-    await expect(page.getByTestId(`cue-band-label-side-${side}`)).not.toHaveText(/^Side /);
-  }
   await expect(page.getByTestId('live-cue-chip')).toContainText('Quiz board');
   await expect(page.getByTestId('live-cue-chip')).toContainText('Team score');
   const live = page.getByTestId('live-numbers');
@@ -194,11 +200,18 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   await selectCue(cold, 'Team score');
   await cold.getByTestId('verb-out').click();
   await expect(cold.getByTestId('live-cue-chip')).not.toContainText('Team score');
+  // THE PICTURE LEAVES TOO, not only the header. The demo rehearsal of 2026-09-21 reported the
+  // monitor still painting a graphic after Out while the header said nothing was on air, so each
+  // Out is read off the monitor's own document: its root faded to nothing and its machine off.
+  await expect.poll(() => programPicture(cold, 'Team score')).toEqual({ opacity: '0', main: 'off' });
+  await expect.poll(() => programPicture(cold, 'Quiz board')).toEqual({ opacity: '1', main: 'question' });
   await selectCue(cold, /Quiz board copy/);
   await cold.getByTestId('verb-out').click();
   await expect(cold.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await expect.poll(() => programPicture(cold, 'Quiz board')).toEqual({ opacity: '0', main: 'off' });
   await cold.waitForTimeout(1_500);
   await expect(cold.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  expect(await programPicture(cold, 'Quiz board')).toEqual({ opacity: '0', main: 'off' });
 
   expect([...errors, ...coldErrors]).toEqual([]);
 });

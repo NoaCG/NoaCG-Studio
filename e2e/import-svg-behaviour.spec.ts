@@ -2435,6 +2435,17 @@ test('the docs example scoreboard imports as a score tracker, +1 raises the draw
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   await expect(air.locator('#f1')).toHaveText('2');
+  // The tracker runs several state groups at once, and its chip reads the author's state NAMES
+  // only - never the machine's group ids ("main: On air · flag: No flag · result: Live").
+  const chip = page.getByTestId('machine-state-chip');
+  await expect(chip).toHaveText(/ · /);
+  await expect(chip).not.toContainText(':');
+  // Both bands of the cue editor are headed by their team, however the designer ordered the
+  // fields - one of them used to read "Side B" beside the other team's name.
+  await expect(page.getByTestId('cue-band-label-side-A')).toBeVisible();
+  for (const side of ['A', 'B']) {
+    await expect(page.getByTestId(`cue-band-label-side-${side}`)).not.toHaveText(/^(Side|Row) /);
+  }
 
   await page.getByTestId('cue-action-score1').click();
   await expect(air.locator('#f1')).toHaveText('3');

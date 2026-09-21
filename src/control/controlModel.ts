@@ -608,6 +608,22 @@ export function isEventLegal(
 }
 
 /**
+ * The machine a template's JS answers to, parsed once per distinct JS. The production dashboard
+ * asks `canAdvance` and `movedStateNames` on every render, and it re-renders every second for
+ * its clock, so re-parsing the same data block each time would be pure waste. A handful of
+ * graphics are ever open at once; the cap only stops an editing session from growing it forever.
+ */
+const machineCache = new Map<string, ReturnType<typeof deriveMachine> | null>();
+function machineOf(js: string): ReturnType<typeof deriveMachine> | null {
+  if (machineCache.has(js)) return machineCache.get(js) ?? null;
+  const data = parseAnimData(js);
+  const machine = data ? deriveMachine(data) : null;
+  if (machineCache.size >= 32) machineCache.delete(machineCache.keys().next().value as string);
+  machineCache.set(js, machine);
+  return machine;
+}
+
+/**
  * The names of every state the live graphic has MOVED INTO since its entrance: the main group
  * anywhere but its first waypoint, and any parallel group anywhere but its initial state. Empty
  * while the graphic still stands where a Take leaves it, and empty for one that has not reported.
@@ -625,9 +641,8 @@ export function movedStateNames(
   state: { groups?: Record<string, string> } | null | undefined,
 ): string[] {
   if (!state || !state.groups) return [];
-  const data = parseAnimData(js);
-  if (!data) return [];
-  const machine = deriveMachine(data);
+  const machine = machineOf(js);
+  if (!machine) return [];
   const moved: string[] = [];
   machine.groups.forEach((group, index) => {
     const cur = state.groups?.[group.id];
@@ -660,9 +675,7 @@ export function movedStateNames(
  */
 export function canAdvance(js: string, state: { groups?: Record<string, string> } | null | undefined): boolean {
   if (!state || !state.groups) return true;
-  const data = parseAnimData(js);
-  if (!data) return true;
-  const main = deriveMachine(data).groups[0];
+  const main = machineOf(js)?.groups[0];
   if (!main) return true;
   const cur = state.groups[main.id];
   if (cur === undefined) return true;
