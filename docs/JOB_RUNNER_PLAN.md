@@ -152,7 +152,9 @@ Budget, recomputed before every start and never cached:
 - **Landings are serial by their own rule, not by the budget.** Two merges never overlap however
   cheap they are, and a landing never runs beside anything in the SAME checkout - it rewrites the
   tree a suite there would be reading. Beside a suite in a different worktree it is harmless,
-  which is the whole point of the 0.15.
+  which is the whole point of the 0.15. That 0.15 prices a landing's RAM floor only; a landing
+  takes NO share of the budget, whether it is being admitted or already running
+  (`budgetShareOf`), so a running `land-watch` never holds a suite out.
 
 Night = 2.0 is a starting point, not a promise, and it is probably already at the memory wall
 rather than conservative: past it a RAM-bound box pages, and every job slows down together, so

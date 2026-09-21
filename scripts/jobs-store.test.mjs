@@ -228,8 +228,34 @@ test('a landing is not charged against the suite budget', () => {
   assert.deepEqual(schedule(cheap, { hour: DAY, freeMemMb: PLENTY }).start, []);
 });
 
+test('a RUNNING landing does not hold a browser job out of the budget', () => {
+  // Measured 2026-09-21 at ~21:00Z: "budget 0.15/1 used" with five browser jobs waiting behind
+  // one running land-watch, because the pass seeded its running total with every running job's
+  // cost, landings included, so 0.15 + 1 > 1. The exemption covered only the landing being
+  // admitted; it has to cover the landings already running too, or back-to-back landings starve
+  // every suite for the whole night.
+  const landing = [merge('j-0001', { state: 'running', pid: 1, checkout: '/wt/a' }), job('j-0002', { checkout: '/wt/b' })];
+  assert.deepEqual(schedule(landing, { hour: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0002']);
+
+  // A landing admitted in the SAME pass does not charge the browser job behind it either.
+  const both = [merge('j-0001', { checkout: '/wt/a' }), job('j-0002', { checkout: '/wt/b' })];
+  assert.deepEqual(schedule(both, { hour: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0001', 'j-0002']);
+
+  // The RAM floor still applies to the browser job: a landing is free of the budget, not of
+  // physics, and it does not lend its exemption to whatever runs beside it.
+  const short = schedule(landing, { hour: DAY, freeMemMb: 1024 });
+  assert.deepEqual(short.start, []);
+  assert.match(short.waiting[0].reason, /RAM free/);
+
+  // And a browser job still waits for a browser job: only the landing's share was forgiven.
+  const suite = [...landing, job('j-0003', { checkout: '/wt/c' })];
+  const { start, waiting } = schedule(suite, { hour: DAY, freeMemMb: PLENTY });
+  assert.deepEqual(start.map((j) => j.id), ['j-0002']);
+  assert.match(waiting[0].reason, /budget 1\/1 used/);
+});
+
 test('several landings fit inside one suite-equivalent', () => {
-  // 0.15 each: the day budget of 1.0 holds six of them, and they still drain one at a time
+  // Landings are not charged against the budget at all, and they still drain one at a time
   // because two merges never overlap.
   const many = [merge('j-0001'), merge('j-0002'), merge('j-0003')];
   const { start } = schedule(many, { hour: DAY, freeMemMb: PLENTY });
