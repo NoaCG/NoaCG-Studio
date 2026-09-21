@@ -222,6 +222,13 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
   added before that link existed; an ambiguous name publishes no entries rather than guessing.
   `panel` is jsonb with no version of its own, so a row published by an older build simply
   carries no entries and is normalized to `[]` on read.
+- **A page's own edits count on that page at once.** The shared buffer only moves when its
+  `staged` row comes back round the log, about a second after a keystroke. The hosted page lays
+  its own unconfirmed edits over the buffer until the buffer shows them and no write of theirs
+  is still on the way
+  (`src/components/control/ownStaged.ts`), so a Take pressed straight after picking a value airs
+  that value. Without it, a quiz key picked just before Take aired the stored key (configured
+  run 35633742370).
 - **Capability model:** owning/publishing requires sign-in (RLS); OPERATING needs only the
   slug, through SECURITY DEFINER RPCs (`control_show_by_slug`, `control_send`,
   `control_stage`, `control_report`, `control_tail`). Revoke = unpublish or rotate.

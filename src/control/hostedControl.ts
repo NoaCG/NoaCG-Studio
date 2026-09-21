@@ -1047,11 +1047,14 @@ export async function followControlLog(opts: {
   };
 }
 
-/** Stage PREPARED data — shared with every operator page on this slug. */
+/** Stage PREPARED data — shared with every operator page on this slug. A refusal THROWS: the
+ *  RPC answers an error rather than rejecting, and the page keeps an edit on screen until the
+ *  write either comes back round the log or is refused (components/control/ownStaged.ts). */
 export async function stageHostedData(slug: string, graphic: string, data: Record<string, string>): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  await sb.rpc('control_stage', { p_slug: slug, p_graphic: graphic, p_data: data });
+  const { error } = await sb.rpc('control_stage', { p_slug: slug, p_graphic: graphic, p_data: data });
+  if (error) throw new Error(error.message);
 }
 
 /** The command tail after a known id — a reconnecting side fills its gap from here. */
