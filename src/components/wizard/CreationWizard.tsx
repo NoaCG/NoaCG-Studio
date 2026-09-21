@@ -14,6 +14,7 @@ import {
   graphicNameFromFile,
   initialDraft,
   mergeDraft,
+  pollDrivenLayers,
   proposeSvgBehaviour,
   proposeSvgExtras,
   type DraftPatch,
@@ -1991,6 +1992,8 @@ export default function CreationWizard() {
                   // pickers (`armTimerClock`, and it is the same call the mapping step's picker
                   // makes). Every other behaviour leaves the fields exactly as they were.
                   const proposed = proposeSvgBehaviour(result);
+                  const written = pollDrivenLayers(proposed);
+                  const furniture = (c: { id: string; drawing: boolean }) => c.drawing && !written.has(c.id);
                   patch({
                     designSvg: {
                       ...result,
@@ -2008,11 +2011,13 @@ export default function CreationWizard() {
                     // order, so the Fields step opens on what the operator can change rather
                     // than on four letter tiles under four plate headings (row E's walk,
                     // 2026-09-21). Field ids are minted from the ticked rows, so nothing
-                    // downstream moves.
+                    // downstream moves. A one-letter text the proposed behaviour WRITES (a
+                    // puzzle's tiles) is not furniture: it stays ticked and in place, so the
+                    // mapping step keeps showing it as the board's, never as "stays as drawn".
                     svgFields: armTimerClock(
-                      [...result.candidates.filter((c) => !c.drawing), ...result.candidates.filter((c) => c.drawing)].map((c) => ({
+                      [...result.candidates.filter((c) => !furniture(c)), ...result.candidates.filter(furniture)].map((c) => ({
                         candidateId: c.id,
-                        on: !c.drawing,
+                        on: !furniture(c),
                         title: c.label,
                         sample: c.sample,
                         numeric: c.numeric,

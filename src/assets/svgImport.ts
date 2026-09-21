@@ -30,8 +30,8 @@ export interface SvgTextCandidate {
    *  every detected text defaults ON either way. For a PICTURE, which defaults OFF (inside a
    *  design a picture is usually the artwork), the prefix is what turns it on. */
   marked: boolean;
-  /** True when the layer name carried the `static:` prefix — the designer saying this text is
-   *  FURNITURE, not a slot — or when the text is a single letter, which is a tile's label
+  /** True when the layer name carried the `static:` prefix (the designer saying this text is
+   *  FURNITURE, not a slot), or when the text is a single letter, which is a tile's label
    *  (`isLetterTile`). The row is still offered, unticked, and the words stay as drawn:
    *  a top ten's rank numerals and a bingo grid's numbers are drawing the operator should
    *  never be handed twenty-five boxes for
@@ -1514,7 +1514,7 @@ export function importSvgMarkup(source: string): SvgImportResult {
 
   const size = measureSvg(svg);
   if (!size) {
-    throw new Error('This SVG states no size (no viewBox and no width/height). Re-export it with a viewBox — in Illustrator, File > Export > SVG does this — and drop it again.');
+    throw new Error('This SVG states no size (no viewBox and no width/height). Save it again with a viewBox - in Illustrator, File > Save a Copy > SVG with Use Artboards ticked does this - and drop it again.');
   }
 
   const notices = sanitize(svg);
@@ -1539,10 +1539,12 @@ export function importSvgMarkup(source: string): SvgImportResult {
   // Tag the candidates AFTER sanitizing, so a candidate can never sit inside removed markup.
   const fontSize = fontSizeResolver(svg);
   const nodes = textCandidates(svg, fontSize);
-  // The groups a text candidate took its name from. Such a group is a text's wrapper, not a
-  // drawing: offered as a moment it would read "Question 2" in every picker beside the field
-  // called Question (row E's walk, 2026-09-21).
+  // The groups a text candidate took its name from and that hold nothing drawn. Such a group is
+  // a text's wrapper, not a drawing: offered as a moment it would read "Question 2" in every
+  // picker beside the field called Question (row E's walk, 2026-09-21). A group that also holds
+  // shapes (a badge left visible with its auto-named caption) is still a drawing and stays.
   const namedTexts = new Set<Element>();
+  const holdsOnlyText = (g: Element) => !g.querySelector('rect, path, polygon, circle, ellipse, line, polyline, image, use');
   const candidates: SvgTextCandidate[] = nodes.map((el, i) => {
     const id = `t${i}`;
     el.setAttribute(SVG_CANDIDATE_ATTR, id);
@@ -1552,10 +1554,11 @@ export function importSvgMarkup(source: string): SvgImportResult {
     // group Illustrator made of the layer. The whole inventory rides along, because whether a
     // group's name belongs to ONE text layer is what decides the climb (candidateName).
     const { name, fromGroup, source } = candidateName(el, svg, nodes);
-    if (source.tagName.toLowerCase() === 'g') namedTexts.add(source);
+    if (source.tagName.toLowerCase() === 'g' && holdsOnlyText(source)) namedTexts.add(source);
     const { label, marked, drawing: stated } = stripFieldPrefix(name);
     const sample = candidateSample(el, fontSize);
-    const drawing = stated || isLetterTile(sample);
+    // `f:` is the designer saying "definitely a field", and it wins over the one-letter rule.
+    const drawing = stated || (!marked && isLetterTile(sample));
     // A block that now reads as ONE wrapping field says so in the markup, so the runtime reads
     // one value off it rather than three runs. See markWrappedBlock for why it happens here.
     if (el.tagName.toLowerCase() === 'text') {

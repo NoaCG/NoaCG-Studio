@@ -447,10 +447,13 @@ export default function BehaviourSection({
     collect(behaviour);
   }
   const hiddenUnclaimed = (draft.designSvg?.groups ?? []).filter((g) => g.hidden && !claimed.has(g.id));
-  /** A type with drawn moments to bind, in a file with no hidden layer to bind them to. */
+  /** A type with drawn MOMENTS to bind (a look shown and hidden, never a bar drawn full, which
+   *  is visible by design), in a file with no hidden layer to bind them to. */
   const noHiddenLayers =
     !!behaviour &&
-    rolesOf(recipeIdOf(behaviour)).some((r) => r.kind === 'layer' && (r.pool ?? 'drawn') === 'drawn') &&
+    rolesOf(recipeIdOf(behaviour)).some(
+      (r) => r.kind === 'layer' && (r.pool ?? 'drawn') === 'drawn' && !!r.paint?.includes('look'),
+    ) &&
     !(draft.designSvg?.groups ?? []).some((g) => g.hidden);
   const extraOf = (id: string): SvgExtraDraft | undefined => draft.svgExtras.find((e) => e.candidateId === id);
   const patchExtra = (g: { id: string; label: string }, patch: Omit<Partial<SvgExtraDraft>, 'use'> & { use?: SvgExtraDraft['use'] | '' }) => {

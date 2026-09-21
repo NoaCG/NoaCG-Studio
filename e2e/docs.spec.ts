@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 // The public docs home lives at /docs (docs.html - static, indexed, no React; the tenth MPA
 // entry). Dev/preview serve the clean URL through the app-clean-url Vite plugin, production
@@ -77,10 +78,8 @@ test('the graphics topic has one page per type, each with its file, layers and n
     await expect(type.locator('.layers')).toHaveCount(1);
     for (const name of names) await expect(type).toContainText(name);
     const layers = type.locator('.layers > ul > li > .lyr .nm');
-    const top = await layers.allTextContents();
-    expect(top[0]).toBe('Text');
-    expect(top[top.length - 1]).toBe('Board');
-    expect(top.length === 3 ? top[1] : 'Moments').toBe('Moments');
+    const moments = !['end-credits', 'tickers'].includes(id);
+    expect(await layers.allTextContents()).toEqual(moments ? ['Text', 'Moments', 'Board'] : ['Text', 'Board']);
   }
   // ONE example file per type, so a student never meets two structures for the same graphic
   // (owner, 2026-09-21). The lower-third variants are gone and stay gone.
@@ -92,7 +91,10 @@ test('the graphics topic has one page per type, each with its file, layers and n
   await expect(layerNames).toContainText('A name is a word and a row');
   await expect(layerNames).toContainText('The spelling does not matter, the words do');
   await expect(layerNames.locator('.layers')).toHaveCount(1);
-  await expect(layerNames.locator('table.doc-words .doc-words-type')).toHaveCount(11);
+  // One heading row per behaviour with roles, the rule `publicBlock` in behaviour-docs.mjs applies.
+  const words = JSON.parse(readFileSync(new URL('../src/templates/behaviours/words.json', import.meta.url), 'utf8')) as Record<string, { roles?: unknown[] }>;
+  const typed = Object.entries(words).filter(([id, entry]) => id !== '_' && (entry.roles?.length ?? 0) > 0).length;
+  await expect(layerNames.locator('table.doc-words .doc-words-type')).toHaveCount(typed);
   await expect(layerNames.locator('table.doc-words')).toContainText('Selected A');
   await expect(layerNames.locator('table.doc-words')).toContainText('Vastaus A');
   // The operator's buttons are named, or a type page is decoration.
