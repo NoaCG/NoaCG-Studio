@@ -447,6 +447,11 @@ export default function BehaviourSection({
     collect(behaviour);
   }
   const hiddenUnclaimed = (draft.designSvg?.groups ?? []).filter((g) => g.hidden && !claimed.has(g.id));
+  /** A type with drawn moments to bind, in a file with no hidden layer to bind them to. */
+  const noHiddenLayers =
+    !!behaviour &&
+    rolesOf(recipeIdOf(behaviour)).some((r) => r.kind === 'layer' && (r.pool ?? 'drawn') === 'drawn') &&
+    !(draft.designSvg?.groups ?? []).some((g) => g.hidden);
   const extraOf = (id: string): SvgExtraDraft | undefined => draft.svgExtras.find((e) => e.candidateId === id);
   const patchExtra = (g: { id: string; label: string }, patch: Omit<Partial<SvgExtraDraft>, 'use'> & { use?: SvgExtraDraft['use'] | '' }) => {
     const rest = draft.svgExtras.filter((e) => e.candidateId !== g.id);
@@ -600,6 +605,18 @@ export default function BehaviourSection({
               ))}
             </select>
           </label>
+          {/* THE HIDDEN LAYERS DID NOT ARRIVE. Illustrator's Export As writes no hidden layer at
+              all (measured on 30.1, docs/backlog/illustrator-export-as-drops-hidden-layers.md), so
+              a quiz drawn with twelve moments arrives as a quiz with none and every picker reads
+              "NoaCG's own look" - and nothing said a thing. Said once, on a file that is a type
+              with drawn moments and holds NO hidden layer, in the words the docs use. A file whose
+              moments really were not drawn reads the same sentence and loses nothing by it. */}
+          {behaviour && noHiddenLayers && (
+            <p className="map-svg-note" data-testid="map-svg-hidden-missing">
+              This file has no hidden layers. If you drew some, Illustrator&rsquo;s Export As left
+              them out: save with File &gt; Save a Copy &gt; SVG instead and drop the file again.
+            </p>
+          )}
           {/* A binding that will be DROPPED says so here rather than at create time. Same rule
               as `svgBehaviourOption`'s, read from one function, so the sentence cannot drift
               from the decision. */}

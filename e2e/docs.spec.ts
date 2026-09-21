@@ -53,10 +53,10 @@ test('the graphics topic has one page per type, each with its file, layers and n
     await expect(graphics.locator(`[id="${id}"]`)).toHaveCount(1);
   }
   const types: [string, string, string[]][] = [
-    ['scoreboards', 'scoreboard.svg', ['Team A', 'Score A', 'Goal A', 'Full time']],
-    ['quiz', 'quiz.svg', ['Question', 'Answer A', 'A selected', 'A correct', 'A wrong', 'Locked']],
+    ['scoreboards', 'scoreboard.svg', ['Team 1', 'Score 1', 'Flash 1', 'Full time']],
+    ['quiz', 'quiz.svg', ['Question', 'Answer A', 'Selected A', 'Correct A', 'Wrong A', 'Locked in']],
     ['svg-vote', 'live-vote.svg', ['Option 1', 'Bar 1', 'Percent 1', 'Winner 1', 'Vote badge']],
-    ['countdowns', 'countdown.svg', ['05:00', 'Time bar', 'Warning', 'Paused', 'Time up']],
+    ['countdowns', 'countdown.svg', ['05:00', 'Timer bar', 'Warning', 'Paused', 'Time up']],
     ['end-credits', 'end-credits.svg', ['Director name', 'static:Director']],
     ['tickers', 'ticker.svg', ['Kicker', 'Story']],
   ];
@@ -71,17 +71,30 @@ test('the graphics topic has one page per type, each with its file, layers and n
     await expect(link).toHaveCount(1);
     const res = await page.request.get(`/docs/examples/${file}`);
     expect(res.status()).toBe(200);
-    // The layer panel and the names list both name every layer the guide promises.
+    // The layer panel and the names list both name every layer the guide promises, and the
+    // panel shows the one tree shape every type shares: Text on top, then Moments where the type
+    // has any, then Board (docs/backlog/one-layer-naming-system-for-every-graphic.md).
     await expect(type.locator('.layers')).toHaveCount(1);
     for (const name of names) await expect(type).toContainText(name);
+    const layers = type.locator('.layers > ul > li > .lyr .nm');
+    const top = await layers.allTextContents();
+    expect(top[0]).toBe('Text');
+    expect(top[top.length - 1]).toBe('Board');
+    expect(top.length === 3 ? top[1] : 'Moments').toBe('Moments');
   }
-  // The lower-third versions of the two demo graphics, drawn in Illustrator with the same names:
-  // linked from their type page and from the Layer names page, and really served.
-  for (const [id, file] of [['scoreboards', 'scoreboard-lower-third.svg'], ['quiz', 'quiz-lower-third.svg']]) {
-    await expect(graphics.locator(`section[id="${id}"] a[href="/docs/examples/${file}"]`)).toHaveCount(1);
-    await expect(page.locator(`#svg-layers-files a[href="/docs/examples/${file}"]`)).toHaveCount(1);
-    expect((await page.request.get(`/docs/examples/${file}`)).status()).toBe(200);
-  }
+  // ONE example file per type, so a student never meets two structures for the same graphic
+  // (owner, 2026-09-21). The lower-third variants are gone and stay gone.
+  await expect(page.locator('a[href*="lower-third"]')).toHaveCount(0);
+  // The Layer names page opens with the system: the three layers, the row rule, one full tree
+  // and the table of every name, generated from words.json so it cannot drift from the matcher.
+  const layerNames = page.locator('#svg-layers');
+  await expect(layerNames.locator('#svg-layers-system')).toHaveCount(1);
+  await expect(layerNames).toContainText('A name is a word and a row');
+  await expect(layerNames).toContainText('The spelling does not matter, the words do');
+  await expect(layerNames.locator('.layers')).toHaveCount(1);
+  await expect(layerNames.locator('table.doc-words .doc-words-type')).toHaveCount(11);
+  await expect(layerNames.locator('table.doc-words')).toContainText('Selected A');
+  await expect(layerNames.locator('table.doc-words')).toContainText('Vastaus A');
   // The operator's buttons are named, or a type page is decoration.
   await expect(graphics).toContainText('Lock it in');
   await expect(graphics).toContainText('Reveal correct');
@@ -112,9 +125,9 @@ test('an example link downloads the file rather than opening it', async ({ page 
   await page.goto('/docs');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.locator('#svg-layers-files a[href="/docs/examples/quiz-lower-third.svg"]').click(),
+    page.locator('#svg-layers-files a[href="/docs/examples/quiz.svg"]').click(),
   ]);
-  expect(download.suggestedFilename()).toBe('quiz-lower-third.svg');
+  expect(download.suggestedFilename()).toBe('quiz.svg');
 });
 
 test('the four guides carry their load-bearing content', async ({ page }) => {
@@ -343,9 +356,8 @@ test('the worked example carries one show a reader can copy exactly', async ({ p
 test('every docs screenshot loads at the size the page reserved for it', async ({ page }) => {
   await page.goto('/docs');
   await expect(page.locator('#first-graphic .doc-shot img')).toHaveCount(2);
-  // Two per type: the example as it renders, and the Fields step after the drop. Plus the two
-  // lower-third versions (scoreboard, quiz), which carry a rendered picture only.
-  await expect(page.locator('#graphics .doc-type .doc-shot img')).toHaveCount(14);
+  // Two per type: the example as it renders, and the Fields step after the drop.
+  await expect(page.locator('#graphics .doc-type .doc-shot img')).toHaveCount(12);
   await expect(page.locator('#data-example .doc-shot img')).toHaveCount(7);
   const shots = page.locator('.doc-shot img');
   const count = await shots.count();

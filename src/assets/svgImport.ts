@@ -31,7 +31,8 @@ export interface SvgTextCandidate {
    *  design a picture is usually the artwork), the prefix is what turns it on. */
   marked: boolean;
   /** True when the layer name carried the `static:` prefix — the designer saying this text is
-   *  FURNITURE, not a slot. The row is still offered, unticked, and the words stay as drawn:
+   *  FURNITURE, not a slot — or when the text is a single letter, which is a tile's label
+   *  (`isLetterTile`). The row is still offered, unticked, and the words stay as drawn:
    *  a top ten's rank numerals and a bingo grid's numbers are drawing the operator should
    *  never be handed twenty-five boxes for
    *  (docs/backlog/decorative-numerals-arrive-as-fields.md). */
@@ -304,21 +305,38 @@ function holdsSeveralTextLayers(node: Element, peers?: readonly Element[]): bool
  *  author typed rather than arriving as "Words"
  *  (docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). With nothing named above
  *  it at all, its own words are the only name there is - better than "Text 7". */
-function candidateName(el: Element, root: Element, peers?: readonly Element[]): { name: string; fromGroup: boolean } {
+function candidateName(
+  el: Element,
+  root: Element,
+  peers?: readonly Element[],
+): { name: string; fromGroup: boolean; source: Element } {
   let node: Element | null = el;
   let ownWords = '';
+  let ownNode: Element = el;
   while (node && node !== root) {
     const name = layerName(node);
     if (name) {
       if (!namesItsOwnCopy(node, name)) {
-        if (ownWords && holdsSeveralTextLayers(node, peers)) return { name: ownWords, fromGroup: false };
-        return { name, fromGroup: ownWords !== '' };
+        if (ownWords && holdsSeveralTextLayers(node, peers)) return { name: ownWords, fromGroup: false, source: ownNode };
+        return { name, fromGroup: ownWords !== '', source: node };
       }
-      if (!ownWords) ownWords = name;
+      if (!ownWords) {
+        ownWords = name;
+        ownNode = node;
+      }
     }
     node = node.parentElement;
   }
-  return { name: ownWords, fromGroup: false };
+  return { name: ownWords, fromGroup: false, source: ownNode };
+}
+
+/** A text that is ONE LETTER is a tile's label - the A to D down a quiz board's rows, the
+ *  letters of a puzzle - and never something the operator retypes. It starts unticked, like a
+ *  `static:` layer, so a student who draws the letters and forgets the prefix gets the same
+ *  graphic as the docs example (docs/backlog/one-layer-naming-system-for-every-graphic.md).
+ *  A single DIGIT is a score and stays a field. */
+function isLetterTile(sample: string): boolean {
+  return /^\p{L}$/u.test(sample.trim());
 }
 
 /** Does this sample propose a number field? A PLAIN figure only — an SPX number input can
@@ -1518,6 +1536,10 @@ export function importSvgMarkup(source: string): SvgImportResult {
   // Tag the candidates AFTER sanitizing, so a candidate can never sit inside removed markup.
   const fontSize = fontSizeResolver(svg);
   const nodes = textCandidates(svg, fontSize);
+  // The groups a text candidate took its name from. Such a group is a text's wrapper, not a
+  // drawing: offered as a moment it would read "Question 2" in every picker beside the field
+  // called Question (row E's walk, 2026-09-21).
+  const namedTexts = new Set<Element>();
   const candidates: SvgTextCandidate[] = nodes.map((el, i) => {
     const id = `t${i}`;
     el.setAttribute(SVG_CANDIDATE_ATTR, id);
@@ -1526,9 +1548,11 @@ export function importSvgMarkup(source: string): SvgImportResult {
     // A tspan's own name is rarely set; the nearest named thing is usually its <text> or the
     // group Illustrator made of the layer. The whole inventory rides along, because whether a
     // group's name belongs to ONE text layer is what decides the climb (candidateName).
-    const { name, fromGroup } = candidateName(el, svg, nodes);
-    const { label, marked, drawing } = stripFieldPrefix(name);
+    const { name, fromGroup, source } = candidateName(el, svg, nodes);
+    if (source.tagName.toLowerCase() === 'g') namedTexts.add(source);
+    const { label, marked, drawing: stated } = stripFieldPrefix(name);
     const sample = candidateSample(el, fontSize);
+    const drawing = stated || isLetterTile(sample);
     // A block that now reads as ONE wrapping field says so in the markup, so the runtime reads
     // one value off it rather than three runs. See markWrappedBlock for why it happens here.
     if (el.tagName.toLowerCase() === 'text') {
@@ -1595,6 +1619,7 @@ export function importSvgMarkup(source: string): SvgImportResult {
     .filter((el) => !el.hasAttribute(SVG_CANDIDATE_ATTR))
     .filter((el) => !isInNonRendered(el, svg))
     .filter((el) => layerName(el))
+    .filter((el) => !namedTexts.has(el))
     .map((el, i) => {
       const id = `g${i}`;
       el.setAttribute(SVG_CANDIDATE_ATTR, id);

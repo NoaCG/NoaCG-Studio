@@ -2003,8 +2003,13 @@ export default function CreationWizard() {
                     // exception is the opposite prefix: `static:` is the designer saying this
                     // text is furniture, so the row is offered UNTICKED with its words left as
                     // drawn (a top ten's ten rank numerals, a bingo grid's numbers).
+                    // FURNITURE LAST: the drawn rows are listed after every field, in their own
+                    // order, so the Fields step opens on what the operator can change rather
+                    // than on four letter tiles under four plate headings (row E's walk,
+                    // 2026-09-21). Field ids are minted from the ticked rows, so nothing
+                    // downstream moves.
                     svgFields: armTimerClock(
-                      result.candidates.map((c) => ({
+                      [...result.candidates.filter((c) => !c.drawing), ...result.candidates.filter((c) => c.drawing)].map((c) => ({
                         candidateId: c.id,
                         on: !c.drawing,
                         title: c.label,

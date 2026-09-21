@@ -81,9 +81,9 @@ test('svg import: the export rules lead the drop step, above the zone', async ({
 
   const head = page.getByTestId('import-svg-export-why');
   await expect(head).toBeVisible();
-  // Asked as a question, in the words someone would ask it in, with the one-line summary beside
-  // it (GOALS goal 4).
-  await expect(head).toContainText('Need help exporting SVG?');
+  // Named the way the docs name it, so the docs can point at it, with the one-line summary beside
+  // it (GOALS goal 4). Short enough for one line at 1280 wide.
+  await expect(head).toContainText('Exporting the SVG');
   await expect(head).toContainText('named layers, live text, one artboard');
 
   // ABOVE THE DROP ZONE. Geometry, not order in the DOM: the whole defect was that nothing below
@@ -2158,11 +2158,11 @@ test('svg import: clicking a text layer binds it, and clicking it again lets it 
   await expect(page.getByTestId('map-svg-fields')).toContainText('1 of 1');
   await awaitPickable(page, [0.11, 0.79]);
 
-  // Turning one OFF asks what should happen to the words, exactly as the checkbox does - the
-  // canvas is the same control, so it must not be the door that answers for you.
+  // Turning one OFF means what the checkbox means - the words stay as drawn - and asks nothing,
+  // exactly as the checkbox does: the canvas is the same control.
   await pickOnCanvas(page, [0.11, 0.79]);
-  await page.getByTestId('map-svg-off-keep').click();
   await expect(tick).not.toBeChecked();
+  await expect(page.getByTestId('map-svg-off-t0')).toHaveText('stays as drawn');
   await expect(page.getByTestId('map-svg-fields')).toContainText('0 of 1');
 
   // …and back again, so the canvas is the same control as the checkbox rather than a one-way
@@ -3737,11 +3737,12 @@ test('svg import: a board that draws a repeated row keeps every box as drawn', a
   expect(state.after).toEqual(state.before);
 });
 
-// UNTICKING A TEXT LAYER ASKS WHAT TO DO WITH THE WORDS (owner walk, 2026-09-02: "the logical
-// thing here is to have a prompt that asks, what should we do?"). It used to mean one thing
-// silently - the layer stays as drawn and cannot be retyped - and removal must never be the
-// automatic answer: "what if it's there for a reason anyway?"
-test('svg import: unticking a text layer asks what to do, and keeps the words by default', async ({
+// UNTICKING A TEXT LAYER ASKS NOTHING (owner, 2026-09-21: ticking or unticking a field shows no
+// warning). It means the one safe thing - the layer stays as drawn and cannot be retyped - and the
+// row says so, with removal one press away on the same line. Removal is never the automatic
+// answer (owner walk, 2026-09-02: "what if it's there for a reason anyway?"); the dialog that used
+// to ask which is gone, because a student read it as an error.
+test('svg import: unticking a text layer keeps the words, says so, and offers removal on the row', async ({
   page,
 }) => {
   await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
@@ -3752,29 +3753,10 @@ test('svg import: unticking a text layer asks what to do, and keeps the words by
   const id = (await question.getAttribute('data-testid'))!.replace('map-svg-sample-', '');
   const box = page.getByTestId(`map-svg-row-${id}`).locator('input[type="checkbox"]');
 
-  // Closing the question leaves the row exactly as it was: a mis-click costs nothing.
+  // One click, no dialog: the row is off and says what that means.
   await box.click();
-  const dialog = page.getByTestId('map-svg-off-dialog');
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('What should happen to these words?');
-  await dialog.locator('.gallery-close').click();
-  await expect(dialog).toBeHidden();
-  await expect(box).toBeChecked();
-
-  // AND ESCAPE CLOSES THE DIALOG, NOT THE WIZARD. The wizard binds Escape on `window` to rewind
-  // to the front page, so without a capture handler of its own this dialog's Esc would throw the
-  // whole import away - the opposite of what the ✕ beside it does.
-  await box.click();
-  await expect(dialog).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
-  await expect(box).toBeChecked();
-
-  // Keeping is the primary answer, and it says so on the row afterwards.
-  await box.click();
-  await page.getByTestId('map-svg-off-keep').click();
   await expect(box).not.toBeChecked();
+  await expect(page.locator('[role="dialog"]')).toHaveCount(0);
   await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('stays as drawn');
 
   // Ticking it back on clears the answer with it - no half state to reason about.
@@ -3783,8 +3765,13 @@ test('svg import: unticking a text layer asks what to do, and keeps the words by
 
   // Removing takes the layer off the built graphic. The shapes are still in the file: one CSS
   // rule hides them, which is what makes this reversible in the editor rather than destructive.
+  // The other answer is on the row too, so the press is not a one-way door.
   await box.click();
-  await page.getByTestId('map-svg-off-remove').click();
+  await page.getByTestId(`map-svg-off-remove-${id}`).click();
+  await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('taken off the artwork');
+  await page.getByTestId(`map-svg-off-keep-${id}`).click();
+  await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('stays as drawn');
+  await page.getByTestId(`map-svg-off-remove-${id}`).click();
   await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('taken off the artwork');
   await createProject(page);
   await expect(previewFrame(page).locator('.imported-design-removed')).toHaveCount(1);
@@ -4305,12 +4292,10 @@ test('svg import: the drop says why the walk just got a step shorter', async ({ 
   ]);
   const note = page.getByTestId('import-svg-rail-note');
   await expect(note).toBeVisible();
-  // The two counts the reader just watched, and BOTH names that left, in the words the rail
-  // used for them - a note that said only "fewer steps" would not close the loop.
-  await expect(note).toContainText('Five steps now, not six');
-  await expect(note).toContainText('Prepare');
-  await expect(note).toContainText('Text');
-  await expect(note).toContainText('Fields');
+  // The note says what happens NEXT, in a student's words, rather than accounting for the step
+  // counter (docs/backlog/import-step-copy-a-kid-can-read.md): the outcome, not the mechanism.
+  await expect(note).toContainText('tick the text the operator can change');
+  await expect(note).not.toContainText('Five steps');
 });
 
 // 2. THE ALIGNMENT GRID SAYS ITS ANSWER IN WORDS. Nine unlabelled dots under the word "Aligned"

@@ -49,9 +49,10 @@
         "perRow": true,
         "pool": "drawn",
         "words": "select|pick|valittu",
-        "teach": "A selected",
+        "teach": "Selected A",
         "also": [
-          "A picked"
+          "Picked A",
+          "Valittu A"
         ],
         "what": "while that answer is the pick",
         "distinctive": true
@@ -66,9 +67,10 @@
         "perRow": true,
         "pool": "drawn",
         "words": "correct|right|oikein",
-        "teach": "A correct",
+        "teach": "Correct A",
         "also": [
-          "A right"
+          "Right A",
+          "Oikein A"
         ],
         "what": "on the reveal, if it is the correct answer",
         "distinctive": true
@@ -83,7 +85,11 @@
         "perRow": true,
         "pool": "drawn",
         "words": "wrong|incorrect|väärin",
-        "teach": "A wrong",
+        "teach": "Wrong A",
+        "also": [
+          "Incorrect A",
+          "Väärin A"
+        ],
         "what": "on the reveal, if it is not",
         "distinctive": true
       },
@@ -97,6 +103,10 @@
         "pool": "drawn",
         "words": "lock|lukittu",
         "teach": "Locked in",
+        "also": [
+          "Locked",
+          "Lukittu"
+        ],
         "what": "once the answer is locked (one, whole board)"
       }
     ]

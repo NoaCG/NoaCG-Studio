@@ -294,12 +294,12 @@ one text layer per answer, then the moments:
 |---|---|---|
 | question | `Question` | always - it is a field the operator types |
 | answer (one per row) | `Answer A` | always - a field |
-| selected (one per row) | `A selected` | while that answer is the pick |
-| correct (one per row) | `A correct` | on the reveal, if it is the correct answer |
-| wrong (one per row) | `A wrong` | on the reveal, if it is not |
+| selected (one per row) | `Selected A` | while that answer is the pick |
+| correct (one per row) | `Correct A` | on the reveal, if it is the correct answer |
+| wrong (one per row) | `Wrong A` | on the reveal, if it is not |
 | locked in | `Locked in` | once the answer is locked (one, whole board) |
 
-`Vastaus A` works as well as `Answer A`; `A picked` works as well as `A selected`; `A right` works as well as `A correct`.
+`Vastaus A` works as well as `Answer A`; `Picked A`, `Valittu A` work as well as `Selected A`; `Right A`, `Oikein A` work as well as `Correct A`; `Incorrect A`, `Väärin A` work as well as `Wrong A`; `Locked`, `Lukittu` work as well as `Locked in`.
 
 Two to six answers. The operator gets Select answer, Lock it in and Reveal correct.
 <!-- behaviour:quiz:end -->
@@ -558,7 +558,13 @@ a five-second timer after the lock.
 
 ### Adobe Illustrator
 
-*File > Export > Export As... > SVG*. Not "Save As", which writes a much heavier file.
+*File > Save a Copy... > SVG*, with *Use Artboards* ticked. Not *Export > Export As*: measured on
+Illustrator 30.1 (2026-09-21), Export As writes no hidden layer at all, so every drawn moment is
+lost on the way in (`docs/backlog/illustrator-export-as-drops-hidden-layers.md`). Save a Copy
+keeps them as a `display:none` class, which the import reads. In the SVG Options dialog: Fonts
+Type **SVG** with Subsetting **None (Use System Fonts)**, Image Location **Embed**, Preserve
+Illustrator Editing Capabilities **off**, and under More Options, CSS Properties **Style
+Elements**.
 
 | Setting | Value | Why |
 |---|---|---|
@@ -646,26 +652,23 @@ bitmap, and neither can stretch with a panel.
 
 ### Export it
 
-*File > Export > Export As...*, format SVG, tick *Use Artboards*, then in the SVG Options
-dialog:
+*File > Save a Copy...*, format SVG, tick *Use Artboards*, then in the SVG Options dialog:
 
 | Setting | Value |
 |---|---|
-| Styling | Internal CSS |
-| Font | SVG |
-| Images | Embed |
-| Object IDs | Layer Names |
-| Decimal | 2 |
-| Minify | off |
-| Responsive | off |
+| Fonts, Type | SVG |
+| Fonts, Subsetting | None (Use System Fonts) |
+| Image Location | Embed |
+| Preserve Illustrator Editing Capabilities | off |
+| CSS Properties (More Options) | Style Elements |
 
-*Object IDs: Layer Names* is the one that matters most. Without it the layers export as
-`Layer_1` and the labels are lost. Do not use *Save As > SVG*: it wraps the drawing in
-Illustrator's own editing data, and the import has to report and strip it.
+Not *Export > Export As*: it leaves every hidden layer out of the file (section 6 above). A
+sticker with no hidden layers would survive it; a quiz would arrive with no moments and nothing
+to say so.
 
-Open the exported file in a text editor once. You should find your layer names as `id`
-attributes. A space is written `_x20_`, so `Accent tab` reads `id="Accent_x20_tab"`, and the
-original spelling sits beside it in `data-name`. The import reads both.
+Open the saved file in a text editor once. You should find your layer names as `id`
+attributes. A space is written `_x20_` or `_`, so `Accent tab` reads `id="Accent_x20_tab"`, and
+the original spelling may sit beside it in `data-name`. The import reads all three.
 
 ### Import it
 

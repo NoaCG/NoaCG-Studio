@@ -1,5 +1,4 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { uuid } from '../../../model/id';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
@@ -188,25 +187,6 @@ export default function MapSvgFieldsStep({
   const svg = draft.designSvg;
   const stageRef = useRef<HTMLDivElement>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
-  // The text row whose UNTICK is waiting on "what should we do?" (owner walk, 2026-09-02).
-  // The row stays ticked while it is open, so cancelling costs nothing and leaves no half state.
-  const [askOff, setAskOff] = useState<string | null>(null);
-  // ESCAPE CLOSES THE QUESTION, NOT THE WIZARD. CreationWizard binds Escape on `window` to rewind
-  // to the front page, which for a reader with this dialog open would throw away the import they
-  // are configuring - the opposite of "a mis-click costs nothing". A CAPTURE listener on the same
-  // target runs before that bubble one, so stopping the event here is what keeps the ✕ and the
-  // key beside it saying the same thing. Only while the dialog is open; the rewind is untouched
-  // everywhere else.
-  useEffect(() => {
-    if (!askOff) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      setAskOff(null);
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [askOff]);
   const [drawArmed, setDrawArmed] = useState(false);
   // While armed, a pick on the artwork adds or drops a FOLLOWER instead of binding a field
   // (plan §6c). Two meanings for one gesture need a mode, and the mode is a visible button
@@ -871,12 +851,12 @@ export default function MapSvgFieldsStep({
       }
       const text = draft.svgFields.find((f) => f.candidateId === candidateId);
       if (text) {
-        // TURNING ONE OFF ASKS THE SAME QUESTION HERE AS ON THE ROW (owner walk, 2026-09-02).
         // The canvas and the checklist are two views of one decision, so a pick that switches a
-        // layer off has to mean what unticking means - otherwise pointing at the artwork is the
-        // door that silently picks an answer for you.
+        // layer off means exactly what unticking the row means: the words stay as drawn.
         if (text.on) {
-          setAskOff(candidateId);
+          onDraft({
+            svgFields: draft.svgFields.map((f) => (f.candidateId === candidateId ? { ...f, on: false, whenOff: 'keep' } : f)),
+          });
           return;
         }
         onDraft({
@@ -996,12 +976,6 @@ export default function MapSvgFieldsStep({
       svgFields: draft.svgFields.map((f) => (f.candidateId === candidateId ? { ...f, ...patch } : f)),
     });
 
-  /** The row whose untick is waiting on an answer, and the layer it names. */
-  const asked = askOff ? draft.svgFields.find((f) => f.candidateId === askOff) ?? null : null;
-  const answerOff = (whenOff: 'keep' | 'remove') => {
-    if (askOff) patchField(askOff, { on: false, whenOff });
-    setAskOff(null);
-  };
 
   const patchImage = (candidateId: string, patch: Partial<SvgImageDraft>) =>
     onDraft({
@@ -1126,12 +1100,15 @@ export default function MapSvgFieldsStep({
                  the shape's own fill, which is the cheapest trust device there is - a reader who
                  has never heard the word binding still checks a colour against the picture beside
                  them in under a second. `aria-hidden` because the NAME already says the colour;
-                 read aloud, the swatch would be a second copy of it. */
+                 read aloud, the swatch would be a second copy of it. AFTER the name and round,
+                 because a square at the start of the line, in the column the rows' checkboxes
+                 occupy, read as a checkbox that could not be ticked (owner, 2026-09-21). */
               <p
                 className="map-svg-box-head"
                 data-testid={`map-svg-box-head-${group.fields[0].candidateId}`}
                 title={boxTitle(group.boxId)}
               >
+                <strong>{group.label}</strong>
                 {group.boxId && (
                   <span
                     className="map-svg-swatch"
@@ -1139,7 +1116,6 @@ export default function MapSvgFieldsStep({
                     aria-hidden="true"
                   />
                 )}
-                <strong>{group.label}</strong>
                 {/* The lines are listed directly underneath, so counting them for the reader is
                     noise on a board where every plate holds exactly one. The leftover group is
                     the one that has something to say, because "no box" is not visible on the
@@ -1221,10 +1197,14 @@ export default function MapSvgFieldsStep({
                    this one is not inert, it is harmful, and it still carries the fact that the
                    layer is part of the graphic - which is the whole of what the row is for. */
                 disabled={driven}
+                /* UNTICKING ASKS NOTHING (owner, 2026-09-21: ticking or unticking a field shows
+                   no warning). It means the one safe thing, the words stay as drawn, and the row
+                   says so with the other answer one press away. A dialog used to ask which
+                   (owner walk, 2026-09-02); a student on a deadline read it as an error. */
                 onChange={(e) =>
                   e.target.checked
                     ? patchField(f.candidateId, { on: true, whenOff: undefined })
-                    : setAskOff(f.candidateId)
+                    : patchField(f.candidateId, { on: false, whenOff: 'keep' })
                 }
                 title={
                   driven
@@ -1362,13 +1342,35 @@ export default function MapSvgFieldsStep({
                   </select>
                 </label>
               )}
-              {/* WHAT THE ANSWER DID, said on the row that carries it. An off row used to read
-                  the same whichever answer was given, so the dialog's decision was invisible a
-                  second after it was made - and the removal is the one nobody can see on the
-                  preview, because the words are simply gone. */}
+              {/* WHAT AN OFF ROW DOES, said on the row that carries it, with the other answer
+                  beside it. Keeping the words is the default; taking the layer off the artwork
+                  is a press here, and the removal is the one nobody can see on the preview,
+                  because the words are simply gone - so the row is where it has to be read. The
+                  shapes stay in the file either way, hidden by one line of CSS. */}
               {!f.on && (
-                <span className="map-svg-off-note" data-testid={`map-svg-off-${f.candidateId}`}>
-                  {f.whenOff === 'remove' ? 'taken off the artwork' : 'stays as drawn'}
+                <span className="map-svg-off-note">
+                  <span data-testid={`map-svg-off-${f.candidateId}`}>
+                    {f.whenOff === 'remove' ? 'taken off the artwork' : 'stays as drawn'}
+                  </span>
+                  {f.whenOff === 'remove' ? (
+                    <button
+                      type="button"
+                      className="map-svg-off-swap"
+                      onClick={() => patchField(f.candidateId, { whenOff: 'keep' })}
+                      data-testid={`map-svg-off-keep-${f.candidateId}`}
+                    >
+                      keep it as drawn
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="map-svg-off-swap"
+                      onClick={() => patchField(f.candidateId, { whenOff: 'remove' })}
+                      data-testid={`map-svg-off-remove-${f.candidateId}`}
+                    >
+                      take it off the artwork
+                    </button>
+                  )}
                 </span>
               )}
               {/* WHY THIS ROW IS NOT CALLED WHAT THE LAYER IS CALLED. A text layer named after
@@ -1783,71 +1785,6 @@ export default function MapSvgFieldsStep({
 
       {draft.svgFonts.length > 0 && <FontsSection fonts={draft.svgFonts} onDraft={onDraft} />}
 
-      {/* WHAT SHOULD WE DO WITH THE WORDS? (owner walk, 2026-09-02.)
-          Unticking used to mean one thing silently - the layer stays exactly as drawn and the
-          operator cannot retype it - which he read as neither of the two things he might have
-          meant. So the step asks, and KEEPING is the primary: he was explicit that removal must
-          never be automatic, "what if it's there for a reason anyway?" Closing the dialog leaves
-          the row ticked, so a mis-click costs nothing.
-
-          The app's dialog anatomy (src/styles/AGENTS.md): a `.wz-modal` in a `.gallery-backdrop`,
-          one header row with the ✕ hard right, and a `.dlg-foot` whose primary sits right. */}
-      {asked && createPortal(
-        /* PORTALLED TO THE BODY, for the reason WizardConfirm.tsx gives: a dialog raised over
-           the full-screen wizard has to beat the wizard's own shell rather than sit inside it.
-           Nested, it could not - `.gallery-backdrop.wz-full` is a positioned, z-indexed box and
-           so a stacking context, which clamps everything inside it below the corner notices at
-           the root however high this dialog's own z-index goes. That is precisely the issue #50
-           failure (a notice taking a dialog's click), surviving inside the one walk that
-           matters most: a student mapping their own artwork's text layers.
-
-           Clicking the backdrop closes it, like every other dialog in the app - and the click
-           must not reach the row underneath, which would re-open the question it just closed.
-           Portalling does not change that: React events bubble through the React tree, not the
-           DOM one, so the step's own handlers still see what they saw before. */
-        <div
-          className="gallery-backdrop"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setAskOff(null);
-          }}
-        >
-          <div
-            className="wz-modal map-svg-off-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="map-svg-off-title"
-            data-testid="map-svg-off-dialog"
-          >
-            <div className="wz-header">
-              <h2 id="map-svg-off-title">What should happen to these words?</h2>
-              <button className="gallery-close" onClick={() => setAskOff(null)} title="Close">✕</button>
-            </div>
-            <div className="map-svg-off-body">
-              <p>
-                <strong>“{asked.sample.trim() || asked.title.trim() || 'This layer'}”</strong> stops
-                being a field the operator can retype. It is still your artwork, so it is your
-                call what happens to it.
-              </p>
-              <p className="hint">
-                Keep it and the words air exactly as you drew them, every time. Remove it and the
-                layer comes off the graphic - the shapes stay in the file, hidden by one line of
-                CSS, so nothing you exported is thrown away.
-              </p>
-            </div>
-            <div className="dlg-foot">
-              <button onClick={() => answerOff('remove')} data-testid="map-svg-off-remove">
-                Remove the text
-              </button>
-              {/* `.dlg-foot .spacer` is the scoped push the anatomy provides (src/styles/AGENTS.md). */}
-              <div className="spacer" />
-              <button className="primary" onClick={() => answerOff('keep')} data-testid="map-svg-off-keep">
-                Keep it as drawn
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }
