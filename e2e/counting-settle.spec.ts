@@ -74,17 +74,24 @@ const SWEEP = (recipe: 'thumbnail' | 'canvas') => `(async () => {
   const { composeDocument } = await import('/src/preview/composeDocument.ts');
   const { postPreviewCmd } = await import('/src/preview/previewProtocol.ts');
   const recipe = ${JSON.stringify(recipe)};
-  const designs = []; const readings = [];
+  const designs = []; const readings = []; let scanned = 0;
   for (const cat of Object.keys(CATALOG)) {
     for (const variant of CATALOG[cat]) {
+      scanned++;
+      const tpl = variant.create({});
+      // THE MARK IS SCANNED FOR IN THE PLAIN DOCUMENT, never in the one a recipe composes. A
+      // recipe serializes its own runtime into the page, and that runtime's source can carry the
+      // words "data-target" itself: the simulator's did (a comment in runSimCommand), so on the
+      // canvas recipe EVERY design matched - 527 of them rendered instead of 44, 2.9 minutes of a
+      // 3-minute budget on an idle machine, and a timeout the day the machine was busy
+      // (2026-09-21). The design is what carries the mark; the recipe is only how it is settled.
+      if (!composeDocument(tpl, {}).includes('data-target')) continue;   // not a counting design
       // The REAL bootstrap in both cases: 'thumbnail' is composeDocument's settleWithData (the
       // shared settleGraphic recipe every card and thumbnail runs), 'canvas' is the editor's
       // simulate channel driven with the same sim-settle the PlayoutSimulator sends.
-      const tpl = variant.create({});
       const doc = composeDocument(tpl, recipe === 'canvas'
         ? { simulate: true }
         : { settleWithData: '{}' });
-      if (!doc.includes('data-target')) continue;   // not a counting design
       // The design's OWN field defaults - which is what both recipes settle with, since neither
       // pushes data ('{}'). This is the expected figure the graphic cannot rewrite.
       const typed = {};
@@ -111,7 +118,7 @@ const SWEEP = (recipe: 'thumbnail' | 'canvas') => `(async () => {
       f.remove();
     }
   }
-  return { designs, readings };
+  return { designs, readings, scanned };
 })()`;
 
 /** The rows where the graphic disagrees with its own data - a blank target is not a claim. */
@@ -126,9 +133,10 @@ for (const recipe of ['thumbnail', 'canvas'] as const) {
     await page.goto('/app');
     await page.keyboard.press('Escape');
 
-    const { designs, readings } = (await page.evaluate(SWEEP(recipe))) as {
+    const { designs, readings, scanned } = (await page.evaluate(SWEEP(recipe))) as {
       designs: string[];
       readings: Reading[];
+      scanned: number;
     };
 
     // A discovery sweep that discovers nothing passes every assertion below it. These two bounds
@@ -136,6 +144,10 @@ for (const recipe of ['thumbnail', 'canvas'] as const) {
     // infographics, 5 vote boards) and 21 of them rendered a marked readout in the settled
     // entrance. Both are floors, not equalities - the catalog only grows.
     expect(designs.length, 'designs carrying the counting mark').toBeGreaterThan(30);
+    // …and a mark EVERY design carries marks nothing. This is the ceiling that would have named
+    // the canvas recipe's runtime matching all 527 designs, rather than letting it surface as a
+    // timeout on a loaded machine. Half the catalog is far above any honest count.
+    expect(designs.length, 'designs carrying the counting mark, of all scanned').toBeLessThan(scanned / 2);
     expect(readings.length, 'marked readouts in the settled frame').toBeGreaterThan(15);
 
     // 0 is exactly the failure this exists for, and it is reported as the whole list rather than
