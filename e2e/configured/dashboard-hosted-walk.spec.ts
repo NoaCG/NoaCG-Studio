@@ -155,7 +155,9 @@ test('a published quiz and scoreboard run across the dashboard and two hosted ta
   await expect(scoreOnDashboard.locator('#f1')).toHaveText('4', WIRE);
   await expect(scoreOnDashboard.locator('#f2')).toHaveText('0', WIRE);
   await expect(quizOnDashboard.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/, WIRE);
-  await expect(quizOnDashboard.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/, WIRE);
+  // The contestant's B reads as wrong, as it did on air: the "selected" look belongs to the
+  // selected and locked states only (templates/behaviours/quiz.ts), so it is gone once revealed.
+  await expect(quizOnDashboard.locator('[data-noacg-role~="answer.wrong/B"]')).toHaveClass(/imported-design-on/, WIRE);
   // …and it stays that way past the monitor's first state reply, which is what used to undo a
   // recovery that replayed the entrance.
   await page.waitForTimeout(3_000);
