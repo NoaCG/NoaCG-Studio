@@ -3,7 +3,7 @@ import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';
 import { elementPoint } from './_canvas';
 import { previewFrame } from './_frame';
-import { addToProductionFromFinish } from './_create';
+import { addToProductionFromFinish, switchToAdvancedMode } from './_create';
 
 // The Import Graphic workflow, end to end (docs/IMPORT_MVP.md): a flat PNG design becomes
 // a working SPX template with editable text fields and per-layer animation.
@@ -27,6 +27,7 @@ async function dropDesign(page: Page, width = 1920, height = 1080) {
 
 /** Create the imported design (bare — no fields yet) and land in the editor. */
 async function createBare(page: Page) {
+  await switchToAdvancedMode(page);
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
     // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves — the
@@ -941,6 +942,7 @@ test('the Text step places a picture slot the operator fills from the control pa
   await expect(page.getByTestId('field-slot-width')).toBeVisible();
   await expect(page.getByTestId('field-size')).toHaveCount(0);
 
+  await switchToAdvancedMode(page);
   await page.getByRole('button', { name: 'Create project' }).click();
   await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 30_000 });
 

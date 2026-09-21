@@ -1,4 +1,5 @@
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { switchToAdvancedMode } from './_create';
 import { fileURLToPath } from 'node:url';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -319,6 +320,7 @@ async function pickPicture(page: Page) {
  *  Not `_create.ts`'s `createProject`, which builds a CATALOG design from a spec and never
  *  drives the wizard - a different job under a name that would read as the same one. */
 async function createFromWizard(page: Page) {
+  await switchToAdvancedMode(page);
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
     await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });

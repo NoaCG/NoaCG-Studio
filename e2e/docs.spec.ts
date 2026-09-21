@@ -200,7 +200,7 @@ test('the artwork guide carries the three facts a picture brings with it', async
 
 // The import walk. Short on purpose: the steps by the names the wizard uses, the two moments a
 // reader would otherwise take for a fault (the canvas locks, a typed change does not air on its
-// own), the Create project trap, and the handoffs.
+// own), the Skip to finish shortcut, and the handoffs.
 test('the import walk keeps its steps, its two surprises and its handoffs', async ({ page }) => {
   await page.goto('/docs');
   const walk = page.locator('#first-graphic');
@@ -214,8 +214,9 @@ test('the import walk keeps its steps, its two surprises and its handoffs', asyn
   await expect(walk).toContainText('Update');
   await expect(walk).toContainText('Add to the production');
   await expect(walk).toContainText('Export it');
-  // The default studio's shortcut past the remaining steps (CreationWizard.tsx `wz-skip`); the
-  // old "Create project" door is Advanced mode only and the walk does not mention it.
+  // The footer shortcut goes to Finish, where both doors save (CreationWizard.tsx). Until
+  // 2026-09-21 it was "Create project", which opened the code editor and saved nothing, and
+  // the walk no longer names that door at all.
   await expect(walk).toContainText('Skip to finish');
   await expect(walk).not.toContainText('Create project');
   for (const href of ['#dashboard', '/app#/new']) {
