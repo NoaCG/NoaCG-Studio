@@ -29,7 +29,7 @@ const BRAND_FONT = 'oswald';
 /** Save a brand the way Home's Brands section does, and point "new graphics" at it. Returns the
  *  record's id. The write is CONFIRMED before the caller reloads - the durable store reports a
  *  refusal after the call returns (model/durableStore.ts). */
-async function seedBrand(page: Page, opts: { logo: boolean }): Promise<string> {
+async function seedBrand(page: Page, opts: { logo: boolean; name?: string }): Promise<string> {
   // HYDRATE FIRST. Every mutator in model/ is a read-modify-WHOLE-RECORD write over the
   // synchronous mirror (model/AGENTS.md), so seeding into a mirror that has not finished
   // hydrating is a write against a list that is not yet the list. Measured 2026-09-06: without
@@ -54,7 +54,7 @@ async function seedBrand(page: Page, opts: { logo: boolean }): Promise<string> {
     setDefaultBrand(look.id);
     await commitDurableWrites();
     return look.id;
-  }, { logo: opts.logo, accent: ACCENT, name: BRAND_NAME, fontId: BRAND_FONT, data: LOGO_DATA_URL });
+  }, { logo: opts.logo, accent: ACCENT, name: opts.name ?? BRAND_NAME, fontId: BRAND_FONT, data: LOGO_DATA_URL });
 }
 
 /** The document the wizard just created, read out of the store. */
@@ -308,7 +308,8 @@ test('the footer stays one line beside the preview when the chooser is offered',
   // the chooser's select is the one thing that gives.
   await page.setViewportSize({ width: 1366, height: 768 });
   await openWizard(page);
-  await seedBrand(page, { logo: false });
+  // A name wider than the select's 180px cap, so the row can only fit if the select gives.
+  await seedBrand(page, { logo: false, name: 'Yleisradio Uutiset ja Ajankohtaiset' });
   await page.reload();
   await toPickedDesign(page);
   await page.locator('.wz-modal').getByRole('button', { name: 'Next' }).click();
@@ -316,24 +317,32 @@ test('the footer stays one line beside the preview when the chooser is offered',
 
   const footer = page.locator('.wz-footer');
   await expect(footer.locator('[data-testid="wz-brand"]')).toBeVisible();
-  const measured = await footer.evaluate((el) => ({
-    height: el.getBoundingClientRect().height,
-    buttons: Array.from(el.querySelectorAll('button')).map((b) => ({
-      text: b.textContent?.trim(),
-      height: b.getBoundingClientRect().height,
-      // A button whose words wrapped is taller than one line; one whose words were clipped
-      // scrolls wider than it is drawn. Neither is allowed.
-      overflows: b.scrollWidth > b.clientWidth + 1,
-    })),
-    select: el.querySelector('select')!.getBoundingClientRect().width,
-  }));
+  const measured = await footer.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    const inner = box.right - parseFloat(style.paddingRight);
+    return {
+      height: box.height,
+      // The row's content fits its box: the last control's right edge sits inside the padding.
+      // A button that is nowrap never overflows ITSELF, so this is the measurement that tells
+      // "the select shrank" from "Next was pushed over the preview".
+      lastRight: Math.max(...Array.from(el.children).map((c) => c.getBoundingClientRect().right)),
+      inner,
+      buttons: Array.from(el.querySelectorAll('button')).map((b) => ({
+        text: b.textContent?.trim(),
+        height: b.getBoundingClientRect().height,
+      })),
+      select: el.querySelector('select')!.getBoundingClientRect().width,
+    };
+  });
   expect(measured.buttons.length).toBeGreaterThanOrEqual(3);
-  for (const b of measured.buttons) {
-    expect(b.height, `${b.text} is one line tall`).toBeLessThan(44);
-    expect(b.overflows, `${b.text} keeps its words`).toBe(false);
-  }
+  // A button whose words wrapped is taller than one line.
+  for (const b of measured.buttons) expect(b.height, `${b.text} is one line tall`).toBeLessThan(44);
   // One row of controls plus the footer's own padding, never a second row.
   expect(measured.height).toBeLessThan(72);
-  // The select shrank to make room but never below the floor that keeps a name readable.
+  expect(measured.lastRight).toBeLessThanOrEqual(measured.inner + 1);
+  // The select gave up room (it would take its 180px cap for this name) but never went below
+  // the floor that keeps a name readable.
+  expect(measured.select).toBeLessThan(180);
   expect(measured.select).toBeGreaterThanOrEqual(72);
 });
