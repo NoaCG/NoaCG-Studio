@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NoaCG docs example - TICKER. Imports as plain text fields.
+     Kicker and Story are one text layer each. The strip runs edge to edge.
+     Full-frame 1920x1080 artboard, transparent background. See https://noacg.studio/docs#tickers -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <style>
+      .kicker { font-family: Archivo; font-weight: 700; letter-spacing: 3px; }
+      .story { font-family: Libre Franklin; font-weight: 600; }
+    </style>
+  </defs>
+
+  <g id="Strip" data-name="Strip">
+    <rect x="0" y="960" width="1920" height="80" fill="#0d1017" opacity="0.96"/>
+    <rect x="0" y="960" width="220" height="80" fill="#f6a623"/>
+  </g>
+
+  <text id="Kicker" data-name="Kicker" class="kicker" x="110" y="1011" font-size="28" fill="#10131a" text-anchor="middle">SPORT</text>
+  <text id="Story" data-name="Story" class="story" x="260" y="1011" font-size="30" fill="#ffffff">United win 3-0 in the cup final</text>
+</svg>

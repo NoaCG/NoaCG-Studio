@@ -3,7 +3,8 @@
 //   node scripts/docs-shots.mjs [--only=<name,name>]   (dev server up)
 //
 // A picture earns its place where a sentence cannot land. "Your layers become fields" is words
-// until somebody sees the layer names sitting in the field list (the SVG guide, shots 1 to 3),
+// until somebody sees the layer names sitting in the field list (the Graphics guide: shots 1 and 2,
+// then one pair per graphic type),
 // and "one value moves every graphic that reads it" is words until somebody sees two scoreboards
 // bound to the same four paths (the worked example, shots 4 to 10).
 //
@@ -271,9 +272,10 @@ async function addInterviewTable(page) {
   await page.waitForTimeout(900);
 }
 
-/** Drop a shipped sample and land on the mapping step. */
+/** Drop a shipped sample (a bare file name) or any file (a full path) and land on the mapping
+ *  step. */
 async function dropSample(page, file) {
-  await page.locator('.wz-drop input[type="file"]').setInputFiles(sample(file));
+  await page.locator('.wz-drop input[type="file"]').setInputFiles(file.includes('/') || file.includes('\\') ? file : sample(file));
   await page.getByTestId('import-svg-card').waitFor();
   await modal(page).getByRole('button', { name: 'Next' }).click();
   await page.getByTestId('map-svg-fields').waitFor();
@@ -306,21 +308,77 @@ await shot('svg-fields', async (page) => {
   return modal(page);
 });
 
-// ── 3. Attaching quiz behaviour to artwork somebody else drew ────────────────
+// ── 3. One pair of pictures per graphic type ────────────────────────────────────────────────────────────────
 //
-// The behaviour panel scrolled into view, captured as the WHOLE STEP rather than as the panel
-// element. The panel is wider than the pane it sits in, so an element grab comes back with
-// every dropdown sliced down its right edge - a picture of a broken product. The step around it
-// also earns its place here: "where do I say this is a quiz?" is a question about a place.
-await shot('svg-behaviour', async (page) => {
-  await openImportDoor(page);
-  await dropSample(page, 'quiz-board.svg');
-  const panel = page.getByTestId('map-svg-behaviour');
-  await panel.waitFor();
-  await panel.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(600);
-  return modal(page);
-});
+// Each type in the Graphics guide (`/docs#scoreboards` and its siblings) has a downloadable
+// example file in public/docs/examples/, named so the wizard recognises it. Two pictures come
+// from each: `type-<id>.png`, the artwork itself as it renders, and `type-<id>-fields.png`, the
+// Fields step one drop later. The docs draw the file's layer panel in HTML beside them.
+//
+// The render loads the SVG into a bare page with the app's own font files, because an SVG shown
+// through <img> cannot load a web font and would publish every example in a fallback face.
+// `crop` is the part of the 1920x1080 frame worth showing: a scorebug in the corner of an empty
+// frame is a picture of nothing.
+//
+// The Fields shot also PRINTS which behaviour the wizard picked. That line is the proof the
+// example teaches what the guide says it teaches: a scoreboard example that lands on "Nothing"
+// is a broken promise, and a PNG cannot say so on its own.
+const example = (name) => join(projectRoot, 'public', 'docs', 'examples', name);
+
+const TYPE_EXAMPLES = [
+  { id: 'scoreboard', crop: [60, 40, 680, 130], behaviour: 'score' },
+  { id: 'quiz', crop: [340, 120, 1240, 840], behaviour: 'quiz' },
+  { id: 'live-vote', crop: [340, 120, 1240, 840], behaviour: 'poll' },
+  { id: 'countdown', crop: [520, 270, 880, 540], behaviour: 'timer' },
+  { id: 'end-credits', crop: [520, 90, 880, 900], behaviour: null },
+  { id: 'ticker', crop: [0, 930, 1100, 140], behaviour: null },
+];
+
+/** The families the examples use, mapped to the woff2 files the app ships in public/fonts. */
+const EXAMPLE_FONTS = {
+  Archivo: 'archivo', Inter: 'inter', 'JetBrains Mono': 'jetbrains-mono', Sora: 'sora',
+  'Space Grotesk': 'space-grotesk', 'Playfair Display': 'playfair-display',
+  'Source Serif 4': 'source-serif-4', 'Libre Franklin': 'libre-franklin',
+};
+
+for (const type of TYPE_EXAMPLES) {
+  await shot(`type-${type.id}`, async (page) => {
+    const [x, y, w, h] = type.crop;
+    const markup = readFileSync(example(`${type.id}.svg`), 'utf8')
+      .replace(/<\?xml[^>]*>/, '')
+      // The crop is the viewBox, so the page shows only that part of the frame, at full size.
+      .replace(/viewBox="[^"]*"/, `viewBox="${x} ${y} ${w} ${h}"`)
+      .replace(/ width="1920" height="1080"/, ' width="100%"');
+    const faces = Object.entries(EXAMPLE_FONTS)
+      .map(([family, file]) => `@font-face{font-family:"${family}";src:url("${base}/fonts/${file}.woff2") format("woff2");font-weight:100 900;}`)
+      .join('');
+    // A mid slate rather than the docs' own near-black, so a dark panel drawn on a transparent
+    // artboard still reads as a panel against it.
+    await page.setContent(
+      `<!doctype html><style>${faces}html,body{margin:0;background:#262d3a}#frame{width:${Math.min(w, 780)}px;line-height:0}</style><div id="frame">${markup}</div>`,
+    );
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(300);
+    return page.locator('#frame');
+  }, VIEWPORT, 2);
+
+  await shot(`type-${type.id}-fields`, async (page) => {
+    await openImportDoor(page);
+    await dropSample(page, example(`${type.id}.svg`));
+    const kind = page.getByTestId('map-svg-behaviour-kind');
+    const picked = (await kind.count()) ? await kind.inputValue() : null;
+    if (type.behaviour && (picked ?? 'none') !== type.behaviour) {
+      throw new Error(`the wizard picked "${picked}" for ${type.id}.svg, the guide promises "${type.behaviour}"`);
+    }
+    console.log(`  ${type.id}.svg -> ${picked || 'no behaviour'}`);
+    if (type.behaviour) {
+      // To the TOP of the panel, so the picked type is the first thing in the shot.
+      await page.getByTestId('map-svg-behaviour').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await page.waitForTimeout(600);
+    }
+    return modal(page);
+  });
+}
 
 // ── 4. The live tree: paths, types, and the values a whole show reads from ───
 await shot('data-tree', async (page) => {

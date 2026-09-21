@@ -59,8 +59,20 @@
         <a href="#getting-started">Getting started</a>
         <p class="group">Make a graphic</p>
         <a href="#graphics">Graphics</a>
-        <a href="#first-graphic">Your first graphic, step by step</a>
-        <a href="#svg">Import your own SVG graphic</a>
+        <!-- The Graphics topic's own pages, indented under it so a reader can go straight to a
+             type (owner, 2026-09-21, replacing the main-topics-only rule of 2026-08-26). -->
+        <div class="doc-nav-sub">
+          <a href="#first-graphic">Import an SVG</a>
+          <a href="#svg">Prepare the file</a>
+          <a href="#svg-layers">Layer names</a>
+          <p class="sub-group">Types</p>
+          <a href="#scoreboards">Scoreboard</a>
+          <a href="#quiz">Quiz</a>
+          <a href="#svg-vote">Live vote</a>
+          <a href="#countdowns">Countdown</a>
+          <a href="#end-credits">End credits</a>
+          <a href="#tickers">Ticker</a>
+        </div>
         <a href="#artwork">Pictures, logos &amp; Lottie</a>
         <p class="group">Connect playout</p>
         <a href="#export">Which package do I want</a>
@@ -101,10 +113,8 @@
               production and <a href="#dashboard">run the show</a>.</li>
           </ol>
           <p>
-            Those three lines are the whole product in outline.
-            <a href="#first-graphic">Your first graphic, step by step</a> is the same road walked
-            slowly, from a file you drew to a cue an operator takes to air, and it is the page to
-            read first if you have a design waiting.
+            Have a design ready? <a href="#first-graphic">Import an SVG</a> walks it from the file
+            to air.
           </p>
           <p>
             The guides below cover the rest: what each kind of graphic asks you to type, bringing
@@ -127,765 +137,580 @@
         </section>
 
         <!-- ═══════════════════════ GRAPHICS ═══════════════════════ -->
+        <!-- One topic: how to import an SVG, then one guide per graphic type. Each type guide is
+             its own nested <section> so the left nav can link to it and docs.ts can highlight it.
+             The example files live in public/docs/examples/ and every picture here comes from
+             `node scripts/docs-shots.mjs`, which also fails when the wizard stops picking the
+             type an example promises. The layer panels are drawn by hand from those files, top
+             of the panel = last element in the file, the way Illustrator lists them. Keep the
+             panel, the file and the "Layer names" list in step. -->
         <section id="graphics">
           <h2>Graphics</h2>
           <p>
-            Every graphic is one <strong>kind</strong> in one <strong>design</strong>. The kind
-            decides what you type and what the operator's buttons do. The design decides how it
-            looks. Changing the design never means retyping the content.
+            Draw your graphic in Illustrator, Figma or Inkscape and import it as an SVG. Every text
+            layer becomes a field the operator can retype. The layer names tell NoaCG what kind of
+            graphic it is, so a scoreboard gets score buttons and a quiz gets quiz buttons.
           </p>
-          <p>
-            Most kinds need no guide. A lower third, a card or a corner bug takes a few plain
-            fields and the wizard shows you all of them at once. The five below ask for their
-            content in a particular shape, so they get one each.
-          </p>
-          <p>
-            These guides name buttons an operator presses. You never draw those buttons. NoaCG
-            generates them from the graphic itself, and they turn up wherever you operate it: the
-            production dashboard, the control page you open on a phone or a second machine, and
-            the operator page inside an exported package.
-          </p>
+          <p>Pick a type to see how to lay it out:</p>
           <ul class="doc-kinds">
-            <li><a href="#scoreboards">Scoreboards</a> - two teams, two scores, and a goal press
-              that moves one of them.</li>
-            <li><a href="#quiz">Quizzes and game shows</a> - a question, the answers, a locked-in
-              pick and the reveal.</li>
-            <li><a href="#end-credits">End credits</a> - the whole roll in one text box.</li>
-            <li><a href="#tickers">Tickers</a> - the whole rundown in one text box.</li>
-            <li><a href="#countdowns">Countdowns and clocks</a> - a length in minutes, not the
-              digits you want on screen.</li>
+            <li><a href="#scoreboards">Scoreboard</a> - two teams and two scores.</li>
+            <li><a href="#quiz">Quiz</a> - a question and two to six answers.</li>
+            <li><a href="#svg-vote">Live vote</a> - options with bars that grow as the audience votes.</li>
+            <li><a href="#countdowns">Countdown</a> - a clock that counts down to zero.</li>
+            <li><a href="#end-credits">End credits</a> - roles and names.</li>
+            <li><a href="#tickers">Ticker</a> - a tag and a story line.</li>
           </ul>
-
-          <h3 id="scoreboards" class="doc-kind">Scoreboards</h3>
           <p>
-            A scoreboard has four fields: <strong>Team A</strong>, <strong>Score A</strong>,
-            <strong>Team B</strong> and <strong>Score B</strong>. Type a new score and the number
-            on air changes. Nothing else moves, and nothing has to be played again.
+            Any other graphic, such as a lower third, needs no special names. Its text layers become
+            fields and that is all.
           </p>
 
-          <h4 id="scoreboards-goal">The goal press moves the score</h4>
-          <p>
-            The operator's buttons are <strong>Goal A</strong>, <strong>Goal B</strong>,
-            <strong>Clear flag</strong> and <strong>Full time</strong>. Goal A raises the goal
-            marker <em>and</em> adds one to Score A on the same press, so there is nothing else to
-            remember while the marker is up. Press it again while the marker is still up and it
-            plays again and adds another. Clear flag takes the marker down and leaves the score
-            where it is.
-          </p>
-          <p>
-            <strong>Full time</strong> marks the result final. It is independent of the goal
-            marker, so a goal and a full-time call cannot get in each other's way.
-          </p>
-          <p>
-            Any figure can still be typed straight in. Correcting a score after the fact changes
-            one number on screen and nothing else. The graphic does not have to be replayed and
-            the goal marker does not move.
-          </p>
+          <section id="first-graphic" class="doc-sub">
+            <h3>Import an SVG</h3>
+            <ol>
+              <li id="first-start">Open <a href="/app#/new">the studio</a> and choose
+                <strong>Import graphic</strong>. No account is needed until you publish a
+                production.</li>
+              <li id="first-format">Set <strong>Project format</strong> first. The default is 16:9,
+                1920&times;1080, 25&nbsp;fps. It locks once your file is in, with the message
+                <em>"Remove the current artwork before changing its authored canvas"</em>.</li>
+              <li>Drop your SVG. NoaCG shows the size, how many text layers it found and which fonts
+                the file uses. If it found fewer text layers than you drew, some text was exported as
+                outlines.</li>
+              <li id="first-fields">Check the <strong>Fields</strong> step. Every ticked layer is a
+                field the operator types into, labelled with your layer name. Rename a label here if
+                you need to. <strong>What it does</strong> shows the type NoaCG found from your layer
+                names. You can change it and pick the layers yourself.</li>
+              <li>Choose how the graphic comes on and goes off in <strong>Animation</strong>.</li>
+              <li id="first-finish">In <strong>Finish</strong>, name the graphic and choose
+                <strong>Add to the production</strong> or <strong>Export it</strong>. Both save it to
+                your library. <strong>Create project</strong> opens the code editor instead, and it
+                does not save.</li>
+            </ol>
+            <figure class="doc-shot">
+              <img src="/docs/svg-drop.png" width="1560" height="1290" loading="lazy"
+                alt="The Import graphic step, with the drop zone and the export settings open beneath it." />
+              <figcaption>
+                <strong>The drop step.</strong> The &#9432; next to "Exporting the SVG" opens the
+                export settings.
+              </figcaption>
+            </figure>
+            <figure class="doc-shot">
+              <img src="/docs/svg-fields.png" width="1680" height="1290" loading="lazy"
+                alt="The Fields step: three text layers listed as operator fields beside a live preview of the imported lower third." />
+              <figcaption>
+                <strong>The Fields step.</strong> Your layer names are the field names the operator
+                reads.
+              </figcaption>
+            </figure>
 
-          <h4 id="scoreboards-designs">The designs</h4>
-          <p>
-            <strong>Match Strip</strong> is the sport strip: team names against big scores with
-            one accent edge. <strong>Quiet Score</strong> is a panel-free corner stack, two rows
-            split by a hairline. <strong>House Score</strong> and <strong>Frost Score</strong> are
-            the house and frosted-glass versions. All four take the same fields and the same
-            buttons.
-          </p>
+            <h4 id="first-air">On air</h4>
+            <p>
+              <strong>Add to the production</strong> takes you to the production with your graphic
+              in the rundown. Press <strong>Take</strong> to put it on air. Type new text, then press
+              <strong>Update</strong> to send it. Until you do, the panel says
+              <em>"1 change not on air yet"</em>. <strong>Out</strong> takes the graphic off. To get
+              the picture into OBS, vMix or CasparCG, see <a href="#dashboard">the playout
+              dashboard</a>.
+            </p>
+          </section>
 
-          <h3 id="quiz" class="doc-kind">Quizzes and game shows</h3>
-          <p>
-            This is the kind a school or student production runs: a question on screen, a
-            contestant picks, the pick is locked, the correct answer is revealed. There are three
-            boards, for two, three and four answers, and they behave identically. More rows means
-            more fields, never more buttons.
-          </p>
+          <section id="svg" class="doc-sub">
+            <h3>Prepare the SVG file</h3>
+            <ul id="svg-rules">
+              <li><strong>Give it a size.</strong> Use a 1920&times;1080 artboard with a transparent
+                background. A smaller artboard imports as a floating object that you place in the
+                wizard.</li>
+              <li><strong>Keep text as text.</strong> Do not convert text to outlines, because
+                outlined text cannot be edited.</li>
+              <li><strong>Name your layers.</strong> The name is the label the operator sees. For
+                the types below it is also how NoaCG finds each part.</li>
+              <li><strong>Embed pictures.</strong> Linked pictures are removed, because an exported
+                graphic has to play without a network.</li>
+              <li><strong>No animation or scripts.</strong> SVG animation, scripts and
+                <code>&lt;foreignObject&gt;</code> are removed. Add motion in the Animation
+                step.</li>
+            </ul>
 
-          <h4 id="quiz-fields">What you type</h4>
-          <p>
-            The <strong>Question</strong>, then <strong>Answer A</strong> to
-            <strong>Answer D</strong> (fewer on the smaller boards). Two more fields belong to the
-            operator rather than the audience: <strong>Correct answer</strong>, set before the
-            show, and <strong>Selected answer</strong>, set as the contestant makes their pick.
-            Typing in either one changes nothing on screen by itself.
-          </p>
+            <h4 id="svg-export">Export settings</h4>
+            <div class="doc-table"><table>
+              <tr><th>App</th><th>Settings</th></tr>
+              <tr><td><strong>Illustrator</strong></td><td><em>File &rarr; Export &rarr; Export As&hellip; &rarr; SVG</em>, not Save As. Font: <strong>SVG</strong> &middot; Images: <strong>Embed</strong> &middot; Object IDs: <strong>Layer Names</strong> &middot; Minify: off.</td></tr>
+              <tr><td><strong>Figma</strong></td><td>Select the frame, <em>Export &rarr; SVG</em>. <strong>Include "id" attribute</strong> on, <strong>Outline text</strong> off.</td></tr>
+              <tr><td><strong>Inkscape</strong></td><td><em>Save As&hellip; &rarr; Plain SVG</em>. Do not run <em>Object to Path</em> on text. Click to place text instead of dragging a text box: a dragged box exports as <code>&lt;flowRoot&gt;</code>, which browsers do not show.</td></tr>
+            </table></div>
 
-          <h4 id="quiz-run">Running it</h4>
-          <ol>
-            <li><strong>Select answer</strong> highlights the pick. Press it again with a different
-              letter as often as the contestant changes their mind.</li>
-            <li><strong>Lock it in</strong> makes the pick final. Select then greys out. The board
-              has no route out of locked except the reveal, so a late selection has nowhere to
-              go.</li>
-            <li><strong>Reveal correct</strong> shows the right answer, and marks the pick and the
-              correct answer differently when they are not the same row.</li>
-            <li><strong>Show audience result</strong> is optional and comes after the verdict. It
-              paints a percentage on every row, read from one field called
-              <strong>Audience results</strong>, written in row order:
-              <code>34 | 52 | 9 | 5</code>.</li>
-          </ol>
+            <h4 id="svg-fonts">Fonts</h4>
+            <p>
+              NoaCG lists every font the file uses. For each one it uses a bundled font, offers the
+              same family from Google Fonts, or takes a font file you upload. The font is embedded in
+              the graphic, so it plays offline. If nothing matches, you get a warning and the graphic
+              uses a fallback font.
+            </p>
+          </section>
 
-          <h4 id="quiz-sealed">Locking a pick nobody has seen yet</h4>
-          <p>
-            A game show usually locks the answer before showing it. Type the letter into
-            <strong>Selected answer</strong> without pressing Select, then press
-            <strong>Lock it in</strong> straight from the question. The board locks with the
-            choice still hidden. <strong>Reveal choice</strong> then shows it as its own beat. Going
-            straight to <strong>Reveal correct</strong> from there is allowed too, because the
-            verdict shows the pick anyway.
-          </p>
+          <section id="svg-layers" class="doc-sub">
+            <h3>Layer names</h3>
+            <h4>How the wizard finds the layers</h4>
+            <ul>
+              <li>It reads the layer names you typed in your design app. Capital letters do not
+                matter.</li>
+              <li>A repeating part is a word and a row: <code>Answer A</code>, <code>Bar 1</code>.
+                The row is one letter or one number, after a space. <code>Bar1</code> has no row and
+                is not found.</li>
+              <li>Layers with the same row belong together. <code>Option 2</code>,
+                <code>Bar 2</code> and <code>Percent 2</code> are all row 2.</li>
+              <li>Give every layer its own name. If two layers are both called <code>Bar</code>, the
+                second one becomes <code>Bar 2</code>.</li>
+              <li>A layer that shows only at one moment, such as <code>A correct</code>, is a
+                <strong>group</strong> that you hide in your design app. A hidden shape on its own is
+                not found, so put it in a group, even a group of one.</li>
+              <li>When the names fit a type, the wizard picks that type in
+                <strong>What it does</strong> and fills in every layer. When a name does not fit,
+                pick that layer from the list yourself.</li>
+            </ul>
 
-          <h4 id="quiz-elsewhere">In a playout system that has no buttons</h4>
-          <p>
-            The board's default path is question, reveal, out. A playout system that only knows how
-            to step forward gets exactly that, with no control page and nothing to configure.
-          </p>
+            <h4>Names for any graphic</h4>
+            <ul>
+              <li><code>static:</code> at the start of a text layer's name, as in
+                <code>static:Heading</code>, keeps the text as drawn. It is not an operator
+                field.</li>
+              <li><code>f:</code> at the start of a picture's name, as in <code>f:Logo</code>, makes
+                it a field the operator can swap. Pictures without it start unticked.</li>
+              <li>Text drawn as a plain number, such as <code>84</code>, becomes a number field with
+                + and &minus; buttons.</li>
+              <li>Text drawn as a time, such as <code>05:00</code>, can become a
+                <a href="#countdowns">countdown</a>.</li>
+              <li>Panels, lines, gradients and masks stay exactly as drawn.</li>
+            </ul>
+            <p>
+              When the operator types more than fits, NoaCG first uses the room in the shape behind
+              the text, then wraps it onto a new line, then makes it smaller. Nothing is cut off.
+            </p>
+          </section>
 
-          <h4 id="quiz-designs">The designs</h4>
-          <p>
-            <strong>Arena Quiz</strong> is the game-show board: a leaning question slab over four
-            lettered answer rows. <strong>House Quiz</strong>, <strong>Frost Quiz</strong> and
-            <strong>Clean Quiz</strong> are the house, frosted and quiet versions of it. The
-            two-answer and three-answer boards carry four matching designs each, named Split and
-            Triple.
-          </p>
+          <!-- ── SCOREBOARD ── -->
+          <section id="scoreboards" class="doc-type">
+            <h3 class="doc-kind">Scoreboard</h3>
+            <p>Two team names and two scores. The operator adds a point with one press.</p>
+            <figure class="doc-shot">
+              <img src="/docs/type-scoreboard.png" width="1360" height="260" loading="lazy"
+                alt="The example scoreboard: OTAVA 2, KARHUT 1 on a dark bar with an amber edge." />
+              <figcaption>
+                <strong>The example file.</strong>
+                <a href="/docs/examples/scoreboard.svg" download>Download scoreboard.svg</a>
+              </figcaption>
+            </figure>
+            <div class="doc-example">
+              <figure class="layers" aria-label="The layers of scoreboard.svg">
+                <figcaption>Layers</figcaption>
+                <ul>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Team B</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Score B</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Score A</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Team A</b></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Full time</b><em class="tag">hidden</em></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Goal B</b><em class="tag">hidden</em></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Goal A</b><em class="tag">hidden</em></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Board</b></span></li>
+                </ul>
+              </figure>
+              <div>
+                <h4>Layer names</h4>
+                <ul>
+                  <li><code>Team A</code> and <code>Team B</code>: text. Required.</li>
+                  <li><code>Score A</code> and <code>Score B</code>: text, drawn as a plain number
+                    such as <code>2</code>. Required.</li>
+                  <li><code>Goal A</code> and <code>Goal B</code>: hidden group. Shows when that team
+                    scores. Optional.</li>
+                  <li><code>Full time</code>: hidden group. Shows at the end of the game.
+                    Optional.</li>
+                </ul>
+                <p>
+                  Numbers work instead of letters: <code>Team 1</code>, <code>Score 1</code>. Up to
+                  eight teams.
+                </p>
+              </div>
+            </div>
+            <h4 id="scoreboards-goal">Buttons</h4>
+            <ul>
+              <li><strong>+1</strong> and <strong>&minus;1</strong> for each team. +1 also shows
+                that team's <code>Goal</code> layer.</li>
+              <li><strong>Clear flash</strong> hides the <code>Goal</code> layer again.</li>
+              <li><strong>Full time</strong> shows the <code>Full time</code> layer.</li>
+              <li><strong>New game</strong> sets every score to 0.</li>
+            </ul>
+            <p>The operator can also type any score straight into its field.</p>
+            <figure class="doc-shot">
+              <img src="/docs/type-scoreboard-fields.png" width="1680" height="1290" loading="lazy"
+                alt="The Fields step for scoreboard.svg, with Score tracker picked under What it does." />
+              <figcaption>
+                <strong>After the drop.</strong> The wizard picks Score tracker from the layer names.
+              </figcaption>
+            </figure>
+          </section>
 
-          <h3 id="end-credits" class="doc-kind">End credits</h3>
-          <p>
-            A credit roll is a list of people, and a list of people is not a list of fields. Every
-            end-credits design has <strong>one</strong> field for the whole roll. It is a text box
-            you paste into, in the studio, on the production dashboard, or later in whatever plays
-            it out. A show with five camera operators does not add five fields to the template.
-          </p>
-          <p>
-            One text box still has to tell a <strong>role</strong> apart from a
-            <strong>person</strong>, because that is the only distinction a credit roll is made
-            of. There is one mark to learn.
-          </p>
+          <!-- ── QUIZ ── -->
+          <section id="quiz" class="doc-type">
+            <h3 class="doc-kind">Quiz</h3>
+            <p>
+              A question and two to six answers. The operator selects an answer, locks it in and
+              reveals the correct one.
+            </p>
+            <figure class="doc-shot">
+              <img src="/docs/type-quiz.png" width="1560" height="1058" loading="lazy"
+                alt="The example quiz board: a question over four lettered answer rows." />
+              <figcaption>
+                <strong>The example file.</strong>
+                <a href="/docs/examples/quiz.svg" download>Download quiz.svg</a>
+              </figcaption>
+            </figure>
+            <div class="doc-example">
+              <figure class="layers" aria-label="The layers of quiz.svg">
+                <figcaption>Layers</figcaption>
+                <ul>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer D</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer C</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer B</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer A</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Question</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Letters</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Letter D</b></span></li>
+                      <li class="more"><span class="lyr">static:Letter C, B, A</span></li>
+                    </ul>
+                  </li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Locked</b><em class="tag">hidden</em></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">D wrong</b><em class="tag">hidden</em></span></li>
+                  <li class="more"><span class="lyr">8 more: D correct to B selected</span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">A wrong</b><em class="tag">hidden</em></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">A correct</b><em class="tag">hidden</em></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">A selected</b><em class="tag">hidden</em></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Rows</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Board</b></span></li>
+                </ul>
+              </figure>
+              <div>
+                <h4 id="quiz-fields">Layer names</h4>
+                <ul>
+                  <li><code>Question</code>: text. Required.</li>
+                  <li><code>Answer A</code>, <code>Answer B</code> and on to <code>Answer F</code>:
+                    text. At least two. Required.</li>
+                  <li><code>A selected</code>: hidden group. Shows on the answer the operator
+                    picks. Optional.</li>
+                  <li><code>A correct</code>: hidden group. Shows on the correct answer at the
+                    reveal. Optional.</li>
+                  <li><code>A wrong</code>: hidden group. Shows on every other answer at the
+                    reveal. Optional.</li>
+                  <li><code>Locked</code>: hidden group. Shows once the answer is locked in.
+                    Optional.</li>
+                </ul>
+                <p>
+                  Draw the same three for every answer: <code>B selected</code>,
+                  <code>B correct</code> and so on. A moment you do not draw gets NoaCG's own
+                  highlight.
+                </p>
+              </div>
+            </div>
+            <h4 id="quiz-run">Buttons</h4>
+            <ol>
+              <li>Set <strong>Correct answer</strong> before the show. It changes nothing on
+                screen.</li>
+              <li><strong>Select answer</strong> highlights the letter in
+                <strong>Selected answer</strong>. Press it again with another letter to change the
+                pick.</li>
+              <li><strong>Lock it in</strong> makes the pick final.</li>
+              <li><strong>Reveal correct</strong> shows the right answer.</li>
+            </ol>
+            <figure class="doc-shot">
+              <img src="/docs/type-quiz-fields.png" width="1680" height="1290" loading="lazy"
+                alt="The Fields step for quiz.svg, with Quiz picked and each answer's selected, correct and wrong layers filled in." />
+              <figcaption>
+                <strong>After the drop.</strong> The wizard picks Quiz and fills in the hidden layers
+                for each answer.
+              </figcaption>
+            </figure>
+          </section>
 
-          <h4 id="credits-colon">A colon ends a role. Everything else is a name.</h4>
-          <pre><code>Director: Alex Rivera</code></pre>
-          <p>
-            A role with more than one person puts the colon at the end of its own line, and the
-            people follow beneath it, for as long as no new role appears:
-          </p>
-          <pre><code>Camera Operators:
+          <!-- ── LIVE VOTE ── -->
+          <section id="svg-vote" class="doc-type">
+            <h3 class="doc-kind">Live vote</h3>
+            <p>
+              The audience votes on their phones at your <a href="#audience">join link</a>, and the
+              bars grow with the count.
+            </p>
+            <figure class="doc-shot">
+              <img src="/docs/type-live-vote.png" width="1560" height="1058" loading="lazy"
+                alt="The example vote board: a question over three options, each with an amber bar and a percentage." />
+              <figcaption>
+                <strong>The example file.</strong>
+                <a href="/docs/examples/live-vote.svg" download>Download live-vote.svg</a>
+              </figcaption>
+            </figure>
+            <div class="doc-example">
+              <figure class="layers" aria-label="The layers of live-vote.svg">
+                <figcaption>Layers</figcaption>
+                <ul>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Total votes</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Percent 3</b></span></li>
+                  <li class="more"><span class="lyr">Percent 2, Percent 1</span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Option 3</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Option 2</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Option 1</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Question</b></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Vote badge</b><em class="tag">hidden</em></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Winner 3</b><em class="tag">hidden</em></span></li>
+                  <li class="more"><span class="lyr">Winner 2, Winner 1</span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Bar 3</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Bar 2</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Bar 1</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Tracks</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Board</b></span></li>
+                </ul>
+              </figure>
+              <div>
+                <h4>Layer names</h4>
+                <ul>
+                  <li><code>Option 1</code>, <code>Option 2</code> and on to <code>Option 8</code>:
+                    text. At least two. Required. The vote writes each option's wording here.</li>
+                  <li><code>Bar 1</code>, <code>Bar 2</code> and so on: a rectangle drawn at full
+                    length. Full length is 100%. Required.</li>
+                  <li><code>Question</code>: text. Optional.</li>
+                  <li><code>Percent 1</code> and so on: text. Shows that option's share.
+                    Optional.</li>
+                  <li><code>Winner 1</code> and so on: hidden group. Shows on the winning row.
+                    Optional.</li>
+                  <li><code>Total votes</code>: text. Optional.</li>
+                  <li><code>Vote badge</code>: hidden group. Shows while voting is open.
+                    Optional.</li>
+                </ul>
+                <p>
+                  The <code>Bar</code> layers are what make the wizard pick Live vote. A bar grows
+                  from its left edge. Draw it as a plain rectangle with square ends, because other
+                  shapes are stretched. Draw the empty track behind it as its own layer and do not
+                  call it Bar.
+                </p>
+              </div>
+            </div>
+            <h4>Buttons</h4>
+            <ul>
+              <li><strong>Close voting</strong> stops the vote.</li>
+              <li><strong>Show result</strong> shows the final figures.</li>
+              <li><strong>Call the winner</strong> shows the <code>Winner</code> layer on the row
+                that won.</li>
+            </ul>
+            <p>
+              You open the vote itself on the production's <a href="#audience">Audience tab</a>. The
+              counts reach the graphic as a cue that you still take to air.
+            </p>
+            <figure class="doc-shot">
+              <img src="/docs/type-live-vote-fields.png" width="1680" height="1290" loading="lazy"
+                alt="The Fields step for live-vote.svg, with Live vote picked and each option's bar, percent and winner layers filled in." />
+              <figcaption>
+                <strong>After the drop.</strong> The wizard picks Live vote and pairs each option
+                with its bar.
+              </figcaption>
+            </figure>
+          </section>
+
+          <!-- ── COUNTDOWN ── -->
+          <section id="countdowns" class="doc-type">
+            <h3 class="doc-kind">Countdown</h3>
+            <p>A clock that counts down to zero. The operator sets the length in minutes.</p>
+            <figure class="doc-shot">
+              <img src="/docs/type-countdown.png" width="1560" height="958" loading="lazy"
+                alt="The example countdown card: NIGHT SIGNAL, STARTING IN, 05:00 in large amber digits over a thin bar." />
+              <figcaption>
+                <strong>The example file.</strong>
+                <a href="/docs/examples/countdown.svg" download>Download countdown.svg</a>
+              </figcaption>
+            </figure>
+            <div class="doc-example">
+              <figure class="layers" aria-label="The layers of countdown.svg">
+                <figcaption>Layers</figcaption>
+                <ul>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Time up</b><em class="tag">hidden</em></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Countdown</b><em class="tag">05:00</em></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Status</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">Show title</b></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Paused</b><em class="tag">hidden</em></span></li>
+                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Warning</b><em class="tag">hidden</em></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Time bar</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Card</b></span></li>
+                </ul>
+              </figure>
+              <div>
+                <h4>Layer names</h4>
+                <ul>
+                  <li>One text layer drawn as a time, such as <code>05:00</code>. Any name.
+                    Required. Keep it the only text in the file shaped like a time.</li>
+                  <li><code>Time bar</code>: a rectangle. It shrinks as the time runs out.
+                    Optional.</li>
+                  <li><code>Warning</code>: hidden group. Shows in the last 10 seconds.
+                    Optional.</li>
+                  <li><code>Paused</code>: hidden group. Shows while the clock is paused.
+                    Optional.</li>
+                  <li><code>Time up</code>: hidden group. Shows at zero. Optional.</li>
+                </ul>
+                <p>
+                  The wizard picks Countdown when the file has the time layer and at least one of
+                  the four named layers. With only the time layer, choose Countdown in
+                  <strong>What it does</strong> yourself.
+                </p>
+              </div>
+            </div>
+            <h4 id="countdowns-length">The length</h4>
+            <ul>
+              <li>The operator types the length in minutes. <code>3</code> is three minutes and
+                <code>0.5</code> is thirty seconds.</li>
+              <li>Do not type the time you want on screen. <code>2:30</code> is two minutes, not two
+                and a half.</li>
+              <li>An empty field, or 0, counts five minutes.</li>
+            </ul>
+            <h4 id="countdowns-run">Buttons</h4>
+            <ul>
+              <li><strong>Take</strong> starts the count from the full length.</li>
+              <li><strong>Pause</strong> holds the count and <strong>Start</strong> carries on from
+                there.</li>
+              <li><strong>Reset</strong> goes back to the full length.</li>
+              <li><strong>Warn at (seconds)</strong> is a field that sets when
+                <code>Warning</code> shows.</li>
+            </ul>
+            <figure class="doc-shot">
+              <img src="/docs/type-countdown-fields.png" width="1680" height="1290" loading="lazy"
+                alt="The Fields step for countdown.svg, with Countdown picked and the time bar, warning, paused and time up layers filled in." />
+              <figcaption>
+                <strong>After the drop.</strong> The wizard picks Countdown and the 05:00 layer
+                becomes the clock.
+              </figcaption>
+            </figure>
+          </section>
+
+          <!-- ── END CREDITS ── -->
+          <section id="end-credits" class="doc-type">
+            <h3 class="doc-kind">End credits</h3>
+            <p>Roles and names. Each name is a field the operator can retype.</p>
+            <figure class="doc-shot tall">
+              <img src="/docs/type-end-credits.png" width="1560" height="1596" loading="lazy"
+                alt="The example credits card: Production team, then Director, Producer, Camera and Sound, each with a name." />
+              <figcaption>
+                <strong>The example file.</strong>
+                <a href="/docs/examples/end-credits.svg" download>Download end-credits.svg</a>
+              </figcaption>
+            </figure>
+            <div class="doc-example">
+              <figure class="layers" aria-label="The layers of end-credits.svg">
+                <figcaption>Layers</figcaption>
+                <ul>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Sound name</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Sound</b></span></li>
+                  <li class="more"><span class="lyr">Camera, Producer: the same</span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Director name</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Director</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Heading</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Card</b></span></li>
+                </ul>
+              </figure>
+              <div>
+                <h4>Layer names</h4>
+                <ul>
+                  <li>One text layer per name, named after its role: <code>Director name</code>.
+                    Each one is a field.</li>
+                  <li>The role labels start with <code>static:</code>, as in
+                    <code>static:Director</code>, so they stay as drawn.</li>
+                  <li><code>Heading</code>: text. Optional.</li>
+                </ul>
+                <p>
+                  None of these names is special. They are there so the operator knows which field
+                  is which.
+                </p>
+              </div>
+            </div>
+            <figure class="doc-shot">
+              <img src="/docs/type-end-credits-fields.png" width="1680" height="1290" loading="lazy"
+                alt="The Fields step for end-credits.svg: the heading and the four names ticked as fields, the static role labels left out." />
+              <figcaption>
+                <strong>After the drop.</strong> The names are fields. The <code>static:</code> role
+                labels are left out.
+              </figcaption>
+            </figure>
+            <h4 id="credits-colon">A scrolling roll</h4>
+            <p>
+              An imported credits graphic has a fixed number of lines and does not scroll. For a
+              scrolling roll of any length, start from a credits design in the catalog instead. It
+              has one text box for the whole roll, written like this:
+            </p>
+            <pre><code>Director: Alex Rivera
+
+Camera Operators:
 Jonas Berg
-Lena Fors
-Petri Salo</code></pre>
-          <p>
-            You type it the way you would write it on paper, instead of repeating the word
-            <em>Camera</em> on five lines.
-          </p>
+Lena Fors</code></pre>
+            <ul id="credits-rules">
+              <li>A colon ends a role. Everything else is a name.</li>
+              <li>Put a role and its name on one line, or put the role on its own line with the
+                names under it.</li>
+              <li>A blank line starts a new section. <code>#&nbsp;PRODUCTION</code> is a department
+                heading.</li>
+              <li>A tab works in place of the colon, so a paste from a spreadsheet works.</li>
+            </ul>
+          </section>
 
-          <h4 id="credits-rules">The marks</h4>
-          <ul>
-            <li><code>Director:</code> marks a role. Every line under it is one of its names.</li>
-            <li><code>Director: Alex Rivera</code> is the same, inline, for a role with one
-              person.</li>
-            <li><code>Director</code> TAB <code>Alex Rivera</code> is the same. This is what a
-              paste from a Google Doc table or a spreadsheet column looks like.</li>
-            <li><code>Director | Alex Rivera</code> is the same, with the older separator.
-              Existing lists keep working.</li>
-            <li><code>Alex Rivera</code> is a name. It joins the role above it, or stands on its
-              own if there is none.</li>
-            <li><code>#&nbsp;PRODUCTION</code> is a department heading, above a run of roles.</li>
-            <li>A blank line starts a new section.</li>
-            <li>The text before a colon has to be 48 characters or shorter to be read as a role.
-              A longer line is a name, so a sentence that happens to contain a colon is not turned
-              into a job title.</li>
-          </ul>
-          <p>
-            A <strong>semicolon works everywhere a colon does</strong>, because that is the mark
-            some other template systems use.
-          </p>
-          <p>
-            <strong>Nothing is required.</strong> Paste a bare list with no marks at all and every
-            line is read as a name, which gives a clean column of names. A line is never promoted
-            to a heading because of where it sits, so a roll can end on "Special thanks to
-            everyone who made this show possible" without that line being set in accent capitals.
-          </p>
-
-          <h4 id="credits-designs">The same text in any design</h4>
-          <p>
-            The format marks roles and names; the design decides the arrangement. Switching design
-            does not mean retyping the credits. <strong>Classic Roll</strong> gives centred blocks
-            with the role over its names. <strong>Column Roll</strong> puts the role right-aligned
-            in a left column with its names stacked in the right. <strong>Programme Roll</strong>
-            sets it as serif leader rows on paper. Walls, donor boards, sponsor crawls and
-            schedules in the same category read the same text.
-          </p>
-          <p>
-            Classic Roll adds one choice in the wizard's <strong>Style</strong> step,
-            <strong>Emphasis</strong>. <em>Role</em> (the default) sets the role big and bold with
-            its names quieter beneath it. Use it when a role credits several people.
-            <em>Name</em> sets the name big with the role as a small label above it. That is the
-            film convention. Use it when nearly every role has one person.
-          </p>
-
-          <h3 id="tickers" class="doc-kind">Tickers</h3>
-          <p>
-            A ticker is a rundown of stories, and it works the way the credit roll above does.
-            <strong>One</strong> field holds the whole rundown, whether you type it in the studio,
-            on the production dashboard, or later in whatever plays it out. Adding a story never
-            adds a field.
-          </p>
-          <p>
-            A ticker item has two parts. The <strong>kicker</strong> is the tag a story is filed
-            under, and the rest of the line is the <strong>story</strong>. Same shape as the credit
-            roll, and the same mark, on purpose.
-          </p>
-
-          <h4 id="tickers-colon">A colon ends a kicker. Everything else is the story.</h4>
-          <pre><code>SPORT: United win 3-0</code></pre>
-          <p>
-            A desk with several stories puts the colon at the end of its own line, and the
-            stories follow beneath it - until a blank line or the next kicker:
-          </p>
-          <pre><code>SPORT:
-United win 3-0
+          <!-- ── TICKER ── -->
+          <section id="tickers" class="doc-type">
+            <h3 class="doc-kind">Ticker</h3>
+            <p>A tag and a story line along the bottom of the screen.</p>
+            <figure class="doc-shot">
+              <img src="/docs/type-ticker.png" width="1560" height="200" loading="lazy"
+                alt="The example ticker: an amber SPORT tag and the story United win 3-0 in the cup final." />
+              <figcaption>
+                <strong>The example file.</strong>
+                <a href="/docs/examples/ticker.svg" download>Download ticker.svg</a>
+              </figcaption>
+            </figure>
+            <div class="doc-example">
+              <figure class="layers" aria-label="The layers of ticker.svg">
+                <figcaption>Layers</figcaption>
+                <ul>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Story</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Kicker</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Strip</b></span></li>
+                </ul>
+              </figure>
+              <div>
+                <h4>Layer names</h4>
+                <ul>
+                  <li><code>Kicker</code>: text. The tag, such as <code>SPORT</code>.</li>
+                  <li><code>Story</code>: text. The headline.</li>
+                </ul>
+                <p>Neither name is special. Both are fields.</p>
+              </div>
+            </div>
+            <figure class="doc-shot">
+              <img src="/docs/type-ticker-fields.png" width="1680" height="1290" loading="lazy"
+                alt="The Fields step for ticker.svg: Kicker and Story ticked as the two operator fields." />
+              <figcaption>
+                <strong>After the drop.</strong> Kicker and Story are the two fields.
+              </figcaption>
+            </figure>
+            <h4 id="tickers-colon">A crawl</h4>
+            <p>
+              An imported ticker shows one story and does not move. For a crawl or a rundown of
+              several stories, start from a ticker design in the catalog instead. It has one text
+              box for the whole rundown:
+            </p>
+            <pre><code>SPORT: United win 3-0
+SPORT:
 City held at home
-Rovers sign a goalkeeper</code></pre>
+Rovers sign a goalkeeper
 
-          <h4 id="tickers-rules">The complete set</h4>
-          <ul>
-            <li><code>SPORT: United win 3-0</code> - one story, tagged <em>SPORT</em>.</li>
-            <li><code>SPORT:</code> - a kicker; every line under it carries it.</li>
-            <li><code>SPORT</code> TAB <code>United win 3-0</code> - the same as the first, which
-              is what a paste from a spreadsheet column gives you.</li>
-            <li><code>Storm warning issued</code> - a plain story, with no tag at all.</li>
-            <li>A blank line closes the open kicker.</li>
-          </ul>
-          <p>
-            A <strong>semicolon works everywhere a colon does</strong>. And
-            <strong>nothing is required</strong>: a rundown typed with no marks at all is a plain
-            list of stories, exactly as tickers read before kickers existed.
-          </p>
-
-          <h4 id="tickers-numbers">Scores, clocks and links are safe</h4>
-          <p>
-            The colon has to be <strong>followed by a space</strong>, or end the line. That is
-            what keeps a ticker's own numbers out of it:
-          </p>
-          <pre><code>NORTHERN UNITED 2:1 CITY ROVERS
-Polling stations close at 20:00
-Full results at https://example.org</code></pre>
-          <p>
-            None of those is a kicker, and <code>TRAVEL: the 20:45 service is cancelled</code> is
-            read the way you meant it. One more difference from end credits: a
-            <code>|</code> is <em>not</em> a separator in a ticker, because Bilingual Crawl
-            already splits an item at it into its two languages.
-          </p>
-
-          <h4 id="tickers-designs">The same rundown in any design</h4>
-          <p>
-            The format says what the content <em>is</em> and leaves the arrangement to the design,
-            so switching design does not mean retyping the rundown. Every ticker draws a kicker in
-            the accent colour ahead of its story, and a design that wants it somewhere else places
-            it there. <strong>Status Rotator</strong> shows one service at a time and puts the
-            kicker in a fixed-width column, so the name starts in the same spot on every beat and
-            your eye stops re-reading it.
-          </p>
-
-          <h3 id="countdowns" class="doc-kind">Countdowns and clocks</h3>
-          <p>
-            A countdown does not take a line of text. It takes a <strong>length</strong>, and it
-            works out the numbers on screen from that. The field is called
-            <strong>Timer (minutes)</strong> on a countdown and
-            <strong>Countdown (minutes)</strong> on a holding screen, which is the same clock with
-            the show's name above it. Both are covered here, because the clock is the part that
-            behaves in a way nobody would guess.
-          </p>
-
-          <h4 id="countdowns-length">What you type is a length</h4>
-          <p>
-            Whole minutes. <code>3</code> is three minutes. Decimals work, so <code>0.5</code> is
-            thirty seconds and <code>1.5</code> is a minute and a half. The clock paints
-            <code>M:SS</code>, and <code>H:MM:SS</code> once there is an hour or more to wait.
-          </p>
-          <p>
-            Do not type the digits you want on screen. Reading stops at a colon, so
-            <code>2:30</code> is two minutes, not two and a half. A field left empty, or holding
-            zero or something that is not a number at all, counts five minutes rather than
-            nothing.
-          </p>
-
-          <h4 id="countdowns-hidden">The length is never on screen</h4>
-          <p>
-            A bare <code>3</code> painted over a graphic tells an audience nothing, so the number
-            you type lives in a holder the design keeps hidden. The operator fills it in like any
-            other field and the clock reads it from there. That is why a countdown appears to have
-            a field with nowhere to go on the artwork. It has, and that is the field.
-          </p>
-          <p>
-            If you work in the code: the holder is a <code>div</code> carrying
-            <code>class="noacg-data-source"</code>, and that class is the only thing that should
-            hide it. An inline <code>style="display:none"</code> is wiped when the graphic is
-            reset to its resting state, and the raw number then shows on the canvas.
-          </p>
-
-          <h4 id="countdowns-run">Running it</h4>
-          <p>
-            Taking the graphic on air starts the count at the full length. Taking it off stops it.
-            At zero the clock stops itself and the design switches to the look it was drawn with
-            for time being up. It never runs past zero and never shows a negative number.
-          </p>
-          <p>
-            <strong>Change the length while it is on air.</strong> Type a new number, press
-            Update, and the count re-anchors to it at once, running or not. Nothing replays and
-            nothing else moves. An Update that carries a new title and the same length leaves the
-            count exactly where it is, so correcting a typo mid-hold does not restart the clock.
-          </p>
-          <p>
-            <strong>Pause clock</strong> and <strong>Resume clock</strong> hold the count and pick
-            it up from where it stopped. That is not the same as taking the graphic out and back
-            in, which starts again from the full length.
-          </p>
-
-          <h4 id="countdowns-start-time">Counting to a time on the wall</h4>
-          <p>
-            Some holding screens carry a second field, <strong>Start time (HH:MM, optional)</strong>.
-            Fill it in and it wins over the length: the screen counts to that time however long it
-            has already been up, so the number agrees with the clock in the room. Leave it empty
-            and the length is used instead, which is what makes it optional.
-          </p>
-          <p>
-            It is 24-hour, so half past seven in the evening is <code>19:30</code>. A time that has
-            already gone by today counts to tomorrow, so a screen holding at 23:50 for a
-            <code>00:15</code> start shows twenty-five minutes rather than a negative number.
-            Anything that is not a time, <code>25:99</code> included, is ignored and the length is
-            used.
-          </p>
-
-          <h4 id="countdowns-other">Clocks that are not countdowns</h4>
-          <p>
-            A <strong>scorebug</strong> works the other way round. Its clock is a field you can see,
-            you type a time into it (<code>43:12</code>) to correct a drift, and whether it counts
-            up or down was decided by the design, not by the operator. Football counts up, hockey
-            and basketball count down. The buttons are <strong>Start clock</strong>,
-            <strong>Stop clock</strong> and <strong>Reset to period start</strong>, and the reset
-            returns to the period's own starting value rather than to zero.
-          </p>
-          <p>
-            The <strong>speaking timer</strong> runs two clocks, one per side, and only one of them
-            at a time. <strong>Switch speaker</strong> passes the floor and stops the other clock on
-            the same press. <strong>Speaking time each</strong> is the allowance both clocks reset
-            to, and it is on screen on purpose, so nobody has to be told what
-            <strong>Reset clocks</strong> will do. <strong>Penalty (seconds)</strong> is a hidden
-            input-only field of exactly the same shape as a countdown's length: it says how many
-            seconds one press of <strong>Penalty</strong> docks from whoever is speaking.
-          </p>
-
-          <h4 id="countdowns-designs">The designs</h4>
-          <p>
-            <strong>Clean Clock</strong> is a quiet label over big tabular digits.
-            <strong>Power Clock</strong> is the corner slab that flips to the accent and flashes at
-            zero. <strong>House Countdown</strong> and <strong>Frost Countdown</strong> are the
-            house and frosted-glass versions. Those four carry the pause. So do the holding screens
-            <strong>Quiet Hold</strong>, <strong>Volt Hold</strong>, <strong>Frost Hold</strong> and
-            <strong>House Hold</strong>. The other clocks in the catalog run from the take to zero
-            without one, which is all a break card needs.
-          </p>
-          <p>
-            <strong>Countdown to Start</strong> and the other screens that carry a start time are
-            the ones to pick when you know the hour the show begins. <strong>Please Stand By</strong>,
-            the screen for a technical problem, deliberately has no clock on it at all: a wrong
-            promise on air is worse than no promise.
-          </p>
-        </section>
-
-        <!-- ═══════════════════════ THE WALK ═══════════════════════ -->
-        <!-- Written by walking the road on 2026-09-09 with an SVG drawn for the walk, from the
-             Import door to a cue taken to air on a production dashboard. Every quoted string
-             below was read off the running app that day, not off a plan document. Re-walk it
-             before editing: the wizard's step rail and the Finish doors have both changed
-             shape since the first draft of this page. -->
-        <section id="first-graphic">
-          <h2>Your first graphic, step by step</h2>
-          <p>
-            Import your SVG and take it to air. No account is needed until you publish a
-            production.
-          </p>
-          <p>
-            An SVG brings text in as editable fields for the operator. For images, see
-            <a href="#artwork">pictures, logos and Lottie</a>. Check the
-            <a href="#svg-rules">SVG rules</a> before exporting.
-          </p>
-          <p>
-            Where to start: <a href="/app#/new">the studio</a> &rarr;
-            <strong>Import graphic</strong>.
-          </p>
-          <div class="doc-table"><table>
-            <tr><th>Step</th><th>The one thing it asks</th></tr>
-            <tr><td>1. Start</td><td>Which door you came in. Import graphic.</td></tr>
-            <tr><td>2. Design</td><td>The canvas, then your file.</td></tr>
-            <tr><td>3. Fields</td><td>Which layers the operator retypes, and what the graphic does.</td></tr>
-            <tr><td>4. Animation</td><td>How it comes on and goes off.</td></tr>
-            <tr><td>5. Finish</td><td>Its name, and where it goes.</td></tr>
-          </table></div>
-          <p>
-            Dropping an SVG changes the step rail from six steps to five: <strong>Prepare</strong>
-            and <strong>Text</strong> are replaced by <strong>Fields</strong>. An SVG has nothing
-            to erase, so those steps merge and later steps renumber.
-          </p>
-
-          <h3 id="first-format">Set the canvas before you drop the file</h3>
-          <p>
-            The Design step opens on <strong>Project format</strong>: aspect ratio, resolution and
-            frame rate, starting at 16:9, 1920&times;1080, 25&nbsp;fps. Change it first if you need
-            something else. Once artwork is in, that row reads
-            <em>"Remove the current artwork before changing its authored canvas"</em>, so a vertical
-            graphic means picking 9:16 before the drop rather than after it.
-          </p>
-          <p>
-            Drop the file and the step reads back what it found: the artwork's size, how many text
-            layers it saw, and every typeface the file names. Check the layer count against what
-            you drew. A number lower than yours means some of that type is outlines rather than
-            text. Re-exporting with live text is the better answer, and it is
-            <a href="#svg-rules">rule 2</a>. If you cannot, the next step offers those shapes back
-            as an <strong>Outlined text</strong> group;
-            <a href="#svg-layers">what each layer becomes</a> says what you get for ticking one.
-          </p>
-
-          <h3 id="first-fields">Fields is where the graphic is decided</h3>
-          <p>
-            This is the step that turns a drawing into something an operator can drive. Every group
-            writes its current answer beside its own heading, so you can read the whole step without
-            opening anything. A group appears only when your file has something for it, so a file
-            carrying a logo or outlined type shows more groups than the five below.
-          </p>
-          <ul>
-            <li><strong>Editable text.</strong> One row per text layer, ticked, apart from any
-              layer you named with a <code>static:</code> prefix to say the words are furniture. A
-              row carries the layer's name, the words you drew, and a small grid saying how the
-              text sits in its box. The name is the label the operator reads, so it is worth fixing
-              here if your file said "Rectangle_3". The words are what the field starts as, not a
-              caption. Untick a row and that layer goes back to being part of the drawing.</li>
-            <li><strong>Add a field.</strong> Draws a new box on the artwork, for a line you did
-              not draw as live text.</li>
-            <li><strong>What it does.</strong> The default is "Nothing. It comes on and off." The
-              rest of the list is the behaviours NoaCG's own graphics run on, offered on your
-              artwork instead: a quiz, a live vote, a score tracker, a countdown, a meter, an
-              alert. See <a href="#behaviour">graphics with behaviour</a>.</li>
-            <li><strong>When the text is too long.</strong> Four answers, from "the panel gets
-              wider" to "the panel stays the size you drew". NoaCG reads one off your geometry and
-              tells you which shape it picked, by the name you gave that layer
-              (<em>"Backplate is the shape that grows"</em>). That sentence is the reason to name
-              the panel as well as the text.</li>
-            <li><strong>Typefaces.</strong> One row per family the file asks for, each with what
-              NoaCG can do about it. <a href="#svg-fonts">Fonts</a> covers what the answers
-              mean.</li>
-          </ul>
-          <p>
-            The alignment grid matters more than it looks. It is read from your drawing, and it
-            decides which edge holds still when the operator's words are a different length from
-            the ones you typed.
-          </p>
-
-          <h3 id="first-finish">Finish, and the two doors</h3>
-          <p>
-            Finish has two name boxes and they are not the same box. The first names the graphic.
-            The second names a new production, and it only appears while the production picker is
-            on <strong>New production</strong>. Leave both empty and both take the same default
-            name, which is confusing a week later.
-          </p>
-          <ul>
-            <li><strong>Add to the production.</strong> Saves the graphic to your library, puts a
-              copy into the production with its first cue ready, and lands you on that production.
-              A dialog names the production it is about to write to before anything happens.</li>
-            <li><strong>Export it.</strong> The files on their own, saved to your library first.
-              <a href="#export">Which package do I want</a> is the next question.</li>
-          </ul>
-          <p>
-            A third door, <strong>Open in the editor</strong>, appears here only when
-            <strong>Advanced mode</strong> is on in Settings. Nothing on this road needs it.
-          </p>
-          <p>
-            <strong>Create project</strong>, which sits beside Next from the Design step on, is not
-            a fourth ending. It builds the graphic with the defaults for everything you have not
-            reached and hands it to the code editor, and it does not save. Saving there is your own
-            press. Take Finish's doors unless you know you want the canvas.
-          </p>
-
-          <h3 id="first-air">Take it to air</h3>
-          <p>
-            You land on the production. <strong>Preview</strong> on the left is what you are
-            checking, <strong>program</strong> on the right is what the audience sees, and your cue
-            is already in the rundown. Press <strong>Take</strong>.
-          </p>
-          <p>
-            Now type into the fields under the monitors. Preview changes and program does not, and
-            the panel says so: <em>"1 change not on air yet"</em>. <strong>Update</strong> pushes
-            what you typed to air. <strong>Out</strong> plays the graphic off. Nothing you type
-            reaches the picture on its own.
-          </p>
-          <p>
-            Getting that picture into OBS, vMix or CasparCG is the next step, and it is about the
-            production's output URL rather than about this graphic:
-            <a href="#dashboard">the playout dashboard</a>.
-          </p>
-        </section>
-
-        <!-- ═══════════════════════ SVG IMPORT ═══════════════════════ -->
-        <section id="svg">
-          <h2>Import your own SVG graphic</h2>
-          <p>
-            Draw your graphic in Illustrator, Figma or Inkscape. Export an SVG. Drop it into
-            NoaCG. Your text layers become fields the operator types into. Nothing is redrawn.
-            Your typography and your geometry go on air as you drew them, and the finished graphic
-            exports to every target like any other.
-          </p>
-          <p>
-            Where to drop it: <a href="/app#/new">the studio</a> &rarr; <strong>New graphic</strong>
-            &rarr; <strong>Import graphic</strong>. This page is about the file. What happens after
-            you drop it is <a href="#first-graphic">your first graphic, step by step</a>.
-          </p>
-          <!-- The screenshots on this page come from `node scripts/docs-shots.mjs`, which drives
-               the running app. Re-run it when a surface below changes; never hand-capture one. -->
-          <figure class="doc-shot">
-            <img src="/docs/svg-drop.png" width="1560" height="1290" loading="lazy"
-              alt="The Import graphic step, with the drop zone and the export rules open beneath it." />
-            <figcaption>
-              <strong>The drop step.</strong> The rules that decide whether an SVG imports well are
-              on this screen, behind the &#9432; beside "Exporting the SVG". You do not have to
-              come back here for them.
-            </figcaption>
-          </figure>
-
-          <h3 id="svg-rules">Five rules</h3>
-          <ol>
-            <li><strong>Give the file a size.</strong> It needs a <code>viewBox</code>, or a
-              <code>width</code> and a <code>height</code>. A file with neither is refused. That
-              size is the space every field is measured in. Use 1920&times;1080 with a transparent
-              background for full-frame artwork. A smaller artboard comes in as a floating object,
-              placed by the wizard's zone picker rather than pinned to exact coordinates.</li>
-            <li><strong>Keep text as text.</strong> Every live <code>&lt;text&gt;</code> layer
-              becomes a field, bound in place. Text turned into outlines cannot be edited. The
-              import offers a fallback: an editable line placed over the measured outline. That
-              stand-in is re-rendered type, so the kerning is the font's and not yours. Re-export
-              with live text where you can.</li>
-            <li><strong>Name your layers.</strong> Layer names become the labels the operator
-              reads. "Home team" beats "Rectangle_3". Nothing else is asked of you.</li>
-            <li><strong>Embed your pictures.</strong> A linked image points at the internet, so it
-              is stripped on the way in. An exported graphic has to play with no network.</li>
-            <li><strong>Do not animate or script in the design app.</strong> SVG animation (SMIL)
-              is removed, and so are <code>&lt;script&gt;</code>, <code>on*</code> handlers and
-              <code>&lt;foreignObject&gt;</code>. Every removal is reported on screen. Add the
-              motion in NoaCG's Animation step, where the timeline and the playout server drive
-              it.</li>
-          </ol>
-
-          <h3 id="svg-layers">What each layer becomes</h3>
-          <div class="doc-table"><table>
-            <tr><th>In your file</th><th>In NoaCG</th></tr>
-            <tr><td>Live text</td><td>A text field, bound in place. The typography stays yours.</td></tr>
-            <tr><td>Multi-line text (positioned tspans)</td><td>One field per line, each edited on its own</td></tr>
-            <tr><td>A plain number as the sample (<code>84</code>)</td><td>Offers a number field</td></tr>
-            <tr><td>A clock as the sample (<code>12:00</code>)</td><td>The row asks: plain text, or a countdown</td></tr>
-            <tr><td>An embedded picture</td><td>A picture field the operator can swap. Clearing it brings your drawing back.</td></tr>
-            <tr><td>Text turned into outlines</td><td>Offered as an outline row, off by default. Tick it and an editable line is placed over its measured box, in re-rendered type.</td></tr>
-            <tr><td>Panels, rules, gradients, masks</td><td>Ride along exactly as drawn</td></tr>
-          </table></div>
-          <figure class="doc-shot">
-            <img src="/docs/svg-fields.png" width="1680" height="1290" loading="lazy"
-              alt="The Fields step: three text layers listed as operator fields beside a live preview of the imported lower third." />
-            <figcaption>
-              <strong>The Fields step, one drop later.</strong> The layer names you gave the file
-              are the field names an operator reads. The preview on the right is your own artwork,
-              not a redraw of it.
-            </figcaption>
-          </figure>
-          <p>
-            SVG text does not wrap and does not clip. When the operator types more than you drew
-            for, the generated code climbs a ladder in this order: fill the shape the line was
-            drawn in; grow the panel, if you asked for that; wrap onto another line; shrink to 55%
-            of your type size; then squeeze the letters narrower and tell the operator the text is
-            too long. Nothing is cut, and the artwork is never reshaped to make words fit.
-          </p>
-          <p>
-            Every margin it works to is measured from your own drawing: the inset you left beside a
-            line, the gap you left under it. A panel that has to get taller grows away from the
-            frame edge you composed it against, so nothing you lined up moves. Draw the panel as a
-            rectangle if you want it to grow. Rounded corners are fine.
-          </p>
-
-          <h3 id="svg-fonts">Fonts</h3>
-          <p>
-            An SVG names its fonts. If the playout machine does not have that family, the graphic
-            will not match your design. So the import lists every family it finds. For each one it
-            matches a bundled face, offers the Google Fonts library, or takes a font file you
-            upload for a licensed face. A Google family is fetched while you design and embedded,
-            so the exported code never touches the network. A family nothing matches gives a
-            warning and carries on. PostScript names (<code>Archivo-Bold</code>) are understood.
-          </p>
-
-          <h3 id="svg-export">Export settings, app by app</h3>
-          <div class="doc-table"><table>
-            <tr><th>App</th><th>Settings that matter</th></tr>
-            <tr><td><strong>Illustrator</strong></td><td><em>File &rarr; Export &rarr; Export As&hellip; &rarr; SVG</em>, not "Save As". Font: <strong>SVG</strong>, not outlines &middot; Images: <strong>Embed</strong> &middot; Object IDs: <strong>Layer Names</strong> &middot; Minify: off. Name your layers first. Duplicate names are safe.</td></tr>
-            <tr><td><strong>Figma</strong></td><td>Name the layers, select the frame, <em>Export &rarr; SVG</em> with <strong>Include "id" attribute</strong> ON and <strong>Outline text</strong> OFF.</td></tr>
-            <tr><td><strong>Inkscape</strong></td><td><em>Save As&hellip; &rarr; Plain SVG</em>. Label your layers and objects. Do not run <em>Object to Path</em> on editable text. Avoid flowed text as well, meaning a text box you dragged out with the text tool. It exports as <code>&lt;flowRoot&gt;</code>, which no browser renders.</td></tr>
-          </table></div>
-          <p>
-            Twenty-four files to try are in the repository's
-            <a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/svg-samples/README.md">practice library</a>,
-            one for almost every kind of graphic, from a lower third to a results board. That page
-            says what each file teaches. Every file opens in Illustrator, so you can keep working
-            on it.
-          </p>
-          <p>
-            One of them, <code>sticker-lower-third.svg</code>, is a lower third from the catalog
-            rebuilt by hand. The
-            <a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/SVG_AUTHORING.md#6b-a-worked-example-the-sticker-lower-third-drawn-in-illustrator">authoring guide</a>
-            goes through drawing it in Illustrator, exporting it and importing it, step by step.
-          </p>
-          <p>
-            A quiz board can carry its behaviour in the file too. Draw the base look, then one
-            hidden layer per moment: answer picked, right, wrong, locked in. The behaviour pickers
-            on the import's field rows wire those layers to the quiz events. See
-            <a href="#behaviour">graphics with behaviour</a>, and
-            <code>quiz-board.svg</code> in the samples folder.
-          </p>
-          <figure class="doc-shot">
-            <img src="/docs/svg-behaviour.png" width="1680" height="1290" loading="lazy"
-              alt="The Fields step with Quiz chosen: a question layer, four answers, and each answer's picked, right and wrong drawings." />
-            <figcaption>
-              <strong>Quiz behaviour, on artwork nobody at NoaCG drew.</strong> Choose Quiz, say
-              which layer is the question and which are the answers, and the hidden layers you drew
-              for picked, right and wrong are what the board shows when it gets there.
-            </figcaption>
-          </figure>
-
-          <h3 id="svg-vote">Draw a live vote</h3>
-          <p>
-            A live vote is a board whose bars grow while the room votes at your
-            <a href="#audience">join link</a>. <strong>Two layer names are all it takes.</strong>
-            Call the text holding your options <code>Option 1</code> and <code>Option 2</code>.
-            Call the bars beside them <code>Bar 1</code> and <code>Bar 2</code>. That is the whole
-            signal. NoaCG reads the file as a vote, and the Fields step opens with the binding
-            already filled in.
-          </p>
-          <p>
-            Everything else below is optional. A board with three options, three bars and nothing
-            else named is a working vote. It just paints no question, no figures and no badge.
-          </p>
-          <div class="doc-table"><table>
-            <tr><th>The layer</th><th>Name it</th><th>What NoaCG does with it</th></tr>
-            <tr>
-              <td>An option's wording</td><td><code>Option 1, Option 2, &hellip;</code></td>
-              <td><strong>Needed.</strong> Live text. The vote writes each option's wording into it, so
-                it stops being a field anyone types.</td>
-            </tr>
-            <tr>
-              <td>That option's bar</td><td><code>Bar 1, Bar 2, &hellip;</code></td>
-              <td><strong>Needed.</strong> Draw it at full length. That length is 100%.</td>
-            </tr>
-            <tr><td>The question</td><td><code>Question</code></td><td>Written from the round you open.</td></tr>
-            <tr>
-              <td>That option's figure</td><td><code>Percent 1, Percent 2, &hellip;</code></td>
-              <td>Its share, written when you show the result.</td>
-            </tr>
-            <tr>
-              <td>That option's winner mark</td><td><code>Winner 1, Winner 2, &hellip;</code></td>
-              <td>Shown on the row that won, and never on a tie. Group it.</td>
-            </tr>
-            <tr><td>The running total</td><td><code>Total votes</code></td><td>Written from the round.</td></tr>
-            <tr>
-              <td>The VOTE NOW badge</td><td><code>Vote badge</code></td>
-              <td>Up while voting is open, down when you close it. Group it.</td>
-            </tr>
-          </table></div>
-          <p>
-            Two options at least, eight at most. A ninth is dropped without a word, so keep a round
-            to eight.
-          </p>
-          <p>
-            <strong>A file that names nothing at all still works.</strong> Choose
-            <strong>Live vote</strong> in the Fields step and pick each layer from the dropdowns
-            yourself. It takes about a minute. Naming is the shortcut, never the requirement, and
-            every name below is one you can override on that screen.
-          </p>
-
-          <h4>How the names are read</h4>
-          <p>
-            The number has to stand as its own word. <code>Bar 1</code> is option 1's bar.
-            <code>Bar 10</code> is not, and a layer called just <code>Bar</code> belongs to no
-            option, so nothing is proposed at all. Letters work the same way: <code>Option A</code>
-            with <code>Bar A</code>.
-          </p>
-          <ul>
-            <li><code>Option 1</code>, <code>Option1</code> and <code>option 1</code> are all read.
-              Capitals do not matter. Type a space rather than an underscore. Your exporter encodes
-              the space for you, but a name you really typed with an underscore is read exactly as
-              written, and <code>Option_1</code> does not match.</li>
-            <li><code>Option 1 (coffee)</code> is read. Anything after the number is ignored, so
-              you can keep the wording in the layer name.</li>
-            <li><code>Vote option 1</code> is <strong>not</strong> read. The word comes first or not
-              at all.</li>
-            <li><code>Option-1</code> is <strong>not</strong> read. A space, or nothing. Not a
-              hyphen.</li>
-            <li><code>Choice 1</code> works as well as <code>Option 1</code>. In Finnish:
-              <code>Vaihtoehto 1</code>, <code>Palkki 1</code>, <code>Osuus 1</code>,
-              <code>Voittaja 1</code>, <code>Kysymys</code>, <code>Ääntä</code> and
-              <code>Äänestä</code>.</li>
-          </ul>
-
-          <h4>Five things that quietly go wrong</h4>
-          <ol>
-            <li><strong>A heading called <code>Options</code>.</strong> It is read as one more
-              option. The board comes out with an extra row and the first option's wording lands on
-              your heading. Call the heading something else.</li>
-            <li><strong>A percentage called <code>Option 1 %</code>.</strong> It starts with an
-              option's name, so it is read as a second option 1. Three options become six rows, and
-              the Fields step refuses the binding with "one layer is picked for two things". Call it
-              <code>Percent 1</code>.</li>
-            <li><strong>Options called <code>Answer 1</code>.</strong> That is a quiz board's
-              naming, and a quiz is what you get. Choose Live vote in the Fields step and fill the
-              pickers, or rename them <code>Option 1</code>.</li>
-            <li><strong>Text converted to outlines.</strong> An outlined option is a drawing, not
-              text, and a vote needs somewhere to write the wording. Nothing is proposed. Export
-              with <em>Font: SVG</em>.</li>
-            <li><strong>A winner mark or a badge that is a single shape.</strong> Those two pickers
-              offer groups only, so a lone rectangle cannot be chosen even by hand. Group it, even
-              if the group holds one rectangle.</li>
-          </ol>
-
-          <h4>Drawing the bars</h4>
-          <p>
-            A bar grows from its own left edge, so draw it left to right at the length that means
-            100%. Draw the empty track behind it as its own layer and leave that layer out of the
-            pickers.
-          </p>
-          <p>
-            <strong>Draw the bar as a plain rectangle where you can.</strong> A rectangle changes
-            its width as the share moves, which keeps its shape exactly. Everything else is scaled
-            from its left edge instead, and scaling distorts. One case is worth naming: a rounded
-            bar drawn in Illustrator exports as a path rather than a rectangle, so its round ends
-            flatten as the bar gets shorter. Square ends avoid that. A bar that is not a rectangle
-            at all, one with a slanted or chamfered end, reaches the picker only if you put it in a
-            group.
-          </p>
-          <p>
-            <strong>The Bar picker holds twelve rectangles, widest first, plus every named
-            group.</strong> A board with a backplate, a track behind each bar and more than five
-            options has more rectangles than that, and the last bars fall off the list, where you
-            cannot pick them by hand either. Past five options, put each bar in its own group.
-            Groups are not counted.
-          </p>
-          <p>
-            Hide the winner marks and the badge in your design app. Click the eye off. A named group
-            is offered to the pickers whether it is hidden or not, which is what lets you keep your
-            own base look on screen while you draw. <strong>Do not hide a bar you drew as a
-            rectangle</strong>, though: a hidden rectangle is dropped from the picker entirely.
-          </p>
-          <p>
-            One thing to check before you move on. The options are listed in the order the layers
-            sit in the file, which is not always the order of their numbers. Read the Fields step
-            down the list and make sure option 1 is the row you mean.
-          </p>
-          <p>
-            The counts themselves come from a round you open on the production's
-            <a href="#audience">Audience tab</a>. They reach the graphic as an ordinary cue that you
-            still take to air, so nothing a viewer sends can put itself on screen.
-          </p>
+Storm warning issued</code></pre>
+            <ul id="tickers-rules">
+              <li>A colon ends a kicker. Everything else is the story.</li>
+              <li>A kicker on its own line applies to every line under it, until a blank line.</li>
+              <li>The colon needs a space after it, so <code>2:1</code> and <code>20:45</code> stay
+                part of the story.</li>
+            </ul>
+          </section>
         </section>
 
         <!-- ═══════════════════════ ARTWORK THAT IS NOT AN SVG ═══════════════════════ -->

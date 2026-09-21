@@ -1255,7 +1255,7 @@ export default function MapSvgFieldsStep({
                       data-testid={`map-svg-title-${f.candidateId}`}
                     />
                   </label>
-                  <label className="save-field grow">
+                  <label className="save-field grow map-svg-sample">
                     <span>Text{f.numeric ? ' (number)' : ''}</span>
                     <input
                       value={f.sample}

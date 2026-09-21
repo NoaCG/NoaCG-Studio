@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NoaCG docs example - LIVE VOTE. Imports as a Live vote.
+     Option 1 to Option 3 and Bar 1 to Bar 3 are the layer names NoaCG reads. Question,
+     Percent 1-3, Winner 1-3, Total votes and Vote badge are optional. The bars are plain
+     rectangles drawn at full length. The winner marks and the badge are hidden groups.
+     Full-frame 1920x1080 artboard, transparent background. See https://noacg.studio/docs#svg-vote -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <style>
+      .question { font-family: Sora; font-weight: 700; }
+      .option { font-family: Inter; font-weight: 600; }
+      .figure { font-family: JetBrains Mono; font-weight: 700; }
+      .small { font-family: Inter; font-weight: 500; }
+      .badge { font-family: Inter; font-weight: 800; letter-spacing: 3px; }
+    </style>
+  </defs>
+
+  <g id="Board" data-name="Board">
+    <rect x="360" y="140" width="1200" height="800" fill="#0d1017" opacity="0.96"/>
+    <rect x="360" y="140" width="1200" height="8" fill="#f6a623"/>
+  </g>
+
+  <!-- The empty track behind each bar. It is not called Bar, so NoaCG leaves it alone. -->
+  <g id="Tracks" data-name="Tracks">
+    <rect x="780" y="432" width="600" height="24" fill="#1e2530"/>
+    <rect x="780" y="572" width="600" height="24" fill="#1e2530"/>
+    <rect x="780" y="712" width="600" height="24" fill="#1e2530"/>
+  </g>
+
+  <!-- The bars at full length. This length is 100%. -->
+  <rect id="Bar_1" data-name="Bar 1" x="780" y="432" width="600" height="24" fill="#f6a623"/>
+  <rect id="Bar_2" data-name="Bar 2" x="780" y="572" width="600" height="24" fill="#f6a623"/>
+  <rect id="Bar_3" data-name="Bar 3" x="780" y="712" width="600" height="24" fill="#f6a623"/>
+
+  <g id="Winner_1" data-name="Winner 1" display="none"><rect x="392" y="416" width="8" height="56" fill="#f6a623"/></g>
+  <g id="Winner_2" data-name="Winner 2" display="none"><rect x="392" y="556" width="8" height="56" fill="#f6a623"/></g>
+  <g id="Winner_3" data-name="Winner 3" display="none"><rect x="392" y="696" width="8" height="56" fill="#f6a623"/></g>
+  <g id="Vote_badge" data-name="Vote badge" display="none">
+    <rect x="1320" y="186" width="190" height="48" rx="24" fill="#0f7a4a"/>
+    <text class="badge" x="1415" y="218" font-size="18" fill="#ffffff" text-anchor="middle">VOTE NOW</text>
+  </g>
+
+  <text id="Question" data-name="Question" class="question" x="960" y="290" font-size="50" fill="#ffffff" text-anchor="middle">What do we drink at the break?</text>
+  <text id="Option_1" data-name="Option 1" class="option" x="430" y="456" font-size="34" fill="#ffffff">Coffee</text>
+  <text id="Option_2" data-name="Option 2" class="option" x="430" y="596" font-size="34" fill="#ffffff">Tea</text>
+  <text id="Option_3" data-name="Option 3" class="option" x="430" y="736" font-size="34" fill="#ffffff">Juice</text>
+  <text id="Percent_1" data-name="Percent 1" class="figure" x="1500" y="458" font-size="34" fill="#ffffff" text-anchor="end">48%</text>
+  <text id="Percent_2" data-name="Percent 2" class="figure" x="1500" y="598" font-size="34" fill="#ffffff" text-anchor="end">31%</text>
+  <text id="Percent_3" data-name="Percent 3" class="figure" x="1500" y="738" font-size="34" fill="#ffffff" text-anchor="end">21%</text>
+  <text id="Total_votes" data-name="Total votes" class="small" x="960" y="880" font-size="24" fill="#b7bcc4" text-anchor="middle">1204 votes</text>
+</svg>
