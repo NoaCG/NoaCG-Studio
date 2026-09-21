@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NoaCG docs example - SCOREBOARD as a LOWER THIRD. Drawn in Adobe Illustrator 2026 and saved with
+     File > Save a Copy > SVG (Use Artboards, Fonts: SVG with Subsetting: None, Images: Embed,
+     Preserve Illustrator Editing Capabilities off, CSS: Style Elements). Three edits by hand: the
+     Arial font names became Archivo and Inter, width/height were added beside the viewBox, and
+     the empty Layer_1 group Illustrator leaves behind was removed.
+     Team A, Score A, Team B, Score B, and the hidden Goal A, Goal B and Full time groups.
+     See https://noacg.studio/docs#scoreboards -->
+<!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 9.03 Build 0)  -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1920 1080" width="1920" height="1080" style="enable-background:new 0 0 1920 1080;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#0D1017;}
+	.st1{fill:#161B24;}
+	.st2{fill:#F6A623;}
+	.st3{display:none;}
+	.st4{display:inline;fill:#F6A623;}
+	.st5{display:inline;fill:#10131A;}
+	.st6{font-family:'Archivo-Bold';}
+	.st7{font-size:18px;}
+	.st8{display:inline;fill:#E8EDF2;}
+	.st9{font-size:16px;}
+	.st10{fill:#FFFFFF;}
+	.st11{font-size:30px;}
+	.st12{font-size:40px;}
+</style>
+<g id="Board">
+	<rect x="160" y="900" class="st0" width="760" height="80"/>
+	<rect x="500" y="900" class="st1" width="80" height="80"/>
+	<rect x="160" y="980" class="st2" width="760" height="6"/>
+</g>
+<g id="Moments">
+	<g id="Goal_A" class="st3">
+		<rect x="160" y="986" class="st4" width="340" height="34"/>
+		<text transform="matrix(1 0 0 1 330 1012.4824)" class="st5 st6 st7">GOAL</text>
+	</g>
+	<g id="Goal_B" class="st3">
+		<rect x="580" y="986" class="st4" width="340" height="34"/>
+		<text transform="matrix(1 0 0 1 750 1012.4824)" class="st5 st6 st7">GOAL</text>
+	</g>
+	<g id="Full_time" class="st3">
+		<rect x="440" y="986" class="st8" width="200" height="34"/>
+		<text transform="matrix(1 0 0 1 539.8555 1012.2065)" class="st5 st6 st9">FULL TIME</text>
+	</g>
+</g>
+<g id="Names">
+	<text id="Team_A" transform="matrix(1 0 0 1 190 956.1373)" class="st10 st6 st11">OTAVA</text>
+	<text id="Score_A" transform="matrix(1 0 0 1 512 963.5164)" class="st10 st6 st12">2</text>
+	<text id="Score_B" transform="matrix(1 0 0 1 548 963.5164)" class="st10 st6 st12">1</text>
+	<text id="Team_B" transform="matrix(1 0 0 1 610 956.1373)" class="st10 st6 st11">KARHUT</text>
+</g>
+</svg>
