@@ -101,7 +101,7 @@ h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; l
 .doc-nav { position: sticky; top: 26px; }
 .doc-nav .group {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
-  color: var(--faint); margin: 20px 0 8px;
+  color: var(--faint); margin: 18px 0 6px;
 }
 .doc-nav .group:first-child { margin-top: 0; }
 .doc-nav a {
@@ -111,6 +111,21 @@ h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; l
 }
 .doc-nav a:hover { color: var(--paper); }
 .doc-nav a.is-active { color: var(--amber); border-left-color: var(--amber); }
+/* The Graphics topic's own pages, indented under it. The rail stays one continuous line, so the
+   sub-links read as part of the topic above rather than as a new group. */
+.doc-nav-sub a { font-size: 13px; line-height: 1.45; padding: 2px 0 2px 24px; }
+.doc-nav-sub .sub-group {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--faint); padding: 7px 0 2px 24px; border-left: 2px solid var(--line);
+}
+/* The nav fits a 900px-tall window. On a shorter one it scrolls on its own rather than hiding
+   its last links below the fold, with a quiet scrollbar instead of the system's grey one. */
+@media (min-width: 901px) {
+  .doc-nav {
+    max-height: calc(100vh - 52px); overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: rgba(232, 237, 242, 0.14) transparent;
+  }
+}
 @media (max-width: 900px) {
   .doc-grid { grid-template-columns: 1fr; gap: 30px; }
   .doc-nav { position: static; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; background: var(--panel); }
@@ -137,6 +152,12 @@ h4 { font-size: 16px; font-weight: 700; margin: 22px 0 8px; scroll-margin-top: 2
   font-size: 21px; letter-spacing: -0.01em;
   margin-top: 38px; padding-top: 26px; border-top: 1px solid var(--line);
 }
+/* A section INSIDE a section (the Graphics topic's pages) is a page of that topic, not a new
+   topic: it takes none of the top-level spacing or rule. A type page's h3.doc-kind draws its
+   own rule, and the how-to pages sit under a plain h3. */
+.doc-body section section { padding: 0; }
+.doc-body section section + section { border-top: 0; margin-top: 0; }
+.doc-body section.doc-sub > h3 { font-size: 21px; letter-spacing: -0.01em; margin-top: 38px; }
 /* The shelf's own contents list. No markers and no indent: it is a set of doors, not prose.
    The links keep the body's amber, so they read as the same kind of link as every other. */
 .doc-body .doc-kinds { list-style: none; margin-left: 0; }
@@ -218,10 +239,81 @@ td strong { color: var(--paper); }
    narrows - the caption keeps the column, because narrowed to match it starts 90px in from
    every other line on the page and reads as an indent. */
 .doc-shot.phone img { width: auto; max-width: 360px; margin: 0 auto; }
+/* A PORTRAIT picture of a graphic (the credits card). At the column's full width it is taller
+   than a laptop screen and pushes its own layer panel out of view, so it is capped and set on the
+   left edge, where the caption starts. */
+.doc-shot.tall img { width: auto; max-width: min(100%, 440px); }
 .doc-shot figcaption {
   margin-top: 8px; font-size: 13px; color: var(--faint); line-height: 1.55;
 }
 .doc-shot figcaption strong { color: var(--dim); }
+.doc-shot figcaption a { color: var(--amber); }
+.doc-shot figcaption a:hover { color: var(--glow); }
+
+/* A type's layer panel beside its list of layer names. */
+.doc-example {
+  display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 24px;
+  align-items: start; margin: 18px 0;
+}
+.doc-example h4 { margin-top: 0; }
+@media (max-width: 640px) {
+  .doc-example { grid-template-columns: 1fr; }
+}
+
+/* A LAYER PANEL, drawn in HTML to look like a design app's Layers panel: an eye, a kind icon
+   (T for text, a triangle for a group, a rectangle for a shape) and the layer name. Amber names
+   are the ones NoaCG reads; a hidden layer has a crossed-out eye and a "hidden" tag. The rows
+   are listed top of the stack first, the way Illustrator shows them. */
+.layers {
+  margin: 0; background: #10141b; border: 1px solid var(--line); border-radius: 8px;
+  overflow: hidden;
+}
+.layers figcaption {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--faint); padding: 8px 12px; border-bottom: 1px solid var(--line);
+  background: rgba(20, 25, 34, 0.8);
+}
+.doc-body .layers ul { list-style: none; margin: 0; padding: 0; }
+.doc-body .layers li { margin: 0; font-size: 13px; line-height: 1.3; }
+.layers .lyr {
+  display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+  border-bottom: 1px solid rgba(232, 237, 242, 0.05);
+}
+.layers ul ul .lyr { padding-left: 34px; }
+.layers li:last-child > .lyr { border-bottom: 0; }
+.layers .eye {
+  position: relative; flex: none; width: 13px; height: 8px;
+  border: 1.5px solid var(--dim); border-radius: 50%;
+}
+.layers .eye::after {
+  content: ""; position: absolute; left: 3px; top: 1px; width: 3px; height: 3px;
+  border-radius: 50%; background: var(--dim);
+}
+.layers .off .eye { border-color: var(--faint); opacity: 0.6; }
+.layers .off .eye::after {
+  left: -2px; top: 2px; width: 14px; height: 1.5px; border-radius: 0;
+  background: var(--faint); transform: rotate(-30deg);
+}
+.layers .ico {
+  flex: none; width: 12px; text-align: center; font-style: normal;
+  font-family: var(--mono); font-size: 11px; color: var(--faint);
+}
+.layers .nm {
+  font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.layers .nm.hit { color: var(--amber); }
+.layers .off .nm { opacity: 0.75; }
+.layers .tag {
+  margin-left: auto; font-style: normal; font-family: var(--mono); font-size: 10px;
+  color: var(--faint);
+}
+/* A row that stands for several layers the panel does not list one by one. */
+.layers .more .lyr {
+  padding-left: 45px; font-family: var(--mono); font-size: 11px; color: var(--faint);
+  font-style: italic;
+}
+.layers ul ul .more .lyr { padding-left: 67px; }
 
 /* Callouts: plain fact panels. `.truth` is the honesty callout — what has and has not
    been verified, stated rather than implied (the docs must stay true on the day
@@ -277,6 +369,6 @@ footer a:hover { color: var(--paper); }
   /* Four backgrounds are written as literals rather than as variables, so the block above does not
      reach them. With the browser's "Background graphics" option ON they print as they are: a table
      header is then `--faint` on a mid grey at about 1.5:1, and several guides print tables. */
-  th, .callout, code, .doc-shot img { background: transparent; }
+  th, .callout, code, .doc-shot img, .layers, .layers figcaption { background: transparent; }
   th { color: #333333; }
 }

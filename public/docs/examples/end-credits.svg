@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NoaCG docs example - END CREDITS. Imports as plain text fields.
+     Each name is one text layer the operator can retype. The role labels start with static:
+     so they stay as drawn and are not fields.
+     Full-frame 1920x1080 artboard, transparent background. See https://noacg.studio/docs#end-credits -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <style>
+      .heading { font-family: Playfair Display; font-weight: 700; }
+      .role { font-family: Inter; font-weight: 600; letter-spacing: 4px; }
+      .name { font-family: Source Serif 4; font-weight: 500; }
+    </style>
+  </defs>
+
+  <g id="Card" data-name="Card">
+    <rect x="560" y="110" width="800" height="860" rx="10" fill="#0d1017" opacity="0.94"/>
+    <rect x="760" y="262" width="400" height="3" fill="#f6a623"/>
+  </g>
+
+  <text id="Heading" data-name="Heading" class="heading" x="960" y="222" font-size="56" fill="#ffffff" text-anchor="middle">Production team</text>
+
+  <text id="static_x3A_Director" data-name="static:Director" class="role" x="960" y="350" font-size="20" fill="#f6a623" text-anchor="middle">DIRECTOR</text>
+  <text id="Director_name" data-name="Director name" class="name" x="960" y="396" font-size="38" fill="#e8edf2" text-anchor="middle">Maya Lind</text>
+  <text id="static_x3A_Producer" data-name="static:Producer" class="role" x="960" y="490" font-size="20" fill="#f6a623" text-anchor="middle">PRODUCER</text>
+  <text id="Producer_name" data-name="Producer name" class="name" x="960" y="536" font-size="38" fill="#e8edf2" text-anchor="middle">Otto Lehto</text>
+  <text id="static_x3A_Camera" data-name="static:Camera" class="role" x="960" y="630" font-size="20" fill="#f6a623" text-anchor="middle">CAMERA</text>
+  <text id="Camera_name" data-name="Camera name" class="name" x="960" y="676" font-size="38" fill="#e8edf2" text-anchor="middle">Ina Berg</text>
+  <text id="static_x3A_Sound" data-name="static:Sound" class="role" x="960" y="770" font-size="20" fill="#f6a623" text-anchor="middle">SOUND</text>
+  <text id="Sound_name" data-name="Sound name" class="name" x="960" y="816" font-size="38" fill="#e8edf2" text-anchor="middle">Noel Kivi</text>
+</svg>

@@ -40,33 +40,57 @@ test('every section-nav link points at a section that exists', async ({ page }) 
   }
 });
 
-test('the graphics shelf holds one guide per kind', async ({ page }) => {
+// The Graphics topic: how to import an SVG, then one page per graphic type (owner, 2026-09-21:
+// "a user should open the docs, find a scoreboard, click on that, and see how it should be laid
+// out"). Each type is its own nested section so the left nav can link straight to it, and each
+// one carries its example file, its layer panel and its layer names.
+test('the graphics topic has one page per type, each with its file, layers and names', async ({ page }) => {
   await page.goto('/docs');
   const graphics = page.locator('#graphics');
-  // The kinds are guides INSIDE one section now, because the left nav carries main topics only
-  // (owner, 2026-08-26: end credits and tickers as top-level entries confused it). Their
-  // anchors are what the rest of the repo links to, so they have to survive the nesting.
-  for (const id of ['scoreboards', 'quiz', 'end-credits', 'tickers', 'countdowns']) {
+  // The anchors are what the rest of the repo and the app link to (ImportDesignStep links
+  // #svg), so every one of them has to survive inside the topic.
+  for (const id of ['first-graphic', 'svg', 'svg-layers', 'svg-rules', 'svg-export', 'svg-fonts', 'first-air']) {
     await expect(graphics.locator(`[id="${id}"]`)).toHaveCount(1);
   }
-  // Quizzes and game shows are what the 2026-09-12 student production runs on, so the buttons
-  // an operator presses are named here or the guide is decoration.
+  const types: [string, string, string[]][] = [
+    ['scoreboards', 'scoreboard.svg', ['Team A', 'Score A', 'Goal A', 'Full time']],
+    ['quiz', 'quiz.svg', ['Question', 'Answer A', 'A selected', 'A correct', 'A wrong', 'Locked']],
+    ['svg-vote', 'live-vote.svg', ['Option 1', 'Bar 1', 'Percent 1', 'Winner 1', 'Vote badge']],
+    ['countdowns', 'countdown.svg', ['05:00', 'Time bar', 'Warning', 'Paused', 'Time up']],
+    ['end-credits', 'end-credits.svg', ['Director name', 'static:Director']],
+    ['tickers', 'ticker.svg', ['Kicker', 'Story']],
+  ];
+  for (const [id, file, names] of types) {
+    const type = graphics.locator(`section[id="${id}"]`);
+    await expect(type).toHaveCount(1);
+    // The nav reaches the page directly.
+    await expect(page.locator(`.doc-nav a[href="#${id}"]`)).toHaveCount(1);
+    // The example is downloadable and is really served: a 404 here is a reader told to
+    // download a file that does not exist.
+    const link = type.locator(`a[href="/docs/examples/${file}"]`);
+    await expect(link).toHaveCount(1);
+    const res = await page.request.get(`/docs/examples/${file}`);
+    expect(res.status()).toBe(200);
+    // The layer panel and the names list both name every layer the guide promises.
+    await expect(type.locator('.layers')).toHaveCount(1);
+    for (const name of names) await expect(type).toContainText(name);
+  }
+  // The operator's buttons are named, or a type page is decoration.
   await expect(graphics).toContainText('Lock it in');
   await expect(graphics).toContainText('Reveal correct');
-  // The scoreboard's one non-obvious behaviour: the goal press moves the score with it.
-  await expect(graphics).toContainText('Goal A');
-  // And the two text-box formats keep the rule each of them turns on.
+  await expect(graphics).toContainText('New game');
+  await expect(graphics).toContainText('Call the winner');
+  // The two text-box formats keep the rule each of them turns on.
   await expect(graphics).toContainText('A colon ends a role');
   await expect(graphics).toContainText('A colon ends a kicker');
-  // The countdown guide turns on one fact: a timer's content is a LENGTH, and the length is
-  // read with parseFloat, so a colon truncates it silently (templates/shared/clock.ts
-  // clockDurationSeconds). A reader who types the digits they want on screen gets two minutes
-  // and no error, which is the mistake the guide exists to stop.
+  // A timer's content is a LENGTH read with parseFloat, so a colon truncates it silently
+  // (templates/shared/clock.ts clockDurationSeconds). The guide exists to stop that mistake.
   await expect(graphics).toContainText('is two minutes, not two and a half');
-  // The other half: the length has nowhere visible to go, and the class is what hides it. An
-  // inline display:none is cleared by the entrance reset and airs the raw number
-  // (templates/shared/base.ts DATA_SOURCE_CLASS), so the class name is load-bearing copy.
-  await expect(graphics).toContainText('noacg-data-source');
+  // The rules the whole import turns on: text stays text, and a moment layer is a hidden GROUP
+  // because a hidden shape on its own is in no picker (svgImport.ts collects visible shapes only).
+  await expect(graphics).toContainText('Keep text as text');
+  await expect(graphics).toContainText('Illustrator');
+  await expect(page.locator('#svg-layers')).toContainText('A hidden shape on its own is');
 });
 
 test('the four guides carry their load-bearing content', async ({ page }) => {
@@ -96,22 +120,6 @@ test('the four guides carry their load-bearing content', async ({ page }) => {
   await expect(browser).toContainText('Shutdown source when not visible');
   await expect(browser).toContainText('vMix');
 
-  // (d) SVG authoring: the rule the whole feature turns on.
-  const svg = page.locator('#svg');
-  await expect(svg).toContainText('Keep text as text');
-  await expect(svg).toContainText('Illustrator');
-
-  // (e) The live vote's two layer names. The owner asked how you draw a board so the importer
-  // reads it as a vote, and the answer is these two names and nothing else - so they are the
-  // load-bearing content of that subsection in the way the install command is of (a). The
-  // anchor is asserted too, because #audience and #behaviour both link to it and a broken
-  // in-page link is silent.
-  await expect(svg.locator('[id="svg-vote"]')).toHaveCount(1);
-  await expect(svg).toContainText('Option 1');
-  await expect(svg).toContainText('Bar 1');
-  // And the trap that turns a correct-looking board into a wrong one, which is the half no
-  // other page carries.
-  await expect(svg).toContainText('read as one more');
 });
 
 // The chooser page. The rest of "Connect playout" documents how to play a package; this one is
@@ -166,71 +174,28 @@ test('the artwork guide carries the three facts a picture brings with it', async
   await expect(page.locator('[id="svg-fonts"]')).toHaveCount(1);
 });
 
-// The end-to-end walk. Every other guide on this page answers one question; this one is the only
-// page that carries the whole road, so what it has to keep is (a) the shape of the walk, (b) the
-// three moments where the product does something a reader would otherwise take for a fault, and
-// (c) the handoffs, because this guide's job is to be short and point.
-test('the step-by-step walk keeps the road, the three surprises and its handoffs', async ({ page }) => {
+// The import walk. Short on purpose: the steps by the names the wizard uses, the two moments a
+// reader would otherwise take for a fault (the canvas locks, a typed change does not air on its
+// own), the Create project trap, and the handoffs.
+test('the import walk keeps its steps, its two surprises and its handoffs', async ({ page }) => {
   await page.goto('/docs');
   const walk = page.locator('#first-graphic');
-
-  // No account is needed until publishing: creating, editing and exporting all work anonymously.
   await expect(walk).toContainText('No account is needed until you publish');
-
-  // (a) The five steps, in order, by the names the wizard's own rail uses. A renamed step leaves
-  // a reader looking for a heading that is not on their screen, which is the failure this guide
-  // exists to prevent, and nothing else on the page names them. The NUMBERS are in the strings on
-  // purpose: "Start" and "Finish" occur in the prose either side of the table, so the bare words
-  // would keep passing after the table itself was deleted.
-  for (const step of ['1. Start', '2. Design', '3. Fields', '4. Animation', '5. Finish']) {
-    await expect(walk.locator('.doc-table')).toContainText(step);
+  for (const step of ['Import graphic', 'Project format', 'Fields', 'What it does', 'Animation', 'Finish']) {
+    await expect(walk).toContainText(step);
   }
-
-  // (b1) THE RAIL RENUMBERS. Measured 2026-09-09: the wizard opens on a six-step rail and an SVG
-  // drop collapses it to five by removing Prepare (CreationWizard's step set is per file kind).
-  // A reader who read the rail one second earlier sees different numbers and no explanation.
-  await expect(walk).toContainText('Prepare');
-  await expect(walk).toContainText('nothing to erase');
-
-  // (b2) THE CANVAS LOCKS ONCE ARTWORK IS IN. Quoted from the app verbatim, so a reader searching
-  // the sentence they are staring at lands here. A vertical graphic decided after the drop means
-  // starting again, which is expensive to discover on your own.
+  // Quoted from the app verbatim, so a reader searching the sentence lands here.
   await expect(walk).toContainText('Remove the current artwork before changing its authored canvas');
-
-  // (b3) A TYPED CHANGE DOES NOT AIR ON ITS OWN. The dashboard stages edits and says
-  // "1 change not on air yet" until Update. An operator who does not know that airs the previous
-  // guest's name, on air, and blames the graphic.
   await expect(walk).toContainText('1 change not on air yet');
   await expect(walk).toContainText('Update');
-
-  // The Finish step's two doors, and the trap of its two name boxes. Both are the last thing a
-  // first-time reader meets and neither is guessable from the screen.
-  await expect(walk).toContainText('two name boxes and they are not the same box');
   await expect(walk).toContainText('Add to the production');
   await expect(walk).toContainText('Export it');
-  // And the one thing on that screen that can cost a first-timer their work: `Create project`
-  // calls `create` (CreationWizard.tsx), which hands the graphic to the editor WITHOUT saving,
-  // while both Finish doors save first. A reader who takes it for a harmless "keep the defaults"
-  // shortcut can close the tab on an unsaved graphic.
+  // Create project hands the graphic to the editor WITHOUT saving (CreationWizard.tsx).
   await expect(walk).toContainText('it does not save');
-
-  // (c) The handoffs. This guide stays short by pointing, so a link that goes nowhere is the one
-  // failure that makes it worse than no guide. In-page anchors are silent when they break.
-  // `.first()` rather than a count, because the guide legitimately links the same target twice
-  // (the SVG rules, once for the file and once for outlined type); what has to hold is that at
-  // least one link exists and that its target does.
-  for (const href of ['#svg-rules', '#svg-layers', '#artwork', '#behaviour', '#svg-fonts', '#export', '#dashboard']) {
+  for (const href of ['#dashboard', '/app#/new']) {
     await expect(walk.locator(`a[href="${href}"]`).first()).toBeAttached();
-    await expect(page.locator(`[id="${href.slice(1)}"]`)).toHaveCount(1);
   }
-  // And the door into the product, so the walk can actually be started from it.
-  await expect(walk.locator('a[href="/app#/new"]').first()).toBeAttached();
-
-  // Getting started is where a cold reader lands, and its three list items are the outline this
-  // guide expands. The link between them is what stops the outline reading as the whole answer.
   await expect(page.locator('#getting-started a[href="#first-graphic"]')).toHaveCount(1);
-  // The SVG guide is about the FILE and hands the road over rather than growing a second copy.
-  await expect(page.locator('#svg a[href="#first-graphic"]')).toHaveCount(1);
 });
 
 // Working with other people. This guide is the only page that says what a TEAM is, and it is
@@ -350,7 +315,9 @@ test('the worked example carries one show a reader can copy exactly', async ({ p
 // DELETED fails here rather than leaving a paragraph pointing at nothing.
 test('every docs screenshot loads at the size the page reserved for it', async ({ page }) => {
   await page.goto('/docs');
-  await expect(page.locator('#svg .doc-shot img')).toHaveCount(3);
+  await expect(page.locator('#first-graphic .doc-shot img')).toHaveCount(2);
+  // Two per type: the example as it renders, and the Fields step after the drop.
+  await expect(page.locator('#graphics .doc-type .doc-shot img')).toHaveCount(12);
   await expect(page.locator('#data-example .doc-shot img')).toHaveCount(7);
   const shots = page.locator('.doc-shot img');
   const count = await shots.count();

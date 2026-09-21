@@ -33,10 +33,17 @@ code that implements it. Where something is expected rather than measured, the p
 
 ## Structure
 
-- **The left nav carries main topics only** (owner, 2026-08-26: end credits and tickers as
-  top-level entries confused it). A guide for one kind of graphic nests inside the `#graphics`
-  section as an `h3.doc-kind` with its own `h4` sub-heads. New graphic kinds go there, not into a
-  new top-level section.
+- **The left nav carries main topics, and Graphics' own pages indented under it** (owner,
+  2026-09-21, replacing the main-topics-only rule of 2026-08-26). Graphics is one topic: how to
+  import an SVG, then one page per graphic type. Each type page is a nested
+  `<section class="doc-type">` inside `#graphics`, headed by an `h3.doc-kind`, and it carries the
+  same parts in the same order: the rendered example with its download link, the drawn layer
+  panel beside the layer names, the buttons, and the Fields-step screenshot. A new type goes
+  there, with its example file in `public/docs/examples/` and its entry in `TYPE_EXAMPLES` in
+  `scripts/docs-shots.mjs`, which fails if the wizard does not pick the type the file promises.
+- **A type page documents what the importer really reads.** The layer names come from
+  `src/templates/behaviours/words.json` and `naming.ts`, and the drawn layer panel has to match
+  the example file. Change the three together.
 - **Anchors are addresses.** `#end-credits`, `#tickers`, `#data-api` and the rest are linked from
   owner-queue notes, handoffs and the app itself, so an id survives a restructure even when its
   heading level changes.
