@@ -159,29 +159,44 @@ export function groupCueFields(descriptors: { key: string; label: string }[]): C
 }
 
 /**
+ * Could this value be read as a NAME at a glance? Non-empty, short enough not to wrap (a heading
+ * is a glance, and a wrapped one is worse than a generic one), carrying at least one letter so a
+ * score, a clock ("10:00") or any other figure never qualifies, and neither a colour ("#e11d48")
+ * nor a picture's path or address.
+ */
+function looksLikeName(value: string): boolean {
+  if (value === '' || value.length > 20) return false;
+  if (!/\p{L}/u.test(value)) return false;
+  if (/^#[0-9a-f]{3,8}$/i.test(value)) return false;
+  return !/[/\\]|\.(png|jpe?g|gif|webp|svg)$/i.test(value);
+}
+
+/**
  * What a band is CALLED on screen.
  *
- * A side band borrows the operator's own word for that side - the value of its first field,
- * which on every two-sided board we ship is the name ("Team A", "Fighter A", "Party A"). That is
- * the whole reason the heading is computed from values rather than from titles: "ARC" and
- * "YLE12" say which half of the board you are editing in the language of the show, where "SIDE
- * A" and "SIDE B" only say that a split exists.
+ * A side band borrows the operator's own word for that side - the first of its values that reads
+ * as a name, which on every two-sided board we ship is the team ("Team A", "Fighter A", "Party
+ * A"). That is the whole reason the heading is computed from values rather than from titles:
+ * "ARC" and "YLE12" say which half of the board you are editing in the language of the show,
+ * where "SIDE A" and "SIDE B" only say that a split exists.
  *
- * It falls back the moment the borrowed word would not help: an empty value, one long enough to be
- * a sentence rather than a name (a heading is a glance, and a wrapped one is worse than a generic
- * one), or A BARE FIGURE. That last one is why the borrowed value is the row's first field rather
- * than a field this module could name: which field comes first is the DESIGNER's document order,
- * and a board that draws its score column before its names hands back `"0"` - a band headed 0
- * while the buttons above it are headed KETUT. A figure is never a name, so it falls through.
+ * THE FIRST NAME-LIKE VALUE, NOT THE FIRST FIELD. Which field comes first in a band is the
+ * DESIGNER's document order, and a scorebug drawn "Home team, Home score, Away score, Away team"
+ * hands the away band its score first. Reading only the first field headed that band "Side B"
+ * beside a home band headed OTAVA (the demo walk of 2026-09-21): one side by its name and the
+ * other by a placeholder, on one board. Every field of the band is asked in order and a figure,
+ * a colour or a path is skipped, so both bands carry their team.
  *
- * The fallback is never a guess - `Side A` is exactly as much as we know, and on a numbered board
- * `Row 3` is: a graphic with four teams has no sides, and calling one "Side 3" would be inventing
- * a word for something the titles never said.
+ * The fallback is never a guess - `Side A` is exactly as much as we know when no value in the
+ * band reads as a name (a team left blank), and on a numbered board `Row 3` is: a graphic with
+ * four teams has no sides, and calling one "Side 3" would be inventing a word for something the
+ * titles never said.
  */
 export function groupHeading(group: CueFieldGroup, values: Record<string, unknown>): string | null {
   if (!group.side) return group.id === 'shared' ? 'Both' : null;
-  const first = group.keys[0];
-  const named = first === undefined ? '' : String(values[first] ?? '').trim();
-  if (named !== '' && named.length <= 20 && !/^-?\d+$/.test(named)) return named;
+  for (const key of group.keys) {
+    const value = String(values[key] ?? '').trim();
+    if (looksLikeName(value)) return value;
+  }
   return group.id.startsWith('row-') ? `Row ${group.side}` : `Side ${group.side}`;
 }

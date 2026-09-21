@@ -88,12 +88,14 @@ import {
   arrangeControls,
   arrangeFor,
   eventButtons,
+  canAdvance,
   eventLegality,
   fieldDescriptors,
   formatMachineState,
   isEventLegal,
   machineStateGroups,
   machineStateNames,
+  movedStateNames,
   movedKeys,
   pressSend,
   type ArrangedControl,
@@ -1220,10 +1222,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * a Map because a pool graphic's name is somebody's typed text.
    */
   const poolMachines = useMemo(() => {
-    const out = new Map<string, { buttons: ControlButton[]; legality: Record<string, Record<string, string[]>> }>();
+    const out = new Map<
+      string,
+      { buttons: ControlButton[]; legality: Record<string, Record<string, string[]>>; js: string }
+    >();
     for (const g of pool ?? []) {
       const tpl = templateForSavedGraphic(g, library);
-      out.set(g.name, { buttons: eventButtons(tpl.js), legality: eventLegality(tpl.js) });
+      // `js` rides along for the Next verb, which asks the same machine whether a press would
+      // move anything (`canAdvance`).
+      out.set(g.name, { buttons: eventButtons(tpl.js), legality: eventLegality(tpl.js), js: tpl.js });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1833,6 +1840,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // only while the selected cue's graphic is up on its layer. ──
   const machineState = selectedGraphic ? machineStates[selectedGraphic] ?? null : null;
   const stateLabel = formatMachineState(stateNames, machineState);
+  /** Would » Next move the selected layer? False on a graphic's last step (a quiz on its
+   *  Reveal), where the press used to do nothing on air while the log still wrote "Next step". */
+  const nextMoves =
+    !!selectedGraphic && canAdvance(poolMachines.get(selectedGraphic)?.js ?? '', machineState);
+  /** The states ✎ Update will KEEP on the live layer, in the author's words ("Reveal", "Final").
+   *  Update is data only by design, so after a reveal it airs new words under the old verdict;
+   *  the surface names what stays and points at ⟳ Re-take (controlModel `movedStateNames`).
+   *  `stateNames` is the edited cue's graphic, which is the selected layer whenever Update is
+   *  live. */
+  const keptStates = editingIsLive
+    ? movedStateNames(poolMachines.get(selectedGraphic ?? '')?.js ?? '', stateNames, machineState).join(' and ')
+    : '';
   /** What the stored profile turned out to be. READ-ONLY is a profile a newer build wrote: every
    *  write door refuses it, so the authoring panel has to say so rather than offer controls that
    *  would quietly do nothing. */
@@ -2260,7 +2279,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // that IS live - on anything else it would just be Take under a second name.
     if (key === 'retake' && selectedCueIsLive && selectedCue) void takeCue(selectedCue);
     if (key === 'update' && editingIsLive) void updateLive();
-    if (key === 'next' && selectedLayerLive) void nextLive();
+    if (key === 'next' && selectedLayerLive && nextMoves) void nextLive();
     if (key === 'out' && selectedLayerLive) void outLive();
     // Walk the rundown. Selecting a cue is the same act as clicking it - in 'take' mode it
     // goes to PREVIEW and in the other mode it does not, and nothing airs either way - so an
@@ -2477,9 +2496,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             disabled={!editingIsLive}
             onClick={() => void updateLive()}
             title={
-              hasUnsent
-                ? `${unsentFields.length} edited value${unsentFields.length === 1 ? '' : 's'} has not been sent yet — air still shows the previous one`
-                : 'Send the edited values to the live layer, without replaying it'
+              keptStates
+                ? `Sends the values. Stays on ${keptStates}.`
+                : hasUnsent
+                  ? `${unsentFields.length} edited value${unsentFields.length === 1 ? '' : 's'} has not been sent yet - air still shows the previous one`
+                  : 'Send the edited values to the live layer, without replaying it'
             }
             data-testid="verb-update"
           >
@@ -2490,9 +2511,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           </button>
           <button
             className="pd-verb"
-            disabled={!selectedLayerLive}
+            disabled={!selectedLayerLive || !nextMoves}
             onClick={() => void nextLive()}
-            title={selectedGraphic ? `Advance ${selectedGraphic} to its next step` : 'Advance the layer'}
+            title={
+              !selectedGraphic
+                ? 'Advance the layer'
+                : selectedLayerLive && !nextMoves
+                  ? `${selectedGraphic} is on its last step - Out takes it off, Re-take starts it again`
+                  : `Advance ${selectedGraphic} to its next step`
+            }
             data-testid="verb-next"
           >
             » Next <kbd>N</kbd>
@@ -2559,7 +2586,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 data-testid="cue-unsent"
               >
                 {hasUnsent
-                  ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet — press ✎ Update`
+                  ? keptStates
+                    ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. ✎ Update keeps ${keptStates} on air, ⟳ Re-take starts over with these values`
+                    : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet - press ✎ Update`
                   : editingIsLive
                     ? 'changes push live on ✎ Update'
                     : 'changes air on ⟳ Take'}
@@ -3181,7 +3210,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               useTemplateStore.setState({ pendingProductionId: show.id });
               navigate({ view: 'new' });
             }}
-            title="Create a new graphic for this production — the wizard uses its look and adds it here"
+            title="Create a new graphic for this production - the wizard uses its look and adds it here"
             data-testid="production-new-graphic"
           >
             ＋ New graphic for this production…

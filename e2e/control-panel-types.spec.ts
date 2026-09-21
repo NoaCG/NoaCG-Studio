@@ -98,15 +98,15 @@ const CASES: TypeCase[] = [
     variantId: 'sb03',
     name: 'scoreboard',
     buttons: ['goalA', 'goalB', 'clearFlag', 'final'],
-    settled: 'main: Enter · flag: No flag · result: Live',
+    settled: 'Enter · No flag · Live',
     legalAtRest: ['goalA', 'goalB', 'final'],
     walk: [
-      { press: 'goalA', state: 'main: Enter · flag: Flag · result: Live', legal: ['goalA', 'goalB', 'clearFlag', 'final'] },
-      { press: 'goalB', state: 'main: Enter · flag: Flag · result: Live', legal: ['goalA', 'goalB', 'clearFlag', 'final'] },
-      { press: 'clearFlag', state: 'main: Enter · flag: No flag · result: Live', legal: ['goalA', 'goalB', 'final'] },
-      { press: 'final', state: 'main: Enter · flag: No flag · result: Final', legal: ['goalA', 'goalB'] },
+      { press: 'goalA', state: 'Enter · Flag · Live', legal: ['goalA', 'goalB', 'clearFlag', 'final'] },
+      { press: 'goalB', state: 'Enter · Flag · Live', legal: ['goalA', 'goalB', 'clearFlag', 'final'] },
+      { press: 'clearFlag', state: 'Enter · No flag · Live', legal: ['goalA', 'goalB', 'final'] },
+      { press: 'final', state: 'Enter · No flag · Final', legal: ['goalA', 'goalB'] },
       // Stop rests every group at its INITIAL state, which is what makes `final` offerable again.
-      { press: 'stop', state: 'main: Off · flag: No flag · result: Live', legal: ['goalA', 'goalB', 'final'] },
+      { press: 'stop', state: 'Off · No flag · Live', legal: ['goalA', 'goalB', 'final'] },
     ],
   },
   {
@@ -115,12 +115,12 @@ const CASES: TypeCase[] = [
     variantId: 'gt05',
     name: 'countdown',
     buttons: ['pause', 'resume'],
-    settled: 'main: Enter · clock: Running',
+    settled: 'Enter · Running',
     legalAtRest: ['pause'],
     walk: [
-      { press: 'play', state: 'main: Enter · clock: Running', legal: ['pause'] },
-      { press: 'pause', state: 'main: Enter · clock: Paused', legal: ['resume'] },
-      { press: 'resume', state: 'main: Enter · clock: Running', legal: ['pause'] },
+      { press: 'play', state: 'Enter · Running', legal: ['pause'] },
+      { press: 'pause', state: 'Enter · Paused', legal: ['resume'] },
+      { press: 'resume', state: 'Enter · Running', legal: ['pause'] },
     ],
   },
 ];

@@ -235,10 +235,9 @@ test('a match board reaches every one of its controls from the cockpit: both clo
   await page.getByTestId('verb-take').click();
 
   // FOUR parallel groups, not one. The quiz pilot had a single group, so nothing until now had
-  // ever rendered a chip naming several at once — the label is ~65 characters wide.
-  await expect(chip).toContainText('clock:');
-  await expect(chip).toContainText('play:');
-  await expect(chip).toContainText('result:');
+  // ever rendered a chip naming several at once. It reads the four state NAMES in the machine's
+  // order, never the group ids ("clock:", "play:"), which were author words an operator never saw.
+  await expect(chip).toHaveText('Enter · At period start · In play · Live');
   // And it must stay on ONE line inside the header rather than reflowing the panel.
   const chipLines = await chip.evaluate((el) => {
     const cs = getComputedStyle(el);
