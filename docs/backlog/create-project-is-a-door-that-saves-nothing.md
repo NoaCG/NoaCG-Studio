@@ -78,3 +78,12 @@ read, because a slide deck was sending an audience through this button and had t
 
 What the deck does in the meantime: slide 4 sends the room to Finish and names the production
 door, and never mentions "Create project". That is a workaround for the day, not an answer.
+
+## Settled for the default studio on 2026-09-21 by `claude/a-wizard-exits`
+
+The owner ruled on 2026-09-21 that no wizard control may open the old editor in the default
+studio. The design, SVG and import walks now show "Skip to finish" in the footer instead of
+"Create project", so every default-studio road ends on Finish, where the production and export
+doors both save. "Create project" survives in Advanced mode only, still unsaved, next to Finish's
+"Open in the code editor" door, which is also unsaved. What remains open is only the Advanced-mode
+half of the question above: should those two doors save?

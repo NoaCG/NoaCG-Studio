@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { switchToAdvancedMode } from './_create';
 import { fileURLToPath } from 'node:url';
 import { awaitPreviewRebuild } from './_preview';
 import { previewFrame } from './_frame';
@@ -32,6 +33,7 @@ test('the Sticker lower third sample imports with its layer names as fields, and
   expect(growth.mode).toBe('grow-xy');
   expect(growth.named).toContain('Panel');
 
+  await switchToAdvancedMode(page);
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
     await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
