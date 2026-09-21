@@ -299,3 +299,41 @@ test('a design that cannot show the mark never bundles it', async ({ page }) => 
   expect(result.slotless).toBe(false);
   expect(result.portrait).toBe(false);
 });
+
+test('the footer stays one line beside the preview when the chooser is offered', async ({ page }) => {
+  // THE DEMO LAPTOP'S SIZE. Beside the preview the form column is 535px wide at 1366×768, and
+  // with a brand on offer the footer holds Back, the chooser, Skip to finish and Next. Walked
+  // on the live site 2026-09-21: flex shrank every item alike, "← Back" and "Skip to finish"
+  // broke onto two lines and Next grew into a two-line button. The buttons keep their words;
+  // the chooser's select is the one thing that gives.
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await openWizard(page);
+  await seedBrand(page, { logo: false });
+  await page.reload();
+  await toPickedDesign(page);
+  await page.locator('.wz-modal').getByRole('button', { name: 'Next' }).click();
+  await expect(page.locator('.wz-body.with-preview')).toBeVisible();
+
+  const footer = page.locator('.wz-footer');
+  await expect(footer.locator('[data-testid="wz-brand"]')).toBeVisible();
+  const measured = await footer.evaluate((el) => ({
+    height: el.getBoundingClientRect().height,
+    buttons: Array.from(el.querySelectorAll('button')).map((b) => ({
+      text: b.textContent?.trim(),
+      height: b.getBoundingClientRect().height,
+      // A button whose words wrapped is taller than one line; one whose words were clipped
+      // scrolls wider than it is drawn. Neither is allowed.
+      overflows: b.scrollWidth > b.clientWidth + 1,
+    })),
+    select: el.querySelector('select')!.getBoundingClientRect().width,
+  }));
+  expect(measured.buttons.length).toBeGreaterThanOrEqual(3);
+  for (const b of measured.buttons) {
+    expect(b.height, `${b.text} is one line tall`).toBeLessThan(44);
+    expect(b.overflows, `${b.text} keeps its words`).toBe(false);
+  }
+  // One row of controls plus the footer's own padding, never a second row.
+  expect(measured.height).toBeLessThan(72);
+  // The select shrank to make room but never below the floor that keeps a name readable.
+  expect(measured.select).toBeGreaterThanOrEqual(72);
+});

@@ -549,6 +549,19 @@
   flex: 0 0 auto;
 }
 .wz-footer .spacer { flex: 1; }
+/* THE FOOTER IS ONE LINE, and the buttons keep their words. With a production's look on offer
+   the brand chooser joins Back, Skip to finish and Next in a form column that is 535px wide at
+   1366x768, and flex shrank every item alike: "← Back" broke onto two lines, so did "Skip to
+   finish", and Next grew to a two-line button (walked 2026-09-21). The buttons never shrink or
+   wrap; the brand select is the one thing that gives, down to a 72px floor. Below 1280px that
+   floor no longer fits beside the buttons, so the chooser takes a line of its own ABOVE them
+   rather than pushing Next off the row. */
+.wz-footer > button { white-space: nowrap; flex-shrink: 0; }
+.wz-footer .wz-match { flex: 0 1 auto; white-space: nowrap; }
+@media (max-width: 1279px) {
+  .wz-footer { flex-wrap: wrap; }
+  .wz-footer .wz-match { order: -1; flex-basis: 100%; }
+}
 /* "Skip to finish" is a quiet escape, not a competing action: it reads as a link beside the
    one amber button, so the primary path stays unmistakable. */
 .wz-footer .wz-skip {
