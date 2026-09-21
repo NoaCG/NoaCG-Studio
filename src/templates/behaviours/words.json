@@ -19,8 +19,12 @@
         "kind": "field",
         "required": true,
         "pool": "text",
-        "words": "question|kysymys",
+        "words": "question|kysymys|fråga",
         "teach": "Question",
+        "also": [
+          "Kysymys",
+          "Fråga"
+        ],
         "what": "always - it is a field the operator types"
       },
       {
@@ -31,10 +35,11 @@
         "required": true,
         "distinctive": true,
         "pool": "text",
-        "words": "^answer$|^vastaus$",
+        "words": "^(?:answer|vastaus|svar)$",
         "teach": "Answer A",
         "also": [
-          "Vastaus A"
+          "Vastaus A",
+          "Svar A"
         ],
         "what": "always - a field",
         "weak": "^(?:option|vaihtoehto)$"
@@ -48,11 +53,13 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "select|pick|valittu",
+        "words": "select|pick|chosen|valittu|\\bvald\\b",
         "teach": "Selected A",
         "also": [
           "Picked A",
-          "Valittu A"
+          "Chosen A",
+          "Valittu A",
+          "Vald A"
         ],
         "what": "while that answer is the pick",
         "distinctive": true
@@ -66,11 +73,12 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "correct|right|oikein",
+        "words": "correct|right|oikein|\\brätt\\b",
         "teach": "Correct A",
         "also": [
           "Right A",
-          "Oikein A"
+          "Oikein A",
+          "Rätt A"
         ],
         "what": "on the reveal, if it is the correct answer",
         "distinctive": true
@@ -84,11 +92,12 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "wrong|incorrect|väärin",
+        "words": "wrong|incorrect|väärin|\\bfel\\b",
         "teach": "Wrong A",
         "also": [
           "Incorrect A",
-          "Väärin A"
+          "Väärin A",
+          "Fel A"
         ],
         "what": "on the reveal, if it is not",
         "distinctive": true
@@ -101,11 +110,12 @@
           "look"
         ],
         "pool": "drawn",
-        "words": "lock|lukittu",
+        "words": "lock|lukittu|låst",
         "teach": "Locked in",
         "also": [
           "Locked",
-          "Lukittu"
+          "Lukittu",
+          "Låst"
         ],
         "what": "once the answer is locked (one, whole board)"
       }
@@ -130,12 +140,13 @@
         "perRow": true,
         "required": true,
         "pool": "text",
-        "words": "^(?:team|side|player|joukkue)$",
+        "words": "^(?:team|side|player|joukkue|lag)$",
         "teach": "Team 1",
         "also": [
           "Side 1",
           "Player 1",
-          "Joukkue 1"
+          "Joukkue 1",
+          "Lag 1"
         ],
         "what": "a field the operator types"
       },
@@ -148,12 +159,14 @@
         "numeric": true,
         "distinctive": true,
         "pool": "text",
-        "words": "\\bscore\\b|\\bpoints?\\b|\\bgoals?\\b|pisteet|maalit",
+        "words": "\\bscore\\b|\\bpoints?\\b|\\bgoals?\\b|pisteet|maalit|poäng|\\bmål\\b",
         "teach": "Score 1",
         "also": [
           "Points 1",
           "Goals 1",
-          "Team 1 Score"
+          "Team 1 Score",
+          "Pisteet 1",
+          "Poäng 1"
         ],
         "what": "a field - draw a plain number in it"
       },
@@ -166,11 +179,13 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "\\bflash\\b|\\bgoal\\b|\\bscored\\b|maali",
+        "words": "\\bflash\\b|\\bgoal\\b|\\bscored\\b|maali|\\bmål\\b",
         "teach": "Flash 1",
         "also": [
           "Goal 1",
-          "Scored 1"
+          "Scored 1",
+          "Maali 1",
+          "Mål 1"
         ],
         "what": "shown for the moment that team's point lands"
       },
@@ -182,11 +197,13 @@
           "look"
         ],
         "pool": "drawn",
-        "words": "full[\\s-]?time|final|game over|loppu",
+        "words": "full[\\s-]?time|final|game over|loppu|full tid|\\bslut\\b",
         "teach": "Full time",
         "also": [
           "Final",
-          "Game over"
+          "Game over",
+          "Loppu",
+          "Full tid"
         ],
         "what": "once the game is called (one, whole board)"
       }
@@ -217,11 +234,13 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "timer bar|time bar|\\bdrain\\b|aikapalkki",
+        "words": "timer bar|time bar|countdown bar|\\bdrain\\b|aikapalkki|tidsbalk",
         "teach": "Timer bar",
         "also": [
           "Drain",
-          "Aikapalkki"
+          "Countdown bar",
+          "Aikapalkki",
+          "Tidsbalk"
         ],
         "what": "draw it at its FULL length - that length is the whole count"
       },
@@ -234,11 +253,13 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "\\bwarn(?:ing)?\\b|last (?:stretch|seconds)|\\bhurry\\b|varoitus",
+        "words": "\\bwarn(?:ing)?\\b|last (?:stretch|seconds)|\\bhurry\\b|varoitus|varning",
         "teach": "Warning",
         "also": [
           "Last stretch",
-          "Hurry"
+          "Hurry",
+          "Varoitus",
+          "Varning"
         ],
         "what": "the look the final seconds wear"
       },
@@ -251,11 +272,12 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "\\bpaused?\\b|\\bhold\\b|\\bheld\\b|tauko|tauolla",
+        "words": "\\bpaused?\\b|\\bhold\\b|\\bheld\\b|tauko|tauolla|\\bpaus\\b|pausad",
         "teach": "Paused",
         "also": [
           "Hold",
-          "Tauko"
+          "Tauko",
+          "Paus"
         ],
         "what": "while the operator is holding the clock"
       },
@@ -268,12 +290,13 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "time.?s? up|\\bexpired\\b|\\bfinished\\b|aika loppu|^aika$",
+        "words": "time.?s? up|\\bexpired\\b|\\bfinished\\b|aika loppu|^aika$|tiden? ute",
         "teach": "Time up",
         "also": [
           "Expired",
           "Finished",
-          "Aika loppu"
+          "Aika loppu",
+          "Tiden ute"
         ],
         "what": "once it reaches zero"
       }
@@ -299,8 +322,12 @@
           "write"
         ],
         "pool": "text",
-        "words": "question|prompt|kysymys",
+        "words": "question|prompt|kysymys|fråga",
         "teach": "Question",
+        "also": [
+          "Kysymys",
+          "Fråga"
+        ],
         "what": "written from the round"
       },
       {
@@ -313,12 +340,13 @@
         "perRow": true,
         "required": true,
         "pool": "text",
-        "words": "^(?:option|choice|answer|vaihtoehto)$",
+        "words": "^(?:option|choice|answer|vaihtoehto|alternativ)$",
         "teach": "Option 1",
         "also": [
           "Choice 1",
           "Answer 1",
-          "Vaihtoehto 1"
+          "Vaihtoehto 1",
+          "Alternativ 1"
         ],
         "what": "written from the round"
       },
@@ -332,10 +360,11 @@
         "perRow": true,
         "distinctive": true,
         "pool": "drawn",
-        "words": "\\bbar\\b|palkki",
+        "words": "\\bbar\\b|palkki|stapel",
         "teach": "Bar 1",
         "also": [
-          "Palkki 1"
+          "Palkki 1",
+          "Stapel 1"
         ],
         "what": "draw it at its FULL length - that length is 100%"
       },
@@ -349,11 +378,12 @@
         ],
         "perRow": true,
         "pool": "text",
-        "words": "%|percent|share|osuus",
+        "words": "%|percent|share|osuus|procent|andel",
         "teach": "Percent 1",
         "also": [
           "Share 1",
-          "Osuus 1"
+          "Osuus 1",
+          "Procent 1"
         ],
         "what": "appears with the result"
       },
@@ -366,10 +396,11 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "winner|voittaja",
+        "words": "winner|voittaja|vinnare",
         "teach": "Winner 1",
         "also": [
-          "Voittaja 1"
+          "Voittaja 1",
+          "Vinnare 1"
         ],
         "what": "only on the row that won, and never on a tie"
       },
@@ -381,10 +412,11 @@
           "write"
         ],
         "pool": "text",
-        "words": "total|votes|ääntä",
+        "words": "total|votes|ääntä|röster",
         "teach": "Total votes",
         "also": [
-          "Ääntä"
+          "Ääntä",
+          "Röster"
         ],
         "what": "written from the round"
       },
@@ -396,10 +428,11 @@
           "look"
         ],
         "pool": "drawn",
-        "words": "badge|vote now|äänestä",
+        "words": "badge|vote now|äänestä|rösta",
         "teach": "Vote badge",
         "also": [
-          "Äänestä"
+          "Äänestä",
+          "Rösta"
         ],
         "what": "while voting is open"
       }
@@ -468,8 +501,9 @@
         "label": "Question",
         "kind": "field",
         "pool": "text",
-        "words": "question|kysymys",
+        "words": "question|kysymys|fråga",
         "teach": "Question",
+        "also": ["Kysymys", "Fråga"],
         "what": "a field the operator types"
       },
       {
@@ -480,9 +514,9 @@
         "perRow": true,
         "required": true,
         "pool": "text",
-        "words": "^(?:answer|survey|vastaus)$",
+        "words": "^(?:answer|survey|vastaus|svar)$",
         "teach": "Answer 1",
-        "also": ["Vastaus 1"],
+        "also": ["Vastaus 1", "Svar 1"],
         "what": "draw it as it looks revealed - written from the Answers box, hidden until its reveal"
       },
       {
