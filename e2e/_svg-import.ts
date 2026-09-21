@@ -219,6 +219,24 @@ export async function intoProduction(page: Page, graphic: string, production: st
 }
 
 /**
+ * From the mapping step into a production that ALREADY EXISTS, picked by its name - the road
+ * the second graphic of a show takes. A walk that adds two graphics to one production is what a
+ * class quiz is: a board and a scoreboard, run side by side.
+ */
+export async function intoExistingProduction(page: Page, graphic: string, production: string): Promise<void> {
+  await wizardNext(page).click(); // Animation
+  await expect(page.getByTestId('wz-stepcount')).toContainText('4');
+  await wizardNext(page).click(); // Finish
+  await expect(page.getByTestId('wz-stepcount')).toContainText('5');
+  await page.getByTestId('wz-finish-name').fill(graphic);
+  const pick = page.getByTestId('wz-finish-production');
+  const value = await pick.locator('option', { hasText: production }).getAttribute('value');
+  await pick.selectOption(value!);
+  await addToProductionFromFinish(page);
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+}
+
+/**
  * UNTICK ONE TEXT ROW AND ANSWER THE QUESTION IT ASKS.
  *
  * Unticking is two clicks, not one (owner walk, 2026-09-02): the step asks what should happen to

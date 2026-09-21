@@ -743,7 +743,7 @@ test('the action log reads commands as operator language, and drops the bookkeep
   expect(result.out).toBe('Out');
   expect(result.update).toBe('Updated 2 fields');
   expect(result.one).toBe('Updated 1 field');
-  expect(result.event).toBe('Fired “reveal”');
+  expect(result.event).toBe('Pressed “reveal”');
   expect(result.staged).toBeNull();
   expect(result.live).toBeNull();
   expect(result.unknown).toBeNull();

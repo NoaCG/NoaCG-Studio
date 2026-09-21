@@ -50,7 +50,7 @@ import type { CombinedControl } from '../model/profile';
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
 import { createAppliedOnce } from '../control/commandRoads';
-import { appendLogEntries, describeLogRow, logTime, type LogEntry } from '../control/eventLog';
+import { appendLogEntries, describeLogRow, eventLogLabel, logTime, type LogEntry } from '../control/eventLog';
 import {
   clearAllCueBatches,
   clearCueItems,
@@ -111,10 +111,24 @@ import { PREVIEW_EMPTY_LABEL } from '../control/spaceMode';
 /** How far behind the log head the action log seeds its history — the in-app page's number. */
 const LOG_HISTORY_SPAN = 400;
 
+/** A graphic's machine state as a renderer reports it and as a monitor stage reads it. */
+type MachineReport = { groups?: Record<string, string> } | null;
+
 export default function HostedControlPage({ slug }: { slug: string }) {
   const [show, setShow] = useState<ResolvedControlShow | null | 'loading'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [liveCue, setLiveCue] = useState<LiveCueMap>({});
+  /**
+   * EACH GRAPHIC'S MACHINE STATE, from whichever source spoke last: a renderer's report off the
+   * log, or this page's own PROGRAM monitor, which follows the same log. The in-app dashboard
+   * has always read its monitor this way (ProductionPage `noteMachineState`); this page read
+   * ONLY renderer reports, so with no /output open yet - a class rehearsing on a phone - the
+   * state chip never appeared and the ⚡ actions were judged against nothing at all.
+   */
+  const [machineState, setMachineState] = useState<Record<string, MachineReport>>({});
+  const noteMachineState = useCallback((graphic: string, state: MachineReport) => {
+    setMachineState((m) => (JSON.stringify(m[graphic] ?? null) === JSON.stringify(state) ? m : { ...m, [graphic]: state }));
+  }, []);
   const [selectedCueId, setSelectedCueId] = useState<string | null>(null);
   /** The cue on PREVIEW in 'preview-then-take' SPACE mode - see the in-app page's twin; the
    *  selection is only a cursor there and SPACE is what puts a cue here. */
@@ -283,6 +297,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // Which cues were already on air comes off the ROW (0031's snapshot, per-layer since
       // 0034), seeded before following so old rows can never overwrite a newer fact.
       setLiveCue(resolved.liveCue);
+      setMachineState(Object.fromEntries(Object.entries(resolved.live).map(([g, report]) => [g, report?.state ?? null])));
       // The unsent baseline starts at what each live graphic REPORTED applying — a page opened
       // mid-show must not announce changes against an empty baseline it never saw aired.
       setAiredData(
@@ -296,10 +311,20 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // says. The cues are fixed until a republish, so closing over them here is exact.
       const cueLabel = (cueId: string) =>
         resolved.output?.cues.find((c) => c.id === cueId)?.label ?? null;
+      // …and a ⚡ press by the name on its button, read off the published graphic's own machine
+      // (control/eventLog.ts). Parsed once per graphic, lazily, since most rows are not events.
+      const buttons = new Map<string, ControlButton[]>();
+      const eventLabel = (graphic: string, event: string) => {
+        if (!buttons.has(graphic)) {
+          const js = resolved.panel.find((g) => g.name === graphic)?.js;
+          buttons.set(graphic, js ? eventButtons(js) : []);
+        }
+        return eventLogLabel(buttons.get(graphic)!, event);
+      };
       const history = await hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
       if (!live) return;
       setWireLog((l) =>
-        appendLogEntries(l, history.map((r) => describeLogRow(r, cueLabel)).filter((e): e is LogEntry => !!e)),
+        appendLogEntries(l, history.map((r) => describeLogRow(r, cueLabel, eventLabel)).filter((e): e is LogEntry => !!e)),
       );
       unsubscribe = await followControlLog({
         showId: resolved.id,
@@ -315,6 +340,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           if (msg.t === 'staged') {
             setShow((s) => (s && s !== 'loading' ? { ...s, staged: { ...s.staged, [row.graphic]: msg.data } } : s));
           } else if (msg.t === 'live') {
+            noteMachineState(row.graphic, msg.state ?? null);
             setShow((s) =>
               s && s !== 'loading' ? { ...s, live: { ...s.live, [row.graphic]: { data: msg.data, state: msg.state } } } : s,
             );
@@ -325,7 +351,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             // press has to count from the new value and the next Take has to air it.
             refreshData.current();
           }
-          const entry = describeLogRow(row, cueLabel);
+          const entry = describeLogRow(row, cueLabel, eventLabel);
           if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
         },
       });
@@ -334,10 +360,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       live = false;
       unsubscribe?.();
     };
-    // `applyCommand` is declared with no dependencies of its own, so listing it re-runs nothing;
-    // it is here because the follow now hands it BOTH roads and a silent capture would be the
-    // easiest way for the two to drift.
-  }, [slug, applyCommand]);
+    // `applyCommand` and `noteMachineState` are declared with no dependencies of their own, so
+    // listing them re-runs nothing. `applyCommand` is here because the follow now hands it BOTH
+    // roads and a silent capture would be the easiest way for the two to drift.
+  }, [slug, applyCommand, noteMachineState]);
 
   const resolved = show && show !== 'loading' ? show : null;
   const cues: OutputCue[] = useMemo(() => resolved?.output?.cues ?? [], [resolved]);
@@ -865,10 +891,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               <h2>
                 <span className="pd-dot" aria-hidden="true" />
                 PROGRAM — ON AIR
-                <span className="pd-what">
+                {/* The names can run past the monitor's width and end in an ellipsis, so the title
+                    carries them whole. The badge names EVERY live layer, in the names' order: with a
+                    quiz and a score both up it used to show one layer beside two names. */}
+                <span className="pd-what" title={liveLayers.map((l) => `${l.label} (layer ${l.layer})`).join(', ')}>
                   {liveLayers.length === 0 ? 'nothing on air' : liveLayers.map((l) => l.label).join(' · ')}
                 </span>
-                {liveLayers[0] && <span className="pd-layer-badge">L{liveLayers[0].layer}</span>}
+                {liveLayers.length > 0 && (
+                  <span className="pd-layer-badge">{liveLayers.map((l) => `L${l.layer}`).join(' · ')}</span>
+                )}
               </h2>
               <div className="pd-screen">
                 <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: '16 / 9' }}>
@@ -877,7 +908,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                     payload={payload}
                     emptyLabel={liveLayers.length === 0 ? 'Nothing on air' : undefined}
                     testId="hosted-program-stage"
-                    onState={noteOverflow(setProgramOverflow)}
+                    onState={(graphic, state, over) => {
+                      noteOverflow(setProgramOverflow)(graphic, state, over);
+                      noteMachineState(graphic, state);
+                    }}
                   />
                 </div>
               </div>
@@ -909,7 +943,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               live={selectedIsLive}
               layerLive={!!selectedLayerCueId}
               layer={layerOf(selectedCue.graphic)}
-              liveState={resolved?.live[selectedCue.graphic]?.state ?? null}
+              liveState={machineState[selectedCue.graphic] ?? null}
               // PREVIEW measures the cue ON it, which in 'preview-then-take' mode is not
               // always the cue being edited; a warning about another cue's words is no warning.
               overflow={
@@ -1420,7 +1454,7 @@ function HostedCueEditor({
             {overflowMessage}
           </span>
         )}
-        {stateLabel && <span className="hosted-state-chip">{stateLabel}</span>}
+        {stateLabel && <span className="hosted-state-chip" data-testid="hosted-state-chip">{stateLabel}</span>}
         <div className="spacer" />
         {spec.entries.length > 0 && (
           <select
@@ -1549,6 +1583,7 @@ function HostedCueEditor({
                         value={valueOf(d.key)}
                         onChange={(v: string | number) => edit(d.key, String(v))}
                         images={spec.images.map((i) => ({ value: i.value }))}
+                        testId={`hosted-field-${d.key}`}
                       />
                     </label>
                   );

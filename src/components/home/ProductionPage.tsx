@@ -124,7 +124,7 @@ import {
   type ResolvedControlShow,
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
-import { appendLogEntries, describeLogRow, type LogEntry } from '../../control/eventLog';
+import { appendLogEntries, describeLogRow, eventLogLabel, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
   clockSpecFromHtml,
@@ -895,6 +895,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (d && d.cueId === cueId) return d.label;
     return cuesRef.current.find((c) => c.id === cueId)?.label ?? null;
   }, []);
+  // A ⚡ press is logged by its BUTTON's name, not the machine's event id (control/eventLog.ts).
+  // Read through a ref for the same reason as the cue names: the log callbacks are long-lived.
+  // Filled from `poolMachines` below, which parses every graphic in the production once.
+  const poolButtonsRef = useRef(new Map<string, ControlButton[]>());
+  const eventLabel = useCallback(
+    (graphic: string, event: string) =>
+      eventLogLabel(poolButtonsRef.current.get(graphic) ?? [], event),
+    [],
+  );
 
   // ── Live tracking: recover the marker from the log's tail, then follow. Rows also drive the
   // PROGRAM monitor, so it shows what is really on air — including another operator's take. ──
@@ -936,7 +945,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setWireLog((l) =>
         appendLogEntries(
           l,
-          history.map((r) => describeLogRow(r, cueLabel)).filter((e): e is LogEntry => !!e),
+          history.map((r) => describeLogRow(r, cueLabel, eventLabel)).filter((e): e is LogEntry => !!e),
         ),
       );
       unsubscribe = await followControlLog({
@@ -976,7 +985,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           else if (msg.t !== 'staged' && msg.t !== 'cue' && typeof (msg as { src?: string }).src === 'string') {
             void refreshRef.current();
           }
-          const entry = describeLogRow(row, cueLabel);
+          const entry = describeLogRow(row, cueLabel, eventLabel);
           if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
         },
       });
@@ -1219,6 +1228,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poolResolutionKey, library]);
+  poolButtonsRef.current = new Map([...poolMachines].map(([name, m]) => [name, m.buttons]));
 
   /**
    * DOES THIS BROWSER TAB OWN A PLAYOUT SURFACE?
@@ -1284,7 +1294,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const entries = batches
           .flat()
           .map((item) =>
-            describeLogRow({ id: (localLogId.current -= 1), graphic: item.graphic, msg: item.msg, created_at: at }, cueLabel),
+            describeLogRow(
+              { id: (localLogId.current -= 1), graphic: item.graphic, msg: item.msg, created_at: at },
+              cueLabel,
+              eventLabel,
+            ),
           )
           .filter((e): e is LogEntry => !!e);
         setWireLog((l) => appendLogEntries(l, entries));
@@ -1316,7 +1330,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return false;
       }
     },
-    [hostedSlug, showId, cueLabel, rememberAired, applyProgram, applyCommand],
+    [hostedSlug, showId, cueLabel, eventLabel, rememberAired, applyProgram, applyCommand],
   );
 
   /**
@@ -2396,10 +2410,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             <h2>
               <span className="pd-dot" aria-hidden="true" />
               PROGRAM — ON AIR
-              <span className="pd-what">
+              {/* The names can run past the monitor's width and end in an ellipsis, so the title
+                  carries them whole. The badge names EVERY live layer, in the names' order: with a
+                  quiz and a score both up it used to show one layer beside two names. */}
+              <span className="pd-what" title={liveLayers.map((l) => `${l.label} (layer ${l.layer})`).join(', ')}>
                 {liveLayers.length === 0 ? 'nothing on air' : liveLayers.map((l) => l.label).join(' · ')}
               </span>
-              {liveLayers[0] && <span className="pd-layer-badge">L{liveLayers[0].layer}</span>}
+              {liveLayers.length > 0 && (
+                <span className="pd-layer-badge">{liveLayers.map((l) => `L${l.layer}`).join(' · ')}</span>
+              )}
             </h2>
             <div className="pd-screen">
               <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: stageAspect }}>

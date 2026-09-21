@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { enableAdvancedMode } from './_create';
 
 // ADVANCED MODE (docs/GOALS_ARCHIVE.md "Student release" step 4). The DEFAULT studio shows no editor
 // doors: the wizard is the full-screen creation surface, a close lands on Home, and a saved
@@ -76,23 +77,40 @@ test('the Settings toggle restores the editor doors without a reload', async ({ 
   await expect(page.locator('[data-entry="blank"]')).toBeVisible();
 });
 
-test('default studio: Home shelf -> control page -> Edit graphic opens a stage with the graphic ON it', async ({ page }) => {
-  // THE ROUTE A PERSON TAKES, end to end. The owner reported an empty editor stage on
-  // 2026-08-27 and the session that chased it could only reach the editor by deep link, where
-  // the graphic was visibly fine (docs/handoffs/2026-08-27-editor-stage-blank.md, route 5) - so
-  // the one route he actually walks was the one nothing covered.
+test('default studio: Home shelf -> control page -> Edit graphic opens the NEW editor on that graphic', async ({ page }) => {
+  // Owner, 2026-09-21: no door to the old editor in the default studio. Every saved graphic
+  // opens onto its control page, so this button was the old editor's most-used door.
   await page.goto('/app');
   await seedGraphic(page);
   await page.getByTestId('creation-wizard').locator('.gallery-close').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.getByTestId('shelf-graphic').filter({ hasText: 'Seeded lower third' }).click();
+  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
 
-  // The dashboard SHELF, not the graphics section - it is the first thing on the page and
-  // therefore the door somebody uses. (The handoff suspected a seed made through
-  // model/library.ts never reached this shelf; it does, because Home reads the library when it
-  // mounts and the seed happens before that.)
-  const card = page.getByTestId('shelf-graphic').filter({ hasText: 'Seeded lower third' });
-  await expect(card).toBeVisible();
-  await card.click();
+  await page.getByTestId('control-open-editor').click();
+  const guard = page.getByTestId('confirm-switch');
+  const editor = page.getByTestId('editor-foundation');
+  await expect(guard.or(editor)).toBeVisible();
+  if (await guard.isVisible()) await guard.getByTestId('switch-discard').click();
+  await expect(editor).toBeVisible();
+  await expect(page).toHaveURL(/editor=foundation#\/editor-foundation$/);
+  // Holding THIS graphic, still linked to its library record, so a save lands on it.
+  await expect(editor.locator('.ef-current-graphic')).toHaveText('Seeded lower third');
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(page.getByTestId('preview-stage')).toHaveCount(0);
+});
+
+test('advanced mode: control page -> Edit graphic opens the code editor with the graphic ON its stage', async ({ page }) => {
+  await enableAdvancedMode(page);
+  // THE ROUTE A PERSON TAKES, end to end. The owner reported an empty editor stage on
+  // 2026-08-27 and the session that chased it could only reach the editor by deep link, where
+  // the graphic was visibly fine (docs/handoffs/2026-08-27-editor-stage-blank.md, route 5) - so
+  // the one route he actually walks was the one nothing covered.
+  // (The default studio walks the Home shelf to this page in the test above; Advanced mode
+  // boots into the editor rather than Home, so this one arrives by the control page's address.)
+  await page.goto('/app');
+  const id = await seedGraphic(page);
+  await page.goto(`/app#/control/${id}`);
   await expect(page.getByTestId('graphic-control-page')).toBeVisible();
 
   await page.getByTestId('control-open-editor').click();

@@ -1434,7 +1434,7 @@ test('a combined control sends one row per step, waits, and counts the wait down
   // makes a combined control usable as the one press an operator makes on the beat.
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Revealed');
   await expect(votes.locator('#f16')).toHaveText('revealed');
-  await expect(page.getByTestId('action-log-row').first()).toContainText('Fired “reveal”');
+  await expect(page.getByTestId('action-log-row').first()).toContainText('Pressed “Reveal performer”');
   // …and nothing else has. The three unticked +1s never go at all; the two ticked ones are still
   // three seconds away.
   await expect(totals.locator('#f5')).toHaveText('0');
@@ -1457,9 +1457,9 @@ test('a combined control sends one row per step, waits, and counts the wait down
   await expect(totals.locator('#f9')).toHaveText('0');
   // ONE ROW PER STEP, in order, on the one command log. Newest first, so the second +1 leads.
   const rows = page.getByTestId('action-log-row');
-  await expect(rows.nth(0)).toContainText('Fired “plus2”');
-  await expect(rows.nth(1)).toContainText('Fired “plus1”');
-  await expect(rows.nth(2)).toContainText('Fired “reveal”');
+  await expect(rows.nth(0)).toContainText('Pressed “Panelist 2 · +1”');
+  await expect(rows.nth(1)).toContainText('Pressed “Panelist 1 · +1”');
+  await expect(rows.nth(2)).toContainText('Pressed “Reveal performer”');
   // The run is over: the button is a button again.
   await expect(combined).not.toHaveClass(/pd-combined-waiting/);
 
