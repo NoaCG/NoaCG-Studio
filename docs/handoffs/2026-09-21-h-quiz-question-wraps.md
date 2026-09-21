@@ -72,6 +72,30 @@ quiz boards do not grow under rule 3.
   centred between the amber rule and row A at 2 and 3 lines. The lower-third question is on two
   lines inside its band, with the widow noted above.
 
+## First CI run, and what changed after it
+
+The first queue attempt (PR #364, tip `24d0c833`) was refused on CI by three failures:
+
+- **My lower-third walk read "madeof?".** That was the test, not the product. CI's face broke the
+  line between "made" and "of?", and `toContainText` reads `textContent`, which joins the tspan
+  lines with nothing between them. The runtime reads a block back line by line with spaces
+  (`svgFitValue`), so the value was intact. The walks now compare the whole value read that way
+  (`valueOnAir`), and assert the operator's field still holds the typed value. That pins "no
+  space lost" wherever the break falls.
+- **Catalog emit fingerprints and `catalog-baseline.spec.ts` said "emitted code moved".** Exactly
+  one design moved: `svg01` (imported-design), its `js` hash only. That JS is the SVG fit runtime
+  this row changes, so it was intended. No other catalog design emits it. I took `main` in first,
+  then re-recorded with `UPDATE_CATALOG_BASELINE=1 node scripts/check-catalog-emit.mjs`. The diff
+  is that one line in `e2e/catalog-baseline.json`.
+- **`import-svg.spec.ts:2224` (followers of a growing panel) hit "Execution context was
+  destroyed".** That is a navigation race. It passed on this laptop before and after (j-1635,
+  j-1673), and it does not touch the fit.
+
+Row L is deleting `public/docs/examples/quiz-lower-third.svg`, so the walk now imports a copy at
+`e2e/fixtures/illustrator-quiz-lower-third.svg`. The owner-queue route and the D4 section point
+there. After the fixes, `import-svg-behaviour`, `import-svg` and `catalog-baseline` gave 138
+passed (j-1673).
+
 ## Commits
 
-`125550a6` (the band, the wizard mirror, both walks, the docs), then this handoff.
+`125550a6` (the band, the wizard mirror, both walks, the docs), `24d0c833` (this handoff), then main taken in and the CI fixes above.

@@ -2465,7 +2465,19 @@ test('the docs example scoreboard imports as a score tracker, +1 raises the draw
 // the top of the whole board with the rows closing it off below - no room of its own at all - so
 // a question twice the drawn length went straight to one line at the 55% floor. The space the
 // question owns is the band between the board's top furniture and the first row plate.
-const DOCS_QUIZ_LT = fileURLToPath(new URL('../public/docs/examples/quiz-lower-third.svg', import.meta.url));
+// The lower-third quiz the docs handed out until 2026-09-22, kept as a fixture (e2e/fixtures/README.md).
+const DOCS_QUIZ_LT = fileURLToPath(new URL('./fixtures/illustrator-quiz-lower-third.svg', import.meta.url));
+
+/** The value a bound layer shows on air, read the way the fit runtime reads it back (svgFitValue).
+ *  A wrapped block is one tspan per line, and its textContent joins them with NOTHING between, so
+ *  a break between "made" and "of?" reads "madeof?" although both words are painted, each on its
+ *  own line. Where the break falls depends on the face the machine has, so CI and a laptop differ. */
+async function valueOnAir(air: FrameLocator, selector: string): Promise<string> {
+  return air.locator(selector).evaluate((el) => {
+    const lines = el.querySelectorAll(':scope > tspan[data-noacg-line]');
+    return lines.length ? Array.from(lines, (t) => t.textContent ?? '').join(' ') : (el.textContent ?? '');
+  });
+}
 
 /** The question on air: its box in design px, its size, and how many lines it was painted on. */
 async function questionOnAir(air: FrameLocator, selector: string) {
@@ -2491,10 +2503,14 @@ async function quizOnAir(page: Page, fixture: string, graphic: string, productio
   const id = `#${field.replace('cue-field-', '')}`;
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   await expect(air.locator(id)).toHaveText(drawn);
-  const ask = async (value: string, tail: string) => {
+  const ask = async (value: string) => {
     await page.getByTestId(field).fill(value);
     await page.getByTestId('verb-update').click();
-    await expect(air.locator(id)).toContainText(tail);
+    // EVERY WORD ARRIVES, with every space, wherever the lines break - compared whole rather than
+    // by its tail, because the tail is exactly what a break can split. The operator's field keeps
+    // the typed value too, so nothing on the way to air or back dropped a space.
+    await expect.poll(() => valueOnAir(air, id)).toBe(value);
+    await expect(page.getByTestId(field)).toHaveValue(value);
     // The ladder settles on the update and may settle again when the face has loaded, so the
     // answer is read once two samples a beat apart agree on the lines and the size.
     let last = '';
@@ -2530,7 +2546,7 @@ test('a long question on the docs example quiz wraps at its drawn size in the ba
   const band: Rect = { left: 360, top: 148, right: 1560, bottom: 380 };
 
   // TWICE THE DRAWN LENGTH: two lines at the drawn 50px, never one line at the floor.
-  const twice = await ask('Which planet in our solar system is closest to the Sun, and how long is its year?', 'its year?');
+  const twice = await ask('Which planet in our solar system is closest to the Sun, and how long is its year?');
   expect(twice.lines).toBe(2);
   expect(twice.size).toBe(50);
   expectInside(twice, band);
@@ -2541,7 +2557,6 @@ test('a long question on the docs example quiz wraps at its drawn size in the ba
   // THREE TIMES: a third line, and only then a little smaller - never past the 55% floor.
   const thrice = await ask(
     'Which planet in our solar system is closest to the Sun, how long does its year last in Earth days, and what is its surface made of?',
-    'made of?',
   );
   expect(thrice.lines).toBe(3);
   expect(thrice.size).toBeGreaterThan(50 * 0.55);
@@ -2549,7 +2564,7 @@ test('a long question on the docs example quiz wraps at its drawn size in the ba
   expect(await overflowOnAir(air)).toEqual([]);
 
   // A short question goes back to one line at the drawn size.
-  const short = await ask('Which planet is red?', 'is red?');
+  const short = await ask('Which planet is red?');
   expect(short.lines).toBe(1);
   expect(short.size).toBe(50);
   expectInside(short, band);
@@ -2568,7 +2583,7 @@ test('a long question on the docs example LOWER-THIRD quiz wraps above its answe
   expectInside(drawn, band);
 
   // TWICE THE DRAWN LENGTH still fits one line of this wide board at the drawn size.
-  const twice = await ask('Which planet in our solar system is closest to the Sun, and how long is its year?', 'its year?');
+  const twice = await ask('Which planet in our solar system is closest to the Sun, and how long is its year?');
   expect(twice.lines).toBe(1);
   expect(twice.size).toBe(40);
   expectInside(twice, band);
@@ -2577,7 +2592,6 @@ test('a long question on the docs example LOWER-THIRD quiz wraps above its answe
   // larger size than that, so the ladder wraps rather than shrinking the question onto one line.
   const long = await ask(
     'Which planet in our solar system is closest to the Sun, how long does its year last in Earth days, and what is its surface made of?',
-    'made of?',
   );
   expect(long.lines).toBe(2);
   expect(long.size).toBeGreaterThan(40 * 0.6);

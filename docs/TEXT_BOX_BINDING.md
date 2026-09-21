@@ -119,7 +119,7 @@ moves at any length, because the plate no longer has to grow to hold the questio
 ### D4. A line over PLATES inside its box reads its alignment in the band above them
 
 Measured 2026-09-21 on the two docs example quizzes (`public/docs/examples/quiz.svg`,
-`quiz-lower-third.svg`). Both draw the question inside the board, over answer-row plates that are
+`quiz-lower-third.svg`, since 2026-09-22 kept as `e2e/fixtures/illustrator-quiz-lower-third.svg`). Both draw the question inside the board, over answer-row plates that are
 also inside the board. Read against the whole board the question sits at the TOP, the rows keep
 their whole drawn gap (D2's rule), and the question has no room at all: twice the drawn length
 went to one line at the 55% floor while the band above the rows stood empty.

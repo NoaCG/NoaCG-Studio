@@ -25,7 +25,7 @@ panel for a second line. Only a drawn plate under a line opens the band above it
    production.
 3. Take the cue, type "Which planet in our solar system is closest to the Sun, and how long is its
    year?" into Question, and press Update.
-4. Repeat with `public/docs/examples/quiz-lower-third.svg`, using a longer question: "Which planet
+4. Repeat with `e2e/fixtures/illustrator-quiz-lower-third.svg` (the lower-third quiz the docs handed out until 2026-09-22), using a longer question: "Which planet
    in our solar system is closest to the Sun, how long does its year last in Earth days, and what
    is its surface made of?".
 

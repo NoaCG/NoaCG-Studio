@@ -10,3 +10,8 @@ tokens regenerating one.
   (follow-up 1) - the same source has validated both PASS and FAIL in different sessions.
   Validate it with `validateHyperframesComposition` against the real mounted bridge at
   4 s / `transparent: true`.
+- **`illustrator-quiz-lower-third.svg`** - a copy of the lower-third quiz the docs handed out
+  until 2026-09-22, when the docs went to one example per type. It is an Illustrator Save a Copy
+  export with the question drawn over answer plates inside a thin board, and
+  `e2e/import-svg-behaviour.spec.ts` walks it to pin that a long question wraps in the band above
+  the plates rather than shrinking onto one line.
