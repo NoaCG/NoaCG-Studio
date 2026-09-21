@@ -39,17 +39,33 @@ left on main pinning nothing.
 
 ## What it would take
 
-Start by testing the assumption that investigation rested on and never checked: that the take's
-own rows, returning through the log, are dropped by `applyCommand`'s `claim()` dedupe and so
-cannot restore the live-cue marker. The delayed-resolve experiment suggests they are NOT dropped
-and the page heals itself. If that is right, the hosted failure is the log not delivering at all,
-which points at `followControlLog` and its polling fallback rather than at the dashboard's state.
+**Already done, so do not rebuild it:** the join-status indicator. As of pull request 349
+(2026-09-20) the production dashboard shows `○ not joined, polling` beside the SHOW chip whenever
+the log's live channel has never joined, and nothing when it has. Because it is rendered TEXT, it
+lands in Playwright's page snapshot, so the next hosted failure artifact answers "did the channel
+ever join?" on its own. `e2e/configured/follow-status-is-visible.spec.ts` pins both halves.
 
-The cheapest instrument is the one the code already has and no spec reads: `followControlLog`
-reports channel join status separately through `onStatus` and `onCommandStatus`
-(`src/control/hostedControl.ts`) so a surface can say "not joined - polling". Capturing those in
-the hosted specs would answer in one line whether the channel ever joined, which is the question
-every one of these 300-second hangs leaves open.
+**Next, in order:**
+
+1. **Read the next red hosted artifact before doing anything else.** The scheduled run is Sunday
+   and Wednesday, 02:40 UTC. If the snapshot shows `not joined, polling`, the channel never came
+   up and the failure is the log not delivering - look at `followControlLog` and its 30-second
+   poll. If it does NOT show, the channel joined and the dashboard still lost the marker, which
+   points back at the page's own state.
+2. **Test the assumption the first investigation rested on and never checked:** that the take's
+   own rows, returning through the log, are dropped by `applyCommand`'s `claim()` dedupe and so
+   cannot restore the live-cue marker. The delayed-resolve experiment suggests they are NOT
+   dropped and the page heals itself.
+3. **A cause-agnostic self-heal is on the table and not yet decided.** Re-reading the live-cue
+   map from the server on the follower's existing 30-second tick would turn "wrong until someone
+   reloads" into "wrong for at most half a minute", whatever the cause. It changes live playout
+   behaviour, so it wants both database tiers green before it lands and a rehearsal after. It
+   must reuse the boot resolve's staleness guard (`liveCueMoves`), or a periodic re-read races a
+   press exactly the way the boot read did.
+
+**Operator workaround meanwhile, which is sound:** if the dashboard says nothing is on air while a
+graphic visibly is, reload the dashboard. A fresh page resolves `live_cue` from the server, and in
+every recorded failure the server was right.
 
 ## Cost of the loop, so it is not rediscovered
 
