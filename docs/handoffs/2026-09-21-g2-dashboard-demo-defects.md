@@ -44,6 +44,21 @@ Owner walk: `docs/acceptance/owner-queue/2026-09-21-g2-dashboard-demo-defects.md
 - **Queue starvation seen tonight**: browser gates sat behind landings for long stretches.
   Row N's fix (`58662733`) landed during this session.
 
+- **The merge queue refused the first queueing** (run 35663497961). Row L had rebuilt
+  `public/docs/examples/scoreboard.svg` with numbered rows (Team 1, Score 1, Score 2, Team 2), so
+  the bands are `row-1`/`row-2`, and my assertion named `side-A`. The heading fix held: band 2
+  leads with its score, which is exactly the case it covers. The assertion now reads every band
+  label off the rendered editor and checks that none is "Side"/"Row" or a bare figure.
+- **CI finding, not fixed: the "E2E retry" job crashed** in that run with "Expected double-quoted
+  property name in JSON at position 146163" while naming the failed specs.
+  `scripts/e2e-retry.mjs` `mergeBlobReports` runs `playwright merge-reports --reporter=json` and
+  `JSON.parse`s its whole STDOUT. Anything else that reaches that stdout corrupts the parse. Merge
+  reports loads `playwright.config.ts`, and the offline guard and `scripts/e2e-workers.mjs` both
+  `console.log`. The error sits 146 KB into the stream, not at the start, so the exact writer is
+  unconfirmed. The robust fix is to have the JSON reporter write a FILE
+  (`PLAYWRIGHT_JSON_OUTPUT_FILE`) and parse that, not stdout. I left it alone because I could not
+  reproduce it here, and a wrong guess would silence the retry job.
+
 ## For the owner
 
 - Out on your own laptop should empty PROGRAM within about half a second. If it ever does not,

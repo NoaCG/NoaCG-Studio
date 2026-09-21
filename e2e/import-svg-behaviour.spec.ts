@@ -2489,9 +2489,13 @@ test('the docs example scoreboard imports as a score tracker, +1 raises the draw
   await expect(chip).not.toContainText(':');
   // Both bands of the cue editor are headed by their team, however the designer ordered the
   // fields - one of them used to read "Side B" beside the other team's name.
-  await expect(page.getByTestId('cue-band-label-side-A')).toBeVisible();
-  for (const side of ['A', 'B']) {
-    await expect(page.getByTestId(`cue-band-label-side-${side}`)).not.toHaveText(/^(Side|Row) /);
+  // The keys are read off the rendered editor (A/B for lettered sides, 1/2 for numbered rows),
+  // because what matters is the heading, not which alphabet the file happens to use.
+  const bandLabels = page.locator('[data-testid^="cue-band-label-"]:not([data-testid="cue-band-label-shared"])');
+  await expect(bandLabels).toHaveCount(2);
+  for (const label of await bandLabels.all()) {
+    await expect(label).not.toHaveText(/^(Side|Row) /);
+    await expect(label).not.toHaveText(/^-?\d+$/);
   }
 
   await page.getByTestId('cue-action-score1').click();
