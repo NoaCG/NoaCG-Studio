@@ -66,6 +66,18 @@ test('a published quiz and scoreboard run across the dashboard and two hosted ta
   expect(slug, 'publishing must mint a hosted control slug').toBeTruthy();
   watchErrors(page, 'dashboard', errors);
 
+  // THE RENDERER FIRST, the way the class sets up: OBS is loading the output URL before anybody
+  // presses anything. (A renderer opened AFTER a lock boots without it - see the handoff
+  // docs/handoffs/2026-09-21-c-dashboard-flawless.md - so this walk does not open it late.)
+  const outputSlug = await page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
+  }, showName);
+  expect(outputSlug).toBeTruthy();
+  const output = await context.newPage();
+  watchErrors(output, 'output', errors);
+  await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}&debug=1`);
+
   const a = await context.newPage();
   const b = await context.newPage();
   watchErrors(a, 'hosted A', errors);
@@ -83,19 +95,10 @@ test('a published quiz and scoreboard run across the dashboard and two hosted ta
   await expect(page.getByTestId('live-cue-chip')).toContainText('Quiz board', WIRE);
   await a.getByRole('button', { name: /Select answer/ }).click();
   await a.getByRole('button', { name: /Lock it in/ }).click();
-  // NO RENDERER IS OPEN YET, which is a class rehearsing before OBS is up. The chip reads the
-  // page's own PROGRAM monitor then; it used to read renderer reports alone and stayed empty.
+  // The chip reads the page's own PROGRAM monitor as well as renderer reports. It used to read
+  // reports alone, and with no renderer open (a class rehearsing before OBS is up) it stayed
+  // empty; run 35628443262 passed this line with no renderer open at all.
   await expect(a.getByTestId('hosted-state-chip')).toContainText('Locked', WIRE);
-
-  // ── Now the real renderer, as OBS loads it. It boots mid-show and reports from then on. ──
-  const outputSlug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
-  }, showName);
-  expect(outputSlug).toBeTruthy();
-  const output = await context.newPage();
-  watchErrors(output, 'output', errors);
-  await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}&debug=1`);
   const air = output.frameLocator('iframe[title="Quiz board"]');
   await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/, WIRE);
 
