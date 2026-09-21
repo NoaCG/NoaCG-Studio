@@ -62,7 +62,7 @@ interface Props {
   /** THE PRIMARY DOOR (docs/GOALS_ARCHIVE.md "Student release" step 6): create it, save it, pool it
    *  into the production, land on the production page — the road to air. */
   onAddToProduction: (dest: ProductionDest) => void;
-  /** Create the project and land in the editor — the classic ending. Saving stays manual. */
+  /** Create the project and land in the code editor (AppShell). Advanced mode only; saving stays manual. */
   onOpenEditor: () => void;
   /** Optional canvas refinement of the final document, without installing a cue. */
   onEditArtwork?: () => void;
@@ -217,8 +217,9 @@ export function importedSummaryRows(imported: ImportedTemplateResult): SummaryRo
  *
  * THE PRIMARY DOOR is a production (docs/GOALS_ARCHIVE.md "Student release" step 6) — the wizard's
  * whole promise ends on air, so the door that leads there leads. "Export" stays for the
- * download-and-run-locally workflow, and "Open in the editor" is Advanced mode's continuation
- * (the default studio does not offer it).
+ * download-and-run-locally workflow. "Edit this graphic" opens the new canvas editor
+ * (#/editor-foundation) where the mode supplies it, and "Open in the code editor" is Advanced
+ * mode's continuation into the old code workspace (the default studio never offers it).
  */
 export default function FinishStep({
   name,
@@ -500,16 +501,14 @@ export default function FinishStep({
           >
             <span className="wz-entry-head">
               <span className="wz-entry-icon">‹›</span>
-              {/* Named ALPHA on the door itself, not in a note somebody reads afterwards: the
-                  editor is real and useful, and it is also the surface most likely to behave
-                  in ways a student did not expect. Saying so here is what keeps that a known
-                  trade rather than a broken promise. */}
-              {/* `.wz-beta-tag` is the shared MATURITY-TAG style (the video strip's Beta chip
-                  wears it too); the word in it is what says which stage this is. */}
-              <strong>Open in the editor <span className="wz-beta-tag">Alpha</span></strong>
+              {/* THE CODE EDITOR, named for what it is (2026-09-21). Advanced mode shows it
+                  beside "Edit this graphic", the new canvas editor, and two doors both called
+                  some editor with the same Alpha tag gave no way to tell them apart. The
+                  default studio never shows this door. */}
+              <strong>Open in the code editor</strong>
             </span>
             <span className="hint">
-              Fine-tune fields, motion and code on the canvas and timeline. Still rough — expect
+              Advanced mode: the full canvas, timeline and code workspace. Still rough - expect
               sharp edges. Nothing is written to your library until you press Save.
             </span>
           </button>
