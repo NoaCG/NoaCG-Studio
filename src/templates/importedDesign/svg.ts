@@ -1975,32 +1975,24 @@ function svgGrowElBy(rule, el, base, dir, delta) {
   // Which of the shape's OWN axes the rule's screen axis is, and which way along it: a plate
   // written as a portrait rect plus a rotation grows on the other one (svgGrowAxis).
   var ax = svgGrowAxis(rule, el);
-  if ((el.tagName || '').toLowerCase() === 'polygon') {
-    var pb = el.getBBox();
-    var paxis = ax.attr === 'height' ? 'y' : 'x';
-    var psplit = paxis === 'y' ? pb.y + pb.height / 2 : pb.x + pb.width / 2;
-    if (dir === 0) {
-      var phalf = svgShiftPoints(base.points, paxis, psplit, 1, delta / 2);
-      el.setAttribute('points', svgShiftPoints(phalf, paxis, psplit, -1, delta / 2));
-      return;
-    }
-    el.setAttribute('points', svgShiftPoints(base.points, paxis, psplit, dir * ax.sign, delta));
-    return;
-  }
-  if ((el.tagName || '').toLowerCase() === 'path') {
+  var tag = (el.tagName || '').toLowerCase();
+  if (tag === 'path' || tag === 'polygon') {
+    // A path and a polygon are both a list of points: one shifter each, one way to spend it.
+    var attr = tag === 'path' ? 'd' : 'points';
+    var shiftBy = tag === 'path' ? svgShiftPathD : svgShiftPoints;
     var bb = el.getBBox();
     var local = ax.attr === 'height' ? 'y' : 'x';
     var split = local === 'y' ? bb.y + bb.height / 2 : bb.x + bb.width / 2;
-    // The path's own points move along ITS axis, so the screen direction the rule wants is
+    // The shape's own points move along ITS axis, so the screen direction the rule wants is
     // spent through the sign that axis lands on. Growing from the MIDDLE is the same shift run
     // once each way for half the width: the split is the shape's own middle and a symmetric
     // shift never moves it, so the second pass still finds the same two halves.
     if (dir === 0) {
-      var half = svgShiftPathD(base.d, local, split, 1, delta / 2);
-      el.setAttribute('d', svgShiftPathD(half, local, split, -1, delta / 2));
+      var half = shiftBy(base[attr], local, split, 1, delta / 2);
+      el.setAttribute(attr, shiftBy(half, local, split, -1, delta / 2));
       return;
     }
-    el.setAttribute('d', svgShiftPathD(base.d, local, split, dir * ax.sign, delta));
+    el.setAttribute(attr, shiftBy(base[attr], local, split, dir * ax.sign, delta));
     return;
   }
   el.setAttribute(ax.attr, String((parseFloat(base[ax.attr]) || 0) + delta));

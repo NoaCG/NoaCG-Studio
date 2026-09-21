@@ -1157,30 +1157,48 @@ function hoistRunPosition(el: Element): void {
  * answer reduced to a smudge of dots (measured 2026-09-21 on illustrator-save-as-quiz-board,
  * where one hand-kerned answer read "…" in the wizard's own preview).
  *
- * So the FIRST run's look is copied onto the text at import: its classes merged into the
- * text's, and any presentation attribute the text does not already state. The runs keep their
- * own, so the file still draws exactly as exported; only what the operator's words inherit
- * changes. The first run, because that is where the line begins and the same run
- * `hoistRunPosition` takes its position from - a headline whose runs differ in colour becomes
- * one colour once it is retyped, and the colour it starts with is the right one to keep.
+ * So the look EVERY run shares is MOVED up onto the text at import: the classes all runs carry,
+ * and any presentation attribute all runs state with one value, taken off the runs and put on
+ * the `<text>` they inherit from. Moved, never copied: a run and its text both carrying
+ * `opacity:0.85` would draw at 0.72, so copying would change the file before anybody typed.
+ * Inherited properties then reach the runs exactly as before, and a non-inherited one applies
+ * once to the text instead of once per run, which draws the same because runs do not overlap.
+ *
+ * Classes move only onto a `<text>` with NO class of its own. Among several classes on one
+ * element the rule declared LATER in the stylesheet wins, never the order in the attribute, so
+ * merging a run's classes into the text's could let the text's own colour beat the run's on the
+ * operator's words - the loss this exists to prevent - and `fontSizeResolver` would report a
+ * size nobody sees. Illustrator's shape is the empty text, and that is the one this answers. An
+ * attribute moves only where the text does not state it, for the same reason.
  */
 const RUN_LAYOUT_ATTRS = new Set(['x', 'y', 'dx', 'dy', 'rotate', 'id', 'class', 'textlength', 'lengthadjust']);
 function hoistRunStyle(el: Element): void {
   if (el.tagName.toLowerCase() !== 'text') return;
-  const first = leafTspans(el)[0];
-  if (!first) return;
-  const had = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-  const merged = [...had];
-  for (const cls of (first.getAttribute('class') ?? '').split(/\s+/)) {
-    if (cls && !merged.includes(cls)) merged.push(cls);
+  const runs = leafTspans(el);
+  // Only runs that are the text's DIRECT children: a wrapper tspan between them would sit
+  // between the moved look and the runs, and would keep a look of its own in the middle.
+  if (runs.length === 0 || runs.some((run) => run.parentElement !== el)) return;
+  const classesOf = (run: Element) => (run.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+  if (!(el.getAttribute('class') ?? '').trim()) {
+    const shared = classesOf(runs[0]).filter((cls) => runs.every((run) => classesOf(run).includes(cls)));
+    if (shared.length) {
+      el.setAttribute('class', shared.join(' '));
+      for (const run of runs) {
+        const rest = classesOf(run).filter((cls) => !shared.includes(cls));
+        if (rest.length) run.setAttribute('class', rest.join(' '));
+        else run.removeAttribute('class');
+      }
+    }
   }
-  if (merged.length > had.length) el.setAttribute('class', merged.join(' '));
-  for (const attr of Array.from(first.attributes)) {
+  for (const attr of Array.from(runs[0].attributes)) {
     const name = attr.name.toLowerCase();
     // Position is hoistRunPosition's, names and data are the run's own, and a namespaced
     // attribute (xml:space, an Illustrator i:… marker) is bookkeeping rather than a look.
     if (RUN_LAYOUT_ATTRS.has(name) || name.startsWith('data-') || name.includes(':')) continue;
-    if (!el.hasAttribute(attr.name)) el.setAttribute(attr.name, attr.value);
+    if (el.hasAttribute(attr.name)) continue;
+    if (!runs.every((run) => run.getAttribute(attr.name) === attr.value)) continue;
+    el.setAttribute(attr.name, attr.value);
+    for (const run of runs) run.removeAttribute(attr.name);
   }
 }
 
