@@ -797,7 +797,10 @@ function colourWord(fill: string): string | null {
 function isReadableBoxName(label: string): boolean {
   const trimmed = label.trim();
   if (trimmed === '' || /^(Panel|Rectangle)\s+\d+$/.test(trimmed)) return false;
-  return /[A-Za-z]{4,}/.test(trimmed);
+  // Three letters is a word: the docs examples name their row plates `Row A` to `Row D`
+  // (docs/backlog/one-layer-naming-system-for-every-graphic.md), and at four the checklist
+  // headed them "Black plate 1" to "Black plate 4" beside a file that had named every one.
+  return /[A-Za-z]{3,}/.test(trimmed);
 }
 
 /** What a box is called in the list: the designer's own name where they gave one, otherwise its

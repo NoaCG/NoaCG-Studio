@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- NoaCG docs example - SCOREBOARD. Imports as a Score tracker.
-     Team A, Score A, Team B and Score B are the layer names NoaCG reads. The scores must be
-     plain numbers. Goal A, Goal B and Full time are optional hidden groups.
-     Full-frame 1920x1080 artboard, transparent background. See https://noacg.studio/docs#scoreboards -->
+     Three layers, top of the Layers panel first: Text (what the operator types), Moments (hidden
+     groups NoaCG shows), Board (what stays as drawn). Team 1, Score 1, Team 2 and Score 2 are the
+     names NoaCG reads; the scores must be plain numbers. Flash 1, Flash 2 and Full time are
+     optional hidden groups. Full-frame 1920x1080 artboard, transparent background.
+     See https://noacg.studio/docs#scoreboards -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
   <defs>
     <style>
@@ -12,28 +14,34 @@
     </style>
   </defs>
 
+  <!-- BOARD: the drawing. -->
   <g id="Board" data-name="Board">
-    <rect x="80" y="60" width="640" height="84" fill="#0d1017" opacity="0.95"/>
-    <rect x="380" y="60" width="40" height="84" fill="#161b24"/>
-    <rect x="80" y="144" width="640" height="6" fill="#f6a623"/>
+    <rect id="Panel" data-name="Panel" x="80" y="60" width="640" height="84" fill="#0d1017" opacity="0.95"/>
+    <rect id="Divider" data-name="Divider" x="380" y="60" width="40" height="84" fill="#161b24"/>
+    <rect id="Edge" data-name="Edge" x="80" y="144" width="640" height="6" fill="#f6a623"/>
   </g>
 
-  <!-- Drawn moments. Each one is a GROUP and starts hidden. -->
-  <g id="Goal_A" data-name="Goal A" display="none">
-    <rect x="80" y="150" width="300" height="36" fill="#f6a623"/>
-    <text class="flag" x="230" y="175" font-size="20" fill="#10131a" text-anchor="middle">GOAL</text>
-  </g>
-  <g id="Goal_B" data-name="Goal B" display="none">
-    <rect x="420" y="150" width="300" height="36" fill="#f6a623"/>
-    <text class="flag" x="570" y="175" font-size="20" fill="#10131a" text-anchor="middle">GOAL</text>
-  </g>
-  <g id="Full_time" data-name="Full time" display="none">
-    <rect x="300" y="150" width="200" height="36" fill="#e8edf2"/>
-    <text class="flag" x="400" y="175" font-size="18" fill="#10131a" text-anchor="middle">FULL TIME</text>
+  <!-- MOMENTS: one hidden group per moment. Each one is a GROUP and starts hidden. -->
+  <g id="Moments" data-name="Moments">
+    <g id="Full_time" data-name="Full time" display="none">
+      <rect x="300" y="150" width="200" height="36" fill="#e8edf2"/>
+      <text class="flag" x="400" y="175" font-size="18" fill="#10131a" text-anchor="middle">FULL TIME</text>
+    </g>
+    <g id="Flash_1" data-name="Flash 1" display="none">
+      <rect x="80" y="150" width="300" height="36" fill="#f6a623"/>
+      <text class="flag" x="230" y="175" font-size="20" fill="#10131a" text-anchor="middle">GOAL</text>
+    </g>
+    <g id="Flash_2" data-name="Flash 2" display="none">
+      <rect x="420" y="150" width="300" height="36" fill="#f6a623"/>
+      <text class="flag" x="570" y="175" font-size="20" fill="#10131a" text-anchor="middle">GOAL</text>
+    </g>
   </g>
 
-  <text id="Team_A" data-name="Team A" class="team" x="108" y="114" font-size="30" fill="#ffffff">OTAVA</text>
-  <text id="Score_A" data-name="Score A" class="score" x="362" y="117" font-size="40" fill="#ffffff" text-anchor="end">2</text>
-  <text id="Score_B" data-name="Score B" class="score" x="438" y="117" font-size="40" fill="#ffffff">1</text>
-  <text id="Team_B" data-name="Team B" class="team" x="692" y="114" font-size="30" fill="#ffffff" text-anchor="end">KARHUT</text>
+  <!-- TEXT: what the operator types. -->
+  <g id="Text" data-name="Text">
+    <text id="Team_1" data-name="Team 1" class="team" x="108" y="114" font-size="30" fill="#ffffff">OTAVA</text>
+    <text id="Score_1" data-name="Score 1" class="score" x="362" y="117" font-size="40" fill="#ffffff" text-anchor="end">2</text>
+    <text id="Score_2" data-name="Score 2" class="score" x="438" y="117" font-size="40" fill="#ffffff">1</text>
+    <text id="Team_2" data-name="Team 2" class="team" x="692" y="114" font-size="30" fill="#ffffff" text-anchor="end">KARHUT</text>
+  </g>
 </svg>

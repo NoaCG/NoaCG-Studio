@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- NoaCG docs example - QUIZ. Imports as a Quiz.
-     Question and Answer A to Answer D are the layer names NoaCG reads. A selected, A correct,
-     A wrong (and the same for B, C, D) and Locked are optional hidden groups.
-     Full-frame 1920x1080 artboard, transparent background. See https://noacg.studio/docs#quiz -->
+     Three layers, top of the Layers panel first: Text (what the operator types), Moments (hidden
+     groups NoaCG shows), Board (what stays as drawn). Question and Answer A to Answer D are the
+     names NoaCG reads. Selected A, Correct A, Wrong A (and the same for B, C, D) and Locked in
+     are optional hidden groups. Full-frame 1920x1080 artboard, transparent background.
+     See https://noacg.studio/docs#quiz -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
   <defs>
     <style>
@@ -13,47 +15,46 @@
     </style>
   </defs>
 
+  <!-- BOARD: the drawing. The letters are part of it, so they are static. -->
   <g id="Board" data-name="Board">
-    <rect x="360" y="140" width="1200" height="800" fill="#0d1017" opacity="0.96"/>
-    <rect x="360" y="140" width="1200" height="8" fill="#f6a623"/>
-  </g>
-
-  <g id="Rows" data-name="Rows">
-    <rect x="420" y="380" width="1080" height="92" rx="10" fill="#1e2530"/>
-    <rect x="420" y="500" width="1080" height="92" rx="10" fill="#1e2530"/>
-    <rect x="420" y="620" width="1080" height="92" rx="10" fill="#1e2530"/>
-    <rect x="420" y="740" width="1080" height="92" rx="10" fill="#1e2530"/>
-  </g>
-
-  <!-- Drawn moments, one set per row. Each one is a GROUP and starts hidden. -->
-  <g id="A_selected" data-name="A selected" display="none"><rect x="420" y="380" width="1080" height="92" rx="10" fill="#f6a623" fill-opacity="0.18" stroke="#f6a623" stroke-width="4"/></g>
-  <g id="A_correct" data-name="A correct" display="none"><rect x="420" y="380" width="1080" height="92" rx="10" fill="#0f7a4a"/></g>
-  <g id="A_wrong" data-name="A wrong" display="none"><rect x="420" y="380" width="1080" height="92" rx="10" fill="#b3372e"/></g>
-  <g id="B_selected" data-name="B selected" display="none"><rect x="420" y="500" width="1080" height="92" rx="10" fill="#f6a623" fill-opacity="0.18" stroke="#f6a623" stroke-width="4"/></g>
-  <g id="B_correct" data-name="B correct" display="none"><rect x="420" y="500" width="1080" height="92" rx="10" fill="#0f7a4a"/></g>
-  <g id="B_wrong" data-name="B wrong" display="none"><rect x="420" y="500" width="1080" height="92" rx="10" fill="#b3372e"/></g>
-  <g id="C_selected" data-name="C selected" display="none"><rect x="420" y="620" width="1080" height="92" rx="10" fill="#f6a623" fill-opacity="0.18" stroke="#f6a623" stroke-width="4"/></g>
-  <g id="C_correct" data-name="C correct" display="none"><rect x="420" y="620" width="1080" height="92" rx="10" fill="#0f7a4a"/></g>
-  <g id="C_wrong" data-name="C wrong" display="none"><rect x="420" y="620" width="1080" height="92" rx="10" fill="#b3372e"/></g>
-  <g id="D_selected" data-name="D selected" display="none"><rect x="420" y="740" width="1080" height="92" rx="10" fill="#f6a623" fill-opacity="0.18" stroke="#f6a623" stroke-width="4"/></g>
-  <g id="D_correct" data-name="D correct" display="none"><rect x="420" y="740" width="1080" height="92" rx="10" fill="#0f7a4a"/></g>
-  <g id="D_wrong" data-name="D wrong" display="none"><rect x="420" y="740" width="1080" height="92" rx="10" fill="#b3372e"/></g>
-  <g id="Locked" data-name="Locked" display="none">
-    <rect x="1300" y="186" width="210" height="48" rx="24" fill="#f6a623"/>
-    <text class="badge" x="1405" y="218" font-size="18" fill="#10131a" text-anchor="middle">LOCKED IN</text>
-  </g>
-
-  <!-- The letters are part of the drawing, so they are static. -->
-  <g id="Letters" data-name="Letters">
+    <rect id="Panel" data-name="Panel" x="360" y="140" width="1200" height="800" fill="#0d1017" opacity="0.96"/>
+    <rect id="Edge" data-name="Edge" x="360" y="140" width="1200" height="8" fill="#f6a623"/>
+    <rect id="Row_A" data-name="Row A" x="420" y="380" width="1080" height="92" rx="10" fill="#1e2530"/>
+    <rect id="Row_B" data-name="Row B" x="420" y="500" width="1080" height="92" rx="10" fill="#1e2530"/>
+    <rect id="Row_C" data-name="Row C" x="420" y="620" width="1080" height="92" rx="10" fill="#1e2530"/>
+    <rect id="Row_D" data-name="Row D" x="420" y="740" width="1080" height="92" rx="10" fill="#1e2530"/>
     <text id="static_x3A_Letter_A" data-name="static:Letter A" class="letter" x="466" y="438" font-size="34" fill="#f6a623" text-anchor="middle">A</text>
     <text id="static_x3A_Letter_B" data-name="static:Letter B" class="letter" x="466" y="558" font-size="34" fill="#f6a623" text-anchor="middle">B</text>
     <text id="static_x3A_Letter_C" data-name="static:Letter C" class="letter" x="466" y="678" font-size="34" fill="#f6a623" text-anchor="middle">C</text>
     <text id="static_x3A_Letter_D" data-name="static:Letter D" class="letter" x="466" y="798" font-size="34" fill="#f6a623" text-anchor="middle">D</text>
   </g>
 
-  <text id="Question" data-name="Question" class="question" x="960" y="280" font-size="50" fill="#ffffff" text-anchor="middle">Which planet is closest to the Sun?</text>
-  <text id="Answer_A" data-name="Answer A" class="answer" x="530" y="438" font-size="34" fill="#ffffff">Mercury</text>
-  <text id="Answer_B" data-name="Answer B" class="answer" x="530" y="558" font-size="34" fill="#ffffff">Venus</text>
-  <text id="Answer_C" data-name="Answer C" class="answer" x="530" y="678" font-size="34" fill="#ffffff">Earth</text>
-  <text id="Answer_D" data-name="Answer D" class="answer" x="530" y="798" font-size="34" fill="#ffffff">Mars</text>
+  <!-- MOMENTS: one hidden group per moment. Each one is a GROUP and starts hidden. -->
+  <g id="Moments" data-name="Moments">
+    <g id="Locked_in" data-name="Locked in" display="none">
+      <rect x="1300" y="186" width="210" height="48" rx="24" fill="#f6a623"/>
+      <text class="badge" x="1405" y="218" font-size="18" fill="#10131a" text-anchor="middle">LOCKED IN</text>
+    </g>
+    <g id="Selected_A" data-name="Selected A" display="none"><rect x="420" y="380" width="1080" height="92" rx="10" fill="#f6a623" fill-opacity="0.18" stroke="#f6a623" stroke-width="4"/></g>
+    <g id="Correct_A" data-name="Correct A" display="none"><rect x="420" y="380" width="1080" height="92" rx="10" fill="#0f7a4a"/></g>
+    <g id="Wrong_A" data-name="Wrong A" display="none"><rect x="420" y="380" width="1080" height="92" rx="10" fill="#b3372e"/></g>
+    <g id="Selected_B" data-name="Selected B" display="none"><rect x="420" y="500" width="1080" height="92" rx="10" fill="#f6a623" fill-opacity="0.18" stroke="#f6a623" stroke-width="4"/></g>
+    <g id="Correct_B" data-name="Correct B" display="none"><rect x="420" y="500" width="1080" height="92" rx="10" fill="#0f7a4a"/></g>
+    <g id="Wrong_B" data-name="Wrong B" display="none"><rect x="420" y="500" width="1080" height="92" rx="10" fill="#b3372e"/></g>
+    <g id="Selected_C" data-name="Selected C" display="none"><rect x="420" y="620" width="1080" height="92" rx="10" fill="#f6a623" fill-opacity="0.18" stroke="#f6a623" stroke-width="4"/></g>
+    <g id="Correct_C" data-name="Correct C" display="none"><rect x="420" y="620" width="1080" height="92" rx="10" fill="#0f7a4a"/></g>
+    <g id="Wrong_C" data-name="Wrong C" display="none"><rect x="420" y="620" width="1080" height="92" rx="10" fill="#b3372e"/></g>
+    <g id="Selected_D" data-name="Selected D" display="none"><rect x="420" y="740" width="1080" height="92" rx="10" fill="#f6a623" fill-opacity="0.18" stroke="#f6a623" stroke-width="4"/></g>
+    <g id="Correct_D" data-name="Correct D" display="none"><rect x="420" y="740" width="1080" height="92" rx="10" fill="#0f7a4a"/></g>
+    <g id="Wrong_D" data-name="Wrong D" display="none"><rect x="420" y="740" width="1080" height="92" rx="10" fill="#b3372e"/></g>
+  </g>
+
+  <!-- TEXT: what the operator types. -->
+  <g id="Text" data-name="Text">
+    <text id="Question" data-name="Question" class="question" x="960" y="280" font-size="50" fill="#ffffff" text-anchor="middle">Which planet is closest to the Sun?</text>
+    <text id="Answer_A" data-name="Answer A" class="answer" x="530" y="438" font-size="34" fill="#ffffff">Mercury</text>
+    <text id="Answer_B" data-name="Answer B" class="answer" x="530" y="558" font-size="34" fill="#ffffff">Venus</text>
+    <text id="Answer_C" data-name="Answer C" class="answer" x="530" y="678" font-size="34" fill="#ffffff">Earth</text>
+    <text id="Answer_D" data-name="Answer D" class="answer" x="530" y="798" font-size="34" fill="#ffffff">Mars</text>
+  </g>
 </svg>

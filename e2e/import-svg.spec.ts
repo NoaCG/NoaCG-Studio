@@ -81,9 +81,9 @@ test('svg import: the export rules lead the drop step, above the zone', async ({
 
   const head = page.getByTestId('import-svg-export-why');
   await expect(head).toBeVisible();
-  // Asked as a question, in the words someone would ask it in, with the one-line summary beside
-  // it (GOALS goal 4).
-  await expect(head).toContainText('Need help exporting SVG?');
+  // Named the way the docs name it, so the docs can point at it, with the one-line summary beside
+  // it (GOALS goal 4). Short enough for one line at 1280 wide.
+  await expect(head).toContainText('Exporting the SVG');
   await expect(head).toContainText('named layers, live text, one artboard');
 
   // ABOVE THE DROP ZONE. Geometry, not order in the DOM: the whole defect was that nothing below
@@ -2158,11 +2158,11 @@ test('svg import: clicking a text layer binds it, and clicking it again lets it 
   await expect(page.getByTestId('map-svg-fields')).toContainText('1 of 1');
   await awaitPickable(page, [0.11, 0.79]);
 
-  // Turning one OFF asks what should happen to the words, exactly as the checkbox does - the
-  // canvas is the same control, so it must not be the door that answers for you.
+  // Turning one OFF means what the checkbox means - the words stay as drawn - and asks nothing,
+  // exactly as the checkbox does: the canvas is the same control.
   await pickOnCanvas(page, [0.11, 0.79]);
-  await page.getByTestId('map-svg-off-keep').click();
   await expect(tick).not.toBeChecked();
+  await expect(page.getByTestId('map-svg-off-t0')).toHaveText('stays as drawn');
   await expect(page.getByTestId('map-svg-fields')).toContainText('0 of 1');
 
   // …and back again, so the canvas is the same control as the checkbox rather than a one-way
@@ -3737,11 +3737,12 @@ test('svg import: a board that draws a repeated row keeps every box as drawn', a
   expect(state.after).toEqual(state.before);
 });
 
-// UNTICKING A TEXT LAYER ASKS WHAT TO DO WITH THE WORDS (owner walk, 2026-09-02: "the logical
-// thing here is to have a prompt that asks, what should we do?"). It used to mean one thing
-// silently - the layer stays as drawn and cannot be retyped - and removal must never be the
-// automatic answer: "what if it's there for a reason anyway?"
-test('svg import: unticking a text layer asks what to do, and keeps the words by default', async ({
+// UNTICKING A TEXT LAYER ASKS NOTHING (owner, 2026-09-21: ticking or unticking a field shows no
+// warning). It means the one safe thing - the layer stays as drawn and cannot be retyped - and the
+// row says so, with removal one press away on the same line. Removal is never the automatic
+// answer (owner walk, 2026-09-02: "what if it's there for a reason anyway?"); the dialog that used
+// to ask which is gone, because a student read it as an error.
+test('svg import: unticking a text layer keeps the words, says so, and offers removal on the row', async ({
   page,
 }) => {
   await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
@@ -3752,29 +3753,10 @@ test('svg import: unticking a text layer asks what to do, and keeps the words by
   const id = (await question.getAttribute('data-testid'))!.replace('map-svg-sample-', '');
   const box = page.getByTestId(`map-svg-row-${id}`).locator('input[type="checkbox"]');
 
-  // Closing the question leaves the row exactly as it was: a mis-click costs nothing.
+  // One click, no dialog: the row is off and says what that means.
   await box.click();
-  const dialog = page.getByTestId('map-svg-off-dialog');
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('What should happen to these words?');
-  await dialog.locator('.gallery-close').click();
-  await expect(dialog).toBeHidden();
-  await expect(box).toBeChecked();
-
-  // AND ESCAPE CLOSES THE DIALOG, NOT THE WIZARD. The wizard binds Escape on `window` to rewind
-  // to the front page, so without a capture handler of its own this dialog's Esc would throw the
-  // whole import away - the opposite of what the ✕ beside it does.
-  await box.click();
-  await expect(dialog).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
-  await expect(box).toBeChecked();
-
-  // Keeping is the primary answer, and it says so on the row afterwards.
-  await box.click();
-  await page.getByTestId('map-svg-off-keep').click();
   await expect(box).not.toBeChecked();
+  await expect(page.locator('[role="dialog"]')).toHaveCount(0);
   await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('stays as drawn');
 
   // Ticking it back on clears the answer with it - no half state to reason about.
@@ -3783,8 +3765,13 @@ test('svg import: unticking a text layer asks what to do, and keeps the words by
 
   // Removing takes the layer off the built graphic. The shapes are still in the file: one CSS
   // rule hides them, which is what makes this reversible in the editor rather than destructive.
+  // The other answer is on the row too, so the press is not a one-way door.
   await box.click();
-  await page.getByTestId('map-svg-off-remove').click();
+  await page.getByTestId(`map-svg-off-remove-${id}`).click();
+  await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('taken off the artwork');
+  await page.getByTestId(`map-svg-off-keep-${id}`).click();
+  await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('stays as drawn');
+  await page.getByTestId(`map-svg-off-remove-${id}`).click();
   await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('taken off the artwork');
   await createProject(page);
   await expect(previewFrame(page).locator('.imported-design-removed')).toHaveCount(1);
@@ -4244,8 +4231,11 @@ test('svg import: plates well inside the frame are boxes, and group the checklis
   await dropSvg2(page, SCOREBUG_SVG);
   const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
   await expect(heads).toHaveCount(2);
-  await expect(heads.nth(0)).toContainText('plate');
-  await expect(heads.nth(1)).toContainText('plate');
+  // Headed by the designer's own word: the plates sit in a group called Bug, and a three-letter
+  // name is a name (stageMeasure.ts, isReadableBoxName), so the two read "Bug 1" and "Bug 2"
+  // rather than the colour the step falls back to for an unnamed shape.
+  await expect(heads.nth(0)).toContainText('Bug 1');
+  await expect(heads.nth(1)).toContainText('Bug 2');
 });
 
 // AND THE CHECKLIST NEVER RE-SORTS ITSELF. A group is a run of consecutive rows, so showing which
@@ -4305,12 +4295,10 @@ test('svg import: the drop says why the walk just got a step shorter', async ({ 
   ]);
   const note = page.getByTestId('import-svg-rail-note');
   await expect(note).toBeVisible();
-  // The two counts the reader just watched, and BOTH names that left, in the words the rail
-  // used for them - a note that said only "fewer steps" would not close the loop.
-  await expect(note).toContainText('Five steps now, not six');
-  await expect(note).toContainText('Prepare');
-  await expect(note).toContainText('Text');
-  await expect(note).toContainText('Fields');
+  // The note says what happens NEXT, in a student's words, rather than accounting for the step
+  // counter (docs/backlog/import-step-copy-a-kid-can-read.md): the outcome, not the mechanism.
+  await expect(note).toContainText('tick the text the operator can change');
+  await expect(note).not.toContainText('Five steps');
 });
 
 // 2. THE ALIGNMENT GRID SAYS ITS ANSWER IN WORDS. Nine unlabelled dots under the word "Aligned"
@@ -4358,11 +4346,14 @@ test('svg import: every alignment grid writes its own answer beside the heading'
 // walks both pinned window sizes: it gained one line asserting no row is taller than 56 px.)
 
 // 3. THE TWO NAME BOXES NEVER DEFAULT TO THE SAME WORD. On the commonest first run - an empty
-// library, so the picker is already on "New production" - both boxes start empty, and the
-// production used to take the GRAPHIC's name: a graphic called "Imported SVG design" inside a
-// production called "Imported SVG design", found a week later in a library holding three of
-// them. A show that holds one strap is not called "Interview strap".
-test('svg import: an unnamed production is not named after the graphic', async ({ page }) => {
+// library, so the picker is already on "New production" - the production used to take the
+// GRAPHIC's name: a graphic called "Imported SVG design" inside a production called "Imported
+// SVG design", found a week later in a library holding three of them. A show that holds one
+// strap is not called "Interview strap". And the graphic itself is named after the FILE that was
+// dropped (row E's walk, 2026-09-21: two unnamed imports were both "Imported SVG design" and the
+// second replaced the first in the production), with the catalog name as the placeholder for a
+// reader who clears it.
+test('svg import: an unnamed production is not named after the graphic, and the graphic is named after its file', async ({ page }) => {
   await page.goto('/app');
   await dropSvg2(page, SCOREBUG_SVG);
   // Settle on the STEP COUNTER between the two clicks. Clicking Next twice in a row without one
@@ -4373,9 +4364,9 @@ test('svg import: an unnamed production is not named after the graphic', async (
   await expect(page.getByTestId('wz-stepcount')).toContainText('5');
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 
-  // Both boxes empty, and each says what ITS OWN empty means - the rule the graphic box already
-  // followed and the production box did not.
-  await expect(page.getByTestId('wz-finish-name')).toHaveValue('');
+  // The graphic box carries the file's name (scorebug.svg), and each box says what ITS OWN empty
+  // means - the rule the graphic box already followed and the production box did not.
+  await expect(page.getByTestId('wz-finish-name')).toHaveValue('Scorebug');
   await expect(page.getByTestId('wz-finish-name')).toHaveAttribute('placeholder', 'Imported SVG design');
   await page.getByTestId('wz-finish-production-pick').locator('select').selectOption('new');
   const prod = page.getByTestId('wz-finish-production-name');
@@ -4390,9 +4381,9 @@ test('svg import: an unnamed production is not named after the graphic', async (
   await page.getByTestId('wz-finish-production-go').click();
   const dest = page.getByTestId('wz-finish-production-confirm-dest');
   await expect(dest).toContainText('Untitled production');
-  await expect(dest).not.toContainText('Imported SVG design');
+  await expect(dest).not.toContainText('Scorebug');
   await expect(page.getByTestId('wz-finish-production-confirm'))
-    .toContainText('Imported SVG design goes into this production');
+    .toContainText('Scorebug goes into this production');
 
   // And the write matches what the dialog promised, rather than the UI guessing one name while
   // the model applies another.
@@ -4401,7 +4392,7 @@ test('svg import: an unnamed production is not named after the graphic', async (
   // The page that airs carries TWO names now, and they are different words: the show it is,
   // and the one graphic in it. That is the whole of what this case is about.
   await expect(page.getByTestId('production-page')).toContainText('Untitled production');
-  await expect(page.getByTestId('production-page')).toContainText('Imported SVG design');
+  await expect(page.getByTestId('production-page')).toContainText('Scorebug');
 });
 
 // ── WIZARD EXITS IN THE DEFAULT STUDIO (owner, 2026-09-21) ──────────────────────────────────

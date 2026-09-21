@@ -1,7 +1,7 @@
 {
   "name": "student-illustrator-quiz",
   "family": "illustrator",
-  "exporter": "Adobe Illustrator 28.6 - Export As > SVG, Styling: Internal CSS, Responsive on",
+  "exporter": "Adobe Illustrator 28.6 - Save a Copy > SVG (the legacy exporter: SVG Export Plug-In comment, .stN classes), Styling: Internal CSS, Responsive on",
   "story": "The same student drew the quiz board for the other half of the show: a question strip, four answer rows, and - because they worked out for themselves that the graphic has to look different at each moment - a pick look, a right look and a wrong look for every row plus one LUKITTU badge, all switched off in the layers panel. They named them the way the drawing reads to them: Question text, Option 1..4, Pick 1..4, Right 1..4, Wrong 1..4, Locked. Nothing here matches the words docs/SVG_AUTHORING.md section 5b suggests, because they did not read it.",
   "idioms": [
     "Generator comment naming the SVG Export Plug-In build",

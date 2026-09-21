@@ -130,13 +130,15 @@
   color: var(--muted);
 }
 
-/* A ring rather than a bare square, so a plate drawn in the panel's own background colour is
-   still visible as a swatch instead of disappearing into it. */
+/* A round dot after the name, ringed so a plate drawn in the panel's own background colour is
+   still visible as a swatch instead of disappearing into it. Round and trailing on purpose: a
+   rounded square leading the line sat in the rows' checkbox column and was read as a checkbox
+   nothing could tick (owner, 2026-09-21). */
 .map-svg-swatch {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   flex: none;
-  border-radius: 3px;
+  border-radius: 50%;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 25%);
 }
 
@@ -167,6 +169,24 @@
   font-size: 0.8rem;
   white-space: nowrap;
 }
+/* The other answer, one press away on the same line: a link in the sentence, not a button, so
+   the row keeps its height and the note still reads as a note. */
+.map-svg-off-swap {
+  display: inline;
+  margin-left: 8px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.map-svg-off-swap:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+}
 /* AND THE ROW HAS TO MAKE ROOM FOR IT. A flex item's default `min-width: auto` is its content's
    width, so the two text boxes refuse to give any of theirs back and the note is pushed off the
    panel's right edge - visible in the layout, unreadable on screen. Only on an OFF row, where
@@ -184,29 +204,6 @@
 .map-svg-row.off .map-svg-sample,
 .map-svg-row.off .map-svg-align {
   display: none;
-}
-
-/* The untick question. Two sentences and two buttons, so it is sized to them: `.wz-modal` is a
-   FIXED 1520x960 frame for the sheets that borrow it, and a short question wearing that reads as
-   a full-height pane of empty space with the answer stranded at the top of it - the same defect
-   the settings sheet's own height override exists for. HEIGHT: AUTO, not a smaller fixed one,
-   because the quoted words are the designer's and can be a sentence or a paragraph. */
-.map-svg-off-dialog {
-  width: min(520px, calc(100vw - 32px));
-  height: auto;
-  max-height: 90vh;
-}
-/* 28px to the side, which is the header's - the question and the title it answers read as one
-   column. Without it the body sits flush against the frame while the title is indented. */
-.map-svg-off-body {
-  padding: 16px 28px;
-  overflow: auto;
-}
-.map-svg-off-body p {
-  margin: 0 0 10px;
-}
-.map-svg-off-body p:last-child {
-  margin-bottom: 0;
 }
 
 /* One typeface row: the family, its status, and the two resolution actions. */

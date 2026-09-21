@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- NoaCG docs example - COUNTDOWN. Imports as a Countdown.
-     The one clock-shaped text layer (05:00) is the clock. Time bar, Warning, Paused and Time up
-     are optional drawn moments, and the hidden ones are groups.
-     Full-frame 1920x1080 artboard, transparent background. See https://noacg.studio/docs#countdowns -->
+     Three layers, top of the Layers panel first: Text (what the operator types), Moments (what
+     NoaCG shows and moves), Board (what stays as drawn). The one clock-shaped text (05:00) is the
+     clock, whatever it is called. Timer bar, Warning, Paused and Time up are optional; the hidden
+     ones are groups. Full-frame 1920x1080 artboard, transparent background.
+     See https://noacg.studio/docs#countdowns -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
   <defs>
     <style>
@@ -13,30 +15,33 @@
     </style>
   </defs>
 
-  <g id="Card" data-name="Card">
-    <rect x="560" y="300" width="800" height="480" fill="#0d1017" opacity="0.96"/>
-    <rect x="560" y="300" width="800" height="8" fill="#f6a623"/>
-    <rect x="660" y="690" width="600" height="10" fill="#1e2530"/>
+  <!-- BOARD: the drawing. The label under the title stays as drawn, so it is static. -->
+  <g id="Board" data-name="Board">
+    <rect id="Panel" data-name="Panel" x="560" y="300" width="800" height="480" fill="#0d1017" opacity="0.96"/>
+    <rect id="Edge" data-name="Edge" x="560" y="300" width="800" height="8" fill="#f6a623"/>
+    <rect id="Track" data-name="Track" x="660" y="690" width="600" height="10" fill="#1e2530"/>
+    <text id="static_x3A_Status" data-name="static:Status" class="label" x="960" y="460" font-size="22" fill="#b7bcc4" text-anchor="middle">STARTING IN</text>
   </g>
 
-  <!-- Drains from full to empty as the clock runs. -->
-  <rect id="Time_bar" data-name="Time bar" x="660" y="690" width="600" height="10" fill="#f6a623"/>
-
-  <g id="Warning" data-name="Warning" display="none">
-    <rect x="563" y="303" width="794" height="474" fill="none" stroke="#b3372e" stroke-width="6"/>
+  <!-- MOMENTS: the bar at full length (it drains as the clock runs), and one hidden group per moment. -->
+  <g id="Moments" data-name="Moments">
+    <rect id="Timer_bar" data-name="Timer bar" x="660" y="690" width="600" height="10" fill="#f6a623"/>
+    <g id="Warning" data-name="Warning" display="none">
+      <rect x="563" y="303" width="794" height="474" fill="none" stroke="#b3372e" stroke-width="6"/>
+    </g>
+    <g id="Paused" data-name="Paused" display="none">
+      <rect x="880" y="718" width="160" height="40" rx="20" fill="#1e2530"/>
+      <text class="badge" x="960" y="745" font-size="16" fill="#e8edf2" text-anchor="middle">PAUSED</text>
+    </g>
+    <g id="Time_up" data-name="Time up" display="none">
+      <rect x="820" y="718" width="280" height="40" rx="20" fill="#f6a623"/>
+      <text class="badge" x="960" y="745" font-size="16" fill="#10131a" text-anchor="middle">STARTING NOW</text>
+    </g>
   </g>
-  <g id="Paused" data-name="Paused" display="none">
-    <rect x="880" y="718" width="160" height="40" rx="20" fill="#1e2530"/>
-    <text class="badge" x="960" y="745" font-size="16" fill="#e8edf2" text-anchor="middle">PAUSED</text>
-  </g>
 
-  <text id="Show_title" data-name="Show title" class="title" x="960" y="400" font-size="48" fill="#ffffff" text-anchor="middle">NIGHT SIGNAL</text>
-  <text id="static_x3A_Status" data-name="static:Status" class="label" x="960" y="460" font-size="22" fill="#b7bcc4" text-anchor="middle">STARTING IN</text>
-  <text id="Countdown" data-name="Countdown" class="clock" x="960" y="630" font-size="140" fill="#f6a623" text-anchor="middle">05:00</text>
-
-  <!-- Drawn over the clock when it reaches zero. -->
-  <g id="Time_up" data-name="Time up" display="none">
-    <rect x="600" y="500" width="720" height="170" fill="#0d1017"/>
-    <text class="title" x="960" y="610" font-size="76" fill="#f6a623" text-anchor="middle">STARTING NOW</text>
+  <!-- TEXT: what the operator types. The clock is a time, so it can count down. -->
+  <g id="Text" data-name="Text">
+    <text id="Show_title" data-name="Show title" class="title" x="960" y="400" font-size="48" fill="#ffffff" text-anchor="middle">NIGHT SIGNAL</text>
+    <text id="Clock" data-name="Clock" class="clock" x="960" y="630" font-size="140" fill="#f6a623" text-anchor="middle">05:00</text>
   </g>
 </svg>
