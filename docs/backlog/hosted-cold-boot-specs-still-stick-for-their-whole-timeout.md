@@ -5,7 +5,7 @@ kind: finding
 raised: 2026-09-20
 state: advanced
 note: "Pull requests 347 (take guard) and 349 (join-status text) landed. The first hosted run to include both, 35621780852 on 2026-09-21, was 50/50 with no flakes and closed #341. One green run is not proof of a cause, so the finding stays open until a few more scheduled runs agree."
-found: "The hosted cold-boot specs still hang for their entire test timeout and pass on retry. A staleness window in the production page was found and guarded, but it was NOT shown to be the cause, so issue #341 is still open."
+found: "The hosted cold-boot specs still hang for their entire test timeout and pass on retry. A staleness window in the production page was found and guarded, but it was NOT shown to be the cause, so issue #341 stayed open until a clean run closed it on 2026-09-21."
 serves: NOW
 size: medium
 touches: e2e/configured/relay-cold-boot.spec.ts, src/components/home/ProductionPage.tsx, src/control/hostedControl.ts
@@ -28,8 +28,8 @@ of telling it apart from a real regression.
 300-second budget on a disabled `verb-out`, then passes in ~28 seconds on the retry; latency is
 normal throughout (154-194 ms against a ~207 ms baseline); the dashboard's DOM at the moment of
 failure reads `PROGRAM — ON AIR nothing on air` with every verb but Take greyed, while the
-server's `live_cue` holds the take. Three occurrences across two scheduled runs and one on
-demand.
+server's `live_cue` holds the take. Three whole-timeout hangs so far: two in one scheduled run and
+one in an on-demand run, both on 2026-09-20.
 
 **What was tried and did not pan out** is written up in
 `docs/research/take-clobbered-by-the-boot-resolve-2026-09-20.md`. A staleness window in the
@@ -45,20 +45,20 @@ job logs:
 
 | Run | Date (UTC) | Commit | Staging round trip | Result |
 | --- | --- | --- | --- | --- |
-| 35070863910 | 09-16 07:53 | `16ed46e9` | - | green |
+| 35070863910 | 09-16 07:53 | `16ed46e9` | ~154 ms | green |
 | 35498134985 | 09-20 07:54 | `cf45d972` | ~194 ms | 3 flaky: `relay-cold-boot` and `output-cold-boot` hit their whole timeout, `quiz-output` failed once. All passed on retry. |
 | 35516988408 | 09-20 14:36 | `53bd2f0e` | ~171 ms | 1 flaky: `relay-cold-boot` hit its whole timeout, passed on retry in 28 s. |
 | 35621780852 | 09-21 15:51 | `bde57a83` | ~182 ms | **50 passed, 0 flaky.** Closed #341. |
 
 Both red runs predate pull requests 347 and 349. The green one is the first run to contain them.
 The local-stack nightly (`configured-suite.yml`) was green on every run from 09-20 19:00 onward,
-so the symptom still reproduces only against the hosted project.
+so the symptom has only ever been seen against the hosted project.
 
 I did not treat that green run as a diagnosis. The earlier investigation could not make the
-guarded window produce the symptom, and the symptom was intermittent before the guard existed
-(runs on 09-09, 09-13 and 09-16 were green). What the run does establish is narrower: on the
-code the demo will ship, the three cold-boot and reboot specs pass first time against a hosted
-database at ~180 ms. If the symptom comes back, step 1 below still applies and the snapshot now
+guarded window produce the symptom, and the symptom was intermittent before the guard existed:
+in run 35516988408, which had no guard, `output-cold-boot` passed first time in 21 s while
+`relay-cold-boot` hung. What the green run does establish is narrower: on the code the demo will
+ship, the three cold-boot and reboot specs pass first time against a hosted database at ~180 ms. If the symptom comes back, step 1 below still applies and the snapshot now
 carries the join-status text.
 
 Staging was awake on 09-21. The run above signed in and queried it, and `post-land.yml` read
