@@ -40,6 +40,7 @@ import GraphicsSection from './sections/GraphicsSection';
 import ProductionsSection from './sections/ProductionsSection';
 import VideosSection, { VideoList } from './sections/VideosSection';
 import LooksSection from './sections/LooksSection';
+import { openNewEditor } from '../editorFoundation/openNewEditor';
 import { IconFilm, IconGrid, IconLink, IconPalette, IconSliders, IconTv } from '../icons';
 
 type Section = 'productions' | 'graphics' | 'videos' | 'looks';
@@ -433,7 +434,10 @@ export default function HomePage({ route }: { route: Route }) {
 
           {section === 'videos' && <VideosSection videos={videos} onOpen={openVideo} onChanged={refresh} />}
 
-          {section === 'looks' && <LooksSection looks={looks} onChanged={refresh} onDone={() => navigate({ view: 'editor' })} />}
+          {/* Applying a brand retints the WORKING graphic, so Apply lands where that graphic can
+              be seen and saved: the code editor in Advanced mode, the new editor otherwise
+              (owner, 2026-09-21: no door to the old editor in the default studio). */}
+          {section === 'looks' && <LooksSection looks={looks} onChanged={refresh} onDone={() => (advanced ? navigate({ view: 'editor' }) : openNewEditor())} />}
         </main>
       </div>
 
