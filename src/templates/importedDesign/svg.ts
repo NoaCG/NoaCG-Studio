@@ -1839,8 +1839,13 @@ function svgUserScale(el) {
  *  one panel carry both a widening row and a wrapping one. */
 function svgGrowBase(rule, el, dir) {
   var base = {};
-  if ((el.tagName || '').toLowerCase() === 'path') {
+  var tag = (el.tagName || '').toLowerCase();
+  if (tag === 'path') {
     base.d = el.getAttribute('d');
+    return base;
+  }
+  if (tag === 'polygon') {
+    base.points = el.getAttribute('points');
     return base;
   }
   var ax = svgGrowAxis(rule, el);
@@ -1944,13 +1949,44 @@ function svgShiftPathD(d, axis, split, dir, delta) {
   return out;
 }
 
+// ── Growing a POLYGON panel ───────────────────────────────────────────────────
+// Illustrator writes any straight-edged shape that is not a rectangle as a <polygon>: the
+// slanted plates of a sports lower third are the common case. It grows exactly like a panel
+// path - every corner on the growing side of the middle moves by the grant, so a slanted edge
+// keeps its slant - with the points list rewritten instead of path data.
+function svgShiftPoints(points, axis, split, dir, delta) {
+  var nums = String(points).match(/-?(?:\\d*\\.\\d+|\\d+)(?:e[-+]?\\d+)?/gi);
+  if (!nums || nums.length % 2) return points;
+  var out = [];
+  for (var i = 0; i + 1 < nums.length; i += 2) {
+    var x = parseFloat(nums[i]);
+    var y = parseFloat(nums[i + 1]);
+    var v = axis === 'y' ? y : x;
+    var moved = (dir < 0 ? v < split : v > split) ? v + dir * delta : v;
+    out.push(axis === 'y' ? x + ',' + moved.toFixed(3) : moved.toFixed(3) + ',' + y);
+  }
+  return out.join(' ');
+}
+
 /** Grow one element by delta user units along "dir": a rect by arithmetic on its numbers (an
- *  upward grower moves its y as well, since a rect extends from there), a path by shifting the
- *  points on the growing side of its own middle. */
+ *  upward grower moves its y as well, since a rect extends from there), a path or a polygon by
+ *  shifting the points on the growing side of its own middle. */
 function svgGrowElBy(rule, el, base, dir, delta) {
   // Which of the shape's OWN axes the rule's screen axis is, and which way along it: a plate
   // written as a portrait rect plus a rotation grows on the other one (svgGrowAxis).
   var ax = svgGrowAxis(rule, el);
+  if ((el.tagName || '').toLowerCase() === 'polygon') {
+    var pb = el.getBBox();
+    var paxis = ax.attr === 'height' ? 'y' : 'x';
+    var psplit = paxis === 'y' ? pb.y + pb.height / 2 : pb.x + pb.width / 2;
+    if (dir === 0) {
+      var phalf = svgShiftPoints(base.points, paxis, psplit, 1, delta / 2);
+      el.setAttribute('points', svgShiftPoints(phalf, paxis, psplit, -1, delta / 2));
+      return;
+    }
+    el.setAttribute('points', svgShiftPoints(base.points, paxis, psplit, dir * ax.sign, delta));
+    return;
+  }
   if ((el.tagName || '').toLowerCase() === 'path') {
     var bb = el.getBBox();
     var local = ax.attr === 'height' ? 'y' : 'x';
@@ -2210,9 +2246,9 @@ function svgCollectSpanners(art, rule, grower, panel, dir, out) {
       if (Math.abs(r.left - panel.left) > tol || Math.abs(r.right - panel.right) > tol) continue;
       if (r.bottom < panel.top + 1 || r.top > panel.bottom - 1) continue;
     }
-    // ONLY WHAT CAN ACTUALLY BE STRETCHED. A circle, an ellipse and a polygon all span a panel
-    // as readily as a rail does and none of them carries the attribute growing writes, so
-    // collecting one bought a follower that could not do the thing it was collected for.
+    // ONLY WHAT CAN ACTUALLY BE STRETCHED. A circle or an ellipse spans a panel as readily as a
+    // rail does and carries none of the attributes growing writes, so collecting one bought a
+    // follower that could not do the thing it was collected for. A polygon grows by its points.
     if (!svgCanGrow(rule, el)) continue;
     // ALREADY SPOKEN FOR - by identity, and by CONTAINMENT either way. A group the author
     // declared travels whole, so a rail inside it would otherwise be granted the group's
@@ -2525,7 +2561,9 @@ function growOneRule(rule, index) {
  *  row did before the mode was changed. The wizard has stopped offering the option on rows where
  *  it cannot work; this is what protects the templates that were saved while it did. */
 function svgCanGrow(rule, el) {
-  if ((el.tagName || '').toLowerCase() === 'path') return el.getAttribute('d') != null;
+  var tag = (el.tagName || '').toLowerCase();
+  if (tag === 'path') return el.getAttribute('d') != null;
+  if (tag === 'polygon') return el.getAttribute('points') != null;
   return el.getAttribute(svgGrowAxis(rule, el).attr) != null;
 }
 

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1920 1080" style="enable-background:new 0 0 1920 1080;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#0E1116;}
+	.st1{fill:#1A2029;}
+	.st2{fill:#F6A623;}
+	.st3{fill:#FFFFFF;}
+	.st4{font-family:'Archivo-Bold';}
+	.st5{font-size:40px;}
+	.st6{font-size:56px;}
+	.st7{font-family:'Inter-SemiBold';}
+	.st8{font-size:22px;}
+	.st9{letter-spacing:3;}
+	.st10{display:none;}
+	.st11{opacity:0.85;fill:#E23D3D;}
+</style>
+<g id="Strap">
+	<polygon class="st0" points="200,880 830,880 810,980 180,980 	"/>
+	<rect x="830" y="880" class="st1" width="260" height="100"/>
+	<polygon class="st0" points="1090,880 1740,880 1720,980 1110,980 	"/>
+	<rect x="880" y="980" class="st2" width="160" height="36"/>
+</g>
+<g id="Flash_x20_1" data-name="Flash 1" class="st10">
+	<polygon class="st11" points="200,880 830,880 810,980 180,980 	"/>
+</g>
+<g id="Flash_x20_2" data-name="Flash 2" class="st10">
+	<polygon class="st11" points="1090,880 1740,880 1720,980 1110,980 	"/>
+</g>
+<g id="Logos">
+	<image style="overflow:visible;" width="64" height="64" id="Logo_x20_1" data-name="Logo 1" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABTUlEQVR4nO3ZORKDQAxEUe7C3TkiqR05oxi1tpHkdhWpmf8kB4bjvs7jn6+0G33AT3sANHgXSPnwaIg24VEQ7cK9IVLD7+sUXZkQofHSYC+QFIDMcA1EKMCucBQiBKBCOALhClAx3guhdbwHQvt4K8KIeAsCDLA7UosAAXSN1yCIAXZHeSCIALpPH92CkdNHtmDk9JEtGDt96RaMnb50C0ZPX7IFBCDA4N//G8APYfz0V1tAAAIQgAAEIAABCECAyQgvffwzRAAC8JEYH4qO3YLV9PlihK/G+HKUr8cfATojIPEqgMoIizNjAN0QNPFLgC4I2ngRQHUES7wYoCqCNR4CWCFkQgjOIW6CACQIkRDCe0M9MIAUwRMCuB/cogJAEDQgyu9WdagBLBCeH+v5zQC7ILzO7QaQBeF9XneAKIioc4YBWEGyzpUGUPX6AqKlD8VdEXCzAAAAAElFTkSuQmCC" transform="matrix(1 0 0 1 216 898)">
+	</image>
+	<image style="overflow:visible;" width="64" height="64" id="Logo_x20_2" data-name="Logo 2" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABTUlEQVR4nO3ZuxGDQAxFUcqhOuqkKztyxrB6+q0kP8+Qmr1HcmA4zus+/vlKu9EH/LQHQIN3gZQPj4ZoEx4F0S7cGyI1/Lxu0ZUJERovDfYCSQHIDNdAhALsCkchQgAqhCMQrgAV470QWsd7ILSPtyKMiLcgwAC7I7UIEEDXeA2CGGB3lAeCCKD79NEtGDl9ZAtGTh/ZgrHTl27B2OlLt2D09CVbQAACDP79vwH8EMZPf7UFBCAAAQhAAAIQgAAEmIzw0sc/QwQgAB+J8aHo2C1YTZ8vRvhqjC9H+Xr8EaAzAhKvAqiMsDgzBtANQRO/BOiCoI0XAVRHsMSLAaoiWOMhgBVCJoTgHOImCECCEAkhvDfUAwNIETwhgPvBLSoABEEDovxuVYcawALh+bGe3wywC8Lr3G4AWRDe53UHiIKIOmcYgBUk61xpAFWvL6raUvp4cPCyAAAAAElFTkSuQmCC" transform="matrix(1 0 0 1 1640 898)">
+	</image>
+</g>
+<text id="Team_x20_1" data-name="Team 1" transform="matrix(1 0 0 1 300 944)" class="st3 st4 st5">HAUKAT</text>
+<text id="Score_x20_1" data-name="Score 1" transform="matrix(1 0 0 1 874.3 950)" class="st3 st4 st6">0</text>
+<text id="Score_x20_2" data-name="Score 2" transform="matrix(1 0 0 1 1012.3 950)" class="st3 st4 st6">0</text>
+<text id="Team_x20_2" data-name="Team 2" transform="matrix(1 0 0 1 1150 944)" class="st3 st4 st5">SUDET</text>
+<text id="Period" transform="matrix(1 0 0 1 922.4 1006)"><tspan x="0" y="0" class="st0 st7 st8 st9">2. ER</tspan><tspan x="63.6" y="0" class="st0 st7 st8 st9">Ä</tspan></text>
+</svg>

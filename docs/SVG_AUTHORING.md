@@ -214,7 +214,9 @@ not. If the panel behind a face has to grow, draw the face as its own shape besi
 
 **Draw the panel as a rectangle if you want it to grow.** Rounded corners are fine. So is the
 `<path>` Illustrator writes a rounded rectangle as. Any shape whose geometry reads as a rectangle
-counts, and it grows by its straight middle, so your corner radii stay exactly as drawn. A truly
+counts, and it grows by its straight middle, so your corner radii stay exactly as drawn. A slanted
+plate counts too, the four-cornered shape a sports lower third is drawn with, which Illustrator
+writes as a `<polygon>`: it grows by its corners, so the slant stays the one you drew. A truly
 freeform shape has no width to change. A narrow decoration at the panel's far end, an end cap or a
 closing bar, is read as the panel's own furniture: text stays off it, and it travels with the edge
 when the panel grows.

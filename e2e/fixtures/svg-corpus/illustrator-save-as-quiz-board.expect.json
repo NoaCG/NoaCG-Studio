@@ -1,0 +1,30 @@
+{
+  "name": "illustrator-save-as-quiz-board",
+  "family": "illustrator",
+  "exporter": "Adobe Illustrator 28.6 - File > Save As... > SVG 1.1, CSS Properties: Style Elements, Fonts: SVG (subset), Images: Embed, Preserve Illustrator Editing Capabilities off",
+  "story": "A student drew the quiz board for the class show and saved it the way they save every other file, through Save As: a question card with the show logo in its corner, four answer rows with a drawn letter tile on each, and a pick, a right and a wrong look for every row plus a LOCKED IN badge, all switched off in the layers panel. They named the layers the way docs/SVG_AUTHORING.md section 5b suggests, and hand-kerned the T of Tampere because it looked loose.",
+  "idioms": [
+    "Generator comment naming the SVG Export Plug-In build",
+    "an internal DTD subset declaring &ns_extend; &ns_ai; &ns_graphs;, used as namespace URIs on the root",
+    "width=\"1920px\" height=\"1080px\" with px units on the root, beside the viewBox",
+    "an embedded SVG <font> subset with <font-face>, <missing-glyph> and <glyph> elements, which no browser draws",
+    "the stylesheet wrapped in <![CDATA[ ... ]]>",
+    "hidden layers written as an inline style=\"display:none;\", not as a class",
+    "a picture embedded as <image style=\"overflow:visible;\"> with a base64 data URI, positioned and scaled by transform alone, closed with an explicit </image>",
+    "a multi-line question as one <text> with a <tspan> per line",
+    "a hand-kerned answer written as two <tspan> runs on one baseline, with the class on the RUNS and nothing on the <text>",
+    "_x20_ escapes with data-name on every named layer, and four letter tiles with no id at all"
+  ],
+  "expect": {
+    "accepted": true,
+    "width": 1920,
+    "height": 1080,
+    "textFields": 9,
+    "textLabels": ["Letters", "Letters 2", "Letters 3", "Letters 4", "Question", "Answer A", "Answer B", "Answer C", "Answer D"],
+    "imageFields": 1,
+    "outlineRows": 0,
+    "noticeAbout": [],
+    "growth": "shrink"
+  },
+  "whyThisMatters": "Save As is the road a student who never found Export As takes, and it writes the three habits Export As does not: the CDATA stylesheet, the SVG font subset and the look carried on each <tspan> run. The last one is the dangerous one. The file draws right, and the first time the operator's value reaches the kerned answer the runs are replaced and the word falls back to the browser's 16px black default - on a dark row it read as a smudge of dots in the wizard's own preview (2026-09-21). e2e/import-svg-behaviour.spec.ts walks this file to air."
+}

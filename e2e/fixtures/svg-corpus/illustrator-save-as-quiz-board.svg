@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" [
+	<!ENTITY ns_extend "http://ns.adobe.com/Extensibility/1.0/">
+	<!ENTITY ns_ai "http://ns.adobe.com/AdobeIllustrator/10.0/">
+	<!ENTITY ns_graphs "http://ns.adobe.com/Graphs/1.0/">
+]>
+<svg version="1.1" id="Layer_1" xmlns:x="&ns_extend;" xmlns:i="&ns_ai;" xmlns:graph="&ns_graphs;"
+	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="1920px" height="1080px" viewBox="0 0 1920 1080" style="enable-background:new 0 0 1920 1080;"
+	 xml:space="preserve">
+<font horiz-adv-x="1000">
+<font-face font-family="Archivo-Bold" units-per-em="1000" underline-position="-100" underline-thickness="50"/>
+<missing-glyph horiz-adv-x="500" d="M0,0h500v700H0V0z"/>
+<glyph unicode="A" horiz-adv-x="680" d="M0,0l260,700h160l260-700H530L480,150H200L150,0H0z M240,280h200L340,580L240,280z"/>
+<glyph unicode="B" horiz-adv-x="660" d="M80,0v700h300c120,0,190,60,190,170c0,70-40,120-100,140c80,20,130,80,130,160c0,120-80,180-210,180H80z"/>
+<glyph unicode="C" horiz-adv-x="660" d="M360-10c-190,0-300,140-300,360s110,360,300,360c150,0,250-80,270-210H490c-15,60-60,90-130,90c-100,0-150-80-150-240s50-240,150-240c70,0,115,30,130,90h140C610,70,510-10,360-10z"/>
+<glyph unicode="D" horiz-adv-x="700" d="M80,0v700h250c210,0,320-120,320-350S540,0,330,0H80z M220,120h100c120,0,180-80,180-230S440-110,320-110H220V120z"/>
+</font>
+<style type="text/css">
+<![CDATA[
+	.st0{fill:#0D1017;}
+	.st1{fill:#161B24;}
+	.st2{fill:#F6A623;}
+	.st3{fill:#FFFFFF;}
+	.st4{fill:#1E242F;}
+	.st5{fill:none;stroke:#F6A623;stroke-width:6;stroke-miterlimit:10;}
+	.st6{fill:#2E7D4F;}
+	.st7{fill:#8E2F2F;}
+	.st8{font-family:'Archivo-Bold';}
+	.st9{font-size:50px;}
+	.st10{font-family:'Inter-Medium';}
+	.st11{font-size:38px;}
+	.st12{font-size:44px;}
+	.st13{font-size:22px;}
+	.st14{letter-spacing:4;}
+]]>
+</style>
+<g id="Question_x20_card" data-name="Question card">
+	<rect x="240" y="150" class="st1" width="1440" height="300"/>
+	<rect x="240" y="150" class="st2" width="1440" height="8"/>
+	<image style="overflow:visible;" width="64" height="64" id="Show_x20_logo" data-name="Show logo" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABTUlEQVR4nO3ZORKDQAxEUe7C3TkiqR05oxi1tpHkdhWpmf8kB4bjvs7jn6+0G33AT3sANHgXSPnwaIg24VEQ7cK9IVLD7+sUXZkQofHSYC+QFIDMcA1EKMCucBQiBKBCOALhClAx3guhdbwHQvt4K8KIeAsCDLA7UosAAXSN1yCIAXZHeSCIALpPH92CkdNHtmDk9JEtGDt96RaMnb50C0ZPX7IFBCDA4N//G8APYfz0V1tAAAIQgAAEIAABCECAyQgvffwzRAAC8JEYH4qO3YLV9PlihK/G+HKUr8cfATojIPEqgMoIizNjAN0QNPFLgC4I2ngRQHUES7wYoCqCNR4CWCFkQgjOIW6CACQIkRDCe0M9MIAUwRMCuB/cogJAEDQgyu9WdagBLBCeH+v5zQC7ILzO7QaQBeF9XneAKIioc4YBWEGyzpUGUPX6AqKlD8VdEXCzAAAAAElFTkSuQmCC" transform="matrix(1.25 0 0 1.25 1560 176)">
+	</image>
+</g>
+<g id="Answer_x20_rows" data-name="Answer rows">
+	<rect x="240" y="520" class="st4" width="700" height="110"/>
+	<rect x="980" y="520" class="st4" width="700" height="110"/>
+	<rect x="240" y="670" class="st4" width="700" height="110"/>
+	<rect x="980" y="670" class="st4" width="700" height="110"/>
+</g>
+<g id="A_x20_selected" data-name="A selected" style="display:none;">
+	<rect x="243" y="523" class="st5" width="694" height="104"/>
+</g>
+<g id="B_x20_selected" data-name="B selected" style="display:none;">
+	<rect x="983" y="523" class="st5" width="694" height="104"/>
+</g>
+<g id="C_x20_selected" data-name="C selected" style="display:none;">
+	<rect x="243" y="673" class="st5" width="694" height="104"/>
+</g>
+<g id="D_x20_selected" data-name="D selected" style="display:none;">
+	<rect x="983" y="673" class="st5" width="694" height="104"/>
+</g>
+<g id="A_x20_correct" data-name="A correct" style="display:none;">
+	<rect x="240" y="520" class="st6" width="700" height="110"/>
+</g>
+<g id="B_x20_correct" data-name="B correct" style="display:none;">
+	<rect x="980" y="520" class="st6" width="700" height="110"/>
+</g>
+<g id="C_x20_correct" data-name="C correct" style="display:none;">
+	<rect x="240" y="670" class="st6" width="700" height="110"/>
+</g>
+<g id="D_x20_correct" data-name="D correct" style="display:none;">
+	<rect x="980" y="670" class="st6" width="700" height="110"/>
+</g>
+<g id="A_x20_wrong" data-name="A wrong" style="display:none;">
+	<rect x="240" y="520" class="st7" width="700" height="110"/>
+</g>
+<g id="B_x20_wrong" data-name="B wrong" style="display:none;">
+	<rect x="980" y="520" class="st7" width="700" height="110"/>
+</g>
+<g id="C_x20_wrong" data-name="C wrong" style="display:none;">
+	<rect x="240" y="670" class="st7" width="700" height="110"/>
+</g>
+<g id="D_x20_wrong" data-name="D wrong" style="display:none;">
+	<rect x="980" y="670" class="st7" width="700" height="110"/>
+</g>
+<g id="Locked_x20_in" data-name="Locked in" style="display:none;">
+	<rect x="1440" y="400" class="st2" width="220" height="40"/>
+	<text transform="matrix(1 0 0 1 1470 428)" class="st0 st8 st13 st14">LOCKED IN</text>
+</g>
+<g id="Letters">
+	<rect x="240" y="520" class="st2" width="70" height="110"/>
+	<rect x="980" y="520" class="st2" width="70" height="110"/>
+	<rect x="240" y="670" class="st2" width="70" height="110"/>
+	<rect x="980" y="670" class="st2" width="70" height="110"/>
+	<text transform="matrix(1 0 0 1 259.9 591)" class="st0 st8 st12">A</text>
+	<text transform="matrix(1 0 0 1 1001.1 591)" class="st0 st8 st12">B</text>
+	<text transform="matrix(1 0 0 1 260.4 741)" class="st0 st8 st12">C</text>
+	<text transform="matrix(1 0 0 1 999.8 741)" class="st0 st8 st12">D</text>
+</g>
+<text id="Question" transform="matrix(1 0 0 1 300 262)" class="st3 st8 st9"><tspan x="0" y="0" class="st3 st8 st9">Which Finnish city hosted the 1952</tspan><tspan x="0" y="62" class="st3 st8 st9">Summer Olympics?</tspan></text>
+<text id="Answer_x20_A" data-name="Answer A" transform="matrix(1 0 0 1 350 588)" class="st3 st10 st11">Helsinki</text>
+<text id="Answer_x20_B" data-name="Answer B" transform="matrix(1 0 0 1 1090 588)"><tspan x="0" y="0" class="st3 st10 st11">T</tspan><tspan x="21.9" y="0" class="st3 st10 st11">ampere</tspan></text>
+<text id="Answer_x20_C" data-name="Answer C" transform="matrix(1 0 0 1 350 738)" class="st3 st10 st11">Turku</text>
+<text id="Answer_x20_D" data-name="Answer D" transform="matrix(1 0 0 1 1090 738)" class="st3 st10 st11">Oulu</text>
+</svg>
