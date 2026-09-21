@@ -46,18 +46,17 @@ the names, the hidden state and the order the docs trees draw (as three groups i
 - `docs/SVG_AUTHORING.md` section 1, 6 and 6b now teach Save a Copy; two corpus sidecars name
   the legacy exporter.
 
-## Row H's collision, and the fixture that keeps its walk alive
+## Row H's collision
 
-Row H (PR #364, `claude/h-quiz-question-wraps`) adds a walk to `e2e/import-svg-behaviour.spec.ts`
-that imports `public/docs/examples/quiz-lower-third.svg`, which this branch deletes. The
-lower-third shape (a question band above two rows of two answers) is what H's wrap walk
-measures, so the file lives on as `e2e/fixtures/illustrator-quiz-lower-third.svg`
-(`f7c95961`), byte-identical below its header. **Whichever of the two lands second repoints
-H's `DOCS_QUIZ_LT` constant at that fixture path**; the edit is one line in H's spec and this
-handoff says so because H is finished. At the time of writing #364 was still BLOCKED on its CI
-(18 checks pending, the Catalog calibration gate red), so it had not landed and could not be
-taken in; `origin/main` at `f54c182f` was merged (`89ef55bb`) and touched none of this row's
-files. No spec on main points at either deleted file.
+Row H (PR #364, `claude/h-quiz-question-wraps`) had added a walk that imports
+`public/docs/examples/quiz-lower-third.svg`, which this branch deletes. Its CI went red, so H
+is moving its own walks onto copies under `e2e/fixtures/` in its branch; this branch keeps a
+copy of the same file as `e2e/fixtures/illustrator-quiz-lower-third.svg` (`f7c95961`),
+byte-identical below its header, which H's repointed walk can use or ignore. A grep of
+`origin/main` at `f54c182f` for the two deleted names finds only the docs page, the docs spec
+and the shot script, all of which this branch rewrites; nothing else in `e2e/` or `scripts/`
+points at them, on main or here. Main was merged in (`89ef55bb`) and touched none of this
+row's files.
 
 ## Measured in the wizard after the change
 
@@ -83,9 +82,36 @@ plates headed "Black plate 1" to "Black plate 4" beside a file that names them `
   three `teach` values in `words.json`, `npm run write:behaviour-docs`, rename the groups in
   `quiz.svg` and the two trees on the docs page.
 
-## Verification
+## The check
 
-Filled in at the end of the session; see "The check" below.
+`review: delegated` - the code-review skill returned findings with the branch, base
+`da821d84` and the file list it read; compared with `git diff --name-only da821d84..HEAD`
+(33 paths, 29 files plus 4 deletions) and `git status --porcelain` (clean) here: matched. Ten
+findings; seven confirmed and fixed on this branch (`8cf7f99a`): the docs pictures had not been
+re-shot (queued and committed, `059271d0`); a one-letter text a behaviour writes into (a
+puzzle's tiles) was unticked as furniture, now kept ticked through `pollDrivenLayers(proposed)`;
+`f:` lost to the one-letter rule; the Export As note fired on a meter or a vote whose only drawn
+layers are bars; a visible group holding a caption and artwork was dropped from the moment
+pickers; the no-size error still taught Export As; the docs spec's tree assertion could not fail
+and its table count was a literal. One finding (the name-from-file rule compares strings rather
+than storing a flag) is recorded under "What is left" as accepted. Two were style (an em dash in
+a comment, fixed).
+`simplify: inline` - the simplify skill returned fan-out instructions, so the four angles were
+read here over the same diff: the off-row's two answer buttons became one, and the words-table
+generator hands rows back as lines instead of joining and re-splitting (`cc55b105`).
+`verify: inline` - `npm run build` exit 0 read from the task's own output on the final tree,
+stamp `claude/l-one-naming-system@9c41b025`. Through the job queue: `docs.spec`,
+`import-svg-behaviour.spec`, `import-svg.spec` and `student-rehearsal.spec` 152 passed
+(j-1656) before the box-name fix; `import-svg.spec` and `import-svg-behaviour.spec` 132 passed
+and 1 failed after it (j-1664, the scorebug's plate heading now reads the group's name), that
+one test re-pinned and passing (j-1667); `node scripts/docs-shots.mjs` green twice (j-1655,
+j-1663), every example picked as its type. `npm run test:e2e:integration` was queued after the
+last code change (j-1665) and had no verdict when this queued; CI runs the same from the fork
+point and is the verdict this landing rests on.
+`taste: answered` - the six rendered example pictures did not change a byte; the Fields-step
+pictures were looked at (quiz, scoreboard, drop step) and read as the docs describe them. One
+NO: the row plates were headed "Black plate 1" to "Black plate 4" beside a file that names them,
+fixed (`9d41bd6a`) and re-shot.
 
 ## Traps not in any repo file
 
