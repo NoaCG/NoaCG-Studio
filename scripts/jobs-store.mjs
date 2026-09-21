@@ -582,6 +582,18 @@ export function costOf(job) {
   return CHEAP.some((p) => p.test(command)) ? COST.other : COST.walk;
 }
 
+/**
+ * What a job takes out of the suite BUDGET, as opposed to `costOf`, which is what it takes out of
+ * RAM. The two differ for exactly one kind: a landing is charged nothing here (see "A LANDING IS
+ * NOT CHARGED AGAINST THE SUITE BUDGET" in `schedule`), and that must hold for the landings
+ * already running as much as for the one being admitted. Charging running landings is what left
+ * "budget 0.15/1 used" holding every browser job out all night on 2026-09-21. The listing uses
+ * this too, so the figure it prints is the one admission actually tested.
+ */
+export function budgetShareOf(job) {
+  return job.kind === 'merge' ? 0 : costOf(job);
+}
+
 /** Budgets are fractional; print them without floating-point noise. */
 function round(n) {
   return Math.round(n * 100) / 100;
@@ -669,7 +681,7 @@ export function schedule(jobs, {
   const dead = [];
   /** Landings let through despite a dead dependency, with the reason to print. */
   const released = [];
-  let used = running.reduce((sum, j) => sum + costOf(j), 0);
+  let used = running.reduce((sum, j) => sum + budgetShareOf(j), 0);
   /** What is left of the free-memory reading after the jobs this pass has already admitted. */
   let freeLeftMb = freeMemMb;
   const mergeLive = () => [...running, ...start].some((j) => j.kind === 'merge');
@@ -776,6 +788,8 @@ export function schedule(jobs, {
     // where it matters: two never overlap, and none runs in a checkout something else is using.
     // Without this exemption one suite in another worktree consumed the whole day budget and
     // stalled every landing behind it - the opposite of "merge latency is the bottleneck".
+    // The exemption runs both ways: `used` counts only `budgetShareOf`, so a landing that is
+    // already running does not hold a suite out either.
     if (job.kind !== 'merge' && used + cost > slots) {
       waiting.push({
         job,
@@ -785,7 +799,7 @@ export function schedule(jobs, {
     }
     start.push(job);
     if (releasedBecause) released.push({ job, reason: releasedBecause });
-    used += cost;
+    used += budgetShareOf(job);
     if (job.kind !== 'merge') freeLeftMb -= needsMb;
   }
   return { start, waiting, dead, released, running, slots };

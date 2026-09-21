@@ -49,6 +49,7 @@ import {
   PRESENCE,
   addJob,
   adoptOrphanedLandings,
+  budgetShareOf,
   cancelVerdict,
   classifyRefusal,
   costOf,
@@ -693,7 +694,9 @@ async function cmdList() {
     printOutstanding(jobs);
     return;
   }
-  const spent = running.reduce((sum, j) => sum + costOf(j), 0);
+  // The header shows what admission charges, so landings count as nothing here: a header reading
+  // "0.15/1 used" beside a waiting suite would describe a block that no longer exists.
+  const spent = running.reduce((sum, j) => sum + budgetShareOf(j), 0);
   // A QUEUE WITH WORK AND NO RUNNER IS A DEFECT, not a footnote. It used to read as
   // "NO RUNNER (start with --runner)" at the end of the header line, which is a state and not a
   // problem - and on 2026-09-04 j-0550 sat in `starting` for four minutes across two reads with
