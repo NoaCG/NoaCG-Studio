@@ -704,7 +704,7 @@ export default function CreationWizard() {
   // finished early: every step once there is a graphic to show - from Design on, and from
   // the template pick on in the images flow. The footer offers the jump to Finish there in
   // the default studio, and Advanced mode's straight-to-code "Create project".
-  const classicCreateStep = (mode === 'design' || mode === 'svg' || mode === 'import') && (mode === 'import' ? step >= 2 : step >= 1);
+  const importCanFinishEarly = (mode === 'design' || mode === 'svg' || mode === 'import') && (mode === 'import' ? step >= 2 : step >= 1);
   // On the Animation step the preview demos the full lifecycle (in → hold → out → in)
   // so the exit is actually seen — unless the user is tuning the entrance only.
   const onAnimationStep = step === animStep && mode !== 'ai' && mode !== 'video';
@@ -1629,7 +1629,7 @@ export default function CreationWizard() {
           the default studio). Advanced mode keeps their classic "Create project" below, which
           creates straight into the code editor.
           KIT stands down for the same reason as Finish: its own Create IS the action. */}
-      {((mode === 'template' && step >= 1 && !kit && buildMode === 'one') || (!advanced && classicCreateStep)) && step < finishStep && (
+      {((mode === 'template' && step >= 1 && !kit && buildMode === 'one') || (!advanced && importCanFinishEarly)) && step < finishStep && (
         <button
           className="wz-skip"
           disabled={mode === 'template' ? !draft.variantId : !previewTemplate}
@@ -1655,7 +1655,7 @@ export default function CreationWizard() {
           Skip ahead
         </button>
       )}
-      {advanced && classicCreateStep && step < finishStep && (
+      {advanced && importCanFinishEarly && step < finishStep && (
         <button
           disabled={!previewTemplate}
           onClick={create}
