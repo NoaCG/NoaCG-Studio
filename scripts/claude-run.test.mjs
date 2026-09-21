@@ -11,7 +11,9 @@ function fixture(t) {
   t.after(() => {
     assert.equal(path.dirname(directory), tmpdir());
     assert.ok(path.basename(directory).startsWith('claude-worker-'));
-    rmSync(directory, { recursive: true, force: true });
+    // Retried: on Windows a worker a test has just killed with taskkill can hold its directory
+    // open for a moment, and the first rmSync fails with EPERM (a build on 2026-09-21).
+    rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   });
   const primary = path.join(directory, 'primary');
   const cwd = path.join(directory, 'worker');

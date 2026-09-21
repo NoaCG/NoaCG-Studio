@@ -46,6 +46,15 @@ import {
   type TreeWrite,
 } from '../model/productionData';
 import CombinedButton from './control/CombinedButton';
+import {
+  answerOwnStaged,
+  noteOwnStaged,
+  sendOwnStaged,
+  settleOwnStaged,
+  withOwnStaged,
+  type OwnStaged,
+  type StagedMap,
+} from './control/ownStaged';
 import type { CombinedControl } from '../model/profile';
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
@@ -146,6 +155,16 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * clears the warning here too.
    */
   const [airedData, setAiredData] = useState<Record<string, Record<string, string>>>({});
+  /**
+   * THIS PAGE'S OWN STAGED EDITS, until the shared buffer shows them back (control/ownStaged.ts).
+   * Everything that reads "what a Take of this cue sends" reads the buffer with these laid over
+   * it, so a key picked a moment before Take is the key that airs.
+   */
+  const [ownStaged, setOwnStaged] = useState<OwnStaged>({});
+  /** The shared buffer as its rows have delivered it, written the moment a row arrives rather
+   *  than at the next render: a write's answer can land between the two, and it has to see
+   *  whether its own row already came back. */
+  const sharedStaged = useRef<StagedMap>({});
   /** Ids for the feed lines this SURFACE writes (a dropped step, a cancelled tail). Negative, so
    *  they can never collide with a log row's own id. */
   const localLogId = useRef(0);
@@ -282,6 +301,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       if (!live) return;
       setShow(resolved);
       if (!resolved) return;
+      sharedStaged.current = { ...resolved.staged };
       const tail = (after: number) => hostedControlTail(slug, after);
       // The production's shared values and what follows them. Read separately from the panel
       // because the panel is AUTHORED state pinned at publish and the tree is what is true right
@@ -339,6 +359,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           applyCommand([{ graphic: row.graphic, msg }]);
           if (msg.t === 'staged') {
             setShow((s) => (s && s !== 'loading' ? { ...s, staged: { ...s.staged, [row.graphic]: msg.data } } : s));
+            sharedStaged.current = { ...sharedStaged.current, [row.graphic]: msg.data };
+            setOwnStaged((own) => settleOwnStaged(own, row.graphic, msg.data));
           } else if (msg.t === 'live') {
             noteMachineState(row.graphic, msg.state ?? null);
             setShow((s) =>
@@ -366,6 +388,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   }, [slug, applyCommand, noteMachineState]);
 
   const resolved = show && show !== 'loading' ? show : null;
+  /** The staged values this page acts on: the shared buffer, with this page's own edits that
+   *  have not come back round the log yet laid over it. */
+  const staged = withOwnStaged(resolved?.staged ?? {}, ownStaged);
   const cues: OutputCue[] = useMemo(() => resolved?.output?.cues ?? [], [resolved]);
   const payload = resolved?.output ?? null;
   const selectedCue = cues.find((c) => c.id === selectedCueId) ?? cues[0] ?? null;
@@ -434,35 +459,50 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     [],
   );
 
-  // BOOT RECOVERY for the PROGRAM monitor. The log follower only sees rows that arrive AFTER
-  // this page opened, so a production that has been on air all afternoon would show an empty
-  // PROGRAM box beside a rundown row marked ON AIR — the surface contradicting itself. Each
-  // graphic's last REPORTED data is on the resolved row (what it says it actually applied), so
-  // replay that for every layer the row says is up.
+  // RECOVERY for the PROGRAM monitor. The log follower only sees rows that arrive AFTER this
+  // page opened, so a production that has been on air all afternoon would show an empty PROGRAM
+  // box beside a rundown row marked ON AIR - the surface contradicting itself. So every live
+  // layer is replayed into the monitor with the in-app dashboard's recipe (`restoreProgram`):
+  // data, a snap to the machine state last known, data again. A bare play() left the monitor at
+  // the entrance while air sat mid-sequence, and since the state chip also reads this monitor,
+  // its reply overwrote the renderer's "Locked in" with the entrance state - a quiz tab reloaded
+  // while locked greyed Reveal correct, the one press the show needed next. The trailing data
+  // write lets call-painted looks repaint after the snap (the G9 rule).
   //
   // Safe here in a way it was NOT in an exported package: this stage drives nothing but itself.
   // The round-1 bug was a baked log follower snapping a REAL playout graphic to its last
   // reported (off) state one round-trip after the host's play().
   //
-  // It reads the layers THE RESOLVE reported, never the live `liveCue` state. That state also
-  // moves when this operator's own take comes back round the log, so keyed on it the recovery
-  // fired on the first take of a session and replayed the entrance the follower had just
-  // applied - the monitor playing the graphic in twice. The cockpit had the same shape and a
-  // worse ending (it snapped to a stale "off" and took the graphic off air); both are keyed on
-  // the wire's own answer now.
-  const recoveredRef = useRef(false);
-  useEffect(() => {
-    if (!payload || !resolved || recoveredRef.current) return;
-    recoveredRef.current = true;
-    const up = Object.entries(resolved.liveCue).filter(([, cueId]) => !!cueId);
-    for (const [graphic] of up) {
-      const data = resolved.live[graphic]?.data;
+  // IT RUNS WHEN A STAGE IS BUILT (`PayloadStage` `onReady`), never when `liveCue` moves. The
+  // live map also moves when this operator's own take comes back round the log, and a recovery
+  // keyed on it replayed the entrance the follower had just applied - the monitor playing the
+  // graphic in twice. It used to run ONCE, from an effect, which missed the stage actually on
+  // screen whenever the stage is built twice: React's development StrictMode builds, destroys
+  // and rebuilds it on mount, so the replay went into the destroyed stage and the one left on
+  // screen came up blank, reporting "Off" a second after the reload.
+  //
+  // Read through refs: a stage can come up long after the render that passed this callback.
+  const liveCueRef = useRef(liveCue);
+  liveCueRef.current = liveCue;
+  const airedRef = useRef(airedData);
+  airedRef.current = airedData;
+  const machineStateRef = useRef(machineState);
+  machineStateRef.current = machineState;
+  const reportsRef = useRef<ResolvedControlShow['live']>({});
+  reportsRef.current = resolved?.live ?? {};
+  const restoreProgram = useCallback(() => {
+    for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
+      if (!cueId) continue;
+      const data = airedRef.current[graphic] ?? reportsRef.current[graphic]?.data;
+      const groups = machineStateRef.current[graphic]?.groups;
+      const dataItem = data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
       programRef.current?.apply([
-        ...(data ? [{ graphic, msg: { t: 'update' as const, data } }] : []),
-        { graphic, msg: { t: 'play' as const } },
+        ...dataItem,
+        groups ? { graphic, msg: { t: 'snap' as const, snap: groups } } : { graphic, msg: { t: 'play' as const } },
+        ...dataItem,
       ]);
     }
-  }, [payload, resolved]);
+  }, []);
 
   /**
    * ONE effect drives the PREVIEW stage, from what the page has already derived: the cue on
@@ -478,7 +518,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * Above the loading returns because it is a hook; it does nothing until the payload exists.
    */
   const previewValuesKey = previewedCue
-    ? JSON.stringify(hostedCueValues(previewedCue, resolved?.staged ?? {}, resolveBindings(dataTree, bindings)))
+    ? JSON.stringify(hostedCueValues(previewedCue, staged, resolveBindings(dataTree, bindings)))
     : '';
   const previewShown = useRef<{ arrived: boolean; graphic: string | null }>({ arrived: false, graphic: null });
   useEffect(() => {
@@ -571,7 +611,29 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  buffer over them (another operator typing is visible here, by design) and the production's
    *  BOUND values over both (plan §2.7 - a bound field is never a cue value). The one reading,
    *  shared with a combined control's verb step so the two cannot send different Takes. */
-  const cueValues = (cue: OutputCue) => hostedCueValues(cue, resolved?.staged ?? {}, boundValues);
+  const cueValues = (cue: OutputCue) => hostedCueValues(cue, staged, boundValues);
+
+  /**
+   * STAGE values into the shared buffer. They count on this page AT ONCE (the overlay above), so
+   * a Take pressed during the round trip airs them, and they leave the overlay once the buffer
+   * shows them with nothing more of theirs on the way. A refused write leaves it too, or this
+   * page would keep airing a value no other screen ever saw.
+   */
+  const noteStaged = (graphic: string, data: Record<string, string>) =>
+    setOwnStaged((own) => noteOwnStaged(own, graphic, data));
+  const stageShared = (graphic: string, data: Record<string, string>) => {
+    if (Object.keys(data).length === 0) return;
+    setOwnStaged((own) => sendOwnStaged(noteOwnStaged(own, graphic, data), graphic, data));
+    const answered = (ok: boolean) =>
+      setOwnStaged((own) => answerOwnStaged(own, graphic, data, ok, sharedStaged.current[graphic]));
+    stageHostedData(slug, graphic, data).then(
+      () => answered(true),
+      (e: Error) => {
+        answered(false);
+        setError(e.message);
+      },
+    );
+  };
 
   /**
    * A PRESS MOVING THE SHARED VALUE - the ± stepper and an event's `adjust` on a BOUND field.
@@ -634,7 +696,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     cues,
     liveCue,
     live: resolved?.live ?? {},
-    staged: resolved?.staged ?? {},
+    staged,
     aired: airedData,
     profile: resolved?.profile ?? null,
     bindings,
@@ -684,7 +746,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // does both writes for exactly this reason; a combined press cannot reach the editor's state
     // from here, so it hands the moved fields down instead.
     for (const mirror of mirrors) {
-      void stageHostedData(slug, mirror.graphic, mirror.values).catch((e: Error) => setError(e.message));
+      stageShared(mirror.graphic, mirror.values);
     }
     if (mirrors.length > 0) setCombineMoved(mirrors);
     if (steps.length === 0) {
@@ -908,6 +970,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                     payload={payload}
                     emptyLabel={liveLayers.length === 0 ? 'Nothing on air' : undefined}
                     testId="hosted-program-stage"
+                    onReady={restoreProgram}
                     onState={(graphic, state, over) => {
                       noteOverflow(setProgramOverflow)(graphic, state, over);
                       noteMachineState(graphic, state);
@@ -932,7 +995,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
 
           {selectedCue && spec && (
             <HostedCueEditor
-              slug={slug}
               cue={selectedCue}
               spec={spec}
               // The production's ARRANGE for this graphic, off the PUBLISHED row. It reaches this
@@ -961,7 +1023,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               }}
               onSnap={snapTo}
               onSend={(items) => sendVerb(items)}
-              onError={setError}
+              onStage={stageShared}
+              onStageNote={noteStaged}
               moved={combineMoved}
               bound={boundFields(selectedCue.graphic)}
               boundOf={(field) => boundValues[selectedCue.graphic]?.[field]}
@@ -1194,7 +1257,6 @@ function HostedVerbs({
  * as typing them would.
  */
 function HostedCueEditor({
-  slug,
   cue,
   spec,
   arrange,
@@ -1208,14 +1270,14 @@ function HostedCueEditor({
   onPreview,
   onSnap,
   onSend,
-  onError,
+  onStage,
+  onStageNote,
   moved,
   combined,
   bound,
   boundOf,
   onPatchBound,
 }: {
-  slug: string;
   cue: OutputCue;
   spec: PanelGraphicSpec;
   /** This graphic's entry in the production's control profile, or undefined for no profile —
@@ -1238,7 +1300,11 @@ function HostedCueEditor({
    *  whether the rows went, because a press that moves a SHARED value must not move it for an
    *  event the log refused: the other bound graphics would follow a figure this one never took. */
   onSend: (items: ControlSendItem[]) => Promise<boolean>;
-  onError: (message: string) => void;
+  /** Stage values into the SHARED buffer now. They count on this page at once, so a Take pressed
+   *  before the buffer's row comes back airs them rather than the older figure. */
+  onStage: (graphic: string, data: Record<string, string>) => void;
+  /** Count values on this page at once, with the write still to come: the typing debounce. */
+  onStageNote: (graphic: string, data: Record<string, string>) => void;
   /** The fields a combined press just moved on air. The editor's own echo has to follow them, or
    *  a field the operator typed into would keep an older figure than the board shows. */
   moved: CombineMirror[] | null;
@@ -1319,17 +1385,29 @@ function HostedCueEditor({
   /** What the band headings read, resolved ONCE per render rather than once per band. */
   const headingValues = currentValues();
 
-  // Debounced shared staging: a typing operator sends a few rows, not one per keystroke.
+  // Debounced shared staging: a typing operator sends a few rows, not one per keystroke. The
+  // values count on this page from the keystroke (`onStageNote`), so the debounce delays only
+  // what the OTHER screens see, never what this page's Take airs.
   const pending = useRef<Record<string, string>>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageSoon = (key: string, value: string) => {
     pending.current[key] = value;
+    onStageNote(cue.graphic, { [key]: value });
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       const batch = pending.current;
       pending.current = {};
-      void stageHostedData(slug, cue.graphic, batch).catch((e: Error) => onError(e.message));
+      onStage(cue.graphic, batch);
     }, 400);
+  };
+  /** Stage NOW, taking any typing still inside the debounce along in the same write. Cancelling
+   *  the timer without sending those edits left them on this screen and on no other. */
+  const stageNow = (data: Record<string, string>) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const batch = { ...pending.current, ...data };
+    pending.current = {};
+    onStage(cue.graphic, batch);
   };
   const edit = (key: string, value: string) => {
     setEcho((v) => ({ ...v, [key]: value }));
@@ -1345,8 +1423,7 @@ function HostedCueEditor({
     const data: Record<string, string> = {};
     for (const d of descriptors) if (entry.values[d.key] !== undefined) data[d.key] = entry.values[d.key];
     setEcho((v) => ({ ...v, ...data }));
-    if (timer.current) clearTimeout(timer.current);
-    void stageHostedData(slug, cue.graphic, data).catch((e: Error) => onError(e.message));
+    stageNow(data);
     onPreview({ ...currentValues(), ...data });
   };
   /** Load a production DATA ROW into the staged values — the same gesture as typing them, so
@@ -1357,8 +1434,7 @@ function HostedCueEditor({
     setLastLoaded(id);
     setEntryId('');
     setEcho((v) => ({ ...v, ...row.values }));
-    if (timer.current) clearTimeout(timer.current);
-    void stageHostedData(slug, cue.graphic, row.values).catch((e: Error) => onError(e.message));
+    stageNow(row.values);
     onPreview({ ...currentValues(), ...row.values });
   };
   const loadableRows = rowsForSide(spec.dataRows, loadSide);
@@ -1408,8 +1484,7 @@ function HostedCueEditor({
         if (Object.keys(staged).length > 0) {
           setEcho((v) => ({ ...v, ...staged }));
           setEntryId('');
-          if (timer.current) clearTimeout(timer.current);
-          void stageHostedData(slug, cue.graphic, staged).catch((err: Error) => onError(err.message));
+          stageNow(staged);
           onPreview({ ...currentValues(), ...staged });
         }
         void onSend([
@@ -1705,9 +1780,9 @@ function HostedCueEditor({
           setEcho((v) => ({ ...v, [key]: next }));
           setEntryId('');
           // Immediate, not the typing debounce: the value just aired, so the shared buffer
-          // must say so now (the loadEntry precedent).
-          if (timer.current) clearTimeout(timer.current);
-          void stageHostedData(slug, cue.graphic, { [key]: next }).catch((e: Error) => onError(e.message));
+          // must say so now (the loadEntry precedent). Typing still in the debounce goes into
+          // the buffer with it, never onto air: the update below carries the bumped field alone.
+          stageNow({ [key]: next });
           onPreview({ ...currentValues(), [key]: next });
           onSend([{ graphic: cue.graphic, msg: { t: 'update', data: { [key]: next } } }]);
         };

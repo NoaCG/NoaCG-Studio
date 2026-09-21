@@ -12,6 +12,7 @@ import AuthStatus from '../auth/AuthStatus';
 import SignInDialog from '../auth/SignInDialog';
 import SyncStatus from '../SyncStatus';
 import { useIsMobile } from '../useIsMobile';
+import { useAdvancedMode } from '../useAdvancedMode';
 import { useSplitter, type Splitter } from '../useSplitter';
 import { clampRatio } from '../../model/layout';
 import { loadVideoLayout, saveVideoLayout, type VideoLayout } from '../../model/videoLayout';
@@ -69,6 +70,7 @@ export default function VideoAppShell() {
   const redo = useVideoProjectStore((s) => s.redo);
 
   const isMobile = useIsMobile();
+  const advanced = useAdvancedMode((s) => s.advanced);
   const [layout, setLayout] = useState<VideoLayout>(loadVideoLayout);
   const [savedOpen, setSavedOpen] = useState(false);
   const [saveNote, setSaveNote] = useState<string | null>(null);
@@ -210,13 +212,16 @@ export default function VideoAppShell() {
         <button onClick={() => setSavedOpen(true)} title="Your saved video projects" data-testid="video-my-videos">
           📁 My videos
         </button>
+        {/* Back to graphics. Advanced mode returns to the code editor it came from; the
+            default studio has no door to that editor (owner, 2026-09-21), so there the same
+            button lands on Home's Graphics list, where every graphic opens onto its own page. */}
         <button
           onClick={() => {
             useDocKindStore.getState().setKind('spx');
-            useRouter.getState().navigate({ view: 'editor' });
+            useRouter.getState().navigate(advanced ? { view: 'editor' } : { view: 'home', section: 'graphics' });
           }}
           data-testid="back-to-graphics"
-          title="Back to the broadcast-graphics editor"
+          title={advanced ? 'Back to the broadcast-graphics editor' : 'Back to your graphics'}
         >
           ◫ Graphics
         </button>
