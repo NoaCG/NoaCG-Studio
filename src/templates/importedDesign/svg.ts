@@ -857,6 +857,63 @@ function svgReach(h, anchor, box, m) {
   return h === 'end' ? anchor - (box.left + m) : (box.right - m) - anchor;
 }
 
+/** THE BAND OF ITS BOX A LINE OWNS, top to bottom, in the line's own frame: the box trimmed to
+ *  the nearest PLATE drawn inside it above the line and the nearest one below it.
+ *
+ *  A quiz draws its question inside the board and its answer rows inside the same board, under
+ *  it. Read against the whole board the question is composed against the TOP, and the rows under
+ *  it keep their whole drawn gap (svgFitCeiling), so it had no room of its own: a question twice
+ *  the drawn length went straight to one line at the 55% floor on both docs example quizzes, with
+ *  the band above the rows standing empty around it (row B's walk, 2026-09-21). The question was
+ *  composed in the space ABOVE the rows, and that space is its box - so the vertical half of the
+ *  alignment is read there, and the D3 room (centred: symmetric with half a line kept from each
+ *  edge; bottom: upward) is measured there too.
+ *
+ *  ONLY A SHAPE TRIMS IT, never a text. Text under text is a STACK and the gap between them is
+ *  the composition's leading - a name over its role keeps that gap whole and buys a second line
+ *  by growing the panel (owner walk, 2026-08-29), exactly as before. A plate under a line is
+ *  furniture, and the line was composed in the room above it. The one case this reads wrong is a
+ *  caption drawn as live text under a question ("Question 3 of 10"): the question keeps zero room
+ *  there, as it always did, and the Fields step's nine-dot grid is the override.
+ *
+ *  Trimming from ABOVE as well is what keeps a line that grows upward off whatever is drawn over
+ *  it - the board's own accent rule on both docs examples - which the whole-box reading never
+ *  looked at. With no plate above or below, the band IS the box and nothing changes. */
+function svgOwnBand(el, panelEl, box, own, centred) {
+  var band = { top: box.top, bottom: box.bottom, cy: box.cy, trimmed: false };
+  var art = document.querySelector('.${PREFIX}-art');
+  if (!art || !panelEl) return band;
+  var panel = panelEl.getBoundingClientRect();
+  var others = art.querySelectorAll('text, tspan, image, rect, path, polygon, ellipse, circle');
+  var above = null;
+  var below = null;
+  for (var i = 0; i < others.length; i++) {
+    var o = others[i];
+    if (o === el || o === panelEl || o.contains(el) || el.contains(o)) continue;
+    var r = o.getBoundingClientRect();
+    if (!(r.width > 0) || !(r.height > 0)) continue;
+    if (r.width * r.height >= panel.width * panel.height) continue;   // that IS the panel
+    if (!svgInsidePanel(r, panel)) continue;                          // drawn outside this box
+    var at = svgLocalBox(o, el);
+    if (!at) continue;
+    // OVER OR UNDER THE ROOM IT FILLS SIDEWAYS: a centred line may fill its whole box, so a
+    // short question drawn over a gap between two columns of plates still has plates under it.
+    var from = centred ? box.left : own.x;
+    var to = centred ? box.right : own.x + own.width;
+    if (at.right < from + 1 || at.left > to - 1) continue;
+    var text = /^(text|tspan)$/i.test(o.tagName || '');
+    if (at.top >= own.y + own.height - 1) {
+      if (!below || at.top < below.edge) below = { edge: at.top, text: text };
+    } else if (at.bottom <= own.y + 1) {
+      if (!above || at.bottom > above.edge) above = { edge: at.bottom, text: text };
+    }
+  }
+  if (below && !below.text && below.edge < band.bottom) { band.bottom = below.edge; band.trimmed = true; }
+  if (above && !above.text && above.edge > band.top) band.top = above.edge;
+  band.cy = (band.top + band.bottom) / 2;
+  return band;
+}
+
 function svgAlignOf(el, panelEl) {
   if (svgFitAlign[el.id]) return svgFitAlign[el.id];
   var align = { h: 'start', v: 'top', derived: false };
@@ -869,14 +926,18 @@ function svgAlignOf(el, panelEl) {
     var placed = Math.abs(cx - box.cx) <= (box.right - box.left) * SVG_ALIGN_TOL
       ? 'middle'
       : (cx < box.cx ? 'start' : 'end');
+    // The VERTICAL half is read in the band the line owns (svgOwnBand), and measureSvgRoom
+    // measures the room in that same band; sideways the whole box is still the answer.
+    var band = svgOwnBand(el, panelEl, box, own, placed === 'middle');
+    align.band = band;
     var stated = el.getAttribute('text-anchor');
     if (stated !== 'middle' && stated !== 'end' && stated !== 'start') stated = null;
     // What the FILE says: its stated anchor, else where the line was drawn.
     var read = stated || placed;
     var cy = own.y + own.height / 2;
-    var placedV = Math.abs(cy - box.cy) <= (box.bottom - box.top) * SVG_ALIGN_TOL
+    var placedV = Math.abs(cy - band.cy) <= (band.bottom - band.top) * SVG_ALIGN_TOL
       ? 'middle'
-      : (cy < box.cy ? 'top' : 'bottom');
+      : (cy < band.cy ? 'top' : 'bottom');
     // WHAT THE AUTHOR SAID WINS OVER BOTH, where they said anything (NOACG_LAYOUT.lines). It is
     // an input to the one road below rather than a road of its own: the drawing is still
     // measured, because a declared answer is worked out FROM it - the margin a declared anchor
@@ -1001,14 +1062,14 @@ function svgAlignOf(el, panelEl) {
     // gap was half the centring rather than a margin.
     // Where the block's centre goes; null where it stays where it was drawn.
     var target = null;
-    if (align.v === 'middle') target = box.cy;
+    if (align.v === 'middle') target = band.cy;
     else if (align.v !== placedV) {
       // Half a line where the line was drawn centred - the margin measureSvgRoom keeps on a
       // centred axis - else the gap the designer left on the tighter side.
       var gap = placedV === 'middle'
         ? (svgFitStep[el.id] || (svgFitSizes[el.id] || own.height || 0) * SVG_LINE_HEIGHT) / 2
-        : Math.max(0, Math.min(own.y - box.top, box.bottom - (own.y + own.height)));
-      target = align.v === 'top' ? box.top + gap + own.height / 2 : box.bottom - gap - own.height / 2;
+        : Math.max(0, Math.min(own.y - band.top, band.bottom - (own.y + own.height)));
+      target = align.v === 'top' ? band.top + gap + own.height / 2 : band.bottom - gap - own.height / 2;
     }
     if (target != null) {
       align.snapY = keepNudge ? 0 : target - cy;
@@ -1016,7 +1077,7 @@ function svgAlignOf(el, panelEl) {
       // The middle itself is kept as well, because the snap alone only answers for the block as
       // DRAWN: a block the ladder shrank or wrapped is a different height, and svgRecentre needs
       // the line it is putting that block back onto - the drawn centre when the nudge is kept.
-      if (align.v === 'middle') align.boxCy = keepNudge ? cy : box.cy;
+      if (align.v === 'middle') align.boxCy = keepNudge ? cy : band.cy;
     }
   }
   svgFitAlign[el.id] = align;
@@ -1300,10 +1361,25 @@ function measureSvgRoom() {
       // that is the only quantity in the file that is a real answer when the drawn gaps are
       // centring rather than margin. Bottom-aligned text is the same argument upside down and
       // takes the room above it.
-      var localBox = svgLocalBox(panelEl, el);
-      if (localBox && align.v !== 'top' && !svgFitPlaced(el)) {
+      //
+      // Measured in the BAND the line owns (svgOwnBand): the box itself where nothing is drawn
+      // over or under the line inside it, and the room between those plates where something is -
+      // a quiz question over its answer rows is centred in the band above them, not in the board.
+      var band = align.band;
+      if (band && align.v !== 'top' && !svgFitPlaced(el)) {
         var half = (svgFitStep[el.id] || (svgFitSizes[el.id] || 0) * SVG_LINE_HEIGHT) / 2;
-        var inside = { top: localBox.top + half, bottom: localBox.bottom - half };
+        // A BOTTOM line keeps the gap the designer drew UNDER it on the far side too, where that
+        // gap is tighter than half a line. It is the composition's own margin (the mirror
+        // svgPanelTopPad keeps for a top line, turned over), and half a line is only the
+        // fallback where the drawing says nothing. Measured on the docs lower-third quiz: its
+        // question sits 14 units over the answer plates in a band 90 tall, and half a line (24)
+        // kept from the rule above left two lines no size above the floor, so a long question
+        // went to one squeezed line instead. A centred line's gaps are centring, never margin.
+        var drawnBox = el.getBBox ? el.getBBox() : null;
+        var drawnGap = drawnBox ? band.bottom - (drawnBox.y + drawnBox.height) : half;
+        // Only in a band a PLATE closes: a bottom line over its box's own edge keeps half a line.
+        var farPad = align.v === 'bottom' && band.trimmed ? Math.min(half, Math.max(0, drawnGap)) : half;
+        var inside = { top: band.top + farPad, bottom: band.bottom - half };
         // Symmetric about where the block will actually STAND, which for a centred one is the
         // box's middle rather than the height it happened to be drawn at (svgSnapY moves it
         // there). Measured about the drawn centre instead, a block drawn a few units off the
@@ -1312,7 +1388,7 @@ function measureSvgRoom() {
         // A centred block keeps its middle where svgRecentre keeps it, which is the drawn
         // centre when the nudge is kept; a bottom block stands at room.top, wherever that is.
         var mid = align.v === 'middle'
-          ? (align.boxCy != null ? align.boxCy : localBox.cy)
+          ? (align.boxCy != null ? align.boxCy : band.cy)
           : room.top + (el.getBBox ? el.getBBox().height : 0) / 2;
         var symmetric = align.v === 'middle'
           ? 2 * Math.min(mid - inside.top, inside.bottom - mid)

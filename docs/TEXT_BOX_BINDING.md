@@ -116,6 +116,32 @@ position it was composed at instead of drifting down as it gains lines - the -12
 optical position, and it is CONSTANT, which is the property that matters. Nothing else on the board
 moves at any length, because the plate no longer has to grow to hold the question.
 
+### D4. A line over PLATES inside its box reads its alignment in the band above them
+
+Measured 2026-09-21 on the two docs example quizzes (`public/docs/examples/quiz.svg`,
+`quiz-lower-third.svg`, since 2026-09-22 kept as `e2e/fixtures/illustrator-quiz-lower-third.svg`). Both draw the question inside the board, over answer-row plates that are
+also inside the board. Read against the whole board the question sits at the TOP, the rows keep
+their whole drawn gap (D2's rule), and the question has no room at all: twice the drawn length
+went to one line at the 55% floor while the band above the rows stood empty.
+
+FIXED (`svgOwnBand`). The vertical half of the alignment, and the D3 room, are read in the band
+between the nearest SHAPE drawn inside the box above the line and the nearest below it. A text
+never trims the band, so a name over its role keeps the 2026-08-29 ruling. A BOTTOM line keeps
+its own drawn bottom gap on the far side where that is tighter than half a line.
+
+Measured on air after the fix, in design px:
+
+| Question | `quiz.svg` (drawn 50 px, band 148 to 380) | `quiz-lower-third.svg` (drawn 40 px, band 776 to 866) |
+|---|---|---|
+| 81 characters | 2 lines at 50 px, 202 to 326 | 1 line at 40 px (it always fitted this wide board) |
+| 131 characters | 3 lines at 45 px, 181.5 to 346.5 | 2 lines at 26.2 px, 789 to 849.5 (one line needs about 60%) |
+
+Before the fix the 81-character question on `quiz.svg` was one line at 27.5 px. The Fields step's
+nine-dot grid reads the same band (`ownBandOf` in `src/components/wizard/import/stageMeasure.ts`),
+so its "read from your drawing" answer is the one the template acts on.
+
+Pinned in `e2e/import-svg-behaviour.spec.ts` ("a long question on the docs example ...").
+
 ### The gap that is not a defect
 
 Fixing all three still leaves what the owner is really asking for. Today the binding is DERIVED and
