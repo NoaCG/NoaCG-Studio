@@ -1,7 +1,7 @@
 {
   "name": "illustrator-four-team-scoreboard",
   "family": "illustrator",
-  "exporter": "Adobe Illustrator 28.6 - Export As > SVG, Styling: Internal CSS, Responsive on",
+  "exporter": "Adobe Illustrator 28.6 - Save a Copy > SVG (the legacy exporter: SVG Export Plug-In comment, .stN classes), Styling: Internal CSS, Responsive on",
   "story": "A media student drew the board their class quiz runs on: a heading, FOUR team rows, each a club name against a figure, a green bar they drew once per row for the moment a point lands, and an end-of-game plate. They switched the five moment layers off in the layers panel so they could see the base board while drawing it, named their layers the way docs/SVG_AUTHORING.md section 5b tells them to (Team 1, Score 1, Flash 1, Full time), and exported with Illustrator's dialog untouched, so Responsive stayed ticked and the file carries a viewBox and no width or height.",
   "idioms": [
     "Generator comment naming the SVG Export Plug-In build",

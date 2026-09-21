@@ -191,8 +191,7 @@
               <img src="/docs/svg-drop.png" width="1560" height="1290" loading="lazy"
                 alt="The Import graphic step, with the drop zone and the export settings open beneath it." />
               <figcaption>
-                <strong>The drop step.</strong> The &#9432; next to "Exporting the SVG" opens the
-                export settings.
+                <strong>The drop step.</strong> "Exporting the SVG" opens the export settings.
               </figcaption>
             </figure>
             <figure class="doc-shot">
@@ -253,41 +252,188 @@
 
           <section id="svg-layers" class="doc-sub">
             <h3>Layer names</h3>
-            <h4>How the wizard finds the layers</h4>
+            <p>
+              Every graphic type uses the same three layers and the same way of naming what is in
+              them. Learn it once and a quiz, a scoreboard and a vote are the same job.
+            </p>
+            <h4 id="svg-layers-system">The three layers</h4>
             <ul>
-              <li>It reads the names in your design app's Layers panel. In Illustrator, name each
-                text object (double-click its row), or put it alone in a layer with the name: a
-                text inside a layer called <code>Question</code> is Question. Four unnamed texts
-                inside a layer called <code>Answers</code> are all Answers, and no type is found.
-                Capital letters do not matter.</li>
-              <li>A repeating part is a word and a row: <code>Answer A</code>, <code>Bar 1</code>.
-                The row is one letter or one number, after a space. <code>Bar1</code> has no row and
-                is not found.</li>
-              <li>Layers with the same row belong together. <code>Option 2</code>,
-                <code>Bar 2</code> and <code>Percent 2</code> are all row 2.</li>
-              <li>Give every layer its own name. If two layers are both called <code>Bar</code>, the
-                second one becomes <code>Bar 2</code>.</li>
-              <li>A layer that shows only at one moment, such as <code>A correct</code>, is a
-                <strong>group</strong> that you hide in your design app. A hidden shape on its own is
-                not found, so put it in a group, even a group of one. Text inside a hidden group is
-                drawing, not a field. In Illustrator, save the file with <em>Save a Copy</em> as
-                above, because <em>Export As</em> leaves hidden layers out.</li>
+              <li><code>Text</code> holds what the operator types. One text object per field,
+                named for what it is: <code>Question</code>, <code>Team 1</code>.</li>
+              <li><code>Moments</code> holds what NoaCG shows, hides or moves. A hidden group for
+                each moment, such as <code>Selected A</code> or <code>Full time</code>, and a bar
+                drawn at its full length, such as <code>Bar 1</code>.</li>
+              <li><code>Board</code> holds what stays as drawn: the panel, the row plates, the
+                letters and the labels.</li>
+            </ul>
+            <h4 id="svg-layers-rows">A name is a word and a row</h4>
+            <ul>
+              <li>The word says what the layer is. The row is one letter or one number, last, after
+                a space: <code>Answer A</code>, <code>Score 1</code>, <code>Winner 2</code>. A quiz
+                counts in letters, because the letters are drawn on the board. Everything else
+                counts in numbers. <code>Bar1</code> has no row and is not found.</li>
+              <li>Layers with the same row belong together. <code>Answer B</code>,
+                <code>Selected B</code>, <code>Correct B</code> and <code>Wrong B</code> are all
+                answer B.</li>
+              <li>A moment is a <strong>group</strong> that you hide in your design app. A hidden
+                shape on its own is not found, so put it in a group, even a group of one. Text
+                inside a hidden group is drawing, not a field.</li>
+              <li>A text that stays as drawn starts with <code>static:</code>, as in
+                <code>static:Letter A</code>. A text that is a single letter, like the A on a quiz
+                row, starts unticked whatever it is called.</li>
+              <li>The spelling does not matter, the words do. Capitals, spaces, underscores and
+                dashes are all the same to NoaCG, so <code>Answer A</code>, <code>answer_a</code>
+                and <code>ANSWER-A</code> are one name, and the synonyms and Finnish words in the
+                table below work too. The examples use one spelling so that you can copy it.</li>
+              <li>In Illustrator, name each text object (double-click its row), or put it alone in
+                a layer with the name: a text inside a layer called <code>Question</code> is
+                Question. Four unnamed texts inside a layer called <code>Answers</code> are all
+                Answers, and no type is found. Save the file with <em>Save a Copy</em> as above,
+                because <em>Export As</em> leaves hidden layers out.</li>
               <li>When the names fit a type, the wizard picks that type in
                 <strong>What it does</strong> and fills in every layer. When a name does not fit,
                 pick that layer from the list yourself.</li>
             </ul>
-            <p id="svg-layers-files">
-              Download a file with exactly these layers and open it in Illustrator to see them in
-              the Layers panel, hidden groups included:
-              <a href="/docs/examples/quiz.svg" download>quiz.svg</a>,
-              <a href="/docs/examples/quiz-lower-third.svg" download>quiz-lower-third.svg</a>,
-              <a href="/docs/examples/scoreboard.svg" download>scoreboard.svg</a>,
-              <a href="/docs/examples/scoreboard-lower-third.svg" download>scoreboard-lower-third.svg</a>,
-              <a href="/docs/examples/live-vote.svg" download>live-vote.svg</a>,
-              <a href="/docs/examples/countdown.svg" download>countdown.svg</a>,
-              <a href="/docs/examples/end-credits.svg" download>end-credits.svg</a> and
-              <a href="/docs/examples/ticker.svg" download>ticker.svg</a>.
+            <div class="doc-example">
+              <figure class="layers" aria-label="The layers of quiz.svg, the whole tree">
+                <figcaption>Layers: the quiz</figcaption>
+                <ul>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Text</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer D</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer C</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer B</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer A</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Question</b></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Moments</b></span>
+                    <ul>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Wrong D</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Correct D</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Selected D</b><em class="tag">hidden</em></span></li>
+                      <li class="more"><span class="lyr">the same for C and B</span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Wrong A</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Correct A</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Selected A</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Locked in</b><em class="tag">hidden</em></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Board</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Letter D</b></span></li>
+                      <li class="more"><span class="lyr">static:Letter C, B, A</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Row D</b></span></li>
+                      <li class="more"><span class="lyr">Row C, B, A</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Edge</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Panel</b></span></li>
+                    </ul>
+                  </li>
+                </ul>
+              </figure>
+              <div>
+                <h4>One full tree</h4>
+                <p>
+                  The quiz example, exactly as Illustrator's Layers panel shows it. Amber names are
+                  the ones NoaCG reads. Everything in <code>Board</code> has a name so that you can
+                  tell the plates apart in the wizard, but none of those names is special.
+                </p>
+                <p>
+                  Every type page below shows its own tree in the same shape. Open one of the
+                  example files in Illustrator to see the tree in the Layers panel, hidden groups
+                  included, and copy it. Illustrator opens the three as groups inside one layer;
+                  three layers of your own with the same names work the same way.
+                </p>
+                <p id="svg-layers-files">
+                  <a href="/docs/examples/quiz.svg" download>quiz.svg</a>,
+                  <a href="/docs/examples/scoreboard.svg" download>scoreboard.svg</a>,
+                  <a href="/docs/examples/live-vote.svg" download>live-vote.svg</a>,
+                  <a href="/docs/examples/countdown.svg" download>countdown.svg</a>,
+                  <a href="/docs/examples/end-credits.svg" download>end-credits.svg</a> and
+                  <a href="/docs/examples/ticker.svg" download>ticker.svg</a>.
+                </p>
+              </div>
+            </div>
+
+            <h4 id="svg-layers-words">Every name NoaCG reads</h4>
+            <p>
+              The layers each type looks for. <strong>Name it</strong> is the spelling the examples
+              use; the names under <strong>Also works</strong> are read the same way. Change the
+              row to match your own rows: <code>Answer A</code> is also <code>Answer B</code>,
+              and <code>Team 1</code> is also <code>Team 2</code>.
             </p>
+            <!-- behaviour-words:start - generated by scripts/behaviour-docs.mjs from src/templates/behaviours/words.json; edit the JSON, then `npm run write:behaviour-docs` -->
+<div class="doc-table"><table class="doc-words">
+<tr><th>Layer</th><th>Name it</th><th>Also works</th><th>What it does</th></tr>
+<tr class="doc-words-type"><th colspan="4"><a href="#scoreboards">Score tracker</a></th></tr>
+<tr><td>Team (one per row)</td><td><code>Team 1</code></td><td><code>Side 1</code>, <code>Player 1</code>, <code>Joukkue 1</code>, <code>Lag 1</code></td><td>a field the operator types</td></tr>
+<tr><td>Score (one per row)</td><td><code>Score 1</code></td><td><code>Points 1</code>, <code>Goals 1</code>, <code>Team 1 Score</code>, <code>Pisteet 1</code>, <code>Poäng 1</code></td><td>a field - draw a plain number in it</td></tr>
+<tr><td>Flash (one per row)</td><td><code>Flash 1</code></td><td><code>Goal 1</code>, <code>Scored 1</code>, <code>Maali 1</code>, <code>Mål 1</code></td><td>shown for the moment that team's point lands</td></tr>
+<tr><td>Full time</td><td><code>Full time</code></td><td><code>Final</code>, <code>Game over</code>, <code>Loppu</code>, <code>Full tid</code></td><td>once the game is called (one, whole board)</td></tr>
+<tr><td colspan="4" class="doc-words-rows">Two to eight teams.</td></tr>
+<tr class="doc-words-type"><th colspan="4"><a href="#quiz">Quiz</a></th></tr>
+<tr><td>Question</td><td><code>Question</code></td><td><code>Kysymys</code>, <code>Fråga</code></td><td>always - it is a field the operator types</td></tr>
+<tr><td>Answer (one per row)</td><td><code>Answer A</code></td><td><code>Vastaus A</code>, <code>Svar A</code></td><td>always - a field</td></tr>
+<tr><td>Selected (one per row)</td><td><code>Selected A</code></td><td><code>Picked A</code>, <code>Chosen A</code>, <code>Valittu A</code>, <code>Vald A</code></td><td>while that answer is the pick</td></tr>
+<tr><td>Correct (one per row)</td><td><code>Correct A</code></td><td><code>Right A</code>, <code>Oikein A</code>, <code>Rätt A</code></td><td>on the reveal, if it is the correct answer</td></tr>
+<tr><td>Wrong (one per row)</td><td><code>Wrong A</code></td><td><code>Incorrect A</code>, <code>Väärin A</code>, <code>Fel A</code></td><td>on the reveal, if it is not</td></tr>
+<tr><td>Locked in</td><td><code>Locked in</code></td><td><code>Locked</code>, <code>Lukittu</code>, <code>Låst</code></td><td>once the answer is locked (one, whole board)</td></tr>
+<tr><td colspan="4" class="doc-words-rows">Two to six answers.</td></tr>
+<tr class="doc-words-type"><th colspan="4"><a href="#svg-vote">Live vote</a></th></tr>
+<tr><td>Question</td><td><code>Question</code></td><td><code>Kysymys</code>, <code>Fråga</code></td><td>written from the round</td></tr>
+<tr><td>Option (one per row)</td><td><code>Option 1</code></td><td><code>Choice 1</code>, <code>Answer 1</code>, <code>Vaihtoehto 1</code>, <code>Alternativ 1</code></td><td>written from the round</td></tr>
+<tr><td>Bar (one per row)</td><td><code>Bar 1</code></td><td><code>Palkki 1</code>, <code>Stapel 1</code></td><td>draw it at its FULL length - that length is 100%</td></tr>
+<tr><td>Percent (one per row)</td><td><code>Percent 1</code></td><td><code>Share 1</code>, <code>Osuus 1</code>, <code>Procent 1</code></td><td>appears with the result</td></tr>
+<tr><td>Winner (one per row)</td><td><code>Winner 1</code></td><td><code>Voittaja 1</code>, <code>Vinnare 1</code></td><td>only on the row that won, and never on a tie</td></tr>
+<tr><td>Total votes</td><td><code>Total votes</code></td><td><code>Ääntä</code>, <code>Röster</code></td><td>written from the round</td></tr>
+<tr><td>Vote badge</td><td><code>Vote badge</code></td><td><code>Äänestä</code>, <code>Rösta</code></td><td>while voting is open</td></tr>
+<tr><td colspan="4" class="doc-words-rows">Two to eight options.</td></tr>
+<tr class="doc-words-type"><th colspan="4"><a href="#countdowns">Countdown</a></th></tr>
+<tr><td>Clock</td><td>anything</td><td></td><td>the readout - set its row to Countdown</td></tr>
+<tr><td>Timer bar</td><td><code>Timer bar</code></td><td><code>Drain</code>, <code>Countdown bar</code>, <code>Aikapalkki</code>, <code>Tidsbalk</code></td><td>draw it at its FULL length - that length is the whole count</td></tr>
+<tr><td>Warning</td><td><code>Warning</code></td><td><code>Last stretch</code>, <code>Hurry</code>, <code>Varoitus</code>, <code>Varning</code></td><td>the look the final seconds wear</td></tr>
+<tr><td>Paused</td><td><code>Paused</code></td><td><code>Hold</code>, <code>Tauko</code>, <code>Paus</code></td><td>while the operator is holding the clock</td></tr>
+<tr><td>Time up</td><td><code>Time up</code></td><td><code>Expired</code>, <code>Finished</code>, <code>Aika loppu</code>, <code>Tiden ute</code></td><td>once it reaches zero</td></tr>
+<tr class="doc-words-type"><th colspan="4">Meter</th></tr>
+<tr><td>Bar</td><td><code>Progress bar</code></td><td><code>Meter</code></td><td>draw it at its FULL length - that length is the target</td></tr>
+<tr><td>Percent</td><td><code>Percent</code></td><td><code>Share</code>, <code>Osuus</code></td><td>written as the current figure's share of the target</td></tr>
+<tr class="doc-words-type"><th colspan="4">Survey board</th></tr>
+<tr><td>Question</td><td><code>Question</code></td><td><code>Kysymys</code>, <code>Fråga</code></td><td>a field the operator types</td></tr>
+<tr><td>Answer (one per row)</td><td><code>Answer 1</code></td><td><code>Vastaus 1</code>, <code>Svar 1</code></td><td>draw it as it looks revealed - written from the Answers box, hidden until its reveal</td></tr>
+<tr><td>Points (one per row)</td><td><code>Points 1</code></td><td><code>Pts 1</code>, <code>Pisteet 1</code></td><td>a plain figure - written from the Answers box, shown with its answer</td></tr>
+<tr><td>Revealed (one per row)</td><td><code>Revealed 1</code></td><td><code>Flip 1</code>, <code>Open 1</code></td><td>shown once that answer is revealed</td></tr>
+<tr><td>Strike 1</td><td><code>Strike 1</code></td><td><code>X 1</code></td><td>the first X, lit from the first strike on</td></tr>
+<tr><td>Strike 2</td><td><code>Strike 2</code></td><td></td><td>the second X</td></tr>
+<tr><td>Strike 3</td><td><code>Strike 3</code></td><td></td><td>the third X - and the Strike button greys</td></tr>
+<tr><td>Total</td><td><code>Total</code></td><td><code>Sum</code>, <code>Yhteensä</code></td><td>written by NoaCG: the points of the revealed answers, added up</td></tr>
+<tr><td colspan="4" class="doc-words-rows">Two to eight answers.</td></tr>
+<tr class="doc-words-type"><th colspan="4">Stepped list</th></tr>
+<tr><td>Entry (one per row)</td><td><code>Item 10</code></td><td><code>Entry 10</code>, <code>Number 10</code>, <code>Kohta 10</code></td><td>draw it as it looks revealed - written from the Entries box, hidden until its number comes up</td></tr>
+<tr><td>Mark (one per row)</td><td><code>Mark 10</code></td><td><code>Current 10</code>, <code>Highlight 10</code></td><td>shown on the entry that just arrived, until the next one does</td></tr>
+<tr><td colspan="4" class="doc-words-rows">Two to twelve entries; the option decides whether they arrive from the last number down or from 1 up.</td></tr>
+<tr class="doc-words-type"><th colspan="4">Lineup</th></tr>
+<tr><td>Guest (one per row)</td><td><code>Guest 1</code></td><td><code>Act 1</code>, <code>Speaker 1</code>, <code>Vieras 1</code></td><td>a field the operator types</td></tr>
+<tr><td>On now (one per row)</td><td><code>Now 1</code></td><td><code>Current 1</code>, <code>Nyt 1</code></td><td>shown on the guest who is on</td></tr>
+<tr><td>Been on (one per row)</td><td><code>Done 1</code></td><td><code>Been 1</code>, <code>Past 1</code></td><td>shown on every guest who has already been on</td></tr>
+<tr><td colspan="4" class="doc-words-rows">Two to eight guests, in the order they come on.</td></tr>
+<tr class="doc-words-type"><th colspan="4">Puzzle board</th></tr>
+<tr><td>Category</td><td><code>Category</code></td><td></td><td>a field the operator types</td></tr>
+<tr><td>Letter (one per row)</td><td><code>Letter 1</code></td><td><code>Tile 1</code>, <code>Kirjain 1</code></td><td>one letter, drawn as it looks revealed - written from the phrase, shown once its letter is called</td></tr>
+<tr><td>Used (one per row)</td><td><code>Used 1</code></td><td><code>White 1</code></td><td>shown on every tile the phrase reaches - the white face behind a letter still hidden</td></tr>
+<tr><td>Solved</td><td><code>Solved</code></td><td><code>Ratkaistu</code></td><td>once the puzzle is solved (one, whole board)</td></tr>
+<tr><td colspan="4" class="doc-words-rows">Four to forty tiles, numbered left to right and then down; the phrase is laid over them in that order, so put spaces where the tiles should stay blank.</td></tr>
+<tr class="doc-words-type"><th colspan="4">Reveal</th></tr>
+<tr><td>The reveal</td><td><code>Price</code></td><td><code>Secret</code>, <code>Reveal</code>, <code>Hinta</code></td><td>draw it as it looks revealed - written from The reveal box, hidden until the press</td></tr>
+<tr><td>Cover</td><td><code>Cover</code></td><td><code>Envelope</code>, <code>Sealed</code>, <code>Kansi</code></td><td>shown until the reveal - the sealed plate over the text</td></tr>
+<tr class="doc-words-type"><th colspan="4">Bingo caller</th></tr>
+<tr><td>Numeral (one per row)</td><td><code>Number 7</code></td><td><code>Ball 7</code>, <code>Numero 7</code></td><td>the numeral on a tile, left as you drew it - naming it keeps it out of the operator’s fields</td></tr>
+<tr><td>Called (one per row)</td><td><code>Called 7</code></td><td><code>Marked 7</code>, <code>Huudettu 7</code></td><td>shown on a number once it has been called</td></tr>
+<tr><td>Last called (one per row)</td><td><code>Last 7</code></td><td><code>Latest 7</code>, <code>Ring 7</code></td><td>shown on the number called most recently, until the next call</td></tr>
+<tr><td>Last call readout</td><td><code>Last call</code></td><td><code>Latest</code>, <code>Now calling</code></td><td>the number called most recently, written large - hidden until the first call</td></tr>
+<tr><td>Count</td><td><code>Count</code></td><td><code>Calls</code>, <code>So far</code></td><td>how many numbers have been called, written by the board</td></tr>
+<tr><td colspan="4" class="doc-words-rows">Five to ninety numbers, one Called layer each. Name the numeral on each tile Number 1, Number 2 and so on, and it stays your drawing instead of arriving as a field.</td></tr>
+</table></div>
+<!-- behaviour-words:end -->
 
             <h4>Names for any graphic</h4>
             <ul>
@@ -300,6 +446,8 @@
                 + and &minus; buttons.</li>
               <li>Text drawn as a time, such as <code>05:00</code>, can become a
                 <a href="#countdowns">countdown</a>.</li>
+              <li>Give every layer its own name. If two layers are both called <code>Bar</code>, the
+                second one becomes <code>Bar 2</code>.</li>
               <li>Panels, lines, gradients and masks stay exactly as drawn.</li>
             </ul>
             <p>
@@ -320,51 +468,57 @@
                 <a href="/docs/examples/scoreboard.svg" download>Download scoreboard.svg</a>
               </figcaption>
             </figure>
-            <figure class="doc-shot">
-              <img src="/docs/type-scoreboard-lower-third.png" width="1560" height="300" loading="lazy"
-                alt="The same scoreboard as a lower third: OTAVA 2, KARHUT 1 on a short dark bar at the bottom of the frame." />
-              <figcaption>
-                <strong>The same names as a lower third.</strong> Drawn in Illustrator and saved with
-                the settings above.
-                <a href="/docs/examples/scoreboard-lower-third.svg" download>Download scoreboard-lower-third.svg</a>
-              </figcaption>
-            </figure>
             <div class="doc-example">
               <figure class="layers" aria-label="The layers of scoreboard.svg">
                 <figcaption>Layers</figcaption>
                 <ul>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Team B</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Score B</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Score A</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Team A</b></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Full time</b><em class="tag">hidden</em></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Goal B</b><em class="tag">hidden</em></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Goal A</b><em class="tag">hidden</em></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Board</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Text</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Team 2</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Score 2</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Score 1</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Team 1</b></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Moments</b></span>
+                    <ul>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Flash 2</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Flash 1</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Full time</b><em class="tag">hidden</em></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Board</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Edge</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Divider</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Panel</b></span></li>
+                    </ul>
+                  </li>
                 </ul>
               </figure>
               <div>
                 <h4>Layer names</h4>
                 <ul>
-                  <li><code>Team A</code> and <code>Team B</code>: text. Required.</li>
-                  <li><code>Score A</code> and <code>Score B</code>: text, drawn as a plain number
+                  <li><code>Team 1</code> and <code>Team 2</code>: text. Required.</li>
+                  <li><code>Score 1</code> and <code>Score 2</code>: text, drawn as a plain number
                     such as <code>2</code>. Required.</li>
-                  <li><code>Goal A</code> and <code>Goal B</code>: hidden group. Shows when that team
-                    scores. Optional.</li>
+                  <li><code>Flash 1</code> and <code>Flash 2</code>: hidden group. Shows for a
+                    moment when that team scores. Optional.</li>
                   <li><code>Full time</code>: hidden group. Shows at the end of the game.
                     Optional.</li>
                 </ul>
                 <p>
-                  Numbers work instead of letters: <code>Team 1</code>, <code>Score 1</code>. Up to
-                  eight teams.
+                  Up to eight teams: <code>Team 3</code>, <code>Score 3</code> and so on. The
+                  example draws the word GOAL inside each flash, but the layer is called Flash
+                  because a point is not always a goal.
                 </p>
               </div>
             </div>
             <h4 id="scoreboards-goal">Buttons</h4>
             <ul>
               <li><strong>+1</strong> and <strong>&minus;1</strong> for each team. +1 also shows
-                that team's <code>Goal</code> layer.</li>
-              <li><strong>Clear flash</strong> hides the <code>Goal</code> layer again.</li>
+                that team's <code>Flash</code> layer.</li>
+              <li><strong>Clear flash</strong> hides the <code>Flash</code> layer again.</li>
               <li><strong>Full time</strong> shows the <code>Full time</code> layer.</li>
               <li><strong>New game</strong> sets every score to 0.</li>
             </ul>
@@ -393,38 +547,36 @@
                 <a href="/docs/examples/quiz.svg" download>Download quiz.svg</a>
               </figcaption>
             </figure>
-            <figure class="doc-shot">
-              <img src="/docs/type-quiz-lower-third.png" width="1560" height="240" loading="lazy"
-                alt="The same quiz as a lower third: the question over two rows of two answers on a dark bar at the bottom of the frame." />
-              <figcaption>
-                <strong>The same names as a lower third.</strong> Drawn in Illustrator and saved with
-                the settings above.
-                <a href="/docs/examples/quiz-lower-third.svg" download>Download quiz-lower-third.svg</a>
-              </figcaption>
-            </figure>
             <div class="doc-example">
               <figure class="layers" aria-label="The layers of quiz.svg">
                 <figcaption>Layers</figcaption>
                 <ul>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer D</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer C</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer B</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer A</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Question</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Letters</b></span>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Text</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Answer D</b></span></li>
+                      <li class="more"><span class="lyr">Answer C, B, A</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Question</b></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Moments</b></span>
+                    <ul>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Wrong D</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Correct D</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Selected D</b><em class="tag">hidden</em></span></li>
+                      <li class="more"><span class="lyr">the same for C, B and A</span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Locked in</b><em class="tag">hidden</em></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Board</b></span>
                     <ul>
                       <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Letter D</b></span></li>
                       <li class="more"><span class="lyr">static:Letter C, B, A</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Row D</b></span></li>
+                      <li class="more"><span class="lyr">Row C, B, A</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Edge</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Panel</b></span></li>
                     </ul>
                   </li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Locked</b><em class="tag">hidden</em></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">D wrong</b><em class="tag">hidden</em></span></li>
-                  <li class="more"><span class="lyr">8 more: D correct to B selected</span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">A wrong</b><em class="tag">hidden</em></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">A correct</b><em class="tag">hidden</em></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">A selected</b><em class="tag">hidden</em></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Rows</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Board</b></span></li>
                 </ul>
               </figure>
               <div>
@@ -433,19 +585,20 @@
                   <li><code>Question</code>: text. Required.</li>
                   <li><code>Answer A</code>, <code>Answer B</code> and on to <code>Answer F</code>:
                     text. At least two. Required.</li>
-                  <li><code>A selected</code>: hidden group. Shows on the answer the operator
+                  <li><code>Selected A</code>: hidden group. Shows on the answer the operator
                     picks. Optional.</li>
-                  <li><code>A correct</code>: hidden group. Shows on the correct answer at the
+                  <li><code>Correct A</code>: hidden group. Shows on the correct answer at the
                     reveal. Optional.</li>
-                  <li><code>A wrong</code>: hidden group. Shows on every other answer at the
+                  <li><code>Wrong A</code>: hidden group. Shows on every other answer at the
                     reveal. Optional.</li>
-                  <li><code>Locked</code>: hidden group. Shows once the answer is locked in.
+                  <li><code>Locked in</code>: hidden group. Shows once the answer is locked in.
                     Optional.</li>
                 </ul>
                 <p>
-                  Draw the same three for every answer: <code>B selected</code>,
-                  <code>B correct</code> and so on. A moment you do not draw gets NoaCG's own
-                  highlight.
+                  Draw the same three for every answer: <code>Selected B</code>,
+                  <code>Correct B</code> and so on. A moment you do not draw gets NoaCG's own
+                  highlight. The letters on the rows are <code>static:Letter A</code> and so on,
+                  so they stay as drawn.
                 </p>
               </div>
             </div>
@@ -488,21 +641,33 @@
               <figure class="layers" aria-label="The layers of live-vote.svg">
                 <figcaption>Layers</figcaption>
                 <ul>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Total votes</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Percent 3</b></span></li>
-                  <li class="more"><span class="lyr">Percent 2, Percent 1</span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Option 3</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Option 2</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Option 1</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Question</b></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Vote badge</b><em class="tag">hidden</em></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Winner 3</b><em class="tag">hidden</em></span></li>
-                  <li class="more"><span class="lyr">Winner 2, Winner 1</span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Bar 3</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Bar 2</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Bar 1</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Tracks</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Board</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Text</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Total votes</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Percent 3</b></span></li>
+                      <li class="more"><span class="lyr">Percent 2, Percent 1</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Option 3</b></span></li>
+                      <li class="more"><span class="lyr">Option 2, Option 1</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Question</b></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Moments</b></span>
+                    <ul>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Vote badge</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Winner 3</b><em class="tag">hidden</em></span></li>
+                      <li class="more"><span class="lyr">Winner 2, Winner 1</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Bar 3</b></span></li>
+                      <li class="more"><span class="lyr">Bar 2, Bar 1</span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Board</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Track 3</b></span></li>
+                      <li class="more"><span class="lyr">Track 2, Track 1</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Edge</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Panel</b></span></li>
+                    </ul>
+                  </li>
                 </ul>
               </figure>
               <div>
@@ -524,8 +689,8 @@
                 <p>
                   The <code>Bar</code> layers are what make the wizard pick Live vote. A bar grows
                   from its left edge. Draw it as a plain rectangle with square ends, because other
-                  shapes are stretched. Draw the empty track behind it as its own layer and do not
-                  call it Bar.
+                  shapes are stretched. Draw the empty track behind it as its own layer in
+                  <code>Board</code>, called <code>Track 1</code> and so on, never Bar.
                 </p>
               </div>
             </div>
@@ -566,23 +731,38 @@
               <figure class="layers" aria-label="The layers of countdown.svg">
                 <figcaption>Layers</figcaption>
                 <ul>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Time up</b><em class="tag">hidden</em></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Countdown</b><em class="tag">05:00</em></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Status</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">Show title</b></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Paused</b><em class="tag">hidden</em></span></li>
-                  <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Warning</b><em class="tag">hidden</em></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Time bar</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Card</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Text</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Clock</b><em class="tag">05:00</em></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">Show title</b></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Moments</b></span>
+                    <ul>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Time up</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Paused</b><em class="tag">hidden</em></span></li>
+                      <li class="off"><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm hit">Warning</b><em class="tag">hidden</em></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm hit">Timer bar</b></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Board</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Status</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Track</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Edge</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Panel</b></span></li>
+                    </ul>
+                  </li>
                 </ul>
               </figure>
               <div>
                 <h4>Layer names</h4>
                 <ul>
-                  <li>One text layer drawn as a time, such as <code>05:00</code>. Any name.
-                    Required. Keep it the only text in the file shaped like a time.</li>
-                  <li><code>Time bar</code>: a rectangle. It shrinks as the time runs out.
-                    Optional.</li>
+                  <li>One text layer drawn as a time, such as <code>05:00</code>. Any name; the
+                    example calls it <code>Clock</code>. Required. Keep it the only text in the
+                    file shaped like a time.</li>
+                  <li><code>Timer bar</code>: a rectangle drawn at its full length. It shrinks as
+                    the time runs out. Optional.</li>
                   <li><code>Warning</code>: hidden group. Shows in the last 10 seconds.
                     Optional.</li>
                   <li><code>Paused</code>: hidden group. Shows while the clock is paused.
@@ -639,13 +819,23 @@
               <figure class="layers" aria-label="The layers of end-credits.svg">
                 <figcaption>Layers</figcaption>
                 <ul>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Sound name</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Sound</b></span></li>
-                  <li class="more"><span class="lyr">Camera, Producer: the same</span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Director name</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Director</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Heading</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Card</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Text</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Sound name</b></span></li>
+                      <li class="more"><span class="lyr">Camera name, Producer name</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Director name</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Heading</b></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Board</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Sound</b></span></li>
+                      <li class="more"><span class="lyr">static:Camera, static:Producer</span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm">static:Director</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Rule</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Panel</b></span></li>
+                    </ul>
+                  </li>
                 </ul>
               </figure>
               <div>
@@ -654,12 +844,14 @@
                   <li>One text layer per name, named after its role: <code>Director name</code>.
                     Each one is a field.</li>
                   <li>The role labels start with <code>static:</code>, as in
-                    <code>static:Director</code>, so they stay as drawn.</li>
+                    <code>static:Director</code>, so they stay as drawn. They live in
+                    <code>Board</code> with the panel.</li>
                   <li><code>Heading</code>: text. Optional.</li>
                 </ul>
                 <p>
-                  None of these names is special. They are there so the operator knows which field
-                  is which.
+                  None of these names is special, and there is no <code>Moments</code> layer
+                  because nothing shows or hides. The names are there so the operator knows which
+                  field is which.
                 </p>
               </div>
             </div>
@@ -708,9 +900,18 @@ Lena Fors</code></pre>
               <figure class="layers" aria-label="The layers of ticker.svg">
                 <figcaption>Layers</figcaption>
                 <ul>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Story</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Kicker</b></span></li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9656;</i><b class="nm">Strip</b></span></li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Text</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Story</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Kicker</b></span></li>
+                    </ul>
+                  </li>
+                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Board</b></span>
+                    <ul>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Tag</b></span></li>
+                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Strip</b></span></li>
+                    </ul>
+                  </li>
                 </ul>
               </figure>
               <div>
@@ -719,7 +920,8 @@ Lena Fors</code></pre>
                   <li><code>Kicker</code>: text. The tag, such as <code>SPORT</code>.</li>
                   <li><code>Story</code>: text. The headline.</li>
                 </ul>
-                <p>Neither name is special. Both are fields.</p>
+                <p>Neither name is special. Both are fields, and there is no <code>Moments</code>
+                  layer because nothing shows or hides.</p>
               </div>
             </div>
             <figure class="doc-shot">

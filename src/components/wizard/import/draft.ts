@@ -1035,6 +1035,15 @@ export function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
   );
 }
 
+/** The graphic's default name from the dropped file's: `quiz-board.svg` is "Quiz board". A
+ *  second unnamed import used to be called "Imported SVG design" like the first and replace it
+ *  in the production by name (row E's walk, 2026-09-21); the file's own name is the one thing the
+ *  student already chose. Blank when the file has no name to give. */
+export function graphicNameFromFile(fileName: string): string {
+  const stem = fileName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return stem ? stem.charAt(0).toUpperCase() + stem.slice(1) : '';
+}
+
 /** A hidden layer's display name for the extras section: the prefix stripped, else the label. */
 export function extraLayerName(label: string): string {
   const prefix = extraPrefixOf(label);

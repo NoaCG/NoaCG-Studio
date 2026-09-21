@@ -62,17 +62,14 @@ const browser = await chromium.launch();
  *   - a LOCATOR, for a surface that is one element;
  *   - `{ clip }` from `clipBetween`, for a strip of the page that no single element wraps;
  *   - null, for the whole viewport.
- * With `capture: false` the run happens (its checks and its printed lines included) and no
- * picture is written - for a drop whose only job is to prove what the wizard picked.
  */
-async function shot(name, run, size = VIEWPORT, scale = SCALE, { capture = true } = {}) {
+async function shot(name, run, size = VIEWPORT, scale = SCALE) {
   if (wanted && !wanted.has(name)) return;
   const context = await browser.newContext({ viewport: size, deviceScaleFactor: scale });
   const page = await context.newPage();
   page.setDefaultTimeout(30_000);
   try {
     const target = await run(page);
-    if (!capture) return;
     const clipping = target && typeof target.clip === 'object';
     // `animations: 'disabled'` parks CSS/Web animations at their end state, which is what a
     // settled product surface looks like. `fullPage` with a clip is what makes the clip's
@@ -316,10 +313,9 @@ await shot('svg-fields', async (page) => {
 // Each type in the Graphics guide (`/docs#scoreboards` and its siblings) has a downloadable
 // example file in public/docs/examples/, named so the wizard recognises it. Two pictures come
 // from each: `type-<id>.png`, the artwork itself as it renders, and `type-<id>-fields.png`, the
-// Fields step one drop later. The docs draw the file's layer panel in HTML beside them. An
-// example marked `fieldsShot: false` (the lower-third versions of a type) still takes the drop
-// but publishes only the first picture, so `--only=type-<id>-fields` for one of those runs the
-// check and writes nothing.
+// Fields step one drop later. The docs draw the file's layer panel in HTML beside them. ONE
+// example per type (docs/backlog/one-layer-naming-system-for-every-graphic.md): a second file
+// for the same type is a second structure to learn, which is what the owner objected to.
 //
 // The render loads the SVG into a bare page with the app's own font files, because an SVG shown
 // through <img> cannot load a web font and would publish every example in a fallback face.
@@ -333,15 +329,11 @@ const example = (name) => join(projectRoot, 'public', 'docs', 'examples', name);
 
 /**
  * One entry per example file. `behaviour` is what the wizard must pick after the drop, and the
- * run fails when it picks anything else. `fieldsShot: false` keeps that check but publishes no
- * Fields-step picture: the lower-third files are the full-frame ones drawn again in Illustrator
- * with the same names, so a second Fields picture would show the same panel twice.
+ * run fails when it picks anything else.
  */
 const TYPE_EXAMPLES = [
   { id: 'scoreboard', crop: [60, 40, 680, 130], behaviour: 'score' },
-  { id: 'scoreboard-lower-third', crop: [150, 880, 780, 150], behaviour: 'score', fieldsShot: false },
   { id: 'quiz', crop: [340, 120, 1240, 840], behaviour: 'quiz' },
-  { id: 'quiz-lower-third', crop: [-15, 745, 1950, 300], behaviour: 'quiz', fieldsShot: false },
   { id: 'live-vote', crop: [340, 120, 1240, 840], behaviour: 'poll' },
   { id: 'countdown', crop: [520, 270, 880, 540], behaviour: 'timer' },
   { id: 'end-credits', crop: [520, 90, 880, 900], behaviour: null },
@@ -383,9 +375,7 @@ for (const type of TYPE_EXAMPLES) {
     return page.locator('#frame');
   }, VIEWPORT, 2);
 
-  // The drop, and what the wizard picked; the run fails on the wrong type. For a check-only
-  // example that is the whole job, so it ends here and no picture is written.
-  const checkOnly = type.fieldsShot === false;
+  // The drop, and what the wizard picked; the run fails on the wrong type.
   await shot(`type-${type.id}-fields`, async (page) => {
     await openImportDoor(page);
     await dropSample(page, example(`${type.id}.svg`));
@@ -395,14 +385,13 @@ for (const type of TYPE_EXAMPLES) {
       throw new Error(`the wizard picked "${picked}" for ${type.id}.svg, the guide promises "${type.behaviour}"`);
     }
     console.log(`  ${type.id}.svg -> ${picked || 'no behaviour'}`);
-    if (checkOnly) return null;
     if (type.behaviour) {
       // To the TOP of the panel, so the picked type is the first thing in the shot.
       await page.getByTestId('map-svg-behaviour').evaluate((el) => el.scrollIntoView({ block: 'start' }));
       await page.waitForTimeout(600);
     }
     return modal(page);
-  }, VIEWPORT, SCALE, { capture: !checkOnly });
+  }, VIEWPORT, SCALE);
 }
 
 // ── 4. The live tree: paths, types, and the values a whole show reads from ───

@@ -11,8 +11,10 @@ import {
   draftName,
   draftResolution,
   formatDraftPatch,
+  graphicNameFromFile,
   initialDraft,
   mergeDraft,
+  pollDrivenLayers,
   proposeSvgBehaviour,
   proposeSvgExtras,
   type DraftPatch,
@@ -1990,6 +1992,8 @@ export default function CreationWizard() {
                   // pickers (`armTimerClock`, and it is the same call the mapping step's picker
                   // makes). Every other behaviour leaves the fields exactly as they were.
                   const proposed = proposeSvgBehaviour(result);
+                  const written = pollDrivenLayers(proposed);
+                  const furniture = (c: { id: string; drawing: boolean }) => c.drawing && !written.has(c.id);
                   patch({
                     designSvg: {
                       ...result,
@@ -2003,10 +2007,17 @@ export default function CreationWizard() {
                     // exception is the opposite prefix: `static:` is the designer saying this
                     // text is furniture, so the row is offered UNTICKED with its words left as
                     // drawn (a top ten's ten rank numerals, a bingo grid's numbers).
+                    // FURNITURE LAST: the drawn rows are listed after every field, in their own
+                    // order, so the Fields step opens on what the operator can change rather
+                    // than on four letter tiles under four plate headings (row E's walk,
+                    // 2026-09-21). Field ids are minted from the ticked rows, so nothing
+                    // downstream moves. A one-letter text the proposed behaviour WRITES (a
+                    // puzzle's tiles) is not furniture: it stays ticked and in place, so the
+                    // mapping step keeps showing it as the board's, never as "stays as drawn".
                     svgFields: armTimerClock(
-                      result.candidates.map((c) => ({
+                      [...result.candidates.filter((c) => !furniture(c)), ...result.candidates.filter(furniture)].map((c) => ({
                         candidateId: c.id,
-                        on: !c.drawing,
+                        on: !furniture(c),
                         title: c.label,
                         sample: c.sample,
                         numeric: c.numeric,
@@ -2065,6 +2076,14 @@ export default function CreationWizard() {
                     designOriginal: null,
                     designErases: [],
                     designFields: [],
+                    // NAMED AFTER THE FILE until the Finish step is given a name: a name the
+                    // reader typed stays, and a name an earlier drop gave is replaced by this
+                    // drop's, so swapping quiz.svg for scoreboard.svg does not ship a scoreboard
+                    // called Quiz. Blank still falls back to the catalog name in `draftName`.
+                    name:
+                      draft.name.trim() && draft.name !== graphicNameFromFile(draft.designSvg?.fileName ?? '')
+                        ? draft.name
+                        : graphicNameFromFile(result.fileName ?? ''),
                     category: 'imported-design',
                     variantId: 'svg01',
                     lines: [],
@@ -2079,7 +2098,9 @@ export default function CreationWizard() {
                   setMode('svg');
                 }}
                 onClearSvg={() => {
-                  patch({ designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null });
+                  // The name the file gave goes with the file; a name the reader typed stays.
+                  const fromFile = graphicNameFromFile(draft.designSvg?.fileName ?? '');
+                  patch({ designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null, name: draft.name === fromFile ? '' : draft.name });
                   setMode('design');
                 }}
                 templateFile={importedFile}
