@@ -1,0 +1,28 @@
+{
+  "name": "illustrator-scoreboard-lower-third",
+  "family": "illustrator",
+  "exporter": "Adobe Illustrator 28.6 - Export As > SVG, Styling: Internal CSS, Images: Embed, Responsive on",
+  "story": "A student drew the match score as a lower third: two slanted club plates drawn with the pen tool, a score block between them with the period on an amber tab underneath, each club's crest embedded beside its name, and a red goal flash over each plate switched off in the layers panel. They named the layers the way docs/SVG_AUTHORING.md section 5b suggests - Team 1, Score 1, Flash 1 - and typed the period in Finnish, so Illustrator split it at the Ä.",
+  "idioms": [
+    "Generator comment naming the SVG Export Plug-In build",
+    "Responsive export: viewBox only, no width/height attributes",
+    "<style type=\"text/css\"> holding one property per .stN class, and one class carrying two properties",
+    "slanted plates as <polygon points=\"...\"> with the trailing tab Illustrator leaves inside the attribute",
+    "two hidden flash layers exported as class=\"st10\" whose rule is display:none",
+    "two pictures embedded as <image style=\"overflow:visible;\"> positioned by transform alone",
+    "an accented word written as two <tspan> runs split at the non-ASCII character, with the class on the RUNS and nothing on the <text>",
+    "_x20_ escapes with data-name on every named layer"
+  ],
+  "expect": {
+    "accepted": true,
+    "width": 1920,
+    "height": 1080,
+    "textFields": 5,
+    "textLabels": ["Team 1", "Score 1", "Score 2", "Team 2", "Period"],
+    "imageFields": 2,
+    "outlineRows": 0,
+    "noticeAbout": [],
+    "growth": "shrink"
+  },
+  "whyThisMatters": "The scoreboard every student sports show draws: not a rectangle anywhere under the club names. Illustrator writes a slanted plate as a <polygon>, and until 2026-09-21 the mapping step knew only rectangles and rectangle-shaped paths, so both club names read 'On the artwork - no box of their own, so nothing grows around them' on a plate they plainly sit on, while the runtime was measuring their room against that very polygon. The period carries the run-styled <tspan> shape the Save As quiz does, arriving through an accented character. e2e/import-svg-behaviour.spec.ts walks this file to air."
+}

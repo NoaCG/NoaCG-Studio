@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Page, type Route } from '@playwright/test';
+import { test, expect, type BrowserContext, type FrameLocator, type Page, type Route } from '@playwright/test';
 import { switchToAdvancedMode } from './_create';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -9,6 +9,7 @@ import { settleDurableWrites } from './_durable';
 import { relayServe, routeOrigin } from './_relay';
 import {
   bindEveryTextLayer,
+  boxGrowOf,
   dropSvg,
   intoProduction,
   rowLabelled,
@@ -2103,4 +2104,354 @@ test('CasparCG package: the standalone panel drives the bingo caller, add and ta
 
   await panel.close();
   await air.close();
+});
+
+// ── WHAT ILLUSTRATOR REALLY WRITES, WALKED TO AIR (docs/GOALS.md NOW, items 1-3) ─────────────
+//
+// The two graphics the student demo runs, drawn the way Illustrator actually exports them rather
+// than the way the shipped samples were typed: a quiz saved through SAVE AS (an internal DTD, an
+// embedded SVG `<font>` subset, a CDATA-wrapped stylesheet, a picture positioned by its
+// transform, hidden layers as `style="display:none;"`), and a scoreboard drawn as a LOWER THIRD
+// on slanted `<polygon>` plates with embedded team logos. Both carry the one habit neither sample
+// has: a kerned or accented word written as several `<tspan>` RUNS with the look on the runs and
+// nothing on the `<text>`. Each test drives its behaviour on air and reads what the audience
+// would notice: the words keep their drawn type, every line stays inside the plate it was drawn
+// on, and nothing is logged as an error on the way.
+
+const SAVE_AS_QUIZ = fileURLToPath(
+  new URL('./fixtures/svg-corpus/illustrator-save-as-quiz-board.svg', import.meta.url),
+);
+const LOWER_THIRD_SCORE = fileURLToPath(
+  new URL('./fixtures/svg-corpus/illustrator-scoreboard-lower-third.svg', import.meta.url),
+);
+
+/** Every console error and uncaught exception from the page and its frames, for the walk's
+ *  closing "nothing went wrong on the way" claim. */
+function consoleErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  page.on('pageerror', (e) => errors.push(e.message));
+  return errors;
+}
+
+type Rect = { left: number; top: number; right: number; bottom: number };
+
+/** A layer's box on air, in the artwork's own px: the program renderer draws the design at its
+ *  native 1920 wide and the stage scales the iframe, so the frame's own rectangles ARE design px. */
+async function boxOnAir(air: FrameLocator, selector: string): Promise<Rect & { font: string }> {
+  return air.locator(selector).evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, font: getComputedStyle(el).fontSize };
+  });
+}
+
+/** The fit runtime's own report of copy it could not make fit (`noacgTextOverflow`). */
+async function overflowOnAir(air: FrameLocator): Promise<string[]> {
+  return air.locator('svg').first().evaluate(() => {
+    const w = window as unknown as { noacgTextOverflow?: () => string[] };
+    return w.noacgTextOverflow ? w.noacgTextOverflow() : [];
+  });
+}
+
+function expectInside(line: Rect, plate: Rect) {
+  expect(line.left, 'left edge inside the plate').toBeGreaterThanOrEqual(plate.left);
+  expect(line.right, 'right edge inside the plate').toBeLessThanOrEqual(plate.right);
+  expect(line.top, 'top inside the plate').toBeGreaterThanOrEqual(plate.top);
+  expect(line.bottom, 'bottom inside the plate').toBeLessThanOrEqual(plate.bottom);
+}
+
+test('an Illustrator SAVE AS quiz: the answers keep their type on air, lock and reveal work, and a long question stays on its card', async ({ page }) => {
+  test.slow(); // the import, a production, a take, the three quiz verbs and an update
+  const errors = consoleErrors(page);
+  await openImportDoor(page, SAVE_AS_QUIZ);
+
+  // The proposal reads the names through Illustrator's `_x20_` escapes and the hidden layers
+  // through an inline display:none, which is how Save As writes an eye switched off.
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await expect(page.getByTestId('map-svg-quiz-count')).toHaveValue('4');
+  for (const [at, letter] of ['A', 'B', 'C', 'D'].entries()) {
+    await expect(page.getByTestId(`map-svg-quiz-answer-${at}`)).toContainText(`Answer ${letter}`);
+    await expect(page.getByTestId(`map-svg-quiz-selected-${at}`).locator('option:checked')).toContainText(`${letter} selected`);
+  }
+  await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('Locked in');
+
+  await intoProduction(page, 'Save As quiz', 'Demo Quiz');
+  await settleDurableWrites(page);
+
+  // The field order is the artwork's: the four drawn letter tiles, then the question, the four
+  // answers, the key and the pick.
+  await expect(page.getByTestId('cue-field-f4')).toHaveValue('Which Finnish city hosted the 1952 Summer Olympics?');
+  await expect(page.getByTestId('cue-field-f6')).toHaveValue('Tampere');
+
+  await page.getByTestId('cue-field-f9-opt-C').click();
+  await page.getByTestId('cue-field-f10-opt-B').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('#f6')).toHaveText('Tampere');
+
+  // THE KERNED ANSWER KEEPS ITS TYPE. "Tampere" was drawn as two runs, T and ampere, with the
+  // fill, face and size on the RUNS; the first update() replaced them and the word fell back to
+  // the bare <text>'s browser default - 16px black on a dark row, which read as "…" in the
+  // wizard's own preview. Its neighbour, styled on the <text>, is the control.
+  expect((await boxOnAir(air, '#f6')).font).toBe('38px');
+  expect((await boxOnAir(air, '#f5')).font).toBe('38px');
+  await expect(air.locator('#f6')).toHaveCSS('fill', 'rgb(255, 255, 255)');
+
+  // Every answer sits inside the row it was drawn on, and the question inside its card.
+  const rows: [string, Rect][] = [
+    ['#f5', { left: 240, top: 520, right: 940, bottom: 630 }],
+    ['#f6', { left: 980, top: 520, right: 1680, bottom: 630 }],
+    ['#f7', { left: 240, top: 670, right: 940, bottom: 780 }],
+    ['#f8', { left: 980, top: 670, right: 1680, bottom: 780 }],
+  ];
+  for (const [id, plate] of rows) expectInside(await boxOnAir(air, id), plate);
+  const card: Rect = { left: 240, top: 150, right: 1680, bottom: 450 };
+  expectInside(await boxOnAir(air, '#f4'), card);
+  // The embedded picture is drawn where Illustrator placed it: a 64px image scaled by 1.25.
+  const logo = await boxOnAir(air, '[data-name="Show logo"]');
+  expect(Math.round(logo.right - logo.left)).toBe(80);
+
+  // The operator's three verbs, reading the designer's own layers.
+  await page.getByRole('button', { name: /Select answer/ }).click();
+  await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
+  await page.getByRole('button', { name: /Lock it in/ }).click();
+  await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
+  for (const row of ['A', 'B', 'D']) {
+    await expect(air.locator(`[data-noacg-role~="answer.wrong/${row}"]`)).toHaveClass(/imported-design-on/);
+  }
+
+  // THE LONG-TEXT TAIL: a question twice the drawn length wraps inside the card, never past it.
+  await page
+    .getByTestId('cue-field-f4')
+    .fill('Which Finnish city hosted the 1952 Summer Olympics, and in which month did the games open to the public?');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f4')).toContainText('open to the public?');
+  await expect.poll(async () => {
+    const q = await boxOnAir(air, '#f4');
+    return q.bottom - q.top;
+  }).toBeGreaterThan(80);
+  expectInside(await boxOnAir(air, '#f4'), card);
+  expect(await overflowOnAir(air)).toEqual([]);
+
+  expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
+});
+
+test('an Illustrator scoreboard LOWER THIRD on slanted plates: +1 and −1 play the drawn flash, and a long club name stays on its plate', async ({ page }) => {
+  test.slow(); // the import, a production, a take, three presses and an update
+  const errors = consoleErrors(page);
+  await openImportDoor(page, LOWER_THIRD_SCORE);
+
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('score');
+  await expect(page.getByTestId('map-svg-score-count')).toHaveValue('2');
+  for (const at of [0, 1]) {
+    const n = at + 1;
+    await expect(page.getByTestId(`map-svg-score-name-${at}`).locator('option:checked')).toHaveText(`Team ${n}`);
+    await expect(page.getByTestId(`map-svg-score-figure-${at}`).locator('option:checked')).toHaveText(`Score ${n}`);
+    await expect(page.getByTestId(`map-svg-score-flash-${at}`).locator('option:checked')).toHaveText(`Flash ${n} (hidden)`);
+  }
+
+  // A SLANTED PLATE IS A BOX. Illustrator writes it as a <polygon>, and the step used to know
+  // only rectangles, so each club name read "no box of their own" on the plate it sits on. Now
+  // each name is grouped under its own plate, with the too-long answer a scoreboard wants: stay
+  // as drawn, because the audience sees it again with new names.
+  for (const team of [/^Team 1$/, /^Team 2$/]) {
+    const grow = boxGrowOf(page, await rowLabelled(page, team));
+    await expect(grow).toHaveCount(1);
+    await expect(grow).toHaveValue('shrink');
+  }
+  await expect(page.getByTestId('map-svg-fields')).not.toContainText('no box of their own');
+
+  await intoProduction(page, 'Lower third score', 'Demo Match');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('#f0')).toHaveText('HAUKAT');
+
+  // THE ACCENTED PERIOD KEEPS ITS TYPE. Illustrator split "2. ERÄ" into two runs at the Ä and
+  // put the 22px face and the dark fill on the runs only - the quiz's kerned answer again,
+  // arriving through a character rather than through kerning.
+  const period = await boxOnAir(air, '#f4');
+  expect(period.font).toBe('22px');
+  expectInside(period, { left: 880, top: 980, right: 1040, bottom: 1016 });
+
+  // Both logos are drawn: embedded pictures positioned by their transform alone.
+  for (const name of ['Logo 1', 'Logo 2']) {
+    const logo = await boxOnAir(air, `[data-name="${name}"]`);
+    expect(Math.round(logo.right - logo.left)).toBe(64);
+  }
+
+  // One press is a point AND the flash the student drew; the correction takes both back.
+  await page.getByTestId('cue-action-score1').click();
+  await expect(air.locator('#f1')).toHaveText('1');
+  await expect(air.locator('[data-noacg-role~="team.flash/1"]')).toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-score2').click();
+  await expect(air.locator('#f2')).toHaveText('1');
+  await expect(air.locator('[data-noacg-role~="team.flash/2"]')).toHaveClass(/imported-design-on/);
+  await expect(air.locator('[data-noacg-role~="team.flash/1"]')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-unscore2').click();
+  await expect(air.locator('#f2')).toHaveText('0');
+  await expect(air.locator('[data-noacg-role~="team.flash/2"]')).not.toHaveClass(/imported-design-on/);
+
+  // THE LONG-TEXT TAIL: a club name three times the drawn one stays on its own slanted plate,
+  // clear of the logo drawn before it and of the score block after it.
+  await page.getByTestId('cue-field-f0').fill('KIEKKO-ESPOO AKATEMIA');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f0')).toHaveText('KIEKKO-ESPOO AKATEMIA');
+  expectInside(await boxOnAir(air, '#f0'), { left: 280, top: 880, right: 810, bottom: 980 });
+  expect(await overflowOnAir(air)).toEqual([]);
+
+  expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
+});
+
+test('a slanted polygon plate told to get wider grows by its points and keeps its slant', async ({ page }, testInfo) => {
+  test.slow(); // the import, a production, a take and an update
+  const errors = consoleErrors(page);
+  // A name strap on ONE slanted plate, the shape the scoreboard's club plates are, with nothing
+  // drawn beside the name - a name with a crest beside it is PENNED and rightly never grows.
+  const svg = `<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 1920 1080" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#0E1116;}
+	.st1{fill:#FFFFFF;}
+	.st2{font-family:'Archivo-Bold';}
+	.st3{font-size:44px;}
+</style>
+<g id="Strap">
+	<polygon class="st0" points="200,860 760,860 740,960 180,960 	"/>
+</g>
+<text id="Name" transform="matrix(1 0 0 1 240 925)" class="st1 st2 st3">Aino Virtanen</text>
+</svg>`;
+  const file = testInfo.outputPath('slanted-name-strap.svg');
+  writeFileSync(file, svg);
+  await openImportDoor(page, file);
+  // A lone slanted plate is a lower third's panel like any rectangle, so the step offers it the
+  // growth a lower third gets.
+  const grow = boxGrowOf(page, await rowLabelled(page, /^Name$/));
+  await expect(grow).toHaveCount(1);
+  await grow.selectOption('grow-x');
+  await intoProduction(page, 'Growing plate', 'Demo Growth');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const plate = air.locator('#Strap polygon');
+  const points = async () =>
+    ((await plate.getAttribute('points')) ?? '')
+      .trim()
+      .split(/\s+/)
+      .map((p) => p.split(',').map(Number));
+  const before = await points();
+
+  await page.getByTestId('cue-field-f0').fill('Aino Virtanen-Lindqvist, Helsinki');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f0')).toHaveText('Aino Virtanen-Lindqvist, Helsinki');
+  await expect.poll(async () => (await points())[1][0]).toBeGreaterThan(before[1][0]);
+  const after = await points();
+  // The two right-hand corners moved by the same amount, so the slant is the one drawn, and the
+  // left-hand corners did not move at all.
+  expect(after[1][0] - before[1][0]).toBeCloseTo(after[2][0] - before[2][0], 1);
+  expect(after[0][0]).toBeCloseTo(before[0][0], 1);
+  expect(after[3][0]).toBeCloseTo(before[3][0], 1);
+  // The name is on the plate as it now stands, and the plate stops inside the frame.
+  const grown = await plate.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+  });
+  expect((await boxOnAir(air, '#f0')).right).toBeLessThanOrEqual(grown.right);
+  expect(grown.right).toBeLessThanOrEqual(1920);
+
+  expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
+});
+
+// THE FILES THE PUBLIC DOCS HAND OUT (public/docs/examples/), which is what a student downloads
+// from the Graphics page and what the demo imports on the live site. The shipped samples above
+// are walked already; these two are separate files with their own layer names (Team A / Score A,
+// a `static:` letter column), and nothing walked them past the docs page's own link check.
+const DOCS_QUIZ = fileURLToPath(new URL('../public/docs/examples/quiz.svg', import.meta.url));
+const DOCS_SCORE = fileURLToPath(new URL('../public/docs/examples/scoreboard.svg', import.meta.url));
+
+test('the docs example quiz imports as a quiz and runs select, lock and reveal with every line on its row', async ({ page }) => {
+  test.slow(); // the import, a production, a take, the three quiz verbs and an update
+  const errors = consoleErrors(page);
+  await openImportDoor(page, DOCS_QUIZ);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await expect(page.getByTestId('map-svg-quiz-count')).toHaveValue('4');
+  // The letter column is `static:` - drawn, never an operator field.
+  await expect(page.getByTestId('map-svg-fields')).toContainText('5 of 9');
+  await intoProduction(page, 'Docs quiz', 'Docs Quiz Night');
+  await settleDurableWrites(page);
+
+  await page.getByTestId('cue-field-f5-opt-A').click();
+  await page.getByTestId('cue-field-f6-opt-C').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('#f1')).toHaveText('Mercury');
+
+  const rows: [string, Rect][] = [
+    ['#f1', { left: 420, top: 380, right: 1500, bottom: 472 }],
+    ['#f2', { left: 420, top: 500, right: 1500, bottom: 592 }],
+    ['#f3', { left: 420, top: 620, right: 1500, bottom: 712 }],
+    ['#f4', { left: 420, top: 740, right: 1500, bottom: 832 }],
+  ];
+  for (const [id, plate] of rows) expectInside(await boxOnAir(air, id), plate);
+
+  await page.getByRole('button', { name: /Select answer/ }).click();
+  await expect(air.locator('[data-noacg-role~="answer.selected/C"]')).toHaveClass(/imported-design-on/);
+  await page.getByRole('button', { name: /Lock it in/ }).click();
+  await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  await expect(air.locator('[data-noacg-role~="answer.correct/A"]')).toHaveClass(/imported-design-on/);
+  await expect(air.locator('[data-noacg-role~="answer.wrong/C"]')).toHaveClass(/imported-design-on/);
+
+  // THE LONG-TEXT TAIL: a question twice the drawn length stays on the board, above the rows.
+  await page
+    .getByTestId('cue-field-f0')
+    .fill('Which planet in our solar system is closest to the Sun, and how long is its year?');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f0')).toContainText('how long is its year?');
+  expectInside(await boxOnAir(air, '#f0'), { left: 360, top: 148, right: 1560, bottom: 380 });
+  expect(await overflowOnAir(air)).toEqual([]);
+
+  expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
+});
+
+test('the docs example scoreboard imports as a score tracker, +1 raises the drawn goal flag, and a long name stays on the board', async ({ page }) => {
+  test.slow(); // the import, a production, a take, three presses and an update
+  const errors = consoleErrors(page);
+  await openImportDoor(page, DOCS_SCORE);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('score');
+  await expect(page.getByTestId('map-svg-score-count')).toHaveValue('2');
+  await intoProduction(page, 'Docs scoreboard', 'Docs Match');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('#f1')).toHaveText('2');
+
+  await page.getByTestId('cue-action-score1').click();
+  await expect(air.locator('#f1')).toHaveText('3');
+  await expect(air.locator('[data-noacg-role~="team.flash/1"]')).toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-unscore1').click();
+  await expect(air.locator('#f1')).toHaveText('2');
+  await expect(air.locator('[data-noacg-role~="team.flash/1"]')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-score2').click();
+  await expect(air.locator('#f2')).toHaveText('2');
+  await expect(air.locator('[data-noacg-role~="team.flash/2"]')).toHaveClass(/imported-design-on/);
+
+  // THE LONG-TEXT TAIL: the home name stays in its half of the board, clear of the score.
+  await page.getByTestId('cue-field-f0').fill('KIEKKO-ESPOO AKATEMIA');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f0')).toContainText('AKATEMIA');
+  expectInside(await boxOnAir(air, '#f0'), { left: 80, top: 60, right: 330, bottom: 144 });
+  expect(await overflowOnAir(air)).toEqual([]);
+
+  expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
 });

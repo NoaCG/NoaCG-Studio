@@ -249,7 +249,10 @@ is its own graphic type so the derived machine/timeline stays the standard linea
   never `rx`, so rect-only silently dropped the archetypal premium lower third to shrink while
   "panel gets wider" was chosen; `panelPathGeometry` in assets/svgImport.ts is the test, and the
   runtime grows a path by shifting the far half of its points past its middle, which keeps the
-  drawn corner radii exactly the designer's). A genuinely freeform shape still has no width to
+  drawn corner radii exactly the designer's). A `<polygon>` is read as the path it is (2026-09-21:
+  Illustrator writes a slanted sports plate that way, and the step called both club names on one
+  "no box of their own"), so a parallelogram passes the same test, and the runtime shifts its
+  points the same way. A genuinely freeform shape still has no width to
   change. Growing RIGHTWARD, with start-anchored text inside it - the lower third everybody
   draws.
   **AN END CAP IS PANEL FURNITURE, NOT A NEIGHBOUR** (owner walk 2026-08-28: "text must stay

@@ -1145,6 +1145,63 @@ function hoistRunPosition(el: Element): void {
   }
 }
 
+/**
+ * HOW A BOUND `<text>` LOOKS ONCE ITS RUNS ARE GONE - the style half of `hoistRunPosition`.
+ *
+ * Illustrator puts a kerned or multi-line text object's LOOK on the runs, not on the text: it
+ * writes `<text transform="…"><tspan class="st3 st10 st11">T</tspan><tspan x="21.9"
+ * class="st3 st10 st11">ampere</tspan></text>`, with no class on the `<text>` at all. The file
+ * draws right, because every run carries its own fill, face and size. Then `update()` writes
+ * textContent, which replaces the runs - and the words fall back to what the bare `<text>` has,
+ * which is the browser's default: 16px, black, the fallback face. On a dark quiz row that is an
+ * answer reduced to a smudge of dots (measured 2026-09-21 on illustrator-save-as-quiz-board,
+ * where one hand-kerned answer read "…" in the wizard's own preview).
+ *
+ * So the look EVERY run shares is MOVED up onto the text at import: the classes all runs carry,
+ * and any presentation attribute all runs state with one value, taken off the runs and put on
+ * the `<text>` they inherit from. Moved, never copied: a run and its text both carrying
+ * `opacity:0.85` would draw at 0.72, so copying would change the file before anybody typed.
+ * Inherited properties then reach the runs exactly as before, and a non-inherited one applies
+ * once to the text instead of once per run, which draws the same because runs do not overlap.
+ *
+ * Classes move only onto a `<text>` with NO class of its own. Among several classes on one
+ * element the rule declared LATER in the stylesheet wins, never the order in the attribute, so
+ * merging a run's classes into the text's could let the text's own colour beat the run's on the
+ * operator's words - the loss this exists to prevent - and `fontSizeResolver` would report a
+ * size nobody sees. Illustrator's shape is the empty text, and that is the one this answers. An
+ * attribute moves only where the text does not state it, for the same reason.
+ */
+const RUN_LAYOUT_ATTRS = new Set(['x', 'y', 'dx', 'dy', 'rotate', 'id', 'class', 'textlength', 'lengthadjust']);
+function hoistRunStyle(el: Element): void {
+  if (el.tagName.toLowerCase() !== 'text') return;
+  const runs = leafTspans(el);
+  // Only runs that are the text's DIRECT children: a wrapper tspan between them would sit
+  // between the moved look and the runs, and would keep a look of its own in the middle.
+  if (runs.length === 0 || runs.some((run) => run.parentElement !== el)) return;
+  const classesOf = (run: Element) => (run.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+  if (!(el.getAttribute('class') ?? '').trim()) {
+    const shared = classesOf(runs[0]).filter((cls) => runs.every((run) => classesOf(run).includes(cls)));
+    if (shared.length) {
+      el.setAttribute('class', shared.join(' '));
+      for (const run of runs) {
+        const rest = classesOf(run).filter((cls) => !shared.includes(cls));
+        if (rest.length) run.setAttribute('class', rest.join(' '));
+        else run.removeAttribute('class');
+      }
+    }
+  }
+  for (const attr of Array.from(runs[0].attributes)) {
+    const name = attr.name.toLowerCase();
+    // Position is hoistRunPosition's, names and data are the run's own, and a namespaced
+    // attribute (xml:space, an Illustrator i:… marker) is bookkeeping rather than a look.
+    if (RUN_LAYOUT_ATTRS.has(name) || name.startsWith('data-') || name.includes(':')) continue;
+    if (el.hasAttribute(attr.name)) continue;
+    if (!runs.every((run) => run.getAttribute(attr.name) === attr.value)) continue;
+    el.setAttribute(attr.name, attr.value);
+    for (const run of runs) run.removeAttribute(attr.name);
+  }
+}
+
 /** Did the author ask for whitespace to be taken literally, here or on an ancestor? */
 function spacePreserved(el: Element): boolean {
   let node: Element | null = el;
@@ -1465,6 +1522,7 @@ export function importSvgMarkup(source: string): SvgImportResult {
     const id = `t${i}`;
     el.setAttribute(SVG_CANDIDATE_ATTR, id);
     hoistRunPosition(el);
+    hoistRunStyle(el);
     // A tspan's own name is rarely set; the nearest named thing is usually its <text> or the
     // group Illustrator made of the layer. The whole inventory rides along, because whether a
     // group's name belongs to ONE text layer is what decides the climb (candidateName).
@@ -1573,7 +1631,7 @@ export function importSvgMarkup(source: string): SvgImportResult {
   // (Illustrator's rounded rectangle) qualifies exactly like a `<rect>` — see panelPathGeometry;
   // a path inside an outlined-text suspect is a GLYPH (an outlined capital I is a bar) and is
   // never a panel.
-  const panels = Array.from(svg.querySelectorAll('rect, path'))
+  const panels = Array.from(svg.querySelectorAll('rect, path, polygon'))
     .filter((el) => {
       const marker = el.getAttribute(SVG_CANDIDATE_ATTR);
       return marker === null || marker.startsWith('i');
@@ -1596,7 +1654,18 @@ export function importSvgMarkup(source: string): SvgImportResult {
         const inOutline = el.parentElement?.hasAttribute(SVG_CANDIDATE_ATTR)
           ? (el.parentElement.getAttribute(SVG_CANDIDATE_ATTR) ?? '').startsWith('o')
           : false;
-        return inOutline ? null : panelPathGeometry(el.getAttribute('d') ?? '');
+        if (inOutline) return null;
+        // A POLYGON is the same closed run of straight segments a path would be, written as a
+        // points list - which is how Illustrator exports any straight-edged shape that is not a
+        // rectangle, the slanted plates of a sports lower third above all. Read as the path it
+        // is, so the same rectangle test decides, and a parallelogram passes it the way it
+        // does as a path: every corner sits on its bounding box. Text drawn on one then has a
+        // box of its own on the mapping step, as it already had in the runtime's room search
+        // (`svgFitContainer`), and the runtime grows it by its points.
+        if (el.tagName.toLowerCase() === 'polygon') {
+          return panelPathGeometry(`M${el.getAttribute('points') ?? ''}Z`);
+        }
+        return panelPathGeometry(el.getAttribute('d') ?? '');
       })();
       if (!local) return { el: el as Element, x: 0, y: 0, w: 0, h: 0 };
       const box = boxInUserSpace(local, transformChain(el, svg));
@@ -1628,7 +1697,7 @@ export function importSvgMarkup(source: string): SvgImportResult {
       const { label } = stripFieldPrefix(candidateName(el, svg).name);
       return {
         id,
-        label: label || (el.tagName.toLowerCase() === 'path' ? `Panel ${i + 1}` : `Rectangle ${i + 1}`),
+        label: label || (el.tagName.toLowerCase() === 'rect' ? `Rectangle ${i + 1}` : `Panel ${i + 1}`),
         x,
         y,
         width: w,
