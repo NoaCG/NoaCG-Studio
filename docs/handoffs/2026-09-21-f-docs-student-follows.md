@@ -127,7 +127,19 @@ docs describe them).
 - `rolldown` cannot bundle `naming.ts` without a `?raw` loader plugin (fonts.ts imports the OFL
   text that way), and a script outside the checkout cannot resolve `@playwright/test`.
 
+## Main taken in
+
+PR #354 (row A) and #355 landed while this row ran, and #354 rewrote the same Finish-step
+sentence and the same spec line this row had rewritten. `origin/main` at `21d8d481` was merged
+in (`96245108`); main's wording of the Skip to finish sentence stands, and the spec keeps main's
+comment plus this row's extra pin that the walk no longer mentions Create project. The build was
+re-run on the merged tree and `npm run test:e2e:integration` queued (j-1612) behind other
+sessions' suites; CI runs the same from the fork point, and that is the verdict this landing
+rests on. `naming.ts`, `words.json`, the importer and the wizard's import steps did not change
+between `bde57a83` and `21d8d481`, so the layer-name pages still describe what main reads.
+
 ## Commit pointers
 
-See `git log claude/f-docs-student-follows` - one commit for the docs, the examples, the shots
-script and the spec; one for the regenerated pictures if they came out of the shot job.
+`50a462f3` the docs, the two examples, their pictures, the shot script and the spec;
+`f111ee0a` the review's fixes and the backlog file; `96245108` the merge of main; the tip is
+this handoff.
