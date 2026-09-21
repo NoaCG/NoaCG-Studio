@@ -119,7 +119,8 @@ row's TOUCHES line; no other row owned `src/styles/` tonight and the rules are t
   strict-mode violation, because a role query for "Next" inside the modal also matched the Browse
   card of the "Now & Next" design. The test had not run locally before queueing; the job queue
   (`j-1636`) sat behind three of row K's repeat runs and row B's import suite. The locator is now
-  the footer's own `button.wz-next`, and the verdict is in the "What is left" note below this one.
+  the footer's own `button.wz-next`, and `j-1636` then ran the whole file on the fixed test: 7 of
+  7 passed, the footer test in 3.9 s. Commit `82428bb8`.
 - The hosted legs (publish, output URL, Reveal from a reloaded tab, Out reaching OBS) are row G's
   and need the configured suite or an account.
 - The tail, the import step's cold read-back, moved to row L with the folder; the read-back is
