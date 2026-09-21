@@ -354,6 +354,10 @@ test('confirmed save and reopen retain source, fields and assets after registry 
 
 test('scrub suppresses calls at zero and mid-step; broken source reports failure and recovers', async ({ page }) => {
   await seed(page, true);
+  // The new source rebuilds the preview frame, and React renders it a tick after the store
+  // write, so `ready` alone can pass on the OLD frame's settled state and the frame is then
+  // replaced under the effect-count read below (CI, 2026-09-21). Wait for the rebuild first.
+  const generation = await page.getByTestId('foundation-canvas').getAttribute('data-generation');
   const original = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
@@ -362,6 +366,7 @@ test('scrub suppresses calls at zero and mid-step; broken source reports failure
     const template = { ...s.template, js: 'window.effectCount=0;function countSideEffect(){window.effectCount++;}\n' + spliceAnimData(s.template.js, data) };
     s.applyTemplate(template); return template;
   });
+  await expect.poll(() => page.getByTestId('foundation-canvas').getAttribute('data-generation')).not.toBe(generation);
   await ready(page);
   for (const time of [0, 1, .2, 3.5, 0]) await seek(page, time);
   expect(await (await frame(page)).evaluate(() => (window as unknown as { effectCount: number }).effectCount)).toBe(0);

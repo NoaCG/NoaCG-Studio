@@ -4,6 +4,7 @@ import { useRouter } from '../../app/router';
 import NewGraphicButton from '../NewGraphicButton';
 import SaveControls from '../save/SaveControls';
 import { modalOpen } from '../spaceKey';
+import { useAdvancedMode } from '../useAdvancedMode';
 import Canvas, { recordFoundationInput } from './Canvas';
 import Timeline from './Timeline';
 import Inspector from './Inspector';
@@ -17,6 +18,7 @@ export default function EditorFoundation() {
   const sampleData = useTemplateStore(state => state.sampleData);
   const selection = useTemplateStore(state => state.selectedParts);
   const setSelection = useTemplateStore(state => state.setSelectedParts);
+  const advanced = useAdvancedMode(state => state.advanced);
   const session = activeEditorSession();
   const [clock, setClock] = useState({ documentId: session.documentId, time: session.port.view().time });
   const [projectOpen, setProjectOpen] = useState(false);
@@ -48,7 +50,10 @@ export default function EditorFoundation() {
       <span className="ef-document-name">{template.name}</span><span className="ef-spacer" />
       <span className="ef-release">Editor Alpha</span>
       <SaveControls />
-      <button onClick={() => useRouter.getState().navigate({ view: 'editor' })}>Existing editor</button>
+      {/* The code editor's door is Advanced mode's alone (owner, 2026-09-21: no links to the
+          old editor in the default studio). Home, beside the brand, is the way out there. */}
+      {advanced && <button data-testid="ef-open-code-editor"
+        onClick={() => useRouter.getState().navigate({ view: 'editor' })}>Existing editor</button>}
     </header>
     <div className="ef-document-strip"><button aria-expanded={projectOpen} onClick={() => setProjectOpen(!projectOpen)}>Project</button>
       <span className="ef-document-tab">{template.name}</span><span className="ef-spacer" />

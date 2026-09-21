@@ -36,7 +36,7 @@ async function hostedSelect(page: Page, label: string | RegExp): Promise<void> {
 
 const WIRE = { timeout: 30_000 };
 
-test('a published quiz and scoreboard run across the dashboard and two hosted tabs, with a late renderer and a hosted reload', async ({
+test('a published quiz and scoreboard run across the dashboard and two hosted tabs, through a reload of each', async ({
   page,
   context,
 }) => {
@@ -124,13 +124,60 @@ test('a published quiz and scoreboard run across the dashboard and two hosted ta
   await hostedSelect(a, 'Quiz board');
   await expect(a.getByTestId('hosted-state-chip')).toContainText('Locked', WIRE);
 
-  // THE WALK STOPS HERE, deliberately, at the last leg proven green on the real stack. Pressing
-  // Reveal correct from this reloaded tab did NOT light the verdict on the renderer on configured
-  // runs 35631461907 and 35633742370, with the press in every page's log. That is an open,
-  // Friday-critical finding (docs/handoffs/2026-09-21-c-dashboard-flawless.md), and the legs
-  // after it - the dashboard reload and Out from both tabs - were never reached. They go back in
-  // with its fix rather than landing unverified.
-  console.log('[console errors across the four pages]', JSON.stringify(errors));
+  // …AND STAYS LOCKED. The reloaded page's PROGRAM monitor rebuilds from the renderer's last
+  // report, and the chip reads that monitor too. It used to replay a bare play(), so a second
+  // after the reload the monitor answered with the ENTRANCE state, the chip dropped "Locked" and
+  // Reveal correct greyed. The wait outlasts the monitor's first state reply.
+  await a.waitForTimeout(3_000);
+  await expect(a.getByTestId('hosted-state-chip')).toContainText('Locked');
+  await expect(a.getByRole('button', { name: /Reveal correct/ })).toBeEnabled();
+
+  // ── Reveal from the reloaded tab: the VERDICT lights on air, and on the key tab A picked. ──
+  // Configured run 35633742370 logged this press everywhere and lit nothing on C: the Take above
+  // was pressed straight after picking key C, inside the shared buffer's round trip, so it aired
+  // the cue's stored key A and the reveal lit A. The page now lays its own unconfirmed staged
+  // edits over the buffer (src/components/control/ownStaged.ts).
+  await a.getByRole('button', { name: /Reveal correct/ }).click();
+  await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/, WIRE);
+  await expect(air.locator('[data-noacg-role~="answer.correct/A"]')).not.toHaveClass(/imported-design-on/);
+  // Every screen agrees: the dashboard's PROGRAM monitor and tab B's.
+  const quizOnDashboard = page.frameLocator('[data-testid="program-stage"] iframe[title="Quiz board"]');
+  await expect(quizOnDashboard.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/, WIRE);
+  const quizOnB = b.frameLocator('[data-testid="hosted-program-stage"] iframe[title="Quiz board"]');
+  await expect(quizOnB.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/, WIRE);
+
+  // ── The DASHBOARD reloads: a published production comes back with EVERY on-air state - both
+  // layers, the score's figure, and the quiz still revealed on C, not replayed from its entrance. ──
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Quiz board', WIRE);
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Team score', WIRE);
+  await expect(scoreOnDashboard.locator('#f1')).toHaveText('4', WIRE);
+  await expect(scoreOnDashboard.locator('#f2')).toHaveText('0', WIRE);
+  await expect(quizOnDashboard.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/, WIRE);
+  // The contestant's B reads as wrong, as it did on air: the "selected" look belongs to the
+  // selected and locked states only (templates/behaviours/quiz.ts), so it is gone once revealed.
+  await expect(quizOnDashboard.locator('[data-noacg-role~="answer.wrong/B"]')).toHaveClass(/imported-design-on/, WIRE);
+  // …and it stays that way past the monitor's first state reply, which is what used to undo a
+  // recovery that replayed the entrance.
+  await page.waitForTimeout(3_000);
+  await expect(quizOnDashboard.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
+
+  // ── Tab B presses after all of that, and the figure moves from where it is, not from 2. ──
+  await b.getByTestId('hosted-live-number-f1-up').click();
+  await expect(scoreOnDashboard.locator('#f1')).toHaveText('5', WIRE);
+
+  // ── OUT from the two tabs; every screen agrees nothing is on air, and stays agreeing. ──
+  await hostedSelect(b, 'Team score');
+  await b.getByTestId('hosted-out-cue').click();
+  await hostedSelect(a, 'Quiz board');
+  await a.getByTestId('hosted-out-cue').click();
+  for (const p of [a, b]) await expect(p.getByTestId('hosted-live-chip')).toContainText('nothing on air', WIRE);
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air', WIRE);
+  await page.waitForTimeout(3_000);
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+
+  expect(errors).toEqual([]);
 
   await a.close();
   await output.close();
