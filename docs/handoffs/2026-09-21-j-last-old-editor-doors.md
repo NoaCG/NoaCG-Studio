@@ -39,6 +39,27 @@ three were reachable in the default studio before the change.
 - I took no screenshot. The change only removes one header button and retargets two
   navigations, and the spec asserts each landing.
 
+## The first landing was refused, and why
+
+CI run 35645124424 (the pull-request run on `72dfaea3`) failed one test in shard 9/9:
+`editor-foundation.spec.ts` "scrub suppresses calls ...", with `Execution context was
+destroyed`. The coordinator guessed it was the "Existing editor" button. It was not: no spec
+reads that button. The push run on the SAME sha (35645116801) passed that shard, and the CI
+retry job was skipped, so this was a flake that the gate counted as red.
+
+The cause is a race in the spec. The test writes a new source to the store and then calls
+`ready`, which can read the OLD frame's settled attributes before React renders the rebuild.
+The seeks then run, the new frame replaces the old one, and the effect-count read lands in a
+destroyed context. The fix waits for `data-generation` to move before `ready`, which is the
+pattern the spec already uses at "same-path asset bytes rebuild". I tried the same wait inside
+`seed` and backed it out: it timed out once in 60 runs, most likely because the default
+working document can already be the Hairline design `seed` applies, so no rebuild happens.
+
+Evidence: job `j-1631` ran the whole `editor-foundation.spec.ts` five times over (60 runs) with
+the scrub fix in. The scrub test passed 5 of 5; the one failure was the `seed` wait, since
+removed. A second local run (`j-1637`) sat fifth in a busy browser queue and I cancelled it, so
+CI on the re-queued pull request is the gate for the final spec text. `npm run build` exited 0.
+
 ## Open points (for the next row or the owner)
 
 - **Duplicate door code.** `GraphicControlPage.tsx` (around line 656) and
