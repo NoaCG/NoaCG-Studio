@@ -340,6 +340,11 @@
   align-items: center;
   gap: 7px;
   min-width: 0;
+  /* ONE LINE at every width. With two graphics on air the cue names beside "PROGRAM - ON AIR"
+     ran long enough at 1280px to wrap the label itself onto two lines, which pushed PROGRAM's
+     frame below PREVIEW's. `.pd-what` gives way with an ellipsis instead; its title and the
+     on-air line under the verbs still carry the full names. */
+  white-space: nowrap;
 }
 .pd-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .pd-what {

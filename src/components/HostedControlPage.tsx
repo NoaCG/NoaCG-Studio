@@ -50,7 +50,7 @@ import type { CombinedControl } from '../model/profile';
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
 import { createAppliedOnce } from '../control/commandRoads';
-import { appendLogEntries, describeLogRow, logTime, type LogEntry } from '../control/eventLog';
+import { appendLogEntries, describeLogRow, eventLogLabel, logTime, type LogEntry } from '../control/eventLog';
 import {
   clearAllCueBatches,
   clearCueItems,
@@ -296,10 +296,20 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // says. The cues are fixed until a republish, so closing over them here is exact.
       const cueLabel = (cueId: string) =>
         resolved.output?.cues.find((c) => c.id === cueId)?.label ?? null;
+      // …and a ⚡ press by the name on its button, read off the published graphic's own machine
+      // (control/eventLog.ts). Parsed once per graphic, lazily, since most rows are not events.
+      const buttons = new Map<string, ControlButton[]>();
+      const eventLabel = (graphic: string, event: string) => {
+        if (!buttons.has(graphic)) {
+          const js = resolved.panel.find((g) => g.name === graphic)?.js;
+          buttons.set(graphic, js ? eventButtons(js) : []);
+        }
+        return eventLogLabel(buttons.get(graphic)!, event);
+      };
       const history = await hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
       if (!live) return;
       setWireLog((l) =>
-        appendLogEntries(l, history.map((r) => describeLogRow(r, cueLabel)).filter((e): e is LogEntry => !!e)),
+        appendLogEntries(l, history.map((r) => describeLogRow(r, cueLabel, eventLabel)).filter((e): e is LogEntry => !!e)),
       );
       unsubscribe = await followControlLog({
         showId: resolved.id,
@@ -325,7 +335,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             // press has to count from the new value and the next Take has to air it.
             refreshData.current();
           }
-          const entry = describeLogRow(row, cueLabel);
+          const entry = describeLogRow(row, cueLabel, eventLabel);
           if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
         },
       });
@@ -1420,7 +1430,7 @@ function HostedCueEditor({
             {overflowMessage}
           </span>
         )}
-        {stateLabel && <span className="hosted-state-chip">{stateLabel}</span>}
+        {stateLabel && <span className="hosted-state-chip" data-testid="hosted-state-chip">{stateLabel}</span>}
         <div className="spacer" />
         {spec.entries.length > 0 && (
           <select
@@ -1549,6 +1559,7 @@ function HostedCueEditor({
                         value={valueOf(d.key)}
                         onChange={(v: string | number) => edit(d.key, String(v))}
                         images={spec.images.map((i) => ({ value: i.value }))}
+                        testId={`hosted-field-${d.key}`}
                       />
                     </label>
                   );

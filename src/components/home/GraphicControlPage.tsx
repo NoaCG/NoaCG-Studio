@@ -52,6 +52,7 @@ import MotionPresetPicker from '../MotionPresetPicker';
 import { FieldRow } from '../fields/FieldControl';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
+import { useAdvancedMode } from '../useAdvancedMode';
 import ProductionPicker from './ProductionPicker';
 import { IconControl } from '../icons';
 import { slug } from '../../model/slug';
@@ -84,6 +85,7 @@ const speedName = (speed: number) => MOTION_SPEEDS.find((s) => s.value === speed
 export default function GraphicControlPage({ id }: { id: string }) {
   const navigate = useRouter((s) => s.navigate);
   const requestSwitch = useSaveUi((s) => s.requestSwitch);
+  const advanced = useAdvancedMode((s) => s.advanced);
   const [doc, setDoc] = useState<GraphicDoc | null>(() => graphicById(id));
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -640,12 +642,21 @@ export default function GraphicControlPage({ id }: { id: string }) {
         />
         <button
           onClick={() =>
-            requestSwitch(
-              () => {
-                openGraphicById(doc.id);
+            requestSwitch(() => {
+              openGraphicById(doc.id);
+              // THE NEW EDITOR IN THE DEFAULT STUDIO (owner, 2026-09-21: no door to the old
+              // editor outside Advanced mode). It edits the working document `openGraphicById`
+              // just loaded and saves back to this graphic, the same hand-over the wizard's
+              // "Edit this graphic" makes. Advanced mode keeps the code editor it is for.
+              if (advanced) {
                 navigate({ view: 'graphic', id: doc.id });
-              },
-            )
+                return;
+              }
+              const url = new URL(window.location.href);
+              url.searchParams.set('editor', 'foundation');
+              window.history.replaceState(window.history.state, '', url);
+              navigate({ view: 'editor-foundation' });
+            })
           }
           title="Open this graphic in the editor"
           data-testid="control-open-editor"
