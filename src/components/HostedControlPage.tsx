@@ -459,36 +459,42 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     [],
   );
 
-  // BOOT RECOVERY for the PROGRAM monitor. The log follower only sees rows that arrive AFTER
-  // this page opened, so a production that has been on air all afternoon would show an empty
-  // PROGRAM box beside a rundown row marked ON AIR — the surface contradicting itself. Each
-  // graphic's last REPORTED data is on the resolved row (what it says it actually applied), so
-  // replay that for every layer the row says is up.
+  // RECOVERY for the PROGRAM monitor. The log follower only sees rows that arrive AFTER this
+  // page opened, so a production that has been on air all afternoon would show an empty PROGRAM
+  // box beside a rundown row marked ON AIR - the surface contradicting itself. So every live
+  // layer is replayed into the monitor with the in-app dashboard's recipe (`restoreProgram`):
+  // data, a snap to the machine state last known, data again. A bare play() left the monitor at
+  // the entrance while air sat mid-sequence, and since the state chip also reads this monitor,
+  // its reply overwrote the renderer's "Locked in" with the entrance state - a quiz tab reloaded
+  // while locked greyed Reveal correct, the one press the show needed next. The trailing data
+  // write lets call-painted looks repaint after the snap (the G9 rule).
   //
   // Safe here in a way it was NOT in an exported package: this stage drives nothing but itself.
   // The round-1 bug was a baked log follower snapping a REAL playout graphic to its last
   // reported (off) state one round-trip after the host's play().
   //
-  // It reads the layers THE RESOLVE reported, never the live `liveCue` state. That state also
-  // moves when this operator's own take comes back round the log, so keyed on it the recovery
-  // fired on the first take of a session and replayed the entrance the follower had just
-  // applied - the monitor playing the graphic in twice. The cockpit had the same shape and a
-  // worse ending (it snapped to a stale "off" and took the graphic off air); both are keyed on
-  // the wire's own answer now.
-  const recoveredRef = useRef(false);
-  useEffect(() => {
-    if (!payload || !resolved || recoveredRef.current) return;
-    recoveredRef.current = true;
-    const up = Object.entries(resolved.liveCue).filter(([, cueId]) => !!cueId);
-    for (const [graphic] of up) {
-      const data = resolved.live[graphic]?.data;
-      const groups = resolved.live[graphic]?.state?.groups;
-      // THE FULL RECIPE, the in-app dashboard's `restoreProgram`: data, a snap to the REPORTED
-      // state, data again. A bare play() left this monitor at the entrance while air sat
-      // mid-sequence, and since the state chip also reads this monitor, its reply a moment later
-      // overwrote the renderer's "Locked in" with the entrance state. A quiz tab reloaded while
-      // locked then greyed Reveal correct, the one press the show needed next. The trailing data
-      // write lets call-painted looks repaint after the snap (the G9 rule).
+  // IT RUNS WHEN A STAGE IS BUILT (`PayloadStage` `onReady`), never when `liveCue` moves. The
+  // live map also moves when this operator's own take comes back round the log, and a recovery
+  // keyed on it replayed the entrance the follower had just applied - the monitor playing the
+  // graphic in twice. It used to run ONCE, from an effect, which missed the stage actually on
+  // screen whenever the stage is built twice: React's development StrictMode builds, destroys
+  // and rebuilds it on mount, so the replay went into the destroyed stage and the one left on
+  // screen came up blank, reporting "Off" a second after the reload.
+  //
+  // Read through refs: a stage can come up long after the render that passed this callback.
+  const liveCueRef = useRef(liveCue);
+  liveCueRef.current = liveCue;
+  const airedRef = useRef(airedData);
+  airedRef.current = airedData;
+  const machineStateRef = useRef(machineState);
+  machineStateRef.current = machineState;
+  const reportsRef = useRef<ResolvedControlShow['live']>({});
+  reportsRef.current = resolved?.live ?? {};
+  const restoreProgram = useCallback(() => {
+    for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
+      if (!cueId) continue;
+      const data = airedRef.current[graphic] ?? reportsRef.current[graphic]?.data;
+      const groups = machineStateRef.current[graphic]?.groups;
       const dataItem = data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
       programRef.current?.apply([
         ...dataItem,
@@ -496,7 +502,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         ...dataItem,
       ]);
     }
-  }, [payload, resolved]);
+  }, []);
 
   /**
    * ONE effect drives the PREVIEW stage, from what the page has already derived: the cue on
@@ -964,6 +970,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                     payload={payload}
                     emptyLabel={liveLayers.length === 0 ? 'Nothing on air' : undefined}
                     testId="hosted-program-stage"
+                    onReady={restoreProgram}
                     onState={(graphic, state, over) => {
                       noteOverflow(setProgramOverflow)(graphic, state, over);
                       noteMachineState(graphic, state);
