@@ -96,6 +96,18 @@ Row L is deleting `public/docs/examples/quiz-lower-third.svg`, so the walk now i
 there. After the fixes, `import-svg-behaviour`, `import-svg` and `catalog-baseline` gave 138
 passed (j-1673).
 
+## Row L landed in between
+
+Row L (PR #365, one naming system) landed after the second queue, so #364 conflicted. The only
+conflict was `e2e/fixtures/illustrator-quiz-lower-third.svg`, which both branches added. I took
+L's copy: the geometry is the same, and only the header differs. L's renamed `quiz.svg` keeps
+the question's text and the plates where the walk expects them. After the merge I re-ran both
+generators instead of trusting the merged text. `UPDATE_CATALOG_BASELINE=1 node
+scripts/check-catalog-emit.mjs` recorded no change, since the merged baseline already held
+svg01's new hash. `node scripts/behaviour-docs.mjs` reports that both docs match `words.json`.
+The build exits 0. `import-svg-behaviour`, `import-svg`, `import-svg-corpus` and
+`catalog-baseline` gave 162 passed (j-1682, whose `wait` says "failed" over a clean log).
+
 ## Commits
 
 `125550a6` (the band, the wizard mirror, both walks, the docs), `24d0c833` (this handoff), then main taken in and the CI fixes above.
