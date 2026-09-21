@@ -475,7 +475,10 @@
 /* rail | form column | preview. The form column owns its own footer, so Next sits under the
    form it advances rather than under the graphic beside it. */
 .wz-body { flex: 1; display: flex; min-height: 0; }
-.wz-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* Named as a size container so the footer can ask how wide the COLUMN is (see .wz-footer). Its
+   width comes from the flex row either way - `.wz-side` takes its fixed share and this column
+   the rest - so the containment changes nothing about the layout itself. */
+.wz-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; container: wz-main / inline-size; }
 
 /* A wizard section heading is a mono microcap with its note beside it, not one shouted line.
    The steps reuse `.panel-section`, whose h3 uppercases everything inside — so the note
@@ -549,6 +552,32 @@
   flex: 0 0 auto;
 }
 .wz-footer .spacer { flex: 1; }
+/* THE FOOTER IS ONE LINE, and the buttons keep their words. With a production's look on offer
+   the brand chooser joins Back, Skip to finish and Next in a form column that is 535px wide at
+   1366x768, and flex shrank every item alike: "← Back" broke onto two lines, so did "Skip to
+   finish", and Next grew to a two-line button (walked 2026-09-21). The buttons never shrink or
+   wrap; the brand select is the one thing that gives, from 180px down to a 72px floor.
+   The select's 12px is scoped under .wz-wizard because `.wz-wizard select` sets 15px and won
+   over the bare class, so the chooser rendered bigger than the "Brand" word beside it. */
+.wz-footer > button { white-space: nowrap; flex-shrink: 0; }
+.wz-footer .wz-match { flex: 0 1 auto; white-space: nowrap; }
+.wz-wizard .wz-footer .wz-brand-select { flex: 1 1 72px; min-width: 72px; max-width: 180px; font-size: 12px; padding: 3px 6px; }
+/* The room is the COLUMN's, not the viewport's: beside the preview the column is 535px at
+   1366 and 488px at 1280, while a step with no preview has the whole row at either size. So the
+   footer asks its column (`.wz-main` is the container). The buttons take 291px at their 15px
+   face and the chooser's floor is 112px ("Brand", its gap and a 72px select). Under 560px the
+   gaps tighten, which is what keeps 1280x720 on one line (475px needed of 488). Under 475px the
+   chooser takes a line of its own ABOVE the buttons rather than pushing Next off the row. That
+   line is visually first while Back stays first in the DOM, so Tab goes Back, chooser, Skip on
+   those narrow columns; moving the label before Back in the markup would fix the order at the
+   cost of putting the chooser left of Back on every wide screen, which reads worse. */
+@container wz-main (max-width: 560px) {
+  .wz-footer { gap: 10px; padding-inline: 16px; }
+}
+@container wz-main (max-width: 474px) {
+  .wz-footer { flex-wrap: wrap; }
+  .wz-footer .wz-match { order: -1; flex-basis: 100%; }
+}
 /* "Skip to finish" is a quiet escape, not a competing action: it reads as a link beside the
    one amber button, so the primary path stays unmistakable. */
 .wz-footer .wz-skip {
