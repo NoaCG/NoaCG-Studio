@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
+import { enableAdvancedMode, finishIntoEditor, startNewProject, switchToAdvancedMode } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { chooseType, pickDesign } from './_browse';
@@ -55,6 +55,9 @@ async function dropTemplate(page: Page, name: string, buffer: Buffer) {
   await expect(page.getByTestId('import-format-detection')).toContainText('uncertain');
   await expect(page.getByRole('button', { name: /Open as code \(no AI\)/ })).toBeDisabled();
   await page.getByTestId('confirm-import-format').click();
+  // Straight into the code editor is Advanced mode's door; the default studio takes the file
+  // to the wizard's Finish instead (wizard-exits in import-svg.spec.ts).
+  await switchToAdvancedMode(page);
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
     await expect(page.locator('.wz-modal')).toBeHidden();

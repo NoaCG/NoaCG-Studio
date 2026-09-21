@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { switchToAdvancedMode } from './_create';
 
 // The Google Fonts source in the typeface picker (src/model/googleFonts.ts). An imported
 // design was drawn in a real typeface and NoaCG bundles seventeen, so "close enough" was the
@@ -72,6 +73,7 @@ test('a Google typeface is searched by name and embedded in the graphic', async 
   // Picked: it becomes the design typeface, so every field that inherits renders in it.
   await expect(page.getByTestId('field-font')).toContainText('Montserrat');
 
+  await switchToAdvancedMode(page);
   await page.getByRole('button', { name: 'Create project' }).click();
   await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 30_000 });
 

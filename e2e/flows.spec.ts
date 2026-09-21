@@ -1,6 +1,6 @@
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode } from './_create';
+import { enableAdvancedMode, switchToAdvancedMode } from './_create';
 import { pickDesign } from './_browse';
 
 // Core UI flows for the choose-first creation wizard + live panels.
@@ -173,6 +173,7 @@ test('import graphics: image lands in the logo slot', async ({ page }) => {
   await page.locator('.wz-variant', { hasText: 'Number Badge' }).click();
   // The catalog continuation is mode IMPORT, which keeps the classic footer create (the
   // skip-to-finish shortcut is template mode's - createFromCurrentStep would wait forever).
+  await switchToAdvancedMode(page);
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
     await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });

@@ -1,4 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
+import { switchToAdvancedMode } from './_create';
+import { lowerThirdPng } from './_png';
+import { pickDesign } from './_browse';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';
@@ -39,6 +42,7 @@ async function dropSvgMarkup(page: Page, markup: string, name = 'design.svg') {
 
 /** Create from wherever the walk stands and land in the editor. */
 async function createProject(page: Page) {
+  await switchToAdvancedMode(page);
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
     // 20 s: the modal closes once applyGenerated's cold Prettier format resolves (the same
@@ -4398,4 +4402,111 @@ test('svg import: an unnamed production is not named after the graphic', async (
   // and the one graphic in it. That is the whole of what this case is about.
   await expect(page.getByTestId('production-page')).toContainText('Untitled production');
   await expect(page.getByTestId('production-page')).toContainText('Imported SVG design');
+});
+
+// ── WIZARD EXITS IN THE DEFAULT STUDIO (owner, 2026-09-21) ──────────────────────────────────
+// "Let's not have any links to the old editor anymore because we have the new one. Also, on the
+// wizard front page." The old editor is the code workspace (AppShell, `#/editor` and
+// `#/graphic/<id>`); the new one is `#/editor-foundation`. In the default studio every wizard
+// road ends on Finish, whose doors are a production, an export, or the new editor - never the
+// code workspace. Advanced mode keeps its code-editor doors, which the specs above use.
+
+/** Nothing on screen right now is a wizard door into the old editor. */
+async function expectNoOldEditorDoor(page: Page) {
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('wz-finish-editor')).toHaveCount(0);
+  await expect(page.locator('[data-entry="blank"]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Open as code/ })).toHaveCount(0);
+  await expect(page.locator('.wz-modal a[href*="#/graphic"], .wz-modal a[href$="#/editor"]')).toHaveCount(0);
+}
+
+/** Take the footer shortcut to Finish and check it is the Finish the walk promised. */
+async function skipToFinish(page: Page) {
+  await expectNoOldEditorDoor(page);
+  await page.getByTestId('wz-skip-to-finish').click();
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-production-go')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-export')).toBeVisible();
+  await expectNoOldEditorDoor(page);
+}
+
+test('wizard exits: the front page carries no door to the old editor', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await expectNoOldEditorDoor(page);
+  // The one editor link on the front page is the NEW editor's.
+  await expect(page.locator('.wz-editor-alpha')).toHaveAttribute('href', /#\/editor-foundation$/);
+});
+
+test('wizard exits: an imported SVG skips to Finish, and Edit opens it in the new editor', async ({ page }) => {
+  await dropSvg(page);
+  await expect(page.getByTestId('import-svg-card')).toBeVisible();
+  await skipToFinish(page);
+
+  // The new editor opens the imported graphic itself: its text layers arrive as operator fields.
+  await page.getByTestId('wz-finish-edit-artwork').click();
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await expect(page).toHaveURL(/editor=foundation#\/editor-foundation$/);
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.locator('.ef-field')).toHaveCount(4);
+  // ...and the old editor's shell is not what rendered.
+  await expect(page.getByTestId('dock-right')).toHaveCount(0);
+});
+
+test('wizard exits: an imported PNG design skips to Finish', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles({
+    name: 'lower-third.png',
+    mimeType: 'image/png',
+    buffer: lowerThirdPng(1920, 1080),
+  });
+  await skipToFinish(page);
+});
+
+test('wizard exits: a catalog template skips to Finish', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await pickDesign(page, 'Hairline');
+  await skipToFinish(page);
+});
+
+const PLAIN_TEMPLATE = {
+  name: 'plain-bug.html',
+  mimeType: 'text/html',
+  buffer: Buffer.from(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Plain Bug</title>
+<script>window.SPXGCTemplateDefinition = { "description": "Plain Bug", "playserver": "OVERLAY",
+  "playchannel": "1", "playlayer": "9", "webplayout": "9", "out": "manual", "dataformat": "json",
+  "DataFields": [ { "field": "f0", "ftype": "textfield", "title": "Score", "value": "0 - 0" } ] };</script>
+</head><body><div id="f0">0 - 0</div>
+<script>function update(d){} function play(){} function stop(){} function next(){}</script></body></html>`),
+};
+
+test('wizard exits: a finished template file on the Import card walks to Finish', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles(PLAIN_TEMPLATE);
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+  await expectNoOldEditorDoor(page);
+});
+
+test('wizard exits: "Open as code" on the AI card goes to Finish in the default studio', async ({ page }) => {
+  // Advanced mode's straight-to-code door; in the default studio the same file takes the
+  // Import card's road to the same Finish.
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="ai"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles(PLAIN_TEMPLATE);
+  // No format metadata in the file, so the card asks for the project format first.
+  await expect(page.getByTestId('import-format-detection')).toContainText('uncertain');
+  await page.getByTestId('confirm-import-format').click();
+  await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-production-go')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-name')).toHaveAttribute('placeholder', 'Plain Bug');
+  await expectNoOldEditorDoor(page);
 });
