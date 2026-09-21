@@ -312,7 +312,9 @@ test('the footer stays one line beside the preview when the chooser is offered',
   await seedBrand(page, { logo: false, name: 'Yleisradio Uutiset ja Ajankohtaiset' });
   await page.reload();
   await toPickedDesign(page);
-  await page.locator('.wz-modal').getByRole('button', { name: 'Next' }).click();
+  // The footer's own Next, by class: a role query for "Next" inside the modal also matches the
+  // Browse card of the "Now & Next" design, which sits on this step (CI, 2026-09-21).
+  await page.locator('.wz-footer button.wz-next').click();
   await expect(page.locator('.wz-body.with-preview')).toBeVisible();
 
   const footer = page.locator('.wz-footer');

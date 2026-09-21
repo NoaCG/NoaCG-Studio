@@ -115,11 +115,11 @@ row's TOUCHES line; no other row owned `src/styles/` tonight and the rules are t
 
 ## What is left, and why
 
-- The new footer test ran nowhere yet when this was written: the job queue (`j-1636`) sat behind
-  three of row K's repeat runs and row B's import suite, and the affected mapper classes a
-  `src/styles/` change as core, which means the full suite plus catalog. CI runs exactly that from
-  the fork point, and the CSS was measured on the live DOM at three widths, so CI is the verdict
-  for the spec. If `j-1636` reports after this lands, its log is `node scripts/jobs.mjs log j-1636`.
+- The first landing (PR #360 at `1fc9fa07`) was refused: CI failed the new footer test on a
+  strict-mode violation, because a role query for "Next" inside the modal also matched the Browse
+  card of the "Now & Next" design. The test had not run locally before queueing; the job queue
+  (`j-1636`) sat behind three of row K's repeat runs and row B's import suite. The locator is now
+  the footer's own `button.wz-next`, and the verdict is in the "What is left" note below this one.
 - The hosted legs (publish, output URL, Reveal from a reloaded tab, Out reaching OBS) are row G's
   and need the configured suite or an account.
 - The tail, the import step's cold read-back, moved to row L with the folder; the read-back is
