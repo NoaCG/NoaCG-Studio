@@ -46,7 +46,15 @@ import {
   type TreeWrite,
 } from '../model/productionData';
 import CombinedButton from './control/CombinedButton';
-import { addOwnStaged, dropOwnStaged, settleOwnStaged, withOwnStaged, type StagedMap } from './control/ownStaged';
+import {
+  answerOwnStaged,
+  noteOwnStaged,
+  sendOwnStaged,
+  settleOwnStaged,
+  withOwnStaged,
+  type OwnStaged,
+  type StagedMap,
+} from './control/ownStaged';
 import type { CombinedControl } from '../model/profile';
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
@@ -152,7 +160,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * Everything that reads "what a Take of this cue sends" reads the buffer with these laid over
    * it, so a key picked a moment before Take is the key that airs.
    */
-  const [ownStaged, setOwnStaged] = useState<StagedMap>({});
+  const [ownStaged, setOwnStaged] = useState<OwnStaged>({});
+  /** The shared buffer as its rows have delivered it, written the moment a row arrives rather
+   *  than at the next render: a write's answer can land between the two, and it has to see
+   *  whether its own row already came back. */
+  const sharedStaged = useRef<StagedMap>({});
   /** Ids for the feed lines this SURFACE writes (a dropped step, a cancelled tail). Negative, so
    *  they can never collide with a log row's own id. */
   const localLogId = useRef(0);
@@ -289,6 +301,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       if (!live) return;
       setShow(resolved);
       if (!resolved) return;
+      sharedStaged.current = { ...resolved.staged };
       const tail = (after: number) => hostedControlTail(slug, after);
       // The production's shared values and what follows them. Read separately from the panel
       // because the panel is AUTHORED state pinned at publish and the tree is what is true right
@@ -346,6 +359,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           applyCommand([{ graphic: row.graphic, msg }]);
           if (msg.t === 'staged') {
             setShow((s) => (s && s !== 'loading' ? { ...s, staged: { ...s.staged, [row.graphic]: msg.data } } : s));
+            sharedStaged.current = { ...sharedStaged.current, [row.graphic]: msg.data };
             setOwnStaged((own) => settleOwnStaged(own, row.graphic, msg.data));
           } else if (msg.t === 'live') {
             noteMachineState(row.graphic, msg.state ?? null);
@@ -595,18 +609,24 @@ export default function HostedControlPage({ slug }: { slug: string }) {
 
   /**
    * STAGE values into the shared buffer. They count on this page AT ONCE (the overlay above), so
-   * a Take pressed during the round trip airs them, and they leave the overlay when their own
-   * row comes back. A refused write is dropped from the overlay too, or this page would keep
-   * airing a value no other screen ever saw.
+   * a Take pressed during the round trip airs them, and they leave the overlay once the buffer
+   * shows them with nothing more of theirs on the way. A refused write leaves it too, or this
+   * page would keep airing a value no other screen ever saw.
    */
   const noteStaged = (graphic: string, data: Record<string, string>) =>
-    setOwnStaged((own) => addOwnStaged(own, graphic, data));
+    setOwnStaged((own) => noteOwnStaged(own, graphic, data));
   const stageShared = (graphic: string, data: Record<string, string>) => {
-    noteStaged(graphic, data);
-    void stageHostedData(slug, graphic, data).catch((e: Error) => {
-      setOwnStaged((own) => dropOwnStaged(own, graphic, data));
-      setError(e.message);
-    });
+    if (Object.keys(data).length === 0) return;
+    setOwnStaged((own) => sendOwnStaged(noteOwnStaged(own, graphic, data), graphic, data));
+    const answered = (ok: boolean) =>
+      setOwnStaged((own) => answerOwnStaged(own, graphic, data, ok, sharedStaged.current[graphic]));
+    stageHostedData(slug, graphic, data).then(
+      () => answered(true),
+      (e: Error) => {
+        answered(false);
+        setError(e.message);
+      },
+    );
   };
 
   /**

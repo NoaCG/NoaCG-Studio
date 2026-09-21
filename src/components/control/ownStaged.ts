@@ -12,55 +12,116 @@
  * cue's stored key A, and Reveal correct later lit A while the test watched C. Every screen logged
  * the Reveal, so it looked like a Reveal that never reached air.
  *
- * So the page lays its OWN edits over the shared buffer until the buffer shows them. A `staged`
- * row always carries the whole merged buffer right after this page's write, so this page's own
- * row carries its own value and settles it. An edit another operator later overwrites has already
- * been settled by that earlier row, so this overlay never holds a value against somebody else's
- * newer one.
+ * So the page lays its OWN edits over the shared buffer until the buffer shows them. An edit
+ * leaves the overlay only when BOTH are true:
+ *
+ * - no write of that key is still waiting in the debounce or in flight, because an older row can
+ *   carry the same value by coincidence (pick C, B, then C again: the first C's row must not
+ *   settle the third C while the B row is still to come);
+ * - the shared buffer shows the value, whichever of the write's answer and its row came first.
+ *
+ * A `staged` row always carries the whole merged buffer right after a write, so the last write's
+ * row carries its own value. A refused write leaves the overlay once nothing else of that key is
+ * in flight, or this page would keep airing a value no other screen ever saw.
  */
 
 /** Staged values per graphic, the shape of `control_shows.staged`. */
 export type StagedMap = Record<string, Record<string, string>>;
 
-/** The shared buffer with this page's unconfirmed edits laid over it. Returns `shared` itself
- *  when there is nothing to lay over, so a render with no pending edit allocates nothing. */
-export function withOwnStaged(shared: StagedMap, own: StagedMap): StagedMap {
+/** One edited field: the value this page shows, whether it is still waiting in the typing
+ *  debounce, and how many writes of the key are on their way to the server. */
+export interface OwnEdit {
+  value: string;
+  unsent: boolean;
+  inflight: number;
+}
+
+/** This page's pending edits, per graphic and field. */
+export type OwnStaged = Record<string, Record<string, OwnEdit>>;
+
+/** The shared buffer with this page's pending edits laid over it. Returns `shared` itself when
+ *  there is nothing to lay over, so a render with no pending edit allocates nothing. */
+export function withOwnStaged(shared: StagedMap, own: OwnStaged): StagedMap {
   const graphics = Object.keys(own);
   if (graphics.length === 0) return shared;
   const out: StagedMap = { ...shared };
-  for (const graphic of graphics) out[graphic] = { ...shared[graphic], ...own[graphic] };
+  for (const graphic of graphics) {
+    const values = Object.fromEntries(Object.entries(own[graphic]).map(([key, edit]) => [key, edit.value]));
+    out[graphic] = { ...shared[graphic], ...values };
+  }
   return out;
 }
 
-/** Record edits this page has just made (typed, loaded, bumped). A later edit of a key replaces
- *  the earlier one. */
-export function addOwnStaged(own: StagedMap, graphic: string, data: Record<string, string>): StagedMap {
-  if (Object.keys(data).length === 0) return own;
-  return { ...own, [graphic]: { ...own[graphic], ...data } };
+/** Apply `change` to each named field of one graphic. A field `change` returns null for leaves
+ *  the overlay, and so does a graphic with no field left. */
+function edit(
+  own: OwnStaged,
+  graphic: string,
+  keys: string[],
+  change: (current: OwnEdit | undefined, key: string) => OwnEdit | null,
+): OwnStaged {
+  if (keys.length === 0) return own;
+  const fields = { ...own[graphic] };
+  for (const key of keys) {
+    const next = change(fields[key], key);
+    if (next) fields[key] = next;
+    else delete fields[key];
+  }
+  const out = { ...own };
+  if (Object.keys(fields).length === 0) delete out[graphic];
+  else out[graphic] = fields;
+  return out;
 }
 
-/** Remove `graphic`'s entries for which `drop(key, value)` is true, and the graphic too once it
- *  has none left. Returns `own` itself when nothing was removed. */
-function without(own: StagedMap, graphic: string, drop: (key: string, value: string) => boolean): StagedMap {
+/** The operator typed or picked: the values count on this page at once and wait for the write. */
+export function noteOwnStaged(own: OwnStaged, graphic: string, data: Record<string, string>): OwnStaged {
+  return edit(own, graphic, Object.keys(data), (current, key) => ({
+    value: data[key],
+    unsent: true,
+    inflight: current?.inflight ?? 0,
+  }));
+}
+
+/** A write of these values has just gone to the server. */
+export function sendOwnStaged(own: OwnStaged, graphic: string, data: Record<string, string>): OwnStaged {
+  return edit(own, graphic, Object.keys(data), (current, key) => ({
+    value: current?.value ?? data[key],
+    // Still unsent only if the operator has typed something newer since this batch was taken.
+    unsent: current ? current.unsent && current.value !== data[key] : false,
+    inflight: (current?.inflight ?? 0) + 1,
+  }));
+}
+
+/** Whether an edit is finished: nothing of it is still to be written, and the buffer shows it. */
+function settled(edit: OwnEdit, shared: Record<string, string> | undefined, key: string): boolean {
+  return !edit.unsent && edit.inflight === 0 && shared?.[key] === edit.value;
+}
+
+/**
+ * A write came back. `ok` false means the server refused it: its value will never come round the
+ * log, so an edit with nothing else on the way leaves the overlay. `shared` is the graphic's
+ * buffer as this page has it right now, because the write's row may already have arrived.
+ */
+export function answerOwnStaged(
+  own: OwnStaged,
+  graphic: string,
+  data: Record<string, string>,
+  ok: boolean,
+  shared: Record<string, string> | undefined,
+): OwnStaged {
+  return edit(own, graphic, Object.keys(data), (current, key) => {
+    if (!current) return null;
+    const next = { ...current, inflight: Math.max(0, current.inflight - 1) };
+    if (!ok && !next.unsent && next.inflight === 0) return null;
+    return settled(next, shared, key) ? null : next;
+  });
+}
+
+/** A `staged` row arrived carrying the graphic's whole shared buffer: every finished edit it now
+ *  shows leaves the overlay. */
+export function settleOwnStaged(own: OwnStaged, graphic: string, shared: Record<string, string>): OwnStaged {
   const mine = own[graphic];
   if (!mine) return own;
-  const kept = Object.entries(mine).filter(([key, value]) => !drop(key, value));
-  if (kept.length === Object.keys(mine).length) return own;
-  const next = { ...own };
-  if (kept.length === 0) delete next[graphic];
-  else next[graphic] = Object.fromEntries(kept);
-  return next;
-}
-
-/** A `staged` row arrived carrying the graphic's whole shared buffer: every edit of ours it now
- *  shows is confirmed and leaves the overlay. An edit made AFTER the write this row answers holds
- *  a different value and stays until its own row arrives. */
-export function settleOwnStaged(own: StagedMap, graphic: string, shared: Record<string, string>): StagedMap {
-  return without(own, graphic, (key, value) => shared[key] === value);
-}
-
-/** A stage write FAILED. Its values will never come back round the log, so they leave the overlay.
- *  A key edited again since then keeps its newer value. */
-export function dropOwnStaged(own: StagedMap, graphic: string, sent: Record<string, string>): StagedMap {
-  return without(own, graphic, (key, value) => sent[key] === value);
+  const done = Object.keys(mine).filter((key) => settled(mine[key], shared, key));
+  return done.length === 0 ? own : edit(own, graphic, done, () => null);
 }
