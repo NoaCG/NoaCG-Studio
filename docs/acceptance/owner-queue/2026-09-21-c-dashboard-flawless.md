@@ -22,6 +22,15 @@ three things worth fixing, and all three are fixed.
 - **"Edit graphic" on a graphic's control page opens the new editor.** In the default studio it
   used to open the old one. Advanced mode still opens the code editor.
 
+The published twin of the walk, with two hosted control tabs, found two more:
+
+- **A renderer opened late catches up properly.** If OBS loaded the output URL after the quiz was
+  already locked, the board came up on the question with the lock gone. The replayed Select and
+  Lock ran before the entrance and were dropped. They now run in order.
+- **The hosted control page shows the quiz's state with no renderer open.** Before OBS is up, its
+  state chip ("Locked in", "Reveal") stayed empty, because it only read what a renderer reported.
+  It now also reads its own PROGRAM monitor, as the dashboard does.
+
 ## The route, under a minute
 
 1. Open the studio, choose Import, and drop `docs/svg-samples/quiz-board.svg`. Click through to
