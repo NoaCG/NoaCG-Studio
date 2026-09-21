@@ -80,6 +80,33 @@ Findings, each now a docs sentence:
   third needs no special names, and `docs/svg-samples/illustrator-export.svg` teaches the same
   lesson. It earned no place.
 
+## The check
+
+`review: delegated` - the code-review skill returned findings with the branch, base
+`bde57a83` and the nine files, and that scope was compared with `git diff --name-only` plus
+`git status` here: it matched. Eight findings; five confirmed and fixed on this branch (a stale
+sentence and a which-option question in the owner-queue note, which now records the decision;
+the empty `Layer_1` group Illustrator leaves in both example files, which the wizard would have
+offered as a layer; a duplicated per-shot lifecycle in `docs-shots.mjs`, now a `capture` option
+on `shot()`; and a stale section comment there). Two are real and outside this row's files: the
+wizard's own "Exporting the SVG" hint (`ImportDesignStep.tsx`) and `docs/SVG_AUTHORING.md`
+still teach Export As, and two corpus sidecars mislabel legacy exports as Export As. Filed as
+`docs/backlog/illustrator-export-as-drops-hidden-layers.md`. The eighth (the Skip to finish
+sentence depends on PR #354, which is queued to land) stands as written; once #354 is on main,
+`e2e/docs.spec.ts` should also open the import walk and assert `wz-skip-to-finish` is visible
+after the drop, which this branch cannot do from its fork point.
+`simplify: inline` - the simplify skill returned fan-out instructions, so the four angles were
+read here over the same diff: one single-use helper inlined and one flag read once. Nothing
+else needed it.
+`verify: inline` - `npm run build` exit 0 read from the task's own output, with the stamp
+`claude/f-docs-student-follows`; `e2e/docs.spec.ts` 17 passed through the queue (j-1605)
+before the review's fixes and queued again after them (j-1610), and the shot job likewise
+(j-1609): the SVG edit removes an empty group that draws nothing, so the pictures are expected
+byte-identical.
+`taste: not applicable` - nothing here changes how a graphic renders; the two example files
+are new artwork the shot job rendered and the pictures were looked at (both frames read as the
+docs describe them).
+
 ## Traps not in any repo file
 
 - **Sibling rows share one scratchpad directory, so a log file there can be another row's.**

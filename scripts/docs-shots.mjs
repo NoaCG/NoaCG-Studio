@@ -62,14 +62,17 @@ const browser = await chromium.launch();
  *   - a LOCATOR, for a surface that is one element;
  *   - `{ clip }` from `clipBetween`, for a strip of the page that no single element wraps;
  *   - null, for the whole viewport.
+ * With `capture: false` the run happens (its checks and its printed lines included) and no
+ * picture is written - for a drop whose only job is to prove what the wizard picked.
  */
-async function shot(name, run, size = VIEWPORT, scale = SCALE) {
+async function shot(name, run, size = VIEWPORT, scale = SCALE, { capture = true } = {}) {
   if (wanted && !wanted.has(name)) return;
   const context = await browser.newContext({ viewport: size, deviceScaleFactor: scale });
   const page = await context.newPage();
   page.setDefaultTimeout(30_000);
   try {
     const target = await run(page);
+    if (!capture) return;
     const clipping = target && typeof target.clip === 'object';
     // `animations: 'disabled'` parks CSS/Web animations at their end state, which is what a
     // settled product surface looks like. `fullPage` with a clip is what makes the clip's
@@ -313,16 +316,19 @@ await shot('svg-fields', async (page) => {
 // Each type in the Graphics guide (`/docs#scoreboards` and its siblings) has a downloadable
 // example file in public/docs/examples/, named so the wizard recognises it. Two pictures come
 // from each: `type-<id>.png`, the artwork itself as it renders, and `type-<id>-fields.png`, the
-// Fields step one drop later. The docs draw the file's layer panel in HTML beside them.
+// Fields step one drop later. The docs draw the file's layer panel in HTML beside them. An
+// example marked `fieldsShot: false` (the lower-third versions of a type) still takes the drop
+// but publishes only the first picture, so `--only=type-<id>-fields` for one of those runs the
+// check and writes nothing.
 //
 // The render loads the SVG into a bare page with the app's own font files, because an SVG shown
 // through <img> cannot load a web font and would publish every example in a fallback face.
 // `crop` is the part of the 1920x1080 frame worth showing: a scorebug in the corner of an empty
 // frame is a picture of nothing.
 //
-// The Fields shot also PRINTS which behaviour the wizard picked. That line is the proof the
-// example teaches what the guide says it teaches: a scoreboard example that lands on "Nothing"
-// is a broken promise, and a PNG cannot say so on its own.
+// The drop also PRINTS which behaviour the wizard picked, and the run fails on the wrong one.
+// That line is the proof the example teaches what the guide says it teaches: a scoreboard
+// example that lands on "Nothing" is a broken promise, and a PNG cannot say so on its own.
 const example = (name) => join(projectRoot, 'public', 'docs', 'examples', name);
 
 /**
@@ -377,8 +383,10 @@ for (const type of TYPE_EXAMPLES) {
     return page.locator('#frame');
   }, VIEWPORT, 2);
 
-  /** Drop the example and read what the wizard picked; the run fails on the wrong type. */
-  const dropAndCheck = async (page) => {
+  // The drop, and what the wizard picked; the run fails on the wrong type. For a check-only
+  // example that is the whole job, so it ends here and no picture is written.
+  const checkOnly = type.fieldsShot === false;
+  await shot(`type-${type.id}-fields`, async (page) => {
     await openImportDoor(page);
     await dropSample(page, example(`${type.id}.svg`));
     const kind = page.getByTestId('map-svg-behaviour-kind');
@@ -387,33 +395,14 @@ for (const type of TYPE_EXAMPLES) {
       throw new Error(`the wizard picked "${picked}" for ${type.id}.svg, the guide promises "${type.behaviour}"`);
     }
     console.log(`  ${type.id}.svg -> ${picked || 'no behaviour'}`);
-  };
-
-  if (type.fieldsShot === false) {
-    // The check without the picture, in its own context like every shot.
-    if (!wanted || wanted.has(`type-${type.id}-fields`)) {
-      const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE });
-      try {
-        await dropAndCheck(await context.newPage());
-      } catch (e) {
-        console.error(`✗ type-${type.id}-fields - ${(e ?? '').message ?? e}`);
-        process.exitCode = 1;
-      } finally {
-        await context.close();
-      }
-    }
-    continue;
-  }
-
-  await shot(`type-${type.id}-fields`, async (page) => {
-    await dropAndCheck(page);
+    if (checkOnly) return null;
     if (type.behaviour) {
       // To the TOP of the panel, so the picked type is the first thing in the shot.
       await page.getByTestId('map-svg-behaviour').evaluate((el) => el.scrollIntoView({ block: 'start' }));
       await page.waitForTimeout(600);
     }
     return modal(page);
-  });
+  }, VIEWPORT, SCALE, { capture: !checkOnly });
 }
 
 // ── 4. The live tree: paths, types, and the values a whole show reads from ───

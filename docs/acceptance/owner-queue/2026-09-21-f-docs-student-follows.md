@@ -29,8 +29,7 @@ Three sentences were wrong and one thing was missing:
 
 Two new example files, drawn in Illustrator and saved with the settings the docs teach:
 `public/docs/examples/quiz-lower-third.svg` and `scoreboard-lower-third.svg`. Each type page
-links it under the full-frame example (the picture follows once the shot job has run, see the
-handoff), and the Layer names page now
+shows it under the full-frame example with its own download link, and the Layer names page now
 has a line of download links for every example so a student can open one in Illustrator and copy
 the layer structure. Opening `quiz.svg` and `scoreboard.svg` in Illustrator was measured too: the
 Layers panel shows `Answer D`, `static:Letter D`, `A selected (hidden)` and the rest, and a
@@ -45,8 +44,10 @@ every answer's selected, correct and wrong layer filled in.
 
 ## What to look at
 
-- Do you want the lower-third files to replace the full-frame ones as THE example on each type
-  page, or stay beside them as they are now? Both are one link each.
+- Decided: the lower-third files sit under the full-frame ones, which stay the example each
+  layer panel is drawn from, because a full frame shows the whole layer list at once and a
+  lower third is the same names in a smaller drawing. To revert, swap the two figures on
+  `#quiz` and `#scoreboards` and redraw the layer panels from the lower-third files.
 - The Illustrator row now teaches Save a Copy rather than Export As. `docs/SVG_AUTHORING.md`
   section 6 still says Export As and was not changed on this row; it is the internal page.
 - The lower thirds use Arial in Illustrator on this laptop; the shipped files carry Archivo and
