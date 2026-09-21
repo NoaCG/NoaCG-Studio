@@ -40,12 +40,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; text-decoration: none; }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+/* The landing's width, so the logo and the header links sit in the same place on both pages. */
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 
 /* ── Top bar (the landing's, unchanged) ── */
 header.top {
   display: flex; align-items: center; gap: 14px;
   padding: 22px 0;
+  /* The landing body's line height. This page's 1.6 makes the button 1px taller and moves the
+     links 1px, so the header would shift when a reader crosses between the two pages. */
+  line-height: 1.55;
 }
 .mark { display: flex; flex-direction: column; gap: 3px; width: 26px; }
 .mark i { display: block; height: 6px; border-radius: 2px; }
@@ -59,16 +63,27 @@ header.top {
   letter-spacing: 0.42em; color: var(--dim); text-transform: uppercase; margin-top: 1px;
 }
 header.top nav { margin-left: auto; display: flex; align-items: center; gap: 22px; }
-header.top nav a { font-size: 14px; color: var(--dim); }
-header.top nav a:hover { color: var(--paper); }
-.btn {
-  display: inline-block; padding: 10px 20px; border-radius: 8px;
-  font-weight: 600; font-size: 14px; letter-spacing: 0.01em;
-  background: var(--amber); color: #14100a;
-  box-shadow: 0 0 22px rgba(246, 166, 35, 0.24);
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+/* `:not(.btn)` keeps this colour off the button. Without it the rule outranks `.btn-amber` and
+   paints the button label grey on amber. */
+header.top nav a:not(.btn) { font-size: 14px; color: var(--dim); }
+header.top nav a:not(.btn):hover,
+header.top nav a[aria-current="page"] { color: var(--paper); }
+/* The section links leave the header before it would wrap, at the landing's 720px cut. */
+@media (max-width: 720px) {
+  header.top nav a.gh { display: none; }
 }
-.btn:hover { background: var(--glow); box-shadow: 0 0 30px rgba(246, 166, 35, 0.36); }
+
+/* ── Buttons (the landing's) ── */
+.btn {
+  display: inline-block; padding: 12px 26px; border-radius: 8px;
+  font-weight: 600; font-size: 15px; letter-spacing: 0.01em;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.btn-amber {
+  background: var(--amber); color: #14100a;
+  box-shadow: 0 0 26px rgba(246, 166, 35, 0.28);
+}
+.btn-amber:hover { background: var(--glow); transform: translateY(-1px); box-shadow: 0 0 34px rgba(246, 166, 35, 0.4); }
 
 /* ── Page head ── */
 .doc-hero { padding: 34px 0 8px; max-width: 760px; }
