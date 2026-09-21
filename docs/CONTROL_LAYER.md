@@ -224,7 +224,8 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
   carries no entries and is normalized to `[]` on read.
 - **A page's own edits count on that page at once.** The shared buffer only moves when its
   `staged` row comes back round the log, about a second after a keystroke. The hosted page lays
-  its own unconfirmed edits over the buffer until a row shows them
+  its own unconfirmed edits over the buffer until the buffer shows them and no write of theirs
+  is still on the way
   (`src/components/control/ownStaged.ts`), so a Take pressed straight after picking a value airs
   that value. Without it, a quiz key picked just before Take aired the stored key (configured
   run 35633742370).
