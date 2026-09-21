@@ -237,13 +237,12 @@ export async function intoExistingProduction(page: Page, graphic: string, produc
 }
 
 /**
- * UNTICK ONE TEXT ROW AND ANSWER THE QUESTION IT ASKS.
+ * UNTICK ONE TEXT ROW.
  *
- * Unticking is two clicks, not one (owner walk, 2026-09-02): the step asks what should happen to
- * the words the layer leaves behind, and the row stays ticked until that is answered - so a bare
- * `uncheck()` fails with "clicking the checkbox did not change its state", which is a true report
- * of a walk that has not finished. `'keep'` is the primary answer and what unticking always used
- * to mean; `'remove'` takes the layer off the artwork.
+ * Unticking asks nothing (owner, 2026-09-21: ticking or unticking a field shows no warning). It
+ * means the words stay as drawn, and the row says so; `'remove'` is the other answer, one press
+ * on the row's own line. A dialog used to ask which (owner walk, 2026-09-02) and the newer ruling
+ * replaced it.
  *
  * One helper because three specs walk this and every one of them means the same thing by it.
  */
@@ -253,19 +252,11 @@ export async function untickTextRow(
   answer: 'keep' | 'remove' = 'keep',
 ): Promise<void> {
   await page.getByTestId(`map-svg-row-${candidateId}`).locator('input[type="checkbox"]').click();
-  await expect(page.getByTestId('map-svg-off-dialog')).toBeVisible();
-  // Portalled out of the wizard, not nested in it (e2e/overlay-layers.spec.ts holds the rule).
-  // The wizard's full-screen shell is a stacking context, so a dialog left inside it is pinned
-  // below the app's corner notices whatever z-index it carries - which on a hosted deployment
-  // means an unanswered consent banner takes this dialog's buttons, the issue #50 failure in
-  // the one walk the student release is built on. Asserted here because this is the only
-  // helper that opens the dialog, so all three specs that walk it get the guard.
-  expect(
-    await page.evaluate(() => document.querySelectorAll('.gallery-backdrop.wz-full .gallery-backdrop').length),
-    'the off-dialog must be portalled to the body, not nested inside the wizard shell',
-  ).toBe(0);
-  await page.getByTestId(`map-svg-off-${answer}`).click();
-  await expect(page.getByTestId('map-svg-off-dialog')).toBeHidden();
+  await expect(page.getByTestId(`map-svg-off-${candidateId}`)).toHaveText('stays as drawn');
+  if (answer === 'remove') {
+    await page.getByTestId(`map-svg-off-remove-${candidateId}`).click();
+    await expect(page.getByTestId(`map-svg-off-${candidateId}`)).toHaveText('taken off the artwork');
+  }
 }
 
 /** Tick every detected text layer. Every one of them arrives ticked, so this is a guard rather

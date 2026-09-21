@@ -1590,8 +1590,8 @@ test('the mapping step explains itself: the name under an empty box, the count o
   await expect(page.getByTestId('map-svg-quiz-row-0')).toContainText('Correct');
 
   // 1. The name that would have filled each empty box, beside it.
-  await expect(page.getByTestId('map-svg-quiz-selected-0-hint')).toHaveText('name it “A selected”');
-  await expect(page.getByTestId('map-svg-quiz-wrong-2-hint')).toHaveText('name it “C wrong”');
+  await expect(page.getByTestId('map-svg-quiz-selected-0-hint')).toHaveText('name it “Selected A”');
+  await expect(page.getByTestId('map-svg-quiz-wrong-2-hint')).toHaveText('name it “Wrong C”');
   await expect(page.getByTestId('map-svg-quiz-locked-hint')).toHaveText('name it “Locked in”');
   // …and none under a box the names filled.
   await expect(page.getByTestId('map-svg-quiz-answer-0-hint')).toHaveCount(0);
@@ -1625,7 +1625,7 @@ test('the mapping step explains itself: the name under an empty box, the count o
   // with the names under them, the notice and the button; the box the reader set stays theirs.
   await page.getByTestId('map-svg-fill-undo').click();
   await expect(page.getByTestId('map-svg-quiz-wrong-0').locator('option:checked')).toContainText('NoaCG');
-  await expect(page.getByTestId('map-svg-quiz-wrong-0-hint')).toHaveText('name it “A wrong”');
+  await expect(page.getByTestId('map-svg-quiz-wrong-0-hint')).toHaveText('name it “Wrong A”');
   await expect(page.getByTestId('map-svg-quiz-correct-1').locator('option:checked')).toContainText('NoaCG');
   await expect(page.getByTestId('map-svg-quiz-selected-0').locator('option:checked')).toHaveText('Layer 10 (hidden)');
   await expect(notice).toContainText('12 boxes');
@@ -2180,36 +2180,38 @@ test('an Illustrator SAVE AS quiz: the answers keep their type on air, lock and 
   await intoProduction(page, 'Save As quiz', 'Demo Quiz');
   await settleDurableWrites(page);
 
-  // The field order is the artwork's: the four drawn letter tiles, then the question, the four
-  // answers, the key and the pick.
-  await expect(page.getByTestId('cue-field-f4')).toHaveValue('Which Finnish city hosted the 1952 Summer Olympics?');
-  await expect(page.getByTestId('cue-field-f6')).toHaveValue('Tampere');
+  // The field order is the artwork's: the question, the four answers, the key and the pick. The
+  // four drawn letter tiles are one letter each, so they start unticked and stay as drawn
+  // (docs/backlog/one-layer-naming-system-for-every-graphic.md) - the same graphic the docs
+  // example gets with its `static:` letters.
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which Finnish city hosted the 1952 Summer Olympics?');
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('Tampere');
 
-  await page.getByTestId('cue-field-f9-opt-C').click();
-  await page.getByTestId('cue-field-f10-opt-B').click();
+  await page.getByTestId('cue-field-f5-opt-C').click();
+  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
-  await expect(air.locator('#f6')).toHaveText('Tampere');
+  await expect(air.locator('#f2')).toHaveText('Tampere');
 
   // THE KERNED ANSWER KEEPS ITS TYPE. "Tampere" was drawn as two runs, T and ampere, with the
   // fill, face and size on the RUNS; the first update() replaced them and the word fell back to
   // the bare <text>'s browser default - 16px black on a dark row, which read as "…" in the
   // wizard's own preview. Its neighbour, styled on the <text>, is the control.
-  expect((await boxOnAir(air, '#f6')).font).toBe('38px');
-  expect((await boxOnAir(air, '#f5')).font).toBe('38px');
-  await expect(air.locator('#f6')).toHaveCSS('fill', 'rgb(255, 255, 255)');
+  expect((await boxOnAir(air, '#f2')).font).toBe('38px');
+  expect((await boxOnAir(air, '#f1')).font).toBe('38px');
+  await expect(air.locator('#f2')).toHaveCSS('fill', 'rgb(255, 255, 255)');
 
   // Every answer sits inside the row it was drawn on, and the question inside its card.
   const rows: [string, Rect][] = [
-    ['#f5', { left: 240, top: 520, right: 940, bottom: 630 }],
-    ['#f6', { left: 980, top: 520, right: 1680, bottom: 630 }],
-    ['#f7', { left: 240, top: 670, right: 940, bottom: 780 }],
-    ['#f8', { left: 980, top: 670, right: 1680, bottom: 780 }],
+    ['#f1', { left: 240, top: 520, right: 940, bottom: 630 }],
+    ['#f2', { left: 980, top: 520, right: 1680, bottom: 630 }],
+    ['#f3', { left: 240, top: 670, right: 940, bottom: 780 }],
+    ['#f4', { left: 980, top: 670, right: 1680, bottom: 780 }],
   ];
   for (const [id, plate] of rows) expectInside(await boxOnAir(air, id), plate);
   const card: Rect = { left: 240, top: 150, right: 1680, bottom: 450 };
-  expectInside(await boxOnAir(air, '#f4'), card);
+  expectInside(await boxOnAir(air, '#f0'), card);
   // The embedded picture is drawn where Illustrator placed it: a 64px image scaled by 1.25.
   const logo = await boxOnAir(air, '[data-name="Show logo"]');
   expect(Math.round(logo.right - logo.left)).toBe(80);
@@ -2227,15 +2229,15 @@ test('an Illustrator SAVE AS quiz: the answers keep their type on air, lock and 
 
   // THE LONG-TEXT TAIL: a question twice the drawn length wraps inside the card, never past it.
   await page
-    .getByTestId('cue-field-f4')
+    .getByTestId('cue-field-f0')
     .fill('Which Finnish city hosted the 1952 Summer Olympics, and in which month did the games open to the public?');
   await page.getByTestId('verb-update').click();
-  await expect(air.locator('#f4')).toContainText('open to the public?');
+  await expect(air.locator('#f0')).toContainText('open to the public?');
   await expect.poll(async () => {
-    const q = await boxOnAir(air, '#f4');
+    const q = await boxOnAir(air, '#f0');
     return q.bottom - q.top;
   }).toBeGreaterThan(80);
-  expectInside(await boxOnAir(air, '#f4'), card);
+  expectInside(await boxOnAir(air, '#f0'), card);
   expect(await overflowOnAir(air)).toEqual([]);
 
   expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
@@ -2370,6 +2372,49 @@ test('a slanted polygon plate told to get wider grows by its points and keeps it
   expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
 });
 
+// THE EXPORT AS SAFETY NET, AND TWO DEFAULTS OF THE ONE NAMING SYSTEM
+// (docs/backlog/one-layer-naming-system-for-every-graphic.md). A quiz saved with Illustrator's
+// Export As arrives with its answers and NONE of its hidden moments (measured on 30.1,
+// docs/backlog/illustrator-export-as-drops-hidden-layers.md); the wizard still picks Quiz, and
+// used to say nothing. Now the step says, in one place, that Export As leaves hidden layers out.
+// The same file carries the two shapes a student's own drawing has: letters that are one
+// character each and were never named `static:`, which start unticked and are listed last; and
+// an unnamed text inside a layer called Question, whose group used to be offered as a drawn
+// moment called "Question 2" in every picker.
+test('a type with no hidden layers is told about Export As, letter tiles start unticked and last, and a text wrapper is not a moment', async ({ page }, testInfo) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <g id="Board"><rect x="360" y="140" width="1200" height="800" fill="#111"/></g>
+  <g id="Letters">
+    <text x="466" y="438" font-family="Arial" font-size="34" fill="#f6a623">A</text>
+    <text x="466" y="558" font-family="Arial" font-size="34" fill="#f6a623">B</text>
+  </g>
+  <g id="Question"><text x="960" y="280" font-family="Arial" font-size="50" fill="#fff" text-anchor="middle">Which planet is closest to the Sun?</text></g>
+  <text id="Answer_A" data-name="Answer A" x="530" y="438" font-family="Arial" font-size="34" fill="#fff">Mercury</text>
+  <text id="Answer_B" data-name="Answer B" x="530" y="558" font-family="Arial" font-size="34" fill="#fff">Venus</text>
+</svg>`;
+  const file = testInfo.outputPath('export-as-quiz.svg');
+  writeFileSync(file, svg);
+  await openImportDoor(page, file);
+
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  const note = page.getByTestId('map-svg-hidden-missing');
+  await expect(note).toBeVisible();
+  await expect(note).toContainText('Export As');
+  await expect(note).toContainText('Save a Copy');
+
+  // The two letters are furniture: unticked, after the fields, their words left as drawn.
+  const rows = page.getByTestId('map-svg-fields').locator('.map-svg-row');
+  await expect(page.getByTestId('map-svg-fields')).toContainText('3 of 5');
+  await expect(rows.nth(0).locator('input[type="checkbox"]')).toBeChecked();
+  await expect(rows.nth(3).locator('input[type="checkbox"]')).not.toBeChecked();
+  await expect(rows.nth(4).locator('input[type="checkbox"]')).not.toBeChecked();
+  await expect(rows.nth(3)).toContainText('stays as drawn');
+
+  // The text alone in the Question layer IS the question, and the layer is not also a drawing.
+  await expect(page.getByTestId('map-svg-quiz-question').locator('option:checked')).toHaveText('Question');
+  await expect(page.getByTestId('map-svg-quiz-selected-0').locator('option', { hasText: 'Question' })).toHaveCount(0);
+});
+
 // THE FILES THE PUBLIC DOCS HAND OUT (public/docs/examples/), which is what a student downloads
 // from the Graphics page and what the demo imports on the live site. The shipped samples above
 // are walked already; these two are separate files with their own layer names (Team A / Score A,
@@ -2385,6 +2430,8 @@ test('the docs example quiz imports as a quiz and runs select, lock and reveal w
   await expect(page.getByTestId('map-svg-quiz-count')).toHaveValue('4');
   // The letter column is `static:` - drawn, never an operator field.
   await expect(page.getByTestId('map-svg-fields')).toContainText('5 of 9');
+  // The file carries its hidden moments, so nothing warns about Export As.
+  await expect(page.getByTestId('map-svg-hidden-missing')).toHaveCount(0);
   await intoProduction(page, 'Docs quiz', 'Docs Quiz Night');
   await settleDurableWrites(page);
 

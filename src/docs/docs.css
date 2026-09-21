@@ -221,6 +221,18 @@ th {
 td { color: var(--dim); }
 td strong { color: var(--paper); }
 
+/* The table of every layer name (generated into #svg-layers by scripts/behaviour-docs.mjs). A
+   type's heading row is a band across the table, in the body face rather than the column-header
+   mono, so the eye finds "Quiz" before it reads the rows under it. The row-count line under a
+   type is a note, not a row. */
+.doc-words .doc-words-type th {
+  font-family: inherit; font-size: 14px; font-weight: 600; letter-spacing: 0;
+  text-transform: none; color: var(--paper); background: rgba(246, 166, 35, 0.08);
+  padding-top: 10px; padding-bottom: 10px;
+}
+.doc-words .doc-words-type th a { color: var(--amber); }
+.doc-words .doc-words-rows { color: var(--faint); font-size: 13px; }
+
 /* Screenshots of the real product. Every one is produced by `node scripts/docs-shots.mjs`,
    which drives the running app, so a redesign is one command away from correct pictures - a
    hand-captured PNG goes stale silently and then teaches the wrong thing. The frame is quiet

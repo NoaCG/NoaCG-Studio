@@ -25,7 +25,7 @@ where each moment of the graphic is drawn as its own hidden layer.
 
 1. **Give the file a size.** It needs a `viewBox`, or a `width` and a `height`. A file with
    neither is refused. That size is the space every field is measured in. Illustrator writes one
-   under *File > Export > Export As > SVG*. Turning "Responsive" on drops the width and height,
+   under *File > Save a Copy > SVG*. Turning "Responsive" on drops the width and height,
    which is fine as long as the viewBox is there.
 2. **Keep text as text.** Every `<text>` layer becomes a field. Text turned into outlines cannot
    be edited. Section 5 says what happens then.
@@ -294,12 +294,12 @@ one text layer per answer, then the moments:
 |---|---|---|
 | question | `Question` | always - it is a field the operator types |
 | answer (one per row) | `Answer A` | always - a field |
-| selected (one per row) | `A selected` | while that answer is the pick |
-| correct (one per row) | `A correct` | on the reveal, if it is the correct answer |
-| wrong (one per row) | `A wrong` | on the reveal, if it is not |
+| selected (one per row) | `Selected A` | while that answer is the pick |
+| correct (one per row) | `Correct A` | on the reveal, if it is the correct answer |
+| wrong (one per row) | `Wrong A` | on the reveal, if it is not |
 | locked in | `Locked in` | once the answer is locked (one, whole board) |
 
-`Vastaus A` works as well as `Answer A`; `A picked` works as well as `A selected`; `A right` works as well as `A correct`.
+`Kysymys`, `Fråga` work as well as `Question`; `Vastaus A`, `Svar A` work as well as `Answer A`; `Picked A`, `Chosen A`, `Valittu A`, `Vald A` work as well as `Selected A`; `Right A`, `Oikein A`, `Rätt A` work as well as `Correct A`; `Incorrect A`, `Väärin A`, `Fel A` work as well as `Wrong A`; `Locked`, `Lukittu`, `Låst` work as well as `Locked in`.
 
 Two to six answers. The operator gets Select answer, Lock it in and Reveal correct.
 <!-- behaviour:quiz:end -->
@@ -316,7 +316,7 @@ Two to six answers. The operator gets Select answer, Lock it in and Reveal corre
 | flash (one per row) | `Flash 1` | shown for the moment that team's point lands |
 | full time | `Full time` | once the game is called (one, whole board) |
 
-`Side 1`, `Player 1`, `Joukkue 1` work as well as `Team 1`; `Points 1`, `Goals 1`, `Team 1 Score` work as well as `Score 1`; `Goal 1`, `Scored 1` work as well as `Flash 1`; `Final`, `Game over` work as well as `Full time`.
+`Side 1`, `Player 1`, `Joukkue 1`, `Lag 1` work as well as `Team 1`; `Points 1`, `Goals 1`, `Team 1 Score`, `Pisteet 1`, `Poäng 1` work as well as `Score 1`; `Goal 1`, `Scored 1`, `Maali 1`, `Mål 1` work as well as `Flash 1`; `Final`, `Game over`, `Loppu`, `Full tid` work as well as `Full time`.
 
 Two to eight teams. The operator gets a +1 and a −1 under each team's own name, plus Clear flash, Full time and New game.
 <!-- behaviour:score:end -->
@@ -352,7 +352,7 @@ NoaCG **writes into** rather than fields anyone types.
 | total votes | `Total votes` | written from the round |
 | vote badge | `Vote badge` | while voting is open |
 
-`Choice 1`, `Answer 1`, `Vaihtoehto 1` work as well as `Option 1`; `Palkki 1` works as well as `Bar 1`; `Share 1`, `Osuus 1` work as well as `Percent 1`; `Voittaja 1` works as well as `Winner 1`; `Ääntä` works as well as `Total votes`; `Äänestä` works as well as `Vote badge`.
+`Kysymys`, `Fråga` work as well as `Question`; `Choice 1`, `Answer 1`, `Vaihtoehto 1`, `Alternativ 1` work as well as `Option 1`; `Palkki 1`, `Stapel 1` work as well as `Bar 1`; `Share 1`, `Osuus 1`, `Procent 1` work as well as `Percent 1`; `Voittaja 1`, `Vinnare 1` work as well as `Winner 1`; `Ääntä`, `Röster` work as well as `Total votes`; `Äänestä`, `Rösta` work as well as `Vote badge`.
 
 Two to eight options. The operator gets Close voting, Show result and Call the winner.
 <!-- behaviour:vote:end -->
@@ -383,7 +383,7 @@ on the first clock-shaped layer it finds.
 | paused | `Paused` | while the operator is holding the clock |
 | time up | `Time up` | once it reaches zero |
 
-`Drain`, `Aikapalkki` work as well as `Timer bar`; `Last stretch`, `Hurry` work as well as `Warning`; `Hold`, `Tauko` work as well as `Paused`; `Expired`, `Finished`, `Aika loppu` work as well as `Time up`.
+`Drain`, `Countdown bar`, `Aikapalkki`, `Tidsbalk` work as well as `Timer bar`; `Last stretch`, `Hurry`, `Varoitus`, `Varning` work as well as `Warning`; `Hold`, `Tauko`, `Paus` work as well as `Paused`; `Expired`, `Finished`, `Aika loppu`, `Tiden ute` work as well as `Time up`.
 
 The operator gets Start, Pause and Reset.
 <!-- behaviour:countdown:end -->
@@ -449,7 +449,7 @@ total adds up the revealed points by itself.
 | strike 3 | `Strike 3` | the third X - and the Strike button greys |
 | total | `Total` | written by NoaCG: the points of the revealed answers, added up |
 
-`Vastaus 1` works as well as `Answer 1`; `Pts 1`, `Pisteet 1` work as well as `Points 1`; `Flip 1`, `Open 1` work as well as `Revealed 1`; `X 1` works as well as `Strike 1`; `Sum`, `Yhteensä` work as well as `Total`.
+`Kysymys`, `Fråga` work as well as `Question`; `Vastaus 1`, `Svar 1` work as well as `Answer 1`; `Pts 1`, `Pisteet 1` work as well as `Points 1`; `Flip 1`, `Open 1` work as well as `Revealed 1`; `X 1` works as well as `Strike 1`; `Sum`, `Yhteensä` work as well as `Total`.
 
 Two to eight answers. The operator gets Reveal 1, Reveal 2 and so on, Strike, Take back a strike, Clear strikes and Reset board, plus the Answers box (one line per answer, `Toaster | 32`).
 <!-- behaviour:survey:end -->
@@ -558,7 +558,13 @@ a five-second timer after the lock.
 
 ### Adobe Illustrator
 
-*File > Export > Export As... > SVG*. Not "Save As", which writes a much heavier file.
+*File > Save a Copy... > SVG*, with *Use Artboards* ticked. Not *Export > Export As*: measured on
+Illustrator 30.1 (2026-09-21), Export As writes no hidden layer at all, so every drawn moment is
+lost on the way in (`docs/backlog/illustrator-export-as-drops-hidden-layers.md`). Save a Copy
+keeps them as a `display:none` class, which the import reads. In the SVG Options dialog: Fonts
+Type **SVG** with Subsetting **None (Use System Fonts)**, Image Location **Embed**, Preserve
+Illustrator Editing Capabilities **off**, and under More Options, CSS Properties **Style
+Elements**.
 
 | Setting | Value | Why |
 |---|---|---|
@@ -646,26 +652,23 @@ bitmap, and neither can stretch with a panel.
 
 ### Export it
 
-*File > Export > Export As...*, format SVG, tick *Use Artboards*, then in the SVG Options
-dialog:
+*File > Save a Copy...*, format SVG, tick *Use Artboards*, then in the SVG Options dialog:
 
 | Setting | Value |
 |---|---|
-| Styling | Internal CSS |
-| Font | SVG |
-| Images | Embed |
-| Object IDs | Layer Names |
-| Decimal | 2 |
-| Minify | off |
-| Responsive | off |
+| Fonts, Type | SVG |
+| Fonts, Subsetting | None (Use System Fonts) |
+| Image Location | Embed |
+| Preserve Illustrator Editing Capabilities | off |
+| CSS Properties (More Options) | Style Elements |
 
-*Object IDs: Layer Names* is the one that matters most. Without it the layers export as
-`Layer_1` and the labels are lost. Do not use *Save As > SVG*: it wraps the drawing in
-Illustrator's own editing data, and the import has to report and strip it.
+Not *Export > Export As*: it leaves every hidden layer out of the file (section 6 above). A
+sticker with no hidden layers would survive it; a quiz would arrive with no moments and nothing
+to say so.
 
-Open the exported file in a text editor once. You should find your layer names as `id`
-attributes. A space is written `_x20_`, so `Accent tab` reads `id="Accent_x20_tab"`, and the
-original spelling sits beside it in `data-name`. The import reads both.
+Open the saved file in a text editor once. You should find your layer names as `id`
+attributes. A space is written `_x20_` or `_`, so `Accent tab` reads `id="Accent_x20_tab"`, and
+the original spelling may sit beside it in `data-name`. The import reads all three.
 
 ### Import it
 

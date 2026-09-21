@@ -25,6 +25,7 @@ interface Props {
   fileError: string | null;
   /** A dropped SVG, parsed + sanitized + inventoried (docs/SVG_IMPORT_PLAN.md). */
   svg: SvgImportResult | null;
+  /** The parsed file, with the file's own name riding on it (`fileName`). */
   onSvg: (svg: SvgImportResult) => void;
   onClearSvg: () => void;
 }
@@ -214,7 +215,7 @@ export default function ImportDesignStep({
     const svgFile = dropped.find(isSvgFile);
     if (svgFile) {
       try {
-        onSvg(importSvgMarkup(await svgFile.text()));
+        onSvg({ ...importSvgMarkup(await svgFile.text()), fileName: svgFile.name });
         setMultiDropNotice(multiDropMessage(dropped, svgFile, 'svg'));
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -317,7 +318,10 @@ export default function ImportDesignStep({
             data-testid="import-svg-export-why"
           >
             <span className="wz-help-strip-mark" aria-hidden="true">?</span>
-            <strong>Need help exporting SVG?</strong>
+            {/* The docs call this "Exporting the SVG" and point at it by name, so it is called
+                that here. Short enough to stay on one line at 1280 wide, where the question it
+                used to be ("Need help exporting SVG?") wrapped to two (row E's walk, 2026-09-21). */}
+            <strong>Exporting the SVG</strong>
             <span className="muted">named layers, live text, one artboard</span>
             <span className="wz-help-strip-chev" aria-hidden="true">{exportHelp ? '▴' : '▾'}</span>
           </button>
@@ -341,9 +345,13 @@ export default function ImportDesignStep({
               <p>Where Export lives:</p>
               <ul>
                 <li>
-                  <strong>Illustrator</strong> &middot; File &gt; Export &gt; Export As&hellip; &gt;
-                  SVG. Font: <strong>SVG</strong>. Images: <strong>Embed</strong>. Object IDs:{' '}
-                  <strong>Layer Names</strong>.
+                  {/* Save a Copy, not Export As: measured on Illustrator 30.1, Export As writes
+                      no hidden layer at all, so every drawn moment is lost on the way in
+                      (docs/backlog/illustrator-export-as-drops-hidden-layers.md). */}
+                  <strong>Illustrator</strong> &middot; File &gt; Save a Copy&hellip; &gt; SVG,
+                  with <strong>Use Artboards</strong> ticked. Fonts: <strong>SVG</strong>,
+                  Subsetting <strong>None</strong>. Images: <strong>Embed</strong>. Not Export As:
+                  it leaves hidden layers out.
                 </li>
                 <li>
                   <strong>Figma</strong> &middot; select the frame, Export &gt; SVG. Include "id"
@@ -487,12 +495,13 @@ export default function ImportDesignStep({
               Stated as a FACT about SVG walks rather than as an event, because the same card is
               on screen for a reader who walked back into a saved SVG draft and never saw six. */}
           <p className="hint" data-testid="import-svg-rail-note">
-            {/* "needs no erasing and no placing" rather than "its text is already placed",
-                because this card also renders for a file whose type was outlined on export -
-                it has no text to have placed, and the line above it says so. Both halves stay
-                true of every SVG. */}
-            Five steps now, not six: an SVG needs no erasing and no placing, so Prepare and Text
-            became the one Fields step.
+            {/* THE OUTCOME, NOT THE MECHANISM (docs/backlog/import-step-copy-a-kid-can-read.md).
+                This used to explain why the step counter changed ("Five steps now, not six: an
+                SVG needs no erasing and no placing, so Prepare and Text became the one Fields
+                step"), which is the wizard reading its own source out loud. A student needs to
+                know what happens next. True of every SVG, including one whose type was outlined
+                on export: the next step still lists what was found. */}
+            Next, tick the text the operator can change. Everything else stays exactly as drawn.
           </p>
           {svg.fonts.length > 0 && (
             <p className="hint" data-testid="import-svg-fonts">

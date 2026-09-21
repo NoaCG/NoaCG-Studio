@@ -4,6 +4,13 @@ Layered SVGs a student can drop into the Import door, and then keep working on i
 One file per KIND of graphic the catalog has, so practising the import road is practising the
 whole road and not one lower third twenty times.
 
+**This is a design gallery, not the teaching set.** The files here show what the importer can
+read and what a finished design looks like, and their layer trees predate the one naming system.
+The files a student copies are `public/docs/examples/`, one per graphic type, each with the three
+layers `Text`, `Moments` and `Board` and the spellings the public docs teach
+(`docs/backlog/one-layer-naming-system-for-every-graphic.md`). Import them, learn from them,
+but copy a layer tree from the docs examples.
+
 Drop one at `/app` → **New graphic** → **Import graphic** → the drop zone. The rules every file
 here obeys are in [`../SVG_AUTHORING.md`](../SVG_AUTHORING.md); this folder is that page with the
 files attached.

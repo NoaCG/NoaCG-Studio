@@ -655,7 +655,10 @@ async function overgrown(page: Page, slug: string): Promise<string[]> {
   // a cap is kept, not how many plates can be told to grow at once.
   const mode = boxGrow(page);
   if (!(await boxGrows(page).count())) return []; // no growth control, so no cap to keep
-  const samples = page.locator('[data-testid^="map-svg-sample-"]');
+  // ONLY THE TICKED ROWS' BOXES. An unticked row (a `static:` label, a one-letter tile) keeps its
+  // words as drawn: its Text box is disabled and hidden, so a fill on it waits for the whole
+  // test budget and dies there (CI run 35657421202, on the Save As quiz's four letter tiles).
+  const samples = page.locator('[data-testid^="map-svg-sample-"]:enabled');
   const n = await samples.count();
   if (n === 0) return []; // nothing to type, so nothing can ask the panel to grow
   await mode.selectOption('grow-xy');
