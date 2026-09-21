@@ -48,5 +48,6 @@ The published twin of the walk, with two hosted control tabs, found two more:
 - **The PROGRAM heading** at a 1280-pixel window. It should be one line, level with PREVIEW's.
 - **Reload the page.** This production is not published, so nothing ever left the laptop, and
   the dashboard correctly says "nothing on air". The figures you moved and typed are all still
-  there. On a published production, air lives on the server and survives the reload. The
-  configured suite now walks that case with two hosted control tabs.
+  there. On a published production, air lives on the server. One gap is still open there: a
+  Reveal pressed from a hosted control tab that was just reloaded did not reach air in testing.
+  Until that is fixed, reveal from a tab you have not reloaded, or from the dashboard.
