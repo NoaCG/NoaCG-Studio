@@ -1352,25 +1352,14 @@ export default function MapSvgFieldsStep({
                   <span data-testid={`map-svg-off-${f.candidateId}`}>
                     {f.whenOff === 'remove' ? 'taken off the artwork' : 'stays as drawn'}
                   </span>
-                  {f.whenOff === 'remove' ? (
-                    <button
-                      type="button"
-                      className="map-svg-off-swap"
-                      onClick={() => patchField(f.candidateId, { whenOff: 'keep' })}
-                      data-testid={`map-svg-off-keep-${f.candidateId}`}
-                    >
-                      keep it as drawn
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="map-svg-off-swap"
-                      onClick={() => patchField(f.candidateId, { whenOff: 'remove' })}
-                      data-testid={`map-svg-off-remove-${f.candidateId}`}
-                    >
-                      take it off the artwork
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="map-svg-off-swap"
+                    onClick={() => patchField(f.candidateId, { whenOff: f.whenOff === 'remove' ? 'keep' : 'remove' })}
+                    data-testid={`map-svg-off-${f.whenOff === 'remove' ? 'keep' : 'remove'}-${f.candidateId}`}
+                  >
+                    {f.whenOff === 'remove' ? 'keep it as drawn' : 'take it off the artwork'}
+                  </button>
                 </span>
               )}
               {/* WHY THIS ROW IS NOT CALLED WHAT THE LAYER IS CALLED. A text layer named after
