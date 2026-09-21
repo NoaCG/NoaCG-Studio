@@ -183,3 +183,51 @@ test('an imported quiz and scoreboard run from one dashboard through every press
 
   expect([...errors, ...coldErrors]).toEqual([]);
 });
+
+test('a burst of commands runs in order even while the entrance waits for its fonts', async ({ page }) => {
+  // THE LATE RENDERER. A renderer that opens after the operator has taken, selected and locked
+  // replays those rows in one burst (src/output/main.ts catch-up). 'play' waits for the fonts
+  // and used to let the two events behind it run first, against a machine that was still off,
+  // so both were dropped and the board came up on the question with no lock. Configured run
+  // 35628443262 found it on the real renderer; this pins the document half offline, with a
+  // font that takes two seconds to answer so the wait is certain rather than a race.
+  await page.route('**/slow-font.woff2', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+    await route.fulfill({ status: 404, body: '' });
+  });
+  await page.goto('/app');
+  await dropSvg(page, QUIZ_SVG);
+  await intoProduction(page, 'Quiz board', 'Burst');
+  const after = await page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { postPreviewCmd } = await import('/src/preview/previewProtocol.ts');
+    const graphic = loadGraphics().find((g) => g.name === 'Quiz board')!;
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:absolute;left:-9999px;width:1920px;height:1080px';
+    document.body.appendChild(frame);
+    await new Promise((resolve) => {
+      frame.onload = resolve;
+      frame.srcdoc = composeDocument(graphic.template, { liveControl: true });
+    });
+    const doc = frame.contentDocument!;
+    const slow = new FontFace('Slow', 'url(/slow-font.woff2)');
+    doc.fonts.add(slow);
+    void slow.load().catch(() => undefined);
+    const win = frame.contentWindow!;
+    postPreviewCmd(win, { cmd: 'update', data: JSON.stringify({ f5: 'C', f6: 'B' }) });
+    postPreviewCmd(win, { cmd: 'play' });
+    postPreviewCmd(win, { cmd: 'dispatch', event: 'select', payload: { f6: 'B' } });
+    postPreviewCmd(win, { cmd: 'dispatch', event: 'lock' });
+    await new Promise((resolve) => setTimeout(resolve, 3_500));
+    const state = (win as unknown as { noacgMachineState(): { groups: Record<string, string> } }).noacgMachineState();
+    return {
+      main: state.groups.main,
+      locked: doc.querySelector('[data-noacg-role~="locked"]')?.getAttribute('class') ?? '',
+      picked: doc.querySelector('[data-noacg-role~="answer.selected/B"]')?.getAttribute('class') ?? '',
+    };
+  });
+  expect(after.main).toBe('locked');
+  expect(after.locked).toContain('imported-design-on');
+  expect(after.picked).toContain('imported-design-on');
+});

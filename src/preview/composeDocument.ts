@@ -278,14 +278,39 @@ window.addEventListener('unhandledrejection', function (ev) {
       cb();
     }
   }
+  /* ONE COMMAND AT A TIME, IN ARRIVAL ORDER. 'play' and 'settle' wait on the fonts and every
+     other command runs at once, so a burst that arrives together - a renderer's boot catch-up
+     replaying update, play, then the operator's Select and Lock - used to run the two events
+     BEFORE the entrance: the machine was still off, both were illegal, and the renderer came up
+     on the question with the lock gone. A command that arrives while one is waiting now waits
+     behind it. */
+  var waiting = false;
+  var backlog = [];
+  function drain() {
+    while (!waiting && backlog.length > 0) run(backlog.shift());
+  }
+  function afterFonts(cb) {
+    waiting = true;
+    waitFonts(function () {
+      /* finally: a callback that throws must never leave every later command stuck behind it. */
+      try { cb(); } finally {
+        waiting = false;
+        drain();
+      }
+    });
+  }
   window.addEventListener('message', function (ev) {
     if (ev.source !== window.parent) return;
     var msg = ev.data;
     if (!msg || msg.type !== ${JSON.stringify(PREVIEW_CMD_TYPE)}) return;
+    backlog.push(msg);
+    drain();
+  });
+  function run(msg) {
     if (msg.cmd === 'update') {
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
-      waitFonts(function () {
+      afterFonts(function () {
         try {
           if (msg.data != null) window.update && window.update(msg.data);
           window.play && window.play();
@@ -293,7 +318,7 @@ window.addEventListener('unhandledrejection', function (ev) {
         report(window);
       });
     } else if (msg.cmd === 'settle') {
-      waitFonts(function () {
+      afterFonts(function () {
         settle(window, msg.data);
         report(window);
       });
@@ -331,7 +356,7 @@ window.addEventListener('unhandledrejection', function (ev) {
         parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s, overflow: over }, '*');
       } catch (e) {}
     }
-  });
+  }
 })();
 </script>`
     : '';
