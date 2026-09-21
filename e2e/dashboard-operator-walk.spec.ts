@@ -83,6 +83,16 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   // ── The scoreboard: take it BESIDE the quiz, +1 twice, -1 once, then a typed name. ──
   await selectCue(page, 'Team score');
   await page.getByTestId('verb-take').click();
+  // The score tracker runs several state groups at once, and its chip reads the author's state
+  // NAMES only - never the machine's group ids ("main: On air · flag: No flag · result: Live").
+  await expect(chip).toHaveText(/ · /);
+  await expect(chip).not.toContainText(':');
+  // Both bands of the cue editor are headed by their team, however the designer ordered the
+  // fields: the away band's first field is its score, and it used to read "Side B".
+  await expect(page.getByTestId('cue-band-label-side-A')).toBeVisible();
+  for (const side of ['A', 'B']) {
+    await expect(page.getByTestId(`cue-band-label-side-${side}`)).not.toHaveText(/^Side /);
+  }
   await expect(page.getByTestId('live-cue-chip')).toContainText('Quiz board');
   await expect(page.getByTestId('live-cue-chip')).toContainText('Team score');
   const live = page.getByTestId('live-numbers');
@@ -131,6 +141,15 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await page.getByRole('button', { name: /Reveal correct/ }).click();
   await expect(chip).toHaveText(/Reveal/);
+  // Only Out is left on the quiz's path, so » Next greys and its title says why - it used to
+  // stay live, do nothing on air, and still log "Next step".
+  await expect(page.getByTestId('verb-next')).toBeDisabled();
+  await expect(page.getByTestId('verb-next')).toHaveAttribute('title', /last step/);
+  // ✎ Update is data only, so new words typed over a reveal would air under the old verdict.
+  // The note names the state Update keeps and points at Re-take.
+  await page.getByTestId('cue-field-f0').fill('Which planet is the largest?');
+  await expect(page.getByTestId('cue-unsent')).toContainText('Update keeps Reveal on air');
+  await expect(page.getByTestId('verb-update')).toHaveAttribute('title', 'Sends the values. Stays on Reveal.');
 
   // ── NEXT QUESTION: a copy of the quiz cue, a new key, taken over the revealed one. ──
   await page.getByTestId('cue-menu').first().click();

@@ -499,8 +499,12 @@ export function machineStateNames(js: string): Record<string, Record<string, str
  * "sealed", "main:enter · clock:running" - from two hand-rolled copies of this map. Ids are
  * the author's vocabulary; an operator has seen only the names.
  *
- * One group prints its state alone; several prefix the GROUP id, because with a clock and a
- * flag and a walk running at once the name by itself does not say which of them moved.
+ * Several groups print their NAMES in the machine's own order, joined by a dot, and never the
+ * group ids. The ids were printed as prefixes once ("main: On air · flag: No flag · result:
+ * Live") so an operator could tell which group moved, but an id is the same author vocabulary
+ * this function exists to hide: the demo walk of 2026-09-21 read the score tracker's chip as
+ * machine words beside the quiz's plain "Reveal". A state name already says what it is about
+ * ("No flag", "Final", "Clock running"), so the names carry the line on their own.
  */
 export function formatMachineState(
   names: Record<string, Record<string, string>>,
@@ -514,12 +518,7 @@ export function formatMachineState(
   if (!state || !state.groups) return null;
   const entries = Object.entries(state.groups);
   if (entries.length === 0) return null;
-  return entries
-    .map(([groupId, stateId]) => {
-      const name = names[groupId]?.[stateId] ?? stateId;
-      return entries.length > 1 ? `${groupId}: ${name}` : name;
-    })
-    .join(' · ');
+  return entries.map(([groupId, stateId]) => names[groupId]?.[stateId] ?? stateId).join(' · ');
 }
 
 /**
@@ -606,6 +605,77 @@ export function isEventLegal(
   const perGroup = legality[event];
   if (!perGroup) return false;
   return Object.entries(perGroup).some(([groupId, froms]) => froms.includes(groups[groupId]));
+}
+
+/**
+ * The names of every state the live graphic has MOVED INTO since its entrance: the main group
+ * anywhere but its first waypoint, and any parallel group anywhere but its initial state. Empty
+ * while the graphic still stands where a Take leaves it, and empty for one that has not reported.
+ *
+ * WHY: ✎ Update sends values and never moves a state - fixing a team name must not undo a
+ * scoreboard's Final - so after a quiz's reveal, typing the next question and pressing Update
+ * aired the new words under the old verdict (the demo walk of 2026-09-21). Update stays data
+ * only; what changed is that the surface now says which states Update will keep, in the
+ * author's names, so the operator can pick ⟳ Re-take instead. Type-agnostic by construction: it
+ * reads the machine, never the kind of graphic.
+ */
+export function movedStateNames(
+  js: string,
+  names: Record<string, Record<string, string>>,
+  state: { groups?: Record<string, string> } | null | undefined,
+): string[] {
+  if (!state || !state.groups) return [];
+  const data = parseAnimData(js);
+  if (!data) return [];
+  const machine = deriveMachine(data);
+  const moved: string[] = [];
+  machine.groups.forEach((group, index) => {
+    const cur = state.groups?.[group.id];
+    if (cur === undefined) return;
+    const rest = index === 0 ? (group.defaultPath ?? [])[0] ?? group.initial : group.initial;
+    // The main group OFF air is not a move either: nothing is up for Update to keep.
+    if (cur === rest || (index === 0 && cur === group.initial)) return;
+    moved.push(names[group.id]?.[cur] ?? cur);
+  });
+  return moved;
+}
+
+/**
+ * Would a NEXT press (SPX Continue) move the graphic RIGHT NOW? The same question
+ * `isEventLegal` answers for a named event, asked of the one verb that has no event name.
+ *
+ * It mirrors the runtime's own walk (`noacgProcessNext`, templates/shared/animRuntime.ts), on
+ * the machine the graphic answers to - the authored one, or the one derived from its steps:
+ *
+ *   on the default path, Next enters the following waypoint - except the EXIT, which it enters
+ *   only along an arrow the author drew (the classic contract: Next never takes a graphic off
+ *   air, Out does);
+ *   off the path (a branch such as a quiz's `locked`), Next fires only an authored `next` arrow;
+ *   off air, Next does nothing - Take is how a graphic enters.
+ *
+ * WHY THE DASHBOARD ASKS: a quiz on its Reveal has only Out left on its path, so Next did
+ * nothing while the log still wrote "Next step" - an operator reads that as a broken button
+ * (the demo walk of 2026-09-21). Greying it, with the reason in the title, says the true thing.
+ * `state` null (nothing reported yet) reads as legal, exactly as `isEventLegal` does.
+ */
+export function canAdvance(js: string, state: { groups?: Record<string, string> } | null | undefined): boolean {
+  if (!state || !state.groups) return true;
+  const data = parseAnimData(js);
+  if (!data) return true;
+  const main = deriveMachine(data).groups[0];
+  if (!main) return true;
+  const cur = state.groups[main.id];
+  if (cur === undefined) return true;
+  const path = main.defaultPath ?? [];
+  const at = path.indexOf(cur);
+  const operator = (t: { trigger: string; from: string }) => t.trigger === 'operator' && t.from === cur;
+  if (at < 0) {
+    if (cur === main.initial) return false;
+    return main.transitions.some((t) => operator(t) && t.event === 'next');
+  }
+  if (at + 1 >= path.length) return false;
+  if (at + 1 < path.length - 1) return true;
+  return main.transitions.some((t) => operator(t) && t.to === path[at + 1]);
 }
 
 // ── The control ⇄ graphic message protocol ──────────────────────────────────

@@ -651,12 +651,11 @@ GRAPHICS.forEach(function (g) {
       // The author's NAMES, not the runtime's ids — the same line the app's chip shows.
       // g.stateNames is baked in at export (controlModel.ts machineStateNames); an id it does
       // not know falls back to itself, which is what a hand-edited machine gets.
+      // Names only, never the group ids, however many groups run (see formatMachineState).
       var parts = [];
-      var many = Object.keys(machineState.groups).length > 1;
       for (var gid in machineState.groups) {
         var sid = machineState.groups[gid];
-        var named = (g.stateNames && g.stateNames[gid] && g.stateNames[gid][sid]) || sid;
-        parts.push((many ? gid + ': ' : '') + named);
+        parts.push((g.stateNames && g.stateNames[gid] && g.stateNames[gid][sid]) || sid);
       }
       chip.textContent = parts.join(' · ');
       chip.style.display = 'inline-block';
