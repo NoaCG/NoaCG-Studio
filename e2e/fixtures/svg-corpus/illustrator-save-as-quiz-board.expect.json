@@ -13,14 +13,14 @@
     "a picture embedded as <image style=\"overflow:visible;\"> with a base64 data URI, positioned and scaled by transform alone, closed with an explicit </image>",
     "a multi-line question as one <text> with a <tspan> per line",
     "a hand-kerned answer written as two <tspan> runs on one baseline, with the class on the RUNS and nothing on the <text>",
-    "_x20_ escapes with data-name on every named layer, and four letter tiles with no id at all"
+    "_x20_ escapes with data-name on every named layer, and four letter tiles with no id at all - one letter each, so they arrive unticked and after the fields (docs/backlog/one-layer-naming-system-for-every-graphic.md)"
   ],
   "expect": {
     "accepted": true,
     "width": 1920,
     "height": 1080,
-    "textFields": 9,
-    "textLabels": ["Letters", "Letters 2", "Letters 3", "Letters 4", "Question", "Answer A", "Answer B", "Answer C", "Answer D"],
+    "textFields": 5,
+    "textLabels": ["Question", "Answer A", "Answer B", "Answer C", "Answer D", "Letters", "Letters 2", "Letters 3", "Letters 4"],
     "imageFields": 1,
     "outlineRows": 0,
     "noticeAbout": [],

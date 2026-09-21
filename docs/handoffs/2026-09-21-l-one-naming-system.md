@@ -68,6 +68,18 @@ plates headed "Black plate 1" to "Black plate 4" beside a file that names them `
 `Row D`: a box name needed a four-letter word to count as readable (`stageMeasure.ts`,
 `isReadableBoxName`), fixed at three (`9d41bd6a`) and the docs pictures re-shot after it.
 
+## The first landing attempt, and what it found
+
+CI on `138fc893` (run 35657421202) failed one test in shard 3/9:
+`import-svg-corpus.spec.ts` "every file arrives on the too-long answer", on
+`illustrator-save-as-quiz-board`. Its cap column typed a long value into EVERY sample box, and
+the four one-letter tiles now arrive unticked, so their boxes are disabled and hidden and the
+fill waited out the 360 s budget. The column now fills the enabled boxes only, and the case's
+sidecar states five ticked fields with the letters listed last. 120 of 121 tests in that shard
+passed; the other eight shards and every other gate were green. The case re-run through the
+queue passed (j-1675, 2.6 min). No product code changed after the green build at `9c41b025`;
+the spec, the sidecar and this file were linted and passed the copy gate.
+
 ## What is left, and why
 
 - **Item 7 from row E's list** (two "+ New graphic" titles differing by a dash in
