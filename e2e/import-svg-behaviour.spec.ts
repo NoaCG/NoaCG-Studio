@@ -2455,3 +2455,134 @@ test('the docs example scoreboard imports as a score tracker, +1 raises the draw
 
   expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
 });
+
+// A LONG QUIZ QUESTION WRAPS INSIDE THE BAND THE STUDENT DREW IT IN, and shrinks only when the
+// wrapped block still does not fit (docs/TEXT_BOX_BINDING.md, rule 1: grow the box before you
+// shrink the type - and a quiz box does not grow, so the room already drawn is the room).
+//
+// Both docs examples draw the question in the part of the board ABOVE the answer rows. The rows
+// are plates inside the same box, and the ladder used to read the question as composed against
+// the top of the whole board with the rows closing it off below - no room of its own at all - so
+// a question twice the drawn length went straight to one line at the 55% floor. The space the
+// question owns is the band between the board's top furniture and the first row plate.
+const DOCS_QUIZ_LT = fileURLToPath(new URL('../public/docs/examples/quiz-lower-third.svg', import.meta.url));
+
+/** The question on air: its box in design px, its size, and how many lines it was painted on. */
+async function questionOnAir(air: FrameLocator, selector: string) {
+  const box = await boxOnAir(air, selector);
+  const lines = await air.locator(`${selector} tspan[data-noacg-line]`).count();
+  return { ...box, size: parseFloat(box.font), lines: Math.max(1, lines) };
+}
+
+/** Into a production and on air, the question field found by the value the designer drew. */
+async function quizOnAir(page: Page, fixture: string, graphic: string, production: string, drawn: string) {
+  await openImportDoor(page, fixture);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await intoProduction(page, graphic, production);
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const fields = page.locator('input[data-testid^="cue-field-f"], textarea[data-testid^="cue-field-f"]');
+  let field = '';
+  for (let i = 0; i < (await fields.count()); i++) {
+    if ((await fields.nth(i).inputValue()) === drawn) field = (await fields.nth(i).getAttribute('data-testid')) ?? '';
+  }
+  expect(field, 'the question is an operator field').not.toBe('');
+  const id = `#${field.replace('cue-field-', '')}`;
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator(id)).toHaveText(drawn);
+  const ask = async (value: string, tail: string) => {
+    await page.getByTestId(field).fill(value);
+    await page.getByTestId('verb-update').click();
+    await expect(air.locator(id)).toContainText(tail);
+    // The ladder settles on the update and may settle again when the face has loaded, so the
+    // answer is read once two samples a beat apart agree on the lines and the size.
+    let last = '';
+    await expect
+      .poll(async () => {
+        const now = await questionOnAir(air, id);
+        const key = `${now.lines}@${now.size}`;
+        const settled = key === last;
+        last = key;
+        return settled;
+      }, { intervals: [250] })
+      .toBe(true);
+    const q = await questionOnAir(air, id);
+    // A frame of the program stage per length, for a human to look at (NOACG_SHOTS, above).
+    if (SHOTS) {
+      await page
+        .getByTestId('program-stage')
+        .screenshot({ path: `${SHOTS}/${nodePath.basename(fixture, '.svg')}-${value.length}.png` });
+    }
+    return q;
+  };
+  return { air, id, ask };
+}
+
+test('a long question on the docs example quiz wraps at its drawn size in the band above the rows', async ({ page }) => {
+  test.slow(); // the import, a production, a take and three updates
+  const errors = consoleErrors(page);
+  const { air, id, ask } = await quizOnAir(page, DOCS_QUIZ, 'Docs quiz wraps', 'Docs Wrap Night', 'Which planet is closest to the Sun?');
+  const drawn = await questionOnAir(air, id);
+  expect(drawn.size).toBe(50);
+  expect(drawn.lines).toBe(1);
+  // The band the question owns: under the board's amber rule, over the first row plate.
+  const band: Rect = { left: 360, top: 148, right: 1560, bottom: 380 };
+
+  // TWICE THE DRAWN LENGTH: two lines at the drawn 50px, never one line at the floor.
+  const twice = await ask('Which planet in our solar system is closest to the Sun, and how long is its year?', 'its year?');
+  expect(twice.lines).toBe(2);
+  expect(twice.size).toBe(50);
+  expectInside(twice, band);
+  // Still centred in the band, the way it was drawn, rather than sliding down onto the rows.
+  expect(Math.abs((twice.top + twice.bottom) / 2 - (band.top + band.bottom) / 2)).toBeLessThan(12);
+  expect(await overflowOnAir(air)).toEqual([]);
+
+  // THREE TIMES: a third line, and only then a little smaller - never past the 55% floor.
+  const thrice = await ask(
+    'Which planet in our solar system is closest to the Sun, how long does its year last in Earth days, and what is its surface made of?',
+    'made of?',
+  );
+  expect(thrice.lines).toBe(3);
+  expect(thrice.size).toBeGreaterThan(50 * 0.55);
+  expectInside(thrice, band);
+  expect(await overflowOnAir(air)).toEqual([]);
+
+  // A short question goes back to one line at the drawn size.
+  const short = await ask('Which planet is red?', 'is red?');
+  expect(short.lines).toBe(1);
+  expect(short.size).toBe(50);
+  expectInside(short, band);
+
+  expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
+});
+
+test('a long question on the docs example LOWER-THIRD quiz wraps above its answer rows rather than shrinking onto one line', async ({ page }) => {
+  test.slow(); // the import, a production, a take and two updates
+  const errors = consoleErrors(page);
+  const { air, id, ask } = await quizOnAir(page, DOCS_QUIZ_LT, 'Docs lower quiz wraps', 'Docs Lower Wrap', 'Which planet is closest to the Sun?');
+  const drawn = await questionOnAir(air, id);
+  expect(drawn.size).toBe(40);
+  // Under the board's amber rule, over the first row of answer plates.
+  const band: Rect = { left: 160, top: 776, right: 1760, bottom: 866 };
+  expectInside(drawn, band);
+
+  // TWICE THE DRAWN LENGTH still fits one line of this wide board at the drawn size.
+  const twice = await ask('Which planet in our solar system is closest to the Sun, and how long is its year?', 'its year?');
+  expect(twice.lines).toBe(1);
+  expect(twice.size).toBe(40);
+  expectInside(twice, band);
+
+  // FOUR TIMES. One line would need about 60% of the drawn size; two lines fit the band at a
+  // larger size than that, so the ladder wraps rather than shrinking the question onto one line.
+  const long = await ask(
+    'Which planet in our solar system is closest to the Sun, how long does its year last in Earth days, and what is its surface made of?',
+    'made of?',
+  );
+  expect(long.lines).toBe(2);
+  expect(long.size).toBeGreaterThan(40 * 0.6);
+  expectInside(long, band);
+  expect(await overflowOnAir(air)).toEqual([]);
+
+  expect(errors, 'nothing logged as an error on the whole walk').toEqual([]);
+});

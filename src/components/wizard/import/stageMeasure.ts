@@ -542,6 +542,53 @@ export function nudgeWords(nudge: { x: number; y: number }): string {
   return parts.join(', ');
 }
 
+/**
+ * THE BAND OF ITS BOX A LINE OWNS, top to bottom in the line's own frame - the mirror of the
+ * runtime's `svgOwnBand`, so the grid's "read from your drawing" answer is the one the template
+ * acts on. The box is trimmed to the nearest SHAPE drawn inside it under the line and the nearest
+ * over it; a text never trims it, because text under text is a stack whose gap is the leading. A
+ * quiz question over its answer rows is centred in the band above them, not at the top of the
+ * board.
+ */
+function ownBandOf(
+  textEl: SVGGraphicsElement,
+  boxEl: SVGGraphicsElement,
+  own: DOMRect,
+  box: { x: number; y: number; width: number; height: number },
+  centred: boolean,
+): { top: number; bottom: number } {
+  const band = { top: box.y, bottom: box.y + box.height };
+  const root = boxEl.ownerSVGElement;
+  const toText = textEl.getScreenCTM();
+  if (!root || !toText) return band;
+  const panel = boxEl.getBoundingClientRect();
+  // Sideways, what the line may fill: its whole box when centred, else where it was drawn.
+  const from = centred ? box.x : own.x;
+  const to = centred ? box.x + box.width : own.x + own.width;
+  let above: { edge: number; text: boolean } | null = null;
+  let below: { edge: number; text: boolean } | null = null;
+  for (const o of root.querySelectorAll<SVGGraphicsElement>('text, tspan, image, rect, path, polygon, ellipse, circle')) {
+    if (o === textEl || o === boxEl || o.contains(textEl) || textEl.contains(o)) continue;
+    const r = o.getBoundingClientRect();
+    if (!(r.width > 0) || !(r.height > 0)) continue;
+    if (r.width * r.height >= panel.width * panel.height) continue; // that IS the panel
+    if (r.left < panel.left - 1 || r.right > panel.right + 1 || r.top < panel.top - 1 || r.bottom > panel.bottom + 1) continue;
+    const ctm = o.getScreenCTM();
+    if (!ctm || !o.getBBox) continue;
+    const at = transformedBox(o.getBBox(), toText.inverse().multiply(ctm));
+    if (at.x + at.width < from + 1 || at.x > to - 1) continue;
+    const text = /^(text|tspan)$/i.test(o.tagName);
+    if (at.y >= own.y + own.height - 1) {
+      if (!below || at.y < below.edge) below = { edge: at.y, text };
+    } else if (at.y + at.height <= own.y + 1) {
+      if (!above || at.y + at.height > above.edge) above = { edge: at.y + at.height, text };
+    }
+  }
+  if (below && !below.text && below.edge < band.bottom) band.bottom = below.edge;
+  if (above && !above.text && above.edge > band.top) band.top = above.edge;
+  return band;
+}
+
 export function boxFitOf(
   stage: HTMLElement,
   textId: string,
@@ -563,13 +610,16 @@ export function boxFitOf(
   const cx = own.x + own.width / 2;
   const cy = own.y + own.height / 2;
   const boxCx = box.x + box.width / 2;
-  const boxCy = box.y + box.height / 2;
   const placed = Math.abs(cx - boxCx) <= box.width * SVG_ALIGN_TOL ? 'centred' : cx < boxCx ? 'left' : 'right';
+  // The vertical half is read in the band the line owns, exactly as the runtime reads it.
+  const band = ownBandOf(textEl, boxEl, own, box, placed === 'centred');
+  const bandH = band.bottom - band.top;
+  const boxCy = band.top + bandH / 2;
   const stated = textEl.getAttribute('text-anchor');
   const align = {
     h: (stated === 'middle' || stated === 'end' || stated === 'start' ? SVG_ALIGN_WORD[stated] : placed) as
       'left' | 'centred' | 'right',
-    v: (Math.abs(cy - boxCy) <= box.height * SVG_ALIGN_TOL ? 'middle' : cy < boxCy ? 'top' : 'bottom') as
+    v: (Math.abs(cy - boxCy) <= bandH * SVG_ALIGN_TOL ? 'middle' : cy < boxCy ? 'top' : 'bottom') as
       'top' | 'middle' | 'bottom',
   };
   // Half the drawn type, in the artwork's own units. `font-size` inside an SVG computes in user
@@ -587,8 +637,8 @@ export function boxFitOf(
     box,
     insetX: keep(own.x - box.x, box.x + box.width - (own.x + own.width), align.h === 'centred' ? type * 0.5 : null),
     insetY: keep(
-      own.y - box.y,
-      box.y + box.height - (own.y + own.height),
+      own.y - band.top,
+      band.bottom - (own.y + own.height),
       align.v === 'top' ? null : (type * SVG_LINE_HEIGHT) / 2,
     ),
     drawn: align,
