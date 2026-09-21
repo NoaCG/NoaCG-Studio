@@ -184,8 +184,8 @@
               <li>Choose how the graphic comes on and goes off in <strong>Animation</strong>.</li>
               <li id="first-finish">In <strong>Finish</strong>, name the graphic and choose
                 <strong>Add to the production</strong> or <strong>Export it</strong>. Both save it to
-                your library. <strong>Create project</strong> opens the code editor instead, and it
-                does not save.</li>
+                your library. <strong>Skip to finish</strong>, shown from the drop step on, brings
+                you here and leaves the steps in between as they are.</li>
             </ol>
             <figure class="doc-shot">
               <img src="/docs/svg-drop.png" width="1560" height="1290" loading="lazy"
@@ -219,8 +219,10 @@
             <h3>Prepare the SVG file</h3>
             <ul id="svg-rules">
               <li><strong>Give it a size.</strong> Use a 1920&times;1080 artboard with a transparent
-                background. A smaller artboard imports as a floating object that you place in the
-                wizard.</li>
+                background and draw the graphic where it sits on screen, so a lower third goes at
+                the bottom of that artboard. In Illustrator tick <strong>Use Artboards</strong> when
+                you save the SVG, or the file is cut down to the drawing. A smaller artboard imports
+                as a floating object that you place in the wizard.</li>
               <li><strong>Keep text as text.</strong> Do not convert text to outlines, because
                 outlined text cannot be edited.</li>
               <li><strong>Name your layers.</strong> The name is the label the operator sees. For
@@ -235,7 +237,7 @@
             <h4 id="svg-export">Export settings</h4>
             <div class="doc-table"><table>
               <tr><th>App</th><th>Settings</th></tr>
-              <tr><td><strong>Illustrator</strong></td><td><em>File &rarr; Export &rarr; Export As&hellip; &rarr; SVG</em>, not Save As. Font: <strong>SVG</strong> &middot; Images: <strong>Embed</strong> &middot; Object IDs: <strong>Layer Names</strong> &middot; Minify: off.</td></tr>
+              <tr><td><strong>Illustrator</strong></td><td><em>File &rarr; Save a Copy&hellip; &rarr; SVG</em>, with <strong>Use Artboards</strong> ticked. In SVG Options: Fonts Type <strong>SVG</strong>, Subsetting <strong>None (Use System Fonts)</strong> &middot; Image Location <strong>Embed</strong> &middot; <strong>Preserve Illustrator Editing Capabilities</strong> off &middot; under More Options, CSS Properties <strong>Style Elements</strong>. Do not use <em>Export &rarr; Export As</em> for a graphic with hidden layers: Illustrator 2026 leaves every hidden layer out of that file.</td></tr>
               <tr><td><strong>Figma</strong></td><td>Select the frame, <em>Export &rarr; SVG</em>. <strong>Include "id" attribute</strong> on, <strong>Outline text</strong> off.</td></tr>
               <tr><td><strong>Inkscape</strong></td><td><em>Save As&hellip; &rarr; Plain SVG</em>. Do not run <em>Object to Path</em> on text. Click to place text instead of dragging a text box: a dragged box exports as <code>&lt;flowRoot&gt;</code>, which browsers do not show.</td></tr>
             </table></div>
@@ -253,8 +255,11 @@
             <h3>Layer names</h3>
             <h4>How the wizard finds the layers</h4>
             <ul>
-              <li>It reads the layer names you typed in your design app. Capital letters do not
-                matter.</li>
+              <li>It reads the names in your design app's Layers panel. In Illustrator, name each
+                text object (double-click its row), or put it alone in a layer with the name: a
+                text inside a layer called <code>Question</code> is Question. Four unnamed texts
+                inside a layer called <code>Answers</code> are all Answers, and no type is found.
+                Capital letters do not matter.</li>
               <li>A repeating part is a word and a row: <code>Answer A</code>, <code>Bar 1</code>.
                 The row is one letter or one number, after a space. <code>Bar1</code> has no row and
                 is not found.</li>
@@ -264,11 +269,25 @@
                 second one becomes <code>Bar 2</code>.</li>
               <li>A layer that shows only at one moment, such as <code>A correct</code>, is a
                 <strong>group</strong> that you hide in your design app. A hidden shape on its own is
-                not found, so put it in a group, even a group of one.</li>
+                not found, so put it in a group, even a group of one. Text inside a hidden group is
+                drawing, not a field. In Illustrator, save the file with <em>Save a Copy</em> as
+                above, because <em>Export As</em> leaves hidden layers out.</li>
               <li>When the names fit a type, the wizard picks that type in
                 <strong>What it does</strong> and fills in every layer. When a name does not fit,
                 pick that layer from the list yourself.</li>
             </ul>
+            <p id="svg-layers-files">
+              Download a file with exactly these layers and open it in Illustrator to see them in
+              the Layers panel, hidden groups included:
+              <a href="/docs/examples/quiz.svg" download>quiz.svg</a>,
+              <a href="/docs/examples/quiz-lower-third.svg" download>quiz-lower-third.svg</a>,
+              <a href="/docs/examples/scoreboard.svg" download>scoreboard.svg</a>,
+              <a href="/docs/examples/scoreboard-lower-third.svg" download>scoreboard-lower-third.svg</a>,
+              <a href="/docs/examples/live-vote.svg" download>live-vote.svg</a>,
+              <a href="/docs/examples/countdown.svg" download>countdown.svg</a>,
+              <a href="/docs/examples/end-credits.svg" download>end-credits.svg</a> and
+              <a href="/docs/examples/ticker.svg" download>ticker.svg</a>.
+            </p>
 
             <h4>Names for any graphic</h4>
             <ul>
@@ -299,6 +318,15 @@
               <figcaption>
                 <strong>The example file.</strong>
                 <a href="/docs/examples/scoreboard.svg" download>Download scoreboard.svg</a>
+              </figcaption>
+            </figure>
+            <figure class="doc-shot">
+              <img src="/docs/type-scoreboard-lower-third.png" width="1560" height="300" loading="lazy"
+                alt="The same scoreboard as a lower third: OTAVA 2, KARHUT 1 on a short dark bar at the bottom of the frame." />
+              <figcaption>
+                <strong>The same names as a lower third.</strong> Drawn in Illustrator and saved with
+                the settings above.
+                <a href="/docs/examples/scoreboard-lower-third.svg" download>Download scoreboard-lower-third.svg</a>
               </figcaption>
             </figure>
             <div class="doc-example">
@@ -363,6 +391,15 @@
               <figcaption>
                 <strong>The example file.</strong>
                 <a href="/docs/examples/quiz.svg" download>Download quiz.svg</a>
+              </figcaption>
+            </figure>
+            <figure class="doc-shot">
+              <img src="/docs/type-quiz-lower-third.png" width="1560" height="240" loading="lazy"
+                alt="The same quiz as a lower third: the question over two rows of two answers on a dark bar at the bottom of the frame." />
+              <figcaption>
+                <strong>The same names as a lower third.</strong> Drawn in Illustrator and saved with
+                the settings above.
+                <a href="/docs/examples/quiz-lower-third.svg" download>Download quiz-lower-third.svg</a>
               </figcaption>
             </figure>
             <div class="doc-example">

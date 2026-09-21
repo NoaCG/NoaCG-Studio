@@ -75,6 +75,13 @@ test('the graphics topic has one page per type, each with its file, layers and n
     await expect(type.locator('.layers')).toHaveCount(1);
     for (const name of names) await expect(type).toContainText(name);
   }
+  // The lower-third versions of the two demo graphics, drawn in Illustrator with the same names:
+  // linked from their type page and from the Layer names page, and really served.
+  for (const [id, file] of [['scoreboards', 'scoreboard-lower-third.svg'], ['quiz', 'quiz-lower-third.svg']]) {
+    await expect(graphics.locator(`section[id="${id}"] a[href="/docs/examples/${file}"]`)).toHaveCount(1);
+    await expect(page.locator(`#svg-layers-files a[href="/docs/examples/${file}"]`)).toHaveCount(1);
+    expect((await page.request.get(`/docs/examples/${file}`)).status()).toBe(200);
+  }
   // The operator's buttons are named, or a type page is decoration.
   await expect(graphics).toContainText('Lock it in');
   await expect(graphics).toContainText('Reveal correct');
@@ -91,6 +98,23 @@ test('the graphics topic has one page per type, each with its file, layers and n
   await expect(graphics).toContainText('Keep text as text');
   await expect(graphics).toContainText('Illustrator');
   await expect(page.locator('#svg-layers')).toContainText('A hidden shape on its own is');
+  // Measured on Illustrator 30.1 (2026-09-21): Export As writes no hidden layer at all, and the
+  // legacy Save a Copy > SVG keeps them as a display:none class. The guide has to say which.
+  await expect(page.locator('#svg')).toContainText('Save a Copy');
+  await expect(page.locator('#svg')).toContainText('Use Artboards');
+  await expect(page.locator('#svg-layers')).toContainText('Export As');
+});
+
+// A same-origin link with `download` saves the file even though the server says
+// `Content-Disposition: inline` (noacg.studio does, measured 2026-09-21): the attribute decides.
+// A reader who is told to download a file and gets a page of SVG markup instead is stuck.
+test('an example link downloads the file rather than opening it', async ({ page }) => {
+  await page.goto('/docs');
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('#svg-layers-files a[href="/docs/examples/quiz-lower-third.svg"]').click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('quiz-lower-third.svg');
 });
 
 test('the four guides carry their load-bearing content', async ({ page }) => {
@@ -190,8 +214,10 @@ test('the import walk keeps its steps, its two surprises and its handoffs', asyn
   await expect(walk).toContainText('Update');
   await expect(walk).toContainText('Add to the production');
   await expect(walk).toContainText('Export it');
-  // Create project hands the graphic to the editor WITHOUT saving (CreationWizard.tsx).
-  await expect(walk).toContainText('it does not save');
+  // The default studio's shortcut past the remaining steps (CreationWizard.tsx `wz-skip`); the
+  // old "Create project" door is Advanced mode only and the walk does not mention it.
+  await expect(walk).toContainText('Skip to finish');
+  await expect(walk).not.toContainText('Create project');
   for (const href of ['#dashboard', '/app#/new']) {
     await expect(walk.locator(`a[href="${href}"]`).first()).toBeAttached();
   }
@@ -316,8 +342,9 @@ test('the worked example carries one show a reader can copy exactly', async ({ p
 test('every docs screenshot loads at the size the page reserved for it', async ({ page }) => {
   await page.goto('/docs');
   await expect(page.locator('#first-graphic .doc-shot img')).toHaveCount(2);
-  // Two per type: the example as it renders, and the Fields step after the drop.
-  await expect(page.locator('#graphics .doc-type .doc-shot img')).toHaveCount(12);
+  // Two per type: the example as it renders, and the Fields step after the drop. Plus the two
+  // lower-third versions (scoreboard, quiz), which carry a rendered picture only.
+  await expect(page.locator('#graphics .doc-type .doc-shot img')).toHaveCount(14);
   await expect(page.locator('#data-example .doc-shot img')).toHaveCount(7);
   const shots = page.locator('.doc-shot img');
   const count = await shots.count();

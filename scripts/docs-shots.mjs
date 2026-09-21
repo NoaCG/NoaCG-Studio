@@ -325,20 +325,32 @@ await shot('svg-fields', async (page) => {
 // is a broken promise, and a PNG cannot say so on its own.
 const example = (name) => join(projectRoot, 'public', 'docs', 'examples', name);
 
+/**
+ * One entry per example file. `behaviour` is what the wizard must pick after the drop, and the
+ * run fails when it picks anything else. `fieldsShot: false` keeps that check but publishes no
+ * Fields-step picture: the lower-third files are the full-frame ones drawn again in Illustrator
+ * with the same names, so a second Fields picture would show the same panel twice.
+ */
 const TYPE_EXAMPLES = [
   { id: 'scoreboard', crop: [60, 40, 680, 130], behaviour: 'score' },
+  { id: 'scoreboard-lower-third', crop: [150, 880, 780, 150], behaviour: 'score', fieldsShot: false },
   { id: 'quiz', crop: [340, 120, 1240, 840], behaviour: 'quiz' },
+  { id: 'quiz-lower-third', crop: [-15, 745, 1950, 300], behaviour: 'quiz', fieldsShot: false },
   { id: 'live-vote', crop: [340, 120, 1240, 840], behaviour: 'poll' },
   { id: 'countdown', crop: [520, 270, 880, 540], behaviour: 'timer' },
   { id: 'end-credits', crop: [520, 90, 880, 900], behaviour: null },
   { id: 'ticker', crop: [0, 930, 1100, 140], behaviour: null },
 ];
 
-/** The families the examples use, mapped to the woff2 files the app ships in public/fonts. */
+/** The families the examples use, mapped to the woff2 files the app ships in public/fonts.
+ *  The Illustrator-saved files name a FACE the PostScript way ('Archivo-Bold'), which the app
+ *  resolves to the family at that weight; here the face name gets its own @font-face at that
+ *  weight so the picture shows the same thing. */
 const EXAMPLE_FONTS = {
   Archivo: 'archivo', Inter: 'inter', 'JetBrains Mono': 'jetbrains-mono', Sora: 'sora',
   'Space Grotesk': 'space-grotesk', 'Playfair Display': 'playfair-display',
   'Source Serif 4': 'source-serif-4', 'Libre Franklin': 'libre-franklin',
+  'Archivo-Bold': ['archivo', 700], 'Inter-Regular': ['inter', 400],
 };
 
 for (const type of TYPE_EXAMPLES) {
@@ -350,7 +362,10 @@ for (const type of TYPE_EXAMPLES) {
       .replace(/viewBox="[^"]*"/, `viewBox="${x} ${y} ${w} ${h}"`)
       .replace(/ width="1920" height="1080"/, ' width="100%"');
     const faces = Object.entries(EXAMPLE_FONTS)
-      .map(([family, file]) => `@font-face{font-family:"${family}";src:url("${base}/fonts/${file}.woff2") format("woff2");font-weight:100 900;}`)
+      .map(([family, spec]) => {
+        const [file, weight] = Array.isArray(spec) ? spec : [spec, '100 900'];
+        return `@font-face{font-family:"${family}";src:url("${base}/fonts/${file}.woff2") format("woff2");font-weight:${weight};}`;
+      })
       .join('');
     // A mid slate rather than the docs' own near-black, so a dark panel drawn on a transparent
     // artboard still reads as a panel against it.
@@ -362,7 +377,8 @@ for (const type of TYPE_EXAMPLES) {
     return page.locator('#frame');
   }, VIEWPORT, 2);
 
-  await shot(`type-${type.id}-fields`, async (page) => {
+  /** Drop the example and read what the wizard picked; the run fails on the wrong type. */
+  const dropAndCheck = async (page) => {
     await openImportDoor(page);
     await dropSample(page, example(`${type.id}.svg`));
     const kind = page.getByTestId('map-svg-behaviour-kind');
@@ -371,6 +387,26 @@ for (const type of TYPE_EXAMPLES) {
       throw new Error(`the wizard picked "${picked}" for ${type.id}.svg, the guide promises "${type.behaviour}"`);
     }
     console.log(`  ${type.id}.svg -> ${picked || 'no behaviour'}`);
+  };
+
+  if (type.fieldsShot === false) {
+    // The check without the picture, in its own context like every shot.
+    if (!wanted || wanted.has(`type-${type.id}-fields`)) {
+      const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE });
+      try {
+        await dropAndCheck(await context.newPage());
+      } catch (e) {
+        console.error(`✗ type-${type.id}-fields - ${(e ?? '').message ?? e}`);
+        process.exitCode = 1;
+      } finally {
+        await context.close();
+      }
+    }
+    continue;
+  }
+
+  await shot(`type-${type.id}-fields`, async (page) => {
+    await dropAndCheck(page);
     if (type.behaviour) {
       // To the TOP of the panel, so the picked type is the first thing in the shot.
       await page.getByTestId('map-svg-behaviour').evaluate((el) => el.scrollIntoView({ block: 'start' }));
