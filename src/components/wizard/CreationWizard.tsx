@@ -700,6 +700,11 @@ export default function CreationWizard() {
   // Finish sits right after the working step (index 2), not after an animation step it
   // never shows.
   const finishStep = mode === 'ai' || mode === 'file' ? 2 : animStep + 1;
+  // The steps from which an imported artwork (design, SVG) or the images continuation can be
+  // finished early: every step once there is a graphic to show - from Design on, and from
+  // the template pick on in the images flow. The footer offers the jump to Finish there in
+  // the default studio, and Advanced mode's straight-to-code "Create project".
+  const classicCreateStep = (mode === 'design' || mode === 'svg' || mode === 'import') && (mode === 'import' ? step >= 2 : step >= 1);
   // On the Animation step the preview demos the full lifecycle (in → hold → out → in)
   // so the exit is actually seen — unless the user is tuning the entrance only.
   const onAnimationStep = step === animStep && mode !== 'ai' && mode !== 'video';
@@ -1619,13 +1624,15 @@ export default function CreationWizard() {
           doors decide where the graphic goes - it no longer creates straight into the
           editor, which default mode does not even surface. It stands down ON Finish,
           whose door cards ARE the actions.
-          DESIGN/IMPORT keep the classic "Create project" (create from any step - a
-          design needing no erase, fields, or animation choice creates immediately);
+          DESIGN/SVG/IMPORT take the same shortcut in the default studio from the step their
+          walk first has a graphic on (owner, 2026-09-21: no door to the old editor anywhere in
+          the default studio). Advanced mode keeps their classic "Create project" below, which
+          creates straight into the code editor.
           KIT stands down for the same reason as Finish: its own Create IS the action. */}
-      {mode === 'template' && step >= 1 && step < finishStep && !kit && buildMode === 'one' && (
+      {((mode === 'template' && step >= 1 && !kit && buildMode === 'one') || (!advanced && classicCreateStep)) && step < finishStep && (
         <button
           className="wz-skip"
-          disabled={!draft.variantId}
+          disabled={mode === 'template' ? !draft.variantId : !previewTemplate}
           onClick={() => setStep(finishStep)}
           title="Happy with the defaults? Jump straight to naming it and choosing where it goes"
           data-testid="wz-skip-to-finish"
@@ -1648,7 +1655,7 @@ export default function CreationWizard() {
           Skip ahead
         </button>
       )}
-      {(mode === 'design' || mode === 'svg' || mode === 'import') && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
+      {advanced && classicCreateStep && step < finishStep && (
         <button
           disabled={!previewTemplate}
           onClick={create}
@@ -1928,6 +1935,20 @@ export default function CreationWizard() {
                     setAiResult(template ? { template, valid, spec, generationId, path, pack: pack ?? null } : null)}
                   onThread={setAiThread}
                   onOpenImported={(imported) => {
+                    // THE DEFAULT STUDIO HAS NO CODE EDITOR TO OPEN (owner, 2026-09-21), so the
+                    // same file takes the Import graphic card's road instead: `file` mode's
+                    // Finish, whose doors apply it exactly as written. The reader has already
+                    // confirmed its project format on this card, so the detection is certain.
+                    if (!advanced) {
+                      setImportedFile({
+                        template: imported,
+                        detection: { resolution: imported.resolution, fps: imported.fps, certain: true, messages: [] },
+                      });
+                      setImportedFileError(null);
+                      setMode('file');
+                      setStep(2); // file mode's Finish
+                      return;
+                    }
                     // The byte-faithful path (deliberately NOT applyGenerated/Prettier): the
                     // user's file opens exactly as written, and the Export panel's inline
                     // validation shows what (if anything) needs fixing before it is

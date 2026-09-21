@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { switchToAdvancedMode } from './_create';
 import { awaitPreviewRebuild } from './_preview';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
 
@@ -49,6 +50,7 @@ async function eraseTextBar(page: Page) {
 }
 
 async function createProject(page: Page) {
+  await switchToAdvancedMode(page);
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
     // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves - the

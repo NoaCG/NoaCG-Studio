@@ -59,6 +59,21 @@ export async function enableAdvancedMode(page: Page): Promise<void> {
 }
 
 /**
+ * Turn Advanced mode on in a page that is ALREADY loaded - the Settings toggle, not a boot
+ * pref - for specs that walk the default wizard and then create straight into the code editor.
+ * Since 2026-09-21 the default studio has no wizard door into that editor at all: the
+ * import/design/SVG footer shortcut goes to Finish, and "Open as code" goes to the file
+ * Finish. The straight-to-code "Create project" and "Open as code" doors are Advanced mode's.
+ * Call it before pressing either door; the wizard re-renders its footer on the flip.
+ */
+export async function switchToAdvancedMode(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const { useAdvancedMode } = await import('/src/components/useAdvancedMode.ts');
+    useAdvancedMode.getState().setAdvanced(true);
+  });
+}
+
+/**
  * Create INTO THE EDITOR from any configuring step of a template-mode walk: Skip to finish
  * (the footer's one-click "Create project" became this shortcut - docs/GOALS_ARCHIVE.md "Student
  * release" step 6), then the Finish step's editor door. The door is Advanced-only, so any
