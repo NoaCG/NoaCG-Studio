@@ -149,7 +149,7 @@ async function addGraphicToOpenProduction(page, variantId, label) {
 async function measureDashboard(page) {
   return page.evaluate(() => {
     const px = (el) => (el ? Math.round(el.getBoundingClientRect().height) : null);
-    // THE STICKY HEAD is what "how much of the screen do the monitors eat" now means: since
+    // THE STAGE HEAD is what "how much of the screen do the monitors eat" now means: since
     // 2026-08-21 it holds the verb bar as well, and the monitors' own grid box stretches to
     // whichever of the two is taller. Measuring `.pd-monitors` alone reported that stretch as
     // if it were picture, which is why the PVW frame is measured separately below.
@@ -177,11 +177,20 @@ async function measureDashboard(page) {
       editorHeight: px(editor),
       editorHidden: editor ? Math.max(0, editor.scrollHeight - editor.clientHeight) : null,
       pageScrollable: Math.max(0, document.documentElement.scrollHeight - window.innerHeight),
+      // Since 2026-09-22 the document never scrolls and the CONTROL AREA is the one scroller,
+      // so how far it can scroll is the number pageScrollable used to be.
+      controlAreaScrollable: (() => {
+        const area = document.querySelector('.pd-control-area');
+        return area ? Math.max(0, area.scrollHeight - area.clientHeight) : null;
+      })(),
       // THE SLACK: the room below the last thing on the page. This is the number the owner's
       // 1080p complaint is actually about - "too much empty room at the bottom" - and the one
       // that says whether the monitors have anywhere left to grow. Zero on a page that scrolls.
       slackBelowLastRow: (() => {
-        const rows = main ? [...main.children] : [];
+        // The rows live in the control area now. .pd-main's own last child IS that area, whose
+        // bottom is always the window's, so measuring it would report no slack ever.
+        const holder = document.querySelector('.pd-control-area') ?? main;
+        const rows = holder ? [...holder.children] : [];
         const last = rows[rows.length - 1];
         if (!last) return null;
         return Math.max(0, Math.round(window.innerHeight - last.getBoundingClientRect().bottom));
@@ -378,13 +387,13 @@ async function sectionScroll(browser) {
   for (const shot of shots) {
     await page.setViewportSize(shot.viewport);
     await wait(page, 900);
-    if (shot.scrollToBottom) {
-      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-      await wait(page, 500);
-    } else {
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await wait(page, 300);
-    }
+    // The window AND the control area: the dashboard's one scroller is the control area now,
+    // and the window scroll is kept for the surfaces that still scroll as a page.
+    await page.evaluate((bottom) => {
+      window.scrollTo(0, bottom ? document.documentElement.scrollHeight : 0);
+      document.querySelector('.pd-control-area')?.scrollTo(0, bottom ? 1e6 : 0);
+    }, !!shot.scrollToBottom);
+    await wait(page, shot.scrollToBottom ? 500 : 300);
     const measured = await measureDashboard(page);
     await page.screenshot({ path: join(OUT, shot.file) });
     record({ ...shot, section: 'scroll', measured });
@@ -573,7 +582,10 @@ async function sectionHosted(browser) {
   ]) {
     await page.setViewportSize(shot.viewport);
     await wait(page, 900);
-    await page.evaluate((bottom) => window.scrollTo(0, bottom ? document.documentElement.scrollHeight : 0), !!shot.scrollToBottom);
+    await page.evaluate((bottom) => {
+      window.scrollTo(0, bottom ? document.documentElement.scrollHeight : 0);
+      document.querySelector('.pd-control-area')?.scrollTo(0, bottom ? 1e6 : 0);
+    }, !!shot.scrollToBottom);
     await wait(page, 500);
     const measured = await measureDashboard(page);
     await page.screenshot({ path: join(OUT, shot.file) });

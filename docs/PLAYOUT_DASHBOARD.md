@@ -37,7 +37,8 @@ the surface serves it.
 
 ## 2. Layout — desktop
 
-Two columns. **The PAGE is the only scroller; every block on it is content-sized.**
+Two columns in a fixed shell. **The CONTROL AREA under the monitors is the only scroller; every
+block in it is content-sized.** The header, the stage head and the cue rail never move.
 
 ```
 ┌ header ───────────────────────────────────────────────────────────────────────┐
@@ -74,13 +75,28 @@ Two columns. **The PAGE is the only scroller; every block on it is content-sized
   could not scroll by a single pixel. Scrolling that little box during a show is the complaint.
   The rule now, in the owner's own words — *"I don't mind scrolling the whole page… I also don't
   want it too small"*:
-  - **Nothing is shrunk to fit.** A complex graphic is allowed to make a long page.
-  - **The page scrolls; no pane does.** `.pd-main`, `.pd-editor`, `.pd-actions`, `.pd-activity`,
-    `.pd-data` and `.pd-audience` are all content-sized, with no `overflow` of their own.
-  - **What must never leave the screen is STICKY**, not small: the header (■ All out is the
-    panic control), the monitors, and the cue rail.
-  - **Two exceptions, both because they have nowhere else to go:** the cue list inside the
-    sticky rail (a forty-cue rundown), and the `⋯` / links popovers.
+  - **Nothing is shrunk to fit.** A complex graphic is allowed to make a long control area.
+  - **ONE scroller, and it is not the page (owner, real production test, 2026-09-22).** The
+    first cut of this model scrolled the whole PAGE and kept the header, the monitors and the
+    rail on screen by making them STICKY. They held still in a plain wheel test, but the owner
+    saw them *"still move or bounce when the control area is scrolled"*: anything that moves
+    the document moves sticky blocks with it, a trackpad's overscroll bounce most visibly, and
+    scrolling the rundown to its end chained into the page. Measured before the fix, the
+    document scrolled 611px at 1366×768, 687px at 1280×720 and 238px at 1920×1080. Now the
+    shell is `100dvh` with `overflow: clip`, the document has nothing to scroll (0px at all
+    three), and `.pd-control-area` - the editor, the ⚡ actions, the ± live numbers, the
+    controls panel and the activity log - is the one scroll container, with
+    `overscroll-behavior: contain`. The stage head and the rail are plain grid areas that do
+    not scroll and have no sticky positioning left to fail. Inside the control area,
+    `.pd-editor`, `.pd-actions` and `.pd-activity` stay content-sized with no `overflow` of
+    their own, so the 2026-08-19 complaint cannot come back: the editor is never a small box.
+    `e2e/playout-fixed-panes.spec.ts` pins it at 1366×768, 1280×720 and 1920×1080 by sampling
+    every frame while a wheel scrolls the area: the monitors, the verbs, the rail and the header
+    move by 0px.
+  - **The other scrollers, each because it has nowhere else to go:** the cue list inside the
+    rail (a forty-cue rundown), the Data and Audience sub-pages (which take the whole body while
+    open), and the `⋯` / links popovers. The lists and sub-pages are `overscroll-behavior:
+    contain` too, so reaching the end of one never hands the wheel on.
   - **Both popovers go through `home/LibMenu`**, the shell Home's row menus use, so which WAY
     they open is MEASURED rather than assumed and each caps its own height. It measures against
     clipping ancestors, not only the fold: the cue list is its own scroller, so the last cue's
@@ -89,8 +105,11 @@ Two columns. **The PAGE is the only scroller; every block on it is content-sized
     one again (which is how both of these came to open downward only). The shell also decides
     how a popover CLOSES: an outside press is listened for, not caught by a covering backdrop,
     so moving from one cue's `⋯` to the next takes one press rather than two.
-  - The phone breakpoint keeps its own viewport-locked shell, because its verb bar is pinned to
-    the bottom of the screen; `.pd-body` is the scroller under it. Same idea, one level down.
+  - **The phone (≤900px) stacks and scrolls as one column, deliberately.** Same fixed shell, but
+    there is no room to hold the monitors and the rundown still beside a scrolling control area
+    - a phone would be left a sliver of editor. So `.pd-body` is the one scroller there, the
+    monitors and the rundown scroll with it, and the verb bar is pinned to its bottom, because
+    on a phone the verbs are what must never leave the screen.
 
   **Measured before and after**, same production and graphic, driven for the acceptance pack:
 
@@ -460,8 +479,9 @@ One column: header (name · mode · All out) → the two monitors side by side, 
 ■ Out**. The monitors stay side by side on a phone: seeing preview and air together is the whole
 point of the surface, and stacking them would put air below the fold.
 
-**No visible scrollbar chrome on any pane, on any surface.** The page scrolls with the browser's
-own bar; the cue list scrolls without one. No horizontal scrollbar may ever appear — a surface
+**No visible scrollbar chrome on any pane, on any surface.** The desktop control area took over
+the page's job and keeps a thin, dark bar where the page's own bar used to be; the cue list
+scrolls without one. No horizontal scrollbar may ever appear — a surface
 that scrolls sideways is a layout bug, not a scrolling affordance.
 
 ## 4. The cue rundown
