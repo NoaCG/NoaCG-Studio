@@ -28,9 +28,16 @@ note: "measured end to end 2026-09-10 on branch claude/bg-playout-lag, which lan
   e2e/configured/output-url-cannot-push.spec.ts holds it there - proved red first, with a holder of
   the read-only output URL playing a graphic on air. It cost about 35 ms, so a second surface now
   waits a median of 87 ms read signed out, worst 215, against the durable road's 131-136 with the
-  odd press at 645. What is LEFT of this ask is the cross-device ordering limit stated in the
+  odd press at 645. On 2026-09-22, on branch claude/u-quiz-live-consistency, the last road that had
+  not moved did: a machine EVENT was still durable-only, so a quiz's Select, Lock and Reveal cost
+  the whole round trip while a Take beside them rode the broadcast. Only a clock reads the row's
+  server time, so a clock-free graphic's events now ride the fast road and the sending page's own
+  monitor moves with them; a clock's events are unchanged. This is the press family the owner was
+  driving when he raised the ask, and he reported it again on 2026-09-22 after a production test.
+  What is LEFT of this ask is the cross-device ordering limit stated in the
   section below, and the owner walking the result himself
-  (docs/acceptance/owner-queue/2026-09-10-bn-output-url-cannot-operate-the-show.md)."
+  (docs/acceptance/owner-queue/2026-09-10-bn-output-url-cannot-operate-the-show.md, and
+  docs/acceptance/owner-queue/2026-09-22-u-quiz-live-consistency.md for the quiz presses)."
 needs-owner: none
 asked: "I noticed some lag when I was playing out the quiz graphics, moving around the queue, and
   playing and stopping graphics. It's very important that our layout system is lag-free and
