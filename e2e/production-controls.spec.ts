@@ -140,7 +140,7 @@ test('quiz actions on the production page: greying, select/lock, live update kee
   await expect(actions).toContainText('act on air');
   await expect(chip).toHaveText('not on air');
   await expect(select).toBeDisabled();
-  await expect(select).toHaveAttribute('title', /not on air — Take the cue first/);
+  await expect(select).toHaveAttribute('title', /not on air. Take the cue first/);
   await expect(lock).toBeDisabled();
   await expect(judge).toBeDisabled();
 

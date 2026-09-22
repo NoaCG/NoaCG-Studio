@@ -239,7 +239,7 @@ export default function KitPicker({
               still counts twelve while listing three looks like a bug in the count. */}
           {hidden > 0 && (
             <p className="wz-kit-filtered hint" data-testid="kit-filtered">
-              {hidden} more in this kit {hidden === 1 ? 'is' : 'are'} hidden by the search — still
+              {hidden} more in this kit {hidden === 1 ? 'is' : 'are'} hidden by the search. They are still
               in it, just not listed.{' '}
               <button className="wz-rail-change" onClick={onClearQuery}>Show all</button>
             </p>
@@ -260,7 +260,7 @@ export default function KitPicker({
           {extra.length > 0 && (
             <>
               <p className="wz-kit-contents-label mono">
-                Add more — everything else this look can build
+                Add more: everything else this look can build
               </p>
               <ul className="wz-kit-contents wz-kit-contents--extra" data-testid="kit-extras">
                 {extra.map((choice) => (

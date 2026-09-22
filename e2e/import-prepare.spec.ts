@@ -291,7 +291,7 @@ test('erase: while a non-flat fill is pending, compare shows the original and di
   await expect.poll(async () => img.getAttribute('src')).toBe(pendingSrc);
 
   // Discarding says what it means: the baked words stay in the artwork.
-  await page.getByRole('button', { name: 'Discard — keep the text' }).click();
+  await page.getByRole('button', { name: 'Discard and keep the text' }).click();
   await expect(page.getByTestId('erase-warning')).toHaveCount(0);
   await expect(page.getByTestId('erase-done')).toHaveCount(0);
 });

@@ -101,7 +101,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
       }
       setLocalFonts([...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family)));
     } catch {
-      setLocalError('Local fonts are unavailable — permission was declined or this browser does not support it. Uploading the font file works everywhere.');
+      setLocalError('Local fonts are unavailable. Permission was declined or this browser does not support it. Uploading the font file works everywhere.');
     }
   };
 
@@ -124,7 +124,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
       };
       onCustomFont(font);
     } catch {
-      setLocalError(`Could not read "${f.family}" — try uploading its file instead.`);
+      setLocalError(`Could not read "${f.family}". Try uploading its file instead.`);
     } finally {
       setBusyLocal(null);
     }
@@ -257,7 +257,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
             autoFocus
             value={googleQuery}
             onChange={(e) => setGoogleQuery(e.target.value)}
-            placeholder="Type the typeface name — e.g. Montserrat"
+            placeholder="Type the typeface name, for example Montserrat"
             aria-label="Search Google Fonts"
             data-testid="font-google-search"
           />
@@ -297,7 +297,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
           {googleIndex && (
             <p className="hint">
               {googleIndex.length.toLocaleString()} typefaces · downloaded from Google (they see
-              your IP address), then embedded in your graphic — playout never contacts Google.
+              your IP address), then embedded in your graphic. Playout never contacts Google.
             </p>
           )}
         </div>

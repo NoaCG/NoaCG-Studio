@@ -277,8 +277,8 @@ export default function PrepareDesignStep({
         <div className="wz-prep-verdict" data-testid="erase-proposal">
           <p>
             This looks like baked-in text, so the box is already drawn around it
-            {proposal.lines > 1 ? ` — ${proposal.lines} lines of it` : ''}. Drag the box or its
-            corners until it covers the words, then erase — or draw your own box instead.
+            {proposal.lines > 1 ? `, ${proposal.lines} lines of it` : ''}. Drag the box or its
+            corners until it covers the words, then erase. Or draw your own box instead.
           </p>
           <div className="row" style={{ gap: 8 }}>
             <button
@@ -302,7 +302,7 @@ export default function PrepareDesignStep({
         <div className="wz-prep-verdict bad" data-testid="erase-warning">
           <p>
             The background right behind the text isn't flat and no smooth gradient explains it
-            (its samples differ by {pending.result.sampling.maxDeviation} — clean is ≤{' '}
+            (its samples differ by {pending.result.sampling.maxDeviation}, and clean is ≤{' '}
             {FLAT_BG_TOLERANCE}
             {pending.result.sampling.segments
               ? `, for ${
@@ -316,13 +316,13 @@ export default function PrepareDesignStep({
             <button data-testid="erase-continue-anyway" onClick={applyPending}>
               Use it anyway
             </button>
-            <button onClick={() => setPending(null)}>Discard — keep the text</button>
+            <button onClick={() => setPending(null)}>Discard and keep the text</button>
             <button
               data-testid="erase-compare-pending"
               onPointerDown={() => setComparing(true)}
               onPointerUp={() => setComparing(false)}
               onPointerLeave={() => setComparing(false)}
-              title="Hold to see the original — the decision is visual, so compare while deciding"
+              title="Hold to see the original. The decision is visual, so compare while deciding."
             >
               Hold to compare
             </button>
@@ -333,12 +333,12 @@ export default function PrepareDesignStep({
         <div className="wz-prep-verdict good" data-testid="erase-done">
           <p>
             {erases.every((e) => e.uniform)
-              ? 'The text was erased cleanly — flat backgrounds filled, smooth gradients rebuilt.'
+              ? 'The text was erased cleanly. Flat backgrounds were filled and smooth gradients rebuilt.'
               : 'Filled with the average background colour (some samples were not flat).'}{' '}
             {seedCount === 1
               ? 'A text field will sit in the erased region when the project is created.'
               : `${seedCount} text fields will sit in the erased regions when the project is created.`}{' '}
-            Mark more baked-in text any time — each region becomes its own field.
+            Mark more baked-in text any time. Each region becomes its own field.
           </p>
           <ul className="wz-prep-marks" data-testid="erase-marks">
             {erases.map((e, i) => (
@@ -366,7 +366,7 @@ export default function PrepareDesignStep({
                 <button
                   data-testid={`erase-remove-${i}`}
                   onClick={() => void removeErase(i)}
-                  title="Drop this mark — the artwork is rebuilt from your original with the rest"
+                  title="Drop this mark. The artwork is rebuilt from your original with the rest."
                 >
                   ✕
                 </button>
@@ -398,14 +398,14 @@ export default function PrepareDesignStep({
         <h3>Baked-in text</h3>
         <p className="hint">
           Text that is part of the image file can't be edited on air. If your design has a name
-          or title baked in, mark it — the box is filled with the surrounding background, and a
+          or title baked in, mark it. The box is filled with the surrounding background, and a
           real, editable text field takes its place when the project is created. Erasing only
           works cleanly over a FLAT background, and it says so when it can't: the honest fix
           then is to export the design again with the text left out.
         </p>
         {scanRefusal && !proposedRect && erases.length === 0 && (
           <p className="hint" style={{ marginTop: 8 }} data-testid="erase-scan-refusal">
-            Nothing was drawn for you here: {scanRefusal} Mark it yourself if it is there — the
+            Nothing was drawn for you here: {scanRefusal} Mark it yourself if it is there. The
             scan proposes nothing rather than proposing badly.
           </p>
         )}
@@ -428,7 +428,7 @@ export default function PrepareDesignStep({
                 onKeepBaked(false);
               }}
             >
-              Yes — mark it
+              Yes, mark it
             </button>
           </div>
         )}
@@ -455,7 +455,7 @@ export default function PrepareDesignStep({
         )}
         {marking && canErase && erases.length === 0 && !pending && (
           <p className="hint" style={{ marginTop: 10 }}>
-            Drag a box over the baked-in text on the artwork above — one box per piece of text,
+            Drag a box over the baked-in text on the artwork above, one box per piece of text,
             so a name and a title each become their own field. Remove a box any time; the
             artwork is always rebuilt from your original file.
           </p>
@@ -480,7 +480,7 @@ export default function PrepareDesignStep({
             className={`wz-cat ${hz ? 'selected' : ''}`}
             data-testid="mode-stretch"
             disabled={fullFrame}
-            title={fullFrame ? 'A frame-sized design covers the canvas — there is no room to stretch into' : undefined}
+            title={fullFrame ? 'A frame-sized design covers the canvas, so there is no room to stretch into' : undefined}
             onClick={pickStretch}
           >
             <strong>Stretch horizontally</strong>
@@ -518,7 +518,7 @@ export default function PrepareDesignStep({
       <div className="panel-section" style={{ marginTop: 14 }}>
         <h3>What happens next</h3>
         <p className="hint">
-          The next step places the editable fields on your artwork — text and picture slots —
+          The next step places the editable fields, text and picture slots, on your artwork
           and finds the empty panel for you when there is one. Nothing here is required: a
           design with nothing baked in and no long values can go straight on.
         </p>

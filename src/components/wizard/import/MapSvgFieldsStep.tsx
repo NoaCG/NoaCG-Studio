@@ -1503,7 +1503,7 @@ export default function MapSvgFieldsStep({
                 : growingBoxes.length === 1
                   ? `${growingBoxes[0].label} ${BOX_GROW_LABEL[growingBoxes[0].mode]}`
                   : `${growingBoxes.length} boxes grow`) +
-              (draft.svgStretch.authored ? '' : ' — read from your artwork')
+              (draft.svgStretch.authored ? '' : ', read from your artwork')
             }
             testid="map-svg-why-stretch"
           >
@@ -1581,7 +1581,7 @@ export default function MapSvgFieldsStep({
                   (declaredFollowers.length === 0
                     ? 'nothing moves'
                     : `${declaredFollowers.length} layer${declaredFollowers.length === 1 ? '' : 's'}`) +
-                  (draft.svgStretch.followers ? '' : ' — read from your artwork')
+                  (draft.svgStretch.followers ? '' : ', read from your artwork')
                 }
                 testid="map-svg-why-followers"
               >

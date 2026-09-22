@@ -135,7 +135,7 @@ The Finish step. Three parts, and the frame shows all of them:
 The name box only exists while the picker says new production. If it is not on screen, that picker
 is the reason.
 
-Then press **▶ Add to the production - go live**. A dialog names the production it is about to
+Then press **▶ Add to the production and go live**. A dialog names the production it is about to
 write to; confirm it, and do not cut it out. A viewer who has not seen it will think their press
 did not register.
 

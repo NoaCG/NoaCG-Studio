@@ -8,8 +8,14 @@ import { logTime, type LogEntry } from '../../control/eventLog';
  * nothing, and the entries are built for it by `control/eventLog.ts` (`describeLogRow`) at the
  * one place rows arrive. Collapsed by default with the newest entry in the summary, because the
  * question during a show is "did that land?", not "what happened all night".
+ *
+ * `published` decides what the EMPTY list says. A published production reads its history back
+ * off the shared log, so an empty list there means nothing has been sent. An unpublished one
+ * keeps its log in this tab only (nothing ever left the laptop, and row C's reload spec pins
+ * that a reload brings nothing back on air), so after a reload the list is empty by design and
+ * says why, rather than looking like the presses were lost.
  */
-export default function ActionLog({ entries }: { entries: LogEntry[] }) {
+export default function ActionLog({ entries, published }: { entries: LogEntry[]; published: boolean }) {
   return (
     <details className="pd-activity" data-testid="action-log">
       <summary>
@@ -23,7 +29,9 @@ export default function ActionLog({ entries }: { entries: LogEntry[] }) {
       </summary>
       {entries.length === 0 ? (
         <p className="hint" data-testid="action-log-empty">
-          Nothing yet. Every Take, Update, Next and Out lands here, whoever sends it.
+          {published
+            ? 'Nothing yet. Every Take, Update, Next and Out lands here, whoever sends it.'
+            : 'Every Take, Update, Next and Out lands here. This production is not published, so the list starts empty each time the page opens.'}
         </p>
       ) : (
         <ol className="prod-log-list">

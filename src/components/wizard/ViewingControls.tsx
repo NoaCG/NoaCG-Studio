@@ -96,7 +96,7 @@ export default function ViewingControls({ value, onChange }: Props) {
         <input
           className="grow"
           data-testid="wz-viewing-note"
-          placeholder="Describe the environment — “projected in a lecture hall”, “stadium ribbon board”…"
+          placeholder="Describe the environment, for example “projected in a lecture hall”, “stadium ribbon board”…"
           value={value.viewing?.note ?? ''}
           onChange={(e) => onChange({ ...value, viewing: { profile: 'custom', note: e.target.value } })}
           style={{ marginTop: 6 }}

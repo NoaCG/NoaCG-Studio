@@ -130,7 +130,7 @@ function CategorySection({
     <>
       <p className="hint">
         What kind of broadcast graphic is this? The choice shapes the structure, the operator
-        fields, the state model, and the motion — not just the look.
+        fields, the state model and the motion, as well as the look.
       </p>
       <div className="mc-cats" role="listbox" aria-label="Graphic category">
         <button
@@ -138,10 +138,10 @@ function CategorySection({
           className={`mc-cat ${spec.category === 'auto' ? 'selected' : ''}`}
           onClick={() => pick('auto')}
           disabled={disabled}
-          title="The AI reads the brief and any uploads, picks the best fit, and shows its pick — editable."
+          title="The AI reads the brief and any uploads, picks the best fit, and shows its pick, which you can edit."
         >
           <strong>✦ Let AI decide</strong>
-          <span>Inferred from the brief — shown and editable on the result.</span>
+          <span>Inferred from the brief. You see it and can edit it on the result.</span>
         </button>
         {AI_CATEGORIES.filter((category) => !allowedCategories || allowedCategories.includes(category.id)).map((c) => (
           <button
@@ -191,7 +191,7 @@ function FieldsSection({
   return (
     <>
       <p className="hint">
-        The editable data fields the graphic carries — each becomes a real operator field.
+        The editable data fields the graphic carries. Each becomes a real operator field.
         The first text fields are the visible lines.
       </p>
       {spec.fields.map((f, i) => (
@@ -429,7 +429,7 @@ function FontsSection({ spec, onSpec, disabled }: Pick<Props, 'spec' | 'onSpec' 
     <>
       <p className="hint">
         The primary font is fully wired into the generated template (its file ships embedded).
-        Secondary and numeric typefaces are embedded too and taught to the AI — the house style
+        Secondary and numeric typefaces are embedded too and taught to the AI. The house style
         carries one main face, so they apply where the design genuinely uses them.
       </p>
       <label>Primary typeface</label>

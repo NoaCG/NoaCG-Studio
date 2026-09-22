@@ -86,7 +86,7 @@
       "em-dash": 5
     },
     "src/components/home/ProductionPage.tsx": {
-      "em-dash": 26
+      "em-dash": 24
     },
     "src/components/home/ProductionPicker.tsx": {
       "em-dash": 2
@@ -135,72 +135,6 @@
     },
     "src/components/video/VideoRenderPanel.tsx": {
       "em-dash": 2
-    },
-    "src/components/wizard/CreationWizard.tsx": {
-      "em-dash": 7
-    },
-    "src/components/wizard/FontPicker.tsx": {
-      "em-dash": 4
-    },
-    "src/components/wizard/ViewingControls.tsx": {
-      "em-dash": 1
-    },
-    "src/components/wizard/import/BehaviourSection.tsx": {
-      "em-dash": 2
-    },
-    "src/components/wizard/import/DesignPrepCanvas.tsx": {
-      "em-dash": 2
-    },
-    "src/components/wizard/import/FontsSection.tsx": {
-      "em-dash": 1
-    },
-    "src/components/wizard/import/ImportDesignStep.tsx": {
-      "em-dash": 3
-    },
-    "src/components/wizard/import/ImportStep.tsx": {
-      "em-dash": 1
-    },
-    "src/components/wizard/import/MapSvgFieldsStep.tsx": {
-      "em-dash": 2
-    },
-    "src/components/wizard/import/PlaceFieldsStep.tsx": {
-      "em-dash": 4
-    },
-    "src/components/wizard/import/PrepareDesignStep.tsx": {
-      "em-dash": 14
-    },
-    "src/components/wizard/steps/AiStep.tsx": {
-      "em-dash": 27
-    },
-    "src/components/wizard/steps/AnimationStep.tsx": {
-      "em-dash": 12
-    },
-    "src/components/wizard/steps/BrowseStep.tsx": {
-      "em-dash": 2
-    },
-    "src/components/wizard/steps/EntryStep.tsx": {
-      "em-dash": 4
-    },
-    "src/components/wizard/steps/FieldsStep.tsx": {
-      "em-dash": 8
-    },
-    "src/components/wizard/steps/FinishStep.tsx": {
-      "em-dash": 6
-    },
-    "src/components/wizard/steps/KitFinishStep.tsx": {
-      "em-dash": 1
-    },
-    "src/components/wizard/steps/KitLookStep.tsx": {
-      "em-dash": 1
-    },
-    "src/components/wizard/steps/KitPicker.tsx": {
-      "em-dash": 2
-    },
-    "src/components/wizard/steps/StyleStep.tsx": {
-      "em-dash": 5
-    },
-    "src/components/wizard/steps/ai/MoreControlPanel.tsx": {
-      "em-dash": 5
     },
     "src/templates/alerts/al01.ts": {
       "em-dash": 9

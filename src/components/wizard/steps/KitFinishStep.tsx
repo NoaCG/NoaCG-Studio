@@ -171,7 +171,7 @@ export default function KitFinishStep({
           </span>
           <span className="hint">
             {target
-              ? `One package with all ${target.graphics.length + built.length} graphics in that production — the kit and what was already there — each on its own playout layer.`
+              ? `One package with all ${target.graphics.length + built.length} graphics in that production, the kit and what was already there, each on its own playout layer.`
               : 'One package with every graphic on its own playout layer.'}{' '}
             Saved first, so nothing is lost.
           </span>

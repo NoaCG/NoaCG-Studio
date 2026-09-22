@@ -86,7 +86,7 @@ export default function ImportStep({ images, draft, onDraft, onImages, onContinu
               Import graphic entry). See CategoryInfo.group. */}
           {CATEGORIES.filter((c) => c.group !== 'imported').map((c) => (
             <option key={c.id} value={c.id} disabled={!c.available}>
-              {c.name}{c.available ? '' : ' — coming soon'}
+              {c.name}{c.available ? '' : ' (coming soon)'}
             </option>
           ))}
         </select>

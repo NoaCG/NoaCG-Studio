@@ -143,13 +143,13 @@ interface Props {
 function routeLabel(path: AiPath | null): string | null {
   switch (path) {
     case 'grounded':
-      return '▤ Adapted from a proven catalog design — editable everywhere, exactly like wizard output.';
+      return '▤ Adapted from a proven catalog design. Editable everywhere, exactly like wizard output.';
     case 'grounded+polish':
       return '▤ A proven catalog design, adapted, plus a bounded custom flourish.';
     case 'grounded+skin':
       return '▤ Deterministic canvas structure with an AI-designed look.';
     case 'custom':
-      return '✦ Custom build — exercised end to end in the live playout bench.';
+      return '✦ Custom build, exercised end to end in the live playout bench.';
     case 'pro':
       return '✧ Art-directed design, delivered as ordinary editable layers.';
     default:
@@ -181,7 +181,7 @@ const isAdapted = (change: AiTemplateChange | undefined): boolean =>
 function adaptedFrom(change: AiTemplateChange | undefined): string | null {
   if (!isAdapted(change)) return null;
   const variant = change?.spec?.variantId ? variantById(change.spec.variantId) : undefined;
-  return variant ? `Adapted from “${variant.name}” — a ${variant.styleTag} ${variant.category.replace(/-/g, ' ')}.` : null;
+  return variant ? `Adapted from “${variant.name}”, a ${variant.styleTag} ${variant.category.replace(/-/g, ' ')}.` : null;
 }
 
 /** The retrieved designs behind a result, resolved to real variants. A catalog id that no
@@ -1228,8 +1228,8 @@ export default function AiStep({
           {liteMode ? (
             <>Image input is paused while Create with AI concentrates on lower-third quality. Existing <code className="inline">.html</code> or <code className="inline">.zip</code> templates can still be opened unchanged.</>
           ) : (
-            <>A logo to place, a design to follow, a mood board, or a shot of the real background —
-              you say what each one is for after dropping it. An{' '}
+            <>A logo to place, a design to follow, a mood board, or a shot of the real background.
+              You say what each one is for after dropping it. An{' '}
               <code className="inline">.html</code> file or an SPX-style <code className="inline">.zip</code>{' '}
               can be opened as code unchanged, or converted to house standards with AI.</>
           )}
@@ -1239,7 +1239,7 @@ export default function AiStep({
       {imported && (
         <div className="change-preview" style={{ marginTop: 10 }}>
           <strong>{imported.template.name}</strong>
-          <span className="hint" style={{ marginLeft: 8 }}>{imported.fileName} — existing template</span>
+          <span className="hint" style={{ marginLeft: 8 }}>{imported.fileName} (existing template)</span>
           <p className="hint" style={{ marginTop: 6 }}>
             <b>Open as code</b> keeps it byte-for-byte (validate and re-export it as SPX /
             CasparCG / OGraf).
@@ -1313,7 +1313,7 @@ export default function AiStep({
           {proMode && (
             <p className="hint" data-testid="pro-upload-note">
               An as-is mark is seated in the design and its shape and ink are measured, so the
-              look is chosen around it. Style references do not steer the design yet — colours
+              look is chosen around it. Style references do not steer the design yet. Colours
               read from your image can be applied as the exact brand accent below.
             </p>
           )}
@@ -1370,7 +1370,7 @@ export default function AiStep({
                     <div className="ai-past-foot">
                       <span className="hint">
                         {turn.changes.length > 1
-                          ? `${turn.changes.length} directions — you had "${turn.changes[turn.selected].template.name}" picked`
+                          ? `${turn.changes.length} directions, you had "${turn.changes[turn.selected].template.name}" picked`
                           : turn.changes[turn.selected].template.name}
                       </span>
                       <button onClick={() => restore(i)} disabled={!!busy}>
@@ -1383,7 +1383,7 @@ export default function AiStep({
                     <span>
                       {turn.text}
                       {turn.kind === 'you' && turn.attached > 0 && (
-                        <em className="ai-attached"> — with {turn.attached} image(s)</em>
+                        <em className="ai-attached"> with {turn.attached} image(s)</em>
                       )}
                     </span>
                   </div>
@@ -1446,7 +1446,7 @@ export default function AiStep({
             rows={result ? 3 : 4}
             placeholder={
               result && !proMode
-                ? 'Refine it — e.g. "bigger name, move it bottom-left, calmer entrance"'
+                ? 'Refine it, for example "bigger name, move it bottom-left, calmer entrance"'
                 : imported
                   ? 'e.g. "Keep the layout but bring it to our look: darker panel, our amber accent, calmer entrance."'
                   : liteMode
@@ -1466,7 +1466,7 @@ export default function AiStep({
           {turns.length === 0 && !liteMode && (
             <p className="hint" style={{ marginTop: 6 }}>
               Not sure yet? Describe the show or the moment ("halftime of a local derby, we need
-              something for substitutions") and press <b>Talk it through</b> — the conversation
+              something for substitutions") and press <b>Talk it through</b>. The conversation
               travels with the brief when you generate.
             </p>
           )}
@@ -1486,7 +1486,7 @@ export default function AiStep({
                       style={{ background: c.hex }}
                       data-swatch={c.hex}
                       aria-label={`Use ${c.hex} as the brand accent`}
-                      title={`${c.hex} — ${Math.round(c.share * 100)}% of the image`}
+                      title={`${c.hex}, ${Math.round(c.share * 100)}% of the image`}
                       onClick={() => applyAccent(c.hex)}
                       disabled={!!busy}
                     />
@@ -1516,7 +1516,7 @@ export default function AiStep({
               {spec.brandColors && (
                 <div className="ai-brand-row">
                   <span className="hint">
-                    Brand accent <code className="inline">{spec.brandColors.accent}</code> — the AI
+                    Brand accent <code className="inline">{spec.brandColors.accent}</code>. The AI
                     must use it exactly.
                   </span>
                   <button onClick={() => setSpec({ ...spec, brandColors: null })} disabled={!!busy}>
@@ -1529,7 +1529,7 @@ export default function AiStep({
 
           {brandPalette && !spec.brandColors && (
             <p className="hint" style={{ marginTop: 6 }}>
-              Using this project's brand colors (accent {brandPalette.accent}) — toggle "Match current
+              Using this project's brand colors (accent {brandPalette.accent}). Turn off "Match current
               project" below to let the AI pick its own.
             </p>
           )}
@@ -1579,7 +1579,7 @@ export default function AiStep({
                 disabled={!!busy}
                 onClick={() => fileInput.current?.click()}
                 data-testid="ai-attach"
-                title="Attach an image to this turn — it is bundled with the result, not just described."
+                title="Attach an image to this turn. It is bundled with the result, not just described."
               >
                 📎 Attach
               </button>
@@ -1602,7 +1602,7 @@ export default function AiStep({
             {ownKeyMode && !imported && (
               <label
                 className="wz-match"
-                title="On: three design directions built on the catalog design system, each exercised in a live playout test, learning from your picks. Off: one quick draft — the model's own take, checked but never played."
+                title="On: three design directions built on the catalog design system, each exercised in a live playout test, learning from your picks. Off: one quick draft, the model's own take, checked but never played."
               >
                 <input
                   type="checkbox"
@@ -1617,7 +1617,7 @@ export default function AiStep({
               <button
                 onClick={() => setMoreOpen((o) => !o)}
                 data-testid="more-control-toggle"
-                title="Optional structured setup: category, data fields, references, fonts, animation — better, more predictable results, especially on smaller models."
+                title="Optional structured setup: category, data fields, references, fonts, animation. Better, more predictable results, especially on smaller models."
               >
                 {moreOpen ? '▾' : '▸'} More control{activeSpec ? ' ●' : ''}
               </button>
@@ -1647,7 +1647,7 @@ export default function AiStep({
                 {hasTokenCounts(expected) && (
                   <> and ~{formatTokens(expected.inputTokens)} in / {formatTokens(expected.outputTokens)} out</>
                 )}
-                {settings.useHarness ? ' for all three options' : ''} — median of your last{' '}
+                {settings.useHarness ? ' for all three options' : ''}, the median of your last{' '}
                 {expected.runs} runs.
               </p>
             );
@@ -1729,7 +1729,7 @@ export default function AiStep({
                       limit the user can actually run into. The tier is not offered at all where
                       that is not true, so there is no second branch here asking for a key. */}
                   <p className="hint" data-testid="ai-pro-hosted-note">
-                    NoaCG Pro runs on NoaCG&apos;s own service — there is nothing to configure and
+                    NoaCG Pro runs on NoaCG&apos;s own service. There is nothing to configure and
                     no key to supply. It picks its own model, and the real cost of each
                     generation is shown on the result.
                     {proStatus?.allowance
@@ -1789,7 +1789,7 @@ export default function AiStep({
                             <span className="hint">
                               {spec.id === primaryGraphic
                                 ? 'Shown in the preview, and the one a refinement changes.'
-                                : 'Composed from the same design language — no extra generation.'}
+                                : 'Composed from the same design language, with no extra generation.'}
                             </span>
                           </span>
                         </label>
@@ -1879,7 +1879,7 @@ export default function AiStep({
               {shortlistOf(alternatives[selected]).length > 1 && !busy && (
                 <div className="wz-shortlist" data-testid="ai-shortlist">
                   <p className="hint" style={{ marginTop: 8 }}>
-                    Chosen from {shortlistOf(alternatives[selected]).length} proven designs for this brief — pick another to
+                    Chosen from {shortlistOf(alternatives[selected]).length} proven designs for this brief. Pick another to
                     rebuild on it, free.
                   </p>
                   <div className="wz-shortlist-grid">
@@ -2017,20 +2017,20 @@ export default function AiStep({
                     }}
                     disabled={!!busy}
                   >
-                    <option value="" disabled>—</option>
+                    <option value="" disabled>Pick one</option>
                     {AI_CATEGORIES.filter((category) => !liteMode || LITE_AI_CATEGORIES.includes(category.id as never)).map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
-                  </select>{' '}
-                  — change it to pin the next Generate.
+                  </select>
+                  . Change it to pin the next Generate.
                 </p>
               )}
               <p className={validation?.ok ? 'status-ok' : 'status-bad'} style={{ marginTop: 6 }}>
                 {validation?.ok
                   ? lastPath === 'raw'
-                    ? '✓ Passes validation — press Play in the preview, then Create project.'
-                    : '✓ Passes validation and the live playout test — press Play in the preview, then Create project.'
-                  : `✗ ${validation?.errors.length} check(s) failing — refine or regenerate.`}
+                    ? '✓ Passes validation. Press Play in the preview, then Create project.'
+                    : '✓ Passes validation and the live playout test. Press Play in the preview, then Create project.'
+                  : `✗ ${validation?.errors.length} check(s) failing. Refine or regenerate.`}
               </p>
               {/* ON-AIR READINESS: the checks that already ran, grouped into what an
                   operator cares about. It adds no checks — it reports the findings the
@@ -2045,7 +2045,7 @@ export default function AiStep({
                       </span>
                       <span className="ai-ready-label">
                         {row.label}
-                        {row.state === 'untested' && <em> — not played, so not tested</em>}
+                        {row.state === 'untested' && <em> (not played, so not tested)</em>}
                       </span>
                       {row.messages.length > 0 && (
                         <ul className="ai-ready-notes">
@@ -2088,7 +2088,7 @@ export default function AiStep({
               {validation && !validation.ok && proMode && (
                 <p className="hint" style={{ marginTop: 8 }}>
                   NoaCG builds this graphic deterministically, so a failing check here is a NoaCG
-                  platform defect — generate a new design rather than spending repair calls.
+                  platform defect. Generate a new design rather than spending repair calls.
                 </p>
               )}
               {spent && (

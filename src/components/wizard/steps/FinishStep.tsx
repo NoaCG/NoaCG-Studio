@@ -126,7 +126,7 @@ export function catalogSummaryRows(variant: TemplateVariant, draft: WizardDraft)
     ].filter(Boolean);
     rows.push({
       label: 'Fields',
-      value: parts.length > 0 ? parts.join(' · ') : 'None — a fixed graphic',
+      value: parts.length > 0 ? parts.join(' · ') : 'None, a fixed graphic',
       step: 'fields',
     });
     // TYPEFACES, and the one thing about them that can differ ON AIR. An unresolved family is
@@ -140,10 +140,10 @@ export function catalogSummaryRows(variant: TemplateVariant, draft: WizardDraft)
         label: 'Typefaces',
         value:
           missing.length === 0
-            ? `${draft.svgFonts.length} embedded — the graphic looks the same on every machine`
+            ? `${draft.svgFonts.length} embedded, so the graphic looks the same on every machine`
             : `${draft.svgFonts.length - missing.length} embedded · ${missing.length} not embedded (${missing
                 .map((f) => f.family)
-                .join(', ')}) — playout falls back unless the machine has ${missing.length === 1 ? 'it' : 'them'}`,
+                .join(', ')}). Playout falls back unless the machine has ${missing.length === 1 ? 'it' : 'them'}`,
         step: 'fields',
       });
     }
@@ -204,7 +204,7 @@ export function importedSummaryRows(imported: ImportedTemplateResult): SummaryRo
     },
     {
       label: 'Operator fields',
-      value: count > 0 ? `${count} — ${template.fields.map((f) => f.title || f.field).join(', ')}` : 'None found',
+      value: count > 0 ? `${count}: ${template.fields.map((f) => f.title || f.field).join(', ')}` : 'None found',
     },
     { label: 'Code', value: 'Kept exactly as written' },
   ];
@@ -464,7 +464,7 @@ export default function FinishStep({
         >
           <span className="wz-entry-head">
             <span className="wz-entry-icon">▶</span>
-            <strong>Add to the production — go live</strong>
+            <strong>Add to the production and go live</strong>
           </span>
           <span className="hint">
             {libraryFace.clause}, pools it into the production with its first cue ready.
@@ -481,7 +481,7 @@ export default function FinishStep({
             <strong>Export it</strong>
           </span>
           <span className="hint">
-            Just the files — OGraf, CasparCG, SPX, LiveOS, an OBS/vMix overlay
+            Just the files: OGraf, CasparCG, SPX, LiveOS, an OBS/vMix overlay
             {isRenderConfigured() ? ', or a rendered video' : ''}.{' '}
             {/* This door asks NOTHING before it writes - it saves and opens the export window -
                 so the one place the save can be described accurately is the door's own face. */}

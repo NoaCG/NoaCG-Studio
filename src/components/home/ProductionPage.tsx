@@ -2222,9 +2222,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         disabled={!selectedLayerLive || !legal}
         title={
           !selectedLayerLive
-            ? 'The graphic is not on air — Take the cue first'
+            ? 'The graphic is not on air. Take the cue first.'
             : !legal
-              ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
+              ? // In the operator's words, not the machine's: "revealChoice has no arrow out of
+                // the current state" told a student nothing (Friday rehearsal, 2026-09-21).
+                `${label} does nothing from where the graphic is now, so it is greyed out`
               : moved
                 ? // An adjust press moves a figure WITH the event (a goal's +1), counted from
                   // what air shows; a `set` press puts one back to a declared figure (a reset);
@@ -2914,7 +2916,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               {liveNumberFields.map((d) => {
                 const disabled = !selectedLayerLive || !editingIsLive;
                 const title = !selectedLayerLive
-                  ? 'The graphic is not on air — Take the cue first'
+                  ? 'The graphic is not on air. Take the cue first.'
                   : !editingIsLive
                     ? 'Another cue is on air — select the live cue to bump its numbers'
                     : `Changes "${d.label}" on air immediately`;
@@ -2964,7 +2966,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           />
         )}
 
-        <ActionLog entries={wireLog} />
+        <ActionLog entries={wireLog} published={!!hostedSlug} />
       </section>
 
       <aside className={`pd-rail${sub ? ' pd-offstage' : ''}`}>
