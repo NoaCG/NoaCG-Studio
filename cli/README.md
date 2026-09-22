@@ -22,11 +22,9 @@ agent uses -
 Whichever you pick, the `noacg-graphic` skill is the same text: what a NoaCG graphic must expose,
 and the loop to get there. It is the contract, not design guidance.
 
-It also carries **NoaCG Bridge** (`noacg bridge`), which is not about authoring: it is the local
-program that lets the NoaCG page in your browser drive a CasparCG server on your studio network,
-list its templates and clips, and cue them from the production page. A browser cannot open the
-socket AMCP needs, so the Bridge holds it - `docs/BRIDGE.md`. The same command ships as a
-download, `NoaCG-Bridge.exe`, for a playout laptop with nothing installed.
+Connecting NoaCG Playout to a CasparCG server is a different tool, **NoaCG Bridge**, downloaded
+from the repository's [Releases page](https://github.com/NoaCG/NoaCG-Studio/releases/latest).
+It is not about authoring and needs nothing from this package.
 
 ## Paste this to your agent
 

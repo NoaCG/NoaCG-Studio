@@ -1276,9 +1276,12 @@ Storm warning issued</code></pre>
             it. A browser cannot open a raw TCP socket and AMCP is one, so a small program on the
             machine you operate from holds it: <strong>NoaCG Bridge</strong>. Download
             <code>NoaCG-Bridge.exe</code> from the link under <strong>Settings &rarr;
-            Playout</strong> and double-click it, or, with Node installed, run:
+            Playout</strong> (it is the newest
+            <a href="https://github.com/NoaCG/NoaCG-Studio/releases/latest">release on GitHub</a>)
+            and double-click it. There is nothing to install: the file is the whole program, and
+            Windows warns once because it is not signed yet (<strong>More info</strong>, then
+            <strong>Run anyway</strong>). Leave its window open while you work.
           </p>
-          <pre><code>npx @noacg/cli bridge</code></pre>
           <p>
             It opens a page in your browser; one click pairs the browser with the Bridge. Then fill
             in the CasparCG server under <strong>Settings &rarr; Playout</strong> once for the whole
@@ -1287,10 +1290,10 @@ Storm warning issued</code></pre>
             string. The Bridge listens on <code>127.0.0.1</code> only; CasparCG can be any machine
             on the studio network, exactly as with the Client, and nothing is exposed to the
             internet. On the hosted studio, Chrome asks once whether the site may reach your local
-            network; the pairing page says so before you click, and the answer sticks. Safari
-            refuses this outright, with nothing to grant; there, the terminal route works:
+            network; the pairing page says so before you click, and the answer sticks. Use Chrome
+            or Edge on that machine: Safari refuses a page reaching a local program outright, with
+            nothing to grant.
           </p>
-          <pre><code>npx @noacg/cli caspar play --url "https://noacg.studio/output?production=&lt;slug&gt;" --channel 1 --layer 20</code></pre>
           <p>
             The production page then grows a <strong>Put on air</strong> / <strong>Take off</strong>
             row beside its output URL. Put on air sends the one command above; from then on every

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { problemsWith, sectionOf } from '../scripts/release-notes.mjs';
+import { bridgeReleasePage, problemsWith, sectionOf } from '../scripts/release-notes.mjs';
 
 const CHANGELOG = `# Changelog
 
@@ -49,4 +49,21 @@ test('the version this package is at has notes fit to publish', () => {
   const version = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).version;
   const changelog = readFileSync(fileURLToPath(new URL('../CHANGELOG.md', import.meta.url)), 'utf8');
   assert.deepEqual(problemsWith(sectionOf(changelog, version), version), []);
+});
+
+test('a missing Bridge section names the Bridge changelog, so a refusal says where to write', () => {
+  assert.match(problemsWith(null, '9.9.9', 'cli/BRIDGE_CHANGELOG.md')[0], /cli\/BRIDGE_CHANGELOG\.md has no "## 9\.9\.9" section/);
+});
+
+test("the Bridge's Release page is the template with the version's changes in it, and nothing else", () => {
+  const template = 'What it is.\n\n## What changed\n\n{{changes}}\n\n## Install\n\nDownload it.\n';
+  assert.equal(bridgeReleasePage(template, 'First release.'), 'What it is.\n\n## What changed\n\nFirst release.\n\n## Install\n\nDownload it.');
+  // A dollar sign in the prose is a dollar sign: "$'" and "$&" are replacement patterns to
+  // String.replace, and a string replacement would have printed the Install section twice.
+  assert.equal(bridgeReleasePage('a {{changes}} b', "costs $5, the $'s and $& too"), "a costs $5, the $'s and $& too b");
+  // The real template has the one placeholder the script fills, and says nothing about the CLI
+  // package the Bridge is built from: a playout operator downloads a program, not a package.
+  const real = readFileSync(fileURLToPath(new URL('../BRIDGE_RELEASE.md', import.meta.url)), 'utf8');
+  assert.equal(real.split('{{changes}}').length, 2);
+  assert.doesNotMatch(real, /npx|noacg bridge|built from/);
 });

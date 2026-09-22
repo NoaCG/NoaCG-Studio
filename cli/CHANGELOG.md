@@ -1,8 +1,10 @@
 # Changelog - @noacg/cli
 
 What changed in each published version, written for someone who uses the CLI, the MCP server or
-the plugin. The release workflow publishes a version's section as its GitHub Release text, and the
-build refuses a version that has no section here (`cli/scripts/release-notes.mjs`).
+the plugin. This file ships in the package, so a version's section is what the npm page shows,
+and the build refuses a version that has no section here (`cli/scripts/release-notes.mjs`).
+NoaCG Bridge, the other program built from this package, has its own `BRIDGE_CHANGELOG.md`
+and its own release page on GitHub.
 
 Write a section the way you would tell a colleague what they get by updating: what was wrong or
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
@@ -10,11 +12,11 @@ internal names.
 
 ## 0.4.0 - unreleased
 
-**New: NoaCG Bridge.** `noacg bridge` is the local program that lets the NoaCG page in your
-browser drive a CasparCG server on your studio network without the CasparCG Client. It replaces
-`noacg caspar agent`, which still runs it under the old name. Two ways to run it: this package
-(`npx @noacg/cli bridge`), or the download `NoaCG-Bridge.exe` attached to this release, which is
-the same command with Node inside, for a playout laptop with nothing installed.
+**New: `noacg bridge`.** It runs NoaCG Bridge, the local program that lets the NoaCG page in your
+browser drive a CasparCG server on your studio network without the CasparCG Client, and replaces
+`noacg caspar agent`, which still runs it under the old name. Operators get the same program as
+a download, `NoaCG-Bridge.exe`, from the repository's GitHub Releases page, and need nothing
+from this package; the command here is for anyone who already has it installed.
 
 **Pairing is a link, not a token to paste.** The Bridge prints and opens a link; one click on
 that page pairs the browser. The code in the link works once, for two minutes, and the token
@@ -31,8 +33,9 @@ a quiz reveal or a score change works exactly as before.
 UTF-8 now, so `Jääkiekko.mp4` lists and plays under its own name.
 
 **What to do.** Nothing, if you use `npx`. If you had `noacg caspar agent` in a startup script,
-`noacg bridge` is its new name; both work. The studio needs this version or newer: an older
-agent is told apart from a missing one, and Settings -> Playout says "update NoaCG Bridge".
+`noacg bridge` is its new name; both work. The studio needs a Bridge of this version or newer:
+an older agent is told apart from a missing one, and Settings -> Playout says "update NoaCG
+Bridge".
 
 ## 0.3.4 - 2026-09-20
 

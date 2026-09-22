@@ -136,7 +136,7 @@ that needs no browser at all (`noacg caspar play`, §4).
 ## 2. What it does, from the operator's side
 
 1. Once, ever, on the machine you operate from: download **NoaCG-Bridge.exe** (the studio's
-   Settings -> Playout links it) and double-click it, or run `npx @noacg/cli bridge`. It opens a
+   Settings -> Playout links it; it is the newest GitHub Release) and double-click it. It opens a
    page in your browser; one click pairs the browser with the Bridge. The link carries a one-time
    code that lives two minutes; the token never travels in a URL. On the hosted studio that click
    is also where Chrome asks whether the site may reach your local network, and the page says so
@@ -320,17 +320,33 @@ script refuses to report success until the result has started on a free port and
 `/health` as NoaCG Bridge with the package's version. Measured on this machine: 86 MB, starts,
 answers.
 
-`release-cli.yml` builds it on a Windows runner after the npm publish and attaches it to the same
-Release, so `https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe` is
-always the Bridge that matches the npm package. A dry run keeps it as a workflow artifact.
+**Two products, two homes.** To the people who use them, the NoaCG CLI (making graphics) and
+NoaCG Bridge (connecting NoaCG Playout to CasparCG) are two tools with nothing in common, and the
+release path keeps them apart: the CLI is published to npm by `release-cli.yml` on a `cli-v*`
+tag, and the Bridge is published to the repository's GitHub Releases page by
+`release-bridge.yml` on a `bridge-v*` tag. The Releases page carries Bridge releases only, so
+`https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe`, the link
+under Settings -> Playout, is always the newest Bridge. Nothing user-facing says the two are
+built from one package; `noacg bridge` still runs the Bridge for a developer who has the CLI,
+and that is the only place the seam shows.
+
+The two share the version number of `cli/package.json` and nothing else a reader sees. A Bridge
+release is `git tag bridge-vX.Y.Z <commit on main> && git push origin bridge-vX.Y.Z`; the
+workflow refuses a commit that is not on main, a tag that disagrees with the package version, a
+version already released, and a version with no section in `cli/BRIDGE_CHANGELOG.md`, written
+for the operator deciding whether to download again. The Release page is that section placed
+into `cli/BRIDGE_RELEASE.md` (what it is, what changed, how to install, where the guide is), and
+`node cli/scripts/release-notes.mjs --bridge` prints it. A Bridge release may skip versions
+that only changed the CLI. The Actions tab's "Run workflow" is a rehearsal by default and keeps
+the exe as a workflow artifact.
 
 **Unsigned, for now.** The injection invalidates node.exe's own signature and there is no NoaCG
 code-signing identity yet, so SmartScreen shows "Windows protected your PC" (More info -> Run
 anyway) on a machine that has never seen the file, and a school's AppLocker may refuse it
 outright. Signing is an identity the project has to buy (Azure Trusted Signing is the cheap
-route); until then `npx @noacg/cli bridge` is the equal route for anyone with Node. The studio
-compares the Bridge's protocol version from `/health`, not its semver: an older Bridge is told
-apart from a missing one, and Settings -> Playout says "update NoaCG Bridge".
+route). The studio compares the Bridge's protocol version from `/health`, not its semver: an
+older Bridge is told apart from a missing one, and Settings -> Playout says "update NoaCG
+Bridge".
 
 ---
 
@@ -344,7 +360,7 @@ with each other and most of them are the user's to fix:
 | `permission` | `navigator.permissions` reports `prompt` | Your browser is asking - answer the prompt at the top of the window. |
 | `permission` | it reports `denied` | Allow "local network access" for this site, in the icon left of the address. |
 | `permission` | the query threw, so this browser has no such permission | This browser will not do it at all (Safari). Use Chrome or Edge, or `noacg caspar play`. |
-| `bridge` | `/health` unreachable with the permission not in the way | Start NoaCG Bridge on this machine (download it, or run `npx @noacg/cli bridge`). |
+| `bridge` | `/health` unreachable with the permission not in the way | Start NoaCG Bridge on this machine (double-click NoaCG-Bridge.exe; Settings -> Playout links the download). |
 | `bridge` | `/health` answered, then a route came back 403 | The Bridge is running for a **different** deployment. Restart it with `--origin <this site>`. |
 | `outdated` | `/health` answered as the old agent, or below protocol 2 | Update NoaCG Bridge. |
 | `token` | `/health` answered, then 401 | The Bridge rejected the token. Pair this browser again from the link it prints. |

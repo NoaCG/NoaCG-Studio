@@ -55,6 +55,15 @@ the trade.
 - **Video and animation projects.** A second project kind for stingers, intros and logo reveals,
   generated as React/Remotion or HyperFrames compositions and rendered through the same service.
 
+## Two tools beside the app
+
+- **Want to make graphics from a coding agent or a terminal?** Install the **NoaCG CLI** from
+  npm: [`@noacg/cli`](https://www.npmjs.com/package/@noacg/cli). The next section is about it.
+- **Want to connect NoaCG Playout to a CasparCG server?** Download **NoaCG Bridge** from this
+  repository's [Releases page](https://github.com/NoaCG/NoaCG-Studio/releases/latest): one
+  small program for the laptop you operate from, nothing to install. The guide is
+  [noacg.studio/docs#casparcg-connect](https://noacg.studio/docs#casparcg-connect).
+
 ## For coding agents (Claude Code, Codex, any MCP client)
 
 Ask your coding agent for a graphic "for NoaCG" and it designs one the way it normally designs;
