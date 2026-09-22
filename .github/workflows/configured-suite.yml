@@ -119,8 +119,13 @@ jobs:
       # that boolean override is a no-op on 2.111.0. No spec uses Google sign-in.
       SUPABASE_AUTH_GOOGLE_CLIENT_ID: local-e2e-unused
       SUPABASE_AUTH_GOOGLE_SECRET: local-e2e-unused
-      # THE FLOOR IS THE SUITE'S ACTUAL SIZE, not a number with room under it. 51 is what
-      # `npx playwright test --config playwright.live.config.ts --list` counts on 2026-09-21,
+      # THE FLOOR IS WHAT ACTUALLY RUNS, which is the suite's size minus the one test that is
+      # allowlisted below. `npx playwright test --config playwright.live.config.ts --list` counts
+      # 54 on 2026-09-22, after anonymous.spec.ts gained its two signed-out sign-in doors (Start
+      # production and a control-panel link), and `bridge-real-server.spec.ts` skips its single
+      # test without real hardware - so 53 run. The suite was 52 against a floor of 51 before
+      # that, the same arithmetic one test smaller. The floor was
+      # 51 on 2026-09-21,
       # with `dashboard-hosted-walk.spec.ts` added that day; the floor had drifted to 46 against a
       # suite of 50 before it. It had
       # drifted twice before that - 35 against a suite of 39, then 36 against 43 - and every test
@@ -129,10 +134,13 @@ jobs:
       # against this number, still reads the job green. With the local stack there is no reason for
       # any test to skip, so the floor is an equality in all but name: raise it in the same change
       # that adds a test, and lower it deliberately in the one that removes a test.
-      MIN_TESTS: 51
-      # Deliberately EMPTY. Every skip is a failure now. An entry here is coverage being given up,
-      # so adding one needs a reason written next to it.
-      ALLOWED_SKIPS: ''
+      MIN_TESTS: 53
+      # An entry here is coverage being given up, so adding one needs a reason written next to it.
+      # `bridge-real-server.spec.ts` drives a REAL Bridge process and a REAL CasparCG over the
+      # network, behind `BRIDGE_REAL=1`; a runner has neither, so its one test can only ever skip.
+      # It landed on 2026-09-22 and made every run of this suite red (issue #371) while the code it
+      # covers was fine. Nothing else may skip: with the local stack there is no other reason to.
+      ALLOWED_SKIPS: 'bridge-real-server.spec.ts'
     steps:
       - uses: actions/checkout@v5
 

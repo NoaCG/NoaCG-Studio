@@ -210,6 +210,58 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(where).not.toContainText('any computer you sign in on');
   });
 
+  test('signed out, Start production says it needs an account and offers sign-in right there', async ({ page }) => {
+    // Owner, production, 2026-09-22: "Start production" did NOTHING while signed out. The page
+    // did ask for the sign-in dialog, but the production route never mounted one - the dialog
+    // lived inside the Home, editor and video shells only, so the request set a store flag
+    // nothing on screen was reading. It is mounted once in App.tsx now, for every route.
+    await page.goto('/app');
+    await dismissWizard(page);
+    // A production of its own, made the way the model makes one, and opened by a hash change
+    // rather than a reload so no durable write can be lost in between (e2e/AGENTS.md).
+    const id = await page.evaluate(async () => {
+      const { createShowNamed } = await import('/src/model/shows.ts');
+      return createShowNamed('Logged Out Show').id;
+    });
+    await page.evaluate((showId) => { window.location.hash = `#/production/${showId}`; }, id);
+    await expect(page.getByTestId('production-page')).toBeVisible();
+
+    // The button is live, and its tooltip already says what it needs before anyone presses it.
+    const start = page.getByTestId('production-publish');
+    await expect(start).toBeEnabled();
+    await expect(start).toHaveAttribute('title', /free account/);
+
+    // Pressed: the dialog opens on THIS page, and its first line says why in plain words.
+    await start.click();
+    const card = page.locator('.auth-card');
+    await expect(card).toBeVisible();
+    await expect(card.getByTestId('auth-reason')).toContainText('puts it online');
+    await expect(card.getByTestId('auth-reason')).toContainText('free account');
+    await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
+    await expect(card.locator('.auth-submit')).toHaveText('Sign in');
+    await expect(card.locator('.auth-toggle', { hasText: 'Create a free account' })).toBeVisible();
+
+    // Declining leaves the production exactly as it was: still local, still unpublished, and
+    // the page still usable - no half-published state, and no wall.
+    await card.locator('.gallery-close').click();
+    await expect(card).toHaveCount(0);
+    await expect(start).toBeVisible();
+    await expect(page.getByTestId('production-links-toggle')).toHaveCount(0);
+  });
+
+  test('signed out, a control-panel link offers a sign-in that actually opens', async ({ page }) => {
+    // The same missing mount, one route over: a control-panel link to a graphic this browser has
+    // never synced shows "Sign in to open this panel", and its button used to do nothing.
+    await page.goto('/app');
+    await dismissWizard(page);
+    await page.evaluate(() => { window.location.hash = '#/control/00000000-0000-4000-8000-000000000000'; });
+    const lookup = page.getByTestId('control-lookup');
+    await expect(lookup).toContainText('Sign in to open this panel');
+    await lookup.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.locator('.auth-card')).toBeVisible();
+    await expect(page.locator('.auth-card').getByTestId('auth-reason')).toContainText('control panel');
+  });
+
   test('a dead reset link says so, and offers a new one', async ({ page }) => {
     // docs/backlog/password-reset-link-lands-nowhere.md. Supabase hands a rejected link back in
     // the FRAGMENT (measured 2026-09-04 against the hosted project:

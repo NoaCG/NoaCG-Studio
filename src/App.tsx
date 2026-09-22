@@ -11,6 +11,7 @@ import GraphicControlPage from './components/home/GraphicControlPage';
 import ProductionPage from './components/home/ProductionPage';
 import PasswordRecoveryPage from './components/auth/PasswordRecoveryPage';
 import AgentAccessConsent from './components/auth/AgentAccessConsent';
+import SignInDialog from './components/auth/SignInDialog';
 import BridgePairPage from './components/BridgePairPage';
 import StorageAlertDialog from './components/save/StorageAlertDialog';
 import SaveDialogs from './components/save/SaveDialogs';
@@ -475,6 +476,14 @@ export default function App() {
           that shell is a stacking context and nothing inside it can rise above the app's corner
           notices whatever z-index it carries. */}
       <SaveDialogs />
+      {/* The on-demand SIGN-IN dialog mounts ONCE, here, for the same reason as the save dialogs
+          above. It used to live inside the Home, editor and video shells, so the production page
+          and the graphic control page could ASK for it (Start production, "Sign in to open this
+          panel") and nothing appeared - the owner's "Start production does nothing" while signed
+          out, 2026-09-22. Offline it renders nothing (`backendConfigured` gates it), so this
+          adds no auth UI to a build without a backend. The agent consent page returns before
+          this tree and keeps its own copy. */}
+      <SignInDialog />
       {/* The teams doors (docs/TEAMS_PLAN.md §6), mounted ONCE here because both are reached
           from siblings: the share dialog from Home's production card menu AND the production
           page header, the join dialog from a route. Each renders nothing at all unless a real

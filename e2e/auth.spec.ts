@@ -20,6 +20,28 @@ test('offline / no-backend: the app loads with no auth UI at all', async ({ page
   await expect(page.getByTestId('auth-state')).toHaveCount(0);
 });
 
+// The production page is where publishing lives, and publishing is the one verb there that needs
+// an account in a hosted build (e2e/configured/anonymous.spec.ts pins that half). Offline the
+// button is disabled with a plain reason, pressing around it conjures no dialog, and the sign-in
+// dialog that App.tsx now mounts for every route stays absent.
+test('offline / no-backend: the production page grows no auth UI and says why publishing is off', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.getByTestId('creation-wizard').locator('.gallery-close').click();
+  const id = await page.evaluate(async () => {
+    const { createShowNamed } = await import('/src/model/shows.ts');
+    return createShowNamed('Offline Show').id;
+  });
+  await page.evaluate((showId) => { window.location.hash = `#/production/${showId}`; }, id);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const start = page.getByTestId('production-publish');
+  await expect(start).toBeDisabled();
+  await expect(start).toHaveAttribute('title', 'Publishing needs the cloud backend, and this build runs offline');
+  await expect(page.locator('.auth-gate')).toHaveCount(0);
+  await expect(page.locator('.auth-signin')).toHaveCount(0);
+  await expect(page.getByTestId('auth-state')).toHaveCount(0);
+});
+
 // The password-reset ROUTE (docs/backlog/password-reset-link-lands-nowhere.md). It renders
 // INSTEAD of the studio in hosted mode, which makes it the surface most likely to break the
 // offline posture: a component that returned an empty card here would hand a self-hoster a black
