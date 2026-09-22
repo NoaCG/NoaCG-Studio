@@ -92,6 +92,7 @@ import {
   eventLegality,
   fieldDescriptors,
   formatMachineState,
+  illegalEventTitle,
   isEventLegal,
   machineStateGroups,
   machineStateNames,
@@ -2222,9 +2223,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         disabled={!selectedLayerLive || !legal}
         title={
           !selectedLayerLive
-            ? 'The graphic is not on air — Take the cue first'
+            ? 'The graphic is not on air. Take the cue first.'
             : !legal
-              ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
+              ? illegalEventTitle(label)
               : moved
                 ? // An adjust press moves a figure WITH the event (a goal's +1), counted from
                   // what air shows; a `set` press puts one back to a declared figure (a reset);
@@ -2914,7 +2915,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               {liveNumberFields.map((d) => {
                 const disabled = !selectedLayerLive || !editingIsLive;
                 const title = !selectedLayerLive
-                  ? 'The graphic is not on air — Take the cue first'
+                  ? 'The graphic is not on air. Take the cue first.'
                   : !editingIsLive
                     ? 'Another cue is on air — select the live cue to bump its numbers'
                     : `Changes "${d.label}" on air immediately`;
@@ -2964,7 +2965,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           />
         )}
 
-        <ActionLog entries={wireLog} />
+        <ActionLog entries={wireLog} published={!!hostedSlug && backendConfigured} />
       </section>
 
       <aside className={`pd-rail${sub ? ' pd-offstage' : ''}`}>

@@ -52,7 +52,7 @@ export function StretchGuides({
         data-testid="stretch-guide-left"
         style={{ left: `${(left / artWidth) * 100}%` }}
         onPointerDown={startDrag('left')}
-        title="Where the left cap ends — everything left of this keeps its exact shape"
+        title="Where the left cap ends. Everything left of this keeps its exact shape."
       >
         <span>cap ▸</span>
       </div>
@@ -62,7 +62,7 @@ export function StretchGuides({
         data-testid="stretch-guide-right"
         style={{ left: `${(right / artWidth) * 100}%` }}
         onPointerDown={startDrag('right')}
-        title="Where the right cap starts — everything between the guides stretches"
+        title="Where the right cap starts. Everything between the guides stretches."
       >
         <span>◂ cap</span>
       </div>

@@ -260,7 +260,7 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
   // work is intact.
   const upAgain = page.getByTestId('live-numbers').getByTestId('live-number-f1-up');
   await expect(upAgain).toBeDisabled();
-  await expect(upAgain).toHaveAttribute('title', /not on air — Take the cue first/);
+  await expect(upAgain).toHaveAttribute('title', /not on air. Take the cue first/);
 
   // …so the operator takes it again and carries on from the score that was stored.
   await page.getByTestId('verb-take').click();

@@ -72,11 +72,11 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
           {plan.kind === 'fixed' ? 'Data fields' : 'Text lines'}{' '}
           <span className="muted">
             {plan.kind === 'lines'
-              ? `(the design adapts — ${variant.maxLines} max for ${variant.name})`
+              ? `(the design adapts, ${variant.maxLines} max for ${variant.name})`
               : plan.kind === 'list'
                 ? plan.editor === 'paste'
-                  ? '(paste the whole list — the design builds itself from it)'
-                  : '(rows are content — the design builds itself from them)'
+                  ? '(paste the whole list and the design builds itself from it)'
+                  : '(rows are content and the design builds itself from them)'
                 : `(this design's field set is fixed)`}
           </span>
         </h3>
@@ -152,7 +152,7 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
           {plan.kind === 'lines' && (
             <>
               The wizard keeps to the lines this design actually shows. Extra fields and custom
-              layouts come after creating, where the design can adapt to them — the Data tab
+              layouts come after creating, where the design can adapt to them. The Data tab
               adds a field, and AI editing or the canvas works it into the graphic.
             </>
           )}
@@ -160,7 +160,7 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
           {plan.kind === 'list' && plan.editor === 'paste' && (
             <>
               This is ONE field, not a field per person: paste the whole list in and the design
-              rebuilds itself from it — here, and again on air. A line ending in a colon is a
+              rebuilds itself from it, here and again on air. A line ending in a colon is a
               role and every line under it is one of that role&rsquo;s names, so one
               &ldquo;Camera Operators:&rdquo; credits as many people as the show had. A tab or
               a <code>|</code> works too, which is what a paste from a spreadsheet gives you.
@@ -169,7 +169,7 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
           {plan.kind === 'list' && plan.editor !== 'paste' && (
             <>
               Rows here are CONTENT, not fields: on air you edit them as one value and the
-              design rebuilds itself — add as many as the show needs.
+              design rebuilds itself. Add as many as the show needs.
             </>
           )}
           {/* The list's own TEXT FORMAT, when it has one. A format stated only in docs/ is a
@@ -216,7 +216,7 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
 
       {variant.logo !== 'none' && (
         <div className="panel-section">
-          <h3>Logo <span className="muted">a real image field — swap the file at playout</span></h3>
+          <h3>Logo <span className="muted">a real image field, so you can swap the file at playout</span></h3>
           {/* The one checkbox row (re-design/handoff.md §6). */}
           <label className="dlg-check" style={{ cursor: variant.logo === 'built-in' ? 'default' : 'pointer' }}>
             <input
@@ -229,7 +229,7 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
               <span className="dlg-check-title">Include a logo slot</span>
               <span className="dlg-check-desc">
                 {variant.logo === 'built-in'
-                  ? 'This design always carries its logo slot — upload yours or pick a file later at playout.'
+                  ? 'This design always carries its logo slot. Upload yours, or pick a file later at playout.'
                   : 'Adds an image field to the design; leave it empty for a clean placeholder.'}
               </span>
             </span>

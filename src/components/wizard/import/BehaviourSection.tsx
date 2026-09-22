@@ -45,11 +45,11 @@ import SectionHead from '../SectionHead';
  *  fifteen literals: the quiz and the vote ask the same two questions of the same inventory, and
  *  a picker whose empty option read differently from its neighbour's would look like it meant
  *  something different. */
-const NOT_DRAWN = '— not drawn —';
+const NOT_DRAWN = 'Not drawn';
 /** The quiz's moments fall back to NoaCG's own neutral look (docs/SVG_STATES_FROM_ARTWORK.md, the
  *  ladder's rung 1); every other behaviour's undrawn moment shows nothing extra. */
 const DEFAULT_LOOK = 'Not drawn: NoaCG’s own look';
-const PICK_A_LAYER = '— pick a text layer —';
+const PICK_A_LAYER = 'Pick a text layer';
 
 /** The four recipes the wizard holds in shapes of their own (draft.ts); every other one is the
  *  generic draft and is listed from the registry. */

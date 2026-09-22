@@ -34,7 +34,7 @@ export default function KitLookStep({ remaining, summary, onUseForAll, onWalkEac
     <div className="wz-kit-look" data-testid="kit-look">
       <h3>Use this look for {others}?</h3>
       <p className="hint">
-        The colours, typeface, sizes and motion you just chose — {summary} — applied to{' '}
+        The colours, typeface, sizes and motion you just chose ({summary}), applied to{' '}
         {remaining === 1 ? 'it' : 'every graphic left in the kit'}. Each design keeps its own
         fields and its own placement.
       </p>

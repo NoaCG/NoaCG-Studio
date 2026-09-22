@@ -50,7 +50,7 @@ test('an agent-authored machine brings its own button, greyed until the cue is o
   // GREY BEFORE TAKE, and it says why. A ⚡ button fires on the layer that is on air, so off air
   // there is nothing for it to fire at - and the surface has to say that rather than look broken.
   await expect(reveal).toBeDisabled();
-  await expect(reveal).toHaveAttribute('title', 'The graphic is not on air — Take the cue first');
+  await expect(reveal).toHaveAttribute('title', 'The graphic is not on air. Take the cue first.');
 
   // TAKE, and the same button is live with its payload named in the operator's words. "Correct"
   // is the title the author gave f15; a field id here would tell an operator nothing, which is

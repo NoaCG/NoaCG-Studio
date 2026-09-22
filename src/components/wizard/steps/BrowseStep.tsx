@@ -504,8 +504,8 @@ export default function BrowseStep({
         type="search"
         placeholder={
           buildMode === 'kit'
-            ? 'Search shows and graphics — try “church”, “esports”, “ticker”…'
-            : 'Search all templates — try “name graphic”, “countdown”, “church verse”…'
+            ? 'Search shows and graphics, for example “church”, “esports”, “ticker”…'
+            : 'Search all templates, for example “name graphic”, “countdown”, “church verse”…'
         }
         value={filters.query}
         onChange={(e) => set({ query: e.target.value })}

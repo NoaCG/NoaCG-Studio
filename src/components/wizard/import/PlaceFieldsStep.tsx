@@ -200,7 +200,7 @@ export default function PlaceFieldsStep({ art, draft, onDraft, onBackToPrepare }
         setTool('select');
         setSuggestNote(
           auto
-            ? 'Placed in the empty panel we found — drag to adjust, or delete what you don’t need.'
+            ? 'Placed in the empty panel we found. Drag to adjust, or delete what you don’t need.'
             : `Added ${placed.length} field${placed.length === 1 ? '' : 's'} in the empty panel.`,
         );
       } finally {
@@ -345,7 +345,7 @@ export default function PlaceFieldsStep({ art, draft, onDraft, onBackToPrepare }
         <span className="hint" style={{ marginRight: 4 }}>Tool:</span>
         <button className={tool === 'select' ? 'active' : ''} onClick={() => setTool('select')} title="Select / move fields" data-testid="tool-select">↖ Select</button>
         <button className={tool === 'text' ? 'active' : ''} onClick={() => setTool('text')} title="Click the artwork to place point text" data-testid="tool-text">T Text</button>
-        <button className={tool === 'area' ? 'active' : ''} onClick={() => setTool('area')} title="Drag a box — text wraps inside its width" data-testid="tool-area">⬚ Area text</button>
+        <button className={tool === 'area' ? 'active' : ''} onClick={() => setTool('area')} title="Drag a box. Text wraps inside its width." data-testid="tool-area">⬚ Area text</button>
         <button className={tool === 'image' ? 'active' : ''} onClick={() => setTool('image')} title="Drag a box the operator drops a picture into (a crest, a headshot, a sponsor mark)" data-testid="tool-image">🖼 Image slot</button>
         <button
           onClick={() => void suggest(false)}
@@ -365,7 +365,7 @@ export default function PlaceFieldsStep({ art, draft, onDraft, onBackToPrepare }
         <div className="wz-prep-verdict bad" data-testid="placefields-baked-note">
           <p>
             Baked-in text is still part of the artwork
-            {bakedLines !== null && bakedLines > 1 ? ` (${bakedLines} lines of it)` : ''} — it
+            {bakedLines !== null && bakedLines > 1 ? ` (${bakedLines} lines of it)` : ''}, so it
             cannot be edited on air, and fields placed here will sit on top of it. Erase it on
             the Prepare step, or keep it if it is part of the design.
           </p>
@@ -449,7 +449,7 @@ export default function PlaceFieldsStep({ art, draft, onDraft, onBackToPrepare }
         )}
         {fields.length === 0 && !drawRect && (
           <div className="place-empty hint">
-            Click the artwork to place text — drag with ⬚ for a wrapping box, or 🖼 for a
+            Click the artwork to place text. Drag with ⬚ for a wrapping box, or 🖼 for a
             picture slot.
           </div>
         )}

@@ -258,7 +258,7 @@ export default function ImportDesignStep({
         idPrefix="import-design-format"
         description={
           templateFile
-            ? 'A finished template brings its own canvas — this is what it is read back against.'
+            ? 'A finished template brings its own canvas, and this is what it is read back against.'
             : art || svg
               ? 'Remove the current artwork before changing its authored canvas.'
               : 'Choose the canvas before artwork is measured and placed.'
@@ -534,9 +534,9 @@ export default function ImportDesignStep({
           </div>
           <p className="hint" style={{ marginTop: 10 }}>
             {fullFrame && scaled
-              ? `A ${Math.round((art.sourceWidth! / art.width) * 10) / 10}× export of the ${resolution.width} × ${resolution.height} frame — shown frame-sized, edge to edge, exactly as you drew it (the extra resolution keeps it sharp).`
+              ? `A ${Math.round((art.sourceWidth! / art.width) * 10) / 10}× export of the ${resolution.width} × ${resolution.height} frame, shown frame-sized, edge to edge, exactly as you drew it (the extra resolution keeps it sharp).`
               : fullFrame
-                ? `Frame-sized (${resolution.width} × ${resolution.height}) — it will sit exactly where you drew it, edge to edge.`
+                ? `Frame-sized (${resolution.width} × ${resolution.height}). It will sit exactly where you drew it, edge to edge.`
                 : scaled
                   ? `Larger than the ${resolution.width} × ${resolution.height} frame, so it is scaled down to fit it (the extra resolution keeps it sharp) and placed as an object you can position.`
                   : `Smaller than the ${resolution.width} × ${resolution.height} frame, so it is placed as an object you can position and resize.`}

@@ -124,7 +124,7 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
             <span className="wz-continue-text">
               <strong>Home</strong>
               <span className="hint">
-                Your saved graphics, productions, control panels, and videos — pick up where
+                Your saved graphics, productions, control panels and videos. Pick up where
                 you left off.
               </span>
             </span>
@@ -155,7 +155,7 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
           {/* The kit is named HERE because there is no kit card — this sentence is the only
               thing on the front page that says a whole set is possible, and the switch that
               does it sits at the top of Browse (see the note above). */}
-          <span className="hint">Pick a design — one graphic, or the whole kit a show needs in one look — then choose your fields, style and animation. Tweak the code it writes, or never open it.</span>
+          <span className="hint">Pick a design, one graphic or the whole kit a show needs in one look. Then choose your fields, style and animation. Tweak the code it writes, or never open it.</span>
         </button>
         <button className="wz-entry-card" onClick={onAi} data-entry="ai">
           <span className="wz-entry-head">
@@ -200,7 +200,7 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
               which they had every reason to avoid, was the way in. "No AI" and "already finished"
               are the same errand. Keep this copy no LONGER than it is: the entry grid's height
               budget is measured by e2e/wizard-entry-fit.spec.ts. */}
-          <span className="hint">Bring your own artwork in — no AI: a layered SVG brings its text in as fields, a PNG or JPEG you place text on. Already have it as .html or .zip? Drop that in instead.</span>
+          <span className="hint">Bring your own artwork, no AI. A layered SVG brings its text in as fields. On a PNG or JPEG you place text. Already have it as .html or .zip? Drop that in instead.</span>
         </button>
         {/* Blank's only outcome is the code editor, so the card is an Advanced-mode door
             (docs/GOALS_ARCHIVE.md "Student release" step 4). */}
@@ -210,7 +210,7 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
               <span className="wz-entry-icon">‹›</span>
               <strong>Blank project</strong>
             </span>
-            <span className="hint">A minimal valid template — pure code-first, no training wheels.</span>
+            <span className="hint">A minimal valid template for writing the code yourself.</span>
           </button>
         )}
       </div>

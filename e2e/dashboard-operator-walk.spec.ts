@@ -88,6 +88,11 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   await page.getByTestId('verb-take').click();
   const chip = page.getByTestId('machine-state-chip');
   await expect(chip).toHaveText('Question');
+  // Reveal choice belongs to the hidden-pick road (docs.html #quiz-run), so it is grey here, and
+  // its title says so in the operator's words rather than the machine's event id.
+  const revealChoice = page.getByTestId('cue-action-revealChoice');
+  await expect(revealChoice).toBeDisabled();
+  await expect(revealChoice).toHaveAttribute('title', 'Reveal choice does nothing from where the graphic is now, so it is greyed out');
 
   await page.getByRole('button', { name: /Select answer/ }).click();
   await expect(quiz(page).locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
@@ -131,6 +136,13 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  // The activity log starts empty too, for the same reason, and says so in plain words rather
+  // than looking like the night's presses were lost (Friday rehearsal, 2026-09-21).
+  await page.getByTestId('action-log').locator('summary').click();
+  await expect(page.getByTestId('action-log-row')).toHaveCount(0);
+  await expect(page.getByTestId('action-log-empty')).toHaveText(
+    /not published, so the list starts empty each time the page opens/,
+  );
   await shot(page, '2-after-reload');
   await selectCue(page, 'Team score');
   await expect(page.getByTestId('cue-field-f1')).toHaveValue('4');

@@ -10,6 +10,7 @@ import {
   eventLegality,
   eventPayload,
   formatMachineState,
+  illegalEventTitle,
   isEventLegal,
   machineStateNames,
   movedKeys,
@@ -773,7 +774,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
                           onClick={() => fireEvent(b)}
                           title={
                             !legal
-                              ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
+                              ? illegalEventTitle(b.label)
                               : moved
                                 ? `Fires "${b.event}" and moves ${moved} with it`
                                 : b.payload?.length

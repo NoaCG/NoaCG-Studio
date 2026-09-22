@@ -45,8 +45,8 @@ const SPEEDS: { label: string; value: AnimSpeed }[] = [
 
 const DIRECTIONS: { id: AnimPhase; label: string; hint: string }[] = [
   { id: 'both', label: 'In and out', hint: 'One matched style animates the graphic on and off air.' },
-  { id: 'in', label: 'In only', hint: 'Pick the entrance — the exit keeps its current style.' },
-  { id: 'out', label: 'Out only', hint: 'Pick the exit — the entrance keeps its current style.' },
+  { id: 'in', label: 'In only', hint: 'Pick the entrance. The exit keeps its current style.' },
+  { id: 'out', label: 'Out only', hint: 'Pick the exit. The entrance keeps its current style.' },
 ];
 
 /** The categories whose presets share the standard in/out structure (mixable phases). */
@@ -58,10 +58,10 @@ const STEP_CATEGORIES: AssemblerId[] = ['lower-third', 'info-card', 'corner-bug'
 
 /** The Slide family's direction picker: arrows point the way the graphic travels in. */
 const SLIDE_DIRS: { id: AnimPresetId; arrow: string; hint: string }[] = [
-  { id: 'slide-up', arrow: '↑', hint: 'Up — enters from below' },
-  { id: 'slide-down', arrow: '↓', hint: 'Down — enters from above' },
-  { id: 'slide-left', arrow: '←', hint: 'Left — enters from the right edge' },
-  { id: 'slide-right', arrow: '→', hint: 'Right — enters from the left edge' },
+  { id: 'slide-up', arrow: '↑', hint: 'Up, enters from below' },
+  { id: 'slide-down', arrow: '↓', hint: 'Down, enters from above' },
+  { id: 'slide-left', arrow: '←', hint: 'Left, enters from the right edge' },
+  { id: 'slide-right', arrow: '→', hint: 'Right, enters from the left edge' },
 ];
 
 /** Step 5 — motion: direction, preset, speed, easing, and multi-step mode. */
@@ -309,7 +309,7 @@ export default function AnimationStep({ variant, template, draft, onDraft, onRep
             testid="wz-anim-why-direction"
           >
             <p>
-              A graphic animates twice — ON air and OFF again — and they need not match: a
+              A graphic animates twice, ON air and OFF again, and the two need not match. A
               confident slide in can leave with a quiet fade. This chooses which of the two
               your next style pick changes. Most graphics keep one style for both, which is why
               “In and out” is the default.
@@ -347,7 +347,7 @@ export default function AnimationStep({ variant, template, draft, onDraft, onRep
         >
           <p>
             How the graphic arrives and leaves. Every card is a finished, broadcast-tuned
-            motion — click one and the preview plays it
+            motion. Click one and the preview plays it
             {phaseApply && direction !== 'in' ? ', entrance then exit' : ''}; click the active
             card again to replay. Nothing here changes your content or layout, only the way it
             moves.
@@ -412,7 +412,7 @@ export default function AnimationStep({ variant, template, draft, onDraft, onRep
         <div className="panel-section">
           <SectionHead title="Speed" summary="entrance and exit" testid="wz-anim-why-speed">
             <p>
-              How long the entrance and the exit take — the same motion, on a faster or slower
+              How long the entrance and the exit take: the same motion, on a faster or slower
               clock. It scales the graphic everywhere it plays: the preview here, the editor,
               and on air.
             </p>
@@ -438,7 +438,7 @@ export default function AnimationStep({ variant, template, draft, onDraft, onRep
         <div className="panel-section" style={{ minWidth: 180, flex: '1 1 180px' }}>
           <SectionHead title="Easing" summary="the feel of the motion" testid="wz-anim-why-easing">
             <p>
-              The same travel can arrive mechanically or with character — settle softly, pop
+              The same travel can arrive mechanically or with character. It can settle softly, pop
               past and snap back, bounce. That curve is the easing. The list only offers curves
               the current motion can actually show, and Auto is each motion&rsquo;s hand-tuned
               pair, which is why it is the recommendation.
@@ -451,7 +451,7 @@ export default function AnimationStep({ variant, template, draft, onDraft, onRep
             {/* Short enough to READ BACK inside a 196 px select — the longer wording was
                 truncated mid-word, which is the wrong place to hide what "Auto" means. The
                 hint under the select carries the sentence. */}
-            <option value="auto">Auto — recommended</option>
+            <option value="auto">Auto (recommended)</option>
             {easeOptions.map((e) => (
               <option key={e.id} value={e.id} title={e.description}>{e.plain}</option>
             ))}
@@ -467,7 +467,7 @@ export default function AnimationStep({ variant, template, draft, onDraft, onRep
           <p className="hint" style={{ marginTop: 6 }}>
             {activeEasing
               ? activeEasing.description
-              : 'Each motion arrives on the curve it was tuned with — quick in, settling softly.'}
+              : 'Each motion arrives on the curve it was tuned with: quick in, settling softly.'}
           </p>
         </div>
       </div>

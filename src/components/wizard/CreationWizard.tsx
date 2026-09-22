@@ -105,7 +105,7 @@ function reportFailedCreateSave(name: string, error: string | null): void {
     action: `Saving “${name}”`,
     error: error ?? 'The graphic could not be saved.',
     outcome:
-      'It is still open in the editor — free some room, then press Save. You can still export it from here without saving.',
+      'It is still open in the editor. Free some room, then press Save. You can still export it from here without saving.',
   });
 }
 
@@ -1388,7 +1388,7 @@ export default function CreationWizard() {
         action: `Adding “${name}” to a production`,
         error: saved.error ?? 'The graphic could not be saved.',
         outcome:
-          'Your graphic is still open in the wizard, unsaved — free some room, then press “Add to the production” again.',
+          'Your graphic is still open in the wizard, unsaved. Free some room, then press “Add to the production” again.',
       });
       return;
     }
@@ -1663,8 +1663,8 @@ export default function CreationWizard() {
           onClick={create}
           title={
             mode === 'design' || mode === 'svg'
-              ? 'Create the project with everything chosen so far — refine anything later in the editor'
-              : 'Create the project now — remaining steps keep their defaults'
+              ? 'Create the project with everything chosen so far. You can refine anything later in the editor.'
+              : 'Create the project now. The steps you skip keep their defaults.'
           }
         >
           Create project
@@ -1677,7 +1677,7 @@ export default function CreationWizard() {
           className="primary wz-next"
           disabled={!aiResult?.valid}
           onClick={() => goToStep(1)}
-          title={aiResult && !aiResult.valid ? 'The result has validation errors — refine or regenerate first' : undefined}
+          title={aiResult && !aiResult.valid ? 'The result has validation errors. Refine or regenerate it first.' : undefined}
         >
           Next →
         </button>
@@ -1728,7 +1728,7 @@ export default function CreationWizard() {
                 Home door is the button beside it. Home has to stay one press away from every
                 step (✕ only rewinds to the front page), which is why the pair travels
                 together rather than the lockup doing both jobs. */}
-            <a className="brand brand-home" href="/" title="NoaCG Studio — the front page">
+            <a className="brand brand-home" href="/" title="NoaCG Studio front page">
               <BrandLogo size={24} />
             </a>
             <span className="wz-title-sep">·</span>
@@ -1751,7 +1751,7 @@ export default function CreationWizard() {
           <button
             className="home-btn wz-home"
             data-testid="wz-home"
-            title="Home — your graphics, productions, control panels, and videos"
+            title="Home: your graphics, productions, control panels and videos"
             onClick={() => {
               closeGallery();
               useRouter.getState().navigate({ view: 'home', section: null });

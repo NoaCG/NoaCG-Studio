@@ -69,7 +69,7 @@ const PALETTE_ROLES: {
   { key: 'accent', cssVar: 'accent', label: 'Accent', hint: 'the one highlight color' },
   { key: 'text', cssVar: 'text-color', label: 'Text', hint: 'primary text' },
   { key: 'textDim', cssVar: 'text-dim', label: 'Text dim', hint: 'secondary line' },
-  { key: 'panel', cssVar: 'panel-bg', label: 'Panel', hint: 'box background — rgba() works' },
+  { key: 'panel', cssVar: 'panel-bg', label: 'Panel', hint: 'box background, rgba() works' },
 ];
 
 /**
@@ -307,7 +307,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
     return {
       text: `${contrastRatio(fg, bg)}:1`,
       title:
-        'Estimated contrast against the panel. A guide, not a readability verdict — ' +
+        'Estimated contrast against the panel. A guide, not a readability verdict: ' +
         'transparency, the moving video behind the graphic, text shadows, type size and ' +
         'key-and-fill output all change what a viewer can actually read.',
     };
@@ -325,7 +325,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
             {paletteReachesNothing
               ? 'this design carries its own colors'
               : paints('accent')
-                ? 'one accent + neutrals — retint anytime via the CSS variables'
+                ? 'one accent + neutrals - retint anytime via the CSS variables'
                 : 'neutrals only, this design paints no accent - retint anytime via the CSS variables'}
           </span>
         </h3>
@@ -548,7 +548,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
             {/* Two identical S/M/L triplets under two near-identical labels read as a
                 duplicated control. They are not: this one scales the whole graphic. */}
             <p className="hint" style={{ marginTop: 6 }}>
-              Scales the panel, the bars and the type as one — the design keeps its proportions.
+              Scales the panel, the bars and the type as one, so the design keeps its proportions.
             </p>
           </div>
 
@@ -566,7 +566,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
               ))}
             </div>
             <p className="hint" style={{ marginTop: 6 }}>
-              Type only, on top of the size above — for longer names, or a heavier look at the
+              Type only, on top of the size above. Use it for longer names, or a heavier look at the
               same footprint.
             </p>
           </div>

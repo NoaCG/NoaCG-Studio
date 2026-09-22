@@ -158,7 +158,7 @@ export default function FontsSection({ fonts, onDraft }: { fonts: SvgFontDraft[]
                     font being private. Until the index has loaded the button stands. */}
                 {googleFamilies && !googleFamilies.has(fontNameKey(f.lookup)) ? (
                   <span className="muted" data-testid={`map-svg-font-nogoogle-${f.family}`}>
-                    Not on Google Fonts — upload the file
+                    Not on Google Fonts? Upload the file
                   </span>
                 ) : (
                   <button
