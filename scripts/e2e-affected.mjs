@@ -555,7 +555,12 @@ const MAP = [
   // ProductionLinks.tsx is where BridgeAirRow itself lives since the 2026-08-28 split, so it is
   // named here rather than left to the components/home rule above: that rule's set does not
   // include this spec, and the ONE button is the whole browser half of the feature.
-  [/^src\/components\/home\/(ProductionPage|ProductionLinks)\.tsx$/, ['bridge-connect.spec.ts']],
+  [/^src\/components\/home\/(ProductionPage|ProductionLinks)\.tsx$/, ['bridge-connect.spec.ts', 'playout-cues.spec.ts']],
+  // Cues over the playout server's library (docs/BRIDGE.md §5): the picker, the cue editor and
+  // the published payload's playout cues on the hosted page.
+  [/^src\/components\/home\/PlayoutItemPicker\.tsx$/, ['playout-cues.spec.ts']],
+  [/^src\/components\/HostedControlPage\.tsx$/, ['playout-cues.spec.ts']],
+  [/^src\/(model\/shows|control\/hostedControl)\.ts$/, ['playout-cues.spec.ts']],
   // THE WIZARD DOOR (components/NewGraphicButton.tsx) is mounted by five shells at once, so a
   // change to it moves the same control on Home, the editor, the control page, the production
   // dashboard and the video shell. AppShell and styles.css are already CORE, so this row is not

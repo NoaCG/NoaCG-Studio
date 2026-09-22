@@ -22,8 +22,13 @@ import { uuid } from './id';
  */
 export interface ShowCue {
   id: string;
-  /** The pool entry this cue drives (SavedGraphic.id). */
+  /** The pool entry this cue drives (SavedGraphic.id) - or, when `source` is `playout`, the
+   *  PlayoutItem (Show.playoutItems) it drives. */
   sourceId: string;
+  /** ADDITIVE OPTIONAL. Absent = a cue over a pool graphic, as every cue was before 2026-09-22.
+   *  `playout` = a cue over an item in the playout server's own library (docs/BRIDGE.md §5):
+   *  it airs through NoaCG Bridge as one command, not through the output URL. */
+  source?: 'playout';
   /** The operator-facing name — "Anna Andersson — Presenter". */
   label: string;
   /** fieldId -> value, the cue's prepared data. A cue OWNS its values (an entry is only a
@@ -31,6 +36,41 @@ export interface ShowCue {
   values: Record<string, string>;
   /** Operator note shown in the rundown. */
   note?: string;
+}
+
+/** A field a server template takes, as the cue editor offers it: the id on the wire (`f0`),
+ *  the operator's word for it, and its default. The same three things FIELDS.md documents. */
+export interface PlayoutField {
+  field: string;
+  title: string;
+  value: string;
+}
+
+/**
+ * An item that lives in the PLAYOUT SERVER's own library rather than in NoaCG: an HTML
+ * template or a clip on a CasparCG server, listed through NoaCG Bridge and cued from the
+ * rundown beside the production's own graphics (docs/BRIDGE.md §5). NoaCG stores the NAME and
+ * where it plays; the file never travels. ADDITIVE OPTIONAL on the Show record.
+ *
+ * The channel is not stored here: it is the studio's setting (Settings -> Playout), the same
+ * for every item, and a production record syncs to machines whose studio may differ.
+ */
+export interface PlayoutItem {
+  id: string;
+  /** Which kind of playout system. Only `casparcg` exists today; OBS and vMix add their own. */
+  adapter: 'casparcg';
+  kind: 'template' | 'media';
+  /** The server's own name: a template id as it lists templates, a clip name as it lists media. */
+  name: string;
+  /** The layer it plays on. A template takes the next free layer like a graphic does; a clip
+   *  plays on the shared clip layer below every graphic (PLAYOUT_CLIP_LAYER). */
+  layer: number;
+  /** A clip's length, when the server reported one. */
+  frames?: number;
+  fps?: number;
+  /** A template's fields, when known: from NoaCG's own library when it made the template, else
+   *  what the operator typed. A clip has none. */
+  fields?: PlayoutField[];
 }
 
 /** One column of a production dataset. `key` is the stable id values are stored under;
@@ -99,6 +139,10 @@ export interface Show {
   /** The production's DATA TABLES (the Data workspace — docs/INTERACTIVE_PLAYOUT_PLAN.md D3).
    *  ADDITIVE OPTIONAL like cues; absent = none authored. */
   datasets?: ShowDataset[];
+  /** Items of the playout server's library that this production cues (PlayoutItem). ADDITIVE
+   *  OPTIONAL - an older build reads and rewrites the record untouched, and its rundown simply
+   *  shows those cues as pointing at nothing it knows. */
+  playoutItems?: PlayoutItem[];
   /**
    * The production-data SEED (docs/PRODUCTION_DATA_PLAN.md §2.1) — the tree this production
    * STARTS from, and what "Reset" returns the live tree to. Authored, so it travels: it syncs,
@@ -380,8 +424,22 @@ export function seedValues(fields: SpxTemplate['fields']): Record<string, string
   return values;
 }
 
-/** Append a cue for a pool graphic. `seed` prefills label/values (e.g. from a ControlEntry —
- *  a starting point only; the cue owns its values from here on). */
+/** The playout item a cue drives, when it is that kind of cue. */
+export function playoutItemOf(show: Pick<Show, 'playoutItems'>, cue: Pick<ShowCue, 'sourceId' | 'source'>): PlayoutItem | null {
+  if (cue.source !== 'playout') return null;
+  return show.playoutItems?.find((i) => i.id === cue.sourceId) ?? null;
+}
+
+/** A playout template's fields as cue values: every field at its default. */
+function seedPlayoutValues(item: PlayoutItem): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const f of item.fields ?? []) values[f.field] = f.value;
+  return values;
+}
+
+/** Append a cue for a pool graphic - or for a playout item, which the same id space names.
+ *  `seed` prefills label/values (e.g. from a ControlEntry - a starting point only; the cue owns
+ *  its values from here on). */
 export function addShowCue(
   showId: string,
   sourceId: string,
@@ -390,12 +448,14 @@ export function addShowCue(
   let cueId: string | null = null;
   const shows = patchShow(showId, (show) => {
     const source = show.graphics.find((g) => g.id === sourceId);
-    if (!source) return false;
+    const item = source ? null : (show.playoutItems?.find((i) => i.id === sourceId) ?? null);
+    if (!source && !item) return false;
     const cue: ShowCue = {
       id: uuid(),
       sourceId,
-      label: seed?.label?.trim() || source.name,
-      values: { ...seedValues(source.template.fields), ...(seed?.values ?? {}) },
+      ...(item ? { source: 'playout' as const } : {}),
+      label: seed?.label?.trim() || (source ? source.name : item!.name),
+      values: { ...(source ? seedValues(source.template.fields) : seedPlayoutValues(item!)), ...(seed?.values ?? {}) },
       ...(seed?.note ? { note: seed.note } : {}),
     };
     show.cues = [...(show.cues ?? []), cue];
@@ -403,6 +463,84 @@ export function addShowCue(
     return true;
   });
   return { shows, cueId };
+}
+
+/** Clips share one layer below every graphic, on purpose: one clip at a time, and a strap
+ *  never disappears behind a rolling VT (docs/BRIDGE.md §5). */
+export const PLAYOUT_CLIP_LAYER = 10;
+
+/**
+ * Put an item of the playout server's library into the production, with one cue on it - the
+ * same shape addGraphicToShow gives a graphic, so the rundown is never empty-but-working. The
+ * same NAME and kind is one item (adding twice keeps its cues); a template takes the next free
+ * layer counted across graphics AND templates, a clip the shared clip layer.
+ */
+export function addPlayoutItem(
+  showId: string,
+  item: Omit<PlayoutItem, 'id' | 'layer'> & { layer?: number },
+): { shows: Show[]; cueId: string | null } {
+  let cueId: string | null = null;
+  const shows = patchShow(showId, (show) => {
+    const items = show.playoutItems ?? [];
+    let entry = items.find((i) => i.adapter === item.adapter && i.kind === item.kind && i.name === item.name);
+    if (!entry) {
+      const layer =
+        item.layer ??
+        (item.kind === 'media'
+          ? PLAYOUT_CLIP_LAYER
+          : nextFreeLayer([...show.graphics, ...items.filter((i) => i.kind === 'template')]));
+      entry = { ...item, id: uuid(), layer };
+      show.playoutItems = [...items, entry];
+    } else if (item.fields && !entry.fields?.length) {
+      entry.fields = item.fields;
+    }
+    const cue: ShowCue = {
+      id: uuid(),
+      sourceId: entry.id,
+      source: 'playout',
+      label: entry.name.split('/').pop() || entry.name,
+      values: seedPlayoutValues(entry),
+    };
+    show.cues = [...(show.cues ?? []), cue];
+    cueId = cue.id;
+    return true;
+  });
+  return { shows, cueId };
+}
+
+/** Move a playout item to another layer (the cue editor's layer box). */
+export function setPlayoutItemLayer(showId: string, itemId: string, layer: number): Show[] {
+  return patchShow(showId, (show) => {
+    const item = show.playoutItems?.find((i) => i.id === itemId);
+    if (!item) return false;
+    item.layer = Math.min(MAX_PLAYOUT_LAYER, Math.max(MIN_PLAYOUT_LAYER, Math.round(layer) || PLAYOUT_CLIP_LAYER));
+    return true;
+  });
+}
+
+/** Replace a template item's fields - what the operator typed for a template NoaCG did not
+ *  make. Every cue on it gains the new fields at their defaults and loses none of its values. */
+export function setPlayoutItemFields(showId: string, itemId: string, fields: PlayoutField[]): Show[] {
+  return patchShow(showId, (show) => {
+    const item = show.playoutItems?.find((i) => i.id === itemId);
+    if (!item) return false;
+    item.fields = fields;
+    for (const cue of show.cues ?? []) {
+      if (cue.sourceId !== itemId) continue;
+      for (const f of fields) if (!(f.field in cue.values)) cue.values[f.field] = f.value;
+    }
+    return true;
+  });
+}
+
+/** Remove a playout item and every cue prepared against it. */
+export function removePlayoutItem(showId: string, itemId: string): Show[] {
+  return patchShow(showId, (show) => {
+    if (!show.playoutItems?.some((i) => i.id === itemId)) return false;
+    show.playoutItems = show.playoutItems.filter((i) => i.id !== itemId);
+    show.cues = (show.cues ?? []).filter((c) => c.sourceId !== itemId);
+    return true;
+  });
 }
 
 /** Patch a cue's label / values / note in place. Values merge per field. */
@@ -485,6 +623,8 @@ export function removeShowCue(showId: string, cueId: string): Show[] {
     show.cues = (show.cues ?? []).filter((c) => c.id !== cueId);
     if (!show.cues.some((c) => c.sourceId === cue.sourceId)) {
       show.graphics = show.graphics.filter((g) => g.id !== cue.sourceId);
+      // A playout item is pruned by the same rule: nothing survives out of sight of the rundown.
+      if (show.playoutItems) show.playoutItems = show.playoutItems.filter((i) => i.id !== cue.sourceId);
     }
     return true;
   });

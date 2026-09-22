@@ -25,6 +25,7 @@ export const FOCUS = [
   // section in Settings, both of which ARE student-critical surfaces. What it protects during the
   // sprint is that those two surfaces keep working, not that CasparCG does.
   'bridge-connect.spec.ts',
+  'playout-cues.spec.ts',
   'control.spec.ts',
   'cross-tab.spec.ts',
   'data-api.spec.ts',
