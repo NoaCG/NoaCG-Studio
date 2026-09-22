@@ -88,15 +88,41 @@ three ways depending on where an operator was standing. Every one of them now op
 rides with the press: the moved figure, the payload named in the operator's words, or, on the
 graphic control page, which entry the values come from.
 
-One sentence reads slightly worse than the id it replaced, and it is worth knowing about. A totals
-board labels five separate presses `+1`, so `plus3`'s hover is now
-`Fires +1 on the live graphic and moves Points 3 +1 with it.` The label alone does not say which
-panelist; the FIELD name does, and the old id said neither in words an operator knows. The two
-assertions in `e2e/agent-made-graphics.spec.ts` carry that reasoning in a comment so the next
-reader does not think the repetition is a bug.
+**The button is named by the heading over it, not by its label alone.** A totals board labels five
+separate presses `+1`, one per panelist, so the label names nobody. The word that tells them apart
+on screen is the section heading drawn above the row, and that is what the hover borrows, while
+the moved clause drops the delta the button already carries:
+
+    Fires Panelist 3 +1 on the live graphic and moves Points 3 with it.
+
+The section is the heading the panel actually DRAWS, handed in by each surface rather than derived
+again, so the two cannot disagree. A control with no heading over it keeps its bare label: a pinned
+one, which `arrangeControls` lifts out of its section by design, and a lone "Actions" group whose
+heading the dashboard suppresses. A label already opening with its section's words is left alone,
+so a "Match" section holding "Match final" never reads "Match Match final".
+
+Both rules are pure string functions in a new `src/control/controlWords.ts`. It imports nothing,
+which is what lets `scripts/control-name.test.mjs` load it with one `transpileModule` call - the
+`combine.ts` pattern, and that file says so in its header so the next person does not break it.
+Nine cases, and the three worth naming are the typographic minus a designer types into a label
+(`−1`, U+2212, against an arithmetic `-1`), a press moving two figures under one word, which keeps
+its numbers, and a reset, whose "Points 3 to 0" figure is not a delta and must never be dropped.
 
 `src/components/ControlPanel.tsx` and `timeline/PlayoutSimulator.tsx` still use the id. They are
 EDITOR surfaces, not playout ones, and row P left them for the same reason.
+
+**The fold is unconditional, deliberately.** A control whose label was already unique now carries
+a heading it did not need: the proof case's Reveal button reads
+`Fires Song Reveal performer on the live graphic, carrying this cue's Correct.`, where `Song` is
+the author's name for the group. That reads slightly heavy. The alternative is to fold the section
+in only where two controls in one arrangement share a label, which each surface could compute from
+the arrangement it already holds, and it was considered and rejected: a hover whose shape depends
+on what its neighbours are called is unpredictable for the operator, harder to test, and goes
+stale the moment somebody renames a sibling. One rule that always holds is worth more than a
+sentence that is two words shorter some of the time.
+
+**Revisit it if the owner reads a real board and dislikes it**, and the shared-label rule above is
+where to start. Nothing else in this row depends on the choice.
 
 ## Left, and why
 
@@ -138,8 +164,13 @@ preview losing its artwork (`wizard-preview:518`). All four are load-shaped on a
 running the suite and the catalog battery together, and the quarantine list is empty, so none of
 them is a known flake on paper. `j-1774` re-ran all four plus every spec covering the files the
 rulings touched: **183 passed, 0 failed**, so all four were load flakes and none of them is this
-branch's. `j-1775` took the screenshots, 5 passed. `j-1776` is the final run over the specs the
-three-surface unification touches.
+branch's. `j-1775` took the screenshots, 5 passed. `j-1776` covered the three-surface unification, 102
+passed, and `j-1779` is the final run on the tip: the same eight specs plus `import-svg-behaviour`
+and `productions`, which are the ones that drive a ⚡ button through the arrangement the naming
+rule now reads.
+
+A unit test came with the naming rule rather than after it: `scripts/control-name.test.mjs`, nine
+cases, inside `npm run build` through the `scripts/**/*.test.mjs` glob.
 
 **The screenshots, read for wrapping** (`fixed-panes-1366x768-long-top.png`, plus the 390px pair
 for the case the CSS comment names). `PROGRAM · ON AIR` is one line at both widths, and legible at
@@ -154,4 +185,5 @@ document titles.
 
 `5f734b30` the copy itself, `4605f573` the two documents plus the owner walk, `eb72d74c` the
 assertions and quotes the review and the suite found, `56465a5d` the simplify pass's one hover
-string, `322d2eb5` the three rulings above, then this handoff.
+string, `322d2eb5` the first three rulings, `45444dd` the same wording on all three surfaces,
+`bffd8236` the heading-named button and its unit test, then this handoff.
