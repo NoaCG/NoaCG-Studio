@@ -1422,7 +1422,7 @@
      and is the one an operator must never miss, so only that one stays. */
   .pd-mode-idle { display: none; }
 
-  /* Monitor labels stay ONE line: at 390px "PROGRAM — ON AIR" wrapped and pushed the frame
+  /* Monitor labels stay ONE line: at 390px "PROGRAM · ON AIR" wrapped and pushed the frame
      down, and the cue name beside it is the first thing worth dropping. */
   .pd-monitor h2 { font-size: 9px; letter-spacing: 0.1em; white-space: nowrap; }
   .pd-monitor .pd-what { display: none; }

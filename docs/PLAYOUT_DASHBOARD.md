@@ -508,7 +508,7 @@ and delete live behind the row's `⋯`, never as four permanent buttons that cru
     the graphic OFF AIR first: the output page follows the log, not the payload, so a live pool
     entry deleted from under it would keep rendering with nothing left able to stop it.
   A removal that destroys typed content asks twice — the pictures graphic carries the uploads
-  themselves, so its wording names the count ("Also deletes 3 pictures — confirm?").
+  themselves, so its wording names the count ("Also deletes 3 pictures. Confirm?").
 - The rail's foot is how graphics GET IN: the library picker, `＋ New graphic for this
   production…`, `＋ Add pictures…`. Nothing else belongs there.
 

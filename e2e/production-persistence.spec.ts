@@ -221,7 +221,7 @@ test('the audience and presenter links are offered separately, and only once the
   // presenter's - the whole reason they are two rows rather than one. The audience row says so
   // WITHOUT being asked: every other explanation on this panel collapses behind its ▸, and
   // "public" is the one omission here that could reach air.
-  await expect(links).toContainText('Public — share it with the room');
+  await expect(links).toContainText('This link is public. Share it with the room');
   await expect(page.getByTestId('presenter-url-help')).toHaveCount(0);
   await page.getByTestId('presenter-url-help-toggle').click();
   await expect(page.getByTestId('presenter-url-help')).toContainText('presenter’s own phone or tablet');
