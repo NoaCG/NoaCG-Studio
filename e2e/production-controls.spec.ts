@@ -816,8 +816,11 @@ test.describe('the control area is the one scroller', () => {
       await expect(page.getByTestId('cue-editor')).toBeVisible();
 
       const overflowOf = (sel: string) => page.locator(sel).evaluate((el) => getComputedStyle(el).overflowY);
+      // The stage column CAN scroll, as the last resort for a window too short to hold the
+      // stage head at all - but at a supported size it has nothing to scroll, which is the
+      // half that matters: a column that scrolls is a column whose monitors move.
+      expect(await page.locator('.pd-main').evaluate((el) => el.scrollHeight - el.clientHeight)).toBe(0);
       // `hidden` counts as a failure here: it is what clipped the editor's own bottom rows.
-      expect(await overflowOf('.pd-main')).not.toMatch(/auto|scroll|hidden/);
       expect(await overflowOf('.pd-editor')).not.toMatch(/auto|scroll/);
       expect(await overflowOf('.pd-activity')).not.toMatch(/auto|scroll/);
       // The two scrollers, both deliberate, and neither hands its wheel on at its end.

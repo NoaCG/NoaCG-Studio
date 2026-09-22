@@ -97,21 +97,32 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
-  /* THE PAGE IS THE ONLY SCROLLER (docs/PLAYOUT_DASHBOARD.md 2). This page used to be locked
-     to the viewport, so a graphic with many fields grew a scrollbar INSIDE the editor - the
-     pane an operator changes scores and names in mid-show. Every block is content-sized; a
-     long form makes a long page, and the monitors and the rundown stay put by being sticky. */
-  html { height: 100%; }
-  body { margin:0; min-height:100%; background:var(--bg); color:var(--text);
+  /* A FIXED SHELL WITH ONE SCROLLER (docs/PLAYOUT_DASHBOARD.md 2). The document never scrolls:
+     the header, the stage head and the rundown are fixed, and the CONTROL AREA under the
+     monitors - the editor and the activity feed - is the only scroll container. The page used
+     to scroll as a whole with those three held on it by position:sticky, and anything that
+     moved the document moved them too (a trackpad's overscroll bounce most visibly, the owner's
+     report of 2026-09-22). Every block inside the control area is still content-sized, so a
+     graphic with many fields makes that area longer rather than growing a scrollbar inside the
+     editor, which was the 2026-08-19 complaint. */
+  html, body { height:100%; }
+  /* The shell IS the viewport: a body column of header + the grid under it, and overflow:clip
+     rather than overflow:hidden, because a hidden box is still a scroll container that a focus
+     change can scroll by script, which would move everything in it. */
+  body { margin:0; overflow:clip; display:flex; flex-direction:column;
+    background:var(--bg); color:var(--text);
     font:14px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif; }
-  /* NO SCROLLBAR CHROME, anywhere (§3). A horizontal scrollbar here is a layout bug. */
+  /* NO SCROLLBAR CHROME, anywhere (§3), except the control area, which took over the page's
+     job and keeps a thin bar as the one sign that there is more below. A horizontal scrollbar
+     here is a layout bug. */
   .cues, .editor, .feed { scrollbar-width:none; }
   .cues::-webkit-scrollbar, .editor::-webkit-scrollbar, .feed::-webkit-scrollbar { width:0; height:0; }
+  .controls { scrollbar-width:thin; scrollbar-color:var(--line) transparent; }
 
-  /* Sticky: the page scrolls under it, and All out has to stay one reach away. */
-  header { display:flex; align-items:center; gap:10px; height:50px; padding:0 14px;
-    border-bottom:1px solid var(--line); background:var(--panel);
-    position:sticky; top:0; z-index:20; }
+  /* Nothing scrolls under it, so it needs no sticky: All out is one reach away because the
+     header never moves. */
+  header { display:flex; align-items:center; gap:10px; height:50px; padding:0 14px; flex:none;
+    border-bottom:1px solid var(--line); background:var(--panel); }
   header h1 { font-size:14px; margin:0; font-weight:600; white-space:nowrap; }
   header h1 span { color:var(--dim); font-weight:400; }
   .mode { font-size:11px; font-weight:700; letter-spacing:.1em; padding:3px 10px; border-radius:99px;
@@ -127,18 +138,25 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
     border:1px solid rgba(239,68,68,.55); border-radius:7px; padding:7px 13px; cursor:pointer; white-space:nowrap; }
   .allout:disabled { color:var(--dim); border-color:var(--line); cursor:default; }
 
-  main { display:grid; grid-template-columns: minmax(0,1fr) 380px; min-height: calc(100vh - 50px); }
-  /* The divider is drawn by the STAGE column, which runs the whole page - the rail is sticky
-     and only ever a viewport tall, so a border on it would stop dead partway down. */
-  .stage { min-width:0; display:flex; flex-direction:column; gap:10px; padding:12px 14px;
-    border-right:1px solid var(--line); }
-  /* THE ONE EXCEPTION to content-sizing: a forty-cue rundown has nowhere else to go, so the
-     rail is a viewport-tall sticky column with its list scrolling inside. */
-  .rail { display:flex; flex-direction:column; position:sticky; top:50px; align-self:start;
-    height:calc(100vh - 50px); }
+  /* The grid under the header takes exactly what is left. minmax(0,1fr) on the row is what
+     lets a column be SMALLER than its content, so the overflow lands in the control area
+     rather than on the page. */
+  main { flex:1 1 auto; min-height:0; display:grid;
+    grid-template-columns: minmax(0,1fr) 380px; grid-template-rows: minmax(0,1fr); }
+  /* The divider is drawn by the STAGE column, which now runs exactly the body's height.
+     overflow:auto is the LAST RESORT for a window too short to hold the stage head at all
+     (below the supported minimum): the column scrolls rather than clipping TAKE and Out out of
+     reach. At every supported size the control area absorbs everything and this never scrolls. */
+  .stage { min-width:0; min-height:0; display:flex; flex-direction:column;
+    border-right:1px solid var(--line); overflow:auto; overscroll-behavior:contain; }
+  /* THE CONTROL AREA: the one scroller. Its own gutters, so the bar sits on the column's edge. */
+  .controls { flex:1 1 auto; min-height:200px; overflow-y:auto; overscroll-behavior:contain;
+    display:flex; flex-direction:column; gap:10px; padding:0 14px 12px; }
+  /* A fixed column the body's height, with the forty-cue rundown scrolling inside it. */
+  .rail { display:flex; flex-direction:column; min-height:0; }
 
-  /* THE STAGE HEAD: the monitors AND the verbs that act on them, as one STICKY block - what
-     must never leave the screen is sticky, not small, and the verb bar carries TAKE and Out.
+  /* THE STAGE HEAD: the monitors AND the verbs that act on them, as one FIXED block outside the
+     scroller - what must never leave the screen stays put, and the verb bar carries TAKE and Out.
      It used to scroll away under the monitors, which the owner called out on 2026-08-21
      ("a bit scary that you scroll the monitors on top of the take buttons").
      At and above the minimum supported window (1366px) the bar moves into the empty column
@@ -146,15 +164,14 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
      height it was using, which is the same read's 1080p complaint. Below it, the bar returns
      underneath. docs/PLAYOUT_DASHBOARD.md §2; the parity contract is CONTROL_PANEL_PARITY.md. */
   .stagehead { display:flex; flex-direction:column; gap:10px; flex:none;
-    position:sticky; top:50px; z-index:5; background:var(--bg);
-    margin:-12px -14px -10px; padding:12px 14px 10px; }
+    padding:12px 14px 10px; }
   @media (min-width:1366px) {
     /* STRETCH, not \`end\`: the monitors set the row height and the verb column takes exactly it,
-       so the buttons share that height instead of each claiming 44px and making the sticky head
-       taller than the monitors it exists to keep on screen. */
+       so the buttons share that height instead of each claiming 44px and making the stage head
+       taller than the monitors it exists to hold. */
     .stagehead { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:stretch; gap:14px; }
     /* TWO ACROSS, not a single stack: six verbs in one column are taller than the monitors at
-       1536x814, and the stack would then set the sticky head's height instead of the picture. */
+       1536x814, and the stack would then set the stage head's height instead of the picture. */
     .stagehead .verbs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
       align-content:stretch; gap:6px; max-width:300px; }
     /* TAKE spans the pair on the first row: the loudest control on the surface, and the only
@@ -165,7 +182,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
       text-align:center; }
   }
 
-  /* Monitors: PREVIEW beside PROGRAM, equal, CAPPED and STICKY (through the stage head above) -
+  /* Monitors: PREVIEW beside PROGRAM, equal, CAPPED and FIXED (through the stage head above) -
      you see what is out all the time, and the options below get the rest of the page. The cap is
      a track WIDTH because each screen takes its height from its width through aspect-ratio; the
      number below is this production's own ratio, capped at 16/9 so neither screen exceeds the
@@ -320,15 +337,15 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
     border-radius:8px; background:#2d1c12; color:#f0c9a8; font-size:12px; }
 
   /* Phone (§3): one column, monitors still side by side, verbs pinned to the bottom. */
+  /* THE PHONE STACKS AND SCROLLS AS ONE COLUMN, deliberately: at this width there is no room
+     to hold the monitors still beside a scrolling control area, so main is the one scroller
+     and the verbs are pinned to the bottom of the screen. */
   @media (max-width: 900px) {
-    main { display:flex; flex-direction:column; min-height:0; }
-    .stage { border-right:none; }
-    /* Not sticky at this width: the verbs are pinned to the bottom of the screen instead, and
-       a monitor block stuck to the top would cover the cue list it sits above. The stage head
-       is what carries the stickiness now, so it is the one that has to stand down. */
-    .stagehead { position:static; margin:0; padding:0; display:contents; }
-    .monitors { position:static; margin:0; padding:0; }
-    .rail { position:static; height:auto; align-self:auto; border-top:1px solid var(--line); }
+    main { display:flex; flex-direction:column; overflow:auto; overscroll-behavior:contain; }
+    .stage { border-right:none; overflow:visible; }
+    .stagehead, .controls { display:contents; }
+    .monitors { padding:0; }
+    .rail { border-top:1px solid var(--line); }
     .cues { max-height:46vh; flex:none; }
     header { height:46px; padding:0 10px; }
     .clock, header a { display:none; }
@@ -382,6 +399,9 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
     </div>
     </div>
 
+    <!-- THE CONTROL AREA: the one scroller on the page, the same shape the in-app dashboard
+         and the hosted page carry (docs/CONTROL_PANEL_PARITY.md). -->
+    <div class="controls">
     <div class="editor" id="editor" style="display:none">
       <div class="ed-head">
         <span class="ed-kicker" id="ed-kicker"></span>
@@ -397,6 +417,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
       <summary>Activity <span id="feed-last"></span></summary>
       <div id="feed"></div>
     </details>
+    </div>
   </section>
 
   <aside class="rail">

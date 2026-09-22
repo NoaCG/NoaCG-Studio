@@ -62,10 +62,12 @@
 }
 .playout-dashboard :where(.pd-cues, .pd-editor, .pd-activity, .pd-rail) { scrollbar-width: none; }
 .playout-dashboard :where(.pd-cues, .pd-editor, .pd-activity, .pd-rail)::-webkit-scrollbar { width: 0; height: 0; }
-/* The control area keeps a THIN bar (§3): it took over the page's job, and the page's own bar
-   was the one sign that there is more below. Thin and dark, so it reads as the edge of the
-   column rather than as a box with a scrollbar of its own. */
-.pd-control-area { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+/* The control area and the two sub-pages keep a THIN bar (§3): each took over the page's job on
+   its own surface, and the page's own bar was the one sign that there is more below. Thin and
+   dark, so it reads as the edge of the column rather than as a box with a scrollbar of its own. */
+.pd-control-area,
+.pd-data,
+.pd-audience { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 .pd-header {
@@ -153,21 +155,29 @@
   grid-template-rows: minmax(0, 1fr);
 }
 /* THE STAGE COLUMN: the stage head on top at its own height, the control area taking the rest.
-   It never scrolls itself. It also draws the divider beside the rail, which now runs exactly
-   the body's height. */
+   It also draws the divider beside the rail, which now runs exactly the body's height.
+   `overflow: auto` here is the LAST RESORT for a window too short to hold the stage head at all
+   - below the supported 1366x768 minimum, say 1280x400 or a window with tall docked devtools.
+   The column scrolls then, rather than clipping TAKE and ■ Out out of reach inside a shell that
+   by design cannot be scrolled at all. At every supported size the control area absorbs the
+   overflow, this column's content fits exactly, and there is nothing here to scroll. */
 .pd-main {
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 /* THE CONTROL AREA, the one scroller on the page (see the top of this file). The gutters are its
    own padding rather than .pd-main's, so the scrollbar sits on the column's edge instead of
    14px inside it. No top padding: the stage head's bottom padding is the gap above. */
 .pd-control-area {
   flex: 1 1 auto;
-  min-height: 0;
+  /* A FLOOR, not zero: it is what makes the last resort above trigger instead of the stage head
+     being clipped. Squeezed below this the column scrolls as a whole. */
+  min-height: 200px;
   overflow-y: auto;
   /* Reaching the end must not hand the wheel on to anything, and a trackpad's bounce stays
      inside this box instead of dragging the page. */

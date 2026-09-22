@@ -556,10 +556,14 @@ const MAP = [
   // named here rather than left to the components/home rule above: that rule's set does not
   // include this spec, and the ONE button is the whole browser half of the feature.
   [/^src\/components\/home\/(ProductionPage|ProductionLinks)\.tsx$/, ['bridge-connect.spec.ts', 'playout-cues.spec.ts']],
-  // The dashboard's fixed shell: the two surfaces that carry `.pd-control-area`, the one scroller
-  // the monitors and the rundown sit beside (docs/PLAYOUT_DASHBOARD.md §2). The stylesheet half
-  // is CORE and reaches the spec through the FOCUS list.
-  [/^src\/components\/(home\/ProductionPage|HostedControlPage)\.tsx$/, ['playout-fixed-panes.spec.ts']],
+  // The dashboard's fixed shell: the control area is the one scroller and the monitors and the
+  // rundown sit beside it (docs/PLAYOUT_DASHBOARD.md §2). The stylesheet half is CORE and reaches
+  // the spec through the FOCUS list; the exported controller carries its own copy of the shell,
+  // which the spec's third surface drives. `HostedControlPage.tsx` is deliberately NOT here: its
+  // DOM needs a configured backend, so no offline spec can mount it, and its copy of the wrapper
+  // is held by the parity contract (docs/CONTROL_PANEL_PARITY.md) instead.
+  [/^src\/components\/home\/ProductionPage\.tsx$/, ['playout-fixed-panes.spec.ts']],
+  [/^src\/control\/productionControllerHtml\.ts$/, ['playout-fixed-panes.spec.ts']],
   // Cues over the playout server's library (docs/BRIDGE.md §5): the picker, the cue editor and
   // the published payload's playout cues on the hosted page.
   [/^src\/components\/home\/PlayoutItemPicker\.tsx$/, ['playout-cues.spec.ts']],
