@@ -2439,6 +2439,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onHome={() => navigate({ view: 'home', section: null })}
       onBack={() => navigate({ view: 'home', section: 'productions' })}
       onAllOut={() => void outAll()}
+      allOutEnabled={liveLayers.length > 0 || livePlayoutLayers.length > 0}
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
       sub={sub ?? null}
@@ -3571,6 +3572,7 @@ function ProductionShell({
   onHome,
   onBack,
   onAllOut,
+  allOutEnabled,
   onExport,
   onKey,
   links,
@@ -3590,6 +3592,9 @@ function ProductionShell({
   onHome: () => void;
   onBack: () => void;
   onAllOut: () => void;
+  /** Whether anything is up to clear - the graphics on the log, or a server cue through the
+   *  Bridge, which `liveLayers` does not count. */
+  allOutEnabled?: boolean;
   onExport: () => void;
   onKey: (key: PlayoutVerb) => void;
   links: React.ReactNode;
@@ -3721,7 +3726,7 @@ function ProductionShell({
         </button>
         <button
           className="pd-allout"
-          disabled={liveLayers.length === 0}
+          disabled={!(allOutEnabled ?? liveLayers.length > 0)}
           onClick={onAllOut}
           title="Play every live layer off — clear the frame"
           data-testid="verb-out-all"

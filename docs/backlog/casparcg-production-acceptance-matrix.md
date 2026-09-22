@@ -23,7 +23,7 @@ The existing Stage 1 hardware acceptance remains open; this defines its evidence
 
 ## What it would take
 
-Extend existing scenarios in `CASPARCG_CONNECT.md`, `ACCEPTANCE_SPX_CASPARCG.md` and
+Extend existing scenarios in `BRIDGE.md`, `ACCEPTANCE_SPX_CASPARCG.md` and
 `PLAYOUT_INTEGRATION.md`. Record installed server/CEF/client/OS versions, channel format,
 consumer/card configuration and package hashes. Keep offline template export, hosted output URL
 and any future OGraf host as separate paths. Reuse the local NoaCG AMCP agent.
@@ -43,5 +43,5 @@ owner-queue records; do not create a duplicate claim that the owner has accepted
 
 ## Evidence
 
-[Existing connection measurements](../CASPARCG_CONNECT.md),
+[Existing connection measurements](../BRIDGE.md),
 [matrix and boundaries](../OGRAF_FULL_STACK_PLAN.md#6-casparcg-acceptance-before-a-new-engine).

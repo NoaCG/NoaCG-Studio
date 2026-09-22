@@ -1270,35 +1270,60 @@ Storm warning issued</code></pre>
             there, and which CSS declaration needs what version.
           </p>
 
-          <h3 id="casparcg-connect">Letting NoaCG load the layer for you</h3>
+          <h3 id="casparcg-connect">Letting NoaCG load the layer for you: NoaCG Bridge</h3>
           <p>
             Instead of typing the command into the CasparCG Client, the production page can send
-            it. <strong>Settings &rarr; Playout</strong> holds one server for the whole studio
-            (host, AMCP port, channel, layer), and the production page grows a
-            <strong>Put on air</strong> / <strong>Take off</strong> row. One thing has to run on
-            the machine you operate from, because a browser cannot open a raw TCP socket and AMCP
-            is one:
+            it. A browser cannot open a raw TCP socket and AMCP is one, so a small program on the
+            machine you operate from holds it: <strong>NoaCG Bridge</strong>. Download
+            <code>NoaCG-Bridge.exe</code> from the link under <strong>Settings &rarr;
+            Playout</strong> and double-click it, or, with Node installed, run:
           </p>
-          <pre><code>npx @noacg/cli caspar agent</code></pre>
+          <pre><code>npx @noacg/cli bridge</code></pre>
           <p>
-            Leave that terminal open. It prints an address and token to paste into the Playout
-            settings, listens on <code>127.0.0.1</code> only, and CasparCG itself can be any
-            machine on the studio LAN, exactly as with the Client. <strong>Test
-            connection</strong> round-trips a real AMCP <code>VERSION</code> and shows the
-            server's own version string. On the hosted studio, Chrome asks once whether the site
-            may reach your local network; answer the prompt and it sticks. Safari is expected to
-            refuse this outright, with nothing to grant, though that has not been tested here.
-            Either way the terminal route works:
+            It opens a page in your browser; one click pairs the browser with the Bridge. Then fill
+            in the CasparCG server under <strong>Settings &rarr; Playout</strong> once for the whole
+            studio (host, AMCP port, channel, layer) and press <strong>Test connection</strong>,
+            which round-trips a real AMCP <code>VERSION</code> and shows the server's own version
+            string. The Bridge listens on <code>127.0.0.1</code> only; CasparCG can be any machine
+            on the studio network, exactly as with the Client, and nothing is exposed to the
+            internet. On the hosted studio, Chrome asks once whether the site may reach your local
+            network; the pairing page says so before you click, and the answer sticks. Safari
+            refuses this outright, with nothing to grant; there, the terminal route works:
           </p>
           <pre><code>npx @noacg/cli caspar play --url "https://noacg.studio/output?production=&lt;slug&gt;" --channel 1 --layer 20</code></pre>
+          <p>
+            The production page then grows a <strong>Put on air</strong> / <strong>Take off</strong>
+            row beside its output URL. Put on air sends the one command above; from then on every
+            cue, reveal and score change travels over the production's own command log into the
+            page CasparCG is showing, and the Bridge sends nothing more.
+          </p>
+          <h4 id="casparcg-library">Templates and clips already on the server</h4>
+          <p>
+            With the Bridge paired, the rundown's foot gains <strong>&#65291; From the playout
+            server&hellip;</strong>. It lists the HTML templates and the media in the server's own
+            folders, as the server itself lists them, and adds one as a cue beside the production's
+            graphics. A server template is taken with its field values, updated, stepped with Next
+            and taken off; a clip rolls, pauses, resumes and stops. Clips play on layer 10, below
+            every graphic, so a strap never disappears behind a rolling clip. The file stays on the
+            server; only its name is stored in the production.
+          </p>
+          <p>
+            The list comes from the server's <strong>media scanner</strong>, which CasparCG runs
+            beside itself (<code>scanner.exe</code> in the Windows download, a separate
+            <code>scanner</code> process on Linux). When it is not running the picker says so and
+            still lets you type a template or clip name. A template NoaCG exported brings its
+            fields with it; for any other template, type its field ids (<code>f0, f1</code>) once,
+            from its own FIELDS.md or its author.
+          </p>
           <p class="callout truth">
             <span class="lbl">What has been verified</span>
-            The output URL route has run on real hardware: a CasparCG 2.3.2 server rendered it at
-            1920&times;1080, transparent, surviving a renderer restart. The one-button connection
-            is newer. Its AMCP wire and every failure state are verified against protocol-accurate
-            fakes and the test suite, but it has <strong>not yet driven a real CasparCG
-            server</strong>. If it misbehaves on yours, the manual command above is the same live
-            link, and we would like to hear about it.
+            On a real CasparCG 2.5.0 on the maintainer's machine, with its media scanner running:
+            the Bridge exe paired, a published quiz and scoreboard went on the channel with one
+            command and were revealed and scored from the dashboard, and a template and a still
+            from the server's own library were cued, taken, updated and taken off. The 2.3.2 install
+            answered the same listing and one template round. Not yet verified: the pairing prompt
+            on the hosted studio, a Linux server, and Safari. If it misbehaves on yours, the manual
+            command above is the same live link, and we would like to hear about it.
           </p>
 
           <h3 id="casparcg-file">Playing an exported file</h3>

@@ -110,6 +110,16 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
       await json(route, 401, { ok: false, v: 2, error: { hop: 'agent', code: 'refused', detail: 'Bad or missing Bridge token.' } });
       return;
     }
+    if (path === '/act') {
+      // What the real Bridge refuses, refused here too: an item must carry a name. The real
+      // 2.5.0 walk of 2026-09-22 caught "Take off" sending an empty one that this fake had
+      // waved through.
+      const a = body.action as { item?: { name?: string } } | undefined;
+      if (a && 'item' in a && !a.item?.name) {
+        await json(route, 400, { ok: false, v: 2, error: { hop: 'agent', code: 'usage', detail: 'The item has no name.' } });
+        return;
+      }
+    }
     if (path === '/act') state.actions.push(body.action);
     if (state.serverDown) {
       // The Bridge is fine; the socket behind it is not. The Bridge's own sentence, address included.

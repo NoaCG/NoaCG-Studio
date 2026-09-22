@@ -151,35 +151,42 @@ CG 1-20 ADD 1 "https://<your-noacg-host>/output?production=<slug>" 1
 - The page recovers by itself. If the machine loses the network, or you restart the layer, it
   rebuilds whatever was on air, without replaying the animations on screen.
 
-### Letting NoaCG load the layer for you
+### Letting NoaCG load the layer for you: NoaCG Bridge
 
 The command above is the whole live link, so NoaCG can send it instead of you typing it into the
-CasparCG Client. **Settings -> Playout** holds one server for the whole studio - host, AMCP port,
-channel and layer - and the production page then grows a **CasparCG** row beside its output URL
-with **Put on air** and **Take off**.
-
-It needs one thing running on the machine you operate from, because a browser cannot open a raw
-TCP socket and AMCP is one:
+CasparCG Client. A browser cannot open a raw TCP socket and AMCP is one, so a small program on the
+machine you operate from holds it: **NoaCG Bridge**. Download `NoaCG-Bridge.exe` (the link is
+under Settings -> Playout) and double-click it, or with Node installed:
 
 ```bash
-noacg caspar agent
+npx @noacg/cli bridge
 ```
 
-Leave that terminal open. It prints an address and a token to paste into the Playout section, and
-it listens on `127.0.0.1` only - CasparCG itself may be any machine on the studio LAN, exactly as
-with the Client. **Test connection** round-trips a real AMCP `VERSION` and shows the server's own
-version string.
+It opens a page that pairs your browser with one click. **Settings -> Playout** then holds one
+server for the whole studio - host, AMCP port, channel and layer - and the production page grows
+a **CasparCG** row beside its output URL with **Put on air** and **Take off**. The Bridge listens
+on `127.0.0.1` only; CasparCG itself may be any machine on the studio network, exactly as with
+the Client, and nothing is exposed to the internet. **Test connection** round-trips a real AMCP
+`VERSION` and shows the server's own version string.
+
+With the Bridge paired, the rundown's foot gains **From the playout server…**: the templates and
+clips already in the server's own folders, listed as the server lists them, added as cues beside
+the production's graphics. A server template is taken with its field values, updated, stepped and
+taken off; a clip rolls, pauses, resumes and stops, on layer 10 below every graphic. The file
+stays on the server; only its name is stored. The list needs the server's media scanner
+(`scanner.exe` beside CasparCG on Windows, a separate process on Linux); without it the picker
+says so and still takes a typed name.
 
 Two practical notes:
 
 - On the hosted studio, Chrome asks once whether `noacg.studio` may reach your local network.
-  Answer it and the setting sticks. A self-hosted NoaCG on the studio LAN is never asked.
-  Safari refuses this outright - there, use the terminal route below.
+  The pairing page says so before you click, and the answer sticks. A self-hosted NoaCG on the
+  studio LAN is never asked. Safari refuses this outright - there, use the terminal route below.
 - Everything works without any of this. `noacg caspar play --url "<output URL>"` sends the same
   command with no browser involved at all, and loading the URL by hand in the CasparCG Client
   remains exactly as supported as it was.
 
-Full detail, including what was measured and what is deliberately not built: **`docs/CASPARCG_CONNECT.md`**.
+Full detail, including what was measured and what is deliberately not built: **`docs/BRIDGE.md`**.
 
 ### Playing an exported file
 
@@ -293,9 +300,10 @@ Fonts travel in the folder, so a machine without the typeface installed still re
 | Output URL shows "not available" | Wrong slug, or the production was unpublished | Re-copy the URL from the production page. Unpublishing kills the URL on purpose. |
 | Cloud output goes blank after a network drop | It is rebuilding | Wait — it recovers on its own, without replaying animations on screen. If it does not, reload the layer. |
 | Operator takes a cue and nothing airs | The production is not published | Read the mode strip in the production header. `○ NOT PUBLISHED` means the verbs are driving the page's own PROGRAM monitor and nothing reaches the wire; publish, then take again. `● SHOW` means it did go out, so the fault is downstream: check the renderer status row and the layer. |
-| Settings → Playout says the agent is not running | `noacg caspar agent` is not up, or is on another port | Start it and re-copy the address it prints. It must run on the machine with the browser, not on the playout box. |
+| Settings → Playout says NoaCG Bridge is not running | The Bridge is not up on this machine, or is on another port | Start it (the exe, or `npx @noacg/cli bridge`) and open the link it prints. It must run on the machine with the browser, not on the playout box. |
 | It says your browser is asking about local network access | Chrome gates a hosted page reaching `127.0.0.1` | Answer the prompt at the top of the window. If it was dismissed, allow "local network access" for the site in the icon left of the address bar. |
 | It says CasparCG did not answer | Nothing is listening on that host and AMCP port | `noacg caspar status` makes the same call from the terminal and takes the browser out of the question. |
+| The server picker says the media scanner is not running | CasparCG answered, but the scanner beside it is not up, so it cannot list its files | Start `scanner.exe` next to CasparCG (a separate `scanner` process on Linux). You can still type a name meanwhile. |
 | Fonts wrong on the playout machine | An export that could not embed its font | Re-export; NoaCG fails the export rather than shipping a missing face, so this should not happen with a current build. |
 
 ## 8. What has actually been tested
@@ -311,11 +319,14 @@ than one that admits the gaps.
   `file://` with no network, fonts and images inlined; the bundled control panel pairs with
   its graphic over one http origin (and honestly reports the no-listener case elsewhere —
   `file://` pages can never pair, see §4).
-- **Not yet verified on hardware**: a CasparCG channel restart under a live output URL; vMix;
-  CasparCG 2.4/2.5 (the engine versions in §3 come from the CasparCG changelog, not from a
-  machine we have run); and **the CasparCG connection of §3** - its AMCP wire is verified against
-  a fake listener and its browser half against a fake agent, but no command has yet reached a real
-  server (`docs/CASPARCG_CONNECT.md` §6).
+- **Verified on real servers on this machine** (2026-09-10 and 2026-09-22, CasparCG 2.3.2 and
+  2.5.0 with a screen consumer): the output URL loaded and cued through NoaCG Bridge, a quiz
+  revealed and a scoreboard scored from the dashboard inside CasparCG's browser, and the server's
+  own templates and clips listed, cued, taken, updated and taken off - `docs/BRIDGE.md` §8 has the
+  walk and what it does not cover.
+- **Not yet verified on hardware**: a Decklink card, a LAN hop between the Bridge and CasparCG,
+  vMix, a Linux CasparCG and whether its media scanner is running, and the hosted studio's
+  local-network permission prompt with a person at the keyboard.
 
 The maintainer's own acceptance checklist is `docs/ACCEPTANCE_SPX_CASPARCG.md`, and
 `docs/CLOUD_PLAYOUT.md` §8 carries the live-verify steps for the browser output.

@@ -393,8 +393,10 @@ export function putOutputOnAir(settings: PlayoutSettings, outputUrl: string): Pr
   return act(settings, { verb: 'take', item: { kind: 'url', name: outputUrl }, slot: slotOf(settings) });
 }
 
+/** Out on the output layer is a video-layer STOP, so no item is named: the Bridge refuses an
+ *  item without a name, and a real 2.5.0 walk on 2026-09-22 caught exactly that being sent. */
 export function takeOutputOff(settings: PlayoutSettings): Promise<PlayoutResult> {
-  return act(settings, { verb: 'out', slot: slotOf(settings), item: { kind: 'url', name: '' } });
+  return act(settings, { verb: 'out', slot: slotOf(settings) });
 }
 
 // ---------------------------------------------------------------------------------------------

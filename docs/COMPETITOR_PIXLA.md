@@ -307,7 +307,7 @@ is an hour of text, an hour of writing and a rehearsal.
    Pixla's, which is a precondition for the probe above meaning anything.*
 8. **Give the exported relay a LAN bind behind a token**, with the Windows firewall step written
    into the launcher's story, and answer the precedent in the same document:
-   `docs/CASPARCG_CONNECT.md:110-114` already refused a `0.0.0.0` bind because it turns any page the
+   `docs/BRIDGE.md §1c` already refused a `0.0.0.0` bind because it turns any page the
    operator visits into a remote control. The relay serves its own package rather than a playout
    server, so the precedent does not kill it, but it has to be answered out loud. *Effort: two to
    three weeks, not the "weeks" two of the three plans assumed. Unlocks: the offline show keeps its

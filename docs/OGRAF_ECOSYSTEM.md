@@ -287,7 +287,7 @@ active - v7.0.0 on 2026-08-26). Strongly-typed promise-based AMCP: one typed met
 command, serialized queueing (AMCP has no request ids, so response matching depends on strict
 ordering - the library owns it), multi-line/XML response parsing, reconnect plus a PING
 keepalive for silent half-open sockets, AMCP 2.1/2.3 differences internalized. **The adoption
-rule for us**: the shipped loopback agent (`docs/CASPARCG_CONNECT.md` - PLAY/STOP/VERSION, one
+rule for us**: the shipped loopback agent (`docs/BRIDGE.md` - PLAY/STOP/VERSION, one
 line at a time) is correctly minimal and gains nothing from the dependency today; adopt
 casparcg-connection the moment the CasparCG surface needs INFO/template-data parsing or
 unattended long-running connections, because response framing, interleaving and half-open

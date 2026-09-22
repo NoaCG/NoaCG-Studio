@@ -215,12 +215,14 @@ export interface MediaEntry {
 
 /**
  * `200 CLS OK` lines, each `"NAME"  TYPE  bytes YYYYMMDDHHMMSS frames num/den` (two spaces after
- * the name and the type on 2.5.0; one is accepted). A still reports `0 0/1`. A line that does not
- * match is skipped rather than failing the whole list: one odd file must not hide the library.
+ * the name and the type on 2.5.0; one is accepted). A still reports `0 0/1` on 2.5.0, and on
+ * 2.3.2 `NaN 0/0` or `1 1/25` (measured 2026-09-22), so the frame count may be `NaN` and the
+ * rate's denominator zero. A line that does not match is skipped rather than failing the whole
+ * list: one odd file must not hide the library.
  */
 export function parseCls(lines: string[]): MediaEntry[] {
   const out: MediaEntry[] = [];
-  const row = /^"((?:[^"\\]|\\.)*)"\s+(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\/(\d+)\s*$/;
+  const row = /^"((?:[^"\\]|\\.)*)"\s+(\S+)\s+(\d+)\s+(\d+)\s+(\d+|NaN)\s+(\d+)\/(\d+)\s*$/;
   for (const line of lines) {
     const m = row.exec(line.trim());
     if (!m) continue;
@@ -231,7 +233,7 @@ export function parseCls(lines: string[]): MediaEntry[] {
       kind: m[2].toLowerCase(),
       bytes: Number(m[3]),
       changed: m[4],
-      frames: Number(m[5]),
+      frames: m[5] === 'NaN' ? 0 : Number(m[5]),
       fps: den > 0 && num > 0 ? num / den : 0,
     });
   }

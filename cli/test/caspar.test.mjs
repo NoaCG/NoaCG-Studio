@@ -165,10 +165,15 @@ test('CLS lines carry the name, kind, size, timestamp, frames and rate, and an o
     '"1"  STILL  259408 20220920122751 0 0/1',
     '"GIORNO"  MOVIE  10485760 20260814221648 1500 25/1',
     '"NTSC_CLIP"  MOVIE  1 20260101000000 60 30000/1001',
+    // Captured 2026-09-22 from 2.3.2: a still with no frame count, and one with a nominal rate.
+    '"OLD_STILL"  STILL  259408 20220920133631 NaN 0/0',
+    '"OLD_STILL_2"  STILL  8596 20260922184039 1 1/25',
     'garbage line',
   ];
   const items = parseCls(lines);
-  assert.equal(items.length, 3);
+  assert.equal(items.length, 5);
+  assert.deepEqual(items[3], { name: 'OLD_STILL', kind: 'still', bytes: 259408, changed: '20220920133631', frames: 0, fps: 0 });
+  assert.equal(items[4].fps, 0.04);
   assert.deepEqual(items[0], { name: '1', kind: 'still', bytes: 259408, changed: '20220920122751', frames: 0, fps: 0 });
   assert.deepEqual(items[1], { name: 'GIORNO', kind: 'movie', bytes: 10485760, changed: '20260814221648', frames: 1500, fps: 25 });
   assert.ok(Math.abs(items[2].fps - 29.97) < 0.01);
