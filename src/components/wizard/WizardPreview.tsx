@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { composeDocument } from '../../preview/composeDocument';
 import { postPreviewCmd, PREVIEW_BOX_TYPE, type PreviewCmd } from '../../preview/previewProtocol';
 import {
@@ -248,10 +248,21 @@ export default function WizardPreview({
   // above, and depending on the array itself would re-post the `track` command each time.
   const pickKey = (pickable ?? []).join('|');
   const picking = pickKey.length > 0;
-  const frameRef = useRef<HTMLIFrameElement>(null);
+  // The LIVE document's frame. Assigned by hand rather than by a JSX ref, because the frames are
+  // created and retired outside React (see "THE AFTERIMAGE" below): React must never own an
+  // element that is moved out from under it.
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  // Where the live frame is appended, and the host of the afterimage's closed shadow root.
+  const mountRef = useRef<HTMLDivElement>(null);
+  const afterimageHostRef = useRef<HTMLDivElement>(null);
+  const afterimageRootRef = useRef<ShadowRoot | null>(null);
+  const afterimageTimer = useRef<number | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState({ w: 0, h: 0 });
-  const [srcdoc, setSrcdoc] = useState('');
+  // The committed document, with the generation it was committed as. An OBJECT, so committing a
+  // document whose text equals the last one (a change undone inside the debounce) still builds a
+  // fresh frame and clears the pending stamp, exactly as every other commit does.
+  const [committed, setCommitted] = useState<{ doc: string; gen: number } | null>(null);
   // Zoom-to-graphic: default shows the whole canvas; the toggle reframes the view onto
   // just the graphic so small formats (corner bugs, tickers) are actually inspectable.
   const [zoomed, setZoomed] = useState(false);
@@ -385,25 +396,98 @@ export default function WizardPreview({
       // rather than leaving a box hanging over the new one until its first frame arrives.
       setRects({});
       setFrames({});
-      setSrcdoc(doc);
+      setCommitted({ doc, gen: docGenRef.current });
     }, 220);
     return () => clearTimeout(t);
   }, [doc, clearDemo]);
 
+  // ── THE AFTERIMAGE: the outgoing document stays on the stage until the new one has begun ──
+  // A rebuild used to blank the stage from the moment it was committed until the new document
+  // had loaded, waited for its fonts and started its entrance. On an idle laptop that is the
+  // entrance's own fade and nothing else (measured 2026-09-22: about 300 ms, the new document
+  // playing within 100 ms of the commit). On a starved one it was three to five seconds on the
+  // live site (docs/handoffs/2026-09-21-e-demo-rehearsal.md), which a student reads as "my
+  // artwork is gone". So the frame being replaced is HELD, still painting its last picture,
+  // until the new document reports its first frame - the `spx-preview-box` it posts right after
+  // `play()` or `settle` - and only then is it dropped. What the new document then shows is
+  // exactly what it showed before: its entrance, from the first frame.
+  //
+  // It is held in a CLOSED SHADOW ROOT over the stage, and it is MOVED there rather than
+  // re-created, for two reasons that decide the whole shape of this component:
+  //
+  //   - a re-inserted iframe reloads, so the afterimage has to be the very element that was
+  //     painting. `moveBefore` (Chromium 133, Firefox 144, Safari 26) moves a node without the
+  //     reload; where it is missing the outgoing frame is simply removed, which is what every
+  //     rebuild did before, so nothing degrades below that;
+  //   - the suite and the sweeps find this preview by `.wz-side iframe`, a strict selector. Two
+  //     frames in the light DOM would resolve to two elements for the length of every rebuild.
+  //     A closed shadow root is the one place a selector cannot see, so the afterimage lives
+  //     there and the live frame stays the ONLY iframe anything can find.
+  //
+  // The frames are therefore created and retired by hand: React cannot own an element that is
+  // moved out from under it, because its own removal of that element would throw.
+  useEffect(() => {
+    const host = afterimageHostRef.current;
+    if (host && !afterimageRootRef.current) afterimageRootRef.current = host.attachShadow({ mode: 'closed' });
+  }, []);
+
+  /** Let the afterimage go: the new document is on the stage, or has had its chance to be. */
+  const dropAfterimage = useCallback(() => {
+    if (afterimageTimer.current !== null) {
+      clearTimeout(afterimageTimer.current);
+      afterimageTimer.current = null;
+    }
+    afterimageRootRef.current?.replaceChildren();
+  }, []);
+
+  /**
+   * Hold the outgoing frame as the afterimage. An afterimage ALREADY held means the outgoing
+   * frame never got as far as painting (a burst of rebuilds): the picture on the stage is the
+   * older one, so that one stays and the unpainted frame goes.
+   */
+  const holdAfterimage = useCallback((outgoing: HTMLIFrameElement) => {
+    const root = afterimageRootRef.current as (ShadowRoot & { moveBefore?: (node: Node, child: Node | null) => void }) | null;
+    if (!root || typeof root.moveBefore !== 'function' || root.firstChild) {
+      outgoing.remove();
+      return;
+    }
+    // The page's `.wz-stage iframe` rule does not reach into a shadow root, so the frame carries
+    // its placement inline. Its size and transform are inline already.
+    Object.assign(outgoing.style, {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      border: '0',
+      background: 'transparent',
+      pointerEvents: 'none',
+    });
+    try {
+      root.moveBefore(outgoing, null);
+    } catch {
+      outgoing.remove();
+    }
+  }, []);
+
+  // The latest callbacks, for a load handler bound when the frame was created.
+  const showFirstFrameRef = useRef<() => void>(() => {});
+  const trackSelectorRef = useRef<() => void>(() => {});
+
   // The document's own box, reported after any command that can move it (composeDocument's
   // liveControl channel) — never read via contentDocument, since this iframe carries no
-  // allow-same-origin.
+  // allow-same-origin. The FIRST such report from a new document is also its first frame on the
+  // stage, which is the moment the afterimage is no longer needed.
   useEffect(() => {
     const onMessage = (ev: MessageEvent) => {
       if (ev.source !== frameRef.current?.contentWindow) return;
       const msg = ev.data;
       if (msg && typeof msg === 'object' && msg.type === PREVIEW_BOX_TYPE) {
         setBox({ x: msg.x, y: msg.y, w: msg.w, h: msg.h });
+        dropAfterimage();
       }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, []);
+  }, [dropAfterimage]);
 
   // ── The tracked highlight (preview/canvasControlProtocol.ts) ──
   // One selector, one rect, pushed every frame by the document — so the box follows the layer
@@ -484,6 +568,8 @@ export default function WizardPreview({
     clearDemo();
     postCmd({ cmd: 'settle', data: JSON.stringify(pushValues(templateRef.current)) });
   }, [rehearse, measured, playIn, clearDemo, postCmd]);
+  showFirstFrameRef.current = showFirstFrame;
+  trackSelectorRef.current = trackSelector;
 
   // Replay when the parent asks (e.g. animation preset changed but srcdoc identical).
   useEffect(() => {
@@ -681,6 +767,87 @@ export default function WizardPreview({
     tx = width / 2 - (box.x + box.w / 2);
     ty = height / 2 - (box.y + box.h / 2);
   }
+  // The frame's transform: centred on the stage, scaled to fit, and the zoom's reframe. Applied
+  // by hand to the live frame (below), because the frame is not a React element.
+  const frameTransform = `translate(-50%, -50%) scale(${z}) translate(${tx}px, ${ty}px)`;
+  const frameTransformRef = useRef(frameTransform);
+  frameTransformRef.current = frameTransform;
+  useEffect(() => {
+    if (frameRef.current) frameRef.current.style.transform = frameTransform;
+  }, [frameTransform]);
+
+  // A NEW IFRAME PER DOCUMENT, never a new `srcdoc` on the same one. Replacing an existing
+  // frame's srcdoc is a NAVIGATION, and a subframe navigation joins the page's session history —
+  // so every rebuild (every keystroke on the Fields step, every colour on Style) quietly added an
+  // entry, and the reader's Back button filled up with presses that did nothing. A frame that is
+  // INSERTED with its document already set loads it as its initial document instead, which costs
+  // no entry at all. That is what makes browser Back walk the wizard's steps rather than its
+  // rebuilds.
+  //
+  // Built by hand on every committed document (see "THE AFTERIMAGE" above for why not JSX). A
+  // layout effect, so the frame exists as soon as the commit has rendered, exactly when a JSX
+  // frame would have.
+  useLayoutEffect(() => {
+    const mount = mountRef.current;
+    if (!committed?.doc || !mount) return;
+    const { doc: srcdoc, gen } = committed;
+    if (afterimageTimer.current !== null) {
+      clearTimeout(afterimageTimer.current);
+      afterimageTimer.current = null;
+    }
+    // The frame being replaced keeps painting until the new one has its first frame.
+    if (frameRef.current) holdAfterimage(frameRef.current);
+
+    const el = document.createElement('iframe');
+    el.title = 'Wizard live preview';
+    el.setAttribute('sandbox', 'allow-scripts');
+    el.style.width = `${width}px`;
+    el.style.height = `${height}px`;
+    el.style.transform = frameTransformRef.current;
+    el.addEventListener('load', () => {
+      // A frame that loads after a newer document was committed is not the live one any more;
+      // it says nothing about the stage, and the newer frame's own load will.
+      if (docGenRef.current !== gen) return;
+      // THE REVISION LANDS ON THE STAGE, not on the frame: a rebuild REPLACES the frame, so a
+      // stamp on the frame is gone exactly when a waiter needs to read the old one. Same contract
+      // as PreviewFrame's - `data-doc-rev` says a rebuild finished, `data-doc-pending` says one
+      // is owed, and only the two together can tell "not started" from "already done"
+      // (e2e/_preview.ts).
+      if (stageRef.current) {
+        stageRef.current.dataset.docRev = String(gen);
+        delete stageRef.current.dataset.docPending;
+      }
+      trackSelectorRef.current(); // a fresh document tracks nothing until it is told again
+      window.setTimeout(() => {
+        if (docGenRef.current === gen) showFirstFrameRef.current(); // else a newer document has since loaded
+      }, 60);
+      // THE AFTERIMAGE'S OWN DEADLINE. A document that never reports a box - one with no root
+      // to measure, or a play() that never ran - would otherwise hold the old picture forever.
+      // The first frame is due within the 60 ms above plus the fonts wait's 400 ms cap
+      // (composeDocument's liveControl), so this is well past it.
+      afterimageTimer.current = window.setTimeout(() => {
+        afterimageTimer.current = null;
+        if (docGenRef.current === gen) dropAfterimage();
+      }, 1500);
+    });
+    // `srcdoc` set BEFORE insertion, so the insertion loads it as the initial document.
+    el.srcdoc = srcdoc;
+    mount.appendChild(el);
+    frameRef.current = el;
+    // `width`, `height` and the transform are read from refs and the closing render on purpose:
+    // a frame is built once per document, and a size change is a new document anyway.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [committed, holdAfterimage, dropAfterimage]);
+
+  // Leaving the step: nothing of either frame outlives the stage.
+  useEffect(
+    () => () => {
+      dropAfterimage();
+      frameRef.current?.remove();
+      frameRef.current = null;
+    },
+    [dropAfterimage],
+  );
 
   // ── DRAWING IN A LAYER'S OWN FRAME ──
   // Both helpers hand the element's matrix to CSS rather than doing the trigonometry here: a
@@ -740,39 +907,17 @@ export default function WizardPreview({
           it will air in. The aspect comes from the template because the format is the user's
           choice — CSS cannot know it (re-design/handoff.md §2). */}
       <div className="wz-stage" ref={stageRef} style={{ aspectRatio: `${width} / ${height}` }}>
-        {/* A NEW IFRAME PER DOCUMENT, never a new `srcdoc` on the same one. Replacing an
-            existing frame's srcdoc is a NAVIGATION, and a subframe navigation joins the page's
-            session history — so every rebuild (every keystroke on the Fields step, every colour
-            on Style) quietly added an entry, and the reader's Back button filled up with
-            presses that did nothing. A frame that is INSERTED with its document already set
-            loads it as its initial document instead, which costs no entry at all. That is what
-            makes browser Back walk the wizard's steps rather than its rebuilds.
-            Keyed on the same generation counter the commit bumps, and not rendered until there
-            is a document to give it, so `srcdoc` is never assigned to a live frame. */}
-        {srcdoc && <iframe
-          key={docGenRef.current}
-          ref={frameRef}
-          title="Wizard live preview"
-          sandbox="allow-scripts"
-          srcDoc={srcdoc}
-          onLoad={() => {
-            const gen = docGenRef.current;
-            // THE REVISION LANDS ON THE STAGE, not on the frame: a rebuild REPLACES the frame
-            // (see the note above), so a stamp on the frame is gone exactly when a waiter needs
-            // to read the old one. Same contract as PreviewFrame's - `data-doc-rev` says a
-            // rebuild finished, `data-doc-pending` says one is owed, and only the two together
-            // can tell "not started" from "already done" (e2e/_preview.ts).
-            if (stageRef.current) {
-              stageRef.current.dataset.docRev = String(gen);
-              delete stageRef.current.dataset.docPending;
-            }
-            trackSelector(); // a fresh document tracks nothing until it is told again
-            setTimeout(() => {
-              if (docGenRef.current === gen) showFirstFrame(); // else a newer document has since loaded
-            }, 60);
-          }}
-          style={{ width, height, transform: `translate(-50%, -50%) scale(${z}) translate(${tx}px, ${ty}px)` }}
-        />}
+        {/* The live frame is appended here by hand (the layout effect above), and the frame it
+            replaced is held in the closed shadow root of the host after it - above the live
+            frame, so it covers the new document until that one's first frame. Both are
+            positioned against the stage, as the one JSX frame was; the hosts themselves take no
+            room. */}
+        <div ref={mountRef} className="wz-stage-live" />
+        <div
+          ref={afterimageHostRef}
+          className="wz-stage-afterimage"
+          style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+        />
         {/* The highlight rides a layer wearing the FRAME's own transform, so a rect in canvas
             px lands where the reader sees that layer at any zoom. The border and the breathing
             room around the layer are the two things corrected back OUT of that scale, because
