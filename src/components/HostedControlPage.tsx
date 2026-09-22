@@ -1817,27 +1817,34 @@ function HostedCueEditor({
         };
         return (
           <div className="pd-editor-events pd-live-numbers" data-testid="hosted-live-numbers">
-            {numberFields.map((d) => (
-              <span key={d.key} className="pd-live-number" data-testid={`hosted-live-number-${d.key}`}>
-                <span className="pd-live-number-label">{d.label}</span>
-                <button
-                  disabled={!live}
-                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air. Take it first.'}
-                  onClick={() => bump(d.key, -1)}
-                  data-testid={`hosted-live-number-${d.key}-down`}
-                >
-                  −
-                </button>
-                <button
-                  disabled={!live}
-                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air. Take it first.'}
-                  onClick={() => bump(d.key, 1)}
-                  data-testid={`hosted-live-number-${d.key}-up`}
-                >
-                  +
-                </button>
-              </span>
-            ))}
+            {numberFields.map((d) => {
+              // One sentence for both halves of the pair: they act on the same field, so a
+              // hover that differed between − and + would be saying something that is not true.
+              const stepTitle = live
+                ? `Changes "${d.label}" on air immediately`
+                : 'This cue is not on air. Take it first.';
+              return (
+                <span key={d.key} className="pd-live-number" data-testid={`hosted-live-number-${d.key}`}>
+                  <span className="pd-live-number-label">{d.label}</span>
+                  <button
+                    disabled={!live}
+                    title={stepTitle}
+                    onClick={() => bump(d.key, -1)}
+                    data-testid={`hosted-live-number-${d.key}-down`}
+                  >
+                    −
+                  </button>
+                  <button
+                    disabled={!live}
+                    title={stepTitle}
+                    onClick={() => bump(d.key, 1)}
+                    data-testid={`hosted-live-number-${d.key}-up`}
+                  >
+                    +
+                  </button>
+                </span>
+              );
+            })}
           </div>
         );
       })()}
