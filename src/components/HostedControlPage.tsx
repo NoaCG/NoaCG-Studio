@@ -8,6 +8,7 @@ import {
   adjustedValue,
   fieldDescriptors,
   formatMachineState,
+  illegalEventTitle,
   isEventLegal,
   machineStateGroups,
   machineStateNames,
@@ -1353,15 +1354,6 @@ function HostedCueEditor({
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
   const fieldGroups = useMemo(() => groupCueFields(descriptors), [descriptors]);
   const descriptorByKey = useMemo(() => new Map(descriptors.map((d) => [d.key, d])), [descriptors]);
-  /** A ⚡ button's hover. Empty words mean everything the press moves is a hidden holder (the
-   *  reported-field pattern), which has no operator name and so gets no sentence rather than
-   *  its field id. */
-  const eventHint = (e: ControlButton) => {
-    const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label);
-    return moved
-      ? `Fires "${e.event}" and moves ${moved} with it, but only where the graph allows it.`
-      : `Fires "${e.event}", but only where the graph allows it.`;
-  };
   const events = useMemo(() => eventButtons(spec.js), [spec.js]);
   /** Ordered, named, pinned and hidden by the SHARED rule (controlModel `arrangeControls`), so
    *  this page, the in-app one and the exported controller cannot present one production's
@@ -1497,6 +1489,28 @@ function HostedCueEditor({
     Object.fromEntries(descriptors.map((d) => [d.key, d.label])),
   );
 
+  /**
+   * A ⚡ button's hover, in the BUTTON'S OWN WORDS. A greyed one explains itself through the
+   * shared `illegalEventTitle` (the wording row P landed on the in-app dashboard and the graphic
+   * control page), so the enabled hover is free to say what the press DOES instead of hedging
+   * about when it is allowed. It used to name the machine's event id and "where the graph allows
+   * it" in both states - two vocabularies an operator meets nowhere else on this page, on the one
+   * surface a student drives WITHOUT the app.
+   *
+   * It asks `isEventLegal` with the same three arguments the button's own `disabled` does, so the
+   * greying and the sentence explaining it cannot disagree.
+   *
+   * Empty `moved` words mean everything the press moves is a hidden holder (the reported-field
+   * pattern), which has no operator name and so gets no clause rather than its field id.
+   */
+  const eventHint = (e: ControlButton, label: string) => {
+    if (!isEventLegal(legality, e.event, liveState)) return illegalEventTitle(label);
+    const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label);
+    return moved
+      ? `Fires ${label} on the live graphic and moves ${moved} with it.`
+      : `Fires ${label} on the live graphic.`;
+  };
+
   /** One ⚡ button. The block draws the same button pinned, in its section and under "More", and
    *  three copies of this press would drift apart. The DECLARATION (`e`) decides what the press
    *  sends and whether it greys; the arrangement decides only the word and where it sits. */
@@ -1527,7 +1541,7 @@ function HostedCueEditor({
           // order stops a refused press moving every other bound graphic.
         ]).then((sent) => { if (sent) void onPatchBound(tree); });
       }}
-      title={eventHint(e)}
+      title={eventHint(e, label)}
     >
       ⚡ {label}
     </button>

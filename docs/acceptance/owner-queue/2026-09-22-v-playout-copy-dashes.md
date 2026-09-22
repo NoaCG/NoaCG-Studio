@@ -11,11 +11,11 @@ em dash an operator could read is gone from the production dashboard, the hosted
 graphic's own control page, the links panel, and both downloadable controllers. Each one became a
 plain sentence or a comma, never a hyphen and never a semicolon.
 
-Two places kept a separator instead of a sentence, and I want you to look at them:
+Two places kept a separator instead of a sentence, both of them settled:
 
 - The PROGRAM monitor heading is now **PROGRAM · ON AIR**, with the same middle dot the page
-  already uses between layer names. A sentence in a two-word heading would have read oddly beside
-  the plain **PREVIEW** on the monitor next to it.
+  already uses between layer names. A sentence in a two-word heading reads wrong beside the plain
+  **PREVIEW** on the monitor next to it.
 - The browser tab titles of the two downloaded pages now read **<show> · production controller**
   and **<graphic> · control panel**, matching the `<show> · controller` that the controller's own
   header has always printed.
@@ -41,6 +41,7 @@ The lines you can read on the dashboard without hovering anything:
 
 ## What to look at
 
-Whether `PROGRAM · ON AIR` still reads as one heading to you, or whether you would rather it were
-just `PROGRAM` with the dot gone. That is the only judgement call here; everything else is a
-sentence where a dash used to be.
+Whether any of it now reads long. Two sentences take a moment more to read than one clause after a
+dash, and a tooltip an operator reads mid-show is the place that would show. The candidates are the
+⚡ buttons' hovers on the hosted control page and the state chip's, both of which say what the press
+or the chip is for rather than naming the machine's own words for it.

@@ -745,7 +745,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
             {stateLabel && (
               <span
                 className={`control-state-chip${onAir ? ' on-air' : ''}`}
-                title="The graphic's current state. The event buttons are greyed against it."
+                title="Where the live graphic is now. Greyed actions are judged against this."
                 data-testid="control-state"
               >
                 {onAir ? '●' : '◇'} {stateLabel}

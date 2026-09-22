@@ -3111,12 +3111,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               <span
                 className="pd-state-chip"
                 data-testid="machine-state-chip"
-                // A multi-group graphic's label is longer than the chip, so the full text has
-                // to stay reachable on hover — the chip truncates rather than reflowing.
+                // The tooltip says what the chip is FOR; it does not repeat the chip's own word
+                // back at the reader. The state is still in it, as the sentence's value rather
+                // than as a heading, because a multi-group graphic's label is longer than the
+                // chip and `.pd-state-chip` truncates with an ellipsis — the CSS marks that
+                // truncation honestly only because the full text is reachable here.
                 title={
-                  !selectedLayerLive
-                    ? "The live graphic's current state. The greying is judged against it."
-                    : `${stateLabel ?? 'no state reported yet'}. This is the live graphic's current state, and the greying is judged against it.`
+                  selectedLayerLive && stateLabel
+                    ? `Where the live graphic is now: ${stateLabel}. Greyed actions are judged against this.`
+                    : 'Where the live graphic is now. Greyed actions are judged against this.'
                 }
               >
                 {!selectedLayerLive ? 'not on air' : stateLabel ?? 'no state reported yet'}
