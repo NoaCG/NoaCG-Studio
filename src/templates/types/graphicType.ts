@@ -885,9 +885,16 @@ export function setupFields(type: GraphicType): TypeField[] {
   // Every member of the payload family counts, not `payload` alone: a field a press SETS (the
   // show board's "Pick B" writing the selected answer), moves, or appends to is live state for
   // exactly the reason a carried one is - the first press on air overwrites whatever was typed.
+  //
+  // ONE EXCEPTION, derived like the rule: a field carried by a DEFAULT-PATH event stays setup.
+  // The path is what Continue walks with no control page at all, so the graphic must already hold
+  // a usable value when it is built - a quiz's answer key, a nominee reveal's winner. The payload
+  // on that press is a re-send of what the operator can see, so a correction made on air lands
+  // with the reveal; it is not a pick nobody has made yet.
+  const pathEvents = new Set(type.machine.main?.pathEvents ?? []);
   const live = new Set(
     (type.controls ?? []).flatMap((control) => [
-      ...(control.payload ?? []),
+      ...(pathEvents.has(control.event) ? [] : (control.payload ?? [])),
       ...Object.keys(control.set ?? {}),
       ...Object.keys(control.adjust ?? {}),
       ...Object.keys(control.add ?? {}),

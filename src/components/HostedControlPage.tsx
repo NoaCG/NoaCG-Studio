@@ -79,6 +79,7 @@ import {
   type ResolvedControlShow,
 } from '../control/hostedControl';
 import { isBackendConfigured } from '../backend/config';
+import { eventsNeedServerTime } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
@@ -405,6 +406,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  below reads ONE graphic because that is what an action acts on, but a COMBINED control's
    *  steps name their own graphics, so the whole pool has to be parsed. */
   const poolMachines = useMemo(() => hostedPoolMachines(resolved?.panel ?? []), [resolved]);
+  /** The published graphics whose EVENTS may ride the fast road: every one that runs no clock
+   *  (matchClockWire `eventsNeedServerTime`). Positive, so a graphic this page cannot see keeps
+   *  the slow road. The production dashboard derives the same set from the same test. */
+  const fastEventGraphics = useMemo(
+    () => new Set((payload?.graphics ?? []).filter((g) => !eventsNeedServerTime(g)).map((g) => g.key)),
+    [payload],
+  );
   const layerOf = useCallback(
     (graphic: string) => payload?.graphics.find((g) => g.key === graphic)?.layer ?? null,
     [payload],
@@ -582,7 +590,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * so a caller sending several batches can stop at the first refusal rather than pressing on.
    */
   const sendVerb = (items: ControlSendItem[]): Promise<boolean> =>
-    sendControlVerb({ slug, showId: resolved?.id ?? null, items, applyHere: applyCommand }).then(
+    sendControlVerb({
+      slug,
+      showId: resolved?.id ?? null,
+      items,
+      applyHere: applyCommand,
+      fastEvents: (graphic) => fastEventGraphics.has(graphic),
+    }).then(
       () => true,
       (e: Error) => {
         surfaceSendError(e);

@@ -130,7 +130,11 @@ export const ANSWER_BOARD_CONTROLS: TypeControlEvent[] = [
   { event: 'select', label: 'Select answer', section: 'Answer', order: 1, payload: ['selectedAnswer'] },
   { event: 'lock', label: 'Lock it in', section: 'Answer', order: 2 },
   { event: 'revealChoice', label: 'Reveal choice', section: 'Answer', order: 3 },
-  { event: 'judge', label: 'Reveal correct', section: 'Answer', order: 4 },
+  // The reveal CARRIES the answer key, the way Select carries the pick: the key the operator can
+  // see in the cue is the one that lights, even when it was corrected on air and never sent with
+  // Update (owner, 2026-09-22: a key changed live "does not always update the live graphic").
+  // It stays a setup value in the wizard, because `judge` is on the default path (setupFields).
+  { event: 'judge', label: 'Reveal correct', section: 'Answer', order: 4, payload: ['correctAnswer'] },
   { event: 'audience', label: 'Show audience result', section: 'Answer', order: 5, payload: ['audienceResults'] },
 ];
 

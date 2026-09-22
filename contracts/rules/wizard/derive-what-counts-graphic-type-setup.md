@@ -3,7 +3,7 @@ v: 1
 scope: src/templates/types/graphicType.ts, e2e/wizard-setup-fields.spec.ts
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/wizard/2026-09-07-derive-what-counts-graphic-type-setup.md
 ---

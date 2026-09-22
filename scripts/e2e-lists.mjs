@@ -89,6 +89,9 @@ export const FOCUS = [
   // A two-player quiz: the board, the score and the three looks to pick between, driven through
   // the pick / reveal arc and the wizard's "Answers shown" choice.
   'quiz-show.spec.ts',
+  // Every catalog quiz and the imported docs quiz: a key corrected on air lights with Reveal,
+  // the two answer models stay what they are, and a clock-free event takes the fast road.
+  'quiz-live-consistency.spec.ts',
   'project.spec.ts',
   'project-format.spec.ts',
   // The BOOT SURFACE - that opening the studio never paints a screen it was not going to stay

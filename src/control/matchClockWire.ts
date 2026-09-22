@@ -426,3 +426,21 @@ export function speakingClockRowEffect(
       return null;
   }
 }
+
+/**
+ * Does a graphic's machine EVENT need the database's own instant to be right on air?
+ *
+ * Only a graphic that runs a clock does. The renderer anchors a match clock's origin and a
+ * debate board's speaking clocks to the event row's `created_at`, which is the one instant every
+ * renderer of a production shares, and the fast road (control/commandRoads.ts) carries no server
+ * time. Every other graphic ignores the instant, so its events can ride the fast road like a Take
+ * does - which is what makes a quiz's Select, Lock and Reveal paint as quickly as an Update.
+ *
+ * DELIBERATELY A LOOSE TEST. It is a substring search rather than the two parsers above, so that
+ * anything that merely LOOKS like a clock (a `-clock` class, a `data-speaking` attribute, a script
+ * reading `noacgEventAt`) stays on the slow road. Missing a clock here would put a laptop's clock
+ * skew on air; flagging a graphic that has none costs it only the old half-second.
+ */
+export function eventsNeedServerTime(template: { html: string; js: string }): boolean {
+  return /-clock|data-speaking/.test(template.html) || /noacgEventAt/.test(template.js);
+}

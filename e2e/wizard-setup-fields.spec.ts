@@ -13,7 +13,9 @@ import { chooseType, pickDesign } from './_browse';
 // operator event carries as PAYLOAD, because this model's answer to combinatorial states is
 // "the moment is a state, what it is about is DATA" - so a payload field is live state by
 // construction. The quiz proves both halves at once: `correctAnswer` is setup and offered,
-// `selectedAnswer` is the `select` event's payload and is not.
+// `selectedAnswer` is the `select` event's payload and is not. Since 2026-09-22 the Reveal carries
+// `correctAnswer` too, and it stays offered because `judge` is a DEFAULT-PATH event: Continue
+// reaches it with no control page, so the key must be real at build.
 
 async function toFieldsStep(page: Page, category: string, variantName: string) {
   await enableAdvancedMode(page);
