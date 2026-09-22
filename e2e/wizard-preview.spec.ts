@@ -1,5 +1,7 @@
-import { test, expect, type Page, type FrameLocator } from '@playwright/test';
+import { test, expect, type CDPSession, type Page, type FrameLocator } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 import { chooseType, pickDesign } from './_browse';
+import { dropSvg } from './_svg-import';
 
 // The wizard's live preview must FEEL live: every choice lands in the composed iframe,
 // rapid changes settle on the LAST choice, and the lifecycle demo on the Animation step
@@ -311,4 +313,244 @@ test('a credit roll is SETTLED in the preview, and Replay is what plays it', asy
   // bottom, so the step where somebody wants to watch it has lost nothing.
   await page.getByRole('button', { name: '▶ Replay' }).click();
   await expect.poll(() => trackCoverage(page), { timeout: 8_000 }).toBeLessThan(30);
+});
+
+
+// ── THE STAGE NEVER GOES BLANK ACROSS A STEP CHANGE (docs/handoffs/2026-09-21-e-demo-rehearsal.md).
+// Walked as a student on the live site, the wizard preview went dark for three to five seconds
+// after every step change of the SVG import road: the rebuilt document replaced the old one the
+// moment it was committed, and the artwork came back only once the new frame had parsed its
+// 280 KB of inlined fonts and GSAP, waited for the fonts and started its entrance. A student
+// reads that as "my artwork is gone". WizardPreview now holds the outgoing frame on the stage
+// until the new document reports its first frame ("THE AFTERIMAGE").
+//
+// Measured the way a student sees it - by what is PAINTED on the stage - rather than by anything
+// inside either document. The stage's own background is flat, so "ink" is the share of pixels
+// that is not that background.
+
+/** The docs' own quiz example - the file the students download and walk. */
+const QUIZ_EXAMPLE_SVG = fileURLToPath(new URL('../public/docs/examples/quiz.svg', import.meta.url));
+
+/**
+ * The CPU slowdown the step changes run under. The blank this test guards is the new document's
+ * LOAD, and on a developer's machine that load is short enough to hide inside the entrance's own
+ * fade. Twelve times slower stretches it to about a second and a half, the shape of what the
+ * student walk met on a school laptop, so the blank is plain here and not only in front of the
+ * students.
+ */
+const CPU_SLOWDOWN = 12;
+
+/**
+ * The share of `crop` painted in anything but the stage background, 0 to 1, for each image.
+ * `crop` is in CSS px and `cssWidth` is how many CSS px the image spans, because a screencast
+ * frame may be scaled. Decoded in the page (a canvas), so the spec needs no image dependency.
+ */
+async function inkShares(
+  page: Page,
+  images: { b64: string; mime: string; cssWidth: number; crop: { x: number; y: number; w: number; h: number } }[],
+): Promise<number[]> {
+  return page.evaluate(async (list) => {
+    const out: number[] = [];
+    for (const { b64, mime, cssWidth, crop: css } of list) {
+      const img = new Image();
+      img.src = `data:${mime};base64,${b64}`;
+      await img.decode();
+      const k = img.width / cssWidth;
+      const crop = { x: css.x * k, y: css.y * k, w: css.w * k, h: css.h * k };
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(crop.w));
+      canvas.height = Math.max(1, Math.round(crop.h));
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height);
+      const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      // The background is the most common colour: the stage is flat. Quantised to 8 levels a
+      // channel, so JPEG noise does not split it. Every fourth pixel is plenty for a share.
+      const hist = new Map<number, number>();
+      for (let i = 0; i < d.length; i += 16) {
+        const key = ((d[i] >> 3) << 10) | ((d[i + 1] >> 3) << 5) | (d[i + 2] >> 3);
+        hist.set(key, (hist.get(key) ?? 0) + 1);
+      }
+      let bg = 0;
+      let most = 0;
+      for (const [key, n] of hist) if (n > most) { most = n; bg = key; }
+      const [br, bgc, bb] = [((bg >> 10) & 31) * 8 + 4, ((bg >> 5) & 31) * 8 + 4, (bg & 31) * 8 + 4];
+      let ink = 0;
+      let total = 0;
+      for (let i = 0; i < d.length; i += 16) {
+        total += 1;
+        if (Math.abs(d[i] - br) + Math.abs(d[i + 1] - bgc) + Math.abs(d[i + 2] - bb) > 36) ink += 1;
+      }
+      out.push(ink / total);
+    }
+    return out;
+  }, images);
+}
+
+/** The stage's box, two px in from every edge (past its own hairline border). */
+async function stageClip(page: Page) {
+  const box = await page.locator('.wz-stage').boundingBox();
+  if (!box || box.width < 8 || box.height < 8) return null;
+  return { x: box.x + 2, y: box.y + 2, width: box.width - 4, height: box.height - 4 };
+}
+
+/**
+ * THREE PERCENT is "the artwork is there". The imported document keeps a thin dashed
+ * safe-margin guide on the stage whatever the graphic does (about half a percent of the pixels),
+ * and the quiz board itself is about a fifth of them. The guide alone is not the artwork.
+ */
+const INK = 0.03;
+
+/** Whether the stage shows the artwork right now, by screenshot. Null with no stage yet. */
+async function stageHasInk(page: Page): Promise<boolean | null> {
+  const clip = await stageClip(page);
+  if (!clip) return null;
+  const png = await page.screenshot({ clip });
+  const [share] = await inkShares(page, [
+    { b64: png.toString('base64'), mime: 'image/png', cssWidth: clip.width, crop: { x: 0, y: 0, w: clip.width, h: clip.height } },
+  ]);
+  return share > INK;
+}
+
+/** The stage's rebuild stamps (WizardPreview's load handler): the revision, and whether one is owed. */
+async function docStamp(page: Page): Promise<{ rev: string | null; pending: boolean }> {
+  return page.locator('.wz-stage').evaluate((el: HTMLElement) => ({
+    rev: el.dataset.docRev ?? null,
+    pending: el.dataset.docPending === '1',
+  }));
+}
+
+/**
+ * Wait until no rebuild is owed and none has landed for a second. The import road commits more
+ * than one document on its way in, and a measurement taken while a late one is still landing
+ * reads THAT document's entrance instead of the step change it meant to.
+ */
+async function quiet(page: Page) {
+  let last = await docStamp(page);
+  let since = Date.now();
+  await expect
+    .poll(
+      async () => {
+        const now = await docStamp(page);
+        if (now.rev !== last.rev || now.pending !== last.pending) {
+          last = now;
+          since = Date.now();
+        }
+        return !now.pending && Date.now() - since >= 1000;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+}
+
+/**
+ * Run `action` (a step change) throttled, and FILM the page while the rebuilt document lands:
+ * the compositor's own screencast, which sends a frame for every paint however busy the page's
+ * main thread is. A screenshot loop cannot do this - under the slowdown one screenshot takes
+ * longer than the whole entrance, and the samples step straight over the blank.
+ *
+ * Returns the FIRST blank window in ms (from the first painted frame with no artwork to the next
+ * frame with it), how many frames were filmed, and the timeline for the log. The first window
+ * is the one the reader sees on a step change: the Animation step's lifecycle demo takes the
+ * graphic off air on purpose a little later, and that is not a blank.
+ */
+async function blankAcross(
+  page: Page,
+  cdp: CDPSession,
+  action: () => Promise<void>,
+): Promise<{ blankMs: number; frames: number; timeline: string }> {
+  const clip = await stageClip(page);
+  if (!clip) throw new Error('no stage to film');
+  const revBefore = (await docStamp(page)).rev;
+  const shots: { t: number; b64: string; deviceWidth: number }[] = [];
+  const onFrame = (f: { data: string; sessionId: number; metadata: { timestamp?: number; deviceWidth: number } }) => {
+    // The frame's own paint time where it reads as wall-clock seconds, else its arrival.
+    const painted = (f.metadata.timestamp ?? 0) * 1000;
+    const t = Math.abs(painted - Date.now()) < 60_000 ? painted : Date.now();
+    shots.push({ t, b64: f.data, deviceWidth: f.metadata.deviceWidth });
+    cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
+  };
+  cdp.on('Page.screencastFrame', onFrame);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_SLOWDOWN });
+  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 70 });
+  // The screencast opens on the current picture; the step change is timed from after it.
+  await expect.poll(() => shots.length, { timeout: 10_000 }).toBeGreaterThan(0);
+  const t0 = Date.now();
+  await action();
+  // Film until the new document has landed and had time to run its entrance.
+  let landedAt: number | null = null;
+  while (Date.now() - t0 < 25_000) {
+    const { rev, pending } = await docStamp(page);
+    if (landedAt === null && rev !== revBefore && !pending) landedAt = Date.now();
+    if (landedAt !== null && Date.now() - landedAt >= 3000) break;
+    await page.waitForTimeout(100);
+  }
+  await cdp.send('Page.stopScreencast');
+  cdp.off('Page.screencastFrame', onFrame);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+
+  const shares = await inkShares(
+    page,
+    shots.map((s) => ({
+      b64: s.b64,
+      mime: 'image/jpeg',
+      cssWidth: s.deviceWidth,
+      crop: { x: clip.x, y: clip.y, w: clip.width, h: clip.height },
+    })),
+  );
+  const lines: string[] = [];
+  let blankFrom: number | null = null;
+  let blankMs = 0;
+  for (let i = 0; i < shots.length; i++) {
+    const at = Math.round(shots[i].t - t0);
+    const ink = shares[i] > INK;
+    lines.push(`${at}ms ${(shares[i] * 100).toFixed(1)}% ${ink ? 'ink' : 'BLANK'}`);
+    if (at < 0) continue; // the picture before the step change
+    if (!ink && blankFrom === null) blankFrom = at;
+    if (ink && blankFrom !== null && blankMs === 0) blankMs = Math.max(1, at - blankFrom);
+  }
+  if (blankFrom !== null && blankMs === 0) blankMs = Math.round(shots[shots.length - 1].t - t0) - blankFrom; // never came back
+  return { blankMs, frames: shots.length, timeline: lines.join('\n') };
+}
+
+test('the preview keeps the artwork on the stage across a step change', async ({ page }) => {
+  // The demo laptop's screen, and the road the students walk: the docs' quiz example, imported.
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/app');
+  await dropSvg(page, QUIZ_EXAMPLE_SVG);
+  await quiet(page);
+  await expect.poll(() => stageHasInk(page), { timeout: 20_000 }).toBe(true);
+  // THE DETECTOR'S OWN CONTROL: the exit takes the board off, and it must read as blank; Replay
+  // brings it back. A detector that cannot tell the two apart measures nothing.
+  await page.getByRole('button', { name: '■ Out' }).click();
+  await expect.poll(() => stageHasInk(page), { timeout: 8_000 }).toBe(false);
+  await page.getByRole('button', { name: '▶ Replay' }).click();
+  await expect.poll(() => stageHasInk(page), { timeout: 8_000 }).toBe(true);
+  await quiet(page);
+
+  const cdp = await page.context().newCDPSession(page);
+
+  // Fields to Animation: the document is rebuilt without the mapping step's markers and its
+  // rect channel, so this is a real rebuild and not a re-render.
+  const forward = await blankAcross(page, cdp, () => page.locator('.wz-footer button.wz-next').click());
+  console.log(`[preview-first-frame] Fields -> Animation: blank ${forward.blankMs} ms, ${forward.frames} frames\n${forward.timeline}`);
+  await expect(page.getByTestId('wz-stepcount')).toContainText('4');
+  await quiet(page);
+
+  // And back again, which rebuilds it WITH them.
+  const back = await blankAcross(page, cdp, () => page.locator('.wz-footer button.wz-back').click());
+  console.log(`[preview-first-frame] Animation -> Fields: blank ${back.blankMs} ms, ${back.frames} frames\n${back.timeline}`);
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+
+  // Enough painted frames that the fades the film shows were running.
+  expect(forward.frames, 'frames filmed across Fields -> Animation').toBeGreaterThan(10);
+  expect(back.frames, 'frames filmed across Animation -> Fields').toBeGreaterThan(10);
+  // MEASURED 2026-09-22, 12x slowdown, two runs each. BEFORE the afterimage (the old frame
+  // dropped on commit): blank 1519 and 1214 ms after Fields -> Animation, 1151 and 1196 ms after
+  // Animation -> Fields, the stage at 0.5% ink (the guide alone) until the new document had
+  // loaded. AFTER: 41, 42, 52 and 46 ms. What is left is the entrance's own first frames, which
+  // start from nothing on purpose and ramp through the 3% line in two or three frames, exactly
+  // as they did before. The limit sits between the two with room for a slower machine; the
+  // afterimage itself is held however long the load takes.
+  expect(forward.blankMs, 'blank after Fields -> Animation').toBeLessThan(400);
+  expect(back.blankMs, 'blank after Animation -> Fields').toBeLessThan(400);
 });
