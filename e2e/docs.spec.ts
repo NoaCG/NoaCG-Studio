@@ -148,11 +148,14 @@ test('the four guides carry their load-bearing content', async ({ page }) => {
   await expect(agents).toContainText('save');
   await expect(agents).toContainText('Claude Code');
 
-  // (b) CasparCG: the live-link command, and the honesty note. The connect feature has not
-  // yet driven a real server, and the docs must stay true on the day someone tries it.
+  // (b) CasparCG: the live-link command, and the honesty note. NoaCG Bridge has driven a real
+  // 2.5.0 on the maintainer's machine (docs/BRIDGE.md §8) and the docs say exactly that, with
+  // what is still unverified named beside it, so they stay true on the day someone tries it.
   const caspar = page.locator('#casparcg');
   await expect(caspar).toContainText('CG 1-20 ADD 1');
-  await expect(caspar).toContainText('not yet driven a real CasparCG server');
+  await expect(caspar).toContainText('On a real CasparCG 2.5.0');
+  await expect(caspar).toContainText('Not yet verified');
+  await expect(caspar).toContainText('NoaCG Bridge');
 
   // (c) Browser sources: the rules that make or break an OBS/vMix setup.
   const browser = page.locator('#browser-source');
