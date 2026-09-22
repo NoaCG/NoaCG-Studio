@@ -77,6 +77,10 @@ export const FOCUS = [
   'overlay-layers.spec.ts',
   'package.spec.ts',
   'playout-drills.spec.ts',
+  // THE MONITORS AND THE RUNDOWN NEVER MOVE. The dashboard's scroll model lives almost entirely
+  // in src/styles/playout-dashboard.css, and src/styles is CORE, which resolves to THIS list -
+  // so without the row a stylesheet change could bring the page scroll back and still merge.
+  'playout-fixed-panes.spec.ts',
   'production-audience.spec.ts',
   'production-chat-intake.spec.ts',
   'production-controls.spec.ts',

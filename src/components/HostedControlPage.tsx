@@ -925,7 +925,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
 
       <main className="pd-body">
         <section className="pd-main">
-          {/* The monitors and the verbs as ONE sticky block, and the bar beside PROGRAM above
+          {/* The monitors and the verbs as ONE fixed block, and the bar beside PROGRAM above
               1366px - the same stage head the in-app page carries, out of the same stylesheet.
               docs/PLAYOUT_DASHBOARD.md §2; the parity contract is docs/CONTROL_PANEL_PARITY.md. */}
           <div className="pd-stagehead">
@@ -997,6 +997,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           />
           </div>
 
+          {/* THE CONTROL AREA, the one scroll container on the page, exactly as on the in-app
+              dashboard: the stage head above and the rundown beside it never move. */}
+          <div className="pd-control-area" data-testid="control-area">
           {selectedCue && spec && (
             <HostedCueEditor
               cue={selectedCue}
@@ -1092,6 +1095,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               </ol>
             )}
           </details>
+          </div>
         </section>
 
         <aside className="pd-rail">

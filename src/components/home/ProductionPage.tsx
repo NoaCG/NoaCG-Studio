@@ -2493,11 +2493,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             a height and CSS cannot derive a width from `aspect-ratio`, so the grid turns the cap
             into a track width with this (docs/PLAYOUT_DASHBOARD.md §2). A portrait graphic
             therefore caps at the same HEIGHT as a 16:9 one rather than the same width. */}
-        {/* THE STAGE HEAD: the monitors and the verbs that act on them, as ONE sticky block.
+        {/* THE STAGE HEAD: the monitors and the verbs that act on them, as ONE fixed block
+            that sits outside the control area's scroller, so nothing moves it.
             Two things came out of the 2026-08-21 owner read (docs/PLAYOUT_DASHBOARD.md §2). The
-            verb bar used to scroll away under the sticky monitors - "a bit scary that you scroll
-            the monitors on top of the take buttons" - and what must never leave the screen is
-            sticky, not small, which TAKE and Out plainly are. And above 1366px the bar moves
+            verb bar used to scroll away under the monitors - "a bit scary that you scroll the
+            monitors on top of the take buttons" - and TAKE and Out must never leave the screen
+            any more than the pictures may. And above 1366px the bar moves
             into the empty column beside PROGRAM, which spends that width and gives the monitors
             back the height the bar was using. Below it, the bar returns underneath. */}
         <div className="pd-stagehead">
@@ -2700,6 +2701,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         </div>
         </div>
 
+        {/* THE CONTROL AREA, the ONE scroll container on this page (docs/PLAYOUT_DASHBOARD.md
+            §2). Everything an operator edits lives in here - the note, the cue editor, the
+            actions, the controls panel and the activity log - and only this box scrolls, so
+            the stage head above it and the rundown beside it never move. */}
+        <div className="pd-control-area" data-testid="control-area">
         {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
 
         {/* The editor. It edits the PREVIEW cue by default and says so; the switch points it at
@@ -3205,6 +3211,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         )}
 
         <ActionLog entries={wireLog} published={!!hostedSlug && backendConfigured} />
+        </div>
       </section>
 
       <aside className={`pd-rail${sub ? ' pd-offstage' : ''}`}>
