@@ -106,6 +106,7 @@ export default defineConfig({
     command: 'npm run dev -- --host 127.0.0.1',
     url: base,
     reuseExistingServer: true,
+    stdout: 'pipe', // DIAG-TEMP
     timeout: 60_000,
     // Pin the suite to OFFLINE mode regardless of the developer's local .env (which may hold real
     // Supabase creds for live testing). Env vars set here take priority over .env files in Vite,

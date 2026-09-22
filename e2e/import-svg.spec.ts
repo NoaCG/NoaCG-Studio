@@ -19,6 +19,21 @@ import { boxGrow, boxGrows, dropSvg as dropSvg2, intoProduction, untickTextRow, 
 // original spelling (including a DUPLICATE layer name), one multi-tspan text block, a
 // class-based <style>, and two font families — one bundled (Archivo), one not (Neue Machina).
 
+// DIAG-TEMP
+test.beforeEach(async ({ page }, info) => {
+  const t0 = Date.now();
+  page.on('framenavigated', (f) => { if (f === page.mainFrame()) console.log('[NAV]', info.title.slice(12, 52), Date.now() - t0, f.url()); });
+  page.on('console', (m) => { if (/vite/i.test(m.text())) console.log('[CON]', info.title.slice(12, 52), Date.now() - t0, m.text()); });
+  if (process.env.DIAG_GC !== '0') {
+    const cdp = await page.context().newCDPSession(page);
+    void (async () => {
+      for (;;) {
+        try { await cdp.send('HeapProfiler.collectGarbage'); } catch { return; }
+      }
+    })();
+  }
+});
+
 const FIXTURE = fileURLToPath(new URL('fixtures/illustrator-lower-third.svg', import.meta.url));
 
 async function dropSvg(page: Page) {
