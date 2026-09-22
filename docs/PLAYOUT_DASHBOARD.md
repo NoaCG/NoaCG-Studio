@@ -45,7 +45,7 @@ block in it is content-sized.** The header, the stage head and the cue rail neve
 │ ▤ Show name  ● SHOW  00:42:17        ● output connected · N layers            │
 │                                         [Publish/links]  [Export…]  [■ All out]│
 ├───────────────────────────────── main ──────────────────┬─── cue rundown ─────┤
-│  ● PREVIEW  <cue name>        ● PROGRAM — ON AIR   L1   │  ⣿ 1 Presenter strap │
+│  ● PREVIEW  <cue name>        ● PROGRAM · ON AIR   L1   │  ⣿ 1 Presenter strap │
 │  ┌───────────────┐            ┌───────────────┐         │      after the intro │
 │  │  amber frame  │            │   red frame   │         │             L1 ON AIR│
 │  └───────────────┘            └───────────────┘         │  ⣿ 2 Topic card  PVW │
@@ -644,7 +644,7 @@ surface a class drives from a phone) and the EXPORTED production controller, the
 drops to when the network dies. The exported page has no separate block: it is a third renderer
 under the one-control doctrine, so its number field's own −/+ pair IS the block — same partial,
 same exclusion, and the same "only while the edited cue is the one on air", greying off air with
-"This cue is not on air — Take it first" and carrying the *act on air* mark beside the field's
+"This cue is not on air. Take it first." and carrying the *act on air* mark beside the field's
 name. It briefly staged off air instead, which is the one thing this control must never do: a
 second meaning with no feedback at all, where the figure moved on screen and nothing said it had
 not aired. An excluded (⚡ payload) field's pair is never greyed — it stages at all times, and
