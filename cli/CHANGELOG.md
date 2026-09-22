@@ -8,6 +8,32 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.4.0 - unreleased
+
+**New: NoaCG Bridge.** `noacg bridge` is the local program that lets the NoaCG page in your
+browser drive a CasparCG server on your studio network without the CasparCG Client. It replaces
+`noacg caspar agent`, which still runs it under the old name. Two ways to run it: this package
+(`npx @noacg/cli bridge`), or the download `NoaCG-Bridge.exe` attached to this release, which is
+the same command with Node inside, for a playout laptop with nothing installed.
+
+**Pairing is a link, not a token to paste.** The Bridge prints and opens a link; one click on
+that page pairs the browser. The code in the link works once, for two minutes, and the token
+never travels in a URL. Anyone paired with the old agent stays paired.
+
+**The production page can cue what is already on the server.** "From the playout server…" lists
+the CasparCG box's own templates and media (through the server's media scanner) and adds them
+to the rundown beside the production's graphics. A server template is taken with its field
+values as JSON, updated, stepped and taken off; a clip rolls, pauses, resumes and stops. NoaCG's
+own graphics still go on air the one way they always have - the output URL on the channel - so
+a quiz reveal or a score change works exactly as before.
+
+**Fixed: a clip whose name has an ä or an ö.** The AMCP wire was written and read as latin1; it is
+UTF-8 now, so `Jääkiekko.mp4` lists and plays under its own name.
+
+**What to do.** Nothing, if you use `npx`. If you had `noacg caspar agent` in a startup script,
+`noacg bridge` is its new name; both work. The studio needs this version or newer: an older
+agent is told apart from a missing one, and Settings -> Playout says "update NoaCG Bridge".
+
 ## 0.3.4 - 2026-09-20
 
 **Fixed: `validate` could show you old screenshots while reporting success.** If the screenshots

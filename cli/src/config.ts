@@ -9,8 +9,6 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-const require = createRequire(import.meta.url);
-
 /** The deployment's origin, trailing slash stripped. */
 export function noacgUrl(): string {
   const raw = process.env.NOACG_URL?.trim() || 'https://noacg.studio';
@@ -45,10 +43,17 @@ export function configDir(): string {
  */
 export const UNKNOWN_VERSION = '0.0.0';
 
-/** The CLI's own version, read from its package.json (dist/ sits beside it). */
+/**
+ * The CLI's own version, read from its package.json (dist/ sits beside it). Inside
+ * NoaCG-Bridge.exe there is no package.json and no `import.meta.url` to resolve one from, so
+ * the exe build bakes the version in as NOACG_BRIDGE_VERSION (cli/scripts/build-bridge-exe.mjs)
+ * and that is read first.
+ */
 export function cliVersion(): string {
+  const baked = process.env.NOACG_BRIDGE_VERSION?.trim();
+  if (baked) return baked;
   try {
-    const pkg = require('../package.json') as { version?: string };
+    const pkg = createRequire(import.meta.url)('../package.json') as { version?: string };
     return pkg.version ?? UNKNOWN_VERSION;
   } catch {
     return UNKNOWN_VERSION;

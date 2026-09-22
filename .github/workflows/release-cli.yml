@@ -285,3 +285,56 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           echo "::notice title=Published::@noacg/cli@$VERSION is on npm - check the provenance badge at https://www.npmjs.com/package/@noacg/cli"
+
+  # NOACG BRIDGE, THE EXE (docs/BRIDGE.md §6). The same package's `noacg bridge`, built as one
+  # Windows executable with Node inside (cli/scripts/build-bridge-exe.mjs) and attached to the
+  # SAME Release as the npm publish, under the same version and the same notes - so
+  # https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe is always
+  # the Bridge that matches the studio's expectations. One helper, one version line.
+  #
+  # It runs AFTER the publish job so a tag whose publish was refused (not on main, version taken)
+  # never gets an exe, and it builds on Windows because the exe is a copy of the runner's own
+  # node.exe with the bundle injected. On a dry run it builds and keeps the exe as a workflow
+  # artifact instead of uploading it anywhere, so the whole path is rehearsed.
+  bridge-exe:
+    name: Build NoaCG-Bridge.exe
+    needs: publish
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      # One upload to the Release the publish job created.
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install the CLI package's dependencies
+        run: npm --prefix cli ci
+
+      # Builds the package, bundles the bridge entry, injects it into a copy of this runner's
+      # node.exe, starts the result and asks /health - a build that does not answer is refused.
+      - name: Build and prove the exe
+        run: npm --prefix cli run build:exe
+
+      - name: Keep the exe as an artifact (dry run)
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoaCG-Bridge
+          path: |
+            cli/dist-exe/NoaCG-Bridge.exe
+            cli/dist-exe/NoaCG-Bridge.exe.sha256
+
+      # `--clobber` so a re-driven release replaces the file rather than failing on it.
+      - name: Attach the exe to the Release
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(node -p 'require("./cli/package.json").version')"
+          gh release upload "cli-v${VERSION}" cli/dist-exe/NoaCG-Bridge.exe cli/dist-exe/NoaCG-Bridge.exe.sha256 --clobber
+          echo "::notice title=NoaCG Bridge::https://github.com/${GITHUB_REPOSITORY}/releases/download/cli-v${VERSION}/NoaCG-Bridge.exe"

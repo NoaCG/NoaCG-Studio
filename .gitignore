@@ -256,3 +256,6 @@ tsconfig.tsbuildinfo
 # seeded browser profile it carries between the dev server and the built app, and the summary
 # JSON. All of it is a reading of ONE machine at ONE moment, so it is regenerated, never kept.
 playout-lag-out*/
+
+# NoaCG-Bridge.exe and its build intermediates (cli/scripts/build-bridge-exe.mjs)
+cli/dist-exe
