@@ -1,0 +1,150 @@
+# Release NoaCG Bridge: build NoaCG-Bridge.exe and publish it as a GitHub Release.
+#
+# NoaCG ships two tools with two homes. The NoaCG CLI (@noacg/cli, for making graphics) is
+# published to npm by release-cli.yml. NoaCG Bridge (the small program that connects NoaCG
+# Playout in a browser to a CasparCG server) is downloaded from this repository's Releases page,
+# and this workflow is what puts it there. They are built from the same package, and nobody
+# downloading either one has to know that: the Releases page carries Bridge releases only, and
+# the studio's Settings -> Playout links `releases/latest/download/NoaCG-Bridge.exe`, which
+# resolves to the newest Bridge release for as long as nothing else is published here.
+#
+# HOW TO RELEASE THE BRIDGE (docs/BRIDGE.md §6 is the prose):
+#   1. Write the version's section in cli/BRIDGE_CHANGELOG.md, for the operator deciding whether
+#      to download again. The version is cli/package.json's; a Bridge release and a CLI release
+#      share the number and nothing else, so the Bridge may skip versions the CLI used.
+#      Land it on main through /queue-merge.
+#   2. `git tag bridge-v0.4.0 <commit on main> && git push origin bridge-v0.4.0`
+#   3. Watch this workflow. It builds the exe on a Windows runner from that commit, proves it
+#      starts and answers /health, and creates the Release with the exe and its checksum.
+#
+# The Actions tab's "Run workflow" button is a rehearsal by default: everything runs, and the exe
+# is kept as a workflow artifact instead of a Release. Unticking dry_run publishes from the
+# chosen commit, creating the tag, for when a tagged run needs re-driving.
+name: Release NoaCG Bridge
+
+on:
+  push:
+    tags: ['bridge-v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: build and prove the exe, keep it as an artifact, publish nothing.'
+        type: boolean
+        default: true
+
+# A release is never superseded by a newer one.
+concurrency:
+  group: release-bridge
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build and publish NoaCG-Bridge.exe
+    # Never on a fork, and never on a fork's tag push.
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
+    # The exe is a copy of the runner's own node.exe with the bundle injected, so it is built
+    # where it will run.
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      # One Release created at the end; everything before it is a read.
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Full history: the ancestor-of-main check needs real refs.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # The version is cli/package.json's. The tag must agree with it, so a tag naming a version
+      # it does not build is refused before anything is built.
+      - name: Read the version being released
+        id: version
+        run: |
+          VERSION="$(node -p 'require("./cli/package.json").version')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [ "$TAG" != "$GITHUB_REF" ] && [ "$TAG" != "bridge-v$VERSION" ]; then
+            echo "::error title=Tag/version mismatch::tag $TAG but cli/package.json says $VERSION (expected tag bridge-v$VERSION)."
+            exit 1
+          fi
+          echo "Releasing NoaCG Bridge $VERSION from ${GITHUB_SHA}"
+
+      # A release says what changed, to the operator deciding whether to download again. The
+      # notes are the version's section of cli/BRIDGE_CHANGELOG.md, refused here when missing.
+      - name: Refuse a version with no release notes a person can read
+        run: node cli/scripts/release-notes.mjs --bridge --check
+
+      # A released Bridge must be a Bridge on main.
+      - name: Refuse a commit that is not on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first, then tag the commit on main."
+            exit 1
+          fi
+          echo "${GITHUB_SHA} is on main."
+
+      # GitHub is the authority on what is already released. A real run refuses a taken version;
+      # a dry run only says so, so a rehearsal works on any tree.
+      - name: Is the version free?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if gh release view "bridge-v${VERSION}" --json tagName >/dev/null 2>&1; then
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "::notice title=Already released::NoaCG Bridge $VERSION is already on the Releases page; this dry run rehearses the build only."
+              exit 0
+            fi
+            echo "::error title=Already released::NoaCG Bridge $VERSION is already on the Releases page. Bump cli/package.json."
+            exit 1
+          fi
+          echo "NoaCG Bridge $VERSION is free."
+
+      - name: Install the CLI package's dependencies
+        run: npm --prefix cli ci
+
+      # Builds the package, bundles the bridge entry, injects it into a copy of this runner's
+      # node.exe, starts the result and asks /health. A build that does not answer is refused.
+      - name: Build and prove the exe
+        run: npm --prefix cli run build:exe
+
+      - name: Rehearse the Release page (dry run)
+        if: ${{ inputs.dry_run }}
+        run: node cli/scripts/release-notes.mjs --bridge
+
+      - name: Keep the exe as an artifact (dry run)
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoaCG-Bridge
+          path: |
+            cli/dist-exe/NoaCG-Bridge.exe
+            cli/dist-exe/NoaCG-Bridge.exe.sha256
+
+      # `--target` matters on a manual dispatch, where there is no tag yet: gh creates
+      # `bridge-vX.Y.Z` at the commit that was built. On a tag push the tag already exists there.
+      - name: Create the Release with the exe
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node cli/scripts/release-notes.mjs --bridge > "$RUNNER_TEMP/release-notes.md"
+          gh release create "bridge-v${VERSION}" \
+            --target "${GITHUB_SHA}" \
+            --title "NoaCG Bridge ${VERSION}" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            cli/dist-exe/NoaCG-Bridge.exe cli/dist-exe/NoaCG-Bridge.exe.sha256
+          echo "::notice title=Released::https://github.com/${GITHUB_REPOSITORY}/releases/tag/bridge-v${VERSION}"

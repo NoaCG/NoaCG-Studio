@@ -679,10 +679,11 @@ no `--provenance` flag).
    is not optional**: `cli/scripts/build-skill.mjs` stamps the version onto every plugin's two manifests
    and the root marketplace entry, and the workflow refuses a tree where they disagree.
    **Write the version's section in `cli/CHANGELOG.md` in the same commit**, for someone who uses
-   the CLI: what was wrong or missing, what it does now, what they have to do. That section is
-   published as the GitHub Release, word for word. `cli/scripts/release-notes.mjs --check` runs in
-   the build and at the top of the release workflow, and refuses a version with no section, a
-   stub, a list of pull requests or a username.
+   the CLI: what was wrong or missing, what it does now, what they have to do. The changelog
+   ships in the package, so that section is what the npm page shows.
+   `cli/scripts/release-notes.mjs --check` runs in the build and at the top of the release
+   workflow, and refuses a version with no section, a stub, a list of pull requests or a
+   username.
 2. Commit, and land it on `main` the normal way (`/queue-merge`).
 3. Then one command, from any checkout:
    ```bash
@@ -715,10 +716,12 @@ no `--provenance` flag).
    `--check` answers on any tree rather than only in the window between a bump and its release. `--publisher-ok` overrides it, for the legitimate case
    where the repository moved and the owner has already re-created the connection.
 
-The run also creates the matching **GitHub Release**, with notes generated from the commits since
-the previous one, so every version on npm is also a version a visitor to the repository page can
-see. The Actions tab's "Run workflow" button is the manual door when a tagged run needs re-driving
-(untick `dry_run`), and it is the one route that works from a phone.
+The run creates **no GitHub Release**: the CLI's home is npm, and the repository's Releases page
+belongs to NoaCG Bridge, the other tool built from this package (`release-bridge.yml`, on a
+`bridge-v*` tag; `docs/BRIDGE.md` §6). To the people who use them the two are separate products
+with separate homes, and the release pages never explain that they share code. The Actions tab's
+"Run workflow" button is the manual door when a tagged run needs re-driving (untick `dry_run`),
+and it is the one route that works from a phone.
 
 **A session may run this without asking** - owner ruling, 2026-09-05, after publishing 0.3.0 by
 hand and observing that a human following an agent's instructions verifies nothing:
@@ -741,10 +744,8 @@ workflow rather than thinner: everything it can refuse locally costs nothing to 
 
 **A rehearsal costs nothing.** Run the workflow from the Actions tab with `dry_run` left checked
 (its default): every guard, the install, typecheck, build, the tests and `npm pack --dry-run` run
-for real, and the job stops without burning a version. The GitHub Release is rehearsed too: the
-dry run asks GitHub to *generate* the release notes and prints them, which exercises everything
-about that step except the write. Unchecking `dry_run` publishes - the same thing a tag push
-does, for when a tagged run needs re-driving.
+for real, and the job stops without burning a version. Unchecking `dry_run` publishes - the
+same thing a tag push does, for when a tagged run needs re-driving.
 
 **A dry run does not prove a publish will work.** `npm publish --dry-run` never authenticates, so
 every credential question is one a rehearsal cannot ask. On 2026-09-09 a dry run went green on every

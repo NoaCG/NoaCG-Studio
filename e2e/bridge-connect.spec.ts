@@ -174,8 +174,10 @@ test('with no Bridge paired the Playout section is complete, and never looks bro
   await openPlayoutSettings(page);
   const section = page.getByTestId('settings-playout');
   await expect(section).toContainText('NoaCG Bridge');
-  await expect(section.getByTestId('bridge-download')).toHaveAttribute('href', /NoaCG-Bridge\.exe$/);
-  await expect(section).toContainText('npx @noacg/cli bridge');
+  // The one way in is the download: the Bridge is its own product, and nothing here asks a
+  // playout operator to know about the CLI package it is built from.
+  await expect(section.getByTestId('bridge-download')).toHaveAttribute('href', /releases\/latest\/download\/NoaCG-Bridge\.exe$/);
+  await expect(section).not.toContainText('npx');
   // The defaults are filled in, so the only empty box is the one pairing fills.
   await expect(section.getByTestId('bridge-url')).toHaveValue('http://127.0.0.1:8899');
   await expect(section.getByTestId('caspar-amcp-port')).toHaveValue('5250');
@@ -233,14 +235,14 @@ test("a working connection reports CasparCG's own version, from a real VERSION r
   expect(bridge.actions).toEqual([]);
 });
 
-test('no Bridge running says so, and names both ways to start one', async ({ page }) => {
+test('no Bridge running says so, and says what to start', async ({ page }) => {
   await seedSettings(page);
   await fakeBridge(page, { missing: true });
   await openPlayoutSettings(page);
   await page.getByTestId('playout-test').click();
   await expect(verdict(page)).toHaveAttribute('data-state', 'bridge');
   await expect(verdict(page)).toContainText('Start NoaCG Bridge');
-  await expect(verdict(page)).toContainText('npx @noacg/cli bridge');
+  await expect(verdict(page)).toContainText('NoaCG-Bridge.exe');
 });
 
 test('an agent from before the protocol is "update NoaCG Bridge", not "not running"', async ({ page }) => {

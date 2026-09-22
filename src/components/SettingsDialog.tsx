@@ -5,7 +5,6 @@ import { EXPORT_TARGETS } from '../export/registry';
 import { signOut, updatePassword } from '../backend/auth';
 import { listAgentKeys, revokeAgentKey, type AgentKeySummary } from '../backend/agentAccess';
 import {
-  BRIDGE_COMMAND,
   BRIDGE_DOWNLOAD_URL,
   loadPlayoutSettings,
   playoutConfigured,
@@ -257,8 +256,8 @@ function PlayoutSection() {
         <a href={BRIDGE_DOWNLOAD_URL} data-testid="bridge-download">
           Download NoaCG Bridge
         </a>{' '}
-        and run it (or run <code>{BRIDGE_COMMAND}</code> in a terminal); it opens a page that pairs
-        this browser. Loading a production&rsquo;s output URL by hand keeps working exactly as before.
+        and double-click it; it opens a page that pairs this browser. Loading a production&rsquo;s
+        output URL by hand keeps working exactly as before.
       </p>
 
       <div className="dlg-rows">

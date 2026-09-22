@@ -156,13 +156,9 @@ CG 1-20 ADD 1 "https://<your-noacg-host>/output?production=<slug>" 1
 The command above is the whole live link, so NoaCG can send it instead of you typing it into the
 CasparCG Client. A browser cannot open a raw TCP socket and AMCP is one, so a small program on the
 machine you operate from holds it: **NoaCG Bridge**. Download `NoaCG-Bridge.exe` (the link is
-under Settings -> Playout) and double-click it, or with Node installed:
-
-```bash
-npx @noacg/cli bridge
-```
-
-It opens a page that pairs your browser with one click. **Settings -> Playout** then holds one
+under Settings -> Playout, and it is the newest release on the repository's GitHub Releases
+page) and double-click it; there is nothing to install. It opens a page that pairs your browser
+with one click. **Settings -> Playout** then holds one
 server for the whole studio - host, AMCP port, channel and layer - and the production page grows
 a **CasparCG** row beside its output URL with **Put on air** and **Take off**. The Bridge listens
 on `127.0.0.1` only; CasparCG itself may be any machine on the studio network, exactly as with
@@ -300,7 +296,7 @@ Fonts travel in the folder, so a machine without the typeface installed still re
 | Output URL shows "not available" | Wrong slug, or the production was unpublished | Re-copy the URL from the production page. Unpublishing kills the URL on purpose. |
 | Cloud output goes blank after a network drop | It is rebuilding | Wait — it recovers on its own, without replaying animations on screen. If it does not, reload the layer. |
 | Operator takes a cue and nothing airs | The production is not published | Read the mode strip in the production header. `○ NOT PUBLISHED` means the verbs are driving the page's own PROGRAM monitor and nothing reaches the wire; publish, then take again. `● SHOW` means it did go out, so the fault is downstream: check the renderer status row and the layer. |
-| Settings → Playout says NoaCG Bridge is not running | The Bridge is not up on this machine, or is on another port | Start it (the exe, or `npx @noacg/cli bridge`) and open the link it prints. It must run on the machine with the browser, not on the playout box. |
+| Settings → Playout says NoaCG Bridge is not running | The Bridge is not up on this machine, or is on another port | Double-click `NoaCG-Bridge.exe` and press the button on the page it opens. It must run on the machine with the browser, not on the playout box. |
 | It says your browser is asking about local network access | Chrome gates a hosted page reaching `127.0.0.1` | Answer the prompt at the top of the window. If it was dismissed, allow "local network access" for the site in the icon left of the address bar. |
 | It says CasparCG did not answer | Nothing is listening on that host and AMCP port | `noacg caspar status` makes the same call from the terminal and takes the browser out of the question. |
 | The server picker says the media scanner is not running | CasparCG answered, but the scanner beside it is not up, so it cannot list its files | Start `scanner.exe` next to CasparCG (a separate `scanner` process on Linux). You can still type a name meanwhile. |
