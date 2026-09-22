@@ -280,12 +280,27 @@ The page:
 - **Recovery is never watchable.** The doctrine is data, then SNAP — instant, timers arm — and
   catch-up rows break it by their nature: they are ordinary commands, so replaying them animates.
   A reopened output would air the outage's history (a graphic entering, a cue leaving, another
-  entering) before settling. So the whole boot pass — the rebuild AND the replay — runs with the
-  stage hidden (`setVisible`, an opacity on the renderer's own surface, never the graphics'
-  state), and the stage returns after a fixed settle. Nothing to replay hides nothing, so an
-  ordinary reopen still paints at once. The settle is fixed rather than "wait for quiet": a
-  recovered state can legitimately keep moving (a ticker, a clock), so a quiet-period test would
-  never fire.
+  entering) before settling. So the whole boot pass — the rebuild AND the replay — runs off air
+  (`setVisible`, the renderer's own surface, never the graphics' state), and comes back when the
+  replay has stood still. Nothing to replay hides nothing, so an ordinary reopen still paints at
+  once.
+- **Off air means TRANSPARENT FROM THE INSIDE, because a hidden frame stops running.** This used
+  to be an `opacity: 0` on the stage, on the reasoning that the documents would keep compositing
+  behind it. They do not. Chromium throttles the rendering of an iframe its embedder has made
+  invisible, and every graphic is a sandboxed cross-origin frame: measured on a real CasparCG
+  2.5.0 on 2026-09-22, a replayed entrance advanced about 0.03 s per second behind a hidden
+  stage, and the rest of it — and the exit queued behind it — then played ON AIR the moment the
+  stage came back. That is the whole-output flash an operator sees a second after loading the
+  URL. `setVisible` now sends each DOCUMENT the `offair` command (previewProtocol.ts): its root
+  paints transparent while the frame stays visible to the compositor, so the replay runs at full
+  frame rate and is over before air returns.
+- **When to come back is asked, not guessed.** Each document answers `motion` on its ordinary
+  state reply — the summed playhead of its animations — and the renderer waits for two asks in a
+  row that come back ANSWERED with the same number (a document mid-replay answers nothing at
+  all, and silence is not stillness). A floor of 1.2 s covers the fonts wait every entrance goes
+  through, and a 6 s ceiling covers a graphic that never stops moving (a ticker, a clock), which
+  is the one case where a replay can still be seen finishing. `e2e/output-first-paint.spec.ts`
+  pins all of it against the real shell.
 - **A MATCH CLOCK is the one value a snapshot cannot rebuild, so it carries its own origin.**
   Everything else on the wire is a value somebody sent; a clock keeps moving with nobody
   commanding it, and until 2026-08-19 the only copy of "67 minutes" was in the renderer's own

@@ -335,6 +335,13 @@ window.addEventListener('unhandledrejection', function (ev) {
       try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
     } else if (msg.cmd === 'measure') {
       report(window);
+    } else if (msg.cmd === 'offair') {
+      /* OFF AIR, FROM THE INSIDE (previewProtocol.ts's 'offair'): the root paints transparent
+         and everything under it keeps running at the frame rate it would have on air. Set as
+         important so a template's own root rule cannot win, and REMOVED to come back, which
+         leaves any opacity the template itself set exactly as it was. */
+      if (msg.on) document.documentElement.style.setProperty('opacity', '0', 'important');
+      else document.documentElement.style.removeProperty('opacity');
     } else if (msg.cmd === 'snap') {
       // Recovery semantics (docs/CLOUD_PLAYOUT.md §3): the output renderer restores a live
       // graphic's pose instantly — timers arm unless the sender says otherwise, exactly like
@@ -353,7 +360,17 @@ window.addEventListener('unhandledrejection', function (ev) {
         // two questions must still answer the one it has.
         var over = null;
         try { over = window.noacgTextOverflow ? window.noacgTextOverflow() : null; } catch (e2) {}
-        parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s, overflow: over }, '*');
+        // …and HOW FAR ITS ANIMATIONS HAVE RUN (previewProtocol.ts's PreviewStateMessage.motion):
+        // the summed playhead of everything on GSAP's global timeline, which every house template
+        // animates on. Two equal readings mean nothing moved, which is what the output renderer
+        // waits for before ending a hidden boot catch-up so a replayed exit never finishes on
+        // air. Its own try/catch, like the overflow question above it.
+        var motion = 0;
+        try {
+          var kids = window.gsap ? window.gsap.globalTimeline.getChildren(true, true, true) : [];
+          for (var ki = 0; ki < kids.length; ki++) motion += Math.round(kids[ki].totalTime() * 1000);
+        } catch (e3) {}
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s, overflow: over, motion: motion }, '*');
       } catch (e) {}
     }
   }

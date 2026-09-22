@@ -56,16 +56,29 @@ export interface OutputStage {
    *  PreviewStateMessage.overflow). Empty for a graphic that fits, and for every template that
    *  answers no such question. */
   overflow: ReadonlyMap<string, string[]>;
+  /** How far each document's animations had run at its last state reply, in milliseconds
+   *  (PreviewStateMessage.motion). Updated by the same poll as `states`. A caller asks twice and
+   *  compares: the same number twice means that graphic stood still in between. */
+  motion: ReadonlyMap<string, number>;
+  /** How many state replies each document has sent. A document runs ONE command at a time, so
+   *  an ask made while it is mid-burst is answered only when that burst ends: without this, an
+   *  unanswered ask reads exactly like an answer that nothing has moved. A caller comparing two
+   *  `motion` readings must check this went UP between them, or it is comparing silence. */
+  replies: ReadonlyMap<string, number>;
   /** Called whenever a document reports a state OR an overflow set that differs from the last
    *  one seen. Both ride the one reply, so one callback carries both. */
   onState(cb: (graphic: string, state: PreviewMachineState | null, overflow: string[]) => void): void;
   /** The graphic keys the stage hosts, in LAYER order — furthest back first. */
   graphics: string[];
-  /** Hide/show the WHOLE stage — the renderer's own surface, never the graphics' own state.
-   *  Boot catch-up replays missed commands as commands, so their animations run; airing that
-   *  replay would put the outage's history on screen. Hidden, it settles off air and the
-   *  reveal shows the finished picture (docs/CLOUD_PLAYOUT.md §3). */
+  /** Take the WHOLE stage off or back on air — the renderer's own surface, never the graphics'
+   *  own state. Boot catch-up replays missed commands as commands, so their animations run;
+   *  airing that replay would put the outage's history on screen. Off air it settles unseen and
+   *  the return shows the finished picture (docs/CLOUD_PLAYOUT.md §3). */
   setVisible(visible: boolean): void;
+  /** Resolves once EVERY graphic's document has loaded and been handed the commands queued for
+   *  it. Until then nothing sent to the stage has run, so a caller timing how long a burst of
+   *  commands takes to play out starts its clock here, not when it sent them. */
+  whenLoaded(): Promise<void>;
   /** Re-measure the fit box and rescale. The stage does this on every window resize; a host
    *  whose box changes for other reasons (a panel resize) calls it itself. */
   rescale(): void;
@@ -117,12 +130,20 @@ export function createOutputStage(
   const frames = new Map<string, HTMLIFrameElement>();
   const states = new Map<string, PreviewMachineState | null>();
   const overflow = new Map<string, string[]>();
+  const motion = new Map<string, number>();
+  const replies = new Map<string, number>();
   const stateCbs: ((graphic: string, state: PreviewMachineState | null, overflow: string[]) => void)[] = [];
   // Commands QUEUE until the iframe's document has loaded its command listener — a
   // postMessage into an unloaded srcdoc is silently lost, which is exactly what ate the boot
   // recovery burst on a renderer refresh (live commands worked; the restore did not).
   const loaded = new Set<string>();
   const pending = new Map<string, PreviewCmd[]>();
+  let resolveLoaded: () => void = () => {};
+  const allLoaded = new Promise<void>((resolve) => {
+    resolveLoaded = resolve;
+  });
+  // A payload with no graphics has nothing to wait for (every `load` below checks the same).
+  if (payload.graphics.length === 0) resolveLoaded();
   const post = (graphic: string, cmd: PreviewCmd) => {
     if (!loaded.has(graphic)) {
       pending.set(graphic, [...(pending.get(graphic) ?? []), cmd]);
@@ -155,18 +176,32 @@ export function createOutputStage(
       `z-index:${layer}`,
       'border:0',
       'background:transparent',
+      // HIDDEN UNTIL ITS DOCUMENT HAS LOADED. Until `load` the frame holds a document that is
+      // only partly read: composeDocument puts the color-scheme meta at the END of the
+      // template's head, and the template CSS that hides its layers after that. Chromium paints
+      // a frame whose document declares no color-scheme inside this dark-scheme page with an
+      // OPAQUE WHITE canvas (measured: a full-frame white layer), and every frame here is
+      // full-resolution, so that window is a whole-output flash waiting for a slow machine.
+      // Hidden, the frame paints nothing at all. By `load` its scripts have run and the
+      // template sits in its invisible start state, which is exactly what air should show, and
+      // nothing sent to it can have run earlier anyway because commands queue until then.
+      'visibility:hidden',
     ].join(';');
     iframe.addEventListener('load', () => {
+      iframe.style.visibility = 'visible';
       loaded.add(spec.key);
       const queue = pending.get(spec.key) ?? [];
       pending.delete(spec.key);
       for (const cmd of queue) postPreviewCmd(iframe.contentWindow, cmd);
+      if (loaded.size === frames.size) resolveLoaded();
     });
     iframe.srcdoc = composeDocument(templateFromSpec(spec), { liveControl: true });
     stage.appendChild(iframe);
     frames.set(spec.key, iframe);
     states.set(spec.key, null);
     overflow.set(spec.key, []);
+    motion.set(spec.key, 0);
+    replies.set(spec.key, 0);
   });
 
   // State replies carry no graphic name — the SOURCE window identifies the sender.
@@ -177,6 +212,11 @@ export function createOutputStage(
       if (frame.contentWindow === ev.source) {
         const next = data.state ?? null;
         const nextOver = Array.isArray(data.overflow) ? data.overflow.map(String) : [];
+        // Kept OUT of the `moved` test below: an animation playhead changes many times a second
+        // and says nothing about applied truth, so it must never schedule a report. It is
+        // recorded for whoever is waiting for the picture to stand still.
+        motion.set(key, typeof data.motion === 'number' ? data.motion : 0);
+        replies.set(key, (replies.get(key) ?? 0) + 1);
         const moved =
           JSON.stringify(next) !== JSON.stringify(states.get(key) ?? null) ||
           nextOver.join(',') !== (overflow.get(key) ?? []).join(',');
@@ -230,14 +270,23 @@ export function createOutputStage(
     },
     states,
     overflow,
+    motion,
+    replies,
     onState: (cb) => stateCbs.push(cb),
     graphics: payload.graphics.map((g) => g.key),
-    // Opacity, not `visibility`/`display`: the documents keep compositing and their timelines
-    // keep ticking, so what the reveal shows is a settled picture rather than one that only
-    // starts moving once it is on air.
+    // FROM INSIDE EACH DOCUMENT, never by hiding the stage from out here. This used to set the
+    // stage's own opacity to 0, on the reasoning that the documents would keep compositing and
+    // their timelines keep ticking. They do not: Chromium throttles the rendering of an iframe
+    // whose embedder has made it invisible, and every graphic is a sandboxed (cross-origin)
+    // frame. Measured on a real CasparCG 2.5.0 on 2026-09-22 — behind an opacity-0 stage a
+    // replayed entrance advanced about 0.03 s per second, and the moment the stage came back
+    // the rest of it, and the exit behind it, played out ON AIR. That is the whole-output flash
+    // an operator sees when a browser source loads. Off air from the inside, the frame stays
+    // visible to the compositor, keeps its frame rate, and finishes the replay unseen.
     setVisible: (visible) => {
-      stage.style.opacity = visible ? '1' : '0';
+      for (const key of frames.keys()) post(key, { cmd: 'offair', on: !visible });
     },
+    whenLoaded: () => allLoaded,
     rescale,
     destroy: () => {
       window.removeEventListener('message', onMessage);

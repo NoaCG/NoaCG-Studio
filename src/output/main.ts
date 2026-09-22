@@ -32,13 +32,9 @@ import {
 } from '../control/matchClockWire';
 import { createAppliedOnce } from '../control/commandRoads';
 import { alreadyInSnapshot, planOutputRecovery } from '../control/outputRecovery';
+import { airWhenSettled } from './catchUp';
 import { createOutputStage } from './stage';
 
-/** How long the recovered picture is given to settle off air before the stage comes back.
- *  Covers a typical entrance plus an exit; the cost of overshooting is a moment more of the
- *  blank a just-loaded page was showing anyway, the cost of undershooting is an animation
- *  finishing on air. */
-const CATCH_UP_SETTLE_MS = 1200;
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
 
@@ -382,15 +378,24 @@ async function boot(): Promise<void> {
     }
   }
 
-  // Replay what was missed, then come back on air once the animations it fired have landed.
-  // A fixed settle beats waiting for "no state change in N ms": a recovered graphic can hold a
-  // state that keeps moving (a ticker, a clock), so a quiet-period test would never fire.
+  // ── Replay what was missed, then come back on air once the replay has stood still. ──
+  //
+  // The return used to be a flat 1200 ms from the moment these rows were handed to the stage -
+  // before the documents have even loaded, since commands queue until then - and off air used to
+  // mean an opacity on the stage, which throttles the documents to about 1 Hz. A cold boot
+  // replays the whole log (nothing reported yet means the log's START, outputRecovery.ts), so a
+  // production that had been rehearsed came back mid-replay and played every entrance and exit
+  // it was catching up on ON AIR: the whole output flashed a second after a CasparCG browser
+  // source loaded it. Both halves are fixed - the documents go off air from the inside and keep
+  // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
   missed.forEach(apply);
   if (animates) {
-    setTimeout(() => {
-      stage.setVisible(true);
-      dbg('catch-up', `${missed.length} row(s) replayed, back on air`);
-    }, CATCH_UP_SETTLE_MS);
+    void airWhenSettled(stage).then((ending) =>
+      dbg(
+        'catch-up',
+        `${missed.length} row(s) replayed, back on air${ending === 'cap' ? ' (still moving at the cap)' : ''}`,
+      ),
+    );
   }
 
   // ── Follow the log live (shared discipline: dedupe, hole → tail, refill on resubscribe, and
