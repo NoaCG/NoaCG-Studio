@@ -19,6 +19,7 @@ import { cliVersion, noacgUrl } from '../config.js';
 import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
 import { PAIRING_TTL_MS, allowedOrigins, createBridgeServer, DEFAULT_BRIDGE_PORT, isLoopbackHost, type Pairing } from '../playout/server.js';
+import { PLAYOUT_V } from '../playout/protocol.js';
 import { mintPairingCode, resolveToken } from '../playout/token.js';
 
 /** The page that pairs a browser with this Bridge: a query route the studio renders instead of
@@ -27,11 +28,13 @@ export function pairingUrl(port: number, code: string): string {
   return `${noacgUrl()}/app?bridge=${port}&code=${encodeURIComponent(code)}`;
 }
 
-/** Open a URL in the default browser, per OS, without waiting on it. */
+/** Open a URL in the default browser, per OS, without waiting on it. On Windows this goes
+ *  through the shell's own URL handler rather than `cmd /c start`: cmd re-parses its command
+ *  line, and the `&` before `code=` would have split the pairing link in two. */
 function openInBrowser(url: string): void {
   const [cmd, args] =
     process.platform === 'win32'
-      ? ['cmd', ['/c', 'start', '', url]]
+      ? ['rundll32', ['url.dll,FileProtocolHandler', url]]
       : process.platform === 'darwin'
         ? ['open', [url]]
         : ['xdg-open', [url]];
@@ -69,7 +72,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
 
   const address = `http://127.0.0.1:${port}`;
   const pairUrl = pairingUrl(port, pairing.code);
-  out.result({ ok: true, address, token, origins, v: 2, pairUrl });
+  out.result({ ok: true, address, token, origins, v: PLAYOUT_V, pairUrl });
   out.say('');
   out.say(`  NoaCG Bridge ${cliVersion()} is running. Leave this window open.`);
   out.say('');

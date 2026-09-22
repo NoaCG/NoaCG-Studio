@@ -128,10 +128,11 @@ function refusal(target: Target, reply: AmcpReply, listing: boolean): AgentError
   };
 }
 
-async function send(target: Target, line: string, timeoutMs?: number): Promise<AdapterResult<AmcpReply>> {
-  const listing = timeoutMs === LIST_TIMEOUT_MS;
+/** One line to the server. A LISTING waits out the scanner's own timeout and reads a 501 as
+ *  the scanner missing; a cue waits the default and reads a 501 as a refusal. */
+async function send(target: Target, line: string, listing = false): Promise<AdapterResult<AmcpReply>> {
   try {
-    const reply = await amcpSend(amcpTarget(target, timeoutMs), line);
+    const reply = await amcpSend(amcpTarget(target, listing ? LIST_TIMEOUT_MS : undefined), line);
     if (reply.code >= 200 && reply.code < 300) return { ok: true, value: reply, raw: reply.status };
     return { ok: false, error: refusal(target, reply, listing) };
   } catch (e) {
@@ -161,7 +162,7 @@ export const casparcgAdapter: PlayoutAdapter = {
       return { ok: false, error: { hop: 'agent', code: 'unsupported', detail: `CasparCG has no list of kind "${kind}".` } };
     }
     const sub = path?.trim() ? ` ${amcpQuote(path.trim())}` : '';
-    const r = await send(target, `${kind === 'template' ? 'TLS' : 'CLS'}${sub}`, LIST_TIMEOUT_MS);
+    const r = await send(target, `${kind === 'template' ? 'TLS' : 'CLS'}${sub}`, true);
     if (!r.ok) return r;
     const items: ListItem[] =
       kind === 'template'
@@ -179,7 +180,7 @@ export const casparcgAdapter: PlayoutAdapter = {
 
   async thumbnail(target, name) {
     if (!name.trim()) return { ok: false, error: { hop: 'agent', code: 'usage', detail: 'No file name given.' } };
-    const r = await send(target, `THUMBNAIL RETRIEVE ${amcpQuote(name.trim())}`, LIST_TIMEOUT_MS);
+    const r = await send(target, `THUMBNAIL RETRIEVE ${amcpQuote(name.trim())}`, true);
     if (!r.ok) return r;
     return { ok: true, value: { png: r.value.lines[0] ?? '' }, raw: r.raw };
   },

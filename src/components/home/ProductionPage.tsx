@@ -2957,7 +2957,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 {bridgeStatus === null
                   ? 'asking the playout server…'
                   : bridgeStatus.state === 'ok'
-                    ? `CasparCG ${bridgeStatus.version ?? ''} · connected`.replace('  ', ' ')
+                    ? `CasparCG${bridgeStatus.version ? ` ${bridgeStatus.version}` : ''} · connected`
                     : bridgeStatus.detail}
               </span>
             </div>

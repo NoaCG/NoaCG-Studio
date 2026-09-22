@@ -119,9 +119,11 @@ export function amcpSend(target: AmcpTarget, command: string): Promise<AmcpReply
       buffer += decoder.write(chunk);
       const reply = parseAmcp(buffer);
       if (reply) done(null, reply);
-      else if (!grace && buffer.includes('\r\n')) {
-        // A status line arrived but the shape says more should follow. Give it a moment, then
-        // answer with the status alone rather than hanging on a build that sends nothing more.
+      else if (!grace && buffer.includes('\r\n') && !buffer.startsWith('2')) {
+        // A 4xx or 5xx status line arrived but the shape says an echo should follow. Give it a
+        // moment, then answer with the status alone rather than hanging on a build that sends
+        // nothing more. A 2xx never takes this road: a long TLS or CLS list arrives in several
+        // chunks, and answering early would hand back an empty library as a success.
         grace = setTimeout(() => {
           const end = buffer.indexOf('\r\n');
           const status = buffer.slice(0, end);

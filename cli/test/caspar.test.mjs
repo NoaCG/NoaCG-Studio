@@ -54,6 +54,21 @@ test('201 carries one data line - the server version', async () => {
   await caspar.close();
 });
 
+test('a long 200 reply arriving in chunks over more than a moment is read whole, never cut short', async () => {
+  // The grace timer that resolves a 400 without its echo must never resolve a 2xx early: a
+  // media list of a few hundred files arrives in several chunks from the server's scanner proxy.
+  const caspar = await fakeCaspar((_line, socket) => {
+    socket.write('200 CLS OK\r\n"A"  STILL  1 20260101000000 0 0/1\r\n');
+    setTimeout(() => socket.write('"B"  STILL  2 20260101000000 0 0/1\r\n'), 450);
+    setTimeout(() => socket.write('"C"  STILL  3 20260101000000 0 0/1\r\n\r\n'), 700);
+    return null;
+  });
+  const reply = await amcpSend({ host: '127.0.0.1', port: caspar.port, timeoutMs: 4000 }, 'CLS');
+  assert.equal(reply.code, 200);
+  assert.equal(reply.lines.length, 3);
+  await caspar.close();
+});
+
 test('200 carries several lines and ends on a blank one', async () => {
   const caspar = await fakeCaspar('200 INFO OK\r\n1 1080i5000 PLAYING\r\n2 720p5000 STOPPED\r\n\r\n');
   const reply = await amcpSend({ host: '127.0.0.1', port: caspar.port }, 'INFO');

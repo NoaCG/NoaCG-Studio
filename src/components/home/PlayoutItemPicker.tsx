@@ -133,7 +133,6 @@ export default function PlayoutItemPicker({
       {cannotList && (
         <p className="status-bad" data-testid="picker-error" data-state={result.state}>
           {result.detail}
-          {result.state === 'bridge' ? '' : ''}
         </p>
       )}
 

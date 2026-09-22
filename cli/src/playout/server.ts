@@ -83,7 +83,8 @@ export interface BridgeOptions {
   adapters: PlayoutAdapter[];
   /** The Bridge's own version, reported by /health. */
   version: string;
-  /** The current pairing code, if one is armed. Replaced by `--pair`; spent by /pair. */
+  /** The current pairing code, if one is armed: minted at start, spent by /pair, forgotten
+   *  after PAIRING_TTL_MS. A fresh one means a fresh start of the Bridge. */
   pairing?: Pairing;
 }
 
