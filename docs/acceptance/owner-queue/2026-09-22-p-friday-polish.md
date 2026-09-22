@@ -12,7 +12,8 @@ changed here.
 - **Reveal choice is explained, not hidden.** It is a real button: it belongs to the hidden-pick
   road, where you lock the answer without showing it and reveal the pick as its own moment. So it
   stays on the dashboard, greyed out on the normal road. The docs' quiz Buttons list now has a
-  paragraph that says when it lights up and what it does. Hovering any greyed-out action now says
+  paragraph that says when it lights up and what it does. Hovering a greyed-out action on the
+  production dashboard or on a graphic's own control page now says
   "Reveal choice does nothing from where the graphic is now, so it is greyed out" instead of the
   machine's event id ("revealChoice has no arrow out of the current state").
 - **The empty activity log says why.** A production that is not published keeps its log in the

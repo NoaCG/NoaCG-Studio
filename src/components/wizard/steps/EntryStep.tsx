@@ -200,7 +200,7 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
               which they had every reason to avoid, was the way in. "No AI" and "already finished"
               are the same errand. Keep this copy no LONGER than it is: the entry grid's height
               budget is measured by e2e/wizard-entry-fit.spec.ts. */}
-          <span className="hint">Bring your own artwork, no AI. A layered SVG brings its text in as fields. On a PNG or JPEG, you place the text. Already have it as .html or .zip? Drop that in instead.</span>
+          <span className="hint">Bring your own artwork, no AI. A layered SVG brings its text in as fields. On a PNG or JPEG you place text. Already have it as .html or .zip? Drop that in instead.</span>
         </button>
         {/* Blank's only outcome is the code editor, so the card is an Advanced-mode door
             (docs/GOALS_ARCHIVE.md "Student release" step 4). */}

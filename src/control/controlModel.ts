@@ -607,6 +607,13 @@ export function isEventLegal(
   return Object.entries(perGroup).some(([groupId, froms]) => froms.includes(groups[groupId]));
 }
 
+/** The tooltip on a button `isEventLegal` greys out, in the operator's words. It names the
+ *  BUTTON, never the machine's event id: "revealChoice has no arrow out of the current state"
+ *  told a student nothing at the Friday rehearsal (2026-09-21). */
+export function illegalEventTitle(label: string): string {
+  return `${label} does nothing from where the graphic is now, so it is greyed out`;
+}
+
 /**
  * The machine a template's JS answers to, parsed once per distinct JS. The production dashboard
  * asks `canAdvance` and `movedStateNames` on every render, and it re-renders every second for

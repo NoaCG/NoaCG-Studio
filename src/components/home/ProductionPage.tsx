@@ -92,6 +92,7 @@ import {
   eventLegality,
   fieldDescriptors,
   formatMachineState,
+  illegalEventTitle,
   isEventLegal,
   machineStateGroups,
   machineStateNames,
@@ -2224,9 +2225,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           !selectedLayerLive
             ? 'The graphic is not on air. Take the cue first.'
             : !legal
-              ? // In the operator's words, not the machine's: "revealChoice has no arrow out of
-                // the current state" told a student nothing (Friday rehearsal, 2026-09-21).
-                `${label} does nothing from where the graphic is now, so it is greyed out`
+              ? illegalEventTitle(label)
               : moved
                 ? // An adjust press moves a figure WITH the event (a goal's +1), counted from
                   // what air shows; a `set` press puts one back to a declared figure (a reset);
@@ -2966,7 +2965,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           />
         )}
 
-        <ActionLog entries={wireLog} published={!!hostedSlug} />
+        <ActionLog entries={wireLog} published={!!hostedSlug && backendConfigured} />
       </section>
 
       <aside className={`pd-rail${sub ? ' pd-offstage' : ''}`}>
