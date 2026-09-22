@@ -22,9 +22,6 @@
     "src/components/ControlPanel.tsx": {
       "em-dash": 12
     },
-    "src/components/HostedControlPage.tsx": {
-      "em-dash": 13
-    },
     "src/components/InsertTemplateDialog.tsx": {
       "em-dash": 5
     },
@@ -64,11 +61,8 @@
     "src/components/fields/FieldControl.tsx": {
       "em-dash": 1
     },
-    "src/components/home/GraphicControlPage.tsx": {
-      "em-dash": 12
-    },
     "src/components/home/GraphicRow.tsx": {
-      "em-dash": 3
+      "em-dash": 1
     },
     "src/components/home/HomePage.tsx": {
       "em-dash": 3
@@ -81,12 +75,6 @@
     },
     "src/components/home/ProductionExportDialog.tsx": {
       "em-dash": 6
-    },
-    "src/components/home/ProductionLinks.tsx": {
-      "em-dash": 4
-    },
-    "src/components/home/ProductionPage.tsx": {
-      "em-dash": 22
     },
     "src/components/home/ProductionPicker.tsx": {
       "em-dash": 2

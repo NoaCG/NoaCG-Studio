@@ -85,7 +85,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(payload.show)} — production controller</title>
+<title>${escapeHtml(payload.show)} · production controller</title>
 <style>
   /* The dashboard's own tokens (docs/PLAYOUT_DASHBOARD.md). One accent: amber is preview and
      brand, RED means on air and nothing else may claim it. This page used to carry a blue
@@ -365,11 +365,11 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   <span class="clock mono" id="clock">00:00:00</span>
   <span class="spacer"></span>
   <a href="show_controlpanel.html" title="The per-graphic panel: every field and event button of every graphic">per-graphic panel →</a>
-  <button class="allout" id="v-allout" disabled title="Play every live layer off — clear the frame">■ All out</button>
+  <button class="allout" id="v-allout" disabled title="Play every live layer off and clear the frame">■ All out</button>
 </header>
 <div class="nolisten" id="nolisten">
   <strong>The relay is not answering.</strong> Start this page through the bundled launcher
-  ("Start controller.cmd" / "start-controller.command") — it serves the package and relays
+  ("Start controller.cmd" / "start-controller.command"). It serves the package and relays
   commands to the graphics. Opened from disk or a plain web server, the verbs have no wire.
 </div>
 <main>
@@ -381,14 +381,14 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
         <div class="screen" id="stage-pvw"></div>
       </div>
       <div class="monitor mon-pgm">
-        <h2><span class="dot"></span>PROGRAM — ON AIR <span class="what" id="pgm-label"></span>
+        <h2><span class="dot"></span>PROGRAM · ON AIR <span class="what" id="pgm-label"></span>
           <span class="lay" id="pgm-layer"></span></h2>
         <div class="screen" id="stage-pgm"></div>
       </div>
     </div>
 
     <div class="verbs">
-      <button class="pvw" id="v-preview" title="Show the selected cue on PREVIEW — nothing airs">→ Preview <kbd>P</kbd></button>
+      <button class="pvw" id="v-preview" title="Show the selected cue on PREVIEW. Nothing airs.">→ Preview <kbd>P</kbd></button>
       <button class="take" id="v-take" title="Air the previewed cue">⟳ TAKE <kbd>SPACE</kbd></button>
       <button id="v-retake" disabled title="Re-take: play this cue's entrance again from the start">⟳ Re-take <kbd>R</kbd></button>
       <button id="v-update" title="Push the edited values to air without re-animating">✎ Update <kbd>U</kbd></button>
@@ -745,7 +745,7 @@ function paint() {
     var lay = g
       ? '<span class="lay' + (sharing.length ? ' clash' : '') + '" title="' +
         (sharing.length
-          ? 'Shares layer ' + g.layer + ' with ' + escAttr(sharing.join(', ')) + ' — on air they replace each other'
+          ? 'Shares layer ' + g.layer + ' with ' + escAttr(sharing.join(', ')) + '. On air they replace each other.'
           : escAttr(g.name) + ' airs on layer ' + g.layer) +
         '">L' + g.layer + '</span> · '
       : '';
@@ -855,7 +855,7 @@ function paintSteppers(onAir) {
     sb.el.disabled = !onAir;
     sb.el.title = onAir
       ? 'Changes "' + sb.label + '" on air immediately'
-      : 'This cue is not on air — Take it first';
+      : 'This cue is not on air. Take it first.';
   }
 }
 

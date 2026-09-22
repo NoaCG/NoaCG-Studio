@@ -553,7 +553,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           <p className="muted">
             {isBackendConfigured()
               ? 'This link is invalid or the page was unpublished.'
-              : 'Hosted control needs the cloud backend — this build runs offline.'}
+              : 'Hosted control needs the cloud backend, and this build runs offline.'}
           </p>
           {error && <p className="muted">{error}</p>}
         </div>
@@ -571,7 +571,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       verbAired(e)
         ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
         : /slow down/i.test(e.message)
-          ? 'Too many commands — slow down a moment.'
+          ? 'Too many commands. Slow down a moment.'
           : `Send failed: ${e.message}`,
     );
 
@@ -916,7 +916,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           className="pd-allout"
           disabled={liveLayers.length === 0}
           onClick={outAll}
-          title="Play every live layer off — clear the frame"
+          title="Play every live layer off and clear the frame"
           data-testid="hosted-out-all"
         >
           ■ All out
@@ -956,7 +956,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             <div className="pd-monitor pd-pgm">
               <h2>
                 <span className="pd-dot" aria-hidden="true" />
-                PROGRAM — ON AIR
+                PROGRAM · ON AIR
                 {/* The names can run past the monitor's width and end in an ellipsis, so the title
                     carries them whole. The badge names EVERY live layer, in the names' order: with a
                     quiz and a score both up it used to show one layer beside two names. */}
@@ -1127,7 +1127,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                           className={`pd-cue-layer${sharing.length ? ' clash' : ''}`}
                           title={
                             sharing.length
-                              ? `Shares layer ${layer} with ${sharing.join(', ')} — on air they replace each other`
+                              ? `Shares layer ${layer} with ${sharing.join(', ')}. On air they replace each other.`
                               : `${cue.graphic} airs on layer ${layer}`
                           }
                         >
@@ -1256,7 +1256,7 @@ function HostedVerbs({
         className="pd-verb"
         disabled={!layerLive}
         onClick={() => onKey('out')}
-        title="Play this layer off — the others stay up"
+        title="Play this layer off. The other layers stay up."
         data-testid="hosted-out-cue"
       >
         ■ Out <kbd>0</kbd>
@@ -1359,8 +1359,8 @@ function HostedCueEditor({
   const eventHint = (e: ControlButton) => {
     const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label);
     return moved
-      ? `Fires "${e.event}" and moves ${moved} with it — only where the graph allows it`
-      : `Fires "${e.event}" — only where the graph allows it`;
+      ? `Fires "${e.event}" and moves ${moved} with it, but only where the graph allows it.`
+      : `Fires "${e.event}", but only where the graph allows it.`;
   };
   const events = useMemo(() => eventButtons(spec.js), [spec.js]);
   /** Ordered, named, pinned and hidden by the SHARED rule (controlModel `arrangeControls`), so
@@ -1545,7 +1545,7 @@ function HostedCueEditor({
         >
           {layer !== null ? `L${layer} · ` : ''}
           {hasUnsent
-            ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet — press ✎ Update`
+            ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. Press ✎ Update`
             : live
               ? 'changes push live on ✎ Update'
               : 'changes air on ⟳ TAKE'}
@@ -1728,7 +1728,7 @@ function HostedCueEditor({
                 }}
                 title={
                   'RECOVERY. Jumps the live graphic straight to a state with no animation, ' +
-                  'and re-sends this cue’s values with it — use it when air and this page have ' +
+                  'and re-sends this cue’s values with it. Use it when air and this page have ' +
                   'got out of step (a renderer restart, a missed press). It is not how a ' +
                   'graphic is normally driven: that is the ⚡ actions and » Next.'
                 }
@@ -1747,7 +1747,7 @@ function HostedCueEditor({
             )}
           </div>
           <p className="hint pd-actions-help">
-            These fire the graphic’s own beats on the layer that is on air, immediately — they carry
+            These fire the graphic’s own beats on the layer that is on air, immediately. They carry
             values from this cue, so type them above first.
             {stateGroups.length > 0 && ' “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation.'}
           </p>
@@ -1822,7 +1822,7 @@ function HostedCueEditor({
                 <span className="pd-live-number-label">{d.label}</span>
                 <button
                   disabled={!live}
-                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air — Take it first'}
+                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air. Take it first.'}
                   onClick={() => bump(d.key, -1)}
                   data-testid={`hosted-live-number-${d.key}-down`}
                 >
@@ -1830,7 +1830,7 @@ function HostedCueEditor({
                 </button>
                 <button
                   disabled={!live}
-                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air — Take it first'}
+                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air. Take it first.'}
                   onClick={() => bump(d.key, 1)}
                   data-testid={`hosted-live-number-${d.key}-up`}
                 >

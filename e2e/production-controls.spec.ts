@@ -502,7 +502,7 @@ test('± LIVE NUMBERS on the EXPORTED controller: the bump is a partial, carryin
   const scoreSteps = ctl.locator('.field', { hasText: /^F2 · / }).locator('button.step');
   await expect(scoreSteps.first()).toBeDisabled();
   await expect(scoreSteps.last()).toBeDisabled();
-  await expect(scoreSteps.first()).toHaveAttribute('title', /not on air — Take it first/);
+  await expect(scoreSteps.first()).toHaveAttribute('title', /not on air\. Take it first\./);
   // The exclusion keeps its own meaning: an ⚡ payload field's pair never airs anything, so it
   // stages at all times and greying it would strand the only stepper the field has.
   await expect(ctl.locator('.field', { hasText: /^F9 · / }).locator('button.step').first()).toBeEnabled();

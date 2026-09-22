@@ -283,7 +283,7 @@ export default function GraphicRow({
           <button
             className="lib-name-link"
             onClick={() => onOpen(g)}
-            title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" — preview, edit data, operate`}
+            title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" to preview, edit data and operate`}
             data-testid="open-graphic-name"
           >
             <strong>{g.name}</strong>
@@ -346,7 +346,7 @@ export default function GraphicRow({
         </>
       )}
       <div className="lib-actions">
-        <button className="primary" onClick={() => onOpen(g)} title={advanced ? 'Open in the editor' : 'Open — preview, edit data, operate'} data-testid="open-graphic">
+        <button className="primary" onClick={() => onOpen(g)} title={advanced ? 'Open in the editor' : 'Open to preview, edit data and operate'} data-testid="open-graphic">
           Open
         </button>
         <ProductionPicker

@@ -255,7 +255,7 @@ function renderPanelPage(title: string, graphics: EmittedGraphic[]): string {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(title)} — control panel</title>
+<title>${escapeHtml(title)} · control panel</title>
 <style>
   :root { --bg:#10141b; --panel:#171d26; --line:#2a3444; --text:#e8ecf2; --dim:#8b95a5; --accent:#3aa0ff; }
   * { box-sizing: border-box; }
@@ -326,9 +326,9 @@ function renderPanelPage(title: string, graphics: EmittedGraphic[]): string {
 <div class="nolisten" id="nolisten">
   <strong>No graphic is answering.</strong> This panel reaches a graphic over a same-origin
   browser channel: open the graphic's .html and this page from the <strong>same web address</strong>
-  (http:// or https://) in the <strong>same browser</strong> — e.g. SPX's template server or any
-  local web server. Files opened straight from disk (file://) cannot connect, and a graphic
-  loaded inside OBS/vMix/CasparCG runs its own browser — use that host's controls there
+  (http:// or https://) in the <strong>same browser</strong>, for example SPX's template server or
+  any local web server. Files opened straight from disk (file://) cannot connect, and a graphic
+  loaded inside OBS/vMix/CasparCG runs its own browser, so use that host's controls there
   (or an OBS Custom Browser Dock). See GETTING-ON-AIR.md in this package.
 </div>
 <main id="cards"></main>
@@ -625,7 +625,7 @@ GRAPHICS.forEach(function (g) {
 
   // ── The card ──
   var chip = el('span', { class: 'state-chip', title: "The graphic's current machine state" });
-  stagedChip = el('span', { class: 'staged-chip', title: 'Edits staged in this panel — not on air until you Take' }, ['● staged']);
+  stagedChip = el('span', { class: 'staged-chip', title: 'Edits staged in this panel. They are not on air until you Take.' }, ['● staged']);
   var card = el('div', { class: 'card' }, [el('h2', {}, [g.name, chip, stagedChip])]);
 
   // Machine event buttons, grouped by section. A button carries its payload fields' CURRENT

@@ -490,7 +490,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
       }
       return { template };
     });
-    setNote(`✓ "${entry.label}" is now the graphic's default data — exports start with it.`);
+    setNote(`✓ "${entry.label}" is now the graphic's default data. Exports start with it.`);
   };
 
   /** Show the motion once in the preview: the entrance, a hold, the exit, then park on air
@@ -570,7 +570,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
   const downloadPanel = () => {
     const html = renderControlPanelHtml(doc.template, null, { entries: doc.entries });
     saveAs(new Blob([html], { type: 'text/html' }), `${slug(doc.name)}_controlpanel.html`);
-    setNote('✓ Control panel downloaded — open it beside the exported graphic; entries included.');
+    setNote('✓ Control panel downloaded. Open it beside the exported graphic; your entries are included.');
   };
 
   /** "+ PRODUCTION" FROM HERE (owner walk 2026-08-23). This is where a graphic gets test-played,
@@ -620,7 +620,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
             back was previously a bare wordmark. */}
         <button
           onClick={() => navigate({ view: 'home', section: null })}
-          title="Back to Home — your graphics, productions, control panels, and videos"
+          title="Back to Home. Your graphics, productions, control panels and videos are there."
           data-testid="control-home"
         >
           ← Home
@@ -638,7 +638,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
           open={addProdOpen}
           onOpenChange={setAddProdOpen}
           markGraphicId={doc.id}
-          buttonTitle="Add this graphic to a production — the unit that airs"
+          buttonTitle="Add this graphic to a production, the unit that airs"
           buttonTestid="control-add-production"
           menuTestid="control-production-menu"
           newNameTestid="control-new-production-name"
@@ -745,7 +745,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
             {stateLabel && (
               <span
                 className={`control-state-chip${onAir ? ' on-air' : ''}`}
-                title="The graphic's current state — what the event buttons are greyed against"
+                title="The graphic's current state. The event buttons are greyed against it."
                 data-testid="control-state"
               >
                 {onAir ? '●' : '◇'} {stateLabel}
@@ -785,7 +785,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
                                 : b.payload?.length
                                   ? active
                                     ? `Fires "${b.event}" with ${payloadWords(b)} from “${active.label}”`
-                                    : `Fires "${b.event}". ${payloadWords(b)} ride this event from the ACTIVE ENTRY — with none selected the graphic keeps its current values.`
+                                    : `Fires "${b.event}". ${payloadWords(b)} ride this event from the ACTIVE ENTRY. With none selected, the graphic keeps its current values.`
                                   : `Fire "${b.event}"`
                           }
                           data-testid={`control-event-${b.event}`}
@@ -874,11 +874,11 @@ export default function GraphicControlPage({ id }: { id: string }) {
                     data-testid="control-easing"
                     title={
                       easeSettable
-                        ? 'The feel of the motion — how it accelerates and settles'
+                        ? 'The feel of the motion, how it accelerates and settles'
                         : 'This graphic keeps its own choreography; pick a motion above to give it a curve'
                     }
                   >
-                    <option value="auto">Auto — recommended</option>
+                    <option value="auto">Auto (recommended)</option>
                     {easeSettable &&
                       easeOptions.map((e) => (
                         <option key={e.id} value={e.id} title={e.description}>{e.plain}</option>
@@ -894,7 +894,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
                   </select>
                   <span className="hint" style={{ flex: '1 1 0', minWidth: 0 }}>
                     {EASINGS.find((e) => e.id === motionEasing)?.description ??
-                      'Each motion arrives on the curve it was tuned with — quick in, settling softly.'}
+                      'Each motion arrives on the curve it was tuned with, quick in and settling softly.'}
                   </span>
                 </div>
               </div>
@@ -912,17 +912,17 @@ export default function GraphicControlPage({ id }: { id: string }) {
               paragraph under it says what this SURFACE is; neither answers the other's
               question, and the definition is the one a first visit needs first. */}
           <p className="hint" data-testid="entries-explainer">
-            <strong>An entry is one saved set of field values</strong> — “Anna Andersson ·
+            <strong>An entry is one saved set of field values</strong>: “Anna Andersson ·
             Presenter”, “Michael Smith · Guest”. Select one and ▶ Play to take it on air, then
             switch and play the next. Edits save as you type.
           </p>
           <p className="hint">
-            This is the on-air control surface — playing an entry here airs it (the editor’s
+            This is the on-air control surface. Playing an entry here airs it (the editor’s
             Rehearse tab only drives the preview).
           </p>
 
           {doc.entries.length === 0 && (
-            <p className="hint" data-testid="no-entries">No entries yet — add one to start building your rundown data.</p>
+            <p className="hint" data-testid="no-entries">No entries yet. Add one to start building your rundown data.</p>
           )}
 
           <div className="control-entries">
