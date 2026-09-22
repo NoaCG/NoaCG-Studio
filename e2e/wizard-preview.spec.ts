@@ -484,6 +484,9 @@ async function blankAcross(
     if (landedAt !== null && Date.now() - landedAt >= 3000) break;
     await page.waitForTimeout(100);
   }
+  // The film's end, for a blank that never came back: the screencast sends nothing while the
+  // picture stands still, so the last frame's own time would measure that blank as zero.
+  const stoppedAt = Date.now();
   await cdp.send('Page.stopScreencast');
   cdp.off('Page.screencastFrame', onFrame);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
@@ -508,7 +511,7 @@ async function blankAcross(
     if (!ink && blankFrom === null) blankFrom = at;
     if (ink && blankFrom !== null && blankMs === 0) blankMs = Math.max(1, at - blankFrom);
   }
-  if (blankFrom !== null && blankMs === 0) blankMs = Math.round(shots[shots.length - 1].t - t0) - blankFrom; // never came back
+  if (blankFrom !== null && blankMs === 0) blankMs = stoppedAt - t0 - blankFrom; // never came back
   return { blankMs, frames: shots.length, timeline: lines.join('\n') };
 }
 

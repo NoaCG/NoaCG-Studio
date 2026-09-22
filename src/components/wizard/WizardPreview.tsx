@@ -259,7 +259,10 @@ export default function WizardPreview({
   const afterimageTimer = useRef<number | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState({ w: 0, h: 0 });
-  const [srcdoc, setSrcdoc] = useState('');
+  // The committed document, with the generation it was committed as. An OBJECT, so committing a
+  // document whose text equals the last one (a change undone inside the debounce) still builds a
+  // fresh frame and clears the pending stamp, exactly as every other commit does.
+  const [committed, setCommitted] = useState<{ doc: string; gen: number } | null>(null);
   // Zoom-to-graphic: default shows the whole canvas; the toggle reframes the view onto
   // just the graphic so small formats (corner bugs, tickers) are actually inspectable.
   const [zoomed, setZoomed] = useState(false);
@@ -393,7 +396,7 @@ export default function WizardPreview({
       // rather than leaving a box hanging over the new one until its first frame arrives.
       setRects({});
       setFrames({});
-      setSrcdoc(doc);
+      setCommitted({ doc, gen: docGenRef.current });
     }, 220);
     return () => clearTimeout(t);
   }, [doc, clearDemo]);
@@ -786,8 +789,8 @@ export default function WizardPreview({
   // frame would have.
   useLayoutEffect(() => {
     const mount = mountRef.current;
-    if (!srcdoc || !mount) return;
-    const gen = docGenRef.current;
+    if (!committed?.doc || !mount) return;
+    const { doc: srcdoc, gen } = committed;
     if (afterimageTimer.current !== null) {
       clearTimeout(afterimageTimer.current);
       afterimageTimer.current = null;
@@ -834,7 +837,7 @@ export default function WizardPreview({
     // `width`, `height` and the transform are read from refs and the closing render on purpose:
     // a frame is built once per document, and a size change is a new document anyway.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [srcdoc, holdAfterimage, dropAfterimage]);
+  }, [committed, holdAfterimage, dropAfterimage]);
 
   // Leaving the step: nothing of either frame outlives the stage.
   useEffect(
