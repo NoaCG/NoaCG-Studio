@@ -45,7 +45,7 @@ block in it is content-sized.** The header, the stage head and the cue rail neve
 │ ▤ Show name  ● SHOW  00:42:17        ● output connected · N layers            │
 │                                         [Publish/links]  [Export…]  [■ All out]│
 ├───────────────────────────────── main ──────────────────┬─── cue rundown ─────┤
-│  ● PREVIEW  <cue name>        ● PROGRAM — ON AIR   L1   │  ⣿ 1 Presenter strap │
+│  ● PREVIEW  <cue name>        ● PROGRAM · ON AIR   L1   │  ⣿ 1 Presenter strap │
 │  ┌───────────────┐            ┌───────────────┐         │      after the intro │
 │  │  amber frame  │            │   red frame   │         │             L1 ON AIR│
 │  └───────────────┘            └───────────────┘         │  ⣿ 2 Topic card  PVW │
@@ -508,7 +508,7 @@ and delete live behind the row's `⋯`, never as four permanent buttons that cru
     the graphic OFF AIR first: the output page follows the log, not the payload, so a live pool
     entry deleted from under it would keep rendering with nothing left able to stop it.
   A removal that destroys typed content asks twice — the pictures graphic carries the uploads
-  themselves, so its wording names the count ("Also deletes 3 pictures — confirm?").
+  themselves, so its wording names the count ("Also deletes 3 pictures. Confirm?").
 - The rail's foot is how graphics GET IN: the library picker, `＋ New graphic for this
   production…`, `＋ Add pictures…`. Nothing else belongs there.
 
@@ -644,7 +644,7 @@ surface a class drives from a phone) and the EXPORTED production controller, the
 drops to when the network dies. The exported page has no separate block: it is a third renderer
 under the one-control doctrine, so its number field's own −/+ pair IS the block — same partial,
 same exclusion, and the same "only while the edited cue is the one on air", greying off air with
-"This cue is not on air — Take it first" and carrying the *act on air* mark beside the field's
+"This cue is not on air. Take it first." and carrying the *act on air* mark beside the field's
 name. It briefly staged off air instead, which is the one thing this control must never do: a
 second meaning with no feedback at all, where the figure moved on screen and nothing said it had
 not aired. An excluded (⚡ payload) field's pair is never greyed — it stages at all times, and

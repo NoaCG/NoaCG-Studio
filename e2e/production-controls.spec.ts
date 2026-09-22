@@ -287,7 +287,7 @@ test('a match board reaches every one of its controls from the cockpit: both clo
     // that SAYS where pictures come from. That sentence is the proof the cockpit now passes
     // the graphic's picture list at all: the hint only renders when a list was supplied and
     // came back empty, so before this it could not appear however many crests existed.
-    await expect(picker.locator('xpath=../..')).toContainText('add one in the editor');
+    await expect(picker.locator('xpath=../..')).toContainText('Add one in the editor');
   }
 
   // And the scores are steppers now, so a goal is one press rather than a retype.
@@ -502,7 +502,7 @@ test('± LIVE NUMBERS on the EXPORTED controller: the bump is a partial, carryin
   const scoreSteps = ctl.locator('.field', { hasText: /^F2 · / }).locator('button.step');
   await expect(scoreSteps.first()).toBeDisabled();
   await expect(scoreSteps.last()).toBeDisabled();
-  await expect(scoreSteps.first()).toHaveAttribute('title', /not on air — Take it first/);
+  await expect(scoreSteps.first()).toHaveAttribute('title', /not on air\. Take it first\./);
   // The exclusion keeps its own meaning: an ⚡ payload field's pair never airs anything, so it
   // stages at all times and greying it would strand the only stepper the field has.
   await expect(ctl.locator('.field', { hasText: /^F9 · / }).locator('button.step').first()).toBeEnabled();

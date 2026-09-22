@@ -109,7 +109,7 @@ test('Home Productions creates a production and opens its page; removing a graph
   // twice: the rows hold values somebody typed and there is no undo behind the rundown.
   await rows.first().getByTestId('cue-menu').click();
   await page.getByTestId('delete-graphic').click();
-  await expect(page.getByTestId('delete-graphic')).toContainText('confirm?');
+  await expect(page.getByTestId('delete-graphic')).toContainText('Confirm?');
   await page.getByTestId('delete-graphic').click();
   await expect(rows).toHaveCount(0);
   await expect(page.getByTestId('no-cues')).toBeVisible();

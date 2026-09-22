@@ -191,7 +191,7 @@ Scroll back up so the cue editor's heading is under the monitors, then type `Ilv
 
 Four things have to be in the same shot for this beat to work, and the frame shows all four:
 
-- the amber line reading **"1 change not on air yet - press ✎ Update"**;
+- the amber line reading **"1 change not on air yet. Press ✎ Update"**;
 - the **Update** button, now wearing an amber dot;
 - the preview monitor, reading Ilves;
 - the program monitor, still reading HJK.

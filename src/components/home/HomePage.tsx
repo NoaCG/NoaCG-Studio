@@ -344,7 +344,7 @@ export default function HomePage({ route }: { route: Route }) {
                     key={g.id}
                     className="home-shelf-card"
                     onClick={() => openGraphic(g)}
-                    title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" — preview, edit data, operate`}
+                    title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" to preview, edit data and operate`}
                     data-testid="shelf-graphic"
                   >
                     <GraphicThumb template={g.template} values={activeValues(g)} label={g.name} fill />
