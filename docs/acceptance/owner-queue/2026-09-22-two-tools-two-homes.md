@@ -25,7 +25,7 @@ common. They are built from one package, and nothing a user reads says so any mo
   https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.4.0-preview, its notes rewritten
   to the same page. The normal `bridge-v0.4.0` release follows once that test has run.
 
-## Look at it in under a minute
+## The route, under a minute
 
 1. https://github.com/NoaCG/NoaCG-Studio/releases - the newest entry reads as a program to
    download, not as a package version.
