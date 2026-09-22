@@ -11,6 +11,7 @@ import GraphicControlPage from './components/home/GraphicControlPage';
 import ProductionPage from './components/home/ProductionPage';
 import PasswordRecoveryPage from './components/auth/PasswordRecoveryPage';
 import AgentAccessConsent from './components/auth/AgentAccessConsent';
+import BridgePairPage from './components/BridgePairPage';
 import StorageAlertDialog from './components/save/StorageAlertDialog';
 import SaveDialogs from './components/save/SaveDialogs';
 import ShareWithTeamDialog from './components/teams/ShareWithTeamDialog';
@@ -19,6 +20,7 @@ import { useAuthUi } from './components/auth/authUi';
 import { useAuthState } from './components/auth/useAuthState';
 import { isBackendConfigured } from './backend/config';
 import { isAgentRequestUrl } from './backend/agentAccess';
+import { isBridgePairUrl } from './control/playoutLink';
 import { arrivingRecoveryLink, isRecoveryRequestUrl } from './backend/recoveryLink';
 import { graphicWhenSynced } from './backend/graphicWhenSynced';
 import { useDocKindStore } from './store/docKindStore';
@@ -36,12 +38,12 @@ import StorageHealthNotice from './components/StorageHealthNotice';
 const bootQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
 
 /** Is this page answered by a QUERY capability rather than by a routed surface? `?chat=`,
- *  `?control=`, `?agent=` and `?recovery=1` are each rendered INSTEAD of the studio (see App
+ *  `?control=`, `?agent=`, `?bridge=` and `?recovery=1` are each rendered INSTEAD of the studio (see App
  *  below). One definition, because two would drift the moment a fifth capability is added — and
  *  the two readers want opposite things from it: App needs to know which one, the boot decision
  *  only needs to know that it must keep its hands off the URL. */
 const queryCapabilityOwnsPage = (q: URLSearchParams): boolean =>
-  q.has('chat') || q.has('control') || isAgentRequestUrl(q) || isRecoveryRequestUrl(q);
+  q.has('chat') || q.has('control') || isAgentRequestUrl(q) || isBridgePairUrl(q) || isRecoveryRequestUrl(q);
 
 /**
  * MAY A BOOT DECISION REWRITE THIS PAGE'S URL? Only a bare `/app`, and only when no query
@@ -402,6 +404,10 @@ export default function App() {
   // loopback listener (docs/AGENT_SAVE.md). A query route like the two above, rendered INSTEAD
   // of the studio: it is a question, not a surface.
   if (isAgentRequestUrl(params)) return <AgentAccessConsent params={params} />;
+
+  // NoaCG Bridge pairing: <app-url>?bridge=<port>&code=<code> - the local playout helper opened
+  // this (docs/BRIDGE.md §2); one click exchanges the one-time code for its token over loopback.
+  if (isBridgePairUrl(params)) return <BridgePairPage params={params} />;
 
   // PASSWORD RECOVERY: <app-url>?recovery=1 — the route a reset link points at
   // (backend/auth.ts RECOVERY_REDIRECT). It boots a Supabase client, reads the token out of the

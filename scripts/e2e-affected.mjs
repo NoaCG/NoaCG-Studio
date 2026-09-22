@@ -544,18 +544,18 @@ const MAP = [
   // path the ignore admits and no rule maps is `unmapped`, which escalates to the full suite.
   // Adding a preview image here would otherwise run 100+ specs to prove nothing.
   [/^docs\/svg-samples\//, ['import-svg.spec.ts', 'import-svg-behaviour.spec.ts', 'motion-presets.spec.ts']],
-  // CASPARCG CONNECT (docs/CASPARCG_CONNECT.md). The browser half is one file, and the two
+  // NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two
   // surfaces it grows are already mapped elsewhere for their own reasons - SettingsDialog to
   // analytics/auth, ProductionPage into the productions set - so those rules are UNION'd with
   // this one rather than replaced. Without this row a change to the link contract would run
   // specs that pin the panels' other contents and never the four diagnosis states, which are
   // the whole point of the feature.
-  [/^src\/control\/casparLink\.ts$/, ['caspar-connect.spec.ts']],
-  [/^src\/components\/SettingsDialog\.tsx$/, ['caspar-connect.spec.ts']],
-  // ProductionLinks.tsx is where CasparAirRow itself lives since the 2026-08-28 split, so it is
+  [/^src\/control\/(playoutLink|playoutProtocol)\.ts$/, ['bridge-connect.spec.ts']],
+  [/^src\/components\/(SettingsDialog|BridgePairPage)\.tsx$/, ['bridge-connect.spec.ts']],
+  // ProductionLinks.tsx is where BridgeAirRow itself lives since the 2026-08-28 split, so it is
   // named here rather than left to the components/home rule above: that rule's set does not
   // include this spec, and the ONE button is the whole browser half of the feature.
-  [/^src\/components\/home\/(ProductionPage|ProductionLinks)\.tsx$/, ['caspar-connect.spec.ts']],
+  [/^src\/components\/home\/(ProductionPage|ProductionLinks)\.tsx$/, ['bridge-connect.spec.ts']],
   // THE WIZARD DOOR (components/NewGraphicButton.tsx) is mounted by five shells at once, so a
   // change to it moves the same control on Home, the editor, the control page, the production
   // dashboard and the video shell. AppShell and styles.css are already CORE, so this row is not

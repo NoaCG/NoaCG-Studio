@@ -3,13 +3,14 @@ import type { Show } from '../../model/shows';
 import LibMenu from './LibMenu';
 import { IconLink } from '../icons';
 import {
-  airOnCaspar,
-  casparAddress,
-  casparConfigured,
-  loadCasparSettings,
-  stopOnCaspar,
-  type CasparResult,
-} from '../../control/casparLink';
+  loadPlayoutSettings,
+  playoutConfigured,
+  putOutputOnAir,
+  slotAddress,
+  slotOf,
+  takeOutputOff,
+  type PlayoutResult,
+} from '../../control/playoutLink';
 
 /**
  * THE LINKS PANEL of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §7) — publishing and the
@@ -32,46 +33,47 @@ import {
  * the links people copy every show.
  */
 /**
- * THE ONE BUTTON (docs/CASPARCG_CONNECT.md §2). One `PLAY <channel>-<layer> [HTML] "<output
- * URL>"` is the entire live link: from there every cue, take, update and recovery flows through
- * the durable command log the /output page already follows, which is why there is no per-take
- * CG traffic here.
+ * THE ONE BUTTON (docs/BRIDGE.md §2). One take of the output URL - `PLAY <channel>-<layer> [HTML]
+ * "<output URL>"` on CasparCG - is the entire live link for NoaCG's own graphics: from there
+ * every cue, take, update and recovery flows through the durable command log the /output page
+ * already follows, which is why there is no per-take CG traffic here. Server-resident templates
+ * and clips are a different kind of cue, and live in the rundown.
  *
  * It appears only once a server is configured under Settings -> Playout. Unconfigured, the row
  * would be a dead control on the busiest surface in the app - and the URL row directly above it
  * is the manual route that has always worked and still does.
  */
-function CasparAirRow({ outputUrl }: { outputUrl: string | null }) {
+function BridgeAirRow({ outputUrl }: { outputUrl: string | null }) {
   const [busy, setBusy] = useState<'air' | 'stop' | null>(null);
   // WHICH command produced this result, not just the result. Both buttons succeed the same way -
   // `{ state: 'ok' }` - so a message written from the result alone said "✓ On 1-20" after Take
   // off as well, telling an operator the graphic was up a second after they took it down.
-  // Measured against a real CasparCG 2.5.0 on 2026-09-10; the fake-agent spec could not see it,
+  // Measured against a real CasparCG 2.5.0 on 2026-09-10; the fake-Bridge spec could not see it,
   // because it asserted on `data-state` and never on the words.
   // The ADDRESS is captured with it, and for the mirror of the reason `run` re-reads the settings
-  // below: this sentence is PAST tense. Rendering `casparAddress(settings)` re-derives it from
+  // below: this sentence is PAST tense. Rendering the address re-derives it from
   // present settings, so airing on 2-30 and then typing layer 40 for the next show turns a
   // standing verdict into "✓ On 2-40" - a claim about a layer nothing was ever sent to.
   const [outcome, setOutcome] = useState<{
     what: 'air' | 'stop';
     address: string;
-    result: CasparResult;
+    result: PlayoutResult;
   } | null>(null);
 
   // Read on every render, and again at the moment of the click, rather than latching a copy at
   // mount: Settings is a modal that can be opened and changed without this page unmounting, and
   // a latched copy would quietly send the command to the OLD server while the row displayed the
   // old channel. It is a parse of a few hundred bytes, against a control that airs a graphic.
-  const settings = loadCasparSettings();
-  if (!casparConfigured(settings)) return null;
+  const settings = loadPlayoutSettings();
+  if (!playoutConfigured(settings)) return null;
 
   const run = async (what: 'air' | 'stop') => {
-    const now = loadCasparSettings();
+    const now = loadPlayoutSettings();
     setBusy(what);
     setOutcome(null);
     try {
-      const result = what === 'air' ? await airOnCaspar(now, outputUrl!) : await stopOnCaspar(now);
-      setOutcome({ what, address: casparAddress(now), result });
+      const result = what === 'air' ? await putOutputOnAir(now, outputUrl!) : await takeOutputOff(now);
+      setOutcome({ what, address: slotAddress(slotOf(now)), result });
     } finally {
       setBusy(null);
     }
@@ -83,8 +85,8 @@ function CasparAirRow({ outputUrl }: { outputUrl: string | null }) {
       testId="caspar-air"
       help={
         <>
-          Loads the output URL above onto channel <code>{casparAddress(settings)}</code> of{' '}
-          <code>{settings.host}</code>, through the agent running on this machine. Do it once at the
+          Loads the output URL above onto channel <code>{slotAddress(slotOf(settings))}</code> of{' '}
+          <code>{settings.host}</code>, through NoaCG Bridge on this machine. Do it once at the
           start of the production and leave it up - the graphics are cued from this page, not by
           re-loading the layer. Change the server under Settings &rarr; Playout.
         </>
@@ -104,7 +106,7 @@ function CasparAirRow({ outputUrl }: { outputUrl: string | null }) {
       }
     >
       <span className="prod-link-file" data-testid="caspar-air-target">
-        {settings.host} · {casparAddress(settings)}
+        {settings.host} · {slotAddress(slotOf(settings))}
       </span>
       <button onClick={() => void run('air')} disabled={!outputUrl || busy !== null} data-testid="caspar-put-on-air">
         {busy === 'air' ? 'Sending…' : 'Put on air'}
@@ -260,7 +262,7 @@ export default function ProductionLinks({
         </LinkRow>
         {/* The same URL, loaded for you. Directly under the row it acts on, because it IS that
             row's other verb - not a separate capability. */}
-        <CasparAirRow outputUrl={outputUrl} />
+        <BridgeAirRow outputUrl={outputUrl} />
         {/* THE SAME OUTPUT, AS A FILE. An SPX rundown lists template files out of
             ASSETS/templates and has nowhere to paste a URL, so the row above reaches every
             playout host except the one this project treats as canonical. The file wraps this

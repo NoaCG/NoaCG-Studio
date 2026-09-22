@@ -2,28 +2,29 @@ import { test, expect, type Page, type Route } from '@playwright/test';
 import { createProject } from './_create';
 import { settleDurableWrites } from './_durable';
 
-// CasparCG Connect (docs/CASPARCG_CONNECT.md). There is no CasparCG on a test machine and there
-// is no local agent either, so both are FAKED at the network layer: `page.route` answers the
-// agent's own HTTP surface, and each test says what that agent does. What is under test is the
-// studio half - the settings that persist, the one button that airs a production, and above all
-// that the FOUR hops are told apart instead of collapsing into one generic red.
+// NoaCG Bridge (docs/BRIDGE.md). There is no CasparCG on a test machine and there is no Bridge
+// either, so both are FAKED at the network layer: `page.route` answers the Bridge's own HTTP
+// surface in the playout protocol (src/control/playoutProtocol.ts), and each test says what
+// that Bridge does. What is under test is the studio half - the settings that persist, pairing,
+// the one button that airs a production, and above all that the hops are told apart instead of
+// collapsing into one generic red.
 //
-// The real AMCP wire is verified on the other side of the agent, in the CLI, against a fake
-// listener; a real CasparCG server is an owner acceptance step (§6 of the doc).
+// The real AMCP wire is verified on the other side of the Bridge, in the CLI, against a fake
+// listener (cli/test/playout.test.mjs); a real CasparCG server is an owner acceptance step.
 
-const AGENT = 'http://127.0.0.1:8899';
+const BRIDGE = 'http://127.0.0.1:8899';
 const TOKEN = 'e2e-token';
 
-/** The settings the terminal would have printed, seeded the way a person pastes them in. */
+/** The settings pairing would have written, seeded the way pairing writes them. */
 async function seedSettings(page: Page, patch: Record<string, unknown> = {}): Promise<void> {
   await page.addInitScript(
-    ([agent, token, extra]) => {
+    ([bridge, token, extra]) => {
       // Written per context, never CLEARED here: clearing localStorage from addInitScript also
       // runs inside the same-origin preview iframe (e2e/AGENTS.md).
       localStorage.setItem(
         'spx-gfx-caspar',
         JSON.stringify({
-          agentUrl: agent,
+          agentUrl: bridge,
           agentToken: token,
           host: '127.0.0.1',
           amcpPort: 5250,
@@ -34,34 +35,40 @@ async function seedSettings(page: Page, patch: Record<string, unknown> = {}): Pr
         }),
       );
     },
-    [AGENT, TOKEN, patch] as const,
+    [BRIDGE, TOKEN, patch] as const,
   );
 }
 
-interface FakeAgent {
-  /** Nothing is listening at all - the agent is not running. */
+interface FakeBridge {
+  /** Nothing is listening at all - the Bridge is not running. */
   missing?: boolean;
-  /** The agent answers /health but rejects the token. */
+  /** An agent from before the protocol: answers /health as the old name, protocol 1. */
+  outdated?: boolean;
+  /** The Bridge answers /health but rejects the token. */
   badToken?: boolean;
-  /** The agent is fine and CasparCG is not there. */
+  /** The Bridge is fine and CasparCG is not there. */
   serverDown?: boolean;
-  /** CasparCG answered, and refused the command. */
+  /** CasparCG answered, and refused the command with this status line. */
   refuses?: string;
-  /** Every AMCP command the page caused, in order. */
-  commands: string[];
+  /** The pairing code the Bridge holds; spent on first use. */
+  pairCode?: string;
+  /** Every action the page sent, in order. */
+  actions: unknown[];
+  /** Every pairing code presented. */
+  paired: string[];
 }
 
 /**
- * Install the fake agent's HTTP surface.
+ * Install the fake Bridge's HTTP surface.
  *
  * The CORS headers are REAL and load-bearing. The studio's calls carry an Authorization header
  * and a JSON content type on purpose - that forces a preflight, which is what lets the real
- * agent refuse an origin it does not know before a single command is sent. Playwright answers
+ * Bridge refuse an origin it does not know before a single command is sent. Playwright answers
  * the preflight itself from the fulfilled response's headers (measured: the handler is only
  * ever entered for the POST), so a fake that omitted them would pass a spec the browser fails.
  */
-async function fakeAgent(page: Page, options: Partial<FakeAgent> = {}): Promise<FakeAgent> {
-  const state: FakeAgent = { commands: [], ...options };
+async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promise<FakeBridge> {
+  const state: FakeBridge = { actions: [], paired: [], ...options };
   const cors = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, content-type',
@@ -70,7 +77,7 @@ async function fakeAgent(page: Page, options: Partial<FakeAgent> = {}): Promise<
   const json = (route: Route, status: number, body: unknown) =>
     route.fulfill({ status, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
-  await page.route(`${AGENT}/**`, async (route) => {
+  await page.route(`${BRIDGE}/**`, async (route) => {
     if (state.missing) {
       // What a browser sees when nothing is listening on that port.
       await route.abort('connectionrefused');
@@ -79,32 +86,53 @@ async function fakeAgent(page: Page, options: Partial<FakeAgent> = {}): Promise<
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (path === '/health') {
-      await json(route, 200, { ok: true, agent: 'noacg-caspar', v: 1 });
+      await json(
+        route,
+        200,
+        state.outdated
+          ? { ok: true, agent: 'noacg-caspar', v: 1 }
+          : { ok: true, agent: 'noacg-bridge', v: 2, version: '0.4.0', adapters: ['casparcg'] },
+      );
+      return;
+    }
+    const body = JSON.parse(request.postData() || '{}') as { code?: string; action?: unknown; target?: unknown };
+    if (path === '/pair') {
+      state.paired.push(body.code ?? '');
+      if (state.pairCode && body.code === state.pairCode) {
+        state.pairCode = undefined; // spent
+        await json(route, 200, { ok: true, v: 2, token: TOKEN });
+      } else {
+        await json(route, 401, { ok: false, v: 2, error: { hop: 'agent', code: 'refused', detail: 'That pairing code is not valid. Start NoaCG Bridge again to get a fresh one.' } });
+      }
       return;
     }
     if (request.headers().authorization !== `Bearer ${TOKEN}` || state.badToken) {
-      await json(route, 401, { ok: false, error: 'Bad or missing agent token.' });
+      await json(route, 401, { ok: false, v: 2, error: { hop: 'agent', code: 'refused', detail: 'Bad or missing Bridge token.' } });
       return;
     }
-    const body = JSON.parse(request.postData() || '{}') as { channel?: number; layer?: number; url?: string };
-    const address = `${body.channel ?? 1}-${body.layer ?? 20}`;
-    const command =
-      path === '/status' ? 'VERSION' : path === '/play' ? `PLAY ${address} [HTML] "${body.url}"` : `STOP ${address}`;
-    state.commands.push(command);
+    if (path === '/act') state.actions.push(body.action);
     if (state.serverDown) {
-      // The agent is fine; the socket behind it is not. 502 with the socket's own words.
-      await json(route, 502, { ok: false, error: 'connect ECONNREFUSED 127.0.0.1:5250' });
+      // The Bridge is fine; the socket behind it is not. The Bridge's own sentence, address included.
+      await json(route, 200, {
+        ok: false,
+        v: 2,
+        error: { hop: 'target', code: 'unreachable', detail: 'CasparCG did not answer on 127.0.0.1:5250 (connect ECONNREFUSED 127.0.0.1:5250). Is the server running, and is that its AMCP port?' },
+      });
       return;
     }
     if (state.refuses) {
-      await json(route, 200, { ok: false, code: 404, status: state.refuses, lines: [] });
+      await json(route, 200, {
+        ok: false,
+        v: 2,
+        error: { hop: 'target', code: 'refused', detail: `CasparCG refused the command: ${state.refuses}. Check the channel and layer.`, raw: state.refuses },
+      });
       return;
     }
     if (path === '/status') {
-      await json(route, 200, { ok: true, code: 201, status: '201 VERSION OK', lines: ['2.4.0 6ff2e3f STABLE'] });
+      await json(route, 200, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK' });
       return;
     }
-    await json(route, 200, { ok: true, code: 202, status: `202 ${command.split(' ')[0]} OK`, lines: [] });
+    await json(route, 200, { ok: true, v: 2, raw: '202 PLAY OK' });
   });
   return state;
 }
@@ -126,61 +154,108 @@ async function reopenPlayoutSettings(page: Page): Promise<void> {
   await expect(page.getByTestId('settings-playout')).toBeVisible();
 }
 
-const verdict = (page: Page) => page.getByTestId('caspar-result');
+const verdict = (page: Page) => page.getByTestId('playout-result');
 
 // ── The panel with nothing set up ───────────────────────────────────────────────────────────
 
-test('with no agent configured the Playout section is complete, and never looks broken', async ({ page }) => {
+test('with no Bridge paired the Playout section is complete, and never looks broken', async ({ page }) => {
   // The feature is a NICE-TO-HAVE over routes that already air, so an unconfigured studio must
   // read as "here is what to run", not as a fault.
   await openPlayoutSettings(page);
   const section = page.getByTestId('settings-playout');
-  await expect(section).toContainText('noacg caspar agent');
-  // The defaults are filled in, so the only empty box is the one the terminal prints.
-  await expect(section.getByTestId('caspar-agent-url')).toHaveValue('http://127.0.0.1:8899');
+  await expect(section).toContainText('NoaCG Bridge');
+  await expect(section.getByTestId('bridge-download')).toHaveAttribute('href', /NoaCG-Bridge\.exe$/);
+  await expect(section).toContainText('npx @noacg/cli bridge');
+  // The defaults are filled in, so the only empty box is the one pairing fills.
+  await expect(section.getByTestId('bridge-url')).toHaveValue('http://127.0.0.1:8899');
   await expect(section.getByTestId('caspar-amcp-port')).toHaveValue('5250');
-  await expect(section.getByTestId('caspar-agent-token')).toHaveValue('');
+  await expect(section.getByTestId('bridge-token')).toHaveValue('');
+  await expect(section.getByTestId('bridge-paired')).toHaveAttribute('data-paired', 'no');
   // Nothing to test yet: the button is off rather than offering a call that must fail.
-  await expect(section.getByTestId('caspar-test')).toBeDisabled();
+  await expect(section.getByTestId('playout-test')).toBeDisabled();
   await expect(verdict(page)).toHaveCount(0);
 });
 
-// ── The four hops, each told apart ──────────────────────────────────────────────────────────
+// ── Pairing ─────────────────────────────────────────────────────────────────────────────────
 
-test('a working connection reports CasparCG\'s own version, from a real VERSION round-trip', async ({ page }) => {
-  await seedSettings(page);
-  const agent = await fakeAgent(page);
-  await openPlayoutSettings(page);
-  await page.getByTestId('caspar-test').click();
-  await expect(verdict(page)).toHaveAttribute('data-state', 'ok');
-  await expect(verdict(page)).toContainText('2.4.0 6ff2e3f STABLE');
-  // It asked the server, rather than concluding from the settings being filled in.
-  expect(agent.commands).toEqual(['VERSION']);
+test('the link the Bridge prints pairs this browser with one click, and the code is spent', async ({ page }) => {
+  const bridge = await fakeBridge(page, { pairCode: 'a1b2c3d4e5f60718a1b2c3d4e5f60718' });
+  await page.goto('/app?bridge=8899&code=a1b2c3d4e5f60718a1b2c3d4e5f60718');
+  await expect(page.getByTestId('bridge-pair')).toBeVisible();
+  // Nothing is stored by merely opening the link.
+  await expect(page.getByTestId('bridge-pair-connect')).toBeVisible();
+  await page.getByTestId('bridge-pair-connect').click();
+  await expect(page.getByTestId('bridge-pair-done')).toBeVisible();
+  expect(bridge.paired).toEqual(['a1b2c3d4e5f60718a1b2c3d4e5f60718']);
+  // The token came back over loopback and is now the one Settings holds; the page's own URL
+  // never carried it.
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-caspar') ?? '{}'));
+  expect(stored).toMatchObject({ agentUrl: BRIDGE, agentToken: TOKEN, v: 1 });
+
+  // "Open NoaCG" lands on Home, where the gear is the door into Settings.
+  await page.getByTestId('bridge-pair-open').click();
+  await reopenPlayoutSettings(page);
+  await expect(page.getByTestId('bridge-paired')).toHaveAttribute('data-paired', 'yes');
 });
 
-test('no agent running says so, and names the command that starts one', async ({ page }) => {
+test('a spent or wrong pairing code is refused on the page, and a malformed link changes nothing', async ({ page }) => {
+  await fakeBridge(page, { pairCode: 'a1b2c3d4e5f60718a1b2c3d4e5f60718' });
+  await page.goto('/app?bridge=8899&code=ffffffffffffffffffffffffffffffff');
+  await page.getByTestId('bridge-pair-connect').click();
+  await expect(page.getByTestId('bridge-pair-error')).toHaveAttribute('data-state', 'token');
+  await expect(page.getByTestId('bridge-pair-error')).toContainText('not valid');
+
+  await page.goto('/app?bridge=80&code=nope');
+  await expect(page.getByTestId('bridge-pair-invalid')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('spx-gfx-caspar'))).toBeNull();
+});
+
+// ── The hops, each told apart ───────────────────────────────────────────────────────────────
+
+test("a working connection reports CasparCG's own version, from a real VERSION round-trip", async ({ page }) => {
   await seedSettings(page);
-  await fakeAgent(page, { missing: true });
+  const bridge = await fakeBridge(page);
   await openPlayoutSettings(page);
-  await page.getByTestId('caspar-test').click();
-  await expect(verdict(page)).toHaveAttribute('data-state', 'agent');
-  await expect(verdict(page)).toContainText('noacg caspar agent');
+  await page.getByTestId('playout-test').click();
+  await expect(verdict(page)).toHaveAttribute('data-state', 'ok');
+  await expect(verdict(page)).toContainText('2.5.0 69e8ad5 Stable');
+  // It asked the server, rather than concluding from the settings being filled in.
+  expect(bridge.actions).toEqual([]);
+});
+
+test('no Bridge running says so, and names both ways to start one', async ({ page }) => {
+  await seedSettings(page);
+  await fakeBridge(page, { missing: true });
+  await openPlayoutSettings(page);
+  await page.getByTestId('playout-test').click();
+  await expect(verdict(page)).toHaveAttribute('data-state', 'bridge');
+  await expect(verdict(page)).toContainText('Start NoaCG Bridge');
+  await expect(verdict(page)).toContainText('npx @noacg/cli bridge');
+});
+
+test('an agent from before the protocol is "update NoaCG Bridge", not "not running"', async ({ page }) => {
+  await seedSettings(page);
+  await fakeBridge(page, { outdated: true });
+  await openPlayoutSettings(page);
+  await page.getByTestId('playout-test').click();
+  await expect(verdict(page)).toHaveAttribute('data-state', 'outdated');
+  await expect(verdict(page)).toContainText('too old for this page');
 });
 
 test('a rejected token is its own verdict, not "unreachable"', async ({ page }) => {
   await seedSettings(page, { agentToken: 'stale-token' });
-  await fakeAgent(page);
+  await fakeBridge(page);
   await openPlayoutSettings(page);
-  await page.getByTestId('caspar-test').click();
+  await page.getByTestId('playout-test').click();
   await expect(verdict(page)).toHaveAttribute('data-state', 'token');
   await expect(verdict(page)).toContainText('rejected this token');
 });
 
 test('a missing CasparCG names the server and port, not a raw socket error on its own', async ({ page }) => {
   await seedSettings(page);
-  await fakeAgent(page, { serverDown: true });
+  await fakeBridge(page, { serverDown: true });
   await openPlayoutSettings(page);
-  await page.getByTestId('caspar-test').click();
+  await page.getByTestId('playout-test').click();
   await expect(verdict(page)).toHaveAttribute('data-state', 'server');
   // `ECONNREFUSED 127.0.0.1:5250` alone is not a sentence anyone should have to read.
   await expect(verdict(page)).toContainText('CasparCG did not answer on 127.0.0.1:5250');
@@ -188,43 +263,43 @@ test('a missing CasparCG names the server and port, not a raw socket error on it
 
 test('a CasparCG that answers and refuses is a different verdict from one that never answered', async ({ page }) => {
   await seedSettings(page);
-  await fakeAgent(page, { refuses: '404 PLAY ERROR' });
+  await fakeBridge(page, { refuses: '404 PLAY FAILED' });
   await openPlayoutSettings(page);
-  await page.getByTestId('caspar-test').click();
+  await page.getByTestId('playout-test').click();
   await expect(verdict(page)).toHaveAttribute('data-state', 'server');
-  await expect(verdict(page)).toContainText('404 PLAY ERROR');
+  await expect(verdict(page)).toContainText('404 PLAY FAILED');
   await expect(verdict(page)).not.toContainText('did not answer');
 });
 
 // ── Local Network Access ────────────────────────────────────────────────────────────────────
 
 test('the permission diagnosis is only ever offered where the browser actually gates it', async ({ page }) => {
-  // The measured matrix from docs/CASPARCG_CONNECT.md §1b, pinned as code. Getting this wrong
-  // in either direction is a lie told to an operator: a page on localhost that blames a
-  // permission sends them to a setting that is not the problem, and a hosted page that stays
-  // silent about it leaves them with a call that HANGS on an unanswered prompt.
+  // The measured matrix from docs/BRIDGE.md §1b, pinned as code. Getting this wrong in either
+  // direction is a lie told to an operator: a page on localhost that blames a permission sends
+  // them to a setting that is not the problem, and a hosted page that stays silent about it
+  // leaves them with a call that HANGS on an unanswered prompt.
   await page.goto('/app');
   const matrix = await page.evaluate(async () => {
-    const { localNetworkGateApplies } = await import('/src/control/casparLink.ts');
-    const agent = 'http://127.0.0.1:8899';
+    const { localNetworkGateApplies } = await import('/src/control/playoutLink.ts');
+    const bridge = 'http://127.0.0.1:8899';
     return {
-      hostedToLoopback: localNetworkGateApplies('https://noacg.studio', agent),
-      loopbackToLoopback: localNetworkGateApplies('http://localhost:5184', agent),
-      lanSelfHostToLoopback: localNetworkGateApplies('http://192.168.0.120:3000', agent),
-      hostedToLanAgent: localNetworkGateApplies('https://noacg.studio', 'http://10.0.0.4:8899'),
-      hostedToPublicAgent: localNetworkGateApplies('https://noacg.studio', 'https://agent.example.com'),
+      hostedToLoopback: localNetworkGateApplies('https://noacg.studio', bridge),
+      loopbackToLoopback: localNetworkGateApplies('http://localhost:5184', bridge),
+      lanSelfHostToLoopback: localNetworkGateApplies('http://192.168.0.120:3000', bridge),
+      hostedToLanBridge: localNetworkGateApplies('https://noacg.studio', 'http://10.0.0.4:8899'),
+      hostedToPublicBridge: localNetworkGateApplies('https://noacg.studio', 'https://bridge.example.com'),
       // Ordinary PUBLIC names that a prefix match would read as local. Getting these wrong
       // withholds the one diagnosis that explains the failure.
-      lookalikeLocalhost: localNetworkGateApplies('https://localhost.evil.example', agent),
-      lookalikeLan: localNetworkGateApplies('https://10.0.0.1.evil.example', agent),
+      lookalikeLocalhost: localNetworkGateApplies('https://localhost.evil.example', bridge),
+      lookalikeLan: localNetworkGateApplies('https://10.0.0.1.evil.example', bridge),
     };
   });
   expect(matrix).toEqual({
     hostedToLoopback: true,
     loopbackToLoopback: false,
     lanSelfHostToLoopback: false,
-    hostedToLanAgent: true,
-    hostedToPublicAgent: false,
+    hostedToLanBridge: true,
+    hostedToPublicBridge: false,
     lookalikeLocalhost: true,
     lookalikeLan: true,
   });
@@ -241,7 +316,7 @@ test('a browser that has no such permission reports "unknown" rather than preten
       configurable: true,
       value: { query: () => Promise.reject(new TypeError('unknown permission name')) },
     });
-    const { localNetworkPermission } = await import('/src/control/casparLink.ts');
+    const { localNetworkPermission } = await import('/src/control/playoutLink.ts');
     return localNetworkPermission();
   });
   expect(state).toBe('unknown');
@@ -250,13 +325,13 @@ test('a browser that has no such permission reports "unknown" rather than preten
 // ── The settings themselves ─────────────────────────────────────────────────────────────────
 
 test('the server is configured once, app-wide, and survives a reload', async ({ page }) => {
-  await fakeAgent(page);
+  await fakeBridge(page);
   await openPlayoutSettings(page);
   const section = page.getByTestId('settings-playout');
   await section.getByTestId('caspar-host').fill('caspar-01.studio.lan');
   await section.getByTestId('caspar-channel').fill('2');
   await section.getByTestId('caspar-layer').fill('30');
-  await section.getByTestId('caspar-agent-token').fill(TOKEN);
+  await section.getByTestId('bridge-token').fill(TOKEN);
   // The hint tracks the numbers, so what CasparCG will be told is visible before it is sent.
   await expect(section).toContainText('2-30');
 
@@ -270,9 +345,9 @@ test('the server is configured once, app-wide, and survives a reload', async ({ 
 
 test('editing a setting drops the last verdict, so a stale tick never speaks for new numbers', async ({ page }) => {
   await seedSettings(page);
-  await fakeAgent(page);
+  await fakeBridge(page);
   await openPlayoutSettings(page);
-  await page.getByTestId('caspar-test').click();
+  await page.getByTestId('playout-test').click();
   await expect(verdict(page)).toHaveAttribute('data-state', 'ok');
   await page.getByTestId('settings-playout').getByTestId('caspar-host').fill('another-box.lan');
   await expect(verdict(page)).toHaveCount(0);
@@ -304,7 +379,7 @@ async function publishedProduction(page: Page): Promise<void> {
 }
 
 test('the CasparCG row is absent until a server is configured', async ({ page }) => {
-  await fakeAgent(page);
+  await fakeBridge(page);
   await publishedProduction(page);
   // The output URL row - the manual route that has always worked - is there either way.
   await expect(page.getByTestId('copy-output-url')).toBeVisible();
@@ -314,7 +389,7 @@ test('the CasparCG row is absent until a server is configured', async ({ page })
 
 test('one button puts the production on the configured channel, and one takes it off', async ({ page }) => {
   await seedSettings(page, { channel: 2, layer: 30 });
-  const agent = await fakeAgent(page);
+  const bridge = await fakeBridge(page);
   await publishedProduction(page);
 
   // The row states where it will send BEFORE it is pressed - `LinkRow` carries no testid of its
@@ -327,24 +402,28 @@ test('one button puts the production on the configured channel, and one takes it
   // real CasparCG 2.5.0 showed it on 2026-09-10; this spec passed the whole time.
   await expect(page.getByTestId('caspar-air-result')).toHaveText('✓ On 2-30');
 
-  // THE WHOLE LIVE LINK is this one command: the production's own output URL, on the configured
-  // channel and layer. Everything after it - every cue, take, update, recovery - travels on the
-  // durable command log the /output page already follows, which is why there is no CG ADD or
-  // CG UPDATE traffic here and no second copy of the graphics on the wire.
-  // The dev port is per checkout (docs/DEV_PORTS.md), so the ORIGIN is not pinned here - what
-  // is pinned is that the command carries this production's own output URL and nothing else.
-  expect(agent.commands).toHaveLength(1);
-  expect(agent.commands[0]).toMatch(/^PLAY 2-30 \[HTML\] "https?:\/\/[^"]+\/output\?production=demo-output"$/);
+  // THE WHOLE LIVE LINK is this one action: a take of the production's own output URL, on the
+  // configured slot. Everything after it - every cue, take, update, recovery - travels on the
+  // durable command log the /output page already follows, which is why there is no per-cue
+  // traffic here and no second copy of the graphics on the wire. The dev port is per checkout
+  // (docs/DEV_PORTS.md), so the ORIGIN is not pinned - what is pinned is that the action carries
+  // this production's own output URL and nothing else, in the protocol's own words.
+  expect(bridge.actions).toHaveLength(1);
+  expect(bridge.actions[0]).toMatchObject({
+    verb: 'take',
+    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output$/) },
+    slot: { adapter: 'casparcg', channel: 2, layer: 30 },
+  });
 
   await page.getByTestId('caspar-take-off-air').click();
   await expect(page.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
   await expect(page.getByTestId('caspar-air-result')).toHaveText('✓ Off 2-30');
-  expect(agent.commands[1]).toBe('STOP 2-30');
+  expect(bridge.actions[1]).toMatchObject({ verb: 'out', slot: { adapter: 'casparcg', channel: 2, layer: 30 } });
 });
 
 test('a failure to air is reported on the row, and never as a success', async ({ page }) => {
   await seedSettings(page);
-  await fakeAgent(page, { serverDown: true });
+  await fakeBridge(page, { serverDown: true });
   await publishedProduction(page);
   await page.getByTestId('caspar-put-on-air').click();
   const result = page.getByTestId('caspar-air-result');
