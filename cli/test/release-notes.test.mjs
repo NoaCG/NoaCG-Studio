@@ -58,6 +58,9 @@ test('a missing Bridge section names the Bridge changelog, so a refusal says whe
 test("the Bridge's Release page is the template with the version's changes in it, and nothing else", () => {
   const template = 'What it is.\n\n## What changed\n\n{{changes}}\n\n## Install\n\nDownload it.\n';
   assert.equal(bridgeReleasePage(template, 'First release.'), 'What it is.\n\n## What changed\n\nFirst release.\n\n## Install\n\nDownload it.');
+  // A dollar sign in the prose is a dollar sign: "$'" and "$&" are replacement patterns to
+  // String.replace, and a string replacement would have printed the Install section twice.
+  assert.equal(bridgeReleasePage('a {{changes}} b', "costs $5, the $'s and $& too"), "a costs $5, the $'s and $& too b");
   // The real template has the one placeholder the script fills, and says nothing about the CLI
   // package the Bridge is built from: a playout operator downloads a program, not a package.
   const real = readFileSync(fileURLToPath(new URL('../BRIDGE_RELEASE.md', import.meta.url)), 'utf8');

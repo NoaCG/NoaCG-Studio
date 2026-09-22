@@ -64,9 +64,10 @@ export function problemsWith(notes, version, file = 'cli/CHANGELOG.md') {
   return problems;
 }
 
-/** The Bridge's Release page: the template with the version's changes in place of `{{changes}}`. */
+/** The Bridge's Release page: the template with the version's changes in place of `{{changes}}`.
+ *  The replacement is a function so a `$` in the prose is a dollar sign, never a pattern. */
 export function bridgeReleasePage(template, changes) {
-  return template.replace('{{changes}}', changes).trim();
+  return template.replace('{{changes}}', () => changes).trim();
 }
 
 function main() {
