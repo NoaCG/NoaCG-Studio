@@ -220,7 +220,7 @@ Phase 1 is built - manual, local, no API.
   table under them (docs/PLAYOUT_DASHBOARD.md §2d, one surface over).
 - **ProductionPage is being SPLIT, read-only pieces first** (docs/backlog/production-page-phases.md
   carries the state map and the five phases still to run). Out already: `home/ProductionLinks.tsx`
-  (the links popover, with `LinkRow` and `CasparAirRow`), `home/ActionLog.tsx` (the wire-log
+  (the links popover, with `LinkRow` and `BridgeAirRow`), `home/ActionLog.tsx` (the wire-log
   readout) and `home/CueOverflowNote.tsx` (the too-long line, plus `cueOverflowKeys` - the pure
   program-or-preview choice the page still needs for the field marks). All three are pure
   READOUTS: they hold no state and send nothing.

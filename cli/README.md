@@ -22,10 +22,11 @@ agent uses -
 Whichever you pick, the `noacg-graphic` skill is the same text: what a NoaCG graphic must expose,
 and the loop to get there. It is the contract, not design guidance.
 
-It also carries `noacg caspar`, which is not about authoring: it talks **AMCP to a CasparCG
-server**, so a NoaCG production can go on a channel from the studio page (or straight from the
-terminal). A browser cannot open the socket AMCP needs, so this tool holds it -
-`docs/CASPARCG_CONNECT.md`.
+It also carries **NoaCG Bridge** (`noacg bridge`), which is not about authoring: it is the local
+program that lets the NoaCG page in your browser drive a CasparCG server on your studio network,
+list its templates and clips, and cue them from the production page. A browser cannot open the
+socket AMCP needs, so the Bridge holds it - `docs/BRIDGE.md`. The same command ships as a
+download, `NoaCG-Bridge.exe`, for a playout laptop with nothing installed.
 
 ## Paste this to your agent
 
@@ -131,7 +132,7 @@ npx @noacg/cli save ./football-scoreboard
 | `login [--name N] [--no-browser] [--key <noacg_ak_…>]` | Get a scoped agent key for this machine: opens the NoaCG consent page, receives a one-time code on a loopback listener, redeems it. The key can only create graphics in your library; revoke it in Settings → Account → Agent access or with `logout`. `NOACG_AGENT_KEY` for CI. |
 | `logout [--local]` / `whoami` | Revoke + forget this machine's key / show which key is held and whether it is still valid. |
 | `save <dir\|zip> [--name N] [--folder F] [--no-bench]` | Validate (gate + bench), refuse on errors, then put the graphic in your NoaCG library and print its `#/graphic/<id>` link. Save = the library, never a production. |
-| `caspar agent [--port 8899] [--token T] [--origin URL]…` | Hold the AMCP socket a browser cannot: a loopback-only HTTP surface that lets NoaCG's **Settings → Playout** panel drive a CasparCG server. Binds `127.0.0.1` and refuses anything else; needs a token; refuses origins that are not your NoaCG. Leave it running. |
+| `bridge [--port 8899] [--origin URL]… [--no-open] [--quiet]` | NoaCG Bridge: hold the AMCP socket a browser cannot, on a loopback-only HTTP surface the NoaCG page speaks the playout protocol to. It opens a link that pairs your browser with one click; binds `127.0.0.1` and refuses anything else; refuses origins that are not your NoaCG. Leave it running. `caspar agent` is its old name and still runs it. |
 | `caspar status\|send\|play\|stop [--server HOST] [--amcp-port 5250]` | The same AMCP with no browser at all: check a server, send one command, or put a production's output URL on a channel (`play --url <output URL> --channel 1 --layer 20`). |
 
 Add `--json` to any command for one JSON object on stdout. Exit codes: 0 clean, 1 findings or
@@ -170,8 +171,8 @@ context in every session where the server is configured, whether or not that ses
 graphics. This shape is about 590 tokens against about 1,160 for the seven-tool one it replaced.
 The teaching is in the skill, which loads only when a graphic is being made.
 
-`caspar` is deliberately not an MCP tool: it drives live playout hardware, which is an operator's
-decision rather than an authoring agent's.
+`bridge` and `caspar` are deliberately not MCP tools: they drive live playout hardware, which is
+an operator's decision rather than an authoring agent's.
 
 ## Develop
 

@@ -5,14 +5,17 @@ import { EXPORT_TARGETS } from '../export/registry';
 import { signOut, updatePassword } from '../backend/auth';
 import { listAgentKeys, revokeAgentKey, type AgentKeySummary } from '../backend/agentAccess';
 import {
-  casparAddress,
-  casparConfigured,
-  loadCasparSettings,
-  saveCasparSettings,
-  testCasparConnection,
-  type CasparResult,
-  type CasparSettings,
-} from '../control/casparLink';
+  BRIDGE_COMMAND,
+  BRIDGE_DOWNLOAD_URL,
+  loadPlayoutSettings,
+  playoutConfigured,
+  savePlayoutSettings,
+  slotAddress,
+  slotOf,
+  testConnection,
+  type PlayoutResult,
+  type PlayoutSettings,
+} from '../control/playoutLink';
 import { useModalGate } from './spaceKey';
 import { useAdvancedMode } from './useAdvancedMode';
 import { useAuthState } from './auth/useAuthState';
@@ -206,54 +209,87 @@ function AgentAccessSection() {
 }
 
 /**
- * "Playout" - the one CasparCG server this studio drives (docs/CASPARCG_CONNECT.md). App-wide
- * and persisted, never per production: a studio has one playout box, and retyping it per show
- * is the friction this removes.
+ * "Playout" - the one playout server this studio drives, through NoaCG Bridge (docs/BRIDGE.md).
+ * App-wide and persisted, never per production: a studio has one playout box, and retyping it
+ * per show is the friction this removes. NoaCG owns these settings; the Bridge is told its
+ * target on every call and stores nothing.
  *
- * FEATURE-DETECTED, not gated. With no agent running the section is complete and explains what
+ * FEATURE-DETECTED, not gated. With no Bridge running the section is complete and explains what
  * to run - it must never look broken, because the CasparCG routes in
  * docs/PLAYOUT_INTEGRATION.md all still work without any of this.
  *
- * The four diagnosis states come from control/casparLink.ts and are shown as themselves. A
- * single generic red here would be the worst possible outcome: "the browser has not been given
- * local network permission", "the agent is not running", "the agent rejected the token" and
- * "CasparCG did not answer" have nothing to do with each other, and three of the four are the
- * person's own to fix.
+ * The diagnosis states come from control/playoutLink.ts and are shown as themselves. A single
+ * generic red here would be the worst possible outcome: "the browser has not been given local
+ * network permission", "the Bridge is not running", "the Bridge rejected the token" and "the
+ * server did not answer" have nothing to do with each other, and most of them are the person's
+ * own to fix.
  */
 function PlayoutSection() {
-  const [settings, setSettings] = useState(loadCasparSettings);
+  const [settings, setSettings] = useState(loadPlayoutSettings);
   const [testing, setTesting] = useState(false);
-  const [result, setResult] = useState<CasparResult | null>(null);
+  const [result, setResult] = useState<PlayoutResult | null>(null);
 
-  const set = (patch: Partial<CasparSettings>) => {
-    saveCasparSettings(patch);
-    setSettings(loadCasparSettings());
-    setResult(null); // a changed setting makes the last verdict stale, and a stale ✓ lies
+  const set = (patch: Partial<PlayoutSettings>) => {
+    savePlayoutSettings(patch);
+    setSettings(loadPlayoutSettings());
+    setResult(null); // a changed setting makes the last verdict stale, and a stale tick lies
   };
 
   const test = async () => {
     setTesting(true);
     setResult(null);
     try {
-      setResult(await testCasparConnection(settings));
+      setResult(await testConnection(settings));
     } finally {
       setTesting(false);
     }
   };
 
-  const configured = casparConfigured(settings);
+  const configured = playoutConfigured(settings);
+  const paired = Boolean(settings.agentToken.trim());
 
   return (
     <div data-testid="settings-playout">
       <p className="hint">
-        Put a production on a CasparCG channel from its own page, instead of loading the URL by
-        hand in the CasparCG Client. A browser cannot open the AMCP socket itself, so a small
-        helper on this machine holds it - run <code>noacg caspar agent</code> in a terminal and
-        leave it open. Loading a production&rsquo;s output URL by hand keeps working exactly as
-        before, with or without this.
+        Put a production on a CasparCG channel from its own page, and play the templates and clips
+        already on the server, without the CasparCG Client. A browser cannot open the AMCP socket
+        itself, so <strong>NoaCG Bridge</strong>, a small program on this machine, holds it.{' '}
+        <a href={BRIDGE_DOWNLOAD_URL} data-testid="bridge-download">
+          Download NoaCG Bridge
+        </a>{' '}
+        and run it (or run <code>{BRIDGE_COMMAND}</code> in a terminal); it opens a page that pairs
+        this browser. Loading a production&rsquo;s output URL by hand keeps working exactly as before.
       </p>
 
       <div className="dlg-rows">
+        <div className="dlg-row">
+          <label htmlFor="bridge-url">NoaCG Bridge</label>
+          <div className="dlg-pair">
+            <input
+              id="bridge-url"
+              value={settings.agentUrl}
+              onChange={(e) => set({ agentUrl: e.target.value })}
+              placeholder="http://127.0.0.1:8899"
+              spellCheck={false}
+              data-testid="bridge-url"
+            />
+            <input
+              type="password"
+              value={settings.agentToken}
+              onChange={(e) => set({ agentToken: e.target.value })}
+              placeholder="Bridge token"
+              aria-label="Bridge token"
+              spellCheck={false}
+              data-testid="bridge-token"
+            />
+          </div>
+          <p className="dlg-hint" data-testid="bridge-paired" data-paired={paired ? 'yes' : 'no'}>
+            {paired
+              ? 'Paired. The token stays in this browser; the Bridge only ever listens on this machine.'
+              : 'Not paired yet. Start NoaCG Bridge and open the link it prints; both boxes fill in by themselves.'}
+          </p>
+        </div>
+
         <div className="dlg-row">
           <label htmlFor="caspar-host">CasparCG server</label>
           {/* Host and AMCP port are one address, so they share a row. */}
@@ -276,7 +312,10 @@ function PlayoutSection() {
               data-testid="caspar-amcp-port"
             />
           </div>
-          <p className="dlg-hint">The machine running CasparCG, and its AMCP port (5250 unless it was changed).</p>
+          <p className="dlg-hint">
+            The machine running CasparCG on your studio network, and its AMCP port (5250 unless it
+            was changed). It is reached from this machine only, never from the internet.
+          </p>
         </div>
 
         <div className="dlg-row">
@@ -301,52 +340,26 @@ function PlayoutSection() {
             />
           </div>
           <p className="dlg-hint">
-            Where the graphics go: CasparCG calls this <code>{casparAddress(settings)}</code>. Use a
-            layer above whatever your rundown plays video on.
-          </p>
-        </div>
-
-        <div className="dlg-row">
-          <label htmlFor="caspar-agent-url">Local agent</label>
-          <div className="dlg-pair">
-            <input
-              id="caspar-agent-url"
-              value={settings.agentUrl}
-              onChange={(e) => set({ agentUrl: e.target.value })}
-              placeholder="http://127.0.0.1:8899"
-              spellCheck={false}
-              data-testid="caspar-agent-url"
-            />
-            <input
-              type="password"
-              value={settings.agentToken}
-              onChange={(e) => set({ agentToken: e.target.value })}
-              placeholder="Agent token"
-              aria-label="Agent token"
-              spellCheck={false}
-              data-testid="caspar-agent-token"
-            />
-          </div>
-          <p className="dlg-hint">
-            Both are printed by <code>noacg caspar agent</code> when it starts. The token stays in
-            this browser; the agent only ever listens on this machine.
+            Where NoaCG&rsquo;s own graphics go: CasparCG calls this{' '}
+            <code>{slotAddress(slotOf(settings))}</code>. Server templates cued from a rundown take
+            the next free layer above it, and clips play below it.
           </p>
         </div>
       </div>
 
       <div className="dlg-pair dlg-pair--wide">
-        <button onClick={() => void test()} disabled={testing || !configured} data-testid="caspar-test">
+        <button onClick={() => void test()} disabled={testing || !configured} data-testid="playout-test">
           {testing ? 'Testing…' : 'Test connection'}
         </button>
       </div>
       {result && (
         <p
           className={result.state === 'ok' ? 'status-ok' : 'status-bad'}
-          data-testid="caspar-result"
+          data-testid="playout-result"
           data-state={result.state}
         >
           {result.state === 'ok'
-            ? `✓ Connected${result.version ? ` — CasparCG ${result.version}` : ''}`
+            ? `✓ Connected${result.version ? ` - CasparCG ${result.version}` : ''}`
             : result.detail}
         </p>
       )}

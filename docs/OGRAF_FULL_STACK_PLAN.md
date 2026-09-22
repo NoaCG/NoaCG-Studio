@@ -63,7 +63,7 @@ converted into invented editable controls.
 per-graphic data and visual state from baselines and catches up off air. `src/output/stage.ts`
 composes layered hosts. `noacg caspar agent` holds the AMCP socket for the studio because the
 browser cannot speak raw AMCP TCP. The shipped roads and real-hardware evidence remain documented
-in [CASPARCG_CONNECT.md](CASPARCG_CONNECT.md), [CLOUD_PLAYOUT.md](CLOUD_PLAYOUT.md) and
+in [BRIDGE.md](BRIDGE.md), [CLOUD_PLAYOUT.md](CLOUD_PLAYOUT.md) and
 [ACCEPTANCE_SPX_CASPARCG.md](ACCEPTANCE_SPX_CASPARCG.md).
 
 These source paths are starting points, not permission to import higher-level modules into lower
@@ -319,4 +319,4 @@ file. This research contains no new flow and therefore adds no product acceptanc
 
 [^1]: SuperFlyTV, pinned [server routes](https://github.com/SuperFlyTV/ograf-server/blob/f6d86255bfc8cd5aa77fa6ba227b5adcd6d363dd/packages/server/src/serverApi.ts), [renderer protocol](https://github.com/SuperFlyTV/ograf-server/blob/f6d86255bfc8cd5aa77fa6ba227b5adcd6d363dd/packages/shared/src/rendererAPI.ts), [layer manager](https://github.com/SuperFlyTV/ograf-server/blob/f6d86255bfc8cd5aa77fa6ba227b5adcd6d363dd/packages/renderer-layer/src/lib/LayersManager.ts), [layer/instance lifecycle](https://github.com/SuperFlyTV/ograf-server/blob/f6d86255bfc8cd5aa77fa6ba227b5adcd6d363dd/packages/renderer-layer/src/lib/LayerHandler.ts), [renderer API handler](https://github.com/SuperFlyTV/ograf-server/blob/f6d86255bfc8cd5aa77fa6ba227b5adcd6d363dd/packages/renderer-layer/src/lib/RendererApiHandler.ts).
 [^2]: EBU, [Server API notes](https://github.com/ebu/ograf/blob/c821671195a077be13bbb96989d4220eea157b99/v1/specification/docs/Specification_Server_API.md), [normative OpenAPI](https://github.com/ebu/ograf/blob/c821671195a077be13bbb96989d4220eea157b99/v1/specification/open-api/server-api.yaml). Inspected 2026-09-13.
-[^3]: CasparCG, [official server repository](https://github.com/CasparCG/server), [official AMCP protocol reference](https://casparcg.com/docs/wiki/protocols/amcp-protocol). Existing NoaCG measurements: [CasparCG connection](CASPARCG_CONNECT.md), [playout integration](PLAYOUT_INTEGRATION.md), [native playout research](NATIVE_PLAYOUT_RESEARCH.md). This round did not rerun hardware acceptance or pin a facility's installed CasparCG version.
+[^3]: CasparCG, [official server repository](https://github.com/CasparCG/server), [official AMCP protocol reference](https://casparcg.com/docs/wiki/protocols/amcp-protocol). Existing NoaCG measurements: [NoaCG Bridge](BRIDGE.md), [playout integration](PLAYOUT_INTEGRATION.md), [native playout research](NATIVE_PLAYOUT_RESEARCH.md). This round did not rerun hardware acceptance or pin a facility's installed CasparCG version.

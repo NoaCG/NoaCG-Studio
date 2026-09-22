@@ -422,6 +422,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   /** The KIND word per graphic, derived from the published CODE (detectPrefix) — the payload
    *  predates any stored kind field, so deriving keeps every already-published production
    *  labelled without a republish. Null when the code carries no recognisable box prefix. */
+  /** Cues over the playout server's library (docs/BRIDGE.md §5), as published. Listed so both
+   *  dashboards read one rundown; not takeable here, because they go through NoaCG Bridge on
+   *  the operator's own machine and this page may be a phone across the venue. */
+  const playoutCues = payload?.playoutCues ?? [];
   const kindByKey = useMemo(() => {
     const map = new Map<string, string>();
     for (const g of payload?.graphics ?? []) {
@@ -1140,6 +1144,27 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               );
             })}
           </div>
+          {playoutCues.length > 0 && (
+            <div className="pd-server-cues" data-testid="hosted-playout-cues">
+              <h3>On the playout server</h3>
+              {playoutCues.map((cue) => (
+                <div key={cue.id} className="pd-cue pd-cue-server" data-testid={`hosted-playout-cue-${cue.id}`}>
+                  <span className="pd-cue-no">·</span>
+                  <span className="pd-cue-label">
+                    <strong>{cue.label}</strong>
+                    <span className="muted">
+                      <span className="pd-cue-layer">L{cue.layer}</span> · {cue.kind === 'media' ? 'Server clip' : 'Server template'} ·{' '}
+                      {cue.note || cue.name}
+                    </span>
+                  </span>
+                </div>
+              ))}
+              <p className="hint">
+                These play through NoaCG Bridge on the operator&rsquo;s own machine, from the production page
+                there. This page cannot reach it.
+              </p>
+            </div>
+          )}
         </aside>
       </main>
     </div>

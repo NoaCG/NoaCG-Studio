@@ -35,7 +35,7 @@ import { shoot } from './screenshot.js';
 import { isEmptyDir, packageEntries, readPackageInput, unzipTo } from './workspace.js';
 
 /** The verbs the tool speaks - the authoring verbs of the terminal, in the order the loop uses
- *  them. `caspar` is deliberately absent: it drives live playout hardware, which is an operator's
+ *  them. `caspar` and `bridge` are deliberately absent: they drive live playout hardware, which is an operator's
  *  decision and not an authoring agent's (pinned by cli/test/mcp.test.mjs). */
 export const MCP_COMMANDS = ['types', 'scaffold', 'validate', 'inspect', 'screenshot', 'docs', 'save'] as const;
 export type McpCommand = (typeof MCP_COMMANDS)[number];

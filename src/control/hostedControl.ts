@@ -109,12 +109,25 @@ export interface OutputCue {
   note?: string;
 }
 
+/** One cue over the playout server's own library (docs/BRIDGE.md §5), as published. The
+ *  renderer ignores these - nothing here renders in a browser - and the hosted control page
+ *  lists them so the two dashboards read the same rundown. ADDITIVE OPTIONAL. */
+export interface OutputPlayoutCue {
+  id: string;
+  label: string;
+  kind: 'template' | 'media';
+  name: string;
+  layer: number;
+  note?: string;
+}
+
 export interface OutputPayload {
   v: 1;
   /** The production canvas — the stage the output page scales to the viewport. */
   resolution: Resolution;
   graphics: OutputGraphicSpec[];
   cues: OutputCue[];
+  playoutCues?: OutputPlayoutCue[];
 }
 
 /** Per graphic: the renderer's last reported truth, plus (0033) `event` — the log row it had
@@ -298,7 +311,14 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
       values: c.values,
       ...(c.note ? { note: c.note } : {}),
     }));
-  return { v: 1, resolution, graphics, cues };
+  const itemById = new Map((show.playoutItems ?? []).map((i) => [i.id, i] as const));
+  const playoutCues: OutputPlayoutCue[] = (show.cues ?? [])
+    .filter((c) => c.source === 'playout' && itemById.has(c.sourceId))
+    .map((c) => {
+      const item = itemById.get(c.sourceId)!;
+      return { id: c.id, label: c.label, kind: item.kind, name: item.name, layer: item.layer, ...(c.note ? { note: c.note } : {}) };
+    });
+  return { v: 1, resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}) };
 }
 
 /** Every capability a publish hands back. The audience pair is nullable on purpose: a server

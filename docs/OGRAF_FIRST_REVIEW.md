@@ -22,7 +22,7 @@ read from the published spec, not from memory. Sources sit at the point of use.
 The companion research that already existed and still binds: `docs/NATIVE_PLAYOUT_RESEARCH.md`
 (the four native-playout routes and the owner's 2026-08-16 ruling), `docs/OGRAF.md` (the export
 and its external validation), `docs/backlog/ograf-ecosystem-watch.md` (the adoption ledger),
-`docs/CASPARCG_CONNECT.md` (the shipped AMCP client), `docs/CLOUD_PLAYOUT.md` (the browser-output
+`docs/BRIDGE.md` (the shipped AMCP client), `docs/CLOUD_PLAYOUT.md` (the browser-output
 contract).
 
 ---
@@ -145,7 +145,7 @@ says otherwise:
   package and a conformant OGraf Graphic, with `v_noacg` carrying the editable sources. Proven in
   the external renderer 2026-08-22 and mechanically 2026-08-26.
 - **CasparCG**: Stage 1 of `docs/NATIVE_PLAYOUT_RESEARCH.md` §6 shipped as
-  `docs/CASPARCG_CONNECT.md` - a real AMCP client (`cli/src/commands/caspar.ts`) behind a
+  `docs/BRIDGE.md` - a real AMCP client (`cli/src/commands/caspar.ts`) behind a
   loopback agent, driving an unmodified server. Never yet accepted against real hardware
   (owner-queue item of 2026-08-25 still open).
 

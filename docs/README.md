@@ -103,7 +103,7 @@ Layers of documentation, top to bottom:
 | `PLAYOUT_COMPATIBILITY.md` | The AUTHORING contract for templates that survive a playout browser. `PLAYOUT_INTEGRATION.md` is the operator's guide to the same subject. |
 | `PLAYOUT_DASHBOARD.md` | Binding design contract for the surface an operator drives a production from - owner-specified 2026-08-05, one dashboard across three deployments. |
 | `CLOUD_PLAYOUT.md` | Binding contract for PRODUCTIONS: the one persistent browser-output URL a production client loads once, and the operator workflow that prepares and airs graphics through it. |
-| `CASPARCG_CONNECT.md` | One configured CasparCG server, one button to air, from the production page - the server set up once under Settings instead of retyped per show. The operator never opens the CasparCG Client. |
+| `BRIDGE.md` | NoaCG Bridge: the local program that lets the NoaCG page drive a CasparCG server on the studio network - the measured transport, the playout protocol, pairing, cueing the server's own library, the exe, and what has run on a real server. |
 | `OGRAF.md` | The OGraf v1 export contract, written for the engineer loading one of our packages into their renderer: what we emit, what maps to what, and where the limits are. |
 | `OGRAF_FIRST_REVIEW.md` | RATIFIED 2026-08-29 with four amendments: OGraf as the canonical interchange and playout contract, the NoaCG-native/code-as-truth authoring model, and what the standard does and does not give us. |
 | `MARK_CAPABILITY_AUDIT.md` | OPEN AUDIT (2026-08-21): where a brand mark is actually permitted, across the three levels of the mechanism - a type PERMITS, a design IMPLEMENTS, a design PLACES - and the 44 types not yet acted on. The arrangement rules are `LOGO_SLOT.md`. |

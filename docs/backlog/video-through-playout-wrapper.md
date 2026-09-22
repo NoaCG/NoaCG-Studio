@@ -3,7 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-08-27
-state: unstarted
+state: advanced
+note: "2026-09-22: the first slice is built - NoaCG Bridge lists the server's clips and templates and cues them from the rundown (docs/BRIDGE.md §5); position readout and the rest of item 3 are milestone 2 there"
 asked: "play local video files through the cloud playout into CasparCG, without the web (owner sketch in the 2026-08-27 wave input)"
 ---
 # Play local video files through the cloud playout into CasparCG, without the web
