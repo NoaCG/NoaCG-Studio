@@ -79,7 +79,7 @@ import {
   type ResolvedControlShow,
 } from '../control/hostedControl';
 import { isBackendConfigured } from '../backend/config';
-import { eventsNeedServerTime } from '../control/matchClockWire';
+import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
@@ -409,10 +409,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   /** The published graphics whose EVENTS may ride the fast road: every one that runs no clock
    *  (matchClockWire `eventsNeedServerTime`). Positive, so a graphic this page cannot see keeps
    *  the slow road. The production dashboard derives the same set from the same test. */
-  const fastEventGraphics = useMemo(
-    () => new Set((payload?.graphics ?? []).filter((g) => !eventsNeedServerTime(g)).map((g) => g.key)),
-    [payload],
-  );
+  const fastEventGraphics = useMemo(() => clockFreeGraphics(payload?.graphics ?? []), [payload]);
   const layerOf = useCallback(
     (graphic: string) => payload?.graphics.find((g) => g.key === graphic)?.layer ?? null,
     [payload],

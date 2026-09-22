@@ -803,14 +803,18 @@ export async function sendControlVerb(opts: {
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
-    // A clock-free graphic's event is an ordinary command and falls through to the rule below.
-    if (item.msg.t === 'event' && !opts.fastEvents?.(item.graphic)) {
+    // A clock-free graphic's event is an ordinary command and rides by the same rule as a Take.
+    const isEvent = item.msg.t === 'event';
+    const mayBeFast = !isEvent || !!opts.fastEvents?.(item.graphic);
+    const rides = mayBeFast && fastRoad && (slowUntil.get(key) ?? 0) <= now;
+    // AN EVENT THAT DID NOT RIDE STILL HOLDS ITS GRAPHIC BACK, whichever reason kept it off: a
+    // clock, a follower mid-catch-up, an unknown show, or an earlier hold. Otherwise the Take
+    // behind it would ride the broadcast at about 90 ms while its own row was still in the
+    // fan-out's 650 ms slow mode, and a renderer would apply the two in the wrong order.
+    if (isEvent && !rides) {
       held.push(key);
       slowUntil.set(key, now + SLOW_AFTER_EVENT_MS);
-      wire.push(stamped);
-      continue;
     }
-    const rides = fastRoad && (slowUntil.get(key) ?? 0) <= now;
     if (rides) fast.push(stamped);
     wire.push(rides ? { ...stamped, fast: true } : stamped);
   }

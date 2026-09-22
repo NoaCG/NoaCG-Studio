@@ -148,7 +148,7 @@ import {
   clockRowEffect,
   clockSpecFromHtml,
   clockValueAfterUpdate,
-  eventsNeedServerTime,
+  fastEventGraphics,
   speakingClockRowEffect,
   speakingClocksFromHtml,
   type ClockSpec,
@@ -506,20 +506,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [show, library]);
   const speakingClocksRef = useRef(speakingClocks);
   speakingClocksRef.current = speakingClocks;
-  /** The graphics whose machine EVENTS may ride the fast road like a Take: every one that runs
-   *  no clock, so needs no server instant (matchClockWire `eventsNeedServerTime`, and
-   *  SLOW_AFTER_EVENT_MS in hostedControl.ts for why a clock's events stay slow). This is what
-   *  lets a quiz's Select and Reveal reach air as quickly as an Update. Positive, so a graphic
-   *  that is not in the pool keeps the slow road; the hosted page derives the same set. */
-  const fastEventGraphics = useMemo(() => {
-    const out = new Set<string>();
-    for (const g of show?.graphics ?? []) {
-      if (!eventsNeedServerTime(templateForSavedGraphic(g, library))) out.add(g.name);
-    }
-    return out;
-  }, [show, library]);
-  const fastEventGraphicsRef = useRef(fastEventGraphics);
-  fastEventGraphicsRef.current = fastEventGraphics;
+  /**
+   * The graphics whose machine EVENTS may ride the fast road like a Take: every one that runs no
+   * clock, so needs no server instant (matchClockWire `eventsNeedServerTime`, and
+   * SLOW_AFTER_EVENT_MS in hostedControl.ts for why a clock's events stay slow). This is what
+   * lets a quiz's Select and Reveal reach air as quickly as an Update.
+   *
+   * READ OFF THE PUBLISHED PAYLOAD, not the library, because the renderer runs the published
+   * snapshot: a clock edited away in the editor and not republished would otherwise send the
+   * still-published clock's events fast and put this laptop's skew on air. Empty until the
+   * published show is in hand, so the slow road is what an unanswered question gets. The hosted
+   * page derives the same set from the same payload.
+   */
+  const fastEventGraphicsRef = useRef<Set<string>>(new Set());
   /**
    * The clock field's value ON THE WIRE per graphic — the monitor's own copy of what the
    * renderer keeps in `mergedData`. Deliberately NOT folded into `airedData`: that one also
@@ -980,6 +979,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const resolved = await controlShowBySlug(hostedSlug);
       if (!alive || !resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
+      fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
       liveReportsRef.current = resolved.live;

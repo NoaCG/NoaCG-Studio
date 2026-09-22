@@ -444,3 +444,10 @@ export function speakingClockRowEffect(
 export function eventsNeedServerTime(template: { html: string; js: string }): boolean {
   return /-clock|data-speaking/.test(template.html) || /noacgEventAt/.test(template.js);
 }
+
+/** The graphics of a PUBLISHED payload whose events may ride the fast road, by wire name - the
+ *  one derivation both sending surfaces use, so the dashboard and the hosted page can never
+ *  disagree about which graphic needs the server's instant. */
+export function fastEventGraphics(graphics: { key: string; html: string; js: string }[]): Set<string> {
+  return new Set(graphics.filter((g) => !eventsNeedServerTime(g)).map((g) => g.key));
+}

@@ -27,9 +27,14 @@ Your production test on 2026-09-22 found three things. Here is what changed.
   correct. Moving Arcade across would need a lock look drawn for it and would split it from its
   set, so it waits for the controls review after Friday. The handoff has the details.
 
+**One thing to know.** A graphic carries its own buttons inside it, so a quiz that was already
+saved in your library keeps the old Reveal. Build the quiz again from the catalog (or re-import the
+SVG) to get the carried key. On an older copy the old habit still works: press Update, then Reveal.
+
 ## The route, under a minute
 
-1. Open a production with any quiz in it, publish it, and open its output link in a second tab.
+1. Make a quiz from the catalog (Arcade, or any other), add it to a production, publish it, and
+   open the output link in a second tab. A quiz built today, not one saved earlier - see above.
 2. Take the quiz. Press Pick B (Arcade) or pick B and press Select answer (the others). The
    output tab should light B about as quickly as a Take appears.
 3. In the cue editor, change **Correct answer** to another letter. Do NOT press Update. Press

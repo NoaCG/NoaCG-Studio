@@ -160,7 +160,7 @@ test('a clock-free graphic sends its events on the fast road, and a clock keeps 
 
     // The sender's rule, read off what it applies to its OWN monitor before the round trip. With
     // no backend the send itself does nothing, so this is the rule alone.
-    const here = async (fastEvents: ((graphic: string) => boolean) | undefined, showId: string) => {
+    const here = async (fastEvents: ((graphic: string) => boolean) | undefined, showId: string | null) => {
       const applied: string[] = [];
       const items = [
         { graphic: 'Quiz', msg: { t: 'event' as const, event: 'judge', payload: { f5: 'C' } } },
@@ -176,6 +176,7 @@ test('a clock-free graphic sends its events on the fast road, and a clock keeps 
       clockFree: await here(() => true, 'show-a'),
       clock: await here(() => false, 'show-b'),
       unsaid: await here(undefined, 'show-c'),
+      unknownShow: await here(() => true, null),
     };
   });
   expect(result.clocks).toBeGreaterThan(3); // the sweep is reaching the clock designs
@@ -187,4 +188,7 @@ test('a clock-free graphic sends its events on the fast road, and a clock keeps 
   expect(result.clock).toEqual([]);
   // A sender that does not say keeps every event slow, which is what every event did before.
   expect(result.unsaid).toEqual([]);
+  // And with no show there is no fast road at all: the event goes slow AND holds the update
+  // behind it, so a Take pressed next cannot overtake the row it is still waiting on.
+  expect(result.unknownShow).toEqual([]);
 });

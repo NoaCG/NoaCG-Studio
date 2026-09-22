@@ -262,10 +262,13 @@ output renderer all feed into a single `createAppliedOnce`. Every open decision 
 - **`liveCue` and the ON AIR marker.** They travel the fast road with the picture: the `cue` row is
   in the same batch, and both surfaces moved their marker handling into the same `applyCommand` the
   stage goes through, so the two cannot disagree for a third of a second.
-- **Ordering.** Resolved for one sender, stated as a limit for two. A machine `event` keeps the slow
-  road alone, because a clock's shared origin is derived from the row's own server time and a
-  broadcast has none - so a graphic that has just been sent an event stays slow for 1200 ms and a
-  verb pressed straight after cannot overtake it. ACROSS DEVICES that is not fixable from one
+- **Ordering.** Resolved for one sender, stated as a limit for two. A CLOCK's machine `event` keeps
+  the slow road, because a clock's shared origin is derived from the row's own server time and a
+  broadcast has none - so a graphic that has just been sent such an event stays slow for 1200 ms and
+  a verb pressed straight after cannot overtake it. Since 2026-09-22 a graphic that runs no clock
+  reads nothing from that instant, so its events ride the fast road like a Take (the sender names
+  the clock-free graphics off the PUBLISHED payload); an event that ends up slow for any other
+  reason still takes the 1200 ms hold with it. ACROSS DEVICES that is not fixable from one
   sender: an event from one operator and a Take from another, inside one fan-out window, can still
   land in different orders on different renderers. The durable log stays the record.
 - **A cost check.** One broadcast per verb, alongside the row that was already being written; the
