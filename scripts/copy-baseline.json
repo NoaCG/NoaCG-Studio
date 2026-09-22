@@ -83,10 +83,10 @@
       "em-dash": 6
     },
     "src/components/home/ProductionLinks.tsx": {
-      "em-dash": 5
+      "em-dash": 4
     },
     "src/components/home/ProductionPage.tsx": {
-      "em-dash": 24
+      "em-dash": 22
     },
     "src/components/home/ProductionPicker.tsx": {
       "em-dash": 2

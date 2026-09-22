@@ -211,6 +211,19 @@ function nameList(names: string[]): string {
 }
 
 /**
+ * What the account gate says, in the dialog's first line. Plain words about what the press does
+ * and why it needs an account: publishing creates hosted rows (the output, control and audience
+ * links) that must belong to someone who can take them down again. Everything else on this page
+ * works without one, and the dialog's own second line says so.
+ */
+const PUBLISH_NEEDS_ACCOUNT =
+  'Starting a production puts it online, and that needs a free account. Sign in and it starts straight away.';
+const UNPUBLISH_NEEDS_ACCOUNT =
+  'Taking this production offline needs the account that published it. Sign in first, then unpublish.';
+const CLAIM_NEEDS_ACCOUNT =
+  'Changing the audience link needs the account that published this production. Sign in first.';
+
+/**
  * THE PLAYOUT DASHBOARD (route `#/production/<id>`) — the surface an operator runs a production
  * from. Its design contract is **docs/PLAYOUT_DASHBOARD.md**; the hosted control page and the
  * exported controller render the same one, and a change here that is not in that doc is a
@@ -257,8 +270,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const show: Show | null = shows.find((s) => s.id === id) ?? null;
 
   const backendConfigured = isBackendConfigured();
-  const { needsSignIn } = useAuthState();
+  const { needsSignIn, status: authStatus } = useAuthState();
   const openSignIn = useAuthUi((s) => s.openSignIn);
+  const signInOpen = useAuthUi((s) => s.signInOpen);
+  /**
+   * Start production was pressed while signed out, and the sign-in dialog is up because of it.
+   * Signing in from that dialog finishes what the press asked for, so the reader does not have to
+   * find the button a second time; closing the dialog without signing in forgets the press, so a
+   * sign-in much later (from the topbar, say) never puts a production online by surprise. If the
+   * two auth updates ever arrive in separate renders, the press is forgotten and the button is
+   * simply pressed again - the safe direction to fail in.
+   */
+  const publishAfterSignIn = useRef(false);
+  const publishRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    if (!publishAfterSignIn.current) return;
+    if (authStatus === 'signed-in') {
+      publishAfterSignIn.current = false;
+      void publishRef.current();
+    } else if (!signInOpen) {
+      publishAfterSignIn.current = false;
+    }
+  }, [authStatus, signInOpen]);
 
   const [note, setNote] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -1441,12 +1474,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const clashes = duplicateLayers(show.graphics);
 
   /**
+   * THE ACCOUNT GATE for the three verbs here that write hosted rows: publish, unpublish and
+   * claiming the audience name. Row-level security only lets an account touch its own
+   * `control_shows` row, and a signed-out write is not refused - it matches no row and reports
+   * success. So without this, a signed-out Unpublish said "unpublished" while the output kept
+   * running, and a claim said the new name was live when nothing had changed. Returns true when
+   * the verb must stop. Offline (no backend) it never blocks: those verbs answer for themselves
+   * there, and an offline build must grow no auth UI.
+   */
+  const accountBlocks = (reason: string): boolean => {
+    if (!backendConfigured) return false;
+    if (authStatus === 'loading') {
+      setNote('Still checking your account. Try that again in a moment.');
+      return true;
+    }
+    if (needsSignIn) {
+      openSignIn(reason);
+      return true;
+    }
+    return false;
+  };
+
+  /**
    * Claim the readable audience name. The database owns every rule (0035's shape constraint,
    * reserved list and unique index), so this only asks and reports - and on success it adopts
    * the name locally, because `joinUrl` is built from the stored slug and would otherwise keep
    * showing the old one until a republish.
    */
   const claimName = async () => {
+    if (accountBlocks(CLAIM_NEEDS_ACCOUNT)) return;
     setBusy(true);
     try {
       const failure = await claimJoinName(show.id, nameDraft);
@@ -1587,8 +1643,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   const publish = async () => {
-    if (needsSignIn) {
-      openSignIn('Publishing a production needs an account — the hosted pages live in your cloud space.');
+    if (accountBlocks(PUBLISH_NEEDS_ACCOUNT)) {
+      // Only a real sign-in prompt is worth finishing; the "still checking" answer is not one.
+      if (needsSignIn) publishAfterSignIn.current = true;
       return;
     }
     flushDraft();
@@ -1609,7 +1666,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setLinksOpen(true);
         setNote('✓ Published. Load the output URL in your browser source once — it stays the same across re-publishes.');
       } else {
-        setNote('Publishing needs the cloud backend — this build runs offline.');
+        setNote('Publishing needs the cloud backend, and this build runs offline.');
       }
     } catch (e) {
       setNote(`Publish failed: ${(e as Error).message}`);
@@ -1618,7 +1675,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
   };
 
+  publishRef.current = publish;
+
   const unpublish = async () => {
+    if (accountBlocks(UNPUBLISH_NEEDS_ACCOUNT)) return;
     setBusy(true);
     try {
       await unpublishControlShow(show.id);
@@ -2465,6 +2525,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onCopy={copy}
           embedFileName={outputEmbedFileName(show.name)}
           onDownloadEmbed={downloadEmbed}
+          needsSignIn={needsSignIn}
           onPublish={() => void publish()}
           onUnpublish={() => void unpublish()}
         />

@@ -452,7 +452,9 @@ const MAP = [
   // own rule (`src/components/(home|save)/` above) does not name that spec. Rules union, so this
   // adds it rather than replacing what those files already select. `src/backend/teams.ts` needs
   // no row: the `src/backend/` rule already reaches auth.spec.ts.
-  [/^(src\/components\/teams\/|src\/components\/home\/(ProductionPage|sections\/ProductionsSection)\.tsx$)/, ['auth.spec.ts']],
+  // ProductionLinks carries the Start production button, whose offline title auth.spec.ts pins
+  // (the page's own auth posture: disabled, a plain reason, no sign-in dialog).
+  [/^(src\/components\/teams\/|src\/components\/home\/(ProductionPage|ProductionLinks|sections\/ProductionsSection)\.tsx$)/, ['auth.spec.ts']],
   // AGENT ACCESS (docs/AGENT_SAVE.md): the consent query route, the Settings key list, the
   // browser client and the two /api/me routes it calls. The offline spec pins the no-backend
   // posture; the live half is e2e/configured/agent-access.spec.ts (CONFIGURED_TRIGGERS).

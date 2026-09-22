@@ -9,7 +9,6 @@ import { useVideoProjectStore, type VideoPanelTab } from '../../store/videoProje
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import AuthStatus from '../auth/AuthStatus';
-import SignInDialog from '../auth/SignInDialog';
 import SyncStatus from '../SyncStatus';
 import { useIsMobile } from '../useIsMobile';
 import { useAdvancedMode } from '../useAdvancedMode';
@@ -272,9 +271,6 @@ export default function VideoAppShell() {
       {/* Creation wizard overlay - the app-wide new-project flow (both shells mount it). */}
 
       {savedOpen && <SavedVideoProjects onClose={() => setSavedOpen(false)} />}
-
-      {/* On-demand sign-in dialog - opened by account-gated features (AI chat, sync). */}
-      <SignInDialog />
     </div>
   );
 }

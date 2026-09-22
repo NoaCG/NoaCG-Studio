@@ -119,7 +119,12 @@ export default function GraphicControlPage({ id }: { id: string }) {
       setLookup('found');
       return;
     }
-    if (lookupRef.current?.id === id && lookupRef.current.status !== 'needs-sign-in') return;
+    // Skip only a SETTLED answer. A lookup still 'looking' has had its result thrown away by the
+    // cleanup below (`live = false`), so returning here left the page on "Opening…" for good -
+    // every time in development (StrictMode runs this effect twice on mount), and in production
+    // whenever the auth state resolved to signed-in while the first lookup was in flight.
+    const settled = lookupRef.current?.status;
+    if (lookupRef.current?.id === id && (settled === 'found' || settled === 'unknown')) return;
     lookupRef.current = { id, status: 'looking' };
     setDoc(null);
     setLookup('looking');

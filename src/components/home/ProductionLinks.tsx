@@ -190,6 +190,7 @@ export default function ProductionLinks({
   onCopy,
   embedFileName,
   onDownloadEmbed,
+  needsSignIn,
   onPublish,
   onClose,
   onUnpublish,
@@ -212,6 +213,9 @@ export default function ProductionLinks({
   onCopy: (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => void;
   embedFileName: string;
   onDownloadEmbed: () => void;
+  /** A backend is configured and nobody is signed in. The button stays LIVE - pressing it is
+   *  what opens the sign-in - and its tooltip says the need before anyone presses. */
+  needsSignIn: boolean;
   onPublish: () => void;
   onClose: () => void;
   onUnpublish: () => void;
@@ -223,9 +227,11 @@ export default function ProductionLinks({
         onClick={onPublish}
         disabled={busy || !backendConfigured}
         title={
-          backendConfigured
-            ? 'Publish: one persistent output URL for CasparCG/OBS/vMix and one control page for operating'
-            : 'Publishing needs the cloud backend — this build runs offline'
+          !backendConfigured
+            ? 'Publishing needs the cloud backend, and this build runs offline'
+            : needsSignIn
+              ? 'Puts this production online: one output URL for CasparCG, OBS or vMix and one control page. Needs a free account.'
+              : 'Publish: one persistent output URL for CasparCG/OBS/vMix and one control page for operating'
         }
         data-testid="production-publish"
       >

@@ -22,7 +22,6 @@ import { BetaFeedbackButton } from './feedback/BetaFeedback';
 import InsertTemplateDialog from './InsertTemplateDialog';
 import { useRouter } from '../app/router';
 import AuthStatus from './auth/AuthStatus';
-import SignInDialog from './auth/SignInDialog';
 import { useAuthState } from './auth/useAuthState';
 import { useAuthUi } from './auth/authUi';
 import SyncStatus from './SyncStatus';
@@ -502,9 +501,6 @@ export default function AppShell() {
 
       {/* Moderator takedown queue overlay — only reachable when the button is shown (a moderator). */}
       {moderationOpen && <ModerationQueue onClose={() => setModerationOpen(false)} />}
-
-      {/* On-demand sign-in dialog — opened by the topbar button or any account-gated feature. */}
-      <SignInDialog />
     </div>
   );
 }
