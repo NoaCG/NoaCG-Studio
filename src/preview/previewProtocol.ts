@@ -36,6 +36,20 @@ export type PreviewCmd =
   // the same log row agree. Absent for an editor-driven dispatch, which has neither.
   | { cmd: 'dispatch'; event: string; payload?: Record<string, string>; at?: number }
   | { cmd: 'state' }
+  /**
+   * TAKE THIS DOCUMENT OFF AIR WITHOUT STOPPING IT: its root paints fully transparent while
+   * everything inside keeps running at full speed.
+   *
+   * The browser-output renderer needs a graphic to be invisible and STILL TICKING while it
+   * replays a boot catch-up off air. Hiding the stage from the outside cannot do that: Chromium
+   * throttles the rendering of an iframe its embedder has made invisible, and a sandboxed
+   * template document is exactly such a frame - measured on CasparCG 2.5.0 (2026-09-22), the
+   * replayed timelines crawled at about 1 Hz behind an `opacity: 0` stage and then ran the rest
+   * of their entrances and exits on air the moment it was revealed. Hidden from INSIDE, the
+   * frame stays visible to the compositor, keeps its full frame rate, and the replay is over
+   * before anything comes back.
+   */
+  | { cmd: 'offair'; on: boolean }
   /** Editor scrub (StepTimeline/LegacyTimeline): pause the named phase's timeline at `time`
    *  seconds. `from` is the branch phase's canonical predecessor state — computed on the app
    *  side (blocks/animMachine.ts canonicalPath, off the template model) and passed in, since the
@@ -99,6 +113,22 @@ export interface PreviewStateMessage {
    * two answers, and a template that has neither still replies `{ state: null }` as before.
    */
   overflow?: string[] | null;
+  /**
+   * HOW FAR THE DOCUMENT'S ANIMATIONS HAVE RUN — the summed playhead of every animation GSAP
+   * holds plus every web animation the document is running, in milliseconds. It is a reading, not a verdict: two consecutive replies with the
+   * SAME number mean nothing moved in between, which is how a caller tells a settled graphic
+   * from one still playing.
+   *
+   * The browser-output renderer's boot catch-up replays missed commands off air and has to know
+   * when that replay has finished before it comes back on air. A fixed timer cannot know, and a
+   * renderer that guessed short put the replay's exits on air (docs/CLOUD_PLAYOUT.md §3).
+   * Asking "is any tween active" was tried first and is wrong: a template leaves a built-but-
+   * unplayed timeline parked on the global timeline, and GSAP reports that one as active for
+   * ever (measured 2026-09-22 on the house lower third). A playhead that stops advancing is the
+   * honest question. It rides the state reply for the same reason `overflow` does: the asking is
+   * already there. `undefined` from a document that predates the field or carries no GSAP.
+   */
+  motion?: number;
 }
 
 /** Pushed on every animation frame by the document (composeDocument's `simulate` script), so a
