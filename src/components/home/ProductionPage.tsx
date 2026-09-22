@@ -2423,16 +2423,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 ? // An adjust press moves a figure WITH the event (a goal's +1), counted from
                   // what air shows; a `set` press puts one back to a declared figure (a reset);
                   // an `add` press puts a line on a list - the hint says which, and to what.
-                  `Fires "${b.event}" on air and moves ${moved} with it`
+                  // The FIELD's name is what tells two identically labelled buttons apart: five
+                  // "+1" presses sit on a totals board, and it is "moves Points 3 +1" that says
+                  // which panelist this one is.
+                  `Fires ${label} on the live graphic and moves ${moved} with it.`
                 : b.payload?.length
                   ? // The payload in the OPERATOR'S words, not as `f7`. This is what makes an
                     // action self-explanatory: the acceptance pass could not tell what "Show
                     // audience result" would do, and the answer is "it shows the Audience results
                     // field, which you type above" — a field id says none of that.
-                    `Fires "${b.event}" on air, carrying this cue's ${b.payload
+                    `Fires ${label} on the live graphic, carrying this cue's ${b.payload
                       .map((key) => descriptors.find((d) => d.key === key)?.label ?? key)
-                      .join(', ')}`
-                  : `Fires "${b.event}" on air`
+                      .join(', ')}.`
+                  : `Fires ${label} on the live graphic.`
         }
         onClick={() => void fireEvent(b)}
         data-testid={`cue-action-${b.event}`}

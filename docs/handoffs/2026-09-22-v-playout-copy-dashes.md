@@ -52,17 +52,38 @@ why they are out of scope.
   press ✎ Update` (its hosted twin had the em-dash form) and `HomePage.tsx`'s shelf-card Open
   tooltip (its library-row twin is in `GraphicRow.tsx`, which was in scope).
 
-## Where I am least sure
+## The three rewrites I flagged, and how they were settled
 
-1. **`Fires "reveal", but only where the graph allows it.`** The old form put the qualifier after
-   a dash. A comma plus "but only" is the plainest thing I could find, but it reads slightly
-   formal for a hover on a button an operator presses in a hurry. The alternative was two
-   sentences, which is long for a tooltip.
-2. **`This is the live graphic's current state, and the greying is judged against it.`** on the
-   state chip when a state is known. The chip's text is already the state name, so the tooltip
-   now repeats the name and then explains it. That is one clause longer than the old line.
-3. **`PROGRAM · ON AIR`.** The owner walk asks him about it directly, because it is the one place
-   a separator survived rather than becoming words.
+I raised three of these with the coordinator rather than the owner, and all three came back
+decided. They are in `322d2eb5`.
+
+1. **The hosted ⚡ button's hover named the machine, twice over.** My first rewrite kept both the
+   event id and "where the graph allows it". Neither is a word an operator meets anywhere else on
+   that page, and the hosted page is the one surface a student drives WITHOUT the app. It now
+   follows the shape row P landed: a greyed button carries `illegalEventTitle(label)`, the shared
+   sentence the production dashboard and the graphic control page already use, and an enabled one
+   says what the press does in the button's own label, `Fires Reveal choice on the live graphic.`
+   `eventHint` asks `isEventLegal` with the same three arguments the button's own `disabled` does,
+   so the greying and the sentence explaining it cannot drift apart. That closed a real gap: this
+   page had no illegal-state wording at all, and greyed buttons here were showing the enabled
+   hover.
+2. **The state chip's hover no longer echoes the chip.** It reads `Where the live graphic is now:
+   <state>. Greyed actions are judged against this.` I kept the state inside the sentence rather
+   than dropping it, against the letter of the ruling, because `.pd-state-chip` truncates with an
+   ellipsis: the CSS comment at `playout-dashboard.css:711` says in as many words that it may mark
+   a truncation honestly only because the full text is in the title attribute, and a scorebug's
+   four-group label is about 65 characters. The graphic control page's own chip does NOT truncate
+   (`.control-state-chip` has `white-space: nowrap` and no overflow rule), so that one carries the
+   ruling's sentence verbatim with no state in it.
+3. **`PROGRAM · ON AIR` stands, and is not a question for the owner.** A sentence reads wrong in a
+   two-word heading beside a bare `PREVIEW`, and the middle dot is already this page's separator.
+   It is a taste call inside the house style, so it is decided here and the owner walk states it
+   rather than asking.
+
+The in-app dashboard and the graphic control page still say `Fires "revealChoice" on air` for an
+ENABLED action, the same event-id wording the hosted page just lost. Their greyed state is already
+row P's sentence, so this is the last of that vocabulary on the playout surfaces and it wants one
+more small row. `e2e/agent-made-graphics.spec.ts:69` and `:103` pin both strings.
 
 ## Left, and why
 
@@ -91,13 +112,19 @@ button, so it is now one `stepTitle` per field. Reuse and altitude both came up 
 renderers repeat these sentences by design (the exported controller is standalone and can import
 nothing), which `docs/CONTROL_PANEL_PARITY.md` owns.
 
-`verify: inline`. `npm run build` exit 0 at `eb72d74c` and again after the simplify edit, read
-from the build's own exit code. Job `j-1770` ran the affected set (31 specs) on `4605f573`, 344
-passed and 3 failed, which is where the assertion breakages came from. `j-1772` re-ran after the
-fixes, and by then the plan had escalated to the FULL suite plus the catalog battery: `src/styles`
-is CORE in `scripts/e2e-lists.mjs`, so the one-line comment correction in
-`playout-dashboard.css` widens the run. That is the mapping working, and CI will escalate the same
-way. Screenshots of the control area at 1366x768 came from `j-1773`.
+`verify: inline`. `npm run build` exit 0 at every commit, read from the build's own exit code and
+never through a pipe. Job `j-1770` ran the affected set (31 specs) on `4605f573`: 344 passed, 3
+failed, which is where the assertion breakages came from. `j-1772` re-ran after the fixes, and by
+then the plan had escalated to the FULL suite plus the catalog battery, because `src/styles` is
+CORE in `scripts/e2e-lists.mjs` and I corrected a comment in `playout-dashboard.css`. That is the
+mapping working, and CI will escalate the same way. It came back **1442 passed, 4 failed**, and
+none of the four is this branch's: a wizard modal that never opened (`import-stretch:163`), an
+exported-controller PREVIEW showing the previous cue's text rather than a wrong string
+(`import-svg-behaviour:1344`), a ticker that did not travel (`public-service:65`) and a wizard
+preview losing its artwork (`wizard-preview:518`). All four are load-shaped on a RAM-bound laptop
+running the suite and the catalog battery together, and the quarantine list is empty, so none of
+them is a known flake on paper. `j-1774` re-ran all four plus every spec covering the files the
+rulings touched, on the final tip. `j-1775` took the screenshots.
 
 `taste: not applicable`. No graphic's rendering changed, only chrome copy, tooltips and two
 document titles.
@@ -105,5 +132,5 @@ document titles.
 ## Commits
 
 `5f734b30` the copy itself, `4605f573` the two documents plus the owner walk, `eb72d74c` the
-assertions and quotes the review and the suite found, `<simplify>` the one hover string, then this
-handoff.
+assertions and quotes the review and the suite found, `56465a5d` the simplify pass's one hover
+string, `322d2eb5` the three rulings above, then this handoff.

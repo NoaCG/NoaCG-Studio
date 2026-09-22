@@ -781,12 +781,12 @@ export default function GraphicControlPage({ id }: { id: string }) {
                             !legal
                               ? illegalEventTitle(b.label)
                               : moved
-                                ? `Fires "${b.event}" and moves ${moved} with it`
+                                ? `Fires ${b.label} on the live graphic and moves ${moved} with it.`
                                 : b.payload?.length
                                   ? active
-                                    ? `Fires "${b.event}" with ${payloadWords(b)} from “${active.label}”`
-                                    : `Fires "${b.event}". ${payloadWords(b)} ride this event from the ACTIVE ENTRY. With none selected, the graphic keeps its current values.`
-                                  : `Fire "${b.event}"`
+                                    ? `Fires ${b.label} on the live graphic with ${payloadWords(b)} from “${active.label}”.`
+                                    : `Fires ${b.label} on the live graphic. ${payloadWords(b)} ride this event from the ACTIVE ENTRY. With none selected, the graphic keeps its current values.`
+                                  : `Fires ${b.label} on the live graphic.`
                           }
                           data-testid={`control-event-${b.event}`}
                         >
