@@ -7,9 +7,10 @@ the playout pages. Owner walk: `docs/acceptance/owner-queue/2026-09-22-v-playout
 
 ## What changed
 
-**68 user-visible strings**, across nine files: 67 carrying an em dash and one carrying a hyphen
-used the same way. Every em dash an operator can read on a playout surface is gone, and the rule
-was the same as row P's: the dash becomes a plain sentence, never a hyphen and never a semicolon.
+**68 user-visible strings** carried a dash, across nine files: 67 an em dash and one a hyphen used
+the same way. Every em dash an operator can read on a playout surface is gone, and the rule was the
+same as row P's: the dash becomes a plain sentence, never a hyphen and never a semicolon. Seven
+more strings changed for the two rulings below, which are about vocabulary rather than punctuation.
 
 | File | Strings |
 | --- | --- |
@@ -80,10 +81,22 @@ decided. They are in `322d2eb5`.
    It is a taste call inside the house style, so it is decided here and the owner walk states it
    rather than asking.
 
-The in-app dashboard and the graphic control page still say `Fires "revealChoice" on air` for an
-ENABLED action, the same event-id wording the hosted page just lost. Their greyed state is already
-row P's sentence, so this is the last of that vocabulary on the playout surfaces and it wants one
-more small row. `e2e/agent-made-graphics.spec.ts:69` and `:103` pin both strings.
+**All three surfaces now say the same thing**, which was the point. The in-app dashboard and the
+graphic control page had kept the event id for an ENABLED action, so one button was described
+three ways depending on where an operator was standing. Every one of them now opens
+`Fires <the button's own label> on the live graphic`, and each keeps the clause that says what
+rides with the press: the moved figure, the payload named in the operator's words, or, on the
+graphic control page, which entry the values come from.
+
+One sentence reads slightly worse than the id it replaced, and it is worth knowing about. A totals
+board labels five separate presses `+1`, so `plus3`'s hover is now
+`Fires +1 on the live graphic and moves Points 3 +1 with it.` The label alone does not say which
+panelist; the FIELD name does, and the old id said neither in words an operator knows. The two
+assertions in `e2e/agent-made-graphics.spec.ts` carry that reasoning in a comment so the next
+reader does not think the repetition is a bug.
+
+`src/components/ControlPanel.tsx` and `timeline/PlayoutSimulator.tsx` still use the id. They are
+EDITOR surfaces, not playout ones, and row P left them for the same reason.
 
 ## Left, and why
 
@@ -124,7 +137,15 @@ exported-controller PREVIEW showing the previous cue's text rather than a wrong 
 preview losing its artwork (`wizard-preview:518`). All four are load-shaped on a RAM-bound laptop
 running the suite and the catalog battery together, and the quarantine list is empty, so none of
 them is a known flake on paper. `j-1774` re-ran all four plus every spec covering the files the
-rulings touched, on the final tip. `j-1775` took the screenshots.
+rulings touched: **183 passed, 0 failed**, so all four were load flakes and none of them is this
+branch's. `j-1775` took the screenshots, 5 passed. `j-1776` is the final run over the specs the
+three-surface unification touches.
+
+**The screenshots, read for wrapping** (`fixed-panes-1366x768-long-top.png`, plus the 390px pair
+for the case the CSS comment names). `PROGRAM · ON AIR` is one line at both widths, and legible at
+the 9px the 390px rule drops the monitor heading to. The graphic-actions help is still two lines
+and the live-numbers help still one, exactly as before the rewrite: `, with no ✎ Update needed` is
+shorter than the ` — no ✎ Update needed` it replaced, so nothing grew and no control moved.
 
 `taste: not applicable`. No graphic's rendering changed, only chrome copy, tooltips and two
 document titles.

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   adjustWords,
+  controlName,
+  labelCarriesDelta,
   arrangeControls,
   arrangeFor,
   eventButtons,
@@ -1500,21 +1502,27 @@ function HostedCueEditor({
    * It asks `isEventLegal` with the same three arguments the button's own `disabled` does, so the
    * greying and the sentence explaining it cannot disagree.
    *
-   * Empty `moved` words mean everything the press moves is a hidden holder (the reported-field
-   * pattern), which has no operator name and so gets no clause rather than its field id.
+   * `section` is the heading DRAWN over the button, which `controlName` folds into the name so
+   * five presses labelled "+1" are told apart by the word above them. Empty `moved` words mean
+   * everything the press moves is a hidden holder (the reported-field pattern), which has no
+   * operator name and so gets no clause rather than its field id.
    */
-  const eventHint = (e: ControlButton, label: string) => {
+  const eventHint = (e: ControlButton, label: string, section?: string) => {
     if (!isEventLegal(legality, e.event, liveState)) return illegalEventTitle(label);
-    const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label);
+    const name = controlName(label, section);
+    const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label, {
+      delta: !labelCarriesDelta(e, label),
+    });
     return moved
-      ? `Fires ${label} on the live graphic and moves ${moved} with it.`
-      : `Fires ${label} on the live graphic.`;
+      ? `Fires ${name} on the live graphic and moves ${moved} with it.`
+      : `Fires ${name} on the live graphic.`;
   };
 
   /** One ⚡ button. The block draws the same button pinned, in its section and under "More", and
    *  three copies of this press would drift apart. The DECLARATION (`e`) decides what the press
-   *  sends and whether it greys; the arrangement decides only the word and where it sits. */
-  const actionButton = ({ button: e, label }: ArrangedControl) => (
+   *  sends and whether it greys; the arrangement decides only the word and where it sits, and
+   *  `section` is the heading over it where the block draws one. */
+  const actionButton = ({ button: e, label }: ArrangedControl, section?: string) => (
     <button
       key={e.event}
       disabled={!isEventLegal(legality, e.event, liveState)}
@@ -1541,7 +1549,7 @@ function HostedCueEditor({
           // order stops a refused press moving every other bound graphic.
         ]).then((sent) => { if (sent) void onPatchBound(tree); });
       }}
-      title={eventHint(e, label)}
+      title={eventHint(e, label, section)}
     >
       ⚡ {label}
     </button>
@@ -1768,22 +1776,27 @@ function HostedCueEditor({
           {/* PINNED, above the fold and above the section headings — the in-app page's shape. */}
           {arranged.pinned.length > 0 && (
             <div className="pd-actions-row pd-actions-pinned" data-testid="hosted-actions-pinned">
-              {arranged.pinned.map(actionButton)}
+              {arranged.pinned.map((c) => actionButton(c))}
             </div>
           )}
-          {arranged.sections.map(([section, controls]) => (
-            <div key={section} className="pd-actions-section">
-              {(arranged.sections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
-              <div className="pd-actions-row">{controls.map(actionButton)}</div>
-            </div>
-          ))}
+          {arranged.sections.map(([section, controls]) => {
+            // ONE expression decides both whether the heading is drawn and whether the hover
+            // borrows it, so a hover can never name a word that is not on screen.
+            const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
+            return (
+              <div key={section} className="pd-actions-section">
+                {heading && <h4>{heading}</h4>}
+                <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
+              </div>
+            );
+          })}
           {/* HIDDEN, behind one disclosure. It matters most HERE: this is the surface a class
               drives from a phone, away from the app, so a control the production tucked away is
               still one tap from the operator who turns out to need it. */}
           {arranged.more.length > 0 && (
             <details className="pd-actions-more" data-testid="hosted-actions-more">
               <summary>More ({arranged.more.length})</summary>
-              <div className="pd-actions-row">{arranged.more.map(actionButton)}</div>
+              <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
             </details>
           )}
           {/* COMBINED, this production's own buttons (§6b) — LAST in the block, same section and

@@ -285,7 +285,12 @@ export function sourceKeys(button: Pick<ControlButton, 'add' | 'remove'>): strin
 export function adjustWords(
   button: MovingButton,
   labelOf: (key: string) => string | undefined,
+  opts: { delta?: boolean } = {},
 ): string {
+  // `delta: false` drops the "+1" from an adjust phrase, for a caller whose BUTTON already says
+  // how much (`labelCarriesDelta`). The number stays everywhere else: a control worded "Goal"
+  // that moves a score by one has to say the one somewhere.
+  const withDelta = opts.delta ?? true;
   // `add`/`remove` move a line INTO or OUT OF a list, and the list is the half the operator
   // recognises - so the destination decides whether there is a sentence at all. An unnameable
   // SOURCE (a hidden holder, which the contract allows as a word source) becomes "a line":
@@ -297,7 +302,8 @@ export function adjustWords(
   return [
     ...Object.entries(button.adjust ?? {}).flatMap(([key, delta]) => {
       const label = labelOf(key);
-      return label ? [`${label} ${delta > 0 ? '+' : ''}${delta}`] : [];
+      if (!label) return [];
+      return [withDelta ? `${label} ${delta > 0 ? '+' : ''}${delta}` : label];
     }),
     ...Object.entries(button.set ?? {}).flatMap(([key, value]) => {
       const label = labelOf(key);
@@ -307,6 +313,11 @@ export function adjustWords(
     ...Object.entries(button.remove ?? {}).flatMap(([key, source]) => listPhrase(key, source, 'out of')),
   ].join(', ');
 }
+
+/** How a ⚡ button names itself in its own hover. They live in `control/controlWords.ts`, which
+ *  imports nothing so its unit test can load it alone, and are re-exported here because every
+ *  surface already reaches for its control vocabulary through this module. */
+export { controlName, labelCarriesDelta } from './controlWords';
 
 // ── ARRANGE: how the controls a graphic declares are GROUPED AND ORDERED for an operator ─────
 //

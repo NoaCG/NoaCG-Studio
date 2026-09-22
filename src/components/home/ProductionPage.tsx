@@ -100,6 +100,8 @@ import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import {
   adjustWords,
+  controlName,
+  labelCarriesDelta,
   adjustedValue,
   arrangeControls,
   arrangeFor,
@@ -2403,12 +2405,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** One ⚡ button. Written once because the block draws the same button in three places now —
    *  pinned above the fold, inside its section, and under the collapsed "More" — and three copies
    *  of a tooltip this careful would drift apart by the second edit. The DECLARATION decides
-   *  everything the press does; the arrangement decides only the word and where it sits. */
-  const actionButton = ({ button: b, label }: ArrangedControl) => {
+   *  everything the press does; the arrangement decides only the word and where it sits.
+   *
+   *  `section` is the heading DRAWN over this button, and only the middle of those three places
+   *  has one. It names the button in the hover (`controlName`), so five presses all labelled
+   *  "+1" are told apart by the word the operator can already see above them. */
+  const actionButton = ({ button: b, label }: ArrangedControl, section?: string) => {
     const legal = isEventLegal(legality, b.event, machineState);
+    const name = controlName(label, section);
     // Empty when everything the press moves is a hidden holder, which is the reported-field
-    // pattern: the hint then falls through to the payload.
-    const moved = adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label);
+    // pattern: the hint then falls through to the payload. The delta is dropped when the BUTTON
+    // already carries it, so a "+1" press reads "moves Points 3 with it" rather than saying one
+    // twice.
+    const moved = adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label, {
+      delta: !labelCarriesDelta(b, label),
+    });
     return (
       <button
         key={b.event}
@@ -2423,19 +2434,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 ? // An adjust press moves a figure WITH the event (a goal's +1), counted from
                   // what air shows; a `set` press puts one back to a declared figure (a reset);
                   // an `add` press puts a line on a list - the hint says which, and to what.
-                  // The FIELD's name is what tells two identically labelled buttons apart: five
-                  // "+1" presses sit on a totals board, and it is "moves Points 3 +1" that says
-                  // which panelist this one is.
-                  `Fires ${label} on the live graphic and moves ${moved} with it.`
+                  `Fires ${name} on the live graphic and moves ${moved} with it.`
                 : b.payload?.length
                   ? // The payload in the OPERATOR'S words, not as `f7`. This is what makes an
                     // action self-explanatory: the acceptance pass could not tell what "Show
                     // audience result" would do, and the answer is "it shows the Audience results
                     // field, which you type above" — a field id says none of that.
-                    `Fires ${label} on the live graphic, carrying this cue's ${b.payload
+                    `Fires ${name} on the live graphic, carrying this cue's ${b.payload
                       .map((key) => descriptors.find((d) => d.key === key)?.label ?? key)
                       .join(', ')}.`
-                  : `Fires ${label} on the live graphic.`
+                  : `Fires ${name} on the live graphic.`
         }
         onClick={() => void fireEvent(b)}
         data-testid={`cue-action-${b.event}`}
@@ -3176,22 +3184,27 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 would be the sections again, one fold higher. */}
             {arranged.pinned.length > 0 && (
               <div className="pd-actions-row pd-actions-pinned" data-testid="cue-actions-pinned">
-                {arranged.pinned.map(actionButton)}
+                {arranged.pinned.map((c) => actionButton(c))}
               </div>
             )}
-            {arranged.sections.map(([section, controls]) => (
-              <div key={section} className="pd-actions-section">
-                {(arranged.sections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
-                <div className="pd-actions-row">{controls.map(actionButton)}</div>
-              </div>
-            ))}
+            {arranged.sections.map(([section, controls]) => {
+              // ONE expression decides both whether the heading is drawn and whether the hover
+              // borrows it, so a hover can never name a word that is not on screen.
+              const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
+              return (
+                <div key={section} className="pd-actions-section">
+                  {heading && <h4>{heading}</h4>}
+                  <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
+                </div>
+              );
+            })}
             {/* HIDDEN, behind one disclosure. A production hiding a control is saying "not in my
                 way", which is not the same as "gone": the machine still accepts it, and an
                 operator who needs it mid-show must not have to open the authoring panel. */}
             {arranged.more.length > 0 && (
               <details className="pd-actions-more" data-testid="cue-actions-more">
                 <summary>More ({arranged.more.length})</summary>
-                <div className="pd-actions-row">{arranged.more.map(actionButton)}</div>
+                <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
               </details>
             )}
             {/* COMBINED, this production's own buttons (§6b). LAST in the block on purpose: the

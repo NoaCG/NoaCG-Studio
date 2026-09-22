@@ -66,7 +66,7 @@ test('an agent-authored machine brings its own button, greyed until the cue is o
   await expect(reveal).toBeEnabled();
   await expect(reveal).toHaveAttribute(
     'title',
-    "Fires Reveal performer on the live graphic, carrying this cue's Correct.",
+    "Fires Song Reveal performer on the live graphic, carrying this cue's Correct.",
   );
   expect(await reveal.getAttribute('title')).not.toMatch(/\bf\d+\b/);
 
@@ -96,15 +96,17 @@ test('the totals board declares eleven controls and every one of them renders in
   // read differently from the ten presses beside it.
   await expect(page.getByTestId('cue-action-newGame')).toHaveClass(/destructive/);
 
-  // An `adjust` control names the FIELD it moves, by title, and by how much. That field name is
-  // also what tells this button from its four neighbours: every panelist's press is labelled "+1",
-  // so "moves Points 3 +1" is the only part of the sentence that says which panelist. The hint
-  // used to open with the machine's own `plus3` instead, which named the button at the cost of
-  // naming it in a vocabulary no operator has seen.
+  // THE BUTTON IS NAMED BY THE HEADING OVER IT, and the field it moves is named without the
+  // number. Every panelist's press is labelled "+1", so the label alone names nobody and the
+  // section - the word drawn above the row - is what tells this one from its four neighbours.
+  // The delta then drops out of the moved clause, because the button already says "+1" and
+  // reading the same number twice is what this sentence used to ask of an operator. It opened
+  // with the machine's own `plus3` before that, which named the button in a vocabulary nobody
+  // has seen. Both halves are `controlName` and `labelCarriesDelta` in src/control/controlModel.
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('cue-action-plus3')).toHaveAttribute(
     'title',
-    'Fires +1 on the live graphic and moves Points 3 +1 with it.',
+    'Fires Panelist 3 +1 on the live graphic and moves Points 3 with it.',
   );
 });
 

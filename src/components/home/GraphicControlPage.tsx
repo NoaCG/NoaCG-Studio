@@ -5,6 +5,8 @@ import { graphicById, newEntry, updateGraphic, type ControlEntry, type GraphicDo
 import { commitDurableWrites } from '../../model/durableStore';
 import {
   adjustWords as adjustWordsFor,
+  controlName,
+  labelCarriesDelta,
   fieldDescriptors,
   eventButtons,
   eventLegality,
@@ -175,7 +177,8 @@ export default function GraphicControlPage({ id }: { id: string }) {
    *  "carrying Audience results" is the whole explanation, "carrying f7" is none of it. */
   const payloadWords = (b: ControlButton): string =>
     (b.payload ?? []).map((key) => descriptors.find((d) => d.key === key)?.label ?? key).join(', ');
-  const adjustWords = (b: ControlButton): string => adjustWordsFor(b, (key) => descriptors.find((d) => d.key === key)?.label);
+  const adjustWords = (b: ControlButton, opts?: { delta?: boolean }): string =>
+    adjustWordsFor(b, (key) => descriptors.find((d) => d.key === key)?.label, opts);
   const eventSections = useMemo(() => {
     const sections: [string, ControlButton[]][] = [];
     for (const b of buttons) {
@@ -767,10 +770,14 @@ export default function GraphicControlPage({ id }: { id: string }) {
                   <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
                     {btns.map((b) => {
                       const legal = isEventLegal(legality, b.event, machineState);
+                      // The heading over this button is ALWAYS drawn here, unlike the dashboard's,
+                      // so the hover can always borrow it: five presses labelled "+1" are told
+                      // apart by the panelist named above them.
+                      const name = controlName(b.label, section);
                       // Empty when everything the press moves is a hidden holder (the
                       // reported-field pattern), and the payload wording is then what the
-                      // operator needed anyway.
-                      const moved = adjustWords(b);
+                      // operator needed anyway. The delta goes when the button already says it.
+                      const moved = adjustWords(b, { delta: !labelCarriesDelta(b, b.label) });
                       return (
                         <button
                           key={b.event}
@@ -781,12 +788,12 @@ export default function GraphicControlPage({ id }: { id: string }) {
                             !legal
                               ? illegalEventTitle(b.label)
                               : moved
-                                ? `Fires ${b.label} on the live graphic and moves ${moved} with it.`
+                                ? `Fires ${name} on the live graphic and moves ${moved} with it.`
                                 : b.payload?.length
                                   ? active
-                                    ? `Fires ${b.label} on the live graphic with ${payloadWords(b)} from “${active.label}”.`
-                                    : `Fires ${b.label} on the live graphic. ${payloadWords(b)} ride this event from the ACTIVE ENTRY. With none selected, the graphic keeps its current values.`
-                                  : `Fires ${b.label} on the live graphic.`
+                                    ? `Fires ${name} on the live graphic with ${payloadWords(b)} from “${active.label}”.`
+                                    : `Fires ${name} on the live graphic. ${payloadWords(b)} ride this event from the ACTIVE ENTRY. With none selected, the graphic keeps its current values.`
+                                  : `Fires ${name} on the live graphic.`
                           }
                           data-testid={`control-event-${b.event}`}
                         >
