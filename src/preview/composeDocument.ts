@@ -353,25 +353,35 @@ window.addEventListener('unhandledrejection', function (ev) {
         );
       } catch (e) {}
     } else if (msg.cmd === 'state') {
+      /* EVERY ASK IS ANSWERED, whatever any one question does. Each part has its own try/catch
+         and the reply is sent outside all of them: a template whose noacgMachineState() throws
+         used to answer NOTHING, and the renderer's catch-up walk reads an unanswered ask as a
+         graphic it cannot call still - one such template would hold a boot off air for the
+         whole ceiling. */
+      var s = null;
+      try { s = window.noacgMachineState ? window.noacgMachineState() : null; } catch (e1) {}
+      /* WHICH VALUES DID NOT FIT (previewProtocol.ts's PreviewStateMessage.overflow). */
+      var over = null;
+      try { over = window.noacgTextOverflow ? window.noacgTextOverflow() : null; } catch (e2) {}
+      /* …and HOW FAR ITS ANIMATIONS HAVE RUN (PreviewStateMessage.motion): the summed playhead
+         of everything on GSAP's global timeline, which every house template animates on, plus
+         the document's own web animations, which an imported design may use instead. Two equal
+         readings mean nothing moved, which is what the output renderer waits for before ending
+         a hidden boot catch-up so a replayed exit never finishes on air. */
+      var motion = 0;
       try {
-        var s = window.noacgMachineState ? window.noacgMachineState() : null;
-        // …and, in the same reply, WHICH VALUES DID NOT FIT (previewProtocol.ts's
-        // PreviewStateMessage.overflow). Its own try/catch: a template answering one of the
-        // two questions must still answer the one it has.
-        var over = null;
-        try { over = window.noacgTextOverflow ? window.noacgTextOverflow() : null; } catch (e2) {}
-        // …and HOW FAR ITS ANIMATIONS HAVE RUN (previewProtocol.ts's PreviewStateMessage.motion):
-        // the summed playhead of everything on GSAP's global timeline, which every house template
-        // animates on. Two equal readings mean nothing moved, which is what the output renderer
-        // waits for before ending a hidden boot catch-up so a replayed exit never finishes on
-        // air. Its own try/catch, like the overflow question above it.
-        var motion = 0;
-        try {
-          var kids = window.gsap ? window.gsap.globalTimeline.getChildren(true, true, true) : [];
-          for (var ki = 0; ki < kids.length; ki++) motion += Math.round(kids[ki].totalTime() * 1000);
-        } catch (e3) {}
+        var kids = window.gsap ? window.gsap.globalTimeline.getChildren(true, true, true) : [];
+        for (var ki = 0; ki < kids.length; ki++) motion += Math.round(kids[ki].totalTime() * 1000);
+      } catch (e3) {}
+      try {
+        /* Chromium 71, which CasparCG 2.3.x embeds, has no getAnimations - GSAP is the engine
+           there and this half simply reads 0. */
+        var css = document.getAnimations ? document.getAnimations() : [];
+        for (var ci = 0; ci < css.length; ci++) motion += Math.round(Number(css[ci].currentTime) || 0);
+      } catch (e4) {}
+      try {
         parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s, overflow: over, motion: motion }, '*');
-      } catch (e) {}
+      } catch (e5) {}
     }
   }
 })();

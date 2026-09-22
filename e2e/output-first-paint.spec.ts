@@ -45,11 +45,17 @@ await new Promise((r) => setTimeout(r, Number(q.get('delay') || 250)));
 const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] });
 window.__stage = stage;
 window.__airWhenSettled = airWhenSettled;
+// Read HERE, in the same turn the stage was built, because a frame's own load can fire before
+// anything outside this page gets to look at it.
+window.__visibilityAtBirth = getComputedStyle(document.querySelector('iframe')).visibility;
 window.__stageReady = true;
 `;
 
-/** Serve the REAL /output document with its boot module swapped for the harness. */
-async function mountHarness(page: Page): Promise<void> {
+/** Serve the REAL /output document with its boot module swapped for the harness. The caller
+ *  asserts on `swapped` AFTER navigating: an assertion thrown inside a route handler leaves the
+ *  navigation unanswered, so the run reports a timeout instead of what actually went wrong. */
+async function mountHarness(page: Page): Promise<{ swapped: boolean }> {
+  const result = { swapped: false };
   await page.route('**/first-paint/boot.js*', (route) =>
     route.fulfill({ contentType: 'text/javascript', body: HARNESS }),
   );
@@ -60,10 +66,12 @@ async function mountHarness(page: Page): Promise<void> {
       '<script type="module" src="/first-paint/boot.js"></script>',
     );
     // If the shell stops loading its boot module this way, the swap is silently a no-op and
-    // every assertion below would be about a page with no stage on it.
-    expect(html).toContain('/first-paint/boot.js');
+    // every assertion below would be about a page with no stage on it. The page is served
+    // either way, so the test can say that in a sentence instead of timing out.
+    result.swapped = html.includes('/first-paint/boot.js');
     await route.fulfill({ contentType: 'text/html', body: html });
   });
+  return result;
 }
 
 /** How many pixels of a screenshot are not fully transparent, and the brightest alpha in it. */
@@ -95,9 +103,16 @@ async function motionOf(page: Page, graphic: string): Promise<number> {
 }
 
 test.describe('the /output shell on load', () => {
+  /** Set by the beforeEach and read after the first navigation of every test. */
+  let harness: { swapped: boolean };
+
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 480, height: 270 });
-    await mountHarness(page);
+    harness = await mountHarness(page);
+  });
+
+  test.afterEach(() => {
+    expect(harness.swapped, 'the /output shell still loads its boot module the way this spec swaps').toBe(true);
   });
 
   test('paints nothing at all from navigation until a cue is taken', async ({ page }) => {
@@ -132,13 +147,16 @@ test.describe('the /output shell on load', () => {
     });
 
     // THE PROPERTY THE FLASH WAS MADE OF. Off air, the entrance must still be running: a
-    // document that stands still here is one that will play its entrance on air later.
-    const first = await motionOf(page, 'lt0');
-    await page.waitForTimeout(500);
-    const second = await motionOf(page, 'lt0');
-    await page.waitForTimeout(500);
-    const third = await motionOf(page, 'lt0');
-    expect(third, `playhead readings off air: ${first}, ${second}, ${third}`).toBeGreaterThan(first);
+    // document that stands still here is one that will play its entrance on air later. The
+    // playhead is not monotonic - GSAP drops a timeline from its global one the moment it
+    // finishes - so the question is whether ANY reading beat the first, not whether the last
+    // one did; a shorter entrance than this design's must not read as a frozen document.
+    const readings = [await motionOf(page, 'lt0')];
+    for (let i = 0; i < 4; i++) {
+      await page.waitForTimeout(150);
+      readings.push(await motionOf(page, 'lt0'));
+    }
+    expect(Math.max(...readings), `playhead readings off air: ${readings.join(', ')}`).toBeGreaterThan(readings[0]);
 
     // …and none of it reached the screen.
     const offAir = await painted(page, await page.screenshot({ omitBackground: true, animations: 'allow' }));
@@ -191,16 +209,14 @@ test.describe('the /output shell on load', () => {
   });
 
   test('a graphic frame is invisible until its own document has loaded', async ({ page }) => {
-    await page.goto('/first-paint/output?delay=1500');
-    // Read the frame the moment the stage exists, before its srcdoc can have loaded: an
-    // unloaded frame holds a document with no color-scheme of its own, which Chromium paints as
-    // an opaque white canvas inside this dark-scheme page.
-    const atBirth = await page.evaluate(async () => {
-      while (!(window as unknown as { __stageReady?: boolean }).__stageReady) await new Promise((r) => setTimeout(r, 5));
-      const frame = document.querySelector('iframe') as HTMLIFrameElement;
-      return { visibility: getComputedStyle(frame).visibility, loaded: false };
-    });
-    expect(atBirth.visibility).toBe('hidden');
+    await page.goto('/first-paint/output');
+    // The reading the harness took as the frame was created, before its srcdoc could have
+    // loaded: an unloaded frame holds a document with no color-scheme of its own, which
+    // Chromium paints as an opaque white canvas inside this dark-scheme page. Taking it from
+    // out here would race the load, which fires a few milliseconds later.
+    await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+    const atBirth = await page.evaluate(() => (window as unknown as { __visibilityAtBirth: string }).__visibilityAtBirth);
+    expect(atBirth).toBe('hidden');
     await expect
       .poll(async () => page.evaluate(() => getComputedStyle(document.querySelector('iframe')!).visibility))
       .toBe('visible');

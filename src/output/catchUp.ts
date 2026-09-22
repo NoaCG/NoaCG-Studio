@@ -41,6 +41,19 @@ export const CATCH_UP_TIMING: CatchUpTiming = { floorMs: 1200, capMs: 6000, poll
 /** Whether the walk ended because everything stood still, or because it ran out of patience. */
 export type CatchUpEnding = 'settled' | 'cap';
 
+/** One graphic's last word: how many times it has answered, and where its animations stood. */
+interface Reading {
+  replies: number;
+  motion: number;
+}
+
+/** The playhead of a graphic that has not answered yet — a value no reply can carry, so an
+ *  unanswered graphic never looks like one that agreed with itself. */
+const UNANSWERED = -1;
+const NEVER_READ: Reading = { replies: -1, motion: UNANSWERED };
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * Wait for the replay to stand still, then put the stage back on air. Resolves with which of the
  * two ended it, which is what the debug overlay says out loud.
@@ -50,18 +63,24 @@ export async function airWhenSettled(
   timing: CatchUpTiming = CATCH_UP_TIMING,
   now: () => number = Date.now,
 ): Promise<CatchUpEnding> {
-  await stage.whenLoaded();
-  const floor = now() + timing.floorMs;
+  // THE CAP COVERS THE LOAD WAIT TOO. A document loads when its last subresource has answered,
+  // and a template can carry an absolute reference the playout box cannot reach - a font, a
+  // picture from an import - which on a broadcast LAN with no route out simply hangs. Waiting on
+  // that with no deadline would hold EVERY graphic off air for the whole show over one hanging
+  // request, where the timer this replaced would have come back with one graphic missing. So the
+  // cap starts here, and the floor is measured from the load but never crosses it.
   const deadline = now() + timing.capMs;
+  await Promise.race([stage.whenLoaded(), wait(Math.max(0, deadline - now()))]);
+  const floor = Math.min(now() + timing.floorMs, deadline);
   /** What one graphic last said: how many times it has answered, and its playhead. */
-  const read = (graphic: string) => ({
+  const read = (graphic: string): Reading => ({
     replies: stage.replies.get(graphic) ?? 0,
-    motion: stage.motion.get(graphic) ?? -1,
+    motion: stage.motion.get(graphic) ?? UNANSWERED,
   });
   let previous = new Map(stage.graphics.map((g) => [g, read(g)]));
   let stillFor = 0;
   for (;;) {
-    await new Promise((resolve) => setTimeout(resolve, timing.pollMs));
+    await wait(timing.pollMs);
     // Ask, then read what the PREVIOUS ask brought back: the answers are messages, so they land
     // between turns of this loop. A graphic counts as still only when it ANSWERED again with the
     // playhead it had before - a document working through the replay answers nothing at all, and
@@ -69,9 +88,9 @@ export async function airWhenSettled(
     stage.graphics.forEach((g) => stage.requestState(g));
     const reading = new Map(stage.graphics.map((g) => [g, read(g)]));
     const still = stage.graphics.every((g) => {
-      const now_ = reading.get(g);
-      const was = previous.get(g);
-      return Boolean(now_ && was) && now_!.replies > was!.replies && now_!.motion === was!.motion;
+      const seen = reading.get(g) ?? NEVER_READ;
+      const before = previous.get(g) ?? NEVER_READ;
+      return seen.replies > before.replies && seen.motion === before.motion;
     });
     previous = reading;
     stillFor = still ? stillFor + timing.pollMs : 0;

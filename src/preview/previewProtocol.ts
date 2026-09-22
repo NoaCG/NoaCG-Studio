@@ -115,7 +115,7 @@ export interface PreviewStateMessage {
   overflow?: string[] | null;
   /**
    * HOW FAR THE DOCUMENT'S ANIMATIONS HAVE RUN — the summed playhead of every animation GSAP
-   * holds, in milliseconds. It is a reading, not a verdict: two consecutive replies with the
+   * holds plus every web animation the document is running, in milliseconds. It is a reading, not a verdict: two consecutive replies with the
    * SAME number mean nothing moved in between, which is how a caller tells a settled graphic
    * from one still playing.
    *

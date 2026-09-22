@@ -390,12 +390,21 @@ async function boot(): Promise<void> {
   // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
   missed.forEach(apply);
   if (animates) {
-    void airWhenSettled(stage).then((ending) =>
-      dbg(
-        'catch-up',
-        `${missed.length} row(s) replayed, back on air${ending === 'cap' ? ' (still moving at the cap)' : ''}`,
-      ),
-    );
+    void airWhenSettled(stage)
+      .then((ending) =>
+        dbg(
+          'catch-up',
+          `${missed.length} row(s) replayed, back on air${ending === 'cap' ? ' (still moving at the cap)' : ''}`,
+        ),
+      )
+      // A renderer that is off air with nothing left to put it back is a dark channel for the
+      // rest of the show, so whatever went wrong, air comes back and says so where the one
+      // surface an operator has on a playout box can show it.
+      .catch((error: unknown) => {
+        stage.setVisible(true);
+        dbg('catch-up', `failed (${String(error)}) — back on air anyway`);
+        console.warn('NoaCG output: the boot catch-up failed; the stage is back on air.', error);
+      });
   }
 
   // ── Follow the log live (shared discipline: dedupe, hole → tail, refill on resubscribe, and
