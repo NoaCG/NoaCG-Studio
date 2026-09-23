@@ -51,7 +51,14 @@ export function cloudQueue({ branch, sha, review, git = spawnRunner('git'), gh =
   const refused = checkInputs({ branch, sha, review });
   if (refused) throw new Error(refused);
 
-  const remote = git(['ls-remote', '--heads', 'origin', branch], { allowFailure: true }).out.split(/\s+/)[0] ?? '';
+  // The EXACT ref: `ls-remote --heads origin <name>` matches by suffix, so `fix` would also list
+  // `claude/fix`, and the first line could be somebody else's tip.
+  const ref = `refs/heads/${branch}`;
+  const remote =
+    git(['ls-remote', 'origin', ref], { allowFailure: true })
+      .out.split('\n')
+      .map((line) => line.split(/\s+/))
+      .find(([, name]) => name === ref)?.[0] ?? '';
   if (!remote) throw new Error(`${branch} is not on origin - push it first.`);
   if (remote !== sha) {
     throw new Error(`${branch} is at ${remote.slice(0, 12)} on origin, not the reviewed ${sha.slice(0, 12)}. Review the new tip and dispatch again.`);
