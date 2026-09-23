@@ -307,11 +307,18 @@ export function validateAgainstTree(rule, root, files = []) {
  * Every file git tracks, repo-relative and posix. Used to answer "does this scope match anything".
  * Falls back to an empty list outside a git checkout, which makes the scope check stand down
  * rather than refuse every rule - a gate that fires where it cannot see is worse than no gate.
+ *
+ * A FAILED READ IS NOT AN EMPTY REPOSITORY, and the difference decides whether generated files are
+ * deleted. Outside a checkout there is genuinely nothing to compare a scope against. INSIDE one, a
+ * failing `git ls-files` means the answer is UNKNOWN, and an unknown tree makes the whole store
+ * look like it matches nothing - the first domino in the compiler removing every contract it owns.
+ * On 2026-09-23 that removed seventeen generated files in two worktrees during `npm run build`,
+ * committed by nothing. `unknown` carries the distinction up so the write path can refuse.
  */
 function trackedFiles(root) {
   const res = spawnSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', windowsHide: true });
-  if (res.status !== 0) return [];
-  return res.stdout.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
+  if (res.error || res.status !== 0) return { files: [], unknown: existsSync(path.join(root, '.git')) };
+  return { files: res.stdout.split(/\r?\n/).map((f) => f.trim()).filter(Boolean), unknown: false };
 }
 
 function walk(dir, out = []) {
@@ -328,7 +335,7 @@ function walk(dir, out = []) {
 export function loadRules(root) {
   const files = walk(path.join(root, RULES_DIR)).sort();
   // Every tracked file, once, so the scope check below is one listing rather than one per rule.
-  const tracked = trackedFiles(root);
+  const { files: tracked, unknown: treeUnknown } = trackedFiles(root);
   const rules = [];
   const problems = [];
   for (const file of files) {
@@ -351,7 +358,7 @@ export function loadRules(root) {
       else if (ids.get(target).status !== 'retired') problems.push(`${rule.path}: supersedes ${target}, which is still active - retire it`);
     }
   }
-  return { rules, problems };
+  return { rules, problems, treeUnknown };
 }
 
 /** Pairs of ACTIVE rules that read as the same rule. Features are precomputed, so this is n^2 set work. */
