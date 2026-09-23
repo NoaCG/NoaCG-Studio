@@ -40,6 +40,8 @@ same way; `registry.ts` is the list.
   `row-set` kind can read (`listed` / `unlisted` / `last` per row, `any` / `none` for the whole
   list). Never an event that mutates a field from inside the template: the operator's box would
   not move with the board.
+- **Rows that trade places MOVE, never swap their words** (`place` rule, the standings): a field
+  stays its competitor's box. What a SLOT shows (a position number) is a `write`, never moved.
 - **A press that must not replay the entrance rides a parallel group of ONE state** with
   self-transitions (the puzzle's `letters`, the bingo's `board`), never a self-edge on waypoint 0.
 

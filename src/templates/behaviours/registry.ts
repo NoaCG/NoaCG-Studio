@@ -8,6 +8,7 @@
 import type { BehaviourRecipe } from './recipe';
 import { quizRecipe } from './quiz';
 import { scoreRecipe } from './score';
+import { rankingRecipe } from './ranking';
 import { countdownRecipe } from './countdown';
 import { voteRecipe } from './vote';
 import { switchRecipe } from './switch';
@@ -24,6 +25,7 @@ import { bingoRecipe } from './bingo';
 export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
   quizRecipe,
   scoreRecipe,
+  rankingRecipe,
   countdownRecipe,
   voteRecipe,
   meterRecipe,
