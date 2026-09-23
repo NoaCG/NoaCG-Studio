@@ -1,6 +1,6 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { createProject } from './_create';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // NoaCG Bridge (docs/BRIDGE.md). There is no CasparCG on a test machine and there is no Bridge
 // either, so both are FAKED at the network layer: `page.route` answers the Bridge's own HTTP
@@ -511,10 +511,33 @@ test('a failure to air is reported on the row, and never as a success', async ({
 
 // ── The header's Playout door ───────────────────────────────────────────────────────────────
 
+/** A published production seeded through the model and opened from its own URL - no editor on
+ *  the way. Publishing is backend-gated, so its capabilities are faked in, as above. */
+async function seededPublishedProduction(page: Page): Promise<void> {
+  await page.goto('/app');
+  await awaitDurableReady(page);
+  const id = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap', packageId: null });
+    if (error || !doc) throw new Error(error ?? 'seed failed');
+    const show = createShowNamed('Evening News');
+    addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+    setShowHostedSlug(show.id, 'demo-slug');
+    setShowOutputSlug(show.id, 'demo-output');
+    return show.id;
+  });
+  await settleDurableWrites(page);
+  await page.goto(`/app#/production/${id}`);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+}
+
 test('the production header says whether CasparCG answers, and names the output links', async ({ page }) => {
   await seedSettings(page);
   await fakeBridge(page);
-  await publishedProduction(page);
+  await seededPublishedProduction(page);
   // A paired Bridge is asked on this page too, so the operator reads the connection where they
   // work instead of opening Settings to find out (owner, 2026-09-23).
   const door = page.getByTestId('playout-settings-open');
@@ -527,7 +550,7 @@ test('the production header says whether CasparCG answers, and names the output 
 test('a paired Bridge that is not running reads as "Bridge not running" on the header', async ({ page }) => {
   await seedSettings(page);
   await fakeBridge(page, { missing: true });
-  await publishedProduction(page);
+  await seededPublishedProduction(page);
   const door = page.getByTestId('playout-settings-open');
   await expect(door).toHaveAttribute('data-state', 'warn');
   await expect(door).toHaveAttribute('aria-label', /Bridge not running/);

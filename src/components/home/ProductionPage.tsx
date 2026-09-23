@@ -2607,9 +2607,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       liveLayers={liveLayers}
       follow={follow}
       onHome={() => navigate({ view: 'home', section: null })}
-      // BACK is where you came from - a graphic, the editor, the wizard - and Home's list of
-      // productions only when this page was opened cold (a bookmark, a new tab), where there is
-      // nowhere to go back to. Home, beside it, always goes to the dashboard.
+      // BACK is where you came from - the dashboard, the list, the graphic being made - and the
+      // productions list only when this page was opened cold (a bookmark, a new tab), where there
+      // is nowhere to go back to. Home, beside it, always goes to the dashboard.
       onBack={() => goBack({ view: 'home', section: 'productions' })}
       playoutTarget={
         <PlayoutTargetButton
@@ -3873,8 +3873,8 @@ function ProductionShell({
             navigation. */}
         <NewGraphicButton productionId={show.id} />
         {/* BACK AND HOME, two separate promises (owner, 2026-09-23). Back returns to wherever
-            you came from - the graphic, the editor, the wizard - and only falls back to Home
-            when this page was opened cold. Home always goes to the dashboard. Both are labelled
+            you came from - the dashboard, the list, the graphic being made - and falls back to
+            the list only when this page was opened cold. Home always goes to the dashboard. Both are labelled
             words rather than a bare arrow, so neither is mistaken for the other, and Home is
             the word alone like every Home door (src/components/AGENTS.md). */}
         <button className="pd-back" onClick={onBack} title="Back to where you came from" data-testid="production-back">

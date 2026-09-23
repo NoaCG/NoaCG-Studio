@@ -1,30 +1,17 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // THE PLAYOUT PAGE'S WAY OUT, AND ITS WAY TO CASPARCG (owner, 2026-09-23).
 //
-// Back and Home are two separate promises. Back returns to wherever you came from - the graphic
-// you were making, the editor - and only falls back to the productions list when the page was
-// opened cold (a bookmark, a new tab), where there is nowhere to go back to
-// (src/app/router.ts, in-app history depth). Home always goes to the dashboard.
+// Back and Home are two separate promises. Back returns to wherever you came from - the
+// dashboard, the productions list, the graphic you were making - and only falls back to the
+// productions list when the page was opened cold (a bookmark, a new tab), where there is nowhere
+// to go back to (src/app/router.ts, in-app history depth). Home always goes to the dashboard.
+// Every road in here starts from Home or a saved production; none of it opens the editor.
 //
 // Playout settings sit on the page itself: one door in the header, with a status dot, opening the
 // SAME form Settings -> Playout shows (PlayoutSettingsPanel) - a second door onto one stored
 // record, never a second copy of it.
-
-/** A production made from the editor: create a graphic, add it to a new production from the
- *  Control dock, and open the production page from there - the "from the graphic" road. */
-async function productionFromEditor(page: Page): Promise<void> {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('Back And Home');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
-}
 
 /** A production seeded through the model, for the pages that open it by URL. */
 async function seededProduction(page: Page): Promise<string> {
@@ -47,27 +34,38 @@ async function seededProduction(page: Page): Promise<string> {
   return id;
 }
 
-test('Back returns to the graphic the production was opened from, and Home goes to the dashboard', async ({ page }) => {
-  await productionFromEditor(page);
-  const header = page.locator('.pd-header');
-  // Both are labelled words, side by side, and neither is the other.
-  await expect(header.getByTestId('production-back')).toHaveText('← Back');
-  await expect(header.getByTestId('production-home')).toHaveText('Home');
+test('Back returns to where the production was opened from, and Home always goes to the dashboard', async ({ page }) => {
+  const id = await seededProduction(page);
+  const back = page.getByTestId('production-back');
+  const home = page.getByTestId('production-home');
 
-  // Back: to the editor, where this production was opened from - not to a fixed list.
-  await header.getByTestId('production-back').click();
-  await expect(page.getByTestId('production-page')).toHaveCount(0);
-  await expect(page.getByTestId('home-page')).toHaveCount(0);
-  await expect(page.locator('.panel-section', { hasText: 'Productions' })).toBeVisible();
-
-  // Back was a real history step, so Forward returns to the production.
-  await page.goForward();
+  // Opened from the DASHBOARD: Back returns to the dashboard. It used to jump to the
+  // productions list whatever the page was opened from.
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.getByTestId(`production-row-${id}`).getByTestId('open-production').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
-
-  // Home: always the dashboard, wherever the page was entered from.
-  await page.getByTestId('production-home').click();
+  // Both are labelled words, side by side, and neither is the other.
+  await expect(back).toHaveText('← Back');
+  await expect(home).toHaveText('Home');
+  await back.click();
   await expect(page.getByTestId('home-page')).toBeVisible();
   await expect(page).toHaveURL(/#\/home$/);
+
+  // Opened from the PRODUCTIONS LIST: Home goes to the dashboard, never back to the list...
+  await page.getByTestId('home-nav-productions').click();
+  await expect(page).toHaveURL(/#\/home\/productions$/);
+  await page.getByTestId(`production-row-${id}`).getByTestId('open-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await home.click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page).toHaveURL(/#\/home$/);
+
+  // ...while Back, from the same production, returns to the list it came from.
+  await page.goBack();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await back.click();
+  await expect(page).toHaveURL(/#\/home\/productions$/);
 });
 
 test('a production opened cold goes Back to the productions list, since there is nowhere else', async ({ page, context }) => {
