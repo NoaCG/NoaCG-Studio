@@ -10,7 +10,7 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
-## 0.4.0 - unreleased
+## 0.4.1 - unreleased
 
 **New: `noacg bridge`.** It runs NoaCG Bridge, the local program that lets the NoaCG page in your
 browser drive a CasparCG server on your studio network without the CasparCG Client, and replaces
