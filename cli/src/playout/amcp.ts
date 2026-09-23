@@ -218,9 +218,13 @@ export interface MediaEntry {
 /**
  * `200 CLS OK` lines, each `"NAME"  TYPE  bytes YYYYMMDDHHMMSS frames num/den` (two spaces after
  * the name and the type on 2.5.0; one is accepted). A still reports `0 0/1` on 2.5.0, and on
- * 2.3.2 `NaN 0/0` or `1 1/25` (measured 2026-09-22), so the frame count may be `NaN` and the
- * rate's denominator zero. A line that does not match is skipped rather than failing the whole
+ * 2.3.2 `NaN 0/0` or `1 1/25` (measured 2026-09-22), so the frame count may be `NaN` and either
+ * half of the fraction zero. A line that does not match is skipped rather than failing the whole
  * list: one odd file must not hide the library.
+ *
+ * THE FRACTION IS A TIME BASE, seconds per frame, not a rate. Measured 2026-09-23 on 2.5.0: a
+ * 27.7-second clip lists `831 92291/2770000`, which is 1/30 of a second per frame. Read as a
+ * rate it made that clip 0.033 fps and about seven hours long, so the rate is `den / num`.
  */
 export function parseCls(lines: string[]): MediaEntry[] {
   const out: MediaEntry[] = [];
@@ -236,7 +240,7 @@ export function parseCls(lines: string[]): MediaEntry[] {
       bytes: Number(m[3]),
       changed: m[4],
       frames: m[5] === 'NaN' ? 0 : Number(m[5]),
-      fps: den > 0 && num > 0 ? num / den : 0,
+      fps: den > 0 && num > 0 ? den / num : 0,
     });
   }
   return out;

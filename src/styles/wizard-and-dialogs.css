@@ -227,6 +227,27 @@
 .dlg-pair > button,
 .dlg-pair > .row > button { white-space: nowrap; }
 .dlg-pair > .row { display: flex; align-items: stretch; }
+/* A row whose control is taller than one line (a list, a table): the label sits level with the
+   FIRST line of it rather than floating to the middle of the block. The padding is the input's
+   own, so the label's baseline meets the first input's text. */
+.dlg-row--top { align-items: start; }
+.dlg-row--top > .dlg-row-label { padding-top: 7px; }
+/* A field and a short NUMBER beside it (host and port, graphics channel and layer): the number
+   gets one fixed column, so every such box in a dialog lines up down its right edge instead of
+   each pair splitting by whatever its first control happens to measure. */
+.dlg-pair--num { grid-template-columns: minmax(0, 1fr) 88px; }
+
+/* SETTINGS -> PLAYOUT's channel table: number | name | remove, one channel per line, and the
+   add button under the last one. The number box is sized for two digits, CasparCG's range in
+   practice; the name takes the rest. */
+.playout-channels { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.playout-channel-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+.playout-channel-row > button { min-width: 32px; padding-inline: 8px; }
 
 /* THE FOOTER: one row, secondary left, primary right, never stacked. */
 .dlg-foot {

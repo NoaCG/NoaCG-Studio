@@ -12,6 +12,15 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.4.1 - unreleased
+
+**Clip lengths are right.** The server picker showed a video clip as hours long: CasparCG lists a
+clip's frame timing as seconds per frame, and the Bridge read that number upside down, so a
+27-second clip at 30 frames a second came through at a thirtieth of a frame a second. It now
+reads it the right way round, and the picker shows the real length. Nothing to do but download
+the new one; clips already in a rundown play exactly as before, because playing never used this
+number.
+
 ## 0.4.0 - 2026-09-23
 
 The first release. NoaCG Bridge lets the NoaCG production page put a production on a CasparCG

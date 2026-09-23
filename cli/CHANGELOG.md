@@ -29,6 +29,10 @@ values as JSON, updated, stepped and taken off; a clip rolls, pauses, resumes an
 own graphics still go on air the one way they always have - the output URL on the channel - so
 a quiz reveal or a score change works exactly as before.
 
+**Clip lengths in the server list are right.** CasparCG lists a clip's frame timing as seconds
+per frame, and `noacg bridge` read it as frames per second, so a 27-second clip listed at a
+thirtieth of a frame a second and looked hours long. It is read the right way round now.
+
 **Fixed: a clip whose name has an ä or an ö.** The AMCP wire was written and read as latin1; it is
 UTF-8 now, so `Jääkiekko.mp4` lists and plays under its own name.
 

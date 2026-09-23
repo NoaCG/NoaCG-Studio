@@ -81,7 +81,8 @@ test('status reads the version; list reads templates and media; a 404 is not-fou
   const caspar = await fakeCaspar((line) => {
     if (line === 'VERSION') return '201 VERSION OK\r\n2.5.0 69e8ad5 Stable\r\n';
     if (line === 'TLS') return '200 TLS OK\r\nBK/SB01\r\nHOUSE_STRAP/HOUSE_STRAP\r\n\r\n';
-    if (line === 'CLS') return '200 CLS OK\r\n"GIORNO"  MOVIE  10485760 20260814221648 1500 25/1\r\n\r\n';
+    // The last field is a time base, seconds per frame: 1/25 is a 25 fps clip.
+    if (line === 'CLS') return '200 CLS OK\r\n"GIORNO"  MOVIE  10485760 20260814221648 1500 1/25\r\n\r\n';
     if (line.startsWith('THUMBNAIL RETRIEVE')) return '201 THUMBNAIL RETRIEVE OK\r\niVBORw0KGgo=\r\n';
     if (line === 'PLAY 1-10 "NOSUCHCLIP"') return '404 PLAY FAILED\r\n';
     return '202 CG OK\r\n';

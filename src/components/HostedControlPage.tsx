@@ -40,6 +40,7 @@ import {
   type HostedCombineInput,
 } from '../control/hostedCombine';
 import { fetchProductionDataBySlug, patchProductionDataBySlug } from '../control/productionDataApi';
+import { slotAddress } from '../control/playoutLink';
 import {
   replacementPatch,
   resolveBindings,
@@ -1179,7 +1180,20 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                   <span className="pd-cue-label">
                     <strong>{cue.label}</strong>
                     <span className="muted">
-                      <span className="pd-cue-layer">L{cue.layer}</span> · {cue.kind === 'media' ? 'Server clip' : 'Server template'} ·{' '}
+                      {/* The same CasparCG address the operator's rundown row wears (`2-10`),
+                          so both dashboards say which channel a cue airs on. */}
+                      <span
+                        className="pd-cue-layer"
+                        title={
+                          cue.channel
+                            ? `Channel ${cue.channel}${cue.channelName ? ` (${cue.channelName})` : ''}, layer ${cue.layer}`
+                            : `Layer ${cue.layer}`
+                        }
+                        data-testid="hosted-playout-cue-slot"
+                      >
+                        {cue.channel ? slotAddress({ channel: cue.channel, layer: cue.layer }) : `L${cue.layer}`}
+                      </span>{' '}
+                      · {cue.kind === 'media' ? 'Server clip' : 'Server template'} ·{' '}
                       {cue.note || cue.name}
                     </span>
                   </span>

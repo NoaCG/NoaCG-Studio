@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { dropSvg, intoExistingProduction, intoProduction, QUIZ_SVG, SCOREBUG_SVG } from '../_svg-import';
+import { createProject } from '../_create';
 import { haveCreds, signIn } from './_helpers';
 
 // THE REAL-SERVER WALK of NoaCG Bridge (docs/BRIDGE.md, milestone 1). Nothing is faked: a
@@ -18,6 +19,11 @@ import { haveCreds, signIn } from './_helpers';
 // and taken off as one command each. After every step `PRINT 1` writes a full-frame PNG of the
 // channel into the server's media folder, and each is copied to test-results/bridge-real/ -
 // the evidence a person reads without watching a window.
+//
+// The second test is the TWO-CHANNEL walk (docs/BRIDGE.md §5, "Channels"): it needs a second
+// channel in casparcg.config (a second <channel> with a <screen /> consumer), and it proves one
+// rundown cueing a server template onto channel 1 and a clip onto channel 2, a cue moved between
+// channels while on air, and All out clearing both channels while another client's layer stays.
 
 const BRIDGE = 'http://127.0.0.1:8899';
 const CASPAR = { host: '127.0.0.1', port: 5250 };
@@ -44,17 +50,17 @@ async function amcp(page: Page, token: string, command: string): Promise<{ ok: b
 }
 
 /** PRINT the channel and keep the frame under a readable name. Returns the frame's byte size. */
-async function frame(page: Page, token: string, name: string): Promise<number> {
+async function frame(page: Page, token: string, name: string, channel = 1): Promise<number> {
   await page.waitForTimeout(1500);
   const before = new Set(readdirSync(MEDIA_DIR));
-  const r = await amcp(page, token, 'PRINT 1');
-  expect(r.ok, `PRINT 1: ${r.status}`).toBe(true);
+  const r = await amcp(page, token, `PRINT ${channel}`);
+  expect(r.ok, `PRINT ${channel}: ${r.status}`).toBe(true);
   let fresh: string | undefined;
   for (let i = 0; i < 40 && !fresh; i++) {
     await page.waitForTimeout(250);
     fresh = readdirSync(MEDIA_DIR).find((f) => f.endsWith('.png') && !before.has(f));
   }
-  expect(fresh, 'PRINT 1 wrote a PNG into the media folder').toBeTruthy();
+  expect(fresh, `PRINT ${channel} wrote a PNG into the media folder`).toBeTruthy();
   const src = path.join(MEDIA_DIR, fresh!);
   // The server closes the file a moment after listing it.
   await page.waitForTimeout(500);
@@ -225,4 +231,128 @@ test('the Bridge airs the production, the dashboard reveals and scores it in Cas
     const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
     for (const s of loadShows()) if (s.hostedSlug) await unpublishControlShow(s.id).catch(() => {});
   });
+});
+
+test('one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else', async ({ page }) => {
+  test.setTimeout(300_000);
+  const token = bridgeToken();
+  expect(existsSync(MEDIA_DIR), `CasparCG media folder at ${MEDIA_DIR}`).toBe(true);
+
+  // Paired, with the studio a real broadcast runs: graphics on 1, inserts on 2.
+  await page.addInitScript(
+    ([bridge, tok, caspar]) => {
+      localStorage.setItem(
+        'spx-gfx-caspar',
+        JSON.stringify({
+          agentUrl: bridge,
+          agentToken: tok,
+          host: caspar.host,
+          amcpPort: caspar.port,
+          channel: 1,
+          layer: 20,
+          channels: [
+            { channel: 1, name: 'Graphics' },
+            { channel: 2, name: 'Inserts' },
+          ],
+          clipChannel: 2,
+          v: 1,
+        }),
+      );
+    },
+    [BRIDGE, token, CASPAR] as const,
+  );
+
+  // The server really has two channels, and both start clean.
+  const info = await amcp(page, token, 'INFO');
+  console.log(`[server] INFO: ${(info.lines ?? []).join(' | ')}`);
+  expect(info.lines?.some((l) => l.startsWith('2 ')), 'casparcg.config names a channel 2').toBe(true);
+  await amcp(page, token, 'CLEAR 1');
+  await amcp(page, token, 'CLEAR 2');
+  const empty1 = await frame(page, token, 'mc-01-channel-1-empty', 1);
+  const empty2 = await frame(page, token, 'mc-02-channel-2-empty', 2);
+
+  // ── A production with one rundown, offline and signed out: nothing here needs an account. ──
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
+  await page.getByTestId('dock-tab-control').click();
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await section.getByPlaceholder('New production name').fill(`Two channel walk ${Date.now()}`);
+  await section.getByRole('button', { name: 'Create', exact: true }).click();
+  await section.getByRole('button', { name: '+ Add current' }).click();
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+
+  // A server template: the graphics channel by default.
+  await page.getByTestId('add-from-server').click();
+  const strapRow = page.locator('[data-testid="picker-row"][data-name="HOUSE_STRAP/HOUSE_STRAP"]');
+  await expect(strapRow).toBeVisible(WIRE);
+  await page.getByTestId('picker-field-ids').fill('f0, f1');
+  await strapRow.getByTestId('picker-add').click();
+  const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
+  await expect(strap.getByTestId('cue-layer')).toHaveText('1-21');
+  await page.getByTestId('cue-field-f0').fill('Channel 1 - graphics');
+  await page.getByTestId('cue-field-f1').fill('NoaCG, one rundown, two channels');
+
+  // A clip from the same server: the insert channel by default.
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-media').click();
+  const clipRow = page.locator('[data-testid="picker-row"][data-name="ILMARI_OHJAA_MUSATALO"]');
+  await expect(clipRow).toBeVisible(WIRE);
+  await clipRow.getByTestId('picker-add').click();
+  const clip = page.locator('.pd-cue', { hasText: 'ILMARI_OHJAA_MUSATALO' });
+  await expect(clip.getByTestId('cue-layer')).toHaveText('2-10');
+  await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok', WIRE);
+
+  // ── Both taken from the one rundown, each onto its own channel. ──
+  await strap.getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('production-note')).toContainText('✓ Take: HOUSE_STRAP/HOUSE_STRAP on 1-21', WIRE);
+  await clip.getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('production-note')).toContainText('✓ Take: ILMARI_OHJAA_MUSATALO on 2-10', WIRE);
+  await expect(strap).toContainText('ON AIR');
+  await expect(clip).toContainText('ON AIR');
+  await page.waitForTimeout(1500);
+  const graphicOn1 = await frame(page, token, 'mc-03-channel-1-graphic', 1);
+  const clipOn2 = await frame(page, token, 'mc-04-channel-2-clip', 2);
+  expect(graphicOn1).toBeGreaterThan(empty1);
+  expect(clipOn2).toBeGreaterThan(empty2);
+
+  // ── The per-cue override, on a cue that is ON AIR: the strap moves to channel 2. Out reaches
+  //    1-21 where it is; the next Take lands on 2-21, over the clip. ──
+  await strap.getByTestId('select-cue').click();
+  await page.getByTestId('playout-cue-editor').getByTestId('playout-channel').selectOption('2');
+  await expect(strap.getByTestId('cue-layer')).toHaveText('2-21');
+  await page.getByTestId('verb-out').click();
+  await expect(page.getByTestId('production-note')).toContainText('✓ Out: HOUSE_STRAP/HOUSE_STRAP on 1-21', WIRE);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('production-note')).toContainText('✓ Take: HOUSE_STRAP/HOUSE_STRAP on 2-21', WIRE);
+  await page.waitForTimeout(2500);
+  const movedOff1 = await frame(page, token, 'mc-05-channel-1-after-the-move', 1);
+  await frame(page, token, 'mc-06-channel-2-clip-and-graphic', 2);
+  expect(movedOff1).toBeLessThan(graphicOn1);
+
+  // ── Another client's content on the same server: a still on 1-5 that this rundown never put
+  //    there. All out must leave it alone. ──
+  const other = await amcp(page, token, 'PLAY 1-5 "GIORNO"');
+  expect(other.ok, `PLAY 1-5 GIORNO: ${other.status}`).toBe(true);
+  const otherOn1 = await frame(page, token, 'mc-07-channel-1-another-clients-still', 1);
+
+  await page.getByTestId('verb-out-all').click();
+  await expect(strap).not.toContainText('ON AIR', WIRE);
+  await expect(clip).not.toContainText('ON AIR', WIRE);
+  await page.waitForTimeout(2500);
+  const after1 = await frame(page, token, 'mc-08-channel-1-after-all-out', 1);
+  const after2 = await frame(page, token, 'mc-09-channel-2-after-all-out', 2);
+  console.log(`[sizes] empty ${empty1}/${empty2}, on air ${graphicOn1}/${clipOn2}, other ${otherOn1}, after all out ${after1}/${after2}`);
+  // Channel 2 is back to empty: the clip and the moved graphic are both gone.
+  expect(after2).toBeLessThan(clipOn2);
+  expect(after2).toBeLessThanOrEqual(Math.round(empty2 * 1.1) + 1024);
+  // Channel 1 still shows the other client's still, untouched.
+  expect(after1).toBeGreaterThan(empty1 * 2);
+  expect(Math.abs(after1 - otherOn1)).toBeLessThanOrEqual(Math.round(otherOn1 * 0.05));
+
+  await amcp(page, token, 'CLEAR 1');
+  await amcp(page, token, 'CLEAR 2');
 });

@@ -21,6 +21,7 @@
 // NoaCG OWNS THE CONFIGURATION: the Bridge address and token and the playout server live here,
 // device-level; the Bridge keeps nothing but its own token and is named its target on every call.
 
+import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   PLAYOUT_V,
   type AdapterId,
@@ -63,8 +64,24 @@ export interface PlayoutSettings {
   /** The playout server itself - may be any machine on the studio LAN. */
   host: string;
   amcpPort: number;
+  /** The GRAPHICS channel: where the production's output URL goes on air, and where a server
+   *  template (and any cue saved before channels had names) plays unless its cue says otherwise. */
   channel: number;
+  /** The output URL's layer on the graphics channel. */
   layer: number;
+  /** The channels this studio uses, each with the operator's word for it (`1 Graphics`,
+   *  `2 Inserts`). A cue picks its channel from this list rather than typing a number. ADDITIVE:
+   *  a record saved before it existed reads as one row, the graphics channel. Always holds the
+   *  graphics channel after load. */
+  channels: PlayoutChannel[];
+  /** Where a NEW server clip is cued. The graphics channel until the studio names another one. */
+  clipChannel: number;
+}
+
+/** One CasparCG channel as the studio names it. */
+export interface PlayoutChannel {
+  channel: number;
+  name: string;
 }
 
 export const PLAYOUT_DEFAULTS: PlayoutSettings = {
@@ -76,7 +93,35 @@ export const PLAYOUT_DEFAULTS: PlayoutSettings = {
   // 20 is the layer this project's own CasparCG documentation has always used as its example
   // (docs/PLAYOUT_INTEGRATION.md §3), so a reader following that guide finds it already set.
   layer: 20,
+  // One channel: a stock casparcg.config has exactly one, so a fresh studio never cues a clip
+  // onto a channel the server does not have. "Add channel" in Settings makes the second.
+  channels: [{ channel: 1, name: 'Graphics' }],
+  clipChannel: 1,
 };
+
+/** A channel number as stored, or null when it is not one. */
+function channelNumber(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= MIN_PLAYOUT_CHANNEL && n <= MAX_PLAYOUT_CHANNEL ? n : null;
+}
+
+/**
+ * The settings with the channel list made whole: every row a valid number and a string name,
+ * the graphics channel always among them (a record from before the list existed becomes that
+ * one row), and the clip default pointing at a named channel. A duplicate row is KEPT, because
+ * the Settings table is edited keystroke by keystroke and a half-typed "2" must not delete the
+ * row it collides with; the table flags it instead.
+ */
+function normalized(s: PlayoutSettings): PlayoutSettings {
+  const channel = channelNumber(s.channel) ?? PLAYOUT_DEFAULTS.channel;
+  const rows = (Array.isArray(s.channels) ? s.channels : [])
+    .map((row) => ({ channel: channelNumber(row?.channel), name: typeof row?.name === 'string' ? row.name : '' }))
+    .filter((row): row is PlayoutChannel => row.channel !== null);
+  const channels = rows.some((row) => row.channel === channel) ? rows : [{ channel, name: 'Graphics' }, ...rows];
+  const clip = channelNumber(s.clipChannel);
+  const clipChannel = clip !== null && channels.some((row) => row.channel === clip) ? clip : channel;
+  return { ...s, channel, channels, clipChannel };
+}
 
 interface StoredSettings extends Partial<PlayoutSettings> {
   v?: number;
@@ -94,7 +139,9 @@ export function loadPlayoutSettings(): PlayoutSettings {
     // An unknown FUTURE version degrades honestly rather than being half-read: fall back to
     // the defaults and leave the stored row alone, so an older build never eats newer data.
     if (typeof v === 'number' && v > STORE_V) return { ...PLAYOUT_DEFAULTS };
-    return { ...PLAYOUT_DEFAULTS, ...raw };
+    // A v1 record from before the channel list has none: `normalized` builds it from the one
+    // channel the record does carry, so an existing studio reads exactly as it did.
+    return normalized({ ...PLAYOUT_DEFAULTS, ...raw, ...(raw.channels ? {} : { channels: [] }) });
   } catch {
     return { ...PLAYOUT_DEFAULTS };
   }
@@ -119,8 +166,43 @@ export function targetOf(s: PlayoutSettings): Target {
   return { adapter: 'casparcg', host: s.host.trim(), port: s.amcpPort };
 }
 
-export function slotOf(s: PlayoutSettings, layer = s.layer): Slot {
-  return { adapter: 'casparcg', channel: s.channel, layer };
+export function slotOf(s: PlayoutSettings, layer = s.layer, channel = s.channel): Slot {
+  return { adapter: 'casparcg', channel, layer };
+}
+
+/** The channel a new server item is cued on: a clip goes to the clip channel, a template to the
+ *  graphics channel, the way a CasparCG client's rundown defaults its own items. */
+export function defaultChannelFor(s: PlayoutSettings, kind: ItemKind): number {
+  return kind === 'media' ? s.clipChannel : s.channel;
+}
+
+/** The channel an item plays on: its own when it carries one, else the graphics channel - which
+ *  is how every item saved before cues had a channel keeps playing where it always did. */
+export function channelOf(s: PlayoutSettings, item: { channel?: number }): number {
+  return channelNumber(item.channel) ?? s.channel;
+}
+
+/** Where an item plays, as the protocol names it. */
+export function itemSlot(s: PlayoutSettings, item: { channel?: number; layer: number }): Slot {
+  return slotOf(s, item.layer, channelOf(s, item));
+}
+
+/** The studio's word for a channel (`Inserts`), or '' for one it has not named - a production
+ *  made in another studio, or a row removed since. The first row wins on a duplicate number. */
+export function channelName(s: PlayoutSettings, channel: number): string {
+  return s.channels.find((row) => row.channel === channel)?.name.trim() ?? '';
+}
+
+/** `2 · Inserts` - a channel as the operator reads it, or the bare number when it has no name. */
+export function channelLabel(s: PlayoutSettings, channel: number): string {
+  const name = channelName(s, channel);
+  return name ? `${channel} · ${name}` : String(channel);
+}
+
+/** `channel 2 (Inserts)` - the same, as it reads inside a sentence. */
+export function channelTitle(s: PlayoutSettings, channel: number): string {
+  const name = channelName(s, channel);
+  return name ? `channel ${channel} (${name})` : `channel ${channel}`;
 }
 
 /** `1-20` - what the operator sees on the button, and what CasparCG calls the layer. */

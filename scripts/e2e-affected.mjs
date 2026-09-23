@@ -557,7 +557,9 @@ const MAP = [
   // this one rather than replaced. Without this row a change to the link contract would run
   // specs that pin the panels' other contents and never the four diagnosis states, which are
   // the whole point of the feature.
-  [/^src\/control\/(playoutLink|playoutProtocol)\.ts$/, ['bridge-connect.spec.ts']],
+  // The channel table and the per-cue slot helpers live in playoutLink.ts too, and the rundown
+  // is what reads them.
+  [/^src\/control\/(playoutLink|playoutProtocol)\.ts$/, ['bridge-connect.spec.ts', 'playout-cues.spec.ts']],
   [/^src\/components\/(SettingsDialog|BridgePairPage)\.tsx$/, ['bridge-connect.spec.ts']],
   // ProductionLinks.tsx is where BridgeAirRow itself lives since the 2026-08-28 split, so it is
   // named here rather than left to the components/home rule above: that rule's set does not

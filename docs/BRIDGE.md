@@ -141,8 +141,10 @@ that needs no browser at all (`noacg caspar play`, §4).
    code that lives two minutes; the token never travels in a URL. On the hosted studio that click
    is also where Chrome asks whether the site may reach your local network, and the page says so
    first.
-2. Once, per studio: fill in the CasparCG host, AMCP port, channel and layer under **Settings ->
-   Playout** and press **Test connection**. It round-trips a real AMCP `VERSION` and prints the
+2. Once, per studio: fill in the CasparCG host and AMCP port under **Settings -> Playout**, name
+   the server's channels (`1 Graphics`, and with one click on **Add channel** `2 Inserts`), say
+   which channel the production's graphics go to (and on which layer) and which one new clips go
+   to, and press **Test connection**. It round-trips a real AMCP `VERSION` and prints the
    server's own version string. The settings are **app-wide and persisted** - they survive
    switching productions, reloading and closing the browser, because a studio has one playout
    server and not one per show. **NoaCG owns this configuration**; the Bridge is told its target
@@ -288,8 +290,22 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   only; the scanner's richer `/templates` (GDD) is not reachable this way, and no scanner port is
   opened for it.
 - **A PlayoutItem** in the show record (`src/model/shows.ts`, additive optional): adapter, kind,
-  the server's name, the layer, a clip's length, a template's fields. A cue over it is an ordinary
-  `ShowCue` with `source: 'playout'`. The channel is not stored: it is the studio's setting.
+  the server's name, the channel and layer, a clip's length, a template's fields. A cue over it is
+  an ordinary `ShowCue` with `source: 'playout'`.
+- **Channels** (2026-09-23). A real broadcast runs graphics on one CasparCG channel and video
+  inserts on another, and one rundown holds both. Settings -> Playout names the server's channels
+  once (`spx-gfx-caspar`, additive: a record from before reads as one row, its one channel, named
+  Graphics) and holds two defaults: the GRAPHICS channel, where the output URL and new server
+  templates go, and the CLIP channel, where new clips go. Adding the first extra channel names it
+  Inserts and makes it the clip default, so a stock one-channel server never has a clip aimed at
+  a channel it lacks. Every server cue then picks its channel in its editor, beside the layer,
+  from that list - never a typed number - and the rundown row wears the address as the server
+  writes it (`2-10`). `PlayoutItem.channel` is optional and a plain number: absent means the
+  graphics channel, which is where every item saved before it has always played, and a number
+  the studio does not name (a production made elsewhere) stays listed as itself. The channel
+  lives on the item beside the layer, so every cue of one server item shares its slot, the way
+  every cue of one graphic shares its layer. The production's own graphics stay on the graphics
+  channel with the output URL; a second output page on another channel is a later slice.
 - **Layers.** A server template takes the next free layer counted across graphics and templates,
   like a graphic. Clips share layer 10, below every graphic, on purpose: one clip at a time, and
   a strap never disappears behind a rolling VT.
@@ -302,8 +318,16 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
 - **Verbs** go through the Bridge as one action each and never as a row in the command log:
   nothing renders a server item, the `/output` page would have nothing to do with it, and a
   phone cannot reach the operator's Bridge. The published payload still carries the playout cues
-  (`OutputPayload.playoutCues`, additive) so the hosted control page lists them - honestly
-  disabled, with the sentence that says why.
+  (`OutputPayload.playoutCues`, additive, each with the channel and channel name the operator's
+  studio resolved at publish) so the hosted control page lists them with the same `2-10`
+  address - honestly disabled, with the sentence that says why. Until 2026-09-23 the payload
+  reader dropped the list, so the hosted page never showed it.
+- **Where a verb goes.** A take goes to the slot the cue is set to now; the page remembers that
+  slot, and Update, Next, Pause, Resume and Out go where the take WENT, so a channel changed while
+  a cue is on air never strands it. A take onto a slot another cue of the rundown holds replaces
+  it there too. **All out** sends one Out per server cue the rundown has up, each on its own
+  channel and layer, and no channel-wide `CLEAR`: another client's layers on the same server are
+  not the rundown's to clear.
 - **What the page believes.** ON AIR on a server cue means the command was accepted; nothing
   reports back what the server holds until OSC state arrives (milestone 2). A refused command
   never marks a row, and the note line says which hop refused and why.
@@ -393,6 +417,13 @@ Stated plainly, because this doc's whole purpose is to not overstate.
   Bridge, revealed and scored from the dashboard, a server template and a still cued, taken,
   updated and taken off - is `e2e/configured/bridge-real-server.spec.ts` (`BRIDGE_REAL=1`), with a
   `PRINT 1` frame after every step; its record is the owner-queue file of that date.
+- **On the real 2.5.0 with two channels, 2026-09-23** (a second `<channel>` with a screen consumer
+  in `casparcg.config`): one rundown took a server template on 1-21 and a clip on 2-10, moved the
+  template to channel 2 while on air (Out reached 1-21, the next Take landed on 2-21), and All out
+  cleared channel 2 back to an empty frame while a still played on 1-5 by hand stayed up. The
+  walk is the second test in `e2e/configured/bridge-real-server.spec.ts`, with `PRINT 1` and
+  `PRINT 2` frames after each step. The same server's `CLS` lines are what showed the last field
+  is a time base, not a rate (`cli/src/playout/amcp.ts` `parseCls`).
 - **Covered by the test suite**: `cli/test/playout.test.mjs` (every verb's exact line, quoting,
   the 501 mapping, pairing, the refusals), `e2e/bridge-connect.spec.ts` (Settings, pairing, the
   one button, each hop), `e2e/playout-cues.spec.ts` (the picker, the cues, each verb's envelope,
