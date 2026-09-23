@@ -171,9 +171,14 @@ A cloud session (Claude Code on the web) has no `gh` and no token that can post 
    later `queue:merge` can refresh it.
 3. Dispatch `.github/workflows/cloud-queue-merge.yml` on `main` with three inputs: `branch`, `sha`
    (the full sha of the tip you reviewed) and `review` (one line: what was checked and that it
-   passed). The workflow runs `scripts/cloud-queue.mjs` from `main`: it refuses a branch that moved
+   passed). The GitHub tools' workflow-run action does it: workflow `cloud-queue-merge.yml`, ref
+   `main`. The workflow runs `scripts/cloud-queue.mjs` from `main`: it refuses a branch that moved
    past `sha`, then posts `noacg/reviewed` as "cloud session: <review>", labels the pull request
-   `land`, dispatches `ci.yml` with `require_review`, and turns auto-merge on.
+   `land` and turns auto-merge on. Then it waits for the pull request's own CI run and re-runs its
+   `Reviewed` job if that went red before the stamp existed - which is the usual case, since that
+   job waits only 150 s - because GitHub keeps the pull request out of the queue while that red
+   job stands, whatever another run says (pull request 390, 2026-09-23). The workflow's log says
+   which of the four things it did; `timeout` is the one that needs you: re-run that job by hand.
 
 From there it is the same queue as every other landing. The branch freezes in the same sense: a
 push after the dispatch leaves a stamp on a sha that is no longer the tip, and `Reviewed` goes red
