@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<!--
+  THE DOWNLOADS PAGE (/downloads): the two things NoaCG ships that you install.
+
+  NoaCG itself runs in the browser and needs nothing installed. Two optional tools sit beside it,
+  and a new visitor could not find either: NoaCG Bridge was linked only from Settings -> Playout,
+  and the CLI only from one landing section. This page names both, says what each is FOR, and
+  gets each one onto a machine.
+
+  ONE VERSION, TWO CHANNELS. Both tools are built from one package (cli/package.json), and each
+  ships through its own channel: the Bridge as NoaCG-Bridge.exe on a GitHub Release tagged
+  bridge-vX.Y.Z, the CLI to npm, tagged cli-vX.Y.Z. A version may ship on one channel and skip the
+  other, so each card resolves ITS OWN artifact: src/downloads/downloads.ts asks GitHub for the
+  newest bridge-v* release and npm for @noacg/cli's `latest`, and shows the version of exactly
+  the file or package it links to.
+
+  The page is complete with no JavaScript: the Bridge button then points at GitHub's
+  releases/latest link (release-bridge.yml marks every Bridge release as the latest), and the
+  versions read "latest". The voice is the docs page's (src/docs/AGENTS.md): plain information,
+  no em-dashes, and every command is one that has been run. The commands here are the
+  distribution table's (docs/AGENT_CLI.md, docs.html #agent-setup), never new ones.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Downloads - NoaCG Studio</title>
+  <meta
+    name="description"
+    content="Install the two optional NoaCG tools: NoaCG Bridge, which connects NoaCG Playout to CasparCG, and the NoaCG CLI, which lets Claude Code, Codex and other coding agents make NoaCG graphics."
+  />
+  <meta name="theme-color" content="#0a0c10" />
+  <link rel="canonical" href="https://noacg.studio/downloads" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="preload" href="/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin />
+  <meta property="og:title" content="NoaCG downloads: NoaCG Bridge and the NoaCG CLI" />
+  <meta property="og:description" content="NoaCG Bridge connects NoaCG Playout to CasparCG. The NoaCG CLI lets coding agents make NoaCG graphics." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://noacg.studio/downloads" />
+  <!-- The docs stylesheet carries the landing's header, buttons and type, so this page and the
+       docs look like one site; downloads.css adds only the two tool cards. -->
+  <link rel="stylesheet" href="/src/docs/docs.css" />
+  <link rel="stylesheet" href="/src/downloads/downloads.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="mark" aria-hidden="true"><i></i><i></i><i></i></div>
+      <a href="/" class="wordmark">Noa<span>CG</span><small>Studio</small></a>
+      <!-- The landing's top bar, as on /docs. Downloads is the current page. -->
+      <nav>
+        <a class="gh" href="/#how">How it works</a>
+        <a class="gh" href="/#live">Going live</a>
+        <a class="gh" href="/#ograf">OGraf</a>
+        <!-- Docs joins the section links under 720px here, the way this page's own link does on
+             /docs: a phone header holds the current page and the button, and no more. -->
+        <a class="gh" href="/docs">Docs</a>
+        <a href="/downloads" aria-current="page">Downloads</a>
+        <a class="gh" href="mailto:contact.noacg@gmail.com">Contact</a>
+        <a class="btn btn-amber" href="/app#/new">Start creating</a>
+      </nav>
+    </header>
+
+    <div class="doc-hero">
+      <p class="kicker">Downloads</p>
+      <h1>Two tools you can install</h1>
+      <p class="lede">
+        NoaCG runs in your browser, and making graphics or running a show needs nothing installed.
+        These two tools are optional. Install the one that matches what you do.
+      </p>
+    </div>
+
+    <!-- `.doc-body` borrows the docs page's reading type and its copy button on every command
+         block (src/docs/docs.ts); `.dl-grid` lays the two tools side by side. -->
+    <div class="doc-body dl-grid">
+      <!-- NoaCG BRIDGE. `id="bridge"` is an address: Playout settings in the studio links here. -->
+      <section class="dl-card" id="bridge" data-testid="download-bridge">
+        <p class="kicker">For playout operators</p>
+        <h2>NoaCG Bridge</h2>
+        <p class="dl-what">
+          Connects NoaCG Playout in your browser to a CasparCG server on your studio network. With
+          it, a production's page puts your graphics on a CasparCG channel and plays the
+          templates and clips already on the server, without the CasparCG Client.
+        </p>
+        <p class="dl-meta">
+          Windows &middot; version <span data-version="bridge" data-testid="bridge-version">latest</span>
+        </p>
+        <p class="dl-actions">
+          <a
+            class="btn btn-amber"
+            href="https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe"
+            data-download="bridge"
+            data-testid="bridge-download"
+          >Download NoaCG-Bridge.exe</a>
+        </p>
+        <p class="dl-links">
+          <a href="https://github.com/NoaCG/NoaCG-Studio/releases/latest" data-release-notes="bridge" data-testid="bridge-release-notes">What changed in this version</a>
+          &middot;
+          <a href="https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe.sha256" data-checksum="bridge">SHA-256 checksum</a>
+        </p>
+
+        <h3>Set it up</h3>
+        <ol>
+          <li>Download <code>NoaCG-Bridge.exe</code> onto the computer you operate from. There is
+            nothing to install: the file is the whole program.</li>
+          <li>Double-click it. Windows warns once because the file is not signed yet: choose
+            <strong>More info</strong>, then <strong>Run anyway</strong>. Leave the window it
+            opens running while you work.</li>
+          <li>A NoaCG page opens in your browser. Press <strong>Pair</strong>, and allow the site
+            to reach your local network if the browser asks.</li>
+          <li>Open a production in NoaCG, press <strong>Playout</strong> in its header, fill in the
+            CasparCG server's address and press <strong>Test connection</strong>.</li>
+        </ol>
+        <p class="dl-note">
+          Use Chrome or Edge. Safari does not let a web page reach a program on the same computer.
+          The Bridge listens on this computer only and never exposes CasparCG to the internet.
+        </p>
+        <p class="dl-note" data-testid="bridge-not-needed">
+          <strong>Using OBS, vMix or another browser source?</strong> You do not need the Bridge.
+          Start the production, open <strong>Output links</strong> and add the output URL as a
+          browser source.
+        </p>
+        <p class="dl-note">
+          Already have Node.js? The same program runs as a command:
+        </p>
+        <pre><code>npx -y @noacg/cli bridge</code></pre>
+        <p class="dl-more"><a href="/docs#casparcg-connect">The CasparCG guide in the docs</a></p>
+      </section>
+
+      <!-- THE NoaCG CLI. `id="cli"` is an address too. -->
+      <section class="dl-card" id="cli" data-testid="download-cli">
+        <p class="kicker">For coding agents and terminals</p>
+        <h2>NoaCG CLI</h2>
+        <p class="dl-what">
+          Lets Claude Code, Codex or any agent that speaks MCP make NoaCG graphics. It gives the
+          agent the rules a graphic has to meet, runs the studio's own validator on what the agent
+          wrote, and saves the result into your NoaCG library.
+        </p>
+        <p class="dl-meta">
+          npm package <code>@noacg/cli</code> &middot; version
+          <span data-version="cli" data-testid="cli-version">latest</span>
+        </p>
+        <p class="dl-meta">Needs Node.js 20 or newer, and Chrome or Edge for the validator.</p>
+
+        <h3>Claude Code</h3>
+        <pre><code>claude plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
+        <pre><code>claude plugin install noacg@noacg-studio</code></pre>
+
+        <h3>Codex</h3>
+        <pre><code>codex plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
+        <pre><code>codex plugin add noacg@noacg-studio</code></pre>
+
+        <h3>Any other MCP agent</h3>
+        <p class="dl-note">
+          Register a stdio server with the command <code>npx</code> and the arguments
+          <code>-y @noacg/cli mcp</code>:
+        </p>
+        <pre><code>npx -y @noacg/cli mcp</code></pre>
+
+        <h3>From a terminal</h3>
+        <p class="dl-note">Every command works through npx with nothing installed, or install it once:</p>
+        <pre><code>npm i -g @noacg/cli</code></pre>
+        <p class="dl-note">
+          Saving a graphic into your library needs a free account. Run this once per computer and
+          approve it in the browser:
+        </p>
+        <pre><code>npx @noacg/cli login</code></pre>
+        <p class="dl-more">
+          <a href="/docs#claude-code">The coding agent guide in the docs</a>
+          &middot;
+          <a href="https://www.npmjs.com/package/@noacg/cli">@noacg/cli on npm</a>
+        </p>
+      </section>
+    </div>
+
+    <footer>
+      <span class="fm">NoaCG Studio &middot; Downloads</span>
+      <span>
+        <a href="/">Home</a> &middot;
+        <a href="/docs">Docs</a> &middot;
+        <a href="/app">Open the studio</a> &middot;
+        <a href="https://github.com/NoaCG/NoaCG-Studio">Source</a> &middot;
+        <a href="mailto:contact.noacg@gmail.com">Contact</a>
+      </span>
+    </footer>
+  </div>
+
+  <script type="module" src="/src/docs/docs.ts"></script>
+  <script type="module" src="/src/downloads/downloads.ts"></script>
+</body>
+</html>

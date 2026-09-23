@@ -52,8 +52,9 @@ test('the rundown lifecycle persists: rename, duplicate, reorder, values - close
   await cueRows(page).nth(1).dragTo(cueRows(page).nth(0));
   await expect(cueRows(page).first()).toContainText('Ben Berg');
 
-  // Close (Home) and reopen: everything held.
-  await page.getByTestId('production-back').click();
+  // Close (Home) and reopen: everything held. HOME, not Back: this page was opened by a goto, so
+  // Back would return to wherever the goto started (src/app/router.ts, in-app history depth).
+  await page.getByTestId('production-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
   await page.getByTestId('home-nav-productions').click();
   await page.getByTestId('open-production').click();

@@ -88,7 +88,7 @@ function BridgeAirRow({ outputUrl }: { outputUrl: string | null }) {
           Loads the output URL above onto channel <code>{slotAddress(slotOf(settings))}</code> of{' '}
           <code>{settings.host}</code>, through NoaCG Bridge on this machine. Do it once at the
           start of the production and leave it up - the graphics are cued from this page, not by
-          re-loading the layer. Change the server under Settings &rarr; Playout.
+          re-loading the layer. Change the server under Playout in this page&rsquo;s header.
         </>
       }
       under={
@@ -241,8 +241,18 @@ export default function ProductionLinks({
   }
   return (
     <div className="pd-links-host">
-      <button onClick={onToggle} aria-expanded={open} data-testid="production-links-toggle">
-        <IconLink /> Links{unpublishedChanges ? ' •' : ''}
+      {/* OUTPUT LINKS, the thing a published production is FOR: the URL a browser source or
+          CasparCG loads, and the control page. Named for what it holds rather than the bare
+          "Links", and drawn in the accent outline so it is found at a glance beside ● SHOW.
+          The dot after it still means "changed since the last publish". */}
+      <button
+        className="pd-links-toggle"
+        onClick={onToggle}
+        aria-expanded={open}
+        title="The output URL for OBS, vMix or CasparCG, the control page, and the audience links"
+        data-testid="production-links-toggle"
+      >
+        <IconLink /> Output links{unpublishedChanges ? ' •' : ''}
       </button>
       {/* Same shell as the library's row menus (home/LibMenu). What was off-screen here is the
           panel's own TAIL: six link rows with their ▸ explanations open, then Publish/Unpublish,

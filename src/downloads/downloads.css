@@ -1,0 +1,58 @@
+/* THE DOWNLOADS PAGE (downloads.html). Everything shared with the docs - the landing's header,
+   the buttons, headings, command blocks and the copy button - comes from src/docs/docs.css; this
+   file adds only the two tool cards. */
+
+/* Two tools side by side, each a card of the same height, so neither reads as the main one:
+   they are for different people. One column on a phone or a narrow window. */
+.dl-grid.doc-body {
+  max-width: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  padding: 26px 0 80px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .dl-grid.doc-body { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A card is a section on the docs' reading type, without the docs' between-sections rule:
+   the cards sit side by side, so that rule would draw a line through the second one. */
+.doc-body section.dl-card,
+.doc-body section.dl-card + section.dl-card {
+  margin: 0;
+  padding: 24px 26px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  scroll-margin-top: 24px;
+}
+/* The card you were sent to (/downloads#bridge from Playout settings) wears the amber edge. */
+.doc-body section.dl-card:target { border-color: rgba(246, 166, 35, 0.55); }
+.dl-card h2 { margin-top: 8px; }
+.dl-card h3 { font-size: 15px; margin-top: 22px; }
+/* What the tool is FOR: the one paragraph somebody deciding reads, so it reads first. */
+.doc-body .dl-card .dl-what { color: var(--paper); font-size: 15.5px; }
+.doc-body .dl-card .dl-meta { font-family: var(--mono); font-size: 12px; color: var(--faint); margin: 6px 0; }
+.dl-card [data-version] { color: var(--paper); }
+.doc-body .dl-card .dl-actions { margin: 18px 0 8px; }
+/* The docs colour every link in a paragraph amber; the download BUTTON keeps the landing's
+   near-black label, or it reads as an empty amber bar. */
+.doc-body .dl-card .dl-actions a.btn,
+.doc-body .dl-card .dl-actions a.btn:hover { color: #14100a; }
+/* The kicker is a label, at the docs' own kicker size - `.doc-body p` would otherwise set it at
+   body size, and its wide tracking then spreads it across the card. */
+.doc-body .dl-card .kicker { font-size: 12px; color: var(--amber); }
+.doc-body .dl-card .dl-links,
+.doc-body .dl-card .dl-more { font-size: 13.5px; }
+.doc-body .dl-card .dl-links a,
+.doc-body .dl-card .dl-more a { color: var(--amber); }
+.doc-body .dl-card .dl-note { font-size: 14px; }
+.dl-card pre { margin: 8px 0; }
+
+/* A phone header holds the wordmark, the current page and the button; at 390px the button's
+   label wrapped to two lines at the docs' spacing, so the row tightens here instead. */
+@media (max-width: 420px) {
+  header.top nav { gap: 14px; }
+  header.top .btn { padding: 10px 16px; white-space: nowrap; }
+}

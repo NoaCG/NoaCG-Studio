@@ -46,7 +46,7 @@ test('a production exports as a graphics pack and imports back with its rundown 
   });
 
   await settleDurableWrites(page);
-  await page.getByTestId('production-back').click();
+  await page.getByTestId('production-home').click();
   await page.getByTestId('home-nav-productions').click();
 
   // Export the pack from the export dialog - the format's export half.

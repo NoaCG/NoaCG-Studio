@@ -188,6 +188,7 @@ import NewGraphicButton from '../NewGraphicButton';
 import LibMenu from './LibMenu';
 import { copyLink } from './copyLink';
 import { IconDownload, IconTv, IconUsers } from '../icons';
+import PlayoutSettingsDialog, { PlayoutTargetButton } from '../PlayoutSettingsDialog';
 import { useTeamsUi } from '../teams/teamsUi';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 
@@ -251,6 +252,7 @@ const CLAIM_NEEDS_ACCOUNT =
  */
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
+  const goBack = useRouter((s) => s.goBack);
   // The mutators return the fresh list — holding it in state (the ControlPanel pattern) keeps
   // an edit from re-parsing every store on every render.
   const [shows, setShows] = useState<Show[]>(() => loadShows());
@@ -303,6 +305,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   const [note, setNote] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  /** The header's Playout settings dialog (components/PlayoutSettingsDialog.tsx). Closing it bumps
+   *  `playoutSettingsRev`, which re-reads the settings for the connection poll below. */
+  const [playoutSettingsOpen, setPlayoutSettingsOpen] = useState(false);
+  const [playoutSettingsRev, setPlayoutSettingsRev] = useState(0);
+  /** Whether a Bridge is paired and a server named - what the header's Playout control shows
+   *  before any answer comes back. Re-read with the rev, on the dialog's close. */
+  const [playoutIsConfigured, setPlayoutIsConfigured] = useState(() => playoutConfigured(loadPlayoutSettings()));
   // THE KIT WIZARD'S EXPORT DOOR (templateStore `pendingProductionExport`): a kit is exported
   // without the editor ever opening, and the target picker + validation gate it needs are this
   // page's own dialog - so the wizard asks for that surface instead of growing a second one.
@@ -726,16 +735,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     (cue: ShowCue): PlayoutItem | null => playoutItemOf({ playoutItems }, cue),
     [playoutItems],
   );
-  // The server's state is re-asked every few seconds while there is a server cue to take -
-  // one loopback request, so the editor can say "connected" or name the hop before a press.
+  // The server's state is re-asked every few seconds while a playout server is SET UP - one
+  // loopback request, so the header's Playout control shows whether CasparCG answers, and the
+  // editor can say "connected" or name the hop before a server cue's Take. Nothing is asked of a
+  // browser that was never paired with a Bridge: that page says "not set up" without a request,
+  // so nobody who only uses OBS or vMix ever meets a local-network prompt from this poll.
   useEffect(() => {
     const settings = loadPlayoutSettings();
-    if (playoutItems.length === 0 || !playoutConfigured(settings)) {
+    if (!playoutConfigured(settings)) {
       setBridgeStatus(null);
       return;
     }
+    setBridgeStatus(null);
     return subscribeTargetStatus(settings, setBridgeStatus);
-  }, [playoutItems.length]);
+  }, [playoutSettingsRev]);
 
   // ── The cue draft: edits echo locally, persist on idle / switch / take / unmount. ──
   const [draft, setDraft] = useState<CueDraft | null>(null);
@@ -1491,7 +1504,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         </header>
         <main className="home-content" style={{ padding: 24 }}>
           <p className="hint">This production no longer exists.</p>
-          <button onClick={() => navigate({ view: 'home', section: 'productions' })}>← Back to productions</button>
+          <div className="row">
+            <button onClick={() => goBack({ view: 'home', section: 'productions' })} data-testid="production-back">
+              ← Back
+            </button>
+            <button onClick={() => navigate({ view: 'home', section: null })} data-testid="production-home">
+              Home
+            </button>
+          </div>
         </main>
       </div>
     );
@@ -2587,7 +2607,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       liveLayers={liveLayers}
       follow={follow}
       onHome={() => navigate({ view: 'home', section: null })}
-      onBack={() => navigate({ view: 'home', section: 'productions' })}
+      // BACK is where you came from - a graphic, the editor, the wizard - and Home's list of
+      // productions only when this page was opened cold (a bookmark, a new tab), where there is
+      // nowhere to go back to. Home, beside it, always goes to the dashboard.
+      onBack={() => goBack({ view: 'home', section: 'productions' })}
+      playoutTarget={
+        <PlayoutTargetButton
+          configured={playoutIsConfigured}
+          status={bridgeStatus}
+          onClick={() => setPlayoutSettingsOpen(true)}
+        />
+      }
       onAllOut={() => void outAll()}
       allOutEnabled={liveLayers.length > 0 || livePlayoutLayers.length > 0}
       onExport={() => setExportOpen(true)}
@@ -3726,6 +3756,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       </aside>
       </>)}
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
+      {playoutSettingsOpen && (
+        <PlayoutSettingsDialog
+          onClose={() => {
+            setPlayoutSettingsOpen(false);
+            setPlayoutSettingsRev((n) => n + 1);
+            setPlayoutIsConfigured(playoutConfigured(loadPlayoutSettings()));
+          }}
+        />
+      )}
     </ProductionShell>
   );
 }
@@ -3780,6 +3819,7 @@ function ProductionShell({
   onExport,
   onKey,
   links,
+  playoutTarget,
   children,
 }: {
   show: Show;
@@ -3802,6 +3842,8 @@ function ProductionShell({
   onExport: () => void;
   onKey: (key: PlayoutVerb) => void;
   links: React.ReactNode;
+  /** The Playout settings door with its connection dot (components/PlayoutSettingsDialog.tsx). */
+  playoutTarget: React.ReactNode;
   children: React.ReactNode;
 }) {
   // The verb keys (docs/PLAYOUT_DASHBOARD.md §2) come from the SHARED keymap, so the hosted
@@ -3830,13 +3872,27 @@ function ProductionShell({
             between it and ■ All out: a hand reaching for the panic control must never land on
             navigation. */}
         <NewGraphicButton productionId={show.id} />
-        <button className="pd-back" onClick={onBack} data-testid="production-back">
-          ←
+        {/* BACK AND HOME, two separate promises (owner, 2026-09-23). Back returns to wherever
+            you came from - the graphic, the editor, the wizard - and only falls back to Home
+            when this page was opened cold. Home always goes to the dashboard. Both are labelled
+            words rather than a bare arrow, so neither is mistaken for the other, and Home is
+            the word alone like every Home door (src/components/AGENTS.md). */}
+        <button className="pd-back" onClick={onBack} title="Back to where you came from" data-testid="production-back">
+          ← Back
         </button>
-        <h1><IconTv /> {show.name}</h1>
+        <button className="pd-home" onClick={onHome} title="Your NoaCG home" data-testid="production-home">
+          Home
+        </button>
+        <h1 title={show.name}><IconTv /> <span className="pd-name">{show.name}</span></h1>
         <span className={`pd-mode pd-mode-${hostedSlug ? 'show' : 'idle'}`} data-testid="production-mode">
           {hostedSlug ? '● SHOW' : '○ NOT PUBLISHED'}
         </span>
+        {/* OUTPUT LINKS BESIDE THE STATE THEY BELONG TO (owner, 2026-09-23: "one of the most
+            important things on the page, and it feels hidden"). Unpublished this is ▶ Start
+            production; published it is the Output links button, styled to be found, and its
+            panel opens by itself right after a publish. It used to sit in the right cluster
+            among Share and Export, where it read as one more authoring action. */}
+        {links}
         <span className="pd-clock mono">{elapsed(now - openedAt)}</span>
         {/* NOT JOINED, AND ONLY THEN. A healthy production says nothing new here: the line
             appears when the log's channel has never joined, which is the state that used to
@@ -3911,6 +3967,9 @@ function ProductionShell({
             {outputHealth(rendererFresh, outputSeenAt).label}
           </span>
         )}
+        {/* WHERE THE GRAPHICS PLAY: the Playout settings door, beside the renderer heartbeat it
+            belongs with. Setup lives in its dialog, never as more controls in this header. */}
+        {playoutTarget}
         {/* The team door (docs/TEAMS_PLAN.md §6), beside the other two "hand this to someone
             else" controls and a header's width away from ■ All out. It is absent offline and
             signed out - `useTeamsAvailable` is the one gate, and this surface asks it rather
@@ -3918,13 +3977,13 @@ function ProductionShell({
         {teamsAvailable && (
           <button
             onClick={() => openShare(show.id, show.name)}
-            title="Share this production with a team, so everyone works in their own account"
+            title="Share this production with a team, so everyone works on it from their own account"
+            aria-label="Share"
             data-testid="share-with-team"
           >
-            <IconUsers /> Share with a team…
+            <IconUsers /> <span className="pd-share-label">Share</span>
           </button>
         )}
-        {links}
         <button onClick={onExport} title="Export this production as a package" data-testid="export-production">
           <IconDownload /> Export…
         </button>

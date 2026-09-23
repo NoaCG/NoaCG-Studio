@@ -138,6 +138,36 @@ a.auth-toggle { display: block; text-align: center; text-decoration: none; }
   background: var(--panel);
 }
 .avatar-btn:hover { border-color: var(--amber); }
+/* The picture fills the round button exactly as the bare <img>/initials used to. */
+.account-avatar { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.account-caret { display: none; }
+/* Under the 1480 step the name is hidden on every surface, not only inside `.topbar`: the
+   round button is 34px and has no room for a word. */
+@media (max-width: 1480px) {
+  .account-pill .auth-state { display: none; }
+}
+
+/* THE PROFILE PILL, where the bar can carry it (owner, 2026-09-23: the round avatar alone was
+   "too subtle and easy to miss"). Above the 1480 step the name moves INTO the button, beside
+   the picture, and the pair reads as one control - the door to the account and its settings.
+   It costs 13px more than the old name-then-circle pair, inside the 16px the step was measured
+   to leave (the table above); the ▾ costs another 13 and so waits for 1600px, where the bar has
+   a hundred to spare. */
+@media (min-width: 1481px) {
+  .avatar-btn.account-pill {
+    width: auto;
+    height: 36px;
+    gap: 8px;
+    padding: 2px 3px 2px 12px;
+    border-width: 1px;
+    border-radius: 99px;
+  }
+  .account-pill .auth-state { color: var(--text); font-size: 13px; }
+  .account-pill .account-avatar { width: 30px; height: 30px; border-radius: 50%; overflow: hidden; flex: none; }
+}
+@media (min-width: 1601px) {
+  .account-pill .account-caret { display: inline; margin: 0 6px 0 -2px; font-size: 11px; color: var(--text-dim); }
+}
 .avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .avatar-initial {
   font-family: "JetBrains Mono", Consolas, monospace;
@@ -185,6 +215,16 @@ a.auth-toggle { display: block; text-align: center; text-decoration: none; }
   color: var(--text);
 }
 .account-menu button:hover { background: rgba(232, 237, 242, 0.06); }
+/* A menu entry that LEAVES the app (the public Downloads page) is a link, drawn like the
+   buttons beside it rather than in the app-wide amber link colour. */
+.account-menu .account-menu-link {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text);
+  text-decoration: none;
+}
+.account-menu .account-menu-link:hover { background: rgba(232, 237, 242, 0.06); }
 .account-menu-sep { height: 1px; background: var(--border); margin: 6px 0; }
 
 /* Inline "sign in" link inside a sentence (feature nudges in panels). */

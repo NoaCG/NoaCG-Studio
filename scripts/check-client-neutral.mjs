@@ -56,6 +56,7 @@ const SCANNED = [
   'src/templates/contract.ts',
   'index.html',
   'docs.html',
+  'downloads.html',
   'app.html',
   'ograf.html',
   'src/control/productionControllerHtml.ts',

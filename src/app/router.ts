@@ -132,10 +132,36 @@ interface RouterState {
   navigate: (route: Route) => void;
   /** Replace the current entry (no new history — e.g. after Save As re-points the URL). */
   replace: (route: Route) => void;
+  /** Go back to wherever the user came from inside the app, or to `fallback` when there is no
+   *  such place (a cold link, a new tab, a bookmark). See `canGoBack`. */
+  goBack: (fallback: Route) => void;
 }
 
 function currentRoute(): Route {
   return typeof window !== 'undefined' ? parseRoute(window.location.hash) : { view: 'editor' };
+}
+
+// IN-APP HISTORY DEPTH. Browser history cannot say whether the previous entry is still this
+// app (it might be Google, or nothing at all in a fresh tab), so every entry the app writes
+// carries its depth in `history.state.noacgDepth`: the first entry of a visit is 0 and each push
+// adds one. A depth above 0 therefore means "Back lands on a page of this app", which is what
+// the playout page's Back button needs to choose between history.back() and going Home.
+// Other code that rewrites the URL passes `history.state` through, so the stamp survives it.
+const DEPTH_KEY = 'noacgDepth';
+
+function depthOf(state: unknown): number | null {
+  const d = (state as Record<string, unknown> | null)?.[DEPTH_KEY];
+  return typeof d === 'number' ? d : null;
+}
+
+/** The current entry's depth; an unstamped entry counts as the first one. */
+function currentDepth(): number {
+  return typeof window !== 'undefined' ? depthOf(window.history.state) ?? 0 : 0;
+}
+
+/** Keep whatever else lives in history.state and set the depth beside it. */
+function withDepth(state: unknown, depth: number): Record<string, unknown> {
+  return { ...(state && typeof state === 'object' ? state : {}), [DEPTH_KEY]: depth };
 }
 
 /** Write a hash without a same-route no-op (which would push a duplicate history entry). */
@@ -143,8 +169,14 @@ function writeHash(route: Route, mode: 'push' | 'replace'): void {
   const hash = routeHash(route);
   const url = hash === '' ? window.location.pathname + window.location.search : hash;
   if (window.location.hash === hash || (hash === '' && window.location.hash === '')) return;
-  if (mode === 'push') window.history.pushState(null, '', url);
-  else window.history.replaceState(null, '', url);
+  const depth = currentDepth();
+  if (mode === 'push') window.history.pushState(withDepth(null, depth + 1), '', url);
+  else window.history.replaceState(withDepth(null, depth), '', url);
+}
+
+/** True when the entry before this one is a page of this app (see IN-APP HISTORY DEPTH). */
+export function canGoBack(): boolean {
+  return currentDepth() > 0;
 }
 
 export const useRouter = create<RouterState>((set) => ({
@@ -157,12 +189,28 @@ export const useRouter = create<RouterState>((set) => ({
     writeHash(route, 'replace');
     set({ route });
   },
+  goBack: (fallback) => {
+    if (canGoBack()) window.history.back();
+    else useRouter.getState().navigate(fallback);
+  },
 }));
 
 // Back/Forward (and manual hash edits) update the store. pushState doesn't fire hashchange
 // in the same document, so both events feed one handler; popstate covers history traversal.
 if (typeof window !== 'undefined') {
-  const sync = () => useRouter.setState({ route: currentRoute() });
+  // Stamp the entry the visit started on, so an unstamped entry met later is known to be NEW -
+  // one a plain `<a href="#/...">` click pushed without going through navigate().
+  if (depthOf(window.history.state) === null) {
+    window.history.replaceState(withDepth(window.history.state, 0), '');
+  }
+  let lastDepth = currentDepth();
+  const sync = () => {
+    if (depthOf(window.history.state) === null) {
+      window.history.replaceState(withDepth(window.history.state, lastDepth + 1), '');
+    }
+    lastDepth = currentDepth();
+    useRouter.setState({ route: currentRoute() });
+  };
   window.addEventListener('popstate', sync);
   window.addEventListener('hashchange', sync);
 }
