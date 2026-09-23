@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { PACKS, type TemplatePack } from '../../../templates/packs';
-import { kitChoices, kitSize, type KitChoice } from '../../../templates/kit';
+import { kitChoices, kitItemFor, kitSize, type KitChoice } from '../../../templates/kit';
+import type { TemplateVariant } from '../../../model/wizard';
 import { paletteById } from '../../../model/wizard';
 import type { Palette } from '../../../model/templateVocabulary';
 import { kitPaletteFor } from '../kitPlan';
@@ -12,22 +13,18 @@ export function defaultSelectionFor(pack: TemplatePack): string[] {
 }
 
 /** The palette a kit builds this design in (`kitPaletteFor`), as the value a preview takes. */
-function kitPalette(pack: TemplatePack, choice: KitChoice): Palette | undefined {
-  const id = kitPaletteFor(pack, choice.variant);
+function kitPalette(pack: TemplatePack, variant: TemplateVariant): Palette | undefined {
+  const id = kitPaletteFor(pack, variant);
   return id ? paletteById(id) : undefined;
 }
 
 /**
- * The kit card's COVER: its signature graphic (the starter's first), in the kit's own Style.
- * The design is resolved through `kitChoices`, the same resolver the create path runs, so the
- * picture on the card is the graphic the kit really starts with.
+ * The kit card's COVER: its signature graphic (the starter's first), in the kit's own Style,
+ * resolved the way the create path resolves it (`kitItemFor`) - so the picture on the card is
+ * the graphic the kit really starts with.
  */
-function coverOf(pack: TemplatePack): KitChoice | null {
-  try {
-    return kitChoices(pack).find((c) => c.key === pack.starter[0]) ?? null;
-  } catch {
-    return null;
-  }
+function coverOf(pack: TemplatePack): TemplateVariant | null {
+  return pack.starter[0] ? kitItemFor(pack, pack.starter[0])?.variant ?? null : null;
 }
 
 /**
@@ -168,14 +165,16 @@ export default function KitPicker({ pack, selected, onPack, onSelected, query, o
   // Only TICKED rows can be reassured about: a search that hides some of them says so, because
   // a count of ten over three cards looks like a bug in the count.
   const hidden = chosen.length - visible.filter((c) => ticked.has(c.key)).length;
-  // A ticked "any other graphic" keeps its section open, so the tick stays in sight.
-  const othersOpen = others.some((c) => ticked.has(c.key)) || query.trim() !== '';
+  // The disclosure is the USER's: it opens and closes when they say, and a search opens it
+  // because the rows it matched have to be seen. A tick never moves it.
+  const [othersShown, setOthersShown] = useState(false);
+  const othersOpen = othersShown || query.trim() !== '';
 
   const row = (choice: KitChoice) => (
     <KitRow
       key={choice.key}
       choice={choice}
-      palette={pack ? kitPalette(pack, choice) : undefined}
+      palette={pack ? kitPalette(pack, choice.variant) : undefined}
       ticked={ticked.has(choice.key)}
       onToggle={() => toggle(choice.key)}
     />
@@ -210,7 +209,7 @@ export default function KitPicker({ pack, selected, onPack, onSelected, query, o
               aria-pressed={active}
             >
               <span className="wz-kit-thumb wz-kit-cover" data-testid="kit-cover">
-                {cover && <MiniPreview variant={cover.variant} palette={kitPalette(p, cover)} />}
+                {cover && <MiniPreview variant={cover} palette={kitPalette(p, cover)} />}
               </span>
               <span className="wz-kit-card-text">
                 <strong>{p.name}</strong>
@@ -259,9 +258,12 @@ export default function KitPicker({ pack, selected, onPack, onSelected, query, o
 
           {others.length > 0 && (
             // Closed by default: every other graphic type in this Style is an offer for the
-            // unusual show, and eighty cards open on arrival would bury the kit itself. It is
-            // keyed on `othersOpen` so a search or a tick inside it re-opens it.
-            <details className="wz-kit-others" open={othersOpen} key={othersOpen ? 'open' : 'closed'}>
+            // unusual show, and eighty cards open on arrival would bury the kit itself.
+            <details
+              className="wz-kit-others"
+              open={othersOpen}
+              onToggle={(event) => setOthersShown(event.currentTarget.open)}
+            >
               <summary className="wz-kit-contents-label mono">
                 Any other graphic in this Style ({others.length})
               </summary>

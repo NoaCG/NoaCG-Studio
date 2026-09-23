@@ -773,11 +773,16 @@ export default function CreationWizard() {
   const chooseBrand = (nextId: string | null) => {
     const next = nextId ? brandChoices.find((b) => b.id === nextId)?.brand ?? null : null;
     setBrandId(next ? nextId : null);
-    const fields = next ? brandPatch(next) : brandClearPatch();
-    patch(fields);
     // THE BRAND REACHES EVERY GRAPHIC OF A KIT, not only the one on screen: the set is built
-    // up front, so every other graphic's answers take the same four fields and are rebuilt.
-    if (kit) setKit(rebrandKit(kit, fields));
+    // up front, so every graphic's answers take it and are rebuilt - and None hands each one
+    // back the kit's own palette rather than no palette at all (wizard/kitPlan.ts).
+    if (kit && buildMode === 'kit') {
+      const plan = rebrandKit(committedKit(kit), next ? brandPatch(next) : null);
+      setKit(plan);
+      setDraft(plan.drafts[plan.current]);
+      return;
+    }
+    patch(next ? brandPatch(next) : brandClearPatch());
   };
 
   /** What the chooser promises, in the words of the walk it is standing in. The brand's own
@@ -1002,6 +1007,19 @@ export default function CreationWizard() {
    * so the hub, the Kit step and the save always see it as it was left.
    */
   const moveKitTo = (target: number) => {
+    // FORWARD FROM THE KIT STEP means the picker's answer, whichever control was used: a rail
+    // click has to build or re-shape the set exactly as Next does, or ticks made there are
+    // silently dropped. And a kit left for ONE graphic is over - its tray and hub would
+    // otherwise stay wrapped around a design that is not part of it.
+    if (step === 1 && target > 1) {
+      if (buildMode === 'one') {
+        setKit(null);
+        setStep(target);
+      } else {
+        buildFromKitStep(target);
+      }
+      return;
+    }
     if (kit && isKitEditStep(step) && !isKitEditStep(target)) setKit(commitKitGraphic(kit, draft));
     setStep(target);
   };
@@ -1024,7 +1042,7 @@ export default function CreationWizard() {
    * keeps every graphic it still holds exactly as edited (`reconcileKit`); a different kit starts
    * over. The kit's palette leads each graphic it is drawn for, and the footer brand outranks it.
    */
-  const buildKitAndOpenHub = (pack: TemplatePack, keys: string[]) => {
+  const buildKitAndOpenHub = (pack: TemplatePack, keys: string[], target: number = finishStep) => {
     const items = kitSelection(pack, keys);
     if (items.length === 0) return;
     let plan: KitPlan;
@@ -1039,7 +1057,15 @@ export default function CreationWizard() {
     // The draft in hand is always the open graphic's, so a rail click into Fields from the hub
     // opens a real graphic rather than whatever the Kit step left behind.
     setDraft(plan.drafts[plan.current]);
-    setStep(finishStep);
+    setStep(target);
+  };
+
+  /** Leave the Kit step forward to `target`. Switching to ANOTHER kit discards the edited one,
+   *  so that is asked first (and the answer lands on the hub). */
+  const buildFromKitStep = (target: number = finishStep) => {
+    if (!kitPack) return;
+    if (kit && kit.pack.id !== kitPack.id && kit.edited) setKitSwitchAsk(true);
+    else buildKitAndOpenHub(kitPack, kitSelected, target);
   };
 
   /** "Apply this Style to all", once confirmed: the open graphic's Style reaches every other
@@ -1508,10 +1534,7 @@ export default function CreationWizard() {
    *  not walked. Everything in between is an ordinary step of the open graphic. */
   const goToStep = (delta: number) => {
     if (delta > 0 && mode === 'template' && buildMode === 'kit' && step === 1) {
-      if (!kitPack) return;
-      // Switching to ANOTHER kit discards the edited one, so that is asked first.
-      if (kit && kit.pack.id !== kitPack.id && kit.edited) setKitSwitchAsk(true);
-      else buildKitAndOpenHub(kitPack, kitSelected);
+      buildFromKitStep();
       return;
     }
     if (kit && ((delta < 0 && step === 2) || (delta > 0 && step === animStep))) {

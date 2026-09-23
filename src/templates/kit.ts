@@ -76,16 +76,24 @@ export function kitChoiceKey(typeId: string | null, designId: string): string {
 }
 
 /**
- * Does this ONE graphic type ship a design in this kit's Style? Asked through `resolvePack`, the
- * same resolver the create path runs, rather than by reaching into the registry a second time -
- * a second copy is how the picker comes to offer a cell that throws on Create.
+ * ONE graphic of a kit by its picker key: a graphic type resolved in the kit's Style, or an
+ * `extra:<designId>` by its id. A type is asked through `resolvePack`, the same resolver the
+ * create path runs, rather than by reaching into the registry a second time - a second copy is
+ * how the picker comes to offer a cell that throws on Create. Null when the key resolves to
+ * nothing, which is the answer for a type with no design in this family.
  */
-function typeResolves(pack: TemplatePack, typeId: string): string | null {
-  try {
-    return resolvePack({ id: pack.id, family: pack.family, types: [typeId] })[0].designId;
-  } catch {
-    return null;
+export function kitItemFor(pack: TemplatePack, key: string): KitItem | null {
+  const extra = key.startsWith('extra:');
+  let designId: string | null = extra ? key.slice('extra:'.length) : null;
+  if (!extra) {
+    try {
+      designId = resolvePack({ id: pack.id, family: pack.family, types: [key] })[0].designId;
+    } catch {
+      return null;
+    }
   }
+  const variant = designId ? variantById(designId) : undefined;
+  return variant ? { key, variant, typeId: extra ? null : key } : null;
 }
 
 /**
@@ -110,10 +118,8 @@ export function kitChoices(pack: TemplatePack): KitChoice[] {
   ];
   for (const type of TYPES) {
     if (byKey.has(type.id)) continue;
-    const designId = typeResolves(pack, type.id);
-    const variant = designId ? variantById(designId) : undefined;
-    if (!variant) continue;
-    choices.push({ key: type.id, variant, typeId: type.id, inStarter: false, inPack: false });
+    const item = kitItemFor(pack, type.id);
+    if (item) choices.push({ ...item, inStarter: false, inPack: false });
   }
   return choices;
 }

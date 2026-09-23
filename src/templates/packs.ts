@@ -584,8 +584,8 @@ const CORE_SIX: Record<string, readonly string[]> = {
 };
 
 /** A starter is "about ten": enough to run a show, few enough to read at a glance. */
-export const STARTER_MIN = 6;
-export const STARTER_MAX = 12;
+const STARTER_MIN = 6;
+const STARTER_MAX = 12;
 
 /**
  * Every problem with the kit config, as strings (empty = valid). `variantStyleTags` maps the

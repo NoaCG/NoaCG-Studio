@@ -458,7 +458,7 @@ function printGates() {
 // ── The packs and literal-drift reports ──────────────────────────────────────────────────
 
 function printPacks() {
-  console.log(`\nKITS — ${packs.length} kit(s), src/templates/packs.ts`);
+  console.log(`\nKITS - ${packs.length} kit(s), src/templates/packs.ts`);
   for (const p of packs) {
     console.log(
       `  ${p.id.padEnd(14)} ${p.family.padEnd(8)} starts with ${String(p.starter.length).padStart(2)}` +

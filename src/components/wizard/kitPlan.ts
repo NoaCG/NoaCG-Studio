@@ -22,7 +22,14 @@ import type { AnimPresetId, TemplateVariant } from '../../model/wizard';
 import { paletteById } from '../../model/wizard';
 import type { KitItem } from '../../templates/kit';
 import type { TemplatePack } from '../../templates/packs';
-import { buildDraftTemplate, initialDraft, mergeDraft, type DraftPatch, type WizardDraft } from './draft';
+import {
+  brandClearPatch,
+  buildDraftTemplate,
+  initialDraft,
+  mergeDraft,
+  type DraftPatch,
+  type WizardDraft,
+} from './draft';
 
 /** The kit being built, from the moment the Kit step's Next is taken. */
 export interface KitPlan {
@@ -44,11 +51,6 @@ export interface KitPlan {
   /** True once any graphic has been opened for editing or a Style applied across the set -
    *  the fact a "switch to another kit?" confirmation has to weigh. */
   edited: boolean;
-}
-
-/** The kit's own name, and the production's default name. */
-export function kitName(plan: KitPlan): string {
-  return plan.pack.name;
 }
 
 /** The picker keys the plan was built from, in item order. */
@@ -229,7 +231,9 @@ export function reconcileKit(
 export function commitKitGraphic(plan: KitPlan, draft: WizardDraft): KitPlan {
   const i = plan.current;
   const item = plan.items[i];
-  if (!item || draft.variantId !== item.variant.id) return plan;
+  // The same object it was opened with means nothing was changed: no rebuild, and looking at
+  // a graphic does not count as editing it.
+  if (!item || draft.variantId !== item.variant.id || draft === plan.drafts[i]) return plan;
   return {
     ...plan,
     drafts: plan.drafts.map((d, j) => (j === i ? draft : d)),
@@ -259,11 +263,18 @@ export function applyStyleToKit(plan: KitPlan, source: WizardDraft): KitPlan {
 
 /**
  * The footer's brand, applied to EVERY graphic of the set - not only the one on screen. A brand
- * writes the same four fields on every draft (wizard/draft `brandPatch`), so re-applying it is
- * a plain merge and a rebuild.
+ * writes the same fields on every draft (wizard/draft `brandPatch`), so re-applying it is a
+ * plain merge and a rebuild. `null` is the chooser's None: the brand's fields are cleared and
+ * each graphic gets the kit's own palette back, because a cleared palette would drop it to its
+ * design's default and the kit would stop reading as one Style.
  */
-export function rebrandKit(plan: KitPlan, brandFields: DraftPatch): KitPlan {
-  const drafts = plan.drafts.map((d) => mergeDraft(d, brandFields));
+export function rebrandKit(plan: KitPlan, brandFields: DraftPatch | null): KitPlan {
+  const drafts = plan.drafts.map((d, i) =>
+    mergeDraft(
+      d,
+      brandFields ?? { ...brandClearPatch(), paletteId: kitPaletteFor(plan.pack, plan.items[i].variant) ?? null },
+    ),
+  );
   return {
     ...plan,
     drafts,

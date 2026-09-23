@@ -360,6 +360,61 @@ test('changing the contents after editing keeps every edit', async ({ page }) =>
   await expect(firstLine(page)).toHaveValue('Kept through a re-shape');
 });
 
+test('a rail jump from the Kit step applies its ticks, like Next does', async ({ page }) => {
+  await pickShortKit(page, 2);
+  await buildKit(page, 2);
+  await page.getByTestId('kit-edit-contents').click();
+  await page.locator('[data-testid="kit-library"] [data-kit-item]').first().check();
+  // The Finish dot, not Next: whichever control leaves the Kit step, the set follows the picker.
+  await page.locator('.wz-dot').nth(5).click();
+  await expect(page.getByTestId('kit-finish')).toBeVisible();
+  await expect(page.locator('[data-kit-open]')).toHaveCount(3);
+});
+
+test('leaving a built kit for one graphic ends the kit', async ({ page }) => {
+  await pickShortKit(page, 2);
+  await buildKit(page, 2);
+  await page.getByTestId('kit-edit-contents').click();
+  await page.locator('[data-build-mode="one"]').click();
+  await page.locator('.wz-variant').first().click();
+  await page.locator('.wz-next').click();
+  // A single graphic: no tray, a plain Back, and the single-graphic Finish at the end.
+  await expect(page.getByTestId('wz-stepcount')).toHaveText('Step 3 / 6');
+  await expect(page.getByTestId('kit-tray')).toHaveCount(0);
+  await expect(page.locator('.wz-back')).toHaveText('← Back');
+  await page.locator('.wz-next').click();
+  await page.locator('.wz-next').click();
+  await expect(page.locator('.wz-next')).toHaveText('Next →');
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('kit-finish')).toHaveCount(0);
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+});
+
+test('clearing the brand gives every kit graphic its kit palette back', async ({ page }) => {
+  // Model-level: a saved brand is the only way to reach the chooser, and what matters is the
+  // transform - a brand in, then None, lands each graphic back on the kit's own palette.
+  await page.goto('/app');
+  const result = await page.evaluate(async () => {
+    const { packById } = await import('/src/templates/packs.ts');
+    const { kitSelection } = await import('/src/templates/kit.ts');
+    const { buildKit, rebrandKit, kitPaletteFor } = await import('/src/components/wizard/kitPlan.ts');
+    const { initialDraft } = await import('/src/components/wizard/draft.ts');
+    const pack = packById('newsroom')!;
+    const items = kitSelection(pack, pack.starter);
+    const built = buildKit(pack, items, initialDraft(), null);
+    const branded = rebrandKit(built, { paletteId: 'signal', fontId: null });
+    const cleared = rebrandKit(branded, null);
+    return {
+      branded: branded.drafts.map((d) => d.paletteId),
+      cleared: cleared.drafts.map((d) => d.paletteId),
+      expected: items.map((item) => kitPaletteFor(pack, item.variant) ?? null),
+    };
+  });
+  expect(new Set(result.branded)).toEqual(new Set(['signal']));
+  expect(result.cleared).toEqual(result.expected);
+  expect(result.expected).toContain('ivory');
+});
+
 test('switching to another kit over an edited one asks first', async ({ page }) => {
   await pickShortKit(page, 2);
   await buildKit(page, 2);
