@@ -21,6 +21,7 @@
 // NoaCG OWNS THE CONFIGURATION: the Bridge address and token and the playout server live here,
 // device-level; the Bridge keeps nothing but its own token and is named its target on every call.
 
+import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   PLAYOUT_V,
   type AdapterId,
@@ -97,10 +98,6 @@ export const PLAYOUT_DEFAULTS: PlayoutSettings = {
   channels: [{ channel: 1, name: 'Graphics' }],
   clipChannel: 1,
 };
-
-/** The range CasparCG channel numbers live in; a studio with more than a handful is rare. */
-export const MIN_PLAYOUT_CHANNEL = 1;
-export const MAX_PLAYOUT_CHANNEL = 99;
 
 /** A channel number as stored, or null when it is not one. */
 function channelNumber(value: unknown): number | null {
@@ -190,16 +187,21 @@ export function itemSlot(s: PlayoutSettings, item: { channel?: number; layer: nu
   return slotOf(s, item.layer, channelOf(s, item));
 }
 
-/** `2 · Inserts` - a channel as the operator reads it, or the bare number for one the studio
- *  has not named (a production made in another studio, or a row removed since). */
+/** The studio's word for a channel (`Inserts`), or '' for one it has not named - a production
+ *  made in another studio, or a row removed since. The first row wins on a duplicate number. */
+export function channelName(s: PlayoutSettings, channel: number): string {
+  return s.channels.find((row) => row.channel === channel)?.name.trim() ?? '';
+}
+
+/** `2 · Inserts` - a channel as the operator reads it, or the bare number when it has no name. */
 export function channelLabel(s: PlayoutSettings, channel: number): string {
-  const name = s.channels.find((row) => row.channel === channel)?.name.trim();
+  const name = channelName(s, channel);
   return name ? `${channel} · ${name}` : String(channel);
 }
 
 /** `channel 2 (Inserts)` - the same, as it reads inside a sentence. */
 export function channelTitle(s: PlayoutSettings, channel: number): string {
-  const name = s.channels.find((row) => row.channel === channel)?.name.trim();
+  const name = channelName(s, channel);
   return name ? `channel ${channel} (${name})` : `channel ${channel}`;
 }
 

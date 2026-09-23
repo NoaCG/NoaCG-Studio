@@ -1765,6 +1765,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A cue over the playout server's library, and whether THIS cue is what this page last put
    *  up on its item (docs/BRIDGE.md §5). */
   const selectedPlayoutItem = selectedCue ? playoutItemFor(selectedCue) : null;
+  /** Its channel, read once for the editor's pick (the graphics channel when no server cue is selected). */
+  const selectedPlayoutChannel = channelOf(playoutSettings, selectedPlayoutItem ?? {});
   const selectedPlayoutLive = !!selectedPlayoutItem && !!selectedCue && livePlayout[selectedPlayoutItem.id]?.cueId === selectedCue.id;
   /** What is on air on the SELECTED cue's layer — its own cue, another cue, or nothing. */
   const selectedLayerCueId = selectedGraphic ? liveCue[selectedGraphic] ?? null : null;
@@ -1829,6 +1831,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * that is not running each get their own sentence in the note line, and nothing marks the
    * row ON AIR on anything but an accepted take.
    */
+  /** Forget that an item is up on the server: its Out was accepted, or nothing of it is left. */
+  const dropLivePlayout = (itemId: string) =>
+    setLivePlayout((m) => {
+      const next = { ...m };
+      delete next[itemId];
+      return next;
+    });
+
   const playoutVerb = async (
     cue: ShowCue,
     verb: 'take' | 'update' | 'next' | 'out' | 'pause' | 'resume',
@@ -1845,12 +1855,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // A RE-TAKE after the cue was moved to another channel or layer: its first copy is still up
     // where it went, and nothing else knows it is there. Take that one off first, so the move is
     // a move and not a second copy stranded on the old slot.
+    let movedOff = false;
     if (verb === 'take' && live && slotAddress(live.slot) !== slotAddress(slot)) {
       const off = await act(settings, { verb: 'out', slot: live.slot, item: itemRef });
       if (off.state !== 'ok') {
         setNote(`${label} did not reach the playout server: ${item.name} is still on ${slotAddress(live.slot)} - ${off.detail}`);
         return false;
       }
+      movedOff = true;
     }
     const values = cueView(cue).values;
     const action: PlayoutAction =
@@ -1862,6 +1874,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const result = await act(settings, action);
     if (result.state !== 'ok') {
       setNote(`${label} did not reach the playout server: ${result.detail}`);
+      // The old copy already came off above, so nothing of this item is up anywhere now; a
+      // row still saying ON AIR would be the one thing on the page that is not true.
+      if (movedOff) dropLivePlayout(item.id);
       return false;
     }
     setNote(`✓ ${label}: ${item.name} on ${slotAddress(slot)}`);
@@ -1875,13 +1890,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return { ...next, [item.id]: { cueId: cue.id, slot } };
       });
     }
-    if (verb === 'out') {
-      setLivePlayout((m) => {
-        const next = { ...m };
-        delete next[item.id];
-        return next;
-      });
-    }
+    if (verb === 'out') dropLivePlayout(item.id);
     return true;
   };
 
@@ -3164,7 +3173,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               <label className="pd-field pd-field-channel">
                 <span>Channel</span>
                 <select
-                  value={channelOf(playoutSettings, selectedPlayoutItem)}
+                  value={selectedPlayoutChannel}
                   onChange={(e) => setShows(setPlayoutItemChannel(show.id, selectedPlayoutItem.id, Number(e.target.value)))}
                   data-testid="playout-channel"
                 >
@@ -3173,9 +3182,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                       {channelLabel(playoutSettings, row.channel)}
                     </option>
                   ))}
-                  {!playoutSettings.channels.some((row) => row.channel === channelOf(playoutSettings, selectedPlayoutItem)) && (
-                    <option value={channelOf(playoutSettings, selectedPlayoutItem)}>
-                      {channelOf(playoutSettings, selectedPlayoutItem)} · not in Settings
+                  {!playoutSettings.channels.some((row) => row.channel === selectedPlayoutChannel) && (
+                    <option value={selectedPlayoutChannel}>
+                      {selectedPlayoutChannel} · not in Settings
                     </option>
                   )}
                 </select>

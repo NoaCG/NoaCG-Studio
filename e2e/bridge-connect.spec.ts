@@ -395,6 +395,11 @@ test('a studio saved before channels had names reads as one row, and one click n
   await expect(rows.nth(2).getByTestId('caspar-channel-name')).toHaveValue('');
   await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('4');
 
+  // A number past the range is clamped, never a row that silently vanishes on the next load.
+  await rows.nth(2).getByTestId('caspar-channel-number').fill('150');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(2).getByTestId('caspar-channel-number')).toHaveValue('99');
+
   // Two rows on one number is a typo the table says out loud.
   await rows.nth(2).getByTestId('caspar-channel-number').fill('4');
   await expect(section.getByTestId('caspar-channel-duplicate')).toContainText('channel 4');

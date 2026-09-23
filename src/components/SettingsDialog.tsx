@@ -4,10 +4,9 @@ import { loadPrefs, savePrefs } from '../model/prefs';
 import { EXPORT_TARGETS } from '../export/registry';
 import { signOut, updatePassword } from '../backend/auth';
 import { listAgentKeys, revokeAgentKey, type AgentKeySummary } from '../backend/agentAccess';
+import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   BRIDGE_DOWNLOAD_URL,
-  MAX_PLAYOUT_CHANNEL,
-  MIN_PLAYOUT_CHANNEL,
   channelLabel,
   loadPlayoutSettings,
   playoutConfigured,
@@ -267,8 +266,9 @@ function PlayoutSection() {
   /** The next number up, and - while clips still share the graphics channel - the row a studio
    *  with an insert channel wants, already named and already the clip default. One click from a
    *  stock single-channel studio to "1 Graphics, 2 Inserts". */
+  const highestChannel = Math.max(...settings.channels.map((row) => row.channel));
   const addRow = () => {
-    const next = Math.min(MAX_PLAYOUT_CHANNEL, Math.max(...settings.channels.map((row) => row.channel)) + 1);
+    const next = Math.min(MAX_PLAYOUT_CHANNEL, highestChannel + 1);
     const firstInserts = settings.clipChannel === settings.channel;
     set({
       channels: [...settings.channels, { channel: next, name: firstInserts ? 'Inserts' : '' }],
@@ -367,9 +367,14 @@ function PlayoutSection() {
                     min={MIN_PLAYOUT_CHANNEL}
                     max={MAX_PLAYOUT_CHANNEL}
                     value={row.channel}
-                    // A cleared box keeps the row's number rather than dropping the row: the
-                    // table is saved on every keystroke.
-                    onChange={(e) => setRow(i, { channel: Math.round(Number(e.target.value)) || row.channel })}
+                    // A cleared box keeps the row's number, and a number past either end of
+                    // the range is clamped to it, rather than dropping the row: the table is
+                    // saved on every keystroke and a row outside the range does not load.
+                    onChange={(e) => {
+                      const typed = Math.round(Number(e.target.value));
+                      if (!typed) return;
+                      setRow(i, { channel: Math.min(MAX_PLAYOUT_CHANNEL, Math.max(MIN_PLAYOUT_CHANNEL, typed)) });
+                    }}
                     aria-label={`Channel number, row ${i + 1}`}
                     data-testid="caspar-channel-number"
                   />
@@ -399,7 +404,7 @@ function PlayoutSection() {
             <div>
               <button
                 onClick={addRow}
-                disabled={Math.max(...settings.channels.map((row) => row.channel)) >= MAX_PLAYOUT_CHANNEL}
+                disabled={highestChannel >= MAX_PLAYOUT_CHANNEL}
                 data-testid="caspar-channel-add"
               >
                 + Add channel

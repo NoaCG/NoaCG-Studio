@@ -10,7 +10,7 @@
 
 import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
-import { channelOf, loadPlayoutSettings } from './playoutLink';
+import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { readPublishedProfile, type ShowProfile } from '../model/profile';
 import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
@@ -328,7 +328,7 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
     .map((c) => {
       const item = itemById.get(c.sourceId)!;
       const channel = channelOf(playout, item);
-      const channelName = playout.channels.find((row) => row.channel === channel)?.name.trim();
+      const name = channelName(playout, channel);
       return {
         id: c.id,
         label: c.label,
@@ -336,7 +336,7 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
         name: item.name,
         layer: item.layer,
         channel,
-        ...(channelName ? { channelName } : {}),
+        ...(name ? { channelName: name } : {}),
         ...(c.note ? { note: c.note } : {}),
       };
     });

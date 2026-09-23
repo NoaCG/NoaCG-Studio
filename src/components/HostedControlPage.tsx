@@ -40,6 +40,7 @@ import {
   type HostedCombineInput,
 } from '../control/hostedCombine';
 import { fetchProductionDataBySlug, patchProductionDataBySlug } from '../control/productionDataApi';
+import { slotAddress } from '../control/playoutLink';
 import {
   replacementPatch,
   resolveBindings,
@@ -1190,7 +1191,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                         }
                         data-testid="hosted-playout-cue-slot"
                       >
-                        {cue.channel ? `${cue.channel}-${cue.layer}` : `L${cue.layer}`}
+                        {cue.channel ? slotAddress({ channel: cue.channel, layer: cue.layer }) : `L${cue.layer}`}
                       </span>{' '}
                       · {cue.kind === 'media' ? 'Server clip' : 'Server template'} ·{' '}
                       {cue.note || cue.name}

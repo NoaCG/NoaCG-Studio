@@ -513,11 +513,18 @@ export function addPlayoutItem(
   return { shows, cueId };
 }
 
-/** Move a playout item to another CasparCG channel (the cue editor's channel pick). */
+/** The range a CasparCG channel number lives in, here and in Settings -> Playout. A studio with
+ *  more than a handful is rare; the bound is what keeps a stored number one every reader honours. */
+export const MIN_PLAYOUT_CHANNEL = 1;
+export const MAX_PLAYOUT_CHANNEL = 99;
+
+/** Move a playout item to another CasparCG channel (the cue editor's channel pick). A number
+ *  outside the range is refused rather than stored, so the record never says one channel while
+ *  every verb plays on another. */
 export function setPlayoutItemChannel(showId: string, itemId: string, channel: number): Show[] {
   return patchShow(showId, (show) => {
     const item = show.playoutItems?.find((i) => i.id === itemId);
-    if (!item || !Number.isInteger(channel) || channel < 1) return false;
+    if (!item || !Number.isInteger(channel) || channel < MIN_PLAYOUT_CHANNEL || channel > MAX_PLAYOUT_CHANNEL) return false;
     item.channel = channel;
     return true;
   });

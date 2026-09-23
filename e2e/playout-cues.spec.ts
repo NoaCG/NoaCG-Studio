@@ -40,6 +40,8 @@ interface FakeBridge {
   missing?: boolean;
   /** The server answers VERSION and cannot list: its media scanner is not running. */
   scannerDown?: boolean;
+  /** The server refuses a TAKE onto this channel, the way a channel missing from its config does. */
+  refuseTakeOnChannel?: number;
   templates: string[];
   actions: unknown[];
   thumbnails: string[];
@@ -115,6 +117,15 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
     }
     if (path === '/act') {
       state.actions.push(body.action);
+      const act = body.action as { verb?: string; slot?: { channel?: number } } | undefined;
+      if (act?.verb === 'take' && state.refuseTakeOnChannel !== undefined && act.slot?.channel === state.refuseTakeOnChannel) {
+        await json(route, 200, {
+          ok: false,
+          v: 2,
+          error: { hop: 'target', code: 'refused', detail: 'CasparCG refused the command: 401 CG ERROR. Check the channel and layer.', raw: '401 CG ERROR' },
+        });
+        return;
+      }
       await json(route, 200, { ok: true, v: 2, raw: '202 CG OK' });
       return;
     }
@@ -473,4 +484,28 @@ test('a take on a slot another cue holds replaces it, and a channel the studio d
   await expect(pick).toHaveValue('5');
   await expect(pick.locator('option:checked')).toHaveText('5 · not in Settings');
   await expect(page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('cue-layer')).toHaveText('5-10');
+});
+
+test('a re-take onto a channel the server refuses leaves nothing marked ON AIR, since the old copy already came off', async ({ page }) => {
+  await seedSettings(page, TWO_CHANNELS);
+  const bridge = await fakeBridge(page, { refuseTakeOnChannel: 2 });
+  await productionPage(page);
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-field-ids').fill('f0');
+  await page.locator('[data-testid="picker-row"][data-name="HOUSE_STRAP/HOUSE_STRAP"]').getByTestId('picker-add').click();
+  const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
+  await page.getByTestId('verb-take').click();
+  await expect(strap).toContainText('ON AIR');
+
+  // Moved to a channel this server does not have, then re-taken: the copy on 1-21 comes off,
+  // the take on 2-21 is refused, and the row stops claiming anything is up.
+  await page.getByTestId('playout-cue-editor').getByTestId('playout-channel').selectOption('2');
+  await page.getByTestId('verb-retake').click();
+  await expect(page.getByTestId('production-note')).toContainText('did not reach the playout server');
+  expect(bridge.actions.slice(-2)).toMatchObject([
+    { verb: 'out', slot: { channel: 1, layer: 21 } },
+    { verb: 'take', slot: { channel: 2, layer: 21 } },
+  ]);
+  await expect(strap).not.toContainText('ON AIR');
+  await expect(page.getByTestId('playout-on-air')).toHaveCount(0);
 });
