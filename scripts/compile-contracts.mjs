@@ -38,7 +38,7 @@ const LABEL = '[compile-contracts]';
  * `problems` cannot hand `write()` an empty map and erase the compiled tree.
  */
 export function plan(root = ROOT) {
-  const { rules, problems } = loadRules(root);
+  const { rules, problems, treeUnknown } = loadRules(root);
   for (const pair of findDuplicates(rules)) {
     problems.push(
       `${pair.a} and ${pair.b} read as the same rule (similarity ${pair.score.toFixed(2)}) - ` +
@@ -48,7 +48,7 @@ export function plan(root = ROOT) {
   const owned = ownedDirectories(root);
   const outputs = compileOutputs(rules, owned);
   problems.push(...kernelBudget(outputs).problems);
-  return { rules, problems, outputs, owned };
+  return { rules, problems, outputs, owned, treeUnknown };
 }
 
 /**
@@ -147,6 +147,44 @@ function staleOutputs(outputs, root, owned = new Set()) {
   return stale.sort();
 }
 
+/**
+ * A plan that owns directories and produces a contract for NONE of them.
+ *
+ * `nestedContracts` only yields a directory that has at least one ACTIVE rule, so a store that
+ * comes back empty or half-read renders no nested contract at all - and every owned directory's
+ * `AGENTS.md` and `.gitattributes` then answer `staleOutputs`' question with "no longer produced".
+ * That is how this repository's own contracts deleted themselves twice on 2026-09-23, in two
+ * worktrees, while nine directories were still plainly owned: the marker the compiler resolves
+ * ownership by lives in the very files it removed, so one bad read takes the set and the next
+ * compile cannot tell the set was ever there. Nothing committed them, but a session running
+ * `git add -A` in that window would have landed the deletion of the whole rule store.
+ *
+ * TWO OR MORE OWNED DIRECTORIES IS THE TEST, and the number is doing real work. Retiring the last
+ * rule of ONE area is ordinary: its contract is stale and must go, which is exactly what
+ * `staleOutputs` is for, and a tree with a single owned directory cannot tell that apart from the
+ * failure. Several areas falling silent in the same breath cannot happen a rule at a time - every
+ * kernel rule would have to leave at once - so it is the read, not the store. Refuse, say what was
+ * resolved, and let a person look. `contractsUnder` already treats a vanished ROOT the same way,
+ * for the same reason: a compile of nothing must never be read as "nothing belongs here".
+ */
+export function degeneratePlan(outputs, owned) {
+  if (owned.size < 2) return false;
+  for (const dir of owned) {
+    if (outputs.has(dir === '' ? NESTED_CONTRACT : `${dir}/${NESTED_CONTRACT}`)) return false;
+  }
+  return true;
+}
+
+/** The message both the write path and `--check` print, so they cannot describe this differently. */
+export function degenerateReason(rules, owned) {
+  return (
+    `${LABEL} REFUSED: ${owned.size} directory(ies) carry the compiler's marker and the store ` +
+    `rendered a contract for none of them (${rules.length} rule(s) loaded). Something is wrong ` +
+    'with the READ, not with the tree: nothing is written and nothing is deleted. Check that ' +
+    '`contracts/rules/` is intact and that no other process is rewriting it, then run again.'
+  );
+}
+
 /** The files whose content on disk differs from the plan (LF-normalised), and the stale ones. */
 export function drift(outputs, root = ROOT, owned = new Set()) {
   const changed = [];
@@ -158,7 +196,29 @@ export function drift(outputs, root = ROOT, owned = new Set()) {
   return { changed, stale: staleOutputs(outputs, root, owned) };
 }
 
-export function write(outputs, root = ROOT, owned = new Set()) {
+/**
+ * How many generated files one compile may remove before it has to be a person's decision.
+ *
+ * A real removal is small and deliberate: an area migrates away, or its last rule leaves, and that
+ * is one or two files. Seventeen at once is the failure this ceiling exists for, and it holds
+ * whatever the cause - a failed `git ls-files`, a half-read store, a caller passing a fixture plan
+ * against the real checkout. The number is deliberately just above what an honest change needs, so
+ * a legitimate larger removal says so with `--prune` and is visible in the command that ran.
+ */
+export const MAX_DELETIONS = 4;
+
+export function write(outputs, root = ROOT, owned = new Set(), { prune = false } = {}) {
+  // The guards sit HERE rather than only in `main`, because the deletions that started this were
+  // made by a caller inside a test rather than by the command line.
+  if (degeneratePlan(outputs, owned)) throw new Error(degenerateReason([], owned));
+  const stale = staleOutputs(outputs, root, owned);
+  if (!prune && stale.length > MAX_DELETIONS) {
+    throw new Error(
+      `${LABEL} REFUSED: this compile would delete ${stale.length} generated file(s), more than the ` +
+        `${MAX_DELETIONS} an ordinary change removes. Nothing was written and nothing was deleted. ` +
+        `If the removal is real, run \`npm run contracts:compile -- --prune\`. Files: ${stale.join(', ')}`,
+    );
+  }
   for (const [rel, content] of outputs) {
     const file = path.join(root, rel);
     // A file whose bytes are already right is left alone. `writeFileSync` truncates before it
@@ -169,12 +229,12 @@ export function write(outputs, root = ROOT, owned = new Set()) {
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, content, 'utf8');
   }
-  for (const rel of staleOutputs(outputs, root, owned)) unlinkSync(path.join(root, rel));
+  for (const rel of stale) unlinkSync(path.join(root, rel));
 }
 
 function main() {
   const args = process.argv.slice(2);
-  const { rules, problems, outputs, owned } = plan();
+  const { rules, problems, outputs, owned, treeUnknown } = plan();
   if (problems.length > 0) {
     console.error(`${LABEL} ${problems.length} problem(s) in ${rules.length} rule file(s):`);
     for (const p of problems) console.error(`  - ${p}`);
@@ -190,6 +250,25 @@ function main() {
   // silently stopped being maintained. The marker is exactly the kind of resolution measured.mjs
   // exists for.
   measured(owned.size, 'directories the compiler owns');
+
+  // Before anything reads the tree as an instruction to change it. `--report` is exempt: it only
+  // prints, and a degenerate plan is exactly the thing somebody would run `--report` to look at.
+  // A TREE THE COMPILER COULD NOT READ DECIDES NOTHING. `git ls-files` failing inside a checkout
+  // makes every rule look like it matches no file, which is the read that ends in the compiler
+  // deleting the contracts it owns. `--report` only prints, so it is exempt.
+  if (!args.includes('--report') && treeUnknown) {
+    console.error(
+      `${LABEL} REFUSED: \`git ls-files\` failed in this checkout, so the file tree is unknown and ` +
+        'every rule would look like it matches nothing. Nothing was written and nothing was deleted. ' +
+        'Run it again where git works.',
+    );
+    process.exit(1);
+  }
+
+  if (!args.includes('--report') && degeneratePlan(outputs, owned)) {
+    console.error(degenerateReason(rules, owned));
+    process.exit(1);
+  }
 
   if (args.includes('--report')) {
     for (const { file, bytes } of reportOutputs(outputs)) console.log(`${String(bytes).padStart(7)}  ${file}`);
@@ -222,7 +301,7 @@ function main() {
     for (const rel of stale) console.error(`  - no longer produced: ${rel}`);
     process.exit(1);
   }
-  write(outputs, ROOT, owned);
+  write(outputs, ROOT, owned, { prune: args.includes('--prune') });
   // Registered here rather than by a setup step nobody runs: this is the command every session
   // already runs after touching a rule, git config is per clone so a fresh checkout has it
   // missing, and registering it again costs two `git config` writes.
