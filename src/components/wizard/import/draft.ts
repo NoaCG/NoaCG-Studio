@@ -1135,7 +1135,11 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       expired: behaviour.expired || undefined,
     };
   }
-  const on = draft.svgFields.filter((f) => f.on);
+  // The SAME list `svgDesignOptions` mints field ids from: ticked, less the layers the behaviour
+  // writes. Counted over every ticked row instead, a standings table's points index past its
+  // position numbers and lands on the next row's name.
+  const driven = pollDrivenLayers(behaviour);
+  const on = draft.svgFields.filter((f) => f.on && !driven.has(f.candidateId));
   const indexOf = (candidateId: string): number => on.findIndex((f) => f.candidateId === candidateId);
   if (behaviour.kind === 'recipe') {
     const recipe = recipeById(behaviour.recipe);

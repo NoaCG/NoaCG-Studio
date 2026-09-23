@@ -2066,6 +2066,103 @@ test('bingo caller: one press lights the number and rings it, the readouts follo
   await expect(toCall).toHaveValue('');
 });
 
+test('standings: points move a row into its new place, the position numbers stay with their slots, and a tie shares a place', async ({ page }) => {
+  // The owner's own practice file (docs/svg-samples/results-board.svg), the one he walked when he
+  // asked for "a ranking that would also reorder the names and the position number just by adding
+  // or subtracting points" (docs/backlog/graphics-need-their-own-logic.md). The `rank` kind orders
+  // the rows and a PLACE rule moves each row's name and points into the slot the order gives it;
+  // the position numbers are the SLOTS' and are rewritten rather than moved.
+  test.slow();
+  await openImportDoor(page, fileURLToPath(new URL('../docs/svg-samples/results-board.svg', import.meta.url)));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('ranking');
+  await expect(page.getByTestId('map-svg-recipe-count')).toHaveValue('6');
+  await filled(page, 'map-svg-recipe-competitor-5');
+  await filled(page, 'map-svg-recipe-points-5');
+  await filled(page, 'map-svg-recipe-position-5');
+  await expect(page.getByTestId('map-svg-option-lowestFirst')).toBeVisible();
+  // The six position numbers are written by the board, so none of them is a field to type.
+  await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveCount(6);
+  await shot(page, '45-standings-mapping');
+
+  await intoProduction(page, 'Standings', 'League night');
+  await settleDurableWrites(page);
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions).toContainText('Row 3 name');
+  await expect(actions).toContainText('Reset points');
+
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { air, layer } = onAir(page);
+
+  // Where each drawn row stands before anything moves, read off the names on air. Eli North is
+  // second on 88, Noel Kivi third on 81.
+  const idOf = async (name: string) => (await air.locator('text', { hasText: name }).first().getAttribute('id'))!;
+  const eli = await idOf('Eli North');
+  const noel = await idOf('Noel Kivi');
+  const noelPoints = await idOf('81');
+  const top = async (id: string) => (await air.locator(`#${id}`).boundingBox())!.y;
+  const slot2 = await top(eli);
+  const slot3 = await top(noel);
+  expect(slot3).toBeGreaterThan(slot2);
+  const at = (id: string, y: number) => expect.poll(() => top(id)).toBeCloseTo(y, 0);
+  const positions = async () => Promise.all([1, 2, 3, 4, 5, 6].map((n) => layer(`position/${n}`).textContent()));
+  expect(await positions()).toEqual(['1', '2', '3', '4', '5', '6']);
+
+  // A TYPED figure is a data write: Noel draws level with Eli. A tie keeps the drawn order, so
+  // nobody moves - but the third slot now reads 2, because two rows share second place.
+  const noelBox = page.getByTestId(`cue-field-${noelPoints}`);
+  await noelBox.fill('88');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator(`#${noelPoints}`)).toHaveText('88');
+  await expect.poll(positions).toEqual(['1', '2', '2', '4', '5', '6']);
+  await at(noel, slot3);
+
+  // ONE PRESS MORE and Noel overtakes: his name and his points glide into the second slot, Eli
+  // drops into the third, and the numbers in the slots are 1, 2, 3 again.
+  await page.getByTestId('cue-action-up3').click();
+  await expect(noelBox).toHaveValue('89');
+  await at(noel, slot2);
+  await at(noelPoints, slot2);
+  await at(eli, slot3);
+  await expect.poll(positions).toEqual(['1', '2', '3', '4', '5', '6']);
+  await shot(page, '46-standings-overtaken');
+
+  // The correction puts him back where he was drawn.
+  await page.getByTestId('cue-action-down3').click();
+  await page.getByTestId('cue-action-down3').click();
+  await expect(noelBox).toHaveValue('87');
+  await at(noel, slot3);
+  await at(eli, slot2);
+
+  // Reset points: every figure is 0, so every row ties and stands in the order it was drawn.
+  await actions.getByRole('button', { name: /Reset points$/ }).click();
+  await expect(noelBox).toHaveValue('0');
+  await expect.poll(positions).toEqual(['1', '1', '1', '1', '1', '1']);
+  await at(noel, slot3);
+  await at(eli, slot2);
+});
+
+test('standings, lowest first: the smallest figure takes the top slot the moment the table arrives', async ({ page }) => {
+  // Times and golf scores rank the other way. The same drawn table with the option ticked sorts
+  // on arrival: a state entry puts every row in its place at once rather than gliding there.
+  test.slow();
+  await openImportDoor(page, fileURLToPath(new URL('../docs/svg-samples/results-board.svg', import.meta.url)));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('ranking');
+  await page.getByTestId('map-svg-option-lowestFirst').check();
+  await intoProduction(page, 'Race times', 'Sprint night');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { air, layer } = onAir(page);
+  const top = async (name: string) => (await air.locator('text', { hasText: name }).first().boundingBox())!.y;
+  // Jonas Vale was drawn last on 61 and Mara Voss first on 96: they trade the two end slots.
+  const first = await layer('position/1').boundingBox();
+  const last = await layer('position/6').boundingBox();
+  await expect.poll(() => top('Jonas Vale')).toBeCloseTo(first!.y, -1);
+  await expect.poll(() => top('Mara Voss')).toBeCloseTo(last!.y, -1);
+  expect(await top('Otto Lehto')).toBeLessThan(await top('Ina Berg'));
+});
+
 test('CasparCG package: the standalone panel drives the bingo caller, add and take back included', async ({ page, context }) => {
   // The exported panel ships without controlModel.ts and carries its own copy of the payload
   // rule, so `add` and `remove` had to be driven here as `set` was for the score board - and the

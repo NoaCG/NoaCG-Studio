@@ -209,6 +209,93 @@
       }
     ]
   },
+  "ranking": {
+    "name": "The standings",
+    "verbs": "points change and the rows trade places",
+    "buttons": "a +1 and a −1 under each competitor's own name, plus Reset points",
+    "rows": {
+      "role": "competitor",
+      "keys": "numbers",
+      "min": 2,
+      "max": 10,
+      "teach": "Two to ten rows, each drawn in its starting place with first place at the top. Tick Lowest first for times and golf scores."
+    },
+    "roles": [
+      {
+        "id": "competitor",
+        "label": "Competitor",
+        "kind": "field",
+        "perRow": true,
+        "required": true,
+        "pool": "text",
+        "words": "\\bname\\b|competitor|contestant|\\bplayer\\b|\\bdriver\\b|\\bathlete\\b|\\bnimi\\b|kilpailija|\\bnamn\\b",
+        "teach": "Name 1",
+        "also": [
+          "Row 1 name",
+          "Competitor 1",
+          "Player 1",
+          "Nimi 1"
+        ],
+        "what": "a field the operator types - it travels with its row"
+      },
+      {
+        "id": "points",
+        "label": "Points",
+        "kind": "field",
+        "perRow": true,
+        "required": true,
+        "numeric": true,
+        "pool": "text",
+        "words": "\\bpoints?\\b|\\bpts\\b|\\bscore\\b|\\btotal\\b|pisteet|\\bpoäng\\b",
+        "teach": "Points 1",
+        "also": [
+          "Row 1 points",
+          "Pts 1",
+          "Score 1",
+          "Pisteet 1"
+        ],
+        "what": "a field - draw a plain number in it; the rows sort by it"
+      },
+      {
+        "id": "position",
+        "label": "Position",
+        "kind": "layer",
+        "paint": [
+          "write"
+        ],
+        "perRow": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "\\bpos(?:ition)?\\b|\\brank\\b|\\bplace\\b|\\bsija\\b|\\bplacering\\b",
+        "teach": "Position 1",
+        "also": [
+          "Row 1 position",
+          "Rank 1",
+          "Place 1",
+          "Sija 1"
+        ],
+        "what": "the place number drawn in that slot - it stays put and is renumbered on a tie (1, 2, 2, 4)"
+      },
+      {
+        "id": "plate",
+        "label": "Row plate",
+        "kind": "layer",
+        "paint": [
+          "place"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "^(?:row|plate|card|entry|rivi)$",
+        "teach": "Row 1",
+        "also": [
+          "Plate 1",
+          "Card 1",
+          "Rivi 1"
+        ],
+        "what": "a drawing behind the row that travels with it (optional)"
+      }
+    ]
+  },
   "countdown": {
     "name": "The countdown",
     "verbs": "it starts on air, and you hold it",

@@ -8,8 +8,8 @@
 //   1. noacgRepaint() reads the machine's pointers and every field the table names, asks each
 //      field's KIND for its facts and derivations, evaluates every paint rule, and applies the
 //      result: looks by class, gauges by a scale measured at rest, readouts by text.
-//   2. The FIELD-KIND LIBRARY - `row-pick`, `row-set`, `select`, `number`, `counter`, `share`, `list`,
-//      `puzzle`, `fraction`, `clock`, `vote-status` - each a small function from a holder's text
+//   2. The FIELD-KIND LIBRARY - `row-pick`, `row-set`, `select`, `number`, `rank`, `counter`, `share`,
+//      `list`, `puzzle`, `fraction`, `clock`, `vote-status` - each a small function from a holder's text
 //      to facts and derived values. This is the one place a comparison lives, and it is not
 //      authorable: a recipe names a fact, never a test.
 //   3. Three DRIVERS, because five behaviours needed all three: a state entry (every recipe
@@ -20,6 +20,9 @@
 //   5. The DEFAULT TREATMENTS for undrawn moments (the ratified moment ladder's rung 1): one
 //      neutral platform look per kind of moment, built on first need from the row's own
 //      geometry, replaced per moment by the designer's layer wherever one is bound.
+//   6. PLACES - rows that trade places (a standings table): each row's slot measured once at
+//      rest, and a row's layers moved by the distance between its own slot and the one its
+//      ranking gives it, by a transform ATTRIBUTE in front of whatever the designer wrote.
 //
 // A recipe adds no JS. If a new behaviour needs a line here, it is a missing field kind.
 //
@@ -65,7 +68,8 @@ const DATA_HEADER = `// ── The behaviour binding, as DATA ──────
 // table says what each role means: "fields" is the fN each role compiled to, "kinds" is what
 // the runtime treats a field as (a row pick, a share of a vote, a clock), and "paint" is the
 // rules - a LOOK shows while any of its rules holds (any of the listed states, and all of the
-// listed field facts), a GAUGE is scaled by the value a field derives, a WRITE prints one.
+// listed field facts), a GAUGE is scaled by the value a field derives, a WRITE prints one, and
+// a PLACE moves a row's layers into the slot another row was drawn in.
 // Edit a rule and press Update. The runtime below reads this and nothing else.`;
 
 /** The table, emitted. */
@@ -89,8 +93,9 @@ export function behaviourRuntimeJs(withClock: boolean): string {
 ${motionSpeedJs}
 
 // What the runtime remembers between repaints: measured gauge lengths (at rest, once), each
-// number field's last value and which one rose most recently, and a finished clock's length.
-var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, clockRanOut: 0, defaults: {} };
+// number field's last value and which one rose most recently, a finished clock's length, where
+// each row's slot was drawn (at rest, once) and every layer a place rule has moved.
+var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, clockRanOut: 0, defaults: {}, slots: {}, places: [] };
 
 // noacgRoleEls(role, key): every layer stamped with this role token.
 function noacgRoleToken(role, key) {
@@ -335,6 +340,54 @@ function noacgRememberNumbers() {
     noacgBehaviourMemory.numbers[id] = now;
   }
 }
+
+// rank: one row's figure in a STANDINGS - the spec.role field of every row in the set spec.rows,
+// best first: the HIGHEST figure, or the lowest when spec.order is "asc" (a time, a golf score).
+// A tie keeps the rows in the order they were drawn, and a row with no figure sorts last, so the
+// same figures always give the same table - in the editor, in an export and after a snap.
+// Derives "slot" (the key of the row whose drawn slot this row now occupies - what a place rule
+// moves it by), "place" (this row's own place) and "slot-place" (the place of whoever now sits in
+// THIS row's slot - what a position number drawn in that slot says). Places share on a tie:
+// 1, 2, 2, 4.
+function noacgRankOrder(spec) {
+  var keys = noacgRowsOf(spec.rows);
+  var asc = spec.order === 'asc';
+  var rows = [];
+  for (var i = 0; i < keys.length; i++) {
+    var id = noacgFieldFor(spec.role, keys[i]);
+    var n = id ? parseFloat(noacgFieldText(id).replace(/[^0-9.\\-]/g, '')) : NaN;
+    rows.push({ key: keys[i], at: i, value: n, none: isNaN(n) });
+  }
+  var sorted = rows.slice().sort(function (a, b) {
+    if (a.none !== b.none) return a.none ? 1 : -1;
+    if (!a.none && a.value !== b.value) return asc ? a.value - b.value : b.value - a.value;
+    return a.at - b.at;
+  });
+  return { keys: keys, rows: rows, sorted: sorted, asc: asc };
+}
+function noacgRankPlace(order, row) {
+  if (!row || row.none) return '';
+  var better = 0;
+  for (var i = 0; i < order.rows.length; i++) {
+    var other = order.rows[i];
+    if (!other.none && (order.asc ? other.value < row.value : other.value > row.value)) better++;
+  }
+  return String(better + 1);
+}
+noacgKinds.rank = {
+  fact: function () { return false; },
+  derive: function (id, spec, name, rowKey) {
+    var order = noacgRankOrder(spec);
+    var own = order.keys.indexOf(rowKey);
+    if (name === 'slot') {
+      for (var i = 0; i < order.sorted.length; i++) if (order.sorted[i].key === rowKey) return order.keys[i];
+      return rowKey || '';
+    }
+    if (name === 'place') return own === -1 ? '' : noacgRankPlace(order, order.rows[own]);
+    if (name === 'slot-place') return own === -1 ? '' : noacgRankPlace(order, order.sorted[own]);
+    return name === 'text' ? noacgFieldText(id) : null;
+  }
+};
 
 // share: a "Label | count" list, one line per row (the vote's wire). Facts: "leader" on the row
 // with the most votes - never on a tie, because a projected winner picked from two equal rows is
@@ -723,6 +776,140 @@ function noacgGaugeMotion(token, reason, row) {
   return { duration: ${BAR_GROW} / speed, ease: 'power3.out', delay: (row * ${BAR_STAGGER}) / speed };
 }
 
+// ── Places (rows that trade places) ──────────────────────────────────────────
+// A standings table is drawn with every row in its starting place, and the rows move rather than
+// swap their words: the operator's own box for a competitor stays that competitor's box, so the
+// name and the points travel together into the slot the ranking gives them.
+
+// noacgSlotPoint(el): where a slot IS, in the artwork's own units. A text's INSERTION point - the
+// x/y it is set from, through every transform above it - because that does not move with how long
+// the value is, so a centred name and a long one mark the same slot; anything else, its box's
+// top-left corner.
+function noacgSlotPoint(el) {
+  var art = noacgArt();
+  if (!art || !el || !el.getScreenCTM) return null;
+  if ((el.tagName || '').toLowerCase() !== 'text') {
+    var box = noacgArtBox(el);
+    return box ? { x: box.x, y: box.y } : null;
+  }
+  var rootCtm = art.getScreenCTM();
+  var elCtm = el.getScreenCTM();
+  if (!rootCtm || !elCtm) return null;
+  var m = rootCtm.inverse().multiply(elCtm);
+  var x = parseFloat(el.getAttribute('x')) || 0;   // a list ("540 560") counts from its first
+  var y = parseFloat(el.getAttribute('y')) || 0;
+  return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
+}
+
+// noacgRoleLayers(role, key): what plays a role for one row - the layers stamped with it, and the
+// field the role compiled to when it is a field role (the competitor's name, the points).
+function noacgRoleLayers(role, key) {
+  var out = [];
+  var stamped = noacgRoleEls(role, key);
+  for (var i = 0; i < stamped.length; i++) out.push(stamped[i]);
+  var id = noacgFieldFor(role, key);
+  var field = id ? document.getElementById(id) : null;
+  if (field && out.indexOf(field) === -1) out.push(field);
+  return out;
+}
+
+// noacgSlots(anchor, keys): every row's slot, measured AT REST, once. Only a full set is
+// remembered - a row that could not be measured yet (not laid out) is asked again next time - and
+// once remembered it is never re-read, because by then the rows may already stand somewhere else.
+function noacgSlots(anchor, keys) {
+  var memory = noacgBehaviourMemory.slots;
+  if (memory[anchor]) return memory[anchor];
+  var slots = {};
+  for (var i = 0; i < keys.length; i++) {
+    var point = noacgSlotPoint(noacgRoleLayers(anchor, keys[i])[0]);
+    if (!point) return null;
+    slots[keys[i]] = point;
+  }
+  memory[anchor] = slots;
+  return slots;
+}
+
+// noacgPlaceOf(el): the runtime's record of one moved layer, made the first time it is asked -
+// the transform the designer wrote (kept, and written back after ours) and how far it has moved.
+function noacgPlaceOf(el) {
+  var places = noacgBehaviourMemory.places;
+  for (var i = 0; i < places.length; i++) if (places[i].el === el) return places[i];
+  var made = { el: el, base: el.getAttribute('transform'), dx: 0, dy: 0 };
+  places.push(made);
+  return made;
+}
+
+// noacgPlaceWrite(item): put one layer where its dx/dy (artwork units) say. The distance is turned
+// into the units of the layer's own parent, since a group between it and the artwork may be scaled
+// or turned, and written as a translate IN FRONT of the designer's own transform - the way the
+// growth runtime moves a follower - so nothing they wrote is lost.
+function noacgPlaceWrite(item) {
+  var art = noacgArt();
+  var parent = item.el.parentNode;
+  var x = item.dx, y = item.dy;
+  if (art && parent && parent.getScreenCTM && art.getScreenCTM()) {
+    var m = art.getScreenCTM().inverse().multiply(parent.getScreenCTM());
+    var det = m.a * m.d - m.b * m.c;
+    if (det) {
+      x = (m.d * item.dx - m.c * item.dy) / det;
+      y = (m.a * item.dy - m.b * item.dx) / det;
+    }
+  }
+  if (Math.abs(x) < 0.01 && Math.abs(y) < 0.01) {
+    if (item.base === null) item.el.removeAttribute('transform');
+    else item.el.setAttribute('transform', item.base);
+    return;
+  }
+  item.el.setAttribute('transform', 'translate(' + x.toFixed(2) + ',' + y.toFixed(2) + ')' + (item.base ? ' ' + item.base : ''));
+}
+
+// noacgPlaceAll(rules, reason): every place rule, applied. A DATA repaint glides the rows to their
+// new slots, so the audience sees who overtook whom; a state entry, a tick and a snap recovery
+// put them there at once - the graphic arriving is not a change in the standings.
+function noacgPlaceAll(rules, reason) {
+  var moves = [];
+  for (var r = 0; r < rules.length; r++) {
+    var rule = rules[r];
+    if (!rule.place) continue;
+    var keys = noacgRowsOf(rule.rows);
+    var slots = noacgSlots(rule.anchor, keys);
+    if (!slots) continue;
+    for (var k = 0; k < keys.length; k++) {
+      var to = noacgDerive(rule.from, keys[k]);
+      if (!slots[to]) to = keys[k];
+      var dx = slots[to].x - slots[keys[k]].x;
+      var dy = slots[to].y - slots[keys[k]].y;
+      var els = noacgRoleLayers(rule.place, keys[k]);
+      for (var e = 0; e < els.length; e++) moves.push({ el: els[e], dx: dx, dy: dy });
+    }
+  }
+  for (var i = 0; i < moves.length; i++) {
+    // ONE MOVE PER DRAWING: a name inside a row's plate already travels with the plate, and
+    // moving it as well would carry it twice as far.
+    var inside = false;
+    for (var j = 0; j < moves.length; j++) {
+      if (moves[j].el !== moves[i].el && moves[j].el.contains(moves[i].el)) { inside = true; break; }
+    }
+    if (inside) continue;
+    var item = noacgPlaceOf(moves[i].el);
+    if (typeof gsap !== 'undefined') gsap.killTweensOf(item);
+    if (reason === 'data' && typeof gsap !== 'undefined' && (item.dx !== moves[i].dx || item.dy !== moves[i].dy)) {
+      gsap.to(item, {
+        dx: moves[i].dx,
+        dy: moves[i].dy,
+        duration: 0.6 / motionSpeed(),
+        ease: 'power2.inOut',
+        onUpdate: noacgPlaceWrite,
+        onUpdateParams: [item]
+      });
+    } else {
+      item.dx = moves[i].dx;
+      item.dy = moves[i].dy;
+      noacgPlaceWrite(item);
+    }
+  }
+}
+
 // noacgRepaintWith(reason): the whole graphic, from the table. ONE function for every driver,
 // so a state entry, a data write, a tick and a snap recovery cannot describe the same board
 // four different ways - they differ only in what travels.
@@ -784,6 +971,8 @@ function noacgRepaintWith(reason) {
       }
     }
   }
+  // Places last: the readouts above are already written, and a row moves as a whole.
+  noacgPlaceAll(rules, reason);
 }
 
 // noacgRepaint(): a STATE was entered - named by every recipe state's timeline. Snap replays

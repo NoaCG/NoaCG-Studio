@@ -89,7 +89,24 @@ export interface WriteRule {
   from: string;
 }
 
-export type PaintRule = LookRule | GaugeRule | WriteRule;
+/**
+ * Move a row's layers into the SLOT another row was drawn in - a standings table whose rows trade
+ * places as the points change. The designer draws every row in its starting place; each row's
+ * `anchor` layer, measured once at rest, says where that row's slot IS, and `from` derives the
+ * key of the row whose slot this row now occupies (`points:slot`). Every layer playing the
+ * `place` role for the row - a stamped layer, or the field the role compiled to - travels by the
+ * distance between the two slots. ADDITIVE OPTIONAL: a table without one is unchanged.
+ */
+export interface PlaceRule {
+  place: string;
+  rows: string;
+  /** `field:derivation` naming the row KEY whose drawn slot this row moves into. */
+  from: string;
+  /** The FIELD role whose drawn position marks each row's slot (the competitor's name). */
+  anchor: string;
+}
+
+export type PaintRule = LookRule | GaugeRule | WriteRule | PlaceRule;
 
 /** What KIND a field is, to the runtime - the thing that owns every comparison. `kind` names one
  *  of the runtime's field kinds; the other keys are that kind's parameters (`rows` for a row
@@ -205,6 +222,11 @@ function isRule(v: unknown): v is PaintRule {
     if (v.anchor !== undefined && typeof v.anchor !== 'string') return false;
     return true;
   }
+  if (typeof v.place === 'string') {
+    if (!ROLE_RE.test(v.place) || typeof v.rows !== 'string') return false;
+    if (typeof v.anchor !== 'string' || !ROLE_RE.test(v.anchor)) return false;
+    return typeof v.from === 'string' && TOKEN_RE.test(v.from);
+  }
   const target = typeof v.gauge === 'string' ? v.gauge : typeof v.write === 'string' ? v.write : null;
   if (target === null || !ROLE_RE.test(target)) return false;
   if (typeof v.from !== 'string' || !TOKEN_RE.test(v.from)) return false;
@@ -278,6 +300,8 @@ export function behaviourFieldsNamed(data: BehaviourData): { ids: string[]; unre
   for (const rule of data.paint) {
     if ('look' in rule) for (const f of rule.when?.facts ?? []) fromToken(f);
     else fromToken(rule.from);
+    // A place rule's anchor is a bare field role - a head without a fact.
+    if ('place' in rule) fromToken(`${rule.anchor}:anchor`);
   }
   for (const value of Object.values(data.fields ?? {})) {
     if (typeof value === 'string') ids.add(value);

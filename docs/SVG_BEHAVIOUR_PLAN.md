@@ -934,3 +934,29 @@ row-count select as every integer between the declaration's `min` and `max`, so 
 legal counts are 3, 7 and 15 (a single-elimination tree) cannot say so. And a `WriteRule` carries
 only `write`, `rows` and `from` - there is no `when` - so a readout cannot be conditional, and a
 board that wants one clue panel to print whichever cell is live needs a rule per cell.
+
+### The ranking, built (2026-09-23)
+
+§9g is built as the **Standings** recipe (`src/templates/behaviours/ranking.ts`), on the owner's own
+`docs/svg-samples/results-board.svg`. Three things differ from the sketch:
+
+- **The paint is called `place`, not `arrange`.** ARRANGE is already the control profile's word for
+  laying out a control panel (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6), and one word meaning two
+  mechanisms is the drift this plan exists to prevent. A `PlaceRule` names the role that travels,
+  the row set, a `field:derivation` giving the key of the slot the row moves into, and the ANCHOR
+  field role whose drawn position marks each slot. It is an additive rule shape, so the table stays
+  version 1.
+- **The position readouts belong to the SLOTS.** A `Position 1` drawn in the top row never moves;
+  it is written with the place of whoever now sits there (`slot-place`), which is its own drawn
+  number until two rows tie. Written from each row's own rank instead, the number would have to
+  travel with the row, and a slot's number drawn outside the row would then read wrong.
+- **No spike was needed.** The move is the growth runtime's own mechanism - a `translate` written
+  in front of the designer's transform ATTRIBUTE, converted into the parent's units - and the one
+  new measurement, each slot's text INSERTION point at rest, does not change with the value's
+  length, so a centred name and a long one mark the same slot. A layer inside another moving layer
+  is skipped, so a name inside a row plate travels once.
+
+The `rank` kind is the share kind's sibling as sketched: it orders every row's points (best first,
+or lowest first with the recipe's one option), breaks a tie by drawn order so the same figures give
+the same table on every road, and derives `slot`, `place` and `slot-place`. A data write glides
+the rows; a state entry and a snap put them there at once.
