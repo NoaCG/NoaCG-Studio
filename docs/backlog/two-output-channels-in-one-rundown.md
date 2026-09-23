@@ -3,7 +3,7 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-23
-state: open
+state: unstarted
 asked: "a real broadcast has two CasparCG channels, graphics on 1 and insert videos on 2; one rundown must cue onto both, choosing the channel like the CasparCG Client does. Plan it before building it - think of the bigger picture, not one production."
 ---
 # Two output channels in one rundown
