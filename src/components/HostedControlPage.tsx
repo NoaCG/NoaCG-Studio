@@ -409,9 +409,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  below reads ONE graphic because that is what an action acts on, but a COMBINED control's
    *  steps name their own graphics, so the whole pool has to be parsed. */
   const poolMachines = useMemo(() => hostedPoolMachines(resolved?.panel ?? []), [resolved]);
-  /** The published graphics whose EVENTS may ride the fast road: every one that runs no clock
-   *  (matchClockWire `eventsNeedServerTime`). Positive, so a graphic this page cannot see keeps
-   *  the slow road. The production dashboard derives the same set from the same test. */
+  /**
+   * The published graphics whose EVENTS may ride the fast road: every one that runs no clock
+   * (matchClockWire `eventsNeedServerTime`). Positive, so a graphic this page cannot see keeps
+   * the slow road. The production dashboard derives the same set from the same test.
+   *
+   * PINNED AT PAGE OPEN, like everything else this page reads: the payload is resolved once per
+   * slug and a republish does not reach it. So a graphic that GAINS a clock mid-show keeps its
+   * events on the fast road here until this page is reloaded, and that clock's origin would come
+   * from the renderer rather than the row. Narrow and deliberate for now - the dashboard, which
+   * republishes, recomputes its own answer at that moment.
+   */
   const fastEventGraphics = useMemo(() => clockFreeGraphics(payload?.graphics ?? []), [payload]);
   const layerOf = useCallback(
     (graphic: string) => payload?.graphics.find((g) => g.key === graphic)?.layer ?? null,

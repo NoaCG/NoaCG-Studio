@@ -1011,6 +1011,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // Read BEFORE the await: if a verb moves the live map while this round trip is in
       // flight, the answer below is older than the screen and must not overwrite it.
       const movesAtRequest = liveCueMoves.current;
+      // BEFORE the await, because this page is reused when the route moves to another
+      // production: the previous show's answer must not decide this one's road while the round
+      // trip is in flight. Graphic keys are per-production layer names and collide freely.
+      fastEventGraphicsRef.current = new Set();
       const resolved = await controlShowBySlug(hostedSlug);
       if (!alive || !resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
@@ -1686,6 +1690,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           presenterSlug: published.presenterSlug,
         });
         setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
+        // A REPUBLISH PINS A NEW PAYLOAD, and the follow effect does not run again for it (the
+        // slug is deliberately the same one). A graphic that has just gained a clock would
+        // otherwise keep its events on the fast road for the rest of the session, so the answer
+        // is recomputed here from the library this publish pinned.
+        fastEventGraphicsRef.current = fastEventGraphics(
+          (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, loadGraphics()) })),
+        );
         setLinksOpen(true);
         setNote('✓ Published. Load the output URL in your browser source once. It stays the same across re-publishes.');
       } else {

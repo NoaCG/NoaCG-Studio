@@ -27,6 +27,11 @@ Your production test on 2026-09-22 found three things. Here is what changed.
   correct. Moving Arcade across would need a lock look drawn for it and would split it from its
   set, so it waits for the controls review after Friday. The handoff has the details.
 
+- **One thing outside the quiz changed with it.** The nominee reveal (an award graphic) now offers
+  **Winner (1-based)** in the wizard's setup step, next to its other build-time values. It is the
+  number Continue reveals, and it was previously reachable only after the graphic was made. Nothing
+  about how it plays on air changed.
+
 **One thing to know.** A graphic carries its own buttons inside it, so a quiz that was already
 saved in your library keeps the old Reveal. Build the quiz again from the catalog (or re-import the
 SVG) to get the carried key. On an older copy the old habit still works: press Update, then Reveal.
@@ -40,6 +45,8 @@ SVG) to get the carried key. On an older copy the old habit still works: press U
 3. In the cue editor, change **Correct answer** to another letter. Do NOT press Update. Press
    **Reveal**. The new letter should light, on your monitor and on the output tab.
 4. Change the key back and press **Update**. The verdict should move back.
+5. For the one change outside the quiz: press **+ New graphic**, pick a nominee reveal design
+   (House Nominees), and look at the Fields step. It should offer **Winner (1-based)**.
 
 ## What to look at
 
