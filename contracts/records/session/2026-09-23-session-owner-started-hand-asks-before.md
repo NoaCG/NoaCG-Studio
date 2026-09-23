@@ -1,0 +1,5 @@
+# session/session-owner-started-hand-asks-before
+
+Rule: `session/session-owner-started-hand-asks-before`. Recorded 2026-09-23 on `claude/w-hand-started-sessions-ask` at 07f422408.
+
+The owner, 2026-09-23, after a hand-started session turned five reported production defects into six branches: 'when I start a session without the orchestrator skill, the session is not supposed to be continuing to work on new stuff without asking. The orchestrator skill is for automated work.' In that session he reported the defects and asked for the em dash sweep; the session additionally unified the enabled-action tooltips across three surfaces, filed a backlog receipt and directed a lesson to be recorded, none of which he named. Every one of those was defensible work and none of it was his call to make. The cost is not the tokens, it is that he loses the thread of what his own laptop is doing while he is in the room with it. This narrows root/end-completed-waiting-turn-tiny-wrap, whose 'do the obvious safe continuation rather than asking permission for it' still holds INSIDE the work he named and no longer reaches past it.
