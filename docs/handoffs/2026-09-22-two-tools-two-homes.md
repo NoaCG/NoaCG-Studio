@@ -63,3 +63,10 @@ command log on its behalf).
 
 This commit dates the 0.4.0 section of `cli/BRIDGE_CHANGELOG.md`; the `bridge-v0.4.0` tag
 follows its landing, per the owner's word that the release may be published once verified.
+
+Also from 2026-09-23, not about the Bridge: the generated contracts (root and nested
+`AGENTS.md`, their `.gitattributes`) vanished from every worktree of this clone and from four of
+six local builds here, which turned the build gate red until they were restored with
+`git checkout --`. Filed with the measurements as
+`docs/backlog/generated-contracts-vanish-from-every-worktree.md`; the trigger was not isolated.
+The two-channel ask is filed as `docs/backlog/two-output-channels-in-one-rundown.md` with its plan.
