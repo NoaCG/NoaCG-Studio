@@ -123,6 +123,28 @@ test("the user's own coding agent is named as the preferred route before either 
   await expect(body).toBeVisible();
 });
 
+test('each install block copies its two lines whole, and says so', async ({ page, context }) => {
+  // docs/backlog/install-lines-need-a-copy-control.md: select-then-copy is two motions and the
+  // second has no feedback, so a partial copy looks whole until the paste fails in a terminal.
+  // The button puts the WHOLE block on the clipboard and says it did.
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await openAiSettings(page);
+  const body = page.getByTestId('ai-agent-route-body');
+  await expect(body).toBeVisible();
+  const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
+
+  const claude = body.getByTestId('ai-agent-cmd-claude-copy');
+  await expect(claude).toHaveText('Copy');
+  await claude.click();
+  await expect(claude).toHaveText('Copied');
+  expect(await clipboard()).toBe('claude plugin marketplace add NoaCG/NoaCG-Studio\nclaude plugin install noacg@noacg-studio');
+  // The confirmation fades back, so the next press can say it again.
+  await expect(claude).toHaveText('Copy', { timeout: 4_000 });
+
+  await body.getByTestId('ai-agent-cmd-codex-copy').click();
+  expect(await clipboard()).toBe('codex plugin marketplace add NoaCG/NoaCG-Studio\ncodex plugin add noacg@noacg-studio');
+});
+
 test('the bring-your-own-key picker lists exactly the four providers a user can pay', async ({ page }) => {
   await openAiSettings(page);
   const providers = page.locator('#ai-provider option');

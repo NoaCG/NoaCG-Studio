@@ -219,8 +219,28 @@
 .ai-agent-route-body { margin-top: 8px; }
 .ai-agent-route-body p { margin: 0 0 8px; }
 .ai-agent-route-body p:last-child { margin-bottom: 0; }
-/* `user-select: all` so one click takes both lines to the clipboard - the whole point of the
-   block is to be copied, and a copy button would be a second control for the same gesture. */
+/* A command block and its Copy button. `user-select: all` stays, so one click still selects both
+   lines for anyone who copies by hand; the button is for everyone else, above all on a phone,
+   where a partial selection looks like a whole one until the paste fails. */
+.ai-agent-cmd-wrap {
+  position: relative;              /* the Copy button sits in the block's top-right corner */
+}
+.ai-agent-copy {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+}
+.ai-agent-cmd-wrap .ai-agent-cmd {
+  padding-right: 64px;             /* the longest line never runs under the button */
+}
 .ai-agent-cmd {
   margin: 4px 0 8px;
   padding: 8px 10px;

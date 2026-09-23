@@ -151,3 +151,19 @@ test('a clean modify passes the injected gate and applies', async ({ page }) => 
   await expect(panel.locator('.change-preview')).toBeHidden();
   await expect(page.frameLocator('iframe.preview-frame').locator('.slate')).toBeVisible();
 });
+
+test('with no AI configured, "add a lower third" adds one rather than crashing the offline stub', async ({ page }) => {
+  // The offline stub (src/ai/stubProvider.ts) is what a visitor with no key reaches. Its modify
+  // rule for a lower third named a block id the registry never had, so the most likely first
+  // prompt in a broadcast-graphics tool threw. This test removes the provider the beforeEach seeds,
+  // so the panel is on the stub, and asks for exactly that.
+  await page.addInitScript(() => localStorage.removeItem('spx-gfx-ai'));
+  await createProject(page, 'Hairline');
+  await page.getByTestId('dock-tab-ai').click();
+  const panel = page.locator('.panel-body', { has: page.getByRole('heading', { name: 'AI assistant' }) });
+  await panel.locator('textarea').fill('add a lower third');
+  await panel.getByRole('button', { name: 'Modify', exact: true }).click();
+  await expect(panel).toContainText('Added a lower third with a name and a title.', GENERATED);
+  await panel.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.frameLocator('iframe.preview-frame').locator('.lower3-name')).toHaveText('Firstname Lastname');
+});

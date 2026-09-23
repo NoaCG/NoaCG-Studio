@@ -1,4 +1,5 @@
-import { forwardRef } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
+import { copyLink } from '../../../home/copyLink';
 
 /**
  * THE USER'S OWN CODING AGENT IS THE PREFERRED WAY TO MAKE GRAPHICS WITH NOACG, AND THE
@@ -37,6 +38,57 @@ const AGENT_ROUTE_DOCS_HREF = '/docs#agent-install';
 
 /** docs/AGENT_CLI.md, Distribution: the Claude Code plugin, two commands, nothing to install first. */
 const CLAUDE_CODE_INSTALL = 'claude plugin marketplace add NoaCG/NoaCG-Studio\nclaude plugin install noacg@noacg-studio';
+
+/** The same table's Codex plugin: the same two steps under Codex's own verbs. */
+const CODEX_INSTALL = 'codex plugin marketplace add NoaCG/NoaCG-Studio\ncodex plugin add noacg@noacg-studio';
+
+/** Copy text, falling back to a selected textarea where the Clipboard API is refused - a page on
+ *  plain http, or a browser that denies the permission - so the button is never dead. */
+async function copyCommand(text: string): Promise<boolean> {
+  if (await copyLink(text)) return true;
+  const field = document.createElement('textarea');
+  field.value = text;
+  field.setAttribute('readonly', '');
+  field.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
+  document.body.appendChild(field);
+  field.select();
+  let ok: boolean;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  field.remove();
+  return ok;
+}
+
+/**
+ * A command block with a Copy button. Select-then-copy is two motions and the second has no
+ * feedback, so on a phone a partial selection looks exactly like a whole one until the paste
+ * fails in a terminal (docs/backlog/install-lines-need-a-copy-control.md). The block stays
+ * selectable in one click for anyone who prefers that; the button says whether the copy landed.
+ */
+function CopyableCommand({ text, testId }: { text: string; testId: string }) {
+  const [said, setSaid] = useState<'copied' | 'failed' | null>(null);
+  useEffect(() => {
+    if (!said) return;
+    const t = window.setTimeout(() => setSaid(null), 1600);
+    return () => window.clearTimeout(t);
+  }, [said]);
+  return (
+    <div className="ai-agent-cmd-wrap">
+      <pre className="ai-agent-cmd" data-testid={testId}><code>{text}</code></pre>
+      <button
+        type="button"
+        className="ai-agent-copy"
+        data-testid={`${testId}-copy`}
+        onClick={() => void copyCommand(text).then((ok) => setSaid(ok ? 'copied' : 'failed'))}
+      >
+        {said === 'copied' ? 'Copied' : said === 'failed' ? 'Select and copy' : 'Copy'}
+      </button>
+    </div>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -89,11 +141,11 @@ const AgentRouteCard = forwardRef<HTMLDivElement, Props>(function AgentRouteCard
             <strong>Claude Code:</strong> run these two lines once, then ask for the graphic you
             need, or type <code className="inline">/noacg:graphic</code>.
           </p>
-          <pre className="ai-agent-cmd"><code>{CLAUDE_CODE_INSTALL}</code></pre>
+          <CopyableCommand text={CLAUDE_CODE_INSTALL} testId="ai-agent-cmd-claude" />
           <p>
-            <strong>Codex:</strong> <code className="inline">codex plugin marketplace add NoaCG/NoaCG-Studio</code>,
-            then <code className="inline">codex plugin add noacg@noacg-studio</code>.
+            <strong>Codex:</strong> the same two steps.
           </p>
+          <CopyableCommand text={CODEX_INSTALL} testId="ai-agent-cmd-codex" />
           <p>
             Would rather not type commands?{' '}
             <a href={AGENT_ROUTE_DOCS_HREF} target="_blank" rel="noreferrer">

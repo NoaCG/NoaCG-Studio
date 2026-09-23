@@ -24,7 +24,10 @@ import { aiCategoryById } from './spec/categories';
 import { applySpecLocks, applySpecOutPreset } from './spec/specDesign';
 import { ensureSpecFonts } from './spec/specValidate';
 
-const block = (id: string) => BUILDING_BLOCKS.find((b) => b.id === id)!;
+// A rule names a block by id, and a renamed or deleted block must not crash the one AI mode that
+// exists for people with no key: a missing block is skipped, and the prompt falls through to the
+// "no deterministic change matched" answer.
+const block = (id: string) => BUILDING_BLOCKS.find((b) => b.id === id) ?? null;
 
 function comingUpTemplate(): SpxTemplate {
   let t = blankTemplate('Coming up', 'Coming up');
@@ -192,8 +195,9 @@ export class StubAIProvider implements AIProvider {
         ...(grounded.shortlist.length ? { shortlist: grounded.shortlist } : {}),
       };
     }
-    if (/full ?screen|title card|headline/.test(p)) {
-      const t = block('fullscreen').apply(blankTemplate('Fullscreen title', 'Fullscreen title'));
+    const fullscreen = block('fullscreen');
+    if (fullscreen && /full ?screen|title card|headline/.test(p)) {
+      const t = fullscreen.apply(blankTemplate('Fullscreen title', 'Fullscreen title'));
       return { summary: 'Generated a fullscreen title template.', template: t, path: 'stub', intent, routing: route };
     }
     if (/coming ?up|line ?up|next up|schedule/.test(p)) {
@@ -265,15 +269,14 @@ export class StubAIProvider implements AIProvider {
       { test: /slide/, blockId: 'css-slide', summary: 'Added a reusable CSS slide-in class.' },
       { test: /pulse/, blockId: 'gsap-pulse', summary: 'Added a GSAP pulse() helper.' },
       { test: /field|text data|new text/, blockId: 'text-field', summary: 'Added a new text data field.' },
-      { test: /lower ?third/, blockId: 'lower-third', summary: 'Added a lower-third block.' },
+      { test: /lower ?third/, blockId: 'lt-name-title', summary: 'Added a lower third with a name and a title.' },
       { test: /full ?screen/, blockId: 'fullscreen', summary: 'Added a fullscreen layout block.' },
       { test: /\bbug\b|corner|watermark/, blockId: 'bug', summary: 'Added a corner bug.' },
       { test: /\blogo\b/, blockId: 'logo', summary: 'Added a logo image.' },
     ];
     for (const r of rules) {
-      if (r.test.test(p)) {
-        return { summary: r.summary, template: block(r.blockId).apply(template) };
-      }
+      const found = r.test.test(p) ? block(r.blockId) : null;
+      if (found) return { summary: r.summary, template: found.apply(template) };
     }
     return {
       summary:
