@@ -30,7 +30,6 @@ import NewGraphicButton from '../NewGraphicButton';
 import AuthStatus from '../auth/AuthStatus';
 import SyncStatus from '../SyncStatus';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
-import SignInDialog from '../auth/SignInDialog';
 import SettingsDialog from '../SettingsDialog';
 import { useAdvancedMode } from '../useAdvancedMode';
 import { copyLink } from './copyLink';
@@ -345,7 +344,7 @@ export default function HomePage({ route }: { route: Route }) {
                     key={g.id}
                     className="home-shelf-card"
                     onClick={() => openGraphic(g)}
-                    title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" — preview, edit data, operate`}
+                    title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" to preview, edit data and operate`}
                     data-testid="shelf-graphic"
                   >
                     <GraphicThumb template={g.template} values={activeValues(g)} label={g.name} fill />
@@ -441,9 +440,8 @@ export default function HomePage({ route }: { route: Route }) {
         </main>
       </div>
 
-      {/* The guard + save dialogs mount once in App.tsx (they can appear over any surface);
-          account features need their sign-in dialog. */}
-      <SignInDialog />
+      {/* The guard, save and sign-in dialogs mount once in App.tsx (they can appear over any
+          surface). */}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
     </div>
   );

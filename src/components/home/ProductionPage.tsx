@@ -100,6 +100,8 @@ import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import {
   adjustWords,
+  controlName,
+  labelCarriesDelta,
   adjustedValue,
   arrangeControls,
   arrangeFor,
@@ -212,6 +214,19 @@ function nameList(names: string[]): string {
 }
 
 /**
+ * What the account gate says, in the dialog's first line. Plain words about what the press does
+ * and why it needs an account: publishing creates hosted rows (the output, control and audience
+ * links) that must belong to someone who can take them down again. Everything else on this page
+ * works without one, and the dialog's own second line says so.
+ */
+const PUBLISH_NEEDS_ACCOUNT =
+  'Starting a production puts it online, and that needs a free account. Sign in and it starts straight away.';
+const UNPUBLISH_NEEDS_ACCOUNT =
+  'Taking this production offline needs the account that published it. Sign in first, then unpublish.';
+const CLAIM_NEEDS_ACCOUNT =
+  'Changing the audience link needs the account that published this production. Sign in first.';
+
+/**
  * THE PLAYOUT DASHBOARD (route `#/production/<id>`) — the surface an operator runs a production
  * from. Its design contract is **docs/PLAYOUT_DASHBOARD.md**; the hosted control page and the
  * exported controller render the same one, and a change here that is not in that doc is a
@@ -258,8 +273,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const show: Show | null = shows.find((s) => s.id === id) ?? null;
 
   const backendConfigured = isBackendConfigured();
-  const { needsSignIn } = useAuthState();
+  const { needsSignIn, status: authStatus } = useAuthState();
   const openSignIn = useAuthUi((s) => s.openSignIn);
+  const signInOpen = useAuthUi((s) => s.signInOpen);
+  /**
+   * Start production was pressed while signed out, and the sign-in dialog is up because of it.
+   * Signing in from that dialog finishes what the press asked for, so the reader does not have to
+   * find the button a second time; closing the dialog without signing in forgets the press, so a
+   * sign-in much later (from the topbar, say) never puts a production online by surprise. If the
+   * two auth updates ever arrive in separate renders, the press is forgotten and the button is
+   * simply pressed again - the safe direction to fail in.
+   */
+  const publishAfterSignIn = useRef(false);
+  const publishRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    if (!publishAfterSignIn.current) return;
+    if (authStatus === 'signed-in') {
+      publishAfterSignIn.current = false;
+      void publishRef.current();
+    } else if (!signInOpen) {
+      publishAfterSignIn.current = false;
+    }
+  }, [authStatus, signInOpen]);
 
   const [note, setNote] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -1462,12 +1497,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const clashes = duplicateLayers(show.graphics);
 
   /**
+   * THE ACCOUNT GATE for the three verbs here that write hosted rows: publish, unpublish and
+   * claiming the audience name. Row-level security only lets an account touch its own
+   * `control_shows` row, and a signed-out write is not refused - it matches no row and reports
+   * success. So without this, a signed-out Unpublish said "unpublished" while the output kept
+   * running, and a claim said the new name was live when nothing had changed. Returns true when
+   * the verb must stop. Offline (no backend) it never blocks: those verbs answer for themselves
+   * there, and an offline build must grow no auth UI.
+   */
+  const accountBlocks = (reason: string): boolean => {
+    if (!backendConfigured) return false;
+    if (authStatus === 'loading') {
+      setNote('Still checking your account. Try that again in a moment.');
+      return true;
+    }
+    if (needsSignIn) {
+      openSignIn(reason);
+      return true;
+    }
+    return false;
+  };
+
+  /**
    * Claim the readable audience name. The database owns every rule (0035's shape constraint,
    * reserved list and unique index), so this only asks and reports - and on success it adopts
    * the name locally, because `joinUrl` is built from the stored slug and would otherwise keep
    * showing the old one until a republish.
    */
   const claimName = async () => {
+    if (accountBlocks(CLAIM_NEEDS_ACCOUNT)) return;
     setBusy(true);
     try {
       const failure = await claimJoinName(show.id, nameDraft);
@@ -1541,7 +1599,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     const room = MAX_PICTURES - template.assets.length;
     if (room <= 0) {
-      setNote(`This production already holds ${MAX_PICTURES} pictures — remove one before adding another.`);
+      setNote(`This production already holds ${MAX_PICTURES} pictures. Remove one before adding another.`);
       return;
     }
     const chosen = files.slice(0, room);
@@ -1608,8 +1666,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   const publish = async () => {
-    if (needsSignIn) {
-      openSignIn('Publishing a production needs an account — the hosted pages live in your cloud space.');
+    if (accountBlocks(PUBLISH_NEEDS_ACCOUNT)) {
+      // Only a real sign-in prompt is worth finishing; the "still checking" answer is not one.
+      if (needsSignIn) publishAfterSignIn.current = true;
       return;
     }
     flushDraft();
@@ -1628,9 +1687,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         });
         setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
         setLinksOpen(true);
-        setNote('✓ Published. Load the output URL in your browser source once — it stays the same across re-publishes.');
+        setNote('✓ Published. Load the output URL in your browser source once. It stays the same across re-publishes.');
       } else {
-        setNote('Publishing needs the cloud backend — this build runs offline.');
+        setNote('Publishing needs the cloud backend, and this build runs offline.');
       }
     } catch (e) {
       setNote(`Publish failed: ${(e as Error).message}`);
@@ -1639,7 +1698,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
   };
 
+  publishRef.current = publish;
+
   const unpublish = async () => {
+    if (accountBlocks(UNPUBLISH_NEEDS_ACCOUNT)) return;
     setBusy(true);
     try {
       await unpublishControlShow(show.id);
@@ -1652,7 +1714,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // whole Links block is gated on `hostedSlug`, which is cleared above.
       setShows(setShowOutputSlug(show.id, undefined));
       setLiveCue({});
-      setNote('Production unpublished — its links stop working until you publish again, and come back unchanged when you do.');
+      setNote('Production unpublished. Its links stop working until you publish again, and come back unchanged when you do.');
     } catch (e) {
       setNote(`Unpublish failed: ${(e as Error).message}`);
     } finally {
@@ -2364,12 +2426,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** One ⚡ button. Written once because the block draws the same button in three places now —
    *  pinned above the fold, inside its section, and under the collapsed "More" — and three copies
    *  of a tooltip this careful would drift apart by the second edit. The DECLARATION decides
-   *  everything the press does; the arrangement decides only the word and where it sits. */
-  const actionButton = ({ button: b, label }: ArrangedControl) => {
+   *  everything the press does; the arrangement decides only the word and where it sits.
+   *
+   *  `section` is the heading DRAWN over this button, and only the middle of those three places
+   *  has one. It names the button in the hover (`controlName`), so five presses all labelled
+   *  "+1" are told apart by the word the operator can already see above them. */
+  const actionButton = ({ button: b, label }: ArrangedControl, section?: string) => {
     const legal = isEventLegal(legality, b.event, machineState);
+    const name = controlName(label, section);
     // Empty when everything the press moves is a hidden holder, which is the reported-field
-    // pattern: the hint then falls through to the payload.
-    const moved = adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label);
+    // pattern: the hint then falls through to the payload. The delta is dropped when the BUTTON
+    // already carries it, so a "+1" press reads "moves Points 3 with it" rather than saying one
+    // twice.
+    const moved = adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label, {
+      delta: !labelCarriesDelta(b, label),
+    });
     return (
       <button
         key={b.event}
@@ -2384,16 +2455,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 ? // An adjust press moves a figure WITH the event (a goal's +1), counted from
                   // what air shows; a `set` press puts one back to a declared figure (a reset);
                   // an `add` press puts a line on a list - the hint says which, and to what.
-                  `Fires "${b.event}" on air and moves ${moved} with it`
+                  `Fires ${name} on the live graphic and moves ${moved} with it.`
                 : b.payload?.length
                   ? // The payload in the OPERATOR'S words, not as `f7`. This is what makes an
                     // action self-explanatory: the acceptance pass could not tell what "Show
                     // audience result" would do, and the answer is "it shows the Audience results
                     // field, which you type above" — a field id says none of that.
-                    `Fires "${b.event}" on air, carrying this cue's ${b.payload
+                    `Fires ${name} on the live graphic, carrying this cue's ${b.payload
                       .map((key) => descriptors.find((d) => d.key === key)?.label ?? key)
-                      .join(', ')}`
-                  : `Fires "${b.event}" on air`
+                      .join(', ')}.`
+                  : `Fires ${name} on the live graphic.`
         }
         onClick={() => void fireEvent(b)}
         data-testid={`cue-action-${b.event}`}
@@ -2486,6 +2557,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onCopy={copy}
           embedFileName={outputEmbedFileName(show.name)}
           onDownloadEmbed={downloadEmbed}
+          needsSignIn={needsSignIn}
           onPublish={() => void publish()}
           onUnpublish={() => void unpublish()}
         />
@@ -2514,11 +2586,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             a height and CSS cannot derive a width from `aspect-ratio`, so the grid turns the cap
             into a track width with this (docs/PLAYOUT_DASHBOARD.md §2). A portrait graphic
             therefore caps at the same HEIGHT as a 16:9 one rather than the same width. */}
-        {/* THE STAGE HEAD: the monitors and the verbs that act on them, as ONE sticky block.
+        {/* THE STAGE HEAD: the monitors and the verbs that act on them, as ONE fixed block
+            that sits outside the control area's scroller, so nothing moves it.
             Two things came out of the 2026-08-21 owner read (docs/PLAYOUT_DASHBOARD.md §2). The
-            verb bar used to scroll away under the sticky monitors - "a bit scary that you scroll
-            the monitors on top of the take buttons" - and what must never leave the screen is
-            sticky, not small, which TAKE and Out plainly are. And above 1366px the bar moves
+            verb bar used to scroll away under the monitors - "a bit scary that you scroll the
+            monitors on top of the take buttons" - and TAKE and Out must never leave the screen
+            any more than the pictures may. And above 1366px the bar moves
             into the empty column beside PROGRAM, which spends that width and gives the monitors
             back the height the bar was using. Below it, the bar returns underneath. */}
         <div className="pd-stagehead">
@@ -2584,7 +2657,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           <div className="pd-monitor pd-pgm">
             <h2>
               <span className="pd-dot" aria-hidden="true" />
-              PROGRAM — ON AIR
+              PROGRAM · ON AIR
               {/* The names can run past the monitor's width and end in an ellipsis, so the title
                   carries them whole. The badge names EVERY live layer, in the names' order: with a
                   quiz and a score both up it used to show one layer beside two names. */}
@@ -2694,7 +2767,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             className="pd-verb"
             disabled={!selectedLayerLive}
             onClick={() => void outLive()}
-            title={selectedGraphic ? `Play ${selectedGraphic} off — the other layers stay up` : 'Play this layer off'}
+            title={selectedGraphic ? `Play ${selectedGraphic} off. The other layers stay up.` : 'Play this layer off'}
             data-testid="verb-out"
           >
             {/* SPACE belongs to the toggle above, and only there. This button is about the
@@ -2721,6 +2794,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         </div>
         </div>
 
+        {/* THE CONTROL AREA, the ONE scroll container on this page (docs/PLAYOUT_DASHBOARD.md
+            §2). Everything an operator edits lives in here - the note, the cue editor, the
+            actions, the controls panel and the activity log - and only this box scrolls, so
+            the stage head above it and the rundown beside it never move. */}
+        <div className="pd-control-area" data-testid="control-area">
         {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
 
         {/* The editor. It edits the PREVIEW cue by default and says so; the switch points it at
@@ -2754,7 +2832,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 {hasUnsent
                   ? keptStates
                     ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. ✎ Update keeps ${keptStates} on air, ⟳ Re-take starts over with these values`
-                    : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet - press ✎ Update`
+                    : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. Press ✎ Update`
                   : editingIsLive
                     ? 'changes push live on ✎ Update'
                     : 'changes air on ⟳ Take'}
@@ -2894,8 +2972,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                             images={cueImages}
                             imageHint={
                               poolGraphic.type === 'picture'
-                                ? 'Pictures come from this production — add more with ＋ Add pictures.'
-                                : "Pictures come from the graphic itself — add one in the editor's Assets tab."
+                                ? 'Pictures come from this production. Add more with ＋ Add pictures.'
+                                : "Pictures come from the graphic itself. Add one in the editor's Assets tab."
                             }
                           />
                         );
@@ -2938,7 +3016,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             {clashes.has(graphicLayer(poolGraphic)) && (
               <p className="status-warn pd-layer-clash" data-testid="layer-clash">
                 {nameList(clashes.get(graphicLayer(poolGraphic))!.map((g) => g.name))} share layer{' '}
-                {graphicLayer(poolGraphic)} — on air they replace each other.
+                {graphicLayer(poolGraphic)}. On air they replace each other.
                 <button
                   onClick={() => setShows(setShowGraphicLayer(show.id, poolGraphic.id, nextFreeLayer(show.graphics)))}
                   data-testid="layer-clash-fix"
@@ -3065,12 +3143,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               <span
                 className="pd-state-chip"
                 data-testid="machine-state-chip"
-                // A multi-group graphic's label is longer than the chip, so the full text has
-                // to stay reachable on hover — the chip truncates rather than reflowing.
+                // The tooltip says what the chip is FOR; it does not repeat the chip's own word
+                // back at the reader. The state is still in it, as the sentence's value rather
+                // than as a heading, because a multi-group graphic's label is longer than the
+                // chip and `.pd-state-chip` truncates with an ellipsis — the CSS marks that
+                // truncation honestly only because the full text is reachable here.
                 title={
-                  !selectedLayerLive
-                    ? "The live graphic's current state — what the greying is judged against"
-                    : `${stateLabel ?? 'no state reported yet'} — the live graphic's current state, what the greying is judged against`
+                  selectedLayerLive && stateLabel
+                    ? `Where the live graphic is now: ${stateLabel}. Greyed actions are judged against this.`
+                    : 'Where the live graphic is now. Greyed actions are judged against this.'
                 }
               >
                 {!selectedLayerLive ? 'not on air' : stateLabel ?? 'no state reported yet'}
@@ -3092,7 +3173,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   }}
                   title={
                     'RECOVERY. Jumps the live graphic straight to a state with no animation, ' +
-                    'and re-sends this cue’s values with it — use it when air and the dashboard ' +
+                    'and re-sends this cue’s values with it. Use it when air and the dashboard ' +
                     'have got out of step (a renderer restart, a missed press). It is not how a ' +
                     'graphic is normally driven: that is the ⚡ actions and » Next.'
                   }
@@ -3115,8 +3196,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 block IS — a documented control the user has to leave the surface to understand
                 is a control they will not use. */}
             <p className="hint pd-actions-help" data-testid="cue-actions-help">
-              These fire the graphic’s own beats on the layer that is on air, immediately —
-              they carry values from this cue, so type them above first.
+              These fire the graphic’s own beats on the layer that is on air, immediately.
+              They carry values from this cue, so type them above first.
               {stateGroups.length > 0 && ' “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation.'}
             </p>
             {/* PINNED, above the fold and above the section headings: the handful this show
@@ -3124,22 +3205,27 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 would be the sections again, one fold higher. */}
             {arranged.pinned.length > 0 && (
               <div className="pd-actions-row pd-actions-pinned" data-testid="cue-actions-pinned">
-                {arranged.pinned.map(actionButton)}
+                {arranged.pinned.map((c) => actionButton(c))}
               </div>
             )}
-            {arranged.sections.map(([section, controls]) => (
-              <div key={section} className="pd-actions-section">
-                {(arranged.sections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
-                <div className="pd-actions-row">{controls.map(actionButton)}</div>
-              </div>
-            ))}
+            {arranged.sections.map(([section, controls]) => {
+              // ONE expression decides both whether the heading is drawn and whether the hover
+              // borrows it, so a hover can never name a word that is not on screen.
+              const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
+              return (
+                <div key={section} className="pd-actions-section">
+                  {heading && <h4>{heading}</h4>}
+                  <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
+                </div>
+              );
+            })}
             {/* HIDDEN, behind one disclosure. A production hiding a control is saying "not in my
                 way", which is not the same as "gone": the machine still accepts it, and an
                 operator who needs it mid-show must not have to open the authoring panel. */}
             {arranged.more.length > 0 && (
               <details className="pd-actions-more" data-testid="cue-actions-more">
                 <summary>More ({arranged.more.length})</summary>
-                <div className="pd-actions-row">{arranged.more.map(actionButton)}</div>
+                <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
               </details>
             )}
             {/* COMBINED, this production's own buttons (§6b). LAST in the block on purpose: the
@@ -3168,8 +3254,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               </span>
             </div>
             <p className="hint pd-actions-help">
-              One press changes the figure on the live graphic and keeps this cue in step — no
-              ✎ Update needed. Typing a value above still stages it for ✎ Update instead.
+              One press changes the figure on the live graphic and keeps this cue in step, with
+              no ✎ Update needed. Typing a value above still stages it for ✎ Update instead.
             </p>
             <div className="pd-actions-row">
               {liveNumberFields.map((d) => {
@@ -3177,7 +3263,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 const title = !selectedLayerLive
                   ? 'The graphic is not on air. Take the cue first.'
                   : !editingIsLive
-                    ? 'Another cue is on air — select the live cue to bump its numbers'
+                    ? 'Another cue is on air. Select the live cue to bump its numbers.'
                     : `Changes "${d.label}" on air immediately`;
                 return (
                   <span key={d.key} className="pd-live-number" data-testid={`live-number-${d.key}`}>
@@ -3226,6 +3312,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         )}
 
         <ActionLog entries={wireLog} published={!!hostedSlug && backendConfigured} />
+        </div>
       </section>
 
       <aside className={`pd-rail${sub ? ' pd-offstage' : ''}`}>
@@ -3251,7 +3338,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
         {cues.length === 0 && (
           <p className="hint" data-testid="no-cues">
-            No cues yet — add a graphic below, then add cues on it.
+            No cues yet. Add a graphic below, then add cues on it.
           </p>
         )}
 
@@ -3322,7 +3409,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                         className={`pd-cue-layer${clashWith.length ? ' clash' : ''}`}
                         title={
                           clashWith.length
-                            ? `Shares layer ${graphicLayer(poolEntry)} with ${nameList(clashWith.map((g) => g.name))} — on air they replace each other`
+                            ? `Shares layer ${graphicLayer(poolEntry)} with ${nameList(clashWith.map((g) => g.name))}. On air they replace each other.`
                             : `${poolEntry.name} airs on layer ${graphicLayer(poolEntry)}`
                         }
                         data-testid="cue-layer"
@@ -3408,13 +3495,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                       }}
                       title={
                         siblingCues === 1
-                          ? `The last cue on ${cueGraphic ?? playoutItem?.name ?? 'this graphic'} — the graphic leaves the production with it`
+                          ? `The last cue on ${cueGraphic ?? playoutItem?.name ?? 'this graphic'}. The graphic leaves the production with it.`
                           : 'Remove this cue; the graphic and its other cues stay'
                       }
                       data-testid="delete-cue"
                     >
                       {armedRemove === 'cue'
-                        ? `Also deletes ${pictures} picture${pictures === 1 ? '' : 's'} — confirm?`
+                        ? `Also deletes ${pictures} picture${pictures === 1 ? '' : 's'}. Confirm?`
                         : siblingCues === 1
                           ? 'Remove cue and graphic'
                           : 'Remove cue'}
@@ -3438,7 +3525,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                         data-testid="delete-graphic"
                       >
                         {armedRemove === 'graphic'
-                          ? `Remove ${siblingCues} cues${pictures > 0 ? ` and ${pictures} pictures` : ''} — confirm?`
+                          ? `Remove ${siblingCues} cues${pictures > 0 ? ` and ${pictures} pictures` : ''}. Confirm?`
                           : `Remove graphic and its ${siblingCues} cues`}
                       </button>
                     )}
@@ -3493,7 +3580,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           <button
             className="pd-new-graphic"
             onClick={() => pictureInput.current?.click()}
-            title={`Add pictures to this production — each one becomes a cue (up to ${MAX_PICTURES})`}
+            title={`Add pictures to this production. Each one becomes a cue (up to ${MAX_PICTURES}).`}
             data-testid="add-pictures"
           >
             ＋ Add pictures…
@@ -3700,7 +3787,7 @@ function ProductionShell({
                 href={routeHash({ view: 'production', id: show.id, sub: tab })}
                 target="_blank"
                 rel="noopener"
-                title={`Open ${label} in a new tab — this one keeps Playout on screen`}
+                title={`Open ${label} in a new tab. This one keeps Playout on screen.`}
                 data-testid={`tab-${tab}`}
               >
                 {label}
@@ -3749,7 +3836,7 @@ function ProductionShell({
           className="pd-allout"
           disabled={!(allOutEnabled ?? liveLayers.length > 0)}
           onClick={onAllOut}
-          title="Play every live layer off — clear the frame"
+          title="Play every live layer off and clear the frame"
           data-testid="verb-out-all"
         >
           ■ All out

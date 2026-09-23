@@ -149,7 +149,7 @@ async function addGraphicToOpenProduction(page, variantId, label) {
 async function measureDashboard(page) {
   return page.evaluate(() => {
     const px = (el) => (el ? Math.round(el.getBoundingClientRect().height) : null);
-    // THE STICKY HEAD is what "how much of the screen do the monitors eat" now means: since
+    // THE STAGE HEAD is what "how much of the screen do the monitors eat" now means: since
     // 2026-08-21 it holds the verb bar as well, and the monitors' own grid box stretches to
     // whichever of the two is taller. Measuring `.pd-monitors` alone reported that stretch as
     // if it were picture, which is why the PVW frame is measured separately below.
@@ -170,18 +170,27 @@ async function measureDashboard(page) {
       monitorShareOfHeight: mrect ? `${Math.round((mrect.height / window.innerHeight) * 100)}%` : null,
       // The PICTURE itself - what an operator actually judges a graphic by, and the number the
       // owner's first question is about. Distinct from the block, which also carries the labels,
-      // the sticky padding and (since the verb bar moved) whichever column is taller.
+      // the stage head's padding and (since the verb bar moved) whichever column is taller.
       pictureHeight: px(document.querySelector('.pd-pvw .pd-frame')),
       // The question the owner is asked about the empty column: how wide is it, really.
       spaceRightOfProgram: pgm && mainRect ? Math.round(mainRect.right - pgm.right) : null,
       editorHeight: px(editor),
       editorHidden: editor ? Math.max(0, editor.scrollHeight - editor.clientHeight) : null,
       pageScrollable: Math.max(0, document.documentElement.scrollHeight - window.innerHeight),
+      // Since 2026-09-22 the document never scrolls and the CONTROL AREA is the one scroller,
+      // so how far it can scroll is the number pageScrollable used to be.
+      controlAreaScrollable: (() => {
+        const area = document.querySelector('.pd-control-area');
+        return area ? Math.max(0, area.scrollHeight - area.clientHeight) : null;
+      })(),
       // THE SLACK: the room below the last thing on the page. This is the number the owner's
       // 1080p complaint is actually about - "too much empty room at the bottom" - and the one
       // that says whether the monitors have anywhere left to grow. Zero on a page that scrolls.
       slackBelowLastRow: (() => {
-        const rows = main ? [...main.children] : [];
+        // The rows live in the control area now. .pd-main's own last child IS that area, whose
+        // bottom is always the window's, so measuring it would report no slack ever.
+        const holder = document.querySelector('.pd-control-area') ?? main;
+        const rows = holder ? [...holder.children] : [];
         const last = rows[rows.length - 1];
         if (!last) return null;
         return Math.max(0, Math.round(window.innerHeight - last.getBoundingClientRect().bottom));
@@ -334,7 +343,7 @@ async function sectionScroll(browser) {
       question:
         'You accepted this size on 2026-08-21 (“the gap and monitors are not too small”). It is here to prove the re-lay did not spend that acceptance: does it still read the way it did?',
       note:
-        'What moved: the picture went 212px → 225px and the sticky head 254px → 267px, so 13px each. The verb bar is now INSIDE that head, beside PROGRAM, instead of below the monitors.',
+        'What moved: the picture went 212px → 225px and the stage head 254px → 267px, so 13px each. The verb bar is now INSIDE that head, beside PROGRAM, instead of below the monitors.',
     },
     {
       viewport: REPORTED,
@@ -362,7 +371,7 @@ async function sectionScroll(browser) {
       title: 'The short window, scrolled to the bottom',
       question:
         'This is the frame you called scary — the monitors used to scroll over the take buttons. TAKE, Preview, Re-take, Update, Next and Out are all still on screen. Is the hazard gone?',
-      note: 'The stage head sticks as one block now, so the bar cannot be scrolled under the monitors on any of the three surfaces.',
+      note: 'The stage head is one fixed block now, outside the one scroller, so the bar cannot be scrolled under the monitors on any of the three surfaces. Since 2026-09-22 the page itself does not scroll at all; the control area under the monitors is what moves.',
     },
     {
       viewport: NOMINAL,
@@ -371,20 +380,20 @@ async function sectionScroll(browser) {
       question:
         'Your words were “too much empty room at the bottom and the monitors are unnecessarily small”. The picture is a third bigger and the verbs have moved into the width beside PROGRAM. Is there still too much empty room?',
       note:
-        'Picture 281px → 368px; sticky head 323px (30%) → 410px (38%). The cap grows with the window now instead of being a flat 26vh, from the 768px floor of the minimum supported one. It is deliberately viewport-derived and not content-derived: sizing it from what the editor leaves over would resize the monitors whenever a cue with a different field count was selected — the same twitch in another costume.',
+        'Picture 281px → 368px; stage head 323px (30%) → 410px (38%). The cap grows with the window now instead of being a flat 26vh, from the 768px floor of the minimum supported one. It is deliberately viewport-derived and not content-derived: sizing it from what the editor leaves over would resize the monitors whenever a cue with a different field count was selected — the same twitch in another costume.',
     },
   ];
 
   for (const shot of shots) {
     await page.setViewportSize(shot.viewport);
     await wait(page, 900);
-    if (shot.scrollToBottom) {
-      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-      await wait(page, 500);
-    } else {
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await wait(page, 300);
-    }
+    // The window AND the control area: the dashboard's one scroller is the control area now,
+    // and the window scroll is kept for the surfaces that still scroll as a page.
+    await page.evaluate((bottom) => {
+      window.scrollTo(0, bottom ? document.documentElement.scrollHeight : 0);
+      document.querySelector('.pd-control-area')?.scrollTo(0, bottom ? 1e6 : 0);
+    }, !!shot.scrollToBottom);
+    await wait(page, shot.scrollToBottom ? 500 : 300);
     const measured = await measureDashboard(page);
     await page.screenshot({ path: join(OUT, shot.file) });
     record({ ...shot, section: 'scroll', measured });
@@ -573,7 +582,10 @@ async function sectionHosted(browser) {
   ]) {
     await page.setViewportSize(shot.viewport);
     await wait(page, 900);
-    await page.evaluate((bottom) => window.scrollTo(0, bottom ? document.documentElement.scrollHeight : 0), !!shot.scrollToBottom);
+    await page.evaluate((bottom) => {
+      window.scrollTo(0, bottom ? document.documentElement.scrollHeight : 0);
+      document.querySelector('.pd-control-area')?.scrollTo(0, bottom ? 1e6 : 0);
+    }, !!shot.scrollToBottom);
     await wait(page, 500);
     const measured = await measureDashboard(page);
     await page.screenshot({ path: join(OUT, shot.file) });
@@ -656,7 +668,7 @@ async function sectionController(browser) {
     file: 'controller-1536x814.png',
     title: 'The EXPORTED controller at 1536×814 — the same dashboard, shipped in the package',
     question:
-      'The surface a dead network drops to, carrying the same re-lay: verbs beside PROGRAM, the bar inside the sticky head, the monitor cap growing with the window. Is the package still the same product as the app that generated it?',
+      'The surface a dead network drops to, carrying the same re-lay: verbs beside PROGRAM, the bar inside the fixed stage head, the monitor cap growing with the window. Is the package still the same product as the app that generated it?',
     note:
       'Driven through the bundled local relay, a cue selected onto PREVIEW. Three surfaces render this dashboard and the contract says they must not diverge — this one and the in-app page above are two of the three. ONE DIFFERENCE IS VISIBLE HERE, stated as an observation and not as a verdict: with nothing on air this surface offers all five ⚡ actions and carries no state chip, where the in-app page at the same moment (frame “Contextual cue controls — OFF AIR”) greys all five and says “not on air”.',
   });
@@ -959,9 +971,10 @@ function buildIndex(manifest) {
       : `<dl class="measured">
         <div><dt>viewport</dt><dd>${esc(m.viewport)}</dd></div>
         <div><dt>PREVIEW picture</dt><dd>${esc(m.pictureHeight)}px tall</dd></div>
-        <div><dt>sticky head</dt><dd>${esc(m.monitorBlock)}px (${esc(m.monitorShareOfHeight)} of the window)</dd></div>
+        <div><dt>stage head</dt><dd>${esc(m.monitorBlock)}px (${esc(m.monitorShareOfHeight)} of the window)</dd></div>
         <div><dt>space right of PROGRAM</dt><dd>${esc(m.spaceRightOfProgram)}px</dd></div>
         <div><dt>editor</dt><dd>${esc(m.editorHeight)}px, ${esc(m.editorHidden)}px hidden</dd></div>
+        <div><dt>control area scrolls</dt><dd>${esc(m.controlAreaScrollable)}px</dd></div>
         <div><dt>page scrolls</dt><dd>${esc(m.pageScrollable)}px</dd></div>
         <div><dt>empty below the last row</dt><dd>${esc(m.slackBelowLastRow)}px</dd></div>
         <div><dt>panes with their own scrollbar</dt><dd>${m.panesThatScroll.length ? esc(m.panesThatScroll.join(', ')) : 'none'}</dd></div>

@@ -2,33 +2,42 @@
    Binding design: docs/PLAYOUT_DASHBOARD.md. The hosted control page and the exported
    controller render the same surface; a change here that is not in that doc is a divergence.
 
-   THE PAGE IS THE ONLY SCROLLER (§2, owner report 2026-08-19). This surface used to be locked
-   to the viewport - `height: 100vh; overflow: hidden` here, `overflow: hidden` on .pd-main -
-   so a graphic with many fields could not make the page longer and the EDITOR grew its own
-   scrollbar instead. Scrolling a small box to reach a score, mid-show, is the complaint.
-   Measured on a 1080p monitor at 125% scaling (1536x814 CSS px) with an eight-field quiz:
-   .pd-editor was 178px tall over 240px of content, .pd-activity 14 over 20, and the document
-   could not scroll by a single pixel.
+   A FIXED APP SHELL WITH ONE SCROLLER (§2, owner report 2026-09-22). The document never
+   scrolls. The header, the STAGE HEAD (both monitors and the verbs) and the cue rail sit in
+   areas that do not scroll at all, and the CONTROL AREA under the monitors (.pd-control-area:
+   the editor, the actions, the controls panel, the activity log) is the only scroll container.
 
-   The fix is the model the phone breakpoint already used: every block is CONTENT-SIZED and the
-   PAGE scrolls. Nothing is shrunk to fit - a complex graphic is allowed to make a long page
-   ("I don't mind scrolling the whole page… I also don't want it too small"). What keeps the
-   page usable while it scrolls is that the two things an operator must never lose - the
-   monitors and the rundown - are STICKY, not that the form was made small.
+   Before this the whole PAGE scrolled and the monitors and the rundown were STICKY on it. They
+   held still in a plain wheel test, but anything that moves the document moved them with it:
+   a trackpad's overscroll bounce drags the whole page, sticky blocks included; scrolling the
+   rundown to its end chained into the page (measured: the document scrolled 611px at 1366x768,
+   687px at 1280x720 and 238px at 1920x1080); and the rail's sticky offset drifted by a
+   fraction of a pixel while it did. "They still move or bounce when the control area is
+   scrolled" was the report. A document with nothing to scroll has nothing to bounce, which is
+   why this is a layout and not a set of scroll handlers.
 
-   TWO deliberate exceptions, both because they have nowhere else to go:
-     - the cue list (a forty-cue rundown), inside the sticky rail;
+   What the 2026-08-19 page-scroll model fixed still holds: nothing is shrunk to fit and no
+   block inside the control area has a scrollbar of its own. A graphic with many fields makes
+   the control area LONGER and it scrolls as one piece; the editor is never a small box.
+
+   The other scrollers, each because it has nowhere else to go:
+     - the cue list inside the rail (a forty-cue rundown);
+     - the Data and Audience sub-pages, which take the whole body while they are open;
      - .pd-cue-menu / .pd-links popovers, which scroll themselves when tall.
-   No scrollbar chrome ever shows (§3), and a horizontal scrollbar is a layout bug. */
+   Each list and page scroller is `overscroll-behavior: contain`, so reaching its end never
+   hands the wheel on to anything else. A horizontal scrollbar is a layout bug. */
 .playout-dashboard {
   display: flex;
   flex-direction: column;
-  /* height/overflow are RESET, not merely omitted: `.app` (which this surface also wears)
-     pins both to the viewport, and only the later rule frees them. */
-  height: auto;
-  min-height: 100vh;
-  overflow: visible;
-  /* One number for the sticky offsets below and the header's own height. */
+  /* THE SHELL IS THE VIEWPORT. `dvh`, so a browser whose toolbar comes and goes still fits
+     exactly; `vh` first for a browser that has no `dvh`. `overflow: clip` rather than the
+     `hidden` that `.app` sets: a `hidden` box is still a scroll container that
+     `scrollIntoView` or a focus change can scroll by script, which would move everything in
+     it. A `clip` box cannot be scrolled by anything. */
+  height: 100vh;
+  height: 100dvh;
+  overflow: clip;
+  /* The header's own height. */
   --pd-header-h: 50px;
   /* THE CUE EDITOR'S FIELD TRACK (§2d). The floor is the widest CONTROL's measured min-content -
      a number control is 245px - and a track that is smaller does not shrink the control, it lets
@@ -37,7 +46,7 @@
      add a control can see what they have to fit, and can measure it against one number. */
   --pd-field-min: 250px;
   --pd-field-max: 340px;
-  /* The monitor cap (§2). Picture height only; the label row and the sticky padding sit on top.
+  /* The monitor cap (§2). Picture height only; the label row and the stage head's padding sit on top.
      NOT a flat fraction of the viewport any more (owner read 2026-08-21): 26vh answered the
      1536×814 window it was tuned on and wasted the 1080p one - "too much empty room at the
      bottom and the monitors are unnecessarily small" - because on a tall screen everything
@@ -53,6 +62,12 @@
 }
 .playout-dashboard :where(.pd-cues, .pd-editor, .pd-activity, .pd-rail) { scrollbar-width: none; }
 .playout-dashboard :where(.pd-cues, .pd-editor, .pd-activity, .pd-rail)::-webkit-scrollbar { width: 0; height: 0; }
+/* The control area and the two sub-pages keep a THIN bar (§3): each took over the page's job on
+   its own surface, and the page's own bar was the one sign that there is more below. Thin and
+   dark, so it reads as the edge of the column rather than as a box with a scrollbar of its own. */
+.pd-control-area,
+.pd-data,
+.pd-audience { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 .pd-header {
@@ -64,12 +79,8 @@
   padding: 0 14px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-2, #14161c);
-  /* Sticky because the page scrolls under it: ■ All out is the panic control and must be one
-     reach away from wherever the operator has scrolled to. Above the monitors, which stick
-     directly beneath it. */
-  position: sticky;
-  top: 0;
-  z-index: 20;
+  /* Not sticky: nothing scrolls under it any more. ■ All out, the panic control, stays one
+     reach away because the header never moves at all. */
 }
 .pd-header h1 {
   font-size: 14px;
@@ -110,7 +121,7 @@
   right: 0;
   top: calc(100% + 6px);
   /* The shared popover layer (base.css), so one shell's surfaces cannot stack differently
-     against the page's sticky chrome (.pd-header is 20). */
+     against the rest of the page. */
   z-index: var(--z-popover);
   width: min(520px, 90vw);
   padding: 12px 14px;
@@ -132,24 +143,60 @@
 .pd-links--up { top: auto; bottom: calc(100% + 6px); }
 
 /* ── Body: the stage column + the cue rail ─────────────────────────────────── */
-/* `1 0 auto`, never `flex: 1`: the shorthand's `min-height: 0` + shrink is exactly what let the
-   body be squeezed under its own content and pushed the overflow into the panes. It grows to
-   fill a short page and is never smaller than what it holds. */
-.pd-body { flex: 1 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 380px; }
-/* The column divider lives on the STAGE column, not on the rail: the rail is sticky and only
-   ever a viewport tall, so a border on it would stop dead partway down a long page. */
+/* The body is exactly the height under the header. `min-height: 0` lets it be SMALLER than its
+   content, which is the point: what does not fit scrolls inside the control area instead of
+   making the body, and so the document, taller. One `minmax(0, 1fr)` row, so both columns are
+   exactly the body's height whatever they hold. */
+.pd-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-rows: minmax(0, 1fr);
+}
+/* THE STAGE COLUMN: the stage head on top at its own height, the control area taking the rest.
+   It also draws the divider beside the rail, which now runs exactly the body's height.
+   `overflow: auto` here is the LAST RESORT for a window too short to hold the stage head at all
+   - below the supported 1366x768 minimum, say 1280x400 or a window with tall docked devtools.
+   The column scrolls then, rather than clipping TAKE and ■ Out out of reach inside a shell that
+   by design cannot be scrolled at all. At every supported size the control area absorbs the
+   overflow, this column's content fits exactly, and there is nothing here to scroll. */
 .pd-main {
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+/* THE CONTROL AREA, the one scroller on the page (see the top of this file). The gutters are its
+   own padding rather than .pd-main's, so the scrollbar sits on the column's edge instead of
+   14px inside it. No top padding: the stage head's bottom padding is the gap above. */
+.pd-control-area {
+  flex: 1 1 auto;
+  /* A FLOOR, not zero: it is what makes the last resort above trigger instead of the stage head
+     being clipped. Squeezed below this the column scrolls as a whole. */
+  min-height: 200px;
+  overflow-y: auto;
+  /* Reaching the end must not hand the wheel on to anything, and a trackpad's bounce stays
+     inside this box instead of dragging the page. */
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 14px;
-  border-right: 1px solid var(--border);
+  padding: 0 14px 12px;
 }
 /* A sub-page (Data, Audience) has no rail, so it takes the whole width rather than leaving a
-   380px column of nothing beside it. */
+   380px column of nothing beside it, and it scrolls inside the body the way the control area
+   does. */
 .pd-data,
-.pd-audience { grid-column: 1 / -1; }
+.pd-audience {
+  grid-column: 1 / -1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 /* The playout surface WAITING behind a sub-page. Hidden, never unmounted: unmounting destroys
    the PROGRAM monitor's iframes, and reloading a graphic that is on air because someone opened
    the Data tab is a live fault, not a layout choice. */
@@ -162,11 +209,11 @@
 .pd-main.pd-offstage,
 .pd-rail.pd-offstage { display: none; }
 
-/* ── The monitors: PREVIEW beside PROGRAM, equal, 16:9, CAPPED and STICKY ────
+/* ── The monitors: PREVIEW beside PROGRAM, equal, 16:9, CAPPED and FIXED ─────
    Owner, 2026-08-19: "we should rather make the preview and program screens a bit smaller",
-   "you see what's out all the time". Both halves matter - a cap alone just moves the monitors
-   off the top of a scrolled page, and stickiness alone leaves them eating 41% of it (measured:
-   442px of 1080, and 334 of 814 on the same monitor at 125% scaling).
+   "you see what's out all the time". Both halves matter - an uncapped pair ate 41% of the
+   window (measured: 442px of 1080, and 334 of 814 on the same monitor at 125% scaling), and
+   "all the time" is why the stage head sits outside the one scroller rather than in it.
 
    THE CAP IS EXPRESSED AS A WIDTH, on the grid rather than on the frames. A frame is
    `width: 100%` with the graphic's own `aspect-ratio`, so its height follows its width and
@@ -181,11 +228,11 @@
    under it and the editor card below all share one left edge - centred, the monitors read as
    floating loose above a column that is aligned without them. Block height lands near the 30vh
    asked for: 26vh of picture plus the label row and this block's own bottom padding. */
-/* THE STAGE HEAD holds the monitors AND the verbs, and IT is what sticks (owner read
-   2026-08-21, §2). Before this the monitors stuck alone and the verb bar scrolled away under
-   them - "a bit scary that you scroll the monitors on top of the take buttons" - which breaks
-   §2's own rule that what must never leave the screen is STICKY, not small. TAKE and Out are
-   exactly that.
+/* THE STAGE HEAD holds the monitors AND the verbs, and the whole block stays put (owner read
+   2026-08-21, §2). Before that the monitors stayed alone and the verb bar scrolled away under
+   them - "a bit scary that you scroll the monitors on top of the take buttons". TAKE and Out
+   must never leave the screen any more than the pictures may. Since 2026-09-22 the block is
+   simply outside the one scroller, so nothing can scroll under it or move it.
 
    At and above the minimum supported window (1366px) the bar sits in the empty column right of
    PROGRAM: it spends
@@ -195,16 +242,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* Its own height, never less: the control area under it is what gives way. It needs no
+     sticky positioning because it is not inside anything that scrolls. */
   flex: none;
-  position: sticky;
-  top: var(--pd-header-h);
-  z-index: 5;
-  /* The negative margins pull the sticky block out to the column's edges so nothing scrolls
-     through the 14px gutters beside it; the padding puts the same space back inside. The
-     -10px bottom cancels .pd-main's row gap, which the 10px bottom padding replaces. */
-  margin: -12px -14px -10px;
   padding: 12px 14px 10px;
-  background: var(--bg);
 }
 .pd-monitors {
   display: grid;
@@ -260,9 +301,9 @@
     grid-template-columns: minmax(0, auto) minmax(206px, 1fr);
     /* STRETCH, not `end`: the monitors set the row's height and the verb column takes exactly
        that. Left to its own height the stack ran TALLER than the monitors (six 44px buttons
-       plus the chip is 310px against 245px of monitor at 1536×814), which made the sticky head
-       taller than the block it exists to keep on screen - and put a 10px scrollbar on a window
-       that had none. */
+       plus the chip is 310px against 245px of monitor at 1536×814), which made the stage head
+       taller than the monitors it exists to hold, and took that height from the control area
+       under it. */
     align-items: stretch;
     gap: 14px;
   }
@@ -275,7 +316,7 @@
 
      It also keeps the head honest on a short window, which is what first put the grid here: six
      verbs in one column needed ~294px against 245px of monitor at 1536×814, so the STACK set
-     the sticky head's height instead of the picture. */
+     the stage head's height instead of the picture. */
   .pd-stagehead .pd-verbs {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -475,9 +516,9 @@
 .pd-onair { color: #ef4444; font-weight: 600; }
 
 /* ── The cue editor ────────────────────────────────────────────────────────── */
-/* CONTENT-SIZED, never a scroller: this is the pane the owner reported, and the whole point of
-   §2's scroll model is that a form with many fields makes the PAGE longer instead of hiding
-   its own bottom rows behind an inner scrollbar. */
+/* CONTENT-SIZED, never a scroller: this is the pane the owner reported on 2026-08-19, and the
+   point of §2's scroll model is that a form with many fields makes the CONTROL AREA longer
+   instead of hiding its own bottom rows behind an inner scrollbar. */
 .pd-editor {
   flex: none;
   background: var(--bg-2, #14161c);
@@ -1193,18 +1234,13 @@
 .pd-activity summary::marker { color: var(--text-dim); }
 
 /* ── The cue rail ──────────────────────────────────────────────────────────── */
-/* THE ONE EXCEPTION to §2's content-sizing, and the reason it is an exception: a forty-cue
-   rundown has nowhere else to go, and an operator picking the next cue while reading a long
-   form must not have to scroll the page back to the top to reach it. So the rail is a
-   viewport-tall sticky column with its list scrolling inside - the divider between it and the
-   stage column is drawn by .pd-main's border-right, which runs the full page. */
+/* A fixed column the body's height: the head, the cue list scrolling inside, the foot. A
+   forty-cue rundown has nowhere else to go, so the LIST scrolls and the rail itself never
+   moves. The divider between it and the stage column is .pd-main's border-right. */
 .pd-rail {
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: var(--pd-header-h);
-  align-self: start;
-  height: calc(100vh - var(--pd-header-h));
+  min-height: 0;
 }
 .pd-rail-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px 7px; flex: none; }
 .pd-rail-head h2 { font-size: 13px; margin: 0; }
@@ -1218,7 +1254,17 @@
   justify-content: center;
   flex: none;
 }
-.pd-cues { flex: 1 1 0; min-height: 0; overflow: auto; padding: 0 12px 10px; display: flex; flex-direction: column; gap: 5px; }
+.pd-cues {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  /* Scrolling to the last cue stops there. It used to chain on and scroll the whole page. */
+  overscroll-behavior: contain;
+  padding: 0 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 .pd-cue {
   display: flex;
   align-items: center;
@@ -1318,29 +1364,28 @@
    One column: header, the two monitors STILL SIDE BY SIDE (seeing preview and air together is
    the whole point of the surface), the cue list, the editor, and a fixed bottom verb bar. */
 @media (max-width: 900px) {
-  /* The phone keeps a viewport-locked shell because its verb bar is PINNED to the bottom of
-     the screen; .pd-body is the scroller under it. Desktop's page-scroll model is the same
-     idea one level up, and the two must not be confused: the desktop rules above are undone
-     here rather than inherited. */
-  .playout-dashboard { height: 100dvh; min-height: 0; overflow: hidden; }
-  .pd-header { position: static; }
+  /* THE PHONE STACKS AND SCROLLS AS ONE COLUMN, deliberately. The shell is the same (the
+     document never scrolls here either), but at this width there is no room to hold the
+     monitors and the rundown still beside a scrolling control area: a 390x844 phone would be
+     left a sliver of editor. So .pd-body is the one scroller, the monitors and the rundown
+     scroll with it, and the verb bar is PINNED to its bottom - on a phone the verbs are what
+     must never leave the screen. */
   /* ONE column in the reference's order: monitors → cue list → editor → activity, with the
-     verbs pinned to the bottom. `display: contents` flattens .pd-main so its children can be
-     ordered against the rail; each therefore carries its own inline padding. */
-  .pd-body { display: flex; flex-direction: column; overflow: auto; flex: 1 1 auto; min-height: 0; }
-  .pd-main { display: contents; }
+     verbs pinned to the bottom. `display: contents` flattens .pd-main and the control area
+     inside it, so their children can be ordered against the rail; each therefore carries its
+     own inline padding. */
+  .pd-body { display: flex; flex-direction: column; overflow: auto; overscroll-behavior: contain; }
+  .pd-main,
+  .pd-control-area { display: contents; }
   /* The stage head stands down HERE TOO, for the same reason .pd-main does: this breakpoint
      orders the monitors, the rail, the editor and the verb bar as siblings of one scrolling
      column, and a wrapper around two of them would take them out of that ordering - the verbs
      would ride with the monitors at the top instead of being pinned to the bottom of the
-     screen, which is the whole phone layout. `display: contents` also drops its sticky
-     positioning and its desktop margins, so neither needs unsetting. */
+     screen, which is the whole phone layout. `display: contents` also drops its desktop
+     padding, so that needs no unsetting. */
   .pd-stagehead { display: contents; }
-  /* Not sticky at this width: the phone's scroller is .pd-body, and a block stuck to the top
-     of it would cover the cue list it sits above. The margin trick that squares the desktop
-     block with .pd-main's padding has no padding to square with here. */
-  .pd-monitors { order: 1; position: static; margin: 0; padding: 10px 12px 0; }
-  .pd-rail { order: 2; position: static; height: auto; border-top: 1px solid var(--border); margin-top: 10px; }
+  .pd-monitors { order: 1; padding: 10px 12px 0; }
+  .pd-rail { order: 2; border-top: 1px solid var(--border); margin-top: 10px; }
   .pd-editor { order: 3; margin: 10px 12px 0; }
   .pd-actions { order: 3; margin: 10px 12px 0; }
   .pd-activity { order: 4; padding: 8px 12px 0; }
@@ -1361,7 +1406,12 @@
   .pd-back,
   .pd-header .brand-home,
   .pd-header [data-testid='new-graphic'],
-  .pd-header [data-testid='export-production'] { display: none; }
+  .pd-header [data-testid='export-production'],
+  /* The workspace tabs stand down with them. Data and Audience are authoring surfaces that open
+     in a browser tab of their own, and Playout is where you already are. Measured 2026-09-22 at
+     390x844: with the tabs in, the name shrank to nothing and ■ All out was pushed past the
+     right edge of the screen. */
+  .pd-header .pd-tabs { display: none; }
   /* At 390px the header has room for identity, mode and the panic control — and only if each
      one gives up its full-size padding. It must NEVER overflow: a clipped All out is the one
      control that has to be reachable at any width. */
@@ -1372,7 +1422,7 @@
      and is the one an operator must never miss, so only that one stays. */
   .pd-mode-idle { display: none; }
 
-  /* Monitor labels stay ONE line: at 390px "PROGRAM — ON AIR" wrapped and pushed the frame
+  /* Monitor labels stay ONE line: at 390px "PROGRAM · ON AIR" wrapped and pushed the frame
      down, and the cue name beside it is the first thing worth dropping. */
   .pd-monitor h2 { font-size: 9px; letter-spacing: 0.1em; white-space: nowrap; }
   .pd-monitor .pd-what { display: none; }

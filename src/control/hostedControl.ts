@@ -485,13 +485,13 @@ export async function claimJoinName(showId: string, name: string): Promise<strin
   const wanted = name.trim();
   if (!wanted) return 'Type a name first.';
   const sb = await getSupabase();
-  if (!sb) return 'This build runs offline — publish the production first.';
+  if (!sb) return 'This build runs offline. Publish the production first.';
   const { error } = await sb.from('control_shows').update({ join_slug: wanted }).eq('id', showId);
   if (!error) return null;
   // 23505 unique_violation / 23514 check_violation are the two the constraints raise. The
   // check covers BOTH the shape and the reserved list, and the database does not say which -
   // so the message names both rather than guessing at one.
-  if (error.code === '23505') return `“${wanted}” is already taken — try another.`;
+  if (error.code === '23505') return `“${wanted}” is already taken. Try another.`;
   if (error.code === '23514') {
     return `“${wanted}” cannot be used: 3–40 letters, numbers, - or _, and not a word the site reserves.`;
   }

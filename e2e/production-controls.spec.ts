@@ -287,7 +287,7 @@ test('a match board reaches every one of its controls from the cockpit: both clo
     // that SAYS where pictures come from. That sentence is the proof the cockpit now passes
     // the graphic's picture list at all: the hint only renders when a list was supplied and
     // came back empty, so before this it could not appear however many crests existed.
-    await expect(picker.locator('xpath=../..')).toContainText('add one in the editor');
+    await expect(picker.locator('xpath=../..')).toContainText('Add one in the editor');
   }
 
   // And the scores are steppers now, so a goal is one press rather than a retype.
@@ -502,7 +502,7 @@ test('± LIVE NUMBERS on the EXPORTED controller: the bump is a partial, carryin
   const scoreSteps = ctl.locator('.field', { hasText: /^F2 · / }).locator('button.step');
   await expect(scoreSteps.first()).toBeDisabled();
   await expect(scoreSteps.last()).toBeDisabled();
-  await expect(scoreSteps.first()).toHaveAttribute('title', /not on air — Take it first/);
+  await expect(scoreSteps.first()).toHaveAttribute('title', /not on air\. Take it first\./);
   // The exclusion keeps its own meaning: an ⚡ payload field's pair never airs anything, so it
   // stages at all times and greying it would strand the only stepper the field has.
   await expect(ctl.locator('.field', { hasText: /^F9 · / }).locator('button.step').first()).toBeEnabled();
@@ -797,40 +797,52 @@ test('the EXPORTED CONTROLLER stamps the clock too: the origin rides the wire be
 // scrolling a small box inside a page that could not scroll at all. The owner's correction names
 // both halves: "I don't mind scrolling the whole page… I also don't want it too small", and "we
 // should rather make the preview and program screens a bit smaller… you see what's out all the
-// time". So: the PAGE scrolls, nothing is shrunk to fit, and the monitors stay in view.
+// time". So nothing is shrunk to fit, and the monitors stay in view.
 //
-// The cue rail is the ONE exception. A forty-cue rundown has nowhere else to go, so it keeps its
-// own scroller — inside a rail that sticks under the header rather than sliding away.
-test.describe('the production page scrolls as one page', () => {
+// Since 2026-09-22 (owner, a real production test: the monitors and the rundown "still move or
+// bounce" when the page scrolled under them) the page itself no longer scrolls. It is a fixed
+// shell and the CONTROL AREA under the monitors is the one scroller; the editor inside it is
+// still content-sized, so a long graphic makes the control area longer, never the editor a
+// small box. The cue list keeps its own scroller inside the rail, which does not move either.
+// e2e/playout-fixed-panes.spec.ts pins the geometry while a wheel scrolls it.
+test.describe('the control area is the one scroller', () => {
   /** The structural half, at the nominal 1080p the report names. */
   test.describe('at 1920x1080', () => {
     test.use({ viewport: { width: 1920, height: 1080 } });
 
-    test('nothing between the page and the editor is a scroller, and the monitors are capped', async ({ page }) => {
+    test('only the control area and the cue list scroll, and the monitors are capped', async ({ page }) => {
       await createProject(page, { name: 'Arena Quiz' });
       await productionFor(page, 'Quiz Night');
       await expect(page.getByTestId('cue-editor')).toBeVisible();
 
       const overflowOf = (sel: string) => page.locator(sel).evaluate((el) => getComputedStyle(el).overflowY);
+      // The stage column CAN scroll, as the last resort for a window too short to hold the
+      // stage head at all - but at a supported size it has nothing to scroll, which is the
+      // half that matters: a column that scrolls is a column whose monitors move.
+      expect(await page.locator('.pd-main').evaluate((el) => el.scrollHeight - el.clientHeight)).toBe(0);
       // `hidden` counts as a failure here: it is what clipped the editor's own bottom rows.
-      expect(await overflowOf('.pd-main')).not.toMatch(/auto|scroll|hidden/);
       expect(await overflowOf('.pd-editor')).not.toMatch(/auto|scroll/);
       expect(await overflowOf('.pd-activity')).not.toMatch(/auto|scroll/);
-      // The one exception, and it is deliberate.
-      expect(await overflowOf('.pd-cues')).toMatch(/auto|scroll/);
+      // The two scrollers, both deliberate, and neither hands its wheel on at its end.
+      for (const sel of ['[data-testid="control-area"]', '.pd-cues']) {
+        expect(await overflowOf(sel)).toMatch(/auto|scroll/);
+        expect(await page.locator(sel).evaluate((el) => getComputedStyle(el).overscrollBehaviorY)).toBe('contain');
+      }
+      // The editor is INSIDE the scroller, which is what "only the control area scrolls" means.
+      await expect(page.getByTestId('control-area').getByTestId('cue-editor')).toBeVisible();
 
       // The monitors give up the height the editor needed, both still 16:9 and still side by
       // side — smaller, never stacked (§3's rule about air staying beside preview).
       //
-      // WHAT IS MEASURED IS THE STICKY HEAD, not the monitor grid, and the bound is 40% rather
+      // WHAT IS MEASURED IS THE STAGE HEAD, not the monitor grid, and the bound is 40% rather
       // than 32% (both changed 2026-08-21). The head now carries the VERB BAR as well — it used
-      // to scroll away under the sticky monitors, which the owner called out — so it, not the
+      // to scroll away under the monitors, which the owner called out — so it, not the
       // monitor block, is what "how much of the screen is permanently spent" means. And the cap
       // itself grew, because the owner read 1920x1080 with the old one and rejected it: "too
       // much empty room at the bottom and the monitors are unnecessarily small".
       const head = await page.locator('.pd-stagehead').boundingBox();
       expect(head!.height).toBeLessThanOrEqual(1080 * 0.4);
-      // The verb bar is INSIDE that sticky block, which is the half of the fix a height bound
+      // The verb bar is INSIDE that fixed block, which is the half of the fix a height bound
       // cannot see: a bar that scrolled away would leave this assertion perfectly green.
       await expect(page.locator('.pd-stagehead [data-testid="production-verbs"]')).toBeVisible();
       const pvw = await page.locator('.pd-pvw .pd-frame').boundingBox();
@@ -857,7 +869,7 @@ test.describe('the production page scrolls as one page', () => {
   test.describe('at a scaled 1080p (1536x814)', () => {
     test.use({ viewport: { width: 1536, height: 814 } });
 
-    test('a graphic with eight fields makes the PAGE longer, not the editor scrollable', async ({ page }) => {
+    test('a graphic with eight fields makes the CONTROL AREA longer, not the editor scrollable', async ({ page }) => {
       await createProject(page, { name: 'Arena Quiz' });
       await productionFor(page, 'Quiz Night');
       const editor = page.getByTestId('cue-editor');
@@ -868,20 +880,23 @@ test.describe('the production page scrolls as one page', () => {
       expect(await editor.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
 
       // Now take the height away: a shorter window (or a graphic with more fields than this
-      // one) is where the model has to prove itself. The PAGE grows; the editor still does not.
+      // one) is where the model has to prove itself. The CONTROL AREA grows; the editor still
+      // does not, and the document has nothing to scroll at all.
       await page.setViewportSize({ width: 1536, height: 560 });
       expect(await editor.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+      const area = page.getByTestId('control-area');
+      expect(await area.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0);
       const doc = await page.evaluate(() => ({
         scrollHeight: document.scrollingElement!.scrollHeight,
         clientHeight: document.scrollingElement!.clientHeight,
       }));
-      expect(doc.scrollHeight).toBeGreaterThan(doc.clientHeight);
+      expect(doc.scrollHeight).toBe(doc.clientHeight);
 
       // Scrolled to the bottom, preview and program are STILL on screen — "you see what's out
       // all the time" — and so is the rundown the next cue is picked from.
-      await page.evaluate(() => document.scrollingElement!.scrollTo(0, 10_000));
-      await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBeGreaterThan(0);
-      // THE VERB BAR IS IN THIS LIST since 2026-08-21. It used to scroll away under the sticky
+      await area.evaluate((el) => el.scrollTo(0, 10_000));
+      await expect.poll(() => area.evaluate((el) => Math.round(el.scrollTop))).toBeGreaterThan(0);
+      // THE VERB BAR IS IN THIS LIST since 2026-08-21. It used to scroll away under the
       // monitors, and the owner reading the acceptance pack called that out by name: "it's a bit
       // scary that you scroll the monitors on top of the take buttons… the buttons should be
       // visible". It is what carries TAKE and Out, so it is exactly what §2's rule is about.

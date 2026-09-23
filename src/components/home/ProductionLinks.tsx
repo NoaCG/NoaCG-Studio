@@ -190,6 +190,7 @@ export default function ProductionLinks({
   onCopy,
   embedFileName,
   onDownloadEmbed,
+  needsSignIn,
   onPublish,
   onClose,
   onUnpublish,
@@ -212,6 +213,9 @@ export default function ProductionLinks({
   onCopy: (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => void;
   embedFileName: string;
   onDownloadEmbed: () => void;
+  /** A backend is configured and nobody is signed in. The button stays LIVE - pressing it is
+   *  what opens the sign-in - and its tooltip says the need before anyone presses. */
+  needsSignIn: boolean;
   onPublish: () => void;
   onClose: () => void;
   onUnpublish: () => void;
@@ -223,9 +227,11 @@ export default function ProductionLinks({
         onClick={onPublish}
         disabled={busy || !backendConfigured}
         title={
-          backendConfigured
-            ? 'Publish: one persistent output URL for CasparCG/OBS/vMix and one control page for operating'
-            : 'Publishing needs the cloud backend — this build runs offline'
+          !backendConfigured
+            ? 'Publishing needs the cloud backend, and this build runs offline'
+            : needsSignIn
+              ? 'Puts this production online: one output URL for CasparCG, OBS or vMix and one control page. Needs a free account.'
+              : 'Publish: one persistent output URL for CasparCG/OBS/vMix and one control page for operating'
         }
         data-testid="production-publish"
       >
@@ -322,8 +328,8 @@ export default function ProductionLinks({
               openByDefault
               help={
                 <>
-                  Public — share it with the room. Viewers send questions and vote here; nothing they
-                  send goes on air until you approve it and take it, on the Audience tab.
+                  This link is public. Share it with the room. Viewers send questions and vote here;
+                  nothing they send goes on air until you approve it and take it, on the Audience tab.
                 </>
               }
             >
@@ -345,7 +351,7 @@ export default function ProductionLinks({
               help={
                 <>
                   The name above came from this production&rsquo;s name when you first published.
-                  Changing it makes the old audience link stop working — do it before you share it,
+                  Changing it makes the old audience link stop working. Do it before you share it,
                   not mid-show.
                 </>
               }
@@ -387,7 +393,7 @@ export default function ProductionLinks({
             testId="presenter-url"
             help={
               <>
-                For the presenter&rsquo;s own phone or tablet — it shows what they are on now and what
+                For the presenter&rsquo;s own phone or tablet. It shows what they are on now and what
                 comes next, and nothing else. Choose those with 🎤 Now and ⇢ Next on the Audience tab.
               </>
             }
@@ -400,7 +406,7 @@ export default function ProductionLinks({
         )}
         {unpublishedChanges && (
           <p className="status-warn" data-testid="publish-freshness">
-            The production changed after the last publish — the output and control pages run the older
+            The production changed after the last publish. The output and control pages run the older
             snapshot until you publish changes.
           </p>
         )}

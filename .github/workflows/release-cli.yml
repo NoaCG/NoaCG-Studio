@@ -20,16 +20,21 @@
 #
 # HOW TO RELEASE (docs/AGENT_CLI.md "Releasing to npm" is the prose):
 #   1. Bump `cli/package.json` version, WRITE ITS SECTION IN `cli/CHANGELOG.md` for someone who
-#      uses the CLI (that text becomes the GitHub Release; the build refuses a version without
-#      one), and run `npm --prefix cli run build` - that stamps the four
-#      plugin manifests (noacg and noacg-mcp, a Claude Code and a Codex manifest each) and both
-#      root marketplace entries. Commit; land on main through /queue-merge.
+#      uses the CLI (the changelog ships in the package, so that text is what the npm page
+#      shows; the build refuses a version without one), and run `npm --prefix cli run build` -
+#      that stamps the four plugin manifests (noacg and noacg-mcp, a Claude Code and a Codex
+#      manifest each) and both root marketplace entries. Commit; land on main through
+#      /queue-merge.
 #   2. `git tag cli-v0.3.0 && git push origin cli-v0.3.0`
-#   3. Watch this workflow. It builds from that commit, publishes with provenance, and creates
-#      the matching GitHub Release so the version is visible on the repository page too.
+#   3. Watch this workflow. It builds from that commit and publishes with provenance.
 #
 # The tag is the ONE step a human takes, and it is the step this repository's own rule reserves
 # for a human: a landing can be re-landed, but a published version can never be taken back.
+#
+# NO GITHUB RELEASE IS CREATED HERE. The CLI's home is npm. The repository's Releases page
+# belongs to NoaCG Bridge, the other tool built from this package (release-bridge.yml): to the
+# people who use them they are two products with two homes, and the studio's download link
+# resolves `releases/latest` to the newest Bridge only because nothing else is released there.
 name: Release CLI to npm
 
 on:
@@ -64,11 +69,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      # WRITE, not read, and only here: the last step creates the GitHub Release for the version
-      # that was just published. Nothing before it writes anything - the checkout, the ancestor
-      # check and the build are all reads - so the widened token is spent on one API call at the
-      # end of a job that is already pinned to this repository and refused on a fork.
-      contents: write
+      # The checkout, the ancestor check and the build are all reads, and nothing here writes
+      # to the repository.
+      contents: read
       # GitHub mints an OIDC token, npm trades it for a short-lived credential.
       id-token: write
     steps:
@@ -113,10 +116,10 @@ jobs:
           echo "Releasing @noacg/cli@$VERSION from ${GITHUB_SHA}"
 
       # A RELEASE SAYS WHAT CHANGED, TO THE PERSON DECIDING WHETHER TO UPDATE. The notes are the
-      # version's own section of cli/CHANGELOG.md, written by hand with the version bump, and a
-      # version without one is refused HERE - before the build, long before the publish that
-      # cannot be taken back. `npm run build` runs the same check, so this only fires for a tag
-      # pushed at a commit that never built.
+      # version's own section of cli/CHANGELOG.md, written by hand with the version bump and
+      # shipped in the package, and a version without one is refused HERE - before the build,
+      # long before the publish that cannot be taken back. `npm run build` runs the same check,
+      # so this only fires for a tag pushed at a commit that never built.
       - name: Refuse a version with no release notes a person can read
         run: node cli/scripts/release-notes.mjs --check
 
@@ -207,13 +210,6 @@ jobs:
         working-directory: cli
         run: npm publish --dry-run
 
-      # PROVE THE RELEASE PATH WITHOUT MAKING ONE. The notes are the one input of `gh release
-      # create` this repository writes, so a dry run prints exactly the text a real run would
-      # publish - the place to read it once more as a stranger would.
-      - name: Rehearse the GitHub Release notes (dry run)
-        if: ${{ inputs.dry_run }}
-        run: node cli/scripts/release-notes.mjs
-
       - name: Stop here (dry run)
         if: ${{ inputs.dry_run }}
         env:
@@ -256,85 +252,9 @@ jobs:
           NPM_CONFIG_LOGLEVEL: verbose
         run: npm publish
 
-      # EVERY PUBLISHED VERSION SHOWS ON GITHUB. Zero releases on a repository reads as a dead
-      # project, and the agent door sends developers to this page first - so what it says is
-      # the version's section of cli/CHANGELOG.md, never `--generate-notes`. Generated, the
-      # 0.3.4 release was thirty-four pull request titles from the whole repository, two of
-      # them about the CLI, each ending in the owner's username: it told a reader nothing.
-      #
-      # `--target` matters on a manual dispatch, where there is no tag yet: gh creates
-      # `cli-vX.Y.Z` pointing at the commit that was actually published. On a tag push the tag
-      # already exists at that same commit and `--target` is a no-op.
-      #
-      # A release that fails must not read as a failed PUBLISH - the package is on npm either way
-      # and cannot be unpublished - so this step reports rather than fails the job.
-      - name: Create the GitHub Release
-        if: ${{ !inputs.dry_run }}
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          node cli/scripts/release-notes.mjs > "$RUNNER_TEMP/release-notes.md"
-          gh release create "cli-v${VERSION}"             --target "${GITHUB_SHA}"             --title "@noacg/cli v${VERSION}"             --notes-file "$RUNNER_TEMP/release-notes.md"
-          echo "::notice title=Released::https://github.com/${GITHUB_REPOSITORY}/releases/tag/cli-v${VERSION}"
-
       - name: Say what landed
         if: ${{ !inputs.dry_run }}
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           echo "::notice title=Published::@noacg/cli@$VERSION is on npm - check the provenance badge at https://www.npmjs.com/package/@noacg/cli"
-
-  # NOACG BRIDGE, THE EXE (docs/BRIDGE.md §6). The same package's `noacg bridge`, built as one
-  # Windows executable with Node inside (cli/scripts/build-bridge-exe.mjs) and attached to the
-  # SAME Release as the npm publish, under the same version and the same notes - so
-  # https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe is always
-  # the Bridge that matches the studio's expectations. One helper, one version line.
-  #
-  # It runs AFTER the publish job so a tag whose publish was refused (not on main, version taken)
-  # never gets an exe, and it builds on Windows because the exe is a copy of the runner's own
-  # node.exe with the bundle injected. On a dry run it builds and keeps the exe as a workflow
-  # artifact instead of uploading it anywhere, so the whole path is rehearsed.
-  bridge-exe:
-    name: Build NoaCG-Bridge.exe
-    needs: publish
-    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
-    runs-on: windows-latest
-    timeout-minutes: 20
-    permissions:
-      # One upload to the Release the publish job created.
-      contents: write
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-
-      - name: Install the CLI package's dependencies
-        run: npm --prefix cli ci
-
-      # Builds the package, bundles the bridge entry, injects it into a copy of this runner's
-      # node.exe, starts the result and asks /health - a build that does not answer is refused.
-      - name: Build and prove the exe
-        run: npm --prefix cli run build:exe
-
-      - name: Keep the exe as an artifact (dry run)
-        if: ${{ inputs.dry_run }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: NoaCG-Bridge
-          path: |
-            cli/dist-exe/NoaCG-Bridge.exe
-            cli/dist-exe/NoaCG-Bridge.exe.sha256
-
-      # `--clobber` so a re-driven release replaces the file rather than failing on it.
-      - name: Attach the exe to the Release
-        if: ${{ !inputs.dry_run }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="$(node -p 'require("./cli/package.json").version')"
-          gh release upload "cli-v${VERSION}" cli/dist-exe/NoaCG-Bridge.exe cli/dist-exe/NoaCG-Bridge.exe.sha256 --clobber
-          echo "::notice title=NoaCG Bridge::https://github.com/${GITHUB_REPOSITORY}/releases/download/cli-v${VERSION}/NoaCG-Bridge.exe"

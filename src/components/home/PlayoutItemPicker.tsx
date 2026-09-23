@@ -5,7 +5,6 @@ import type { GraphicDoc } from '../../model/library';
 import type { PlayoutField } from '../../model/shows';
 import type { ListItem } from '../../control/playoutProtocol';
 import {
-  BRIDGE_COMMAND,
   libraryThumbnail,
   listLibrary,
   loadPlayoutSettings,
@@ -181,7 +180,7 @@ export default function PlayoutItemPicker({
       <p className="hint pd-picker-foot">
         {kind === 'template'
           ? 'A template NoaCG exported brings its fields with it. For any other template, the field ids are the ones its FIELDS.md or its author names.'
-          : `Clips play on the shared clip layer, below every graphic. No Bridge? Run ${BRIDGE_COMMAND}.`}
+          : 'Clips play on the shared clip layer, below every graphic. No Bridge? Settings -> Playout links the download.'}
       </p>
     </LibMenu>
   );

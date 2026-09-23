@@ -333,9 +333,9 @@ the sentence §5b prints in bold, and nothing until now measured it.
 
 **And one honest limit of the offline build:** a dashboard reload keeps the data - the scores, the
 answer key, both cues - and does NOT keep LIVENESS. There is no shared command log offline to
-restore it from, so the steppers come back disabled and say why ("not on air — Take the cue
-first"), and the operator takes the cue again. The hosted road is the one that repaints a live
-layer on boot, pinned by `e2e/configured/hosted-control-recovery.spec.ts`.
+restore it from, so the steppers come back disabled and say why ("The graphic is not on air. Take
+the cue first."), and the operator takes the cue again. The hosted road is the one that repaints
+a live layer on boot, pinned by `e2e/configured/hosted-control-recovery.spec.ts`.
 
 ---
 

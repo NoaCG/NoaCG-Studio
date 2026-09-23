@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   adjustWords,
+  controlName,
+  labelCarriesDelta,
   arrangeControls,
   arrangeFor,
   eventButtons,
@@ -8,6 +10,7 @@ import {
   adjustedValue,
   fieldDescriptors,
   formatMachineState,
+  illegalEventTitle,
   isEventLegal,
   machineStateGroups,
   machineStateNames,
@@ -558,7 +561,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           <p className="muted">
             {isBackendConfigured()
               ? 'This link is invalid or the page was unpublished.'
-              : 'Hosted control needs the cloud backend — this build runs offline.'}
+              : 'Hosted control needs the cloud backend, and this build runs offline.'}
           </p>
           {error && <p className="muted">{error}</p>}
         </div>
@@ -576,7 +579,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       verbAired(e)
         ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
         : /slow down/i.test(e.message)
-          ? 'Too many commands — slow down a moment.'
+          ? 'Too many commands. Slow down a moment.'
           : `Send failed: ${e.message}`,
     );
 
@@ -927,7 +930,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           className="pd-allout"
           disabled={liveLayers.length === 0}
           onClick={outAll}
-          title="Play every live layer off — clear the frame"
+          title="Play every live layer off and clear the frame"
           data-testid="hosted-out-all"
         >
           ■ All out
@@ -936,7 +939,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
 
       <main className="pd-body">
         <section className="pd-main">
-          {/* The monitors and the verbs as ONE sticky block, and the bar beside PROGRAM above
+          {/* The monitors and the verbs as ONE fixed block, and the bar beside PROGRAM above
               1366px - the same stage head the in-app page carries, out of the same stylesheet.
               docs/PLAYOUT_DASHBOARD.md §2; the parity contract is docs/CONTROL_PANEL_PARITY.md. */}
           <div className="pd-stagehead">
@@ -967,7 +970,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             <div className="pd-monitor pd-pgm">
               <h2>
                 <span className="pd-dot" aria-hidden="true" />
-                PROGRAM — ON AIR
+                PROGRAM · ON AIR
                 {/* The names can run past the monitor's width and end in an ellipsis, so the title
                     carries them whole. The badge names EVERY live layer, in the names' order: with a
                     quiz and a score both up it used to show one layer beside two names. */}
@@ -1008,6 +1011,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           />
           </div>
 
+          {/* THE CONTROL AREA, the one scroll container on the page, exactly as on the in-app
+              dashboard: the stage head above and the rundown beside it never move. */}
+          <div className="pd-control-area" data-testid="control-area">
           {selectedCue && spec && (
             <HostedCueEditor
               cue={selectedCue}
@@ -1103,6 +1109,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               </ol>
             )}
           </details>
+          </div>
         </section>
 
         <aside className="pd-rail">
@@ -1134,7 +1141,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                           className={`pd-cue-layer${sharing.length ? ' clash' : ''}`}
                           title={
                             sharing.length
-                              ? `Shares layer ${layer} with ${sharing.join(', ')} — on air they replace each other`
+                              ? `Shares layer ${layer} with ${sharing.join(', ')}. On air they replace each other.`
                               : `${cue.graphic} airs on layer ${layer}`
                           }
                         >
@@ -1263,7 +1270,7 @@ function HostedVerbs({
         className="pd-verb"
         disabled={!layerLive}
         onClick={() => onKey('out')}
-        title="Play this layer off — the others stay up"
+        title="Play this layer off. The other layers stay up."
         data-testid="hosted-out-cue"
       >
         ■ Out <kbd>0</kbd>
@@ -1360,15 +1367,6 @@ function HostedCueEditor({
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
   const fieldGroups = useMemo(() => groupCueFields(descriptors), [descriptors]);
   const descriptorByKey = useMemo(() => new Map(descriptors.map((d) => [d.key, d])), [descriptors]);
-  /** A ⚡ button's hover. Empty words mean everything the press moves is a hidden holder (the
-   *  reported-field pattern), which has no operator name and so gets no sentence rather than
-   *  its field id. */
-  const eventHint = (e: ControlButton) => {
-    const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label);
-    return moved
-      ? `Fires "${e.event}" and moves ${moved} with it — only where the graph allows it`
-      : `Fires "${e.event}" — only where the graph allows it`;
-  };
   const events = useMemo(() => eventButtons(spec.js), [spec.js]);
   /** Ordered, named, pinned and hidden by the SHARED rule (controlModel `arrangeControls`), so
    *  this page, the in-app one and the exported controller cannot present one production's
@@ -1504,10 +1502,38 @@ function HostedCueEditor({
     Object.fromEntries(descriptors.map((d) => [d.key, d.label])),
   );
 
+  /**
+   * A ⚡ button's hover, in the BUTTON'S OWN WORDS. A greyed one explains itself through the
+   * shared `illegalEventTitle` (the wording row P landed on the in-app dashboard and the graphic
+   * control page), so the enabled hover is free to say what the press DOES instead of hedging
+   * about when it is allowed. It used to name the machine's event id and "where the graph allows
+   * it" in both states - two vocabularies an operator meets nowhere else on this page, on the one
+   * surface a student drives WITHOUT the app.
+   *
+   * It asks `isEventLegal` with the same three arguments the button's own `disabled` does, so the
+   * greying and the sentence explaining it cannot disagree.
+   *
+   * `section` is the heading DRAWN over the button, which `controlName` folds into the name so
+   * five presses labelled "+1" are told apart by the word above them. Empty `moved` words mean
+   * everything the press moves is a hidden holder (the reported-field pattern), which has no
+   * operator name and so gets no clause rather than its field id.
+   */
+  const eventHint = (e: ControlButton, label: string, section?: string) => {
+    if (!isEventLegal(legality, e.event, liveState)) return illegalEventTitle(label);
+    const name = controlName(label, section);
+    const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label, {
+      delta: !labelCarriesDelta(e, label),
+    });
+    return moved
+      ? `Fires ${name} on the live graphic and moves ${moved} with it.`
+      : `Fires ${name} on the live graphic.`;
+  };
+
   /** One ⚡ button. The block draws the same button pinned, in its section and under "More", and
    *  three copies of this press would drift apart. The DECLARATION (`e`) decides what the press
-   *  sends and whether it greys; the arrangement decides only the word and where it sits. */
-  const actionButton = ({ button: e, label }: ArrangedControl) => (
+   *  sends and whether it greys; the arrangement decides only the word and where it sits, and
+   *  `section` is the heading over it where the block draws one. */
+  const actionButton = ({ button: e, label }: ArrangedControl, section?: string) => (
     <button
       key={e.event}
       disabled={!isEventLegal(legality, e.event, liveState)}
@@ -1534,7 +1560,7 @@ function HostedCueEditor({
           // order stops a refused press moving every other bound graphic.
         ]).then((sent) => { if (sent) void onPatchBound(tree); });
       }}
-      title={eventHint(e)}
+      title={eventHint(e, label, section)}
     >
       ⚡ {label}
     </button>
@@ -1552,7 +1578,7 @@ function HostedCueEditor({
         >
           {layer !== null ? `L${layer} · ` : ''}
           {hasUnsent
-            ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet — press ✎ Update`
+            ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. Press ✎ Update`
             : live
               ? 'changes push live on ✎ Update'
               : 'changes air on ⟳ TAKE'}
@@ -1735,7 +1761,7 @@ function HostedCueEditor({
                 }}
                 title={
                   'RECOVERY. Jumps the live graphic straight to a state with no animation, ' +
-                  'and re-sends this cue’s values with it — use it when air and this page have ' +
+                  'and re-sends this cue’s values with it. Use it when air and this page have ' +
                   'got out of step (a renderer restart, a missed press). It is not how a ' +
                   'graphic is normally driven: that is the ⚡ actions and » Next.'
                 }
@@ -1754,29 +1780,34 @@ function HostedCueEditor({
             )}
           </div>
           <p className="hint pd-actions-help">
-            These fire the graphic’s own beats on the layer that is on air, immediately — they carry
+            These fire the graphic’s own beats on the layer that is on air, immediately. They carry
             values from this cue, so type them above first.
             {stateGroups.length > 0 && ' “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation.'}
           </p>
           {/* PINNED, above the fold and above the section headings — the in-app page's shape. */}
           {arranged.pinned.length > 0 && (
             <div className="pd-actions-row pd-actions-pinned" data-testid="hosted-actions-pinned">
-              {arranged.pinned.map(actionButton)}
+              {arranged.pinned.map((c) => actionButton(c))}
             </div>
           )}
-          {arranged.sections.map(([section, controls]) => (
-            <div key={section} className="pd-actions-section">
-              {(arranged.sections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
-              <div className="pd-actions-row">{controls.map(actionButton)}</div>
-            </div>
-          ))}
+          {arranged.sections.map(([section, controls]) => {
+            // ONE expression decides both whether the heading is drawn and whether the hover
+            // borrows it, so a hover can never name a word that is not on screen.
+            const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
+            return (
+              <div key={section} className="pd-actions-section">
+                {heading && <h4>{heading}</h4>}
+                <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
+              </div>
+            );
+          })}
           {/* HIDDEN, behind one disclosure. It matters most HERE: this is the surface a class
               drives from a phone, away from the app, so a control the production tucked away is
               still one tap from the operator who turns out to need it. */}
           {arranged.more.length > 0 && (
             <details className="pd-actions-more" data-testid="hosted-actions-more">
               <summary>More ({arranged.more.length})</summary>
-              <div className="pd-actions-row">{arranged.more.map(actionButton)}</div>
+              <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
             </details>
           )}
           {/* COMBINED, this production's own buttons (§6b) — LAST in the block, same section and
@@ -1824,27 +1855,34 @@ function HostedCueEditor({
         };
         return (
           <div className="pd-editor-events pd-live-numbers" data-testid="hosted-live-numbers">
-            {numberFields.map((d) => (
-              <span key={d.key} className="pd-live-number" data-testid={`hosted-live-number-${d.key}`}>
-                <span className="pd-live-number-label">{d.label}</span>
-                <button
-                  disabled={!live}
-                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air — Take it first'}
-                  onClick={() => bump(d.key, -1)}
-                  data-testid={`hosted-live-number-${d.key}-down`}
-                >
-                  −
-                </button>
-                <button
-                  disabled={!live}
-                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air — Take it first'}
-                  onClick={() => bump(d.key, 1)}
-                  data-testid={`hosted-live-number-${d.key}-up`}
-                >
-                  +
-                </button>
-              </span>
-            ))}
+            {numberFields.map((d) => {
+              // One sentence for both halves of the pair: they act on the same field, so a
+              // hover that differed between − and + would be saying something that is not true.
+              const stepTitle = live
+                ? `Changes "${d.label}" on air immediately`
+                : 'This cue is not on air. Take it first.';
+              return (
+                <span key={d.key} className="pd-live-number" data-testid={`hosted-live-number-${d.key}`}>
+                  <span className="pd-live-number-label">{d.label}</span>
+                  <button
+                    disabled={!live}
+                    title={stepTitle}
+                    onClick={() => bump(d.key, -1)}
+                    data-testid={`hosted-live-number-${d.key}-down`}
+                  >
+                    −
+                  </button>
+                  <button
+                    disabled={!live}
+                    title={stepTitle}
+                    onClick={() => bump(d.key, 1)}
+                    data-testid={`hosted-live-number-${d.key}-up`}
+                  >
+                    +
+                  </button>
+                </span>
+              );
+            })}
           </div>
         );
       })()}
