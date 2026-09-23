@@ -8,7 +8,7 @@ asked: "Because we are RAM-constrained could the orchestrator start cloud sessio
   worktrees and branches that don't need anything from the local computer, like .env files? Would
   this speed up work or would everything still be as slow because it doesn't speed up merging,
   which has been the slow part?"
-note: 09091ee3 measured that remote isolation is a no-op here, and catalog-gates.yml lifted the one-browser-per-machine limit for the catalog battery; no cloud executor has been proven on this account and nothing bridges a cloud branch into the landing queue
+note: 2026-09-23 a claude.ai/code cloud session built, tested, published and landed a whole branch (pull request 390) and landed its own follow-up; cloud-queue-merge.yml is the bridge into the merge queue, so what is left is routing wave rows to cloud sessions, not proving they work
 ---
 # Run wave rows that need nothing local as cloud sessions, and bridge their branches into the queue
 
@@ -156,3 +156,41 @@ lifted for the catalog battery without waiting for any of this.**
 `.github/workflows/catalog-gates.yml` runs what `npm run catalog:affected` names on GitHub's
 runners, so gating a catalog change costs the laptop nothing. That is the part of the owner's
 question that had an answer available today.
+
+## 2026-09-23: a cloud session, end to end, and the bridge that exists now
+
+**Proven, not probed.** A session started on claude.ai/code (a Linux container, 4 cores, 15 GB,
+`CLAUDE_CODE_REMOTE=true`) did a whole branch with the laptop closed: the Downloads page, Playout
+Back/Home and settings, a Supabase migration rehearsed read-only against production, about 140
+Playwright tests run in the container, pull request 390 through the merge queue, the production
+deploy checked, and `@noacg/cli` 0.4.1 published through `release-cli.yml`. The owner's hands
+were needed once, to post the first `noacg/reviewed` stamp, because the door below did not exist
+on `main` yet. `node scripts/agent-isolation.mjs --expect remote` now reads that variable and
+answers remote with confidence there; before, an empty container could only get the weak verdict.
+
+**The bridge is not the one sketched above.** Nothing is fetched into the laptop's queue: the
+landing queue is GitHub's merge queue now, and `.github/workflows/cloud-queue-merge.yml` makes a
+cloud session's declaration from the GitHub side. The session pushes, opens its pull request and
+dispatches the workflow with the reviewed sha and a one-line verdict; the workflow stamps, labels,
+turns auto-merge on and re-runs a `Reviewed` that gave up before the stamp existed
+(`.agent-workflows/queue-merge.md`, "From a cloud session"). Three traps found while landing it,
+all answered in pull request 392, and all one lesson - **every run on the tip counts, and a
+red or cancelled required check in any of them holds the pull request out of the queue, however
+green another run is**: the workflow token needs `contents: write` or
+enablePullRequestAutoMerge refuses it; a `Reviewed` that gave up before the stamp stays red in
+the pull request's own run until that job is re-run; and a dispatched ci.yml run on the branch
+shares the push run's concurrency group (`ci-<ref>`), so it cancels the push run and leaves a
+cancelled `CI gate` behind - which is why the workflow no longer dispatches one when a
+pull-request run exists.
+
+**What a cloud session still cannot do, measured the same day:** push a tag or any branch but its
+own (the git proxy refuses; `workflow_dispatch` is the way round, as `release-cli.yml` shows); run
+`gh`; reach noacg.studio from a shell (the egress policy refuses it; the Vercel tools can fetch
+it); drive CasparCG, the Bridge exe or anything on the studio network; or show its dev server to
+a person, since branch previews are ignored by this repository's Vercel build step. The pinned
+Playwright wanted Chromium 1228 and the image carried 1194; `scripts/hooks/cloud-session-setup.mjs`
+links the one to the other at session start, with `npm ci`, so the next session starts ready.
+
+**So the item's open half is routing, not capability:** starting a wave row as a cloud session
+(the CLI's `--cloud`, or claude.ai/code) instead of a local worktree, for rows that need no `.env`
+and no hardware. The file-territory point above is unchanged by any of this.

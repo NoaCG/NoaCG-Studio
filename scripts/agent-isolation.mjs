@@ -44,12 +44,28 @@ const JOB_RECORD = /^j-\d+\.json$/;
  * checkout on this machine that has never queued a job and has no second worktree looks, to this
  * probe, exactly like a container. That case is called out in `reasons` instead of being smoothed
  * over, because a probe that overstates its confidence is the thing being fixed here.
+ *
+ * A THIRD SIGNAL, and the only positive one for remote: a Claude Code cloud session sets
+ * `CLAUDE_CODE_REMOTE=true` in its container (measured in one on 2026-09-23, where the two local
+ * signals were both absent and the verdict could only be the weak one). It settles remote with
+ * confidence - but the local signals still win when they are present, because they are facts about
+ * the disk and the variable is only something the environment says about itself.
  */
-export function classifyLocation({ queueRecords = 0, worktrees = 0 } = {}) {
+export function classifyLocation({ queueRecords = 0, worktrees = 0, remoteFlag = false } = {}) {
   const reasons = [];
   if (queueRecords > 0) reasons.push(`${queueRecords} job record(s) in the machine's landing queue, which git never clones`);
   if (worktrees > 1) reasons.push(`${worktrees} worktrees registered against this .git, so this is the machine hosting the sessions`);
-  if (reasons.length > 0) return { verdict: 'local', confident: true, reasons };
+  if (reasons.length > 0) {
+    if (remoteFlag) reasons.push('CLAUDE_CODE_REMOTE=true is set as well, but the disk says this machine hosts the queue');
+    return { verdict: 'local', confident: true, reasons };
+  }
+  if (remoteFlag) {
+    return {
+      verdict: 'remote',
+      confident: true,
+      reasons: ['CLAUDE_CODE_REMOTE=true: a Claude Code cloud session container, with no landing queue and no sibling worktrees'],
+    };
+  }
   return {
     verdict: 'remote',
     confident: false,
@@ -106,7 +122,7 @@ export function observe() {
     gitCommonDir,
     worktrees,
     queueRecords,
-    ...classifyLocation({ queueRecords, worktrees }),
+    ...classifyLocation({ queueRecords, worktrees, remoteFlag: process.env.CLAUDE_CODE_REMOTE === 'true' }),
   };
 }
 
