@@ -205,7 +205,8 @@ test.describe('teams: the share door', () => {
         const stray = page.locator('[data-testid^="production-row-"]', { hasText: /Teams walk / }).first();
         if ((await stray.count()) === 0) break;
         await stray.getByRole('button', { name: /^Delete Teams walk / }).click();
-        await stray.getByRole('button', { name: 'Delete?' }).click();
+        // The confirm says "Delete and unpublish?" on a published row, so it is found by id.
+        await stray.getByTestId('production-delete-confirm').click();
       }
       await expect(page.locator('[data-testid^="production-row-"]', { hasText: showName })).toHaveCount(0);
     });

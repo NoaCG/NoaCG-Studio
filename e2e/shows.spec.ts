@@ -413,11 +413,14 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   await page.getByTestId('delete-cue').click();
   await expect(rows).toHaveCount(1);
 
-  // Deleting the production is a Home action (two-step, on its row).
-  await page.getByTestId('production-back').click();
+  // Deleting the production is a Home action (two-step, on its row). HOME rather than Back: this
+  // production was opened from the editor, and Back returns there now.
+  await page.getByTestId('production-home').click();
+  await page.getByTestId('home-nav-productions').click();
   const row = page.locator('[data-testid^="production-row-"]', { hasText: 'Reorder Show' });
   await row.getByRole('button', { name: 'Delete Reorder Show' }).click();
-  await row.getByRole('button', { name: 'Delete?' }).click();
+  await expect(row.getByTestId('production-delete-confirm')).toHaveText('Delete?');
+  await row.getByTestId('production-delete-confirm').click();
   await expect(page.locator('[data-testid^="production-row-"]', { hasText: 'Reorder Show' })).toHaveCount(0);
   const stored = await page.evaluate(async () => {
     // Through the model, not the raw key: the productions live in the durable store now.
