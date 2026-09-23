@@ -3,31 +3,37 @@ import MiniPreview from './MiniPreview';
 import type { KitPlan } from './kitPlan';
 
 /**
- * THE KIT TRAY — the second axis of progress, above the form column.
+ * THE KIT TRAY - which graphic of the set is open, and the way to any other.
  *
  * The 216px rail already says where you are INSIDE one graphic; the tray says which graphic of
- * the set you are on. Two axes, one vocabulary: the chip's mark is the rail's `.wz-dot-num`
- * square (number, or a green ✓ once it is behind you), the current chip carries the rail's
- * amber active treatment, and a pending one is dimmed exactly as a disabled rail step is. A
- * reader who has understood the rail has already understood this.
+ * the set you are editing, and every chip is a door to another one. Editing a kit is not a
+ * walk: jump to any graphic, come back to one edited earlier, and it opens on the SAME step
+ * you are on, so comparing two graphics' Style is one click each way. Every graphic keeps its
+ * own answers (`KitPlan.drafts`), so nothing is lost by leaving one.
  *
- * A DONE chip carries a LIVE thumbnail of the graphic as it was actually built — the whole
- * promise of a kit is that the set shares one look, and a row of names cannot show that. It is
- * `MiniPreview` in `lazy` mode: a big kit is thirty-odd built templates in one scroller, so a
- * chip mounts its iframe only when it scrolls into view.
+ * Each chip carries a LIVE thumbnail of the graphic as it is built now - the whole promise of a
+ * kit is that the set reads as one package, and a row of names cannot show that. It is
+ * `MiniPreview` in `lazy` mode: a big kit is thirty-odd templates in one scroller, so a chip
+ * mounts its iframe only when it scrolls into view. The open chip carries the rail's amber
+ * active treatment, so a reader who has understood the rail has already understood this.
  *
- * Chips are NOT navigation. Going back to a finished graphic would mean re-opening a template
- * that is already built and re-deciding whether its look still propagates — a second, quieter
- * way to answer the question the look card asks out loud. The tray reports; the rail and the
- * footer move.
+ * "Apply this Style to all" lives here rather than on the Style step because it is about the
+ * SET, which is what the tray is for - and it is an action on offer on every editing step, not
+ * a question asked once and then gone.
  */
 export default function KitTray({
   plan,
-  onUseLookForRest,
+  onOpen,
+  onHub,
+  onApplyStyle,
 }: {
   plan: KitPlan;
-  /** Offered only while walking each graphic separately with unbuilt ones left — see below. */
-  onUseLookForRest?: () => void;
+  /** Open graphic `index` on the step currently shown. */
+  onOpen: (index: number) => void;
+  /** Back to the kit's hub, where every graphic is laid out and the kit is finished. */
+  onHub: () => void;
+  /** Offered when there is another graphic to apply the open one's Style to. */
+  onApplyStyle?: () => void;
 }) {
   const currentRef = useRef<HTMLLIElement>(null);
   // Keep the graphic being worked on in view: past the first handful of chips the strip
@@ -39,56 +45,45 @@ export default function KitTray({
     currentRef.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }, [current]);
 
+  const others = plan.items.length - 1;
   return (
     <div className="wz-kit-tray" data-testid="kit-tray">
-      {/* "graphic 1 of 2" is only true while one of them is being worked on. Once the whole set
-          is built the walk has no current graphic, and saying it still does put "GRAPHIC 1 OF 2"
-          over a Finish step showing both of them (measured in the visual pass). */}
       <div className="wz-kit-tray-head">
         <p className="wz-kit-tray-label mono">
-          {plan.pack.name} ·{' '}
-          {plan.built.every((t) => t !== null)
-            ? `${plan.items.length} graphics built`
-            : `graphic ${Math.min(plan.current + 1, plan.items.length)} of ${plan.items.length}`}
+          {plan.pack.name} · editing {plan.current + 1} of {plan.items.length}
         </p>
-        {/* THE WAY OUT OF A LONG WALK. Declining the look question sends the user through every
-            remaining graphic one at a time, which on the 36-graphic Esports kit is a hundred-odd
-            steps with no way back - a one-way door built by answering one question. It lives
-            HERE rather than in the footer because it is about the SET, which is what the tray
-            is for, and it is an ACTION always on offer rather than the question asked again:
-            the user already declined a blanket propagation, and re-asking every graphic would
-            be nagging them for a different answer. */}
-        {onUseLookForRest && (
+        <button className="wz-rail-change" onClick={onHub} data-testid="kit-hub">
+          All graphics
+        </button>
+        {onApplyStyle && (
           <button
             className="wz-kit-tray-adopt"
-            onClick={onUseLookForRest}
-            title="Build every graphic left in the kit with the colours, typeface, sizes and motion of the one you are on"
-            data-testid="kit-adopt-look"
+            onClick={onApplyStyle}
+            title="Give every other graphic in the kit the colours, typeface, sizes and motion of the one you are on. Their text stays."
+            data-testid="kit-apply-style"
           >
-            Use this look for the rest ({plan.items.length - plan.current - 1})
+            Apply this Style to all ({others})
           </button>
         )}
       </div>
       <ol className="wz-kit-tray-strip">
         {plan.items.map((item, i) => {
-          const built = plan.built[i];
-          const state = built ? 'done' : i === plan.current ? 'current' : 'pending';
+          const isCurrent = i === plan.current;
           return (
-            <li
-              key={`${item.variant.id}-${i}`}
-              ref={i === plan.current ? currentRef : undefined}
-              className={`wz-kit-chip is-${state}`}
-              data-kit-chip={item.variant.id}
-              data-state={state}
-              aria-current={state === 'current' ? 'step' : undefined}
-            >
-              <span className="wz-kit-chip-thumb">
-                {built ? <MiniPreview template={built} lazy /> : null}
-              </span>
-              <span className="wz-kit-chip-mark" aria-hidden="true">
-                {built ? '✓' : i + 1}
-              </span>
-              <span className="wz-kit-chip-name">{item.variant.name}</span>
+            <li key={item.key} ref={isCurrent ? currentRef : undefined}>
+              <button
+                className={`wz-kit-chip${isCurrent ? ' is-current' : ''}`}
+                onClick={() => onOpen(i)}
+                data-kit-chip={item.variant.id}
+                aria-current={isCurrent ? 'true' : undefined}
+                title={isCurrent ? `${item.variant.name} (open)` : `Edit ${item.variant.name}`}
+              >
+                <span className="wz-kit-chip-thumb">
+                  <MiniPreview template={plan.built[i]} lazy />
+                </span>
+                <span className="wz-kit-chip-mark" aria-hidden="true">{i + 1}</span>
+                <span className="wz-kit-chip-name">{item.variant.name}</span>
+              </button>
             </li>
           );
         })}

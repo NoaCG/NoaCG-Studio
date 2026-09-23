@@ -4,6 +4,11 @@ Measured 2026-08-08 against `main` at `5b1fdff4` (the unified kit flow, `KitPick
 just landed). Companion docs: `PACK_TAXONOMY.md` (what a pack IS), `GRAPHIC_TYPES.md` (what a
 type IS and the six promotion gates), `src/templates/AGENTS.md` (`kit.ts` / `packs.ts`).
 
+> **Since 2026-09-23 a kit has ONE Style** and is never re-resolved into another family
+> (`docs/PACK_TAXONOMY.md` "Kit consolidation"), so the pack x family reach measured below is
+> history. What a kit can offer now is its own library plus every other type that resolves in its
+> one family (`kitChoices`, `src/templates/kit.ts`).
+
 **The goal this serves:** no orphan graphics. Every design we ship belongs to a kit, so a user
 finds a complete, visually consistent set rather than one lonely lower third.
 

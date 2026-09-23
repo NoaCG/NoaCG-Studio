@@ -25,7 +25,7 @@
 // It fails CLOSED: it names the file, the dangling reference and its kind, and exits non-zero.
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -143,6 +143,10 @@ function main() {
   const candidates = [];
   let scanned = 0;
   for (const file of contractFiles(files)) {
+    // `git ls-files` still lists a file deleted in the working tree until the deletion is staged -
+    // which is exactly what the contract compiler leaves when it retires a generated rule file.
+    // A file that is gone names nothing, so there is nothing in it to go stale.
+    if (!existsSync(resolve(ROOT, file))) continue;
     scanned += 1;
     const refs = extractRefs(readFileSync(resolve(ROOT, file), 'utf8'));
     for (const stale of staleRefs(refs, { tracked, trackedDirs, definedScripts })) candidates.push({ file, ...stale });

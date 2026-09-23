@@ -49,14 +49,11 @@ const PROBE = `(async () => {
     }
   }
 
-  // What the kit picker can put in front of a user, in ANY look - the KIT_MATRIX_GAPS
-  // "offered" number, asked through the resolver the create path runs.
-  const families = ['minimal', 'sport', 'glass', 'noacg', 'editorial', 'cinematic', 'sticker', 'showtime', 'arcade'];
+  // What the kit picker can put in front of a user - every kit in its own Style - asked
+  // through the resolver the create path runs.
   const reachable = new Set();
   for (const pack of PACKS) {
-    for (const fam of families) {
-      try { for (const c of kitChoices(pack, fam)) reachable.add(c.variant.id); } catch { /* an unresolvable look is KIT_MATRIX_GAPS' finding, not this one's */ }
-    }
+    try { for (const c of kitChoices(pack)) reachable.add(c.variant.id); } catch { /* a config error is the factory's finding, not this one's */ }
   }
 
   // WHAT THE STOREFRONT SHOWS FIRST, per category, through the REAL browse engine rather than a

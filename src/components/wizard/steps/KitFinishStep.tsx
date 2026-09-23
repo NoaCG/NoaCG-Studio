@@ -11,15 +11,19 @@ interface Props {
   onName: (name: string) => void;
   /** Every graphic that was built, in kit order. */
   built: SpxTemplate[];
+  /**
+   * THE HUB. Given, the step is the kit's home as well as its ending: every graphic is a card
+   * that opens it for editing, in any order, and the set's contents can be changed. Absent (a
+   * NoaCG Pro package, whose graphics are the generation's answer), the grid only shows.
+   */
+  onOpen?: (index: number) => void;
+  /** Back to the kit contents picker, to add or remove graphics. Offered with `onOpen`. */
+  onEditContents?: () => void;
   /** The saved productions on offer (live list, loaded by the wizard when Finish shows). */
   productions: Show[];
   /** Preselect: the production the wizard was opened FOR, else null — a kit then defaults to
    *  a NEW one, because a kit usually IS a show. */
   defaultProductionId: string | null;
-  /** True when the first graphic's look was carried across the set. The caption states what
-   *  actually happened: after "take me through each one" the graphics were styled separately,
-   *  and a fixed "one look" would be the step claiming something the user declined. */
-  oneLook: boolean;
   /** Save the whole set into the chosen production and land on its page. */
   onOpenProduction: (dest: ProductionDest) => void;
   /** Save the whole set, then export that production as one package. */
@@ -58,7 +62,8 @@ export default function KitFinishStep({
   namePlaceholder,
   onName,
   built,
-  oneLook,
+  onOpen,
+  onEditContents,
   productions,
   defaultProductionId,
   onOpenProduction,
@@ -81,10 +86,63 @@ export default function KitFinishStep({
       : { kind: 'existing', id: dest };
   const target = productions.find((p) => p.id === dest);
 
+  // THE SET, side by side. On the hub every card opens its graphic; on a package it only shows.
+  const graphics = (
+    <div className="panel-section">
+      <h3>
+        {onOpen ? `Your ${namePlaceholder} ${noun}` : 'What you built'}
+        <span className="dlg-caption">
+          {built.length} graphic{built.length === 1 ? '' : 's'}
+          {/* A Pro package is composed from ONE design language, so "one look" is its claim. */}
+          {onOpen ? '' : ', one look'}
+        </span>
+      </h3>
+      {onOpen && (
+        <p className="hint wz-kit-hub-lede">
+          Click any graphic to edit it, in any order. Every graphic keeps its own changes.
+        </p>
+      )}
+      <ul className="wz-kit-built" data-testid="kit-built">
+        {built.map((template, i) => (
+          <li key={`${template.name}-${i}`} className="wz-kit-built-cell">
+            {onOpen ? (
+              <button
+                className="wz-kit-open"
+                onClick={() => onOpen(i)}
+                data-kit-open={i}
+                title={`Edit ${template.name}`}
+              >
+                <span className="wz-kit-thumb">
+                  <MiniPreview template={template} lazy />
+                </span>
+                <span className="wz-kit-built-name">{template.name}</span>
+                <span className="wz-kit-open-cue" aria-hidden="true">Edit</span>
+              </button>
+            ) : (
+              <>
+                <MiniPreview template={template} lazy />
+                <span className="wz-kit-built-name">{template.name}</span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      {onEditContents && (
+        <button className="wz-rail-change" onClick={onEditContents} data-testid="kit-edit-contents">
+          ＋ Add or remove graphics
+        </button>
+      )}
+    </div>
+  );
+
   // "Saves all 2" is the shape of a sentence nobody wrote on purpose.
   const allOfThem = built.length === 2 ? 'both' : `all ${built.length}`;
   return (
     <div className="wz-finish wz-kit-finish" data-testid="kit-finish">
+      {/* THE HUB (a catalog kit) leads with the set, because the set is what the user edits
+          here and finishing is the last thing they do. A Pro package leads with where it goes,
+          as it always has: its graphics are the answer, not a starting point. */}
+      {onOpen && graphics}
       <div className="panel-section">
         <h3>Where this {noun} goes</h3>
         <div className="row" style={{ gap: 8 }}>
@@ -119,23 +177,7 @@ export default function KitFinishStep({
         </p>
       </div>
 
-      <div className="panel-section">
-        <h3>
-          What you built
-          <span className="dlg-caption">
-            {built.length} graphics{oneLook ? ', one look' : ', styled one at a time'}
-          </span>
-        </h3>
-        <ul className="wz-kit-built" data-testid="kit-built">
-          {built.map((template, i) => (
-            <li key={`${template.name}-${i}`} className="wz-kit-built-cell">
-              <MiniPreview template={template} lazy />
-              <span className="wz-kit-built-name">{template.name}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
+      {!onOpen && graphics}
       {error && <p className="status-bad" data-testid="kit-finish-error">{error}</p>}
 
       <div className="wz-finish-doors">

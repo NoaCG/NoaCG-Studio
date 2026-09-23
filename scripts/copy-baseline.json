@@ -1095,9 +1095,6 @@
     "src/templates/pack4/skin.ts": {
       "em-dash": 8
     },
-    "src/templates/packs.ts": {
-      "em-dash": 4
-    },
     "src/templates/picture.ts": {
       "em-dash": 5
     },

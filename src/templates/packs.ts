@@ -1,38 +1,27 @@
-// TEMPLATE PACKS — the taxonomy axis of the types × themes catalog (docs/PACK_TAXONOMY.md).
+// TEMPLATE PACKS - the KITS a user starts a production from (docs/PACK_TAXONOMY.md).
 //
-// A pack is a CURATED SUBSET of graphic types in a fitting style family: the answer to "I run
-// a church stream / an esports night / an election program — which graphics do I need?". The
-// 60 reference formats in live_format_graphics_needs.xlsx each map to exactly one pack, and
-// that mapping IS the taxonomy document's machine-readable half.
+// A kit is a collection of graphics for one kind of production: the answer to "I run a church
+// stream / an esports night / an election program - which graphics do I need?". It has ONE
+// Style (`family`, plus an optional `paletteId`), a STARTER of about ten graphics that arrive
+// ticked, and a larger LIBRARY (`types` + `extras`) the user can add from. The 60 reference
+// formats in live_format_graphics_needs.xlsx each map to exactly one kit, and that mapping IS
+// the taxonomy document's machine-readable half.
 //
-// A pack is PURE CONFIG, and that is the point (Phase 3's "catalog growth is a config change"):
-// across the PRODUCTION families every (type, family) cell already has a shipped, gate-checked
-// design, so declaring a pack requires no new template work — `resolvePack` just looks the
-// cells up in the live registry. A NEW pack is one entry in this array. A new THEME is
-// deliberately NOT config: it needs twelve designs and a FAMILY_TOKENS row before a pack could
-// point at it, and `validatePacks` would say so.
+// A kit is PURE CONFIG: every (type, family) cell it names already has a shipped, gate-checked
+// design, so `resolvePack` only looks the cells up in the live registry. A NEW kit is one entry
+// in this array. A new STYLE FAMILY is deliberately not config: it needs a design per type and a
+// FAMILY_TOKENS row before a kit could point at it, and `validatePacks` would say so.
 //
-// **"The matrix is full" is true of FOUR families, not six** — and as of 2026-08-08 those four
-// are genuinely full: every registered type ships a noacg, minimal, sport and glass design, so
-// every pack below resolves in all four looks. Before that day, seventeen of twenty-one did
-// (docs/KIT_MATRIX_GAPS.md measured it; ten designs closed the gap).
+// ONE STYLE PER KIT (decided 2026-09-23). A kit used to re-resolve into any family its types
+// filled, behind a "Look" select, which made every kit four kits. Now the family is the kit's
+// Style and nothing re-resolves it. The user still restyles freely inside the wizard - palette,
+// typeface, sizes, motion - per graphic or across the whole kit, and that is the `:root`
+// contract, not a different set of designs. Visual variety across the gallery comes from the
+// kits themselves: no two share both a family and a palette.
 //
-// Editorial and cinematic cover 6 and 5 types. They are real STYLE families — their own designs,
-// FAMILY_TOKENS row and Browse chip — but they are BROWSE families, not KIT families: almost no
-// graphic TYPE ships a design in them, so no pack resolves into either. That is a deliberate
-// state, not debt: filling them means ~118 new designs each, and a kit is not the only thing a
-// style family is for. Anything resolving a pack must therefore MEASURE which families work
-// (`familiesFor` in wizard/steps/KitPicker.tsx) rather than assume all six do.
-//
-// `scripts/factory.mjs` validates all of this on every run: every type id resolves, every
-// extra exists in the catalog, and the 60 formats are covered exactly once. Editing this file
-// cannot silently break the taxonomy.
-//
-// One limit worth knowing: the cell check (`validatePacks`) only tests each pack's OWN
-// declared `family`. It says nothing about the other five, which is why the gate stayed green
-// the whole time the header above claimed six families' worth of cells were filled. The
-// factory's own probe has always counted "12 types x 4 families" — the two disagreed, and the
-// header was the wrong one.
+// `scripts/factory.mjs` validates all of this on every run: every type id resolves in its kit's
+// family, every extra exists in the catalog, every starter can run a show, and the 60 formats
+// are covered exactly once. Editing this file cannot silently break the taxonomy.
 
 import type { StyleTag } from '../model/fonts';
 import { typeById, TYPES } from './types/registry';
@@ -40,229 +29,111 @@ import { typeById, TYPES } from './types/registry';
 export interface TemplatePack {
   id: string;
   name: string;
-  /** Who this pack is for, in the wizard's voice. */
+  /** Who this kit is for, in the wizard's voice. */
   description: string;
-  /** The DEFAULT look, and a taste pick rather than a constraint: a pack re-resolves into any
-   *  family whose cells its types fill. That is MOST of the production families for most packs,
-   *  but never all six and not the same set for every pack — Match Day and Esports resolve in
-   *  two, editorial and cinematic in none (see the header). Ask `resolvePack`, don't assume. */
+  /** THE kit's Style family. Every type in `types` must ship a design in it. */
   family: StyleTag;
   /**
-   * The ONE palette every kit graphic is CREATED with (docs/GOALS_ARCHIVE.md "Student release" step
-   * 7) — the unified look a coherent show demands. A style family is not one palette (the
-   * measured fact: newsroom's own defaults mixed signal, ivory, frost and noacg), so a pack
-   * that claims production-readiness names its palette and the kit create imposes it on
-   * every graphic. Absent = each design keeps its own default — the pre-step-7 behavior the
-   * uncurated packs (and their pinned specs, e.g. esports' Volt) still rely on.
+   * The ONE palette the kit's graphics are CREATED with - the unified look a coherent show
+   * demands. A style family is not one palette (newsroom's own design defaults mixed signal,
+   * ivory, frost and noacg), so a kit names its palette and the kit create imposes it on every
+   * graphic the palette is drawn for (`Palette.styleTags`). An off-family extra keeps its own
+   * default: a light Porcelain panel on a glass strap would be a mistake, not a look. Absent =
+   * each design keeps its own default, which is right where the look is authored into the
+   * designs themselves (Esports' Volt, the three game-show families).
    */
   paletteId?: string;
-  /** GraphicType ids, in curated order (the order a rundown would reach for them). */
+  /**
+   * The graphics TICKED when a user picks this kit: `KitChoice` keys (a type id, or
+   * `extra:<designId>`). About ten - enough to run the show, few enough to read at a glance.
+   * The FIRST is the kit's signature graphic and its card's cover picture, so the gallery shows
+   * what each kit is rather than eight title cards; the rest follow in rundown order.
+   * Everything else in the library is one tick away.
+   */
+  starter: string[];
+  /** The kit's LIBRARY of GraphicType ids, in curated order (the order a rundown would reach
+   *  for them). The starter's types are a subset. */
   types: string[];
-  /** Catalog variants OUTSIDE the type registry that belong in the kit (end credits, the
-   *  versus card). Validated against the live catalog by the factory. */
+  /** Catalog variants OUTSIDE the type registry that belong in the kit's library (end credits,
+   *  the versus card, the specialist straps). Validated against the live catalog by the
+   *  factory. An extra carries its own look, so only an in-family one may be in the starter. */
   extras?: string[];
   /**
-   * The reference formats this pack serves — VERBATIM row values from
-   * live_format_graphics_needs.xlsx. Every format appears in exactly one pack.
-   *
-   * A DISCIPLINE pack (the sports packs below) declares an EMPTY list on purpose. The
-   * reference sheet counts formats, and it has one row for "Sports broadcast / match coverage"
-   * and one for "Local sports / amateur sports" — both already owned by Match Day. A football
-   * kit and a tennis kit are not new formats; they are the same format cut for a sport whose
-   * clock counts the other way and whose score is kept in sets. Claiming a format twice would
-   * be a taxonomy error (`validatePacks` catches it), and inventing rows the sheet does not
-   * have would make the count meaningless.
+   * The reference formats this kit serves - VERBATIM row values from
+   * live_format_graphics_needs.xlsx. Every format appears in exactly one kit, so a kit may
+   * declare none: Showtime Quiz and Arcade Quiz serve the same format Sticker Quiz owns.
    */
   formats: string[];
 }
 
-/** The Excel's row count. The factory asserts the packs below cover exactly this many
+/** The Excel's row count. The factory asserts the kits below cover exactly this many
  *  formats with no duplicates, so a taxonomy edit cannot quietly drop or double-map one. */
 export const REFERENCE_FORMAT_COUNT = 60;
 
+/** The eight graphics of a two-player game show, shared by the three quiz kits. The quiz
+ *  board leads: it is the graphic the show is, and so each quiz kit's cover. */
+const QUIZ_SHOW_TYPES = [
+  'quiz-show', 'title-card', 'lower-third',
+  'duel-score', 'countdown',
+  'key-facts', 'logo-bug',
+  'sign-off',
+];
+
 export const PACKS: TemplatePack[] = [
   {
-    id: 'match-day',
-    name: 'Match Day',
-    description: 'Scorebug, clock, line-up, standings and the full-time card — the live sports kit.',
+    // Match Day and the nine discipline packs (Football, Ice Hockey, Basketball, Handball,
+    // Racket Sports, Motorsport, Athletics, Combat Sports, Club & School) in one kit. The
+    // disciplines were the same match types cut for one sport's habits; the habits themselves
+    // (which way the clock counts, periods or sets) are FIELDS of those types, so one library
+    // carries every sport and the timing tower joins it for the racing ones.
+    id: 'sports',
+    name: 'Sports',
+    description: 'Scorebug, match events, fixtures and the table - live match coverage for any sport.',
     family: 'sport',
+    // One broadcast blue across the set; the designs' own defaults mixed volt, inferno and red.
+    paletteId: 'royal',
+    // The player strap leads: at cover size a scorebug is a thin strip, and the strap reads as
+    // sport from across the room.
+    starter: [
+      'lower-third', 'scorebug', 'title-card', 'match-event', 'fixtures', 'standings',
+      'countdown', 'sponsor-bug', 'key-facts', 'sign-off',
+    ],
     types: [
-      // The sports pack's five types (docs/SPORTS_PACK.md), then the older generic scoreboard.
-      'scorebug', 'match-board', 'match-status', 'match-event', 'fixtures',
-      'scoreboard', 'countdown', 'lower-third', 'ticker', 'sponsor-bug', 'title-card', 'holding-screen',
-      'now-next', 'notice-card',
+      'title-card', 'lower-third', 'scorebug', 'match-event', 'match-status', 'match-board',
+      'fixtures', 'standings', 'roster', 'scoreboard', 'timing-tower',
+      'countdown', 'holding-screen', 'now-next', 'agenda', 'key-facts', 'notice-card',
       // The identity marks a match feed leaves up: the fixture ident, the live/replay status,
       // the sponsor bar, and the venue chip for pitchside cameras.
-      'event-bug', 'live-bug', 'sponsor-strip', 'status-chip',
-      // The competition pack's sports half (docs/COMPETITION_PACK.md).
-      'roster', 'standings', 'winner-card',
-      'sign-off',
+      'sponsor-bug', 'event-bug', 'live-bug', 'sponsor-strip', 'status-chip', 'ticker',
+      'winner-card', 'sign-off',
     ],
     extras: [
       // The specialist straps a match feed is drawn for: the commentary pair as a block and
-      // as a rail, and the three ways coverage names a player — by squad number, by the
+      // as a rail, and the three ways coverage names a player - by squad number, by the
       // stat line that justifies the cutaway, and by the club whose badge leads the card.
       'ls06', 'ls07', 'ls08', 'ls09', 'ls10',
       // The other scores crawling under this one, and the card a rain delay or a
-      // postponement goes to — which an intermission screen is not: it says WHEN.
+      // postponement goes to - which an intermission screen is not: it says WHEN.
       'tk13', 'al10',
-      'vs01', 'cr03', 'ss11', 'cr12',
+      // The versus cards for the match-up reveal (vs02 is the one the fight card and the
+      // racket draw used), the results roll, the half-time hold and the sponsor board.
+      'vs01', 'vs02', 'cr03', 'ss11', 'cr12',
     ],
     formats: ['Sports broadcast / match coverage', 'Local sports / amateur sports'],
   },
-  // ── The DISCIPLINE packs (docs/SPORTS_PACK.md) ──
-  // Each is the same eight sports types cut for one sport's habits — which clock direction the
-  // scorebug wants, whether the score is kept in periods or sets, whether a lineup is a squad
-  // or a start list — plus the supporting graphics that sport actually uses. They claim no
-  // reference formats: see `TemplatePack.formats`.
-  //
-  // They are refinements of Match Day, and being cut that way is what left them unable to run a
-  // show on their own: measured 2026-08-08 (docs/KIT_MATRIX_GAPS.md), all nine were pure match
-  // furniture — no opener, nothing that puts a sentence on screen. Every kit ships the CORE SIX
-  // regardless of genre (a lower third, an opener, an info card, a ticker or bug, a countdown or
-  // hold, a closing card), so `title-card` and `key-facts` are in all nine below. Both resolve in
-  // all four production families, so this costs no template work and narrows no pack's looks.
   {
-    id: 'football',
-    name: 'Football',
-    description: 'Count-up clock, subs and cards, the league table and the weekend results.',
-    family: 'sport',
-    types: [
-      'scorebug', 'match-event', 'match-status',
-      'fixtures', 'match-board',
-      'lower-third', 'sponsor-bug', 'countdown', 'holding-screen',
-      'title-card', 'key-facts',
-      'sign-off',
-    ],
-    extras: ['vs01'],
-    formats: [],
-  },
-  {
-    id: 'ice-hockey',
-    name: 'Ice Hockey',
-    description: 'Period clock counting down, penalties, the period breakdown and the standings.',
-    family: 'sport',
-    types: [
-      'scorebug', 'match-board', 'match-event', 'match-status',
-      'fixtures',
-      'lower-third', 'sponsor-bug', 'holding-screen',
-      'title-card', 'key-facts',
-      'sign-off',
-    ],
-    formats: [],
-  },
-  {
-    id: 'basketball',
-    name: 'Basketball',
-    description: 'Quarter clock, the quarter-by-quarter board, team stats and the conference table.',
-    family: 'sport',
-    types: [
-      'scorebug', 'match-board',
-      'match-status', 'match-event', 'fixtures',
-      'lower-third', 'sponsor-bug', 'countdown',
-      'title-card', 'key-facts',
-      'sign-off',
-    ],
-    formats: [],
-  },
-  {
-    id: 'handball',
-    name: 'Handball',
-    description: 'Half clock, two-minute suspensions, the squad list and the group table.',
-    family: 'glass',
-    types: [
-      'scorebug', 'match-event', 'match-board', 'match-status',
-      'fixtures',
-      'lower-third', 'sponsor-bug', 'holding-screen',
-      'title-card', 'key-facts',
-      'sign-off',
-    ],
-    formats: [],
-  },
-  {
-    id: 'racket-sports',
-    name: 'Racket Sports',
-    description: 'Set-by-set scoring, the head-to-head, the draw and the order of play.',
-    family: 'glass',
-    types: [
-      'match-board', 'scorebug', 'match-status',
-      'fixtures',
-      'lower-third', 'sponsor-bug', 'agenda',
-      // A rain break and a suspended session are this pack's normal state, so the hold and the
-      // countdown to resumption are core here rather than optional.
-      'title-card', 'key-facts', 'countdown', 'holding-screen',
-      'sign-off',
-    ],
-    extras: ['vs02'],
-    formats: [],
-  },
-  {
-    id: 'motorsport',
-    name: 'Motorsport',
-    description: 'The live timing tower, the championship standings, session results and a countdown.',
-    family: 'sport',
-    types: [
-      // The tower leads: it is the graphic a session is actually covered with, and until it
-      // existed this pack was standing in for it with a fixtures board.
-      'timing-tower',
-      'fixtures', 'match-status',
-      'countdown', 'scorebug',
-      'lower-third', 'sponsor-bug', 'ticker', 'holding-screen',
-      'title-card', 'key-facts',
-      'sign-off',
-    ],
-    formats: [],
-  },
-  {
-    id: 'athletics',
-    name: 'Athletics',
-    description: 'Start lists, live splits, heat results, the medal table and a field-event countdown.',
-    family: 'glass',
-    types: [
-      // A heat in progress is a timing tower with the times measured at a split.
-      'timing-tower',
-      'fixtures', 'match-status',
-      'countdown', 'scorebug',
-      'lower-third', 'agenda', 'sponsor-bug',
-      'title-card', 'key-facts',
-      'sign-off',
-    ],
-    formats: [],
-  },
-  {
-    id: 'combat-sports',
-    name: 'Combat Sports',
-    description: 'Round clock, the fight card, the tale of the tape and the decision.',
-    family: 'glass',
-    types: [
-      'match-status', 'scorebug', 'match-event',
-      'fixtures', 'countdown',
-      'lower-third', 'sponsor-bug', 'holding-screen',
-      'title-card', 'key-facts',
-      'sign-off',
-    ],
-    extras: ['vs02'],
-    formats: [],
-  },
-  {
-    id: 'club-sports',
-    name: 'Club & School Sports',
-    description: 'The amateur kit: full club names, no crests needed, and nothing that costs bitrate.',
-    family: 'minimal',
-    types: [
-      'scorebug', 'match-status', 'match-board',
-      'fixtures', 'match-event',
-      'lower-third', 'holding-screen', 'countdown', 'sponsor-bug',
-      'title-card', 'key-facts',
-      'sign-off',
-    ],
-    formats: [],
-  },
-  {
+    // The complete Volt tournament package. Its library is intentionally larger than a
+    // competition-only collection: opener and holds, running order, identity and status marks,
+    // player and caster straps, sponsor placements, a self-clearing cut transition, map veto,
+    // live series and map operation, fixtures, standings, bracket and champion reveal.
     id: 'esports',
     name: 'Esports',
-    description: 'A complete Volt tournament package: pre-show, desk, match, replay, results and sponsors.',
+    description: 'A Volt tournament package: pre-show, match-up, live series, results and sponsors.',
     family: 'sport',
+    starter: [
+      'matchup', 'title-card', 'holding-screen', 'lower-third', 'esports-score', 'map-round',
+      'standings', 'notice-card', 'sponsor-bug', 'sign-off',
+    ],
     types: [
       // Open and hold the show before the first server is live, then keep the running order
       // readable between series.
@@ -280,11 +151,10 @@ export const PACKS: TemplatePack[] = [
       'sign-off',
     ],
     extras: [
-      // Pre-match drafting needs the new operator-driven veto board as well as the live map
+      // Pre-match drafting needs the operator-driven veto board as well as the live map
       // ladder. The three straps identify players, the commentary pair and the analysis desk.
       'mr04', 'ls11', 'ls06', 'ls13',
-      // The two-caster split, in this kit's own Volt look (an extra never follows the family
-      // the kit is built in, so it is only ever offered where it already matches).
+      // The two-caster split, in this kit's own Volt look.
       'fr03',
       // Tournament-wide score and sponsor rails remain readable while play stays visible.
       'tk13', 'cr12',
@@ -292,169 +162,35 @@ export const PACKS: TemplatePack[] = [
     formats: ['Esports tournament'],
   },
   {
-    id: 'creator',
-    name: 'Creator',
-    description: 'Starting-soon, straps, topic cards and handles — the streamer starter kit.',
-    family: 'noacg',
-    types: [
-      'holding-screen', 'lower-third', 'topic-card', 'social-bug', 'sponsor-bug', 'countdown', 'poll',
-      'now-next', 'process-steps',
-      // A creator's own identity: the channel ident, a live/standby mark for stream breaks,
-      // and the logo-only bug for the hours where nothing else should be on screen.
-      'station-bug', 'live-bug', 'logo-bug',
-      // A stream's audience IS the show: the chat strap and the live vote are as core here
-      // as the strap is, and the question card is what a Just Chatting segment runs on.
-      'chat-highlight', 'live-poll', 'viewer-question',
-      // The follower / member / donation / gift / raid alert. Its own template-owned queue is
-      // what makes a burst of events survive, so a creator kit without it is a kit that drops
-      // the graphic the stream is most often asked for.
-      'event-notification',
-      'sign-off',
-      'goal-meter', 'milestone-track', 'call-to-action',
-    ],
-    extras: [
-      // The webcam surround, in the house look this kit is built in. A frame cannot be a graphic
-      // TYPE (its field count follows its camera count - docs/GRAPHIC_TYPES.md), so it can only
-      // reach a kit as an extra, and an extra carries its OWN look - hence in-family only.
-      'fr01',
-      // A co-stream names two people in the house look, the handle row is the graphic a
-      // creator ends on, and the identity card carries the sub/donation goal a subathon or
-      // a telethon exists for.
-      'ls03', 'ls31', 'ls32',
-      // A solo operator's two failure graphics: the fault that needs a reassurance line, and
-      // the standby card that says when they are back.
-      'al07', 'al10',
-      'ss06', 'ss08', 'ss09', 'ss12',
-    ],
-    formats: [
-      'Gaming livestream',
-      'Just Chatting / personality stream',
-      'Travel / IRL stream',
-      'Watch party / reaction stream',
-      'Tech support / coding livestream',
-      'Art / design livestream',
-      'Craft / maker livestream',
-      'Tabletop RPG / board game stream',
-      'Reality-style livestream / house stream',
-      'Charity telethon / fundraising stream',
-    ],
-  },
-  {
-    id: 'newsroom',
-    name: 'Newsroom',
-    description: 'Anchor straps, the wire ticker, headline and topic cards for news programs.',
-    family: 'minimal',
-    // The unified desk look (step 7): every kit graphic is created in Ivory, so the strap,
-    // the crawls and the cards read as ONE broadcast rather than four palettes.
-    paletteId: 'ivory',
-    types: [
-      'lower-third', 'ticker', 'topic-card', 'title-card', 'agenda', 'sponsor-bug',
-      'headline-card', 'key-facts', 'notice-card',
-      // The newsroom's own furniture: the channel ident that never leaves, the live/replay
-      // status a news desk is obliged to be honest about, and the location chip for reporters.
-      'station-bug', 'live-bug', 'status-chip',
-      // The public-service pair (docs/PUBLIC_SERVICE_PACK.md). This is the desk that runs
-      // them: the severity ladder is what an emergency broadcast IS, and the two-language
-      // notice retires the "multilingual cards are fields" stand-in the mapping recorded.
-      'alert-level', 'public-notice',
-      // The hold a news desk actually runs on - a bulletin waiting to start, a feed that has
-      // dropped. It was covered by the `ss08` extra alone, which happens to be minimal and so
-      // happens to match this kit's look; the type follows whatever look the kit is built in.
-      'holding-screen',
-      'sign-off',
-    ],
-    extras: [
-      // The news desk's specialist straps, ALL in-family since step 7 (the measured audit
-      // found ls24 glass, ls29 noacg, ls30 glass riding a minimal kit): the remote two-box
-      // interview, the kicker that marks comment as comment, the LIVE flag as its own
-      // element, the debate podium for election nights, and the press-conference lectern.
-      'ls01', 'ls23', 'ls28', 'ls21', 'ls17',
-      // The crawls, one per job the `ticker` type's own design does not do: caps framing the
-      // travel, a strip along the TOP while the lower third is busy, market deltas, the
-      // opaque notice crawl, the breaking dot, a bilingual split — and the index strip +
-      // status rotator standing in for the off-family split deck and world clock. (NOT
-      // tk10: the ticker TYPE already resolves to Wire Rotator in this family, and the
-      // name-keyed pool would silently merge the duplicate.)
-      'tk11', 'tk12', 'tk14', 'tk15', 'tk16', 'tk17', 'tk04', 'tk18',
-      // The breaking banner (its kicker is a field, not a state), the numbered emergency
-      // instructions, and the source label a press conference is obliged to carry.
-      'al09', 'pi02', 'pi03',
-      'ss08', 'card52',
-    ],
-    formats: [
-      'News / current affairs livestream',
-      'Weather broadcast / climate update',
-      'Finance / market livestream',
-      'Security / surveillance-style public stream',
-      'Press conference',
-      'Emergency information stream',
-    ],
-  },
-  {
-    id: 'election',
-    name: 'Election',
-    description: 'Result bars, candidate straps and the count ticker for civic broadcasts.',
-    family: 'minimal',
-    types: [
-      'poll', 'lower-third', 'ticker', 'title-card', 'agenda', 'countdown',
-      'headline-card', 'key-facts',
-      // Results night runs from many places at once: a location chip per feed, and a status
-      // mark that says plainly whether a shot is live or a replay.
-      'status-chip', 'live-bug',
-      // The live vote carries the count as it comes in and calls a leader; the static poll
-      // board above it is the finished result.
-      'live-poll',
-      // A civic broadcast is frequently obliged to carry its notices in two languages, and
-      // the rotator is the honest way to do that in one strip's worth of screen.
-      'public-notice',
-      'sign-off',
-    ],
-    extras: [
-      // Civic coverage reads the party colour first: the result bar, the symmetric podium
-      // strap a debate places twice, and the everyday affiliation strap. The analysis
-      // kicker rides along because results night runs on interpretation.
-      'ls20', 'ls21', 'ls22', 'ls23',
-      // The council's own paperwork put on screen: the notice crawl, the public and
-      // municipal notices (reference and deadline in their own chip), and the two-language
-      // panel a bilingual jurisdiction runs everything through.
-      'tk15', 'pi01', 'pi05', 'pi07',
-      'card52', 'cr05',
-    ],
-    formats: [
-      'Election night / results program',
-      'Debate / political discussion',
-      'Municipal council / public meeting',
-    ],
-  },
-  {
     id: 'talk-show',
     name: 'Talk Show',
-    description: 'Guest straps, topic and question cards, polls — panels, podcasts and Q&As.',
+    description: 'Guest straps, topic and question cards, polls - panels, podcasts and Q&As.',
     family: 'glass',
-    // The unified studio look (step 7): everything in Frost, so the straps, cards and
-    // audience surfaces read as one show rather than frost/orchid/noacg/ivory at once.
+    // The unified studio look: everything in Frost, so the straps, cards and audience
+    // surfaces read as one show rather than frost/orchid/noacg/ivory at once.
     paletteId: 'frost',
+    starter: [
+      'lower-third', 'topic-card', 'viewer-question', 'qa-card', 'poll', 'key-facts',
+      'countdown', 'station-bug', 'social-bug', 'sign-off',
+    ],
     types: [
       'lower-third', 'topic-card', 'poll', 'agenda', 'social-bug', 'sponsor-bug', 'countdown',
       'key-facts', 'recap-card',
       // A show ident for the corner, and a sponsor rotation for the partners a podcast or
       // panel show reads out between segments.
       'station-bug', 'sponsor-rotator',
-      // The whole audience-interaction set: a live Q&A is this pack's own format.
+      // The whole audience-interaction set: a live Q&A is this kit's own format.
       'viewer-question', 'qa-card', 'chat-highlight', 'question-queue', 'live-poll',
       'sign-off',
     ],
     extras: [
-      // The panel's own straps, ALL in-family since step 7 (the measured audit found ls05
-      // and ss06 noacg and card52 ivory riding a glass kit): the two-card remote interview,
-      // the guest-over-host pair, the specialist's subject tag, and the now-playing strap a
-      // radio-with-video show needs (the topic card had been standing in for it).
+      // The panel's own straps, all in-family: the two-card remote interview, the
+      // guest-over-host pair, the specialist's subject tag, and the now-playing strap a
+      // radio-with-video show needs.
       'ls02', 'ls04', 'ls24', 'ls25',
       // The two-up interview surround, in this kit's own Frost look.
       'fr02',
-      // The coming-up card replaces the off-family Studio Pair (ls04 already carries that
-      // job), the glass Reading Card replaces the ivory Quotation, and Intermission
-      // replaces the noacg Short Break beside the kept Back Shortly.
+      // The coming-up card, the glass Reading Card, Intermission and Back Shortly.
       'card19', 'card35', 'ss07', 'ss12',
     ],
     formats: [
@@ -468,34 +204,140 @@ export const PACKS: TemplatePack[] = [
     ],
   },
   {
-    id: 'corporate',
-    name: 'Corporate Events',
-    description: 'Agendas, speaker straps, session titles and polls for webinars and keynotes.',
+    id: 'newsroom',
+    name: 'Newsroom',
+    description: 'Anchor straps, the wire ticker, headline cards and alerts for news programs.',
     family: 'minimal',
+    // The unified desk look: every kit graphic is created in Ivory, so the strap, the crawls
+    // and the cards read as ONE broadcast rather than four palettes.
+    paletteId: 'ivory',
+    starter: [
+      'headline-card', 'title-card', 'lower-third', 'ticker', 'key-facts', 'live-bug',
+      'station-bug', 'alert-level', 'holding-screen', 'sign-off',
+    ],
+    types: [
+      'lower-third', 'ticker', 'topic-card', 'title-card', 'agenda', 'sponsor-bug',
+      'headline-card', 'key-facts', 'notice-card',
+      // The newsroom's own furniture: the channel ident that never leaves, the live/replay
+      // status a news desk is obliged to be honest about, and the location chip for reporters.
+      'station-bug', 'live-bug', 'status-chip',
+      // The public-service pair (docs/PUBLIC_SERVICE_PACK.md): the severity ladder is what an
+      // emergency broadcast IS, and the two-language notice carries an obligation in one strip.
+      'alert-level', 'public-notice',
+      // The hold a news desk actually runs on - a bulletin waiting to start, a feed that has
+      // dropped.
+      'holding-screen',
+      'sign-off',
+    ],
+    extras: [
+      // The news desk's specialist straps: the remote two-box interview, the kicker that marks
+      // comment as comment, the LIVE flag as its own element, the debate podium for election
+      // nights, and the press-conference lectern.
+      'ls01', 'ls23', 'ls28', 'ls21', 'ls17',
+      // The crawls, one per job the `ticker` type's own design does not do: caps framing the
+      // travel, a strip along the TOP while the lower third is busy, market deltas, the
+      // opaque notice crawl, the breaking dot, a bilingual split - and the index strip +
+      // status rotator. (NOT tk10: the ticker TYPE already resolves to Wire Rotator in this
+      // family, and the name-keyed pool would silently merge the duplicate.)
+      'tk11', 'tk12', 'tk14', 'tk15', 'tk16', 'tk17', 'tk04', 'tk18',
+      // The breaking banner, the numbered emergency instructions, and the source label a
+      // press conference is obliged to carry.
+      'al09', 'pi02', 'pi03',
+      'ss08', 'card52',
+    ],
+    formats: [
+      'News / current affairs livestream',
+      'Weather broadcast / climate update',
+      'Finance / market livestream',
+      'Security / surveillance-style public stream',
+      'Press conference',
+      'Emergency information stream',
+      // School TV is a newsroom in miniature: an anchor strap, a ticker and a headline card.
+      'Student production / school TV',
+    ],
+  },
+  {
+    id: 'election',
+    name: 'Election',
+    description: 'Result bars, the live count, candidate straps and the ticker for civic broadcasts.',
+    family: 'minimal',
+    // Results night reads in one hard red, set apart from the newsroom's Ivory desk.
+    paletteId: 'signal',
+    starter: [
+      'poll', 'title-card', 'lower-third', 'live-poll', 'ticker', 'headline-card', 'key-facts',
+      'countdown', 'live-bug', 'sign-off',
+    ],
+    types: [
+      'poll', 'lower-third', 'ticker', 'title-card', 'agenda', 'countdown',
+      'headline-card', 'key-facts',
+      // Results night runs from many places at once: a location chip per feed, and a status
+      // mark that says plainly whether a shot is live or a replay.
+      'status-chip', 'live-bug',
+      // The live vote carries the count as it comes in and calls a leader; the static poll
+      // board above it is the finished result.
+      'live-poll',
+      // A civic broadcast is frequently obliged to carry its notices in two languages.
+      'public-notice',
+      'sign-off',
+    ],
+    extras: [
+      // Civic coverage reads the party colour first: the result bar, the symmetric podium
+      // strap a debate places twice, and the everyday affiliation strap. The analysis
+      // kicker rides along because results night runs on interpretation.
+      'ls20', 'ls21', 'ls22', 'ls23',
+      // The council's own paperwork put on screen: the notice crawl, the public and
+      // municipal notices, and the two-language panel a bilingual jurisdiction runs on.
+      'tk15', 'pi01', 'pi05', 'pi07',
+      'card52', 'cr05',
+    ],
+    formats: [
+      'Election night / results program',
+      'Debate / political discussion',
+      'Municipal council / public meeting',
+    ],
+  },
+  {
+    // Corporate Events and Classroom in one kit: a keynote, a webinar and a lecture run on the
+    // same furniture - an agenda, a speaker strap, a session title, a Q&A - and the classroom's
+    // quiz and answer boards stay in the library for a training session that tests its room.
+    id: 'corporate',
+    name: 'Corporate Event',
+    description: 'Agendas, speaker straps, session titles and Q&A for keynotes, webinars and lectures.',
+    family: 'minimal',
+    // Clean minimal in a green accent, apart from the newsroom's Ivory and the election's red.
+    // Not a light-paper palette: most minimal cards set their type straight over the picture,
+    // and dark ink there disappears (measured on the kit's own hub).
+    paletteId: 'mint',
+    starter: [
+      'agenda', 'title-card', 'lower-third', 'topic-card', 'key-facts', 'now-next',
+      'countdown', 'event-bug', 'qa-card', 'sign-off',
+    ],
     types: [
       'agenda', 'lower-third', 'countdown', 'title-card', 'topic-card', 'poll', 'holding-screen',
       'now-next', 'process-steps', 'recap-card', 'key-facts',
-      // A conference stream identifies the event and its sponsors more than anything else:
-      // the session ident in the corner, and the partner strip along the bottom.
-      'event-bug', 'sponsor-strip',
+      // A conference stream identifies the event and its sponsors more than anything else.
+      'event-bug', 'sponsor-strip', 'logo-bug',
       // Webinar and conference Q&A: the moderator's queue and the answered card.
       'question-queue', 'qa-card', 'viewer-question', 'live-poll',
-      'sign-off',
       'qr-card',
+      // The classroom half: the quiz board and its two- and three-answer siblings, the ruling
+      // on an answer, and the score table.
+      'quiz-board', 'answer-board-2', 'answer-board-3', 'verdict-card', 'scoreboard', 'standings',
+      'sign-off',
     ],
     extras: [
-      // The speaker credits a conference actually runs on: post-nominals as their own
-      // field, the institution's mark on the card, the session strap that leads with the
-      // talk for people joining mid-track, and the expert's field for medical and legal.
+      // The speaker credits a conference actually runs on: post-nominals as their own field,
+      // the institution's mark on the card, the session strap that leads with the talk, and
+      // the expert's field for medical and legal.
       'ls17', 'ls18', 'ls19', 'ls24',
-      // The screen-share surround with a presenter inset - the layout a webinar spends most of
-      // its runtime in, in this kit's own Clean look.
+      // The screen-share surround with a presenter inset - where a webinar spends its runtime.
       'fr04',
       // The two notices a webinar runs more than any graphic it was planned with, and the
-      // small print the medical and legal formats are obliged to carry: the disclaimer at
-      // the floor, and the health advisory with its helpline in a band of its own.
+      // small print the medical and legal formats are obliged to carry.
       'al07', 'al08', 'pi04', 'pi06',
       'ss13', 'cr05', 'cr07', 'cr09',
+      // The awards or name roll a school stream ends on, and the graduate card.
+      'cr01', 'card58',
     ],
     formats: [
       'Webinar / expert presentation',
@@ -508,120 +350,99 @@ export const PACKS: TemplatePack[] = [
       'Behind-the-scenes production stream',
       'Academic conference livestream',
       'Hybrid workshop / training session',
-    ],
-  },
-  {
-    id: 'classroom',
-    name: 'Classroom',
-    description: 'Quiz board, verdicts, timers, lesson cards and a score table for teaching streams.',
-    family: 'noacg',
-    types: [
-      'quiz-board', 'countdown', 'lower-third', 'topic-card', 'agenda', 'scoreboard',
-      'process-steps', 'key-facts', 'recap-card',
-      // A school or university stream keeps its institution's mark up, and nothing else.
-      'logo-bug',
-      // A ruling on an answer is the quiz board's other half (docs/COMPETITION_PACK.md).
-      'verdict-card', 'standings',
-      // Two- and three-answer boards for true/false and three-way rounds, plus the class vote.
-      'answer-board-2', 'answer-board-3', 'live-poll', 'viewer-question',
-      'sign-off',
-    ],
-    extras: [
-      // The lecturer's credit, and the school or department mark a student production is
-      // usually required to carry.
-      'ls17', 'ls18',
-      // cr01 replaced the retired cr10 (2026-08-28): the awards/name roll a school stream
-      // ends on is the classic roll with Emphasis on the name's half of the line.
-      'cr01', 'card58', 'ss13',
-    ],
-    formats: [
       'Education / lecture livestream',
-      'Student production / school TV',
-      'Quiz / game show livestream',
     ],
   },
-  // THE QUIZ SHOW KIT, and the first kit in the three GAME-SHOW families (sticker, showtime,
-  // arcade - model/fonts.ts). It is a whole two-player game show in one look: the opener, the
-  // host and contestant strap, the quiz board whose answer count is a field, the running score,
-  // an answer clock, a how-to-play card, the show mark and the closing card.
-  //
-  // It resolves in exactly those three looks and no others, because `quiz-show` and `duel-score`
-  // ship designs only there - which is the point: the looks were drawn as a set, and the picker
-  // measures what resolves rather than assuming (KitPicker `familiesFor`).
-  //
-  // It declares NO paletteId on purpose. A pack palette is imposed on every graphic the kit
-  // creates, and this kit re-resolves into three families whose palettes share nothing: Tangerine
-  // on the marquee would be cream text on a cream panel. Each design's own default already IS
-  // its family's palette, so the kit arrives in one look without one.
-  //
-  // And it claims no format: the sheet's "Quiz / game show livestream" row is Classroom's, and a
-  // format belongs to exactly one pack (see `TemplatePack.formats`).
   {
-    id: 'quiz-show',
-    name: 'Quiz Show',
-    description: 'A two-player game show in one look: opener, quiz board, running score, answer clock, rules card, straps and the closing card.',
-    family: 'sticker',
-    types: [
-      'title-card', 'lower-third',
-      'quiz-show', 'duel-score', 'countdown',
-      'key-facts', 'logo-bug',
-      'sign-off',
+    // Creator, Shopping and Wellness in one kit. All three are one person on camera running
+    // their own stream; what differs is which cards they reach for, so the commerce cards and
+    // the calm holds are in the library rather than in kits of their own.
+    id: 'creator',
+    name: 'Creator Stream',
+    description: 'Starting-soon, straps, alerts, chat and polls - the streamer kit, shop cards included.',
+    family: 'noacg',
+    paletteId: 'noacg',
+    starter: [
+      'holding-screen', 'lower-third', 'topic-card', 'process-steps', 'social-bug',
+      'event-notification', 'chat-highlight', 'live-poll', 'countdown', 'sign-off',
     ],
-    formats: [],
-  },
-  {
-    id: 'church',
-    name: 'Church & Ceremony',
-    description: 'Service titles, scripture cards, program schedule and a quiet countdown.',
-    family: 'minimal',
     types: [
-      'title-card', 'lower-third', 'topic-card', 'holding-screen', 'countdown', 'agenda',
-      'statement-card',
-      // The congregation's or family's own mark, and the ident for the service, ceremony or
-      // memorial being streamed — both quiet enough to leave up for an hour.
-      'logo-bug', 'event-bug',
-      // The request card and the question card — a service reads both from the congregation.
-      'community-request', 'viewer-question', 'question-queue',
+      'holding-screen', 'lower-third', 'topic-card', 'social-bug', 'sponsor-bug', 'countdown', 'poll',
+      'now-next', 'process-steps', 'title-card', 'key-facts', 'ticker',
+      // A creator's own identity: the channel ident, a live/standby mark for stream breaks,
+      // and the logo-only bug for the hours where nothing else should be on screen.
+      'station-bug', 'live-bug', 'logo-bug',
+      // A stream's audience IS the show: the chat strap, the live vote and the question card.
+      'chat-highlight', 'live-poll', 'viewer-question',
+      // The follower / member / donation / gift / raid alert, with its own template-owned queue.
+      'event-notification',
+      'goal-meter', 'milestone-track', 'call-to-action',
+      // The live-commerce set: product, offer and listing cards, the scan-to-buy card, and
+      // the partner strip and rotation a long selling block cycles through.
+      'product-card', 'offer-card', 'listing-card', 'qr-card', 'sponsor-strip', 'sponsor-rotator',
       'sign-off',
     ],
     extras: [
-      // The three worship straps, and the reason this pack needed its own: a sermon credit
-      // that fades rather than snaps, a reading where the reference outranks the reader,
-      // and the ceremony strap that names the part of the programme being delivered.
-      'ls14', 'ls15', 'ls16',
-      // The side-by-side two-language panel, for a congregation that worships in two. The
-      // statement card above covers the same need as a STATEMENT; this is the notice form.
-      'pi07',
-      'cr01', 'cr05', 'cr11', 'ss07', 'ss10', 'card50', 'card51', 'card54', 'card55', 'card57',
+      // The webcam surround, in the house look this kit is built in.
+      'fr01',
+      // A co-stream names two people in the house look, the handle row is the graphic a
+      // creator ends on, and the identity card carries the sub/donation goal.
+      'ls03', 'ls31', 'ls32',
+      // A solo operator's two failure graphics: the fault that needs a reassurance line, and
+      // the standby card that says when they are back.
+      'al07', 'al10',
+      'ss06', 'ss08', 'ss09', 'ss12', 'cr12',
+      // The small print a selling or fitness stream is obliged to carry: the disclaimer strip
+      // and the health advisory whose helpline sits in its own band.
+      'pi04', 'pi06', 'card52',
     ],
     formats: [
-      'Religious service / church livestream',
-      'Graduation / ceremony stream',
-      'Wedding / private event livestream',
-      'Funeral / memorial livestream',
+      'Gaming livestream',
+      'Just Chatting / personality stream',
+      'Travel / IRL stream',
+      'Watch party / reaction stream',
+      'Tech support / coding livestream',
+      'Art / design livestream',
+      'Craft / maker livestream',
+      'Tabletop RPG / board game stream',
+      'Reality-style livestream / house stream',
+      'Charity telethon / fundraising stream',
+      'Live commerce / shopping stream',
+      'Cooking show / food livestream',
+      'Auction livestream',
+      'Real estate / property livestream',
+      'Beauty / makeup livestream',
+      'Fitness / workout class',
+      'Meditation / ambient livestream',
+      'Animal cam / nature cam',
     ],
   },
   {
     id: 'stage',
-    name: 'Stage & Music',
-    description: 'Artist straps, setlist cards, intermission screens for performances and galas.',
+    name: 'Stage & Awards',
+    description: 'Artist straps, setlists, intermissions, nominees and the winner - concerts and galas.',
     family: 'glass',
+    // Glass in violet, so it never reads as the Talk Show's Frost studio.
+    paletteId: 'orchid',
+    starter: [
+      'nominee-reveal', 'title-card', 'lower-third', 'holding-screen', 'countdown', 'now-next',
+      'statement-card', 'award-reveal', 'event-bug', 'sign-off',
+    ],
     types: [
       'title-card', 'lower-third', 'holding-screen', 'countdown', 'social-bug', 'agenda', 'ticker',
       'now-next', 'statement-card', 'notice-card',
       // A gala runs on two marks: which award is being given, and which festival or stage
       // this is.
       'award-bug', 'event-bug',
-      'sign-off',
       'nominee-reveal', 'award-reveal',
+      'sign-off',
     ],
     extras: [
-      // The billing straps, and getting them the right way round is this pack's whole job:
-      // artist-led for a performance, track-led for a set, the numbered item for a recital
-      // programme — plus the guest-over-host pair a red carpet interviews arrivals with.
+      // The billing straps, the right way round: artist-led for a performance, track-led for a
+      // set, the numbered item for a recital programme, and the guest-over-host pair a red
+      // carpet interviews arrivals with.
       'ls04', 'ls25', 'ls26', 'ls27',
-      // A delayed set is not an intermission: an intermission screen announces a planned
-      // break, the standby card admits an unplanned one and says when.
+      // A delayed set is not an intermission: the standby card admits an unplanned break.
       'al10',
       'cr02', 'cr09', 'cr12', 'ss07', 'ss11', 'card56',
     ],
@@ -635,56 +456,77 @@ export const PACKS: TemplatePack[] = [
     ],
   },
   {
-    id: 'shopping',
-    name: 'Shopping',
-    description: 'Product cards, deal timers and the offer ticker for live commerce.',
-    family: 'noacg',
-    types: [
-      'topic-card', 'countdown', 'lower-third', 'ticker', 'title-card', 'sponsor-bug',
-      'key-facts',
-      // Live commerce is brand-dense: a partner strip for the show's sponsors, and a rotation
-      // for the ones that cycle through a long selling block.
-      'sponsor-strip', 'sponsor-rotator',
-      'sign-off',
-      'product-card', 'offer-card', 'listing-card', 'qr-card', 'call-to-action',
+    id: 'ceremony',
+    name: 'Worship & Ceremony',
+    description: 'Service titles, readings, the order of service and a quiet countdown.',
+    family: 'glass',
+    // Soft glass in a calm green: the quietest register in the gallery, for services, weddings
+    // and memorials. Not a light-paper palette - a statement card has no panel of its own, and
+    // dark ink over the picture would disappear.
+    paletteId: 'mint',
+    starter: [
+      'statement-card', 'title-card', 'lower-third', 'topic-card', 'agenda', 'countdown',
+      'holding-screen', 'logo-bug', 'sign-off',
     ],
-    // No specialist strap here on purpose: the pack is drawn for interview duos, athletes,
-    // clergy, academics, politicians and performers, and a selling host is named by an
-    // ordinary lower third. The commerce cards (card38-card49) are this pack's own graphics.
-    // The disclaimer strip is the exception the public-service pack supplied: price, shipping
-    // and affiliate small print is a legal obligation on a selling stream, not decoration.
-    extras: ['pi04', 'ss06', 'ss12', 'cr12'],
+    types: [
+      'title-card', 'lower-third', 'topic-card', 'holding-screen', 'countdown', 'agenda',
+      'statement-card',
+      // The congregation's or family's own mark, and the ident for the service, ceremony or
+      // memorial being streamed - both quiet enough to leave up for an hour.
+      'logo-bug', 'event-bug',
+      // The request card and the question card - a service reads both from the congregation.
+      'community-request', 'viewer-question', 'question-queue',
+      'sign-off',
+    ],
+    extras: [
+      // The three worship straps: a sermon credit that fades rather than snaps, a reading where
+      // the reference outranks the reader, and the ceremony strap that names the part of the
+      // programme being delivered.
+      'ls14', 'ls15', 'ls16',
+      // The side-by-side two-language panel, for a congregation that worships in two.
+      'pi07',
+      'cr01', 'cr05', 'cr11', 'ss07', 'ss10', 'card50', 'card51', 'card54', 'card55', 'card57',
+    ],
     formats: [
-      'Live commerce / shopping stream',
-      'Cooking show / food livestream',
-      'Auction livestream',
-      'Real estate / property livestream',
-      'Beauty / makeup livestream',
+      'Religious service / church livestream',
+      'Graduation / ceremony stream',
+      'Wedding / private event livestream',
+      'Funeral / memorial livestream',
     ],
   },
+  // THE THREE QUIZ KITS - the game-show families (sticker, showtime, arcade - model/fonts.ts).
+  // Each is a whole two-player game show in one look: the opener, the host and contestant strap,
+  // the quiz board whose answer count is a field, the running score, an answer clock, a
+  // how-to-play card, the show mark and the closing card. The eight types ship designs only in
+  // these three families, and they were drawn as sets, so each look is its own kit.
+  //
+  // None declares a paletteId: each design's own default already IS its family's palette.
   {
-    id: 'wellness',
-    name: 'Wellness',
-    description: 'Interval timers, session titles and calm holding screens for movement and rest.',
-    family: 'minimal',
-    types: [
-      'countdown', 'holding-screen', 'topic-card', 'lower-third', 'social-bug',
-      'process-steps',
-      // A class or an ambient stream keeps one quiet mark on screen and nothing more.
-      'logo-bug',
-      'sign-off',
-    ],
-    // Same as Shopping: an instructor is named by an ordinary strap, and forcing a
-    // specialist one in would only make the kit harder to read. What this pack DID need is
-    // the health pair — the "consult a professional" disclaimer a fitness class carries, and
-    // the advisory whose helpline sits in its own high-contrast band, which is the one
-    // graphic a meditation or mental-health stream must be able to put up without designing.
-    extras: ['pi04', 'pi06', 'ss08', 'ss09', 'card52'],
-    formats: [
-      'Fitness / workout class',
-      'Meditation / ambient livestream',
-      'Animal cam / nature cam',
-    ],
+    id: 'sticker-quiz',
+    name: 'Sticker Quiz',
+    description: 'A bright, hand-cut game show: quiz board, running score, answer clock and straps.',
+    family: 'sticker',
+    starter: [...QUIZ_SHOW_TYPES],
+    types: [...QUIZ_SHOW_TYPES],
+    formats: ['Quiz / game show livestream'],
+  },
+  {
+    id: 'showtime-quiz',
+    name: 'Showtime Quiz',
+    description: 'A marquee-lit Saturday-night game show: quiz board, score, clock and straps.',
+    family: 'showtime',
+    starter: [...QUIZ_SHOW_TYPES],
+    types: [...QUIZ_SHOW_TYPES],
+    formats: [],
+  },
+  {
+    id: 'arcade-quiz',
+    name: 'Arcade Quiz',
+    description: 'A neon cabinet game show: quiz board, score, clock and straps.',
+    family: 'arcade',
+    starter: [...QUIZ_SHOW_TYPES],
+    types: [...QUIZ_SHOW_TYPES],
+    formats: [],
   },
 ];
 
@@ -699,39 +541,32 @@ export interface PackCell {
 }
 
 /**
- * Resolve a pack's types against the live registry. Throws on an unknown type or an unfilled
- * cell — a pack pointing at a design that does not exist is a config error, and config errors
- * fail loudly (the same doctrine as attachMachine).
+ * Resolve a kit's types against the live registry in its own family. Throws on an unknown
+ * type or an unfilled cell - a kit pointing at a design that does not exist is a config error,
+ * and config errors fail loudly (the same doctrine as attachMachine).
  */
-export function resolvePack(pack: TemplatePack): PackCell[] {
+export function resolvePack(pack: Pick<TemplatePack, 'id' | 'family' | 'types'>): PackCell[] {
   return pack.types.map((typeId) => {
     const type = typeById(typeId);
     if (!type) throw new Error(`Pack "${pack.id}": unknown graphic type "${typeId}".`);
     const design = type.designs.find((d) => d.styleTag === pack.family);
     if (!design) {
-      throw new Error(`Pack "${pack.id}": type "${typeId}" has no ${pack.family} design — the matrix cell is empty.`);
+      throw new Error(`Pack "${pack.id}": type "${typeId}" has no ${pack.family} design - the matrix cell is empty.`);
     }
     return { typeId, designId: design.id };
   });
 }
 
 /**
- * Every problem with the pack config, as strings (empty = valid). `knownVariantIds` is the
- * merged catalog's id set, passed in by the caller (the factory) so this module never has to
- * import the catalog it is a view over.
- */
-/**
- * THE CORE SIX - what every kit owes a show, whatever its genre (docs/PACK_TAXONOMY.md).
+ * THE CORE SIX - what every kit's STARTER owes a show, whatever its genre (docs/PACK_TAXONOMY.md).
  *
- * A kit does not need every category in the catalog; it needs to be complete enough to RUN one.
- * Measured 2026-08-08 (docs/KIT_MATRIX_GAPS.md), nine kits were not: the discipline packs were
- * pure match furniture with no opener, nothing that puts a sentence on screen and no way to end,
- * because they were cut as refinements of Match Day rather than as kits in their own right.
+ * A kit does not need every category in the catalog; the set a user gets by default needs to be
+ * complete enough to RUN one. Measured 2026-08-08 (docs/KIT_MATRIX_GAPS.md), nine kits were not:
+ * the discipline packs were pure match furniture with no opener, nothing that puts a sentence on
+ * screen and no way to end.
  *
  * Each role lists the TYPES that satisfy it. An `extras` entry does NOT count, deliberately: a
- * type resolves per family and so follows the look the kit was built in, while an extra is a
- * fixed variant id carrying its own. A kit whose closing card is an off-family extra is exactly
- * the incoherence `paletteId` was introduced to fix, one layer down.
+ * type resolves in the kit's family, while an extra is a fixed variant id carrying its own look.
  */
 const CORE_SIX: Record<string, readonly string[]> = {
   'lower third': ['lower-third'],
@@ -748,7 +583,16 @@ const CORE_SIX: Record<string, readonly string[]> = {
   'closing card': ['sign-off'],
 };
 
-export function validatePacks(knownVariantIds?: string[]): string[] {
+/** A starter is "about ten": enough to run a show, few enough to read at a glance. */
+const STARTER_MIN = 6;
+const STARTER_MAX = 12;
+
+/**
+ * Every problem with the kit config, as strings (empty = valid). `variantStyleTags` maps the
+ * merged catalog's ids to their style family, passed in by the caller (the factory) so this
+ * module never has to import the catalog it is a view over.
+ */
+export function validatePacks(variantStyleTags?: ReadonlyMap<string, StyleTag>): string[] {
   const problems: string[] = [];
   const typeIds = new Set(TYPES.map((t) => t.id));
 
@@ -758,29 +602,60 @@ export function validatePacks(knownVariantIds?: string[]): string[] {
     if (seenPackIds.has(pack.id)) problems.push(`duplicate pack id "${pack.id}"`);
     seenPackIds.add(pack.id);
 
+    // The library's types, each resolving in THE kit's family.
+    const resolved = new Map<string, string>();
     for (const typeId of pack.types) {
       if (!typeIds.has(typeId)) {
         problems.push(`pack "${pack.id}" references unknown type "${typeId}"`);
         continue;
       }
-      const type = typeById(typeId);
-      if (type && !type.designs.some((d) => d.styleTag === pack.family)) {
-        problems.push(`pack "${pack.id}": type "${typeId}" has no ${pack.family} design`);
+      const design = typeById(typeId)?.designs.find((d) => d.styleTag === pack.family);
+      if (!design) problems.push(`pack "${pack.id}": type "${typeId}" has no ${pack.family} design`);
+      else resolved.set(typeId, design.id);
+    }
+    if (new Set(pack.types).size !== pack.types.length) problems.push(`pack "${pack.id}" lists a type twice`);
+
+    // The library's extras: in the catalog, never twice, and never a design a type already
+    // resolves to (the production pool is name-keyed, so the duplicate would silently merge).
+    const extras = pack.extras ?? [];
+    if (new Set(extras).size !== extras.length) problems.push(`pack "${pack.id}" lists an extra twice`);
+    const typeDesigns = new Set(resolved.values());
+    for (const extra of extras) {
+      if (variantStyleTags && !variantStyleTags.has(extra)) {
+        problems.push(`pack "${pack.id}" extra "${extra}" is not in the catalog`);
+      }
+      if (typeDesigns.has(extra)) {
+        problems.push(`pack "${pack.id}" extra "${extra}" is already the design one of its types resolves to`);
       }
     }
 
-    if (knownVariantIds) {
-      const known = new Set(knownVariantIds);
-      for (const extra of pack.extras ?? []) {
-        if (!known.has(extra)) problems.push(`pack "${pack.id}" extra "${extra}" is not in the catalog`);
+    // The starter: about ten, all from the library, all in the kit's own Style.
+    const library = new Set([...pack.types, ...extras.map((id) => `extra:${id}`)]);
+    if (pack.starter.length < STARTER_MIN || pack.starter.length > STARTER_MAX) {
+      problems.push(
+        `pack "${pack.id}" starts with ${pack.starter.length} graphics - a starter is ` +
+          `${STARTER_MIN} to ${STARTER_MAX}`,
+      );
+    }
+    if (new Set(pack.starter).size !== pack.starter.length) problems.push(`pack "${pack.id}" starter lists a graphic twice`);
+    for (const key of pack.starter) {
+      if (!library.has(key)) {
+        problems.push(`pack "${pack.id}" starter "${key}" is not in its library (types or extra:<id>)`);
+        continue;
+      }
+      if (key.startsWith('extra:') && variantStyleTags) {
+        const tag = variantStyleTags.get(key.slice('extra:'.length));
+        if (tag && tag !== pack.family) {
+          problems.push(`pack "${pack.id}" starter "${key}" is ${tag}, not the kit's ${pack.family} Style`);
+        }
       }
     }
 
     for (const [role, satisfiedBy] of Object.entries(CORE_SIX)) {
-      if (!satisfiedBy.some((typeId) => pack.types.includes(typeId))) {
+      if (!satisfiedBy.some((typeId) => pack.starter.includes(typeId))) {
         problems.push(
-          `pack "${pack.id}" ships no ${role} - the core six is what makes a kit able to run a ` +
-            `show (one of: ${satisfiedBy.join(', ')})`,
+          `pack "${pack.id}" starter has no ${role} - the core six is what makes the default ` +
+            `set able to run a show (one of: ${satisfiedBy.join(', ')})`,
         );
       }
     }

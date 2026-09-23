@@ -314,14 +314,15 @@ const PROBE = `(async (onlyIds) => {
     }
   }
 
-  // ── The packs (the taxonomy config, src/templates/packs.ts) ────────────────────────────
-  // A pack is pure config over the filled matrix, so the whole taxonomy is checkable: every
-  // type id resolves, every (type, family) cell is filled, every extra exists in the merged
-  // catalog, and the 60 reference formats are covered exactly once.
+  // ── The kits (the taxonomy config, src/templates/packs.ts) ─────────────────────────────
+  // A kit is pure config over the filled matrix, so the whole taxonomy is checkable: every
+  // type id resolves in the kit's family, every extra exists in the merged catalog, every
+  // starter is about ten graphics that can run a show in the kit's own Style, and the 60
+  // reference formats are covered exactly once.
   const { PACKS, resolvePack, validatePacks } = await import('/src/templates/packs.ts');
-  const allVariantIds = [];
-  for (const list of Object.values(CATALOG)) for (const v of list ?? []) allVariantIds.push(v.id);
-  const packProblems = validatePacks(allVariantIds);
+  const variantStyleTags = new Map();
+  for (const list of Object.values(CATALOG)) for (const v of list ?? []) variantStyleTags.set(v.id, v.styleTag);
+  const packProblems = validatePacks(variantStyleTags);
   // The discovery-taxonomy assertions (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §17 stage 2):
   // format-id ↔ sheet-name bijection, subtypes from the controlled lists, positional
   // semantics matching schema length. Same failure surface as the pack problems.
@@ -340,6 +341,7 @@ const PROBE = `(async (onlyIds) => {
       name: pack.name,
       family: pack.family,
       formats: pack.formats,
+      starter: pack.starter,
       cells: resolved,
       extras: pack.extras ?? [],
     });
@@ -456,10 +458,11 @@ function printGates() {
 // ── The packs and literal-drift reports ──────────────────────────────────────────────────
 
 function printPacks() {
-  console.log(`\nPACKS — ${packs.length} pack(s), src/templates/packs.ts`);
+  console.log(`\nKITS - ${packs.length} kit(s), src/templates/packs.ts`);
   for (const p of packs) {
     console.log(
-      `  ${p.id.padEnd(12)} ${p.family.padEnd(8)} ${String(p.cells.length).padStart(2)} types` +
+      `  ${p.id.padEnd(14)} ${p.family.padEnd(8)} starts with ${String(p.starter.length).padStart(2)}` +
+        ` · library ${String(p.cells.length).padStart(2)} types` +
         (p.extras.length ? ` +${p.extras.length} extra(s)` : '') +
         ` · ${p.formats.length} format(s)`,
     );

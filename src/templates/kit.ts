@@ -1,10 +1,11 @@
 // What a KIT actually contains, resolved once for everyone who needs to know.
 //
-// A pack names its contents two ways (`src/templates/packs.ts`): `types` are graphic TYPES,
-// resolved against the (type x family) matrix, and `extras` are catalog variants OUTSIDE the
-// type registry that belong in the kit anyway - end credits, the versus card. Both are the
-// kit; a consumer that reads only `types` builds a kit missing its extras and, worse, can
-// still show a count that includes them.
+// A kit names its library two ways (`src/templates/packs.ts`): `types` are graphic TYPES,
+// resolved in the kit's own Style family, and `extras` are catalog variants OUTSIDE the type
+// registry that belong in the kit anyway - end credits, the versus card. Both are the kit; a
+// consumer that reads only `types` builds a kit missing its extras and, worse, can still show a
+// count that includes them. Out of that library, `starter` names the ten or so graphics a user
+// gets by default.
 //
 // This module exists because `packs.ts` deliberately does NOT import the catalog it is a view
 // over, so the join has to happen somewhere else - once, rather than in each caller.
@@ -12,10 +13,11 @@
 import { variantById } from './catalog';
 import { resolvePack, type TemplatePack } from './packs';
 import { TYPES } from './types/registry';
-import type { StyleTag } from '../model/fonts';
 import type { TemplateVariant } from '../model/wizard';
 
 export interface KitItem {
+  /** The picker key it is offered and remembered under (`kitChoiceKey`). */
+  key: string;
   /** The catalog design that will be built. */
   variant: TemplateVariant;
   /** The graphic type it is a design of, when it came from the matrix rather than `extras`. */
@@ -23,32 +25,32 @@ export interface KitItem {
 }
 
 /**
- * Every graphic in the kit, in the pack's curated order: the resolved type cells first, then
- * the extras. Throws the way `resolvePack` does - a pack pointing at a design that does not
- * exist is a config error, and config errors fail loudly.
+ * Every graphic in the kit's LIBRARY, in its curated order: the resolved type cells first, then
+ * the extras. Throws the way `resolvePack` does - a kit pointing at a design that does not exist
+ * is a config error, and config errors fail loudly.
  */
-export function kitItems(pack: TemplatePack, family: StyleTag): KitItem[] {
-  const items: KitItem[] = resolvePack({ ...pack, family }).map((cell) => {
+export function kitItems(pack: TemplatePack): KitItem[] {
+  const items: KitItem[] = resolvePack(pack).map((cell) => {
     const variant = variantById(cell.designId);
     if (!variant) {
       throw new Error(`Kit "${pack.id}": type "${cell.typeId}" resolves to missing design "${cell.designId}".`);
     }
-    return { variant, typeId: cell.typeId };
+    return { key: kitChoiceKey(cell.typeId, variant.id), variant, typeId: cell.typeId };
   });
 
   for (const designId of pack.extras ?? []) {
     const variant = variantById(designId);
     if (!variant) throw new Error(`Kit "${pack.id}": extra "${designId}" is not in the catalog.`);
-    items.push({ variant, typeId: null });
+    items.push({ key: kitChoiceKey(null, variant.id), variant, typeId: null });
   }
   return items;
 }
 
-/** How many graphics a kit produces, for a surface that has not picked a look yet. Extras are
- *  family-independent, and every family offered by the picker resolves all of the types, so
- *  the total does not depend on which look is chosen. */
-export function kitSize(pack: TemplatePack): number {
-  return pack.types.length + (pack.extras?.length ?? 0);
+/** What a kit card promises before it is picked: the graphics it starts with, and how many
+ *  more its own library holds on top of those. */
+export function kitSize(pack: TemplatePack): { starter: number; more: number } {
+  const library = pack.types.length + (pack.extras?.length ?? 0);
+  return { starter: pack.starter.length, more: library - pack.starter.length };
 }
 
 /**
@@ -56,16 +58,15 @@ export function kitSize(pack: TemplatePack): number {
  * checkbox state is held under.
  *
  * The key is the graphic TYPE id, or `extra:<designId>` for a catalog variant outside the type
- * registry. Deliberately not the resolved design id and not an index: the design changes when
- * the look does, and the offer list grows when the look opens another matrix cell - a checkbox
- * set keyed on either would silently re-tick itself the moment the user changed the look.
+ * registry. Deliberately not the resolved design id and not an index, so the checkbox set stays
+ * readable as config (`TemplatePack.starter` is written in the same keys) and survives the offer
+ * list being reordered.
  */
-export interface KitChoice {
-  key: string;
-  variant: TemplateVariant;
-  /** The graphic type it is a design of; null for an `extras` entry. */
-  typeId: string | null;
-  /** True when the PACK declares it - the genre preset, ticked on arrival. */
+export interface KitChoice extends KitItem {
+  /** True when the kit's STARTER names it - ticked on arrival. */
+  inStarter: boolean;
+  /** True when the kit's LIBRARY holds it (types or extras); false for any other graphic type
+   *  that happens to resolve in the kit's Style. */
   inPack: boolean;
 }
 
@@ -75,58 +76,64 @@ export function kitChoiceKey(typeId: string | null, designId: string): string {
 }
 
 /**
- * Does this ONE graphic type ship a design in this family? Asked through `resolvePack`, the
- * same resolver the create path runs and the same idiom `familiesFor` uses, rather than by
- * reaching into the registry a second time - a second copy is how the picker comes to offer a
- * cell that throws on Create.
+ * ONE graphic of a kit by its picker key: a graphic type resolved in the kit's Style, or an
+ * `extra:<designId>` by its id. A type is asked through `resolvePack`, the same resolver the
+ * create path runs, rather than by reaching into the registry a second time - a second copy is
+ * how the picker comes to offer a cell that throws on Create. Null when the key resolves to
+ * nothing, which is the answer for a type with no design in this family.
  */
-function typeResolves(family: StyleTag, typeId: string): boolean {
-  try {
-    resolvePack({ id: 'kit-probe', name: '', description: '', family, types: [typeId], formats: [] });
-    return true;
-  } catch {
-    return false;
+export function kitItemFor(pack: TemplatePack, key: string): KitItem | null {
+  const extra = key.startsWith('extra:');
+  let designId: string | null = extra ? key.slice('extra:'.length) : null;
+  if (!extra) {
+    try {
+      designId = resolvePack({ id: pack.id, family: pack.family, types: [key] })[0].designId;
+    } catch {
+      return null;
+    }
   }
+  const variant = designId ? variantById(designId) : undefined;
+  return variant ? { key, variant, typeId: extra ? null : key } : null;
 }
 
 /**
- * Every graphic this kit COULD contain in this look: the pack's own contents first, in its
- * curated order, then every OTHER graphic type whose (type x family) cell resolves - the
- * "start from a genre preset, then edit the set" offer.
+ * Every graphic this kit COULD contain, in the order the picker offers them: the STARTER first
+ * (in its rundown order), then the rest of the kit's library, then every OTHER graphic type
+ * whose cell resolves in the kit's Style - "start from about ten, then edit the set".
  *
- * Only resolvable cells are ever offered. The matrix is not full (src/templates/AGENTS.md:
- * four families of six, and no pack resolves in all of them), so an unfiltered "add any type"
- * list would be a list of guaranteed Create failures.
+ * Only resolvable cells are ever offered: a type with no design in this family would be a
+ * guaranteed Create failure.
  */
-export function kitChoices(pack: TemplatePack, family: StyleTag): KitChoice[] {
-  const choices: KitChoice[] = kitItems(pack, family).map((item) => ({
-    key: kitChoiceKey(item.typeId, item.variant.id),
-    variant: item.variant,
-    typeId: item.typeId,
+export function kitChoices(pack: TemplatePack): KitChoice[] {
+  const starter = new Set(pack.starter);
+  const library: KitChoice[] = kitItems(pack).map((item) => ({
+    ...item,
+    inStarter: starter.has(item.key),
     inPack: true,
   }));
-  const taken = new Set(choices.map((c) => c.key));
+  const byKey = new Map(library.map((c) => [c.key, c]));
+  const choices: KitChoice[] = [
+    ...pack.starter.map((key) => byKey.get(key)).filter((c): c is KitChoice => !!c),
+    ...library.filter((c) => !c.inStarter),
+  ];
   for (const type of TYPES) {
-    if (taken.has(type.id) || !typeResolves(family, type.id)) continue;
-    const designId = resolvePack({ ...pack, types: [type.id], extras: [], family })[0].designId;
-    const variant = variantById(designId);
-    if (!variant) continue;
-    choices.push({ key: type.id, variant, typeId: type.id, inPack: false });
+    if (byKey.has(type.id)) continue;
+    const item = kitItemFor(pack, type.id);
+    if (item) choices.push({ ...item, inStarter: false, inPack: false });
   }
   return choices;
 }
 
 /**
  * The graphics a picker SELECTION resolves to, in offer order. This is what gets built, so it
- * is also what the count on screen must come from: `kitSize` counts the pack, and the whole
- * point of the picker is that the user can change that number in either direction.
+ * is also what the count on screen must come from.
  *
- * An unknown key is dropped rather than throwing - the selection survives a look change, and a
- * look that closes a matrix cell legitimately retires the row it was ticked on.
+ * An unknown key is dropped rather than throwing, so a selection written before the kit's
+ * library changed degrades to what still exists.
  */
-export function kitSelection(pack: TemplatePack, family: StyleTag, keys: readonly string[]): KitItem[] {
+export function kitSelection(pack: TemplatePack, keys: readonly string[]): KitItem[] {
   const wanted = new Set(keys);
-  return kitChoices(pack, family)
+  return kitChoices(pack)
     .filter((choice) => wanted.has(choice.key))
-    .map((choice) => ({ variant: choice.variant, typeId: choice.typeId }));
+    .map((choice) => ({ key: choice.key, variant: choice.variant, typeId: choice.typeId }));
 }
