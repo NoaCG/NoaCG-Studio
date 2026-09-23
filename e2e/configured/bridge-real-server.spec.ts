@@ -272,7 +272,7 @@ test('one rundown airs a server template on channel 1 and a clip on channel 2, m
   const empty2 = await frame(page, token, 'mc-02-channel-2-empty', 2);
 
   // ── A production with one rundown, offline and signed out: nothing here needs an account. ──
-  await createProject(page, { category: 'Lower thirds', name: 'Two channels' });
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   const consent = page.getByTestId('analytics-consent');
   if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
   await page.getByTestId('dock-tab-control').click();

@@ -417,6 +417,13 @@ Stated plainly, because this doc's whole purpose is to not overstate.
   Bridge, revealed and scored from the dashboard, a server template and a still cued, taken,
   updated and taken off - is `e2e/configured/bridge-real-server.spec.ts` (`BRIDGE_REAL=1`), with a
   `PRINT 1` frame after every step; its record is the owner-queue file of that date.
+- **On the real 2.5.0 with two channels, 2026-09-23** (a second `<channel>` with a screen consumer
+  in `casparcg.config`): one rundown took a server template on 1-21 and a clip on 2-10, moved the
+  template to channel 2 while on air (Out reached 1-21, the next Take landed on 2-21), and All out
+  cleared channel 2 back to an empty frame while a still played on 1-5 by hand stayed up. The
+  walk is the second test in `e2e/configured/bridge-real-server.spec.ts`, with `PRINT 1` and
+  `PRINT 2` frames after each step. The same server's `CLS` lines are what showed the last field
+  is a time base, not a rate (`cli/src/playout/amcp.ts` `parseCls`).
 - **Covered by the test suite**: `cli/test/playout.test.mjs` (every verb's exact line, quoting,
   the 501 mapping, pairing, the refusals), `e2e/bridge-connect.spec.ts` (Settings, pairing, the
   one button, each hop), `e2e/playout-cues.spec.ts` (the picker, the cues, each verb's envelope,
