@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/kitPlan.ts, src/components/wizard/KitTray.tsx
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/wizard/2026-09-07-walk-kit-through-same-six-steps.md
 ---
