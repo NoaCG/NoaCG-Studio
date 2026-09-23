@@ -160,6 +160,25 @@ something and reports instead; that refusal never fails a landing. If it happens
 `owner-action` file under `docs/acceptance/owner-queue/` carrying the
 `npm run db:push -- --allow <version>` command, because from there it is the owner's call.
 
+### From a cloud session (no `gh`)
+
+A cloud session (Claude Code on the web) has no `gh` and no token that can post a status, so
+`npm run queue:merge` cannot run there. The same declaration is made from the GitHub side:
+
+1. Everything in section 1 still holds: committed, build green, owner-queue files, relay read.
+2. Push the branch (`git push -u origin <branch>`) and open its pull request against `main` with
+   the GitHub tools the session has. Write the description with `scripts/pr-description.mjs`, so a
+   later `queue:merge` can refresh it.
+3. Dispatch `.github/workflows/cloud-queue-merge.yml` on `main` with three inputs: `branch`, `sha`
+   (the full sha of the tip you reviewed) and `review` (one line: what was checked and that it
+   passed). The workflow runs `scripts/cloud-queue.mjs` from `main`: it refuses a branch that moved
+   past `sha`, then posts `noacg/reviewed` as "cloud session: <review>", labels the pull request
+   `land`, dispatches `ci.yml` with `require_review`, and turns auto-merge on.
+
+From there it is the same queue as every other landing. The branch freezes in the same sense: a
+push after the dispatch leaves a stamp on a sha that is no longer the tip, and `Reviewed` goes red
+until the new tip is dispatched again.
+
 ## 4. When it lands
 
 The worktree whose branch landed is told at its next start-up: merged, pushed, nothing left to

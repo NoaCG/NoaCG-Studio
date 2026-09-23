@@ -1,0 +1,62 @@
+# Queue a cloud session's branch for landing: `/queue-merge` for a session that has no `gh`.
+#
+# `npm run queue:merge` needs a machine with a signed-in `gh`. A cloud session (Claude Code on the
+# web) pushes its branch and opens its pull request with the GitHub tools it has, then dispatches
+# THIS workflow with the tip it reviewed and its verdict in one line. The workflow's token posts the
+# `noacg/reviewed` status on that exact tip, labels the pull request `land`, asks ci.yml for the
+# branch run with `require_review`, and turns auto-merge on - the same sequence as the laptop path,
+# after which the merge queue lands it on CI like any other branch. scripts/cloud-queue.mjs is the
+# prose and the refusals.
+#
+# Main's code does the stamping, never the branch's: the checkout is `main`, and a dispatch from any
+# other ref is refused, so a branch cannot rewrite what stamps it.
+name: Queue a cloud session's branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'The branch to land (its pull request against main must already be open).'
+        required: true
+        type: string
+      sha:
+        description: 'The full sha of the tip that was reviewed. A branch that moved since is refused.'
+        required: true
+        type: string
+      review:
+        description: 'The review verdict, one line: what was checked and that it passed.'
+        required: true
+        type: string
+
+# One queueing per branch at a time; a second dispatch for the same branch waits for the first.
+concurrency:
+  group: cloud-queue-${{ inputs.branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  queue:
+    name: Stamp, label and queue
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write # the `land` label and auto-merge
+      issues: write # creating the label if it is missing
+      statuses: write # the `noacg/reviewed` stamp
+      actions: write # dispatching ci.yml on the branch
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Queue the branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch }}
+          SHA: ${{ inputs.sha }}
+          REVIEW: ${{ inputs.review }}
+        run: node scripts/cloud-queue.mjs
