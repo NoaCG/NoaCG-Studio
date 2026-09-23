@@ -12,7 +12,7 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
-## 0.4.0 - unreleased
+## 0.4.0 - 2026-09-23
 
 The first release. NoaCG Bridge lets the NoaCG production page put a production on a CasparCG
 channel with one button, list the templates and clips already on the server, and cue them from
