@@ -46,7 +46,11 @@ jobs:
     # has finished, and a full-suite run takes about twenty minutes (the script gives up at forty).
     timeout-minutes: 45
     permissions:
-      contents: read
+      # `write`, because GitHub's enablePullRequestAutoMerge refuses a token that can only read the
+      # repository ("Resource not accessible by integration", pull request 392, 2026-09-23), and
+      # auto-merge is what hands the pull request to the merge queue. Nothing here pushes: the
+      # checkout is main's, and the ruleset refuses any push to main that is not the queue's.
+      contents: write
       pull-requests: write # the `land` label and auto-merge
       issues: write # creating the label if it is missing
       statuses: write # the `noacg/reviewed` stamp

@@ -179,6 +179,9 @@ A cloud session (Claude Code on the web) has no `gh` and no token that can post 
    job waits only 150 s - because GitHub keeps the pull request out of the queue while that red
    job stands, whatever another run says (pull request 390, 2026-09-23). The workflow's log says
    which of the four things it did; `timeout` is the one that needs you: re-run that job by hand.
+   Read the workflow run to its end: a red run has queued nothing, whatever it did before failing
+   (the stamp and the label come first, so a pull request can look queued when it is not). The
+   pull request's timeline shows `auto_merge_enabled` once it really is.
 
 From there it is the same queue as every other landing. The branch freezes in the same sense: a
 push after the dispatch leaves a stamp on a sha that is no longer the tip, and `Reviewed` goes red
