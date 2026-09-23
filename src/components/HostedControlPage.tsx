@@ -82,6 +82,7 @@ import {
   type ResolvedControlShow,
 } from '../control/hostedControl';
 import { isBackendConfigured } from '../backend/config';
+import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
@@ -408,6 +409,18 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  below reads ONE graphic because that is what an action acts on, but a COMBINED control's
    *  steps name their own graphics, so the whole pool has to be parsed. */
   const poolMachines = useMemo(() => hostedPoolMachines(resolved?.panel ?? []), [resolved]);
+  /**
+   * The published graphics whose EVENTS may ride the fast road: every one that runs no clock
+   * (matchClockWire `eventsNeedServerTime`). Positive, so a graphic this page cannot see keeps
+   * the slow road. The production dashboard derives the same set from the same test.
+   *
+   * PINNED AT PAGE OPEN, like everything else this page reads: the payload is resolved once per
+   * slug and a republish does not reach it. So a graphic that GAINS a clock mid-show keeps its
+   * events on the fast road here until this page is reloaded, and that clock's origin would come
+   * from the renderer rather than the row. Narrow and deliberate for now - the dashboard, which
+   * republishes, recomputes its own answer at that moment.
+   */
+  const fastEventGraphics = useMemo(() => clockFreeGraphics(payload?.graphics ?? []), [payload]);
   const layerOf = useCallback(
     (graphic: string) => payload?.graphics.find((g) => g.key === graphic)?.layer ?? null,
     [payload],
@@ -585,7 +598,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * so a caller sending several batches can stop at the first refusal rather than pressing on.
    */
   const sendVerb = (items: ControlSendItem[]): Promise<boolean> =>
-    sendControlVerb({ slug, showId: resolved?.id ?? null, items, applyHere: applyCommand }).then(
+    sendControlVerb({
+      slug,
+      showId: resolved?.id ?? null,
+      items,
+      applyHere: applyCommand,
+      fastEvents: (graphic) => fastEventGraphics.has(graphic),
+    }).then(
       () => true,
       (e: Error) => {
         surfaceSendError(e);

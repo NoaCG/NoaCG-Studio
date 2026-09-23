@@ -150,6 +150,7 @@ import {
   clockRowEffect,
   clockSpecFromHtml,
   clockValueAfterUpdate,
+  fastEventGraphics,
   speakingClockRowEffect,
   speakingClocksFromHtml,
   type ClockSpec,
@@ -540,6 +541,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [show, library]);
   const speakingClocksRef = useRef(speakingClocks);
   speakingClocksRef.current = speakingClocks;
+  /**
+   * The graphics whose machine EVENTS may ride the fast road like a Take: every one that runs no
+   * clock, so needs no server instant (matchClockWire `eventsNeedServerTime`, and
+   * SLOW_AFTER_EVENT_MS in hostedControl.ts for why a clock's events stay slow). This is what
+   * lets a quiz's Select and Reveal reach air as quickly as an Update.
+   *
+   * READ OFF THE PUBLISHED PAYLOAD, not the library, because the renderer runs the published
+   * snapshot: a clock edited away in the editor and not republished would otherwise send the
+   * still-published clock's events fast and put this laptop's skew on air. Empty until the
+   * published show is in hand, so the slow road is what an unanswered question gets. The hosted
+   * page derives the same set from the same payload.
+   */
+  const fastEventGraphicsRef = useRef<Set<string>>(new Set());
   /**
    * The clock field's value ON THE WIRE per graphic — the monitor's own copy of what the
    * renderer keeps in `mergedData`. Deliberately NOT folded into `airedData`: that one also
@@ -997,9 +1011,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // Read BEFORE the await: if a verb moves the live map while this round trip is in
       // flight, the answer below is older than the screen and must not overwrite it.
       const movesAtRequest = liveCueMoves.current;
+      // BEFORE the await, because this page is reused when the route moves to another
+      // production: the previous show's answer must not decide this one's road while the round
+      // trip is in flight. Graphic keys are per-production layer names and collide freely.
+      fastEventGraphicsRef.current = new Set();
       const resolved = await controlShowBySlug(hostedSlug);
       if (!alive || !resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
+      fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
       liveReportsRef.current = resolved.live;
@@ -1398,7 +1417,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // own broadcast on the production's private topic, with the durable row behind it, and
         // applies whichever won.
         for (const batch of batches) {
-          await sendControlVerb({ slug: hostedSlug, showId, items: batch, applyHere: applyCommand });
+          await sendControlVerb({
+            slug: hostedSlug,
+            showId,
+            items: batch,
+            applyHere: applyCommand,
+            fastEvents: (graphic) => fastEventGraphicsRef.current.has(graphic),
+          });
         }
         return true;
       } catch (e) {
@@ -1665,6 +1690,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           presenterSlug: published.presenterSlug,
         });
         setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
+        // A REPUBLISH PINS A NEW PAYLOAD, and the follow effect does not run again for it (the
+        // slug is deliberately the same one). A graphic that has just gained a clock would
+        // otherwise keep its events on the fast road for the rest of the session, so the answer
+        // is recomputed here from the library this publish pinned.
+        fastEventGraphicsRef.current = fastEventGraphics(
+          (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, loadGraphics()) })),
+        );
         setLinksOpen(true);
         setNote('✓ Published. Load the output URL in your browser source once. It stays the same across re-publishes.');
       } else {

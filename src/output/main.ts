@@ -218,8 +218,9 @@ async function boot(): Promise<void> {
    * keeps the durable row that follows from playing the same entrance a second time.
    *
    * `createdAt` is the row's own server time and is absent on the fast road. Only an `event`
-   * needs it (it is where a clock's shared origin comes from), and an event is sent slow for
-   * exactly that reason, so the fallback below is reached by locally-authored rows only.
+   * needs it (it is where a clock's shared origin comes from), and a CLOCK's events are sent
+   * slow for exactly that reason (hostedControl.ts, SLOW_AFTER_EVENT_MS). A clock-free graphic's
+   * event may arrive here fast and falls back to now, which it never reads.
    */
   const applied = createAppliedOnce();
   const applyCommand = (graphic: string, incoming: ControlEventRow['msg'], createdAt: string | undefined) => {

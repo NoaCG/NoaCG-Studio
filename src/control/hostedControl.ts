@@ -729,8 +729,15 @@ const recovering = new Set<string>();
  * renderer stamps a graphic's clock origin from the row's `created_at`, precisely so that two
  * browser sources of one production agree to the millisecond and a replayed row resumes a match
  * from where it really started (src/control/matchClockWire.ts). A broadcast has no server time,
- * and substituting the sending laptop's clock would put its skew on air. So events keep the road
- * they have always had.
+ * and substituting the sending laptop's clock would put its skew on air. So a clock's events keep
+ * the road they have always had.
+ *
+ * ONLY A CLOCK'S. Every other graphic ignores the instant, and keeping its events slow cost a
+ * quiz's Select, Lock and Reveal the whole round trip, 350 ms to a second on a published
+ * production against about 90 ms for a Take on the same page (owner, 2026-09-22: the quiz "felt
+ * slower than normal graphics"). A sender that knows its graphics says which are clock-free
+ * (`fastEvents`), and those events ride exactly like a Take. A sender that says nothing keeps
+ * every event slow.
  *
  * That leaves ORDER. If an event is slow and the Take after it is fast, the Take can overtake the
  * event and reach a renderer in the wrong order. So a graphic that has just been sent an event
@@ -777,6 +784,10 @@ export async function sendControlVerb(opts: {
   items: ControlSendItem[];
   /** Apply on THIS surface, called with the fast items before the send is awaited. */
   applyHere?: (items: ControlSendItem[]) => void;
+  /** Which graphics' EVENTS may ride the fast road (see SLOW_AFTER_EVENT_MS): the ones with no
+   *  clock, so no need for the row's server time (matchClockWire `eventsNeedServerTime`).
+   *  Absent, every event takes the slow road, which is what every event did before. */
+  fastEvents?: (graphic: string) => boolean;
 }): Promise<void> {
   const now = Date.now();
   const { showId } = opts;
@@ -792,13 +803,18 @@ export async function sendControlVerb(opts: {
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
-    if (item.msg.t === 'event') {
+    // A clock-free graphic's event is an ordinary command and rides by the same rule as a Take.
+    const isEvent = item.msg.t === 'event';
+    const mayBeFast = !isEvent || !!opts.fastEvents?.(item.graphic);
+    const rides = mayBeFast && fastRoad && (slowUntil.get(key) ?? 0) <= now;
+    // AN EVENT THAT DID NOT RIDE STILL HOLDS ITS GRAPHIC BACK, whichever reason kept it off: a
+    // clock, a follower mid-catch-up, an unknown show, or an earlier hold. Otherwise the Take
+    // behind it would ride the broadcast at about 90 ms while its own row was still in the
+    // fan-out's 650 ms slow mode, and a renderer would apply the two in the wrong order.
+    if (isEvent && !rides) {
       held.push(key);
       slowUntil.set(key, now + SLOW_AFTER_EVENT_MS);
-      wire.push(stamped);
-      continue;
     }
-    const rides = fastRoad && (slowUntil.get(key) ?? 0) <= now;
     if (rides) fast.push(stamped);
     wire.push(rides ? { ...stamped, fast: true } : stamped);
   }

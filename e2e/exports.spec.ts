@@ -543,6 +543,7 @@ test('ograf: the machine\'s operator events are custom actions, guarded like eve
     ['audience', 'Show audience result'],
   ]);
   expect(Object.keys(actions[0].schema!.properties)).toEqual(['f6']); // selectedAnswer rides `select`
+  expect(Object.keys(actions[3].schema!.properties)).toEqual(['f5']); // correctAnswer rides `judge`
   expect(Object.keys(actions[4].schema!.properties)).toEqual(['f7']); // audienceResults rides `audience`
 
   const files = new Map<string, string>();

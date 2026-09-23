@@ -93,6 +93,9 @@ export const FOCUS = [
   // A two-player quiz: the board, the score and the three looks to pick between, driven through
   // the pick / reveal arc and the wizard's "Answers shown" choice.
   'quiz-show.spec.ts',
+  // Every catalog quiz and the imported docs quiz: a key corrected on air lights with Reveal,
+  // the two answer models stay what they are, and a clock-free event takes the fast road.
+  'quiz-live-consistency.spec.ts',
   'project.spec.ts',
   'project-format.spec.ts',
   // The BOOT SURFACE - that opening the studio never paints a screen it was not going to stay
@@ -167,6 +170,13 @@ export const CONFIGURED_TRIGGERS = [
   // was rewritten in the same commit, and this spec was not. It landed red, and nothing on the
   // way in had said the configured suite was even reachable from that change.
   /^src\/templates\/behaviours\//,
+  // WHICH ROAD A COMMAND TAKES, for the same reason. `matchClockWire.ts` decides whether a
+  // graphic's events may ride the broadcast (`eventsNeedServerTime`), and a clock's origin is
+  // read off the row's own server time - so the thing this file gets wrong can only be seen
+  // against a backend (e2e/configured/quiz-output.spec.ts, scorebug-output.spec.ts and
+  // playout-both-roads.spec.ts). The offline spec that covers it can judge the RULE and not
+  // the road.
+  /^src\/control\/matchClockWire\.ts$/,
   /^src\/templates\/importedDesign\/(behaviour|behaviourRuntime)\.ts$/,
   /^src\/blocks\/behaviourData\.ts$/,
   // AGENT ACCESS (docs/AGENT_SAVE.md): the consent page with a session, the loopback handoff,

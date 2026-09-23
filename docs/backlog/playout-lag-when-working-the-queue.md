@@ -28,9 +28,16 @@ note: "measured end to end 2026-09-10 on branch claude/bg-playout-lag, which lan
   e2e/configured/output-url-cannot-push.spec.ts holds it there - proved red first, with a holder of
   the read-only output URL playing a graphic on air. It cost about 35 ms, so a second surface now
   waits a median of 87 ms read signed out, worst 215, against the durable road's 131-136 with the
-  odd press at 645. What is LEFT of this ask is the cross-device ordering limit stated in the
+  odd press at 645. On 2026-09-22, on branch claude/u-quiz-live-consistency, the last road that had
+  not moved did: a machine EVENT was still durable-only, so a quiz's Select, Lock and Reveal cost
+  the whole round trip while a Take beside them rode the broadcast. Only a clock reads the row's
+  server time, so a clock-free graphic's events now ride the fast road and the sending page's own
+  monitor moves with them; a clock's events are unchanged. This is the press family the owner was
+  driving when he raised the ask, and he reported it again on 2026-09-22 after a production test.
+  What is LEFT of this ask is the cross-device ordering limit stated in the
   section below, and the owner walking the result himself
-  (docs/acceptance/owner-queue/2026-09-10-bn-output-url-cannot-operate-the-show.md)."
+  (docs/acceptance/owner-queue/2026-09-10-bn-output-url-cannot-operate-the-show.md, and
+  docs/acceptance/owner-queue/2026-09-22-u-quiz-live-consistency.md for the quiz presses)."
 needs-owner: none
 asked: "I noticed some lag when I was playing out the quiz graphics, moving around the queue, and
   playing and stopping graphics. It's very important that our layout system is lag-free and
@@ -262,10 +269,13 @@ output renderer all feed into a single `createAppliedOnce`. Every open decision 
 - **`liveCue` and the ON AIR marker.** They travel the fast road with the picture: the `cue` row is
   in the same batch, and both surfaces moved their marker handling into the same `applyCommand` the
   stage goes through, so the two cannot disagree for a third of a second.
-- **Ordering.** Resolved for one sender, stated as a limit for two. A machine `event` keeps the slow
-  road alone, because a clock's shared origin is derived from the row's own server time and a
-  broadcast has none - so a graphic that has just been sent an event stays slow for 1200 ms and a
-  verb pressed straight after cannot overtake it. ACROSS DEVICES that is not fixable from one
+- **Ordering.** Resolved for one sender, stated as a limit for two. A CLOCK's machine `event` keeps
+  the slow road, because a clock's shared origin is derived from the row's own server time and a
+  broadcast has none - so a graphic that has just been sent such an event stays slow for 1200 ms and
+  a verb pressed straight after cannot overtake it. Since 2026-09-22 a graphic that runs no clock
+  reads nothing from that instant, so its events ride the fast road like a Take (the sender names
+  the clock-free graphics off the PUBLISHED payload); an event that ends up slow for any other
+  reason still takes the 1200 ms hold with it. ACROSS DEVICES that is not fixable from one
   sender: an event from one operator and a Take from another, inside one fan-out window, can still
   land in different orders on different renderers. The durable log stays the record.
 - **A cost check.** One broadcast per verb, alongside the row that was already being written; the
