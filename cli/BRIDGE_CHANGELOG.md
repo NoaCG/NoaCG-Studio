@@ -12,7 +12,7 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
-## 0.4.1 - unreleased
+## 0.4.1 - 2026-09-23
 
 **Clip lengths are right.** The server picker showed a video clip as hours long: CasparCG lists a
 clip's frame timing as seconds per frame, and the Bridge read that number upside down, so a
