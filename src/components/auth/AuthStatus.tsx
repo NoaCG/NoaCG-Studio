@@ -5,14 +5,15 @@ import { useAuthUi } from './authUi';
 import { useRouter } from '../../app/router';
 import SettingsDialog from '../SettingsDialog';
 import { ACCOUNT_IS_FOR } from './accountCopy';
+import { DOWNLOADS_URL } from '../../downloads/links';
 
 /**
  * Topbar account control. Renders nothing in offline / self-host mode (no backend, no login
  * UI — the 🏠 Home button next to it is the always-available door to saved work). In hosted
- * mode: signed out → a "Sign in" button opening the SignInDialog; signed in → an avatar chip
- * (Google avatar, or an initials fallback) opening the account menu (Home · Settings · Sign
- * out). The app itself is never gated — this is the only always-visible entry point into an
- * account.
+ * mode: signed out → a "Sign in" button opening the SignInDialog; signed in → the profile
+ * button (first name + Google avatar or initials) opening the account menu (Home · Settings ·
+ * Downloads · Sign out). The app itself is never gated — this is the only always-visible entry
+ * point into an account.
  *
  * IT STATES WHICH STATE IT IS IN, not only what it offers (owner, 2026-09-04: "it looks exactly
  * like you would be logged in... there's no difference between being logged in or not"). Both
@@ -94,24 +95,34 @@ export default function AuthStatus() {
   // local part for the same reason.
   const who = meta.full_name?.trim().split(/\s+/)[0] || email?.split('@')[0] || 'Signed in';
 
+  // THE PROFILE BUTTON (owner, 2026-09-23: the small circle "is too subtle and easy to miss").
+  // The name and the picture are ONE button now, drawn as a pill with a ▾ on a wide bar, so it
+  // reads as the door to the account and its settings rather than as a status dot. Under the
+  // 1480px step auth.css hides the name and the pill falls back to the round avatar alone, at
+  // exactly its old size - that width ladder is measured and pinned
+  // (e2e/configured/signed-in-ux.spec.ts), and a wider control there would push the bar over.
   return (
     <span className="auth-status" ref={wrapRef}>
-      <span className="auth-state" data-testid="auth-state" title={email ?? undefined}>
-        {who}
-      </span>
       <button
-        className="avatar-btn"
+        className="avatar-btn account-pill"
         onClick={() => setMenuOpen((o) => !o)}
-        title={email ? `${email}. Home, profile and settings` : 'Account'}
+        title={email ? `${email}. Account and settings` : 'Account and settings'}
+        aria-label="Account and settings"
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         data-testid="account-button"
       >
-        {meta.avatar_url ? (
-          <img className="avatar-img" src={meta.avatar_url} alt="" referrerPolicy="no-referrer" />
-        ) : (
-          <span className="avatar-initial">{initials}</span>
-        )}
+        <span className="auth-state" data-testid="auth-state" title={email ?? undefined}>
+          {who}
+        </span>
+        <span className="account-avatar">
+          {meta.avatar_url ? (
+            <img className="avatar-img" src={meta.avatar_url} alt="" referrerPolicy="no-referrer" />
+          ) : (
+            <span className="avatar-initial">{initials}</span>
+          )}
+        </span>
+        <span className="account-caret" aria-hidden="true">▾</span>
       </button>
 
       {menuOpen && (
@@ -124,9 +135,18 @@ export default function AuthStatus() {
           >
             Home - your work
           </button>
-          <button role="menuitem" onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}>
+          <button
+            role="menuitem"
+            onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}
+            data-testid="menu-settings"
+          >
             ⚙ Settings
           </button>
+          {/* The two installable tools (NoaCG Bridge, the NoaCG CLI) have one public page; the
+              account menu is where a signed-in person looks for "what else is there". */}
+          <a role="menuitem" href={DOWNLOADS_URL} className="account-menu-link" data-testid="menu-downloads">
+            Downloads - Bridge &amp; CLI
+          </a>
           <div className="account-menu-sep" />
           <button role="menuitem" onClick={() => { setMenuOpen(false); void signOut(); }}>
             Sign out

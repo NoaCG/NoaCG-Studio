@@ -391,6 +391,24 @@
 .settings-content > section + section { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--hairline); }
 .settings-content .dlg-caption { margin-bottom: 14px; }
 .settings-content .hint { margin: 0 0 10px; }
+/* PLAYOUT SETTINGS (components/PlayoutSettingsDialog.tsx): the Settings sheet's Playout form,
+   opened from a production page. Same frame, no section nav - there is one subject - so the
+   content column is the whole sheet and takes the height the nav's grid used to give it. */
+.wz-modal.settings-modal.playout-settings-modal { width: min(720px, 94vw); max-width: 720px; height: min(680px, 88vh); }
+.playout-settings-modal .settings-content { flex: 1; }
+/* The playout systems, one card each. With a single system the card is not a chooser, it is
+   the answer to "what does this connect to?" - stated before the form asks for an address. */
+.playout-systems { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.playout-system {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--hairline-2, var(--border));
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+.playout-system.on { border-color: var(--accent-line, var(--accent)); }
+.playout-system .hint { margin: 0; }
 .settings-identity { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; font-size: 15px; }
 .settings-avatar {
   display: inline-grid;

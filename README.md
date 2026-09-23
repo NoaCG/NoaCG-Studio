@@ -57,11 +57,15 @@ the trade.
 
 ## Two tools beside the app
 
+Both are on one page, with what each is for and how to install it:
+[noacg.studio/downloads](https://noacg.studio/downloads).
+
 - **Want to make graphics from a coding agent or a terminal?** Install the **NoaCG CLI** from
   npm: [`@noacg/cli`](https://www.npmjs.com/package/@noacg/cli). The next section is about it.
-- **Want to connect NoaCG Playout to a CasparCG server?** Download **NoaCG Bridge** from this
-  repository's [Releases page](https://github.com/NoaCG/NoaCG-Studio/releases/latest): one
-  small program for the laptop you operate from, nothing to install. The guide is
+- **Want to connect NoaCG Playout to a CasparCG server?** Download **NoaCG Bridge** from
+  [noacg.studio/downloads](https://noacg.studio/downloads#bridge), which links the newest Bridge
+  release on this repository's [Releases page](https://github.com/NoaCG/NoaCG-Studio/releases/latest):
+  one small program for the laptop you operate from, nothing to install. The guide is
   [noacg.studio/docs#casparcg-connect](https://noacg.studio/docs#casparcg-connect).
 
 ## For coding agents (Claude Code, Codex, any MCP client)

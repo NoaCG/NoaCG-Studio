@@ -180,7 +180,7 @@ export default function PlayoutItemPicker({
       <p className="hint pd-picker-foot">
         {kind === 'template'
           ? 'A template NoaCG exported brings its fields with it. For any other template, the field ids are the ones its FIELDS.md or its author names.'
-          : 'Clips play on the shared clip layer, below every graphic. No Bridge? Settings -> Playout links the download.'}
+          : 'Clips play on the shared clip layer, below every graphic. No Bridge? The Downloads page has it.'}
       </p>
     </LibMenu>
   );

@@ -52,7 +52,7 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   // `contracts/` is the rule store the loaded contracts are compiled from (docs/WORKFLOW_ARCHITECTURE.md
   // §5.3): one rule per file, one record per incident, neither loaded into a session.
   'contracts', 'docs',
-  'docs.html', 'e2e',
+  'docs.html', 'downloads.html', 'e2e',
   'eslint.config.js', 'index.html', 'join.html', 'ograf.html', 'output.html', 'package-lock.json',
   'package.json', 'packs', 'player-host', 'playwright.catalog.config.ts', 'playwright.config.ts',
   'playwright.live.config.ts',

@@ -21,7 +21,7 @@ test('/docs serves the static docs home, not the app', async ({ page }) => {
 test('the top bar is the landing top bar, with a readable button', async ({ page }) => {
   await page.goto('/docs');
   const nav = page.locator('header.top nav');
-  await expect(nav.locator('a')).toHaveText(['How it works', 'Going live', 'OGraf', 'Docs', 'Contact', 'Start creating']);
+  await expect(nav.locator('a')).toHaveText(['How it works', 'Going live', 'OGraf', 'Docs', 'Downloads', 'Contact', 'Start creating']);
   await expect(nav.locator('a[aria-current="page"]')).toHaveAttribute('href', '/docs');
   // The header's link colour once outranked the button's own, which painted the label grey on
   // amber. The label has to stay the landing's near-black.
@@ -254,7 +254,9 @@ test('the teams guide sends people down the route that exists, and says which on
   // (a) THE DOOR IS A PRODUCTION, and nothing else. `useTeamsAvailable` gates two mount points
   // (ProductionPage's header and ProductionsSection's row menu) and there is no team entry in the
   // topbar or in Settings, so a reader hunting for one finds nothing and concludes the feature is
-  // missing. The label is quoted exactly as the button renders it.
+  // missing. Both labels are quoted exactly as they render: "Share" in the production header,
+  // "Share with a team…" in the productions list's row menu.
+  await expect(teams).toContainText('press Share in its header');
   await expect(teams).toContainText('Share with a team');
   await expect(teams).toContainText('a production is the only door');
   // And the consequence for the reader this section is written for. A student who joins a class

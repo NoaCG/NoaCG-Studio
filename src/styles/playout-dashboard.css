@@ -90,9 +90,66 @@
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  /* The NAME is what gives way when the header is full: Back, Home, the mode chip and the
+     controls on the right keep their size, and a long production name ends in an ellipsis
+     (its whole text rides the h1's title). */
+  min-width: 0;
+  flex: 0 1 auto;
 }
+.pd-header h1 .pd-name { overflow: hidden; text-overflow: ellipsis; }
+/* ...and nothing else gives way. A control squeezed by the flex row wraps its label onto two
+   lines ("+ New / graphic", measured at 1366 on 2026-09-23), which reads as broken; every
+   control keeps its one-line width and the name above is what shrinks. */
+.pd-header > :not(h1):not(.spacer) { flex-shrink: 0; }
+.pd-header > button,
+.pd-header > .pd-links-host > button { white-space: nowrap; }
 .pd-header .spacer { flex: 1; }
-.pd-back { padding: 4px 9px; }
+/* Back and Home: two plain, labelled navigation buttons, never primary - the header's one
+   amber control is Output links, and navigation must not compete with it. */
+.pd-back,
+.pd-home { padding: 4px 9px; white-space: nowrap; flex: none; }
+
+/* OUTPUT LINKS (ProductionLinks.tsx): once published, the most-used thing on the page, so it
+   wears the accent OUTLINE - found at a glance, yet quieter than a filled primary, which stays
+   reserved for Take and ▶ Start production. */
+.pd-links-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--accent);
+  border-color: var(--accent-line, var(--accent));
+  background: var(--accent-bg, transparent);
+  font-weight: 600;
+}
+.pd-links-toggle:hover,
+.pd-links-toggle[aria-expanded='true'] { border-color: var(--accent); }
+
+/* THE PLAYOUT SETTINGS DOOR (PlayoutSettingsDialog.tsx): "Playout", a status dot, and - on a
+   wide header - the state in words. The dot's colour carries the state at every width. */
+.pd-target { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+.pd-target-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex: none;
+}
+.pd-target-ok .pd-target-dot { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.6); }
+.pd-target-warn .pd-target-dot { background: #f59e0b; }
+.pd-target-bad .pd-target-dot { background: #ef4444; }
+.pd-target-idle .pd-target-dot { background: transparent; border: 1px solid var(--text-dim); }
+.pd-target-state { font-size: 12px; color: var(--text-dim); }
+/* Under 1600px the words stand down to the tooltip; the header needs the width for the name. */
+@media (max-width: 1600px) {
+  .pd-target-state { display: none; }
+}
+/* Share keeps its people icon and gives up its word under 1440px, where a signed-in header
+   (the one that has Share at all) would otherwise squeeze the production's name to nothing.
+   The button's title and accessible name still say "Share". */
+@media (max-width: 1440px) {
+  .pd-share-label { display: none; }
+}
 .pd-mode {
   font-size: 11px;
   font-weight: 700;
@@ -118,7 +175,9 @@
 .pd-links-host { position: relative; }
 .pd-links {
   position: absolute;
-  right: 0;
+  /* Anchored at the button's LEFT edge: the button sits on the header's left, beside ● SHOW,
+     so the panel opens into the page rather than off its left side. */
+  left: 0;
   top: calc(100% + 6px);
   /* The shared popover layer (base.css), so one shell's surfaces cannot stack differently
      against the rest of the page. */
@@ -1414,6 +1473,9 @@
   .pd-clock,
   .pd-status,
   .pd-back,
+  /* Setup and sharing stand down with the other authoring actions; Home stays. */
+  .pd-header .pd-target,
+  .pd-header [data-testid='share-with-team'],
   .pd-header .brand-home,
   .pd-header [data-testid='new-graphic'],
   .pd-header [data-testid='export-production'],
@@ -1431,6 +1493,12 @@
      says, and the production's NAME was paying for it (truncated to "Fri"). ● SHOW is short
      and is the one an operator must never miss, so only that one stays. */
   .pd-mode-idle { display: none; }
+  /* Home STAYS at this width - it is the one way off the page on a phone, and a four-letter
+     word is cheaper than the name it shares the row with. */
+  /* The links panel spans the phone's width under the header rather than hanging off its
+     button, which at this width sits close enough to the right edge to push it off screen. */
+  .pd-links { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
+  .pd-links-toggle { padding: 6px 9px; font-size: 12.5px; }
 
   /* Monitor labels stay ONE line: at 390px "PROGRAM · ON AIR" wrapped and pushed the frame
      down, and the cue name beside it is the first thing worth dropping. */

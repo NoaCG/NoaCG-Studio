@@ -1,17 +1,24 @@
 # Release NoaCG Bridge: build NoaCG-Bridge.exe and publish it as a GitHub Release.
 #
-# NoaCG ships two tools with two homes. The NoaCG CLI (@noacg/cli, for making graphics) is
-# published to npm by release-cli.yml. NoaCG Bridge (the small program that connects NoaCG
-# Playout in a browser to a CasparCG server) is downloaded from this repository's Releases page,
-# and this workflow is what puts it there. They are built from the same package, and nobody
-# downloading either one has to know that: the Releases page carries Bridge releases only, and
-# the studio's Settings -> Playout links `releases/latest/download/NoaCG-Bridge.exe`, which
-# resolves to the newest Bridge release for as long as nothing else is published here.
+# ONE VERSION, TWO CHANNELS. NoaCG Bridge is `noacg bridge` from the CLI package, packed into a
+# Windows exe, so the two share one version number: cli/package.json's. They ship through two
+# channels, each with its own tag and its own home:
+#   - the NoaCG CLI (@noacg/cli, for making graphics): tag cli-vX.Y.Z -> npm, by release-cli.yml;
+#   - NoaCG Bridge (connects NoaCG Playout to CasparCG): tag bridge-vX.Y.Z -> a GitHub Release on
+#     this repository carrying NoaCG-Bridge.exe, by THIS workflow.
+# A version may ship on one channel and skip the other (a CLI-only fix need not rebuild the exe).
+#
+# "LATEST" IS RESOLVED PER CHANNEL. The Releases page carries Bridge releases only, and every one
+# is created with `--latest`, so `releases/latest/download/NoaCG-Bridge.exe` is always the newest
+# Bridge even though older `cli-v*` Releases from before the split still sit on the page. The
+# public Downloads page (noacg.studio/downloads) goes one step further and asks the API for the
+# newest `bridge-v*` release by tag, and npm for the CLI's `latest`, so neither channel can ever be
+# offered as the other.
 #
 # HOW TO RELEASE THE BRIDGE (docs/BRIDGE.md §6 is the prose):
 #   1. Write the version's section in cli/BRIDGE_CHANGELOG.md, for the operator deciding whether
-#      to download again. The version is cli/package.json's; a Bridge release and a CLI release
-#      share the number and nothing else, so the Bridge may skip versions the CLI used.
+#      to download again. The version is cli/package.json's, the one number both channels use; the
+#      Bridge may skip versions the CLI used, and the other way round.
 #      Land it on main through /queue-merge.
 #   2. `git tag bridge-v0.4.0 <commit on main> && git push origin bridge-v0.4.0`
 #   3. Watch this workflow. It builds the exe on a Windows runner from that commit, proves it
@@ -135,6 +142,8 @@ jobs:
 
       # `--target` matters on a manual dispatch, where there is no tag yet: gh creates
       # `bridge-vX.Y.Z` at the commit that was built. On a tag push the tag already exists there.
+      # `--latest` marks this release as the repository's latest explicitly, so GitHub's
+      # `releases/latest` is the newest Bridge by decision rather than by creation date.
       - name: Create the Release with the exe
         if: ${{ !inputs.dry_run }}
         env:
@@ -146,5 +155,6 @@ jobs:
             --target "${GITHUB_SHA}" \
             --title "NoaCG Bridge ${VERSION}" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
+            --latest \
             cli/dist-exe/NoaCG-Bridge.exe cli/dist-exe/NoaCG-Bridge.exe.sha256
           echo "::notice title=Released::https://github.com/${GITHUB_REPOSITORY}/releases/tag/bridge-v${VERSION}"

@@ -236,10 +236,15 @@
     }
     .agent-cli .c { color: var(--faint); }
     .agent-link { margin-top: 18px; font-size: 15px; }
+    /* The Downloads band: two cards that are links. The whole card is the target, so the hover
+       lifts the border rather than underlining text inside it. */
+    .tool { display: block; color: inherit; text-decoration: none; transition: border-color 0.15s ease; }
+    .tool:hover { border-color: rgba(246, 166, 35, 0.45); }
+    .tool .tool-go { display: inline-block; margin-top: 14px; font-size: 14px; font-weight: 600; color: var(--amber); }
     .agent-link a { color: var(--amber); }
     .agent-link a:hover { color: var(--glow); }
-    .way p a, .sub a, .feat p a { color: var(--amber); }
-    .way p a:hover, .sub a:hover, .feat p a:hover { color: var(--glow); }
+    .way p a, .sub a, .feat p a, .note a { color: var(--amber); }
+    .way p a:hover, .sub a:hover, .feat p a:hover, .note a:hover { color: var(--glow); }
 
     /* ── Bottom CTA ── */
     .bottom {
@@ -557,6 +562,9 @@
         <a class="gh" href="#live">Going live</a>
         <a class="gh" href="#ograf">OGraf</a>
         <a href="/docs">Docs</a>
+        <!-- The two tools you install (NoaCG Bridge, the NoaCG CLI) have one page. It leaves the
+             bar under 720px with the section links; the band below and the footer still reach it. -->
+        <a class="gh" href="/downloads">Downloads</a>
         <a class="gh" href="mailto:contact.noacg@gmail.com">Contact</a>
         <a class="btn btn-amber" href="/app#/new">Start creating</a>
       </nav>
@@ -952,6 +960,10 @@
           <span class="chip on">Browser output</span>
         </div>
         <p class="note" data-reveal>Publishing a production to its online output URL takes a free account; operating it takes none.</p>
+        <p class="note" data-reveal>
+          Running CasparCG? <a href="/downloads#bridge">NoaCG Bridge</a>, a small Windows program,
+          lets the production page put your graphics on a CasparCG channel for you.
+        </p>
       </section>
 
       <!-- The differentiator that is hardest to see from outside, so it gets its own section
@@ -1100,6 +1112,32 @@ npx -y @noacg/cli mcp</div>
         </p>
       </section>
 
+      <!-- THE TWO TOOLS YOU INSTALL, named on the landing so nobody has to know where to look
+           (owner, 2026-09-23). Everything else about NoaCG runs in the browser; these two are
+           optional and for different people, so each card says who it is for. Both link the one
+           Downloads page, which carries the versions, the files and the setup steps. -->
+      <section id="downloads">
+        <p class="kicker" data-reveal>Downloads</p>
+        <h2 data-reveal>Two tools you can install.</h2>
+        <p class="sub" data-reveal>
+          Making graphics and running a show need nothing installed. These two are optional.
+        </p>
+        <div class="grid3 tools" data-reveal-group>
+          <a class="card tool" href="/downloads#bridge">
+            <span class="n">FOR PLAYOUT OPERATORS</span>
+            <h3>NoaCG Bridge</h3>
+            <p>Connects NoaCG Playout to CasparCG on your studio network. A Windows program with nothing to install.</p>
+            <span class="tool-go">Download for Windows →</span>
+          </a>
+          <a class="card tool" href="/downloads#cli">
+            <span class="n">FOR CODING AGENTS</span>
+            <h3>NoaCG CLI</h3>
+            <p>Lets Claude Code, Codex and other coding agents make and save NoaCG graphics. From npm.</p>
+            <span class="tool-go">Install instructions →</span>
+          </a>
+        </div>
+      </section>
+
       <!-- The studio's second workspace. It sits after the whole live-graphics story on purpose:
            a visitor should finish the on-air story first, then learn there is a separate place
            for rendered video. -->
@@ -1151,6 +1189,7 @@ npx -y @noacg/cli mcp</div>
       <span>
         <a href="mailto:contact.noacg@gmail.com">contact.noacg@gmail.com</a> ·
         <a href="/docs">Docs</a> ·
+        <a href="/downloads">Downloads</a> ·
         <a href="/terms">Terms</a> ·
         <a href="/privacy">Privacy</a> ·
         <a href="https://github.com/NoaCG/NoaCG-Studio" target="_blank" rel="noopener noreferrer">Source</a> ·

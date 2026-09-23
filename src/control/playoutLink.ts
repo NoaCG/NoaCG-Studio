@@ -339,7 +339,7 @@ async function callBridge(
 
 /** What a page says when there is no Bridge - written once, used everywhere. */
 function noBridge(reason: string): PlayoutResult {
-  return { state: 'bridge', detail: `${reason} Start NoaCG Bridge on this machine (double-click ${BRIDGE_EXE}; Settings -> Playout links the download), then try again.` };
+  return { state: 'bridge', detail: `${reason} Start NoaCG Bridge on this machine (double-click ${BRIDGE_EXE}; the Downloads page and Playout settings both link it), then try again.` };
 }
 
 /**
@@ -354,7 +354,7 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
     if (agent === 'noacg-bridge' || agent === 'noacg-caspar') {
       return {
         state: 'outdated',
-        detail: `The NoaCG Bridge on ${bridgeUrl} is too old for this page${health.body.version ? ` (version ${health.body.version})` : ''}. Download the current NoaCG Bridge from Settings -> Playout, start it, then try again.`,
+        detail: `The NoaCG Bridge on ${bridgeUrl} is too old for this page${health.body.version ? ` (version ${health.body.version})` : ''}. Download the current NoaCG Bridge from the Downloads page, start it, then try again.`,
       };
     }
     return { state: 'bridge', detail: `Something is listening on ${bridgeUrl}, but it is not NoaCG Bridge.` };
@@ -422,7 +422,7 @@ async function through(
   hop: 'act' | 'list' = 'act',
 ): Promise<{ result: PlayoutResult; body?: BridgeReply }> {
   if (!playoutConfigured(settings)) {
-    return { result: { state: 'config', detail: 'Pair NoaCG Bridge and fill in the playout server first (Settings -> Playout).' } };
+    return { result: { state: 'config', detail: 'Pair NoaCG Bridge and fill in the playout server first (Playout settings).' } };
   }
   const unreachable = await reachBridge(settings.agentUrl);
   if (unreachable) return { result: unreachable };

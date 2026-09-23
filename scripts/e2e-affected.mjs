@@ -489,6 +489,10 @@ const MAP = [
   // break neither page sees alone.
   [/^(docs\.html$|public\/docs\/)/, ['docs.spec.ts', 'landing.spec.ts']],
   [/^src\/docs\//, ['docs.spec.ts']],
+  // The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
+  // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
+  // and its footer, so both of those specs ride along.
+  [/^(downloads\.html$|src\/downloads\/)/, ['downloads.spec.ts', 'landing.spec.ts', 'docs.spec.ts']],
   [/^src\/teach\//, ['lazy-editor.spec.ts']],
   // import-graphic rides along because assets/eraseRegion.ts is not only an assets helper: it is
   // the deterministic flat-fill erase behind the Import Graphic Prepare step. Without this edge,
@@ -571,7 +575,14 @@ const MAP = [
   // which the spec's third surface drives. `HostedControlPage.tsx` is deliberately NOT here: its
   // DOM needs a configured backend, so no offline spec can mount it, and its copy of the wrapper
   // is held by the parity contract (docs/CONTROL_PANEL_PARITY.md) instead.
-  [/^src\/components\/home\/ProductionPage\.tsx$/, ['playout-fixed-panes.spec.ts']],
+  [/^src\/components\/home\/ProductionPage\.tsx$/, ['playout-fixed-panes.spec.ts', 'playout-nav.spec.ts']],
+  // PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
+  // the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
+  // header door and the Back/Home pair beside it.
+  [
+    /^src\/(components\/(PlayoutSettingsDialog|PlayoutSettingsPanel)\.tsx|control\/playoutSystems\.ts)$/,
+    ['bridge-connect.spec.ts', 'playout-nav.spec.ts'],
+  ],
   [/^src\/control\/productionControllerHtml\.ts$/, ['playout-fixed-panes.spec.ts']],
   // Cues over the playout server's library (docs/BRIDGE.md §5): the picker, the cue editor and
   // the published payload's playout cues on the hosted page.

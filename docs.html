@@ -38,6 +38,7 @@
         <a class="gh" href="/#live">Going live</a>
         <a class="gh" href="/#ograf">OGraf</a>
         <a href="/docs" aria-current="page">Docs</a>
+        <a class="gh" href="/downloads">Downloads</a>
         <a class="gh" href="mailto:contact.noacg@gmail.com">Contact</a>
         <a class="btn btn-amber" href="/app#/new">Start creating</a>
       </nav>
@@ -1277,17 +1278,17 @@ Storm warning issued</code></pre>
             Instead of typing the command into the CasparCG Client, the production page can send
             it. A browser cannot open a raw TCP socket and AMCP is one, so a small program on the
             machine you operate from holds it: <strong>NoaCG Bridge</strong>. Download
-            <code>NoaCG-Bridge.exe</code> from the link under <strong>Settings &rarr;
-            Playout</strong> (it is the newest
-            <a href="https://github.com/NoaCG/NoaCG-Studio/releases/latest">release on GitHub</a>)
-            and double-click it. There is nothing to install: the file is the whole program, and
+            <code>NoaCG-Bridge.exe</code> from the <a href="/downloads#bridge">Downloads page</a>
+            (it is the newest Bridge release on GitHub; <strong>Playout</strong> on a production
+            page links it too) and double-click it. There is nothing to install: the file is the whole program, and
             Windows warns once because it is not signed yet (<strong>More info</strong>, then
             <strong>Run anyway</strong>). Leave its window open while you work.
           </p>
           <p>
-            It opens a page in your browser; one click pairs the browser with the Bridge. Then fill
-            in the CasparCG server under <strong>Settings &rarr; Playout</strong> once for the whole
-            studio (host, AMCP port, its channels, and the layer graphics go on) and press
+            It opens a page in your browser; one click pairs the browser with the Bridge. Then open
+            a production, press <strong>Playout</strong> in its header, and fill in the CasparCG
+            server once for the whole studio: host, AMCP port, its channels, and the layer graphics
+            go on. The same form is under <strong>Settings &rarr; Playout</strong>. Then press
             <strong>Test connection</strong>,
             which round-trips a real AMCP <code>VERSION</code> and shows the server's own version
             string. The Bridge listens on <code>127.0.0.1</code> only; CasparCG can be any machine
@@ -1452,9 +1453,9 @@ CG 1-20 STOP</code></pre>
             make an account.
           </p>
           <ol>
-            <li>Open a production you own and press <strong>Share with a team&hellip;</strong> in
-              its header. The same item is in the <strong>&#8943;</strong> (More actions) menu on
-              a production's card in <strong>Productions</strong>. There is no team entry in the
+            <li>Open a production you own and press <strong>Share</strong> in its header. The
+              same door is <strong>Share with a team&hellip;</strong> in the <strong>&#8943;</strong>
+              (More actions) menu on a production's card in <strong>Productions</strong>. There is no team entry in the
               topbar or in Settings, and a production is the only door.</li>
             <li>Press <strong>&#65291; New team&hellip;</strong>. It is the quiet text button under
               the list, not the amber one in the footer.</li>
@@ -2225,6 +2226,7 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
       <span>
         <a href="/">Home</a> &middot;
         <a href="/app">Open the studio</a> &middot;
+        <a href="/downloads">Downloads</a> &middot;
         <a href="https://github.com/NoaCG/NoaCG-Studio">Source</a> &middot;
         <a href="mailto:contact.noacg@gmail.com">Contact</a>
       </span>

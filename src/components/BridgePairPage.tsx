@@ -54,8 +54,8 @@ export default function BridgePairPage({ params }: { params: URLSearchParams }) 
         <h1>Paired</h1>
         <p className="hint" data-testid="bridge-pair-done">
           This browser can now drive your playout server through NoaCG Bridge on{' '}
-          <code>127.0.0.1:{request.port}</code>. Fill in the server under Settings &rarr; Playout if you
-          have not yet, then open a production.
+          <code>127.0.0.1:{request.port}</code>. Open a production and press <strong>Playout</strong> in
+          its header to fill in the CasparCG server, if you have not yet.
         </p>
         <div className="agent-consent-actions">
           <button className="primary" onClick={() => window.location.assign('/app#/home')} data-testid="bridge-pair-open">

@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chmodSync, existsSync, mkdtempSync, mkdirSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, statSync, utimesSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -42,16 +42,21 @@ test('the contract walk never enters a scratch directory, and survives one that 
 });
 
 test('write leaves a file whose bytes are already right untouched', () => {
-  // Read-only makes a rewrite observable without timing: writing to it throws, skipping it does
-  // not. The second call proves the fixture would catch a write.
+  // A rewrite is made observable by the file's modification time, pinned to a moment long past:
+  // a write moves it to now, skipping the write leaves it where it was. (It used to be made
+  // read-only and a write expected to THROW - which root ignores, so every cloud container, where
+  // sessions run as root, failed this test with nothing wrong.) The second call proves the
+  // fixture would catch a write.
   const root = store({ 'same.md': 'unchanged\n' });
   const file = path.join(root, 'same.md');
-  chmodSync(file, 0o444);
+  const past = new Date('2020-01-01T00:00:00Z');
+  utimesSync(file, past, past);
   try {
-    assert.doesNotThrow(() => write(new Map([['same.md', 'unchanged\n']]), root));
-    assert.throws(() => write(new Map([['same.md', 'changed\n']]), root), /EACCES|EPERM/);
+    write(new Map([['same.md', 'unchanged\n']]), root);
+    assert.equal(statSync(file).mtimeMs, past.getTime(), 'an unchanged file was rewritten');
+    write(new Map([['same.md', 'changed\n']]), root);
+    assert.notEqual(statSync(file).mtimeMs, past.getTime(), 'the fixture did not see a real write');
   } finally {
-    chmodSync(file, 0o644);
     rmSync(root, { recursive: true, force: true });
   }
 });

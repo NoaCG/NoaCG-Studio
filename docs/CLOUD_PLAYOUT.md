@@ -750,6 +750,49 @@ connections, 500 messages/s, 500 channel joins/s):
 Order of concern if the target ever becomes real: (1) audience poll volume vs compute size,
 (2) Realtime connection count vs the 500 cap, (3) payload size vs time-to-first-frame.
 
+## Publication lifecycle (what staying published costs, and when a publication ends)
+
+**Decided 2026-09-23: a publication stays until its owner unpublishes it or deletes the
+production. There is no time-based expiry.** The owner asked for the decision to follow the real
+cost rather than a round number, so this is what was measured on production that day:
+
+| what | measured |
+|---|---|
+| published productions | 19, across 6 owners |
+| `control_shows`, the whole table | 13 MB (8.9 MB of it output payloads; the largest row 6.7 MB) |
+| `control_events`, the command log | 3.7 MB, 1,377 rows, already pruned at 14 days (0039) |
+| the whole database | 63 MB, on a plan with 8 GB |
+| renderers seen in the last 7 days | 3 of 19 |
+
+What one publication costs **while nobody has it open**: its one row, nothing else. Publishing
+uploads nothing to Storage, runs no Vercel function, and holds no connection; the output page is a
+static file. The costs in "Concurrency budget" above (a Realtime connection, a 30 s poll, the 60 s
+heartbeat, the boot payload's egress) exist only while an output, control or production page is
+OPEN - which is somebody using the production, and exactly what an expiry must never stop. An
+expiry would save a few hundred kilobytes per production and would break the one promise the
+output URL makes: load it once in OBS or vMix, and it keeps working for next month's show.
+
+**The real leak was deletion.** Deleting a production tombstoned its synced document and left the
+publication live, with a working output URL and control page. Five of the nineteen were that. Two
+changes close it:
+
+- **The studio unpublishes on delete** (`ProductionsSection.tsx`): a published production's delete
+  confirm reads "Delete and unpublish?", and it sends the unpublish before the tombstone.
+- **A nightly sweep** (migration `0061`, pg_cron `noacg-unpublish-deleted-productions`, 03:41
+  UTC) catches the deletes that request missed - made offline, on another device, or in a tab that
+  closed. It removes a publication only when its owner's own document for that production is a
+  tombstone older than a day AND no renderer has reported in for a day. The migration ran it once
+  on apply, so the five existing orphans went with it.
+
+Unpublishing keeps the production's addresses (`control_show_identity`, 0040), so publishing
+again, from a restored copy or a new device, hands back the same four URLs.
+
+**When to revisit.** If `control_shows` passes about 1 GB or 2,000 rows, add a DORMANCY rule:
+unpublish after a long stretch with no renderer heartbeat and no operator command, and tell the
+owner on the production page that "Start production" brings the same links back. The addresses
+already survive, so that change would be reversible from the owner's side. Until then it would
+cost more in broken presets than it saves in disk.
+
 ## Known limits (deliberate, documented)
 
 - **The `control_events` anon SELECT** (`0008:60-61`, `using (true)`) lets any holder of the

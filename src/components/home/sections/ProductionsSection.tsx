@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createShow, deleteShow, type Show } from '../../../model/shows';
-import { outputPageUrl } from '../../../control/hostedControl';
+import { outputPageUrl, unpublishControlShow } from '../../../control/hostedControl';
 import { installPack, parsePack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
 import { copyLink } from '../copyLink';
@@ -201,10 +201,27 @@ export default function ProductionsSection({
               {confirmDelete === r.id ? (
                 <button
                   className="destructive"
-                  onClick={() => { deleteShow(r.id); setConfirmDelete(null); onChanged(); }}
-                  title="Delete this production (its graphics stay saved wherever else they live)"
+                  onClick={() => {
+                    // A DELETED PRODUCTION STOPS BEING PUBLISHED (docs/CLOUD_PLAYOUT.md,
+                    // "Publication lifecycle"). Deleting used to tombstone the local record only,
+                    // and its output URL and control page stayed live on the server forever -
+                    // five of nineteen publications were that, measured 2026-09-23. The request
+                    // is fire-and-forget: offline, signed out or on another account's row it
+                    // does nothing, and the nightly sweep (migration 0061) unpublishes whatever
+                    // a deleted production left behind.
+                    if (r.hostedSlug) void unpublishControlShow(r.id).catch(() => undefined);
+                    deleteShow(r.id);
+                    setConfirmDelete(null);
+                    onChanged();
+                  }}
+                  title={
+                    r.hostedSlug
+                      ? 'Delete this production. It is published, so its output and control links stop working. Its graphics stay saved wherever else they live.'
+                      : 'Delete this production (its graphics stay saved wherever else they live)'
+                  }
+                  data-testid="production-delete-confirm"
                 >
-                  Delete?
+                  {r.hostedSlug ? 'Delete and unpublish?' : 'Delete?'}
                 </button>
               ) : (
                 <button onClick={() => setConfirmDelete(r.id)} title="Delete this production" aria-label={`Delete ${r.name}`}>

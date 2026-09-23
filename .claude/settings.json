@@ -165,7 +165,10 @@
   "hooks": {
     "SessionStart": [
       {
-        "hooks": [{ "type": "command", "command": "node scripts/hooks/session-start.mjs" }]
+        "hooks": [
+          { "type": "command", "command": "node scripts/hooks/session-start.mjs" },
+          { "type": "command", "command": "node scripts/hooks/cloud-session-setup.mjs", "timeout": 600 }
+        ]
       }
     ],
     "PreToolUse": [

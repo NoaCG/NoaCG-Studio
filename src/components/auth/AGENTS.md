@@ -9,9 +9,13 @@ the code's own comments.
 
 ## Auth UI (auth/)
 
-useAuthState hook + authUi store + SignInDialog + SignInPrompt + AuthStatus avatar menu
-(-> Home / Settings / Sign out). **AuthStatus states WHICH STATE it is in, not only what it
-offers**: a `.auth-state` word beside the control, the account's first name signed in and
+useAuthState hook + authUi store + SignInDialog + SignInPrompt + AuthStatus profile button
+(-> Home / Settings / Downloads / Sign out). Above the 1480px step the name and the avatar are
+ONE pill-shaped button; below it the button is the old 34px round avatar, because the topbar's
+width ladder is measured and pinned (e2e/configured/signed-in-ux.spec.ts). Signed in, Home's
+own Settings button stands down and the profile menu carries Settings; signed out and offline
+it stays, because Settings must never need an account. **AuthStatus states WHICH STATE it is
+in, not only what it offers**: a `.auth-state` word beside the control, the account's first name signed in and
 "Not signed in" signed out (owner, 2026-09-04). Keep `.auth-status` meaning "there is a
 session" - `e2e/configured/anonymous.spec.ts` asserts it is absent signed out and `_helpers.ts`
 waits for it as proof a sign-in landed - so the signed-out cluster is `.auth-anon`. The Sign in

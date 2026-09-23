@@ -193,6 +193,8 @@ function sitemap(entries) {
     { loc: `${SITE_ORIGIN}/docs`, priority: '0.8' },
     // The free OGraf starters page (ograf.html) — a public, indexable landing of its own.
     { loc: `${SITE_ORIGIN}/ograf`, priority: '0.8' },
+    // The Downloads page (downloads.html) — NoaCG Bridge and the NoaCG CLI, the tools you install.
+    { loc: `${SITE_ORIGIN}/downloads`, priority: '0.7' },
     ...entries.map((entry) => ({ loc: `${SITE_ORIGIN}/templates/${entry.slug}`, priority: '0.6' })),
   ];
   // sitemapS.org, plural - the sitemaps.org protocol namespace. A crawler that does not

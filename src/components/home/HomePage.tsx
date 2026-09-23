@@ -28,6 +28,7 @@ import type { SpxTemplate } from '../../model/types';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import AuthStatus from '../auth/AuthStatus';
+import { useAuthState } from '../auth/useAuthState';
 import SyncStatus from '../SyncStatus';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import SettingsDialog from '../SettingsDialog';
@@ -69,6 +70,10 @@ export default function HomePage({ route }: { route: Route }) {
   const workingSaved = useTemplateStore((s) => s.saved);
   const advanced = useAdvancedMode((s) => s.advanced);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // The profile button (AuthStatus) renders, and carries Settings, only with a backend AND a
+  // session; offline, `useAuthState` reports signed-in but there is no profile button at all.
+  const { backendConfigured: hasBackend, status: authStatus } = useAuthState();
+  const profileMenuShown = hasBackend && authStatus === 'signed-in';
 
   // One nonce refreshes every list after any mutation (the model layer is the store).
   const [rev, setRev] = useState(0);
@@ -258,11 +263,15 @@ export default function HomePage({ route }: { route: Route }) {
             {workingSaved.dirty ? ' •' : ''}
           </button>
         )}
-        {/* Settings must be reachable WITHOUT an account (the avatar menu is the other door,
-            and offline builds have none) - it is where Advanced mode lives. Not auth UI. */}
-        <button onClick={() => setSettingsOpen(true)} title="Settings" aria-label="Settings" data-testid="home-settings">
-          <IconSliders />
-        </button>
+        {/* Settings must be reachable WITHOUT an account - it is where Advanced mode lives, and
+            offline builds have no account at all. Signed in, the PROFILE button carries it
+            (AuthStatus: Home · Settings · Downloads), so the bar shows one door, not two
+            (owner, 2026-09-23: settings belong in the profile control, made easy to find). */}
+        {!profileMenuShown && (
+          <button onClick={() => setSettingsOpen(true)} title="Settings" aria-label="Settings" data-testid="home-settings">
+            <IconSliders />
+          </button>
+        )}
         {/* The general beta door, on every surface a student actually stands on. It used to
             exist only in the EDITOR shell - the one surface the student release demoted
             behind Advanced mode - so the release's own user could not send feedback at all,
