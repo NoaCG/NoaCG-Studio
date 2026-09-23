@@ -719,7 +719,12 @@ no `--provenance` flag).
 The run creates **no GitHub Release**: the CLI's home is npm, and the repository's Releases page
 belongs to NoaCG Bridge, the other tool built from this package (`release-bridge.yml`, on a
 `bridge-v*` tag; `docs/BRIDGE.md` §6). To the people who use them the two are separate products
-with separate homes, and the release pages never explain that they share code. The Actions tab's
+with separate homes, and the release pages never explain that they share code. **One version, two
+channels:** both read `cli/package.json`'s version, which is never split, and each channel ships a
+version only when its own tool changed - a CLI-only fix is a `cli-v*` tag with no new exe. "Latest"
+is resolved per channel: npm's `latest` for the CLI, the newest `bridge-v*` Release (created with
+`--latest`) for the Bridge. The public Downloads page (`/downloads`) reads each one separately and
+shows the version of what it links. The Actions tab's
 "Run workflow" button is the manual door when a tagged run needs re-driving (untick `dry_run`),
 and it is the one route that works from a phone.
 

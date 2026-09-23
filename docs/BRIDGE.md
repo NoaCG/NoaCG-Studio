@@ -348,13 +348,25 @@ answers.
 NoaCG Bridge (connecting NoaCG Playout to CasparCG) are two tools with nothing in common, and the
 release path keeps them apart: the CLI is published to npm by `release-cli.yml` on a `cli-v*`
 tag, and the Bridge is published to the repository's GitHub Releases page by
-`release-bridge.yml` on a `bridge-v*` tag. The Releases page carries Bridge releases only, so
-`https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe`, the link
-under Settings -> Playout, is always the newest Bridge. Nothing user-facing says the two are
-built from one package; `noacg bridge` still runs the Bridge for a developer who has the CLI,
-and that is the only place the seam shows.
+`release-bridge.yml` on a `bridge-v*` tag. Both are described, side by side, on the public
+Downloads page (`/downloads`, `downloads.html`), which the landing page, the docs and the
+studio's Playout settings all link.
 
-The two share the version number of `cli/package.json` and nothing else a reader sees. A Bridge
+**One version, two channels (owner, 2026-09-23).** The Bridge IS `noacg bridge` from the CLI
+package, so the two share one version number, `cli/package.json`'s, and never grow a second one.
+What is separate is the CHANNEL: a version reaches npm on a `cli-v*` tag and the Releases page on
+a `bridge-v*` tag, and either may skip a version the other ships. So "latest" is resolved per
+channel, never shared:
+
+- the Bridge: every Bridge release is created with `--latest`, so
+  `https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe` is always the
+  newest Bridge, even with the older `cli-v*` Releases from before the split still on the page;
+  the Downloads page asks GitHub for the newest `bridge-v*` release BY TAG and links its asset;
+- the CLI: npm's `latest` for `@noacg/cli`, which the Downloads page reads from the registry.
+
+Each card on the Downloads page shows the version of the file it links to, so a CLI release with
+no new exe simply shows two different numbers. `noacg bridge` still runs the Bridge for a
+developer who has the CLI; that is the one place the shared package shows. A Bridge
 release is `git tag bridge-vX.Y.Z <commit on main> && git push origin bridge-vX.Y.Z`; the
 workflow refuses a commit that is not on main, a tag that disagrees with the package version, a
 version already released, and a version with no section in `cli/BRIDGE_CHANGELOG.md`, written

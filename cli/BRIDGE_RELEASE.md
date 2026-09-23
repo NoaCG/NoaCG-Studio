@@ -16,8 +16,9 @@ listens only on that machine and never exposes CasparCG to the internet.
 3. Your browser opens a NoaCG page. Press **Pair**, and if the browser asks whether the site may
    reach your local network, allow it.
 
-Then, in NoaCG, open **Settings -> Playout**, fill in the CasparCG server's address, port, channel
-and layer, and press **Test connection**. The guide, with what to do when something is not
+Then, in NoaCG, open a production and press **Playout** in its header (the same form is under
+**Settings -> Playout**), fill in the CasparCG server's address, port, channel and layer, and press
+**Test connection**. The guide, with what to do when something is not
 working: https://noacg.studio/docs#casparcg-connect
 
 Use Chrome or Edge. Safari does not let a web page reach a program on the same machine.
