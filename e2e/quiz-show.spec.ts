@@ -228,35 +228,37 @@ test('the wizard offers the answer count and the correct answer, and not the con
   expect(fields['Answers shown']).toBe('2');
 });
 
-test('the Quiz Show kit builds in the three game-show looks and in no other', async ({ page }) => {
-  const kit = await page.evaluate(async () => {
+test('each game-show look is its own quiz kit, a whole show in that one Style', async ({ page }) => {
+  const kits = await page.evaluate(async () => {
     const { packById, resolvePack } = await import('/src/templates/packs.ts');
     const { variantById } = await import('/src/templates/catalog.ts');
     const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-    const pack = packById('quiz-show')!;
-    const looks: Record<string, string[]> = {};
-    const problems: string[] = [];
-    for (const family of ['noacg', 'minimal', 'editorial', 'cinematic', 'sport', 'glass', 'sticker', 'showtime', 'arcade'] as const) {
-      try {
-        const cells = resolvePack({ ...pack, family });
-        looks[family] = cells.map((cell) => cell.designId);
-        for (const cell of cells) {
-          const variant = variantById(cell.designId)!;
-          if (variant.styleTag !== family) problems.push(`${cell.designId} is ${variant.styleTag}, not ${family}`);
-          if (!validateTemplate(variant.create()).ok) problems.push(`${cell.designId} does not validate`);
-        }
-      } catch {
-        // not a look this kit resolves in
+    const out: Record<string, { family: string; designs: string[]; starter: number; problems: string[] }> = {};
+    for (const id of ['sticker-quiz', 'showtime-quiz', 'arcade-quiz']) {
+      const pack = packById(id)!;
+      const cells = resolvePack(pack);
+      const problems: string[] = [];
+      for (const cell of cells) {
+        const variant = variantById(cell.designId)!;
+        if (variant.styleTag !== pack.family) problems.push(`${cell.designId} is ${variant.styleTag}, not ${pack.family}`);
+        if (!validateTemplate(variant.create()).ok) problems.push(`${cell.designId} does not validate`);
       }
+      out[id] = { family: pack.family, designs: cells.map((cell) => cell.designId), starter: pack.starter.length, problems };
     }
-    return { looks, problems, types: pack.types.length };
+    return out;
   });
-  expect(Object.keys(kit.looks).sort()).toEqual(['arcade', 'showtime', 'sticker']);
-  expect(kit.problems).toEqual([]);
-  // Every type of the kit resolves to its own design in each look: a whole show, eight graphics.
-  for (const designs of Object.values(kit.looks)) {
-    expect(new Set(designs).size).toBe(kit.types);
-    expect(kit.types).toBe(8);
+  expect(Object.fromEntries(Object.entries(kits).map(([id, kit]) => [id, kit.family]))).toEqual({
+    'sticker-quiz': 'sticker',
+    'showtime-quiz': 'showtime',
+    'arcade-quiz': 'arcade',
+  });
+  for (const kit of Object.values(kits)) {
+    expect(kit.problems).toEqual([]);
+    // A whole show: eight graphics, eight different designs, all ticked by default, and the
+    // quiz board leads because it is the kit's cover.
+    expect(new Set(kit.designs).size).toBe(8);
+    expect(kit.starter).toBe(8);
+    expect(kit.designs[0]).toMatch(/^qz/);
   }
 });
 

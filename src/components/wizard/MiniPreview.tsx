@@ -4,6 +4,7 @@ import { frameGraphic, framingTransform, type GraphicBox } from '../../preview/f
 import { fieldDescriptors } from '../../control/controlModel';
 import type { TemplateVariant } from '../../model/wizard';
 import type { SpxTemplate } from '../../model/types';
+import type { Palette } from '../../model/templateVocabulary';
 
 /**
  * A small settled-state render for picker cards.
@@ -28,11 +29,20 @@ import type { SpxTemplate } from '../../model/types';
 /** `lazy` forces the intersection gate onto a ready-made `template` too. The kit tray is the
  *  one caller that needs it: a 36-graphic kit is 36 built templates in one horizontally
  *  scrolling strip, which is exactly the page-long stall the gate exists to prevent. */
-type Props = ({ variant: TemplateVariant; template?: never } | { template: SpxTemplate; variant?: never }) & {
+type Props = (
+  | {
+      variant: TemplateVariant;
+      /** Build the design in this palette instead of its own default - a KIT's row shows the
+       *  graphic in the kit's Style, which is what the kit will actually build. */
+      palette?: Palette;
+      template?: never;
+    }
+  | { template: SpxTemplate; variant?: never; palette?: never }
+) & {
   lazy?: boolean;
 };
 
-export default function MiniPreview({ variant, template: built, lazy }: Props) {
+export default function MiniPreview({ variant, palette, template: built, lazy }: Props) {
   const ref = useRef<HTMLIFrameElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   // Mount the iframe only once the card scrolls into view (the GraphicThumb recipe): the
@@ -57,8 +67,8 @@ export default function MiniPreview({ variant, template: built, lazy }: Props) {
     return () => io.disconnect();
   }, [built, lazy]);
   const template = useMemo(
-    () => (visible ? (built ?? variant?.create() ?? null) : null),
-    [built, variant, visible],
+    () => (visible ? (built ?? variant?.create(palette ? { palette } : undefined) ?? null) : null),
+    [built, variant, palette, visible],
   );
   // The card shows the design's own field defaults — a picker has no operator data to overlay.
   const data = useMemo(() => {

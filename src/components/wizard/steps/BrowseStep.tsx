@@ -64,10 +64,8 @@ interface Props {
   onBuildMode: (mode: BuildMode) => void;
   /** The kit half's state, held by the wizard so Back returns to the set as it was left. */
   kitPack: TemplatePack | null;
-  kitFamily: StyleTag | null;
   kitSelected: string[];
   onKitPack: (pack: TemplatePack) => void;
-  onKitFamily: (family: StyleTag) => void;
   onKitSelected: (keys: string[]) => void;
 }
 
@@ -318,10 +316,8 @@ export default function BrowseStep({
   buildMode,
   onBuildMode,
   kitPack,
-  kitFamily,
   kitSelected,
   onKitPack,
-  onKitFamily,
   onKitSelected,
 }: Props) {
   const set = (patch: Partial<BrowseFilters>) => onFilters((prev) => ({ ...prev, ...patch }));
@@ -489,7 +485,7 @@ export default function BrowseStep({
           data-build-mode="kit"
         >
           <strong>A whole kit</strong>
-          <span className="hint">Every graphic a show needs, in one look, in one production.</span>
+          <span className="hint">About ten graphics for one kind of show, in one Style.</span>
         </button>
       </div>
 
@@ -504,12 +500,12 @@ export default function BrowseStep({
         type="search"
         placeholder={
           buildMode === 'kit'
-            ? 'Search shows and graphics, for example “church”, “esports”, “ticker”…'
+            ? 'Search kits and graphics, for example “church”, “esports”, “ticker”…'
             : 'Search all templates, for example “name graphic”, “countdown”, “church verse”…'
         }
         value={filters.query}
         onChange={(e) => set({ query: e.target.value })}
-        aria-label={buildMode === 'kit' ? 'Search shows and graphics' : 'Search templates'}
+        aria-label={buildMode === 'kit' ? 'Search kits and graphics' : 'Search templates'}
       />
 
       {/* Project format - the graphic's own frame, NOT a facet: nothing here narrows the
@@ -531,10 +527,8 @@ export default function BrowseStep({
       {buildMode === 'kit' ? (
         <KitPicker
           pack={kitPack}
-          family={kitFamily}
           selected={kitSelected}
           onPack={onKitPack}
-          onFamily={onKitFamily}
           onSelected={onKitSelected}
           query={filters.query}
           onClearQuery={() => set({ query: '' })}

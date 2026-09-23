@@ -942,10 +942,11 @@
   .wz-buildmode { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ── The KIT CONTENTS PICKER (Browse's kit half): pick a show, then edit the set ────
-   The grid is the whole decision, so cards stay scannable rather than pretty: name,
-   who it is for, and how many graphics land. The detail panel below only appears once
-   a kit is picked - an empty panel would imply a step that is not there. */
+/* ── The KIT PICKER (Browse's kit half): pick a kit, then edit the set ────
+   The grid is the whole decision, so a card is scannable at a glance: its COVER (the kit's
+   signature graphic in the kit's own Style - the only way twelve kits read as twelve looks),
+   its name, who it is for, and how many graphics land. The detail panel below only appears
+   once a kit is picked - an empty panel would imply a step that is not there. */
 .wz-kit { display: flex; flex-direction: column; gap: 14px; }
 .wz-kit-lede { color: var(--text-dim); margin: 0; }
 /* THE SHOW LIST SCROLLS IN ITS OWN BOX, and that is what makes the step work. Unbounded, 21
@@ -957,21 +958,25 @@
    strip, which scrolls in its own four-row box on a phone. */
 .wz-kit-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 10px;
-  max-height: 268px;
+  max-height: 300px;
   overflow-y: auto;
   scrollbar-width: thin;
   /* Room for the scrollbar, so a card's right edge is never sat on by it. */
   padding-right: 4px;
 }
 @media (max-width: 767px) { .wz-kit-grid { max-height: 208px; } }
+/* COVER LEFT, WORDS RIGHT. A cover stacked above the words made each card ~220px tall, so the
+   bounded grid showed barely one row of kits; side by side a card stays about as tall as its
+   three lines of copy and the grid still shows six kits at once. */
 .wz-kit-card {
   text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 10px 12px 10px 10px;
   background: var(--bg-1);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -980,7 +985,12 @@
 }
 .wz-kit-card:hover { border-color: var(--accent); background: var(--bg-2); transform: translateY(-1px); }
 .wz-kit-card.is-active { border-color: var(--accent); background: var(--bg-2); }
+.wz-kit-card-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .wz-kit-card strong { font-size: 14px; font-weight: 600; }
+/* The cover is a 16:9 frame, like the picture it holds. `.wz-kit-thumb` already makes it a
+   picture rather than a target, so a click on it reaches the card. */
+.wz-kit-cover { aspect-ratio: 16 / 9; }
+.wz-kit-cover .wz-mini { width: 100%; height: 100%; }
 .wz-kit-card .hint { font-size: 12px; }
 .wz-kit-count { font-size: 11px; color: var(--accent); }
 .wz-kit-detail {
@@ -994,10 +1004,9 @@
   border-radius: 10px;
 }
 .wz-kit-detail h3 { margin: 0; font-size: 16px; }
-/* Name, look and the LIVE COUNT on one row: the count is the promise the step makes, so it
-   sits beside the control that changes it rather than at the foot of a scrolling list. */
+/* The name and the LIVE COUNT on one row: the count is the promise the step makes, so it
+   sits at the top of the set it counts rather than at the foot of a scrolling list. */
 .wz-kit-detail-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; width: 100%; }
-.wz-kit-family { display: flex; align-items: center; gap: 8px; }
 .wz-kit-total { margin-left: auto; font-size: 12px; color: var(--accent); }
 .wz-kit-contents-label { font-size: 11px; color: var(--text-dim); margin: 0; }
 .wz-kit-filtered { margin: 0; font-size: 12px; }
@@ -1048,15 +1057,23 @@
 .wz-kit-item-head input { width: 13px; height: 13px; margin: 0; flex: 0 0 auto; }
 .wz-kit-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wz-kit-item-kind { font-size: 11px; padding-left: 19px; }
-/* An "add more" card is offered, not shipped, so it reads quieter than the pack's own until
+/* EVERY OTHER GRAPHIC IN THE KIT'S STYLE sits behind a disclosure, closed on arrival. The
+   author rule is what actually hides it: the browser's own `display: none` on a closed
+   `<details>`' children loses to ANY author `display`, and the list inside is a grid. */
+.wz-kit-others { width: 100%; }
+.wz-kit-others:not([open]) > *:not(summary) { display: none; }
+.wz-kit-others > summary { cursor: pointer; }
+.wz-kit-others[open] > summary { margin-bottom: 10px; }
+
+/* An "add more" card is offered, not shipped, so it reads quieter than the kit's own until
    it is ticked - and a ticked one reads exactly like a pack card, because at that point it
    IS one. */
 .wz-kit-contents--extra .wz-kit-item { border-style: dashed; opacity: 0.8; }
 .wz-kit-contents--extra .wz-kit-item.is-on { border-style: solid; opacity: 1; }
 
-/* ── THE KIT TRAY: which graphic of the set (the rail says where inside this graphic) ──
-   Same vocabulary as `.wz-dot`, deliberately: the mark is the rail's 26px square, done is
-   the rail's green, current is the rail's amber, pending is the rail's dimmed. */
+/* ── THE KIT TRAY: which graphic of the set is open, and the door to any other ──
+   Same vocabulary as `.wz-dot`, deliberately: the mark is the rail's square and the open
+   graphic wears the rail's amber. Every chip is a button - a kit is edited in any order. */
 .wz-kit-tray {
   flex: 0 0 auto;
   padding: 10px 20px 8px;
@@ -1068,8 +1085,8 @@
    break; the button takes its own line instead. */
 .wz-kit-tray-head { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; margin: 0 0 8px; }
 .wz-kit-tray-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); margin: 0; white-space: nowrap; }
-/* The escape from a long one-at-a-time walk. Quiet on purpose - it is an offer standing open,
-   not a call to action competing with Next. */
+/* "Apply this Style to all". Quiet on purpose - it is an offer standing open, not a call to
+   action competing with Next. */
 .wz-kit-tray-adopt {
   margin-left: auto;
   flex: 0 0 auto;
@@ -1089,20 +1106,26 @@
   overflow-x: auto;
   scrollbar-width: thin;
 }
+.wz-kit-tray-strip > li { flex: 0 0 auto; }
 .wz-kit-chip {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: center;
   gap: 2px 8px;
-  flex: 0 0 auto;
   width: 132px;
   padding: 6px 8px;
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
   color: var(--text-dim);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
+.wz-kit-chip:hover { color: var(--text); background: var(--bg-panel); border-color: var(--hairline); }
+/* The thumbnail is a picture, not a target: an iframe would swallow the click on the chip. */
+.wz-kit-chip-thumb { pointer-events: none; }
 /* THE SLOT IS 16:9, like the frame the graphic is authored in. At a flatter ratio the framing
    fits by HEIGHT and leaves a gap down each side, so a full-frame holding screen was pillarboxed
    in its chip while filling its cell in the Finish grid - the same graphic, two shapes, which
@@ -1115,14 +1138,6 @@
   border-radius: 3px;
   overflow: hidden;
   background: var(--bg-panel);
-}
-/* A GRAPHIC THAT HAS NOT BEEN MADE YET HAS NO PICTURE, and a filled dark box in its place
-   reads as a thumbnail that failed to load. The slot keeps its room (so the strip does not go
-   ragged as graphics land) and says "not yet" in the product's own idiom for that — the dashed
-   outline the make-one production card and the add-more pills already use. */
-.wz-kit-chip-thumb:empty {
-  background: transparent;
-  border: 1px dashed var(--hairline);
 }
 /* MiniPreview brings its own `.wz-mini` frame; inside a chip it fills the thumb slot. */
 .wz-kit-chip-thumb .wz-mini { width: 100%; height: 100%; }
@@ -1146,11 +1161,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.wz-kit-chip.is-done { color: var(--text-mid); }
-.wz-kit-chip.is-done .wz-kit-chip-mark { color: var(--state-ok); border-color: var(--state-ok-line); background: var(--state-ok-bg); }
 .wz-kit-chip.is-current { color: var(--text); background: var(--bg-panel-2); border-color: var(--hairline-2); }
 .wz-kit-chip.is-current .wz-kit-chip-mark { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
-.wz-kit-chip.is-pending { opacity: 0.5; }
 @media (max-width: 767px) {
   .wz-kit-tray { padding: 8px 12px 6px; }
   /* A phone has no room for a picture per chip; the mark and the name still carry both the
@@ -1159,24 +1171,10 @@
   .wz-kit-chip-thumb { display: none; }
 }
 
-/* ── The look question: a bordered card in the form column, never a modal ── */
-.wz-kit-look {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 20px;
-  border: 1px solid var(--accent-line);
-  border-radius: 10px;
-  background: var(--bg-1);
-}
-.wz-kit-look h3 { margin: 0; font-size: 18px; }
-.wz-kit-look-doors { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
-.wz-kit-look-doors .wz-entry-card { width: auto; flex: 1 1 260px; }
-.wz-kit-look-doors .wz-entry-head + .hint { min-height: calc(2 * 1.4em); }
-
-/* ── The kit's Finish: everything that was built, side by side ──
-   The grid IS the check on the kit's promise (one look across the set), so the cells are big
-   enough to compare and the names sit under them rather than over the picture. */
+/* ── The kit's HUB (its Finish step): the whole set, side by side ──
+   The grid IS the check on the kit's promise (one Style across the set), so the cells are big
+   enough to compare and the names sit under them rather than over the picture. On a catalog
+   kit every cell is a button that opens its graphic for editing. */
 .wz-kit-built {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -1194,6 +1192,31 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.wz-kit-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 8px;
+  align-items: center;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.wz-kit-open .wz-kit-thumb { grid-column: 1 / -1; aspect-ratio: 16 / 9; }
+.wz-kit-open .wz-kit-thumb .wz-mini { width: 100%; height: 100%; }
+/* "Edit" says what the card does, and stays quiet until the card is pointed at. */
+.wz-kit-open-cue { font-size: 11px; color: var(--text-faint); }
+.wz-kit-open:hover { border-color: var(--accent-line); background: var(--bg-2); }
+.wz-kit-open:hover .wz-kit-open-cue { color: var(--accent); }
+.wz-kit-open:hover .wz-kit-built-name { color: var(--text); }
+.wz-kit-hub-lede { margin: -4px 0 10px; }
+.wz-kit-finish [data-testid="kit-edit-contents"] { margin: 12px 0 8px; }
 /* The Pro result card's own copy of that grid (docs/NOACG_PRO_PLAN.md §15.9): the package,
    rendered small under the language it was composed from. It reuses `.wz-kit-built` because it
    is the same question one surface earlier - do these belong to each other - and only needs the

@@ -350,6 +350,11 @@ Not attempted, and why:
 
 ## 7. The discipline packs
 
+> **Merged 2026-09-23.** The nine discipline packs and Match Day are now ONE kit, **Sports**
+> (`docs/PACK_TAXONOMY.md` "Kit consolidation"). Each discipline's habits are fields of the same
+> sports types, and the timing tower is in the Sports kit's library. What follows is the history
+> of how they were cut.
+
 Nine new packs in `templates/packs.ts`: `football`, `ice-hockey`, `basketball`, `handball`,
 `racket-sports`, `motorsport`, `athletics`, `combat-sports`, `club-sports`. Match Day was widened
 from the old generic scoreboard to all eight sports types.
