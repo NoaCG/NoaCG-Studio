@@ -41,14 +41,15 @@ function clock() {
   return { now: () => t, sleep: (ms) => { t += ms; } };
 }
 
-test('a reviewed tip still on origin is stamped, labelled, dispatched and set to auto-merge', () => {
+test('a reviewed tip still on origin is stamped and labelled, and auto-merge is left to the session', () => {
   const { calls, git, gh } = fakes();
   const result = cloudQueue({ branch: 'feature', sha: SHA, review: 'build green, specs pass', git, gh });
   assert.deepEqual(result, { number: 7, url: 'https://github.com/o/r/pull/7', reviewed: { outcome: 'passing', run: 42 } });
   const said = calls.map((c) => c.join(' '));
   assert.ok(said.some((c) => c.includes(`statuses/${SHA}`) && c.includes('context=noacg/reviewed') && c.includes('description=cloud session: build green, specs pass')));
   assert.ok(said.includes('gh pr edit 7 --add-label land'));
-  assert.ok(said.includes('gh pr merge 7 --auto'));
+  // A workflow token's auto-merge never reaches the queue (pull requests 392 and 393).
+  assert.ok(!said.some((c) => c.startsWith('gh pr merge')));
   // Its own run already passed Reviewed: nothing re-run, no second run dispatched.
   assert.ok(!said.some((c) => c.startsWith('gh run rerun') || c.startsWith('gh workflow run')));
 });
@@ -98,9 +99,8 @@ test('a Reviewed that failed before the stamp existed is re-run once its run fin
   assert.deepEqual(result.reviewed, { outcome: 'rerun', run: 42 });
   const said = calls.map((c) => c.join(' '));
   assert.deepEqual(said.filter((c) => c.startsWith('gh run rerun')), ['gh run rerun 42 --job 901']);
-  // The stamp and auto-merge come first, so the re-run reads a status that is already there.
+  // The stamp comes first, so the re-run reads a status that is already there.
   assert.ok(said.findIndex((c) => c.includes('statuses/')) < said.findIndex((c) => c.startsWith('gh run rerun')));
-  assert.ok(said.findIndex((c) => c.startsWith('gh pr merge')) < said.findIndex((c) => c.startsWith('gh run rerun')));
 });
 
 test('a Reviewed still waiting reads the stamp by itself, and is left alone', () => {

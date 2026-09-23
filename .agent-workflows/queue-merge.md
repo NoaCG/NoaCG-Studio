@@ -169,19 +169,27 @@ A cloud session (Claude Code on the web) has no `gh` and no token that can post 
 2. Push the branch (`git push -u origin <branch>`) and open its pull request against `main` with
    the GitHub tools the session has. Write the description with `scripts/pr-description.mjs`, so a
    later `queue:merge` can refresh it.
-3. Dispatch `.github/workflows/cloud-queue-merge.yml` on `main` with three inputs: `branch`, `sha`
-   (the full sha of the tip you reviewed) and `review` (one line: what was checked and that it
-   passed). The GitHub tools' workflow-run action does it: workflow `cloud-queue-merge.yml`, ref
-   `main`. The workflow runs `scripts/cloud-queue.mjs` from `main`: it refuses a branch that moved
-   past `sha`, then posts `noacg/reviewed` as "cloud session: <review>", labels the pull request
-   `land` and turns auto-merge on. Then it waits for the pull request's own CI run and re-runs its
-   `Reviewed` job if that went red before the stamp existed - which is the usual case, since that
-   job waits only 150 s - because GitHub keeps the pull request out of the queue while that red
-   job stands, whatever another run says (pull request 390, 2026-09-23). The workflow's log says
-   which of the four things it did; `timeout` is the one that needs you: re-run that job by hand.
-   Read the workflow run to its end: a red run has queued nothing, whatever it did before failing
-   (the stamp and the label come first, so a pull request can look queued when it is not). The
-   pull request's timeline shows `auto_merge_enabled` once it really is.
+3. Dispatch `.github/workflows/cloud-queue-merge.yml` on `main` RIGHT AFTER opening the pull
+   request, with three inputs: `branch`, `sha` (the full sha of the tip you reviewed) and `review`
+   (one line: what was checked and that it passed). The GitHub tools' workflow-run action does it:
+   workflow `cloud-queue-merge.yml`, ref `main`. The workflow runs `scripts/cloud-queue.mjs` from
+   `main`: it refuses a branch that moved past `sha`, then posts `noacg/reviewed` as "cloud session:
+   <review>" and labels the pull request `land`. Dispatched straight away, the stamp lands inside
+   the 150 s the pull request's own `Reviewed` job waits for it (pull request 393: 26 s). If that
+   job gave up first, the workflow waits for its run to finish and re-runs it, because GitHub keeps
+   the pull request out of the queue while that red job stands, whatever another run says (pull
+   request 390). Its log says which of four things it did; `timeout` needs you: re-run the job.
+4. Turn auto-merge on YOURSELF, with the GitHub tools' enable-auto-merge action. Not the workflow:
+   auto-merge turned on by a workflow token is recorded and then never reaches the queue (pull
+   requests 392 and 393, 2026-09-23), while the same switch thrown by the session, which acts as
+   its owner, queues a green pull request at once. Throw it after the workflow run is green; on a
+   pull request whose checks are still running it queues when they pass.
+5. Confirm on the pull request's timeline: `added_to_merge_queue`, then `merged`. Green checks and
+   no queue entry mean one of three things, all found on 2026-09-23. Auto-merge came from a
+   workflow token: turn it off and on again from the session. A red or CANCELLED `CI gate` or
+   `Reviewed` sits in any run on the tip: re-run it. Every run on the tip counts, and a ci.yml
+   run dispatched on the branch shares the push run's concurrency group, so it cancels the push
+   run.
 
 From there it is the same queue as every other landing. The branch freezes in the same sense: a
 push after the dispatch leaves a stamp on a sha that is no longer the tip, and `Reviewed` goes red

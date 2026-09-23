@@ -181,7 +181,10 @@ enablePullRequestAutoMerge refuses it; a `Reviewed` that gave up before the stam
 the pull request's own run until that job is re-run; and a dispatched ci.yml run on the branch
 shares the push run's concurrency group (`ci-<ref>`), so it cancels the push run and leaves a
 cancelled `CI gate` behind - which is why the workflow no longer dispatches one when a
-pull-request run exists.
+pull-request run exists. **A fourth, found landing pull request 393 through the fixed door:**
+auto-merge turned on by the workflow token is recorded and then never queues the pull request,
+even with every check green; turned on by the session, which acts as its owner, it queued at once.
+So the session throws auto-merge itself, and the workflow is back to a read-only checkout.
 
 **What a cloud session still cannot do, measured the same day:** push a tag or any branch but its
 own (the git proxy refuses; `workflow_dispatch` is the way round, as `release-cli.yml` shows); run

@@ -3,11 +3,12 @@
 # `npm run queue:merge` needs a machine with a signed-in `gh`. A cloud session (Claude Code on the
 # web) pushes its branch and opens its pull request with the GitHub tools it has, then dispatches
 # THIS workflow with the tip it reviewed and its verdict in one line. The workflow's token posts the
-# `noacg/reviewed` status on that exact tip, labels the pull request `land` and turns auto-merge on -
-# the same sequence as the laptop path. Then it waits for the pull request's own CI run and re-runs
-# its `Reviewed` job if that had already given up on the stamp, because GitHub holds the pull
-# request out of the queue while that red job stands. From there the merge queue lands it on CI
-# like any other branch. scripts/cloud-queue.mjs is the prose and the refusals.
+# `noacg/reviewed` status on that exact tip and labels the pull request `land`. Then it waits for the
+# pull request's own CI run and re-runs its `Reviewed` job if that had already given up on the
+# stamp, because GitHub holds the pull request out of the queue while that red job stands. The
+# session turns auto-merge on itself: a workflow token's auto-merge never reaches the merge queue.
+# From there the queue lands it on CI like any other branch. scripts/cloud-queue.mjs is the prose
+# and the refusals.
 #
 # Main's code does the stamping, never the branch's: the checkout is `main`, and a dispatch from any
 # other ref is refused, so a branch cannot rewrite what stamps it.
@@ -46,12 +47,10 @@ jobs:
     # has finished, and a full-suite run takes about twenty minutes (the script gives up at forty).
     timeout-minutes: 45
     permissions:
-      # `write`, because GitHub's enablePullRequestAutoMerge refuses a token that can only read the
-      # repository ("Resource not accessible by integration", pull request 392, 2026-09-23), and
-      # auto-merge is what hands the pull request to the merge queue. Nothing here pushes: the
-      # checkout is main's, and the ruleset refuses any push to main that is not the queue's.
-      contents: write
-      pull-requests: write # the `land` label and auto-merge
+      # `read` again: `write` was only ever for enablePullRequestAutoMerge, and auto-merge thrown by
+      # this token never reached the queue (pull request 393), so the session throws it instead.
+      contents: read
+      pull-requests: write # the `land` label
       issues: write # creating the label if it is missing
       statuses: write # the `noacg/reviewed` stamp
       actions: write # re-running the pull request's `Reviewed`, or dispatching ci.yml when it has no run
