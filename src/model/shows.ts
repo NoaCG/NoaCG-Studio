@@ -51,9 +51,6 @@ export interface PlayoutField {
  * template or a clip on a CasparCG server, listed through NoaCG Bridge and cued from the
  * rundown beside the production's own graphics (docs/BRIDGE.md §5). NoaCG stores the NAME and
  * where it plays; the file never travels. ADDITIVE OPTIONAL on the Show record.
- *
- * The channel is not stored here: it is the studio's setting (Settings -> Playout), the same
- * for every item, and a production record syncs to machines whose studio may differ.
  */
 export interface PlayoutItem {
   id: string;
@@ -65,6 +62,12 @@ export interface PlayoutItem {
   /** The layer it plays on. A template takes the next free layer like a graphic does; a clip
    *  plays on the shared clip layer below every graphic (PLAYOUT_CLIP_LAYER). */
   layer: number;
+  /** ADDITIVE OPTIONAL. The CasparCG channel it plays on, picked in the cue editor from the
+   *  channels the studio names in Settings -> Playout. Absent = the studio's GRAPHICS channel,
+   *  which is where every item saved before 2026-09-23 has always played, so an old record reads
+   *  unchanged. A plain number, not a reference to a Settings row: the record syncs to machines
+   *  whose studio may name its channels differently, and CasparCG only knows the number. */
+  channel?: number;
   /** A clip's length, when the server reported one. */
   frames?: number;
   fps?: number;
@@ -473,7 +476,9 @@ export const PLAYOUT_CLIP_LAYER = 10;
  * Put an item of the playout server's library into the production, with one cue on it - the
  * same shape addGraphicToShow gives a graphic, so the rundown is never empty-but-working. The
  * same NAME and kind is one item (adding twice keeps its cues); a template takes the next free
- * layer counted across graphics AND templates, a clip the shared clip layer.
+ * layer counted across graphics AND templates, a clip the shared clip layer. The CHANNEL is the
+ * caller's to give, from the studio's defaults (playoutLink.ts `defaultChannelFor`), because
+ * the record does not know the studio; none given stores none, which means the graphics channel.
  */
 export function addPlayoutItem(
   showId: string,
@@ -506,6 +511,16 @@ export function addPlayoutItem(
     return true;
   });
   return { shows, cueId };
+}
+
+/** Move a playout item to another CasparCG channel (the cue editor's channel pick). */
+export function setPlayoutItemChannel(showId: string, itemId: string, channel: number): Show[] {
+  return patchShow(showId, (show) => {
+    const item = show.playoutItems?.find((i) => i.id === itemId);
+    if (!item || !Number.isInteger(channel) || channel < 1) return false;
+    item.channel = channel;
+    return true;
+  });
 }
 
 /** Move a playout item to another layer (the cue editor's layer box). */

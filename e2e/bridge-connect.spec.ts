@@ -341,7 +341,8 @@ test('the server is configured once, app-wide, and survives a reload', async ({ 
   await openPlayoutSettings(page);
   const section = page.getByTestId('settings-playout');
   await section.getByTestId('caspar-host').fill('caspar-01.studio.lan');
-  await section.getByTestId('caspar-channel').fill('2');
+  // Renumbering the graphics channel's row carries the graphics default along with it.
+  await section.getByTestId('caspar-channel-number').first().fill('2');
   await section.getByTestId('caspar-layer').fill('30');
   await section.getByTestId('bridge-token').fill(TOKEN);
   // The hint tracks the numbers, so what CasparCG will be told is visible before it is sent.
@@ -351,8 +352,67 @@ test('the server is configured once, app-wide, and survives a reload', async ({ 
   await reopenPlayoutSettings(page);
   const back = page.getByTestId('settings-playout');
   await expect(back.getByTestId('caspar-host')).toHaveValue('caspar-01.studio.lan');
-  await expect(back.getByTestId('caspar-channel')).toHaveValue('2');
+  await expect(back.getByTestId('caspar-channel-number')).toHaveValue('2');
+  await expect(back.getByTestId('caspar-graphics-channel')).toHaveValue('2');
   await expect(back.getByTestId('caspar-layer')).toHaveValue('30');
+});
+
+test('a studio saved before channels had names reads as one row, and one click names the insert channel', async ({ page }) => {
+  // A v1 record with one channel and no table: the table is that one channel, named Graphics,
+  // and clips still go where they always went. Seeded only when ABSENT, unlike seedSettings,
+  // because the reload below must read back what the table wrote, not the seed again.
+  await page.addInitScript(
+    ([bridge, token]) => {
+      if (localStorage.getItem('spx-gfx-caspar')) return;
+      localStorage.setItem(
+        'spx-gfx-caspar',
+        JSON.stringify({ agentUrl: bridge, agentToken: token, host: '127.0.0.1', amcpPort: 5250, channel: 3, layer: 20, v: 1 }),
+      );
+    },
+    [BRIDGE, TOKEN] as const,
+  );
+  await fakeBridge(page);
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  await expect(section.getByTestId('caspar-channel-row')).toHaveCount(1);
+  await expect(section.getByTestId('caspar-channel-number')).toHaveValue('3');
+  await expect(section.getByTestId('caspar-channel-name')).toHaveValue('Graphics');
+  await expect(section.getByTestId('caspar-graphics-channel')).toHaveValue('3');
+  await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('3');
+  // The graphics channel cannot be removed out from under the output URL.
+  await expect(section.getByTestId('caspar-channel-remove')).toBeDisabled();
+
+  // Add channel: the next number, already named Inserts and already the clip default.
+  await section.getByTestId('caspar-channel-add').click();
+  const rows = section.getByTestId('caspar-channel-row');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(1).getByTestId('caspar-channel-number')).toHaveValue('4');
+  await expect(rows.nth(1).getByTestId('caspar-channel-name')).toHaveValue('Inserts');
+  await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('4');
+  await expect(section.getByTestId('caspar-clip-channel').locator('option:checked')).toHaveText('4 · Inserts');
+  // A second added row is a plain one: the clip default stays where it was put.
+  await section.getByTestId('caspar-channel-add').click();
+  await expect(rows.nth(2).getByTestId('caspar-channel-name')).toHaveValue('');
+  await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('4');
+
+  // Two rows on one number is a typo the table says out loud.
+  await rows.nth(2).getByTestId('caspar-channel-number').fill('4');
+  await expect(section.getByTestId('caspar-channel-duplicate')).toContainText('channel 4');
+  await rows.nth(2).getByTestId('caspar-channel-remove').click();
+  await expect(section.getByTestId('caspar-channel-duplicate')).toHaveCount(0);
+
+  await page.reload();
+  await reopenPlayoutSettings(page);
+  const back = page.getByTestId('settings-playout');
+  await expect(back.getByTestId('caspar-channel-row')).toHaveCount(2);
+  await expect(back.getByTestId('caspar-clip-channel')).toHaveValue('4');
+  await expect(back.getByTestId('caspar-graphics-channel')).toHaveValue('3');
+
+  // Removing the insert channel sends clips back to the graphics channel rather than to a
+  // number no row names.
+  await back.getByTestId('caspar-channel-row').nth(1).getByTestId('caspar-channel-remove').click();
+  await expect(back.getByTestId('caspar-channel-row')).toHaveCount(1);
+  await expect(back.getByTestId('caspar-clip-channel')).toHaveValue('3');
 });
 
 test('editing a setting drops the last verdict, so a stale tick never speaks for new numbers', async ({ page }) => {

@@ -122,8 +122,9 @@ jobs:
       # THE FLOOR IS WHAT ACTUALLY RUNS, which is the suite's size minus the one test that is
       # allowlisted below. `npx playwright test --config playwright.live.config.ts --list` counts
       # 54 on 2026-09-22, after anonymous.spec.ts gained its two signed-out sign-in doors (Start
-      # production and a control-panel link), and `bridge-real-server.spec.ts` skips its single
-      # test without real hardware - so 53 run. The suite was 52 against a floor of 51 before
+      # production and a control-panel link), and `bridge-real-server.spec.ts` skips its tests
+      # without real hardware - so 53 run. (Its second test, the two-channel walk, was added on
+      # 2026-09-23 and skips the same way, so it moved the listed count and not this floor.) The suite was 52 against a floor of 51 before
       # that, the same arithmetic one test smaller. The floor was
       # 51 on 2026-09-21,
       # with `dashboard-hosted-walk.spec.ts` added that day; the floor had drifted to 46 against a
@@ -137,7 +138,7 @@ jobs:
       MIN_TESTS: 53
       # An entry here is coverage being given up, so adding one needs a reason written next to it.
       # `bridge-real-server.spec.ts` drives a REAL Bridge process and a REAL CasparCG over the
-      # network, behind `BRIDGE_REAL=1`; a runner has neither, so its one test can only ever skip.
+      # network, behind `BRIDGE_REAL=1`; a runner has neither, so its tests can only ever skip.
       # It landed on 2026-09-22 and made every run of this suite red (issue #371) while the code it
       # covers was fine. Nothing else may skip: with the local stack there is no other reason to.
       ALLOWED_SKIPS: 'bridge-real-server.spec.ts'

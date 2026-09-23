@@ -13,17 +13,28 @@ const TOKEN = 'e2e-token';
 /** A 1x1 PNG, the shape THUMBNAIL RETRIEVE answers with. */
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
-async function seedSettings(page: Page): Promise<void> {
+/** A paired studio. Without `patch` it is a record from before channels had names - one
+ *  channel, no table - which is what every studio saved before 2026-09-23 holds. */
+async function seedSettings(page: Page, patch: Record<string, unknown> = {}): Promise<void> {
   await page.addInitScript(
-    ([bridge, token]) => {
+    ([bridge, token, extra]) => {
       localStorage.setItem(
         'spx-gfx-caspar',
-        JSON.stringify({ agentUrl: bridge, agentToken: token, host: '127.0.0.1', amcpPort: 5250, channel: 1, layer: 20, v: 1 }),
+        JSON.stringify({ agentUrl: bridge, agentToken: token, host: '127.0.0.1', amcpPort: 5250, channel: 1, layer: 20, v: 1, ...extra }),
       );
     },
-    [BRIDGE, TOKEN] as const,
+    [BRIDGE, TOKEN, patch] as const,
   );
 }
+
+/** The studio a real broadcast runs: graphics on channel 1, video inserts on channel 2. */
+const TWO_CHANNELS = {
+  channels: [
+    { channel: 1, name: 'Graphics' },
+    { channel: 2, name: 'Inserts' },
+  ],
+  clipChannel: 2,
+};
 
 interface FakeBridge {
   missing?: boolean;
@@ -161,11 +172,12 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
   await expect.poll(() => bridge.thumbnails).toContain('GIORNO');
   await rows.first().getByTestId('picker-add').click();
 
-  // The cue: the server's name, the kind word, and the shared clip layer below every graphic.
+  // The cue: the server's name, the kind word, and the shared clip layer below every graphic -
+  // on the studio's one channel, since this studio has named no other.
   const cue = page.locator('.pd-cue', { hasText: 'GIORNO' });
   await expect(cue).toHaveCount(1);
   await expect(cue).toContainText('Server clip');
-  await expect(cue.getByTestId('cue-layer')).toHaveText('L10');
+  await expect(cue.getByTestId('cue-layer')).toHaveText('1-10');
   await expect(page.getByTestId('playout-cue-editor')).toBeVisible();
   await expect(page.getByTestId('playout-cue-editor')).toContainText('SERVER CLIP');
   await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok');
@@ -206,7 +218,7 @@ test('a server template takes the next free layer, carries its typed fields as J
   const cue = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
   await expect(cue).toContainText('Server template');
   // The production's own graphic holds 20, so the template took the next free one.
-  await expect(cue.getByTestId('cue-layer')).toHaveText('L21');
+  await expect(cue.getByTestId('cue-layer')).toHaveText('1-21');
   const editor = page.getByTestId('playout-cue-editor');
   await expect(editor).toContainText('SERVER TEMPLATE');
   await expect(editor.getByTestId('cue-field-f0')).toBeVisible();
@@ -315,4 +327,150 @@ test('a server cue and its item are removed together, and survive a reload as pa
     return loadShows()[0].playoutItems ?? [];
   });
   expect(items).toEqual([]);
+});
+
+test('one rundown cues a template on the graphics channel and a clip on the insert channel, any cue can move, and All out clears both', async ({ page }) => {
+  await seedSettings(page, TWO_CHANNELS);
+  const bridge = await fakeBridge(page);
+  await productionPage(page);
+
+  // A server template: the graphics channel, which the record stores as no channel at all.
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-field-ids').fill('f0');
+  await page.locator('[data-testid="picker-row"][data-name="HOUSE_STRAP/HOUSE_STRAP"]').getByTestId('picker-add').click();
+  const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
+  await expect(strap.getByTestId('cue-layer')).toHaveText('1-21');
+  const editor = page.getByTestId('playout-cue-editor');
+  await expect(editor.getByTestId('playout-channel')).toHaveValue('1');
+  await expect(editor.getByTestId('playout-channel').locator('option:checked')).toHaveText('1 · Graphics');
+  // Picked from the named channels, never typed.
+  await expect(editor.getByTestId('playout-channel').locator('option')).toHaveText(['1 · Graphics', '2 · Inserts']);
+
+  // A clip from the same server: the insert channel, on the clip layer.
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-media').click();
+  await page.locator('[data-testid="picker-row"][data-name="GIORNO"]').getByTestId('picker-add').click();
+  const clip = page.locator('.pd-cue', { hasText: 'GIORNO' });
+  await expect(clip.getByTestId('cue-layer')).toHaveText('2-10');
+  await expect(editor.getByTestId('playout-channel')).toHaveValue('2');
+  await expect(editor.getByTestId('playout-cue-where')).toContainText('2-10');
+  const stored = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return (loadShows()[0].playoutItems ?? []).map((i) => ({ name: i.name, channel: i.channel ?? null }));
+  });
+  expect(stored).toEqual([
+    { name: 'HOUSE_STRAP/HOUSE_STRAP', channel: null },
+    { name: 'GIORNO', channel: 2 },
+  ]);
+
+  // Both taken from the one rundown, each on its own channel.
+  await strap.getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(strap).toContainText('ON AIR');
+  await expect.poll(() => lastAction(bridge)).toMatchObject({ verb: 'take', slot: { channel: 1, layer: 21 } });
+  await clip.getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(clip).toContainText('ON AIR');
+  await expect.poll(() => lastAction(bridge)).toEqual({
+    verb: 'take',
+    item: { kind: 'media', name: 'GIORNO' },
+    slot: { adapter: 'casparcg', channel: 2, layer: 10 },
+  });
+  await expect(page.getByTestId('production-note')).toContainText('✓ Take: GIORNO on 2-10');
+  await expect(page.getByTestId('playout-on-air')).toContainText('(1-21)');
+  await expect(page.getByTestId('playout-on-air')).toContainText('(2-10)');
+
+  // The override, on a cue that is ON AIR: the pick moves the cue for its NEXT take, and Out
+  // still reaches 1-21 where it actually is, so nothing is stranded on the old channel.
+  await strap.getByTestId('select-cue').click();
+  await editor.getByTestId('playout-channel').selectOption('2');
+  await expect(strap.getByTestId('cue-layer')).toHaveText('2-21');
+  await page.getByTestId('verb-out').click();
+  await expect.poll(() => lastAction(bridge)).toMatchObject({ verb: 'out', slot: { channel: 1, layer: 21 } });
+  await expect(strap).not.toContainText('ON AIR');
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => lastAction(bridge)).toMatchObject({ verb: 'take', slot: { channel: 2, layer: 21 } });
+  await expect(strap).toContainText('ON AIR');
+
+  // Moved back while on air and RE-TAKEN with no Out between: the copy on 2-21 comes off
+  // first, so the move never leaves a second strap stranded on the old channel.
+  await editor.getByTestId('playout-channel').selectOption('1');
+  const mark = bridge.actions.length;
+  await page.getByTestId('verb-retake').click();
+  await expect.poll(() => bridge.actions.length - mark).toBe(2);
+  expect(bridge.actions.slice(mark)).toMatchObject([
+    { verb: 'out', slot: { channel: 2, layer: 21 }, item: { kind: 'template', name: 'HOUSE_STRAP/HOUSE_STRAP' } },
+    { verb: 'take', slot: { channel: 1, layer: 21 } },
+  ]);
+  await expect(strap).toContainText('ON AIR');
+
+  // All out: one Out per cue this rundown has up, each on the slot it went to, and nothing else
+  // - no channel-wide CLEAR that would take another client's layers with it.
+  const before = bridge.actions.length;
+  await page.getByTestId('verb-out-all').click();
+  await expect(strap).not.toContainText('ON AIR');
+  await expect(clip).not.toContainText('ON AIR');
+  await expect.poll(() => bridge.actions.length - before).toBe(2);
+  const outs = bridge.actions.slice(before) as { verb: string; slot: { channel: number; layer: number } }[];
+  expect(outs.map((a) => `${a.verb} ${a.slot.channel}-${a.slot.layer}`).sort()).toEqual(['out 1-21', 'out 2-10']);
+  await expect(page.getByTestId('playout-on-air')).toHaveCount(0);
+
+  // The hosted control page is told the same address: the published payload carries each server
+  // cue's channel and its name, and survives the reader the hosted page uses.
+  const published = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { buildOutputPayload, readOutputPayload } = await import('/src/control/hostedControl.ts');
+    const payload = readOutputPayload(JSON.parse(JSON.stringify(await buildOutputPayload(loadShows()[0]))));
+    return (payload?.playoutCues ?? []).map((c) => ({ name: c.name, channel: c.channel, channelName: c.channelName, layer: c.layer }));
+  });
+  expect(published).toEqual([
+    { name: 'HOUSE_STRAP/HOUSE_STRAP', channel: 1, channelName: 'Graphics', layer: 21 },
+    { name: 'GIORNO', channel: 2, channelName: 'Inserts', layer: 10 },
+  ]);
+});
+
+test('a take on a slot another cue holds replaces it, and a channel the studio does not name stays listed as itself', async ({ page }) => {
+  await seedSettings(page, TWO_CHANNELS);
+  const bridge = await fakeBridge(page);
+  await productionPage(page);
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-media').click();
+  await page.locator('[data-testid="picker-row"][data-name="GIORNO"]').getByTestId('picker-add').click();
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-media').click();
+  await page.locator('[data-testid="picker-row"][data-name="JÄÄKIEKKO"]').getByTestId('picker-add').click();
+  const giorno = page.locator('.pd-cue', { hasText: 'GIORNO' });
+  const still = page.locator('.pd-cue', { hasText: 'JÄÄKIEKKO' });
+
+  // Both clips share 2-10: taking the second replaces the first on the server, so the first
+  // row stops saying ON AIR and All out sends one Out, not two.
+  await giorno.getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(giorno).toContainText('ON AIR');
+  await still.getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(still).toContainText('ON AIR');
+  await expect(giorno).not.toContainText('ON AIR');
+  const before = bridge.actions.length;
+  await page.getByTestId('verb-out-all').click();
+  await expect(still).not.toContainText('ON AIR');
+  await expect.poll(() => bridge.actions.length - before).toBe(1);
+  expect(bridge.actions[before]).toMatchObject({ verb: 'out', slot: { channel: 2, layer: 10 } });
+
+  // A production made in a studio with a channel 5 opens here with that cue still on 5.
+  await page.evaluate(async () => {
+    const { loadShows, setPlayoutItemChannel } = await import('/src/model/shows.ts');
+    const show = loadShows()[0];
+    setPlayoutItemChannel(show.id, show.playoutItems![0].id, 5);
+    // Landed, not just accepted, before the reload below reads it back.
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    await commitDurableWrites();
+  });
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('select-cue').click();
+  const pick = page.getByTestId('playout-cue-editor').getByTestId('playout-channel');
+  await expect(pick).toHaveValue('5');
+  await expect(pick.locator('option:checked')).toHaveText('5 · not in Settings');
+  await expect(page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('cue-layer')).toHaveText('5-10');
 });

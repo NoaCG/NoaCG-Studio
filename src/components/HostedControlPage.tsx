@@ -1179,7 +1179,20 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                   <span className="pd-cue-label">
                     <strong>{cue.label}</strong>
                     <span className="muted">
-                      <span className="pd-cue-layer">L{cue.layer}</span> · {cue.kind === 'media' ? 'Server clip' : 'Server template'} ·{' '}
+                      {/* The same CasparCG address the operator's rundown row wears (`2-10`),
+                          so both dashboards say which channel a cue airs on. */}
+                      <span
+                        className="pd-cue-layer"
+                        title={
+                          cue.channel
+                            ? `Channel ${cue.channel}${cue.channelName ? ` (${cue.channelName})` : ''}, layer ${cue.layer}`
+                            : `Layer ${cue.layer}`
+                        }
+                        data-testid="hosted-playout-cue-slot"
+                      >
+                        {cue.channel ? `${cue.channel}-${cue.layer}` : `L${cue.layer}`}
+                      </span>{' '}
+                      · {cue.kind === 'media' ? 'Server clip' : 'Server template'} ·{' '}
                       {cue.note || cue.name}
                     </span>
                   </span>

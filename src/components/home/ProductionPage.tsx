@@ -25,6 +25,7 @@ import {
   addPlayoutItem,
   playoutItemOf,
   removePlayoutItem,
+  setPlayoutItemChannel,
   setPlayoutItemFields,
   setPlayoutItemLayer,
   type PlayoutItem,
@@ -33,14 +34,18 @@ import {
 } from '../../model/shows';
 import {
   act,
+  channelLabel,
+  channelOf,
+  channelTitle,
+  defaultChannelFor,
+  itemSlot,
   loadPlayoutSettings,
   playoutConfigured,
   slotAddress,
-  slotOf,
   subscribeTargetStatus,
   type PlayoutResult,
 } from '../../control/playoutLink';
-import type { PlayoutAction } from '../../control/playoutProtocol';
+import type { PlayoutAction, Slot } from '../../control/playoutProtocol';
 import { graphicKindLabel, type Resolution } from '../../model/types';
 import {
   diffResolved,
@@ -343,12 +348,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── Live status: the renderer heartbeat + which cue is on air ON EACH LAYER. Several
   // graphics are up at once by design, so this is a map keyed by graphic name. ──
   const [liveCue, setLiveCueState] = useState<LiveCueMap>({});
-  /** What this page believes is up on the PLAYOUT SERVER, by playout item id -> cue id
-   *  (docs/BRIDGE.md §5). Page state, like the log-free half of `liveCue` before publishing:
-   *  a server cue is one command through NoaCG Bridge, and nothing reports back what the
-   *  server holds - so the row says ON AIR from the moment the command was accepted, and a
-   *  refused one never marks it. */
-  const [livePlayout, setLivePlayout] = useState<Record<string, string>>({});
+  /** What this page believes is up on the PLAYOUT SERVER, by playout item id -> the cue that
+   *  put it there and the SLOT it was taken to (docs/BRIDGE.md §5). Page state, like the
+   *  log-free half of `liveCue` before publishing: a server cue is one command through NoaCG
+   *  Bridge, and nothing reports back what the server holds - so the row says ON AIR from the
+   *  moment the command was accepted, and a refused one never marks it.
+   *
+   *  The slot is remembered rather than re-derived because the item's channel and layer stay
+   *  editable while it is on air: Out, Update and All out must reach where the cue IS, not where
+   *  its editor now points, or a channel changed mid-show would strand the clip on air. */
+  const [livePlayout, setLivePlayout] = useState<Record<string, { cueId: string; slot: Slot }>>({});
   /** The Bridge's last word on the playout server, polled while this production has server
    *  cues: what the editor shows beside a server cue, and what disables its Take. */
   const [bridgeStatus, setBridgeStatus] = useState<PlayoutResult | null>(null);
@@ -1739,19 +1748,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     .filter((l): l is { layer: number; graphic: string; cueId: string } => !!l.cueId)
     .map((l) => ({ ...l, label: cues.find((c) => c.id === l.cueId)?.label ?? l.graphic }))
     .sort((a, b) => b.layer - a.layer);
-  /** The server cues this page has put up, front to back - named on the PROGRAM header and
-   *  cleared by All out, but never drawn: they play on the server, not in a browser. */
+  /** The studio's playout settings as they stand: read on render, like the door below, so the
+   *  channel names follow Settings -> Playout the moment it closes. One localStorage read. */
+  const playoutSettings = loadPlayoutSettings();
+  /** The server cues this page has put up, by channel and then front to back - named on the
+   *  PROGRAM header and cleared by All out, but never drawn: they play on the server, not in a
+   *  browser. Each carries the slot it was TAKEN to, whichever channel that is. */
   const livePlayoutLayers = playoutItems
-    .map((item) => ({ item, cue: cues.find((c) => c.id === livePlayout[item.id]) ?? null }))
-    .filter((l): l is { item: PlayoutItem; cue: ShowCue } => !!l.cue)
-    .map((l) => ({ layer: l.item.layer, name: l.item.name, cue: l.cue, label: l.cue.label }))
-    .sort((a, b) => b.layer - a.layer);
+    .map((item) => ({ item, live: livePlayout[item.id] ?? null }))
+    .map((l) => ({ ...l, cue: l.live ? (cues.find((c) => c.id === l.live!.cueId) ?? null) : null }))
+    .filter((l): l is { item: PlayoutItem; live: { cueId: string; slot: Slot }; cue: ShowCue } => !!l.cue)
+    .map((l) => ({ slot: l.live.slot, name: l.item.name, cue: l.cue, label: l.cue.label }))
+    .sort((a, b) => a.slot.channel - b.slot.channel || b.slot.layer - a.slot.layer);
 
   const selectedGraphic = selectedCue ? cueGraphicName(selectedCue) : null;
   /** A cue over the playout server's library, and whether THIS cue is what this page last put
    *  up on its item (docs/BRIDGE.md §5). */
   const selectedPlayoutItem = selectedCue ? playoutItemFor(selectedCue) : null;
-  const selectedPlayoutLive = !!selectedPlayoutItem && !!selectedCue && livePlayout[selectedPlayoutItem.id] === selectedCue.id;
+  const selectedPlayoutLive = !!selectedPlayoutItem && !!selectedCue && livePlayout[selectedPlayoutItem.id]?.cueId === selectedCue.id;
   /** What is on air on the SELECTED cue's layer — its own cue, another cue, or nothing. */
   const selectedLayerCueId = selectedGraphic ? liveCue[selectedGraphic] ?? null : null;
   const selectedLayerLive = !!selectedLayerCueId || selectedPlayoutLive;
@@ -1824,8 +1838,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (!item) return false;
     flushDraft();
     const settings = loadPlayoutSettings();
-    const slot = slotOf(settings, item.layer);
+    // A take goes where the cue is set to play now; every later verb goes where the take WENT.
+    const live = livePlayout[item.id];
+    const slot = verb !== 'take' && live ? live.slot : itemSlot(settings, item);
     const itemRef = { kind: item.kind, name: item.name };
+    // A RE-TAKE after the cue was moved to another channel or layer: its first copy is still up
+    // where it went, and nothing else knows it is there. Take that one off first, so the move is
+    // a move and not a second copy stranded on the old slot.
+    if (verb === 'take' && live && slotAddress(live.slot) !== slotAddress(slot)) {
+      const off = await act(settings, { verb: 'out', slot: live.slot, item: itemRef });
+      if (off.state !== 'ok') {
+        setNote(`${label} did not reach the playout server: ${item.name} is still on ${slotAddress(live.slot)} - ${off.detail}`);
+        return false;
+      }
+    }
     const values = cueView(cue).values;
     const action: PlayoutAction =
       verb === 'take'
@@ -1839,7 +1865,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return false;
     }
     setNote(`✓ ${label}: ${item.name} on ${slotAddress(slot)}`);
-    if (verb === 'take') setLivePlayout((m) => ({ ...m, [item.id]: cue.id }));
+    if (verb === 'take') {
+      // One slot holds one thing: a take REPLACES whatever another item of this rundown had up
+      // on the same channel and layer, on the server and so here too - two clips on 2-10 do not
+      // both stay ON AIR.
+      setLivePlayout((m) => {
+        const next: typeof m = {};
+        for (const [id, l] of Object.entries(m)) if (slotAddress(l.slot) !== slotAddress(slot)) next[id] = l;
+        return { ...next, [item.id]: { cueId: cue.id, slot } };
+      });
+    }
     if (verb === 'out') {
       setLivePlayout((m) => {
         const next = { ...m };
@@ -1957,7 +1992,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const isLast = cues.filter((c) => c.sourceId === cue.sourceId).length === 1;
     if (isLast && entry) await takeOffAir(entry.name);
     // A server cue that is up goes off with its row, the same courtesy a graphic gets.
-    if (cue.source === 'playout' && livePlayout[cue.sourceId] === cue.id) await playoutVerb(cue, 'out', 'Out');
+    if (cue.source === 'playout' && livePlayout[cue.sourceId]?.cueId === cue.id) await playoutVerb(cue, 'out', 'Out');
     setDraft(null);
     setShows(removeShowCue(show.id, cue.id));
   };
@@ -1968,7 +2003,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const entry = graphicByPoolId.get(poolId);
     if (!entry) {
       // The same gesture over a playout item: its cues go, and whatever is up goes off first.
-      const live = cues.find((c) => c.id === livePlayout[poolId]);
+      const live = cues.find((c) => c.id === livePlayout[poolId]?.cueId);
       if (live) await playoutVerb(live, 'out', 'Out');
       if (playoutItems.some((i) => i.id === poolId)) {
         setDraft(null);
@@ -1982,7 +2017,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   /** Clear the screen — the one an operator reaches for under pressure, which is why it sits
-   *  apart from the others, in the header. */
+   *  apart from the others, in the header. Every server cue this page put up goes off on the
+   *  channel and layer it was taken to, so a rundown airing graphics on 1 and inserts on 2
+   *  clears both; nothing is cleared that this rundown did not put there, so another client's
+   *  layers on the same server stay where they are. */
   const outAll = async () => {
     for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out');
     if (liveLayers.length === 0) return;
@@ -2685,7 +2723,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   title="Playing on the playout server through NoaCG Bridge - not shown on this monitor"
                   data-testid="playout-on-air"
                 >
-                  server: {livePlayoutLayers.map((l) => `${l.label} (L${l.layer})`).join(' · ')}
+                  server: {livePlayoutLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
                 </span>
               )}
             </h2>
@@ -3073,7 +3111,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             </div>
             <p className="hint pd-server-where" data-testid="playout-cue-where">
               <code>{selectedPlayoutItem.name}</code> plays on the playout server, on{' '}
-              <code>{slotAddress(slotOf(loadPlayoutSettings(), selectedPlayoutItem.layer))}</code>, through NoaCG
+              <code>{slotAddress(itemSlot(playoutSettings, selectedPlayoutItem))}</code>, through NoaCG
               Bridge. It is not shown on the PROGRAM monitor here.
             </p>
             {selectedPlayoutItem.kind === 'template' && (
@@ -3109,7 +3147,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 </button>
               </div>
             )}
-            <div className="pd-cue-meta" data-testid="cue-meta">
+            {/* WHERE IT PLAYS, as a CasparCG client puts it: the channel, then the layer. The
+                channel is a pick from the channels Settings names, never a typed number; a
+                channel this studio does not name (a production made elsewhere, a row removed
+                since) stays listed as itself rather than silently moving the cue. */}
+            <div className="pd-cue-meta pd-cue-meta--slot" data-testid="cue-meta">
               <label className="pd-field pd-field-note">
                 <span>Operator note</span>
                 <input
@@ -3119,8 +3161,27 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   data-testid="cue-note"
                 />
               </label>
+              <label className="pd-field pd-field-channel">
+                <span>Channel</span>
+                <select
+                  value={channelOf(playoutSettings, selectedPlayoutItem)}
+                  onChange={(e) => setShows(setPlayoutItemChannel(show.id, selectedPlayoutItem.id, Number(e.target.value)))}
+                  data-testid="playout-channel"
+                >
+                  {playoutSettings.channels.map((row) => (
+                    <option key={row.channel} value={row.channel}>
+                      {channelLabel(playoutSettings, row.channel)}
+                    </option>
+                  ))}
+                  {!playoutSettings.channels.some((row) => row.channel === channelOf(playoutSettings, selectedPlayoutItem)) && (
+                    <option value={channelOf(playoutSettings, selectedPlayoutItem)}>
+                      {channelOf(playoutSettings, selectedPlayoutItem)} · not in Settings
+                    </option>
+                  )}
+                </select>
+              </label>
               <label className="pd-field pd-field-layer">
-                <span>Playout layer</span>
+                <span>Layer</span>
                 <input
                   type="number"
                   min={MIN_PLAYOUT_LAYER}
@@ -3360,7 +3421,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             const poolEntry = graphicByPoolId.get(cue.sourceId);
             const playoutItem = playoutItemFor(cue);
             const cueIsLive =
-              (!!cueGraphic && liveCue[cueGraphic] === cue.id) || (!!playoutItem && livePlayout[playoutItem.id] === cue.id);
+              (!!cueGraphic && liveCue[cueGraphic] === cue.id) || (!!playoutItem && livePlayout[playoutItem.id]?.cueId === cue.id);
             const isSelected = cue.id === (selectedCue?.id ?? '');
             // The amber tally is the cue ON PREVIEW - the selection in 'take' mode, and in
             // 'preview-then-take' mode the cue SPACE put there, which the cursor may have left.
@@ -3428,11 +3489,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                         L{graphicLayer(poolEntry)}
                       </span>
                     )}
-                    {/* A server item wears its layer the same way; the kind word says where it
-                        lives, since the label is the operator's and the name is the server's. */}
+                    {/* A server item wears its CasparCG address, channel and layer, the way the
+                        server itself writes it (`2-10`): a rundown that airs on two channels
+                        has to say which one at a glance. The kind word says where it lives,
+                        since the label is the operator's and the name is the server's. */}
                     {playoutItem && (
-                      <span className="pd-cue-layer" title={`${playoutItem.name} plays on the playout server, layer ${playoutItem.layer}`} data-testid="cue-layer">
-                        L{playoutItem.layer}
+                      <span
+                        className="pd-cue-layer"
+                        title={`${playoutItem.name} plays on the playout server, ${channelTitle(playoutSettings, channelOf(playoutSettings, playoutItem))}, layer ${playoutItem.layer}`}
+                        data-testid="cue-layer"
+                      >
+                        {slotAddress(itemSlot(playoutSettings, playoutItem))}
                       </span>
                     )}
                     {poolEntry || playoutItem ? ' · ' : ''}
@@ -3614,7 +3681,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 onClose={() => setPickerOpen(false)}
                 library={library}
                 onAdd={(item) => {
-                  const { shows: next, cueId } = addPlayoutItem(show.id, { adapter: 'casparcg', ...item });
+                  // The studio's default channel for its kind: a clip to the clip channel, a
+                  // template to the graphics one. The graphics channel is stored as NO channel,
+                  // which is what "graphics channel" has always meant on this record.
+                  const settings = loadPlayoutSettings();
+                  const channel = defaultChannelFor(settings, item.kind);
+                  const { shows: next, cueId } = addPlayoutItem(show.id, {
+                    adapter: 'casparcg',
+                    ...item,
+                    ...(channel === settings.channel ? {} : { channel }),
+                  });
                   setShows(next);
                   if (cueId) selectCue(cueId);
                 }}

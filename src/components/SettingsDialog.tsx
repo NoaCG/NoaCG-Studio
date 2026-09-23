@@ -6,12 +6,16 @@ import { signOut, updatePassword } from '../backend/auth';
 import { listAgentKeys, revokeAgentKey, type AgentKeySummary } from '../backend/agentAccess';
 import {
   BRIDGE_DOWNLOAD_URL,
+  MAX_PLAYOUT_CHANNEL,
+  MIN_PLAYOUT_CHANNEL,
+  channelLabel,
   loadPlayoutSettings,
   playoutConfigured,
   savePlayoutSettings,
   slotAddress,
   slotOf,
   testConnection,
+  type PlayoutChannel,
   type PlayoutResult,
   type PlayoutSettings,
 } from '../control/playoutLink';
@@ -247,6 +251,37 @@ function PlayoutSection() {
   const configured = playoutConfigured(settings);
   const paired = Boolean(settings.agentToken.trim());
 
+  // ── The channel table. A row's NUMBER is what the defaults point at, so renumbering the
+  //    graphics or clip channel carries its default along rather than leaving it pointing at a
+  //    number no row names any more. ──
+  const setRow = (index: number, patch: Partial<PlayoutChannel>) => {
+    const was = settings.channels[index].channel;
+    const channels = settings.channels.map((row, i) => (i === index ? { ...row, ...patch } : row));
+    const moved = patch.channel !== undefined && patch.channel !== was;
+    set({
+      channels,
+      ...(moved && settings.channel === was ? { channel: patch.channel } : {}),
+      ...(moved && settings.clipChannel === was ? { clipChannel: patch.channel } : {}),
+    });
+  };
+  /** The next number up, and - while clips still share the graphics channel - the row a studio
+   *  with an insert channel wants, already named and already the clip default. One click from a
+   *  stock single-channel studio to "1 Graphics, 2 Inserts". */
+  const addRow = () => {
+    const next = Math.min(MAX_PLAYOUT_CHANNEL, Math.max(...settings.channels.map((row) => row.channel)) + 1);
+    const firstInserts = settings.clipChannel === settings.channel;
+    set({
+      channels: [...settings.channels, { channel: next, name: firstInserts ? 'Inserts' : '' }],
+      ...(firstInserts ? { clipChannel: next } : {}),
+    });
+  };
+  const removeRow = (index: number) => set({ channels: settings.channels.filter((_, i) => i !== index) });
+  /** Numbers two rows share: CasparCG has one channel per number, so one of them is a typo. */
+  const duplicateChannels = [
+    ...new Set(settings.channels.map((row) => row.channel).filter((n, i, all) => all.indexOf(n) !== i)),
+  ];
+  const channelOptions = [...new Map(settings.channels.map((row) => [row.channel, row] as const)).values()];
+
   return (
     <div data-testid="settings-playout">
       <p className="hint">
@@ -292,7 +327,7 @@ function PlayoutSection() {
         <div className="dlg-row">
           <label htmlFor="caspar-host">CasparCG server</label>
           {/* Host and AMCP port are one address, so they share a row. */}
-          <div className="dlg-pair">
+          <div className="dlg-pair dlg-pair--num">
             <input
               id="caspar-host"
               value={settings.host}
@@ -317,18 +352,87 @@ function PlayoutSection() {
           </p>
         </div>
 
+        {/* THE CHANNELS, named once so every cue in a rundown picks one from a short list beside
+            its layer, the way a CasparCG client does. One row is the whole setting for a studio
+            with one channel, which is what every studio had before this table. */}
+        <div className="dlg-row dlg-row--top">
+          <span className="dlg-row-label" id="caspar-channels-label">Channels</span>
+          <div className="playout-channels" role="group" aria-labelledby="caspar-channels-label">
+            {settings.channels.map((row, i) => {
+              const isGraphics = row.channel === settings.channel;
+              return (
+                <div className="playout-channel-row" key={i} data-testid="caspar-channel-row">
+                  <input
+                    type="number"
+                    min={MIN_PLAYOUT_CHANNEL}
+                    max={MAX_PLAYOUT_CHANNEL}
+                    value={row.channel}
+                    // A cleared box keeps the row's number rather than dropping the row: the
+                    // table is saved on every keystroke.
+                    onChange={(e) => setRow(i, { channel: Math.round(Number(e.target.value)) || row.channel })}
+                    aria-label={`Channel number, row ${i + 1}`}
+                    data-testid="caspar-channel-number"
+                  />
+                  <input
+                    value={row.name}
+                    onChange={(e) => setRow(i, { name: e.target.value })}
+                    placeholder="What it carries, e.g. Inserts"
+                    aria-label={`Channel ${row.channel} name`}
+                    data-testid="caspar-channel-name"
+                  />
+                  <button
+                    onClick={() => removeRow(i)}
+                    disabled={isGraphics}
+                    title={
+                      isGraphics
+                        ? 'The graphics channel. Choose another channel for graphics below before removing this one.'
+                        : `Remove channel ${row.channel}. Cues already on it keep playing there.`
+                    }
+                    aria-label={`Remove channel ${row.channel}`}
+                    data-testid="caspar-channel-remove"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+            <div>
+              <button
+                onClick={addRow}
+                disabled={Math.max(...settings.channels.map((row) => row.channel)) >= MAX_PLAYOUT_CHANNEL}
+                data-testid="caspar-channel-add"
+              >
+                + Add channel
+              </button>
+            </div>
+          </div>
+          {duplicateChannels.length > 0 && (
+            <p className="dlg-hint status-warn" data-testid="caspar-channel-duplicate">
+              Two rows name channel {duplicateChannels.join(' and ')}. CasparCG has one channel per
+              number, so give each row its own.
+            </p>
+          )}
+          <p className="dlg-hint">
+            The channels in this server&rsquo;s <code>casparcg.config</code>, named for what they carry.
+            Every server cue in a rundown picks one of these beside its layer.
+          </p>
+        </div>
+
         <div className="dlg-row">
-          <label htmlFor="caspar-channel">Channel and layer</label>
-          <div className="dlg-pair">
-            <input
-              id="caspar-channel"
-              type="number"
-              min={1}
+          <label htmlFor="caspar-graphics-channel">Graphics</label>
+          <div className="dlg-pair dlg-pair--num">
+            <select
+              id="caspar-graphics-channel"
               value={settings.channel}
-              onChange={(e) => set({ channel: Number(e.target.value) || 1 })}
-              aria-label="Channel"
-              data-testid="caspar-channel"
-            />
+              onChange={(e) => set({ channel: Number(e.target.value) })}
+              data-testid="caspar-graphics-channel"
+            >
+              {channelOptions.map((row) => (
+                <option key={row.channel} value={row.channel}>
+                  {channelLabel(settings, row.channel)}
+                </option>
+              ))}
+            </select>
             <input
               type="number"
               min={0}
@@ -339,9 +443,29 @@ function PlayoutSection() {
             />
           </div>
           <p className="dlg-hint">
-            Where NoaCG&rsquo;s own graphics go: CasparCG calls this{' '}
-            <code>{slotAddress(slotOf(settings))}</code>. Server templates cued from a rundown take
-            the next free layer above it, and clips play below it.
+            Where a production&rsquo;s own graphics go on air: CasparCG calls this{' '}
+            <code>{slotAddress(slotOf(settings))}</code>. Server templates are cued on this channel,
+            on the next free layer above it.
+          </p>
+        </div>
+
+        <div className="dlg-row">
+          <label htmlFor="caspar-clip-channel">Clips</label>
+          <select
+            id="caspar-clip-channel"
+            value={settings.clipChannel}
+            onChange={(e) => set({ clipChannel: Number(e.target.value) })}
+            data-testid="caspar-clip-channel"
+          >
+            {channelOptions.map((row) => (
+              <option key={row.channel} value={row.channel}>
+                {channelLabel(settings, row.channel)}
+              </option>
+            ))}
+          </select>
+          <p className="dlg-hint">
+            Where a server clip is cued when it is added to a rundown, on layer 10. Any cue can
+            pick another channel in its own editor.
           </p>
         </div>
       </div>

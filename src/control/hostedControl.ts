@@ -10,6 +10,7 @@
 
 import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
+import { channelOf, loadPlayoutSettings } from './playoutLink';
 import { readPublishedProfile, type ShowProfile } from '../model/profile';
 import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
@@ -118,6 +119,12 @@ export interface OutputPlayoutCue {
   kind: 'template' | 'media';
   name: string;
   layer: number;
+  /** ADDITIVE OPTIONAL. The CasparCG channel, resolved at publish by the operator's studio (an
+   *  item with no channel of its own plays on that studio's graphics channel), and the studio's
+   *  word for it. The hosted page cannot read the operator's Settings, so it is told both. A
+   *  payload published before 2026-09-23 has neither and the page shows the layer alone. */
+  channel?: number;
+  channelName?: string;
   note?: string;
 }
 
@@ -260,6 +267,9 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
     resolution: o.resolution ?? DEFAULT_GRAPHICS_RESOLUTION,
     graphics: o.graphics.map((g) => ({ ...g, assets: Array.isArray(g.assets) ? g.assets : [] })),
     cues: Array.isArray(o.cues) ? o.cues : [],
+    // Carried through, not dropped: the hosted page lists these beside the graphics' cues.
+    // Before 2026-09-23 this reader left them out and the list was never shown.
+    ...(Array.isArray(o.playoutCues) && o.playoutCues.length ? { playoutCues: o.playoutCues } : {}),
   };
 }
 
@@ -312,11 +322,23 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
       ...(c.note ? { note: c.note } : {}),
     }));
   const itemById = new Map((show.playoutItems ?? []).map((i) => [i.id, i] as const));
+  const playout = loadPlayoutSettings();
   const playoutCues: OutputPlayoutCue[] = (show.cues ?? [])
     .filter((c) => c.source === 'playout' && itemById.has(c.sourceId))
     .map((c) => {
       const item = itemById.get(c.sourceId)!;
-      return { id: c.id, label: c.label, kind: item.kind, name: item.name, layer: item.layer, ...(c.note ? { note: c.note } : {}) };
+      const channel = channelOf(playout, item);
+      const channelName = playout.channels.find((row) => row.channel === channel)?.name.trim();
+      return {
+        id: c.id,
+        label: c.label,
+        kind: item.kind,
+        name: item.name,
+        layer: item.layer,
+        channel,
+        ...(channelName ? { channelName } : {}),
+        ...(c.note ? { note: c.note } : {}),
+      };
     });
   return { v: 1, resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}) };
 }

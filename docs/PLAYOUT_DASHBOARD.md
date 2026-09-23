@@ -539,6 +539,12 @@ number, and **every rundown row on the shared number wears the warning colour**,
 partner on hover. Both rows, not just the one being edited — the point is which two graphics are
 about to replace each other. All three surfaces mark it the same way.
 
+**A server cue carries a CHANNEL as well** (2026-09-23, `docs/BRIDGE.md` §5). A template or clip
+cued from the playout server's own library plays on a CasparCG channel AND layer, so its row wears
+the full address the way the server writes it (`2-10`), and its editor puts a **Channel** pick
+beside the layer box, choosing from the channels Settings -> Playout names. A pool graphic has no
+channel pick: it plays inside the production's output page, which is on the graphics channel.
+
 ## 6. What is NOT here
 
 - **No Rehearse mode.** Preview is local and always available, published or not: choosing a cue

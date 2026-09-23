@@ -1287,7 +1287,8 @@ Storm warning issued</code></pre>
           <p>
             It opens a page in your browser; one click pairs the browser with the Bridge. Then fill
             in the CasparCG server under <strong>Settings &rarr; Playout</strong> once for the whole
-            studio (host, AMCP port, channel, layer) and press <strong>Test connection</strong>,
+            studio (host, AMCP port, its channels, and the layer graphics go on) and press
+            <strong>Test connection</strong>,
             which round-trips a real AMCP <code>VERSION</code> and shows the server's own version
             string. The Bridge listens on <code>127.0.0.1</code> only; CasparCG can be any machine
             on the studio network, exactly as with the Client, and nothing is exposed to the
@@ -1311,6 +1312,18 @@ Storm warning issued</code></pre>
             and taken off; a clip rolls, pauses, resumes and stops. Clips play on layer 10, below
             every graphic, so a strap never disappears behind a rolling clip. The file stays on the
             server; only its name is stored in the production.
+          </p>
+          <p>
+            <strong>More than one channel.</strong> A studio that runs graphics on one CasparCG
+            channel and video inserts on another names both under <strong>Settings &rarr;
+            Playout</strong>: <strong>Add channel</strong> adds <code>2 Inserts</code> and makes it
+            where new clips go, while templates and the production's own graphics stay on the
+            graphics channel. Every server cue shows its address in the rundown the way CasparCG
+            writes it (<code>2-10</code> is channel 2, layer 10), and its editor has a
+            <strong>Channel</strong> pick beside the layer to move that cue to another channel.
+            <strong>All out</strong> takes off every server cue the rundown put up, on whichever
+            channel it is, and leaves anything else on the server alone. A studio with one channel
+            sees one row and nothing changes.
           </p>
           <p>
             The list comes from the server's <strong>media scanner</strong>, which CasparCG runs

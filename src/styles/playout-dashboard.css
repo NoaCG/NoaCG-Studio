@@ -675,6 +675,16 @@
 .pd-field-over textarea,
 .pd-field-over select { border-color: var(--danger); }
 .pd-field-layer { max-width: 130px; }
+/* A SERVER cue's settings carry its CasparCG address too: the note, then the channel pick,
+   then the layer, in the order the server writes an address (`2-10`). The channel column is
+   wide enough for a named channel ("2 · Inserts") without the select clipping it. */
+.pd-cue-meta--slot { grid-template-columns: minmax(0, 1fr) 170px 96px; }
+.pd-field-channel select { width: 100%; }
+/* Chromium draws a select 2px taller than an input with the same padding and font, which left
+   the channel pick hanging below the note and layer boxes. Every box in the row grows to the
+   row's tallest instead, the way `.dlg-pair` stretches its pair, so all three share one edge. */
+.pd-cue-meta--slot > .pd-field > input,
+.pd-cue-meta--slot > .pd-field > select { flex: 1 1 auto; }
 /* THE GUTTER GOES AWAY BEFORE THE FIELDS DO. A band heading in a 92px left column is worth its
    width only while the fields beside it still have room; below this the heading sits on top of
    its own band and the fields keep the full width. The number is where one 250px field plus the
