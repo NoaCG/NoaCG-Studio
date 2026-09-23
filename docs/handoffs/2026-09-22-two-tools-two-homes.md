@@ -42,3 +42,31 @@ Not landed at the time of writing; queued through `/queue-merge` from this sessi
 `src/control/playoutLink.ts`, `src/components/SettingsDialog.tsx`,
 `src/components/home/PlayoutItemPicker.tsx`, `e2e/bridge-connect.spec.ts`, and the two docs
 files above. Blocks nothing; blocked by nothing.
+
+## 2026-09-23: verified in a real production, and released
+
+The owner ran the preview Bridge in a real production on 2026-09-23: paired on noacg.studio
+from the exe (Chrome's local-network prompt answered), Test connection against a Linux
+CasparCG, Put on air, cues taken, a second production put on air and the first re-taken. The
+one failure was not the Bridge: the hosting's bot check served "Failed to verify your browser"
+(checkpoint code 11) to CasparCG's built-in browser when it fetched the output page. Fixed
+once for everyone by a published Vercel firewall rule on the noacg-studio project, "Playout
+output page": Request Path starts with `/output`, action Bypass. Attack Mode and system
+mitigations were untouched. The troubleshooting row is in `docs/PLAYOUT_INTEGRATION.md`.
+
+Two observations for the road ahead, neither a defect: the first graphic after Put on air took
+about five seconds to appear (the page loading from the internet on the server; Put on air a
+minute early), and one production on air per layer is by design. The long-term direction the
+day confirmed: the playout server should not need the internet at all, which is milestone 3 in
+`docs/BRIDGE.md` (the Bridge serves the production to CasparCG over the LAN and follows the
+command log on its behalf).
+
+This commit dates the 0.4.0 section of `cli/BRIDGE_CHANGELOG.md`; the `bridge-v0.4.0` tag
+follows its landing, per the owner's word that the release may be published once verified.
+
+Also from 2026-09-23, not about the Bridge: the generated contracts (root and nested
+`AGENTS.md`, their `.gitattributes`) vanished from every worktree of this clone and from four of
+six local builds here, which turned the build gate red until they were restored with
+`git checkout --`. Filed with the measurements as
+`docs/backlog/generated-contracts-vanish-from-every-worktree.md`; the trigger was not isolated.
+The two-channel ask is filed as `docs/backlog/two-output-channels-in-one-rundown.md` with its plan.
