@@ -11,7 +11,12 @@
 //
 // This is the same declaration made from the GitHub side. The session pushes its branch, opens its
 // pull request, and dispatches this workflow with the tip it reviewed and its verdict in one line;
-// the workflow's own token does the rest. What it keeps from the laptop path, deliberately:
+// the workflow's own token posts the stamp and the label. AUTO-MERGE IS THE SESSION'S, NOT THIS
+// SCRIPT'S: the session turns it on with its own GitHub tools, which act as the person who owns
+// it. Measured on pull requests 392 and 393, 2026-09-23: auto-merge turned on by a workflow token
+// is recorded on the pull request and then never hands it to the merge queue, however green its
+// checks go, while the same switch thrown as a person queues it at once. What it keeps from the
+// laptop path, deliberately:
 //
 //   - THE TIP IS PINNED. The stamp goes on the sha the session names, and only if the branch still
 //     points there - a push after the review is refused, exactly as `add-merge --expect-sha` is.
@@ -73,9 +78,9 @@ export function checkInputs({ branch, sha, review }) {
 }
 
 /**
- * Stamp, label and auto-merge the open pull request for `branch`, if its tip on origin is
- * still `sha`, then make its own `Reviewed` read the stamp. Returns `{ number, url, reviewed }`;
- * throws with a sentence naming what to do otherwise.
+ * Stamp and label the open pull request for `branch`, if its tip on origin is still `sha`, then
+ * make its own `Reviewed` read the stamp. Auto-merge is left to the session (header). Returns
+ * `{ number, url, reviewed }`; throws with a sentence naming what to do otherwise.
  */
 export function cloudQueue({
   branch,
@@ -110,8 +115,6 @@ export function cloudQueue({
   gh(['api', `repos/{owner}/{repo}/statuses/${sha}`, '-f', 'state=success', '-f', `context=${REVIEW_CONTEXT}`, '-f', `description=${cloudDescription(review)}`]);
   gh(['label', 'create', LAND_LABEL, '--force', '--color', 'F5A623', '--description', 'Queued for the landing queue']);
   gh(['pr', 'edit', String(pr.number), '--add-label', LAND_LABEL]);
-  // No strategy flag: the merge queue owns the strategy, and `gh` refuses one when a queue is on.
-  gh(['pr', 'merge', String(pr.number), '--auto']);
   const reviewed = reviveReviewed({ branch, sha, gh, sleep, now, waitMs, pollMs });
   return { number: pr.number, url: pr.url, reviewed };
 }
@@ -147,7 +150,7 @@ export function reviveReviewed({ branch, sha, gh, sleep = sleepSync, now = Date.
 if (path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
   try {
     const { number, url, reviewed } = cloudQueue({ branch: process.env.BRANCH, sha: process.env.SHA, review: process.env.REVIEW });
-    console.log(`Queued pull request #${number} (${url}): stamped, labelled \`${LAND_LABEL}\`, auto-merge on.`);
+    console.log(`Pull request #${number} (${url}): stamped and labelled \`${LAND_LABEL}\`. Turn auto-merge on from the session to queue it.`);
     const said = {
       passing: `Reviewed on its run ${reviewed.run} reads the stamp.`,
       rerun: `Reviewed had failed before the stamp existed; re-ran it on run ${reviewed.run}.`,
