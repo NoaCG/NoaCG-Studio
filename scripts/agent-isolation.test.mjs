@@ -38,6 +38,19 @@ test('the remote verdict rests on absent signals and never claims confidence', (
   assert.match(verdict.reasons.join(' '), /looks identical/);
 });
 
+test('a cloud session says so itself, and that makes remote confident', () => {
+  const verdict = classifyLocation({ queueRecords: 0, worktrees: 1, remoteFlag: true });
+  assert.equal(verdict.verdict, 'remote');
+  assert.equal(verdict.confident, true);
+  assert.match(verdict.reasons.join(' '), /CLAUDE_CODE_REMOTE/);
+});
+
+test('the disk outranks the environment: queue records with the flag set are still local', () => {
+  const verdict = classifyLocation({ queueRecords: 12, worktrees: 3, remoteFlag: true });
+  assert.equal(verdict.verdict, 'local');
+  assert.match(verdict.reasons.join(' '), /disk says/);
+});
+
 test('missing counts do not read as a remote machine by accident', () => {
   // A caller that fails to gather the facts must not be handed the answer it was hoping for. The
   // shape is the same as an empty container, so it lands on the unconfident verdict, never a
