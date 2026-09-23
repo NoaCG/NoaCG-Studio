@@ -36,6 +36,11 @@ thirtieth of a frame a second and looked hours long. It is read the right way ro
 **Fixed: a clip whose name has an ä or an ö.** The AMCP wire was written and read as latin1; it is
 UTF-8 now, so `Jääkiekko.mp4` lists and plays under its own name.
 
+**`noacg pack` says when a name was not quoted.** `--name My Pack` without quotes used to call
+the pack "My", start the browser, and then fail on a package called "Pack" that does not exist.
+Every package path is now checked first, and a missing one is named with the quoting that fixes
+it: `--name "My Pack"`.
+
 **What to do.** Nothing, if you use `npx`. If you had `noacg caspar agent` in a startup script,
 `noacg bridge` is its new name; both work. The studio needs a Bridge of this version or newer:
 an older agent is told apart from a missing one, and Settings -> Playout says "update NoaCG

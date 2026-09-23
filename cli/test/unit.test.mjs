@@ -525,6 +525,25 @@ test('a word left outside a command\'s flags is refused, on scaffold and on save
   assert.doesNotMatch(JSON.parse(clean.stdout).error, /outside its flags/);
 });
 
+test('`pack --name My Pack` names the unquoted word instead of bundling it as a package', async () => {
+  // `pack` takes any number of packages, so a stray word cannot be refused the way `save` and
+  // `login` refuse one - "Pack" IS a package argument to the parser. Before this, the pack was
+  // called "My", the browser started, and the run failed on a path the user thought was half a
+  // title. Now every input is checked before the browser starts, and the refusal shows the quoting.
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'graphic', 'graphic.html'), '<h1/>');
+  const r = await run(
+    ['pack', path.join(dir, 'graphic'), '--name', 'My', 'Pack', '--out', path.join(dir, 'show.noacgpack.json'), '--json'],
+    { NOACG_URL: 'http://127.0.0.1:1' },
+  );
+  assert.equal(r.code, 2, 'a missing package is a usage error, not a bridge failure');
+  const parsed = JSON.parse(r.stdout);
+  assert.equal(parsed.ok, false);
+  assert.match(parsed.error, /"Pack"/);
+  assert.match(parsed.error, /--name "My Pack"/, 'the refusal shows the quoting that fixes it');
+});
+
 test('`login --name My Laptop` is refused instead of naming the key "My"', async () => {
   // The same unquoted-value fault as above, with a worse victim. `--name My Laptop` gave the flag
   // "My" and left "Laptop" in the positionals, so the consent page asked the user to authorise

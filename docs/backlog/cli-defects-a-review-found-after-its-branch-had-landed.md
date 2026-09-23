@@ -78,12 +78,10 @@ handoff believed, and it is still one id away from being spent.
 in `output.ts:108`** - and `mcp.ts:33` imports `refuseStrayArgs` from that same module, so both names
 are in scope in one file meaning two different things. It is a rename and nothing more.
 
-**4. `docs/AGENT_CLI.md:333` says "the grammar today is complete".** It is not: `pack` still reads
-`--name` and its positionals from the same argv, so `noacg pack --name My Pack out.json` names the
-pack "My" and hands "Pack" to the bundler. The sentence lists `pack` as a "deliberate exception",
-which is true about its arity and false about the bug -
-`three-cli-verbs-still-swallow-an-unquoted-flag-value.md` is the open item, and this sentence is what
-stops a reader finding it.
+**4. FIXED 2026-09-23.** `docs/AGENT_CLI.md` said "the grammar today is complete" while `pack`
+still named a pack "My" for `--name My Pack` and handed "Pack" to the bundler. `pack` now checks
+every package path before the browser starts and names the unquoted word, the sentence says so,
+and `cli/test/unit.test.mjs` pins it.
 
 **5. `docs/AGENT_CLI.md:345` says "the widest line is exactly the terminal width at 40, 60, 80, 100,
 120, 160, 200 and 400 columns".** False at both ends, because `types.ts:42` clamps to 60-200. The

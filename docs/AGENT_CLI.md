@@ -341,7 +341,9 @@ Three things, in the order a stranger meets them:
    complete: `scaffold` / `login` / `logout` / `whoami` / `doctor` / `types` / `mcp` take no
    argument, `save` / `validate` / `inspect` / `screenshot` / `docs` take one, every `caspar`
    sub-command takes none, and the two deliberate exceptions are `pack` (any number of packages)
-   and `caspar send` (its words are the AMCP command). The refusal offers the quoting that fixes
+   and `caspar send` (its words are the AMCP command). `pack` checks every package path before the
+   browser starts instead, so an unquoted `--name My Pack` is refused with "Pack" named and the
+   quoted form shown. The refusal offers the quoting that fixes
    it only where a flag on that verb can actually hold a space; elsewhere it says to drop the
    word, because "needs quotes" sends an operator hunting for a value that was never there.
    Pinned by `cli/test/unit.test.mjs`.

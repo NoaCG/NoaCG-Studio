@@ -13,7 +13,20 @@ export async function runPack(args: ParsedArgs, out: Out): Promise<number> {
   if (!inputs.length) throw new UsageError('pack needs one or more package directories or .zip files.');
   if (!outFile) throw new UsageError('pack needs --out <file.noacgpack.json>.');
   const layers = flagList(args, 'layer').map((n) => Number(n));
-  const name = flagString(args, 'name') ?? path.basename(outFile).replace(/\.noacgpack\.json$/i, '').replace(/\.json$/i, '');
+  const named = flagString(args, 'name');
+  const name = named ?? path.basename(outFile).replace(/\.noacgpack\.json$/i, '').replace(/\.json$/i, '');
+  // Every input must exist BEFORE the browser starts. `pack` is the one verb that cannot refuse a
+  // stray word the way the others do, because its packages ARE its words - so an unquoted
+  // `--name My Pack` hands it "Pack" as a package, and the usual cause is worth naming.
+  const missing: string[] = [];
+  for (const input of inputs) if (!(await fs.stat(path.resolve(input)).catch(() => null))) missing.push(input);
+  if (missing.length > 0) {
+    const listed = missing.map((m) => `"${m}"`).join(', ');
+    const hint = named
+      ? ` If ${missing.length === 1 ? 'it is' : 'they are'} part of the pack's name, quote the name: --name "${[named, ...missing].join(' ')}".`
+      : '';
+    throw new UsageError(`pack: no package at ${listed}.${hint}`);
+  }
   const bridge = await BridgeClient.connect();
   try {
     const graphics: Record<string, unknown>[] = [];
