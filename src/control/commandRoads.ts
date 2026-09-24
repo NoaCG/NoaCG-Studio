@@ -78,6 +78,25 @@ export function commandTopic(showId: string): string {
 }
 
 /**
+ * THE PRIVATE TOPIC THE DURABLE LOG IS MIRRORED ON (migration 0064): every row inserted into
+ * `control_events` is broadcast here by the database, as `{ id, graphic, msg, created_at }` under
+ * the `row` event.
+ *
+ * It exists so the log can stop being publicly readable. The `control-<show id>` channel receives
+ * rows through `postgres_changes`, which only delivers what the subscriber's RLS can SELECT - and
+ * the only SELECT a signed-out renderer has is the blanket one that also lets anybody list every
+ * production's log. This topic carries the same rows with the same reach as the command topic
+ * (a holder of the show id), so once every follower reads it the blanket read can go. Until
+ * then a follower hears each row on both channels and its row-id cursor drops the second copy.
+ */
+export function logTopic(showId: string): string {
+  return `log-${showId}`;
+}
+
+/** The log topic's broadcast event name. */
+export const LOG_ROW_EVENT = 'row';
+
+/**
  * HOW MANY APPLIED IDS A SURFACE REMEMBERS.
  *
  * It has to outlive the slow road's slow mode and it has to be bounded, because a long show is

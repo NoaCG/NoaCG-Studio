@@ -146,10 +146,17 @@ test('an output URL can render the show and cannot push a command onto it', asyn
       });
 
       // EVERY TOPIC REACHABLE FROM THE SHOW ID, public and private. `control-<id>` is the channel
-      // the log follower has always joined; `cmd-<id>` is the private command topic. A road added
-      // later belongs in this list - a fast road nobody attacks here is a fast road nobody has
-      // proved is closed.
-      const topics = [`control-${showId}`, `cmd-${showId}`];
+      // the log follower has always joined; `cmd-<id>` is the private command topic; `log-<id>` is
+      // the durable log mirrored by the database (migration 0064), where a follower applies any
+      // `row` frame whose id is next in line. A road added later belongs in this list - a road
+      // nobody attacks here is a road nobody has proved is closed.
+      const topics = [`control-${showId}`, `cmd-${showId}`, `log-${showId}`];
+      // What each topic's followers act on: a command frame, or - on the log topic - one row far
+      // enough ahead that a follower would treat it as the newest thing in the log.
+      const forgedFor = (topic: string, attempt: string) =>
+        topic.startsWith('log-')
+          ? { event: 'row', payload: { id: 2_000_000_000, graphic, msg: { t: 'play', oid: `forged-row-${attempt}-${Date.now()}` } } }
+          : { event: 'cmd', payload: frame(attempt) };
       const sent: { topic: string; private: boolean; status: string }[] = [];
       for (const topic of topics) {
         for (const isPrivate of [false, true]) {
@@ -166,7 +173,8 @@ test('an output URL can render the show and cannot push a command onto it', asyn
           // Sent whatever the join said: on a channel that never joined, supabase-js posts the
           // frame to the broadcast REST endpoint instead of queueing it, and that fallback is
           // itself one of the roads being tested here.
-          const status = await channel.send({ type: 'broadcast', event: 'cmd', payload: frame(`${topic}-${isPrivate}`) });
+          const forgedFrame = forgedFor(topic, `${topic}-${isPrivate}`);
+          const status = await channel.send({ type: 'broadcast', event: forgedFrame.event, payload: forgedFrame.payload });
           sent.push({ topic, private: isPrivate, status: `${joined} -> ${String(status)}` });
           await sb.removeChannel(channel);
         }
@@ -181,7 +189,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
             method: 'POST',
             headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${key}` },
             body: JSON.stringify({
-              messages: [{ topic, event: 'cmd', payload: frame(`rest-${topic}-${isPrivate}`), private: isPrivate }],
+              messages: [{ topic, ...forgedFor(topic, `rest-${topic}-${isPrivate}`), private: isPrivate }],
             }),
           });
           sent.push({ topic, private: isPrivate, status: `REST ${res.status}` });
