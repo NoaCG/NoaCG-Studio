@@ -981,3 +981,100 @@ test('the hosted page reads the SPACE mode the in-app page stores: one key per b
   });
   expect(read).toEqual({ unset: 'take', set: 'preview-then-take', unknown: 'take' });
 });
+
+// ── » NEXT GREYS AND ✎ UPDATE NAMES WHAT IT KEEPS, on the hosted page too (g2 handoff, "Left,
+// and why": "HostedControlPage has the same Next and Update verbs... so the hosted page does not
+// grey Next or name kept states yet"). `canAdvance` and `movedStateNames` (controlModel.ts) are
+// the ONE answer both dashboards read for these two questions; the hosted page could not be left
+// asking a different one without an operator reading a different truth depending which device
+// they picked up.
+//
+// The page itself cannot be mounted offline (it needs a configured backend, docs/CONTROL_LAYER.md
+// step 9), so this spec pins the two things an offline run can: that the page's OWN SOURCE calls
+// both functions on the Next button's `disabled` and the Update button's title exactly as
+// ProductionPage does, and that the two functions themselves grey the right waypoint and name the
+// right state — over a small hand-authored machine, so the answer is unambiguous rather than
+// depending on a real SVG's exact state ids.
+
+test('HostedControlPage wires » Next and ✎ Update to canAdvance and movedStateNames, like the dashboard', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/components/HostedControlPage.tsx', import.meta.url), 'utf8');
+  // The Next button greys on `!nextMoves` too, not on `layerLive` alone - that bare condition is
+  // exactly what let a press log "Next step" while a quiz's Reveal sat still.
+  expect(src).toContain('disabled={!layerLive || !nextMoves}');
+  expect(src).toContain('const nextMoves = !!selectedGraphic && canAdvance(');
+  // Update's title names what it would keep, the same sentence ProductionPage's verb bar uses.
+  expect(src).toContain('keptStates ? `Sends the values. Stays on ${keptStates}.`');
+  expect(src).toContain('movedStateNames(');
+});
+
+test('canAdvance greys past the last waypoint, and movedStateNames names only a state Update would actually keep', async ({
+  page,
+}) => {
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+
+  const measured = await page.evaluate(async () => {
+    const { canAdvance, movedStateNames, machineStateNames } = await import('/src/control/controlModel.ts');
+
+    // A four-waypoint main group standing in for a quiz's walk - Question, Locked in, Reveal,
+    // then the authored Out step (Exit). `ensureLifecycleEdges` fills a lifecycle `stop` edge
+    // between the last two waypoints of any real graphic's machine, never an OPERATOR one, so
+    // the boundary case below (no authored arrow out of Reveal) is exactly what a real quiz's
+    // last step leaves canAdvance looking at.
+    const js = `var NOACG_ANIM = ${JSON.stringify({
+      version: 2,
+      root: '#stage',
+      speed: 1,
+      steps: [
+        { name: 'Question', duration: 0.4, ease: 'power2.out', layers: {} },
+        { name: 'Locked in', duration: 0.4, ease: 'power2.out', layers: {} },
+        { name: 'Reveal', duration: 0.4, ease: 'power2.out', layers: {} },
+        { name: 'Exit', duration: 0.4, ease: 'power2.out', layers: {} },
+      ],
+      machine: {
+        groups: [
+          {
+            id: 'main',
+            initial: 'off',
+            defaultPath: ['question', 'locked', 'reveal', 'exit'],
+            states: [
+              { id: 'off', name: 'Off' },
+              { id: 'question', name: 'Question' },
+              { id: 'locked', name: 'Locked in' },
+              { id: 'reveal', name: 'Reveal' },
+              { id: 'exit', name: 'Exit' },
+            ],
+            transitions: [
+              { trigger: 'operator', event: 'lock', from: 'question', to: 'locked' },
+              { trigger: 'operator', event: 'reveal', from: 'locked', to: 'reveal' },
+            ],
+          },
+        ],
+      },
+    })};`;
+
+    const names = machineStateNames(js);
+    const at = (id: string) => ({ groups: { main: id } });
+    return {
+      questionAdvances: canAdvance(js, at('question')),
+      lockedAdvances: canAdvance(js, at('locked')),
+      revealAdvances: canAdvance(js, at('reveal')),
+      revealKeeps: movedStateNames(js, names, at('reveal')),
+      questionKeeps: movedStateNames(js, names, at('question')),
+      nothingReportedAdvances: canAdvance(js, null),
+    };
+  });
+
+  // » Next moves the graphic on every waypoint but the last: Reveal has no authored arrow into
+  // the exit, so it greys - exactly as the dashboard's `verb-next` does on a quiz's Reveal.
+  expect(measured.questionAdvances).toBe(true);
+  expect(measured.lockedAdvances).toBe(true);
+  expect(measured.revealAdvances).toBe(false);
+  // ✎ Update keeps whatever the graphic has moved into since Take, in the author's own words.
+  expect(measured.revealKeeps).toEqual(['Reveal']);
+  // …and nothing is "kept" at the state a Take leaves it on - there is nothing yet for Update to
+  // undo, so the note has nothing to say.
+  expect(measured.questionKeeps).toEqual([]);
+  expect(measured.nothingReportedAdvances).toBe(true);
+});
