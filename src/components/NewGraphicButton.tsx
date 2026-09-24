@@ -42,6 +42,10 @@ export default function NewGraphicButton({
     <button
       className={className}
       data-testid={testid ?? 'new-graphic'}
+      // One hook for THIS door on every surface, whatever testid the mount gives it. Home's empty
+      // library carries a plain "+ New graphic" call to action of its own, so the accessible name
+      // alone does not identify the door (e2e/_create.ts startNewProject).
+      data-door="new-graphic"
       title={
         title ??
         (productionId

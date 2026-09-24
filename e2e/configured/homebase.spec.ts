@@ -19,12 +19,13 @@ test.describe('account menu + Home (configured / signed-in)', () => {
     await expect(menu).toBeVisible();
     await expect(menu).toContainText(process.env.E2E_EMAIL ?? '');
 
-    // Home: the menu ROUTES to the dashboard (real history — Back returns to the editor).
+    // Home: the menu ROUTES to the dashboard. This used to go on to press Back and land in the
+    // old code editor the menu was opened from; that editor is closed (2026-09-24), sign-in now
+    // lands on Home, and Home is the only /app page besides the video workspace that carries this
+    // menu, so there is no other page for Back to return to here.
     await menu.getByTestId('menu-home').click();
     await expect(page.getByTestId('home-page')).toBeVisible();
     await expect(page.getByTestId('home-page')).toContainText(/Graphics/);
-    await page.goBack();
-    await expect(page.getByTestId('home-page')).toHaveCount(0);
 
     // Settings: AI + workflow defaults sections render.
     await page.getByTestId('account-button').click();

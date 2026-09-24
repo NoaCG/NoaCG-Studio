@@ -173,7 +173,13 @@ export async function createProject(page: Page, spec: string | CreateSpec = 'Hai
  * project (or the video shell, which never guards) goes straight to the wizard.
  */
 export async function startNewProject(page: Page): Promise<void> {
-  await page.getByRole('button', { name: '+ New graphic' }).click();
+  // The DOOR (NewGraphicButton, `data-door`), never any button with that name: Home's empty
+  // library carries a plain "+ New graphic" call to action as well, and a role query then fails
+  // strict mode. That is how every signed-in configured spec went red on 2026-09-24, once sign-in
+  // landed on Home instead of the old editor. Every surface mounts the door once; the wizard
+  // mounts its own copy too, so with the wizard already open this still matches two, as the role
+  // query always did.
+  await page.locator('[data-door="new-graphic"]').click();
   const guard = page.getByTestId('confirm-switch');
   const wizard = page.getByTestId('creation-wizard');
   await expect(guard.or(wizard)).toBeVisible();
