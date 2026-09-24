@@ -36,4 +36,6 @@ and prints `109 advisor findings; 109 accepted in the baseline.`
   time the finding was read, production had scanned the index, so it was no longer reported.
   Recording it anyway would print a "gone" line on every run until somebody removed it.
 - **Student 2 is a throwaway account the spec makes and deletes itself**, through the service key
-  the local stack always has. The workflow's account setup is unchanged.
+  of whatever project the suite runs against: the runner's local stack in configured-suite, and
+  the staging project in hosted-latency. The workflows' account setup is unchanged. Like every
+  spec in this suite, it must never be pointed at production.

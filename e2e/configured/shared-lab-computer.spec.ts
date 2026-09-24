@@ -1,4 +1,4 @@
-import { test, expect, type Browser, type Page } from '@playwright/test';
+import { test, expect, devices, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes } from 'node:crypto';
 import { E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, wipeMyGraphics, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
@@ -92,12 +92,6 @@ async function cloudNames(admin: SupabaseClient, userId: string): Promise<string
   return (data ?? []).map((r) => r.name as string);
 }
 
-/** A second computer: a fresh browser with nothing on it. */
-async function onAnotherComputer(browser: Browser, baseURL: string): Promise<Page> {
-  const context = await browser.newContext({ baseURL });
-  return context.newPage();
-}
-
 test.describe('shared lab computer (configured)', () => {
   test.skip(!canRun, 'needs E2E_EMAIL/E2E_PASSWORD + SUPABASE_SERVICE_ROLE_KEY');
   test.setTimeout(180_000);
@@ -108,12 +102,17 @@ test.describe('shared lab computer (configured)', () => {
 
   test.beforeAll(async () => {
     admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-    const { data: list } = await admin.auth.admin.listUsers();
+    // One page large enough for any test project; the default page of 50 could hide either user.
+    const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    if (listError) throw new Error(`could not list users: ${listError.message}`);
     student1 = list.users.find((u) => u.email === E2E_EMAIL)?.id ?? '';
     // A leftover from a run that died before its cleanup is deleted and made again, so every run
     // starts student 2 with an empty cloud.
     const leftover = list.users.find((u) => u.email === STUDENT_2_EMAIL);
-    if (leftover) await admin.auth.admin.deleteUser(leftover.id);
+    if (leftover) {
+      const { error: leftoverError } = await admin.auth.admin.deleteUser(leftover.id);
+      if (leftoverError) throw new Error(`could not delete a leftover student 2: ${leftoverError.message}`);
+    }
     const { data, error } = await admin.auth.admin.createUser({
       email: STUDENT_2_EMAIL,
       password: STUDENT_2_PASSWORD,
@@ -124,7 +123,10 @@ test.describe('shared lab computer (configured)', () => {
   });
 
   test.afterAll(async () => {
-    if (admin && student2) await admin.auth.admin.deleteUser(student2);
+    if (!admin || !student2) return;
+    const { error } = await admin.auth.admin.deleteUser(student2);
+    // Said out loud: the next run deletes the leftover, but only this line says why it is there.
+    if (error) console.warn(`shared-lab-computer: student 2 was not deleted: ${error.message}`);
   });
 
   test('two students take turns on one browser and neither sees nor loses the work of the other', async ({ page, browser, baseURL }) => {
@@ -168,12 +170,14 @@ test.describe('shared lab computer (configured)', () => {
       // 5. The cloud agrees with the screen, and student 1's work is not only on this computer.
       expect(await cloudNames(admin, student2)).toEqual([work2]);
       expect(await cloudNames(admin, student1)).not.toContain(work2);
-      const elsewhere = await onAnotherComputer(browser, baseURL!);
+      // A second computer: a fresh browser with nothing on it, the same device as the first.
+      const anotherComputer = await browser.newContext({ ...devices['Desktop Chrome'], baseURL });
       try {
+        const elsewhere = await anotherComputer.newPage();
         await signInOnHome(elsewhere, E2E_EMAIL, E2E_PASSWORD);
         await expect.poll(() => libraryNames(elsewhere)).toEqual([work1]);
       } finally {
-        await elsewhere.context().close();
+        await anotherComputer.close();
       }
     } finally {
       // Leave the shared test account as it was found. Student 2 goes in afterAll.

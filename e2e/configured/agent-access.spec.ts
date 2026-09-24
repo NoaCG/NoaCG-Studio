@@ -199,14 +199,9 @@ test.describe('agent access (configured)', () => {
           return (await listWaitingPackages()).filter((p) => p.name.startsWith(n)).length;
         }, packName))
         .toBe(0);
-      await page.evaluate(async (n) => {
-        const { deleteShow, loadShows } = await import('/src/model/shows.ts');
-        for (const s of loadShows()) if (s.name === n) deleteShow(s.id);
-      }, packName);
 
       // 5. Settings lists the key; Revoke ends it. From HOME: the production page carries no
-      // account button, and the cleanup above just deleted the production it was showing, so the
-      // page now reads "Production not found" (issue #403).
+      // account button (issue #403 was this step waiting on one).
       await page.goto('/app#/home');
       await page.getByTestId('account-button').click();
       await page.getByTestId('account-menu').getByRole('menuitem', { name: /Settings/ }).click();
@@ -232,6 +227,16 @@ test.describe('agent access (configured)', () => {
       await page.evaluate(async () => {
         const { listWaitingPackages, removeWaitingPackage } = await import('/src/backend/agentPackages.ts');
         for (const p of await listWaitingPackages()) if (p.name.startsWith('Agent E2E package')) await removeWaitingPackage(p.id);
+      }).catch(() => undefined);
+      // The production Install made (or a failed run's), pushed as a tombstone so the shared
+      // account's cloud does not collect one per run.
+      await page.evaluate(async () => {
+        const { hydrateDurableStore } = await import('/src/model/durableStore.ts');
+        await hydrateDurableStore();
+        const { deleteShow, loadShows } = await import('/src/model/shows.ts');
+        for (const s of loadShows()) if (s.name.startsWith('Agent E2E package')) deleteShow(s.id);
+        const { syncNow } = await import('/src/backend/syncController.ts');
+        await syncNow();
       }).catch(() => undefined);
     }
   });

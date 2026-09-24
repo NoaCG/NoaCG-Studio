@@ -190,7 +190,8 @@ export const CONFIGURED_TRIGGERS = [
   // WHOSE LIBRARY IS ON SCREEN: which account's library the page shows, and that a sign-in's
   // first sync never pulls or pushes another account's work, is walked against a real backend
   // by e2e/configured/shared-lab-computer.spec.ts. Offline, account-library.spec.ts has no cloud.
-  /^src\/(backend\/accountLibrary|model\/accountScope)\.ts$/,
+  // The binding, the key names, the sync guard (`canSync`) and the adopt step that decide it.
+  /^src\/(backend\/(accountLibrary|syncController)|model\/(accountScope|durableStore))\.ts$/,
   // PASSWORD RECOVERY (docs/backlog/password-reset-link-lands-nowhere.md): the same shape as
   // agent access. Offline the route is INERT by design and e2e/auth.spec.ts can only pin that
   // it stays inert; the expired-link card, the resend door and the pre-route fragment key are

@@ -375,15 +375,20 @@ wholesale (`control_data_apply`) is `service_role` only. Baseline re-recorded at
 index backs the waiting-packages list on Home -> Productions, and it was unused only because nobody
 had opened that list in production yet. It belongs to the class `ACCEPTED_CLASSES` already accepts
 for indexes of features production has not exercised, and the reason holds for this member too.
-By the time it was read, production had scanned it (`pg_stat_user_indexes`: 5 scans, the first at
-20:12 UTC), so the live report no longer carried it and the re-record does not either. The same
+By the time it was read, production had scanned it (`pg_stat_user_indexes`, read at about 20:25 UTC:
+5 scans, the latest at 20:12 UTC), so the live report no longer carried it and the re-record does not
+either. The same
 runs reported `render_jobs_active` (0007) gone, for the same reason in reverse: production used it
 at 03:30 UTC that day, so a render job has read the queue. 0065 did not cause that one. The
 baseline dropped that entry and holds 109.
 
-The shape is worth knowing: every migration that adds an index lands an `unused_index` finding
-that reddens post-land once, until the feature is used or the baseline is re-recorded. That is the
-class working as written, not a new kind of fault, so read it, re-record, and name the migration.
+The shape is worth knowing: every migration that adds an index lands an `unused_index` finding,
+and post-land stays red on every landing after it until production uses the index or somebody
+re-records. The baseline cannot be recorded ahead of the landing, because production does not
+have the index yet. That is the rule "a new member of an accepted class still fails" doing what
+it says, and for this one INFO class it is noise that can hide a real finding.
+`docs/backlog/new-index-reddens-post-land-until-re-recorded.md` holds the proposed fix. Until it
+lands: read it, re-record, and name the migration.
 
 Accepting that reachability is not a claim that the door's own guard is tight, and on this
 occasion it is not — `docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md` measured
