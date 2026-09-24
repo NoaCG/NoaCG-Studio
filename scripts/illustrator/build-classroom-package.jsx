@@ -312,7 +312,7 @@ function buildEndCredits() {
   var d = newDoc(["Text", "Board"]);
   var T = d.layers["Text"], B = d.layers["Board"];
   var BOX = [560, 200, 800, 800];
-  var LEADING = 50, GAP = 16;
+  var LEADING = 50, GAP = 16, CLOSING_GAP = 50;
   rect(B, "Panel", 0, 0, 1920, 1080, NAVY);
   // The roll runs inside this plate, so the list appears at its bottom edge and leaves at its top.
   rect(B, "Credits box", BOX[0], BOX[1], BOX[2], BOX[3], NAVY_2);
@@ -338,9 +338,11 @@ function buildEndCredits() {
   a.leading = LEADING;
   for (i = 0; i < t.paragraphs.length; i++) {
     var p = t.paragraphs[i];
-    // A little air before every section but the first, including the production's name.
-    var sectionStart = isTitle[i] || i === lines.length - 1;
-    if (sectionStart && i > 0) p.paragraphAttributes.spaceBefore = GAP;
+    // A little air before every title but the first, and a clear gap before the production's
+    // name: NoaCG reads a gap of more than one and a half lines as a blank line in the list,
+    // so the name and year arrive as a section of their own rather than under the producer.
+    if (isTitle[i] && i > 0) p.paragraphAttributes.spaceBefore = GAP;
+    if (i === lines.length - 1) p.paragraphAttributes.spaceBefore = CLOSING_GAP;
     if (isTitle[i]) {
       p.characterAttributes.textFont = app.textFonts.getByName(BOLD);
       p.characterAttributes.size = 30;

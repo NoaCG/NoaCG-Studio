@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
 import { settleDurableWrites } from './_durable';
@@ -150,10 +151,57 @@ test('the five classroom graphics import and run from one production', async ({ 
   await shot(page, 'score-renamed');
   await page.getByTestId('verb-out').click();
 
-  // ── End credits: the Heading and ONE Credits field, never a field per name. ──
+  // ── End credits: the Heading, ONE Credits field and the Scroll speed, never a field per name. ──
   await selectCue(page, 'End credits');
-  await expect(page.locator('[data-testid^="cue-field-"]')).toHaveCount(2);
+  const credits = page.getByTestId('cue-field-f1');
+  // The Finnish default is the list drawn in the .ai, line for line, the chiefs last.
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('TEKIJÄT');
+  await expect(credits).toHaveValue(/^Juontaja:\nMaija Meikäläinen\nVieraat:\nVille Virtanen\nAino Aalto\nKuvaajat:\n/);
+  await expect(credits).toHaveValue(/Ohjaaja:\nAnna Anttila\nTuottaja:\nMika Mäkelä\n\nQuiz Night 2026$/);
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('100');
+  await expect(page.getByTestId('cue-field-f3')).toHaveCount(0);
   await shot(page, 'credits-cue');
+
+  // The README's English list, pasted as a student would paste it.
+  const readme = readFileSync(fileURLToPath(new URL('../docs/tutorials/classroom-package/README.md', import.meta.url)), 'utf8');
+  const english = /```\r?\n([\s\S]*?)\r?\n```/.exec(readme)![1].replace(/\r\n/g, '\n');
+  await credits.fill(english);
+  await page.getByTestId('verb-take').click();
+  const roll = air(page, 'End credits');
+  const titles = roll.locator('.imported-design-credits-rows tspan[data-noacg-credits="title"]');
+  const names = roll.locator('.imported-design-credits-rows tspan[data-noacg-credits="name"]');
+  // Fourteen titles, each in the sample's title look; seventeen names and the closing line.
+  await expect(titles).toHaveCount(14);
+  await expect(titles.first()).toHaveText('Host:');
+  await expect(titles.last()).toHaveText('Producer:');
+  await expect(names).toHaveCount(18);
+  await expect(names.first()).toHaveText('Maija Meikäläinen');
+  await expect(names.last()).toHaveText('Quiz Night 2026');
+  const titleClass = await titles.first().getAttribute('class');
+  expect(titleClass, 'a title row wears the sample title line look').toBeTruthy();
+  expect(await names.first().getAttribute('class')).not.toBe(titleClass);
+
+  // The roll: inside the Credits box, bottom to top, in about thirty seconds at Scroll speed 100.
+  const last = await roll
+    .locator('.imported-design-credits-rows')
+    .evaluate(() => (window as unknown as { noacgCreditsLast: { duration: number; boxed: boolean; rows: number } }).noacgCreditsLast);
+  console.log(`classroom credits roll: ${last.rows} rows, ${last.duration.toFixed(1)} s`);
+  expect(last.boxed).toBe(true);
+  expect(last.rows).toBe(32);
+  expect(last.duration).toBeGreaterThan(26);
+  expect(last.duration).toBeLessThan(34);
+  const progress = () =>
+    roll
+      .locator('.imported-design-credits-rows')
+      .evaluate(() => (window as unknown as { noacgCreditsTween: { progress(): number } }).noacgCreditsTween.progress());
+  await page.waitForTimeout(4_000);
+  await shot(page, 'credits-rolling-early');
+  await page.waitForTimeout(10_000);
+  await shot(page, 'credits-rolling-mid');
+  // Rolled to the end: the tween finishes and the box is empty again.
+  await expect.poll(progress, { timeout: 40_000 }).toBe(1);
+  await shot(page, 'credits-rolled-out');
+  await page.getByTestId('verb-out').click();
 
   expect(errors).toEqual([]);
 });
