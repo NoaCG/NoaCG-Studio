@@ -12,6 +12,7 @@
 
 import { slug } from '../model/slug';
 import { loadBackendConfig } from '../backend/config';
+import { accountKey } from '../model/accountScope';
 
 const OPEN = '/* == REMOTE CONTROL (Supabase Realtime) — edit or delete this whole block == */';
 const CLOSE = '/* == END REMOTE CONTROL == */';
@@ -40,15 +41,28 @@ export function stripRealtimeControl(js: string): string {
   return (js.slice(0, start) + js.slice(end + CLOSE.length)).replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }
 
-/** The per-project capability secret (stable, high-entropy) that makes the topic unguessable. */
+/**
+ * The per-project capability secret (stable, high-entropy) that makes the topic unguessable.
+ * Kept per ACCOUNT (model/accountScope.ts): two accounts on one browser sharing it would put a
+ * graphic of one and a same-named control panel of the other on the same channel.
+ */
 export function ensureRemoteCap(): string {
   try {
-    const existing = localStorage.getItem(CAP_KEY);
+    const existing = localStorage.getItem(accountKey(CAP_KEY));
     if (existing) return existing;
+    // A secret minted before secrets were per account sits under the plain name, and graphics
+    // already exported carry topics derived from it. The first account to ask for one on this
+    // browser takes it over, so those graphics keep meeting their control panel.
+    const legacy = accountKey(CAP_KEY) === CAP_KEY ? null : localStorage.getItem(CAP_KEY);
+    if (legacy) {
+      localStorage.setItem(accountKey(CAP_KEY), legacy);
+      localStorage.removeItem(CAP_KEY);
+      return legacy;
+    }
     const bytes = new Uint8Array(9);
     (globalThis.crypto ?? ({} as Crypto)).getRandomValues?.(bytes);
     const cap = btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, '').slice(0, 12) || `${Date.now()}`;
-    localStorage.setItem(CAP_KEY, cap);
+    localStorage.setItem(accountKey(CAP_KEY), cap);
     return cap;
   } catch {
     return 'localonly';

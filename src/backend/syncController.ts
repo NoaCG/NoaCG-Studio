@@ -5,7 +5,9 @@
 // untouched.
 
 import { isBackendConfigured } from './config';
-import { consumeDeliberateSignOut, getAccessToken, subscribeAuth } from './auth';
+import { consumeDeliberateSignOut, getSignedInUserId, subscribeAuth } from './auth';
+import { bindLibraryToAccount, followLibraryChangesInOtherTabs } from './accountLibrary';
+import { libraryInUse } from '../model/durableStore';
 import { LocalStorageProvider } from './storage';
 import { SupabaseProvider } from './supabaseProvider';
 import { runSync, type SyncResult } from './sync';
@@ -22,7 +24,8 @@ export interface SyncState {
 }
 
 const local = new LocalStorageProvider();
-const remote = new SupabaseProvider();
+// Writes only into the account whose library this page loaded (see SupabaseProvider).
+const remote = new SupabaseProvider({ onlyInto: libraryInUse });
 
 let state: SyncState = { phase: 'offline' };
 const listeners = new Set<(s: SyncState) => void>();
@@ -44,10 +47,14 @@ export function onSyncState(cb: (s: SyncState) => void): () => void {
   };
 }
 
-/** Sync can run only with a configured backend AND a live session. */
+/** Sync can run only with a configured backend, a live session, AND the signed-in account's own
+ *  library in use (backend/accountLibrary.ts). The last one is the guard that keeps a library
+ *  from ever being pushed into somebody else's cloud - a debounced push can fire in the moment
+ *  between a new sign-in and the page reloading onto that account's library. */
 async function canSync(): Promise<boolean> {
   if (!isBackendConfigured()) return false;
-  return (await getAccessToken()) !== null;
+  const user = await getSignedInUserId();
+  return user !== null && user === libraryInUse();
 }
 
 let running = false;
@@ -178,20 +185,33 @@ let started = false;
  *  user who signed in and made no edit saw no status chip, pushed nothing, and (on a new machine,
  *  the reason to sign in at all) pulled none of their work back. Sign-OUT is the mirror: the
  *  status must fall back to 'offline' rather than leave a stale "Synced" claiming an account the
- *  session no longer has. Only a CHANGE in signed-in-ness acts — a token refresh is not a
- *  reason to re-sync. */
+ *  session no longer has. Only a CHANGE of account acts — a token refresh is not a reason to
+ *  re-sync. */
 export function startAutoSync(): void {
   if (started || typeof window === 'undefined' || !isBackendConfigured()) return;
   started = true;
   window.addEventListener('spx-data-changed', scheduleSync);
-  let wasSignedIn: boolean | null = null;
+  followLibraryChangesInOtherTabs();
+  // Tracked by ACCOUNT, not by signed-in-ness: a different account signing in over a live
+  // session is a change of library even though "signed in" never went false in between.
+  let lastUser: string | null | undefined;
   subscribeAuth((auth) => {
-    const signedIn = auth.status === 'signed-in' && !!auth.user;
-    if (signedIn === wasSignedIn) return;
-    const hadSession = wasSignedIn === true;
-    wasSignedIn = signedIn;
-    if (signedIn) {
-      void syncNow();
+    const user = auth.status === 'signed-in' ? (auth.user?.id ?? null) : null;
+    if (user === lastUser) return;
+    const hadSession = !!lastUser;
+    lastUser = user;
+    if (user) {
+      // The library on screen becomes this account's first (accountLibrary.ts); sync follows only
+      // when it already is. A switch reloads the page, and the reloaded page syncs.
+      void bindLibraryToAccount(user).then((binding) => {
+        if (binding === 'ready') void syncNow();
+        else if (binding === 'failed') {
+          setState({
+            phase: 'error',
+            detail: 'The work on this browser could not be moved into your account, so nothing was synced. Reload to try again.',
+          });
+        }
+      });
       return;
     }
     setState({ phase: 'offline' });

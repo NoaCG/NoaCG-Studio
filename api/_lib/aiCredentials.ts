@@ -1,5 +1,35 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { AI_PROVIDER_IDS, type AiProviderId } from '../../src/ai/modelTypes.js';
+import { verifyUser } from './auth.js';
+import { bearerToken } from './http.js';
+
+// WHOSE KEYS THESE ARE. The cookie is the browser's, not the account's: it lives for a year and
+// rides along with every request to /api/ai whoever is signed in. Sealed without an owner, a key
+// one account saved was used - and billed - by the next account to sign in on the same computer.
+// So the sealed payload names its OWNER (the account id, or null for a key saved signed out), and
+// a key is honoured only for that same caller. A payload from before owners were sealed cannot be
+// attributed to anybody, so it reads as no keys at all and the person enters their key again.
+const PAYLOAD_VERSION = 2;
+
+/**
+ * Who is calling, as far as a sealed key is concerned: null when the request carries no session
+ * (a signed-out caller), the account id when it carries one that verifies, and undefined when it
+ * carries one that does NOT verify - which matches no owner, so a verification outage never hands
+ * a signed-in caller somebody's signed-out keys.
+ */
+export type KeyOwner = string | null | undefined;
+
+export async function keyOwnerOf(req: Request): Promise<KeyOwner> {
+  const token = bearerToken(req);
+  if (!token) return null;
+  return (await verifyUser(token))?.userId;
+}
+
+/** Whether the request carries a sealed-keys cookie at all - lets a caller skip verifying a
+ *  session when there are no keys to match it against. */
+export function hasUserAiKeysCookie(req: Request): boolean {
+  return cookieValue(req) !== '';
+}
 
 const COOKIE_NAME = 'noacg_ai_keys';
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -36,11 +66,12 @@ export function canStoreUserAiKeys(): boolean {
   return encryptionKey() !== null;
 }
 
-/** Decrypt user keys from the HttpOnly cookie. Invalid/tampered state fails closed. */
-export function readUserAiKeys(req: Request): StoredKeys {
+/** Decrypt the keys `owner` sealed into the HttpOnly cookie. Invalid or tampered state, an
+ *  unversioned payload, and keys sealed by anybody else all read as none - fail closed. */
+export function readUserAiKeys(req: Request, owner: KeyOwner): StoredKeys {
   const key = encryptionKey();
   const sealed = cookieValue(req);
-  if (!key || !sealed) return {};
+  if (!key || !sealed || owner === undefined) return {};
   try {
     const packed = Buffer.from(sealed, 'base64url');
     if (packed.length < 12 + 16 + 2) return {};
@@ -50,7 +81,11 @@ export function readUserAiKeys(req: Request): StoredKeys {
     const decipher = createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
-    return validKeys(JSON.parse(plaintext));
+    const payload = JSON.parse(plaintext) as { v?: unknown; owner?: unknown; keys?: unknown };
+    if (payload?.v !== PAYLOAD_VERSION) return {};
+    const sealedOwner = typeof payload.owner === 'string' ? payload.owner : null;
+    if (sealedOwner !== owner) return {};
+    return validKeys(payload.keys);
   } catch {
     return {};
   }
@@ -60,13 +95,15 @@ function secureRequest(req: Request): boolean {
   return req.url.startsWith('https:') || req.headers.get('x-forwarded-proto') === 'https';
 }
 
-/** Seal all user keys into one authenticated, browser-unreadable cookie. */
-export function userAiKeysCookie(req: Request, keys: StoredKeys): string {
+/** Seal `owner`'s keys into one authenticated, browser-unreadable cookie. `owner` is the account
+ *  id, or null for a caller who is signed out. */
+export function userAiKeysCookie(req: Request, keys: StoredKeys, owner: string | null): string {
   const key = encryptionKey();
   if (!key) throw new Error('AI user-key storage is not configured');
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(keys), 'utf8'), cipher.final()]);
+  const payload = JSON.stringify({ v: PAYLOAD_VERSION, owner, keys });
+  const ciphertext = Buffer.concat([cipher.update(payload, 'utf8'), cipher.final()]);
   const packed = Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString('base64url');
   const secure = secureRequest(req) ? '; Secure' : '';
   return `${COOKIE_NAME}=${packed}; Path=/api/ai; HttpOnly; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}${secure}`;

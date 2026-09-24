@@ -10,6 +10,7 @@
 
 import type { DesignSpec } from './designSpec';
 import type { AiPath } from './provider';
+import { accountKey } from '../model/accountScope';
 
 const STORAGE_KEY = 'spx-gfx-ai-preferences';
 
@@ -54,7 +55,7 @@ const keysOf = (f: AlternativeFacets): string[] =>
 
 function read(): PreferenceStore {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<PreferenceStore>;
+    const raw = JSON.parse(localStorage.getItem(accountKey(STORAGE_KEY)) ?? '{}') as Partial<PreferenceStore>;
     return { selections: raw.selections ?? 0, shown: raw.shown ?? {}, chosen: raw.chosen ?? {} };
   } catch {
     return { selections: 0, shown: {}, chosen: {} };
@@ -63,7 +64,7 @@ function read(): PreferenceStore {
 
 function write(store: PreferenceStore): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    localStorage.setItem(accountKey(STORAGE_KEY), JSON.stringify(store));
   } catch {
     // Preferences are best-effort — never in the user's way.
   }

@@ -234,9 +234,12 @@ export default function HomePage({ route }: { route: Route }) {
   return (
     <div className="app home-page" data-testid="home-page">
       <header className="topbar">
-        <button className="brand brand-home" onClick={() => navigate({ view: 'home', section: null })} title="Home">
+        {/* THE LOGO IS THE SITE ROOT on every surface, Home included: it used to navigate to
+            Home, which on Home did nothing at all. A real <a>, so middle-click and ⌘-click open
+            the front page in a new tab like any logo. */}
+        <a className="brand brand-home" href="/" title="NoaCG Studio front page">
           <BrandLogo size={24} />
-        </button>
+        </a>
         <span className="divider-dot" aria-hidden="true">·</span>
         {/* The topbar says WHERE you are, not just that you are home (handoff §5a): a routed
             section is a page, and the crumb is the only thing that says which one. */}

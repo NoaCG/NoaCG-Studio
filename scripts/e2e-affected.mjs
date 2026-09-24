@@ -467,7 +467,10 @@ const MAP = [
   // The waiting-packages list on Productions: offline it must grow nothing (pack-import.spec.ts);
   // the live half - send, list, Install, Dismiss - is e2e/configured/agent-access.spec.ts.
   [/^src\/backend\/agentPackages/, ['pack-import.spec.ts']],
-  [/^src\/backend\//, ['auth.spec.ts', 'sync.spec.ts', 'offline.spec.ts', 'network-resilience.spec.ts']],
+  [/^src\/backend\//, ['auth.spec.ts', 'sync.spec.ts', 'offline.spec.ts', 'network-resilience.spec.ts', 'account-library.spec.ts']],
+  // Which account's library the page shows: the key naming (model/accountScope.ts) and every
+  // module that stores a per-account record under it.
+  [/^src\/model\/(accountScope|brand)\.ts$/, ['account-library.spec.ts', 'sync.spec.ts']],
   // Restricted-network resilience (docs/GOALS.md "the SVG road"): the boot watchdog and the
   // inline connection check live in app.html, the hydration timeout in the durable store, and
   // the app-level notice in its own component - a change to any of them must run the spec
@@ -478,7 +481,7 @@ const MAP = [
   // durableStore also owns CROSS-TAB safety: its mirror is per-tab and every model mutator is a
   // read-modify-WHOLE-RECORD write, so a change here can silently reintroduce one tab eating
   // another tab's work (docs/INTERACTIVE_PLAYOUT_PLAN.md, and cross-tab.spec.ts's own header).
-  [/^(app\.html|src\/model\/durableStore\.ts|src\/main\.tsx|src\/components\/StorageHealthNotice\.tsx)$/, ['network-resilience.spec.ts', 'cross-tab.spec.ts']],
+  [/^(app\.html|src\/model\/durableStore\.ts|src\/main\.tsx|src\/components\/StorageHealthNotice\.tsx)$/, ['network-resilience.spec.ts', 'cross-tab.spec.ts', 'account-library.spec.ts']],
   [/^app\.html$/, ['flows.spec.ts']],
   [/^src\/community\//, ['community.spec.ts']],
   [/^src\/showchat\//, ['community.spec.ts']],

@@ -28,7 +28,20 @@ interface DocumentRow {
   deleted: boolean;
 }
 
+export interface SupabaseProviderOptions {
+  /**
+   * The account a write may land in, asked at the moment of each write. The sync engine passes
+   * the account whose library the page loaded, so a pass that outlives a change of session -
+   * another tab signing a different account in mid-pass - is refused instead of pushing one
+   * account's documents into the other's cloud. Omitted, any signed-in account is accepted
+   * (the deliberate upload of signed-out work, backend/accountLibrary.ts).
+   */
+  onlyInto?: () => string | null;
+}
+
 export class SupabaseProvider implements StorageProvider {
+  constructor(private readonly options: SupabaseProviderOptions = {}) {}
+
   /** Per-instance dedupe so the same asset (same hash → same key) uploads at most once a session. */
   private uploaded = new Set<string>();
 
@@ -75,6 +88,9 @@ export class SupabaseProvider implements StorageProvider {
   async put(record: StoredRecord): Promise<void> {
     const sb = await this.client();
     const uid = await this.uid(sb);
+    if (this.options.onlyInto && this.options.onlyInto() !== uid) {
+      throw new Error(`Cloud put(${record.kind}) refused: the signed-in account is not the one whose library is open.`);
+    }
     // Move embedded fonts/images to Storage; the row's body keeps only small references.
     const body = await externalizeAssets(record.body, uid, (key, dataUrl) => this.upload(sb, key, dataUrl));
     warnIfLarge(record.kind, record.id, body);

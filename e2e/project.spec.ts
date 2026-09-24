@@ -112,11 +112,12 @@ test('the wizard door is on every /app surface, beside Home', async ({ page }) =
   // adjacency alone was satisfied by the pair sitting together at the far right.
   //
   // WHICH control is Home differs by surface and that is not drift: on Home the crumb beside
-  // the logo says so, and on the production dashboard the logo itself is the Home door.
+  // the logo says so, and elsewhere a labelled Home button does. The logo itself is never Home -
+  // it is the site root on every surface.
   const orderOnEverySurface = [
     { hash: '#/home', door: 'home-new-project', afterSelector: '.tpl-name' },
     { hash: `#/control/${ids.graphicId}`, door: 'control-new-project', afterSelector: '[data-testid="control-home"]' },
-    { hash: `#/production/${ids.showId}`, door: 'new-graphic', afterSelector: '.brand-home' },
+    { hash: `#/production/${ids.showId}`, door: 'new-graphic', afterSelector: '[data-testid="production-home"]' },
     { hash: `#/graphic/${ids.graphicId}`, door: 'new-graphic', afterSelector: '[data-testid="open-home"]' },
     { hash: '#/video', door: 'new-graphic', afterSelector: '[data-testid="open-home"]' },
   ];
@@ -124,6 +125,9 @@ test('the wizard door is on every /app surface, beside Home', async ({ page }) =
     await page.goto(`/app${surface.hash}`);
     const door = page.locator(`header [data-testid="${surface.door}"]`);
     await expect(door).toBeVisible();
+    // The logo is the SITE ROOT on every one of these surfaces - a link to the public front
+    // page, never a second Home door (on Home that door did nothing at all).
+    await expect(door.locator('xpath=ancestor::header').locator('.brand-home')).toHaveAttribute('href', '/');
     const placement = await page.evaluate(
       ([doorId, after]) => {
         const el = document.querySelector(`header [data-testid="${doorId}"]`)!;

@@ -161,7 +161,7 @@ the programmatic builders, exported - this closes both. Ratified by the owner 20
 | `/api/me/agent-keys` | `api/_lib/me/agentKeys.ts` (+ `.test.ts`) |
 | `/api/me/graphics` + the pure shape guard | `api/_lib/me/graphics.ts`, `graphicShape.ts` (+ `.test.ts`) |
 | `/api/me/packages` + its shape guard (§7) | `api/_lib/me/packages.ts`, `packageShape.ts` (+ `packages.test.ts`) |
-| migrations | `supabase/migrations/0050_agent_keys.sql`, `0063_agent_packages.sql` |
+| migrations | `supabase/migrations/0050_agent_keys.sql`, `0065_agent_packages.sql` |
 | waiting packages in the studio (§7) | `src/backend/agentPackages.ts`, `src/components/home/sections/ProductionsSection.tsx` |
 | consent page, browser client | `src/components/auth/AgentAccessConsent.tsx`, `src/backend/agentAccess.ts` |
 | Settings list | `SettingsDialog.tsx` `AgentAccessSection` |
@@ -215,7 +215,7 @@ Recorded here so each can be reverted on its own:
 - **It rides `graphics:create`.** Nothing becomes a production until the user presses Install,
   so no new permission is needed and no existing key has to be re-authorised. The permission's
   label now says "Create graphics in your library and send graphics packages to your Home".
-- **Its own table, not a `documents` kind.** `agent_packages` (migration 0063) is read and
+- **Its own table, not a `documents` kind.** `agent_packages` (migration 0065) is read and
   deleted by the browser under RLS and written only by the service role. A new `documents` kind
   would have pulled a transient inbox into the sync engine and every device's local store.
 - **The payload is the pack FILE format** (`noacg-pack` v1, `docs/GRAPHICS_PACKS.md`). `--out`

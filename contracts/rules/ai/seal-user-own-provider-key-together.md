@@ -1,0 +1,10 @@
+---
+v: 1
+scope: api/_lib/aiCredentials.ts, api/_lib/aiRoutes/credentials.ts, api/ai/generate.ts
+kind: invariant
+fires: contract
+status: active
+since: 2026-09-24
+record: contracts/records/ai/2026-09-24-seal-user-own-provider-key-together.md
+---
+Seal a user's own AI provider key TOGETHER with the account that saved it, and honour it only for that same caller: the cookie belongs to the browser and outlives every sign-out. A signed-out key serves only a signed-out caller, a session that fails to verify matches no owner at all, and a sealed payload without an owner reads as no keys rather than as anybody's.

@@ -11,6 +11,7 @@ import { uuid } from '../model/id';
 import type { AiPath } from './provider';
 import type { ModelUsage } from './modelTypes';
 import type { CreativeAiProfileId } from './lite/types';
+import { accountKey } from '../model/accountScope';
 
 /** Normalized token and optional cost metadata from any model provider. */
 export type AiUsage = Pick<ModelUsage, 'inputTokens' | 'outputTokens'>
@@ -83,7 +84,7 @@ const MAX_RECORDS = 100;
 
 function readStored(): AiRunRecord[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(accountKey(STORAGE_KEY));
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? (parsed as AiRunRecord[]) : [];
   } catch {
@@ -93,7 +94,7 @@ function readStored(): AiRunRecord[] {
 
 function persist(records: AiRunRecord[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(-MAX_RECORDS)));
+    localStorage.setItem(accountKey(STORAGE_KEY), JSON.stringify(records.slice(-MAX_RECORDS)));
   } catch {
     // Quota or no storage — telemetry is best-effort, never in the user's way.
   }

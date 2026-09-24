@@ -3,7 +3,7 @@
 //
 // The server writes them (api/_lib/me/packages.ts); this module only reads and deletes the
 // signed-in user's own rows, through the app's Supabase client and the table's row-level security
-// (supabase/migrations/0063_agent_packages.sql). Installing is NOT here: the Productions section
+// (supabase/migrations/0065_agent_packages.sql). Installing is NOT here: the Productions section
 // hands the package's text to the same parse → validate → install path a pack file takes
 // (src/packs/graphicsPack.ts), so an uploaded package and an imported file are one door.
 //

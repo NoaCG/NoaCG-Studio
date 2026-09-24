@@ -6,7 +6,7 @@
 
 import type { Session, User } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
-import { resetSyncBookmark } from './sync';
+import { releaseLibrary } from './accountLibrary';
 
 export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
 
@@ -92,9 +92,9 @@ export async function signOut(): Promise<void> {
   deliberateSignOut = true;
   const sb = await getSupabase();
   await sb?.auth.signOut();
-  // The next sign-in may be a DIFFERENT account: its first pass must re-reconcile from scratch,
-  // not inherit this account's bookmark or per-record pending debts.
-  resetSyncBookmark();
+  // Graphics are account-bound: the page returns to the signed-out workspace, and the account's
+  // library (with its own sync bookmark) waits on this device until it signs in again.
+  await releaseLibrary();
 }
 
 /** Whether the most recent transition to signed-out was the user's own Sign out. Reading it
@@ -146,6 +146,14 @@ export async function getAccessToken(): Promise<string | null> {
   if (!sb) return null;
   const session = await readSessionBounded(sb);
   return session?.access_token ?? null;
+}
+
+/** The signed-in account's id, or null - read the same bounded way as the access token. */
+export async function getSignedInUserId(): Promise<string | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const session = await readSessionBounded(sb);
+  return session?.user.id ?? null;
 }
 
 /**

@@ -8,9 +8,13 @@ export default {
     const guard = methodGuard(req, 'GET');
     if (guard) return guard;
 
-    const userKeys = readUserAiKeys(req);
+    const token = bearerToken(req);
+    const user = token ? await verifyUser(token) : null;
+    // Only the caller's own keys: null when signed out, nothing at all for a session that failed
+    // to verify (see aiCredentials.ts, "WHOSE KEYS THESE ARE").
+    const userKeys = readUserAiKeys(req, token ? user?.userId : null);
     const requiresSignIn = serverAuthConfigured();
-    const signedIn = !requiresSignIn || Boolean(await verifyUser(bearerToken(req)));
+    const signedIn = !requiresSignIn || Boolean(user);
     return json({
       keyStorageAvailable: canStoreUserAiKeys(),
       providers: AI_PROVIDER_IDS.map((provider) => ({

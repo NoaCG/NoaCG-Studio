@@ -52,19 +52,19 @@ do $$
 begin
   if not has_table_privilege('authenticated', 'public.agent_packages', 'SELECT')
      or not has_table_privilege('authenticated', 'public.agent_packages', 'DELETE') then
-    raise exception '0063 self-check FAILED: authenticated is missing a privilege its policies need';
+    raise exception '0065 self-check FAILED: authenticated is missing a privilege its policies need';
   end if;
   if has_table_privilege('authenticated', 'public.agent_packages', 'INSERT')
      or has_table_privilege('authenticated', 'public.agent_packages', 'UPDATE') then
-    raise exception '0063 self-check FAILED: a browser could write agent_packages around the shape guard';
+    raise exception '0065 self-check FAILED: a browser could write agent_packages around the shape guard';
   end if;
   if has_table_privilege('anon', 'public.agent_packages', 'SELECT')
      or has_table_privilege('anon', 'public.agent_packages', 'INSERT')
      or has_table_privilege('anon', 'public.agent_packages', 'UPDATE')
      or has_table_privilege('anon', 'public.agent_packages', 'DELETE') then
-    raise exception '0063 self-check FAILED: anon holds a privilege on agent_packages';
+    raise exception '0065 self-check FAILED: anon holds a privilege on agent_packages';
   end if;
   if not exists (select 1 from pg_class where oid = 'public.agent_packages'::regclass and relrowsecurity) then
-    raise exception '0063 self-check FAILED: row level security is off on agent_packages';
+    raise exception '0065 self-check FAILED: row level security is off on agent_packages';
   end if;
 end $$;

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #fc0;
+      }
+
+      .st1, .st2 {
+        fill: #1d2b53;
+      }
+
+      .st3 {
+        fill: #2e4272;
+      }
+
+      .st2 {
+        font-family: Oswald-Bold, Oswald;
+        font-size: 150px;
+        font-weight: 700;
+      }
+
+      .st4 {
+        fill: #fff;
+        font-family: Oswald-Medium, Oswald;
+        font-size: 44px;
+        font-weight: 500;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Background" class="st1" width="1920" height="1080"/>
+    <rect id="Title_box" class="st0" x="260" y="380" width="1400" height="240"/>
+    <rect id="Subtitle_box" class="st3" x="660" y="640" width="600" height="80"/>
+  </g>
+  <g id="Text">
+    <text id="Show_name" class="st2" transform="translate(526.81 560.75)"><tspan x="0" y="0">BRAIN BATTLE</tspan></text>
+    <text id="Subtitle" class="st4" transform="translate(874.05 697.82)"><tspan x="0" y="0">EPISODE 1</tspan></text>
+  </g>
+</svg>

@@ -72,7 +72,7 @@ a trap.
    supply `find` + `fill` + `pack`; high and open-ended if we build the reasoning ourselves.* Take
    the first: *"the agent door is a BRIDGE and broadcast interface, not a creative harness"*
    (`docs/AGENT_CLI.md`) already decided this, and the output format exists today.
-4. **Production-aware landing - `noacg save --production <slug>`, staged, never aired.** An
+4. **Production-aware landing - `noacg save --production <slug>`, staged, never aired.** *(Partly landed 2026-09-24: `noacg pack --save` sends a whole package that waits on Home → Productions until the user presses Install - `docs/AGENT_SAVE.md` §7. Landing into an EXISTING production is still open.)* An
    assembled pack lands where an operator will actually run it and waits in the staged half of the
    control log for a human to take it. *Cost: an entitlements and scoped-key question
    (`docs/AGENT_SAVE.md`) more than a CLI one.* Their human gate is a review step bolted on; ours
