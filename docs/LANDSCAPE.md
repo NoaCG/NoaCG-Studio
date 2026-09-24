@@ -210,7 +210,7 @@ the original scanners' claims. Verdicts: **we beat** (nobody credible matches), 
 | Auto-advance from a cue timer | MXMZ, Pixla, Cuez, Sofie | No | `animMachine.ts:246` caps one timer per state and `animRuntime.ts:389` arms it. Nothing at rundown level | gap | days |
 | Back-timing to a hard out | Rundown Studio, Ontime, Cuez | Yes | Absent. The reason durations exist at all | gap | days |
 | Import a running order from a spreadsheet | Ontime, Rundown Studio, Stagetimer, Sofie | Yes | `src/model/csv.ts` parses CSV/TSV/JSON and lands it in a **dataset**, not in cues | gap | days |
-| Clip playout from the rundown | Chyron PRIME Clips, XPression Clips, Viz Trio, Pixla, Sofie | Yes | Planned. P3 clip-by-reference is AUTHORIZED and may start now. The owner: "one reason I can't use it in my productions" | gap | weeks |
+| Clip playout from the rundown | Chyron PRIME Clips, XPression Clips, Viz Trio, Pixla, Sofie | Yes | Built 2026-09-22/23 for CasparCG: the Bridge lists the server's clips, the rundown cues them on their own channel and layer, with Pause and Resume (`docs/BRIDGE.md` §5). No clip position readout yet | match | done |
 | Audio: stinger hits, beds, chimes | CasparCG, OBS, vMix, H2R (Pro), Ontime. **No scanner opened this row** | Yes | **Absent.** No `<audio`, `new Audio(` or `AudioContext` outside the AI-video subsystem | gap | weeks |
 | Media library beside the rundown | Pixla, Cuez Browz, Sofie | Yes | Assets belong to one template | gap | weeks |
 | Prompter following the active row | Cuez, Rundown Studio, Rundown Creator, Pixla | Yes | **Absent.** The expensive half exists: `presenterBySlug()` is a read-only URL following live operator state | gap | weeks |
