@@ -16,6 +16,7 @@ import type { FieldKind } from './fieldModel';
 import type { CustomFont } from './fonts';
 import type { EasingId } from './easings';
 import type { AnimPresetId, AnimSpeed, ExtraFieldSpec, LineSpec } from './templateVocabulary';
+import { accountKey } from './accountScope';
 
 /** The AI category ids. The union lives HERE (the persisted schema references it); each id's
  *  REGISTRY entry — names, template links, suggested fields, workflow rules — lives in
@@ -229,7 +230,7 @@ const DRAFT_KEY = 'spx-gfx-ai-spec-draft';
 /** The wizard's cross-session draft: closing the wizard must not lose the setup. */
 export function loadSpecDraft(): GenerationSpec | null {
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(accountKey(DRAFT_KEY));
     return raw ? normalizeSpec(JSON.parse(raw)) : null;
   } catch {
     return null;
@@ -238,8 +239,8 @@ export function loadSpecDraft(): GenerationSpec | null {
 
 export function saveSpecDraft(spec: GenerationSpec): void {
   try {
-    if (specIsEmpty(spec)) localStorage.removeItem(DRAFT_KEY);
-    else localStorage.setItem(DRAFT_KEY, JSON.stringify(spec));
+    if (specIsEmpty(spec)) localStorage.removeItem(accountKey(DRAFT_KEY));
+    else localStorage.setItem(accountKey(DRAFT_KEY), JSON.stringify(spec));
   } catch {
     /* quota — the draft is a convenience, never worth an error */
   }
@@ -247,7 +248,7 @@ export function saveSpecDraft(spec: GenerationSpec): void {
 
 export function clearSpecDraft(): void {
   try {
-    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(accountKey(DRAFT_KEY));
   } catch {
     /* ignore */
   }

@@ -1,5 +1,5 @@
 import { json, methodGuard } from '../http.js';
-import { managedAiKey, readUserAiKeys } from '../aiCredentials.js';
+import { hasUserAiKeysCookie, keyOwnerOf, managedAiKey, readUserAiKeys } from '../aiCredentials.js';
 import { discoverProviderModels } from '../aiModelDiscovery.js';
 import { isAiProviderId } from '../../../src/ai/modelTypes.js';
 
@@ -17,7 +17,7 @@ export default {
       return json({ error: { code: 'invalid_request', message: 'Select a valid output modality.' } }, 400);
     }
     try {
-      const userKeys = readUserAiKeys(req);
+      const userKeys = hasUserAiKeysCookie(req) ? readUserAiKeys(req, await keyOwnerOf(req)) : {};
       const userKey = userKeys[provider];
       const key = userKey || managedAiKey(provider) || undefined;
       // WHICH KEY PAYS travels with the rows, because a price nobody can attribute is half an

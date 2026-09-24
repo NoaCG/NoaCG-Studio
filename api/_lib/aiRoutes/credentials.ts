@@ -2,6 +2,7 @@ import { json, methodGuard, readJson } from '../http.js';
 import {
   canStoreUserAiKeys,
   clearUserAiKeysCookie,
+  keyOwnerOf,
   readUserAiKeys,
   sameOrigin,
   userAiKeysCookie,
@@ -25,7 +26,11 @@ export default {
     try {
       const body = await readJson<{ provider?: unknown; key?: unknown }>(req, MAX_BODY_BYTES);
       if (!isAiProviderId(body.provider)) return invalid('Select a valid AI provider.');
-      const keys = readUserAiKeys(req);
+      // The keys belong to whoever is calling. A session that does not verify may not save any:
+      // they would be sealed to nobody, or worse, to the signed-out owner.
+      const owner = await keyOwnerOf(req);
+      if (owner === undefined) return invalid('Sign in again to change your provider keys.', 401);
+      const keys = readUserAiKeys(req, owner);
 
       if (req.method === 'PUT') {
         if (typeof body.key !== 'string' || body.key.trim().length < 8 || body.key.trim().length > 512) {
@@ -40,7 +45,7 @@ export default {
       return json(
         { ok: true, provider: body.provider, configured: req.method === 'PUT' },
         200,
-        { 'set-cookie': hasKeys ? userAiKeysCookie(req, keys) : clearUserAiKeysCookie(req) },
+        { 'set-cookie': hasKeys ? userAiKeysCookie(req, keys, owner) : clearUserAiKeysCookie(req) },
       );
     } catch {
       return invalid('The credential request is invalid.');

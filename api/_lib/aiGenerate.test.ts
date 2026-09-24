@@ -307,6 +307,7 @@ test('a BYO Pro call is NOT policied - a user key is not ours to route', async (
   const cookie = userAiKeysCookie(
     new Request('https://noacg.test/api/ai/credentials', { headers: { origin: 'https://noacg.test' } }),
     { vercel: 'user-supplied-key' },
+    null,
   ).split(';')[0];
 
   const sent = await capturePayload(PRO_CALL, { cookie });

@@ -10,6 +10,9 @@
 // source dominates an output (docs/BROADCAST_DESIGN_SYSTEM_RESEARCH.md §7.4). The variety
 // mechanism and the trade-dress mitigation are the same mechanism.
 
+// `.js` because the API runtime loads this module too (api/_lib via ai/lite/contract.ts).
+import { accountKey } from '../model/accountScope.js';
+
 /**
  * The axes a reference is scored on. Defined HERE, not with the cards, because this is the
  * selector's contract - a card library conforms to it.
@@ -236,7 +239,7 @@ export function recencyPenaltyFor(id: string, recent: string[]): number {
 export function recentReferenceIds(): string[] {
   try {
     if (typeof localStorage === 'undefined') return [];
-    const raw = localStorage.getItem(RECENCY_KEY);
+    const raw = localStorage.getItem(accountKey(RECENCY_KEY));
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
@@ -250,7 +253,7 @@ export function noteReferenceUse(ids: string[]): void {
   try {
     if (typeof localStorage === 'undefined') return;
     const kept = recentReferenceIds().filter((id) => !ids.includes(id));
-    localStorage.setItem(RECENCY_KEY, JSON.stringify([...ids, ...kept].slice(0, RECENCY_DEPTH)));
+    localStorage.setItem(accountKey(RECENCY_KEY), JSON.stringify([...ids, ...kept].slice(0, RECENCY_DEPTH)));
   } catch {
     // Storage unavailable (private mode, quota). Recency is a nicety, never a requirement.
   }

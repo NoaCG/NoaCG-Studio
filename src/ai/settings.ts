@@ -14,6 +14,7 @@ import {
 // pulls in three composers and their category assemblers, which is a large thing for a
 // preferences file every surface loads to import for a list of four strings.
 import { PRO_PACKAGE_IDS, type ProGraphicId } from './pro/language/structure';
+import { accountKey } from '../model/accountScope';
 
 const STORAGE_KEY = 'spx-gfx-ai';
 
@@ -276,7 +277,7 @@ function validProviders(value: unknown): AiProviderId[] {
 
 function readSaved(): Record<string, unknown> {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as unknown;
+    const parsed = JSON.parse(localStorage.getItem(accountKey(STORAGE_KEY)) ?? '{}') as unknown;
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
     const saved = parsed as Record<string, unknown>;
     // One-way security migration: old releases stored the raw Anthropic key here. Never
@@ -284,7 +285,7 @@ function readSaved(): Record<string, unknown> {
     if ('apiKey' in saved || 'proxyUrl' in saved) {
       delete saved.apiKey;
       delete saved.proxyUrl;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      localStorage.setItem(accountKey(STORAGE_KEY), JSON.stringify(saved));
     }
     return saved;
   } catch {
@@ -366,7 +367,7 @@ export function saveAiSettings(patch: Partial<AiSettings>): void {
     proPackage: proPackageFrom(patch.proPackage ?? current.proPackage),
   };
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    localStorage.setItem(accountKey(STORAGE_KEY), JSON.stringify(merged));
   } catch {
     // Storage full or unavailable. These are non-secret provider/model PREFERENCES; losing one
     // costs a re-pick, while throwing here would take down whichever surface saved them (the
