@@ -25,9 +25,10 @@ Illustrator is the sample. Its first line ending in `:` is what every title look
 line under it is what every name looks like - font, size, weight, colour, indent and leading, all
 read off those two lines. The sample is hidden on air.
 
-**Scroll speed 100** is about 1.35 of the list's own lines a second, so about twenty lines pass a
-1080 frame in about thirty seconds whatever size the type is (the fixture's 22-line list inside an
-800-tall box measures about 32 s; the same list through the whole frame about 36 s).
+**Scroll speed 100** is about 1.75 of the list's own lines a second, so about thirty lines pass a
+1080 frame in about thirty seconds whatever size the type is. Row E raised it from 1.35 on
+2026-09-24, because the classroom package's Finnish list (32 lines in an 800-tall box) took 38.8 s
+at 1.35 and takes 30.0 s now. This fixture's shorter list inside its box takes about 25 s.
 
 ## The route, under a minute
 
@@ -48,9 +49,8 @@ read off those two lines. The sample is hidden on air.
 
 - Do the two looks read as the sample's - a title in the bold amber, the names in the plain
   white, the same leading the sample was drawn with?
-- Is 100 the pace you would expect for a classroom credit roll? Row E adjusts the constant
-  (`CREDITS_LINES_PER_SECOND` in `src/templates/importedDesign/creditsRoll.ts`) if the Finnish
-  default list misses thirty seconds.
+- Is 100 the pace you would expect for a classroom credit roll? The constant is
+  `CREDITS_LINES_PER_SECOND` in `src/templates/importedDesign/creditsRoll.ts` (1.75 since row E).
 - A group with one name still renders as a title line over a name line, the sample's shape; the
   catalog's inline "role beside name" layouts are not offered here. Say so if the classroom roll
   wants the inline form.

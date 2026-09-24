@@ -40,13 +40,15 @@ import {
 import { CREDITS_PARSER_JS } from '../endCredits/shared';
 
 /**
- * THE AUTHORED PACE, in lines per second at Scroll speed 100. Chosen so a list of about twenty
- * lines rolls through a 1080-tall frame in about thirty seconds (the owner's brief for the
- * classroom credits, 2026-09-24): at a 52px leading the list is about 1,100px, the frame adds
- * 1,080, and 2,180px at 70px a second is 31 s. A show that wants it slower types 80 into
+ * THE AUTHORED PACE, in lines per second at Scroll speed 100. Chosen so the classroom package's
+ * default credits roll through in about thirty seconds (the owner's brief, 2026-09-24, and Yle's
+ * guideline of at most thirty): its 32 lines and section gaps run about 36 lines of leading, its
+ * 800-tall Credits box adds 16, and 52 lines at 1.75 a second is 30 s. At 1.35 the same list took
+ * 38.8 s (e2e/classroom-package.spec.ts measures it). Through a whole 1080 frame at a 52px
+ * leading, about thirty lines take thirty seconds. A show that wants it slower types 80 into
  * Scroll speed; the constant is what 100 means.
  */
-export const CREDITS_LINES_PER_SECOND = 1.35;
+export const CREDITS_LINES_PER_SECOND = 1.75;
 
 /** The class the drawn Credits text wears instead of a field id: the sample, hidden on air. */
 export function creditsClass(prefix: string): string {
@@ -149,7 +151,7 @@ export function creditsRollRuntimeJs(prefix: string): string {
 // roll restarts on every take. Remove this block and the sample shows as drawn.
 
 // The authored pace at Scroll speed 100, in LINES a second - a 30px credit and a 60px one read
-// at the same speed. About twenty lines pass through a 1080 frame in about thirty seconds.
+// at the same speed. About thirty lines pass through a 1080 frame in about thirty seconds.
 var NOACG_CREDITS_LINES_PER_SECOND = ${CREDITS_LINES_PER_SECOND};
 
 ${CREDITS_PARSER_JS}

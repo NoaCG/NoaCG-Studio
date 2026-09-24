@@ -134,7 +134,7 @@ colour, the indent, the leading between a title and its names, between two names
 before the next title are all read off those lines. Two lines styled once, and every list the
 operator pastes follows them. The sample itself is hidden on air.
 
-**Scroll speed 100** means the list moves at about 1.35 of its own lines a second, so about twenty
+**Scroll speed 100** means the list moves at about 1.75 of its own lines a second, so about thirty
 lines pass through a 1080-high frame in about thirty seconds, whatever size the type is. 200 is
 twice as fast, 50 half; the value applies from the next take.
 

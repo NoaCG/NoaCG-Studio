@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #1d2b53;
+      }
+
+      .st1 {
+        font-size: 30px;
+      }
+
+      .st1, .st2 {
+        fill: #fc0;
+        font-family: Oswald-Bold, Oswald;
+        font-weight: 700;
+      }
+
+      .st3 {
+        fill: #2e4272;
+      }
+
+      .st2 {
+        font-size: 64px;
+      }
+
+      .st4 {
+        fill: #fff;
+        font-family: Oswald-Regular, Oswald;
+        font-size: 40px;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Panel" class="st0" width="1920" height="1080"/>
+    <rect id="Credits_box" class="st3" x="560" y="200" width="800" height="800"/>
+  </g>
+  <g id="Text">
+    <text id="Heading" class="st2" transform="translate(860.64 160.92)"><tspan x="0" y="0">TEKIJÄT</tspan></text>
+    <text id="Credits" transform="translate(620 270)"><tspan class="st1"><tspan x="0" y="0">Juontaja:</tspan></tspan><tspan class="st4"><tspan x="0" y="50">Maija Meikäläinen</tspan></tspan><tspan class="st1"><tspan x="0" y="116">Vieraat:</tspan></tspan><tspan class="st4"><tspan x="0" y="166">Ville Virtanen</tspan></tspan><tspan class="st4"><tspan x="0" y="216">Aino Aalto</tspan></tspan><tspan class="st1"><tspan x="0" y="282">Kuvaajat:</tspan></tspan><tspan class="st4"><tspan x="0" y="332">Eero Eskola</tspan></tspan><tspan class="st4"><tspan x="0" y="382">Liisa Lahti</tspan></tspan><tspan class="st4"><tspan x="0" y="432">Pekka Peltola</tspan></tspan><tspan class="st1"><tspan x="0" y="498">Studio-ohjaaja:</tspan></tspan><tspan class="st4"><tspan x="0" y="548">Olli Ojala</tspan></tspan><tspan class="st1"><tspan x="0" y="614">Kuvamiksaaja:</tspan></tspan><tspan class="st4"><tspan x="0" y="664">Sanna Salo</tspan></tspan><tspan class="st1"><tspan x="0" y="730">Kuvaussihteeri:</tspan></tspan><tspan class="st4"><tspan x="0" y="780">Riikka Rinne</tspan></tspan><tspan class="st1"><tspan x="0" y="846">Äänitarkkailija:</tspan></tspan><tspan class="st4"><tspan x="0" y="896">Timo Toivonen</tspan></tspan><tspan class="st1"><tspan x="0" y="962">Valaisija:</tspan></tspan><tspan class="st4"><tspan x="0" y="1012">Kaisa Koski</tspan></tspan><tspan class="st1"><tspan x="0" y="1078">Kuvatarkkailija:</tspan></tspan><tspan class="st4"><tspan x="0" y="1128">Heikki Honkanen</tspan></tspan><tspan class="st1"><tspan x="0" y="1194">Grafiikka:</tspan></tspan><tspan class="st4"><tspan x="0" y="1244">Jussi Järvi</tspan></tspan><tspan class="st1"><tspan x="0" y="1310">Lavastus:</tspan></tspan><tspan class="st4"><tspan x="0" y="1360">Noora Nurmi</tspan></tspan><tspan class="st1"><tspan x="0" y="1426">Maskeeraus:</tspan></tspan><tspan class="st4"><tspan x="0" y="1476">Mira Mäki</tspan></tspan><tspan class="st1"><tspan x="0" y="1542">Ohjaaja:</tspan></tspan><tspan class="st4"><tspan x="0" y="1592">Anna Anttila</tspan></tspan><tspan class="st1"><tspan x="0" y="1658">Tuottaja:</tspan></tspan><tspan class="st4"><tspan x="0" y="1708">Mika Mäkelä</tspan></tspan><tspan class="st4"><tspan x="0" y="1808">Quiz Night 2026</tspan></tspan></text>
+  </g>
+</svg>

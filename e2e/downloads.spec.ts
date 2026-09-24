@@ -1,4 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import JSZip from 'jszip';
 
 // THE DOWNLOADS PAGE (/downloads, downloads.html + src/downloads/). NoaCG ships two things you
 // install - NoaCG Bridge and the NoaCG CLI - and a visitor has to be able to find both from the
@@ -115,6 +118,34 @@ test('with neither API answering the page still downloads the newest Bridge and 
   );
   await expect(page.getByTestId('bridge-version')).toHaveText('latest');
   await expect(page.getByTestId('cli-version')).toHaveText('latest');
+});
+
+test('the classroom package sits under the two tools and its zip is served from /downloads', async ({ page, request }) => {
+  await fakeChannels(page, 'down');
+  await page.goto('/downloads#classroom');
+  const card = page.getByTestId('download-classroom');
+  await expect(card).toBeVisible();
+  // Example material for a lesson, not a third tool: the heading still counts two tools.
+  await expect(page.locator('h1')).toHaveText('Two tools you can install');
+  await expect(card).toContainText('Illustrator');
+  await expect(card.getByTestId('classroom-download')).toHaveAttribute('href', '/downloads/NoaCG-classroom-package.zip');
+  const zip = await request.get('/downloads/NoaCG-classroom-package.zip');
+  expect(zip.status()).toBe(200);
+  const bytes = await zip.body();
+  // A zip starts with "PK": the server did not answer with the downloads page instead.
+  expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
+  expect(bytes.length).toBeGreaterThan(100_000);
+  // The zip is committed, so it can go stale: every SVG and the README in it are the repo's own.
+  const zipped = await JSZip.loadAsync(bytes);
+  for (const file of ['README.md', 'SVG/show-intro.svg', 'SVG/name-tag.svg', 'SVG/quiz.svg', 'SVG/score-tracker.svg', 'SVG/end-credits.svg']) {
+    const inZip = await zipped.file(`NoaCG-classroom-package/${file}`)?.async('string');
+    const inRepo = readFileSync(fileURLToPath(new URL(`../docs/tutorials/classroom-package/${file}`, import.meta.url)), 'utf8');
+    expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip - repack with scripts/illustrator/pack-classroom-package.mjs`).toBe(inRepo.replace(/\r\n/g, '\n'));
+  }
+
+  // The same zip is linked from the docs, beside the layer names it teaches.
+  await page.goto('/docs#svg-layers');
+  await expect(page.getByTestId('docs-classroom-package')).toHaveAttribute('href', '/downloads/NoaCG-classroom-package.zip');
 });
 
 test('the top bar is the landing top bar, with Downloads as the current page', async ({ page }) => {

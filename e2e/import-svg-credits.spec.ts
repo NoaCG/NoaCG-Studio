@@ -18,7 +18,7 @@ import { dropSvg, intoProduction } from './_svg-import';
 //     speed beside it - nothing else, and never a field per name.
 //  3. THE ROLL. On Take the whole list rolls from below the box to above it at a constant pace,
 //     and the pace is the one the docs promise: the list's own leading times the authored lines
-//     a second, so about twenty lines pass in about thirty seconds.
+//     a second, so about thirty lines pass in about thirty seconds.
 //  4. THE TWO LOOKS. Every title row carries the sample's title class and every name row the
 //     name look, read off the drawing - the one styling idea a student has to repeat.
 //  5. THE FORMAT. A new paste in parseCredits' format ("Title: Name" inline, a tab from a
@@ -50,7 +50,7 @@ const DEFAULT_TITLES = 9;
 /** The sample's own leading between names, in artwork units (the fixture draws it at 52). */
 const SAMPLE_STEP = 52;
 /** creditsRoll.ts CREDITS_LINES_PER_SECOND - the authored pace at Scroll speed 100. */
-const LINES_PER_SECOND = 1.35;
+const LINES_PER_SECOND = 1.75;
 
 interface LastRoll {
   startY: number;
@@ -136,9 +136,10 @@ test('imported credits: one pasted list rolls through the Credits box in the sam
   expect(first.startY).toBeGreaterThan(first.endY);
   expect(first.distance).toBeGreaterThan(800); // the box is 800 tall; the list adds its own height
   expect(first.duration).toBeCloseTo(first.distance / (first.step * LINES_PER_SECOND), 1);
-  // About twenty lines in about thirty seconds is what Scroll speed 100 means.
-  expect(first.duration).toBeGreaterThan(25);
-  expect(first.duration).toBeLessThan(40);
+  // About thirty lines in about thirty seconds is what Scroll speed 100 means; this list is
+  // shorter, so it is through sooner.
+  expect(first.duration).toBeGreaterThan(18);
+  expect(first.duration).toBeLessThan(32);
   expect(await rollWindow(air)).toEqual({ y: 150, height: 800 });
   // …and it is moving: a constant-speed tween, already under way.
   await expect
