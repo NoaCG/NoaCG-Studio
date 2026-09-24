@@ -5,6 +5,7 @@ import {
   labelCarriesDelta,
   arrangeControls,
   arrangeFor,
+  canAdvance,
   eventButtons,
   eventLegality,
   adjustedValue,
@@ -14,6 +15,7 @@ import {
   isEventLegal,
   machineStateGroups,
   machineStateNames,
+  movedStateNames,
   overflowNote,
   pressSend,
   OVERFLOW_FIELD_HINT,
@@ -629,6 +631,16 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   /** What SPACE - and the TAKE button wearing it - does next; one table, `playoutKeys.ts`. */
   const spaceNext = spaceAction(spaceMode, { live: selectedIsLive, previewed: selectedIsPreviewed });
   const spec: PanelGraphicSpec | null = selectedGraphic ? specByName.get(selectedGraphic) ?? null : null;
+  /** Would » Next move the selected layer right now — the same question the in-app dashboard
+   *  asks (`controlModel canAdvance`), so a quiz on its Reveal greys Next here too instead of
+   *  logging "Next step" while the board stays put (g2 handoff, "For row G" item 3). */
+  const nextMoves = !!selectedGraphic && canAdvance(spec?.js ?? '', machineState[selectedGraphic] ?? null);
+  /** The names of every state ✎ Update will KEEP on the live layer (`controlModel
+   *  movedStateNames`), exactly as the in-app dashboard reads them — Update stays data only, so
+   *  after a reveal it airs new words under the old verdict unless the surface says what stays. */
+  const keptStates = selectedIsLive && selectedGraphic
+    ? movedStateNames(spec?.js ?? '', spec ? machineStateNames(spec.js) : {}, machineState[selectedGraphic] ?? null).join(' and ')
+    : '';
 
   /** What the production's bindings resolve to right now: the figure every bound field on every
    *  bound graphic is showing. One resolve per render, not one per cue. */
@@ -909,7 +921,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     }
     if (verb === 'retake' && selectedIsLive && selectedCue) void takeCue(selectedCue);
     if (verb === 'update' && selectedIsLive) updateLive();
-    if (verb === 'next' && selectedLayerCueId) nextLayer();
+    if (verb === 'next' && selectedLayerCueId && nextMoves) nextLayer();
     if (verb === 'out' && selectedLayerCueId) outLayer();
     // Walk the rundown. Selecting a cue is the same act as clicking it, to PREVIEW in 'take'
     // mode and a cursor move in the other, and nothing airs either way, so an operator can line
@@ -1016,6 +1028,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             hasSelection={!!selectedCue}
             layerLive={!!selectedLayerCueId}
             liveLabels={liveLayers.map((l) => l.label)}
+            selectedGraphic={selectedGraphic}
+            nextMoves={nextMoves}
+            keptStates={keptStates}
             onKey={runVerb}
           />
           </div>
@@ -1036,6 +1051,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               layerLive={!!selectedLayerCueId}
               layer={layerOf(selectedCue.graphic)}
               liveState={machineState[selectedCue.graphic] ?? null}
+              keptStates={keptStates}
               // PREVIEW measures the cue ON it, which in 'preview-then-take' mode is not
               // always the cue being edited; a warning about another cue's words is no warning.
               overflow={
@@ -1229,6 +1245,9 @@ function HostedVerbs({
   hasSelection,
   layerLive,
   liveLabels,
+  selectedGraphic,
+  nextMoves,
+  keptStates,
   onKey,
 }: {
   selectedIsLive: boolean;
@@ -1239,6 +1258,13 @@ function HostedVerbs({
   hasSelection: boolean;
   layerLive: boolean;
   liveLabels: string[];
+  selectedGraphic: string | null;
+  /** Would » Next move the selected layer right now (`controlModel canAdvance`) — false on a
+   *  graphic's last step, where the button greys instead of logging a press that does nothing. */
+  nextMoves: boolean;
+  /** The states ✎ Update will keep on air, in the author's words (`controlModel movedStateNames`) —
+   *  empty once nothing is up for Update to keep. */
+  keptStates: string;
   onKey: (verb: PlayoutVerb) => void;
 }) {
   usePlayoutVerbKeys(onKey);
@@ -1274,16 +1300,24 @@ function HostedVerbs({
         className="pd-verb pd-verb-update"
         disabled={!selectedIsLive}
         onClick={() => onKey('update')}
-        title="Push the staged values to air without replaying"
+        title={
+          keptStates ? `Sends the values. Stays on ${keptStates}.` : 'Push the staged values to air without replaying'
+        }
         data-testid="hosted-update-cue"
       >
         ✎ Update <kbd>U</kbd>
       </button>
       <button
         className="pd-verb"
-        disabled={!layerLive}
+        disabled={!layerLive || !nextMoves}
         onClick={() => onKey('next')}
-        title="Advance the on-air graphic one step"
+        title={
+          !selectedGraphic
+            ? 'Advance the layer'
+            : layerLive && !nextMoves
+              ? `${selectedGraphic} is on its last step - Out takes it off, Re-take starts it again`
+              : `Advance ${selectedGraphic} to its next step`
+        }
         data-testid="hosted-next-cue"
       >
         » Next <kbd>N</kbd>
@@ -1330,6 +1364,7 @@ function HostedCueEditor({
   layerLive,
   layer,
   liveState,
+  keptStates,
   overflow,
   airedValues,
   onPreview,
@@ -1354,6 +1389,10 @@ function HostedCueEditor({
   layerLive: boolean;
   layer: number | null;
   liveState: { groups?: Record<string, string> } | null;
+  /** The states ✎ Update will keep on air, in the author's words (`controlModel
+   *  movedStateNames`, read by the page from this same graphic's machine) — empty once nothing
+   *  is up for Update to keep. */
+  keptStates: string;
   /** The field ids the monitor showing THIS cue reported as too long to fit - PROGRAM's answer
    *  when the cue is on air, PREVIEW's while it is staged. */
   overflow: string[];
@@ -1600,7 +1639,9 @@ function HostedCueEditor({
         >
           {layer !== null ? `L${layer} · ` : ''}
           {hasUnsent
-            ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. Press ✎ Update`
+            ? keptStates
+              ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. ✎ Update keeps ${keptStates} on air, ⟳ Re-take starts over with these values`
+              : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. Press ✎ Update`
             : live
               ? 'changes push live on ✎ Update'
               : 'changes air on ⟳ TAKE'}
