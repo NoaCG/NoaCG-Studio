@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/steps/EntryStep.tsx, e2e/wizard-entry-fit.spec.ts
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/wizard/2026-09-07-keep-three-deliberate-divergences-rest-wizard.md
 ---

@@ -5,8 +5,8 @@ import { useRouter } from '../../app/router';
  *
  * The new editor only mounts when the page URL carries `?editor=foundation` (App.tsx renders
  * Home for the bare route), so the query is written first, in place, without a history entry.
- * This is the default studio's editor door: since the owner's 2026-09-21 ruling no control
- * outside Advanced mode opens the old code editor (AppShell).
+ * This is the studio's one editor door: no control opens the old code editor (AppShell) any
+ * more (owner, 2026-09-21 and 2026-09-24).
  */
 export function openNewEditor(): void {
   const url = new URL(window.location.href);

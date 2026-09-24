@@ -105,9 +105,7 @@
           <ol>
             <li>Open <a href="/app#/new">the studio</a>. The creation wizard offers three
               starting points: a template from the catalog, your own artwork, or a description
-              for AI. A blank start is there too, once <strong>Advanced mode</strong> is switched
-              on in Settings. That is the toggle that shows the code editor, and it is off until
-              you ask for it.</li>
+              for AI.</li>
             <li>Set the colors, typefaces, logo and motion beside a live preview. Every change
               writes real HTML, CSS and JavaScript. You can open it, or never look at it.</li>
             <li>Finish, then either export a package straight away, or collect graphics into a
@@ -1001,10 +999,10 @@ Storm warning issued</code></pre>
             real image field, so it can also be left empty now and filled at playout.
           </p>
           <p>
-            <strong>As a file in the graphic.</strong> Switch <strong>Advanced mode</strong> on in
-            Settings and the editor opens, with an <strong>Assets</strong> panel listing every file
-            the graphic carries. Drop files on it, then drag one onto the canvas to place it. That
-            is the only route for a Lottie animation.
+            <strong>As a file in the graphic.</strong> Not open right now. Extra files, a Lottie
+            animation among them, were added in the old code editor, and that editor is closed. The
+            new editor lists the files a graphic carries but cannot add one yet, so a graphic keeps
+            the files it arrived with.
           </p>
           <p>
             Pictures for a live show are separate. On a production, <strong>Add pictures</strong>
@@ -1056,7 +1054,8 @@ Storm warning issued</code></pre>
 
           <h3 id="artwork-lottie">Lottie animations</h3>
           <p>
-            Drop the <code>.json</code> into the Assets panel and drag it onto the canvas. It
+            A graphic that already carries a Lottie keeps it. Adding one is not open right now (see
+            <a href="#artwork-in">the ways in</a>). It
             plays as soon as the graphic loads and it loops, so it suits a badge, a spinner or a
             looping ornament rather than something that has to hit a cue. It is not driven by the
             graphic coming on and off air.
@@ -1665,13 +1664,13 @@ CG 1-20 STOP</code></pre>
           <p>
             Point a graphic at a published sheet and its fields follow the sheet. Anyone with edit
             access to the sheet can change them. In the sheet: <em>File &rarr; Share &rarr;
-            Publish to web &rarr; CSV</em>. In the studio, open the graphic in the editor, go to
-            its <strong>Rehearse</strong> panel and paste the link into <strong>Live data</strong>.
-            The editor is behind <strong>Advanced mode</strong> in Settings, so switch that on
-            first if you have not. The generated polling code is ordinary, commented JavaScript
-            appended to the graphic's own code, with column headers mapped to field titles. It
-            runs wherever the graphic runs: the preview, an OBS browser source, an exported
-            package. The mapping is editable like the rest of the code.
+            Publish to web &rarr; CSV</em>. Connecting that link to a graphic was done in the old
+            code editor, which is closed, so a new link cannot be connected in the studio right
+            now. A graphic that already follows a sheet keeps following it: the polling code is
+            ordinary, commented JavaScript inside the graphic, with column headers mapped to field
+            titles, and it runs wherever the graphic runs. To bring a sheet into a show today,
+            import it as a table on the production's <strong>Data</strong> tab, or push the values
+            with the Production Data API below.
           </p>
 
           <h3 id="data-api">The Production Data API</h3>

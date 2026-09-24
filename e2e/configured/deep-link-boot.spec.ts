@@ -7,6 +7,10 @@ import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './
 // `#/home` - so the address, the only copy of it the reader was given, was gone a second after
 // they clicked.
 //
+// Since 2026-09-24 the link opens that graphic's CONTROL page, because the old code editor it
+// used to open is closed (e2e/no-old-editor.spec.ts). The address becomes `#/control/<id>`: the
+// graphic's id is what must survive, and it does, in the control page's own route.
+//
 // WHY THIS FILE EXISTS RATHER THAN ONE MORE ASSERTION IN agent-access.spec.ts. That spec's step 4
 // walks the same link and passes, and passed on the day production was measured failing it: it
 // runs against a LOCAL DEV SERVER (playwright.live.config.ts) where the pull answers in
@@ -48,16 +52,16 @@ test.describe('deep-link boot', () => {
     // copy of it the reader has, and no later sign-in can bring it back.
     await page.goto(`/app#/graphic/${ABSENT_ID}`);
 
-    // The app's own answer to "who are you": the sign-in dialog, opened by the boot itself.
-    // Waiting for it rather than for a stopwatch is what makes this test deterministic - it is
-    // the first moment the boot has finished deciding.
-    await expect(page.locator('.auth-card')).toBeVisible({ timeout: 30_000 });
-    expect(await page.evaluate(() => location.hash)).toBe(`#/graphic/${ABSENT_ID}`);
+    // The control page's own answer to "who are you": it asks for a sign-in. Waiting for it
+    // rather than for a stopwatch is what makes this test deterministic - it is the first moment
+    // the lookup has finished deciding.
+    await expect(page.getByTestId('control-lookup')).toContainText('Sign in to open this panel', { timeout: 30_000 });
+    expect(await page.evaluate(() => location.hash)).toBe(`#/control/${ABSENT_ID}`);
 
     // And it must still be there afterwards: the failure being pinned was a REPLACEMENT that
     // arrived late (846 ms on production), so an assertion that only looks early would miss it.
     await page.waitForTimeout(3_000);
-    expect(await page.evaluate(() => location.hash)).toBe(`#/graphic/${ABSENT_ID}`);
+    expect(await page.evaluate(() => location.hash)).toBe(`#/control/${ABSENT_ID}`);
   });
 
   test('a graphic saved elsewhere opens on its link, however slow the pull', async ({ browser, page }) => {
@@ -75,12 +79,11 @@ test.describe('deep-link boot', () => {
     // cloud and nothing else.
     const elsewhere = await browser.newContext();
     const other = await elsewhere.newPage();
-    let id = '';
     try {
       await signIn(other);
       await dismissWizard(other);
       await settleSync(other);
-      id = await other.evaluate(async () => {
+      const id = await other.evaluate(async () => {
         const { variantsFor } = await import('/src/templates/catalog.ts');
         const { createGraphic } = await import('/src/model/library.ts');
         const { syncNow } = await import('/src/backend/syncController.ts');
@@ -101,37 +104,21 @@ test.describe('deep-link boot', () => {
         await route.continue();
       });
       await link.goto(`/app#/graphic/${id}`);
-      // THE UNSAVED-CHANGES GUARD IS A DIFFERENT PROMISE, and it is deliberately not disarmed
-      // here. Opening a graphic REPLACES the working document, so a browser with unsaved work
-      // asks first (store/saveActions.ts requestSwitch) - a deep link is a switch like any other,
-      // and this suite's sign-in helper leaves an unsaved project behind it. Answer it the way a
-      // reader does and carry on measuring the link, which is what this test is about.
-      //
-      // AFTER THE SESSION HAS COME BACK, not in the first frame: the topbar's account chip is the
-      // proof of that. A press while the session is still being read answers a guard whose
-      // continuation then finds no token, and the test would be measuring its own impatience.
-      await expect(link.locator('.auth-status')).toBeVisible({ timeout: 30_000 });
-      const guard = link.getByTestId('confirm-switch');
-      if (await guard.isVisible().catch(() => false)) await link.getByTestId('switch-discard').click();
-      // ONE POLL FOR ALL THREE ANSWERS, so a failure says which of them went wrong rather than
-      // only that something did: the address, the open document, and whether the guard above is
-      // still on screen waiting for somebody.
+      // ONE POLL FOR BOTH ANSWERS, so a failure says which of them went wrong rather than only
+      // that something did: the address, and whether the control page found the graphic. The
+      // control page opens the record without replacing the working document, so there is no
+      // unsaved-changes guard on this road any more.
       await expect
         .poll(
           () =>
-            link.evaluate(async (graphicId) => {
-              const { useTemplateStore } = await import('/src/store/templateStore.ts');
-              const { useSaveUi } = await import('/src/store/saveActions.ts');
-              return {
-                hash: location.hash,
-                open: useTemplateStore.getState().saved.graphicId === graphicId,
-                guard: !!useSaveUi.getState().confirmSwitch,
-              };
-            }, id),
+            link.evaluate(() => ({
+              hash: location.hash,
+              found: !!document.querySelector('[data-testid="graphic-control-page"]'),
+            })),
           { timeout: PULL_DELAY_MS * 8 + 30_000 },
         )
-        .toEqual({ hash: `#/graphic/${id}`, open: true, guard: false });
-      expect(await link.evaluate(() => location.hash)).toBe(`#/graphic/${id}`);
+        .toEqual({ hash: `#/control/${id}`, found: true });
+      await expect(link.locator('.tpl-name')).toContainText('Deep link E2E');
       await link.close();
     } finally {
       await wipeMyGraphics(other).catch(() => undefined);

@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import AppShell from './components/AppShell';
+// NO AppShell IMPORT, on purpose (owner, 2026-09-24). The old code editor stays in the repo until
+// the new editor has taken over what is worth keeping, but no route renders it, so nothing here
+// may pull it (and Monaco behind it) into the bundle every visitor downloads.
 import EditorFoundation from './components/editorFoundation/EditorFoundation';
 import VideoAppShell from './components/video/VideoAppShell';
 import SendIn from './showchat/SendIn';
@@ -18,18 +20,14 @@ import SaveDialogs from './components/save/SaveDialogs';
 import ShareWithTeamDialog from './components/teams/ShareWithTeamDialog';
 import JoinTeamDialog from './components/teams/JoinTeamDialog';
 import { useAuthUi } from './components/auth/authUi';
-import { useAuthState } from './components/auth/useAuthState';
 import { isBackendConfigured } from './backend/config';
 import { isAgentRequestUrl } from './backend/agentAccess';
 import { isBridgePairUrl } from './control/playoutLink';
 import { arrivingRecoveryLink, isRecoveryRequestUrl } from './backend/recoveryLink';
-import { graphicWhenSynced } from './backend/graphicWhenSynced';
 import { useDocKindStore } from './store/docKindStore';
 import { useTemplateStore } from './store/templateStore';
 import { parseRoute, useRouter, type Route } from './app/router';
-import { openGraphicDoc, useSaveUi } from './store/saveActions';
 import { raiseStorageAlert } from './store/storageAlert';
-import { isAdvancedMode, useAdvancedMode } from './components/useAdvancedMode';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
 import StorageHealthNotice from './components/StorageHealthNotice';
 
@@ -111,9 +109,19 @@ function decideBootRoute(): Route {
   // A DEEP LINK (a production page, a control panel, a graphic, a video) must never open
   // under the startup wizard: the auto-open (galleryOpen's initial value — no autosaved
   // project) exists for the bare '' boot only, and since the wizard mounts at App level it
-  // would otherwise cover whatever the link pointed at. Both modes.
+  // would otherwise cover whatever the link pointed at.
   if (url.view !== 'editor') {
     if (useTemplateStore.getState().galleryOpen) useTemplateStore.getState().closeGallery();
+    // A STALE `#/graphic/<id>` - the old code editor's own route, and the link an agent's
+    // `noacg save` still answers with (docs/AGENT_SAVE.md) - opens that graphic's CONTROL page,
+    // which asks the cloud for a record this browser has not pulled yet. The URL is rewritten
+    // so everything downstream reads one route; the render below maps `graphic` to the same
+    // page as well, so no frame can show anything else.
+    if (url.view === 'graphic' && !queryCapabilityOwnsPage(bootQuery)) {
+      const control: Route = { view: 'control', id: url.id };
+      useRouter.getState().replace(control);
+      return control;
+    }
     return url;
   }
 
@@ -123,11 +131,10 @@ function decideBootRoute(): Route {
   // that one writes the URL as well.
   if (!bootMayRewriteUrl()) return url;
 
-  // WIZARD-FIRST BOOT (docs/GOALS_ARCHIVE.md "Student release" step 4), default mode only:
-  // the bare '' route lands on the wizard for a first-ever visit (galleryOpen's initial
-  // value) and on HOME for a returning reader. Advanced mode keeps the classic behaviour —
-  // '' is the editor, restoring the autosaved document.
-  if (isAdvancedMode()) return url;
+  // WIZARD-FIRST BOOT (docs/GOALS_ARCHIVE.md "Student release" step 4): the bare '' route
+  // lands on the wizard for a first-ever visit (galleryOpen's initial value) and on HOME for a
+  // returning reader. There is no editor under '' any more: a stored `advancedMode: true` used
+  // to make it the old code editor, and model/prefs.ts now drops that value on read.
 
   // ONLY THE RETURNING READER IS SETTLED HERE, and that is a deliberate limit rather than an
   // oversight. It is the boot the owner reported and by far the common one: a browser that has
@@ -135,11 +142,11 @@ function decideBootRoute(): Route {
   // its way to Home.
   //
   // The FIRST-EVER visit — no autosaved project, so the answer is the wizard — is left to the
-  // effect below, exactly as it has always worked, and it still costs the frame this file
-  // exists to remove. Moving it here was tried and backed out when `layout.spec.ts` went red on
-  // CI; that red is now understood (it was the stranded startup wizard, not the under-surface
-  // the revert blamed), so the move is available again. It is a piece of work rather than a
-  // line, and docs/backlog/first-visit-boot-flash.md carries the trail.
+  // effect below, which rewrites the URL to `#/new` a frame late. That frame no longer shows
+  // anything wrong: the '' route renders Home now, never the old editor, and the wizard is open
+  // (galleryOpen's initial value) in the same first commit, covering it. Moving the rewrite here
+  // was tried once and backed out when `layout.spec.ts` went red on CI; that red was the stranded
+  // startup wizard, not this boot, so the move is available if the late URL ever matters.
   if (useTemplateStore.getState().galleryOpen) return url;
   const landing: Route = { view: 'home', section: null };
   useRouter.getState().replace(landing);
@@ -156,19 +163,10 @@ const arrivedOnWizard = typeof window !== 'undefined' && parseRoute(window.locat
 if (typeof window !== 'undefined') decideBootRoute();
 
 export default function App() {
-  // Which editor world is active: SPX live graphics or the AI video editor. Persisted;
-  // the wizard flips it when a project of the other kind is created or opened.
-  const kind = useDocKindStore((s) => s.kind);
-  const advanced = useAdvancedMode((s) => s.advanced);
-
   // In-app surface routing (docs/SAVED_CONTENT_MODEL.md §3): hash routes for Home,
   // per-graphic control panels, productions, and direct graphic links — real history, so
   // Back/Forward walk between surfaces and a refresh restores the same place.
   const route = useRouter((s) => s.route);
-
-  // Signing in is a second chance at a deep link that could not be resolved without an account
-  // (the graphic-route effect below). Offline this reads true and nothing ever waits on it.
-  const { signedIn } = useAuthState();
 
   // THE ONE BOOT DECISION STILL MADE FROM AN EFFECT: a first-ever visit, which lands on the
   // wizard. Everything else is settled at module load by decideBootRoute, which explains why
@@ -179,7 +177,6 @@ export default function App() {
   useEffect(() => {
     if (booted.current) return;
     booted.current = true;
-    if (isAdvancedMode()) return;
     if (useRouter.getState().route.view !== 'editor') return;
     // This WRITES the URL, so it answers to the same guard decideBootRoute does. A hash the
     // app does not own reads as the editor and would otherwise be replaced here.
@@ -187,69 +184,20 @@ export default function App() {
     if (useTemplateStore.getState().galleryOpen) useRouter.getState().replace({ view: 'new' });
   }, []);
 
-  // A `#/graphic/<id>` route means THAT library graphic should be the working document.
-  // Loading is guarded (unsaved changes ask first); handled once per route change so a
-  // canceled guard doesn't re-ask in a loop. Cancel rewinds the URL to the plain editor.
-  //
-  // ONE ATTEMPT PER ID, AND EXACTLY ONE MORE WHEN A SESSION ARRIVES. `signedIn` is false while
-  // the session is still being read (up to 6 s - backend/auth.ts's bounded read), so keying this
-  // on the flag alone ran the whole body twice on every ordinary signed-in boot: two cloud
-  // lookups, and a second unsaved-changes dialog for a switch the reader had just approved.
-  // Only the attempt that ENDED at "nobody is signed in here" is worth repeating, and only once
-  // somebody has signed in.
-  const graphicAttempt = useRef<{ id: string; needsSignIn: boolean } | null>(null);
+  // A `#/graphic/<id>` reached AFTER boot (a link pasted into the address bar of a tab that is
+  // already open, or Back onto an old history entry) gets the same answer as a boot onto one:
+  // that graphic's control page. decideBootRoute settles the boot; this is the in-app half.
+  // The render below already shows the control page for this route, so the rewrite only
+  // makes the URL say so. A page a query capability owns is left alone, as at boot.
   useEffect(() => {
-    if (route.view !== 'graphic') {
-      graphicAttempt.current = null;
-      return;
-    }
-    const previous = graphicAttempt.current;
-    if (previous && previous.id === route.id && !(previous.needsSignIn && signedIn)) return;
-    graphicAttempt.current = { id: route.id, needsSignIn: false };
-    const { saved } = useTemplateStore.getState();
-    if (saved.graphicId === route.id) return; // already open (the normal refresh case)
-    useSaveUi.getState().requestSwitch(
-      () => {
-        // ONE LOOKUP, not two: graphicWhenSynced answers from the local library when it can, and
-        // a miss is not an answer yet - the record may be one an agent's `noacg save` minted a
-        // second ago, in the cloud and not in this browser (docs/AGENT_SAVE.md). It asks the
-        // cloud and waits; what to DO with each answer is decided here, because each one wants
-        // something different on screen.
-        void (async () => {
-          const found = await graphicWhenSynced(route.id);
-          // The cloud answers in seconds, and the reader may have moved on inside them. Opening
-          // a document over whatever they went to instead would be worse than not opening it.
-          const live = useRouter.getState().route;
-          if (live.view !== 'graphic' || live.id !== route.id) return;
-          if (useTemplateStore.getState().saved.graphicId === route.id) return; // a parallel attempt won
-          if (found.status === 'found') {
-            openGraphicDoc(found.doc);
-            return;
-          }
-          if (found.status === 'needs-sign-in') {
-            // KEEP THE LINK AND ASK. The graphic is somebody's - very likely this reader's, in
-            // an account they have not signed into on this machine - so replacing the URL with
-            // Home would destroy the only copy of the address they were given. The route stays,
-            // a refresh still works, and signing in runs this effect once more (the ref above).
-            graphicAttempt.current = { id: route.id, needsSignIn: true };
-            useAuthUi.getState().openSignIn('Sign in to open this graphic. It is saved in an account.');
-            return;
-          }
-          // Unknown id (deleted, other profile): land on Home rather than a dead editor.
-          useRouter.getState().replace({ view: 'home', section: null });
-        })();
-      },
-      () => useRouter.getState().replace({ view: 'editor' }),
-    );
-  }, [route, signedIn]);
+    if (route.view !== 'graphic' || queryCapabilityOwnsPage(bootQuery)) return;
+    useRouter.getState().replace({ view: 'control', id: route.id });
+  }, [route]);
 
-  // `#/video` and `#/graphic` pin the persisted shell kind so refresh matches the URL.
+  // `#/video` pins the persisted shell kind so refresh matches the URL.
   useEffect(() => {
     if (route.view === 'video' && useDocKindStore.getState().kind !== 'video') {
       useDocKindStore.getState().setKind('video');
-    }
-    if (route.view === 'graphic' && useDocKindStore.getState().kind !== 'spx') {
-      useDocKindStore.getState().setKind('spx');
     }
   }, [route]);
 
@@ -288,11 +236,12 @@ export default function App() {
       } else if (routedWizard.current) {
         // Closed from inside the app while the route still says wizard: rewind the URL.
         // Create paths navigate somewhere real in their own handler (same tick, so this
-        // branch never sees them); what lands here is ✕/Escape — and a default-mode close
-        // must land on Home, never the editor (step 4). Advanced keeps the classic rewind.
+        // branch never sees them); what lands here is ✕/Escape, and that ALWAYS lands on Home
+        // (step 4). It used to rewind to the old code editor whenever a browser had Advanced
+        // mode ticked, which is how the owner met it on 2026-09-24.
         routedWizard.current = false;
         consumedDesign.current = null;
-        useRouter.getState().replace(isAdvancedMode() ? { view: 'editor' } : { view: 'home', section: null });
+        useRouter.getState().replace({ view: 'home', section: null });
       } else {
         routedWizard.current = true;
         consumedDesign.current = design;
@@ -430,37 +379,42 @@ export default function App() {
     return <PasswordRecoveryPage />;
   }
 
-  // Routed surfaces: Home, a saved graphic's control panel, a production's page; then the
-  // editor, which is open to everyone — no login wall (Era 5.6). Account features (cloud
-  // sync, community, AI) gate themselves via useAuthState and the on-demand SignInDialog.
-  // Under the full-screen wizard (`#/new`) the default studio renders HOME, not an editor
-  // shell — booting Monaco under a surface that covers it helped no one; Advanced mode keeps
-  // the classic editor-under-wizard so its create flows land where they always did.
-  // The two HomePage usages share ONE key on purpose: navigating Home ⇄ `#/new` must NOT
-  // remount Home — the remount repainted blank thumbnails for a frame before the wizard
-  // covered them (the acceptance round's "flash"). Freshness after a wizard create comes from
-  // Home's own 'spx-data-changed' listener instead.
-  // ...but only the WARM path has a Home worth preserving — see `bootedOnWizard` above.
+  // Routed surfaces: Home, a saved graphic's control panel, a production's page, the video
+  // workspace and the new editor, all open to everyone — no login wall (Era 5.6). Account
+  // features (cloud sync, community, AI) gate themselves via useAuthState and the on-demand
+  // SignInDialog.
+  //
+  // NO ROUTE RENDERS THE OLD CODE EDITOR (AppShell), whatever this browser has stored (owner,
+  // 2026-09-24). The routes that used to reach it now land somewhere real:
+  //   - `#/graphic/<id>` shows that graphic's control page (and is rewritten to `#/control/<id>`
+  //     at boot and by the effect above);
+  //   - the bare '' route, `#/` and any hash this app does not own - which is where a Supabase
+  //     sign-in or reset token arrives - show HOME. Only the render changes there: the URL is
+  //     left alone, because rewriting it would destroy the token (bootMayRewriteUrl).
+  //
+  // The HomePage usages share ONE key on purpose: navigating Home ⇄ `#/new` must NOT remount
+  // Home — the remount repainted blank thumbnails for a frame before the wizard covered them
+  // (the acceptance round's "flash"). Freshness after a wizard create comes from Home's own
+  // 'spx-data-changed' listener instead. Under the full-screen wizard (`#/new`) only the WARM
+  // path has a Home worth preserving — see `bootedOnWizard` above.
+  const home = <HomePage key="home" route={{ view: 'home', section: null }} />;
   const surface =
-    route.view === 'editor-foundation' ? (new URLSearchParams(window.location.search).get('editor') === 'foundation' ? <EditorFoundation /> : <HomePage key="home" route={{ view: 'home', section: null }} />)
+    route.view === 'editor-foundation' ? (new URLSearchParams(window.location.search).get('editor') === 'foundation' ? <EditorFoundation /> : home)
     : route.view === 'home' ? <HomePage key="home" route={route} />
-    : route.view === 'control' ? <GraphicControlPage id={route.id} />
+    : route.view === 'control' || route.view === 'graphic' ? <GraphicControlPage id={route.id} />
     : route.view === 'production' ? <ProductionPage id={route.id} sub={route.sub ?? null} />
     // A join link's SURFACE is Home - the dialog itself mounts below, with the app-level
     // dialogs, so an offline build (where it renders nothing) simply lands the visitor on Home
     // rather than on a blank surface.
     : route.view === 'join-team' ? <HomePage key="home" route={{ view: 'home', section: 'productions' }} />
     : route.view === 'video' ? <VideoAppShell />
-    : route.view === 'graphic' ? <AppShell />
-    : route.view === 'new' && !advanced ? (bootedOnWizard.current ? null : <HomePage key="home" route={{ view: 'home', section: null }} />)
-    : kind === 'video' ? <VideoAppShell />
-    : <AppShell />;
+    : route.view === 'new' ? (bootedOnWizard.current ? null : home)
+    : home;
 
-  // The export window and the WIZARD mount HERE rather than inside a shell: Home is a
-  // SIBLING of AppShell, not a child, and both open them. The wizard used to mount in each
-  // editor shell, which forced `#/new` to render an editor underneath - at App level it
-  // opens full-screen over ANY surface (step 4). Both live in module stores, so mounting
-  // per surface would put two modals on screen at once.
+  // The export window and the WIZARD mount HERE rather than inside a surface: several surfaces
+  // open them. The wizard used to mount in each editor shell, which forced `#/new` to render
+  // an editor underneath - at App level it opens full-screen over ANY surface (step 4). Both
+  // live in module stores, so mounting per surface would put two modals on screen at once.
   return (
     <>
       {surface}

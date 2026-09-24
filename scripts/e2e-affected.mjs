@@ -100,6 +100,15 @@ const isEntrypoint =
 // ── Source-area → spec globs ────────────────────────────────────────────────
 // Order does not matter; every matching rule contributes its specs (union).
 const MAP = [
+  // THE CLOSED DOORS TO THE OLD CODE EDITOR (owner, 2026-09-24). Every file that used to hold one
+  // selects the spec that pins them all shut: Settings (the Advanced mode switch), the wizard's
+  // Entry and Finish steps, Home, a graphic row, the control page, the new editor's header and the
+  // video workspace. App.tsx and model/prefs.ts are CORE, which reaches the same spec through the
+  // FOCUS list in scripts/e2e-lists.mjs.
+  [
+    /^src\/components\/(SettingsDialog|home\/(HomePage|GraphicRow|GraphicControlPage)|editorFoundation\/(EditorFoundation|openNewEditor)|video\/VideoAppShell|wizard\/(CreationWizard|steps\/(EntryStep|FinishStep)))\.tsx?$/,
+    ['no-old-editor.spec.ts'],
+  ],
   [/^src\/components\/editorFoundation\/|^src\/blocks\/(baseEdits|designLayout)\.ts$|^src\/components\/wizard\/(CreationWizard|steps\/FinishStep)\.tsx$/, ['editor-base-edits.spec.ts']],
   [/^src\/components\/editorFoundation\/|^src\/app\/router\.ts$|^src\/App\.tsx$|^src\/templates\//, ['editor-foundation.spec.ts', 'editor-alpha-entry.spec.ts']],
   [/^src\/components\/brand\/|^src\/components\/home\/(HomePage|sections\/LooksSection)\.tsx$|^src\/model\/(brand|packets)\.ts$/, ['brand-editor.spec.ts']],
@@ -499,7 +508,10 @@ const MAP = [
   // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
   // and its footer, so both of those specs ride along.
   [/^(downloads\.html$|src\/downloads\/)/, ['downloads.spec.ts', 'landing.spec.ts', 'docs.spec.ts']],
-  [/^src\/teach\//, ['lazy-editor.spec.ts']],
+  // The code editor's teaching layer. Only the old code editor's CodeEditor reads it, and no route
+  // opens that editor any more, so no reachable surface can show a change here; the spec that
+  // pins the old editor shut is the honest and cheap answer (its lazy-load spec went with it).
+  [/^src\/teach\//, ['no-old-editor.spec.ts']],
   // import-graphic rides along because assets/eraseRegion.ts is not only an assets helper: it is
   // the deterministic flat-fill erase behind the Import Graphic Prepare step. Without this edge,
   // editing the file the behaviour lives in runs the assets specs and never the one that would

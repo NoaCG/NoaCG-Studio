@@ -11,7 +11,6 @@ import NewGraphicButton from '../NewGraphicButton';
 import AuthStatus from '../auth/AuthStatus';
 import SyncStatus from '../SyncStatus';
 import { useIsMobile } from '../useIsMobile';
-import { useAdvancedMode } from '../useAdvancedMode';
 import { useSplitter, type Splitter } from '../useSplitter';
 import { clampRatio } from '../../model/layout';
 import { loadVideoLayout, saveVideoLayout, type VideoLayout } from '../../model/videoLayout';
@@ -69,7 +68,6 @@ export default function VideoAppShell() {
   const redo = useVideoProjectStore((s) => s.redo);
 
   const isMobile = useIsMobile();
-  const advanced = useAdvancedMode((s) => s.advanced);
   const [layout, setLayout] = useState<VideoLayout>(loadVideoLayout);
   const [savedOpen, setSavedOpen] = useState(false);
   const [saveNote, setSaveNote] = useState<string | null>(null);
@@ -211,16 +209,15 @@ export default function VideoAppShell() {
         <button onClick={() => setSavedOpen(true)} title="Your saved video projects" data-testid="video-my-videos">
           📁 My videos
         </button>
-        {/* Back to graphics. Advanced mode returns to the code editor it came from; the
-            default studio has no door to that editor (owner, 2026-09-21), so there the same
-            button lands on Home's Graphics list, where every graphic opens onto its own page. */}
+        {/* Back to graphics: Home's Graphics list, where every graphic opens onto its own page.
+            There is no door to the old code editor (owner, 2026-09-21 and 2026-09-24). */}
         <button
           onClick={() => {
             useDocKindStore.getState().setKind('spx');
-            useRouter.getState().navigate(advanced ? { view: 'editor' } : { view: 'home', section: 'graphics' });
+            useRouter.getState().navigate({ view: 'home', section: 'graphics' });
           }}
           data-testid="back-to-graphics"
-          title={advanced ? 'Back to the broadcast-graphics editor' : 'Back to your graphics'}
+          title="Back to your graphics"
         >
           ◫ Graphics
         </button>

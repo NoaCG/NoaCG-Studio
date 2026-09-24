@@ -7,7 +7,6 @@ import { graphicKindLabel } from '../../model/types';
 import { addGraphicToShow, createShowNamedChecked } from '../../model/shows';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import { commitDurableWrites } from '../../model/durableStore';
-import { useAdvancedMode } from '../useAdvancedMode';
 import GraphicThumb from './GraphicThumb';
 import ProductionPicker from './ProductionPicker';
 import RowMenu, { type RowMenuItem } from './RowMenu';
@@ -110,7 +109,6 @@ export default function GraphicRow({
 }) {
   const navigate = useRouter((s) => s.navigate);
   const openExport = useExportUi((s) => s.openExport);
-  const advanced = useAdvancedMode((s) => s.advanced);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(g.name);
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -283,7 +281,7 @@ export default function GraphicRow({
           <button
             className="lib-name-link"
             onClick={() => onOpen(g)}
-            title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" to preview, edit data and operate`}
+            title={`Open "${g.name}" to preview, edit data and operate`}
             data-testid="open-graphic-name"
           >
             <strong>{g.name}</strong>
@@ -346,7 +344,7 @@ export default function GraphicRow({
         </>
       )}
       <div className="lib-actions">
-        <button className="primary" onClick={() => onOpen(g)} title={advanced ? 'Open in the editor' : 'Open to preview, edit data and operate'} data-testid="open-graphic">
+        <button className="primary" onClick={() => onOpen(g)} title="Open to preview, edit data and operate" data-testid="open-graphic">
           Open
         </button>
         <ProductionPicker

@@ -5,7 +5,6 @@ import { EXPORT_TARGETS } from '../export/registry';
 import { signOut, updatePassword } from '../backend/auth';
 import { listAgentKeys, revokeAgentKey, type AgentKeySummary } from '../backend/agentAccess';
 import { useModalGate } from './spaceKey';
-import { useAdvancedMode } from './useAdvancedMode';
 import { useAuthState } from './auth/useAuthState';
 import { useAuthUi } from './auth/authUi';
 import { ACCOUNT_IS_FOR, NO_ACCOUNT_NEEDED } from './auth/accountCopy';
@@ -349,25 +348,9 @@ export default function SettingsDialog({ onClose }: Props) {
 
             <section data-section="workflow">
               <p className="dlg-caption">Workflow defaults</p>
-              {/* The checkbox row, by the one rule (handoff §6): box first, title over
-                  description, the whole label clickable. */}
-              <label className="dlg-check">
-                <input
-                  type="checkbox"
-                  checked={useAdvancedMode((s) => s.advanced)}
-                  onChange={(event) => useAdvancedMode.getState().setAdvanced(event.target.checked)}
-                  data-testid="advanced-mode-toggle"
-                />
-                <span className="dlg-check-text">
-                  <span className="dlg-check-title">Advanced mode — show the code editor</span>
-                  <span className="dlg-check-desc">
-                    Off, the studio is wizard → production → playout. On, every “Open in the
-                    editor” door returns: canvas, timeline, and code. Direct graphic links open
-                    the editor either way.
-                  </span>
-                </span>
-              </label>
-
+              {/* There is no Advanced mode switch here any more (owner, 2026-09-24). It was a
+                  browser-local setting that reopened the old code editor, so on a shared
+                  classroom computer one tick sent every later student there. */}
               <div className="dlg-rows">
                 <div className="dlg-row">
                   <label htmlFor="set-export-target">Export target</label>

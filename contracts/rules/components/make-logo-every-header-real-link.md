@@ -3,7 +3,7 @@ v: 1
 scope: src/components/AppShell.tsx, src/components/video/VideoAppShell.tsx, src/components/home/GraphicControlPage.tsx, src/components/home/HomePage.tsx, src/components/home/ProductionPage.tsx
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-24
 supersedes: components/open-every-header-same-trio-brand
 record: contracts/records/components/2026-09-24-make-logo-every-header-real-link.md

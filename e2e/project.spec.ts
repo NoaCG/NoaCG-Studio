@@ -63,7 +63,8 @@ test('the wizard door is on every /app surface, beside Home', async ({ page }) =
   // only held on Home and in the editor. The production DASHBOARD, the surface a show is run
   // from, had no door at all, and the video shell's opened the wizard through the store flag
   // rather than the ROUTE, so Back could not close it. One component now (components/
-  // NewGraphicButton.tsx), so the five cannot drift apart again.
+  // NewGraphicButton.tsx), so the surfaces cannot drift apart again. The old code editor was
+  // a fifth surface until 2026-09-24; no route renders it any more (no-old-editor.spec.ts).
   await page.goto('/app');
   const ids = await page.evaluate(async () => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
@@ -99,7 +100,6 @@ test('the wizard door is on every /app surface, beside Home', async ({ page }) =
   await walkDoor('#/home', '[data-testid="home-new-project"]');
   await walkDoor(`#/control/${ids.graphicId}`, '[data-testid="control-new-project"]');
   await walkDoor(`#/production/${ids.showId}`, '.pd-header [data-testid="new-graphic"]');
-  await walkDoor(`#/graphic/${ids.graphicId}`, '.topbar [data-testid="new-graphic"]');
   await walkDoor('#/video', '.topbar [data-testid="new-graphic"]');
 
   // BESIDE HOME, in the SHARED ORDER (owner walk, 2026-08-28): logo -> Home -> + New graphic.
@@ -118,7 +118,6 @@ test('the wizard door is on every /app surface, beside Home', async ({ page }) =
     { hash: '#/home', door: 'home-new-project', afterSelector: '.tpl-name' },
     { hash: `#/control/${ids.graphicId}`, door: 'control-new-project', afterSelector: '[data-testid="control-home"]' },
     { hash: `#/production/${ids.showId}`, door: 'new-graphic', afterSelector: '[data-testid="production-home"]' },
-    { hash: `#/graphic/${ids.graphicId}`, door: 'new-graphic', afterSelector: '[data-testid="open-home"]' },
     { hash: '#/video', door: 'new-graphic', afterSelector: '[data-testid="open-home"]' },
   ];
   for (const surface of orderOnEverySurface) {
