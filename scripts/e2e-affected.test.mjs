@@ -82,6 +82,20 @@ function fakeRunner(...statuses) {
 
 const SUBSET_WITH_CATALOG = { mode: 'subset', specs: ['sports.spec.ts'], catalog: true };
 
+test('a deleted spec plans nothing, and a spec still on disk is planned', () => {
+  // A branch that deletes a spec lists it in its diff like any other change. Planning the name
+  // handed CI a ghost file, and emitJson refuses a plan that names a file which does not exist,
+  // so the whole E2E plan went red on a branch whose only fault was removing a dead spec.
+  const onDisk = ['kept.spec.ts'];
+  const { mode, specs } = planFor(['e2e/gone.spec.ts', 'e2e/kept.spec.ts'], { specsOnDisk: onDisk });
+  assert.equal(mode, 'subset');
+  assert.deepEqual(specs, ['kept.spec.ts']);
+  // Only deletions: nothing to run at all.
+  assert.equal(planFor(['e2e/gone.spec.ts'], { specsOnDisk: onDisk }).mode, 'none');
+  // Without the list the function reasons about names only, as before.
+  assert.deepEqual(planFor(['e2e/gone.spec.ts']).specs, ['gone.spec.ts']);
+});
+
 test('a failed suite is not hidden by a catalog gate that passes afterwards', () => {
   const run = fakeRunner(1, 0);
   const { status, runs } = runPlan(SUBSET_WITH_CATALOG, run);

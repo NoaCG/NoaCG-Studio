@@ -97,8 +97,9 @@ weight is the template catalog (`ograf` 2.3 MB and `frameGraphic` 1.45 MB raw), 
 - **Row F**: every test in `docs/backlog/specs-that-still-open-the-old-editor.md`. The cheapest
   big win is a `createProject` that does not skip: its body is still below the skip and, without
   it, ends on Home with the template in the working slot. Many callers only need that.
-- **Row D** (relayed to its branch): `e2e/configured/agent-access.spec.ts` step 4 still expects
-  `#/graphic/<id>` and the graphic opened as the working document.
+- **Row F also owns the configured-suite floor**: `.github/workflows/configured-suite.yml` now
+  allows the 18 configured files that skip and runs a floor of 31 (was 54). Take a file off
+  `ALLOWED_SKIPS` and raise `MIN_TESTS` in the change that rewrites it.
 - **Scripts**: `acceptance-pack.mjs`, `acceptance-shots.mjs` and `save-to-air-bench.mjs` still
   drive the old editor (listed at the end of the backlog file).
 - **Optional**: `api/_lib/me/graphics.ts` could mint `#/control/<id>` so new links skip the
@@ -118,9 +119,36 @@ weight is the template catalog (`ograf` 2.3 MB and `frameGraphic` 1.45 MB raw), 
 - `e2e/storage-full.spec.ts` seeded a graphic straight after `goto('/app')`, racing the durable
   store's hydration; CI lost the row once. It now waits for the startup wizard first.
 
+## The first landing was refused, and why
+
+Pull request 409 at `cb3c04e2` went red in the E2E plan job (run 36064047216): "the plan names 3
+spec file(s) that do not exist: advanced-mode.spec.ts, lazy-editor.spec.ts,
+old-editor-doors.spec.ts". Nothing in `MAP` or `scripts/e2e-lists.mjs` named them. The planner
+adds every changed `e2e/*.spec.ts` to the plan, and a DELETED spec is a changed file, so a branch
+that deletes a spec always planned a ghost and `emitJson` refused it. My local `--list` runs had
+passed because they escalated to `full`, which reads the directory; CI's sprint-focus plan is a
+subset, which is where the ghosts surface. Reproduced locally with
+`E2E_SPRINT_FOCUS=1 node scripts/e2e-affected.mjs --json --integration 2ef02332` (exit 1, the same
+three names).
+
+Fixed at the planner, not by editing lists: `planFor` takes `specsOnDisk` and a changed spec that
+is not on disk plans nothing, because its tests are gone. The CLI passes `specFilesOnDisk()`. A
+new test in `scripts/e2e-affected.test.mjs` pins it and fails with the guard removed. The same
+command now exits 0 (94 specs over 9 shards), and so does `--list`. Any later branch that deletes a
+spec would have hit this.
+
+Taking main in brought row D's landing (#406). It left `agent-access.spec.ts` step 4 expecting
+the old editor's `#/graphic/<id>` behaviour, which this branch changes, so step 4 now asserts the
+control page at `#/control/<id>`; D's other changes are untouched. The generators were re-run
+after the merge (contracts and copy baseline) and changed nothing. The configured suite runs on
+every push to main and allows no skip outside `ALLOWED_SKIPS`, so the 23 configured tests that
+skip here would have turned it red on every landing; the floor and allowlist moved with them
+(above).
+
 ## Verification
 
-- **Build**: `npm run build` exit 0 on `906b9425`, and again on the handoff commit before queueing.
+- **Build**: `npm run build` exit 0 on `906b9425`, on the first handoff commit, and again on the
+  tip after taking main in and fixing the planner.
 - **The new spec**: `e2e/no-old-editor.spec.ts`, 9 tests, boots every page with `advancedMode: true`
   stored and asserts through a MutationObserver that AppShell never entered the DOM. Green in
   jobs j-1823, j-1848, j-1849 and j-1851. **Mutation-checked** (j-1840): rewinding the wizard close

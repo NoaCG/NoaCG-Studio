@@ -800,12 +800,19 @@ const CATALOG_TRIGGERS = [
  * `scripts/` exemption) and the gate went green having executed zero specs. A pure function is
  * one that can be pinned with a list of realistic merges and an expected size for each.
  *
+ * A CHANGED SPEC THAT NO LONGER EXISTS PLANS NOTHING. The diff lists a deleted file like any
+ * other, and a deleted spec's tests are gone, so there is nothing of it to run; planning its
+ * name anyway handed CI a ghost that `emitJson` rightly refuses. `specsOnDisk` is the bare spec
+ * names in `e2e/` (`specFilesOnDisk()`); the function stays pure because the caller supplies it,
+ * and leaving it out keeps the old behaviour for callers that only reason about names.
+ *
  * @param {string[]} changed        repo-relative paths, forward slashes
- * @param {{ sprintFocus?: boolean }} [opts]
+ * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null }} [opts]
  * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
  *             unmapped: string[], focusApplied: boolean }}
  */
-export function planFor(changed, { sprintFocus = false } = {}) {
+export function planFor(changed, { sprintFocus = false, specsOnDisk = null } = {}) {
+  const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
   let full = false;
   let catalog = false;
@@ -820,7 +827,8 @@ export function planFor(changed, { sprintFocus = false } = {}) {
     if (IGNORE.some((r) => r.test(file))) continue;
     if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
     if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
-      specs.add(file.replace(/^e2e\//, ''));
+      const name = file.replace(/^e2e\//, '');
+      if (!onDisk || onDisk.has(name)) specs.add(name); // a deleted spec has nothing left to run
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
@@ -1540,7 +1548,10 @@ function main() {
     return 0;
   }
 
-  const { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied } = planFor(changed, { sprintFocus });
+  const { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied } = planFor(changed, {
+    sprintFocus,
+    specsOnDisk: specFilesOnDisk(),
+  });
   const full = mode === 'full';
 
   // Printed BEFORE the 'none' early return below: a change confined to hosted Pro's wire
