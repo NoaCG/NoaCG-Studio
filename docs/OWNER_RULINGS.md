@@ -1075,3 +1075,41 @@ and said in the same breath that the Elämäni biisi press is evidence for that 
 the workflow being designed around. A day that turns out to be a demonstration rather than an air
 date takes nothing away from that reasoning, and the 2026-09-15 ruling that a concrete production
 case never becomes the design target is what this answer confirms rather than what it weakens.
+
+## 2026-09-24 - one layer-naming system, decided for the owner
+
+**Taken FOR the owner, not by him.** His goal text of 2026-09-24 asked for "the final, most
+logical and easiest system" and named the Board rule he wanted; the night wave's row B settled the
+open points and wrote them down here so he can revert any one. The importer is untouched: it keeps
+reading every spelling and synonym in `src/templates/behaviours/words.json`. Only the examples and
+the pages that teach are held to one way.
+
+**The rule.** Three layers, top of the Layers panel first: `Text` (what the operator types),
+`Moments` (hidden groups NoaCG shows, and bars drawn full), `Board` (stays as drawn). A name is a
+word and a row, the row last: `Answer A`, `Score 1`. On the Board the background is `Panel`, a
+plate under a text is that text's name plus `box` (`Question box`, `Answer box A`, `Score box 1`),
+fixed words start with `static:`, and anything else is decoration with any name. The simple types
+have one field set each: a title is `Title`, `Subtitle`; a name tag is `Name`, `Role`; credits are
+`Heading`, `Credits` (one pasted field, never a field per name). Every layer name is English. The
+quiz moments stay `Selected A`, `Correct A`, `Wrong A` (row last, like every other type), the
+spelling chosen on 2026-09-21.
+
+**A graphic with no moments has no `Moments` layer.** Measured on Illustrator 2026 (30.1) through
+its own scripting on 2026-09-24: a document with an empty `Moments` layer, then with one empty
+hidden group inside it, saved through the SVG plug-in that File > Save a Copy > SVG runs, came out
+with only `Board` and `Text` both times. The empty layer and the empty group were dropped, even
+though the `.ai` kept all three layers. An empty layer cannot survive the save a student makes, so
+the system cannot require one.
+
+**Where it lives, and how to revert.** One source, `src/templates/behaviours/layer-names.json`: the
+three layer names, `Panel`, `box`, `static:`, the simple types' field sets and the five-line cheat
+sheet. `npm run write:layer-cheat-sheet` writes the five lines into `/docs#svg-layers`,
+`docs/SVG_AUTHORING.md`, both copies of the noacg-graphic skill contract and both
+noacg-graphic-local adapters. `npm run check:example-layers` runs in the build and fails on any SVG
+under `public/docs/examples/`, `docs/tutorials/*/import-ready/` or `docs/tutorials/*/SVG/` that
+breaks the rule; `docs/tutorials/talk-show-set/` is exempt by name until the owner removes it. To
+change a word (`Panel` to `Background`, `box` to `plate`, `Moments` to `States`), edit the JSON,
+rename the example files and the drawn trees on the docs page, run `npm run write:layer-cheat-sheet`
+and `npm run build`: the check names every file still on the old word. To drop the Board rule
+entirely, delete the `board` block in `auditSvg` in `scripts/check-example-layers.mjs`. To require
+an empty `Moments` layer after all, first show that a Save a Copy keeps one.

@@ -302,9 +302,11 @@ await shot('svg-drop', async (page) => {
 }, { width: 1040, height: 860 });
 
 // ── 2. The mapping step: layer names, sitting in the field list ──────────────
+// The docs name tag rather than a gallery sample: every Fields-step picture shows a file that
+// follows the one layer-naming system (scripts/check-example-layers.mjs holds the file to it).
 await shot('svg-fields', async (page) => {
   await openImportDoor(page);
-  await dropSample(page, 'lower-third.svg');
+  await dropSample(page, join(projectRoot, 'public', 'docs', 'examples', 'name-tag.svg'));
   return modal(page);
 });
 

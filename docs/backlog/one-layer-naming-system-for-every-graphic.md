@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-09-21
 state: advanced
-note: the system below landed on branch claude/l-one-naming-system (examples, docs page, wizard defaults); what stands is his read of the chosen words, which he said he may rename, and docs/svg-samples/ which says it is a gallery rather than following the system
+note: 2026-09-24 the Board rule, the simple types' field sets and the empty-Moments answer are settled in docs/OWNER_RULINGS.md (2026-09-24), the five-line cheat sheet opens every page that teaches it, and npm run check:example-layers holds every example to it in the build; what stands is his read of the settled words, which the ruling says how to revert, and docs/svg-samples/ which says it is a gallery rather than following the system
 asked: "We just need to have a system and stick by it. This goes for all the different graphics." The reading stays as flexible as possible so people do not make mistakes, and the examples are strictly consistent. Pick the easiest and most logical scheme; he may rename later.
 ---
 # One layer-naming system for every graphic
@@ -69,3 +69,20 @@ examples, the docs page and the `teach` field in `words.json`. What holds them t
 `node scripts/docs-shots.mjs` fails when an example stops importing as the type its page
 promises; `e2e/docs.spec.ts` pins the tree shape on every type page and the names each page
 lists. The drawn trees themselves are checked by eye against Illustrator, as row F did.
+
+## 2026-09-24: the Board rule, and the gate
+
+The system drifted within three days, because only the public page taught it and nothing
+checked the files. The owner's goal of 2026-09-24 settled the rest, and
+`docs/OWNER_RULINGS.md` (2026-09-24) records it with how to revert each part: the background is
+`Panel`, a plate under a text is that text's name plus `box` (`Answer box A`), fixed words are
+`static:`, anything else on the Board is decoration; a title is `Title` and `Subtitle`, a name tag
+`Name` and `Role`, credits `Heading` and `Credits`; names are English; and a graphic with no
+moments has no `Moments` layer, because Illustrator's Save a Copy drops an empty one (measured).
+
+The rule's one source is `src/templates/behaviours/layer-names.json`. Its five-line cheat sheet
+opens `/docs#svg-layers`, `docs/SVG_AUTHORING.md`, the noacg-graphic skill contract and the
+noacg-graphic-local adapters, and `npm run check:example-layers` (in the build, mutation-checked
+by `scripts/check-example-layers.test.mjs`) fails on any SVG under `public/docs/examples/`,
+`docs/tutorials/*/import-ready/` or `docs/tutorials/*/SVG/` that breaks it. The drawn trees are
+no longer checked only by eye.

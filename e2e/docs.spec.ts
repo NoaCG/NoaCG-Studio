@@ -55,11 +55,11 @@ test('the graphics topic has one page per type, each with its file, layers and n
   }
   const types: [string, string, string[]][] = [
     ['scoreboards', 'scoreboard.svg', ['Team 1', 'Score 1', 'Flash 1', 'Full time']],
-    ['quiz', 'quiz.svg', ['Question', 'Answer A', 'Selected A', 'Correct A', 'Wrong A', 'Locked in']],
+    ['quiz', 'quiz.svg', ['Question', 'Answer A', 'Selected A', 'Correct A', 'Wrong A', 'Locked in', 'Answer box D']],
     ['svg-vote', 'live-vote.svg', ['Option 1', 'Bar 1', 'Percent 1', 'Winner 1', 'Vote badge']],
     ['countdowns', 'countdown.svg', ['05:00', 'Timer bar', 'Warning', 'Paused', 'Time up']],
-    ['end-credits', 'end-credits.svg', ['Director name', 'static:Director']],
-    ['tickers', 'ticker.svg', ['Kicker', 'Story']],
+    ['end-credits', 'end-credits.svg', ['Heading', 'Credits']],
+    ['tickers', 'ticker.svg', ['Kicker', 'Story', 'Kicker box', 'Panel']],
   ];
   for (const [id, file, names] of types) {
     const type = graphics.locator(`section[id="${id}"]`);
@@ -87,6 +87,18 @@ test('the graphics topic has one page per type, each with its file, layers and n
   // The Layer names page opens with the system: the three layers, the row rule, one full tree
   // and the table of every name, generated from words.json so it cannot drift from the matcher.
   const layerNames = page.locator('#svg-layers');
+  // It OPENS with the five-line cheat sheet (owner, 2026-09-24): the whole system in the time a
+  // student gives a page. The lines come from src/templates/behaviours/layer-names.json, and the
+  // build fails when this copy, SVG_AUTHORING.md or the skill's disagrees
+  // (scripts/check-example-layers.mjs); what this pins is that the page shows them, first.
+  const system = JSON.parse(readFileSync(new URL('../src/templates/behaviours/layer-names.json', import.meta.url), 'utf8')) as { cheatSheet: string[] };
+  const cheat = layerNames.locator('#svg-layers-cheat');
+  await expect(cheat.locator('li')).toHaveCount(system.cheatSheet.length);
+  await expect(cheat).toContainText('Answer box A');
+  expect(await layerNames.locator('h3 + *').getAttribute('id')).toBe('svg-layers-cheat');
+  await expect(layerNames).toContainText('The background is Panel');
+  await expect(layerNames.locator('#svg-layers-files a[href="/docs/examples/name-tag.svg"]')).toHaveCount(1);
+  expect((await page.request.get('/docs/examples/name-tag.svg')).status()).toBe(200);
   await expect(layerNames.locator('#svg-layers-system')).toHaveCount(1);
   await expect(layerNames).toContainText('A name is a word and a row');
   await expect(layerNames).toContainText('The spelling does not matter, the words do');
