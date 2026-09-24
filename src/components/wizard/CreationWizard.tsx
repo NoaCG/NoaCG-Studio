@@ -271,7 +271,6 @@ export default function CreationWizard() {
   // saved nothing (the editor one) reads dirty from birth, which is the right answer there too.
   const workingDirty = useTemplateStore((s) => s.saved.dirty);
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
-  const setActiveTab = useTemplateStore((s) => s.setActiveTab);
 
   const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
@@ -966,7 +965,6 @@ export default function CreationWizard() {
   const applyGenerated = async (template: SpxTemplate) => {
     const formatted = await formatTemplate(template); // HTML-only by default
     applyTemplate(formatted, { resetSampleData: true, keepGalleryOpen: true });
-    setActiveTab('html');
     toSpxShell();
   };
 
@@ -1403,7 +1401,6 @@ export default function CreationWizard() {
     rememberWalk();
     const template = { ...importedFile.template, name: importedName() };
     applyTemplate(template, { resetSampleData: true, keepGalleryOpen: true });
-    setActiveTab('html');
     trackEvent('activation', 'file');
     return useTemplateStore.getState().template;
   };
