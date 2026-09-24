@@ -254,10 +254,13 @@ function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
       // class and NOT the field id, or update() would write "10" over the ticking readout.
       // The CREDITS SAMPLE is the same shape: the operator's list lands in its holder, and the
       // drawn text keeps its two looks for the roll engine to copy (creditsRoll.ts).
+      // The sample is the whole <text>: a composed block offers its runs as candidates, and the
+      // roll copies looks and leading off the lines of the text those runs belong to.
+      const target = i === credits ? el.closest('text') ?? el : el;
       const cls = i === clock ? `${PREFIX}-clock` : creditsClass(PREFIX);
-      const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+      const own = (target.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
       if (!own.includes(cls)) own.push(cls);
-      el.setAttribute('class', own.join(' '));
+      target.setAttribute('class', own.join(' '));
       return;
     }
     // A PICTURE field binds the node whose href paints the picture, which is not always the node

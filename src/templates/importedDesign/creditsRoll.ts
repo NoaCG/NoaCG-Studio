@@ -71,11 +71,24 @@ export function creditsIndex(svg: DesignSvg): number {
 export function creditsSampleText(svg: DesignSvg): string {
   const field = svg.fields[creditsIndex(svg)];
   if (!field) return '';
-  const doc = new DOMParser().parseFromString(svg.markup, 'image/svg+xml');
-  const el = doc.querySelector(`[${SVG_CANDIDATE_ATTR}="${field.candidateId}"]`);
-  if (!el) return field.sample;
-  const runs = Array.from(el.children).filter((k) => k.tagName.toLowerCase() === 'tspan');
-  if (runs.length === 0) return field.sample;
+  // Memoised on the markup and the layer: `svgFields` is asked several times per assemble, and
+  // the wizard's previews assemble on every change, so a large Illustrator export would otherwise
+  // be parsed three times over for one string that cannot change between them.
+  if (sampleMemo && sampleMemo.markup === svg.markup && sampleMemo.candidateId === field.candidateId) return sampleMemo.text;
+  const text = readSampleText(svg.markup, field.candidateId) ?? field.sample;
+  sampleMemo = { markup: svg.markup, candidateId: field.candidateId, text };
+  return text;
+}
+
+let sampleMemo: { markup: string; candidateId: string; text: string } | null = null;
+
+function readSampleText(markup: string, candidateId: string): string | null {
+  const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+  const el = doc.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
+  const text = el?.closest('text') ?? el;
+  if (!text) return null;
+  const runs = Array.from(text.children).filter((k) => k.tagName.toLowerCase() === 'tspan');
+  if (runs.length === 0) return null;
   const lines: { y: number; text: string }[] = [];
   let prev = 0;
   for (const run of runs) {
@@ -87,10 +100,28 @@ export function creditsSampleText(svg: DesignSvg): string {
     else last.text += run.textContent ?? '';
     prev = base;
   }
-  return lines
-    .map((l) => l.text.replace(/\s+/g, ' ').trim())
-    .join('\n')
-    .replace(/^\n+|\n+$/g, '');
+  const drawn = lines.map((l) => ({ y: l.y, text: l.text.replace(/\s+/g, ' ').trim() })).filter((l) => l.text);
+  if (drawn.length === 0) return null;
+  // THE SECTION GAPS THE DESIGNER DREW BECOME BLANK LINES, which is what the format spells a
+  // section break as. The steps are read the way the engine reads them - title to name, name
+  // to name, the gap before a title - and a step clearly wider than the one expected there (an
+  // empty line left before the closing credit) is a break. Without this the closing line joined
+  // the last role's names and lost the air the sample gave it.
+  const isTitle = (l: { text: string }) => /[:;]$/.test(l.text);
+  const titleAt = Math.max(0, drawn.findIndex(isTitle));
+  const nameAt = Math.min(titleAt + 1, drawn.length - 1);
+  const step = (a: number, b: number, fallback: number) => (b > a && b < drawn.length && drawn[b].y - drawn[a].y > 0 ? drawn[b].y - drawn[a].y : fallback);
+  const afterTitle = step(titleAt, nameAt, 0);
+  const afterName = step(nameAt, nameAt + 1 < drawn.length && !isTitle(drawn[nameAt + 1]) ? nameAt + 1 : -1, afterTitle);
+  const second = drawn.findIndex((l, i) => i > titleAt && isTitle(l));
+  const beforeTitle = second > 0 ? step(second - 1, second, afterName) : afterName;
+  const out: string[] = [drawn[0].text];
+  for (let i = 1; i < drawn.length; i++) {
+    const expected = isTitle(drawn[i]) ? beforeTitle : isTitle(drawn[i - 1]) ? afterTitle : afterName;
+    if (expected > 0 && drawn[i].y - drawn[i - 1].y > expected * 1.5) out.push('');
+    out.push(drawn[i].text);
+  }
+  return out.join('\n');
 }
 
 /** The stylesheet part: the sample is laid out, never painted. */
@@ -145,25 +176,36 @@ function creditsSpeed() {
   return Math.min(400, Math.max(10, percent)) / 100;
 }
 
+// creditsLength(el, name, fallback): one positional attribute of a run, in user units. A
+// designer's file may state a step in ems ("dy=1.2em", the SVG idiom Inkscape and hand-written
+// files use), and a unit read as a bare number would stack every row a unit apart.
+function creditsLength(el, name, fallback) {
+  var raw = el.getAttribute(name);
+  if (raw === null || raw.trim() === '') return fallback;
+  var n = parseFloat(raw);
+  if (!isFinite(n)) return fallback;
+  if (/em\\s*$/i.test(raw)) return n * (parseFloat(getComputedStyle(el).fontSize) || 16);
+  return n;
+}
+
 // creditsSampleLines(sample): the sample's lines, one per baseline. Illustrator writes a line
 // as one tspan, or as several runs on one y where it kerned a pair, so runs are joined by
-// baseline. Each line keeps the x it starts at, its baseline, its runs, and the FIRST run -
-// whose attributes are the look a row of that kind is painted with. Blank lines are dropped;
-// they still show in the gaps measured around them.
+// baseline. Each line keeps the x it starts at (the text's own where the run states none),
+// its baseline, its runs, and the FIRST run - whose attributes are the look a row of that kind
+// is painted with. Blank lines are dropped; they still show in the gaps measured around them.
 function creditsSampleLines(sample) {
   var lines = [];
   var kids = sample.children;
   var prev = null;
+  var textX = creditsLength(sample, 'x', 0);
   for (var i = 0; i < kids.length; i++) {
     var run = kids[i];
     if ((run.tagName || '').toLowerCase() !== 'tspan') continue;
-    var y = parseFloat(run.getAttribute('y'));
-    var dy = parseFloat(run.getAttribute('dy'));
-    var base = isFinite(y) ? y : prev === null ? 0 : prev + (isFinite(dy) ? dy : 0);
+    var y = creditsLength(run, 'y', NaN);
+    var base = isFinite(y) ? y : prev === null ? 0 : prev + creditsLength(run, 'dy', 0);
     var last = lines[lines.length - 1];
     if (!last || Math.abs(base - last.y) > 0.5) {
-      var x = parseFloat(run.getAttribute('x'));
-      lines.push({ y: base, x: isFinite(x) ? x : 0, text: run.textContent, run: run, runs: [run] });
+      lines.push({ y: base, x: creditsLength(run, 'x', textX), text: run.textContent, run: run, runs: [run] });
     } else {
       last.text += run.textContent;
       last.runs.push(run);
@@ -172,7 +214,7 @@ function creditsSampleLines(sample) {
   }
   // A sample typed as plain text with no runs at all is one line, in the text's own look.
   if (!lines.length) {
-    lines.push({ y: 0, x: parseFloat(sample.getAttribute('x')) || 0, text: sample.textContent, run: null, runs: [] });
+    lines.push({ y: 0, x: textX, text: sample.textContent, run: null, runs: [] });
   }
   var out = [];
   for (var j = 0; j < lines.length; j++) {
@@ -256,13 +298,13 @@ function creditsLooks() {
   };
 }
 
-// The <text> the rows are painted into, made once beside the sample and kept, so the transform
-// the roll writes on it survives every rebuild.
+// The <text> the rows are painted into, made once beside the sample and kept.
 var noacgCreditsRows = null;
 
 // creditsRender(): build the rows from the pasted list in the sample's two looks, and hand back
-// the text element that holds them. Runs at load, on every update() and at the start of every
-// take. Until a roll moves them the rows stand where the sample was drawn.
+// the text element that holds them with the looks they were built from. Runs at load, on every
+// update() and at the start of every take. Until a roll moves them the rows stand where the
+// sample was drawn.
 function creditsRender() {
   var sample = creditsSample();
   var looks = creditsLooks();
@@ -275,6 +317,14 @@ function creditsRender() {
     var window_ = document.createElementNS(sample.namespaceURI, 'svg');
     window_.setAttribute('class', '${cls}-window');
     window_.setAttribute('overflow', 'hidden');
+    // THE ROLL MOVES A GROUP OF ITS OWN, never the text: the text keeps the designer's transform
+    // (Illustrator writes the position there), and a reset that clears GSAP's properties takes
+    // the transform ATTRIBUTE off an SVG element it once tweened - so tweened directly, one snap
+    // recovery would drop the rows at the layer's origin. The group has nothing to lose, and its
+    // box (getBBox spans the children, transforms included) is the list's true extent whatever
+    // matrix the text carries.
+    var roll = document.createElementNS(sample.namespaceURI, 'g');
+    roll.setAttribute('class', '${cls}-roll');
     // A copy of the sample's element - its transform, its class, its style - with the hiding
     // class taken off and the designer's id left behind, so no id appears twice.
     rows = sample.cloneNode(false);
@@ -285,7 +335,8 @@ function creditsRender() {
     var names = [];
     for (var a = 0; a < rows.attributes.length; a++) if (rows.attributes[a].name.indexOf('data-noacg') === 0) names.push(rows.attributes[a].name);
     for (var n = 0; n < names.length; n++) rows.removeAttribute(names[n]);
-    window_.appendChild(rows);
+    roll.appendChild(rows);
+    window_.appendChild(roll);
     sample.parentNode.insertBefore(window_, sample.nextSibling);
     noacgCreditsRows = rows;
   }
@@ -303,9 +354,14 @@ function creditsRender() {
     if (count > 0) {
       // A title keeps the gap the sample leaves before a title; a name follows at the step the
       // sample shows after a title or after a name. A blank line in the paste is a section
-      // break: before a name it adds one empty line, before a title the title's gap is the gap.
+      // break: before a title the title's gap is the break, and before a name it adds the same
+      // air the sample gives a title (the gap less the name step), or one empty line where the
+      // sample gives a title none.
       y += kind === 'title' ? looks.beforeTitle : prevKind === 'title' ? looks.afterTitle : looks.afterName;
-      if (sectionBreak && kind !== 'title') y += looks.afterName;
+      if (sectionBreak && kind !== 'title') {
+        var air = looks.beforeTitle - looks.afterName;
+        y += air > 0.5 ? air : looks.afterName;
+      }
     }
     var t = document.createElementNS(rows.namespaceURI, 'tspan');
     var attrs = look.run ? look.run.attributes : [];
@@ -341,7 +397,7 @@ function creditsRender() {
       }
     }
   }
-  return rows;
+  return { rows: rows, looks: looks };
 }
 
 // creditsWindow(sample): where the roll runs, as a rectangle in the rows' own space - the
@@ -392,14 +448,18 @@ var noacgCreditsLast = null;
 // one pace. Named by the entrance's own call in the animation data, so every playout road that
 // takes the graphic rolls it.
 function ${CREDITS_ROLL_CALL}() {
-  var rows = creditsRender();
+  var built = creditsRender();
   var sample = creditsSample();
-  if (!rows || !sample || typeof gsap === 'undefined') return null;
+  if (!built || !sample || typeof gsap === 'undefined') return null;
+  var rows = built.rows;
+  var roll = rows.parentNode;                // the group the roll moves (creditsRender)
+  var frame = roll.parentNode;               // the window it moves inside
   var win = creditsWindow(sample);
+  // The list's extent in the window's own space: the group's box spans the text, transform and
+  // all, and leaves the group's own travel out - so it reads the same mid-roll as at rest.
   var bb = null;
-  try { bb = rows.getBBox(); } catch (e) { bb = null; }
+  try { bb = roll.getBBox(); } catch (e) { bb = null; }
   if (!win || !bb || !(bb.height > 0)) return null;
-  var frame = rows.parentNode;
   frame.setAttribute('x', String(win.left));
   frame.setAttribute('y', String(win.top));
   frame.setAttribute('width', String(win.right - win.left));
@@ -412,12 +472,14 @@ function ${CREDITS_ROLL_CALL}() {
   var startY = win.bottom - bb.y;
   var endY = win.top - bb.y - bb.height;
   var distance = startY - endY;
-  var looks = creditsLooks();
-  var step = looks ? looks.afterName : bb.height / Math.max(1, rows.children.length);
+  // The pace rides the sample's name-to-name step, scaled the way the text's own transform
+  // scales it: the step is read in the text's units and the travel in the window's.
+  var textHeight = rows.getBBox().height;
+  var step = built.looks.afterName * (textHeight > 0 ? bb.height / textHeight : 1);
   var perSecond = step * NOACG_CREDITS_LINES_PER_SECOND * creditsSpeed() * (typeof motionSpeed === 'function' ? motionSpeed() : 1);
   var duration = distance / perSecond;
   noacgCreditsLast = { startY: startY, endY: endY, distance: distance, duration: duration, rows: rows.children.length, step: step, boxed: win.boxed };
-  noacgCreditsTween = gsap.fromTo(rows, { y: startY }, { y: endY, duration: duration, ease: 'none' });
+  noacgCreditsTween = gsap.fromTo(roll, { y: startY }, { y: endY, duration: duration, ease: 'none' });
   return noacgCreditsTween;
 }
 

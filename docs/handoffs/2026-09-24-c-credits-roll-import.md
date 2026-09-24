@@ -69,6 +69,27 @@ Pace in lines a second, not pixels. A title rendered with its colon. A group wit
 renders as a title over a name (the sample's shape), never the catalog's inline layouts. The
 roll runs once per take; Take is the Roll again button.
 
+## The check (2026-09-25, before queueing)
+
+`review: delegated` - the code-review pass came back with its scope stated (branch, base
+`2ef023324`, the same 18 files `git diff --name-only` lists here; tree clean), so it counts. Nine
+findings, all verified against the code and all taken: the roll now moves a group of its own
+rather than the cloned text, because a snap's `clearProps` strips the transform attribute off an
+SVG element GSAP has tweened (the rows would have dropped to the layer's origin after one
+recovery); the list's extent is the group's bbox, so a scaled or rotated text matrix no longer
+shortens the travel; a Credits role bound to one run of a composed block resolves to its whole
+`<text>` at bind; `dy="1.2em"` and a run with no `x` read correctly; the sample's own section
+gaps become blank lines in the default value and render with the sample's air; `shared.ts` had
+been written with CRLF plus a lone CR (git read it as binary) and is LF again; the sample text
+is memoised on the markup; the take reads the looks once; the recipe's `buttons` copy no longer
+calls the field "the Credits box". `simplify: inline` - the skill returned fan-out instructions,
+so the four angles were walked here: one expression tidied (the pace's text-scale), nothing
+else needed. `verify: inline` - `npm run build` exit 0, `import-svg-credits.spec.ts` and
+`end-credits.spec.ts` green through the queue, frames looked at. `taste: answered` - the
+program monitor frames (early, mid-roll, after a fresh paste, and the whole-frame roll) show
+titles in the sample's bold amber and names in its white at the sample's leading, the list
+entering clipped at the box's bottom edge and running out of its top; no NO.
+
 ## What is left
 
 - A centred or right-aligned sample is detected off the drawing (`creditsAnchor`) and not pinned

@@ -594,7 +594,7 @@ roll runs inside it. The format and the styling rule are in section 9 below.
 
 `Credit list`, `End credits`, `Lopputekstit`, `Eftertexter` work as well as `Credits`; `Credits panel`, `Credits window`, `Lopputekstit laatikko` work as well as `Credits box`.
 
-The operator gets the Credits box (the whole list, pasted) and Scroll speed (%).
+The operator gets the Credits field (the whole list, pasted) and Scroll speed (%).
 <!-- behaviour:credits:end -->
 
 **One quiz option is worth knowing here.** Under Quiz in the Fields step, *Require lock before

@@ -942,7 +942,7 @@
   "credits": {
     "name": "The credits roll",
     "verbs": "one pasted list rolls through, bottom to top",
-    "buttons": "the Credits box (the whole list, pasted) and Scroll speed (%)",
+    "buttons": "the Credits field (the whole list, pasted) and Scroll speed (%)",
     "roles": [
       {
         "id": "credits",

@@ -256,7 +256,7 @@ function creditGroupRows(group) {
       ? { type: 'credit', role: group.role, name: name }
       : { type: 'entry', text: name };
   });
-}`;
+}`;
 
 /** The shared runtime: parse the credits text and rebuild the track (outside the markers). */
 function creditsRuntimeJs(name: string, animationBlock: string, hasLogo: boolean): string {
