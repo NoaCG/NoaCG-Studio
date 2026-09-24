@@ -1168,8 +1168,10 @@ export async function hostedControlTail(slug: string, afterId: number, graphic?:
 
 /**
  * Live log rows for one show (the show-chat pattern: Realtime nudges, the durable table is
- * the truth). Returns an unsubscribe. Rows arrive in id order per the DB; the caller keeps
- * its own last-seen id and uses hostedControlTail after a gap.
+ * the truth). Returns an unsubscribe. Rows are NOT guaranteed to arrive in id order - one
+ * transaction's rows can reach the log topic shuffled - so the caller keeps its own last-seen id,
+ * reorders what arrives close together and uses hostedControlTail after a real gap
+ * (`followControlLog` does all three).
  */
 export async function subscribeControlEvents(
   showId: string,

@@ -264,11 +264,14 @@ async function press(n, verb, items) {
   // `update` sets values on a graphic that is not up yet and `cue` is status the stage ignores by
   // contract, so neither is what an operator is watching for.
   const moves = verb === 'take' ? 'play' : 'stop';
-  const fastAt = await waitFor(n, moves, 'fast');
-  const slowAt = await waitFor(n, moves, 'slow');
-  // Short on purpose: by the time the log road has answered, a `postgres_changes` row that was
-  // going to come has almost always come, and a closed road would otherwise cost ten seconds a press.
-  const pgcAt = await waitFor(n, moves, 'pgc', 1_500);
+  // All three roads are waited on TOGETHER, so a press costs its slowest road rather than the sum.
+  // The legacy one gets a shorter limit: its measured slow mode is about 650 ms, and once 0066 is
+  // applied it never answers at all, so a ten-second limit would be ten seconds a press for nothing.
+  const [fastAt, slowAt, pgcAt] = await Promise.all([
+    waitFor(n, moves, 'fast'),
+    waitFor(n, moves, 'slow'),
+    waitFor(n, moves, 'pgc', 1_500),
+  ]);
   if (fastAt !== null) roads[verb].fast.push(fastAt - sent);
   if (slowAt !== null) roads[verb].slow.push(slowAt - sent);
   if (pgcAt !== null) roads[verb].pgc.push(pgcAt - sent);
