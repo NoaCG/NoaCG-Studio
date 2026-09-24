@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { enableAdvancedMode, finishIntoEditor, startNewProject } from '../_create';
+import { finishIntoEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 
 // Shared setup for the configured-mode (authenticated) community specs. Credentials come from env so
@@ -30,13 +30,11 @@ export async function dismissWizard(page: Page): Promise<void> {
   await expect(modal).toBeHidden();
 }
 
-/** Sign in with email + password via the topbar dialog (Era 5.6 — the editor is open, no wall;
- *  fresh Playwright contexts have no persisted session). Leaves the wizard OPEN afterwards, the
- *  same state a fresh load presents, so createGraphic can run directly. */
+/** Sign in with email + password via Home's topbar dialog (Era 5.6, no wall; fresh Playwright
+ *  contexts have no persisted session). Leaves the wizard OPEN afterwards, the same state a
+ *  fresh load presents, so createGraphic can run directly. There is no Advanced mode to switch on
+ *  any more (owner, 2026-09-24): the sign-in lives on Home, which every boot reaches. */
 export async function signIn(page: Page): Promise<void> {
-  // These walks drive the EDITOR surfaces (topbar Save, Continue editing, the Community
-  // button) - Advanced-mode subjects since the student release demoted the editor (step 4).
-  await enableAdvancedMode(page);
   await page.goto('/app');
   // The startup wizard covers the topbar — close it to reach the Sign in button.
   await dismissWizard(page);
@@ -52,8 +50,9 @@ export async function signIn(page: Page): Promise<void> {
   await startNewProject(page);
 }
 
-/** Create a project through the wizard (which opens on load) and land in the editor — the
- *  Finish step's editor door, Advanced mode (signIn above enables it). */
+/** Create a project through the wizard (which opens on load) and land in the OLD editor through
+ *  Finish's code-editor door. That door is gone, so `finishIntoEditor` skips the calling test
+ *  (docs/backlog/specs-that-still-open-the-old-editor.md) until the callers are rewritten. */
 export async function createGraphic(page: Page, category: string, variant: string): Promise<void> {
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();

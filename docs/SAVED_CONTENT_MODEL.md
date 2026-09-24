@@ -80,10 +80,10 @@ Back/Forward are real history):
 
 | Route | Surface |
 |---|---|
-| *(none)* | Advanced mode: the editor, whichever kind `docKind` persisted. Default studio: redirected on boot - the wizard on a first-ever visit, Home otherwise (docs/GOALS_ARCHIVE.md "Student release" step 4). |
+| *(none)* | Home. Redirected on boot - the wizard on a first-ever visit, `#/home` otherwise (docs/GOALS_ARCHIVE.md "Student release" step 4). A fragment the app does not own (a sign-in token) renders Home and is left in place. The old code editor this route used to open is closed (2026-09-24). |
 | `#/home` (+`#/home/<section>`) | Home — bare `#/home` is the dashboard (productions first, then top graphics + videos); sections: productions, graphics, videos, looks. Retired names (recent, controls) land on the dashboard. |
-| `#/graphic/<id>` | Open that library graphic in the SPX editor. An id this browser has not pulled yet is ASKED OF THE CLOUD and waited for (`backend/graphicWhenSynced.ts`) - the link an agent's `noacg save` printed is minutes old and the reader's studio has not synced since. Only a signed-in reader whose sync pass came back without it lands on Home; with no session at all the address is KEPT and a sign-in offered, because the record usually exists in an account this browser has never opened. |
-| `#/control/<graphicId>` | The graphic's control panel (fields + entries + event buttons + live preview). Same cloud lookup as the row above: "Opening…" while it is fetched, "Graphic not found" only once it is known to be gone. |
+| `#/graphic/<id>` | Retired as a surface (2026-09-24): opens that graphic's CONTROL page and is rewritten to `#/control/<id>`, so the link an agent's `noacg save` prints still works. The control page does the cloud lookup described in the next row. |
+| `#/control/<graphicId>` | The graphic's control panel (fields + entries + event buttons + live preview). An id this browser has not pulled yet is ASKED OF THE CLOUD and waited for (`backend/graphicWhenSynced.ts`): "Opening…" while it is fetched, "Graphic not found" only once it is known to be gone, and with no session a sign-in is offered and the id stays in the address, because the record usually exists in an account this browser has never opened. |
 | `#/production/<id>` | One production's page (pool, cues, links, publish, operating). |
 | `#/video` | The video editor shell. |
 | `#/new` (+`#/new/<designId>`) | The creation wizard's front page. A boot that LANDS here renders no under-surface at all — there is no Home to preserve, and mounting one under a full-screen opaque wizard can only ever flash. |

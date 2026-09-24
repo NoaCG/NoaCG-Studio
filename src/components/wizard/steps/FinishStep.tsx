@@ -62,12 +62,9 @@ interface Props {
   /** THE PRIMARY DOOR (docs/GOALS_ARCHIVE.md "Student release" step 6): create it, save it, pool it
    *  into the production, land on the production page — the road to air. */
   onAddToProduction: (dest: ProductionDest) => void;
-  /** Create the project and land in the code editor (AppShell). Advanced mode only; saving stays manual. */
-  onOpenEditor: () => void;
-  /** Optional canvas refinement of the final document, without installing a cue. */
+  /** Optional canvas refinement of the final document in the new editor, without installing
+   *  a cue. There is no door to the old code editor (owner, 2026-09-24). */
   onEditArtwork?: () => void;
-  /** ADVANCED MODE only: the editor door renders when true (default studio hides it). */
-  showEditorDoor: boolean;
   /** Create it, save it to the library, and go straight to the export window. */
   onExport: () => void;
   /** Disabled while there is nothing built to finish. */
@@ -218,8 +215,7 @@ export function importedSummaryRows(imported: ImportedTemplateResult): SummaryRo
  * THE PRIMARY DOOR is a production (docs/GOALS_ARCHIVE.md "Student release" step 6) — the wizard's
  * whole promise ends on air, so the door that leads there leads. "Export" stays for the
  * download-and-run-locally workflow. "Edit this graphic" opens the new canvas editor
- * (#/editor-foundation) where the mode supplies it, and "Open in the code editor" is Advanced
- * mode's continuation into the old code workspace (the default studio never offers it).
+ * (#/editor-foundation) where the mode supplies it. No door leads to the old code editor.
  */
 export default function FinishStep({
   name,
@@ -230,9 +226,7 @@ export default function FinishStep({
   productions,
   defaultProductionId,
   onAddToProduction,
-  onOpenEditor,
   onEditArtwork,
-  showEditorDoor,
   onExport,
   busy,
   madeId = null,
@@ -492,27 +486,6 @@ export default function FinishStep({
           <span className="wz-entry-head"><strong>Edit this graphic <span className="wz-beta-tag">Alpha</span></strong></span>
           <span className="hint">Move and scale artwork, or add text and shapes. Save when ready; no production item is added.</span>
         </button>}
-        {showEditorDoor && (
-          <button
-            className="wz-entry-card"
-            onClick={onOpenEditor}
-            disabled={busy}
-            data-testid="wz-finish-editor"
-          >
-            <span className="wz-entry-head">
-              <span className="wz-entry-icon">‹›</span>
-              {/* THE CODE EDITOR, named for what it is (2026-09-21). Advanced mode shows it
-                  beside "Edit this graphic", the new canvas editor, and two doors both called
-                  some editor with the same Alpha tag gave no way to tell them apart. The
-                  default studio never shows this door. */}
-              <strong>Open in the code editor</strong>
-            </span>
-            <span className="hint">
-              Advanced mode: the full canvas, timeline and code workspace. Still rough - expect
-              sharp edges. Nothing is written to your library until you press Save.
-            </span>
-          </button>
-        )}
       </div>
 
       <div className="panel-section" style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

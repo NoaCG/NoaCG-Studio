@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
 import { variantById, variantsFor } from '../../templates/catalog';
-import { createBlankTemplate } from '../../templates/blank';
 import {
   armTimerClock,
   brandClearPatch,
@@ -58,7 +57,6 @@ import StyleStep from './steps/StyleStep';
 import AnimationStep from './steps/AnimationStep';
 import AiStep from './steps/AiStep';
 import VideoStep from './steps/VideoStep';
-import BlankStep from './steps/BlankStep';
 import FinishStep, {
   aiSummaryRows,
   catalogSummaryRows,
@@ -77,6 +75,7 @@ import { useDocKindStore } from '../../store/docKindStore';
 import { useModalGate } from '../spaceKey';
 import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
+import { openNewEditor } from '../editorFoundation/openNewEditor';
 import NewGraphicButton from '../NewGraphicButton';
 import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
 import { graphicById, graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
@@ -90,28 +89,26 @@ import { addGraphicToShow, createShowNamedChecked, loadShows, setShowLook, type 
 import { commitDurableWrites } from '../../model/durableStore';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import type { ProductionDest } from './steps/FinishStep';
-import { useAdvancedMode } from '../useAdvancedMode';
 import type { TemplatePack } from '../../templates/packs';
 import { kitSelection } from '../../templates/kit';
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
 // Every catalog-shaped flow ends on FINISH: the graphic is named there, and the wizard's one
-// branch is taken — open it in the editor, or go straight to its export packages without the
-// editor ever being involved (steps/FinishStep.tsx + components/ExportWindow.tsx).
+// branch is taken: a production, its export packages, or the new editor
+// (steps/FinishStep.tsx + components/ExportWindow.tsx). No door opens the old code editor.
 /**
- * A Finish door whose SAVE failed. Every such door reaches a surface the wizard no longer owns
- * (applyGenerated replaces the route, which closes the wizard), so the report has to come from
- * the app-level dialog - an inline message here would unmount before anyone read it. The
- * outcome line says where the work actually is, which is the part a "storage is full" string
- * alone never answers.
+ * An Export door whose SAVE failed. The report comes from the app-level dialog, the one place
+ * a storage failure is announced (App.tsx). The outcome line says where the work actually is,
+ * which is the part a "storage is full" string alone never answers: the wizard stays open on
+ * Finish under the export window, with the graphic built.
  */
 function reportFailedCreateSave(name: string, error: string | null): void {
   raiseStorageAlert({
     action: `Saving “${name}”`,
     error: error ?? 'The graphic could not be saved.',
     outcome:
-      'It is still open in the editor. Free some room, then press Save. You can still export it from here without saving.',
+      'It is still open in the wizard, unsaved. You can export it without saving, or free some room and press Export it again.',
   });
 }
 
@@ -119,7 +116,6 @@ const STEP_TITLES = ['Start', 'Browse', 'Fields', 'Style', 'Animation', 'Finish'
 const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'Animation', 'Finish'];
 const STEP_TITLES_AI = ['Start', 'Create', 'Finish'];
 const STEP_TITLES_VIDEO = ['Start', 'Video'];
-const STEP_TITLES_BLANK = ['Start', 'Blank project'];
 // Import-graphic mode is a SETUP flow, not a second editor: bring the artwork in, prepare it
 // (erase baked-in text, pick how it meets long text), PLACE editable text on it, choose the
 // in/out animation, create — and land in the real canvas editor with a graphic that already
@@ -138,7 +134,7 @@ const STEP_TITLES_SVG = ['Start', 'Design', 'Fields', 'Animation', 'Finish'];
 const STEP_TITLES_FILE = ['Start', 'Template file', 'Finish'];
 
 /** Which walk the wizard is on. Each one has its own step list above. */
-type WizardMode = 'template' | 'import' | 'design' | 'svg' | 'file' | 'ai' | 'video' | 'blank';
+type WizardMode = 'template' | 'import' | 'design' | 'svg' | 'file' | 'ai' | 'video';
 
 /** The walks whose created graphic actually carries the draft's palette and typeface — the
  *  BRAND CHOOSER in the footer, and the reasoning, are there. */
@@ -164,7 +160,6 @@ const PRODUCTION_LOOK_ID = 'production-look';
 function stepTitlesFor(mode: WizardMode, kitWalk: boolean): string[] {
   return mode === 'ai' ? STEP_TITLES_AI
     : mode === 'video' ? STEP_TITLES_VIDEO
-    : mode === 'blank' ? STEP_TITLES_BLANK
     : mode === 'design' ? STEP_TITLES_DESIGN
     : mode === 'svg' ? STEP_TITLES_SVG
     : mode === 'file' ? STEP_TITLES_FILE
@@ -189,7 +184,6 @@ const STEP_SUBS: Record<string, string[]> = {
   import: ['Choose mode', 'Add pictures', 'Pick a design', 'Operator inputs', 'Colors & typeface', 'In & out motion', 'Name & save'],
   ai: ['Choose mode', 'Describe it', 'Name & save'],
   video: ['Choose mode', 'Brief & format'],
-  blank: ['Choose mode', 'Format & name'],
   design: ['Choose mode', 'Your artwork', 'Erase & scale', 'Place fields', 'In & out motion', 'Name & save'],
   svg: ['Choose mode', 'Your artwork', 'Map text layers', 'In & out motion', 'Name & save'],
   file: ['Choose mode', 'Your graphic', 'Name & save'],
@@ -277,7 +271,6 @@ export default function CreationWizard() {
   // saved nothing (the editor one) reads dirty from birth, which is the right answer there too.
   const workingDirty = useTemplateStore((s) => s.saved.dirty);
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
-  const setActiveTab = useTemplateStore((s) => s.setActiveTab);
 
   const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
@@ -319,7 +312,6 @@ export default function CreationWizard() {
    *  pass down the same walk minting a second library record under the same name, whether the
    *  second pass came from a resume or from pressing Export twice without leaving Finish. */
   const madeThisOpen = useRef<MadeGraphic | null>(null);
-  const advanced = useAdvancedMode((s) => s.advanced);
   // Prepare step's content-width slider (Import graphic, stretch mode): preview-only demo
   // text pushed into the live preview — never part of the draft or the created template.
   const [stretchDemo, setStretchDemo] = useState<string | null>(null);
@@ -700,10 +692,6 @@ export default function CreationWizard() {
   // Can the user's own mark still be seen in the package they picked? Only asked when the draft
   // actually carries one - the check mounts a frame, and a graphic with no logo cannot fail it.
   const markWarning = useMarkLegibility(previewTemplate, Boolean(draft.logoAssetPath));
-  const blankPreview = useMemo(
-    () => (mode === 'blank' ? createBlankTemplate(draftResolution(draft), draft.fps) : null),
-    [mode, draft],
-  );
 
   // The Animation step's index per mode: the one-step Browse flow ends at 4, the import
   // continuation keeps the old six-step shape. Finish always follows it.
@@ -714,8 +702,7 @@ export default function CreationWizard() {
   const finishStep = mode === 'ai' || mode === 'file' ? 2 : animStep + 1;
   // The steps from which an imported artwork (design, SVG) or the images continuation can be
   // finished early: every step once there is a graphic to show - from Design on, and from
-  // the template pick on in the images flow. The footer offers the jump to Finish there in
-  // the default studio, and Advanced mode's straight-to-code "Create project".
+  // the template pick on in the images flow. The footer offers the jump to Finish there.
   const importCanFinishEarly = (mode === 'design' || mode === 'svg' || mode === 'import') && (mode === 'import' ? step >= 2 : step >= 1);
   // On the Animation step the preview demos the full lifecycle (in → hold → out → in)
   // so the exit is actually seen — unless the user is tuning the entrance only.
@@ -864,12 +851,6 @@ export default function CreationWizard() {
   // lands in the video shell. Only the wizard flips the persisted doc-kind switch.
   const toSpxShell = () => useDocKindStore.getState().setKind('spx');
 
-  /** Every create that ENDS IN A WORKSPACE names its route in the same tick. Without this,
-   *  the `#/new` route-agreement effect reads a closed-but-still-routed wizard as a ✕ close,
-   *  and a default-mode ✕ close rewinds to HOME (docs/GOALS_ARCHIVE.md "Student release" step 4) -
-   *  which would swallow the surface the create just promised. */
-  const landAt = (view: 'editor' | 'video') => useRouter.getState().replace({ view });
-
   const createVideo = (project: VideoProject) => {
     useVideoProjectStore.getState().loadProject(project);
     useDocKindStore.getState().setKind('video');
@@ -877,7 +858,10 @@ export default function CreationWizard() {
     // report nothing at all, so a whole project kind was invisible to the funnel and to the
     // admin overview - which showed as an honest-looking zero rather than as a gap.
     trackEvent('activation', 'video');
-    landAt('video');
+    // The route is named in the SAME tick as the close. Without it the `#/new` route-agreement
+    // effect in App.tsx reads a closed-but-still-routed wizard as a ✕ close and rewinds to Home,
+    // which would swallow the workspace the create just promised.
+    useRouter.getState().replace({ view: 'video' });
     closeGallery();
   };
 
@@ -974,16 +958,14 @@ export default function CreationWizard() {
   // project starts from one consistent, formatted baseline. Formatting once at birth also keeps
   // later canvas/timeline edits to tight, minimal diffs - the editor's change-highlight stays
   // accurate. Imported templates are NOT routed here: they stay byte-faithful to the user's file.
-  const applyGenerated = async (template: SpxTemplate, skipNavigation?: boolean, keepGalleryOpen?: boolean) => {
+  //
+  // THE WIZARD STAYS OPEN over whatever is under it, and every door routes away by itself: the
+  // production door to the rundown, the export door opens the export window OVER the wizard,
+  // and "Edit this graphic" goes to the new editor. Nothing lands in the old code editor.
+  const applyGenerated = async (template: SpxTemplate) => {
     const formatted = await formatTemplate(template); // HTML-only by default
-    if (!skipNavigation) landAt('editor'); // the seam every editor-ending create flows through
-    applyTemplate(formatted, { resetSampleData: true, keepGalleryOpen });
-    setActiveTab('html');
+    applyTemplate(formatted, { resetSampleData: true, keepGalleryOpen: true });
     toSpxShell();
-  };
-
-  const createBlank = () => {
-    void applyGenerated(createBlankTemplate(draftResolution(draft), draft.fps));
   };
 
   /* ── THE KIT ─────────────────────────────────────────────────────────────────────────────
@@ -1203,7 +1185,7 @@ export default function CreationWizard() {
    * the next Save. Returns the applied template (read back post-format) or null. Both Finish
    * doors go through here, so the editor and export endings stay byte-identical.
    */
-  const applyAiProject = async (skipNavigation?: boolean, keepGalleryOpen?: boolean): Promise<SpxTemplate | null> => {
+  const applyAiProject = async (): Promise<SpxTemplate | null> => {
     if (!aiResult?.valid) return null;
     rememberWalk();
     if (aiResult.generationId) acceptedAiGeneration.current = aiResult.generationId;
@@ -1212,7 +1194,7 @@ export default function CreationWizard() {
     // The Finish name rides the built template, exactly as the catalog path's draftName does,
     // so it reaches the topbar, the Save prefill, and the export slug through one path.
     const template = aiResult.template.name === name ? aiResult.template : { ...aiResult.template, name };
-    await applyGenerated(template, skipNavigation, keepGalleryOpen);
+    await applyGenerated(template);
     // AFTER the whole-project swap (which clears the store's spec AND conversation), adopt this
     // result's own so both ride the autosave slot + the next Save. Both Finish doors reach here.
     useTemplateStore.getState().setAiSpec(aiResult.spec ?? null);
@@ -1231,22 +1213,13 @@ export default function CreationWizard() {
     return useTemplateStore.getState().template;
   };
 
-  /** The AI editor door: create and hand over. Saving stays the user's move. */
-  const createFromAi = () => {
-    void applyAiProject().then((template) => {
-      // Nothing was SAVED here (this door leaves that to the user), so the walk-back warning
-      // has only a name to state - which is the honest thing to say about it.
-      if (template) noteMade(aiName(), null, { view: 'editor' });
-    });
-  };
-
   /** The AI export door: create, SAVE, and go straight to the export window (mirrors
    *  createAndExport, including keeping the wizard open UNDER the window so closing it
    *  returns to the last creation step). The save is not optional — an export-only creation
-   *  that vanished would cost the whole AI generation to reproduce. A failed save
-   *  deliberately stays in the editor. */
+   *  that vanished would cost the whole AI generation to reproduce. A failed save says so
+   *  and leaves the wizard open on Finish. */
   const createFromAiAndExport = () => {
-    void applyAiProject(true, true).then(async (template) => {
+    void applyAiProject().then(async (template) => {
       if (!template) return;
       const saved = await saveBuiltGraphic(aiName());
       const s = useTemplateStore.getState();
@@ -1263,7 +1236,7 @@ export default function CreationWizard() {
   /** The AI production door - the same primary ending as the catalog one (byte-identical
    *  doors doctrine: both route through applyAiProject). */
   const createFromAiAndAddToProduction = (dest: ProductionDest) => {
-    void applyAiProject(true, true).then((template) => {
+    void applyAiProject().then((template) => {
       if (!template) return;
       void addToProduction(dest, aiName());
     });
@@ -1277,7 +1250,7 @@ export default function CreationWizard() {
    *
    * Returns the applied template (read back from the store, post-format) or null.
    */
-  const applyDraftProject = async (skipNavigation?: boolean, keepGalleryOpen?: boolean): Promise<SpxTemplate | null> => {
+  const applyDraftProject = async (): Promise<SpxTemplate | null> => {
     if (!previewTemplate || !variant) return null;
     rememberWalk();
     // The two modes whose preview carries preview-only extras rebuild without them — design's
@@ -1285,16 +1258,7 @@ export default function CreationWizard() {
     // any step (Skip to finish), so this cannot be left to the step the reader happens to be on.
     // Every other mode's preview is exactly the created code already.
     const previewOnly = mode === 'design' || mode === 'svg';
-    await applyGenerated(previewOnly ? buildDraftTemplate(variant, draft) : previewTemplate, skipNavigation, keepGalleryOpen);
-    // An imported design creates BARE and hands off to the editor's Data tab — that is
-    // where its fields are added, as real placed layers (docs/IMPORT_MVP.md). DEFERRED a
-    // tick: in the default studio no editor renders under the wizard, so AppShell mounts on
-    // the route change this create just made — and the dock reveal is keyed on
-    // panelRevealNonce CHANGING after mount (mount itself never reveals). A same-tick bump
-    // lands before the mount and is silently missed.
-    if (variant.category === 'imported-design') {
-      setTimeout(() => useTemplateStore.getState().setActivePanel('data'), 0);
-    }
+    await applyGenerated(previewOnly ? buildDraftTemplate(variant, draft) : previewTemplate);
     // AFTER the whole-project swap (which clears it): the project's legibility settings ride
     // the store exactly like the AI path's aiSpec, so the autosave slot and every Save carry
     // them (an untouched draft normalizes to nothing).
@@ -1310,42 +1274,29 @@ export default function CreationWizard() {
     return useTemplateStore.getState().template;
   };
 
-  /** The editor door (and the quiet from-any-step shortcut): create and hand over. Saving
-   *  stays the user's move, exactly as it always has been. */
-  const create = () => {
-    void applyDraftProject().then((template) => {
-      if (template && variant) noteMade(draftName(variant, draft), null, { view: 'editor' });
-    });
-  };
-
   // Apply the final formatted document once. Opt in without a reload/autosave race,
   // and retain the walk-back warning before a stale wizard draft can replace edits.
   const createAndEditArtwork = () => {
-    void applyDraftProject(true, true).then((template) => {
+    void applyDraftProject().then((template) => {
       if (!template) return;
-      const url = new URL(window.location.href);
-      url.searchParams.set('editor', 'foundation');
-      window.history.replaceState(window.history.state, '', url);
       noteMade(template.name, null, { view: 'editor-foundation' });
-      useRouter.getState().replace({ view: 'editor-foundation' });
+      openNewEditor({ replace: true });
       closeGallery();
     });
   };
 
   /**
-   * The export door: create it, SAVE it, and go straight to the export window — the editor is
-   * never revealed. The save is not optional here. This branch exists for someone who is done,
+   * The export door: create it, SAVE it, and go straight to the export window, which opens
+   * OVER the wizard. The save is not optional here. This branch exists for someone who is done,
    * and a graphic that was configured, exported and then dropped would be unrecoverable: every
    * wizard choice would have to be made again to get the same package back.
    *
-   * On success the wizard closes onto HOME rather than the editor, so shutting the export
-   * window leaves the user in the library holding the thing they just made. If the save fails
-   * (a full quota is the realistic cause) we deliberately stay in the editor instead: the
-   * topbar's failed-save status is visible there and Save can be retried, where Home would
-   * just be a library missing the graphic with nothing saying why.
+   * If the save fails (a full quota is the realistic cause) the storage dialog says so, and
+   * the wizard is still open on Finish with the graphic built, so the export can go ahead
+   * unsaved or the door can be pressed again once there is room.
    */
   const createAndExport = () => {
-    void applyDraftProject(true, true).then(async (template) => {
+    void applyDraftProject().then(async (template) => {
       if (!template || !variant) return;
       const saved = await saveBuiltGraphic(draftName(variant, draft));
       // Read AFTER the save: it renames the working template to the record's name, which is
@@ -1367,12 +1318,11 @@ export default function CreationWizard() {
    * auto-seeded first cue, capture the look onto a production that has none yet, and land on
    * the production page - the road to air.
    *
-   * THE EDITOR IS NEVER REVEALED ON THE WAY (owner walk, 2026-09-01: adding an imported graphic
-   * to a production flashed the canvas before the rundown appeared). Every caller applies with
-   * `skipNavigation` + `keepGalleryOpen`, exactly as the export door does, so the wizard stays
-   * over the shell until this routes to the production. That also makes a FAILED save land
-   * somewhere better than it used to: the wizard is still open on Finish, with the graphic built,
-   * so the door can simply be pressed again.
+   * NOTHING IS REVEALED ON THE WAY (owner walk, 2026-09-01: adding an imported graphic to a
+   * production flashed the canvas before the rundown appeared). Every create keeps the wizard
+   * open (applyGenerated), so it stays over the surface until this routes to the production.
+   * That also makes a FAILED save land somewhere useful: the wizard is still open on Finish,
+   * with the graphic built, so the door can simply be pressed again.
    */
   const addToProduction = async (dest: ProductionDest, name: string) => {
     const saved = await saveBuiltGraphic(name);
@@ -1446,27 +1396,17 @@ export default function CreationWizard() {
      the zip and, on the SPX and CasparCG packages, the template FOLDER an operator reads. */
   const importedName = () => draft.name.trim() || importedFile?.template.name || 'Imported graphic';
 
-  const applyImportedFile = (skipNavigation?: boolean, keepGalleryOpen?: boolean): SpxTemplate | null => {
+  const applyImportedFile = (): SpxTemplate | null => {
     if (!importedFile) return null;
     rememberWalk();
     const template = { ...importedFile.template, name: importedName() };
-    if (!skipNavigation) landAt('editor');
-    applyTemplate(template, { resetSampleData: true, keepGalleryOpen });
-    setActiveTab('html');
+    applyTemplate(template, { resetSampleData: true, keepGalleryOpen: true });
     trackEvent('activation', 'file');
     return useTemplateStore.getState().template;
   };
 
-  const createFromFile = () => {
-    if (!applyImportedFile()) return;
-    noteMade(importedName(), null, { view: 'editor' });
-    // The Export panel carries the validation verdict, which is the one thing an imported
-    // file's owner needs to see: what (if anything) stops it being SPX/CasparCG-ready.
-    setTimeout(() => useTemplateStore.getState().setActivePanel('export'), 0);
-  };
-
   const createFromFileAndExport = () => {
-    if (!applyImportedFile(true, true)) return;
+    if (!applyImportedFile()) return;
     void (async () => {
       const saved = await saveBuiltGraphic(importedName());
       const s = useTemplateStore.getState();
@@ -1481,12 +1421,12 @@ export default function CreationWizard() {
   };
 
   const createFromFileAndAddToProduction = (dest: ProductionDest) => {
-    if (!applyImportedFile(true, true)) return;
+    if (!applyImportedFile()) return;
     void addToProduction(dest, importedName());
   };
 
   const createAndAddToProduction = (dest: ProductionDest) => {
-    void applyDraftProject(true, true).then((template) => {
+    void applyDraftProject().then((template) => {
       if (!template || !variant) return;
       void addToProduction(dest, draftName(variant, draft));
     });
@@ -1518,7 +1458,6 @@ export default function CreationWizard() {
   const showPreview =
     (mode === 'ai' ? (step === 1 || step === finishStep) && !!aiResult
     : mode === 'video' ? false
-    : mode === 'blank' ? step === 1
     : mode === 'design' || mode === 'svg' ? step >= 1 && !!previewTemplate
     // A dropped template is previewed as itself: it is the graphic, already finished.
     : mode === 'file' ? step >= 1 && !!importedFile
@@ -1592,12 +1531,12 @@ export default function CreationWizard() {
         </button>
       )}
       {/* OFFERED ONLY WHERE THE BRAND CAN REACH THE GRAPHIC (owner, 2026-09-03: do not offer
-          things that do nothing). Three modes have nowhere to put a palette or a typeface, and
+          things that do nothing). Two modes have nowhere to put a palette or a typeface, and
           each says so in its own factory: a VIDEO project's fields are prompt, engine, size and
-          assets (`createDefaultVideoProject`, model/videoTypes.ts) — no colours, no faces; a
-          dropped template FILE is applied byte-faithfully with the name as the only edit; and
-          `createBlankTemplate(resolution, fps)` takes no draft at all. Ticking the box in those
-          three wrote a palette into the draft that nothing downstream ever read. */}
+          assets (`createDefaultVideoProject`, model/videoTypes.ts), with no colours and no faces;
+          and a dropped template FILE is applied byte-faithfully with the name as the only edit.
+          Ticking the box in either wrote a palette into the draft that nothing downstream ever
+          read. */}
       {/* WITH NO BRANDS THERE IS NO CONTROL, not a disabled one (docs/BRAND_PLAN.md decision 1):
           an empty chooser is a promise the install cannot keep, and the door to making one is
           Home, not here. */}
@@ -1620,15 +1559,13 @@ export default function CreationWizard() {
       <div className="spacer" />
       {/* TEMPLATE MODE's quiet shortcut is "Skip to finish" (docs/GOALS_ARCHIVE.md "Student
           release" step 6): remaining steps keep their defaults and the Finish step's
-          doors decide where the graphic goes - it no longer creates straight into the
-          editor, which default mode does not even surface. It stands down ON Finish,
-          whose door cards ARE the actions.
-          DESIGN/SVG/IMPORT take the same shortcut in the default studio from the step their
-          walk first has a graphic on (owner, 2026-09-21: no door to the old editor anywhere in
-          the default studio). Advanced mode keeps their classic "Create project" below, which
-          creates straight into the code editor.
+          doors decide where the graphic goes. It stands down ON Finish, whose door cards
+          ARE the actions.
+          DESIGN/SVG/IMPORT take the same shortcut from the step their walk first has a
+          graphic on. There is no straight-to-code "Create project" any more: no wizard
+          control opens the old code editor (owner, 2026-09-21 and 2026-09-24).
           KIT stands down for the same reason as Finish: its own Create IS the action. */}
-      {((mode === 'template' && step >= 1 && !kit && buildMode === 'one') || (!advanced && importCanFinishEarly)) && step < finishStep && (
+      {((mode === 'template' && step >= 1 && !kit && buildMode === 'one') || importCanFinishEarly) && step < finishStep && (
         <button
           className="wz-skip"
           disabled={mode === 'template' ? !draft.variantId : !previewTemplate}
@@ -1639,21 +1576,8 @@ export default function CreationWizard() {
           Skip to finish
         </button>
       )}
-      {advanced && importCanFinishEarly && step < finishStep && (
-        <button
-          disabled={!previewTemplate}
-          onClick={create}
-          title={
-            mode === 'design' || mode === 'svg'
-              ? 'Create the project with everything chosen so far. You can refine anything later in the editor.'
-              : 'Create the project now. The steps you skip keep their defaults.'
-          }
-        >
-          Create project
-        </button>
-      )}
-      {/* AI's Create step advances to Finish once a valid result stands — the two doors
-          (open in the editor / export) live there, same as every catalog mode. */}
+      {/* AI's Create step advances to Finish once a valid result stands. Its doors live
+          there, same as every catalog mode. */}
       {mode === 'ai' && step === 1 && (
         <button
           className="primary wz-next"
@@ -1664,7 +1588,7 @@ export default function CreationWizard() {
           Next →
         </button>
       )}
-      {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && step > 0 && step < finishStep && (
+      {mode !== 'ai' && mode !== 'video' && step > 0 && step < finishStep && (
         <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
           {/* A kit's buttons say where they go: the Kit step builds the set, and the last
               editing step is done with this graphic and returns to all of them. */}
@@ -1837,7 +1761,7 @@ export default function CreationWizard() {
 
             {/* The authored frame, read back where it stays visible for the whole walk. The
                 CONTROL itself stays in the step that owns it (the Browse step's picker, the
-                AI and blank steps' own) — one control, one home; this is the reminder plus
+                AI step's own): one control, one home; this is the reminder plus
                 the way back to it. */}
             <div className="wz-rail-foot">
               <p className="dlg-caption">Project format</p>
@@ -1876,7 +1800,6 @@ export default function CreationWizard() {
                   setMode('video');
                   setStep(1);
                 }}
-                onBlank={() => { setMode('blank'); setStep(1); }}
                 onHome={(section = null) => {
                   closeGallery();
                   useRouter.getState().navigate({ view: 'home', section });
@@ -1890,9 +1813,6 @@ export default function CreationWizard() {
                 onCreate={createVideo}
                 onOpen={createVideo}
               />
-            )}
-            {step === 1 && mode === 'blank' && (
-              <BlankStep draft={draft} onDraft={patch} onCreate={createBlank} />
             )}
             {/* AiStep stays MOUNTED across the Create → Finish move (hidden on Finish), so
                 stepping to the doors and back never discards the thread, the three directions,
@@ -1910,32 +1830,17 @@ export default function CreationWizard() {
                     setAiResult(template ? { template, valid, spec, generationId, path, pack: pack ?? null } : null)}
                   onThread={setAiThread}
                   onOpenImported={(imported) => {
-                    // THE DEFAULT STUDIO HAS NO CODE EDITOR TO OPEN (owner, 2026-09-21), so the
-                    // same file takes the Import graphic card's road instead: `file` mode's
-                    // Finish, whose doors apply it exactly as written. The reader has already
-                    // confirmed its project format on this card, so the detection is certain.
-                    if (!advanced) {
-                      setImportedFile({
-                        template: imported,
-                        detection: { resolution: imported.resolution, fps: imported.fps, certain: true, messages: [] },
-                      });
-                      setImportedFileError(null);
-                      setMode('file');
-                      setStep(2); // file mode's Finish
-                      return;
-                    }
-                    // The byte-faithful path (deliberately NOT applyGenerated/Prettier): the
-                    // user's file opens exactly as written, and the Export panel's inline
-                    // validation shows what (if anything) needs fixing before it is
-                    // SPX/CasparCG/OGraf-ready. applyTemplate closes the wizard.
-                    landAt('editor');
-                    applyTemplate(imported, { resetSampleData: true });
-                    setActiveTab('html');
-                    // Deferred a tick for the same reason as the imported-design Data
-                    // reveal above: AppShell mounts on this route change, and a same-tick
-                    // nonce bump lands before the mount and is missed.
-                    setTimeout(() => useTemplateStore.getState().setActivePanel('export'), 0);
-                    toSpxShell();
+                    // THERE IS NO CODE EDITOR TO OPEN (owner, 2026-09-21 and 2026-09-24), so the
+                    // file takes the Import graphic card's road instead: `file` mode's Finish,
+                    // whose doors apply it exactly as written. The reader has already confirmed
+                    // its project format on this card, so the detection is certain.
+                    setImportedFile({
+                      template: imported,
+                      detection: { resolution: imported.resolution, fps: imported.fps, certain: true, messages: [] },
+                    });
+                    setImportedFileError(null);
+                    setMode('file');
+                    setStep(2); // file mode's Finish
                   }}
                   onUseTemplates={(images) => {
                     // Skip the AI: design AROUND the images with the catalog — the existing
@@ -2335,8 +2240,6 @@ export default function CreationWizard() {
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
                 onAddToProduction={createFromFileAndAddToProduction}
-                onOpenEditor={createFromFile}
-                showEditorDoor={advanced}
                 onExport={createFromFileAndExport}
                 busy={false}
               />
@@ -2356,8 +2259,6 @@ export default function CreationWizard() {
                 madeId={finishMadeId}
                 onAddToProduction={createAndAddToProduction}
                 onEditArtwork={createAndEditArtwork}
-                onOpenEditor={create}
-                showEditorDoor={advanced}
                 onExport={createAndExport}
                 busy={!previewTemplate}
               />
@@ -2399,8 +2300,6 @@ export default function CreationWizard() {
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
                 onAddToProduction={createFromAiAndAddToProduction}
-                onOpenEditor={createFromAi}
-                showEditorDoor={advanced}
                 onExport={createFromAiAndExport}
                 busy={!aiResult.valid}
               />
@@ -2412,7 +2311,6 @@ export default function CreationWizard() {
 
           {showPreview &&
             (mode === 'ai' ? aiResult
-            : mode === 'blank' ? blankPreview
             : mode === 'file' ? importedFile
             : previewTemplate) && (
             <aside className="wz-side">
@@ -2420,11 +2318,9 @@ export default function CreationWizard() {
                 template={
                   mode === 'ai'
                     ? aiResult!.template
-                    : mode === 'blank'
-                      ? blankPreview!
-                      : mode === 'file'
-                        ? importedFile!.template
-                        : previewTemplate!
+                    : mode === 'file'
+                      ? importedFile!.template
+                      : previewTemplate!
                 }
                 replayKey={replayKey}
                 demoOut={demoOut}

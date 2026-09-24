@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter, type Route } from '../../app/router';
-import { useTemplateStore } from '../../store/templateStore';
-import { openGraphicById, useSaveUi } from '../../store/saveActions';
 import { loadGraphics, type GraphicDoc } from '../../model/library';
 import { loadLooks } from '../../model/packets';
 import { loadShows } from '../../model/shows';
@@ -32,7 +30,6 @@ import { useAuthState } from '../auth/useAuthState';
 import SyncStatus from '../SyncStatus';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import SettingsDialog from '../SettingsDialog';
-import { useAdvancedMode } from '../useAdvancedMode';
 import { copyLink } from './copyLink';
 import { activeValues } from './GraphicRow';
 import GraphicThumb from './GraphicThumb';
@@ -65,10 +62,6 @@ const SECTIONS: { id: Section; label: string; icon: ReactNode }[] = [
  */
 export default function HomePage({ route }: { route: Route }) {
   const navigate = useRouter((s) => s.navigate);
-  const requestSwitch = useSaveUi((s) => s.requestSwitch);
-  const workingName = useTemplateStore((s) => s.template.name);
-  const workingSaved = useTemplateStore((s) => s.saved);
-  const advanced = useAdvancedMode((s) => s.advanced);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // The profile button (AuthStatus) renders, and carries Settings, only with a backend AND a
   // session; offline, `useAuthState` reports signed-in but there is no profile button at all.
@@ -195,18 +188,10 @@ export default function HomePage({ route }: { route: Route }) {
       ? (route.section as Section)
       : null;
 
-  /** What "Open" means follows the mode (docs/GOALS_ARCHIVE.md "Student release" step 4): the
-   *  default studio opens a graphic onto its CONTROL page (preview + data + operating);
-   *  Advanced mode opens the editor. Direct #/graphic links work either way. */
+  /** "Open" puts a graphic on its CONTROL page (preview + data + operating), from where "Edit
+   *  graphic" reaches the new editor (docs/GOALS_ARCHIVE.md "Student release" step 4). */
   const openGraphic = (g: GraphicDoc) => {
-    if (!advanced) {
-      navigate({ view: 'control', id: g.id });
-      return;
-    }
-    requestSwitch(() => {
-      openGraphicById(g.id);
-      navigate({ view: 'graphic', id: g.id });
-    });
+    navigate({ view: 'control', id: g.id });
   };
 
   const openVideo = (record: SavedVideoRecord) => {
@@ -255,19 +240,8 @@ export default function HomePage({ route }: { route: Route }) {
             (Brand §3), and creating a graphic is not an on-air act. */}
         <NewGraphicButton testid="home-new-project" />
         <div className="spacer" />
-        {/* An editor door - Advanced mode only (docs/GOALS_ARCHIVE.md "Student release" step 4). */}
-        {advanced && (
-          <button
-            onClick={() => navigate({ view: 'editor' })}
-            data-testid="home-continue-editing"
-            title="Back to the graphic open in the editor"
-          >
-            ↩ Continue editing <strong style={{ marginLeft: 4 }}>{workingName}</strong>
-            {workingSaved.dirty ? ' •' : ''}
-          </button>
-        )}
-        {/* Settings must be reachable WITHOUT an account - it is where Advanced mode lives, and
-            offline builds have no account at all. Signed in, the PROFILE button carries it
+        {/* Settings must be reachable WITHOUT an account - offline builds have no account at
+            all. Signed in, the PROFILE button carries it
             (AuthStatus: Home · Settings · Downloads), so the bar shows one door, not two
             (owner, 2026-09-23: settings belong in the profile control, made easy to find). */}
         {!profileMenuShown && (
@@ -276,8 +250,8 @@ export default function HomePage({ route }: { route: Route }) {
           </button>
         )}
         {/* The general beta door, on every surface a student actually stands on. It used to
-            exist only in the EDITOR shell - the one surface the student release demoted
-            behind Advanced mode - so the release's own user could not send feedback at all,
+            exist only in the old EDITOR shell, which the student release demoted and which no
+            door opens any more - so the release's own user could not send feedback at all,
             and feedback is what the Lite prompt learns from. Renders nothing offline. */}
         <BetaFeedbackButton area="home" />
         <SyncStatus />
@@ -356,7 +330,7 @@ export default function HomePage({ route }: { route: Route }) {
                     key={g.id}
                     className="home-shelf-card"
                     onClick={() => openGraphic(g)}
-                    title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" to preview, edit data and operate`}
+                    title={`Open "${g.name}" to preview, edit data and operate`}
                     data-testid="shelf-graphic"
                   >
                     <GraphicThumb template={g.template} values={activeValues(g)} label={g.name} fill />
@@ -446,9 +420,8 @@ export default function HomePage({ route }: { route: Route }) {
           {section === 'videos' && <VideosSection videos={videos} onOpen={openVideo} onChanged={refresh} />}
 
           {/* Applying a brand retints the WORKING graphic, so Apply lands where that graphic can
-              be seen and saved: the code editor in Advanced mode, the new editor otherwise
-              (owner, 2026-09-21: no door to the old editor in the default studio). */}
-          {section === 'looks' && <LooksSection looks={looks} onChanged={refresh} onDone={() => (advanced ? navigate({ view: 'editor' }) : openNewEditor())} />}
+              be seen and saved: the new editor (owner, 2026-09-21: no door to the old editor). */}
+          {section === 'looks' && <LooksSection looks={looks} onChanged={refresh} onDone={openNewEditor} />}
         </main>
       </div>
 

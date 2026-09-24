@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/**
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/root/2026-09-07-send-new-projects-through-creationwizard-where.md
 ---

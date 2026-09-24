@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { E2E_EMAIL, createGraphic, haveCreds, settleSync, shot, signIn, wipeMyGraphics, wipeMySubmissions } from './_helpers';
+import { skipOldEditor } from '../_create';
 
 // The signed-in UX walk. The 2026-07 review could only read these surfaces from source — the
 // editor's account features render NOTHING offline, so the whole offline suite is blind to them.
@@ -51,6 +52,10 @@ test.describe('signed-in UX walk (configured)', () => {
   test.use({ permissions: ['clipboard-write'] });
 
   test('the topbar holds one row at laptop widths with the account controls in it', async ({ page }) => {
+    // The bar this measures is the old code editor's (its Community button and panel toggles),
+    // and that editor is closed. It skips until it is rewritten against Home's bar
+    // (docs/backlog/specs-that-still-open-the-old-editor.md).
+    skipOldEditor();
     await page.setViewportSize({ width: 1366, height: 768 });
     await signIn(page);
     await page.keyboard.press('Escape'); // close the wizard signIn() leaves open

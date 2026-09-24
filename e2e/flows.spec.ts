@@ -50,23 +50,6 @@ test('wizard: create a lower third with defaults', async ({ page }) => {
     .toBe('1');
 });
 
-test('wizard: blank project escape hatch', async ({ page }) => {
-  // The Blank card is an Advanced-mode door (docs/GOALS_ARCHIVE.md "Student release" step 4);
-  // advanced-mode.spec.ts pins its absence from the default studio.
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await page.locator('[data-entry="blank"]').click();
-  // Blank no longer silently creates with a default. It has the same authored-format setup
-  // as every other creation path and only creates after the explicit action.
-  await expect(page.getByTestId('blank-step')).toBeVisible();
-  await expect(page.locator('.wz-modal')).toBeVisible();
-  await page.getByTestId('blank-create').click();
-  // 20 s, same reason as createFromCurrentStep above: blank-create runs the same cold-Prettier
-  // applyGenerated path (AGENTS.md's own documented gotcha for this exact create call).
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Blank');
-});
-
 test('wizard: field titles flow into the Data panel', async ({ page }) => {
   await toVariantStep(page, 'Underline');
   await page.getByRole('button', { name: 'Next →' }).click(); // Fields
