@@ -301,7 +301,7 @@ post-land reds on `1` and `2` and only warns on `3`, so an outage must not borro
 means "somebody shipped something new", and a deleted baseline must not quietly switch the alarm
 off while every landing stays green.
 
-The baseline holds **110 findings** as of 2026-09-16. The last full breakdown was taken at 70 on
+The baseline holds **109 findings** as of 2026-09-24. The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
 indexes, 2 overlapping policies) — and the growth since is the same two classes.
@@ -368,6 +368,22 @@ findings from migration 0060's two slug-addressed functions — and nothing had 
 four were read against the live database and accepted: `anon` holds no privilege at all on
 `control_shows`, so those functions are the only door, and the one that writes the column
 wholesale (`control_data_apply`) is `service_role` only. Baseline re-recorded at 110.
+
+**The second re-record, 2026-09-24: 109.** Post-land went red on every landing after pull request
+#402 (runs 36029914027 and 36044954410) on one new INFO finding, `unused_index` on
+`agent_packages_user_created_idx`. Migration 0065 (`0065_agent_packages.sql`) introduced it: the
+index backs the waiting-packages list on Home -> Productions, and it was unused only because nobody
+had opened that list in production yet. It belongs to the class `ACCEPTED_CLASSES` already accepts
+for indexes of features production has not exercised, and the reason holds for this member too.
+By the time it was read, production had scanned it (`pg_stat_user_indexes`: 5 scans, the first at
+20:12 UTC), so the live report no longer carried it and the re-record does not either. The same
+runs reported `render_jobs_active` (0007) gone, for the same reason in reverse: production used it
+at 03:30 UTC that day, so a render job has read the queue. 0065 did not cause that one. The
+baseline dropped that entry and holds 109.
+
+The shape is worth knowing: every migration that adds an index lands an `unused_index` finding
+that reddens post-land once, until the feature is used or the baseline is re-recorded. That is the
+class working as written, not a new kind of fault, so read it, re-record, and name the migration.
 
 Accepting that reachability is not a claim that the door's own guard is tight, and on this
 occasion it is not — `docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md` measured

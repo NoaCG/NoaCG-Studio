@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
-  "recordedAt": "2026-09-16",
-  "count": 110,
+  "recordedAt": "2026-09-24",
+  "count": 109,
   "entries": {
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -527,11 +527,6 @@
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`control_show_identity_owner_idx\\` on table \\`public.control_show_identity\\` has not been used"
-    },
-    "unused_index_public_render_jobs_render_jobs_active": {
-      "name": "unused_index",
-      "level": "INFO",
-      "detail": "Index \\`render_jobs_active\\` on table \\`public.render_jobs\\` has not been used"
     },
     "unused_index_public_team_members_team_members_user_idx": {
       "name": "unused_index",
