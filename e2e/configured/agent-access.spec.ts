@@ -204,7 +204,10 @@ test.describe('agent access (configured)', () => {
         for (const s of loadShows()) if (s.name === n) deleteShow(s.id);
       }, packName);
 
-      // 5. Settings lists the key; Revoke ends it.
+      // 5. Settings lists the key; Revoke ends it. From HOME: the production page carries no
+      // account button, and the cleanup above just deleted the production it was showing, so the
+      // page now reads "Production not found" (issue #403).
+      await page.goto('/app#/home');
       await page.getByTestId('account-button').click();
       await page.getByTestId('account-menu').getByRole('menuitem', { name: /Settings/ }).click();
       await expect(page.getByTestId('settings-account')).toBeVisible();
