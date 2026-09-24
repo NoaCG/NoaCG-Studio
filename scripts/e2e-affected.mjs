@@ -244,8 +244,9 @@ const MAP = [
   [/^src\/blocks\/behaviourData\.ts$|^src\/templates\/behaviours\/|^src\/templates\/importedDesign\/(behaviour|behaviourRuntime|artworkFields)\.ts$/, ['import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'import-svg.spec.ts', 'motion-presets.spec.ts']],
   // The credits roll on imported artwork (docs/END_CREDITS.md): its recipe, the roll engine, the
   // parser it shares with the catalog rolls, the fields list that turns the sample into one box,
-  // and its fixture.
-  [/^src\/templates\/(behaviours\/credits\.ts|importedDesign\/(creditsRoll|artworkFields)\.ts|endCredits\/shared\.ts)$|^e2e\/fixtures\/credits-roll\.svg$/, ['import-svg-credits.spec.ts']],
+  // and its fixture. The classroom walk rides along: its credits are the list the default pace
+  // was set by (about thirty seconds), rolled from Illustrator's own output.
+  [/^src\/templates\/(behaviours\/credits\.ts|importedDesign\/(creditsRoll|artworkFields)\.ts|endCredits\/shared\.ts)$|^e2e\/fixtures\/credits-roll\.svg$/, ['import-svg-credits.spec.ts', 'classroom-package.spec.ts']],
   [/^src\/blocks\/motionPresets\.ts$/, ['motion-presets.spec.ts']],
   [
     /^src\/components\/MotionPresetPicker\.tsx$/,
@@ -304,6 +305,9 @@ const MAP = [
   // the importer that reads it, has to re-prove what the guide promises.
   [/^docs\/svg-samples\/sticker-lower-third\.svg$/, ['import-svg-sticker-sample.spec.ts']],
   [/^src\/(assets\/svgImport\.ts|templates\/importedDesign\/)/, ['import-svg-sticker-sample.spec.ts']],
+  // The classroom package is the other road through real Illustrator output, and the only file
+  // anywhere carrying Illustrator 30's look-wrapped lines (svgImport.ts `unwrapLookWrappers`).
+  [/^src\/assets\/svgImport\.ts$/, ['classroom-package.spec.ts']],
   // The four types whose MACHINE the per-graphic control page is generated from. A type file is
   // where a state, an arrow or a control label is authored, and control-panel-types.spec.ts is
   // the only place the resulting BUTTONS and their greying are driven on that page - so an edit
@@ -583,8 +587,10 @@ const MAP = [
   [/^docs\/svg-samples\//, ['import-svg.spec.ts', 'import-svg-behaviour.spec.ts', 'motion-presets.spec.ts']],
   // THE CLASSROOM PACKAGE (docs/tutorials/classroom-package/) is a fixture set for the same reason:
   // e2e/classroom-package.spec.ts imports its SVG/ files, so the ignore below carves it out too.
-  // Every file in it maps here; a README edit stays ignored by the `.md` rule.
-  [/^docs\/tutorials\/classroom-package\//, ['classroom-package.spec.ts']],
+  // Every file in it maps here, README.md too: the spec pastes the README's English credit list,
+  // so the `.md` ignore below carves that one file out.
+  // downloads.spec.ts rides along because it checks the committed zip still holds these files.
+  [/^docs\/tutorials\/classroom-package\//, ['classroom-package.spec.ts', 'downloads.spec.ts']],
   // NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two
   // surfaces it grows are already mapped elsewhere for their own reasons - SettingsDialog to
   // analytics/auth, ProductionPage into the productions set - so those rules are UNION'd with
@@ -762,7 +768,7 @@ const SUITE_CRITICAL_SCRIPTS =
 // that makes a clean tree read as dirty.
 const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
 // `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
-const IGNORE = [/^docs\/(?!svg-samples\/|tutorials\/classroom-package\/)/, /\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
+const IGNORE = [/^docs\/(?!svg-samples\/|tutorials\/classroom-package\/)/, /^(?!docs\/tutorials\/classroom-package\/README\.md$).*\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as

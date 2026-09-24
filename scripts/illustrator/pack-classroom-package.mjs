@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
 import { chromium } from '@playwright/test';
+import { escapeHtml } from '../behaviour-docs.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PACKAGE = path.join(ROOT, 'docs', 'tutorials', 'classroom-package');
@@ -32,13 +33,12 @@ const CONTENTS = ['README.pdf', 'README.md', 'Illustrator', 'SVG', 'Previews'];
 
 // ── README.md -> HTML ────────────────────────────────────────────────────────────────────────
 
-const escape = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const inline = (s) =>
-  escape(s)
+  escapeHtml(s)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/`([^`]+)`/g, '<code>$1</code>');
 
-export function markdownToHtml(md) {
+function markdownToHtml(md) {
   const out = [];
   let list = false;
   let code = null;
@@ -49,7 +49,7 @@ export function markdownToHtml(md) {
   for (const line of md.replace(/\r\n/g, '\n').split('\n')) {
     if (code !== null) {
       if (line.startsWith('```')) {
-        out.push(`<pre>${escape(code.join('\n'))}</pre>`);
+        out.push(`<pre>${escapeHtml(code.join('\n'))}</pre>`);
         code = null;
       } else code.push(line);
       continue;
@@ -102,11 +102,12 @@ async function writePdf() {
     await tab.setContent(html, { waitUntil: 'load' });
     await tab.evaluate(() => document.fonts.ready);
     const pdf = await tab.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
-    writeFileSync(path.join(PACKAGE, 'README.pdf'), pdf);
-    // One page is the brief: count the page objects in what Chromium wrote.
+    // One page is the brief: count the page objects in what Chromium wrote, and keep the last
+    // good README.pdf when it is more.
     const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
-    console.log(`pack-classroom-package: README.pdf, ${pages} page(s)`);
-    if (pages !== 1) throw new Error(`README.pdf is ${pages} pages - the README is one page, shorten it`);
+    if (pages !== 1) throw new Error(`README.pdf would be ${pages} pages - the README is one page, shorten it`);
+    writeFileSync(path.join(PACKAGE, 'README.pdf'), pdf);
+    console.log('pack-classroom-package: README.pdf, 1 page');
   } finally {
     await browser.close();
   }
@@ -118,7 +119,8 @@ function addTree(zip, abs, rel) {
   if (statSync(abs).isDirectory()) {
     for (const name of readdirSync(abs).sort()) addTree(zip, path.join(abs, name), `${rel}/${name}`);
   } else {
-    // A fixed date keeps the zip's bytes the same when the files have not changed.
+    // A fixed date, so an entry's bytes change only when its file does. README.pdf still differs
+    // on every run: Chromium stamps a new creation date and id into it.
     zip.file(rel, readFileSync(abs), { date: new Date('2026-09-25T00:00:00Z') });
   }
 }

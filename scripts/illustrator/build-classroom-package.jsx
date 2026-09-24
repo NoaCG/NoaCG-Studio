@@ -28,7 +28,11 @@ var LOG = new File(Folder.temp.fsName + "/noacg-classroom-package.log");
 LOG.encoding = "UTF-8"; LOG.open("w"); LOG.close();
 // Appends and closes every line, so a run that stops half way still says where.
 function log(s) { LOG.open("a"); LOG.writeln(s); LOG.close(); }
+// No dialogs while the script draws, and the user's own setting back when it is done.
+var INTERACTION = app.userInteractionLevel;
 app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
+// The documents this script opened, so a failure closes these and never the user's own work.
+var OURS = [];
 
 var DIRS = ["Illustrator", "SVG", "Previews"];
 for (var di = 0; di < DIRS.length; di++) new Folder(OUT + "/" + DIRS[di]).create();
@@ -111,6 +115,7 @@ function moment(layer, name, draw) {
 // the panel shows it upside down, as the docs' own trees do.
 function newDoc(layerNames) {
   var doc = app.documents.add(DocumentColorSpace.RGB, 1920, 1080);
+  OURS.push(doc);
   doc.artboards[0].artboardRect = [0, 0, 1920, -1080];
   doc.artboards[0].name = "Frame 1920x1080";
   var layers = {};
@@ -361,5 +366,9 @@ try {
   log("ok");
 } catch (e) {
   log("ERROR " + e + " line " + e.line);
-  while (app.documents.length) app.activeDocument.close(SaveOptions.DONOTSAVECHANGES);
+  // A document finish() already closed throws on close; the others are still open.
+  for (var o = 0; o < OURS.length; o++) {
+    try { OURS[o].close(SaveOptions.DONOTSAVECHANGES); } catch (ignored) {}
+  }
 }
+app.userInteractionLevel = INTERACTION;

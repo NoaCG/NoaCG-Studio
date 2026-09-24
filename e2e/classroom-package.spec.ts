@@ -19,8 +19,12 @@ import { settleDurableWrites } from './_durable';
 const svg = (name: string) => fileURLToPath(new URL(`../docs/tutorials/classroom-package/SVG/${name}.svg`, import.meta.url));
 
 const SHOTS = process.env.NOACG_SHOTS ?? '';
-async function shot(page: Page, name: string): Promise<void> {
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/classroom-${name}.png` });
+/** One frame, after `afterMs` for an entrance to settle. Without NOACG_SHOTS it neither waits nor
+ *  shoots, so an ordinary run spends nothing on pictures. */
+async function shot(page: Page, name: string, afterMs = 0): Promise<void> {
+  if (!SHOTS) return;
+  if (afterMs) await page.waitForTimeout(afterMs);
+  await page.screenshot({ path: `${SHOTS}/classroom-${name}.png` });
 }
 
 function watchErrors(page: Page): string[] {
@@ -87,8 +91,7 @@ test('the five classroom graphics import and run from one production', async ({ 
   await selectCue(page, 'Show intro');
   await page.getByTestId('verb-take').click();
   await expect(air(page, 'Show intro').locator('#f0')).toHaveText('QUIZ NIGHT');
-  await page.waitForTimeout(1_500);
-  await shot(page, 'intro-on-air');
+  await shot(page, 'intro-on-air', 1_500);
   await page.getByTestId('verb-out').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
 
@@ -105,8 +108,7 @@ test('the five classroom graphics import and run from one production', async ({ 
     await page.getByTestId(i === 0 ? 'verb-take' : 'verb-update').click();
     await expect(air(page, 'Name tag').locator('#f0')).toHaveText(name);
     await expect(air(page, 'Name tag').locator('#f1')).toHaveText(role);
-    await page.waitForTimeout(1_000);
-    await shot(page, `name-tag-${i + 1}`);
+    await shot(page, `name-tag-${i + 1}`, 1_000);
   }
   await page.getByTestId('verb-out').click();
 
@@ -147,8 +149,7 @@ test('the five classroom graphics import and run from one production', async ({ 
   await page.getByTestId('cue-field-f0').fill('AINO');
   await page.getByTestId('verb-update').click();
   await expect(score.locator('#f0')).toHaveText('AINO');
-  await page.waitForTimeout(1_000);
-  await shot(page, 'score-renamed');
+  await shot(page, 'score-renamed', 1_000);
   await page.getByTestId('verb-out').click();
 
   // ── End credits: the Heading, ONE Credits field and the Scroll speed, never a field per name. ──
@@ -194,10 +195,8 @@ test('the five classroom graphics import and run from one production', async ({ 
     roll
       .locator('.imported-design-credits-rows')
       .evaluate(() => (window as unknown as { noacgCreditsTween: { progress(): number } }).noacgCreditsTween.progress());
-  await page.waitForTimeout(4_000);
-  await shot(page, 'credits-rolling-early');
-  await page.waitForTimeout(10_000);
-  await shot(page, 'credits-rolling-mid');
+  await shot(page, 'credits-rolling-early', 4_000);
+  await shot(page, 'credits-rolling-mid', 10_000);
   // Rolled to the end: the tween finishes and the box is empty again.
   await expect.poll(progress, { timeout: 40_000 }).toBe(1);
   await shot(page, 'credits-rolled-out');

@@ -882,7 +882,8 @@ function unwrapLookWrappers(svg: Element): void {
     // An inner tspan that already states any part of the look keeps the file as it is.
     if (tspans.some((t) => t.hasAttribute('class') || t.hasAttribute('style') || look.some((a) => t.hasAttribute(a.name)))) continue;
     for (const t of tspans) for (const a of look) t.setAttribute(a.name, a.value);
-    wrapper.replaceWith(...tspans);
+    // Every child moves, the whitespace between runs too: a space between two words is text.
+    wrapper.replaceWith(...inner);
   }
 }
 

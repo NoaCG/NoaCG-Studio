@@ -1,4 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import JSZip from 'jszip';
 
 // THE DOWNLOADS PAGE (/downloads, downloads.html + src/downloads/). NoaCG ships two things you
 // install - NoaCG Bridge and the NoaCG CLI - and a visitor has to be able to find both from the
@@ -132,6 +135,13 @@ test('the classroom package sits under the two tools and its zip is served from 
   // A zip starts with "PK": the server did not answer with the downloads page instead.
   expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
   expect(bytes.length).toBeGreaterThan(100_000);
+  // The zip is committed, so it can go stale: every SVG and the README in it are the repo's own.
+  const zipped = await JSZip.loadAsync(bytes);
+  for (const file of ['README.md', 'SVG/show-intro.svg', 'SVG/name-tag.svg', 'SVG/quiz.svg', 'SVG/score-tracker.svg', 'SVG/end-credits.svg']) {
+    const inZip = await zipped.file(`NoaCG-classroom-package/${file}`)?.async('string');
+    const inRepo = readFileSync(fileURLToPath(new URL(`../docs/tutorials/classroom-package/${file}`, import.meta.url)), 'utf8');
+    expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip - repack with scripts/illustrator/pack-classroom-package.mjs`).toBe(inRepo.replace(/\r\n/g, '\n'));
+  }
 
   // The same zip is linked from the docs, beside the layer names it teaches.
   await page.goto('/docs#svg-layers');
