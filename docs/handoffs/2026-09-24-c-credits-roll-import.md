@@ -117,6 +117,19 @@ CI's full run on the pull request is that gate. Row B (PR #407) had not landed a
 so its layer names were not in play; whichever lands second keeps B's names and A's
 `e2e-affected.mjs` removals.
 
+## After row B landed (relay of 21:18Z, read before the second queueing)
+
+`origin/main` taken in at `7c4e5510` (rows B and G). B's `layer-names.json` already lists
+`credits: Heading, Credits`, and its `end-credits.svg` example draws the Credits text in the two
+looks this roll reads, so B's names stand and nothing of mine moved them. The credits Fields-step
+picture was re-shot as B asked (`scripts/docs-shots.mjs --only=type-end-credits-fields`, against
+this worktree's own dev server on 5214): it now shows the wizard on *Credits roll* with the list
+mid-roll in the sample's two looks. The script's end-credits entry pins the behaviour to
+`credits` and holds five seconds before the shutter, because the roll starts when the preview
+plays and a shot at the settle catches only the first line entering at the bottom edge. The
+`docs.html#credits-colon` paragraph that said an imported credits graphic does not scroll now
+says what it does. `check:example-layers` passes over the merged examples.
+
 ## What is left
 
 - A centred or right-aligned sample is detected off the drawing (`creditsAnchor`) and not pinned
