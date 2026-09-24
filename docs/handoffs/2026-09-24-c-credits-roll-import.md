@@ -90,6 +90,24 @@ program monitor frames (early, mid-roll, after a fresh paste, and the whole-fram
 titles in the sample's bold amber and names in its white at the sample's leading, the list
 entering clipped at the box's bottom edge and running out of its top; no NO.
 
+## The red CI run on the first pin (36060637679), read to a verdict
+
+Two causes, both mine, both fixed on the branch; nothing fails on `main` at `2ef023324` (its
+CI run 36051104001 is green).
+
+- **Catalog calibration gate and `catalog-baseline.spec.ts`**: the shared parser now emits
+  `parseCredits(text, escape)`, so the twelve end-credits designs' JS fingerprints moved.
+  Expected, and re-recorded with `UPDATE_CATALOG_BASELINE=1 node scripts/check-catalog-emit.mjs`;
+  the JSON diff is exactly twelve `js` hashes on cr01-cr13, no html, no css, no render baseline.
+- **`import-svg-corpus.spec.ts`, figma-centred-title-card**: the recipe's words read `credits?`,
+  so a title card's ordinary `Credit` line ("Directed by ...") was proposed as the credits roll,
+  its text became the hidden sample, and the corpus walk's typed value never painted. The
+  words are the plural only now (`Credits`, `Credit list`, `End credits`, `Lopputekstit`,
+  `Eftertexter`); a singular `Credit` is a plain field again, so non-credits imports are exactly
+  as they were. Reproduced locally through the queue (j-1854) before the fix and green after.
+
+The styling idea is unchanged by either fix.
+
 ## What is left
 
 - A centred or right-aligned sample is detected off the drawing (`creditsAnchor`) and not pinned
@@ -97,8 +115,8 @@ entering clipped at the box's bottom edge and running out of its top; no NO.
   real check of Illustrator's own output through this; if the names come out ragged on a centred
   sample, look at `creditsAnchor` first.
 - `noacgCreditsLast` and `noacgCreditsTween` are globals the spec reads; a reader can too.
-- The corpus sweep (`import-svg-corpus.spec.ts`) was not re-run here for the `markWrappedBlock`
-  change; CI's affected run covers `src/assets/`.
+- The corpus sweep (`import-svg-corpus.spec.ts`) ran green locally after the words fix (j-1855),
+  so the `markWrappedBlock` change is covered by it.
 
 ## Pointers
 

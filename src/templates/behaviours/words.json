@@ -951,7 +951,7 @@
         "required": true,
         "distinctive": true,
         "pool": "text",
-        "words": "^(?:credits?|credit list|end credits|lopputekstit|eftertexter)$",
+        "words": "^(?:credits|credit list|end credits|lopputekstit|eftertexter)$",
         "teach": "Credits",
         "also": [
           "Credit list",
@@ -966,7 +966,7 @@
         "label": "Credits box",
         "kind": "layer",
         "pool": "drawn",
-        "words": "^(?:credits?|end credits|lopputekstit|eftertexter) ?(?:box|plate|panel|window|laatikko|ruta)$",
+        "words": "^(?:credits|end credits|lopputekstit|eftertexter) ?(?:box|plate|panel|window|laatikko|ruta)$",
         "teach": "Credits box",
         "also": [
           "Credits panel",
