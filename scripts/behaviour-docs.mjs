@@ -110,7 +110,7 @@ export function render(page, words) {
  *  page is still in the table - the wizard offers it under What it does - just not linked. */
 const PUBLIC_PAGES = { score: '#scoreboards', quiz: '#quiz', vote: '#svg-vote', countdown: '#countdowns' };
 
-const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+export const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const code = (text) => `<code>${escapeHtml(text)}</code>`;
 /** The JSON spells a label the way a picker prints it mid-sentence ("selected"); a table cell
  *  starts a line, so it starts with a capital. */

@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- NoaCG docs example - TICKER. Imports as plain text fields.
      Two layers, top of the Layers panel first: Text (what the operator types) and Board (what
-     stays as drawn). Kicker and Story are one text layer each. The strip runs edge to edge.
-     Full-frame 1920x1080 artboard, transparent background. See https://noacg.studio/docs#tickers -->
+     stays as drawn). Kicker and Story are one text layer each. The Panel runs edge to edge and the
+     kicker sits on its own plate, Kicker box. Full-frame 1920x1080 artboard, transparent
+     background. See https://noacg.studio/docs#tickers -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
   <defs>
     <style>
@@ -13,8 +14,8 @@
 
   <!-- BOARD: the drawing. -->
   <g id="Board" data-name="Board">
-    <rect id="Strip" data-name="Strip" x="0" y="960" width="1920" height="80" fill="#0d1017" opacity="0.96"/>
-    <rect id="Tag" data-name="Tag" x="0" y="960" width="220" height="80" fill="#f6a623"/>
+    <rect id="Panel" data-name="Panel" x="0" y="960" width="1920" height="80" fill="#0d1017" opacity="0.96"/>
+    <rect id="Kicker_box" data-name="Kicker box" x="0" y="960" width="220" height="80" fill="#f6a623"/>
   </g>
 
   <!-- TEXT: what the operator types. -->

@@ -8,7 +8,7 @@
   <defs>
     <style>
       .rv-title { font-family: Playfair Display; font-weight: 700; }
-      .rv-name { font-family: Source Serif 4; font-weight: 600; }
+      .rv-name { font-family: 'Source Serif 4'; font-weight: 600; }
       .rv-badge { font-family: Inter; font-weight: 800; letter-spacing: 5px; }
     </style>
   </defs>

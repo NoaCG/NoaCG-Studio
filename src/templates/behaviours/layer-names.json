@@ -1,0 +1,19 @@
+{
+  "_": "THE ONE LAYER-NAMING SYSTEM every example file follows (docs/OWNER_RULINGS.md, 2026-09-24; docs/backlog/one-layer-naming-system-for-every-graphic.md). Two readers: scripts/check-example-layers.mjs holds every SVG under public/docs/examples/ and docs/tutorials/*/{import-ready,SVG}/ to it, and writes `cheatSheet` between `<!-- layer-cheat-sheet:start/end -->` markers into docs.html #svg-layers, docs/SVG_AUTHORING.md, both copies of the noacg-graphic skill contract and both noacg-graphic-local skill adapters, so the five lines cannot drift. The importer does NOT read this file: it keeps reading every spelling and synonym in words.json. This is what the examples TEACH, never what the importer accepts. The words a behaviour binds (Answer A, Selected A, Score 1) live in words.json and the check reads them from there. `cheatSheet` is Markdown with backticks for names; the check renders it to HTML for docs.html.",
+  "layers": ["Text", "Moments", "Board"],
+  "background": "Panel",
+  "plate": "box",
+  "fixed": "static:",
+  "simpleTypes": [
+    { "type": "title", "fields": ["Title", "Subtitle"] },
+    { "type": "name tag", "fields": ["Name", "Role"] },
+    { "type": "credits", "fields": ["Credits", "Heading"] }
+  ],
+  "cheatSheet": [
+    "Three layers, top of the Layers panel first: `Text` is what the operator types, `Moments` is what NoaCG shows or moves, `Board` stays as drawn. No moments, no `Moments` layer.",
+    "Name each text for what it is, the row last after a space: `Question`, `Answer A`, `Team 1`, `Score 1`. A title is `Title` and `Subtitle`, a name tag `Name` and `Role`, credits `Heading` and `Credits`.",
+    "A moment is a hidden group, with its row where it has one: `Selected A`, `Flash 1`, `Full time`. A bar is drawn at full length and left visible: `Bar 1`.",
+    "On the Board the background is `Panel`, a plate under a text is that text's name plus box (`Question box`, `Answer box A`, `Score box 1`), and fixed words start with `static:` (`static:Letter A`).",
+    "Anything else on the Board is decoration with any name. Every name is English. Save with File > Save a Copy > SVG."
+  ]
+}

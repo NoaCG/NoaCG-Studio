@@ -30,6 +30,8 @@
     "check:vercel-config": "node scripts/check-vercel-config.mjs",
     "check:behaviour-docs": "node scripts/behaviour-docs.mjs --check",
     "write:behaviour-docs": "node scripts/behaviour-docs.mjs --write",
+    "check:example-layers": "node scripts/check-example-layers.mjs",
+    "write:layer-cheat-sheet": "node scripts/check-example-layers.mjs --write",
     "check:function-budget": "node scripts/check-function-budget.mjs",
     "check:api-route-depth": "node scripts/check-api-route-depth.mjs",
     "check:client-neutral": "node scripts/check-client-neutral.mjs",
