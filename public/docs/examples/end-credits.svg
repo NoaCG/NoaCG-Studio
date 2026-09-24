@@ -4,7 +4,8 @@
      stays as drawn). Heading is one text. Credits is ONE text holding the whole list, one line
      each: a line ending in a colon is a title, the lines under it are names, and the chief roles
      come last. The operator pastes a new list into that one field; there is never a field per
-     name. Title lines and name lines are styled apart, so each kind of line has its own look.
+     name. The text itself carries the look of a name line, and each title line carries its own
+     class, so each kind of line has one look the whole list follows.
      Panel is the background and Rule is decoration. Full-frame 1920x1080 artboard, transparent
      background. See https://noacg.studio/docs#end-credits -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
@@ -12,7 +13,7 @@
     <style>
       .heading { font-family: Playfair Display; font-weight: 700; }
       .title { font-family: Inter; font-weight: 600; letter-spacing: 4px; }
-      .name { font-family: Source Serif 4; font-weight: 500; }
+      .name { font-family: 'Source Serif 4'; font-weight: 500; }
     </style>
   </defs>
 
@@ -25,16 +26,16 @@
   <!-- TEXT: what the operator types. Credits is one text object with one line per credit. -->
   <g id="Text" data-name="Text">
     <text id="Heading" data-name="Heading" class="heading" x="960" y="222" font-size="56" fill="#ffffff" text-anchor="middle">Production team</text>
-    <text id="Credits" data-name="Credits" text-anchor="middle">
+    <text id="Credits" data-name="Credits" class="name" font-size="38" fill="#e8edf2" text-anchor="middle">
       <tspan class="title" x="960" y="350" font-size="20" fill="#f6a623">Camera:</tspan>
-      <tspan class="name" x="960" y="396" font-size="38" fill="#e8edf2">Ina Berg</tspan>
-      <tspan class="name" x="960" y="446" font-size="38" fill="#e8edf2">Noel Kivi</tspan>
+      <tspan x="960" y="396">Ina Berg</tspan>
+      <tspan x="960" y="446">Noel Kivi</tspan>
       <tspan class="title" x="960" y="540" font-size="20" fill="#f6a623">Sound:</tspan>
-      <tspan class="name" x="960" y="586" font-size="38" fill="#e8edf2">Aino Salo</tspan>
+      <tspan x="960" y="586">Aino Salo</tspan>
       <tspan class="title" x="960" y="680" font-size="20" fill="#f6a623">Producer:</tspan>
-      <tspan class="name" x="960" y="726" font-size="38" fill="#e8edf2">Otto Lehto</tspan>
+      <tspan x="960" y="726">Otto Lehto</tspan>
       <tspan class="title" x="960" y="820" font-size="20" fill="#f6a623">Director:</tspan>
-      <tspan class="name" x="960" y="866" font-size="38" fill="#e8edf2">Maya Lind</tspan>
+      <tspan x="960" y="866">Maya Lind</tspan>
     </text>
   </g>
 </svg>
