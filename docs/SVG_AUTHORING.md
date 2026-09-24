@@ -815,5 +815,5 @@ what the operator then finds in the box.
 **The roll.** On Take the whole list rolls from below the frame to above it and stops when the last
 line has gone. Draw a plate named `Credits box` and the roll runs inside the plate instead; a
 heading or a logo drawn outside it stays put. The operator's **Scroll speed (%)** is 100 by
-default, which is about 1.35 lines a second: about twenty lines pass in about thirty seconds. 200
+default, which is about 1.75 lines a second: about thirty lines pass in about thirty seconds. 200
 doubles the pace, 50 halves it, and a new value applies from the next take.
