@@ -184,6 +184,11 @@ skip here would have turned it red on every landing; the floor and allowlist mov
   are outside this row's files and left as a follow-up.
 - verify: `inline` (above).
 - taste: not applicable. Nothing here changes what a graphic looks like.
+- After the refused landing, the check was re-run over the new tip (`193c5987` plus this line):
+  review `inline` over the delta (the planner fix, mutation-checked; the agent-access step; the
+  configured floor), simplify `inline` with nothing to change, verify `inline`: `npm run build`
+  exit 0, the CI-shaped plan and `--list` both exit 0, and job j-1856 (no-old-editor,
+  route-transition-flash, network-resilience, storage-full) 23 passed.
 
 ## Pointers
 
