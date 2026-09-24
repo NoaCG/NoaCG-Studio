@@ -186,7 +186,7 @@ test('a graphic row opens from its NAME, the same door a production row offers',
 
   // This bootstrap runs in ADVANCED mode, where Open means the editor — so the name must mean
   // the editor too (one handler behind both doors). The DEFAULT studio's half of the same
-  // contract is pinned in advanced-mode.spec.ts, the file that must not opt into Advanced.
+  // contract is pinned in no-old-editor.spec.ts (Advanced mode itself is gone).
   await row.getByTestId('open-graphic-name').click();
   await expect(page.locator('.tpl-name')).toHaveText('Named door');
 });

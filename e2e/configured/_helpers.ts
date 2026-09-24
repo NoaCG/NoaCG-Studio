@@ -30,7 +30,7 @@ export async function dismissWizard(page: Page): Promise<void> {
   await expect(modal).toBeHidden();
 }
 
-/** Sign in with email + password via Home's topbar dialog (Era 5.6 — no wall; fresh Playwright
+/** Sign in with email + password via Home's topbar dialog (Era 5.6, no wall; fresh Playwright
  *  contexts have no persisted session). Leaves the wizard OPEN afterwards, the same state a
  *  fresh load presents, so createGraphic can run directly. There is no Advanced mode to switch on
  *  any more (owner, 2026-09-24): the sign-in lives on Home, which every boot reaches. */

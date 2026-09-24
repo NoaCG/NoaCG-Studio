@@ -39,8 +39,8 @@ it: the app no longer ships it to visitors at all.
    mode switch.
 4. Press New graphic. There are three cards and no Blank project. Pick "Start from a template",
    choose any design and press "Skip to finish". There is no code-editor door.
-5. Open `https://noacg.studio/app#/graphic/anything`. You land on a control page that says the
-   graphic was not found, not in an editor.
+5. Open `https://noacg.studio/app#/graphic/anything`. You land on a control page, never an
+   editor: signed out it asks you to sign in, signed in it says the graphic was not found.
 
 ## What to look at
 
@@ -50,11 +50,23 @@ it: the app no longer ships it to visitors at all.
   they are not open right now; a graphic that already has one keeps it. Say if either matters
   for Friday.
 
-## Carried from the two 2026-09-21 items this one replaces
+## Carried from the three older items this one replaces
 
 `2026-09-21-a-wizard-exits` and `2026-09-21-j-last-old-editor-doors` described the doors kept
-behind Advanced mode, which no longer exists, so they are folded in here. The first asked whether
-the new editor's "Existing editor" button should go; it has. The second asked this, verbatim:
+behind Advanced mode, which no longer exists, and `2026-09-16-the-printed-link-opens-the-graphic`
+described the printed link opening the old editor. All three are folded in here.
+
+**The printed link (from 2026-09-16), with what it does now.** In a private window, paste an
+address that ends `#/graphic/<id>` (the one `noacg save` prints, or any graphic's). The address
+turns into `#/control/<id>` and keeps the graphic's id, and the control page says "Sign in to open
+this panel". Sign in there with the same account: the panel opens by itself, with no second paste.
+The old version's sign-in card over the studio and its unsaved-changes question are gone, because
+the control page opens the graphic without replacing the one you are working on. That item asked
+whether the card's line read right; the line is now the control page's own: "This graphic is saved
+in an account. Sign in and it opens here."
+
+The first 2026-09-21 item asked whether the new editor's "Existing editor" button should go; it
+has. The second asked this, verbatim:
 
 - **The Graphics button beside Home in the video workspace.** In the default studio both now go
   to Home. Say if you would rather the Graphics button went away there.

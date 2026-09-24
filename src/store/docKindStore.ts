@@ -1,5 +1,6 @@
-// The document-kind switch: which editor shell App.tsx renders (SPX graphics or video).
-// Persisted so a reload restores the world you were working in.
+// The document-kind switch: whether the working project is an SPX graphic or a video.
+// Persisted so a reload restores the world you were working in. App.tsx no longer picks a shell
+// from it: the old code editor it used to choose is closed, and the video shell has #/video.
 
 import { create } from 'zustand';
 import type { DocKind } from '../model/videoTypes';

@@ -7,10 +7,9 @@ import { chooseType, pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
 
 // Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows
-// from it - in ADVANCED mode, whose '' route boots into the restored editor (the default
-// studio boots to Home/wizard instead; advanced-mode.spec.ts pins that split). Only a
-// first-ever visit (no autosaved project) opens the wizard; a returning user lands straight
-// back in the restored graphic, and "+ New graphic" / #/new open the wizard on demand.
+// from it: only a first-ever visit (no autosaved project) opens the wizard, and a returning
+// user lands on Home. The reload test below edited the old code editor, which is closed, so it
+// skips until it is rewritten (docs/backlog/specs-that-still-open-the-old-editor.md).
 
 test('project autosave: the working graphic survives a reload', async ({ page }) => {
   await enableAdvancedMode(page);

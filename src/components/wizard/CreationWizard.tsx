@@ -75,6 +75,7 @@ import { useDocKindStore } from '../../store/docKindStore';
 import { useModalGate } from '../spaceKey';
 import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
+import { openNewEditor } from '../editorFoundation/openNewEditor';
 import NewGraphicButton from '../NewGraphicButton';
 import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
 import { graphicById, graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
@@ -94,7 +95,7 @@ import { kitSelection } from '../../templates/kit';
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
 // Every catalog-shaped flow ends on FINISH: the graphic is named there, and the wizard's one
-// branch is taken — a production, its export packages, or the new editor
+// branch is taken: a production, its export packages, or the new editor
 // (steps/FinishStep.tsx + components/ExportWindow.tsx). No door opens the old code editor.
 /**
  * An Export door whose SAVE failed. The report comes from the app-level dialog, the one place
@@ -1280,11 +1281,8 @@ export default function CreationWizard() {
   const createAndEditArtwork = () => {
     void applyDraftProject().then((template) => {
       if (!template) return;
-      const url = new URL(window.location.href);
-      url.searchParams.set('editor', 'foundation');
-      window.history.replaceState(window.history.state, '', url);
       noteMade(template.name, null, { view: 'editor-foundation' });
-      useRouter.getState().replace({ view: 'editor-foundation' });
+      openNewEditor({ replace: true });
       closeGallery();
     });
   };
@@ -1536,12 +1534,12 @@ export default function CreationWizard() {
         </button>
       )}
       {/* OFFERED ONLY WHERE THE BRAND CAN REACH THE GRAPHIC (owner, 2026-09-03: do not offer
-          things that do nothing). Three modes have nowhere to put a palette or a typeface, and
+          things that do nothing). Two modes have nowhere to put a palette or a typeface, and
           each says so in its own factory: a VIDEO project's fields are prompt, engine, size and
-          assets (`createDefaultVideoProject`, model/videoTypes.ts) — no colours, no faces; a
-          dropped template FILE is applied byte-faithfully with the name as the only edit; and
-          `createBlankTemplate(resolution, fps)` takes no draft at all. Ticking the box in those
-          three wrote a palette into the draft that nothing downstream ever read. */}
+          assets (`createDefaultVideoProject`, model/videoTypes.ts), with no colours and no faces;
+          and a dropped template FILE is applied byte-faithfully with the name as the only edit.
+          Ticking the box in either wrote a palette into the draft that nothing downstream ever
+          read. */}
       {/* WITH NO BRANDS THERE IS NO CONTROL, not a disabled one (docs/BRAND_PLAN.md decision 1):
           an empty chooser is a promise the install cannot keep, and the door to making one is
           Home, not here. */}
@@ -1581,7 +1579,7 @@ export default function CreationWizard() {
           Skip to finish
         </button>
       )}
-      {/* AI's Create step advances to Finish once a valid result stands — its doors live
+      {/* AI's Create step advances to Finish once a valid result stands. Its doors live
           there, same as every catalog mode. */}
       {mode === 'ai' && step === 1 && (
         <button
@@ -1766,7 +1764,7 @@ export default function CreationWizard() {
 
             {/* The authored frame, read back where it stays visible for the whole walk. The
                 CONTROL itself stays in the step that owns it (the Browse step's picker, the
-                AI step's own) — one control, one home; this is the reminder plus
+                AI step's own): one control, one home; this is the reminder plus
                 the way back to it. */}
             <div className="wz-rail-foot">
               <p className="dlg-caption">Project format</p>

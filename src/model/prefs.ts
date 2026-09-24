@@ -16,7 +16,8 @@ const PREFS_KEY = 'spx-gfx-prefs';
  *      must not survive, least of all on a shared classroom computer where one person ticking it
  *      once used to send every later student into that editor.
  *
- * A record from a NEWER build is read as the defaults and never written over (see `readPrefs`).
+ * A record from a NEWER build (a higher number) is read as the defaults and never written over
+ * (see `readPrefs`).
  */
 export const PREFS_VERSION = 2;
 
@@ -66,34 +67,39 @@ interface PrefsRead {
 /**
  * THE MIGRATE-ON-READ GUARD. Never throws: a corrupt or missing record is the defaults.
  *
- * - No stamp is version 1. It is migrated by dropping `advancedMode`, and everything else it
- *   holds keeps its value.
+ * - No stamp is version 1 (so is a stamp no build ever wrote at or below this one). It is
+ *   migrated by dropping `advancedMode`, and everything else it holds keeps its value. Only a
+ *   record that actually carried the retired key is reported as migrated, so reading never
+ *   writes a browser's defaults back for nothing.
  * - `v: 2` is this build's own format.
- * - Any other stamp came from a build this one does not know. Its values may mean something
- *   different there, so this build reads the defaults and refuses to write, which keeps the
- *   newer record intact for the build that wrote it.
+ * - A HIGHER number came from a newer build. Its values may mean something different there, so
+ *   this build reads the defaults and refuses to write, which keeps the newer record intact for
+ *   the build that wrote it.
  */
 function readPrefs(): PrefsRead {
   let stored: unknown;
   try {
-    stored = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}');
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (raw === null) return { prefs: { ...DEFAULTS }, writable: true, migrated: false }; // nothing saved yet
+    stored = JSON.parse(raw);
   } catch {
-    return { prefs: { ...DEFAULTS }, writable: true, migrated: false }; // corrupt storage
+    return { prefs: { ...DEFAULTS }, writable: true, migrated: false }; // corrupt or unreadable storage
   }
   if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
     return { prefs: { ...DEFAULTS }, writable: true, migrated: false };
   }
   const { v, ...rest } = stored as Record<string, unknown> & { v?: unknown };
-  if (v === undefined) {
-    // Version 1 -> 2: the retired Advanced mode switch is dropped, whatever it said.
-    const kept: Record<string, unknown> = { ...rest };
-    delete kept.advancedMode;
-    return { prefs: { ...DEFAULTS, ...(kept as Partial<UserPrefs>) }, writable: true, migrated: true };
+  if (typeof v === 'number' && v > PREFS_VERSION) {
+    return { prefs: { ...DEFAULTS }, writable: false, migrated: false };
   }
   if (v === PREFS_VERSION) {
     return { prefs: { ...DEFAULTS, ...(rest as Partial<UserPrefs>) }, writable: true, migrated: false };
   }
-  return { prefs: { ...DEFAULTS }, writable: false, migrated: false };
+  // Version 1 -> 2: the retired Advanced mode switch is dropped, whatever it said.
+  const kept: Record<string, unknown> = { ...rest };
+  const migrated = 'advancedMode' in kept;
+  delete kept.advancedMode;
+  return { prefs: { ...DEFAULTS, ...(kept as Partial<UserPrefs>) }, writable: true, migrated };
 }
 
 /** Write the whole record in the current format. Storage errors are swallowed (see savePrefs). */

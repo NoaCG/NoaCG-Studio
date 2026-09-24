@@ -285,10 +285,21 @@ test('prefs: a version-1 record drops advancedMode on read, and a newer version 
   const result = await page.evaluate(async (key) => {
     const { loadPrefs, savePrefs, PREFS_VERSION } = await import('/src/model/prefs.ts');
 
+    // Nothing stored: the defaults, and READING writes nothing.
+    localStorage.removeItem(key);
+    const fresh = loadPrefs();
+    const storedAfterFreshRead = localStorage.getItem(key);
+
     // Version 1: no stamp, the retired switch on, and a real preference beside it.
     localStorage.setItem(key, JSON.stringify({ advancedMode: true, libraryView: 'list' }));
     const migrated = loadPrefs() as unknown as Record<string, unknown>;
     const storedAfterRead = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
+
+    // A LOWER stamp is not a newer build's record: it migrates like version 1 and stays writable.
+    localStorage.setItem(key, JSON.stringify({ v: 1, advancedMode: true, spaceMode: 'preview-then-take' }));
+    const lower = loadPrefs() as unknown as Record<string, unknown>;
+    savePrefs({ libraryView: 'list' });
+    const lowerAfterSave = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
 
     // A record a NEWER build wrote: read as the defaults, and never written over.
     const future = JSON.stringify({ v: PREFS_VERSION + 1, libraryView: 'list', somethingNew: 1 });
@@ -302,16 +313,22 @@ test('prefs: a version-1 record drops advancedMode on read, and a newer version 
     savePrefs({ spaceMode: 'preview-then-take' });
     const current = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
 
-    return { PREFS_VERSION, migrated, storedAfterRead, fromFuture, future, futureAfterSave, current };
+    return { PREFS_VERSION, fresh, storedAfterFreshRead, migrated, storedAfterRead, lower, lowerAfterSave, fromFuture, future, futureAfterSave, current };
   }, PREFS_KEY);
 
   expect(result.PREFS_VERSION).toBe(2);
+  expect(result.fresh.libraryView).toBe('grid');
+  expect(result.storedAfterFreshRead).toBeNull();
   expect(result.migrated).not.toHaveProperty('advancedMode');
   expect(result.migrated.libraryView).toBe('list');
   // The migration is written back on first read, so the retired value leaves the browser.
   expect(result.storedAfterRead).not.toHaveProperty('advancedMode');
   expect(result.storedAfterRead.v).toBe(2);
   expect(result.storedAfterRead.libraryView).toBe('list');
+  expect(result.lower).not.toHaveProperty('advancedMode');
+  expect(result.lower.spaceMode).toBe('preview-then-take');
+  expect(result.lowerAfterSave).toMatchObject({ v: 2, libraryView: 'list', spaceMode: 'preview-then-take' });
+  expect(result.lowerAfterSave).not.toHaveProperty('advancedMode');
   expect(result.fromFuture.libraryView).toBe('grid');
   expect(result.futureAfterSave).toBe(result.future);
   expect(result.current).toMatchObject({ v: 2, libraryView: 'list', spaceMode: 'preview-then-take' });

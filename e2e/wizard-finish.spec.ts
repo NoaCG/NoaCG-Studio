@@ -28,7 +28,7 @@ test('finish: the production door leads, export follows, and the editor door nee
   await expect(page.locator('.wz-dot').last()).toHaveText(/Finish/);
   await expect(page.getByTestId('wz-finish-production-go')).toBeVisible();
   await expect(page.getByTestId('wz-finish-export')).toBeVisible();
-  // Default studio: no editor door (advanced-mode.spec.ts pins the toggle restoring it).
+  // No code-editor door (no-old-editor.spec.ts pins that nothing brings it back).
   await expect(page.getByTestId('wz-finish-editor')).toHaveCount(0);
   // The footer shortcuts stand down here — the door cards ARE the actions.
   await expect(page.getByTestId('wz-skip-to-finish')).toHaveCount(0);

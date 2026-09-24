@@ -26,7 +26,7 @@ regression in those areas can merge green.
 
 ## How they skip
 
-Nothing in the spec files changed. The four helpers in `e2e/_create.ts` that reached the old
+The skipped spec files were not edited, bar the one noted under the configured suite. The four helpers in `e2e/_create.ts` that reached the old
 editor - `enableAdvancedMode`, `switchToAdvancedMode`, `finishIntoEditor` and `createProject` -
 now call `skipOldEditor()`, which skips the RUNNING test with a reason naming this file
 (`OLD_EDITOR_SKIP`). The configured suite's `createGraphic` in `e2e/configured/_helpers.ts`
@@ -56,8 +56,8 @@ helpers, `OLD_EDITOR_SKIP` and this file.
 
 The list below is a STATIC scan made on 2026-09-24 of every test that calls a retired helper
 directly, through a local function, or from a `beforeEach` in scope (TypeScript AST, row A's
-handoff). It found 691 of 992 tests in 97 offline spec
-files, and 23 of 34 in 19 configured spec files.
+handoff). It found 687 of 974 tests in 95 offline spec
+files, and 24 of 34 in 19 configured spec files.
 The owner's figure of 53 counted only the specs that switch into Advanced mode by name; the other
 files reach the old editor through `createProject`, which switched it on for them. Three specs
 whose only subject was the old editor were deleted rather than skipped: `advanced-mode.spec.ts`,
@@ -324,10 +324,6 @@ THE DESIGN RULES AS A PRODUCT PROPERTY (docs/DESIGN_RULES_PLAN.md §5 R4).
 - the size floors are ONE choice with three answers, and each says what it permits
 - supporting text has its own size rule, reported on the readiness row and never gating
 
-### `e2e/editor-foundation.spec.ts` - 1 of 12 skipped
-
-- actual imported SVG wizard output loads with fields and artwork preserved
-
 ### `e2e/end-credits.spec.ts` - 8 of 8 skipped
 
 END CREDITS - the promise is that a credit roll is ONE field (docs/END_CREDITS.md).
@@ -368,12 +364,11 @@ OFFLINE: the feedback surfaces must not exist at all.
 - feedback, offline > no feedback entry point exists with no backend configured
 - feedback, offline > the absence is the gate, not an empty topbar
 
-### `e2e/flows.spec.ts` - 8 of 8 skipped
+### `e2e/flows.spec.ts` - 7 of 7 skipped
 
 Core UI flows for the choose-first creation wizard + live panels.
 
 - wizard: create a lower third with defaults
-- wizard: blank project escape hatch
 - wizard: field titles flow into the Data panel
 - wizard: steps mode reveals lines on Next
 - reset: the topbar button restores the original state, undoably
@@ -759,13 +754,6 @@ The interaction model's selection foundations (docs/TIMELINE_INTERACTION_MODEL.m
 - timeline labels shift-click into the same multi-selection
 - a drag on empty canvas lassos the parts it touches — no code, no history
 - canvas: a selected layer shows scale + rotate handles that key at the playhead
-
-### `e2e/network-resilience.spec.ts` - 2 of 5 skipped
-
-RESTRICTED-NETWORK RESILIENCE (docs/GOALS.md "the SVG road"): the Yle demo died inside the wizard on a corporate network, and nothing said why.
-
-- the wizard walk completes with every third-party host blocked - and attempts none
-- a wedged IndexedDB degrades on the boot timeout: the app opens, warns, and creating works
 
 ### `e2e/offline.spec.ts` - 1 of 1 skipped
 
@@ -1227,6 +1215,10 @@ Era 6 — direct manipulation (docs/WYSIWYG_PLAN.md, revised: NO move mode).
 ## Configured suite
 
 These run only against a configured backend (`npm run test:e2e:live:queued`), never in CI.
+`signed-in-ux.spec.ts`'s topbar test calls `skipOldEditor()` directly: the bar it measured was the
+old editor's. `agent-access.spec.ts` is not skipped: its step 4 still expects `#/graphic/<id>` to
+open the graphic as the working document, and row D, which owns that file, was told on its relay
+to assert the control page and `#/control/<id>` instead.
 
 ### `e2e/configured/account.spec.ts` - 1 of 3 skipped
 
@@ -1333,9 +1325,21 @@ THE PUBLISHED SPORTS PATH (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 4): a scorebug
 
 - a published scorebug takes a score bump and a running clock on the real output renderer
 
-### `e2e/configured/signed-in-ux.spec.ts` - 2 of 3 skipped
+### `e2e/configured/signed-in-ux.spec.ts` - 3 of 3 skipped
 
 The signed-in UX walk.
 
+- signed-in UX walk (configured) > the topbar holds one row at laptop widths with the account controls in it
 - signed-in UX walk (configured) > a published graphic reports its state in the product’s words, not the database’s
 - signed-in UX walk (configured) > the hosted control page publish surface speaks productions
+
+## Scripts that still drive the old editor
+
+Not tests, so nothing skips them. The first two fail on a control that is gone; the third still
+runs, but no longer measures the surface it was written for, so check it before quoting a number.
+
+- `scripts/acceptance-pack.mjs` seeds `advancedMode: true` (now dropped on read) and clicks the
+  old editor's `dock-tab-control`.
+- `scripts/acceptance-shots.mjs` clicks Home's `home-continue-editing`, which is gone.
+- `scripts/save-to-air-bench.mjs` seeds `advancedMode: true` so that it measures the old
+  editor's surface; the seed is now ignored.

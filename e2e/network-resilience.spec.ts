@@ -1,5 +1,4 @@
 import { test, expect, type Page } from '@playwright/test';
-import { enableAdvancedMode } from './_create';
 import { pickDesign } from './_browse';
 
 // RESTRICTED-NETWORK RESILIENCE (docs/GOALS.md "the SVG road"): the Yle demo died inside the
@@ -31,21 +30,21 @@ async function blackholeThirdParty(page: Page): Promise<string[]> {
   return attempted;
 }
 
-/** Entry -> Browse -> skip to Finish -> the editor door. Advanced mode must be enabled and
- *  the wizard open (it auto-opens on a first visit). */
+/** Entry -> Browse -> skip to Finish -> the export door, which builds the graphic, saves it to
+ *  the library and opens the export window over the wizard. The wizard must be open (it
+ *  auto-opens on a first visit). It used to end on the old code editor's door, which is gone
+ *  (e2e/no-old-editor.spec.ts); the export door runs the same create path and a save besides. */
 async function walkTemplateCreate(page: Page): Promise<void> {
   await expect(page.getByTestId('creation-wizard')).toBeVisible({ timeout: 15000 });
   await page.locator('[data-entry="template"]').click();
   await pickDesign(page, 'Hairline');
   await page.getByTestId('wz-skip-to-finish').click();
-  await page.getByTestId('wz-finish-editor').click();
-  await expect(page.locator('.wz-modal')).toBeHidden();
-  await expect(page.locator('.topbar')).toBeVisible();
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
 }
 
 test('the wizard walk completes with every third-party host blocked - and attempts none', async ({ page }) => {
   const attempted = await blackholeThirdParty(page);
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await walkTemplateCreate(page);
   // Stronger than "survived": the walk never even asked for a third-party host, which is the
@@ -82,7 +81,6 @@ test('a wedged IndexedDB degrades on the boot timeout: the app opens, warns, and
       /* opaque-origin frame */
     }
   });
-  await enableAdvancedMode(page);
   await page.goto('/app');
   // Boot waits out HYDRATE_TIMEOUT_MS (4 s), then mounts degraded - the whole point is that
   // this line does not time out.

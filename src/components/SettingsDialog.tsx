@@ -364,7 +364,7 @@ export default function SettingsDialog({ onClose }: Props) {
                     ))}
                   </select>
                   <p className="dlg-hint">
-                    Preselected in the Export tab — picking a target there updates this too.
+                    Preselected when you export. Picking a target there updates this too.
                   </p>
                 </div>
               </div>

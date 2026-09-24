@@ -508,10 +508,13 @@ const MAP = [
   // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
   // and its footer, so both of those specs ride along.
   [/^(downloads\.html$|src\/downloads\/)/, ['downloads.spec.ts', 'landing.spec.ts', 'docs.spec.ts']],
-  // The code editor's teaching layer. Only the old code editor's CodeEditor reads it, and no route
-  // opens that editor any more, so no reachable surface can show a change here; the spec that
-  // pins the old editor shut is the honest and cheap answer (its lazy-load spec went with it).
-  [/^src\/teach\//, ['no-old-editor.spec.ts']],
+  // THE OLD CODE EDITOR ITSELF, and what only it reads: its shell, its dock, its Monaco pane and
+  // the pane's teaching layer. No route renders any of it any more (owner, 2026-09-24), so no
+  // reachable surface can show a change here, and escalating to the whole suite would test code
+  // nobody can open. The spec that pins the old editor shut is the honest and cheap answer - it
+  // fails if anything starts loading AppShell again. The source stays until the new editor has
+  // taken over what is worth keeping.
+  [/^src\/components\/(AppShell|WorkspaceDock|CodeEditor)\.tsx$|^src\/teach\//, ['no-old-editor.spec.ts']],
   // import-graphic rides along because assets/eraseRegion.ts is not only an assets helper: it is
   // the deterministic flat-fill erase behind the Import Graphic Prepare step. Without this edge,
   // editing the file the behaviour lives in runs the assets specs and never the one that would
@@ -531,8 +534,8 @@ const MAP = [
   [/^scripts\/meDevPlugin/, ['admin.spec.ts', 'feedback.spec.ts']],
   // The feedback flow. Its OFFLINE contract is that no surface renders at all, which is the
   // half this suite can check; the interactive half is e2e/configured/feedback.spec.ts and
-  // needs a configured backend. src/components/AppShell is already in CORE, so the topbar
-  // button's own file does not need naming here - but the contract and the client do.
+  // needs a configured backend. The button itself lives under src/components/feedback/, so the
+  // second row below names it along with the contract and the client.
   [/^src\/feedback\//, ['feedback.spec.ts', 'ai.spec.ts']],
   [/^src\/components\/feedback\//, ['feedback.spec.ts', 'ai.spec.ts']],
   [/^src\/backend\/feedback/, ['feedback.spec.ts']],
@@ -609,7 +612,7 @@ const MAP = [
   [/^src\/(model\/shows|control\/hostedControl)\.ts$/, ['playout-cues.spec.ts']],
   // THE WIZARD DOOR (components/NewGraphicButton.tsx) is mounted by five shells at once, so a
   // change to it moves the same control on Home, the editor, the control page, the production
-  // dashboard and the video shell. AppShell and styles.css are already CORE, so this row is not
+  // dashboard and the video shell. styles.css is already CORE, so this row is not
   // what makes such a change verified - it records which specs OWN the door, so a later refactor
   // touching only this file still runs them instead of falling through to the unmapped
   // escalation and reading as covered by everything in general.
@@ -619,8 +622,8 @@ const MAP = [
   ],
   // The door's ORDER beside Home and the wizard's own mount (guarded start-over, guard over
   // the wizard) are pinned in project.spec.ts - so the two shells whose headers it measures,
-  // and the save dialogs whose z-order it clicks through, select it too. AppShell and App.tsx
-  // are CORE already; VideoAppShell and SaveDialogs are not.
+  // and the save dialogs whose z-order it clicks through, select it too. App.tsx is CORE
+  // already; VideoAppShell and SaveDialogs are not.
   [/^src\/components\/video\/VideoAppShell\.tsx$/, ['project.spec.ts']],
   // The save dialog also names WHERE a graphic goes when a backend is configured, and the
   // offline pin that it names no account at all is in auth.spec.ts.
@@ -633,7 +636,7 @@ const CORE = [
   /^src\/model\//,
   /^src\/preview\//,
   /^src\/validation\//,
-  /^src\/components\/(AppShell|PreviewFrame|WorkspaceDock|CodeEditor|App\.)/,
+  /^src\/components\/(PreviewFrame|App\.)/,
   /^src\/(App|main)\./,
   // The hash router. Every surface in /app is reached through it and browser Back/Forward are
   // part of what it promises, so a route-shape change fans out to every flow that navigates -

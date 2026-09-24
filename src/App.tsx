@@ -380,7 +380,7 @@ export default function App() {
   }
 
   // Routed surfaces: Home, a saved graphic's control panel, a production's page, the video
-  // workspace and the new editor, all open to everyone — no login wall (Era 5.6). Account
+  // workspace and the new editor, all open to everyone, with no login wall (Era 5.6). Account
   // features (cloud sync, community, AI) gate themselves via useAuthState and the on-demand
   // SignInDialog.
   //
@@ -393,10 +393,10 @@ export default function App() {
   //     left alone, because rewriting it would destroy the token (bootMayRewriteUrl).
   //
   // The HomePage usages share ONE key on purpose: navigating Home ⇄ `#/new` must NOT remount
-  // Home — the remount repainted blank thumbnails for a frame before the wizard covered them
+  // Home: the remount repainted blank thumbnails for a frame before the wizard covered them
   // (the acceptance round's "flash"). Freshness after a wizard create comes from Home's own
   // 'spx-data-changed' listener instead. Under the full-screen wizard (`#/new`) only the WARM
-  // path has a Home worth preserving — see `bootedOnWizard` above.
+  // path has a Home worth preserving (see `bootedOnWizard` above).
   const home = <HomePage key="home" route={{ view: 'home', section: null }} />;
   const surface =
     route.view === 'editor-foundation' ? (new URLSearchParams(window.location.search).get('editor') === 'foundation' ? <EditorFoundation /> : home)

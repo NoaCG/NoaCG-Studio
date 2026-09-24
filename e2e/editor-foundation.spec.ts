@@ -1,7 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { enableAdvancedMode } from './_create';
 
 const evidence = process.env.NOACG_FOUNDATION_EVIDENCE;
 if (evidence) mkdirSync(evidence, { recursive: true });
@@ -126,17 +125,19 @@ test('catalog opens visibly; canvas, timeline and Outline share selection; rever
 });
 
 test('actual imported SVG wizard output loads with fields and artwork preserved', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app?editor=foundation#/new');
   await expect(page.locator('.wz-modal')).toBeVisible({ timeout: 30000 });
   await page.locator('[data-entry="import-graphic"]').click();
   await page.locator('.wz-drop input[type="file"]').setInputFiles(fileURLToPath(new URL('fixtures/illustrator-lower-third.svg', import.meta.url)));
   await expect(page.getByTestId('import-svg-card')).toBeVisible();
-  await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  // Finish's "Edit this graphic" is the wizard's one editor door: it builds the graphic and opens
+  // it in this editor (the old code editor's "Create project" is gone, no-old-editor.spec.ts).
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-edit-artwork').click();
   await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 30000 });
+  await expect(page).toHaveURL(/\?editor=foundation#\/editor-foundation$/);
   const source = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
   if (evidence) writeFileSync(evidence + '/fixture-svg.json', JSON.stringify(source, null, 2));
-  await page.evaluate(async () => (await import('/src/app/router.ts')).useRouter.getState().navigate({ view: 'editor-foundation' }));
   await ready(page);
   await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
   await seek(page, .3);

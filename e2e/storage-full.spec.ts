@@ -81,6 +81,11 @@ test('a full quota never parks the user in the canvas silently: Home’s + Produ
   // Save a graphic the ordinary way first, then fill the quota and try to pool it from Home.
   await armStorageFailure(page);
   await page.goto('/app');
+  // Seed only once the studio has BOOTED. The durable store hydrates after the page's load
+  // event, so a seed written straight after `goto` races the boot, and on CI the row once never
+  // appeared (run 36058765639). The startup wizard is the boot's first surface; waiting for it
+  // takes the race out.
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.evaluate(async () => {
     const { createGraphic } = await import('/src/model/library.ts');
     const { createDefaultTemplate } = await import('/src/templates/defaultTemplate.ts');
