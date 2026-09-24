@@ -844,6 +844,48 @@ function dropIdleSpacePreserve(svg: Element): void {
   if (everyTextIdle) dropSpace(svg);
 }
 
+/**
+ * ILLUSTRATOR'S LOOK WRAPPERS, taken apart.
+ *
+ * A multi-line text object whose lines carry DIFFERENT looks (a bold yellow title line over
+ * white name lines) comes out of Illustrator 30's Save a Copy > SVG with each line wrapped
+ * twice: an outer tspan carrying only the look, and an inner one carrying only the position.
+ *
+ *   <text id="Credits" transform="translate(620 270)">
+ *     <tspan class="st1"><tspan x="0" y="0">Juontaja:</tspan></tspan>
+ *     <tspan class="st4"><tspan x="0" y="50">Maija Meikäläinen</tspan></tspan>
+ *
+ * (measured 2026-09-24 on docs/tutorials/classroom-package/SVG/end-credits.svg). Everything
+ * downstream reads a line as a DIRECT child of its `<text>`: `hoistRunStyle` and
+ * `markWrappedBlock` both give up on a line parked inside a wrapper, and the block was flattened
+ * to one value in one look, which threw away both the lines and the two looks a credits sample
+ * exists to show.
+ *
+ * So the wrapper's look is moved onto the tspan inside it and the wrapper is removed, which draws
+ * the same thing: the inner tspan inherited every one of those properties, and now states them.
+ * Only when that is exactly true: the wrapper holds nothing but tspans, positions nothing and
+ * names nothing itself, and no inner tspan has a look of its own that the moved one could collide
+ * with (two classes on one element resolve by stylesheet order, not by nesting).
+ */
+const WRAPPER_POSITION_ATTRS = ['x', 'y', 'dx', 'dy', 'rotate', 'textLength', 'lengthAdjust', 'id'];
+function unwrapLookWrappers(svg: Element): void {
+  for (const wrapper of Array.from(svg.querySelectorAll('text > tspan'))) {
+    const inner = Array.from(wrapper.childNodes);
+    const tspans = inner.filter((n): n is Element => n.nodeType === 1 && (n as Element).tagName.toLowerCase() === 'tspan');
+    if (tspans.length === 0) continue;
+    // Only tspans inside, apart from whitespace between them.
+    if (inner.some((n) => !tspans.includes(n as Element) && (n.nodeType !== 3 || (n.textContent ?? '').trim() !== ''))) continue;
+    if (WRAPPER_POSITION_ATTRS.some((a) => wrapper.hasAttribute(a))) continue;
+    // Data and namespaced attributes are bookkeeping that would be lost with the wrapper.
+    const look = Array.from(wrapper.attributes);
+    if (look.some((a) => a.name.startsWith('data-') || a.name.includes(':'))) continue;
+    // An inner tspan that already states any part of the look keeps the file as it is.
+    if (tspans.some((t) => t.hasAttribute('class') || t.hasAttribute('style') || look.some((a) => t.hasAttribute(a.name)))) continue;
+    for (const t of tspans) for (const a of look) t.setAttribute(a.name, a.value);
+    wrapper.replaceWith(...tspans);
+  }
+}
+
 /** Font sizes declared by CLASS in the file's own `<style>` blocks — Illustrator's "Internal
  *  CSS" styling option puts every size there rather than on the element. Only class selectors
  *  are read; that is what Illustrator, Figma and Inkscape all emit. */
@@ -1524,6 +1566,8 @@ export function importSvgMarkup(source: string): SvgImportResult {
   // no inline ones left for them to take.
   hoistInlineStyles(svg);
   dropIdleSpacePreserve(svg);
+  // Before the text is read into fields: a line inside a look wrapper is not seen as a line.
+  unwrapLookWrappers(svg);
 
   // Inkscape's FLOWED text (`<flowRoot>`) is an SVG 1.2 draft element no browser ever shipped:
   // it draws nothing in Chrome, so the graphic is already missing that copy before we look at
