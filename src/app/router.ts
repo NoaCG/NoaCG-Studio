@@ -5,11 +5,13 @@
 // in App.tsx; this store only owns the in-app surface.
 //
 // Routes:
-//   ''                     the editor (whichever kind docKind persisted)
+//   ''                     no surface of its own: App.tsx renders Home (the old code editor it
+//                          used to be is closed), and rewrites a bare boot to #/home
 //   #/home[/<section>]     Home — no section = the dashboard (productions first, then top
 //                          graphics + videos); sections: productions / graphics / videos /
 //                          looks. Retired section names (recent, controls) land on the dashboard
-//   #/graphic/<id>         open that library graphic in the SPX editor (refresh restores it)
+//   #/graphic/<id>         RETIRED as a surface: App.tsx opens that graphic's control page and
+//                          rewrites the address to #/control/<id> (`noacg save` still prints it)
 //   #/control/<graphicId>  the graphic's control panel
 //   #/production/<id>      one production's page (pool, cues, links, operating)
 //   #/production/<id>/data the production's DATA workspace (datasets — quiz banks, teams,

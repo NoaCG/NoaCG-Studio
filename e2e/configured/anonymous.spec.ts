@@ -14,11 +14,10 @@ test.describe('anonymous visitor (open editor)', () => {
 
   test('creates a graphic and reaches export with no account', async ({ page }) => {
     // THE STUDENT'S OWN ROUTE, which is what this test is for: wizard → Finish → export, with
-    // the editor never opening. It used to walk out through the Finish step's EDITOR door, which
-    // the student release put behind Advanced mode (docs/GOALS_ARCHIVE.md "Student release"
-    // step 4) - so signed out, with no Advanced mode to enable it, the door this waited for
-    // cannot exist. Exporting is not a reward for opening the editor, and neither is proving
-    // that it works without an account.
+    // the editor never opening. It used to walk out through the Finish step's old code-editor
+    // door, which is gone for everyone since 2026-09-24 (e2e/no-old-editor.spec.ts). Exporting
+    // is not a reward for opening an editor, and neither is proving that it works without an
+    // account.
     await page.goto('/app');
     // No wall: the creation wizard opens straight away and no sign-in dialog is up.
     await expect(page.locator('.wz-modal')).toBeVisible();
@@ -29,7 +28,7 @@ test.describe('anonymous visitor (open editor)', () => {
     await pickDesign(page, 'Hairline');
     await page.getByTestId('wz-skip-to-finish').click();
     await expect(page.locator('.wz-finish-summary')).toContainText('Hairline');
-    // Signed out, the editor door is absent and the export door is not.
+    // The old code-editor door is absent and the export door is not.
     await expect(page.getByTestId('wz-finish-editor')).toHaveCount(0);
     await page.getByTestId('wz-finish-export').click();
 
@@ -77,9 +76,9 @@ test.describe('anonymous visitor (open editor)', () => {
   });
 
   test('account features prompt for sign-in instead of walling the app', async ({ page }) => {
-    // An EDITOR subject (the AI panel, the Community button), so it needs the editor - which is
-    // Advanced mode now. Signing in is what turns that on for the other specs here; signed out,
-    // this has to ask for it itself.
+    // An old-EDITOR subject (the AI panel, the Community button). That editor is closed, so
+    // enableAdvancedMode skips this test until it is rewritten
+    // (docs/backlog/specs-that-still-open-the-old-editor.md).
     await enableAdvancedMode(page);
     await page.goto('/app');
     await dismissWizard(page); // reach the topbar + panels underneath
@@ -166,7 +165,8 @@ test.describe('anonymous visitor (open editor)', () => {
     // session of work to a sync that never ran.
     // The EDITOR's bar, which is the heavy one - it carries the panel toggles, Reset and the
     // beta door that Home does not. Measuring the light Home bar would prove nothing about the
-    // width claim below. Advanced mode is what opens the editor to a signed-out visitor.
+    // width claim below. That editor is closed, so enableAdvancedMode skips this test until it
+    // is rewritten (docs/backlog/specs-that-still-open-the-old-editor.md).
     await enableAdvancedMode(page);
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto('/app');
