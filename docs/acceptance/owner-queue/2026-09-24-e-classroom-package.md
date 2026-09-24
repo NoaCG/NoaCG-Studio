@@ -25,6 +25,12 @@ passes them.
    ending in ":". The people in the studio come first, then the crew, then the director and the
    producer, then "Quiz Night 2026". The names are made up.
 
+All five were walked from one production on a local build: intro Take and Out, the name tag
+retyped for three people, quiz select, lock and reveal, score +1 and -1 and a name edit, and the
+README's English credits pasted into the one Credits box and rolled to the end in 30.0 seconds.
+To hit thirty seconds, the default pace of an imported credits roll went from 1.35 to 1.75 lines
+a second. The live site has not been walked yet; row J does that after the landing.
+
 The README is one page of do-this bullets in your tone, with the same crew in English as a second
 paste example. README.md is the source, and README.pdf is printed from it.
 
