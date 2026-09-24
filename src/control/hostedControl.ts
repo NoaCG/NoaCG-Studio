@@ -23,7 +23,7 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
-import { COMMAND_EVENT, commandTopic, readCommandFrame, withOid } from './commandRoads';
+import { COMMAND_EVENT, LOG_ROW_EVENT, commandTopic, logTopic, readCommandFrame, withOid } from './commandRoads';
 import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { cueDataRows, type CueDataRow } from './cueData';
 
@@ -1178,6 +1178,23 @@ export async function subscribeControlEvents(
   // being joined - a policy typo, a Realtime instance without `realtime.send` - is invisible
   // until somebody times a Take. `realtime.send` swallows its own errors into a warning nobody
   // reads (migration 0056), so this status is the one signal a surface has.
+  // ── THE LOG, MIRRORED ON ITS OWN PRIVATE TOPIC (migration 0064, commandRoads.ts `logTopic`). ──
+  //
+  // The same rows as the `postgres_changes` channel above, broadcast by the database. They go to
+  // the SAME `onRow`, and that is safe by construction: every follower keeps a row-id cursor
+  // (`followControlLog`'s `apply`), so whichever channel delivers a row first applies it and the
+  // other copy is dropped. Its status is deliberately not reported: the channel above still owns
+  // "joined" and the tail-fill on rejoin, and this one only adds a second way for a row to arrive.
+  // When the public read on `control_events` is replaced, this becomes the log's only live road and
+  // takes over that status.
+  const log = sb
+    .channel(logTopic(showId), { config: { private: true } })
+    .on('broadcast', { event: LOG_ROW_EVENT }, (frame) => {
+      const row = readLogRow((frame as { payload?: unknown }).payload);
+      if (row) onRow(row);
+    })
+    .subscribe();
+
   const commands = onCommand
     ? sb
         .channel(commandTopic(showId), { config: { private: true } })
@@ -1190,6 +1207,17 @@ export async function subscribeControlEvents(
 
   return () => {
     void sb.removeChannel(channel);
+    void sb.removeChannel(log);
     if (commands) void sb.removeChannel(commands);
   };
+}
+
+/** A broadcast log row, or null when the frame is not one. The database is the only writer on the
+ *  topic, but a frame is still checked for the fields `followControlLog` orders and applies by. */
+function readLogRow(payload: unknown): ControlEventRow | null {
+  const row = payload as Partial<ControlEventRow> | null;
+  if (!row || typeof row.id !== 'number' || typeof row.graphic !== 'string' || !row.msg || typeof row.msg !== 'object') {
+    return null;
+  }
+  return row as ControlEventRow;
 }
