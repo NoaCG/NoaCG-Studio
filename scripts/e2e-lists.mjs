@@ -21,7 +21,6 @@ export const FOCUS = [
   // layout pin, which needs a viewport the suite's default is below.
   'agent-made-graphics.spec.ts',
   'analytics.spec.ts',
-  'advanced-mode.spec.ts',
   'auth.spec.ts',
   // CasparCG Connect is a NICE-TO-HAVE over routes that already air (docs/BRIDGE.md),
   // so it earns a place here for one reason only: it puts a control on the production page and a
@@ -57,7 +56,6 @@ export const FOCUS = [
   'import-name-collision.spec.ts',
   'landing.spec.ts',
   'layout.spec.ts',
-  'lazy-editor.spec.ts',
   'library.spec.ts',
   'library-bulk.spec.ts',
   // WHICH GRAPHICS BELONG TO WHICH PRODUCTION. It reads the pool's `graphicId` back-link, so
@@ -68,6 +66,11 @@ export const FOCUS = [
   'local-relay.spec.ts',
   'motion-presets.spec.ts',
   'network-resilience.spec.ts',
+  // NOBODY REACHES THE OLD CODE EDITOR (owner, 2026-09-24). A student on a shared lab computer
+  // must never land in AppShell, whatever an earlier visitor ticked, and src/App.tsx - where the
+  // boot routing that decides it lives - is CORE, which resolves to THIS list. Without the row a
+  // later branch could route a hash back to the old editor and still merge green.
+  'no-old-editor.spec.ts',
   'offline.spec.ts',
   'ograf-conformance.spec.ts',
   'ograf-starters.spec.ts',

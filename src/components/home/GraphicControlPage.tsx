@@ -55,7 +55,7 @@ import MotionPresetPicker from '../MotionPresetPicker';
 import { FieldRow } from '../fields/FieldControl';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
-import { useAdvancedMode } from '../useAdvancedMode';
+import { openNewEditor } from '../editorFoundation/openNewEditor';
 import ProductionPicker from './ProductionPicker';
 import { IconControl } from '../icons';
 import { slug } from '../../model/slug';
@@ -88,7 +88,6 @@ const speedName = (speed: number) => MOTION_SPEEDS.find((s) => s.value === speed
 export default function GraphicControlPage({ id }: { id: string }) {
   const navigate = useRouter((s) => s.navigate);
   const requestSwitch = useSaveUi((s) => s.requestSwitch);
-  const advanced = useAdvancedMode((s) => s.advanced);
   const [doc, setDoc] = useState<GraphicDoc | null>(() => graphicById(id));
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -102,7 +101,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
   // this browser has never pulled that record. A control panel is reached by link as often as by
   // click - the production page prints them, and a graphic an agent saved is minutes old - so
   // "not in the local library" is not the same as "no such graphic" (backend/graphicWhenSynced.ts
-  // carries the reasoning, and App.tsx's `#/graphic/<id>` effect asks the same question).
+  // carries the reasoning). A stale `#/graphic/<id>` link lands here too (App.tsx).
   const [lookup, setLookup] = useState<'found' | 'looking' | 'unknown' | 'needs-sign-in'>(() =>
     graphicById(id) ? 'found' : 'looking',
   );
@@ -653,18 +652,10 @@ export default function GraphicControlPage({ id }: { id: string }) {
           onClick={() =>
             requestSwitch(() => {
               openGraphicById(doc.id);
-              // THE NEW EDITOR IN THE DEFAULT STUDIO (owner, 2026-09-21: no door to the old
-              // editor outside Advanced mode). It edits the working document `openGraphicById`
-              // just loaded and saves back to this graphic, the same hand-over the wizard's
-              // "Edit this graphic" makes. Advanced mode keeps the code editor it is for.
-              if (advanced) {
-                navigate({ view: 'graphic', id: doc.id });
-                return;
-              }
-              const url = new URL(window.location.href);
-              url.searchParams.set('editor', 'foundation');
-              window.history.replaceState(window.history.state, '', url);
-              navigate({ view: 'editor-foundation' });
+              // THE NEW EDITOR (owner, 2026-09-21 and 2026-09-24: no door to the old code
+              // editor). It edits the working document `openGraphicById` just loaded and saves
+              // back to this graphic, the same hand-over the wizard's "Edit this graphic" makes.
+              openNewEditor();
             })
           }
           title="Open this graphic in the editor"

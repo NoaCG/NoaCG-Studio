@@ -2,14 +2,12 @@ import { useMemo } from 'react';
 import { loadGraphics } from '../../../model/library';
 import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
-import { useAdvancedMode } from '../../useAdvancedMode';
 
 interface Props {
   onTemplates: () => void;
   onImportGraphic: () => void;
   onAi: () => void;
   onVideo: () => void;
-  onBlank: () => void;
   /**
    * Go to Home. `section` is null for the dashboard, or one of Home's own sections for the
    * shortcuts beside it — the row offers "Graphics" and "Productions" because those are the
@@ -31,8 +29,9 @@ interface Props {
  *  - there is no "Start from a kit" card (see the note at the bottom of this comment);
  *  - a card ACTS ON CLICK; the reference draws radio dots and a Continue button, which is a
  *    second press for a choice that has already been made unambiguously;
- *  - Blank stays behind Advanced mode (docs/GOALS_ARCHIVE.md "Student release" step 4), so the
- *    default studio shows three cards where the reference shows four.
+ *  - there is no Blank card, so the screen shows three cards where the reference shows four.
+ *    Blank's only outcome was the old code editor, which no door opens any more (owner,
+ *    2026-09-24).
  *
  * The old per-graphic "Recent" chips are gone deliberately: in the default studio they
  * opened the EDITOR, the demoted surface, and Home's rows (control page, productions,
@@ -49,8 +48,7 @@ interface Props {
  * here. (This reverses docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18, 2026-07-23; see the reversal
  * recorded there.)
  */
-export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onBlank, onHome }: Props) {
-  const advanced = useAdvancedMode((s) => s.advanced);
+export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onHome }: Props) {
   /** Is there anything to continue? Home holds graphics, productions and videos, so any of
    *  them counts. On a first-ever visit there is nothing, and offering the loudest card on
    *  the screen as a door to an empty room is a false lead - creation leads instead. */
@@ -144,8 +142,7 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
           other (measured at 1366x768: row 1 179px, row 2 138px). Card copy is kept to what the
           row reserves — a card that needs a fourth line is a card that needs shorter copy.
           THREE cards in a two-column grid leave no hole: an ODD LAST CARD spans both columns
-          (`.wz-entry-card:last-child:nth-child(odd)`), so the default studio reads as a full
-          block and Advanced mode's fourth card restores the plain 2x2. */}
+          (`.wz-entry-card:last-child:nth-child(odd)`), so the three read as a full block. */}
       <div className="wz-entry">
         <button className="wz-entry-card wz-entry-card--primary" onClick={onTemplates} data-entry="template">
           <span className="wz-entry-head">
@@ -202,17 +199,6 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
               budget is measured by e2e/wizard-entry-fit.spec.ts. */}
           <span className="hint">Bring your own artwork, no AI. A layered SVG brings its text in as fields. On a PNG or JPEG you place text. Already have it as .html or .zip? Drop that in instead.</span>
         </button>
-        {/* Blank's only outcome is the code editor, so the card is an Advanced-mode door
-            (docs/GOALS_ARCHIVE.md "Student release" step 4). */}
-        {advanced && (
-          <button className="wz-entry-card" onClick={onBlank} data-entry="blank">
-            <span className="wz-entry-head">
-              <span className="wz-entry-icon">‹›</span>
-              <strong>Blank project</strong>
-            </span>
-            <span className="hint">A minimal valid template for writing the code yourself.</span>
-          </button>
-        )}
       </div>
 
       {/* ── The video world, clearly apart: a standalone rendered video, not a live graphic.

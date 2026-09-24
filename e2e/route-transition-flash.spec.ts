@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { enableAdvancedMode } from './_create';
 import { settleDurableWrites } from './_durable';
 
 // NO SURFACE IS EVER PAINTED THAT THE BOOT WAS NEVER GOING TO LAND ON.
@@ -97,13 +96,19 @@ test('a returning reader booting /app never sees the editor on the way to Home',
   expect(await surfaces(page)).toEqual(['home']);
 });
 
-// NOT PINNED HERE: the FIRST-EVER visit to a bare `/app`, which lands on the wizard and still
-// paints the editor for a frame on the way. That boot is decided by an effect rather than at
-// module load, and moving it was backed out when `layout.spec.ts` went red on CI. That red is
-// now understood - it was the stranded startup wizard the next test pins, not the under-surface
-// the revert blamed - so the move is available again, and it is a piece of work rather than a
-// line: docs/backlog/first-visit-boot-flash.md carries the trail. A test asserting the frame we
-// know to be wrong would only make the gap harder to see.
+test('a first-ever visit to /app opens the wizard and never paints the editor', async ({ page }) => {
+  // Deliberately NO autosaved project: this is the wizard-first boot of somebody who has never
+  // used the product. Its route is still settled by an effect a frame late, but the surface under
+  // that frame is HOME now, never the old code editor, which no route renders any more (owner,
+  // 2026-09-24). The wizard opens in the same first commit and covers it.
+  await recordSurfaces(page);
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page).toHaveURL(/#\/new$/);
+  const seen = await surfaces(page);
+  expect(seen).toContain('wizard');
+  expect(seen).not.toContain('editor');
+});
 
 test('a deep link to a production never opens under the startup wizard', async ({ page }) => {
   // Deliberately NO autosaved project: the startup wizard would open on a bare boot, so this
@@ -178,13 +183,4 @@ test('a FIRST-EVER visit on a reset link keeps the fragment too', async ({ page 
   await boot(page, '/app' + fragment);
   await expect(booted(page)).toBeVisible();
   expect(await page.evaluate(() => window.location.hash)).toBe(fragment);
-});
-
-test('advanced mode boots straight into the editor, with nothing else painted first', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await seedAutosavedProject(page);
-  await recordSurfaces(page);
-  await boot(page, '/app');
-  await expect(page.getByTestId('center-stage')).toBeVisible();
-  expect(await surfaces(page)).toEqual(['editor']);
 });

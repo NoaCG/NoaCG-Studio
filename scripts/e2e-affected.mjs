@@ -100,6 +100,15 @@ const isEntrypoint =
 // ── Source-area → spec globs ────────────────────────────────────────────────
 // Order does not matter; every matching rule contributes its specs (union).
 const MAP = [
+  // THE CLOSED DOORS TO THE OLD CODE EDITOR (owner, 2026-09-24). Every file that used to hold one
+  // selects the spec that pins them all shut: Settings (the Advanced mode switch), the wizard's
+  // Entry and Finish steps, Home, a graphic row, the control page, the new editor's header and the
+  // video workspace. App.tsx and model/prefs.ts are CORE, which reaches the same spec through the
+  // FOCUS list in scripts/e2e-lists.mjs.
+  [
+    /^src\/components\/(SettingsDialog|home\/(HomePage|GraphicRow|GraphicControlPage)|editorFoundation\/(EditorFoundation|openNewEditor)|video\/VideoAppShell|wizard\/(CreationWizard|steps\/(EntryStep|FinishStep)))\.tsx?$/,
+    ['no-old-editor.spec.ts'],
+  ],
   [/^src\/components\/editorFoundation\/|^src\/blocks\/(baseEdits|designLayout)\.ts$|^src\/components\/wizard\/(CreationWizard|steps\/FinishStep)\.tsx$/, ['editor-base-edits.spec.ts']],
   [/^src\/components\/editorFoundation\/|^src\/app\/router\.ts$|^src\/App\.tsx$|^src\/templates\//, ['editor-foundation.spec.ts', 'editor-alpha-entry.spec.ts']],
   [/^src\/components\/brand\/|^src\/components\/home\/(HomePage|sections\/LooksSection)\.tsx$|^src\/model\/(brand|packets)\.ts$/, ['brand-editor.spec.ts']],
@@ -500,7 +509,13 @@ const MAP = [
   // and its footer, so both of those specs ride along. public/downloads/ holds the classroom
   // package zip the page links, and downloads.spec.ts fetches it.
   [/^(downloads\.html$|src\/downloads\/|public\/downloads\/)/, ['downloads.spec.ts', 'landing.spec.ts', 'docs.spec.ts']],
-  [/^src\/teach\//, ['lazy-editor.spec.ts']],
+  // THE OLD CODE EDITOR ITSELF, and what only it reads: its shell, its dock, its Monaco pane and
+  // the pane's teaching layer. No route renders any of it any more (owner, 2026-09-24), so no
+  // reachable surface can show a change here, and escalating to the whole suite would test code
+  // nobody can open. The spec that pins the old editor shut is the honest and cheap answer - it
+  // fails if anything starts loading AppShell again. The source stays until the new editor has
+  // taken over what is worth keeping.
+  [/^src\/components\/(AppShell|WorkspaceDock|CodeEditor)\.tsx$|^src\/teach\//, ['no-old-editor.spec.ts']],
   // import-graphic rides along because assets/eraseRegion.ts is not only an assets helper: it is
   // the deterministic flat-fill erase behind the Import Graphic Prepare step. Without this edge,
   // editing the file the behaviour lives in runs the assets specs and never the one that would
@@ -520,8 +535,8 @@ const MAP = [
   [/^scripts\/meDevPlugin/, ['admin.spec.ts', 'feedback.spec.ts']],
   // The feedback flow. Its OFFLINE contract is that no surface renders at all, which is the
   // half this suite can check; the interactive half is e2e/configured/feedback.spec.ts and
-  // needs a configured backend. src/components/AppShell is already in CORE, so the topbar
-  // button's own file does not need naming here - but the contract and the client do.
+  // needs a configured backend. The button itself lives under src/components/feedback/, so the
+  // second row below names it along with the contract and the client.
   [/^src\/feedback\//, ['feedback.spec.ts', 'ai.spec.ts']],
   [/^src\/components\/feedback\//, ['feedback.spec.ts', 'ai.spec.ts']],
   [/^src\/backend\/feedback/, ['feedback.spec.ts']],
@@ -602,7 +617,7 @@ const MAP = [
   [/^src\/(model\/shows|control\/hostedControl)\.ts$/, ['playout-cues.spec.ts']],
   // THE WIZARD DOOR (components/NewGraphicButton.tsx) is mounted by five shells at once, so a
   // change to it moves the same control on Home, the editor, the control page, the production
-  // dashboard and the video shell. AppShell and styles.css are already CORE, so this row is not
+  // dashboard and the video shell. styles.css is already CORE, so this row is not
   // what makes such a change verified - it records which specs OWN the door, so a later refactor
   // touching only this file still runs them instead of falling through to the unmapped
   // escalation and reading as covered by everything in general.
@@ -612,8 +627,8 @@ const MAP = [
   ],
   // The door's ORDER beside Home and the wizard's own mount (guarded start-over, guard over
   // the wizard) are pinned in project.spec.ts - so the two shells whose headers it measures,
-  // and the save dialogs whose z-order it clicks through, select it too. AppShell and App.tsx
-  // are CORE already; VideoAppShell and SaveDialogs are not.
+  // and the save dialogs whose z-order it clicks through, select it too. App.tsx is CORE
+  // already; VideoAppShell and SaveDialogs are not.
   [/^src\/components\/video\/VideoAppShell\.tsx$/, ['project.spec.ts']],
   // The save dialog also names WHERE a graphic goes when a backend is configured, and the
   // offline pin that it names no account at all is in auth.spec.ts.
@@ -626,7 +641,7 @@ const CORE = [
   /^src\/model\//,
   /^src\/preview\//,
   /^src\/validation\//,
-  /^src\/components\/(AppShell|PreviewFrame|WorkspaceDock|CodeEditor|App\.)/,
+  /^src\/components\/(PreviewFrame|App\.)/,
   /^src\/(App|main)\./,
   // The hash router. Every surface in /app is reached through it and browser Back/Forward are
   // part of what it promises, so a route-shape change fans out to every flow that navigates -
@@ -790,12 +805,19 @@ const CATALOG_TRIGGERS = [
  * `scripts/` exemption) and the gate went green having executed zero specs. A pure function is
  * one that can be pinned with a list of realistic merges and an expected size for each.
  *
+ * A CHANGED SPEC THAT NO LONGER EXISTS PLANS NOTHING. The diff lists a deleted file like any
+ * other, and a deleted spec's tests are gone, so there is nothing of it to run; planning its
+ * name anyway handed CI a ghost that `emitJson` rightly refuses. `specsOnDisk` is the bare spec
+ * names in `e2e/` (`specFilesOnDisk()`); the function stays pure because the caller supplies it,
+ * and leaving it out keeps the old behaviour for callers that only reason about names.
+ *
  * @param {string[]} changed        repo-relative paths, forward slashes
- * @param {{ sprintFocus?: boolean }} [opts]
+ * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null }} [opts]
  * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
  *             unmapped: string[], focusApplied: boolean }}
  */
-export function planFor(changed, { sprintFocus = false } = {}) {
+export function planFor(changed, { sprintFocus = false, specsOnDisk = null } = {}) {
+  const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
   let full = false;
   let catalog = false;
@@ -810,7 +832,8 @@ export function planFor(changed, { sprintFocus = false } = {}) {
     if (IGNORE.some((r) => r.test(file))) continue;
     if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
     if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
-      specs.add(file.replace(/^e2e\//, ''));
+      const name = file.replace(/^e2e\//, '');
+      if (!onDisk || onDisk.has(name)) specs.add(name); // a deleted spec has nothing left to run
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
@@ -1530,7 +1553,10 @@ function main() {
     return 0;
   }
 
-  const { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied } = planFor(changed, { sprintFocus });
+  const { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied } = planFor(changed, {
+    sprintFocus,
+    specsOnDisk: specFilesOnDisk(),
+  });
   const full = mode === 'full';
 
   // Printed BEFORE the 'none' early return below: a change confined to hosted Pro's wire

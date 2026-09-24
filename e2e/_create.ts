@@ -1,5 +1,21 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
+
+/**
+ * THE OLD CODE EDITOR IS CLOSED (owner, 2026-09-24). No route renders AppShell and there is no
+ * Advanced mode, so a test that needs either cannot pass any more. Each helper below that used to
+ * reach the old editor now SKIPS the test calling it, with this reason, instead of letting it
+ * fail on a surface that never appears. The backlog file lists every spec that still calls one
+ * and what each asserted; they are rewritten against the library, the control page, the export
+ * or the new editor, and this reason disappears with the last of them.
+ */
+export const OLD_EDITOR_SKIP =
+  'Reaches the old code editor (AppShell), which no route opens any more - docs/backlog/specs-that-still-open-the-old-editor.md';
+
+/** Skip the running test for the reason above. Call it from a test body or a beforeEach. */
+export function skipOldEditor(): void {
+  test.skip(true, OLD_EDITOR_SKIP);
+}
 
 // Fast project bootstrap for specs whose subject is NOT the creation flow itself.
 //
@@ -28,66 +44,36 @@ export interface CreateSpec {
  * so the test starts against the created document.
  */
 /**
- * ADVANCED-MODE BOOTSTRAP (docs/GOALS_ARCHIVE.md "Student release" step 4): opt a spec into the
- * classic editor-centric behavior - '' boots into the editor, every editor door shows, and
- * an editor shell renders under the wizard. For specs whose SUBJECT is the editor world;
- * specs asserting the DEFAULT experience simply don't call it. Must run BEFORE the first
- * goto. NOTE: addInitScript also runs inside the same-origin srcdoc preview iframe -
- * WRITING this pref key there is harmless (unlike the documented localStorage-CLEAR trap),
- * it just re-writes the same value.
+ * RETIRED: Advanced mode no longer exists, so a spec that opted into it reached the old editor.
+ * It skips the calling test (OLD_EDITOR_SKIP above). The page parameter stays so the specs still
+ * calling it compile unchanged until they are rewritten.
  */
-export async function enableAdvancedMode(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    // The WHOLE body is guarded: this init script also runs inside sandboxed preview
-    // iframes (allow-scripts without allow-same-origin), where merely TOUCHING
-    // localStorage throws a SecurityError - and an uncaught one lands in the page-error
-    // listeners some specs assert empty. There is nothing to persist in such a frame.
-    try {
-      let prefs: Record<string, unknown> = {};
-      try {
-        prefs = JSON.parse(localStorage.getItem('spx-gfx-prefs') ?? '{}') as Record<string, unknown>;
-      } catch {
-        prefs = {}; // corrupt JSON - rebuild the key
-      }
-      if (prefs.advancedMode !== true) {
-        localStorage.setItem('spx-gfx-prefs', JSON.stringify({ ...prefs, advancedMode: true }));
-      }
-    } catch {
-      /* opaque-origin frame: no storage to write, nothing to do */
-    }
-  });
+export async function enableAdvancedMode(_page: Page): Promise<void> {
+  skipOldEditor();
+}
+
+/** RETIRED with Advanced mode: skips the calling test (OLD_EDITOR_SKIP above). */
+export async function switchToAdvancedMode(_page: Page): Promise<void> {
+  skipOldEditor();
 }
 
 /**
- * Turn Advanced mode on in a page that is ALREADY loaded - the Settings toggle, not a boot
- * pref - for specs that walk the default wizard and then create straight into the code editor.
- * Since 2026-09-21 the default studio has no wizard door into that editor at all: the
- * import/design/SVG footer shortcut goes to Finish, and "Open as code" goes to the file
- * Finish. The straight-to-code "Create project" and "Open as code" doors are Advanced mode's.
- * Call it before pressing either door; the wizard re-renders its footer on the flip.
+ * RETIRED: Finish has no door into the old code editor any more, so a walk that ended there
+ * skips the calling test (OLD_EDITOR_SKIP above). A walk that wants an editor now ends on
+ * Finish's "Edit this graphic" (`wz-finish-edit-artwork`), which opens the new editor.
  */
-export async function switchToAdvancedMode(page: Page): Promise<void> {
-  await page.evaluate(async () => {
-    const { useAdvancedMode } = await import('/src/components/useAdvancedMode.ts');
-    useAdvancedMode.getState().setAdvanced(true);
-  });
+export async function finishIntoEditor(_page: Page): Promise<void> {
+  skipOldEditor();
 }
 
 /**
- * Create INTO THE EDITOR from any configuring step of a template-mode walk: Skip to finish
- * (the footer's one-click "Create project" became this shortcut - docs/GOALS_ARCHIVE.md "Student
- * release" step 6), then the Finish step's editor door. The door is Advanced-only, so any
- * spec calling this must have run enableAdvancedMode before its goto.
+ * RETIRED with the old editor: this bootstrap landed in AppShell and every caller asserted on
+ * it, so it skips the calling test (OLD_EDITOR_SKIP above). The body below it is kept for the
+ * rewrite, which still needs a fast way to put a created catalog graphic in the working slot.
  */
-export async function finishIntoEditor(page: Page): Promise<void> {
-  await page.getByTestId('wz-skip-to-finish').click();
-  await page.getByTestId('wz-finish-editor').click();
-}
-
 export async function createProject(page: Page, spec: string | CreateSpec = 'Hairline'): Promise<void> {
   const wanted: CreateSpec = typeof spec === 'string' ? { name: spec } : spec;
-  // Editor subject by definition - see enableAdvancedMode above.
-  await enableAdvancedMode(page);
+  skipOldEditor();
   await page.goto('/app');
   // Boot signal only — deliberately NOT the wizard: the wizard auto-opens solely on a
   // first-ever visit (no autosaved project), so a mid-test re-bootstrap lands straight in

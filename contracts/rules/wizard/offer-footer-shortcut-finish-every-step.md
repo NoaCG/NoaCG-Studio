@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/CreationWizard.tsx
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-21
 supersedes: wizard/stand-footer-quiet-create-project-shortcut
 record: contracts/records/wizard/2026-09-21-offer-footer-shortcut-finish-every-step.md

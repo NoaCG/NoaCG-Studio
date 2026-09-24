@@ -95,18 +95,20 @@ In order - the order IS the posture (`api/_lib/me/graphics.ts`):
 7. `INSERT` into `documents` (kind `graphic`, `user_id` set by the service role) - never an
    upsert; `201 { id, url }` with `url = <origin>/app#/graphic/<id>`.
 
-The record then reaches the user's browser through the ordinary sync pull, and the link is
-usually opened before that pull lands - the graphic is seconds old and the reader's studio has
-not synced since. A `#/graphic/<id>` the local library cannot answer therefore ASKS THE CLOUD and
-waits for the answer (`backend/graphicWhenSynced.ts`, driven from `App.tsx` and from the control
-panel): the record resolves the moment a pull writes it, or when a sync pass that could have seen
-it COMPLETES CLEANLY without it. Only that second answer lands on Home - a pass that errored, or
-one that could not run because the session was still coming back, knows nothing about whether the
-record exists and is not allowed to answer for it.
+The link opens the graphic's CONTROL page: the studio rewrites `#/graphic/<id>` to
+`#/control/<id>` (the old code editor it used to open is closed, `src/App.tsx`). The record then
+reaches the user's browser through the ordinary sync pull, and the link is usually opened before
+that pull lands - the graphic is seconds old and the reader's studio has not synced since. A link
+the local library cannot answer therefore ASKS THE CLOUD and waits for the answer
+(`backend/graphicWhenSynced.ts`, driven from the control page): the record resolves the moment a
+pull writes it, or when a sync pass that could have seen it COMPLETES CLEANLY without it. Only that
+second answer says the graphic was not found - a pass that errored, or one that could not run
+because the session was still coming back, knows nothing about whether the record exists and is
+not allowed to answer for it.
 
-A reader with NO SESSION keeps the address instead: the record usually exists perfectly well in an
-account this browser has never signed into, so the app offers a sign-in and the link opens as soon
-as there is one. Replacing the URL there used to destroy the only copy of it the reader had - it
+A reader with NO SESSION keeps the graphic's id in the address instead: the record usually exists
+perfectly well in an account this browser has never signed into, so the control page offers a
+sign-in and the graphic opens as soon as there is one. Replacing the URL there used to destroy the only copy of it the reader had - it
 was measured on `noacg.studio` doing exactly that, 846 ms after the click, on 2026-09-16.
 `e2e/configured/deep-link-boot.spec.ts` holds all three answers, and its signed-out case runs
 against the deployed site itself (`playwright.production.config.ts`, from `deploy-verify.yml`).

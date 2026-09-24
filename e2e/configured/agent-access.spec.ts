@@ -128,7 +128,7 @@ test.describe('agent access (configured)', () => {
       expect(again.status).toBe(400);
 
       // 3. Save: the library record the bridge builds, posted with the key. Back in the studio
-      // (Advanced mode + an autosaved project = the editor, no wizard; close one if it shows).
+      // (a returning reader lands on Home; close the wizard if a first visit shows it).
       await page.goto('/app');
       await page.locator('.wz-modal .gallery-close').click({ timeout: 3_000 }).catch(() => undefined);
       const doc = await page.evaluate(async () => {
@@ -146,20 +146,27 @@ test.describe('agent access (configured)', () => {
       const saved = (await save.json()) as { id: string; url: string };
       expect(saved.url).toContain(`/app#/graphic/${saved.id}`);
 
-      // 4. The deep link opens the graphic on first load (one sync pass on the miss).
+      // 4. The printed deep link opens the graphic on first load (one sync pass on the miss). It
+      // lands on the graphic's CONTROL page, rewritten to `#/control/<id>`: the old code editor
+      // it used to open is closed (e2e/no-old-editor.spec.ts), so the working document is not
+      // replaced any more and "open" is the control page showing the record.
       await page.goto(`/app#/graphic/${saved.id}`);
       await expect
         .poll(
           () =>
             page.evaluate(async (id) => {
               const { graphicById } = await import('/src/model/library.ts');
-              const { useTemplateStore } = await import('/src/store/templateStore.ts');
               const doc = graphicById(id);
-              return { present: !!doc, origin: doc?.origin?.tool ?? null, open: useTemplateStore.getState().saved.graphicId === id, hash: location.hash };
+              return {
+                present: !!doc,
+                origin: doc?.origin?.tool ?? null,
+                open: !!document.querySelector('[data-testid="graphic-control-page"]'),
+                hash: location.hash,
+              };
             }, saved.id),
           { timeout: 30_000 },
         )
-        .toEqual({ present: true, origin: 'noacg-cli', open: true, hash: `#/graphic/${saved.id}` });
+        .toEqual({ present: true, origin: 'noacg-cli', open: true, hash: `#/control/${saved.id}` });
 
       // 4b. A whole PACKAGE (docs/AGENT_SAVE.md §7): `noacg pack --save` posts the pack file with
       // the same key; it waits on Home → Productions; Install makes the production and opens its
