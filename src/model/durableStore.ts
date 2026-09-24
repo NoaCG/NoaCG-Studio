@@ -50,6 +50,15 @@
 // data. An older build reading a migrated profile finds the localStorage keys gone and starts
 // empty rather than corrupt; the IndexedDB copy is untouched and returns when the newer build
 // does. That is the reason the migration is one-way and marked, not a mirror kept in sync.
+//
+// ONE LIBRARY PER ACCOUNT. Each account that signs in on this browser keeps its documents under
+// its own key names (model/accountScope.ts), and only the library in use is ever loaded into
+// the mirror. This is a naming change, not a format change: the signed-out workspace keeps the
+// plain names every earlier build wrote, so nothing already saved moves until an account adopts
+// it, and DB_VERSION stays where it is. A build from before this change sees only the plain
+// names - an account's library is invisible to it, never damaged by it.
+
+import { accountKey, libraryAccount, unscopedKey } from './accountScope';
 
 const DB_NAME = 'noacg-studio';
 /** Format version. A breaking change to how records are stored bumps this and migrates in
@@ -76,6 +85,21 @@ export const DURABLE_KEYS = [
 export type DurableKey = (typeof DURABLE_KEYS)[number];
 
 const durableKeySet: ReadonlySet<string> = new Set<string>(DURABLE_KEYS);
+
+// ── Whose library ────────────────────────────────────────────────────────────
+//
+// Every durable key is stored under the name `model/accountScope.ts` gives it in the library in
+// use: the plain name for the signed-out workspace, `<key>@<user id>` for an account's. The rest
+// of the app only ever says the plain name, and this module translates at the storage boundary,
+// so no model module knows libraries exist. The account is read ONCE, as the module loads: a
+// change of account reloads the page (backend/accountLibrary.ts), and the one change made in
+// place - `adoptSignedOutLibrary` - updates it itself.
+let namespace: string | null = libraryAccount();
+
+/** The name `key` is stored under in the library currently in use. */
+function physical(key: string): string {
+  return accountKey(key, namespace);
+}
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -168,6 +192,19 @@ export async function commitDurableWrites(): Promise<string | null> {
 
 // ── The localStorage fallback (also the pre-hydration path) ──────────────────
 
+function localStorageKeys(): string[] {
+  const keys: string[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key !== null) keys.push(key);
+    }
+  } catch {
+    // No localStorage, nothing to list.
+  }
+  return keys;
+}
+
 function lsGet(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -224,25 +261,6 @@ function idbReadKey(target: IDBDatabase, key: string): Promise<string | null> {
   });
 }
 
-function idbReadAll(target: IDBDatabase): Promise<Map<string, string>> {
-  return new Promise((resolve, reject) => {
-    const out = new Map<string, string>();
-    const tx = target.transaction(STORE, 'readonly');
-    const cursorRequest = tx.objectStore(STORE).openCursor();
-    cursorRequest.onsuccess = () => {
-      const cursor = cursorRequest.result;
-      if (!cursor) return;
-      const key = cursor.key;
-      const value = cursor.value as unknown;
-      if (typeof key === 'string' && typeof value === 'string') out.set(key, value);
-      cursor.continue();
-    };
-    tx.oncomplete = () => resolve(out);
-    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB read failed'));
-    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB read was aborted'));
-  });
-}
-
 /** One transaction applying a batch of puts/deletes. Rejects with the transaction's error, so
  *  a quota failure keeps its `QuotaExceededError` name for the caller to recognise. */
 function idbWrite(target: IDBDatabase, entries: [string, string | null][]): Promise<void> {
@@ -279,6 +297,25 @@ function idbWrite(target: IDBDatabase, entries: [string, string | null][]): Prom
 
 function isQuotaError(e: unknown): boolean {
   return e instanceof Error && (e.name === 'QuotaExceededError' || /quota/i.test(e.message));
+}
+
+/** The values of `keys` in one read-only transaction. Only the library in use is read at boot:
+ *  another account's documents on the same browser are never loaded into this page. */
+function idbReadKeys(target: IDBDatabase, keys: string[]): Promise<Map<string, string>> {
+  return new Promise((resolve, reject) => {
+    const out = new Map<string, string>();
+    const tx = target.transaction(STORE, 'readonly');
+    const store = tx.objectStore(STORE);
+    for (const key of keys) {
+      const request = store.get(key);
+      request.onsuccess = () => {
+        if (typeof request.result === 'string') out.set(key, request.result);
+      };
+    }
+    tx.oncomplete = () => resolve(out);
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB read failed'));
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB read was aborted'));
+  });
 }
 
 // ── Hydration + the one-way move off localStorage ────────────────────────────
@@ -331,14 +368,15 @@ async function runHydration(): Promise<void> {
     return;
   }
   try {
-    const stored = await idbReadAll(opened);
+    const stored = await idbReadKeys(opened, [MIGRATED_KEY, ...DURABLE_KEYS.map(physical)]);
     if (!settled && !stored.has(MIGRATED_KEY)) await migrateFromLocalStorage(opened, stored);
     if (settled) {
       opened.close();
       return;
     }
+    // The mirror is keyed by the PLAIN name; `physical` only ever appears at the storage edge.
     for (const key of DURABLE_KEYS) {
-      const value = stored.get(key);
+      const value = stored.get(physical(key));
       if (typeof value === 'string') mirror.set(key, value);
     }
     db = opened;
@@ -387,11 +425,17 @@ async function migrateFromLocalStorage(
   stored: Map<string, string>,
 ): Promise<void> {
   const moving: [string, string][] = [];
-  for (const key of DURABLE_KEYS) {
+  // Every library's keys move, not only the one in use: a browser that ran on the localStorage
+  // fallback can hold several accounts' documents, and the marker below means this runs once.
+  // Hence the keys come from localStorage itself rather than from DURABLE_KEYS.
+  for (const key of localStorageKeys()) {
+    if (!durableKeySet.has(unscopedKey(key))) continue;
     const value = lsGet(key);
     // A key already in IndexedDB wins: it is the newer copy by construction (this build wrote
-    // it), and a stale localStorage leftover must never overwrite it.
-    if (value !== null && !stored.has(key)) moving.push([key, value]);
+    // it), and a stale localStorage leftover must never overwrite it. `stored` holds only the
+    // library in use, so for any other key this asks the database directly.
+    if (value === null || stored.has(key) || (await idbReadKey(target, key)) !== null) continue;
+    moving.push([key, value]);
   }
   // Abandoned by the hydration timeout: this session runs on localStorage, so it must stay
   // authoritative - no copy, no marker, and the next healthy boot migrates the then-current
@@ -420,13 +464,17 @@ async function migrateFromLocalStorage(
 export const durable = {
   getItem(key: string): string | null {
     if (!durableKeySet.has(key)) return lsGet(key);
-    if (!hydrated || !usingIndexedDb) return lsGet(key);
+    if (!hydrated || !usingIndexedDb) return lsGet(physical(key));
     return mirror.get(key) ?? null;
   },
 
   setItem(key: string, value: string): void {
-    if (!durableKeySet.has(key) || !hydrated || !usingIndexedDb) {
+    if (!durableKeySet.has(key)) {
       lsSet(key, value);
+      return;
+    }
+    if (!hydrated || !usingIndexedDb) {
+      lsSet(physical(key), value);
       return;
     }
     const previous = mirror.get(key) ?? null;
@@ -435,8 +483,12 @@ export const durable = {
   },
 
   removeItem(key: string): void {
-    if (!durableKeySet.has(key) || !hydrated || !usingIndexedDb) {
+    if (!durableKeySet.has(key)) {
       lsRemove(key);
+      return;
+    }
+    if (!hydrated || !usingIndexedDb) {
+      lsRemove(physical(key));
       return;
     }
     const previous = mirror.get(key) ?? null;
@@ -446,7 +498,7 @@ export const durable = {
 
   /** Every durable key currently holding a value - what `storageHealth` measures. */
   keys(): string[] {
-    if (!hydrated || !usingIndexedDb) return DURABLE_KEYS.filter((k) => lsGet(k) !== null);
+    if (!hydrated || !usingIndexedDb) return DURABLE_KEYS.filter((k) => lsGet(physical(k)) !== null);
     return [...mirror.keys()];
   },
 };
@@ -466,7 +518,7 @@ function queueWrite(key: string, value: string | null, previous: string | null):
   const seq = writeSeq;
   latestWrite.set(key, seq);
   // Opened NOW - see `pending` above for why the transaction must not wait for a microtask.
-  const write = idbWrite(target, [[key, value]]).catch((e: unknown) => {
+  const write = idbWrite(target, [[physical(key), value]]).catch((e: unknown) => {
     if (latestWrite.get(key) === seq) {
       if (previous === null) mirror.delete(key);
       else mirror.set(key, previous);
@@ -525,7 +577,7 @@ async function adoptWrite(key: string): Promise<void> {
   const target = db;
   if (!target || !durableKeySet.has(key)) return;
   try {
-    const value = await idbReadKey(target, key);
+    const value = await idbReadKey(target, physical(key));
     if (value === null) mirror.delete(key);
     else mirror.set(key, value);
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
@@ -541,6 +593,97 @@ function startCrossTabInvalidation(): void {
     const key = event.data?.key;
     if (typeof key === 'string') void adoptWrite(key);
   };
+}
+
+// ── Changing hands ───────────────────────────────────────────────────────────
+
+/**
+ * The account whose documents this page actually LOADED (null = the signed-out workspace). This,
+ * not the stored account name, is what anything sending documents to the cloud must check: the
+ * name changes a moment before the reload that brings the documents to match it.
+ */
+export function libraryInUse(): string | null {
+  return namespace;
+}
+
+/** Whether `account` already keeps documents on this browser. */
+export async function libraryHasDocuments(account: string): Promise<boolean> {
+  const keys = DURABLE_KEYS.map((key) => accountKey(key, account));
+  if (db && usingIndexedDb) return (await idbReadKeys(db, keys)).size > 0;
+  return keys.some((key) => lsGet(key) !== null);
+}
+
+/**
+ * Make the signed-out workspace `account`'s library, IN PLACE: the documents on screen are
+ * renamed to the account's keys and this page carries on with them - the same data, now bound.
+ * This is how work made before signing up (or by a build that predates account libraries)
+ * becomes the account's. Only valid while the page shows the signed-out workspace and the
+ * account has nothing here yet (`libraryHasDocuments`); anything else is a MERGE, which
+ * backend/accountLibrary.ts does through the cloud instead. Resolves false when the move was
+ * refused, with every document still under its signed-out name.
+ */
+export async function adoptSignedOutLibrary(account: string): Promise<boolean> {
+  if (namespace === account) return true;
+  if (namespace !== null) return false;
+
+  if (!db || !usingIndexedDb) {
+    // The localStorage fallback: key by key, copy then remove, so the ceiling is never asked for
+    // the whole library twice. A refusal puts back whatever had already moved.
+    const moved: string[] = [];
+    try {
+      for (const key of DURABLE_KEYS) {
+        const value = lsGet(key);
+        if (value === null) continue;
+        lsSet(accountKey(key, account), value);
+        lsRemove(key);
+        moved.push(key);
+      }
+    } catch {
+      for (const key of moved) {
+        const value = lsGet(accountKey(key, account));
+        if (value === null) continue;
+        try {
+          lsSet(key, value);
+          lsRemove(accountKey(key, account));
+        } catch {
+          // Left under the account's name - still on this device, found when it signs in.
+        }
+      }
+      return false;
+    }
+    namespace = account;
+    return true;
+  }
+
+  // IndexedDB: one transaction writes every document under the account's name and deletes the
+  // signed-out one, taken from the MIRROR (the newest value of each). The switch happens in the
+  // same synchronous step that creates the transaction, so every write the app makes from here
+  // on is queued after it and lands under the new names - nothing can slip in between.
+  const target = db;
+  const rename = (from: string | null, to: string | null): [string, string | null][] =>
+    DURABLE_KEYS.flatMap((key): [string, string | null][] => [
+      [accountKey(key, to), mirror.get(key) ?? null],
+      [accountKey(key, from), null],
+    ]);
+  namespace = account;
+  const move = idbWrite(target, rename(null, account));
+  pending.add(move);
+  try {
+    await move;
+    return true;
+  } catch {
+    // The transaction moved nothing. Go back to the signed-out names and write the mirror there
+    // again, because any write made while it was in flight went to the account's names.
+    namespace = null;
+    try {
+      await idbWrite(target, rename(account, null));
+    } catch {
+      // Both copies are still on this device; the next healthy boot finds the signed-out one.
+    }
+    return false;
+  } finally {
+    pending.delete(move);
+  }
 }
 
 /**
