@@ -224,6 +224,33 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   }, slugs.output as string);
   expect(forged, 'a forged command reached the durable log').toEqual([]);
 
+  // ── NOR CAN THE LINK, OR ANYBODY WITH THE PUBLIC KEY, READ THE LOG ITSELF. ─────────────────
+  //
+  // Until migration 0066, `control_events` was readable to anon with `using (true)`: a GET with
+  // the publishable key listed every production's log - field values sent to air, staged data
+  // that had not aired - and every show id with it. The log now reaches a renderer only as `row`
+  // broadcasts on its private `log-<show id>` topic, and the table answers only its owner and
+  // team. Asked here AFTER the real take, so the log certainly has rows for this production, and
+  // asked twice: by the show id the output slug hands out, and with no filter at all, which is
+  // the enumeration the old read allowed.
+  const reads = await attacker.evaluate(
+    async ({ url, key, showId }) => {
+      const headers = { apikey: key, Authorization: `Bearer ${key}` };
+      const read = async (query: string) => {
+        const res = await fetch(`${url}/rest/v1/control_events?${query}`, { headers });
+        return { status: res.status, rows: res.ok ? ((await res.json()) as unknown[]).length : -1 };
+      };
+      return {
+        thisShow: await read(`select=id&show_id=eq.${showId}`),
+        everyShow: await read('select=id,show_id&limit=50'),
+      };
+    },
+    { url: SUPABASE_URL, key: anonKey, showId: push.showId as string },
+  );
+  console.log('[signed-out log reads]', JSON.stringify(reads));
+  expect(reads.thisShow, 'a signed-out caller read this production\'s command log').toEqual({ status: 200, rows: 0 });
+  expect(reads.everyShow, 'a signed-out caller listed the command log').toEqual({ status: 200, rows: 0 });
+
   // ── AND THE ROAD IS OPEN TO WHOEVER MAY USE IT. ────────────────────────────────────────────
   //
   // The half that stops this walk passing against a renderer that was not listening at all.

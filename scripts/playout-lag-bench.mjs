@@ -34,7 +34,8 @@
 //
 //   rpcSent      the app calling `fetch` for `control_send_many` - everything before it is ours
 //   rpcDone      that fetch resolving - the round trip to the database, the operator's network
-//   wsRow        the first Realtime frame carrying a `control_events` row back into this tab,
+//   wsRow        the first Realtime frame carrying a `control_events` row back into this tab -
+//                a `row` broadcast on the private `log-<show id>` topic since migration 0066 -
 //                stamped on the SOCKET (a listener registered inside the WebSocket constructor,
 //                so it runs before realtime-js has parsed the frame)
 //
@@ -248,26 +249,61 @@ const NET_PROBE = `(() => {
     construct(Target, argumentsList) {
       const ws = new Target(...argumentsList);
       ws.addEventListener('message', (ev) => {
-        const text = typeof ev.data === 'string' ? ev.data : '';
-        if (!text.includes('control_events')) return;
-        // WHICH COMMAND the row carries, so a gesture can time ITS OWN row rather than whichever
-        // arrived first. The fan-out has a slow mode of about 650 ms and stragglers past it, so a
-        // row from the settle before this gesture - the take-down that reset does, or a staged
-        // row - can land inside this window. Measured over the 2026-09-10 run: one of twenty rows
-        // was exactly that, its wsRow sitting 126 ms ahead of the graphic's own played stamp,
-        // while the other nineteen sat within 6 ms of it.
+        // A LOG ROW is a \`row\` broadcast on the production's private \`log-<show id>\` topic
+        // (migration 0064), the only road the app reads the log on since 0066. It reaches the
+        // socket in one of TWO encodings, and both are read:
         //
-        // THE FRAME IS A PHOENIX v2 ARRAY - [joinRef, ref, topic, event, payload] - not an object
-        // with a payload key. Checked against a live frame on 2026-09-10 (the record carries
-        // id, msg, graphic, show_id, created_at under payload.data.record); the object form is
-        // read too, so a serializer change degrades to null rather than to a wrong answer.
+        //   TEXT    a Phoenix v2 array, [joinRef, ref, topic, event, payload], where a broadcast
+        //           nests the row one level down as payload.payload = { id, graphic, msg, ... }.
+        //   BINARY  realtime-js 2.x's user-broadcast frame (@supabase/realtime-js
+        //           lib/serializer.js \`_decodeUserBroadcast\`): byte 0 is the kind (4), bytes 1-4
+        //           are the topic, event and metadata lengths and the payload encoding (1 = JSON),
+        //           then the topic, the event, the metadata and the payload itself - the row.
+        //
+        // WHICH COMMAND the row carries is read so a gesture can time ITS OWN row rather than
+        // whichever arrived first. The fan-out used to have a slow mode of about 650 ms and a row
+        // from the settle before this gesture - the take-down that reset does, or a staged row -
+        // could land inside this window. Measured over the 2026-09-10 run: one of twenty rows was
+        // exactly that, its wsRow sitting 126 ms ahead of the graphic's own played stamp.
+        //
+        // A frame that IS on a log topic but cannot be read still counts, with a null kind, so
+        // \`wsUnparsed\` says the matcher went blind rather than the row never arriving. A join
+        // reply on the same topic is not a row and is skipped.
         let kind = null;
-        try {
-          const frame = JSON.parse(text);
-          const payload = Array.isArray(frame) ? frame[4] : frame?.payload;
-          kind = payload?.data?.record?.msg?.t ?? null;
-        } catch { kind = null; }
-        net.ws.push({ t: abs(), kind, bytes: text.length });
+        let bytes = 0;
+        if (typeof ev.data === 'string') {
+          const text = ev.data;
+          // The cheap filter that keeps every other frame - heartbeats, the command topic - unparsed.
+          if (!text.includes('realtime:log-')) return;
+          bytes = text.length;
+          try {
+            const frame = JSON.parse(text);
+            const event = Array.isArray(frame) ? frame[3] : frame?.event;
+            if (event !== 'broadcast') return;
+            const payload = Array.isArray(frame) ? frame[4] : frame?.payload;
+            kind = payload?.payload?.msg?.t ?? null;
+          } catch { kind = null; }
+        } else if (ev.data instanceof ArrayBuffer) {
+          const buf = ev.data;
+          const view = new DataView(buf);
+          if (buf.byteLength < 5 || view.getUint8(0) !== 4) return;
+          const decoder = new TextDecoder();
+          const topicSize = view.getUint8(1);
+          const eventSize = view.getUint8(2);
+          const metaSize = view.getUint8(3);
+          const topic = decoder.decode(buf.slice(5, 5 + topicSize));
+          if (!topic.includes('log-')) return;
+          bytes = buf.byteLength;
+          try {
+            if (view.getUint8(4) === 1) {
+              const row = JSON.parse(decoder.decode(buf.slice(5 + topicSize + eventSize + metaSize)));
+              kind = row?.msg?.t ?? null;
+            }
+          } catch { kind = null; }
+        } else {
+          return;
+        }
+        net.ws.push({ t: abs(), kind, bytes });
       });
       return ws;
     },
@@ -677,7 +713,7 @@ async function gesture(name, act, settleMs = 1200) {
     toRpcDoneMs: send && send.returned ? round(send.returned - verbClick) : null,
     rpcFailed: send ? send.failed || (typeof send.status === 'number' && send.status >= 400) : null,
     toWsRowMs: wsRow ? round(wsRow.t - verbClick) : null,
-    /** Every `control_events` frame in the window, matched or not - a batch is three rows. */
+    /** Every log-row frame in the window, matched or not - a batch is three rows. */
     wsRows: host.ws.length,
     /** Frames whose command could not be read off the socket text. Any number above zero here
      *  means the matcher is blind for that many frames, and a run where it is non-zero while

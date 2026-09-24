@@ -12,7 +12,13 @@
 //
 //   send    the RPC leaving this machine and its answer coming back
 //   fast    the database's broadcast reaching the other client, on `cmd-<show id>`
-//   slow    the inserted row reaching the other client over `postgres_changes`
+//   slow    the inserted row reaching the other client on `log-<show id>`, the private topic the
+//           database broadcasts every log row on (migration 0064) and the only road a following
+//           surface reads the log on since migration 0066
+//   pgc     the same row over `postgres_changes` on `control-<show id>`, the road the app used
+//           until 0066 and the one graphics exported before 2026-08-05 still follow. A signed-out
+//           reader should see `none` here once 0066 is applied: that column going dark IS the
+//           public read being closed, measured from the seat every renderer sits in.
 //
 // BOTH NUMBERS START AT THE SAME INSTANT - the press - so they are directly comparable, and both
 // now include the RPC's own round trip, because neither road exists until it commits. The first
@@ -134,7 +140,7 @@ const slug = created.data.slug;
  * direction that makes the instrument flatter than the truth.
  *
  * It is read by a SECOND CLIENT, on its own socket, joined to the channel the app itself uses
- * (`control-<show id>`). Two reasons, and both are the point: a broadcast is not echoed back to
+ * (`log-<show id>`). Two reasons, and both are the point: a broadcast is not echoed back to
  * the client that sent it, so a one-client probe would see the fast road not at all; and the
  * seats this measurement is about - another operator's phone, the output renderer - ARE other
  * clients. What this prints is what one of them waits.
@@ -149,12 +155,14 @@ const arrivals = [];
 // here and nowhere else.
 const watcher = createClient(url, key, { auth: { persistSession: false } });
 
-const LOG_TOPIC = `control-${showId}`;
+const LOG_TOPIC = `log-${showId}`;
+const LEGACY_TOPIC = `control-${showId}`;
 const COMMAND_TOPIC = `cmd-${showId}`;
-const noteRow = (payload) => {
-  const msg = payload?.new?.msg;
-  if (msg) arrivals.push({ at: performance.now(), road: 'slow', t: msg.t ?? '?', press: msg.press ?? null });
+const noteRow = (road) => (msg) => {
+  if (msg) arrivals.push({ at: performance.now(), road, t: msg.t ?? '?', press: msg.press ?? null });
 };
+const noteLogRow = noteRow('slow');
+const noteLegacyRow = noteRow('pgc');
 const noteBroadcast = (frame) => {
   for (const item of frame?.payload?.items ?? []) {
     const msg = item?.msg;
@@ -162,19 +170,30 @@ const noteBroadcast = (frame) => {
   }
 };
 
-// THE TWO CHANNELS A FOLLOWING SURFACE JOINS, exactly as `subscribeControlEvents` joins them: the
-// public one for the log's rows, and the PRIVATE one for the command frames. Separate on purpose -
-// the durable road must not depend on the private topic's authorization.
+// THE TWO CHANNELS A FOLLOWING SURFACE JOINS, exactly as `subscribeControlEvents` joins them, both
+// PRIVATE: one for the log's rows and one for the command frames. Separate on purpose - the
+// durable road must not depend on the command topic's authorization.
 let joined = false;
 const channel = watcher
-  .channel(LOG_TOPIC)
+  .channel(LOG_TOPIC, { config: { private: true } })
+  .on('broadcast', { event: 'row' }, (frame) => noteLogRow(frame?.payload?.msg))
+  .subscribe((status) => {
+    if (status === 'SUBSCRIBED') joined = true;
+  });
+
+// ...AND THE ROAD THE APP NO LONGER READS, joined only to be measured. Its join is not waited for
+// and its column is allowed to be empty: after migration 0066 a signed-out reader is SUPPOSED to
+// receive nothing here, and a row arriving in this column is the public read still being open.
+let legacyJoined = false;
+const legacy = watcher
+  .channel(LEGACY_TOPIC)
   .on(
     'postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'control_events', filter: `show_id=eq.${showId}` },
-    noteRow,
+    (payload) => noteLegacyRow(payload?.new?.msg),
   )
   .subscribe((status) => {
-    if (status === 'SUBSCRIBED') joined = true;
+    if (status === 'SUBSCRIBED') legacyJoined = true;
   });
 
 let commandsJoined = false;
@@ -189,7 +208,7 @@ const joinStart = performance.now();
 while ((!joined || !commandsJoined) && performance.now() - joinStart < 30_000) await sleep(50);
 const joinMs = performance.now() - joinStart;
 if (!joined) {
-  console.error('the LOG channel never joined in 30 s - a published operator page would be falling back to the 30 s poll (CONTROL_POLL_MS).');
+  console.error(`the LOG channel (${LOG_TOPIC}) never joined in 30 s - a published operator page would be falling back to the 30 s poll (CONTROL_POLL_MS). Check the log topic's read policy on realtime.messages (migration 0064).`);
 }
 // SAID OUT LOUD, because a refused private join is the way this instrument lies: every `fastMs`
 // below would print `none` and read as a broadcaster that had gone quiet, when what actually
@@ -199,8 +218,8 @@ if (!commandsJoined) {
 }
 
 console.log(`# playout wire probe - ${new Date().toISOString()} - ${JSON.stringify(freeNow())}`);
-console.log(`# channel join: ${joinMs.toFixed(0)} ms`);
-console.log('# press  verb   sendMs   fastMs   slowMs');
+console.log(`# channel join: ${joinMs.toFixed(0)} ms  (legacy postgres_changes channel ${legacyJoined ? 'joined' : 'not joined yet'})`);
+console.log('# press  verb   sendMs   fastMs   slowMs    pgcMs');
 
 /** Wait for one press's own command to arrive on one road, or give up. */
 async function waitFor(press, t, road, limitMs = 10_000) {
@@ -214,7 +233,7 @@ async function waitFor(press, t, road, limitMs = 10_000) {
 }
 
 const sends = [];
-const roads = { take: { fast: [], slow: [] }, out: { fast: [], slow: [] } };
+const roads = { take: { fast: [], slow: [], pgc: [] }, out: { fast: [], slow: [], pgc: [] } };
 
 /**
  * ONE PRESS, exactly as `sendControlVerb` puts it on the wire: an `oid` per command so the two
@@ -247,12 +266,17 @@ async function press(n, verb, items) {
   const moves = verb === 'take' ? 'play' : 'stop';
   const fastAt = await waitFor(n, moves, 'fast');
   const slowAt = await waitFor(n, moves, 'slow');
+  // Short on purpose: by the time the log road has answered, a `postgres_changes` row that was
+  // going to come has almost always come, and a closed road would otherwise cost ten seconds a press.
+  const pgcAt = await waitFor(n, moves, 'pgc', 1_500);
   if (fastAt !== null) roads[verb].fast.push(fastAt - sent);
   if (slowAt !== null) roads[verb].slow.push(slowAt - sent);
+  if (pgcAt !== null) roads[verb].pgc.push(pgcAt - sent);
   const col = (v) => (v === null ? 'none' : v.toFixed(0)).padStart(9);
+  const since = (at) => (at === null ? null : at - sent);
   console.log(
     `# ${String(n).padStart(5)}  ${verb.padEnd(4)}${(returned - sent).toFixed(0).padStart(9)}` +
-      `${col(fastAt === null ? null : fastAt - sent)}${col(slowAt === null ? null : slowAt - sent)}`,
+      `${col(since(fastAt))}${col(since(slowAt))}${col(since(pgcAt))}`,
   );
   // The log caps a production at 50 commands per 5 s (migration 0029) and a take is three, so
   // this paces well under it - and an operator does not press Take ten times a second either.
@@ -273,15 +297,17 @@ for (let i = 0; i < TAKES; i += 1) {
 }
 
 await watcher.removeChannel(channel);
+await watcher.removeChannel(legacy);
 await watcher.removeChannel(commands);
 await sb.from('control_shows').delete().eq('id', showId);
 
 console.log('');
 console.log(`# send (click -> RPC answered):   ${spread(sends)}`);
 for (const verb of ['take', 'out']) {
-  const { fast, slow } = roads[verb];
+  const { fast, slow, pgc } = roads[verb];
   console.log(`# ${verb.padEnd(5)} click -> another surface, FAST:  ${spread(fast)}`);
   console.log(`# ${verb.padEnd(5)} click -> another surface, slow:  ${spread(slow)}`);
+  console.log(`# ${verb.padEnd(5)} click -> old postgres_changes:   ${spread(pgc)}`);
 }
 console.log('# the operator still waits for the app to apply and paint on top of the fast number.');
 // Counted against the presses that were actually ACCEPTED: a press whose RPC was refused returns

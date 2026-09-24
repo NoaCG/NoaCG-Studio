@@ -1145,56 +1145,47 @@ export async function subscribeControlEvents(
 ): Promise<() => void> {
   const sb = await getSupabase();
   if (!sb) return () => {};
-  const channel = sb
-    .channel(`control-${showId}`)
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'control_events', filter: `show_id=eq.${showId}` },
-      (payload) => onRow(payload.new as ControlEventRow),
-    )
-    // EVERY status, not only SUBSCRIBED. SUBSCRIBED fires on every (re)join, not only the first
-    // — that is where a consumer tail-fills the gap a dropped socket left (rows inserted while
-    // away produce no postgres_changes replay, so without it a sleeping tab misses commands
-    // until the NEXT row happens to arrive with a visible id hole). The OTHER statuses
-    // (CHANNEL_ERROR, TIMED_OUT, CLOSED) were swallowed here, which is what made a channel that
-    // never joins indistinguishable from a quiet show: the consumer decides what to do with
-    // them, and `followControlLog` both polls under them and says so.
-    .subscribe((status) => onStatus?.(status));
 
-  // ── THE FAST ROAD, on its own PRIVATE channel (src/control/commandRoads.ts). ────────────────
+  // ── THE LOG, on the production's PRIVATE topic (migration 0064, commandRoads.ts `logTopic`). ──
   //
-  // Same socket, second join. It carries only broadcasts, and only the database writes to it, so
-  // a frame arriving here has already passed `control_send_many`'s checks and the control slug's
-  // authority - which is the difference between this and the public channel above, where anyone
-  // holding the show id could push a command until 2026-09-10.
+  // The database broadcasts every inserted `control_events` row here as `{ id, graphic, msg,
+  // created_at }`, and a holder of the show id may read it. This is the log's ONLY live road.
+  // Until 2026-09-24 the rows also came over `postgres_changes` on `control-<show id>`, and that
+  // road needed a public read on the table - which let anybody with the anon key list every
+  // production's log. Migration 0066 replaced that read with an owner-and-team one, so a
+  // signed-out renderer receives nothing over `postgres_changes` any more and no longer joins it.
   //
-  // ITS STATUS IS REPORTED SEPARATELY from the log's, and never through `onStatus`. That signal
-  // drives "not joined — polling" and the tail-fill on rejoin, and both belong to the LOG: this
-  // channel joining or failing changes only how FAST a command arrives, never whether it does, so
-  // a refused private join must read as yesterday's speed rather than as a broken production.
-  //
-  // But it must read as SOMETHING. Nothing else on this page can tell: every command still
-  // arrives on the durable road, every spec still passes, and a fast road that quietly stopped
-  // being joined - a policy typo, a Realtime instance without `realtime.send` - is invisible
-  // until somebody times a Take. `realtime.send` swallows its own errors into a warning nobody
-  // reads (migration 0056), so this status is the one signal a surface has.
-  // ── THE LOG, MIRRORED ON ITS OWN PRIVATE TOPIC (migration 0064, commandRoads.ts `logTopic`). ──
-  //
-  // The same rows as the `postgres_changes` channel above, broadcast by the database. They go to
-  // the SAME `onRow`, and that is safe by construction: every follower keeps a row-id cursor
-  // (`followControlLog`'s `apply`), so whichever channel delivers a row first applies it and the
-  // other copy is dropped. Its status is deliberately not reported: the channel above still owns
-  // "joined" and the tail-fill on rejoin, and this one only adds a second way for a row to arrive.
-  // When the public read on `control_events` is replaced, this becomes the log's only live road and
-  // takes over that status.
+  // EVERY STATUS, not only SUBSCRIBED. SUBSCRIBED fires on every (re)join, not only the first -
+  // that is where a consumer tail-fills the gap a dropped socket left (a broadcast is never
+  // replayed, so without it a sleeping tab misses commands until the NEXT row happens to arrive
+  // with a visible id hole). The OTHER statuses (CHANNEL_ERROR, TIMED_OUT, CLOSED) are what make
+  // a channel that never joins distinguishable from a quiet show: `followControlLog` both polls
+  // under them and says so. A refused private join lands here too, and reads as "not joined -
+  // polling", which is true: the log then arrives only through the poll floor.
   const log = sb
     .channel(logTopic(showId), { config: { private: true } })
     .on('broadcast', { event: LOG_ROW_EVENT }, (frame) => {
       const row = readLogRow((frame as { payload?: unknown }).payload);
       if (row) onRow(row);
     })
-    .subscribe();
+    .subscribe((status) => onStatus?.(status));
 
+  // ── THE FAST ROAD, on its own PRIVATE channel (src/control/commandRoads.ts). ────────────────
+  //
+  // Same socket, second join. It carries only broadcasts, and only the database writes to it, so
+  // a frame arriving here has already passed `control_send_many`'s checks and the control slug's
+  // authority.
+  //
+  // ITS STATUS IS REPORTED SEPARATELY from the log's, and never through `onStatus`. That signal
+  // drives "not joined - polling" and the tail-fill on rejoin, and both belong to the LOG: this
+  // channel joining or failing changes only how FAST a command arrives, never whether it does, so
+  // a refused command join must read as yesterday's speed rather than as a broken production.
+  //
+  // But it must read as SOMETHING. Nothing else on this page can tell: every command still
+  // arrives on the durable road, every spec still passes, and a fast road that quietly stopped
+  // being joined - a policy typo, a Realtime instance without `realtime.send` - is invisible
+  // until somebody times a Take. `realtime.send` swallows its own errors into a warning nobody
+  // reads (migration 0056), so this status is the one signal a surface has.
   const commands = onCommand
     ? sb
         .channel(commandTopic(showId), { config: { private: true } })
@@ -1206,7 +1197,6 @@ export async function subscribeControlEvents(
     : null;
 
   return () => {
-    void sb.removeChannel(channel);
     void sb.removeChannel(log);
     if (commands) void sb.removeChannel(commands);
   };

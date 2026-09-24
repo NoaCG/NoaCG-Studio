@@ -261,10 +261,14 @@ jobs:
 
           # BOTH tables, not just control_events: 0003 publishes chat_submissions five migrations
           # earlier, so if the publication were missing, 0003 aborts and 0008 never runs at all.
+          # The app follows the command log on the private `log-<show id>` topic since 0066 rather
+          # than through postgres_changes, but control_events stays published: graphics exported
+          # before 2026-08-05 still join it, and a missing publication is still the first sign of
+          # a half-applied schema.
           for table in chat_submissions control_events; do
             in_pub="$(psql "select count(*) from pg_publication_tables where pubname='supabase_realtime' and tablename='${table}'")"
             if [ "$in_pub" != "1" ]; then
-              echo "::error title=${table} is not published::pg_publication_tables has no supabase_realtime entry for ${table}. The hosted-playout specs subscribe through postgres_changes and would fail as 30s timeouts that read like a renderer bug."
+              echo "::error title=${table} is not published::pg_publication_tables has no supabase_realtime entry for ${table}. Show chat subscribes through postgres_changes, and a missing publication means the schema only half applied."
               exit 1
             fi
           done
@@ -275,14 +279,16 @@ jobs:
           # that by granting every new table in `public` to the client roles, and a local stack does
           # not. Missing here, the symptom is 17 specs timing out on "Sync error" - so assert it
           # once, loudly, rather than reading it back out of twenty ambiguous UI failures.
-          for pair in 'authenticated documents' 'authenticated control_shows' 'anon control_events'; do
+          # `authenticated control_events` because the owner's 7-day prune on publish is a DELETE,
+          # and a DELETE under RLS needs the SELECT that 0066 narrowed to the owner and team.
+          for pair in 'authenticated documents' 'authenticated control_shows' 'authenticated control_events'; do
             set -- $pair
             if [ "$(psql "select has_table_privilege('$1', 'public.$2', 'select')")" != "t" ]; then
               echo "::error title=${1} cannot read ${2}::The schema applied but ${1} holds no SELECT on public.${2}, so every request through PostgREST returns 42501. supabase/migrations/0051_client_table_grants.sql grants this; check whether a newer migration added a table without granting it."
               exit 1
             fi
           done
-          echo "anon and authenticated hold the table grants 0051 declares."
+          echo "authenticated holds the table grants 0051 declares."
 
       # The one thing a fresh database genuinely lacks: the account. 21 of the 33 tests sign in,
       # and without this every one of them fails at the sign-in assertion — twenty ambiguous UI

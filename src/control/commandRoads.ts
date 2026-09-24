@@ -58,7 +58,7 @@ export const COMMAND_EVENT = 'cmd';
 
 /**
  * THE PRIVATE TOPIC A PRODUCTION'S COMMANDS TRAVEL ON, and why it is a separate channel from the
- * `control-<show id>` one the log follower has always joined.
+ * `log-<show id>` one the log follower joins.
  *
  * Realtime resolves access to a PRIVATE topic through RLS on `realtime.messages` (migration
  * 0056): anon and authenticated may read `cmd-<uuid>`, and nobody but the database may write one,
@@ -68,26 +68,26 @@ export const COMMAND_EVENT = 'cmd';
  * capability (`control_output_by_slug` answers it, and a renderer needs it), so a link that could
  * only render could push a `play` onto every screen in the building.
  *
- * SEPARATE FROM `control-<show id>` on purpose. That channel carries `postgres_changes`, which is
- * the durable road and must never depend on this policy: if the private join were ever refused,
- * a shared channel would take the log down with it. Two channels on one socket cost one extra
- * join at page load and nothing per verb.
+ * SEPARATE FROM `log-<show id>` on purpose. That channel carries the durable road, which must
+ * never depend on this topic's policy: if the command join were ever refused, a shared channel
+ * would take the log down with it. Two channels on one socket cost one extra join at page load
+ * and nothing per verb.
  */
 export function commandTopic(showId: string): string {
   return `cmd-${showId}`;
 }
 
 /**
- * THE PRIVATE TOPIC THE DURABLE LOG IS MIRRORED ON (migration 0064): every row inserted into
+ * THE PRIVATE TOPIC THE DURABLE LOG IS DELIVERED ON (migration 0064): every row inserted into
  * `control_events` is broadcast here by the database, as `{ id, graphic, msg, created_at }` under
- * the `row` event.
+ * the `row` event. It is the log's only live road.
  *
- * It exists so the log can stop being publicly readable. The `control-<show id>` channel receives
- * rows through `postgres_changes`, which only delivers what the subscriber's RLS can SELECT - and
- * the only SELECT a signed-out renderer has is the blanket one that also lets anybody list every
- * production's log. This topic carries the same rows with the same reach as the command topic
- * (a holder of the show id), so once every follower reads it the blanket read can go. Until
- * then a follower hears each row on both channels and its row-id cursor drops the second copy.
+ * It exists so the log need not be publicly readable. Followers used to receive rows through
+ * `postgres_changes` on `control-<show id>`, which only delivers what the subscriber's RLS can
+ * SELECT - and the only SELECT a signed-out renderer had was the blanket one that also let
+ * anybody list every production's log. This topic carries the same rows with the same reach as
+ * the command topic (a holder of the show id), so migration 0066 replaced the blanket read with
+ * an owner-and-team one and followers stopped joining `postgres_changes`.
  */
 export function logTopic(showId: string): string {
   return `log-${showId}`;
