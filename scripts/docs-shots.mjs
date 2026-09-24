@@ -338,7 +338,10 @@ const TYPE_EXAMPLES = [
   { id: 'quiz', crop: [340, 120, 1240, 840], behaviour: 'quiz' },
   { id: 'live-vote', crop: [340, 120, 1240, 840], behaviour: 'poll' },
   { id: 'countdown', crop: [520, 270, 880, 540], behaviour: 'timer' },
-  { id: 'end-credits', crop: [520, 90, 880, 900], behaviour: null },
+  // The credits roll starts the moment the preview plays, so the shutter waits until the list
+  // is a few seconds into the frame; fired at the settle it catches the first line entering
+  // at the bottom edge, which teaches nothing.
+  { id: 'end-credits', crop: [520, 90, 880, 900], behaviour: 'credits', hold: 5000 },
   { id: 'ticker', crop: [0, 930, 1100, 140], behaviour: null },
 ];
 
@@ -392,6 +395,8 @@ for (const type of TYPE_EXAMPLES) {
       await page.getByTestId('map-svg-behaviour').evaluate((el) => el.scrollIntoView({ block: 'start' }));
       await page.waitForTimeout(600);
     }
+    // A graphic whose preview MOVES is shot where the motion says something (`hold`).
+    if (type.hold) await page.waitForTimeout(type.hold);
     return modal(page);
   }, VIEWPORT, SCALE);
 }

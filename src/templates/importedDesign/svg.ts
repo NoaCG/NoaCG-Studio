@@ -49,6 +49,7 @@ import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
 import { countdownIndex, svgFields } from './artworkFields';
+import { creditsClass, creditsIndex, creditsRollCss, creditsRollRuntimeJs } from './creditsRoll';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
 import { PREFIX } from './shared';
@@ -243,16 +244,23 @@ function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   }
 
   const clock = countdownIndex(svg);
+  const credits = creditsIndex(svg);
   [...svg.fields, ...svg.images].forEach((field, i) => {
     const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${field.candidateId}"]`);
     if (!el) return;
-    if (i === clock) {
+    if (i === clock || i === credits) {
       // The countdown DISPLAY: the clock runtime paints into `.{prefix}-clock`, and the
       // operator's minutes land in the hidden #fN holder instead - so this node takes the
       // class and NOT the field id, or update() would write "10" over the ticking readout.
-      const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-      if (!own.includes(`${PREFIX}-clock`)) own.push(`${PREFIX}-clock`);
-      el.setAttribute('class', own.join(' '));
+      // The CREDITS SAMPLE is the same shape: the operator's list lands in its holder, and the
+      // drawn text keeps its two looks for the roll engine to copy (creditsRoll.ts).
+      // The sample is the whole <text>: a composed block offers its runs as candidates, and the
+      // roll copies looks and leading off the lines of the text those runs belong to.
+      const target = i === credits ? el.closest('text') ?? el : el;
+      const cls = i === clock ? `${PREFIX}-clock` : creditsClass(PREFIX);
+      const own = (target.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+      if (!own.includes(cls)) own.push(cls);
+      target.setAttribute('class', own.join(' '));
       return;
     }
     // A PICTURE field binds the node whose href paints the picture, which is not always the node
@@ -1790,11 +1798,13 @@ if (typeof ResizeObserver === 'function') {
  */
 /** The bound lines the author said something about - an alignment, or the nudge - with the field
  *  index each one binds as. The one predicate for "this design has a `lines` list". The countdown
- *  layer is left out: it becomes the clock display and never carries the field id a row would
- *  name (`bindSvgMarkup`), so a declaration on it could reach nothing. */
+ *  layer and the credits sample are left out: each becomes a display the runtime paints and
+ *  never carries the field id a row would name (`bindSvgMarkup`), so a declaration on it could
+ *  reach nothing. */
 function saidLines(svg: DesignSvg): { f: DesignSvgField; i: number }[] {
   const clock = countdownIndex(svg);
-  return svg.fields.map((f, i) => ({ f, i })).filter(({ f, i }) => i !== clock && (f.align || f.nudge));
+  const credits = creditsIndex(svg);
+  return svg.fields.map((f, i) => ({ f, i })).filter(({ f, i }) => i !== clock && i !== credits && (f.align || f.nudge));
 }
 
 function layoutDataJs(svg: DesignSvg, labelOf: (candidateId: string) => string): string {
@@ -2867,6 +2877,18 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
          and read by the clock runtime in template.js; the drawn clock layer shows the count. -->
     <div id="${clockField.field}" class="${DATA_SOURCE_CLASS}">${clockField.value}</div>`
     : '';
+  // The credits list (docs/END_CREDITS.md): the same contract as the clock - the drawn Credits
+  // text is the SAMPLE the roll copies its looks from, and the operator's whole list lands in
+  // this holder for the roll engine to render (creditsRoll.ts). Escaped, because a sample may
+  // carry an ampersand and the holder is markup.
+  const credits = creditsIndex(svg);
+  const creditsField = credits === -1 ? null : artworkFields[credits];
+  const creditsHolder = creditsField
+    ? `
+    <!-- ${creditsField.title} (${creditsField.field}) - the whole credit list, one line per name, written
+         by SPX and rolled by the credits engine in template.js; the drawn Credits text is its sample. -->
+    <div id="${creditsField.field}" class="${DATA_SOURCE_CLASS}">${creditsField.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
+    : '';
 
   const html = documentHtml({
     title: name,
@@ -2876,7 +2898,7 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
        them; everything else is untouched. -->
   <div class="${PREFIX}">
     <div class="${PREFIX}-box">
-${inlineSvg}${clockHolder}${behaviour ? behaviour.html(artworkFields.length) : ''}
+${inlineSvg}${clockHolder}${creditsHolder}${behaviour ? behaviour.html(artworkFields.length) : ''}
     </div>
   </div>`,
   });
@@ -2922,6 +2944,8 @@ ${svg.outlines.length > 0 ? `
 ${dataSourceCss}
 ` : ''}${behaviour?.css ? `
 ${behaviour.css}
+` : ''}${creditsField ? `
+${creditsRollCss(PREFIX)}
 ` : ''}`;
 
   const preset = designPreset(o.animation.presetId);
@@ -2954,10 +2978,12 @@ ${behaviour.css}
   // catalog's own countdowns call, so an imported clock answers Update identically (the
   // reasoning is in shared/clock.ts). Emitted only for a design that actually bound one.
   const clockHook = `  if (typeof clockDataUpdated === 'function') clockDataUpdated();  // the countdown's length (below)`;
+  // A bound credits list rebuilds its rows from the value just written, in the sample's looks.
+  const creditsHook = `  if (typeof creditsDataUpdated === 'function') creditsDataUpdated();  // the credit roll's rows (below)`;
   const js =
     runtimeJs(name, preset.emit(cfg)).replace(
       PLACED_TEXT_HOOK,
-      `${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}`,
+      `${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}${creditsField ? `\n${creditsHook}` : ''}`,
     ) +
     SVG_FIT_JS +
     // The relationship TABLE rides only for a design that declares something in it - a growth
@@ -2977,6 +3003,9 @@ ${behaviour.css}
     '\n' +
     (clockField ? `\n${clockRuntimeJs(PREFIX, clockField.field)}\n` : '') +
     (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +
+    // AFTER the behaviour's table: the roll engine reads its field ids out of NOACG_BEHAVIOUR the
+    // moment it first renders, and in a document whose markup is already parsed that is now.
+    (creditsField ? `\n${creditsRollRuntimeJs(PREFIX)}` : '') +
     SVG_FIT_BOOT;
 
   // The design presets know nothing of clocks, so the lifecycle hooks are added to the DATA
@@ -3005,9 +3034,10 @@ ${behaviour.css}
     settings,
     // The SVG is inline; only embedded font files ride as assets.
     assets: svg.fonts.filter((f) => f.customFont).map((f) => f.customFont!.asset),
-    // The countdown's layer is the clock display, not a text field - left out here.
+    // The countdown's layer is the clock display and the credits layer is the roll's sample,
+    // not text fields - both left out here.
     layers: svg.fields.flatMap((f, i) =>
-      i === clock
+      i === clock || i === credits
         ? []
         : [{ id: `f${i}`, type: 'text' as const, label: f.title, fieldId: `f${i}`, text: f.sample, styles: {} }],
     ),

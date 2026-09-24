@@ -1122,13 +1122,20 @@ function isWrappedBlock(fields: TextField[]): boolean {
  * runtime repaints it at its own leading on the first fit, which is what "NoaCG handles the
  * wrapping" means.
  *
- * A line made of SEVERAL kerned runs cannot be stamped - the stamp is per line, and marking each
- * run would put a space inside a word - so that block is FLATTENED to its one value instead. It
- * loses the hand kerning, which no wrapping block can keep anyway: the moment the words move,
- * the kerning the designer set for their old positions is wrong. The same goes for a line that
- * is not a DIRECT child of the `<text>`: the runtime reads a block off `el.children`, so a line
- * parked inside a wrapper tspan would be stamped here and not recognised there, which is both
- * failures the stamp exists to prevent, arriving silently.
+ * A line made of SEVERAL kerned runs cannot be stamped as it stands - the stamp is per line, and
+ * marking each run would put a space inside a word - so its runs are MERGED into one tspan first:
+ * the first run's own attributes (its position, its class, whatever look it carries) and the
+ * whole line's text. It loses the hand kerning, which no wrapping block can keep anyway: the
+ * moment the words move, the kerning the designer set for their old positions is wrong. What it
+ * KEEPS is the line - its baseline and its look - which used to go too: the block was flattened
+ * to one value, and a credits sample whose title line and name line were drawn in two looks
+ * arrived as one look on one line (templates/importedDesign/creditsRoll.ts reads those two
+ * lines back). Illustrator writes a kerned run for every optical kerning pair, so a multi-line
+ * block with no runs at all is the exception rather than the rule.
+ *
+ * A line that is not a DIRECT child of the `<text>` still flattens the block: the runtime reads
+ * a block off `el.children`, so a line parked inside a wrapper tspan would be stamped here and
+ * not recognised there, which is both failures the stamp exists to prevent, arriving silently.
  *
  * NEITHER path touches a `<text>` holding a `<textPath>`. Flattening one would delete the curve
  * the designer drew - the same loss `textCandidates` guards a single textPath against at
@@ -1139,12 +1146,21 @@ function isWrappedBlock(fields: TextField[]): boolean {
  */
 function markWrappedBlock(el: Element, lines: TextRun[][], value: string): void {
   if (el.querySelector('textPath')) return;
-  if (lines.every((line) => line.length === 1 && line[0].el.parentElement === el)) {
-    for (const line of lines) line[0].el.setAttribute(SVG_WRAPPED_LINE_ATTR, '');
+  if (!lines.every((line) => line.every((run) => run.el.parentElement === el))) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+    el.textContent = value;
     return;
   }
-  while (el.firstChild) el.removeChild(el.firstChild);
-  el.textContent = value;
+  for (const line of lines) {
+    const first = line[0].el;
+    if (line.length > 1) {
+      // The first run stands for the line: its x, its baseline and its look stay, the text of
+      // every run joins it in order, and the other runs go.
+      first.textContent = line.map((run) => run.text).join('');
+      for (const run of line.slice(1)) run.el.remove();
+    }
+    first.setAttribute(SVG_WRAPPED_LINE_ATTR, '');
+  }
 }
 
 /**
