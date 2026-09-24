@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #1d2b53;
+      }
+
+      .st1 {
+        fill: #fff;
+        font-family: Oswald-Medium, Oswald;
+        font-size: 40px;
+        font-weight: 500;
+      }
+
+      .st2 {
+        font-family: Oswald-Regular, Oswald;
+        font-size: 26px;
+      }
+
+      .st2, .st3 {
+        fill: #fc0;
+      }
+
+      .st4 {
+        fill: #2e4272;
+      }
+
+      .st3 {
+        font-family: Oswald-Bold, Oswald;
+        font-size: 72px;
+        font-weight: 700;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Background" class="st0" width="1920" height="1080"/>
+    <rect id="Credit_box_1" class="st4" x="260" y="250" width="680" height="100"/>
+    <rect id="Credit_box_2" class="st4" x="260" y="366" width="680" height="100"/>
+    <rect id="Credit_box_3" class="st4" x="260" y="482" width="680" height="100"/>
+    <rect id="Credit_box_4" class="st4" x="260" y="598" width="680" height="100"/>
+    <rect id="Credit_box_5" class="st4" x="260" y="714" width="680" height="100"/>
+    <rect id="Credit_box_6" class="st4" x="260" y="830" width="680" height="100"/>
+    <rect id="Credit_box_7" class="st4" x="980" y="250" width="680" height="100"/>
+    <rect id="Credit_box_8" class="st4" x="980" y="366" width="680" height="100"/>
+    <rect id="Credit_box_9" class="st4" x="980" y="482" width="680" height="100"/>
+    <rect id="Credit_box_10" class="st4" x="980" y="598" width="680" height="100"/>
+    <rect id="Credit_box_11" class="st4" x="980" y="714" width="680" height="100"/>
+    <rect id="Credit_box_12" class="st4" x="980" y="830" width="680" height="100"/>
+  </g>
+  <g id="Text">
+    <text id="Heading" class="st3" transform="translate(679.56 189.16)"><tspan x="0" y="0">PRODUCTION TEAM</tspan></text>
+    <text id="Role_1" class="st2" transform="translate(290 286)"><tspan x="0" y="0">DIRECTOR</tspan></text>
+    <text id="Person_1" class="st1" transform="translate(290 332)"><tspan x="0" y="0">Ella Nieminen</tspan></text>
+    <text id="Role_2" class="st2" transform="translate(290 402)"><tspan x="0" y="0">PRODUCER</tspan></text>
+    <text id="Person_2" class="st1" transform="translate(290 448)"><tspan x="0" y="0">Oskari Lahtinen</tspan></text>
+    <text id="Role_3" class="st2" transform="translate(290 518)"><tspan x="0" y="0">VISION MIXER</tspan></text>
+    <text id="Person_3" class="st1" transform="translate(290 564)"><tspan x="0" y="0">Sara Koskinen</tspan></text>
+    <text id="Role_4" class="st2" transform="translate(290 634)"><tspan x="0" y="0">CAMERA 1</tspan></text>
+    <text id="Person_4" class="st1" transform="translate(290 680)"><tspan x="0" y="0">Mikael Heikkinen</tspan></text>
+    <text id="Role_5" class="st2" transform="translate(290 750)"><tspan x="0" y="0">CAMERA 2</tspan></text>
+    <text id="Person_5" class="st1" transform="translate(290 796)"><tspan x="0" y="0">Venla Mäkinen</tspan></text>
+    <text id="Role_6" class="st2" transform="translate(290 866)"><tspan x="0" y="0">CAMERA 3</tspan></text>
+    <text id="Person_6" class="st1" transform="translate(290 912)"><tspan x="0" y="0">Leo Hämäläinen</tspan></text>
+    <text id="Role_7" class="st2" transform="translate(1010 286)"><tspan x="0" y="0">SOUND</tspan></text>
+    <text id="Person_7" class="st1" transform="translate(1010 332)"><tspan x="0" y="0">Aada Järvinen</tspan></text>
+    <text id="Role_8" class="st2" transform="translate(1010 402)"><tspan x="0" y="0">LIGHTING</tspan></text>
+    <text id="Person_8" class="st1" transform="translate(1010 448)"><tspan x="0" y="0">Eetu Laine</tspan></text>
+    <text id="Role_9" class="st2" transform="translate(1010 518)"><tspan x="0" y="0">GRAPHICS</tspan></text>
+    <text id="Person_9" class="st1" transform="translate(1010 564)"><tspan x="0" y="0">Iida Korhonen</tspan></text>
+    <text id="Role_10" class="st2" transform="translate(1010 634)"><tspan x="0" y="0">FLOOR MANAGER</tspan></text>
+    <text id="Person_10" class="st1" transform="translate(1010 680)"><tspan x="0" y="0">Joonas Salminen</tspan></text>
+    <text id="Role_11" class="st2" transform="translate(1010 750)"><tspan x="0" y="0">SCRIPT</tspan></text>
+    <text id="Person_11" class="st1" transform="translate(1010 796)"><tspan x="0" y="0">Helmi Virtanen</tspan></text>
+    <text id="Role_12" class="st2" transform="translate(1010 866)"><tspan x="0" y="0">TEACHER</tspan></text>
+    <text id="Person_12" class="st1" transform="translate(1010 912)"><tspan x="0" y="0">Anna Lehtonen</tspan></text>
+  </g>
+</svg>

@@ -206,6 +206,9 @@ Layers of documentation, top to bottom:
   gitignored `frames/` of screenshots captured by the e2e walk that drives that road. The pack is
   the input a video is made from; the video itself is made elsewhere. Its own `README.md` is the
   contract.
+- `tutorials/talk-show-set/` - a classroom example set for one talk show with a quiz: five
+  graphics as layered Illustrator files, the SVGs Illustrator's Save a Copy writes from them,
+  and state previews. Rebuilt by `scripts/illustrator/build-talk-show-set.jsx`.
 
 ## The shelf
 
