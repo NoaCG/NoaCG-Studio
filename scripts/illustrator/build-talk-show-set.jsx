@@ -2,16 +2,18 @@
 //
 // For each of the five graphics it draws the artwork natively (rectangles and point type in
 // Oswald), puts it on the three top-level layers the NoaCG docs teach (Text, Moments, Board),
-// saves the .ai, writes the SVG through Illustrator's own "Save a Copy > SVG" exporter with the
-// settings docs/SVG_AUTHORING.md section 6 lists, and exports a PNG preview of each state over a
-// grey backdrop. So the files in import-ready/ are exactly what a student gets from the .ai files.
+// saves the .ai, writes the SVG with exportFile(ExportType.SVG), which is the same SVG export
+// plug-in that "Save a Copy > SVG" runs, with the settings docs/SVG_AUTHORING.md section 6 lists,
+// and exports a PNG preview of each state over a grey backdrop. The one dialog setting scripting
+// cannot reach is Responsive, and the files come out without width and height, which is what
+// Responsive on writes; the importer reads the viewBox either way.
 //
 // Run it from Illustrator (File > Scripts > Other Script...) or through COM on Windows:
 //   $ai = New-Object -ComObject Illustrator.Application
 //   $ai.DoJavaScriptFile("<path>\build-talk-show-set.jsx")
 // It writes into docs/tutorials/talk-show-set/ (illustrator/, import-ready/, preview/) and its
 // log to noacg-talk-show-set.log in the system temp folder.
-// Needs the Oswald family installed (Google Fonts or Adobe Fonts).
+// Needs the Oswald family installed (free from Google Fonts).
 //
 // ExtendScript is ES3: no let, no arrow functions, and non-ASCII text is written as \u escapes
 // because Illustrator reads a script without a byte-order mark as the system code page.

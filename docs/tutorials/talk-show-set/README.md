@@ -27,10 +27,10 @@ fields > playout.**
 | Quiz | `quiz` | Question, Answer A to D, the correct answer, and Select, Lock and Reveal buttons |
 | End credits | `end-credits` | Heading, and twelve pairs of Role and Person |
 
-**Font.** Everything uses **Oswald** (Regular, Medium and Bold). It is free on Google Fonts and
-Adobe Fonts, and NoaCG carries it too, so the graphic looks the same on every machine. If
-Illustrator opens a file with pink highlighted text, Oswald is not installed: activate it in the
-Creative Cloud app under Fonts, or install it from fonts.google.com.
+**Font.** Everything uses **Oswald** (Regular, Medium and Bold). It is free on Google Fonts, and
+NoaCG carries it too, so the graphic looks the same on every machine. If Illustrator opens a file
+with pink highlighted text, Oswald is not installed: download it from fonts.google.com, install
+it, and open the file again.
 
 ## The rule every file follows
 
