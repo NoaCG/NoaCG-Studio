@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <!-- A credits graphic in the classroom's layer system: Text (Heading, Credits), Board (Panel,
+       Credits box). The Credits text is the SAMPLE the roll copies its two looks from - a title
+       line in st2, the names under it in the text's own st1 - drawn as Illustrator writes a
+       multi-line block: one tspan per line, and a kerned pair split into two runs on one line. -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #1d2b53;
+      }
+
+      .st1 {
+        fill: #fff;
+        font-family: Oswald-Regular, Oswald;
+        font-size: 40px;
+      }
+
+      .st2 {
+        fill: #fc0;
+        font-family: Oswald-Bold, Oswald;
+        font-size: 44px;
+        font-weight: 700;
+      }
+
+      .st3 {
+        fill: #fc0;
+        font-family: Oswald-Bold, Oswald;
+        font-size: 64px;
+        font-weight: 700;
+      }
+
+      .st4 {
+        fill: #2e4272;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Panel" class="st0" width="1920" height="1080"/>
+    <rect id="Credits_box" data-name="Credits box" class="st4" x="310" y="150" width="1300" height="800"/>
+  </g>
+  <g id="Text">
+    <text id="Heading" class="st3" transform="translate(360 110)"><tspan x="0" y="0">END CREDITS</tspan></text>
+    <text id="Credits" class="st1" transform="translate(360 260)"><tspan class="st2" x="0" y="0">Host:</tspan><tspan x="0" y="52">Maija Meikäläinen</tspan><tspan class="st2" x="0" y="136">Guests:</tspan><tspan x="0" y="188">V</tspan><tspan x="26" y="188">ille Virtanen</tspan><tspan x="0" y="240">Aino Aalto</tspan><tspan class="st2" x="0" y="324">Camera:</tspan><tspan x="0" y="376">Eero Eskola</tspan><tspan x="0" y="428">Liisa Lahti</tspan><tspan x="0" y="480">Pekka Peltola</tspan><tspan class="st2" x="0" y="564">Vision mixer:</tspan><tspan x="0" y="616">Sanna Salo</tspan><tspan class="st2" x="0" y="700">Sound:</tspan><tspan x="0" y="752">Timo Toivonen</tspan><tspan class="st2" x="0" y="836">Lighting:</tspan><tspan x="0" y="888">Kaisa Koski</tspan><tspan class="st2" x="0" y="972">Graphics:</tspan><tspan x="0" y="1024">Jussi Järvi</tspan><tspan class="st2" x="0" y="1108">Director:</tspan><tspan x="0" y="1160">Anna Ahonen</tspan><tspan class="st2" x="0" y="1244">Producer:</tspan><tspan x="0" y="1296">Mika Mäkelä</tspan><tspan x="0" y="1380">Brain Battle 2026</tspan></text>
+  </g>
+</svg>

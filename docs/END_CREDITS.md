@@ -116,11 +116,36 @@ hands that decision to you as **Emphasis** in the wizard's Style step:
 In the generated code it is one class on `.credits-box`
 (`credits-box--emph-role` / `credits-box--emph-name`), so it can also be flipped by hand later.
 
+## The same field on an imported SVG
+
+A graphic drawn in Illustrator (or Figma, or Inkscape) gets the same one field. Name one text
+layer `Credits` and the import binds the **credits roll** behaviour to it: the operator gets a
+multi-line Credits box holding whatever you typed into the layer, plus **Scroll speed (%)**, and on
+Take the whole list rolls from below the frame to above it, at a constant pace, until the last
+line has gone. Draw a plate named `Credits box` and the roll runs inside that plate instead of
+the whole frame. The format is the one above, unchanged: a line ending in a colon is a title, the
+lines under it are names, `Title: Name` works inline, a tab from a spreadsheet works, a blank line
+starts a new section.
+
+**The look is the sample's.** What you type into the Credits layer in your design app is the
+sample, and it is how you style the roll: the first line ending in `:` is what every title line
+will look like, and the line under it is what every name line will look like. Font, size, weight,
+colour, the indent, the leading between a title and its names, between two names, and the gap
+before the next title are all read off those lines. Two lines styled once, and every list the
+operator pastes follows them. The sample itself is hidden on air.
+
+**Scroll speed 100** means the list moves at about 1.35 of its own lines a second, so about twenty
+lines pass through a 1080-high frame in about thirty seconds, whatever size the type is. 200 is
+twice as fast, 50 half; the value applies from the next take.
+
 ## For maintainers
 
-- The parser is `parseCredits` in `src/templates/endCredits/shared.ts`, emitted into every
-  generated template. It escapes every value **on the way out**, so a design's own row builders
-  are safe to rewrite without remembering the rule.
+- The parser is `parseCredits` in `src/templates/endCredits/shared.ts` (`CREDITS_PARSER_JS`),
+  emitted into every generated template - the catalog rolls and the imported-SVG roll
+  (`src/templates/importedDesign/creditsRoll.ts`, declared by `src/templates/behaviours/credits.ts`)
+  alike. It escapes every value **on the way out** through its `escape` argument (`escapeHtml` by
+  default), so a design's own row builders are safe to rewrite without remembering the rule; a
+  renderer that writes `textContent` passes the identity.
 - It produces `{ type: 'group', role, names[] }`, plus `heading` and `entry`. A design that
   defines `renderCreditGroup(group)` receives the group whole - the only way one role can lay out
   above or beside several names. A design without one is served the group flattened into the

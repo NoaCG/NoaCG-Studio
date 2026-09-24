@@ -17,8 +17,10 @@ import { fileURLToPath } from 'node:url';
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = readFileSync(path.join(projectRoot, 'src/templates/endCredits/shared.ts'), 'utf8');
 
+// The parser lives in the exported CREDITS_PARSER_JS literal (shared by the catalog rolls and the
+// imported-SVG credits roll), so the block runs from its first statement to the literal's end.
 const start = source.indexOf('var ROLE_LABEL_MAX');
-const end = source.indexOf('// rebuildCredits()');
+const end = source.indexOf('`;', start);
 assert.ok(start > 0 && end > start, 'parser block not found in shared.ts');
 const block = source.slice(start, end);
 // The block is plain text inside a template literal: no interpolation, no backticks, and `\\`

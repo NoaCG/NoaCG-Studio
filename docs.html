@@ -480,6 +480,9 @@
 <tr><td>Last call readout</td><td><code>Last call</code></td><td><code>Latest</code>, <code>Now calling</code></td><td>the number called most recently, written large - hidden until the first call</td></tr>
 <tr><td>Count</td><td><code>Count</code></td><td><code>Calls</code>, <code>So far</code></td><td>how many numbers have been called, written by the board</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Five to ninety numbers, one Called layer each. Name the numeral on each tile Number 1, Number 2 and so on, and it stays your drawing instead of arriving as a field.</td></tr>
+<tr class="doc-words-type"><th colspan="4">Credits roll</th></tr>
+<tr><td>Credits</td><td><code>Credits</code></td><td><code>Credit list</code>, <code>End credits</code>, <code>Lopputekstit</code>, <code>Eftertexter</code></td><td>the whole list, pasted into one box - a line ending in ":" is a title, the names go under it</td></tr>
+<tr><td>Credits box</td><td><code>Credits box</code></td><td><code>Credits panel</code>, <code>Credits window</code>, <code>Lopputekstit laatikko</code></td><td>a plate the roll runs inside; without one it runs through the whole frame</td></tr>
 </table></div>
 <!-- behaviour-words:end -->
 
@@ -501,6 +504,20 @@
             <p>
               When the operator types more than fits, NoaCG first uses the room in the shape behind
               the text, then wraps it onto a new line, then makes it smaller. Nothing is cut off.
+            </p>
+
+            <h4 id="svg-layers-credits">Credits: one pasted list</h4>
+            <p>
+              End credits are one text layer named <code>Credits</code>, never a layer per name.
+              The operator pastes the whole list into one box. A line ending in <code>:</code> is
+              a title and the lines under it are its names; <code>Director: Anna Ahonen</code> on
+              one line is the same thing, a tab from a spreadsheet works too, and a blank line
+              starts a new section. What you type into the layer in Illustrator is the sample, and
+              it is how you style the roll: the first line ending in <code>:</code> is what every
+              title will look like, and the line under it is what every name will look like.
+              On Take the list rolls from the bottom of the frame to the top at the Scroll speed
+              the operator sets, about twenty lines in thirty seconds at 100. Draw a plate named
+              <code>Credits box</code> and the roll runs inside it.
             </p>
           </section>
 
@@ -915,9 +932,12 @@
             </figure>
             <h4 id="credits-colon">A scrolling roll</h4>
             <p>
-              An imported credits graphic has a fixed number of lines and does not scroll. For a
-              scrolling roll of any length, start from a credits design in the catalog instead. It
-              has one text box for the whole roll, written like this:
+              The Credits text is one box for the whole roll, however many names a show has, and on
+              Take it rolls from the bottom of the frame to the top at the Scroll speed the
+              operator sets. Draw a plate named <code>Credits box</code> and the roll runs inside it.
+              What you type into the layer in Illustrator is the sample: the first line ending in
+              <code>:</code> is what every title looks like, and the line under it is what every
+              name looks like. The catalog credits designs read the same box, written like this:
             </p>
             <pre><code>Director: Alex Rivera
 

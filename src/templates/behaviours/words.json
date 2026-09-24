@@ -938,5 +938,43 @@
         "what": "how many numbers have been called, written by the board"
       }
     ]
+  },
+  "credits": {
+    "name": "The credits roll",
+    "verbs": "one pasted list rolls through, bottom to top",
+    "buttons": "the Credits field (the whole list, pasted) and Scroll speed (%)",
+    "roles": [
+      {
+        "id": "credits",
+        "label": "Credits",
+        "kind": "field",
+        "required": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "^(?:credits|credit list|end credits|lopputekstit|eftertexter)$",
+        "teach": "Credits",
+        "also": [
+          "Credit list",
+          "End credits",
+          "Lopputekstit",
+          "Eftertexter"
+        ],
+        "what": "the whole list, pasted into one box - a line ending in \":\" is a title, the names go under it"
+      },
+      {
+        "id": "box",
+        "label": "Credits box",
+        "kind": "layer",
+        "pool": "drawn",
+        "words": "^(?:credits|end credits|lopputekstit|eftertexter) ?(?:box|plate|panel|window|laatikko|ruta)$",
+        "teach": "Credits box",
+        "also": [
+          "Credits panel",
+          "Credits window",
+          "Lopputekstit laatikko"
+        ],
+        "what": "a plate the roll runs inside; without one it runs through the whole frame"
+      }
+    ]
   }
 }
