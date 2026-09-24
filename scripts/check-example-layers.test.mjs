@@ -1,4 +1,4 @@
-// guards: public/docs/examples/**, docs/tutorials/**, src/templates/behaviours/layer-names.json, src/templates/behaviours/words.json
+// guards: public/docs/examples/**, docs/tutorials/**, scripts/fixtures/illustrator-talk-show-quiz.svg, src/templates/behaviours/layer-names.json, src/templates/behaviours/words.json
 //
 // THE LAYER-NAMING GATE, MUTATION-CHECKED.
 //
@@ -82,7 +82,7 @@ test('a moment left visible, or not a group, is caught; a bar drawn full stays v
   const visible = mutate(example('quiz.svg'), 'data-name="Selected A" display="none"', 'data-name="Selected A"');
   caught(audit(visible), 'moments', /"Selected A" must be a hidden group/);
   const hiddenBar = mutate(example('live-vote.svg'), 'data-name="Bar 2"', 'data-name="Bar 2" display="none"');
-  caught(audit(hiddenBar), 'moments', /"Bar 2" is a bar - draw it at full length and leave it visible/);
+  caught(audit(hiddenBar), 'moments', /"Bar 2" is drawn as it stands - draw a bar at full length and leave it visible/);
 });
 
 test('a moment NoaCG does not know, or one whose row has no text, is caught', () => {
@@ -120,13 +120,57 @@ test('the behaviour words come from words.json at run time, never from a copy', 
 });
 
 test('genuine Illustrator output is read: the transforms, the class-hidden moments, the escaped ids', () => {
-  // The talk-show quiz was written by Illustrator 2026's own SVG save. It breaks the Board rule
+  // A copy of the talk-show quiz, written by Illustrator 2026's own SVG save (the tutorial folder
+  // itself goes when the owner removes it, so the test keeps its own). It breaks the Board rule
   // (Row A to Row D), and renamed to the system it passes, so the check reads Illustrator's
   // markup and not only the hand-written examples.
-  const genuine = readFileSync(path.join(ROOT, 'docs', 'tutorials', 'talk-show-set', 'import-ready', 'quiz.svg'), 'utf8');
+  const genuine = readFileSync(path.join(ROOT, 'scripts', 'fixtures', 'illustrator-talk-show-quiz.svg'), 'utf8');
   caught(audit(genuine), 'board', /"Row A" sits under "Answer A" alone - name its plate "Answer box A"/);
   const fixed = genuine.replace(/id="Row_([A-D])"/g, 'id="Answer_box_$1"');
   assert.deepEqual(audit(fixed), []);
+});
+
+/** A small hand-drawn SVG in the three layers, for the shapes no example file has. */
+const drawn = ({ text = '', moments = '', board = '' }) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">` +
+  (board ? `<g id="Board">${board}</g>` : '') +
+  (moments ? `<g id="Moments">${moments}</g>` : '') +
+  `<g id="Text">${text}</g></svg>`;
+
+test('what the system allows is not refused: taught moments, behaviour plates, shadows, frames', () => {
+  // A survey's strikes are taught with a number that is not a row.
+  const survey = drawn({
+    text: '<text id="Question" x="100" y="100">Q</text><text id="Answer_1" x="100" y="300">A</text>',
+    moments: '<g id="Strike_1" display="none"><rect width="10" height="10"/></g><g id="Revealed_1" display="none"><rect width="10" height="10"/></g>',
+  });
+  assert.deepEqual(audit(survey), []);
+  // The standings' row plate travels with its row, so it keeps the name the behaviour binds.
+  const ranking = drawn({
+    text: '<text id="Name_1" x="100" y="130">Ada</text><text id="Points_1" x="900" y="130">3</text>',
+    board: '<rect id="Row_1" x="80" y="100" width="400" height="50"/>',
+  });
+  assert.deepEqual(audit(ranking), []);
+  // A shadow painted under the panel, and a frame group around it, both hold every text too.
+  const shadowed = drawn({
+    text: '<text id="Name" x="200" y="900">A</text><text id="Role" x="200" y="950">B</text>',
+    board: '<rect id="Shadow" x="145" y="785" width="1000" height="200"/><g id="Frame"><rect id="Panel" x="140" y="780" width="1000" height="200"/><rect id="Edge" x="140" y="780" width="10" height="200"/></g>',
+  });
+  assert.deepEqual(audit(shadowed), []);
+  // A countdown may call its line Title: the clock makes it a behaviour graphic, not a title.
+  const countdown = drawn({ text: '<text id="Title" x="100" y="100">Break</text><text id="Clock" x="100" y="200">05:00</text>' });
+  assert.deepEqual(audit(countdown), []);
+  // A picture-only graphic still calls its background Panel.
+  const picture = drawn({ text: '<image data-name="f:Photo" x="0" y="0" width="10" height="10"/>', board: '<rect id="Panel" width="1920" height="1080"/>' });
+  assert.deepEqual(audit(picture), []);
+});
+
+test('a plate inside a group, and a row letter in lower case, are still caught', () => {
+  const grouped = drawn({
+    text: '<text id="Answer_A" x="500" y="400">A</text><text id="Answer_B" x="500" y="500">B</text>',
+    board: '<g id="Plates"><rect id="Row_A" x="400" y="360" width="400" height="60"/><rect id="Row_B" x="400" y="460" width="400" height="60"/></g>',
+  });
+  caught(audit(grouped), 'board', /"Row A" sits under "Answer A" alone - name its plate "Answer box A"/);
+  caught(audit(mutate(example('quiz.svg'), 'data-name="Answer D"', 'data-name="Answer d"')), 'english', /"Answer d" writes its row in lower case/);
 });
 
 test('the file walk covers every folder it promises and skips only the exempt one', () => {

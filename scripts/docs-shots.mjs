@@ -37,6 +37,7 @@ const outDir = join(projectRoot, 'public', 'docs');
 mkdirSync(outDir, { recursive: true });
 
 const sample = (name) => join(projectRoot, 'docs', 'svg-samples', name);
+const example = (name) => join(projectRoot, 'public', 'docs', 'examples', name);
 
 const port = execSync('node scripts/dev-port.mjs', { cwd: projectRoot }).toString().trim();
 const base = `http://localhost:${port}`;
@@ -306,7 +307,7 @@ await shot('svg-drop', async (page) => {
 // follows the one layer-naming system (scripts/check-example-layers.mjs holds the file to it).
 await shot('svg-fields', async (page) => {
   await openImportDoor(page);
-  await dropSample(page, join(projectRoot, 'public', 'docs', 'examples', 'name-tag.svg'));
+  await dropSample(page, example('name-tag.svg'));
   return modal(page);
 });
 
@@ -327,7 +328,6 @@ await shot('svg-fields', async (page) => {
 // The drop also PRINTS which behaviour the wizard picked, and the run fails on the wrong one.
 // That line is the proof the example teaches what the guide says it teaches: a scoreboard
 // example that lands on "Nothing" is a broken promise, and a PNG cannot say so on its own.
-const example = (name) => join(projectRoot, 'public', 'docs', 'examples', name);
 
 /**
  * One entry per example file. `behaviour` is what the wizard must pick after the drop, and the

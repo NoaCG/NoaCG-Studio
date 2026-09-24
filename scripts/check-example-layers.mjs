@@ -35,16 +35,18 @@
 //            A simple type (title, name tag, credits) uses its field set and nothing else.
 //   moments  Moments holds hidden groups named for a behaviour's moment (`Selected A`), or a
 //            gauge bar drawn at full length (`Bar 1`), and every row it names exists in Text.
-//   board    Board text is `static:`. The first Board shape that sits under every text is the
-//            background and is `Panel`. A shape under exactly one text is that text's plate and
-//            one of its plates is named for it: `Answer A` sits on `Answer box A`. A shape named
-//            `... box` is under the text it names. Anything else is free decoration.
+//   board    Board text is `static:`. Of the shapes under every text, the background is the one
+//            named `Panel` (else the first painted), and it is `Panel`. A shape at any depth under
+//            exactly one text is that text's plate and one of its plates is named for it:
+//            `Answer A` sits on `Answer box A`. A shape named `... box` is under the text it
+//            names. A layer this graphic's behaviour binds by name (`Row 1` in the standings)
+//            is left alone. Anything else is free decoration.
 //   english  Every name is plain ASCII: no Finnish or Swedish letters in a taught name.
 import { readFileSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { matchesRole, rowTokenOf } from './behaviour-docs.mjs';
+import { escapeHtml, matchesRole, rowTokenOf } from './behaviour-docs.mjs';
 import { measured } from './measured.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -392,6 +394,7 @@ function shapeProblem(name) {
   const tokens = bare.split(' ');
   const keys = tokens.filter((t) => /^(?:[A-Za-z]|\d+)$/.test(t));
   if (keys.length > 1) return `"${name}" carries two rows - one letter or one number, once`;
+  if (keys.length === 1 && /^[a-z]$/.test(keys[0])) return `"${name}" writes its row in lower case - a row letter is a capital`;
   if (keys.length === 1 && tokens[tokens.length - 1] !== keys[0]) return `"${name}" puts its row first - the row goes last, after a space: "${tokens.filter((t) => t !== keys[0]).join(' ')} ${keys[0]}"`;
   return null;
 }
@@ -405,6 +408,19 @@ export const plateName = (textName, word = 'box') => {
   const { key, head } = rowTokenOf(textName);
   return key ? `${head} ${word} ${key}` : `${head} ${word}`;
 };
+
+/** The words a text object reads, its runs joined, whitespace collapsed. */
+function textOf(el) {
+  return (el.text + el.children.map(textOf).join(' ')).replace(/\s+/g, ' ').trim();
+}
+
+/** The role of a drawn layer a behaviour binds by its name (`Selected A`, `Strike 1`, the
+ *  standings' `Row 1`), spelled the taught way: a per-row role is its taught word plus a row,
+ *  any other role is its taught name exactly. */
+function drawnRoleOf(name, drawnRoles) {
+  const row = rowOf(name);
+  return drawnRoles.find((r) => (r.perRow ? row !== null && r.head === headOf(name) : r.teach === name));
+}
 
 /** Every role in words.json, flattened, with its taught word. */
 function rolesOf(words) {
@@ -486,7 +502,10 @@ export function auditSvg(src, { system, words }) {
   const simpleFields = new Set(simple.flatMap((t) => t.fields));
   const textRoles = roles.filter((r) => r.pool === 'text' && r.head);
   const taughtText = new Set(textRoles.map((r) => r.head));
-  let readsAsBehaviour = false;
+  // A graphic with moments, or with a clock drawn as its sample (the countdown's readout has no
+  // name word of its own), is a behaviour graphic even when no text name is a behaviour word.
+  const moments = byName.get(MOMENTS)?.children ?? [];
+  let readsAsBehaviour = moments.length > 0 || texts.some(({ el }) => /^\d{1,2}:\d{2}(?::\d{2})?$/.test(textOf(el)));
   for (const { name } of texts) {
     if (simpleFields.has(name)) continue;
     const head = headOf(name);
@@ -512,7 +531,7 @@ export function auditSvg(src, { system, words }) {
   // moments
   const drawnRoles = roles.filter((r) => r.pool === 'drawn' && r.head);
   const textRows = new Set(texts.map(({ name }) => rowOf(name)).filter(Boolean));
-  for (const child of byName.get(MOMENTS)?.children ?? []) {
+  for (const child of moments) {
     const name = layerName(child);
     if (!name) {
       fail('moments', `a <${child.tag}> in ${MOMENTS} has no name - name it for its moment: "Selected A", "Full time"`);
@@ -520,15 +539,17 @@ export function auditSvg(src, { system, words }) {
     }
     const shape = shapeProblem(name);
     if (shape) fail('english', shape);
-    const role = drawnRoles.find((r) => r.head === headOf(name) && Boolean(r.perRow) === Boolean(rowOf(name)));
+    const role = drawnRoleOf(name, drawnRoles);
     if (!role) {
       fail('moments', `"${name}" is not a moment NoaCG knows - ${MOMENTS} holds the moments of words.json ("Selected A", "Flash 1", "Full time") and bars drawn full`);
       continue;
     }
-    const gauge = (role.paint ?? []).includes('gauge');
-    if (!gauge && (child.tag !== 'g' || !isHidden(child, hiddenClasses))) fail('moments', `"${name}" must be a hidden group - a moment starts switched off`);
-    if (gauge && isHidden(child, hiddenClasses)) fail('moments', `"${name}" is a bar - draw it at full length and leave it visible`);
-    if (rowOf(name) && !textRows.has(rowOf(name))) fail('moments', `"${name}" belongs to row ${rowOf(name)}, and no text in ${TEXT} has that row`);
+    // A gauge bar is drawn at full length and a plate that travels with its row (`place`) is
+    // drawn where it starts: both stay visible. Every other moment starts switched off.
+    const drawnVisible = (role.paint ?? []).some((paint) => paint === 'gauge' || paint === 'place');
+    if (!drawnVisible && (child.tag !== 'g' || !isHidden(child, hiddenClasses))) fail('moments', `"${name}" must be a hidden group - a moment starts switched off`);
+    if (drawnVisible && isHidden(child, hiddenClasses)) fail('moments', `"${name}" is drawn as it stands - draw a bar at full length and leave it visible`);
+    if (role.perRow && !textRows.has(rowOf(name))) fail('moments', `"${name}" belongs to row ${rowOf(name)}, and no text in ${TEXT} has that row`);
   }
 
   // board
@@ -542,8 +563,9 @@ export function auditSvg(src, { system, words }) {
       if (name && /[^\x20-\x7e]/.test(name)) fail('english', `"${name}" is not plain English - write every layer name in English`);
       if (child.tag === 'text') {
         const { prefix, bare } = prefixOf(name);
+        const shape = shapeProblem(name);
         if (prefix !== 'static') fail('board', `the text "${name || '(unnamed)'}" in ${BOARD} is not ${system.fixed} - fixed words start with ${system.fixed}, and a text the operator types goes in ${TEXT}`);
-        else if (shapeProblem(name)) fail('english', shapeProblem(name));
+        else if (shape) fail('english', shape);
         else fixedTexts.push({ name: bare, anchor: anchorOf(child) });
         continue;
       }
@@ -553,13 +575,33 @@ export function auditSvg(src, { system, words }) {
   };
   if (board) walkBoard(board);
 
-  const parts = (board?.children ?? []).filter((c) => c.tag !== 'text' && !NOT_DRAWN.has(c.tag)).map((el) => ({ el, name: layerName(el), box: boxOf(el) }));
-  const background = texts.length > 0 ? parts.find((p) => texts.every((t) => holds(p.box, t.anchor))) : undefined;
+  // Every shape and group on the Board, at any depth, in paint order: Illustrator users group
+  // their plates, and a plate inside a group is still a plate. A layer a behaviour of THIS
+  // graphic binds by name (the standings' `Row 1` beside `Name 1`) belongs to the behaviour and
+  // is never a plate to rename; the same `Row A` under a quiz answer is the drift this catches.
+  const typesRead = new Set(texts.flatMap(({ name }) => textRoles.filter((r) => matchesRole(r, name)).map((r) => r.type)));
+  const ownDrawnRoles = drawnRoles.filter((r) => typesRead.has(r.type));
+  const parts = [];
+  const collect = (el) => {
+    for (const child of el.children) {
+      if (child.tag === 'text' || NOT_DRAWN.has(child.tag)) continue;
+      const name = layerName(child);
+      if (!drawnRoleOf(name, ownDrawnRoles)) parts.push({ el: child, name, box: boxOf(child) });
+      collect(child);
+    }
+  };
+  if (board) collect(board);
+  // The background is under every text. A shadow or a frame drawn around it holds every text
+  // too, so the one named Panel wins; with none named, the first one painted is the background.
+  const holdsAll = texts.length > 0 ? parts.filter((p) => texts.every((t) => holds(p.box, t.anchor))) : [];
+  const background = holdsAll.find((p) => p.name === system.background) ?? holdsAll[0];
   if (background && background.name !== system.background) {
     fail('board', `"${background.name || '(unnamed)'}" is the background, under every text - name it "${system.background}"`);
   }
-  for (const p of parts) {
-    if (p !== background && p.name === system.background) fail('board', `"${system.background}" is the background, and this one is not under every text - give it another name`);
+  if (texts.length > 0) {
+    for (const p of parts) {
+      if (p !== background && p.name === system.background) fail('board', `there is one "${system.background}", the background under every text - give this one another name`);
+    }
   }
   const plateWord = new RegExp(`^(.*) ${system.plate}(?: ([A-Za-z]|\\d+))?$`);
   for (const t of texts) {
@@ -595,8 +637,6 @@ export const CHEAT_TARGETS = [
   { file: '.agents/skills/noacg-graphic-local/SKILL.md', form: 'md' },
   { file: '.claude/skills/noacg-graphic-local/SKILL.md', form: 'md' },
 ];
-
-const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export function cheatBlock(lines, form, eol = '\n') {
   if (form === 'html') {
