@@ -44,7 +44,8 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
   validate <dir|zip> [--no-bench] [--no-house-contract] [--screenshots <dir>]
   inspect <dir|zip>              The operator surface NoaCG derives from the graphic's own contract.
   screenshot <dir|zip> --state off|onair|stress [--data k=v]... --out <png>
-  pack <dir|zip>... --out <file.noacgpack.json> [--layer n]...
+  pack <dir|zip>... --name N [--save] [--out <file.noacgpack.json>] [--rundown <cues.json>] [--layer n]...
+                                 Several graphics as one package: --save sends it to your NoaCG Home to Install.
   docs [contract|package|validator|control|design-notes]
   login [--name N] [--no-browser] [--key <noacg_ak_...>]
                                  Get a scoped agent key for this machine (opens the consent page).

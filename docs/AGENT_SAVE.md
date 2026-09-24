@@ -160,10 +160,12 @@ the programmatic builders, exported - this closes both. Ratified by the owner 20
 | key + code store (Supabase service role; in-memory for tests) | `api/_lib/agentAccessStore.ts` |
 | `/api/me/agent-keys` | `api/_lib/me/agentKeys.ts` (+ `.test.ts`) |
 | `/api/me/graphics` + the pure shape guard | `api/_lib/me/graphics.ts`, `graphicShape.ts` (+ `.test.ts`) |
-| migration | `supabase/migrations/0050_agent_keys.sql` |
+| `/api/me/packages` + its shape guard (§7) | `api/_lib/me/packages.ts`, `packageShape.ts` (+ `packages.test.ts`) |
+| migrations | `supabase/migrations/0050_agent_keys.sql`, `0065_agent_packages.sql` |
+| waiting packages in the studio (§7) | `src/backend/agentPackages.ts`, `src/components/home/sections/ProductionsSection.tsx` |
 | consent page, browser client | `src/components/auth/AgentAccessConsent.tsx`, `src/backend/agentAccess.ts` |
 | Settings list | `SettingsDialog.tsx` `AgentAccessSection` |
-| CLI | `cli/src/auth.ts`, `cli/src/commands/{login,logout,whoami,save}.ts`, the `save` verb of the `noacg` tool in `cli/src/mcp.ts` |
+| CLI | `cli/src/auth.ts`, `cli/src/commands/{login,logout,whoami,save,pack}.ts`, the `save` and `pack` verbs of the `noacg` tool in `cli/src/mcp.ts` |
 | gates | `src/validation/{publishGate,productionGate}.ts` |
 | specs | `e2e/agent-access.spec.ts` (offline), `e2e/configured/agent-access.spec.ts` (live), `e2e/production-gate.spec.ts` |
 
@@ -184,3 +186,55 @@ the programmatic builders, exported - this closes both. Ratified by the owner 20
   should hold.
 - Third-party OGraf packages cannot be saved yet (`docs/AGENT_CLI.md` "Future" - package hosting
   + an OGraf host in preview/output); `noacg save` says so.
+
+## 7. The package door: `POST /api/me/packages`
+
+`noacg save` puts ONE graphic in the library. A show needs several, each on its own playout
+layer, with a running order - and the easiest path from "an agent made my graphics package" to
+"it is on air" is one the user can follow from anywhere, including when the agent ran in the
+cloud. So a whole package travels through the account, not through a file:
+
+```
+ noacg pack ./a ./b ./c --name "Show" [--rundown cues.json] [--layer 10] --save
+   validate every graphic in the bridge (gate + bench) -> packEntry per graphic
+   -> POST /api/me/packages (Bearer key) -> 201 { id, url: <origin>/app#/home/productions }
+ studio, signed in: Home -> Productions lists it under "Waiting to install"
+   Install -> parsePack -> installPack (validateTemplate per graphic, production, layers, cues)
+           -> the waiting row is deleted -> the production page opens with its rundown
+```
+
+**Decided 2026-09-24 (owner asked for "prompt a package, it appears on Home, press Install").**
+Recorded here so each can be reverted on its own:
+
+- **The package WAITS; it is not a production on the server.** A production is the thing that
+  airs, so the user sees it arrive and chooses to set it up. It also keeps the server from
+  having to build or trust a production record: Install runs the studio's own `installPack` in
+  the user's session, the same path as a pack file, so the rundown, layers and validation are
+  one implementation. Creating the production directly would save one click and add a second
+  way to write a production.
+- **It rides `graphics:create`.** Nothing becomes a production until the user presses Install,
+  so no new permission is needed and no existing key has to be re-authorised. The permission's
+  label now says "Create graphics in your library and send graphics packages to your Home".
+- **Its own table, not a `documents` kind.** `agent_packages` (migration 0065) is read and
+  deleted by the browser under RLS and written only by the service role. A new `documents` kind
+  would have pulled a transient inbox into the sync engine and every device's local store.
+- **The payload is the pack FILE format** (`noacg-pack` v1, `docs/GRAPHICS_PACKS.md`). `--out`
+  writes exactly what `--save` sends, so a package from the terminal and a package from a file
+  are one format and one parser.
+
+The door's checks are the save door's (§3) in the same order, then `packageSaveShape` (pure;
+the code inside is never run on the server), then a cap of 25 waiting packages per account
+(409 `limit_exceeded` - install or dismiss some), then the INSERT. The body cap is the same
+4 MB.
+
+**In the studio.** `ProductionsSection` loads the list when a session exists and again whenever
+the tab becomes visible - the usual moment is switching back to the studio after the agent says
+it sent something. It shows on the Home dashboard as well as the full Productions page. Install
+deletes the row once the production exists (a failed delete leaves the row for Dismiss, never a
+failed install). Dismiss deletes it unseen. An offline build, or a signed-out visitor, asks
+nothing and shows no row (`e2e/pack-import.spec.ts`); the live walk - send, list, dismiss,
+install, the rundown - is `e2e/configured/agent-access.spec.ts` step 4b.
+
+**No account.** `noacg pack --out <file>` writes the same package; Home → Productions →
+**Import a package** installs it. The MCP tool's `pack` verb sends when the machine holds a key
+and writes `out` when given one.

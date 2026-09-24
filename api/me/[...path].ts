@@ -19,8 +19,9 @@
 //
 // The AGENT ACCESS routes (docs/AGENT_SAVE.md) are the exception, by their nature: `agent-keys`
 // mints / lists / revokes the scoped keys a coding agent's CLI holds (a session consents; the
-// key is minted through a one-time code), and `graphics` is the save door a key opens - both
-// resolve a principal through api/_lib/principal.ts and refuse an anonymous caller. Both live
+// key is minted through a one-time code), `graphics` is the save door a key opens and
+// `packages` its whole-package sibling (a package waits on Home for Install) - all three
+// resolve a principal through api/_lib/principal.ts and refuse an anonymous caller. They live
 // here because they are things a visitor does ABOUT THEMSELVES, and because this catch-all is
 // where they cost no function slot.
 
@@ -29,6 +30,7 @@ import entitlement from '../_lib/me/entitlement.js';
 import feedback from '../_lib/me/feedback.js';
 import agentKeys from '../_lib/me/agentKeys.js';
 import graphics from '../_lib/me/graphics.js';
+import packages from '../_lib/me/packages.js';
 
 interface Handler {
   fetch(req: Request): Promise<Response>;
@@ -39,6 +41,7 @@ const ROUTES: Record<string, Handler> = {
   feedback,
   'agent-keys': agentKeys,
   graphics,
+  packages,
 };
 
 export default {

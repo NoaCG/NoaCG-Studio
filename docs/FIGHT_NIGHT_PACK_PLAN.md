@@ -10,7 +10,8 @@ system: the optional top-level ORDERED cue rundown (the whole-show walk across g
 and the Fight Night pack itself: twelve graphics in `packs/fight-night/` (file-based
 sources), assembled by `scripts/build-production-pack.mjs` (in the build gate, gates matching
 `build-news-pack.mjs`) into `public/packs/fight-night.noacgpack.json`, listed beside
-Uutishuone in the pack index with one-click Install. `e2e/production-pack.spec.ts` covers the
+Uutishuone in the pack index with one-click Install (the index was retired on 2026-09-24:
+NoaCG's own graphics now come only through the template wizard - `docs/GRAPHICS_PACKS.md`). `e2e/production-pack.spec.ts` covers the
 round trip, the Fight Night install through the validation gate (rundown order pinned), and
 refusals. Still open: the live cloud walk (§7 Phase 4's backend half) and the owner's look at
 the rendered set.

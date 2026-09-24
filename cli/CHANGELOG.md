@@ -10,7 +10,13 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
-## 0.4.1 - unreleased
+## 0.4.2 - unreleased
+
+**New: `noacg pack --save`.** Sends several graphics as one package to your NoaCG Home, with
+their layers and an optional `--rundown` of cues. Press Install on Home → Productions and the
+production opens, ready to run. It uses your existing `noacg login` key and works from any machine.
+
+## 0.4.1 - 2026-09-23
 
 **New: `noacg bridge`.** It runs NoaCG Bridge, the local program that lets the NoaCG page in your
 browser drive a CasparCG server on your studio network without the CasparCG Client, and replaces

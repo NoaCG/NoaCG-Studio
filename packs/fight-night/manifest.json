@@ -1,7 +1,6 @@
 {
   "name": "Fight Night",
   "description": "A complete combat-sports package: event slate, fight card, matchup, tale of the tape, fight bug with a running round clock, round cards, live stats, judges' scorecards, result, lower thirds and a stinger — with a ready-to-run three-bout rundown.",
-  "indexDescription": "Combat-sports package — matchup, tale of the tape, fight bug & clock, scorecards, result",
   "graphics": [
     { "slug": "event-slate", "name": "Event slate", "type": "starting-soon", "layer": 5 },
     { "slug": "fight-card", "name": "Fight card", "type": "infographic", "layer": 6 },

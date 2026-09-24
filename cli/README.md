@@ -125,7 +125,7 @@ npx @noacg/cli save ./football-scoreboard
 | `validate <dir\|zip> [--no-bench] [--no-house-contract] [--screenshots <dir>]` | The static gate + the live runtime bench, every finding as a teaching line, readiness rows, optional off/on-air/stress frames - and the package's generated half regenerated from the sources. Third-party OGraf packages: manifest conformance + a host-driven lifecycle check. |
 | `inspect <dir\|zip>` | The operator surface NoaCG derives from the graphic's own contract (inputs, buttons, steps). |
 | `screenshot <dir\|zip> --state off\|onair\|stress --out <png>` | One transparent frame. |
-| `pack <dir\|zip>... --out <file.noacgpack.json>` | A multi-graphic production file for the studio's Import door. |
+| `pack <dir\|zip>... --name N [--save] [--out <file.noacgpack.json>] [--rundown <cues.json>] [--layer n]...` | Several graphics as ONE package - layers plus an optional rundown of cues. `--save` validates them and sends the package to your NoaCG Home, where it waits on Home → Productions with an Install button that creates the production; `--out` writes it as a file for the Import a package card. |
 | `docs [topic]` | The skill's reference texts. |
 | `mcp` | The same verbs as an MCP server over stdio. |
 | `login [--name N] [--no-browser] [--key <noacg_ak_…>]` | Get a scoped agent key for this machine: opens the NoaCG consent page, receives a one-time code on a loopback listener, redeems it. The key can only create graphics in your library; revoke it in Settings → Account → Agent access or with `logout`. `NOACG_AGENT_KEY` for CI. |

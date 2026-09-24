@@ -544,6 +544,45 @@ test('`pack --name My Pack` names the unquoted word instead of bundling it as a 
   assert.match(parsed.error, /--name "My Pack"/, 'the refusal shows the quoting that fixes it');
 });
 
+test('pack needs somewhere to go: --save, --out, or both', async () => {
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
+  const neither = await run(['pack', path.join(dir, 'graphic'), '--name', 'Show', '--json']);
+  assert.equal(neither.code, 2);
+  assert.match(JSON.parse(neither.stdout).error, /--save .*--out/);
+
+  // A sent package has no file name to borrow a name from, so it has to be told one.
+  const unnamed = await run(['pack', path.join(dir, 'graphic'), '--save', '--json']);
+  assert.equal(unnamed.code, 2);
+  assert.match(JSON.parse(unnamed.stdout).error, /--name/);
+});
+
+test('pack --save with no key refuses before it starts a browser, and keeps the package it swallowed', async () => {
+  // `pack --save ./a` - the parser hands "./a" to --save as its value. It must come back as a
+  // package, or the run would be refused as "no packages" with the package right there.
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'graphic', 'graphic.html'), '<h1/>');
+  const started = Date.now();
+  const r = await run(['pack', '--save', path.join(dir, 'graphic'), '--name', 'Show', '--json']);
+  assert.equal(r.code, 1, 'a refusal is exit 1, not a usage error');
+  const parsed = JSON.parse(r.stdout);
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.reason, 'not-logged-in');
+  assert.match(parsed.error, /noacg login/);
+  assert.ok(Date.now() - started < 15000, 'the no-key refusal must not wait on a browser');
+});
+
+test('pack --rundown refuses a file that is not a list of cues naming a graphic', async () => {
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
+  const bad = path.join(dir, 'cues.json');
+  await fs.writeFile(bad, JSON.stringify([{ label: 'Round 1' }]));
+  const r = await run(['pack', path.join(dir, 'graphic'), '--name', 'Show', '--out', path.join(dir, 'x.noacgpack.json'), '--rundown', bad, '--json']);
+  assert.equal(r.code, 2);
+  assert.match(JSON.parse(r.stdout).error, /cue 1: needs "graphic"/);
+});
+
 test('`login --name My Laptop` is refused instead of naming the key "My"', async () => {
   // The same unquoted-value fault as above, with a worse victim. `--name My Laptop` gave the flag
   // "My" and left "Laptop" in the positionals, so the consent page asked the user to authorise

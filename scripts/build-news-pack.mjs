@@ -1,15 +1,17 @@
 // Build the Uutishuone news pack: assemble the template sources under
-// scripts/packs/newsroom/ into public/packs/uutishuone.noacgpack.json (+ the pack index).
+// scripts/packs/newsroom/ into public/packs/uutishuone.noacgpack.json.
 //
 //   node scripts/build-news-pack.mjs
 //
-// The emitted JSON is the DOWNLOADABLE artifact (served at /packs/…, git-tracked); the
-// .mjs sources here are its readable, reviewable form. The app-side importer
+// The emitted JSON is git-tracked and is e2e/pack-import.spec.ts's fixture; the .mjs sources
+// here are its readable, reviewable form. It is no longer LISTED anywhere in the studio:
+// NoaCG's own templates reach users through the template wizard, and the Productions import
+// card is only for packages made outside the studio (docs/GRAPHICS_PACKS.md). The app-side importer
 // (src/packs/graphicsPack.ts) re-validates every graphic through the export gate at import
 // time — this script only guards what node can check without the app: the format shape,
 // the SPX contract's presence, and the CasparCG-CEF ES5 rule for template JS.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -89,21 +91,6 @@ mkdirSync(outDir, { recursive: true });
 
 const packPath = join(outDir, 'uutishuone.noacgpack.json');
 writeFileSync(packPath, JSON.stringify(PACK, null, 2) + '\n', 'utf8');
-
-// The index the Productions section lists installable packs from. UPSERT this pack's
-// entry - the index is shared with every other pack builder (build-production-pack.mjs),
-// so overwriting it wholesale would silently drop their entries.
-const indexPath = join(outDir, 'index.json');
-const index = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : [];
-const entry = {
-  file: 'uutishuone.noacgpack.json',
-  name: 'Uutishuone',
-  description: 'Modern news package — opener, straps, ticker, bug & clock, endboard',
-};
-const at = index.findIndex((p) => p.file === entry.file);
-if (at >= 0) index[at] = entry;
-else index.push(entry);
-writeFileSync(indexPath, JSON.stringify(index, null, 2) + '\n', 'utf8');
 
 const bytes = JSON.stringify(PACK).length;
 console.log(

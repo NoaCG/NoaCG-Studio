@@ -1,20 +1,26 @@
 import { test, expect } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 
-// The downloadable graphics pack (src/packs/graphicsPack.ts): a shipped .noacgpack.json
-// installs from the Productions section as one ready production — graphics pooled, layers
-// set, the prepared cue rundown seeded — and a non-pack file is refused with a reason.
-// The Uutishuone pack (public/packs/uutishuone.noacgpack.json) is both the shipped product
-// and this spec's fixture, so the spec also pins that the pack itself stays importable.
+// The graphics pack (src/packs/graphicsPack.ts): a .noacgpack.json file installs from the
+// Productions section's import card as one ready production — graphics pooled, layers set,
+// the prepared cue rundown seeded — and a non-pack file is refused with a reason. The card
+// is the door for packages made OUTSIDE the studio (`noacg pack`, a production export); it
+// lists no shipped packs, because NoaCG's own templates come through the template wizard.
+// The Uutishuone pack file (public/packs/uutishuone.noacgpack.json) is this spec's fixture.
 
-test('the shipped Uutishuone pack installs as a ready production', async ({ page }) => {
+const UUTISHUONE = fileURLToPath(new URL('../public/packs/uutishuone.noacgpack.json', import.meta.url));
+
+test('a pack file installs as a ready production', async ({ page }) => {
   await page.goto('/app#/home/productions');
 
-  // The import card lists the shipped pack (public/packs/index.json).
+  // The card offers the file door and nothing else - no shipped pack rows.
   const card = page.getByTestId('import-pack-card');
   await expect(card).toBeVisible();
-  const install = card.getByTestId('install-pack-uutishuone.noacgpack.json');
-  await expect(install).toBeVisible();
-  await install.click();
+  await expect(card.locator('[data-testid^="install-pack-"]')).toHaveCount(0);
+  // Packages a coding agent SENT wait above the grid only with an account backend; an offline
+  // build asks nothing and grows no row (the live half is configured/agent-access.spec.ts).
+  await expect(page.getByTestId('waiting-packages')).toHaveCount(0);
+  await card.getByTestId('import-pack-file').setInputFiles(UUTISHUONE);
 
   // Install parses, validates every graphic through the export gate, saves the set and
   // lands on the production page — a failure would surface on the card instead.

@@ -163,10 +163,22 @@ h2 + .lib-row,
 .prod-card-new { border-style: dashed; border-color: var(--border); background: none; }
 .prod-card-new .spacer { flex: 1; min-height: 4px; }
 .prod-card-new strong { font-size: 15px; }
-/* A shipped pack's row on the import card: name/description beside Install + download. */
-.pack-row { display: flex; align-items: center; gap: 8px; }
-.pack-row .lib-info { flex: 1; min-width: 0; }
-.pack-row a { display: inline-flex; align-items: center; padding: 6px; color: inherit; }
+/* Packages a coding agent sent, waiting above the grid for Install. A solid accent edge rather
+   than the dashed make-one slot: this is something that ARRIVED, not an empty place. */
+.pack-waiting {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+}
+/* One package: name and details on the left, Install and Dismiss on the right. */
+.pack-waiting-row { display: flex; align-items: center; gap: 8px; }
+.pack-waiting-row .lib-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pack-waiting-row .primary { min-height: 40px; }
 
 /* ── The Graphics section's organisation layer: multi-select + flat folders ─────────── */
 /* ── GRID vs LIST (re-design/handoff.md §5b/§5c) ──────────────────────────────────────────

@@ -3,6 +3,13 @@ import { createShow, deleteShow, type Show } from '../../../model/shows';
 import { outputPageUrl, unpublishControlShow } from '../../../control/hostedControl';
 import { installPack, parsePack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
+import {
+  listWaitingPackages,
+  removeWaitingPackage,
+  waitingPackageText,
+  type WaitingPackage,
+} from '../../../backend/agentPackages';
+import { useAuthState } from '../../auth/useAuthState';
 import { copyLink } from '../copyLink';
 import ProductionExportDialog from '../ProductionExportDialog';
 import GraphicThumb from '../GraphicThumb';
@@ -47,13 +54,6 @@ function ProductionStats({ show, onBrowse }: { show: Show; onBrowse?: (showId: s
   );
 }
 
-/** One entry of `/packs/index.json` — the packs this build ships ready to install. */
-interface BuiltInPack {
-  file: string;
-  name: string;
-  description: string;
-}
-
 /**
  * The Productions section — Home's LEAD (docs/GOALS_ARCHIVE.md "Student release" step 8): a production
  * is the unit that airs, so the dashboard door and the output URL are the two things one click
@@ -85,11 +85,18 @@ export default function ProductionsSection({
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [exportShow, setExportShow] = useState<Show | null>(null);
-  // The pack door's state: which pack is installing, the outcome line, the shipped list.
+  // The pack door's state: which file is installing, and the outcome line.
   const [packBusy, setPackBusy] = useState<string | null>(null);
   const [packNote, setPackNote] = useState<string | null>(null);
-  const [builtIn, setBuiltIn] = useState<BuiltInPack[]>([]);
   const packInput = useRef<HTMLInputElement>(null);
+  // WAITING PACKAGES (docs/AGENT_SAVE.md §7): what a coding agent sent with `noacg pack --save`,
+  // listed here with Install until the user installs or dismisses it. Signed-in and backed only -
+  // an offline build asks nothing and grows no row. `waitingConfirm` is the one package whose
+  // Dismiss is asking "sure?", the same two-step the production Delete uses.
+  const { backendConfigured, signedIn } = useAuthState();
+  const [waiting, setWaiting] = useState<WaitingPackage[]>([]);
+  const [waitingNote, setWaitingNote] = useState<string | null>(null);
+  const [waitingConfirm, setWaitingConfirm] = useState<string | null>(null);
   const shown = limit ? productions.slice(0, limit) : productions;
   const create = () => {
     const next = createShow(newName);
@@ -99,45 +106,84 @@ export default function ProductionsSection({
     if (made) onOpen(made);
   };
 
-  // The packs this build ships (public/packs/index.json). Dashboard mode (`limit`) hides the
-  // import card, so only the full section pays for the fetch; a build with no packs, or a
-  // fetch that fails, degrades to the file door alone.
+  // Load the waiting list when a session appears, and again whenever the tab comes back into
+  // view: the usual moment is "the agent says it sent the package, I switch to the studio".
   useEffect(() => {
-    if (limit) return;
+    if (!backendConfigured || !signedIn) {
+      setWaiting([]);
+      return;
+    }
     let stale = false;
-    void fetch('/packs/index.json')
-      .then((r) => (r.ok ? (r.json() as Promise<unknown>) : []))
-      .then((list) => {
-        if (stale || !Array.isArray(list)) return;
-        setBuiltIn(
-          list.filter(
-            (p): p is BuiltInPack =>
-              typeof p === 'object' && p !== null &&
-              typeof (p as BuiltInPack).file === 'string' &&
-              typeof (p as BuiltInPack).name === 'string',
-          ),
-        );
-      })
-      .catch(() => undefined);
-    return () => { stale = true; };
-  }, [limit]);
+    const load = () => {
+      void listWaitingPackages().then((list) => {
+        if (!stale) setWaiting(list);
+      });
+    };
+    load();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      stale = true;
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [backendConfigured, signedIn]);
 
-  /** Parse, validate and install one pack's text; land on the new production's dashboard. */
-  const importPackText = async (label: string, text: string) => {
+  /**
+   * Parse, validate and install one pack's text; land on the new production's page. A failure
+   * is shown through `report`. `beforeOpen` runs once the production exists and before the page
+   * changes - the waiting row's clean-up.
+   */
+  const importPackText = async (
+    label: string,
+    text: string,
+    report: (message: string | null) => void = setPackNote,
+    beforeOpen?: () => Promise<void>,
+  ) => {
     setPackBusy(label);
-    setPackNote(null);
+    report(null);
     try {
       const { pack, error } = parsePack(text);
       if (!pack) throw new Error(error ?? 'That file is not a NoaCG graphics pack.');
       const show = await installPack(pack);
       trackEvent('activation', 'pack');
+      await beforeOpen?.();
       onChanged();
       onOpen(show);
     } catch (error) {
-      setPackNote(error instanceof Error ? error.message : String(error));
+      report(error instanceof Error ? error.message : String(error));
     } finally {
       setPackBusy(null);
     }
+  };
+
+  /** Install a waiting package: the same parse → validate → install as a file, then the row goes. */
+  const installWaiting = async (p: WaitingPackage) => {
+    // Busy from the first click, not from when the text arrives - a second click during the
+    // fetch would otherwise install the package twice.
+    setPackBusy(p.id);
+    let text: string;
+    try {
+      text = await waitingPackageText(p.id);
+    } catch (error) {
+      setWaitingNote(error instanceof Error ? error.message : String(error));
+      setPackBusy(null);
+      return;
+    }
+    await importPackText(p.id, text, setWaitingNote, async () => {
+      // The production exists now. A failed delete only leaves the row to be dismissed by hand -
+      // never worth failing an install that already happened.
+      await removeWaitingPackage(p.id);
+      setWaiting((list) => list.filter((w) => w.id !== p.id));
+    });
+  };
+
+  const dismissWaiting = async (p: WaitingPackage) => {
+    setWaitingConfirm(null);
+    const { error } = await removeWaitingPackage(p.id);
+    if (error) setWaitingNote(error);
+    else setWaiting((list) => list.filter((w) => w.id !== p.id));
   };
 
   const importPackFile = async (file: File | undefined) => {
@@ -145,18 +191,6 @@ export default function ProductionsSection({
     await importPackText(file.name, await file.text());
   };
 
-  const installBuiltIn = async (pack: BuiltInPack) => {
-    setPackBusy(pack.file);
-    setPackNote(null);
-    try {
-      const response = await fetch(`/packs/${pack.file}`);
-      if (!response.ok) throw new Error('The pack could not be loaded.');
-      await importPackText(pack.file, await response.text());
-    } catch (error) {
-      setPackNote(error instanceof Error ? error.message : String(error));
-      setPackBusy(null);
-    }
-  };
   return (
     <>
       {heading && (
@@ -168,6 +202,54 @@ export default function ProductionsSection({
             page</strong> for operating — see each production’s page for all of it.
           </p>
         </>
+      )}
+      {/* Packages a coding agent sent - one row each, Install turns it into a production and
+          opens its rundown. Shown on the Home dashboard too: arriving is news. */}
+      {waiting.length > 0 && (
+        <div className="pack-waiting" data-testid="waiting-packages">
+          <strong>Waiting to install</strong>
+          {waiting.map((p) => (
+            <div className="pack-waiting-row" key={p.id} data-testid={`waiting-package-${p.id}`}>
+              <div className="lib-info">
+                <strong>{p.name}</strong>
+                <span className="muted">
+                  {p.graphicCount} graphic{p.graphicCount === 1 ? '' : 's'} · sent from your coding
+                  agent · {new Date(p.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                </span>
+                {p.description && <span className="muted">{p.description}</span>}
+              </div>
+              <button
+                className="primary"
+                disabled={packBusy !== null}
+                onClick={() => void installWaiting(p)}
+                data-testid="install-waiting-package"
+              >
+                {packBusy === p.id ? 'Installing…' : 'Install'}
+              </button>
+              {waitingConfirm === p.id ? (
+                <button
+                  className="destructive"
+                  onClick={() => void dismissWaiting(p)}
+                  title="Remove this package without installing it"
+                  data-testid="dismiss-waiting-package-confirm"
+                >
+                  Dismiss?
+                </button>
+              ) : (
+                <button
+                  disabled={packBusy !== null}
+                  onClick={() => setWaitingConfirm(p.id)}
+                  title="Dismiss this package"
+                  aria-label={`Dismiss ${p.name}`}
+                  data-testid="dismiss-waiting-package"
+                >
+                  <IconTrash />
+                </button>
+              )}
+            </div>
+          ))}
+          {waitingNote && <p className="status-bad">{waitingNote}</p>}
+        </div>
       )}
       {productions.length === 0 && (
         <p className="hint" data-testid="no-productions">No productions yet — name one below, then add graphics and cues.</p>
@@ -314,41 +396,20 @@ export default function ProductionsSection({
             ＋ Create
           </button>
         </div>
-        {/* The pack door — a finished multi-graphic package installs as a ready production
-            (src/packs/graphicsPack.ts). Dashboard mode hides it; the full section is where a
-            production is set up. Shipped packs list first; any downloaded pack file imports
-            through the same parser. */}
+        {/* The pack door — where a finished multi-graphic package made OUTSIDE the studio
+            arrives: `noacg pack` (the CLI's production file) or a production exported as a
+            graphics pack. It installs as a ready production (src/packs/graphicsPack.ts).
+            NoaCG's own templates never list here - everything the studio provides comes
+            through the template wizard. Dashboard mode hides it; the full section is where a
+            production is set up. */}
         {!limit && (
           <div className="prod-card prod-card-new" data-testid="import-pack-card">
             <strong>Import a package</strong>
             <p className="prod-card-stats">
-              A finished graphics package — installs as a production with its cue rundown and
-              layers ready to operate.
+              A <code className="inline">.noacgpack.json</code> made with the NoaCG CLI
+              (<code className="inline">noacg pack</code>) or exported from a production —
+              installs as a production with its cue rundown and layers ready to operate.
             </p>
-            {builtIn.map((pack) => (
-              <div className="pack-row" key={pack.file}>
-                <div className="lib-info">
-                  <strong>{pack.name}</strong>
-                  {pack.description && <span className="muted">{pack.description}</span>}
-                </div>
-                <button
-                  className="primary"
-                  disabled={packBusy !== null}
-                  onClick={() => void installBuiltIn(pack)}
-                  data-testid={`install-pack-${pack.file}`}
-                >
-                  {packBusy === pack.file ? 'Installing…' : 'Install'}
-                </button>
-                <a
-                  href={`/packs/${pack.file}`}
-                  download={pack.file}
-                  title={`Download ${pack.name} as a shareable pack file`}
-                  aria-label={`Download ${pack.name}`}
-                >
-                  <IconDownload />
-                </a>
-              </div>
-            ))}
             <div className="spacer" />
             <input
               ref={packInput}
@@ -361,9 +422,9 @@ export default function ProductionsSection({
             <button
               disabled={packBusy !== null}
               onClick={() => packInput.current?.click()}
-              title="Import a downloaded .noacgpack.json file"
+              title="Import a .noacgpack.json package file"
             >
-              <IconUpload /> Import a pack file…
+              <IconUpload /> Import a package file…
             </button>
             {packNote && <p className="status-bad">{packNote}</p>}
           </div>
