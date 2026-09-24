@@ -65,7 +65,7 @@ test('a renderer whose realtime channel never joins still airs a take, and says 
   expect(outputSlug, 'publishing must mint an output slug').toBeTruthy();
 
   // ── The renderer, with its Realtime channel intercepted: the socket opens and is never
-  //    joined, so `postgres_changes` never arrives and no reconnect is ever triggered. ──
+  //    joined, so no log row ever arrives on it and no reconnect is ever triggered. ──
   const output = await context.newPage();
   output.on('console', (m) => console.log('[output]', m.type(), m.text()));
   output.on('pageerror', (e) => console.log('[output pageerror]', e.message));

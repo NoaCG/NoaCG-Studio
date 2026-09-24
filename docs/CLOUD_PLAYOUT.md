@@ -795,12 +795,15 @@ cost more in broken presets than it saves in disk.
 
 ## Known limits (deliberate, documented)
 
-- **The `control_events` anon SELECT** (`0008:60-61`, `using (true)`) lets any holder of the
-  anon key page through EVERY show's log via PostgREST — the show id is only a secret against
-  Realtime filters. Narrowing it breaks receivers already baked into exported user files, so
-  0029 does not touch it; field values on hosted shows remain effectively public. Owner
-  pruning (7 days) now bounds the exposure window. Closing it fully needs a v2 receiver
-  generation + a deprecation window — an explicit product decision, not a quick fix.
+- **The command log is not publicly readable** since migration 0066 (2026-09-24). Until then
+  `0008`'s `using (true)` read let any holder of the anon key page through every production's
+  log via PostgREST. Followers now receive rows as `row` broadcasts on the private
+  `log-<show id>` topic (0064), and the table answers only the production's owner and, on a team
+  production, its current members, which is what the 7-day prune on publish needs. **The cost:**
+  graphics exported between 2026-07-21 and 2026-08-05 carry a baked receiver
+  (`src/control/hostedReceiver.ts`) that follows only `postgres_changes`, so they no longer
+  receive commands live. They still rebuild from the log tail each time they reconnect, and a
+  re-export (which carries no baked receiver) is the fix.
 - **The 50-commands-per-5-s cap is per show**, shared by all operators AND the `cue` status
   rows. Fine for one operator + one renderer; a two-operator production hammering steppers
   can hit it (the page surfaces the slow-down error today). **All out** costs two commands per

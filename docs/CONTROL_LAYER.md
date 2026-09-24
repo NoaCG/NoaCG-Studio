@@ -232,8 +232,9 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
 - **Capability model:** owning/publishing requires sign-in (RLS); OPERATING needs only the
   slug, through SECURITY DEFINER RPCs (`control_show_by_slug`, `control_send`,
   `control_stage`, `control_report`, `control_tail`). Revoke = unpublish or rotate.
-  `control_events` is anon-readable by design — the show_id uuid is the secret, exactly the
-  public-channel + secret-topic posture of the 5.3 remote block.
+  `control_events` is readable only by the production's owner and team (migration 0066); a
+  slug holder reads the log through `control_tail` and follows it on the private
+  `log-<show id>` topic (0064).
 - **Recovery is self-service:** the hosted receiver reboots by reading its own last report
   (data, then snap), then follows the log. The hosted page re-reads the row on load. Staging
   and live reports ride the log as meta rows (`t:'staged'|'live'`) so every open page follows

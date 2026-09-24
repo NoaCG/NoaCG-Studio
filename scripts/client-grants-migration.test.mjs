@@ -86,9 +86,12 @@ test('the scan still finds the policies and the grants it is asserting about', (
       `${table} has client policies in the migrations but the scan missed them`,
     );
   }
+  // 0008's policy as CREATED - the scan reads `create policy` only, so 0066 narrowing it to the
+  // owner with `alter policy` does not remove it from here. It stays the sanity marker because it
+  // is the one client policy on the list that names anon.
   assert.ok(
     claims.some((c) => c.table === 'control_events' && c.role === 'anon'),
-    'the anon read on control_events should be in the scan',
+    'the anon read on control_events (0008, as created) should be in the scan',
   );
 
   // Deliberately below the pre-0051 surface (49 privileges), so this stays a check that the SCAN
