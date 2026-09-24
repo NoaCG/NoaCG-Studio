@@ -151,8 +151,10 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
           </span>
           {/* The kit is named HERE because there is no kit card — this sentence is the only
               thing on the front page that says a whole set is possible, and the switch that
-              does it sits at the top of Browse (see the note above). */}
-          <span className="hint">Pick a design, one graphic or the whole kit a show needs in one look. Then choose your fields, style and animation. Tweak the code it writes, or never open it.</span>
+              does it sits at the top of Browse (see the note above). It used to end "Tweak the
+              code it writes, or never open it", a promise no door keeps since the old code
+              editor closed (owner, 2026-09-24), so the card says only what the walk does. */}
+          <span className="hint">Pick a design, one graphic or the whole kit a show needs in one look. Then choose your fields, style and animation.</span>
         </button>
         <button className="wz-entry-card" onClick={onAi} data-entry="ai">
           <span className="wz-entry-head">
