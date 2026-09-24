@@ -1,6 +1,6 @@
 import { bearerToken, ipHash, json, methodGuard, readJson } from '../_lib/http.js';
 import { serverAuthConfigured, verifyUser, type AuthedUser } from '../_lib/auth.js';
-import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
+import { hasUserAiKeysCookie, managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody } from '../_lib/aiGateway.js';
 import { surfaceExecutionPolicy, surfaceRoutePolicy } from '../_lib/aiSurfacePolicy.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
@@ -49,20 +49,28 @@ export default {
       return errorResponse(new GatewayError('invalid_request', 'The AI request is invalid.', 400, false));
     }
 
-    const userKeys = readUserAiKeys(req);
     const authRequired = serverAuthConfigured();
     const auth: { user: AuthedUser | null; verified: boolean } = { user: null, verified: false };
 
     /** Resolve the caller once, lazily. BYO-key traffic deliberately needs no account, so an
      *  anonymous caller is never made to pay for a verification round trip - they simply get
      *  the anonymous defaults, which allow BYO. */
-    const entitlementFor = async () => {
+    const verifyCaller = async () => {
       if (!auth.verified) {
         auth.user = await verifyUser(bearerToken(req));
         auth.verified = true;
       }
-      return resolveUserEntitlement(auth.user?.userId ?? null);
+      return auth.user;
     };
+    const entitlementFor = async () => resolveUserEntitlement((await verifyCaller())?.userId ?? null);
+
+    // Only the CALLER's own sealed keys (aiCredentials.ts, "WHOSE KEYS THESE ARE"). A request with
+    // no cookie costs nothing here, and a signed-out one needs no verification: its owner is null.
+    // A session that fails to verify matches no owner at all.
+    let userKeys: ReturnType<typeof readUserAiKeys> = {};
+    if (hasUserAiKeysCookie(req)) {
+      userKeys = readUserAiKeys(req, bearerToken(req) ? (await verifyCaller())?.userId : null);
+    }
 
     /** A tagged surface is gated on its own feature key - today only video, on `ai.video`
      *  (src/ai/video/videoGateway.ts stamps every video call). The DECISION lives in

@@ -10,6 +10,7 @@
 
 import { getAccessToken } from '../backend/auth';
 import { AI_NOTICE_VERSION } from './consentNotice';
+import { accountKey } from '../model/accountScope';
 
 const STORAGE_KEY = 'spx-gfx-ai-notice';
 
@@ -20,7 +21,7 @@ interface StoredAcceptance {
 
 function readLocal(): StoredAcceptance | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(accountKey(STORAGE_KEY));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object') return null;
@@ -35,7 +36,7 @@ function readLocal(): StoredAcceptance | null {
 function writeLocal(): void {
   try {
     localStorage.setItem(
-      STORAGE_KEY,
+      accountKey(STORAGE_KEY),
       JSON.stringify({ version: AI_NOTICE_VERSION, acceptedAt: new Date().toISOString() }),
     );
   } catch {

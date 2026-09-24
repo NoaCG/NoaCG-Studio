@@ -21,11 +21,36 @@ export const LIBRARY_ACCOUNT_KEY = 'spx-gfx-account';
 
 /**
  * The SMALL per-account records that stay in localStorage (the durable store owns the heavy
- * ones): the sync bookmark and its pending debts, the retired anonymous brand that still syncs
- * as a singleton, and the default-brand pointer, which names a look in this account's library.
- * Device preferences are deliberately absent - they belong to the machine, not the account.
+ * ones), moved to an account when it adopts the signed-out workspace. Device preferences -
+ * layout, the editor switches, the CasparCG connection - are deliberately absent: they belong
+ * to the machine, not the account. Everything here is something another person at the same
+ * computer must not see or use:
+ *
+ *   spx-gfx-sync                  the sync bookmark and its pending debts
+ *   spx-gfx-brand                 the retired anonymous brand, which still syncs as a singleton
+ *   spx-gfx-default-brand         the default-brand pointer, naming a look in this library
+ *   spx-gfx-remote-cap            the secret that pairs a graphic with its remote control panel
+ *   spx-gfx-ai-spec-draft         the Create-with-AI setup draft (the user's own words)
+ *   spx-gfx-ai                    which AI providers this account has keys for
+ *   spx-gfx-ai-notice             the AI notice this person accepted
+ *   spx-gfx-ai-preferences        which AI directions this person has picked
+ *   spx-gfx-ai-telemetry          this person's AI runs and their cost
+ *   spx-gfx-ai-reference-recency  the references this person's recent generations used
+ *
+ * The render job's resume record (`noacg-render-job`) is per account too, in sessionStorage.
  */
-export const ACCOUNT_LOCAL_KEYS = ['spx-gfx-sync', 'spx-gfx-brand', 'spx-gfx-default-brand'] as const;
+export const ACCOUNT_LOCAL_KEYS = [
+  'spx-gfx-sync',
+  'spx-gfx-brand',
+  'spx-gfx-default-brand',
+  'spx-gfx-remote-cap',
+  'spx-gfx-ai-spec-draft',
+  'spx-gfx-ai',
+  'spx-gfx-ai-notice',
+  'spx-gfx-ai-preferences',
+  'spx-gfx-ai-telemetry',
+  'spx-gfx-ai-reference-recency',
+] as const;
 
 /**
  * Read ONCE per page and then only changed by `setLibraryAccount`. Another tab changing the

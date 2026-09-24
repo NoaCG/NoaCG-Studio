@@ -738,22 +738,36 @@ test('seals user keys in a tamper-evident HttpOnly cookie', () => {
   const request = new Request('http://localhost/api/ai/credentials', {
     headers: { origin: 'http://localhost' },
   });
-  const cookie = userAiKeysCookie(request, { openai: secret });
+  const cookie = userAiKeysCookie(request, { openai: secret }, 'account-a');
 
   assert.match(cookie, /HttpOnly/);
   assert.match(cookie, /SameSite=Strict/);
   assert.equal(cookie.includes(secret), false);
 
   const value = cookie.split(';')[0];
-  const restored = readUserAiKeys(new Request('http://localhost/api/ai/config', {
-    headers: { cookie: value },
-  }));
-  assert.deepEqual(restored, { openai: secret });
+  const withCookie = (header: string) => new Request('http://localhost/api/ai/config', { headers: { cookie: header } });
+  assert.deepEqual(readUserAiKeys(withCookie(value), 'account-a'), { openai: secret });
 
   const tampered = `${value.slice(0, -1)}${value.endsWith('A') ? 'B' : 'A'}`;
-  assert.deepEqual(readUserAiKeys(new Request('http://localhost/api/ai/config', {
-    headers: { cookie: tampered },
-  })), {});
+  assert.deepEqual(readUserAiKeys(withCookie(tampered), 'account-a'), {});
+});
+
+test('a sealed key is honoured only for the account that saved it', () => {
+  // The cookie belongs to the BROWSER. Without an owner, the next person to sign in on the same
+  // computer spent the previous account's key.
+  process.env.AI_KEY_ENCRYPTION_SECRET = 'test-only-encryption-secret-with-more-than-32-characters';
+  const save = new Request('http://localhost/api/ai/credentials', { headers: { origin: 'http://localhost' } });
+  const withCookie = (header: string) => new Request('http://localhost/api/ai/config', { headers: { cookie: header } });
+
+  const accountA = withCookie(userAiKeysCookie(save, { openai: 'sk-account-a' }, 'account-a').split(';')[0]);
+  assert.deepEqual(readUserAiKeys(accountA, 'account-b'), {}, 'another account must not use it');
+  assert.deepEqual(readUserAiKeys(accountA, null), {}, 'a signed-out caller must not use it');
+  assert.deepEqual(readUserAiKeys(accountA, undefined), {}, 'a session that did not verify must not use it');
+
+  const signedOut = withCookie(userAiKeysCookie(save, { openai: 'sk-signed-out' }, null).split(';')[0]);
+  assert.deepEqual(readUserAiKeys(signedOut, null), { openai: 'sk-signed-out' });
+  assert.deepEqual(readUserAiKeys(signedOut, 'account-a'), {}, 'an account must not use a signed-out key');
+  assert.deepEqual(readUserAiKeys(signedOut, undefined), {}, 'an unverified session must not fall back to it');
 });
 
 // ── the tagged-surface routing policy (api/_lib/aiSurfacePolicy.ts) ─────────────────────

@@ -58,9 +58,21 @@ test('each account sees only its own library on a shared browser', async ({ page
   await page.reload();
   expect(await libraryNames(page)).toEqual(['Made by A']);
 
+  // A's own words in the Create-with-AI setup draft are A's too, like the graphics.
+  await page.evaluate(async () => {
+    const { emptyGenerationSpec, saveSpecDraft } = await import('/src/model/generationSpec.ts');
+    saveSpecDraft({ ...emptyGenerationSpec(), styleNotes: 'A private style note' });
+  });
+
   // Account B signs in on the same browser: A's work is NOT shown to B.
   await switchAndReload(page, 'account-b');
   expect(await libraryNames(page)).toEqual([]);
+  expect(
+    await page.evaluate(async () => {
+      const { loadSpecDraft } = await import('/src/model/generationSpec.ts');
+      return loadSpecDraft();
+    }),
+  ).toBeNull();
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
   await expect(page.getByText('Made by A')).toHaveCount(0);
@@ -73,4 +85,10 @@ test('each account sees only its own library on a shared browser', async ({ page
   // A signs back in: A's library is exactly where A left it.
   await switchAndReload(page, 'account-a');
   expect(await libraryNames(page)).toEqual(['Made by A']);
+  expect(
+    await page.evaluate(async () => {
+      const { loadSpecDraft } = await import('/src/model/generationSpec.ts');
+      return loadSpecDraft()?.styleNotes ?? null;
+    }),
+  ).toBe('A private style note');
 });

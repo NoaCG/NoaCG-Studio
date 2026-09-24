@@ -8,6 +8,7 @@ import { cancelRender, fetchStatus, startRender, RenderRequestError } from './cl
 import { RENDER_CONFIG } from './limits';
 import type { RenderManifest } from './manifest';
 import { TERMINAL_STATES, type RenderJobStatus } from './types';
+import { accountKey } from '../model/accountScope';
 
 const RESUME_KEY = 'noacg-render-job';
 
@@ -37,8 +38,8 @@ function stopPolling() {
 
 function saveResume(info: ResumeInfo | null) {
   try {
-    if (info) sessionStorage.setItem(RESUME_KEY, JSON.stringify(info));
-    else sessionStorage.removeItem(RESUME_KEY);
+    if (info) sessionStorage.setItem(accountKey(RESUME_KEY), JSON.stringify(info));
+    else sessionStorage.removeItem(accountKey(RESUME_KEY));
   } catch {
     // storage unavailable — polling still works for this page's lifetime
   }
@@ -46,7 +47,7 @@ function saveResume(info: ResumeInfo | null) {
 
 function loadResume(): ResumeInfo | null {
   try {
-    const raw = sessionStorage.getItem(RESUME_KEY);
+    const raw = sessionStorage.getItem(accountKey(RESUME_KEY));
     return raw ? (JSON.parse(raw) as ResumeInfo) : null;
   } catch {
     return null;
