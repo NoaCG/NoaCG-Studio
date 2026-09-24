@@ -50,8 +50,15 @@ lost, on the local stack and on hosted staging.
   (run 36058729451), with agent-access and shared-lab-computer both green. MIN_TESTS went up to 54.
 - Hosted-latency dispatched on the branch (run 36057221258). Agent-access and the lab walk both
   passed on staging. The run is still red on four OTHER specs that passed on retry:
-  dashboard-hosted-walk, deep-link-boot, moderator and production-links. They are latency flakes
-  on staging and unrelated to this branch.
+  dashboard-hosted-walk, deep-link-boot, moderator and production-links. I compared them with
+  main's hosted history and judge them unrelated to this branch. Each one timed out waiting on
+  `.auth-status` (20 s), `.sync-status.sync-synced` (30 s), `production-mode` or a class on the air
+  page, which is latency-shaped. Main's own hosted runs flake a different set each time:
+  relay-cold-boot on 35516988408, and output-cold-boot, quiz-output and relay-cold-boot on
+  35498134985. The one main run from today (36045322339) showed only agent-access failing. All
+  four flakes ran after agent-access and before the lab walk (tests 23 to 49 of 54). Agent-access
+  leaves the same state behind now as when it failed, because its `finally` cleanup is unchanged
+  apart from the production tombstone, which a later commit added.
 - `/check`: review delegated (10 findings, 8 fixed), simplify inline (no changes), verify inline.
 - I did not run the configured spec through `scripts/jobs.mjs` on this laptop. Without Docker it
   could only run against the `.env` project, which is production, and the suite must never point
