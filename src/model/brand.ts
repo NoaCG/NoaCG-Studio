@@ -28,6 +28,7 @@ import type { Palette } from './templateVocabulary';
 import type { CustomFont, StyleTag } from './fonts';
 import type { AssetFile } from './types';
 import { registerAppFont } from './fonts';
+import { accountKey } from './accountScope';
 
 export interface ProjectBrand {
   /** The style family of the graphic this look came from (used to sort its siblings first). */
@@ -91,9 +92,10 @@ export interface ProjectBrand {
 }
 
 /** The RETIRED anonymous record. Read for the creator's offer and for a style-family fallback;
- *  written only by the cloud-sync seam. */
+ *  written only by the cloud-sync seam. Per account, like the library it syncs with. */
 const LEGACY_KEY = 'spx-gfx-brand';
-/** The pointer: which saved look new graphics start from when something must choose. */
+/** The pointer: which saved look new graphics start from when something must choose. Per
+ *  account, because the look it names lives in that account's library (model/accountScope.ts). */
 const DEFAULT_BRAND_KEY = 'spx-gfx-default-brand';
 /** Set once the creator's "previous project look" offer has been taken or waved away. */
 const LEGACY_DISMISSED_KEY = 'spx-gfx-brand-legacy-dismissed';
@@ -131,7 +133,7 @@ function notifyDataChanged(): void {
 /** Which saved look is the default for new graphics, or null when none has been chosen. */
 export function getDefaultBrandId(): string | null {
   try {
-    return localStorage.getItem(DEFAULT_BRAND_KEY);
+    return localStorage.getItem(accountKey(DEFAULT_BRAND_KEY));
   } catch {
     return null;
   }
@@ -140,8 +142,8 @@ export function getDefaultBrandId(): string | null {
 /** Point "new graphics" at a saved look (or at nothing, with null). */
 export function setDefaultBrand(lookId: string | null): void {
   try {
-    if (lookId) localStorage.setItem(DEFAULT_BRAND_KEY, lookId);
-    else localStorage.removeItem(DEFAULT_BRAND_KEY);
+    if (lookId) localStorage.setItem(accountKey(DEFAULT_BRAND_KEY), lookId);
+    else localStorage.removeItem(accountKey(DEFAULT_BRAND_KEY));
     notifyDataChanged();
   } catch {
     // Storage full or unavailable — the pointer just won't persist. Non-fatal.
@@ -174,7 +176,7 @@ export function hydrateBrand(brand: ProjectBrand): ProjectBrand {
  *  look captured off a graphic before any brand exists. */
 export function loadLegacyBrand(): ProjectBrand | null {
   try {
-    const raw = localStorage.getItem(LEGACY_KEY);
+    const raw = localStorage.getItem(accountKey(LEGACY_KEY));
     if (!raw) return null;
     const brand = JSON.parse(raw) as ProjectBrand;
     if (!brand.palette || !brand.styleTag) return null;
@@ -188,7 +190,7 @@ export function loadLegacyBrand(): ProjectBrand | null {
  *  record when Create stopped overwriting it (see the header). */
 export function saveLegacyBrand(brand: ProjectBrand): void {
   try {
-    localStorage.setItem(LEGACY_KEY, JSON.stringify({ ...brand, updatedAt: new Date().toISOString() }));
+    localStorage.setItem(accountKey(LEGACY_KEY), JSON.stringify({ ...brand, updatedAt: new Date().toISOString() }));
     notifyDataChanged();
   } catch {
     // Storage full or unavailable — non-fatal.
@@ -198,7 +200,7 @@ export function saveLegacyBrand(brand: ProjectBrand): void {
 /** The sync seam's remove('brand'). */
 export function clearLegacyBrand(): void {
   try {
-    localStorage.removeItem(LEGACY_KEY);
+    localStorage.removeItem(accountKey(LEGACY_KEY));
     notifyDataChanged();
   } catch {
     // Non-fatal — nothing to remove or storage unavailable.

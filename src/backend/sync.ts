@@ -24,21 +24,26 @@
 // Conflict copies are applied BEFORE the pulls that overwrite their originals, so a crash or
 // failure mid-pass can never lose the only copy of a user's work.
 //
-// Cross-account ids: a local-first record created under a previously signed-in account collides
-// with that account's cloud row — the upsert hits the foreign row and RLS denies it, forever.
-// Retrying can never succeed, so a denied put (isPutDenied) resolves permanently: the record is
-// RE-MINTED under a fresh id locally (the work belongs to whoever is signed in here), the foreign
-// id is tombstoned locally, and the new id pushes cleanly. A denied TOMBSTONE deletes nothing of
-// ours in the cloud, so it is dropped silently (the 90-day purge removes it locally).
+// Denied puts: the cloud refuses a write it will never accept - the row id belongs to ANOTHER
+// account (RLS), or this account may not write at all. Retrying cannot fix that, and neither may
+// the engine "fix" it by re-minting the record under a fresh id: that is exactly how one
+// account's graphics used to end up in another's cloud when a second person signed in on the
+// same browser. Graphics are account-bound (model/accountScope.ts gives every account its own
+// local library), so a denied record stays on this device, unshared, and is reported. A denied
+// TOMBSTONE deletes nothing of ours in the cloud, so it is dropped silently (the 90-day purge
+// removes it locally).
 
 import { hasStorageSentinel } from './assets';
 import { isPutDenied, isSingleton, type StorageProvider, type StoredRecord, type SyncKind } from './storage';
 import { uuid } from '../model/id';
+import { accountKey } from '../model/accountScope';
 
 // 'packet' is retired (packages removed): the kind is gone from SyncKind, so those cloud rows
 // are simply never fetched or pushed again - they stay inert, nothing is destroyed.
 export const SYNC_KINDS: SyncKind[] = ['look', 'brand', 'project', 'show', 'video', 'graphic'];
 
+/** Per account (model/accountScope.ts): each library carries its own bookmark and debts, so one
+ *  account's history never shapes another's merges and survives the other signing in. */
 const SYNC_META_KEY = 'spx-gfx-sync';
 const EPOCH = '1970-01-01T00:00:00.000Z';
 
@@ -73,8 +78,6 @@ export interface SyncResult {
   pushed: number;
   pulled: number;
   conflicts: number;
-  /** Records re-minted under a fresh id after the cloud denied the old one (owned by another account). */
-  reminted: number;
   /** Per-record failures the pass survived. Empty on a clean pass. */
   failures: SyncFailure[];
 }
@@ -172,7 +175,6 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
   let pushed = 0;
   let pulled = 0;
   let conflicts = 0;
-  let reminted = 0;
 
   const fail = (op: SyncFailure['op'], r: StoredRecord, e: unknown): void => {
     failures.push({
@@ -239,32 +241,23 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
     }
   }
 
-  // 3. Push. A denied put (RLS — the cloud row's id belongs to another account) can never succeed
-  //    by retrying, so it resolves permanently: re-mint live records under a fresh id, drop
-  //    tombstones (they delete nothing of ours). Singletons can't collide (their cloud id is
-  //    per-user deterministic), so a denial there is surfaced as an ordinary failure.
+  // 3. Push. A denied put (RLS) can never succeed by retrying. A denied tombstone deletes nothing
+  //    of ours, so it is dropped; a denied live record stays local and is reported in words that
+  //    say it was NOT copied anywhere (see the header for why it is never re-minted).
   for (const l of plan.toRemote) {
     try {
       await remote.put(l);
       pushed += 1;
     } catch (e) {
-      if (isPutDenied(e) && !isSingleton(l.kind)) {
-        if (l.deleted) continue; // a tombstone for a foreign row — nothing of ours to delete
-        try {
-          const fresh = remintRecord(l);
-          await local.put(fresh); // the work is safe under its new id before anything else
-          await local.remove(l.kind, l.id); // tombstone the foreign id locally
-          await remote.put(fresh);
-          reminted += 1;
-          pushed += 1;
-        } catch (e2) {
-          pendingPush.add(recordKey(l));
-          fail('push', l, e2);
-        }
-      } else {
-        pendingPush.add(recordKey(l));
-        fail('push', l, e);
-      }
+      if (isPutDenied(e) && l.deleted) continue; // a tombstone for a foreign row - nothing of ours to delete
+      pendingPush.add(recordKey(l));
+      fail(
+        'push',
+        l,
+        isPutDenied(e)
+          ? new Error('the cloud refused it for this account (it belongs to another account, or this account cannot save) - it stays on this device only')
+          : e,
+      );
     }
   }
 
@@ -275,7 +268,7 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
     pendingPush: [...pendingPush],
     pendingConflict: [...pendingConflict],
   });
-  return { pushed, pulled, conflicts, reminted, failures };
+  return { pushed, pulled, conflicts, failures };
 }
 
 /** Duplicate a conflict loser under a fresh id + name so both edits survive. */
@@ -297,14 +290,7 @@ function makeConflictCopy(r: StoredRecord): StoredRecord {
   return { kind: r.kind, id, updatedAt: now, deleted: false, body };
 }
 
-/** The same record under a fresh id (content untouched) — the cross-account collision resolution. */
-function remintRecord(r: StoredRecord): StoredRecord {
-  const id = uuid();
-  const src = r.body as Record<string, unknown>;
-  return { kind: r.kind, id, updatedAt: r.updatedAt, deleted: false, body: { ...src, id } };
-}
-
-// ── sync metadata (per browser): the bookmark + the per-record pending sets ──────────────────────
+// ── sync metadata (per account library): the bookmark + the per-record pending sets ───────────────
 // Additive optional fields on one localStorage JSON object — readers default what's missing, so
 // no version/migration is needed (the schema-versioning pattern's additive rule).
 interface SyncMeta {
@@ -315,7 +301,7 @@ interface SyncMeta {
 
 function loadSyncMeta(): SyncMeta {
   try {
-    const m = JSON.parse(localStorage.getItem(SYNC_META_KEY) ?? '{}') as Partial<SyncMeta>;
+    const m = JSON.parse(localStorage.getItem(accountKey(SYNC_META_KEY)) ?? '{}') as Partial<SyncMeta>;
     const strings = (v: unknown): string[] =>
       Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
     return {
@@ -330,7 +316,7 @@ function loadSyncMeta(): SyncMeta {
 
 function saveSyncMeta(meta: SyncMeta): void {
   try {
-    localStorage.setItem(SYNC_META_KEY, JSON.stringify(meta));
+    localStorage.setItem(accountKey(SYNC_META_KEY), JSON.stringify(meta));
   } catch {
     // Non-fatal — worst case the next sync re-checks records it already synced.
   }
@@ -338,14 +324,4 @@ function saveSyncMeta(meta: SyncMeta): void {
 
 export function loadLastSyncedAt(): string {
   return loadSyncMeta().lastSyncedAt;
-}
-
-/** Reset the sync bookmark + pending sets (called on sign-out so a different user re-reconciles
- *  from scratch — another account's bookmark or debts must never shape this one's merges). */
-export function resetSyncBookmark(): void {
-  try {
-    localStorage.removeItem(SYNC_META_KEY);
-  } catch {
-    // Non-fatal.
-  }
 }

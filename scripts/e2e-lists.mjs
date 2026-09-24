@@ -10,6 +10,9 @@
 // the E2E_SPRINT_FOCUS env in ci.yml and the focus branch in e2e-affected.mjs - when the
 // sprint ends.
 export const FOCUS = [
+  // Graphics are account-bound: a second account on the same browser must never see the first
+  // one's library. Auth and sync are sprint surfaces, and this is their isolation pin.
+  'account-library.spec.ts',
   'agent-access.spec.ts',
   // THE AGENT ROAD'S OWN PANEL. Every other control-panel spec drives a graphic the studio built
   // from a type; this one drives the proof case an agent AUTHORED against the shipped skill

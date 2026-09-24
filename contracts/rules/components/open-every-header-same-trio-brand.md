@@ -3,7 +3,7 @@ v: 1
 scope: src/components/AppShell.tsx, src/components/video/VideoAppShell.tsx, src/components/home/GraphicControlPage.tsx
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/components/2026-09-07-open-every-header-same-trio-brand.md
 ---

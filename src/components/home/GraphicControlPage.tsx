@@ -330,9 +330,9 @@ export default function GraphicControlPage({ id }: { id: string }) {
     return (
       <div className="app home-page">
         <header className="topbar">
-          <button className="brand brand-home" onClick={() => navigate({ view: 'home', section: null })} title="Home">
+          <a className="brand brand-home" href="/" title="NoaCG Studio front page">
             <BrandLogo size={24} />
-          </button>
+          </a>
           <span className="tpl-name">Control panel</span>
         </header>
         <div className="home-body">
@@ -615,12 +615,12 @@ export default function GraphicControlPage({ id }: { id: string }) {
   return (
     <div className="app home-page control-page" data-testid="graphic-control-page">
       <header className="topbar">
-        <button className="brand brand-home" onClick={() => navigate({ view: 'home', section: null })} title="Home">
+        <a className="brand brand-home" href="/" title="NoaCG Studio front page">
           <BrandLogo size={24} />
-        </button>
-        {/* The logo goes Home too, but an operator page needs a control that SAYS so: this is
-            a leaf surface reached from Home, from a package, and from a graphic, and the way
-            back was previously a bare wordmark. */}
+        </a>
+        {/* The logo is the site root (the public front page), as on every surface, so Home is
+            a control that SAYS so: this is a leaf surface reached from Home, from a package,
+            and from a graphic. */}
         <button
           onClick={() => navigate({ view: 'home', section: null })}
           title="Back to Home. Your graphics, productions, control panels and videos are there."

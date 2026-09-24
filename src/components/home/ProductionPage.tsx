@@ -1497,9 +1497,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return (
       <div className="app home-page" data-testid="production-page">
         <header className="topbar">
-          <button className="brand brand-home" onClick={() => navigate({ view: 'home', section: null })} title="Home">
+          <a className="brand brand-home" href="/" title="NoaCG Studio front page">
             <BrandLogo size={24} />
-          </button>
+          </a>
           <span className="tpl-name">Production not found</span>
         </header>
         <main className="home-content" style={{ padding: 24 }}>
@@ -3859,30 +3859,30 @@ function ProductionShell({
   return (
     <div className="app playout-dashboard" data-testid="production-page">
       <header className="pd-header">
-        <button className="brand brand-home" onClick={onHome} title="Home">
+        <a className="brand brand-home" href="/" title="NoaCG Studio front page">
           <BrandLogo size={22} />
-        </button>
-        {/* The wizard door, in the SHARED LEFT ORDER every shell uses (owner walk, 2026-08-29:
-            "it should be in the same place on every page") - logo, Home, ＋ New graphic. Here
-            the logo IS the Home door, so the trio is two controls; what matters is that the
-            door is the first thing after Home rather than adrift in the right cluster, where
-            the owner found it. It is the SAME door as the rail's "＋ New graphic for this
-            production…" - both carry this production, so a graphic made from here joins the
-            show you are standing in. Moving it left also puts the width of the whole header
-            between it and ■ All out: a hand reaching for the panic control must never land on
-            navigation. */}
-        <NewGraphicButton productionId={show.id} />
+        </a>
         {/* BACK AND HOME, two separate promises (owner, 2026-09-23). Back returns to wherever
             you came from - the dashboard, the list, the graphic being made - and falls back to
             the list only when this page was opened cold. Home always goes to the dashboard. Both are labelled
             words rather than a bare arrow, so neither is mistaken for the other, and Home is
-            the word alone like every Home door (src/components/AGENTS.md). */}
+            the word alone like every Home door (src/components/AGENTS.md). The logo before them
+            is the site root, as on every surface, so Home is the word and not the logo. */}
         <button className="pd-back" onClick={onBack} title="Back to where you came from" data-testid="production-back">
           ← Back
         </button>
         <button className="pd-home" onClick={onHome} title="Your NoaCG home" data-testid="production-home">
           Home
         </button>
+        {/* The wizard door, in the SHARED LEFT ORDER every shell uses (owner walk, 2026-08-29:
+            "it should be in the same place on every page") - logo, Home, ＋ New graphic, so it
+            is the first thing after Home rather than adrift in the right cluster, where the
+            owner found it. It is the SAME door as the rail's "＋ New graphic for this
+            production…" - both carry this production, so a graphic made from here joins the
+            show you are standing in. Keeping it left also puts the width of the whole header
+            between it and ■ All out: a hand reaching for the panic control must never land on
+            navigation. */}
+        <NewGraphicButton productionId={show.id} />
         <h1 title={show.name}><IconTv /> <span className="pd-name">{show.name}</span></h1>
         <span className={`pd-mode pd-mode-${hostedSlug ? 'show' : 'idle'}`} data-testid="production-mode">
           {hostedSlug ? '● SHOW' : '○ NOT PUBLISHED'}

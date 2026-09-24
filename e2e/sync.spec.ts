@@ -189,33 +189,32 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
         putDenied: true,
       });
 
-    // 16. a live record whose cloud id belongs to another account is RE-MINTED: fresh id locally,
-    //     old id gone, pushed cleanly — resolved permanently, no failure
+    // 16. a live record whose cloud id belongs to another account is NEVER copied into this one:
+    //     no fresh id, nothing pushed, the local record untouched, and the refusal reported.
+    //     Re-minting it is how one account's graphics used to land in another's cloud.
     localStorage.removeItem('spx-gfx-sync');
     const l16 = mem([rec('11111111-1111-4111-8111-111111111111', T1)]);
     const r16 = mem([], (r) => (r.id === '11111111-1111-4111-8111-111111111111' ? denied() : null));
     const s16 = await runSync(l16, r16);
-    const minted = [...l16.store.values()].find((x) => x.id !== '11111111-1111-4111-8111-111111111111');
     check(
-      'RLS-denied put re-mints the id',
-      s16.reminted === 1 &&
-        s16.failures.length === 0 &&
-        s16.pushed === 1 &&
-        !!minted &&
-        re.test(minted.id) &&
-        (minted.body as { id: string }).id === minted.id &&
-        r16.store.has('look:' + minted.id) &&
-        !l16.store.has('look:11111111-1111-4111-8111-111111111111'),
+      'RLS-denied put stays local and is never re-minted',
+      s16.pushed === 0 &&
+        s16.failures.length === 1 &&
+        /another account/.test(s16.failures[0].message) &&
+        l16.store.size === 1 &&
+        l16.store.has('look:11111111-1111-4111-8111-111111111111') &&
+        r16.store.size === 0,
+      s16,
     );
 
     // 17. a TOMBSTONE denied by RLS deletes nothing of ours in the cloud — dropped silently,
-    //     never a failure, never a re-mint (so one foreign record can never wedge sync)
+    //     never a failure (so one foreign record can never wedge sync)
     const l17 = mem([rec('ghost', T1, { deleted: true })]);
     const r17 = mem([], (r) => (r.id === 'ghost' ? denied() : null));
     const s17 = await runSync(l17, r17);
     check(
       'foreign tombstone dropped silently',
-      s17.failures.length === 0 && s17.reminted === 0 && s17.pushed === 0 && l17.store.has('look:ghost'),
+      s17.failures.length === 0 && s17.pushed === 0 && l17.store.has('look:ghost'),
     );
 
     return out;
