@@ -134,8 +134,9 @@ jobs:
       # `describe` dropped) while `scripts/configured-verdict.mjs`, which only compares the TOTAL
       # against this number, still reads the job green. With the local stack there is no reason for
       # any test to skip, so the floor is an equality in all but name: raise it in the same change
-      # that adds a test, and lower it deliberately in the one that removes a test.
-      MIN_TESTS: 53
+      # that adds a test, and lower it deliberately in the one that removes a test. 54 on
+      # 2026-09-24, with `shared-lab-computer.spec.ts` (two students taking turns on one browser).
+      MIN_TESTS: 54
       # An entry here is coverage being given up, so adding one needs a reason written next to it.
       # `bridge-real-server.spec.ts` drives a REAL Bridge process and a REAL CasparCG over the
       # network, behind `BRIDGE_REAL=1`; a runner has neither, so its tests can only ever skip.
