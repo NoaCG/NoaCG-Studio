@@ -108,6 +108,15 @@ CI run 36051104001 is green).
 
 The styling idea is unchanged by either fix.
 
+After the fixes: `npm run build` exit 0; `import-svg-corpus`, `import-svg-credits`, `end-credits`
+and `catalog-baseline` green through the queue (j-1855, 39 passed). Then `origin/main` was taken
+in at `b410b5cd8` (row D: configured specs, docs, `scripts/e2e-lists.mjs`, the advisor baseline;
+no product code), the build re-run over the merged tree, and the integration plan from the fork
+point read: it escalates to the full suite only because both sides edit an unmapped script, and
+CI's full run on the pull request is that gate. Row B (PR #407) had not landed at requeue time,
+so its layer names were not in play; whichever lands second keeps B's names and A's
+`e2e-affected.mjs` removals.
+
 ## What is left
 
 - A centred or right-aligned sample is detected off the drawing (`creditsAnchor`) and not pinned
