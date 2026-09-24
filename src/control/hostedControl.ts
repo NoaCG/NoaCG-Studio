@@ -967,6 +967,9 @@ export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] 
 export const CONTROL_TAIL_PAGE = 500;
 /** Runaway guard on the catch-up walk: 20k rows is far past any real outage after pruning. */
 const MAX_TAIL_PAGES = 40;
+/** How long a log row that arrived ahead of the cursor waits for the rows in front of it before
+ *  the gap is treated as a hole (`followControlLog` says why, and where the number comes from). */
+const REORDER_WINDOW_MS = 25;
 
 /**
  * THE FLOOR UNDER REALTIME: how often a following surface re-reads the log even when nothing has
@@ -1081,12 +1084,49 @@ export async function followControlLog(opts: {
     report();
     refill();
   }, CONTROL_POLL_MS);
+  // ── A ROW AHEAD OF THE CURSOR WAITS A MOMENT BEFORE IT COUNTS AS A HOLE. ──────────────────────
+  //
+  // The log topic delivers ONE TRANSACTION's rows out of id order: measured 2026-09-24 on the live
+  // backend, 6 of 16 three-row batches arrived as 1,0,2 or 0,2,1, every one of them complete
+  // within 2.1 ms. `postgres_changes` had delivered them in order. Treating each of those as a
+  // hole would send every follower on a tail walk for four Takes in ten - an RPC apiece, the row
+  // late by its round trip, and the fast road standing down for the whole walk.
+  //
+  // So a row that arrives ahead of the cursor is HELD, and the rows in front of it get
+  // REORDER_WINDOW_MS to arrive. Each one that does is applied and drains whatever it unblocks, in
+  // id order. A gap still open when the window closes is a real hole, and it is recovered from
+  // the tail exactly as before - the held rows are never applied past it, which is the rule
+  // `apply` exists to keep. A held row the walk also returns is dropped as a duplicate by `apply`.
+  //
+  // 25 ms is ten times the widest spread measured. A genuine hole costs those 25 ms on top of the
+  // walk it needed anyway, and this includes the ordinary case of ANOTHER production writing in
+  // between: the ids are global across productions, so a gap never proves a row was lost.
+  const held = new Map<number, ControlEventRow>();
+  let holeTimer: ReturnType<typeof setTimeout> | null = null;
+  const drainHeld = () => {
+    for (let next = held.get(lastId + 1); next; next = held.get(lastId + 1)) apply(next);
+    for (const id of held.keys()) if (id <= lastId) held.delete(id);
+    if (held.size === 0 && holeTimer) {
+      clearTimeout(holeTimer);
+      holeTimer = null;
+    }
+  };
   const unsubscribe = await subscribeControlEvents(opts.showId, (row) => {
+    if (row.id <= lastId) return;
     if (row.id > lastId + 1) {
-      refill();
+      held.set(row.id, row);
+      holeTimer ??= setTimeout(() => {
+        holeTimer = null;
+        drainHeld();
+        if (held.size > 0) {
+          held.clear();
+          refill();
+        }
+      }, REORDER_WINDOW_MS);
       return;
     }
     apply(row);
+    drainHeld();
   }, (next) => {
     status = next;
     if (next === 'SUBSCRIBED') {
@@ -1099,6 +1139,8 @@ export async function followControlLog(opts: {
   }), opts.onCommandStatus);
   return () => {
     clearInterval(poll);
+    if (holeTimer) clearTimeout(holeTimer);
+    held.clear();
     walks = 0;
     recovering.delete(opts.showId);
     unsubscribe();
