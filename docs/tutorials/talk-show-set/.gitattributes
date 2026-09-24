@@ -1,0 +1,3 @@
+# Illustrator files are PDF streams that git mistakes for text. Left to autodetection, a Windows
+# checkout with core.autocrlf rewrites their line endings and the files no longer open.
+*.ai binary
