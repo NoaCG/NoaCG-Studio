@@ -163,10 +163,6 @@ h2 + .lib-row,
 .prod-card-new { border-style: dashed; border-color: var(--border); background: none; }
 .prod-card-new .spacer { flex: 1; min-height: 4px; }
 .prod-card-new strong { font-size: 15px; }
-/* A shipped pack's row on the import card: name/description beside Install + download. */
-.pack-row { display: flex; align-items: center; gap: 8px; }
-.pack-row .lib-info { flex: 1; min-width: 0; }
-.pack-row a { display: inline-flex; align-items: center; padding: 6px; color: inherit; }
 
 /* ── The Graphics section's organisation layer: multi-select + flat folders ─────────── */
 /* ── GRID vs LIST (re-design/handoff.md §5b/§5c) ──────────────────────────────────────────

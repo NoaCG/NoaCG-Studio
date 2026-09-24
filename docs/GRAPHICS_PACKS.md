@@ -6,6 +6,14 @@ prepared cue rundown seeded. Nothing needs the editor — import, publish (or ex
 It exists beside the wizard catalog, not inside it: a pack ships complete work, the catalog
 ships starting points, and the two share no generator code.
 
+**Decided 2026-09-24 (owner): one place for NoaCG's own graphics.** Everything NoaCG provides
+reaches users through the template wizard - its kits and catalog. The Productions import card
+lists NO shipped packs; it is only the door for packages made OUTSIDE the studio, above all by
+a coding agent (`noacg pack`), and for productions exported as packs. Uutishuone and Fight
+Night stay in the repo as pack files (and as the pack specs' fixtures) until they are rebuilt
+as ordinary wizard kits. To revert, restore `public/packs/index.json` and the list in
+`ProductionsSection.tsx` from the commit that made this change.
+
 ## The format (v1)
 
 ```jsonc
@@ -61,9 +69,9 @@ productions are shared, not only how shipped packs arrive.
   `validatePack` (every graphic through `validation/validateTemplate` — the ONE export gate),
   `installPack` (the shared `model/templateSet.ts` save path + layers + cues, every durable
   write claimed).
-- **The door** — Home → Productions → the "Import a package" card: shipped packs listed from
-  `public/packs/index.json` with one-click Install and a download link; any downloaded pack
-  file imports through the same parser.
+- **The door** — Home → Productions → the "Import a package" card: pick a `.noacgpack.json`
+  (from `noacg pack` or a production export) and it installs as a production and opens it.
+  No shipped pack is listed there (see the 2026-09-24 decision above).
 - **The shipped pack(s)** — sources as readable `.mjs` modules under `scripts/packs/<pack>/`,
   assembled by `scripts/build-news-pack.mjs` into `public/packs/` (git-tracked, served at
   `/packs/…`). The build refuses on: missing definition, missing SPX entry points, ES5
@@ -102,8 +110,8 @@ re-syncs when the operator types a new time + ✎ Update.
 
 ## Operating it (the demo walk)
 
-1. Home → **Productions** → Import a package → **Install** Uutishuone → the production page
-   opens with all ten cues.
+1. Home → **Productions** → Import a package → **Import a package file…** →
+   `public/packs/uutishuone.noacgpack.json` → the production page opens with all ten cues.
 2. Take the **bug** cue, then the **ticker** cue — both stay up (each graphic has its own
    layer). Take the **opener** — it plays and clears itself.
 3. Walk the name straps and headlines with ↑/↓ + Take; each replaces the previous on its

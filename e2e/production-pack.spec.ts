@@ -1,13 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createProject } from './_create';
 import { settleDurableWrites } from './_durable';
 
 // The graphics-pack ROUND TRIP and the Fight Night pack (src/packs/graphicsPack.ts,
 // docs/GRAPHICS_PACKS.md, docs/FIGHT_NIGHT_PACK_PLAN.md): any production exports as one
 // re-importable .noacgpack.json - rundown included, as the format's top-level ordered cue
-// list - and the shipped Fight Night pack installs whole through the same door the
+// list - and the Fight Night pack file installs whole through the same door the
 // Uutishuone spec (pack-import.spec.ts) covers. Everything here runs offline.
+
+const FIGHT_NIGHT = fileURLToPath(new URL('../public/packs/fight-night.noacgpack.json', import.meta.url));
 
 test('a production exports as a graphics pack and imports back with its rundown intact', async ({ page }) => {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
@@ -100,13 +103,13 @@ test('a production exports as a graphics pack and imports back with its rundown 
   });
 });
 
-test('the shipped Fight Night pack installs whole: 12 graphics, the 19-cue rundown in show order', async ({ page }) => {
+test('the Fight Night pack installs whole: 12 graphics, the 19-cue rundown in show order', async ({ page }) => {
   // This is the pack's real gate: install runs every graphic through validateTemplate -
   // one failure refuses the whole pack, so this test failing names the culprit.
   await page.goto('/app#/home/productions');
   const card = page.getByTestId('import-pack-card');
   await expect(card).toBeVisible();
-  await card.getByTestId('install-pack-fight-night.noacgpack.json').click();
+  await card.getByTestId('import-pack-file').setInputFiles(FIGHT_NIGHT);
 
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('production-page')).toContainText('Fight Night');

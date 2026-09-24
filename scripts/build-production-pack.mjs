@@ -1,15 +1,15 @@
 // Assemble a graphics pack (src/packs/graphicsPack.ts, format `noacg-pack` v1) from a
 // FILE-BASED pack source directory: packs/<pack>/manifest.json + one directory per graphic
-// holding template.html / style.css / logic.js. Output: public/packs/<slug>.noacgpack.json
-// plus the pack's entry UPSERTED into public/packs/index.json (never overwriting other
-// packs' entries - build-news-pack.mjs shares the index the same way).
+// holding template.html / style.css / logic.js. Output: public/packs/<slug>.noacgpack.json.
+// The file is not listed anywhere in the studio - NoaCG's own templates reach users through
+// the template wizard - it is the fixture e2e/production-pack.spec.ts imports.
 //
 // The app-side importer re-validates every graphic through the export gate at import time;
 // this script guards what plain node can check: the format shape, the SPX contract's
 // presence, the CasparCG-CEF ES5 rule, the inline-hidden-holder rule and the bundled-font
 // url() convention (the same gates as build-news-pack.mjs, adapted to file sources).
 // e2e/production-pack.spec.ts installs the emitted file through the real gate.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -112,19 +112,6 @@ const PACK = {
 
 mkdirSync(outDir, { recursive: true });
 writeFileSync(outFile, JSON.stringify(PACK, null, 2) + '\n');
-
-// Upsert this pack's entry into the shared index (the Productions section's installable list).
-const indexPath = join(outDir, 'index.json');
-const index = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : [];
-const entry = {
-  file: `${slug}.noacgpack.json`,
-  name: manifest.name,
-  description: manifest.indexDescription ?? manifest.description ?? '',
-};
-const at = index.findIndex((p) => p.file === entry.file);
-if (at >= 0) index[at] = entry;
-else index.push(entry);
-writeFileSync(indexPath, JSON.stringify(index, null, 2) + '\n');
 
 const bytes = JSON.stringify(PACK).length;
 console.log(
