@@ -497,8 +497,9 @@ const MAP = [
   [/^src\/docs\//, ['docs.spec.ts']],
   // The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
   // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
-  // and its footer, so both of those specs ride along.
-  [/^(downloads\.html$|src\/downloads\/)/, ['downloads.spec.ts', 'landing.spec.ts', 'docs.spec.ts']],
+  // and its footer, so both of those specs ride along. public/downloads/ holds the classroom
+  // package zip the page links, and downloads.spec.ts fetches it.
+  [/^(downloads\.html$|src\/downloads\/|public\/downloads\/)/, ['downloads.spec.ts', 'landing.spec.ts', 'docs.spec.ts']],
   [/^src\/teach\//, ['lazy-editor.spec.ts']],
   // import-graphic rides along because assets/eraseRegion.ts is not only an assets helper: it is
   // the deterministic flat-fill erase behind the Import Graphic Prepare step. Without this edge,

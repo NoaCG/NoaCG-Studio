@@ -117,6 +117,27 @@ test('with neither API answering the page still downloads the newest Bridge and 
   await expect(page.getByTestId('cli-version')).toHaveText('latest');
 });
 
+test('the classroom package sits under the two tools and its zip is served from /downloads', async ({ page, request }) => {
+  await fakeChannels(page, 'down');
+  await page.goto('/downloads#classroom');
+  const card = page.getByTestId('download-classroom');
+  await expect(card).toBeVisible();
+  // Example material for a lesson, not a third tool: the heading still counts two tools.
+  await expect(page.locator('h1')).toHaveText('Two tools you can install');
+  await expect(card).toContainText('Illustrator');
+  await expect(card.getByTestId('classroom-download')).toHaveAttribute('href', '/downloads/NoaCG-classroom-package.zip');
+  const zip = await request.get('/downloads/NoaCG-classroom-package.zip');
+  expect(zip.status()).toBe(200);
+  const bytes = await zip.body();
+  // A zip starts with "PK": the server did not answer with the downloads page instead.
+  expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
+  expect(bytes.length).toBeGreaterThan(100_000);
+
+  // The same zip is linked from the docs, beside the layer names it teaches.
+  await page.goto('/docs#svg-layers');
+  await expect(page.getByTestId('docs-classroom-package')).toHaveAttribute('href', '/downloads/NoaCG-classroom-package.zip');
+});
+
 test('the top bar is the landing top bar, with Downloads as the current page', async ({ page }) => {
   await fakeChannels(page, 'down');
   await page.goto('/downloads');

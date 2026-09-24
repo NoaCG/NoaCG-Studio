@@ -16,6 +16,16 @@
   .dl-grid.doc-body { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* The classroom package sits UNDER the two tools, full width: it is example material for a
+   lesson, not a third tool, so it must not read as one of the pair. The grid above keeps its
+   own bottom padding off (padding-bottom 0 here takes it back) so the gap between the two rows
+   is the grid's 24px gap, not 80px. */
+.dl-grid.doc-body:has(+ .dl-extra) { padding-bottom: 0; }
+.dl-extra.doc-body {
+  max-width: none;
+  padding: 24px 0 80px;
+}
+
 /* A card is a section on the docs' reading type, without the docs' between-sections rule:
    the cards sit side by side, so that rule would draw a line through the second one. */
 .doc-body section.dl-card,
