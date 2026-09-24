@@ -7,6 +7,9 @@ serves: now
 
 # One layer-naming system for every graphic
 
+**Changed since, 2026-09-24:** the quiz plates below are `Answer box A` to `D` now, not `Row A`,
+and the Board rule is settled; walk `2026-09-24-b-one-naming-system.md` for what is current.
+
 ## What changed
 
 You showed three quiz examples with three structures and three spellings and said "we just need

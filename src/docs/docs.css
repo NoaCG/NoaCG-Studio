@@ -341,6 +341,13 @@ td strong { color: var(--paper); }
   text-transform: uppercase; color: var(--amber); margin-bottom: 4px;
 }
 .callout.truth .lbl { color: var(--faint); }
+/* The five-line layer-names cheat sheet that opens #svg-layers (written by
+   scripts/check-example-layers.mjs). A callout holding a short list: the bullets sit inside the
+   panel's padding, and the rows keep the body text size because this is the part a student reads. */
+.doc-body .doc-cheat ul { margin: 6px 0 0 18px; }
+.doc-body .doc-cheat li { margin: 5px 0; }
+/* A layer name is copied as one unit, so it never breaks across lines ("Answer / box A"). */
+.doc-body .doc-cheat code { white-space: nowrap; }
 
 /* Footer */
 footer {

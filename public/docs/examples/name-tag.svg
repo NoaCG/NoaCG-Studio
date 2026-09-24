@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NoaCG docs example - NAME TAG (a lower third). Imports as two text fields.
+     Two layers, top of the Layers panel first: Text (what the operator types) and Board (what
+     stays as drawn). A name tag is always Name and Role: one graphic for every person on the
+     show, retyped for each. Panel is the background and Edge is decoration. Full-frame 1920x1080
+     artboard, transparent background. See https://noacg.studio/docs#first-graphic -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <style>
+      .name { font-family: Archivo; font-weight: 700; }
+      .role { font-family: Inter; font-weight: 500; }
+    </style>
+  </defs>
+
+  <!-- BOARD: the drawing. -->
+  <g id="Board" data-name="Board">
+    <rect id="Panel" data-name="Panel" x="140" y="780" width="1000" height="170" rx="8" fill="#0d1017" opacity="0.92"/>
+    <rect id="Edge" data-name="Edge" x="140" y="780" width="10" height="170" fill="#f6a623"/>
+  </g>
+
+  <!-- TEXT: what the operator types. -->
+  <g id="Text" data-name="Text">
+    <text id="Name" data-name="Name" class="name" x="190" y="862" font-size="56" fill="#ffffff">Alexandra Riva</text>
+    <text id="Role" data-name="Role" class="role" x="190" y="912" font-size="30" fill="#b7bcc4">Chief Correspondent</text>
+  </g>
+</svg>

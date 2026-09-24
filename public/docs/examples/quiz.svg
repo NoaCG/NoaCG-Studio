@@ -15,14 +15,16 @@
     </style>
   </defs>
 
-  <!-- BOARD: the drawing. The letters are part of it, so they are static. -->
+  <!-- BOARD: the drawing. Panel is the background, each answer sits on its own plate (Answer
+       box A under Answer A), and the letters are fixed words, so they are static:. Edge is
+       decoration. -->
   <g id="Board" data-name="Board">
     <rect id="Panel" data-name="Panel" x="360" y="140" width="1200" height="800" fill="#0d1017" opacity="0.96"/>
     <rect id="Edge" data-name="Edge" x="360" y="140" width="1200" height="8" fill="#f6a623"/>
-    <rect id="Row_A" data-name="Row A" x="420" y="380" width="1080" height="92" rx="10" fill="#1e2530"/>
-    <rect id="Row_B" data-name="Row B" x="420" y="500" width="1080" height="92" rx="10" fill="#1e2530"/>
-    <rect id="Row_C" data-name="Row C" x="420" y="620" width="1080" height="92" rx="10" fill="#1e2530"/>
-    <rect id="Row_D" data-name="Row D" x="420" y="740" width="1080" height="92" rx="10" fill="#1e2530"/>
+    <rect id="Answer_box_A" data-name="Answer box A" x="420" y="380" width="1080" height="92" rx="10" fill="#1e2530"/>
+    <rect id="Answer_box_B" data-name="Answer box B" x="420" y="500" width="1080" height="92" rx="10" fill="#1e2530"/>
+    <rect id="Answer_box_C" data-name="Answer box C" x="420" y="620" width="1080" height="92" rx="10" fill="#1e2530"/>
+    <rect id="Answer_box_D" data-name="Answer box D" x="420" y="740" width="1080" height="92" rx="10" fill="#1e2530"/>
     <text id="static_x3A_Letter_A" data-name="static:Letter A" class="letter" x="466" y="438" font-size="34" fill="#f6a623" text-anchor="middle">A</text>
     <text id="static_x3A_Letter_B" data-name="static:Letter B" class="letter" x="466" y="558" font-size="34" fill="#f6a623" text-anchor="middle">B</text>
     <text id="static_x3A_Letter_C" data-name="static:Letter C" class="letter" x="466" y="678" font-size="34" fill="#f6a623" text-anchor="middle">C</text>
