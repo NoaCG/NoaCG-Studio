@@ -9,7 +9,10 @@ read and what a finished design looks like, and their layer trees predate the on
 The files a student copies are `public/docs/examples/`, one per graphic type, each with the three
 layers `Text`, `Moments` and `Board` and the spellings the public docs teach
 (`docs/backlog/one-layer-naming-system-for-every-graphic.md`). Import them, learn from them,
-but copy a layer tree from the docs examples.
+but copy a layer tree from the docs examples. `npm run check:example-layers` holds the docs
+examples to the system in every build and deliberately does not read this folder. Pointed at it
+(`node scripts/check-example-layers.mjs docs/svg-samples`, 2026-09-24), all 24 files fail: none
+of them has the three layers `Text`, `Moments` and `Board`.
 
 Drop one at `/app` → **New graphic** → **Import graphic** → the drop zone. The rules every file
 here obeys are in [`../SVG_AUTHORING.md`](../SVG_AUTHORING.md); this folder is that page with the

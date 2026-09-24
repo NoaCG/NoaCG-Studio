@@ -8,7 +8,7 @@
   <defs>
     <style>
       .cr-heading { font-family: Playfair Display; font-weight: 700; }
-      .cr-line { font-family: Source Serif 4; font-weight: 500; letter-spacing: 1px; }
+      .cr-line { font-family: 'Source Serif 4'; font-weight: 500; letter-spacing: 1px; }
     </style>
   </defs>
 

@@ -847,9 +847,10 @@ function colourWord(fill: string): string | null {
 function isReadableBoxName(label: string): boolean {
   const trimmed = label.trim();
   if (trimmed === '' || /^(Panel|Rectangle)\s+\d+$/.test(trimmed)) return false;
-  // Three letters is a word: the docs examples name their row plates `Row A` to `Row D`
-  // (docs/backlog/one-layer-naming-system-for-every-graphic.md), and at four the checklist
-  // headed them "Black plate 1" to "Black plate 4" beside a file that had named every one.
+  // Three letters is a word: the docs examples once named their row plates `Row A` to `Row D`
+  // (docs/backlog/one-layer-naming-system-for-every-graphic.md; they are `Answer box A` since
+  // 2026-09-24), and at four the checklist headed them "Black plate 1" to "Black plate 4" beside a
+  // file that had named every one. A designer's own short plate name must still read as a name.
   return /[A-Za-z]{3,}/.test(trimmed);
 }
 
