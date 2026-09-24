@@ -21,6 +21,7 @@ import { lineupRecipe } from './lineup';
 import { puzzleRecipe } from './puzzle';
 import { revealRecipe } from './reveal';
 import { bingoRecipe } from './bingo';
+import { creditsRecipe } from './credits';
 
 export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
   quizRecipe,
@@ -36,6 +37,7 @@ export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
   puzzleRecipe,
   revealRecipe,
   bingoRecipe,
+  creditsRecipe,
   switchRecipe,
   choiceRecipe,
 ];

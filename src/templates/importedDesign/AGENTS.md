@@ -200,6 +200,14 @@ adds no emitted JS**: a behaviour that needs a line is a missing FIELD KIND in t
   `choice` - `DesignSvg.extras`), each namespaced by its name (`ctx.ns` / `ctx.nsId`); the parts
   merge into one table, one runtime and one machine (`composeParts`).
 
+- **A credits list is ONE pasted field, never a field per name** (`creditsRoll.ts`, the `credits`
+  recipe). The drawn Credits text is the SAMPLE, bound like the clock: a class instead of a field
+  id, the operator's list in a hidden holder, the rows rendered into a copy of the sample's own
+  `<text>` inside an inner `<svg>` window (the Credits box, else the frame). A title row copies the
+  sample's first line ending in ":", a name row the line under it; the leading is the sample's.
+  The parser is `CREDITS_PARSER_JS` from `endCredits/shared.ts`, never a copy; the entrance's
+  call `noacgCreditsRoll` starts the roll, and the pace is lines a second, not pixels.
+
 E2E: import-svg-behaviour (vote: fixtures/svg-corpus/illustrator-live-vote-band.svg; score:
 illustrator-four-team-scoreboard.svg; countdown: illustrator-question-timer-board.svg) +
-configured/imported-quiz-output.
+configured/imported-quiz-output; import-svg-credits (fixtures/credits-roll.svg).

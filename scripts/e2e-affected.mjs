@@ -233,6 +233,10 @@ const MAP = [
   // every imported-artwork behaviour, the rehearsal, and the machine-graph spec that reads the
   // same machine.
   [/^src\/blocks\/behaviourData\.ts$|^src\/templates\/behaviours\/|^src\/templates\/importedDesign\/(behaviour|behaviourRuntime|artworkFields)\.ts$/, ['import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'import-svg.spec.ts', 'motion-presets.spec.ts']],
+  // The credits roll on imported artwork (docs/END_CREDITS.md): its recipe, the roll engine, the
+  // parser it shares with the catalog rolls, the fields list that turns the sample into one box,
+  // and its fixture.
+  [/^src\/templates\/(behaviours\/credits\.ts|importedDesign\/(creditsRoll|artworkFields)\.ts|endCredits\/shared\.ts)$|^e2e\/fixtures\/credits-roll\.svg$/, ['import-svg-credits.spec.ts']],
   [/^src\/blocks\/motionPresets\.ts$/, ['motion-presets.spec.ts']],
   [
     /^src\/components\/MotionPresetPicker\.tsx$/,
