@@ -189,6 +189,13 @@ skip here would have turned it red on every landing; the floor and allowlist mov
   configured floor), simplify `inline` with nothing to change, verify `inline`: `npm run build`
   exit 0, the CI-shaped plan and `--list` both exit 0, and job j-1856 (no-old-editor,
   route-transition-flash, network-resilience, storage-full) 23 passed.
+- Rows B (#407) and G (#410) landed during that check, so main was taken in a second time. The
+  generated-file trap fired: the merge dropped B's `templates/name-every-layer-svg-you-draw` rule
+  from the root `AGENTS.md` and `contracts/index.md` without a conflict, and re-running the
+  compiler restored it (`06bc9080`). B's layer names and G's hosted-control changes are kept as
+  they landed; this branch touches none of their files. On the merged tip: `npm run build` exit
+  0, both plan shapes exit 0, and job j-1859 (no-old-editor, route-transition-flash,
+  import-svg-behaviour, hosted-control, wizard-finish) 74 passed, 10 skipped, 0 failed.
 
 ## Pointers
 
