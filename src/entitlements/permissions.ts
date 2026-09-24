@@ -25,7 +25,9 @@ import { allows, type Entitlement, type FeatureKey } from './contract.js';
 /** Every permission a credential can carry. Verbs are the PRODUCT's (docs/AGENT_CLI.md
  *  "Vocabulary"): save = the library, add/publish = a production, operate = live playout. */
 export const PERMISSION_KEYS = [
-  /** Create a graphic in the user's LIBRARY (`noacg save`, POST /api/me/graphics). */
+  /** Create a graphic in the user's LIBRARY (`noacg save`, POST /api/me/graphics), and send a
+   *  whole graphics PACKAGE to wait on their Home (`noacg pack --save`, POST /api/me/packages).
+   *  A package becomes a production only when the user presses Install in their own session. */
   'graphics:create',
   /** Read the user's library (reserved). */
   'graphics:read',
@@ -43,7 +45,7 @@ export type PermissionKey = (typeof PERMISSION_KEYS)[number];
 /** Human labels - the consent card and the admin surface read these, so a key cannot ship
  *  without the words a person sees. */
 export const PERMISSION_LABELS: Record<PermissionKey, string> = {
-  'graphics:create': 'Create graphics in your library',
+  'graphics:create': 'Create graphics in your library and send graphics packages to your Home',
   'graphics:read': 'Read your library',
   'graphics:update': 'Replace graphics it created',
   'productions:attach': 'Add graphics to a production',

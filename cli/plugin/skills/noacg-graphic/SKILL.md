@@ -1,9 +1,10 @@
 ---
 name: noacg-graphic
 description: >-
-  Make a broadcast graphic for NoaCG Studio (lower third, scoreboard, bug, ticker, countdown,
-  full-screen, any on-air graphic) and put it in the user's NoaCG library. Use when the user says
-  "for NoaCG", names NoaCG, SPX, CasparCG or OGraf playout, or wants a graphic operated live
+  Make a broadcast graphic - or a whole graphics package for a show - for NoaCG Studio (lower
+  third, scoreboard, bug, ticker, countdown, full-screen, any on-air graphic) and put it in the
+  user's NoaCG library or on their Home ready to install as a production. Use when the user says
+  "for NoaCG", names NoaCG, SPX, CasparCG or OGraf playout, or wants graphics operated live
   (editable fields, Take/Update/Out). Teaches the NoaCG contract, the noacg tools and the loop,
   not how to design.
 ---
@@ -65,6 +66,33 @@ check it, and how it reaches the user's library. It does not tell you how it sho
    graphics in the library - save never publishes, adds to a production or airs anything. (No
    account? `zip` the folder - it imports through the studio's Import door, and it is also a
    complete OGraf package any OGraf renderer plays.)
+
+## A whole package: several graphics for one show
+
+When the user asks for a PACKAGE - "graphics for my esports night", "a news package", "everything a
+fight show needs" - make each graphic with the loop above (steps 1-4, one package folder each,
+one shared look), then send them together instead of saving them one by one:
+
+```
+noacg pack ./opener ./name-strap ./scorebug ./endboard --name "Friday Fight Night" \
+  --rundown ./rundown.json --layer 10 --save
+```
+
+- `--save` sends the package to the user's NoaCG **Home → Productions**, where it waits with an
+  **Install** button. Install creates the production - every graphic pooled on its layer, the
+  rundown ready to Take - and opens it. Tell the user exactly that: "it is waiting on Home →
+  Productions; press Install". It uses the same agent key as `save` and works from any machine.
+- `--rundown` (optional) is a JSON list of cues in show order, each naming a graphic by its name:
+  `[{ "graphic": "Name strap", "label": "Anna - host", "values": { "f0": "Anna Virtanen" } }]`.
+  Write one when the brief describes a running order; the values are sample content the
+  operator edits on air.
+- `--layer 10` puts the first graphic on playout layer 10 and counts up (back to front, so list
+  full-frame backgrounds first and bugs and tickers last), or give one `--layer` per graphic.
+- Every graphic is validated again before anything is sent; one error refuses the whole package.
+- Without an account, `--out ./show.noacgpack.json` writes the same package as a file the user
+  imports on Home → Productions → **Import a package**.
+- As the MCP tool: `{ "command": "pack", "paths": ["./opener", "./scorebug"], "name": "…",
+  "rundown": [ … ] }` - sent to Home when this machine holds a key; `out` also writes the file.
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
 (`npx -y @noacg/cli <command>` when nothing is installed; `npm i -g @noacg/cli` once makes every

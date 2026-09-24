@@ -70,8 +70,10 @@ productions are shared, not only how shipped packs arrive.
   `installPack` (the shared `model/templateSet.ts` save path + layers + cues, every durable
   write claimed).
 - **The door** — Home → Productions → the "Import a package" card: pick a `.noacgpack.json`
-  (from `noacg pack` or a production export) and it installs as a production and opens it.
-  No shipped pack is listed there (see the 2026-09-24 decision above).
+  (from `noacg pack --out` or a production export) and it installs as a production and opens it.
+  No shipped pack is listed there (see the 2026-09-24 decision above). A package an agent SENT
+  with `noacg pack --save` needs no file: it waits above the grid under "Waiting to install"
+  with its own Install button (`docs/AGENT_SAVE.md` §7) and goes through the same installer.
 - **The shipped pack(s)** — sources as readable `.mjs` modules under `scripts/packs/<pack>/`,
   assembled by `scripts/build-news-pack.mjs` into `public/packs/` (git-tracked, served at
   `/packs/…`). The build refuses on: missing definition, missing SPX entry points, ES5

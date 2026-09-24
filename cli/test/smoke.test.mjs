@@ -123,6 +123,41 @@ test('save drives the whole client path and stops at the server', { skip }, asyn
   assert.match(json.error, /^Not saved:/);
 });
 
+test('pack --save validates every graphic, writes the file, and stops at the server', { skip }, async () => {
+  // The package twin of the save smoke above: two scaffolded graphics, a rundown naming both,
+  // `--out` AND `--save`. The file is written before the send, so it proves the whole client
+  // half - read, normalize, gate, packEntry, the rundown check - and the send is refused by a
+  // dev server with no account backend, which must be the documented refusal, not a crash.
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'noacg-smoke-'));
+  const a = path.join(dir, 'strap');
+  const b = path.join(dir, 'headline');
+  for (const [out, name] of [[a, 'Pack strap'], [b, 'Pack headline']]) {
+    const s = await run(['scaffold', '--fields', 'Headline:text=Hello', '--name', name, '--out', out, '--json']);
+    assert.equal(s.code, 0, s.stderr);
+  }
+  const rundown = path.join(dir, 'cues.json');
+  await fs.writeFile(rundown, JSON.stringify([
+    { graphic: 'Pack headline', label: 'Open', values: { f0: 'TONIGHT' } },
+    { graphic: 'Pack strap', label: 'Host' },
+  ]));
+  const file = path.join(dir, 'show.noacgpack.json');
+  const key = `noacg_ak_${'0'.repeat(32)}`;
+  const r = await run(
+    ['pack', a, b, '--name', 'Smoke show', '--rundown', rundown, '--layer', '10', '--out', file, '--save', '--no-bench', '--json'],
+    { NOACG_AGENT_KEY: key },
+  );
+  const json = JSON.parse(r.stdout);
+  assert.equal(r.code, 1, `expected the documented refusal, got exit ${r.code}: ${r.stdout}`);
+  assert.equal(json.reason, 'refused', `the send must be REFUSED by a backend-less server, not crash: ${JSON.stringify(json)}`);
+  assert.match(json.error, /^Not sent:/);
+
+  const pack = JSON.parse(await fs.readFile(file, 'utf8'));
+  assert.equal(pack.format, 'noacg-pack');
+  assert.equal(pack.name, 'Smoke show');
+  assert.deepEqual(pack.graphics.map((g) => [g.name, g.layer]), [['Pack strap', 10], ['Pack headline', 11]]);
+  assert.deepEqual(pack.cues.map((c) => c.graphic), ['Pack headline', 'Pack strap']);
+});
+
 test('a third-party OGraf package is inspected and driven in the OGraf host', { skip }, async () => {
   // The repo's hand-written fixture (e2e/fixtures/ograf/scorebug-demo): not a NoaCG template -
   // semantic keys, two custom actions, two steps. `noacg validate` must mount it in the host

@@ -34,6 +34,7 @@ const sources = [
   'api/_lib/admin/usage.test.ts',
   'api/_lib/me/agentKeys.test.ts',
   'api/_lib/me/graphics.test.ts',
+  'api/_lib/me/packages.test.ts',
 ];
 
 // The suite this runner is. `node --test` with an empty file list runs nothing and exits 0, so a
@@ -66,6 +67,7 @@ try {
     path.join(runtime.outputDir, 'api/_lib/admin/usage.test.js'),
     path.join(runtime.outputDir, 'api/_lib/me/agentKeys.test.js'),
     path.join(runtime.outputDir, 'api/_lib/me/graphics.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/me/packages.test.js'),
   ];
   const result = spawnSync(process.execPath, ['--test', ...testFiles], {
     cwd: projectRoot,

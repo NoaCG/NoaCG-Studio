@@ -79,6 +79,21 @@ export interface AgentAccessStore {
   revokeKey(userId: string, id: string): Promise<boolean>;
   /** INSERT a library record for the user - never an upsert (docs/AGENT_SAVE.md). */
   insertGraphic(userId: string, doc: GraphicDocBase): Promise<void>;
+  /** How many packages are WAITING for the user to install (docs/AGENT_SAVE.md §7). */
+  countWaitingPackages(userId: string): Promise<number>;
+  /** INSERT a waiting package for the user; the server mints and returns its id. */
+  insertPackage(userId: string, row: NewWaitingPackage): Promise<string>;
+}
+
+/** A graphics package waiting on the user's Productions page for Install. */
+export interface NewWaitingPackage {
+  name: string;
+  description: string;
+  graphicCount: number;
+  /** Provenance, never proof - the tool that uploaded it (`noacg-cli`). */
+  origin: { tool: string; version?: string };
+  /** The pack file itself (`noacg-pack` v1), already narrowed by packageSaveShape. */
+  body: unknown;
 }
 
 // ── configuration ─────────────────────────────────────────────────────────────────────────
@@ -229,6 +244,31 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       });
       if (error) throw new Error(error.message);
     },
+    async countWaitingPackages(userId) {
+      const { count, error } = await (await db())
+        .from('agent_packages')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+    async insertPackage(userId, row) {
+      // INSERT, never upsert, and the id is the database's own - the same rule as insertGraphic.
+      const { data, error } = await (await db())
+        .from('agent_packages')
+        .insert({
+          user_id: userId,
+          name: row.name,
+          description: row.description,
+          graphic_count: row.graphicCount,
+          origin: row.origin,
+          body: row.body,
+        })
+        .select('id')
+        .single();
+      if (error) throw new Error(error.message);
+      return (data as { id: string }).id;
+    },
   };
 }
 
@@ -239,6 +279,7 @@ export interface MemoryAgentAccessStore extends AgentAccessStore {
   keys: AgentKeyRow[];
   keyHashes: Map<string, string>;
   graphics: Array<{ userId: string; doc: GraphicDocBase }>;
+  packages: Array<NewWaitingPackage & { id: string; userId: string }>;
   /** The clock the store compares expiries against - a test advances it. */
   now: () => string;
 }
@@ -256,6 +297,7 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     keys: [],
     keyHashes: new Map(),
     graphics: [],
+    packages: [],
     now,
     async createCode(row) {
       store.codes.push({ ...row, usedAt: null });
@@ -306,6 +348,14 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     async insertGraphic(userId, doc) {
       if (store.graphics.some((g) => g.doc.id === doc.id)) throw new Error('duplicate key value violates unique constraint');
       store.graphics.push({ userId, doc });
+    },
+    async countWaitingPackages(userId) {
+      return store.packages.filter((p) => p.userId === userId).length;
+    },
+    async insertPackage(userId, row) {
+      const id = nextId();
+      store.packages.push({ ...row, id, userId });
+      return id;
     },
   };
   return store;

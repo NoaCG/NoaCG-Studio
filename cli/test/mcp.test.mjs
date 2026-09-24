@@ -51,28 +51,30 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const cli = path.join(here, '..', 'dist', 'index.js');
 
 /** The verbs the one tool speaks, in the order the loop uses them. */
-const EXPECTED_COMMANDS = ['types', 'scaffold', 'validate', 'inspect', 'screenshot', 'docs', 'save'];
+const EXPECTED_COMMANDS = ['types', 'scaffold', 'validate', 'inspect', 'screenshot', 'docs', 'save', 'pack'];
 
 /** Every argument the tool promises, and the verbs that read it - what each description must
  *  open with. Only `command` is required at the schema level; each verb checks its own. */
 const EXPECTED_ARGUMENTS = {
   path: ['validate', 'inspect', 'screenshot', 'save'],
-  out: ['scaffold'],
+  paths: ['pack'],
+  out: ['scaffold', 'pack'],
   type: ['scaffold'],
   design: ['scaffold'],
   fields: ['scaffold'],
-  name: ['scaffold', 'save'],
+  name: ['scaffold', 'save', 'pack'],
   values: ['scaffold'],
   palette: ['scaffold'],
   font: ['scaffold'],
   zone: ['scaffold'],
-  bench: ['validate', 'save'],
-  houseContract: ['validate', 'save'],
+  bench: ['validate', 'save', 'pack'],
+  houseContract: ['validate', 'save', 'pack'],
   screenshots: ['validate'],
   state: ['screenshot'],
   data: ['screenshot'],
   topic: ['docs'],
   folder: ['save'],
+  rundown: ['pack'],
 };
 
 /** The schema's size ceiling, in characters of the JSON an MCP client receives. The measured
@@ -110,7 +112,7 @@ before(async () => {
 
 // ------------------------------------------------------------------ the tool set
 
-test('the MCP server exposes exactly one tool, noacg, speaking the seven authoring verbs', () => {
+test('the MCP server exposes exactly one tool, noacg, speaking the authoring verbs', () => {
   assert.deepEqual(tools.map((t) => t.name), ['noacg']);
   assert.deepEqual(tools[0].inputSchema.properties.command.enum, EXPECTED_COMMANDS);
 });
@@ -166,7 +168,7 @@ test('an unknown doc topic is an error that names the topics, not a hang', async
 });
 
 test('a verb without its argument, or with one it does not read, is a usage error naming the argument', async () => {
-  const missing = [['docs', 'topic'], ['scaffold', 'out'], ['validate', 'path'], ['inspect', 'path'], ['screenshot', 'path'], ['save', 'path']];
+  const missing = [['docs', 'topic'], ['scaffold', 'out'], ['validate', 'path'], ['inspect', 'path'], ['screenshot', 'path'], ['save', 'path'], ['pack', 'paths']];
   await withServer(async (client) => {
     for (const [command, argument] of missing) {
       const result = await call(client, { command });

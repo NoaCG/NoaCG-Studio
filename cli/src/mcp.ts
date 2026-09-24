@@ -27,6 +27,7 @@ import { cliVersion, noacgUrl } from './config.js';
 import { describeInspection } from './commands/inspect.js';
 import { docTopics, readDoc } from './commands/docs.js';
 import { scaffoldRequestFrom } from './commands/scaffold.js';
+import { describePack, makePack, rundownFrom } from './commands/pack.js';
 import { notLoggedIn, savePackage } from './commands/save.js';
 import { describeValidation, regenerateInPlace, sourcesOf } from './commands/validate.js';
 import { ografBench } from './ografBench.js';
@@ -37,7 +38,7 @@ import { isEmptyDir, packageEntries, readPackageInput, unzipTo } from './workspa
 /** The verbs the tool speaks - the authoring verbs of the terminal, in the order the loop uses
  *  them. `caspar` and `bridge` are deliberately absent: they drive live playout hardware, which is an operator's
  *  decision and not an authoring agent's (pinned by cli/test/mcp.test.mjs). */
-export const MCP_COMMANDS = ['types', 'scaffold', 'validate', 'inspect', 'screenshot', 'docs', 'save'] as const;
+export const MCP_COMMANDS = ['types', 'scaffold', 'validate', 'inspect', 'screenshot', 'docs', 'save', 'pack'] as const;
 export type McpCommand = (typeof MCP_COMMANDS)[number];
 
 const arg = <S extends z.ZodTypeAny>(schema: S, about = '') => ({ schema, about });
@@ -46,11 +47,12 @@ const arg = <S extends z.ZodTypeAny>(schema: S, about = '') => ({ schema, about 
  *  read it are prefixed from READS, never typed here. */
 const ARGUMENTS = {
   path: arg(z.string(), 'package dir or .zip'),
-  out: arg(z.string(), 'an empty or new dir'),
+  paths: arg(z.array(z.string()), 'package dirs or .zips, in rundown order'),
+  out: arg(z.string(), 'a new dir (scaffold) or a .noacgpack.json (pack)'),
   type: arg(z.string(), 'a type id (see types)'),
   design: arg(z.string(), 'a design id, or "neutral"'),
   fields: arg(z.string(), 'typeless: "Label:kind[=value],..."; kinds text|lines|number|color|select|toggle|image; select options as Label:select=a|b|c'),
-  name: arg(z.string(), 'the graphic\'s name (scaffold) or the library name (save)'),
+  name: arg(z.string(), 'the graphic, library or production name'),
   values: arg(z.record(z.string()), 'starting values by field key'),
   palette: arg(z.string()),
   font: arg(z.string()),
@@ -62,6 +64,7 @@ const ARGUMENTS = {
   data: arg(z.record(z.string()), 'explicit field values'),
   topic: arg(z.string(), docTopics().join('|')),
   folder: arg(z.string(), 'a library folder'),
+  rundown: arg(z.array(z.record(z.unknown())), '[{graphic,label,values}]'),
 };
 type ArgName = keyof typeof ARGUMENTS;
 
@@ -74,9 +77,10 @@ const READS: Record<McpCommand, readonly ArgName[]> = {
   screenshot: ['path', 'state', 'data'],
   docs: ['topic'],
   save: ['path', 'name', 'folder', 'bench', 'houseContract'],
+  pack: ['paths', 'name', 'rundown', 'out', 'bench', 'houseContract'],
 };
 
-const COMMAND = z.enum(MCP_COMMANDS).describe('types: the graphic types NoaCG knows | scaffold: write a package | validate: gate + runtime bench, regenerates the package | inspect: the operator surface | screenshot: one frame, as an image | docs: a reference text | save: validate, then into the user\'s NoaCG library');
+const COMMAND = z.enum(MCP_COMMANDS).describe('types: the graphic types NoaCG knows | scaffold: write a package | validate: gate + runtime bench, regenerates the package | inspect: the operator surface | screenshot: one frame, as an image | docs: a reference text | save: validate, then into the user\'s NoaCG library | pack: several graphics + rundown to the user\'s Home, to Install as a production');
 
 type InputShape = { command: typeof COMMAND } & { [K in ArgName]: z.ZodOptional<(typeof ARGUMENTS)[K]['schema']> };
 type Input = z.infer<z.ZodObject<InputShape>>;
@@ -218,7 +222,34 @@ async function save(input: Input): Promise<Result> {
   return { content: text(lines.join('\n\n')), isError: !outcome.ok };
 }
 
-const VERBS: Record<McpCommand, (input: Input) => Promise<Result>> = { types, scaffold, validate, inspect, screenshot, docs, save };
+/** A whole package: sent to the user's Home when this machine holds a key, and/or written to
+ *  `out`. With neither a key nor `out` there is nowhere for it to go, which is the refusal. */
+async function pack(input: Input): Promise<Result> {
+  const paths = input.paths ?? [];
+  if (!paths.length) throw new UsageError('noacg pack needs "paths".');
+  if (typeof input.name !== 'string' || !input.name.trim()) throw new UsageError('noacg pack needs "name".');
+  const origin = noacgUrl();
+  const save = Boolean(await resolveKey(origin));
+  if (!save && !input.out) return refuse(notLoggedIn(origin));
+  const rundown = input.rundown ? rundownFrom(input.rundown, 'rundown') : undefined;
+  const b = await bridge();
+  const outcome = await makePack(
+    paths,
+    {
+      name: input.name.trim(),
+      rundown,
+      save,
+      outFile: input.out,
+      bench: input.bench ?? true,
+      houseContract: input.houseContract ?? true,
+    },
+    b,
+    () => undefined,
+  );
+  return { content: text(describePack(outcome)), isError: !outcome.ok };
+}
+
+const VERBS: Record<McpCommand, (input: Input) => Promise<Result>> = { types, scaffold, validate, inspect, screenshot, docs, save, pack };
 
 export async function runMcp(args: ParsedArgs, _out: Out): Promise<number> {
   refuseStrayArgs(args, 0);

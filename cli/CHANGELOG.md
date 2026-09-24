@@ -12,6 +12,18 @@ internal names.
 
 ## 0.4.1 - unreleased
 
+**New: send a whole graphics package to NoaCG with `noacg pack --save`.** `noacg save` puts one
+graphic in your library; a show usually needs several, on their own playout layers, with a
+running order. `noacg pack ./opener ./strap ./scorebug --name "Friday Fight Night" --save` now
+validates every graphic and sends them together to your NoaCG Home, where the package waits on
+Home → Productions with an **Install** button. Install creates the production and opens its
+rundown. Add `--rundown cues.json` (a list of `{ "graphic", "label", "values" }` in show order)
+to send the cues too, and `--layer` to set the layers. It uses the key `noacg login` already
+gave you, so it works from any machine, a cloud agent included; there is nothing to re-authorise.
+`--out` still writes the package as a file for the Import a package card, and can be combined
+with `--save`. The MCP tool has the same verb: `command: "pack"`. The skill now tells agents to
+use it when you ask for a package rather than a single graphic.
+
 **New: `noacg bridge`.** It runs NoaCG Bridge, the local program that lets the NoaCG page in your
 browser drive a CasparCG server on your studio network without the CasparCG Client, and replaces
 `noacg caspar agent`, which still runs it under the old name. Operators get the same program as

@@ -21,7 +21,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { configDir, noacgUrl } from './config.js';
+import { cliVersion, configDir, noacgUrl } from './config.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -216,6 +216,18 @@ export async function saveGraphic(origin: string, key: string, doc: Record<strin
   return (await response.json()) as SaveResult;
 }
 
+/** POST a whole graphics package to the package door (`noacg pack --save`). It waits on the
+ *  user's Home → Productions until they press Install. */
+export async function savePackageToHome(origin: string, key: string, pack: Record<string, unknown>): Promise<SaveResult> {
+  const response = await fetch(`${origin}/api/me/packages`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}`, 'x-noacg-cli-version': cliVersion() },
+    body: JSON.stringify(pack),
+  });
+  if (!response.ok) throw new ApiError(await failureOf(response));
+  return (await response.json()) as SaveResult;
+}
+
 /** The error table of docs/AGENT_SAVE.md, in the CLI's words. */
 export function explainFailure(f: ApiFailure): string {
   switch (f.status) {
@@ -223,6 +235,8 @@ export function explainFailure(f: ApiFailure): string {
       return `${f.message} (not logged in, or the key was revoked - run \`noacg login\`).`;
     case 403:
       return `${f.message} (this key or account may not create graphics here).`;
+    case 409:
+      return `${f.message} (packages already waiting on Home → Productions).`;
     case 413:
       return `${f.message} (keep inline assets small - a logo, not a video).`;
     case 429:

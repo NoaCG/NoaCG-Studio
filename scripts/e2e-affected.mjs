@@ -463,7 +463,10 @@ const MAP = [
   // AGENT ACCESS (docs/AGENT_SAVE.md): the consent query route, the Settings key list, the
   // browser client and the two /api/me routes it calls. The offline spec pins the no-backend
   // posture; the live half is e2e/configured/agent-access.spec.ts (CONFIGURED_TRIGGERS).
-  [/^(src\/backend\/agentAccess|src\/components\/auth\/AgentAccessConsent|src\/components\/SettingsDialog|api\/_lib\/me\/(agentKeys|graphics|graphicShape)|api\/_lib\/(principal|agentAccessStore)|src\/entitlements\/permissions)/, ['agent-access.spec.ts']],
+  [/^(src\/backend\/agentAccess|src\/components\/auth\/AgentAccessConsent|src\/components\/SettingsDialog|api\/_lib\/me\/(agentKeys|graphics|graphicShape|packages|packageShape)|api\/_lib\/(principal|agentAccessStore)|src\/entitlements\/permissions)/, ['agent-access.spec.ts']],
+  // The waiting-packages list on Productions: offline it must grow nothing (pack-import.spec.ts);
+  // the live half - send, list, Install, Dismiss - is e2e/configured/agent-access.spec.ts.
+  [/^src\/backend\/agentPackages/, ['pack-import.spec.ts']],
   [/^src\/backend\//, ['auth.spec.ts', 'sync.spec.ts', 'offline.spec.ts', 'network-resilience.spec.ts']],
   // Restricted-network resilience (docs/GOALS.md "the SVG road"): the boot watchdog and the
   // inline connection check live in app.html, the hydration timeout in the durable store, and

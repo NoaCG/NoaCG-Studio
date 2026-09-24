@@ -17,6 +17,9 @@ test('a pack file installs as a ready production', async ({ page }) => {
   const card = page.getByTestId('import-pack-card');
   await expect(card).toBeVisible();
   await expect(card.locator('[data-testid^="install-pack-"]')).toHaveCount(0);
+  // Packages a coding agent SENT wait above the grid only with an account backend; an offline
+  // build asks nothing and grows no row (the live half is configured/agent-access.spec.ts).
+  await expect(page.getByTestId('waiting-packages')).toHaveCount(0);
   await card.getByTestId('import-pack-file').setInputFiles(UUTISHUONE);
 
   // Install parses, validates every graphic through the export gate, saves the set and

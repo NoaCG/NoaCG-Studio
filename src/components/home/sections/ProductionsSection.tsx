@@ -1,8 +1,15 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createShow, deleteShow, type Show } from '../../../model/shows';
 import { outputPageUrl, unpublishControlShow } from '../../../control/hostedControl';
 import { installPack, parsePack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
+import {
+  listWaitingPackages,
+  removeWaitingPackage,
+  waitingPackageText,
+  type WaitingPackage,
+} from '../../../backend/agentPackages';
+import { useAuthState } from '../../auth/useAuthState';
 import { copyLink } from '../copyLink';
 import ProductionExportDialog from '../ProductionExportDialog';
 import GraphicThumb from '../GraphicThumb';
@@ -82,6 +89,14 @@ export default function ProductionsSection({
   const [packBusy, setPackBusy] = useState<string | null>(null);
   const [packNote, setPackNote] = useState<string | null>(null);
   const packInput = useRef<HTMLInputElement>(null);
+  // WAITING PACKAGES (docs/AGENT_SAVE.md §7): what a coding agent sent with `noacg pack --save`,
+  // listed here with Install until the user installs or dismisses it. Signed-in and backed only -
+  // an offline build asks nothing and grows no row. `waitingConfirm` is the one package whose
+  // Dismiss is asking "sure?", the same two-step the production Delete uses.
+  const { backendConfigured, signedIn } = useAuthState();
+  const [waiting, setWaiting] = useState<WaitingPackage[]>([]);
+  const [waitingNote, setWaitingNote] = useState<string | null>(null);
+  const [waitingConfirm, setWaitingConfirm] = useState<string | null>(null);
   const shown = limit ? productions.slice(0, limit) : productions;
   const create = () => {
     const next = createShow(newName);
@@ -91,22 +106,84 @@ export default function ProductionsSection({
     if (made) onOpen(made);
   };
 
-  /** Parse, validate and install one pack's text; land on the new production's dashboard. */
-  const importPackText = async (label: string, text: string) => {
+  // Load the waiting list when a session appears, and again whenever the tab comes back into
+  // view: the usual moment is "the agent says it sent the package, I switch to the studio".
+  useEffect(() => {
+    if (!backendConfigured || !signedIn) {
+      setWaiting([]);
+      return;
+    }
+    let stale = false;
+    const load = () => {
+      void listWaitingPackages().then((list) => {
+        if (!stale) setWaiting(list);
+      });
+    };
+    load();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      stale = true;
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [backendConfigured, signedIn]);
+
+  /**
+   * Parse, validate and install one pack's text; land on the new production's page. A failure
+   * is shown through `report`. `beforeOpen` runs once the production exists and before the page
+   * changes - the waiting row's clean-up.
+   */
+  const importPackText = async (
+    label: string,
+    text: string,
+    report: (message: string | null) => void = setPackNote,
+    beforeOpen?: () => Promise<void>,
+  ) => {
     setPackBusy(label);
-    setPackNote(null);
+    report(null);
     try {
       const { pack, error } = parsePack(text);
       if (!pack) throw new Error(error ?? 'That file is not a NoaCG graphics pack.');
       const show = await installPack(pack);
       trackEvent('activation', 'pack');
+      await beforeOpen?.();
       onChanged();
       onOpen(show);
     } catch (error) {
-      setPackNote(error instanceof Error ? error.message : String(error));
+      report(error instanceof Error ? error.message : String(error));
     } finally {
       setPackBusy(null);
     }
+  };
+
+  /** Install a waiting package: the same parse → validate → install as a file, then the row goes. */
+  const installWaiting = async (p: WaitingPackage) => {
+    // Busy from the first click, not from when the text arrives - a second click during the
+    // fetch would otherwise install the package twice.
+    setPackBusy(p.id);
+    let text: string;
+    try {
+      text = await waitingPackageText(p.id);
+    } catch (error) {
+      setWaitingNote(error instanceof Error ? error.message : String(error));
+      setPackBusy(null);
+      return;
+    }
+    await importPackText(p.id, text, setWaitingNote, async () => {
+      // The production exists now. A failed delete only leaves the row to be dismissed by hand -
+      // never worth failing an install that already happened.
+      await removeWaitingPackage(p.id);
+      setWaiting((list) => list.filter((w) => w.id !== p.id));
+    });
+  };
+
+  const dismissWaiting = async (p: WaitingPackage) => {
+    setWaitingConfirm(null);
+    const { error } = await removeWaitingPackage(p.id);
+    if (error) setWaitingNote(error);
+    else setWaiting((list) => list.filter((w) => w.id !== p.id));
   };
 
   const importPackFile = async (file: File | undefined) => {
@@ -125,6 +202,54 @@ export default function ProductionsSection({
             page</strong> for operating — see each production’s page for all of it.
           </p>
         </>
+      )}
+      {/* Packages a coding agent sent - one row each, Install turns it into a production and
+          opens its rundown. Shown on the Home dashboard too: arriving is news. */}
+      {waiting.length > 0 && (
+        <div className="pack-waiting" data-testid="waiting-packages">
+          <strong>Waiting to install</strong>
+          {waiting.map((p) => (
+            <div className="pack-waiting-row" key={p.id} data-testid={`waiting-package-${p.id}`}>
+              <div className="lib-info">
+                <strong>{p.name}</strong>
+                <span className="muted">
+                  {p.graphicCount} graphic{p.graphicCount === 1 ? '' : 's'} · sent from your coding
+                  agent · {new Date(p.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                </span>
+                {p.description && <span className="muted">{p.description}</span>}
+              </div>
+              <button
+                className="primary"
+                disabled={packBusy !== null}
+                onClick={() => void installWaiting(p)}
+                data-testid="install-waiting-package"
+              >
+                {packBusy === p.id ? 'Installing…' : 'Install'}
+              </button>
+              {waitingConfirm === p.id ? (
+                <button
+                  className="destructive"
+                  onClick={() => void dismissWaiting(p)}
+                  title="Remove this package without installing it"
+                  data-testid="dismiss-waiting-package-confirm"
+                >
+                  Dismiss?
+                </button>
+              ) : (
+                <button
+                  disabled={packBusy !== null}
+                  onClick={() => setWaitingConfirm(p.id)}
+                  title="Dismiss this package"
+                  aria-label={`Dismiss ${p.name}`}
+                  data-testid="dismiss-waiting-package"
+                >
+                  <IconTrash />
+                </button>
+              )}
+            </div>
+          ))}
+          {waitingNote && <p className="status-bad">{waitingNote}</p>}
+        </div>
       )}
       {productions.length === 0 && (
         <p className="hint" data-testid="no-productions">No productions yet — name one below, then add graphics and cues.</p>

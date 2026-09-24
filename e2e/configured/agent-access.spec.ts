@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import http from 'node:http';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createHash, randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
@@ -12,7 +14,12 @@ import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './
 //   3. POST /api/me/graphics with the key -> 201 { id, url }; the record is the studio's own
 //      shape, server-stamped (origin noacg-cli);
 //   4. the deep link opens the graphic on first load (a miss while signed in runs one sync pass);
+//   4b. POST /api/me/packages with the key -> the package waits on Home -> Productions; Install
+//      makes the production with its rundown and removes the row; Dismiss removes one unseen;
 //   5. Settings -> Account -> Agent access lists the key; Revoke -> the same key is 401.
+
+/** A real pack file (`noacg-pack` v1) - what `noacg pack --save` sends. */
+const UUTISHUONE = fileURLToPath(new URL('../../public/packs/uutishuone.noacgpack.json', import.meta.url));
 
 /** The loopback listener `noacg login` runs: serves /callback (a page that forwards the fragment)
  *  and resolves with the code it receives. */
@@ -92,7 +99,7 @@ test.describe('agent access (configured)', () => {
       // 1. The consent page, signed in.
       await page.goto(`/app?agent=${state}&port=${listener.port}&name=${encodeURIComponent(name)}&challenge=${challenge}`);
       await expect(page.getByTestId('agent-consent')).toBeVisible();
-      await expect(page.getByTestId('agent-consent-permissions')).toContainText('Create graphics in your library');
+      await expect(page.getByTestId('agent-consent-permissions')).toContainText('Create graphics in your library and send graphics packages to your Home');
       await expect(page.getByTestId('agent-consent')).toContainText(`127.0.0.1:${listener.port}`);
       await page.getByTestId('agent-consent-allow').click();
       // The browser lands on the loopback page; the code rode the FRAGMENT and never the query.
@@ -154,6 +161,49 @@ test.describe('agent access (configured)', () => {
         )
         .toEqual({ present: true, origin: 'noacg-cli', open: true, hash: `#/graphic/${saved.id}` });
 
+      // 4b. A whole PACKAGE (docs/AGENT_SAVE.md §7): `noacg pack --save` posts the pack file with
+      // the same key; it waits on Home → Productions; Install makes the production and opens its
+      // rundown, and the waiting row goes. A second one is dismissed without installing.
+      const packName = `Agent E2E package ${randomBytes(3).toString('hex')}`;
+      const packFile = JSON.parse(readFileSync(UUTISHUONE, 'utf8')) as Record<string, unknown>;
+      const sendPack = (packageName: string) =>
+        fetch(`${origin}/api/me/packages`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${minted.key}` },
+          body: JSON.stringify({ ...packFile, name: packageName }),
+        });
+      const sent = await sendPack(packName);
+      expect(sent.status, await sent.clone().text()).toBe(201);
+      expect(((await sent.json()) as { url: string }).url).toContain('/app#/home/productions');
+      const dismissName = `${packName} (dismiss)`;
+      expect((await sendPack(dismissName)).status).toBe(201);
+
+      await page.goto('/app#/home/productions');
+      const waitingRow = page.getByTestId('waiting-packages').locator('.pack-waiting-row').filter({ hasText: packName });
+      const dismissRow = page.getByTestId('waiting-packages').locator('.pack-waiting-row').filter({ hasText: dismissName });
+      await expect(waitingRow.first()).toBeVisible({ timeout: 20_000 });
+      await expect(waitingRow.first()).toContainText('6 graphics');
+
+      await dismissRow.getByTestId('dismiss-waiting-package').click();
+      await dismissRow.getByTestId('dismiss-waiting-package-confirm').click();
+      await expect(dismissRow).toHaveCount(0);
+
+      await waitingRow.filter({ hasNotText: '(dismiss)' }).getByTestId('install-waiting-package').click();
+      await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId('production-page')).toContainText(packName);
+      await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(10);
+      // Installed means gone from the waiting list - for good, not just on this screen.
+      await expect
+        .poll(() => page.evaluate(async (n) => {
+          const { listWaitingPackages } = await import('/src/backend/agentPackages.ts');
+          return (await listWaitingPackages()).filter((p) => p.name.startsWith(n)).length;
+        }, packName))
+        .toBe(0);
+      await page.evaluate(async (n) => {
+        const { deleteShow, loadShows } = await import('/src/model/shows.ts');
+        for (const s of loadShows()) if (s.name === n) deleteShow(s.id);
+      }, packName);
+
       // 5. Settings lists the key; Revoke ends it.
       await page.getByTestId('account-button').click();
       await page.getByTestId('account-menu').getByRole('menuitem', { name: /Settings/ }).click();
@@ -176,6 +226,10 @@ test.describe('agent access (configured)', () => {
       await page.goto('/app').catch(() => undefined);
       await wipeE2EKeys(page, name).catch(() => undefined);
       await wipeMyGraphics(page).catch(() => undefined);
+      await page.evaluate(async () => {
+        const { listWaitingPackages, removeWaitingPackage } = await import('/src/backend/agentPackages.ts');
+        for (const p of await listWaitingPackages()) if (p.name.startsWith('Agent E2E package')) await removeWaitingPackage(p.id);
+      }).catch(() => undefined);
     }
   });
 });
