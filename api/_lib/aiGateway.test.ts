@@ -748,7 +748,13 @@ test('seals user keys in a tamper-evident HttpOnly cookie', () => {
   const withCookie = (header: string) => new Request('http://localhost/api/ai/config', { headers: { cookie: header } });
   assert.deepEqual(readUserAiKeys(withCookie(value), 'account-a'), { openai: secret });
 
-  const tampered = `${value.slice(0, -1)}${value.endsWith('A') ? 'B' : 'A'}`;
+  // Flip one bit of the SEALED BYTES, not one character of the text: the last base64url
+  // character can carry padding bits the decoder ignores, so editing it tampers with nothing on
+  // some payload lengths and the check then passes or fails by chance.
+  const [name, sealed] = value.split('=');
+  const bytes = Buffer.from(sealed, 'base64url');
+  bytes[bytes.length - 1] ^= 0x01;
+  const tampered = `${name}=${bytes.toString('base64url')}`;
   assert.deepEqual(readUserAiKeys(withCookie(tampered), 'account-a'), {});
 });
 
