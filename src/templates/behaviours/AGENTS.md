@@ -1,7 +1,7 @@
 # src/templates/behaviours - the behaviour RECIPES
 
-Loaded alongside the root `AGENTS.md` and `src/templates/AGENTS.md`. Add a RULE here; leave the
-reasoning in the code's own comments and the design in **`docs/SVG_BEHAVIOUR_PLAN.md`**.
+Add a RULE here; leave the reasoning in the code's own comments and the design in
+**`docs/SVG_BEHAVIOUR_PLAN.md`**.
 
 A recipe is a DECLARATION of one behaviour an imported graphic can carry (`recipe.ts`): its roles
 (what a layer IS to it), its one keyed row set, the hidden fields it owns, the `TypeMachine` and

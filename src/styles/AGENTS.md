@@ -1,8 +1,5 @@
 # src/styles - the app's stylesheet
 
-Loaded alongside the root `AGENTS.md` when working in this directory (Claude reads it via this
-directory's `CLAUDE.md` import; Codex reads it directly). Keep it accurate.
-
 The stylesheet is 30 PARTS, one per surface, and **`styles/index.css` IS the cascade order** -
 append a new part where its rules already sat, never re-sort. Rich-but-commented CSS is the house
 style, so the reasoning for a specific rule belongs in the rule's own comment; what lives here is

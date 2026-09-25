@@ -1,15 +1,11 @@
 # src/ai/pro - the design-language tier
 
-Loaded alongside the root `AGENTS.md` and `src/ai/AGENTS.md` when working in this directory
-(Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly). Keep it
-accurate. **Every `##` section states its STATUS in its first line** - the parent's rule, and it
-binds here for the same reason.
+**Every `##` section states its STATUS in its first line** - the parent's rule, and it binds here
+for the same reason.
 
-Split out of `src/ai/AGENTS.md` on 2026-08-26: at 17 KB the tier's three sections were the
-largest block of a file EVERY harness session loads, and every file they describe already lived
-here. `proTypes.ts` came with them as `pro/types.ts`. The parent keeps a pointer, plus the
-paragraph that binds BOTH tiers - Lite and Pro are separate projects, and that rule is not this
-directory's to state.
+`proTypes.ts` came with them as `pro/types.ts`. The parent keeps a pointer, plus the paragraph that
+binds BOTH tiers - Lite and Pro are separate projects, and that rule is not this directory's to
+state.
 
 ## NoaCG Pro - the design-language tier (`pro/`)
 

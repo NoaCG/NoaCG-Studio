@@ -1,9 +1,7 @@
 # api - the server-only Vercel functions
 
-Loaded alongside the root `AGENTS.md` when working in this directory. What each area does is in
-the repository map (`docs/ARCHITECTURE.md` §8) and `docs/DEPLOYMENT.md`; this file holds the
-platform behaviours that
-every local gate passes and production does not.
+What each area does is in the repository map (`docs/ARCHITECTURE.md` §8) and `docs/DEPLOYMENT.md`;
+this file holds the platform behaviours that every local gate passes and production does not.
 
 **The common shape of every trap below: the failure is invisible where you look for it.** Three
 of these left production stale for days while `main` stayed green and the Vercel dashboard looked

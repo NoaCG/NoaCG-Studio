@@ -1,7 +1,5 @@
 # src/render - deterministic video/image rendering
 
-Loaded alongside the root AGENTS.md when working in this directory (Claude reads it via this directory's CLAUDE.md import; Codex reads it directly). Keep it accurate.
-
 The contract layer for the Remotion exporter (render-worker/ is the renderer, api/ the
 service). The core promise: **manifest + frame number = exact pixels** - a frame never
 depends on rAF timing, CPU speed, or the wall clock.

@@ -1,8 +1,7 @@
 # supabase - migrations, policies and the remote ledger
 
-Loaded alongside the root `AGENTS.md` when working in this directory. `supabase/README.md` covers
-what the folder is and how a self-hoster stands an instance up; this file holds the rules that are
-only learnable by getting them wrong against a real database.
+`supabase/README.md` covers what the folder is and how a self-hoster stands an instance up; this
+file holds the rules that are only learnable by getting them wrong against a real database.
 
 ## Grants are the migration's job, not the host's
 
@@ -126,7 +125,6 @@ mid-push. A refusal is answered by naming the version - `npm run db:push -- --al
 run prints the before/after grant, column, policy and ledger diff, which is the evidence that the
 migration did what its header claims. It drives `supabase db push` underneath, so everything below
 still holds.
-
 
 The remote ledger keys each migration by the four-digit `version` parsed from the filename
 (`0017_admin_roles.sql` -> version `0017`, name `admin_roles`), and `db push` decides what is

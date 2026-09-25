@@ -1,12 +1,5 @@
 # src/components/auth - the account UI
 
-Loaded alongside the root `AGENTS.md` and `src/components/AGENTS.md` when working in this
-directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
-Keep it accurate.
-
-Split out of `src/components/AGENTS.md` on 2026-08-22. Add a RULE here; leave the reasoning in
-the code's own comments.
-
 ## Auth UI (auth/)
 
 useAuthState hook + authUi store + SignInDialog + SignInPrompt + AuthStatus profile button

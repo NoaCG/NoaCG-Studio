@@ -1,12 +1,5 @@
 # src/ai/spec - the structured setup behind "More control"
 
-Loaded alongside the root `AGENTS.md` and `src/ai/AGENTS.md` when working in this directory
-(Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly). Keep it
-accurate.
-
-Split out of `src/ai/AGENTS.md` on 2026-09-02, which keeps the harness-wide rules and a pointer
-here. Add a RULE here; leave the reasoning in the code's own comments.
-
 ## The structured setup (`spec/` - the "More control" panel)
 
 **LIVE.** The panel authors a `GenerationSpec` (schema in `src/model/generationSpec.ts` - MODEL layer,

@@ -1,13 +1,7 @@
 # src/components/home - the Home surfaces
 
-Loaded alongside the root `AGENTS.md` and `src/components/AGENTS.md` when working in this
-directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
-Keep it accurate.
-
-Split out of `src/components/AGENTS.md` on 2026-08-09, which every session touching any component
-loaded in full even when the work never went near Home. The save contract these surfaces obey -
-never report a save the storage layer has not agreed to - stays there, because every surface owes
-it. Add a RULE here; leave the reasoning in the code's own comments.
+The save contract these surfaces obey - never report a save the storage layer has not agreed to -
+stays there, because every surface owes it.
 
 ## Home (home/, docs/SAVED_CONTENT_MODEL.md)
 

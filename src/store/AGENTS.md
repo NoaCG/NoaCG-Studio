@@ -1,7 +1,5 @@
 # src/store - store contracts
 
-Loaded alongside the root AGENTS.md when working in this directory (Claude reads it via this directory's CLAUDE.md import; Codex reads it directly). Keep it accurate.
-
 Three stores: **templateStore** (the SPX editor - template + UI state), **videoProjectStore**
 (the parallel AI-video editor), and **docKindStore** (which shell App.tsx renders; persisted
 via model/docKind.ts). The SPX and video stores are fully parallel - neither imports or

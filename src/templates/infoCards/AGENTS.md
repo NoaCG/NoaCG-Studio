@@ -1,12 +1,5 @@
 # src/templates/infoCards - the info cards
 
-Loaded alongside the root `AGENTS.md` and `src/templates/AGENTS.md` when working in this
-directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
-Keep it accurate.
-
-Split out of `src/templates/AGENTS.md` on 2026-08-22, which keeps the catalog-wide rules and
-the category index. Add a RULE here; leave the reasoning in the code's own comments.
-
 ## infoCards/ - the card family
 
 card01…card71 (prefix 'info-card', `dataRegion: true`). The standard contract's

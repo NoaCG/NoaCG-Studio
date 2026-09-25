@@ -1,12 +1,5 @@
 # src/ai/spike - the bench-only taste and exemplar instruments
 
-Loaded alongside the root `AGENTS.md` and `src/ai/AGENTS.md` when working in this directory
-(Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly). Keep it
-accurate.
-
-Split out of `src/ai/AGENTS.md` on 2026-09-02, which keeps the harness-wide rules and a pointer
-here. Add a RULE here; leave the reasoning in the code's own comments.
-
 ## The TASTE instrument (`spike/tasteCheck.ts`) - the owner's six rules as numbers
 
 **EXPERIMENT, bench-only** (the same deletion condition as the four instruments beside it,

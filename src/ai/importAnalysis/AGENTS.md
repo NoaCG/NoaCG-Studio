@@ -1,12 +1,5 @@
 # src/ai/importAnalysis - the proposal-only vision task
 
-Loaded alongside the root `AGENTS.md` and `src/ai/AGENTS.md` when working in this directory
-(Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly). Keep it
-accurate.
-
-Split out of `src/ai/AGENTS.md` on 2026-09-02, which keeps the harness-wide rules and a pointer
-here. Add a RULE here; leave the reasoning in the code's own comments.
-
 ## Import analysis - the proposal-only vision task (`importAnalysis/`)
 
 **EXPERIMENT - flag `AI_TASK_IMPORT_ANALYSIS_ENABLED` off by default.** `imported-graphic-analysis`

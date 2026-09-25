@@ -1,9 +1,8 @@
 # src/templates/importedDesign - the user's own artwork
 
-Loaded alongside the root `AGENTS.md` and `src/templates/AGENTS.md`. Add a RULE here; leave its
-reasoning in the code's own comments, and the measured defect that bought it in the docs below.
-This is the tightest instruction chain in the repo, so a paragraph restating one of them is a
-defect, not thoroughness.
+Add a RULE here; leave its reasoning in the code's own comments, and the measured defect that bought
+it in the docs below. This is the tightest instruction chain in the repo, so a paragraph restating
+one of them is a defect, not thoroughness.
 
 Two graphic types, one category (prefix 'imported-design', `CategoryInfo.group` 'imported', NOT
 browsable - the wizard's "Import graphic" entry is its only way in): **imp01**, raster artwork

@@ -1,17 +1,12 @@
 # src/ai/lite - the managed free profile
 
-Loaded alongside the root `AGENTS.md` and `src/ai/AGENTS.md` when working in this directory
-(Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly). Keep it
-accurate. **Every `##` section states its STATUS in its first line** - the parent's rule, and it
-binds here for the same reason.
+**Every `##` section states its STATUS in its first line** - the parent's rule, and it binds here
+for the same reason.
 
-Split out of `src/ai/AGENTS.md` on 2026-08-26: at 14 KB the two Lite sections were the largest
-block of a file EVERY harness session loads, and they describe four files nothing outside this
-directory imports except the wizard's AI step and the API tree's own Lite routes. The four moved
-in with the contract - `liteTypes.ts`, `liteContract.ts`, `litePipeline.ts` and
-`liteClient.ts` are now `types.ts`, `contract.ts`, `pipeline.ts` and `client.ts`, the
-naming `pro/` and `importAnalysis/` already used. The parent keeps a pointer plus the four
-rules that bind from outside it.
+The four moved in with the contract - `liteTypes.ts`, `liteContract.ts`, `litePipeline.ts` and
+`liteClient.ts` are now `types.ts`, `contract.ts`, `pipeline.ts` and `client.ts`, the naming `pro/`
+and `importAnalysis/` already used. The parent keeps a pointer plus the four rules that bind from
+outside it.
 
 ## NoaCG Lite - the managed free profile
 

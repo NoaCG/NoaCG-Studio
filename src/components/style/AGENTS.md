@@ -1,11 +1,6 @@
 # src/components/style - the :root style controls
 
-Loaded alongside the root `AGENTS.md` and `src/components/AGENTS.md` when working in this
-directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
-Keep it accurate.
-
-Split out of `src/components/AGENTS.md` on 2026-08-09. The style contract these controls edit is
-`src/templates/AGENTS.md`'s. Add a RULE here; leave the reasoning in the code's own comments.
+The style contract these controls edit is `src/templates/AGENTS.md`'s.
 
 ## Style controls (style/) - ONE set, both surfaces
 

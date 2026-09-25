@@ -1,7 +1,6 @@
 # src/export - export targets & packaging
 
-Loaded alongside the root AGENTS.md when working in this directory (Claude reads it via this directory's CLAUDE.md import; Codex reads it directly). Keep it accurate. Exported
-packages must be plug-and-play - relative paths, bundled GSAP, no CDN references - and
+Exported packages must be plug-and-play - relative paths, bundled GSAP, no CDN references - and
 validation gates every export (root non-negotiables 3 and 4).
 
 Every package preserves `SpxTemplate.resolution` and `fps`. HTML entry points carry the
