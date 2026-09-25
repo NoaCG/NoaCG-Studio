@@ -116,6 +116,10 @@ async function writePdf() {
 
 // ── The zip ──────────────────────────────────────────────────────────────────────────────────
 
+// A fixed date, so an entry's bytes change only when its file does. README.pdf still differs on
+// every run: Chromium stamps a new creation date and id into it.
+const ENTRY = { date: new Date('2026-09-25T00:00:00Z') };
+
 function addTree(zip, abs, rel) {
   if (statSync(abs).isDirectory()) {
     for (const name of readdirSync(abs).sort()) addTree(zip, path.join(abs, name), `${rel}/${name}`);
@@ -130,10 +134,6 @@ function addTree(zip, abs, rel) {
     zip.file(rel, bytes, ENTRY);
   }
 }
-
-// A fixed date, so an entry's bytes change only when its file does. README.pdf still differs on
-// every run: Chromium stamps a new creation date and id into it.
-const ENTRY = { date: new Date('2026-09-25T00:00:00Z') };
 
 /**
  * THE ENGLISH CREDITS AS A PLAIN TEXT FILE, cut from README.md's one code block, so README.md
