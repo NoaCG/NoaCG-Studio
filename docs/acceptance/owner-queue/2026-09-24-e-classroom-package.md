@@ -48,6 +48,14 @@ which is where Explorer's Downloads shows it. It is also on the site at
   `quiz-3-locked-in.png`, `quiz-4-reveal.png`, `score-tracker-1-scores.png`,
   `score-tracker-2-point-for-1.png`, `score-tracker-3-point-for-2.png`, `end-credits.png`
 
+**Changed 2026-09-25 by the live walk (row J).** The zip was rewritten at `C:\downloads`, at
+`C:\Users\ahonemi\Downloads` and in `public/downloads`, with the same 22 files. Only `README.md` and `README.pdf` changed. The Quiz line now says to click the
+player's letter under Selected answer before pressing Select answer. On noacg.studio, pressing
+Select answer with no letter picked changes nothing on air, and the old line never said to pick
+one. The credits paragraph now says to change the Heading to CREDITS when pasting the English
+list. It also says that a copy from the PDF loses the empty line before "Quiz Night 2026", which
+then rolls as a second producer. The new zip's SHA-256 starts `6efe1514`.
+
 ## Route (under a minute)
 
 1. Open `C:\downloads\NoaCG-classroom-package.zip` and read `README.pdf`. It is one page.
