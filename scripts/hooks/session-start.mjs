@@ -224,7 +224,11 @@ try {
 //
 // Answered from a cache shared by every worktree, so the ordinary session start pays nothing and
 // one fetch every ten minutes serves the whole machine. Silent when nothing is open.
-try {
+//
+// ORCHESTRATOR HOME ONLY (owner-decisions-2026-09-25). An ordinary session is doing one named
+// task, and a red alarm printed into it reads as an invitation to widen the task. The orchestrator
+// plans from it, the daily morning brief reports it, and `/next` reads it when it looks for work.
+if (isOrchestratorHome) try {
   const { formatAlarms, readAlarms } = await import('../alarm-issues.mjs');
   const { alarms, asOfMinutes } = readAlarms({ cwd: root, timeoutMs: 4000 });
   const lines = formatAlarms(alarms, { asOfMinutes });
@@ -242,7 +246,10 @@ try {
 // plan it (docs/backlog/README.md, "Owner receipts"). One line here is the cheapest place that
 // cannot be skipped: it is in context before the first prompt. The handoff drain is the
 // orchestrator's own bookkeeping, so it prints only in the orchestrator home.
-try {
+//
+// Now the receipts print only there too, for the same reason as the alarms above: the
+// orchestrator plans from them and `/next` reads them when it looks for work.
+if (isOrchestratorHome) try {
   const { formatReceipts, isStanding, readReceipts, stillOpen } = await import('../owner-receipts.mjs');
   const receipts = readReceipts(root).filter((receipt) => receipt.receipt && receipt.problems.length === 0);
   // The asks that stand, which is what he is owed. Findings are real work and reach a session

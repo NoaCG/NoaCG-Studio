@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: **
+scope: scripts/check-vendored-versions.mjs, scripts/check-model-ids.mjs, scripts/check-ograf-schema.mjs
 kind: rule
 fires: contract
 status: active

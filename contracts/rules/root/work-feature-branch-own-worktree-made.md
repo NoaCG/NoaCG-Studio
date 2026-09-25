@@ -5,6 +5,7 @@ kind: rule
 fires: contract
 status: active
 since: 2026-09-07
+supersedes: root/never-occupy-checkout-holds-feature-branch
 record: contracts/records/root/2026-09-07-work-feature-branch-own-worktree-made.md
 ---
-Work on a FEATURE BRANCH in its own worktree, made before the work starts, and commit each completed verified phase. Never add a `Co-Authored-By` trailer or any agent co-author, and do not commit `dist/` in feature work.
+Work on a feature branch in its own worktree, made before the work starts, and commit each verified phase. Never work or build in the checkout that holds `main`: a build there gates `main` while reporting green for your branch.

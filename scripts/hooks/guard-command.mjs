@@ -25,6 +25,7 @@
 
 import { isAbsolute, join } from 'node:path';
 import { readHookInput, deny, gitOutput, checkoutKind } from './lib.mjs';
+import * as rules from '../rules.mjs';
 import { portsFor } from '../dev-port.mjs';
 import { isPortBusy } from '../port-probe.mjs';
 import { activeRuns, describeRuns } from '../e2e-runs.mjs';
@@ -186,9 +187,9 @@ if (isCommit) {
       deny(
         'Blocked: this commit command trips the commit-message style rules ' +
           `(\`root/write-commit-message-outside-developer-reading\`): ${hits.join('; ')}.\n` +
-          'Messages must read as written by a human developer for an outside reader - no AI/agent/chat ' +
-          'language, no internal codenames. If a mention is deliberate because the commit is genuinely ' +
-          'about AI tooling, include ALLOW_AI_MENTION=1 in the command to bypass this check.',
+          `${rules.text('root/write-commit-message-outside-developer-reading')}\n` +
+          'If a mention is deliberate because the commit is genuinely about AI tooling, include ' +
+          'ALLOW_AI_MENTION=1 in the command to bypass this check.',
       );
     }
   }

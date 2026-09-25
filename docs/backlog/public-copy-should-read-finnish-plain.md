@@ -56,9 +56,9 @@ surface of the two.
 
 - **`scripts/check-copy.mjs`** with `scripts/copy-baseline.json` gates NEW copy tells across the
   repo. It catches punctuation and phrase tells. It cannot catch length, hype or a magic number.
-- **The `unslop` rules** in the owner's own global agent config are a written list of the tells he
-  is reacting to. They govern what an agent writes TO him. **Nothing applies them to the product's
-  own copy**, which is the actual gap: the page was written by an agent following no voice rule.
+- **No voice rule applies to the product's own copy.** The owner's old `unslop` writing rules
+  were removed from his global agent config on 2026-09-25 and were never applied to product copy
+  anyway, which is the actual gap: the page was written by an agent following no voice rule.
 - `docs/backlog/import-step-copy-a-kid-can-read.md` is the same complaint on the import step,
   raised 2026-09-03, where he asked for "an /unslop for this too".
 

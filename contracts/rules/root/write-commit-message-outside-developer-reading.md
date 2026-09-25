@@ -2,7 +2,7 @@
 v: 1
 scope: **
 kind: rule
-fires: contract
+fires: hook:guard-command
 status: active
 since: 2026-09-07
 record: contracts/records/root/2026-09-07-write-commit-message-outside-developer-reading.md

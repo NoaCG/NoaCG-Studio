@@ -60,7 +60,8 @@ A single self-contained code block for a fresh Claude Code or Codex session: wha
 completed, repo/branch state if it matters, the remaining work **and why each piece matters**,
 key constraints or decisions (point at the right nested `AGENTS.md`/`CLAUDE.md`), known risks,
 the best next step. No transcript dump. The block must stand alone - the user pastes it and
-nothing else, so anything the next session needs is inside it.
+nothing else, so anything the next session needs is inside it. It lives in the reply only: never
+write it to a file under `docs/handoffs/` or queue anything for it.
 
 When work remains, include the exact current branch and short HEAD, whether the working tree is
 clean, and the last known verification command/result tied to that commit. If verification is
@@ -95,7 +96,7 @@ language:
 - `SAFE TO ARCHIVE` - all four hold: the working tree is clean, there is no mid-merge/rebase
   state and no stash holding this work, `git merge-base --is-ancestor HEAD main` exits 0, and
   `git merge-base --is-ancestor HEAD origin/main` exits 0. The normal state once the queue has
-  landed the branch.
+  landed the branch. On this verdict the session may archive itself.
 - `SAFE TO ARCHIVE WITH NOTES` - the same four hold, and there are follow-ups captured in the
   prompt above. The verdict answers whether closing the chat LOSES anything, and a follow-up
   written down is not a loss.

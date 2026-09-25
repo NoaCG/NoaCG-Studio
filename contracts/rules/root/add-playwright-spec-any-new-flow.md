@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/**, e2e/**
+scope: **
 kind: rule
 fires: contract
 status: active

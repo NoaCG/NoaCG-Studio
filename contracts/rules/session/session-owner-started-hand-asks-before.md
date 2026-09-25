@@ -3,7 +3,7 @@ v: 1
 scope: **
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-23
 record: contracts/records/session/2026-09-23-session-owner-started-hand-asks-before.md
 ---

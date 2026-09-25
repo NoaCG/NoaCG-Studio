@@ -89,13 +89,15 @@ export const MERGE_DRIVER = 'noacg-contracts';
 /**
  * What the ALWAYS-LOADED compiled layer may cost, in bytes.
  *
- * `.claude/rules/everywhere.md` is the one generated file with no `paths:` scope, so every session
- * pays for it at launch whatever it is about to touch. Everything else is loaded only when a file
- * it scopes to is read, and is therefore not a launch cost at all. The budget is a ratchet on the
- * kernel alone: a rule that does not belong in every session's first tokens gets a scope.
+ * The root `AGENTS.md` is the one generated file every session pays for at launch: Codex reads
+ * it, the Claude desktop app reads it natively, and the Claude CLI reads it through the root
+ * `CLAUDE.md` import. Only `**`-scoped rules land in it. Everything else loads only when a file it
+ * scopes to is touched. A rule that does not belong in every session's first tokens gets a scope,
+ * and adding one here means removing one.
  */
-export const KERNEL_MAX_BYTES = 8 * 1024;
-export const KERNEL_OUTPUT = `${OUTPUT_DIR}/everywhere.md`;
+export const KERNEL_MAX_BYTES = 3 * 1024;
+const ROOT_TITLE = 'NoaCG Studio';
+export const KERNEL_OUTPUT = NESTED_CONTRACT;
 
 /** Every `` `token` `` in a text, distinct, in order of first appearance. */
 export function symbolsOf(text) {
@@ -472,16 +474,15 @@ export function compileOutputs(rules, owned = new Set()) {
   }
   const taken = new Set();
   for (const group of [...groups.values()].sort((a, b) => a.scope.join().localeCompare(b.scope.join()))) {
+    // A `**` rule lives in the root AGENTS.md alone. Writing it to `.claude/rules/` as well would
+    // load it twice in every Claude session, because the root file already reaches Claude.
+    if (group.scope.length === 1 && group.scope[0] === '**') continue;
     let slug = groupSlug(group.scope);
     for (let n = 2; taken.has(slug); n += 1) slug = `${groupSlug(group.scope)}-${n}`;
     taken.add(slug);
-    const lines = [];
-    const everywhere = group.scope.length === 1 && group.scope[0] === '**';
-    if (!everywhere) {
-      lines.push('---', 'paths:');
-      for (const glob of group.scope) lines.push(`  - "${glob}"`);
-      lines.push('---');
-    }
+    const lines = ['---', 'paths:'];
+    for (const glob of group.scope) lines.push(`  - "${glob}"`);
+    lines.push('---');
     lines.push(`<!-- ${GENERATED_MARKER} from ${RULES_DIR}. Edit the rule files, then run npm run contracts:compile. -->`);
     lines.push('');
     for (const rule of group.rules.sort(byPriority)) {
@@ -493,7 +494,7 @@ export function compileOutputs(rules, owned = new Set()) {
   for (const [dir, dirRules] of nestedContracts(rules, owned)) {
     // The root's files have no directory prefix; everything else is `<dir>/<name>`.
     const at = (name) => (dir === '' ? name : `${dir}/${name}`);
-    outputs.set(at(NESTED_CONTRACT), renderNested(dir === '' ? '(the whole repository)' : dir, dirRules));
+    outputs.set(at(NESTED_CONTRACT), renderNested(dir === '' ? ROOT_TITLE : dir, dirRules));
     if (dir !== '') outputs.set(at(NESTED_ATTRIBUTES), renderAttributes());
   }
   outputs.set(INDEX_PATH, renderIndex(rules));
@@ -531,12 +532,33 @@ export function nestedContracts(rules, owned) {
   const byDir = new Map();
   for (const rule of rules) {
     if (rule.status !== 'active' || rule.carried) continue;
-    const home = deepestOwner(scopeOwner(rule.scope), owned);
-    if (home === null) continue;
-    if (!byDir.has(home)) byDir.set(home, []);
-    byDir.get(home).push(rule);
+    for (const home of ruleHomes(rule.scope, owned)) {
+      if (!byDir.has(home)) byDir.set(home, []);
+      byDir.get(home).push(rule);
+    }
   }
   return [...byDir.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+/**
+ * The contracts one rule is written into.
+ *
+ * Normally that is the deepest owned directory holding every glob in its scope. The ROOT is the
+ * exception: it is loaded by every session, so only a rule scoped `**` belongs there. A rule whose
+ * globs merely span two top-level folders goes into each folder's own contract instead, and a
+ * glob no owned folder covers reaches Claude through `.claude/rules/` and Codex through
+ * `npm run rules -- <path>`.
+ */
+export function ruleHomes(scope, owned) {
+  const home = deepestOwner(scopeOwner(scope), owned);
+  if (home !== '') return home === null ? [] : [home];
+  if (scope.includes('**')) return [''];
+  const homes = new Set();
+  for (const glob of scope) {
+    const own = deepestOwner(globDirectory(glob), owned);
+    if (own) homes.add(own);
+  }
+  return [...homes];
 }
 
 /**
@@ -594,8 +616,16 @@ function renderNested(dir, rules) {
     // them. Where to change a rule is the only thing a reader needs from this file that the rules
     // themselves do not say; the marker above already says it is generated.
     'Compiled from `contracts/rules`. Change a rule there (`npm run learn -- ...`), never here.',
-    '',
   ];
+  // The root is the one contract every session loads, so it also says how to reach the rest:
+  // Claude Code loads folder rules by itself, Codex loads only the chain down to where it started.
+  if (dir === ROOT_TITLE) {
+    lines.push(
+      'Folder rules load in Claude Code by themselves. In Codex, run `npm run rules -- <path>` before',
+      'editing a file to print the rules that apply to it. Map of the code: `docs/ARCHITECTURE.md`.',
+    );
+  }
+  lines.push('');
   for (const rule of [...rules].sort(byPriority)) {
     lines.push(`- **${rule.kind}** \`${rule.id}\`: ${oneLine(rule.body)}`);
   }

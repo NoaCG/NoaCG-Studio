@@ -4,7 +4,7 @@
 //   npm run learn -- --area wizard --scope "src/components/wizard/**" --kind trap \
 //       --rule "An input-only value lives in a holder carrying \`class=\"noacg-data-source\"\`, never an inline style." \
 //       --evidence "On this branch the raw duration aired because ..." [--fires hook:guard-edit]
-//       [--supersedes wizard/old-rule] [--distinct] [--allow-numbers] [--dry-run]
+//       [--supersedes wizard/old-rule] [--distinct] [--allow-numbers] [--always] [--dry-run]
 //
 // It writes ONE new rule file and ONE new record file, both with names nobody else will choose,
 // so twelve sessions can learn twelve things without touching a shared file. What it refuses,
@@ -17,7 +17,9 @@
 //     one rule with more receipts, not a second rule. `--distinct` says "no, this is a different
 //     rule" and `--supersedes <id>` says "this replaces that one"; both are recorded;
 //   - a `fires:` naming a hook, gate or spec that does not exist: land the mechanism first, or
-//     declare `fires: contract` and let the compiler's report list it as mechanism-wanted.
+//     declare `fires: contract` and let the compiler's report list it as mechanism-wanted;
+//   - a `**` scope without `--always`: that rule loads into every Claude and Codex session, so it
+//     is the last step of the ladder in contracts/README.md, never the default.
 //
 // Then it recompiles, so the commit carries the rule, the record and the regenerated contracts.
 // Validation is `parseRule` + `validateAgainstTree` over the file this would write, so the
@@ -84,8 +86,13 @@ const stampLine = (date, branch, sha) => `Recorded ${date}${branch ? ` on \`${br
  * Decide what a lesson becomes. Pure: takes the parsed arguments and the loaded rules, returns
  * { action: 'new' | 'append' | 'refuse', ... }. The CLI does the writing.
  */
-export function decide({ area, scope, kind, fires, rule, supersedes, allowNumbers, distinct = false }, rules, root = ROOT) {
+export function decide({ area, scope, kind, fires, rule, supersedes, allowNumbers, distinct = false, always = false }, rules, root = ROOT) {
   const problems = [];
+  if (scope.includes('**') && !always) {
+    problems.push('--scope "**" loads this rule into every session. Climb the ladder in contracts/README.md first: ' +
+      'fix the cause, make it checkable, or scope it to the folder where it matters. Pass --always only when none ' +
+      'of those works, and retire a root rule if the root budget is full.');
+  }
   if (!area || !/^[a-z0-9-]+$/.test(area)) problems.push('--area is required: a lowercase name like wizard, templates, e2e, landing');
   if (!rule) problems.push('--rule is required: one to three imperative sentences');
   for (const id of supersedes) {
@@ -190,6 +197,7 @@ function main() {
     supersedes: (arg(args, '--supersedes') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     allowNumbers: args.includes('--allow-numbers'),
     distinct: args.includes('--distinct'),
+    always: args.includes('--always'),
   };
   const { rules, problems: storeProblems } = loadRules(ROOT);
   if (storeProblems.length > 0) {
