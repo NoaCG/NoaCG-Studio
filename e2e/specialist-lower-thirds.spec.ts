@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic } from './_create';
 
 // The SPECIALIST lower-third pack (src/templates/lowerThirds/specialist).
 //
@@ -14,7 +14,7 @@ import { createProject } from './_create';
 //      and the split rule differs between peer designs and lead/support designs.
 
 test('a two-person strap gives each person independent fields', async ({ page }) => {
-  await createProject(page, 'Split Interview');
+  await bootstrapGraphic(page, 'Split Interview');
 
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import type { SimWin } from './_frame';
@@ -23,7 +23,7 @@ import type { SimWin } from './_frame';
 const SCHEMA_URL = 'https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json';
 
 async function downloadOgraf(page: Page, usage?: 'Live' | 'Post-production' | 'Both'): Promise<JSZip> {
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'OGraf (EBU) export' }).click();
   if (usage) await page.getByTestId('ograf-usage').getByText(usage, { exact: true }).click();
   const [download] = await Promise.all([
@@ -159,7 +159,7 @@ test('the validator refuses the manifest mistakes the spec is strict about', asy
 });
 
 test('the exported package declares its steps, durations and canvas — and ships what it names', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const zip = await downloadOgraf(page);
   const manifest = JSON.parse(await zip.file('hairline/hairline.ograf.json')!.async('string'));
   const packaged = Object.keys(zip.files)
@@ -202,7 +202,7 @@ test('the exported package declares its steps, durations and canvas — and ship
 });
 
 test('skipAnimation lands the action instantly, in real time', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const zip = await downloadOgraf(page);
   await serve(page, zip, 'http://ograf-skip.local', 'hairline');
 
@@ -280,7 +280,7 @@ test('the loaded Graphic resolves its own fonts and images against the PACKAGE, 
   // /renderer/renderer-layer/fonts/inter.woff2, got a 404, and aired the graphic in Arial
   // (docs/OGRAF.md, "What an external renderer said"). Under SPX the same path is correct,
   // because there the template IS the document — which is why nothing local caught it.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const zip = await downloadOgraf(page);
   const origin = 'http://ograf-assets.local';
   await serve(page, zip, origin, 'hairline');
@@ -322,9 +322,9 @@ test('two DIFFERENT graphics in one document do not write into each other', asyn
   // #f0 came first. Measured on SuperFly.tv's OGraf server (docs/OGRAF.md). Two instances of
   // the SAME design is a different, still-documented limit — class-keyed GSAP selectors
   // cannot be told apart — which is why this test uses two different designs.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await serve(page, await downloadOgraf(page), 'http://ograf-a.local', 'hairline');
-  await createProject(page, { category: 'Info cards', name: 'Public Advisory' });
+  await bootstrapGraphic(page, { category: 'Info cards', name: 'Public Advisory' });
   await serve(page, await downloadOgraf(page), 'http://ograf-b.local', 'public_advisory');
 
   const result = await page.evaluate(async () => {
@@ -359,7 +359,7 @@ test('two DIFFERENT graphics in one document do not write into each other', asyn
 });
 
 test('actions called concurrently, too early, or after dispose all answer with a ReturnPayload', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const zip = await downloadOgraf(page);
   await serve(page, zip, 'http://ograf-contract.local', 'hairline');
 
@@ -522,7 +522,7 @@ function hostSnapshot(page: Page): Promise<typeof HOST_FIXTURE> {
 }
 
 test("mounting a Graphic leaves the renderer's page as it was, and paints the studio's own frame", async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   // The created project's canvas, its field defaults, and the studio's own document for it.
   const { format, data, studioDoc } = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -740,7 +740,7 @@ test("a mounted Graphic's timeline calls still fire — an operator action PAINT
   //
   // A catalog quiz is the subject rather than an imported board because it is what CI can build
   // in one line; the mechanism is the same one, and it is the mechanism that broke.
-  await createProject(page, 'Arena Split');
+  await bootstrapGraphic(page, 'Arena Split');
   const zip = await downloadOgraf(page);
   await serve(page, zip, 'http://ograf-calls.local', 'arena_split');
 

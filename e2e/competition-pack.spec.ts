@@ -1,6 +1,5 @@
-import { enableAdvancedMode } from './_create';
+import { enableAdvancedMode, bootstrapGraphic, skipOldEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
 
 // THE COMPETITION PACK (docs/COMPETITION_PACK.md) — the esports, competition, result and
 // reveal graphics.
@@ -516,7 +515,7 @@ test('every design exports to all six targets with its runtime intact', async ({
 });
 
 test('a pack graphic saves to the library and reloads with its machine and marks working', async ({ page }) => {
-  await createProject(page, { category: 'reveal', name: 'House Award' });
+  await bootstrapGraphic(page, { category: 'reveal', name: 'House Award' });
   const round = await page.evaluate(`(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { createGraphic, graphicById } = await import('/src/model/library.ts');
@@ -561,7 +560,8 @@ test('a pack graphic saves to the library and reloads with its machine and marks
 });
 
 test('the pack is discoverable in the wizard and creates from a category card', async ({ page }) => {
-  await createProject(page, { category: 'esports-score', name: 'House Series' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'esports-score', name: 'House Series' });
   const frame = page.frameLocator('iframe.preview-frame');
   await page.getByRole('button', { name: '▶ Play' }).click();
   await expect.poll(async () => frame.locator('.esports-score').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');

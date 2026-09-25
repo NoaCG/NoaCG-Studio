@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createProject } from './_create';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 
 // The graphics-pack ROUND TRIP and the Fight Night pack (src/packs/graphicsPack.ts,
@@ -13,7 +13,8 @@ import { settleDurableWrites } from './_durable';
 const FIGHT_NIGHT = fileURLToPath(new URL('../public/packs/fight-night.noacgpack.json', import.meta.url));
 
 test('a production exports as a graphics pack and imports back with its rundown intact', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Anchor L3');
   await page.getByTestId('save-confirm').click();

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
-import { createProject } from './_create';
+import { bootstrapGraphic } from './_create';
 
 const logo = { name: 'channel.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#38bdf8"/><path d="M25 75V25h15l20 30V25h15v50H60L40 45v30z" fill="white"/></svg>',
@@ -74,7 +74,7 @@ test('create a brand without a graphic, preview it, edit it and reuse it in the 
 });
 
 test('brand drafts cancel without changing the open graphic; oversized and invalid logos are refused', async ({ page }) => {
-  await createProject(page, { name: 'Hairline' });
+  await bootstrapGraphic(page, { name: 'Hairline' });
   const before = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return useTemplateStore.getState().template;

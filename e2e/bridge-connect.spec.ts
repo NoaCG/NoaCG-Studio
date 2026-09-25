@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // NoaCG Bridge (docs/BRIDGE.md). There is no CasparCG on a test machine and there is no Bridge
@@ -435,14 +435,8 @@ test('editing a setting drops the last verdict, so a stale tick never speaks for
 /** A production with its published capabilities faked in - publishing is backend-gated and
  *  lives on the live checklist (the same door e2e/productions.spec.ts opens for the SPX file). */
 async function publishedProduction(page: Page): Promise<void> {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('Evening News');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Evening News');
   await page.evaluate(async () => {
     const { loadShows, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
     const id = loadShows()[0].id;

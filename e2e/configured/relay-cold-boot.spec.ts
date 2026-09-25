@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { appliedIn, receiverHost } from '../_receiverHost';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
@@ -42,16 +42,10 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
     const { syncNow } = await import('/src/backend/syncController.ts');
     await syncNow();
   });
-  await createProject(page, { name: 'House Scorebug' });
+  await bootstrapGraphic(page, { name: 'House Scorebug' });
 
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
   const showName = `Relay Cold Boot ${Date.now()}`;
-  await section.getByPlaceholder('New production name').fill(showName);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
   const links = page.getByTestId('production-links');

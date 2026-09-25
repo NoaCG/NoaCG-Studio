@@ -1,6 +1,6 @@
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
+import { enableAdvancedMode, finishIntoEditor, startNewProject, openExportWindow } from './_create';
 import { chooseType, pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
 
@@ -70,7 +70,7 @@ test('imported font: embedded, applied, and bundled into the export', async ({ p
   await create(page);
 
   // The generated code carries the embedded font; the export bundles the binary.
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),

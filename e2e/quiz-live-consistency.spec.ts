@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { dropSvg, intoProduction } from './_svg-import';
 
 // THE QUIZ ON AIR, THE SAME WAY ON EVERY BOARD (owner production test, 2026-09-22).
@@ -26,14 +26,7 @@ const CATALOG = ['qz01', 'qz02', 'qz03', 'qz04', 'qz05', 'qz06', 'qz07', 'qz08',
 
 /** Create the current editor graphic's production and land on its page. */
 async function productionFor(page: Page, name: string): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(name);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await expect(section.locator('.status-ok')).toContainText('is in the production');
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, name);
 }
 
 /** The ⚡ buttons the production page renders for the selected cue, by event id. */
@@ -73,7 +66,7 @@ for (const id of CATALOG) {
   test(`${id}: a correct answer changed on air reaches PROGRAM with Reveal, and again with Update`, async ({ page }) => {
     await page.goto('/');
     const meta = await quizMeta(page, id);
-    await createProject(page, { name: meta.name });
+    await bootstrapGraphic(page, { name: meta.name });
     await productionFor(page, `Live key ${id}`);
     const program = page.frameLocator('[data-testid="program-stage"] iframe');
     const show = ['qz13', 'qz14', 'qz15'].includes(id);

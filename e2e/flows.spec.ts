@@ -1,6 +1,6 @@
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode, switchToAdvancedMode } from './_create';
+import { enableAdvancedMode, switchToAdvancedMode, openExportWindow } from './_create';
 import { pickDesign } from './_browse';
 
 // Core UI flows for the choose-first creation wizard + live panels.
@@ -190,7 +190,7 @@ test('style panel: accent retints the live preview', async ({ page }) => {
 test('export: downloads a plug-and-play SPX zip', async ({ page }) => {
   await toVariantStep(page, 'Hairline');
   await createFromCurrentStep(page);
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),

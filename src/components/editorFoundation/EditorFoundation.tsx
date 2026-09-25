@@ -43,7 +43,7 @@ export default function EditorFoundation() {
     }}>
     <header className="ef-header">
       <strong className="ef-brand">NoaCG</strong>
-      <button onClick={() => useRouter.getState().navigate({ view: 'home', section: null })}>Home</button>
+      <button data-testid="open-home" onClick={() => useRouter.getState().navigate({ view: 'home', section: null })}>Home</button>
       <NewGraphicButton />
       <span className="ef-document-name">{template.name}</span><span className="ef-spacer" />
       <span className="ef-release">Editor Alpha</span>

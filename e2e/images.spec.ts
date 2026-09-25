@@ -1,4 +1,4 @@
-import { enableAdvancedMode, finishIntoEditor } from './_create';
+import { enableAdvancedMode, finishIntoEditor, openExportWindow } from './_create';
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';
@@ -173,7 +173,7 @@ test('export: the zip is [project]/[project].html with images under [project]/im
   await createFrom(page, 'Credits', 'Classic Roll');
   await create(page);
   await uploadImage(page, 'Logo', 'station_logo.png');
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor, skipOldEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import { outputEmbedFileName, outputEmbedHtml } from '../src/export/outputEmbed';
 
@@ -18,7 +18,8 @@ async function dragCue(page: Page, from: number, to: number): Promise<void> {
 // live-verify checklist (§8) — this suite pins everything that runs offline.
 
 test('a production page manages cues: auto-cue on add, edit, duplicate, reorder, preview', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 
   // Add the current graphic to a new production from the editor's control panel.
   await page.getByTestId('dock-tab-control').click();
@@ -78,7 +79,8 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
 });
 
 test('Home Productions creates a production and opens its page; removing a graphic removes its cues', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openWorkingGraphicInEditor(page);
   // Save to the library so the production page's "add from library" list has a row.
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Anchor L3');
@@ -119,7 +121,8 @@ test('the rundown is the only list: the last cue takes its graphic with it', asy
   // docs/PLAYOUT_DASHBOARD.md §5. The layer list is gone, so a pool graphic with no cues would be
   // invisible in the rundown and still ship in the published payload — an orphan nobody could
   // reach. Removing the last cue prunes it (model/shows.ts removeShowCue).
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Anchor L3');
   await page.getByTestId('save-confirm').click();
@@ -160,14 +163,8 @@ test('the LAST cue\'s ⋯ menu opens upward, inside the rundown that would other
   // row's menu is cut off by the LIST while it still clears the bottom of the screen — which is
   // why home/LibMenu measures against clipping ancestors and not just the viewport.
   await page.setViewportSize({ width: 1280, height: 720 });
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('Long Rundown');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Long Rundown');
 
   // Enough cues that the rundown scrolls and the last row sits at the bottom of its list.
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
@@ -211,14 +208,8 @@ test('the links panel stays whole on a short screen — it caps and scrolls itse
   // layout rules already said this popover scrolls itself when tall.
   // 560px is a 1366×768 laptop once Windows and the browser have taken their share.
   await page.setViewportSize({ width: 1280, height: 560 });
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('Short Screen');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Short Screen');
 
   // Publishing is offline here, so seed every slug a real publish mints. ALL of them: the panel
   // is only over-tall once the audience plane is on it (six rows plus the publish pair), and
@@ -274,14 +265,8 @@ test('the production page fits one 1080p screen, and the preview takes only the 
   // what buys that room back (docs/PLAYOUT_DASHBOARD.md §2, and the scroll-model specs in
   // production-controls.spec.ts). What this pins is that the simple case never has to.
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('One Screen');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'One Screen');
   await expect(page.locator('.pd-pvw .pd-frame')).toBeVisible();
 
   const fit = await page.evaluate(() => {
@@ -446,17 +431,19 @@ test('a dropped recovery RPC is retried, and only an answer is ever concluded fr
 
 
 test('every graphic gets its own playout layer, typed, and it is what the output stacks', async ({ page }) => {
+  skipOldEditor();
   // docs/PLAYOUT_DASHBOARD.md §5. Layers used to be DERIVED from pool position and moved with
   // ↑/↓ arrows, which made the layer an accident of ordering. They are now numbers: distinct by
   // construction from 20 up, editable, and the SAME number the export declares and the browser
   // output paints by.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Bug');
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toBeHidden();
 
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Anchor L3');
   await page.getByTestId('save-confirm').click();
@@ -532,17 +519,18 @@ test('every graphic gets its own playout layer, typed, and it is what the output
 });
 
 test('the program monitor is the real renderer, and every verb reaches it without a wire', async ({ page }) => {
+  skipOldEditor();
   // The verbs work on an UNPUBLISHED production: they drive the local PROGRAM monitor, which is
   // the same createOutputStage the published output URL is built from. That is what makes the
   // whole surface provable offline — and it is why Rehearse is gone (§6): preview is local and
   // always available, so a separate practise mode was a second way to do what this already does.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Anchor L3');
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toBeHidden();
 
-  await createProject(page, { category: 'Tickers' });
+  await bootstrapGraphic(page, { category: 'Tickers' });
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Ticker crawl');
   await page.getByTestId('save-confirm').click();
@@ -631,14 +619,8 @@ test('the verbs answer their keyboard shortcuts, and never while a field has foc
   // docs/PLAYOUT_DASHBOARD.md §2: the verb bar shows the keys that fire it. SPACE is Take — and
   // the cue title and every field live on this same surface, so a space typed into a name must
   // stay a space. That guard is the whole reason this spec exists.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('Keys');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Keys');
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
 
   // Typing into the cue title: SPACE belongs to the text, not to Take. The check is what the
@@ -661,14 +643,9 @@ test('the verbs answer their keyboard shortcuts, and never while a field has foc
 });
 
 test('a published production reads SHOW; an unpublished one says so and offers no rehearsal', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('Evening News');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Evening News');
   await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED');
   // Unpublished says nothing about a renderer it does not have: a second "not published" beside
   // the mode chip was noise, not status.
@@ -867,14 +844,8 @@ test('the output embed is a legal SPX template whose frame IS the production out
 });
 
 test('a published production offers the SPX template file beside its output URL', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('Evening News');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Evening News');
 
   // Fake the published record - publishing itself is backend-gated and lives on the live
   // checklist; what this spec is about is the door the two capabilities open in the UI.
@@ -918,7 +889,8 @@ const pictureFile = (name: string) => ({ name, mimeType: 'image/png', buffer: PN
 test('pictures upload straight into the rundown: one cue each, one layer, and they survive a reload', async ({
   page,
 }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-productions').click();
   await page.getByTestId('new-production-name').fill('Picture Show');

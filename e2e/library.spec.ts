@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openWorkingGraphicInEditor, skipOldEditor } from './_create';
 import { showCode } from './_code';
 import { settleDurableWrites } from './_durable';
 
@@ -30,7 +30,8 @@ async function openControlPanel(page: Page, name: string) {
 }
 
 test('save names the graphic; the status stays honest through edits and reopen', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  skipOldEditor();
+  await bootstrapGraphic(page, 'Hairline');
   await expect(page.getByTestId('save-status')).toHaveText('Not saved');
 
   await saveAs(page, 'Presenter lower third');
@@ -60,7 +61,8 @@ test('save dialog: a text-selection drag that ends on the backdrop never closes 
   // the backdrop (the nearest common ancestor of press and release), which used to shut the
   // dialog and discard everything typed. The pressedOnBackdrop guard requires the PRESS to have
   // begun on the backdrop too.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   const dialog = page.getByTestId('save-dialog');
   await expect(dialog).toBeVisible();
@@ -84,7 +86,8 @@ test('save dialog: a text-selection drag that ends on the backdrop never closes 
 });
 
 test('Home lists the library; Back walks the history; an old package link lands on Home', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  skipOldEditor();
+  await bootstrapGraphic(page, 'Hairline');
   await saveAs(page, 'Presenter lower third');
 
   await page.getByTestId('open-home').click();
@@ -122,9 +125,10 @@ test('a first-ever visit is offered creation, not a door to an empty Home', asyn
 });
 
 test('the wizard leads with the Home card once there is saved work, and it lands on Home', async ({ page }) => {
+  skipOldEditor();
   // The old per-graphic "Recent" chips are gone deliberately: in the default studio they
   // opened the EDITOR (the demoted surface). Saved work continues from Home's rows.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
   await saveAs(page, 'Presenter lower third');
   await page.getByTestId('open-home').click(); // → Home (the logo is the front page now)
   await expect(page.getByTestId('home-page')).toBeVisible();
@@ -143,7 +147,8 @@ test('the wizard header carries its own Home door', async ({ page }) => {
   // logo is the public front page; e2e/wizard-shell.spec.ts pins that pair). ✕ only rewinds
   // to the front page, so without this button a reader three steps in could not get back to
   // their own work.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Presenter lower third');
   await page.getByTestId('open-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
@@ -155,10 +160,12 @@ test('the wizard header carries its own Home door', async ({ page }) => {
 });
 
 test('opening another graphic with unsaved changes asks first; Discard proceeds', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  skipOldEditor();
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'First graphic');
   // Second graphic, saved, then dirtied.
-  await createProject(page, { category: 'lower-third', index: 1 });
+  await bootstrapGraphic(page, { category: 'lower-third', index: 1 });
   await saveAs(page, 'Second graphic');
   await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -178,7 +185,8 @@ test('opening another graphic with unsaved changes asks first; Discard proceeds'
 test('a graphic row opens from its NAME, the same door a production row offers', async ({ page }) => {
   // Acceptance round 2, 2026-08-05: pressing a production's title opens it, so a graphic's
   // title must too — reaching for "Open" on the far right of every row was the papercut.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Named door');
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-graphics').click();
@@ -192,7 +200,8 @@ test('a graphic row opens from its NAME, the same door a production row offers',
 });
 
 test('a saved graphic\'s control panel: entries create, play with the active entry, persist', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Presenter lower third');
   await openControlPanel(page, 'Presenter lower third');
 
@@ -232,7 +241,8 @@ test('the control panel says what an ENTRY is, and pools the graphic into a prod
   // Owner walk 2026-08-23, two findings on one surface: he had to guess what an entry was, and
   // after test-playing a graphic here he looked for "+ Production" and found only a trip back
   // to Home. Both are answered where the question is asked.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Cup Final Strap');
   await openControlPanel(page, 'Cup Final Strap');
 
@@ -261,7 +271,8 @@ test('switching entries re-settles the SAME preview document instead of reloadin
   // active entry — so every switch tore the document down and rebuilt it: GSAP re-parsed, fonts
   // re-fetched, the graphic re-composed, for a change of a few strings. The entry's data must
   // still land without a take; only the reload goes away.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Rundown graphic');
   await openControlPanel(page, 'Rundown graphic');
 
@@ -295,10 +306,11 @@ test('switching entries re-settles the SAME preview document instead of reloadin
 });
 
 test('the control panel reports the state and greys an event the machine would drop', async ({ page }) => {
+  skipOldEditor();
   // Parity with the editor's Rehearse panel, the event strip and the hosted page: all three
   // poll the runtime's pointers and grey an illegal event. This surface shipped with neither,
   // so a live operator had no on-air indication and every button looked pressable.
-  await createProject(page, { category: 'quiz' });
+  await bootstrapGraphic(page, { category: 'quiz' });
   await saveAs(page, 'Quiz board');
   await openControlPanel(page, 'Quiz board');
 
@@ -325,7 +337,8 @@ test('the control panel reports the state and greys an event the machine would d
 });
 
 test('the control panel shows the graphic at rest before any take, and says how to get Home', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Settled at rest');
   await openControlPanel(page, 'Settled at rest');
 
@@ -379,7 +392,8 @@ test('the control panel shows the graphic at rest before any take, and says how 
 });
 
 test('a Home card shows the real graphic, parked at its settled on-air state', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Presenter lower third');
 
   await page.getByTestId('open-home').click();
@@ -415,7 +429,8 @@ test('a Home card frames on the GRAPHIC, at both card sizes, without cropping it
   // 144px card it is an unreadable smear. The card measures the graphic's own box and zooms onto
   // that (preview/frameGraphic.ts). Nothing else in the suite can tell the two apart — a card
   // that quietly went back to the whole-canvas view keeps every other assertion green.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Presenter lower third');
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-graphics').click(); // the library rows live in the section
@@ -473,7 +488,8 @@ test('a Home card frames on the GRAPHIC, at both card sizes, without cropping it
 
 test('phone width: every row action is reachable, the text stays two lines, the nav scrolls', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Presenter lower third with a very long broadcast name');
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-graphics').click();
@@ -524,7 +540,8 @@ test('phone width: every row action is reachable, the text stays two lines, the 
 });
 
 test('video and graphics stay separate but connected: #/video, back to graphics, never trapped', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  skipOldEditor();
+  await bootstrapGraphic(page, 'Hairline');
   await page.evaluate(() => {
     window.location.hash = '#/video';
   });
@@ -535,9 +552,10 @@ test('video and graphics stay separate but connected: #/video, back to graphics,
 });
 
 test('looks: capture the current look in Home, apply it to another graphic, survive reload', async ({ page }) => {
+  skipOldEditor();
   // Moved from the retired packets.spec.ts (packages removed): brand LOOKS are their own
   // store and stay first-class.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 
   // Tweak the accent through the Style panel, then capture the look in Home.
   await page.getByTestId('dock-tab-style').click();
@@ -557,7 +575,7 @@ test('looks: capture the current look in Home, apply it to another graphic, surv
   // accent tweak before the reload decides if the restored project already carries it — and
   // applying a look that is already active changes nothing, so nothing would highlight.
   await page.reload();
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' }); // the wizard opens on load — make the fresh graphic
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' }); // the wizard opens on load — make the fresh graphic
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-looks').click();
   await page.locator('.lib-row', { hasText: 'Mint look' }).getByRole('button', { name: 'Apply', exact: true }).click();
@@ -580,7 +598,7 @@ test('a look carries SHAPE, and never grafts a token onto a design that reads no
   // separates them is radius, blur, edge and accent weight. Driven through the model rather
   // than the UI - the two halves below are properties of capture/apply, and the surface that
   // calls them is already covered by the look test above.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const out = await page.evaluate(async () => {
     const { variantById, CATALOG } = await import('/src/templates/catalog.ts');
     const { captureLookFromTemplate, applyLookToTemplate } = await import('/src/model/packets.ts');
@@ -625,7 +643,8 @@ test('a look carries SHAPE, and never grafts a token onto a design that reads no
 test('the save dialog is sized by its content, not by the wizard it borrows styling from', async ({ page }) => {
   // It wears `.wz-modal`, which is sized for the wizard's full-height multi-step surface —
   // so a name field and two buttons used to sit in a 900px-tall box of empty panel.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await expect(page.getByTestId('save-dialog')).toBeVisible();
   const box = (await page.getByTestId('save-dialog').boundingBox())!;
@@ -635,7 +654,8 @@ test('the save dialog is sized by its content, not by the wizard it borrows styl
 });
 
 test('the list view is a real table: headings over their own columns, and the toggle sticks', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Opening Strap');
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-graphics').click();

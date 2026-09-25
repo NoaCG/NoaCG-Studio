@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
 import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 
@@ -14,17 +14,12 @@ import { settleDurableWrites } from './_durable';
 // pressing Take. "Send to rundown" makes a CUE and stops.
 
 async function productionFor(page: Page, name: string): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(name);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, name);
 }
 
 test('the audience workflow: arrive, edit a broadcast version, approve, send to the rundown, air it', async ({ page }) => {
-  await createProject(page, { name: 'House Q&A' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Phone In');
 
   const audience = await openWorkspace(page, 'audience');
@@ -80,7 +75,7 @@ test('the audience workflow: arrive, edit a broadcast version, approve, send to 
 });
 
 test('the audience workspace survives a workspace round trip and a reload', async ({ page }) => {
-  await createProject(page, { name: 'House Q&A' });
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Round Trip');
   const audience = await openWorkspace(page, 'audience');
   await audience.getByTestId('audience-simulate').click();
@@ -106,7 +101,7 @@ test('the audience workspace survives a workspace round trip and a reload', asyn
 });
 
 test('the viewer preview is the join page itself, and it follows the operator', async ({ page }) => {
-  await createProject(page, { name: 'House Q&A' });
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Preview');
   const audience = await openWorkspace(page, 'audience');
 
@@ -147,7 +142,7 @@ test('the public join page answers honestly on an offline build', async ({ page 
 });
 
 test('an unknown production workspace degrades to Playout rather than a dead surface', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Degrade');
   const url = page.url();
   await page.goto(`${url.replace(/\/(data|audience)$/, '')}/nonsense`);
@@ -156,11 +151,12 @@ test('an unknown production workspace degrades to Playout rather than a dead sur
 });
 
 test('the vote reaches air the same way a question does: open, count, stage a cue, take it', async ({ page }) => {
+  skipOldEditor();
   // PHASE 6 (docs/INTERACTIVE_PLAYOUT_PLAN.md). The plane could already open rounds, count
   // votes and tally them — nothing called any of it. What is pinned here is the whole walk,
   // and above all its ENDING: counts become an ordinary cue's field values, so the renderer
   // never learns votes exist and nothing goes out without a Take.
-  await createProject(page, { category: 'Polls', name: 'House Vote' });
+  await bootstrapGraphic(page, { category: 'Polls', name: 'House Vote' });
   await productionFor(page, 'Derby Night');
   const audience = await openWorkspace(page, 'audience');
 
@@ -222,7 +218,7 @@ test('the vote reaches air the same way a question does: open, count, stage a cu
 test('a vote with nowhere to go says so instead of writing a cue nobody can read', async ({ page }) => {
   // The pool holds a name strap, not a vote board. Staging a tally into it would put a question
   // in a presenter's name field — so the surface refuses and names the missing thing.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'No Board');
   const audience = await openWorkspace(page, 'audience');
 
@@ -244,7 +240,7 @@ test('the presenter pointers: queue what is read now and next, without airing an
   // and .next and `/join?pv=<slug>` rendered them, but nothing set them. What is pinned here is
   // the operator half - the half the offline suite can drive - and above all that pointing at a
   // question TELLS A PERSON WHAT TO SAY and airs nothing: no cue appears on the rundown.
-  await createProject(page, { name: 'House Q&A' });
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Autocue');
   const audience = await openWorkspace(page, 'audience');
   await audience.getByTestId('audience-simulate').click();

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { settleDurableWrites } from './_durable';
 
 // CROSS-TAB SAFETY for the durable store (model/durableStore.ts).
@@ -20,17 +20,11 @@ import { settleDurableWrites } from './_durable';
 // suffered one. The first version of this probe made exactly that mistake and looked conclusive.
 
 async function productionFor(page: Page, name: string): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(name);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, name);
 }
 
 test('a second tab’s work survives the first tab’s next write', async ({ page, context }) => {
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Two Tabs');
   await settleDurableWrites(page);
   const productionUrl = page.url();

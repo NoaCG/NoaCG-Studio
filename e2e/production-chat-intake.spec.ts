@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
 import { openWorkspace } from './_workspace';
 
 // CHAT INTAKE (src/audience/chatIntake.ts): Twitch / YouTube live chat as a PRODUCER of
@@ -18,13 +18,7 @@ import { openWorkspace } from './_workspace';
 // whose registry would be empty while the app's own holds the sources the UI shows.
 
 async function productionFor(page: Page, name: string): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(name);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, name);
 }
 
 /** Attach a test chat source to the named production's OWN intake (the one the workspace
@@ -53,7 +47,8 @@ function pushChat(page: Page, author: string, text: string, id?: string): Promis
 }
 
 test('a chat line reaches air the way a phone question does: inbox, edit, approve, cue, Take', async ({ page }) => {
-  await createProject(page, { name: 'House Q&A' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Chat In');
 
   const audience = await openWorkspace(page, 'audience');
@@ -100,7 +95,8 @@ test('a chat line reaches air the way a phone question does: inbox, edit, approv
 });
 
 test('the throttle and the dedupe refuse visibly, and what passes is what the inbox holds', async ({ page }) => {
-  await createProject(page, { name: 'House Q&A' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Firehose');
   const audience = await openWorkspace(page, 'audience');
   await audience.getByTestId('audience-open').check();
@@ -126,7 +122,7 @@ test('the throttle and the dedupe refuse visibly, and what passes is what the in
 });
 
 test('a closed door refuses chat the same as phones, and the surface says so', async ({ page }) => {
-  await createProject(page, { name: 'House Q&A' });
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Doors Shut');
   const audience = await openWorkspace(page, 'audience');
   await attachTestSource(audience, 'Doors Shut');
@@ -147,7 +143,8 @@ test('a closed door refuses chat the same as phones, and the surface says so', a
 });
 
 test('pause stops collecting without counting a backlog, resume collects again, remove disconnects', async ({ page }) => {
-  await createProject(page, { name: 'House Q&A' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Half Time');
   const audience = await openWorkspace(page, 'audience');
   await audience.getByTestId('audience-open').check();
@@ -174,7 +171,7 @@ test('pause stops collecting without counting a backlog, resume collects again, 
 });
 
 test('the add form refuses what no driver could use, before any source row exists', async ({ page }) => {
-  await createProject(page, { name: 'House Q&A' });
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Form Check');
   const audience = await openWorkspace(page, 'audience');
 

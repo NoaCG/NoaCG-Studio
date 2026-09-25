@@ -59,6 +59,21 @@ async function createProject(page: Page) {
   });
 }
 
+/**
+ * Create from wherever the walk stands and land in the NEW editor: skip to Finish (unless the
+ * walk is already there) and press "Edit this graphic", which applies the imported graphic to
+ * the working document. For the tests that read only the created template; the ones that read
+ * the old editor's preview or panels still call createProject above, which skips.
+ */
+async function createIntoNewEditor(page: Page) {
+  const edit = page.getByTestId('wz-finish-edit-artwork');
+  if (!(await edit.isVisible())) await page.getByTestId('wz-skip-to-finish').click();
+  await edit.click();
+  // 20 s: the modal closes once the cold Prettier format behind the create resolves.
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+}
+
 /** The created template's stretch guides + validation, via the app's own readers. */
 async function stretchState(page: Page) {
   return page.evaluate(async () => {
@@ -113,7 +128,7 @@ async function setSample(page: Page, value: string) {
 test('stretch: picking it writes the 9-slice into the created code, and the guides parse back', async ({ page }) => {
   await dropCard(page);
   await page.getByTestId('mode-stretch').click();
-  await createProject(page);
+  await createIntoNewEditor(page);
 
   const state = await stretchState(page);
   // No erase: the guides default to the middle third (35% / 65% of the 1000px artwork).
@@ -132,7 +147,7 @@ test('stretch: picking it writes the 9-slice into the created code, and the guid
 test('stretch: the SPX folder package carries the 9-slice with subfolder-correct refs', async ({ page }) => {
   await dropCard(page);
   await page.getByTestId('mode-stretch').click();
-  await createProject(page);
+  await createIntoNewEditor(page);
 
   // The packaged css/template.css hops bucket urls to ../ (it ships one level down while
   // assets unpack at the project root); the editor's own css stays root-relative.
@@ -216,7 +231,7 @@ test('stretch: dragging a guide lands in the created code', async ({ page }) => 
   await page.mouse.down();
   await page.mouse.move(surface.x + surface.width * 0.2, surface.y + surface.height / 2, { steps: 4 });
   await page.mouse.up();
-  await createProject(page);
+  await createIntoNewEditor(page);
 
   const { info } = await stretchState(page);
   expect(Math.abs(info!.left - 200)).toBeLessThan(12); // dragged to 20% of the 1000px artwork

@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 
@@ -16,10 +16,11 @@ import { readFileSync } from 'node:fs';
 // "43:12" (src/templates/scoreboards/scorebugShared.ts carries the full reasoning).
 
 async function createScoreboard(page: Page) {
-  await createProject(page, { category: 'Scoreboards', name: 'Match Strip' });
+  await bootstrapGraphic(page, { category: 'Scoreboards', name: 'Match Strip' });
 }
 
 test('control tab live-drives the preview from a field control', async ({ page }) => {
+  skipOldEditor();
   await createScoreboard(page);
   await page.getByTestId('dock-tab-control').click();
 
@@ -39,11 +40,12 @@ test('control tab live-drives the preview from a field control', async ({ page }
 });
 
 test('a number field becomes a +/- stepper (no per-template code)', async ({ page }) => {
+  skipOldEditor();
   // A design that SHIPS a genuine wired number field (Election Bars' percent). The old walk
   // added one to a scoreboard through the Data panel - which the panel now refuses, because
   // a scoreboard's fixed contract has no place for it and the add landed definition-only
   // (docs/GOALS_ARCHIVE.md "Student release" step 5). The stepper is this test's subject, not the add.
-  await createProject(page, { category: 'infographic', name: 'Election Bars' });
+  await bootstrapGraphic(page, { category: 'infographic', name: 'Election Bars' });
   await page.getByTestId('dock-tab-control').click();
   const row = page.locator('.field-row', { hasText: 'percent' }).first();
   await expect(row.locator('.ctl-step')).toHaveCount(2); // − and +
@@ -55,7 +57,7 @@ test('a number field becomes a +/- stepper (no per-template code)', async ({ pag
 
 test("export bundles controlpanel.html + injects the receiver into the graphic's own html", async ({ page }) => {
   await createScoreboard(page);
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),
@@ -81,7 +83,7 @@ test('the exported control panel escapes the graphic name (it is the page title)
   // is author-controlled — and the page carries the Supabase key and the hosted-control slug, so
   // an unescaped name is a real injection. Everything else on the page rides jsonForScript into
   // the <script>; the name is the one value written as markup.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 
   const fired = await page.evaluate(async () => {
     const { renderControlPanelHtml } = await import('/src/control/controlPanelHtml.ts');
@@ -115,10 +117,11 @@ test('the exported control panel escapes the graphic name (it is the page title)
 });
 
 async function createHairline(page: Page) {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 }
 
 test('live data: adding a Google Sheet appends an editable polling block, remove strips it', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   await page.getByTestId('dock-tab-control').click();
   await page.getByPlaceholder(/pub\?output=csv/).fill('https://docs.google.com/x/pub?output=csv');
@@ -142,6 +145,7 @@ test('live data: adding a Google Sheet appends an editable polling block, remove
 });
 
 test('live data: a published CSV drives the graphic (mocked sheet)', async ({ page }) => {
+  skipOldEditor();
   await page.route('http://sheet-test.local/data.csv', (route: Route) =>
     route.fulfill({
       status: 200,
@@ -167,7 +171,8 @@ test('live data: a published CSV drives the graphic (mocked sheet)', async ({ pa
 // sections from the machine's own `controls` metadata, legality from the graph.
 
 test('the Control tab renders labeled event buttons from the machine and fires them', async ({ page }) => {
-  await createProject(page, { name: 'Arena Quiz' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await page.getByTestId('dock-tab-control').click();
 
   // The quiz type's declared controls, by section, wearing their labels.
@@ -190,8 +195,8 @@ test('the Control tab renders labeled event buttons from the machine and fires t
 });
 
 test('round-trip: the exported panel fires machine events, greys illegal ones, and shows the state', async ({ page, context }) => {
-  await createProject(page, { name: 'Arena Quiz' });
-  await page.getByTestId('dock-tab-export').click();
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),
@@ -257,7 +262,7 @@ test('the exported panel says so when no graphic is answering (file:// and cross
   // "local channel: …" while every post landed nowhere (file:// pages have private origins;
   // OBS/vMix run their own browser engine). The only proof of a listener is a state reply to
   // the hello — silence must surface, not pretend.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const panelHtml = await page.evaluate(async () => {
     const { renderControlPanelHtml } = await import('/src/control/controlPanelHtml.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -277,8 +282,8 @@ test('the exported panel says so when no graphic is answering (file:// and cross
 });
 
 test('staging + event log: staged data airs only on take, and refresh recovers both sides', async ({ page, context }) => {
-  await createProject(page, { name: 'Arena Quiz' });
-  await page.getByTestId('dock-tab-export').click();
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),
@@ -352,7 +357,7 @@ test('staging + event log: staged data airs only on take, and refresh recovers b
 
 test('round-trip: the exported control panel drives the exported graphic over the channel', async ({ page, context }) => {
   await createScoreboard(page);
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),

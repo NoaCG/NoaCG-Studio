@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -9,11 +9,11 @@ import nodePath from 'node:path';
 // taken through its load/updateAction/playAction contract.
 
 async function createHairline(page: Page) {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 }
 
 async function downloadTarget(page: Page, label: string, ografUsage?: 'Live' | 'Post-production' | 'Both'): Promise<JSZip> {
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: label }).click();
   if (ografUsage) {
     await page.getByTestId('ograf-usage').getByText(ografUsage, { exact: true }).click();
@@ -60,7 +60,7 @@ test("a saved graphic's control entries ride into its own export, not just the s
 
 test('export panel offers all six targets', async ({ page }) => {
   await createHairline(page);
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   for (const label of ['SPX export', 'HTML overlay (OBS / vMix)', 'H2R Graphics export', 'CasparCG export', 'OGraf (EBU) export', 'LiveOS (NetOn.Live) export']) {
     await expect(page.locator('.issue', { hasText: label })).toBeVisible();
   }
@@ -104,7 +104,7 @@ test('h2r: GDD fields embedded, and the play() toggle drives entrance then exit'
 
 test('export target choice is remembered as the default across reloads', async ({ page }) => {
   await createHairline(page);
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'CasparCG export' }).click();
   // Reload: the restored project opens directly (no wizard over a returning user's work);
   // the Export tab must preselect the remembered target.
@@ -121,11 +121,12 @@ test('export target choice is remembered as the default across reloads', async (
   await page.reload();
   await expect(page.locator('.topbar')).toBeVisible();
   await expect(page.locator('.wz-modal')).toBeHidden();
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await expect(page.locator('.issue', { hasText: 'CasparCG export' }).locator('input[type="radio"]')).toBeChecked();
 });
 
 test('html overlay: self-contained, autoplays with the Data panel values, control panel bundled', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   // Type a custom value in the Data panel — the export must bake it in.
   await page.getByTestId('dock-tab-data').click();
@@ -466,7 +467,7 @@ test('ograf: post-production intent is blocked for non-deterministic code', asyn
     const store = useTemplateStore.getState();
     store.applyTemplate({ ...store.template, js: `${store.template.js}\nMath.random();\n` });
   });
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'OGraf (EBU) export' }).click();
   await page.getByTestId('ograf-usage').getByText('Both', { exact: true }).click();
   await expect(page.getByText('Unseeded randomness is not deterministic.')).toBeVisible();
@@ -474,7 +475,7 @@ test('ograf: post-production intent is blocked for non-deterministic code', asyn
 });
 
 test('ograf: scheduled custom actions reconstruct branching machine state', async ({ page }) => {
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   const zip = await downloadTarget(page, 'OGraf (EBU) export', 'Post-production');
   const files = new Map<string, Buffer>();
   for (const name of Object.keys(zip.files)) {
@@ -529,7 +530,7 @@ test('ograf: scheduled custom actions reconstruct branching machine state', asyn
 });
 
 test('ograf: the machine\'s operator events are custom actions, guarded like every surface', async ({ page }) => {
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   const zip = await downloadTarget(page, 'OGraf (EBU) export');
 
   // The manifest declares the machine's events with their control labels + payload schemas.

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, skipOldEditor } from './_create';
 
 // OFFLINE: the feedback surfaces must not exist at all.
 //
@@ -14,7 +14,7 @@ import { createProject } from './_create';
 
 test.describe('feedback, offline', () => {
   test('no feedback entry point exists with no backend configured', async ({ page }) => {
-    await createProject(page);
+    await bootstrapGraphic(page);
     await expect(page.locator('.topbar')).toBeVisible();
 
     // The button is absent, not disabled: a control that cannot work is a worse answer than no
@@ -25,10 +25,11 @@ test.describe('feedback, offline', () => {
   });
 
   test('the absence is the gate, not an empty topbar', async ({ page }) => {
+    skipOldEditor();
     // Mutation guard: the assertion above passes vacuously if the topbar failed to render at
     // all. Prove the neighbours ARE there, so "no feedback button" means the gate closed rather
     // than the shell being broken.
-    await createProject(page);
+    await bootstrapGraphic(page);
     await expect(page.getByTestId('open-home')).toBeVisible();
     await expect(page.getByTestId('beta-feedback-open')).toHaveCount(0);
   });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, skipOldEditor } from './_create';
 import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';
 import { appliedIn, receiverHost } from './_receiverHost';
 
@@ -13,7 +13,8 @@ import { appliedIn, receiverHost } from './_receiverHost';
 // their rundown rows at all: which library record a show graphic's entries come from.
 
 test('a saved graphic carries its entries into the show it is added to', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  skipOldEditor();
+  await bootstrapGraphic(page, 'Hairline');
 
   // Save it, then build two entries on its control panel — the operator's rundown rows.
   await page.getByTestId('save-graphic').click();
@@ -72,7 +73,7 @@ test('a production dataset publishes the rows its graphics can load', async ({ p
   // Data workspace's other half (loading a row into a cue) reaches it as PUBLISHED rows,
   // matched by the same `control/cueData.ts` the in-app page runs live. Before this the hosted
   // page had no data loading at all, on the surface a class actually operates from.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
 
   const spec = await page.evaluate(async () => {
     const { buildPanelSpec } = await import('/src/control/hostedControl.ts');
@@ -117,7 +118,7 @@ test('a production dataset publishes the rows its graphics can load', async ({ p
 });
 
 test('entries resolve by library id, fall back to a unique name, and never guess', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
 
   const result = await page.evaluate(async () => {
     const { createGraphic, newEntry } = await import('/src/model/library.ts');
@@ -440,7 +441,7 @@ test('a production carries its control profile canonically, and deleting it leav
   // pinned node-side in `scripts/control-profile.test.mjs`, which transpiles the leaf module; what
   // only the real app can show is the half below — that the record round trips through the store,
   // that writing it CANONICALIZES, and that deleting it removes the KEY rather than emptying it.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
 
   const stored = await page.evaluate(async () => {
     const { createShowNamed, setShowProfile, deleteShowProfile, loadShows, upsertShow } = await import(
@@ -532,7 +533,7 @@ test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-
   // ONE RULE IS THE POINT. The in-app case in `production-controls.spec.ts` drives the DOM of
   // the same function on the same graphic; if these two ever disagree, one of the surfaces has
   // grown a second opinion, which is exactly the divergence the shared helper exists to prevent.
-  await createProject(page, { name: 'Club Scorebug' });
+  await bootstrapGraphic(page, { name: 'Club Scorebug' });
 
   const arranged = await page.evaluate(async () => {
     const { buildPanelSpec } = await import('/src/control/hostedControl.ts');

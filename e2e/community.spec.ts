@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, skipOldEditor } from './_create';
 
 // Era 5.5 community sharing. The E2E dev server is pinned OFFLINE (playwright.config webServer.env),
 // so this suite proves two things without a backend:
@@ -11,10 +11,11 @@ import { createProject } from './_create';
 // against a real Supabase (supabase/README.md checklist), never from a green build.
 
 async function create(page: Page, categoryName: string, variantName: string) {
-  await createProject(page, { category: categoryName, name: variantName });
+  await bootstrapGraphic(page, { category: categoryName, name: variantName });
 }
 
 test('offline: no community affordances anywhere', async ({ page }) => {
+  skipOldEditor();
   await page.goto('/app');
   await create(page, 'Lower thirds', 'Hairline');
 

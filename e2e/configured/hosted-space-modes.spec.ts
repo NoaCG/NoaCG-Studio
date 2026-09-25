@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn } from './_helpers';
 
 // THE TWO SPACE MODES ON THE HOSTED PAGE (owner, 2026-09-10; docs/PLAYOUT_DASHBOARD.md §2
@@ -23,15 +23,9 @@ test('the hosted page carries both SPACE modes: the cursor previews nothing, SPA
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
 
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const showName = `Space Modes ${Date.now()}`;
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(showName);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, showName);
 
   // Two cues of the one graphic, named so the rundown reads in order.
   const rows = page.getByTestId('cue-list').locator('.pd-cue');

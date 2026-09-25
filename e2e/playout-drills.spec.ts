@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 import { parkFocusOffControls } from './_keys';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 
@@ -13,7 +13,8 @@ import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 
 test('storage full: a save fails LOUDLY, the library keeps the last good copy, freeing space recovers', async ({ page }) => {
   await armStorageFailure(page);
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openWorkingGraphicInEditor(page);
 
   // Save once — the baseline copy that must survive everything below.
   await page.getByTestId('save-graphic').click();
@@ -62,19 +63,13 @@ test('storage full: a save fails LOUDLY, the library keeps the last good copy, f
 
 /** Air a graphic from a fresh production and land on its dashboard. */
 async function productionOnAir(page: import('@playwright/test').Page, name: string): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(name);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, name);
 }
 
 test('SPACE puts the selected cue on air and takes it off again, and 0 still means Out', async ({ page }) => {
   // Acceptance pass, 2026-08-06: "you take with space and go out with — is it zero? It should
   // be take. Put something on and take takes it off. It should go in and out with space."
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionOnAir(page, 'Space Toggle');
 
   const chip = page.getByTestId('live-cue-chip');
@@ -120,7 +115,7 @@ test('SPACE puts the selected cue on air and takes it off again, and 0 still mea
 test('the rundown walks with the arrow keys, so a cue can be played out from the keyboard alone', async ({ page }) => {
   // Operator feedback 2026-08-07: a Stream Deck is a keyboard emulator, so arrow keys plus the
   // existing verbs ARE Stream Deck support — but only if the selection itself is reachable.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionOnAir(page, 'Arrows');
 
   // A second cue, so there is somewhere to walk to.
@@ -150,7 +145,7 @@ test('an edit to the cue that is on air says it has not been sent yet', async ({
   // Acceptance pass, 2026-08-06: "there needs to be an alert when something changes and you
   // need to send that update. I had problems with my CasparCG output but only because I hadn't
   // sent an update, and the dashboard doesn't prompt me."
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionOnAir(page, 'Unsent');
 
   const program = page.frameLocator('[data-testid="program-stage"] iframe');

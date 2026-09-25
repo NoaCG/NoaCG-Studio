@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { createProject, enableAdvancedMode } from './_create';
+import { enableAdvancedMode, bootstrapGraphic, openExportWindow } from './_create';
 import { settleDurableWrites, awaitDurableReady } from './_durable';
 
 // THE DESIGN RULES AS A PRODUCT PROPERTY (docs/DESIGN_RULES_PLAN.md §5 R4).
@@ -167,7 +167,7 @@ test('the wizard viewing settings persist with the project across a reload', asy
 });
 
 test('an untouched project serializes NO legibility key at all', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
   await expect
     .poll(async () =>
       page.evaluate(async () => {
@@ -235,7 +235,7 @@ test('undersized primary text warns in the editor in plain language and still ex
 
   // The export panel: the design-rules warning, in the ratified plain-language copy, naming
   // the viewing context it was computed under.
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
   await expect(warning.first()).toContainText('smaller than the ~28px we recommend for TV viewing distance', {
     timeout: 15_000,
@@ -263,9 +263,9 @@ test('a shipped catalog design warns under the same rule and is not blocked', as
     return variantById('lt48')?.name ?? null;
   });
   expect(name).toBeTruthy();
-  await createProject(page, name!);
+  await bootstrapGraphic(page, name!);
 
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
   await expect(warning.first()).toContainText('we recommend for TV viewing distance', { timeout: 15_000 });
   await expect(page.locator('.issue.error')).toHaveCount(0);
@@ -321,10 +321,10 @@ test('the editor can change the viewing target of an already-saved project', asy
     return variantById('lt48')?.name ?? null;
   });
   expect(name).toBeTruthy();
-  await createProject(page, name!);
+  await bootstrapGraphic(page, name!);
 
   // Before: the warning is phrased for the TV default.
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
   await expect(warning.first()).toContainText('we recommend for TV viewing distance', { timeout: 15_000 });
 
@@ -345,7 +345,7 @@ test('the editor can change the viewing target of an already-saved project', asy
 
   // After: the same measurement, re-run under the new target, in the phone's words — and
   // still a warning, never a block.
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await expect(warning.first()).toContainText('phone screens', { timeout: 15_000 });
   await expect(page.locator('.issue.error')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Validate & download/i })).toBeEnabled();
@@ -366,7 +366,7 @@ test('the size floors are ONE choice with three answers, and each says what it p
   // its own shape: ticking "Guaranteed readable size" silently changed what "Broadcast text
   // sizes" meant, un-ticking one could not say which of the other two states you landed in, and
   // the pair could express a fourth combination the model does not have.
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
   await page.getByTestId('dock-tab-style').click();
   const floors = page.getByTestId('wz-floors');
   await expect(floors).toBeVisible();

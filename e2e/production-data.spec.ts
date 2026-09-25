@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
 import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
@@ -10,18 +10,11 @@ import { PRODUCTION_DATA_KEY } from '../src/model/productionState';
 // action. The load fills a DRAFT — nothing reaches air except through Take.
 
 async function productionFor(page: Page, name: string): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(name);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await expect(section.locator('.status-ok')).toContainText('is in the production');
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, name);
 }
 
 test('a quiz bank authored on the Data tab loads into the cue, airs only on Take, and survives a reload', async ({ page }) => {
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
 
   // ── The Data workspace: create a quiz table (preset columns spell the quiz field titles). ──
@@ -108,7 +101,8 @@ test('a quiz bank authored on the Data tab loads into the cue, airs only on Take
 });
 
 test('a table whose columns match nothing offers no load control, and columns can be added and renamed', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Plain News');
 
   const data = await openWorkspace(page, 'data');
@@ -150,7 +144,7 @@ test('a teams table loads one team into the side the operator picked, and leaves
   // …, so a teams row matches none of them literally and the preset used to bind nothing at
   // all. The side picker is what closes that: the operator says which half of the board the
   // next row fills, and the field titles are matched with their side token dropped.
-  await createProject(page, { name: 'House Match Board' });
+  await bootstrapGraphic(page, { name: 'House Match Board' });
   await productionFor(page, 'Cup Final');
 
   const data = await openWorkspace(page, 'data');
@@ -198,7 +192,7 @@ test('a graphic with no sides never grows a side picker, and the quiz binding is
   // The guard on the gesture: the picker is offered only where A/B fields exist, so a quiz
   // board (whose titles carry "Answer A"… but no standalone side on the fields a row fills)
   // must keep binding exactly as it did before the side rule existed.
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night 2');
 
   const data = await openWorkspace(page, 'data');
@@ -223,7 +217,7 @@ test('a graphic on air survives a Data-workspace round trip', async ({ page }) =
   // The same shape as the Phase 2 defect on this exact round trip (the preview came back
   // unscaled), which is why this asserts the RENDERED PICTURE inside the program iframe rather
   // than the ON AIR chip beside it: the chip was right the whole time the monitor was empty.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Round Trip');
 
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
@@ -258,7 +252,7 @@ test('a quiz bank imported from CSV loads into a cue and airs — the Phase 2 wa
   // separators, JSON shapes) are unit-tested in scripts/csv.test.mjs; what is pinned HERE is
   // the walk a user actually does — a file becomes a table, a row becomes a cue, the cue airs.
   // The fixture carries a quoted comma on purpose, so a `split(',')` regression cannot pass.
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Import Night');
 
   const data = await openWorkspace(page, 'data');
@@ -305,7 +299,7 @@ test('the downloaded template is a file the importer accepts, with the columns a
   // The other half of import. What is pinned is the ROUND TRIP: the header the download carries
   // is the header the importer reads back, and its columns bind to the quiz board's fields -
   // which is the whole reason a blank template beats guessing at column names.
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Template Night');
   const data = await openWorkspace(page, 'data');
 
@@ -335,7 +329,8 @@ test('the downloaded template is a file the importer accepts, with the columns a
 });
 
 test('an imported table whose columns match no field says so rather than looking successful', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'No Match');
   const data = await openWorkspace(page, 'data');
   await data.getByTestId('import-dataset').setInputFiles({
@@ -351,7 +346,7 @@ test('an imported table whose columns match no field says so rather than looking
 });
 
 test('a file that is not a table is refused with a reason', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Bad File');
   const data = await openWorkspace(page, 'data');
   await data.getByTestId('import-dataset').setInputFiles({
@@ -364,7 +359,7 @@ test('a file that is not a table is refused with a reason', async ({ page }) => 
 });
 
 test('the empty workspace carries the doors and names the columns that would bind', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Empty Data');
   const data = await openWorkspace(page, 'data');
 
@@ -420,7 +415,8 @@ async function firstGraphicName(page: Page): Promise<string> {
 }
 
 test('a bound field takes the LIVE value on air, and an old cue cannot re-air a stale one', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Match Night');
 
   // ── The playground: a nested tree, typed by what was written rather than by a schema. ──
@@ -493,7 +489,8 @@ test('a bound field takes the LIVE value on air, and an old cue cannot re-air a 
 });
 
 test('the seed is the reset target, and unbinding hands the field back to the cue', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Seed Show');
   const data = await openWorkspace(page, 'data');
   await addValue(data, 'counter', '5');
@@ -531,7 +528,7 @@ test('the seed is the reset target, and unbinding hands the field back to the cu
 });
 
 test('an unpublished production offers no data key, because it has none', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'No Key Yet');
   const data = await openWorkspace(page, 'data');
 
@@ -547,7 +544,8 @@ test('an unpublished production offers no data key, because it has none', async 
 });
 
 test('nested trees, arrays and a missing path each behave as the contract says', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Shapes');
   const data = await openWorkspace(page, 'data');
 
@@ -596,7 +594,7 @@ test('nested trees, arrays and a missing path each behave as the contract says',
 });
 
 test('one value moves every graphic bound to it, and only the graphics bound to it', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Two Graphics');
   const data = await openWorkspace(page, 'data');
   await addValue(data, 'shared.title', 'First');
@@ -618,7 +616,8 @@ test('one value moves every graphic bound to it, and only the graphics bound to 
 });
 
 test('production data is scoped to its production, never shared between two', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Show One');
   const showOneUrl = page.url();
   // EACH PRODUCTION GETS ITS OWN WORKSPACE TAB, because the workspaces open in their own tab
@@ -629,7 +628,7 @@ test('production data is scoped to its production, never shared between two', as
 
   // A second production, from its own project. Same path, its own tree - the store is keyed by
   // production id, so nothing about "shared.value" is global.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Show Two');
   const dataTwo = await openWorkspace(page, 'data');
   await expect(dataTwo.getByTestId('production-live-data')).toBeVisible();
@@ -662,7 +661,7 @@ test('SPACE on the Data tab cannot put a graphic on air', async ({ page }) => {
   //      sequence took the cue and took it straight back off. The test cancelled itself.
   // The feed counts what actually reached the wire, one row per command, and it cannot be
   // undone by a later key in the same press sequence.
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
   const rows = page.getByTestId('action-log-row');
   await expect(rows).toHaveCount(0);
@@ -703,7 +702,7 @@ test('SPACE on the Data tab cannot put a graphic on air', async ({ page }) => {
  * leak needs the IN-TAB route, which is what a Back after "Playout" gives you.
  */
 test('the playout column stays hidden behind the Data workspace, rundown included', async ({ page }) => {
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
   const data = await openWorkspace(page, 'data');
 
@@ -727,7 +726,7 @@ test('the playout column stays hidden behind the Data workspace, rundown include
 
 /** A second graphic into the production this page already holds, on its own layer. */
 async function addSecondGraphic(page: Page, variant: string, production: string): Promise<void> {
-  await createProject(page, { name: variant });
+  await bootstrapGraphic(page, { name: variant });
   await page.getByTestId('dock-tab-control').click();
   const section = page.locator('.panel-section', { hasText: 'Productions' });
   // A fresh document remounts the panel, so the production has to be re-picked by name.
@@ -740,6 +739,7 @@ async function addSecondGraphic(page: Page, variant: string, production: string)
 }
 
 test('a ± press on a bound field moves the shared value, and every graphic bound to it follows', async ({ page }) => {
+  skipOldEditor();
   // THE BUG THIS CLOSES (docs/PRODUCTION_DATA_PLAN.md §2.9): the ± stepper wrote ONE field on ONE
   // graphic, so on a production where two graphics show the same score the operator moved one of
   // them and the next write of the shared value put it back. Phase 3 makes the press move the
@@ -748,7 +748,7 @@ test('a ± press on a bound field moves the shared value, and every graphic boun
   // A big score strip and a small bug, both showing the home score, is the shape the owner asked
   // for on 2026-09-15: a score entered once shows everywhere. Both scoreboard families call the
   // home score `f1` (src/templates/scoreboards/shared.ts), so one path binds the same slot twice.
-  await createProject(page, { name: 'House Score' });
+  await bootstrapGraphic(page, { name: 'House Score' });
   await productionFor(page, 'Derby Data');
   await addSecondGraphic(page, 'Club Scorebug', 'Derby Data');
   const cues = page.getByTestId('cue-list').locator('.pd-cue');
@@ -799,11 +799,12 @@ test('a ± press on a bound field moves the shared value, and every graphic boun
 });
 
 test('an adjust on a bound field patches the tree, and the event still fires', async ({ page }) => {
+  skipOldEditor();
   // The second half of AC-7. A scoreboard's GOAL carries `adjust: { f1: 1 }`, so the press used to
   // ride the new figure as the event's payload and mirror it into the cue. With f1 bound, the
   // figure is not this graphic's to carry: the event fires on its own and the score arrives as the
   // tree's own update row, on every graphic bound to the path.
-  await createProject(page, { name: 'House Score' });
+  await bootstrapGraphic(page, { name: 'House Score' });
   await productionFor(page, 'Goal Data');
   await addSecondGraphic(page, 'Club Scorebug', 'Goal Data');
   const cues = page.getByTestId('cue-list').locator('.pd-cue');
@@ -847,10 +848,11 @@ test('an adjust on a bound field patches the tree, and the event still fires', a
 // ── AC-8: "Bind all by title" accepts every unambiguous suggestion in one press ──────────────
 
 test('Bind all by title binds every unambiguous title in one press, and leaves the ambiguous one bound-empty with a reason', async ({ page }) => {
+  skipOldEditor();
   // Two graphics sharing a scoreboard family (both title f1 "Score A" and f0 "Team A" -
   // src/templates/scoreboards/shared.ts), so their matching titles are meant to bind in one
   // press rather than one field at a time.
-  await createProject(page, { name: 'House Score' });
+  await bootstrapGraphic(page, { name: 'House Score' });
   await productionFor(page, 'Derby Bindings');
   await addSecondGraphic(page, 'Club Scorebug', 'Derby Bindings');
 
@@ -1009,7 +1011,7 @@ async function persistedValue(page: Page, path: string): Promise<unknown> {
 }
 
 test('typing a value costs ONE persist for the whole edit, not one per character', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Rate Budget');
   await countPersists(page);
   const data = await openWorkspace(page, 'data');
@@ -1036,7 +1038,7 @@ test('an operator who types and walks away still has the value persisted', async
   // THE TRAP THE DEBOUNCE MUST NOT SPRING. Committing on blur alone would leave a typed value in
   // a box nobody ever leaves - the operator types the new clock and turns back to the desk - so
   // the timer commits it unattended, and what it commits is the LAST keystroke.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Walk Away');
   await countPersists(page);
   const data = await openWorkspace(page, 'data');
@@ -1065,7 +1067,7 @@ test('a refresh arriving mid-word never overwrites the box under the cursor', as
   // It runs WHILE the word is still being typed, because an uncommitted edit is only
   // uncommitted for as long as the typing keeps it so. Awaiting the write and then typing would
   // be a race against this panel's own settle timer; typing THROUGH the write is not.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Mid Word');
   const dataOne = await openWorkspace(page, 'data');
   await addValue(dataOne, 'match.home.name', 'Suomi');

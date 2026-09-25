@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { openWorkspace } from '../_workspace';
 import { haveCreds, signIn } from './_helpers';
 
@@ -37,7 +37,7 @@ test('a published production shows its data key, and that key writes the product
   await signIn(page);
   await page.keyboard.press('Escape'); // the wizard signIn leaves open - not this walk
   await clearShows(page);
-  await createProject(page);
+  await bootstrapGraphic(page);
 
   const consent = page.getByTestId('analytics-consent');
   if (await consent.isVisible().catch(() => false)) {
@@ -45,13 +45,7 @@ test('a published production shows its data key, and that key writes the product
   }
 
   const showName = `Data Key ${Date.now()}`;
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(showName);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, showName);
 
   // ── Unpublished there is no key and therefore no button: a permanently dead control would be
   //    worse than none (the same rule the offline spec pins from the other side). ──

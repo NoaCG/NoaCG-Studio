@@ -63,6 +63,21 @@ export async function createGraphic(page: Page, category: string, variant: strin
   await page.waitForTimeout(650);
 }
 
+/** Create a graphic through the wizard (which opens on load) and land in the NEW editor through
+ *  Finish's "Edit this graphic" - the working document then holds it, and the editor's header
+ *  carries the save controls. The road `createGraphic` above took into the old editor. */
+export async function createGraphicInEditor(page: Page, category: string, variant: string): Promise<void> {
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await chooseType(page, category);
+  await pickDesign(page, variant);
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-edit-artwork').click();
+  // 20 s: the modal closes once the cold Prettier format behind the create resolves.
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+}
+
 /** Drop a screenshot of a signed-in surface into test-results/signed-in/. These surfaces render
  *  NOTHING offline, so the shots are the only way to review how they actually look. */
 export async function shot(page: Page, name: string): Promise<void> {

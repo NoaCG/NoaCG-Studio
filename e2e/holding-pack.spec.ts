@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { enableAdvancedMode, finishIntoEditor, createProject } from './_create';
+import { enableAdvancedMode, finishIntoEditor, bootstrapGraphic } from './_create';
 import { settleDurableWrites } from './_durable';
 import { awaitPreviewRebuild } from './_preview';
 import { chooseType, pickDesign, resultTotal } from './_browse';
@@ -327,7 +327,7 @@ test('a static board holds still and shrinks to fit rather than losing rows', as
 // ── The editor round trip ────────────────────────────────────────────────────
 
 test('a looping reel survives create, save and reopen with its motion intact', async ({ page }) => {
-  await createProject(page, { name: 'Credit Reel' });
+  await bootstrapGraphic(page, { name: 'Credit Reel' });
 
   const before = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
