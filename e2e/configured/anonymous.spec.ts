@@ -38,6 +38,20 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(page.getByTestId('signin-prompt')).toHaveCount(0);
   });
 
+  test('the wizard a first visit opens on says "Not signed in" and offers Sign in beside Home', async ({ page }) => {
+    // The wizard covers the studio full screen, and it is where /app and the landing's "Start
+    // creating" put a first-time visitor. Its header used to carry no account control at all,
+    // so a signed-out student had no word that they were signed out and no way to sign in or
+    // make an account without first finding their way out of it.
+    await page.goto('/app');
+    const header = page.locator('.wz-wizard .wz-header');
+    await expect(header).toBeVisible();
+    await expect(header.getByTestId('wz-home')).toBeVisible();
+    await expect(header.getByTestId('auth-state')).toHaveText('Not signed in');
+    await header.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('.auth-card')).toBeVisible();
+  });
+
   test('the AI door offers a free account, not just a sign-in', async ({ page }) => {
     // Anonymous Lite stays OFF by decision, so this gate is the product's whole answer to a
     // student who has no account: it must name the free account and offer making one. A lone

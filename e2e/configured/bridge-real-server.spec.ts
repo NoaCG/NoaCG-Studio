@@ -168,10 +168,13 @@ test('the Bridge airs the production, the dashboard reveals and scores it in Cas
   // ── The server's own library: a template that lives on the box, cued from the same rundown. ──
   await page.getByTestId('add-from-server').click();
   await expect(page.getByTestId('playout-picker')).toBeVisible();
+  // The list is browsed as folders; HOUSE_STRAP/HOUSE_STRAP lives in the HOUSE_STRAP folder.
+  const strapFolder = page.locator('[data-testid="picker-folder"][data-name="HOUSE_STRAP"]');
+  await expect(strapFolder).toBeVisible(WIRE);
+  console.log(`[server] TLS top level: ${await page.getByTestId('picker-folder').count()} folders, ${await page.getByTestId('picker-row').count()} templates`);
+  await strapFolder.click();
   const strap = page.locator('[data-testid="picker-row"][data-name="HOUSE_STRAP/HOUSE_STRAP"]');
   await expect(strap).toBeVisible(WIRE);
-  const templates = await page.getByTestId('picker-row').count();
-  console.log(`[server] TLS listed ${templates} templates`);
   await page.getByTestId('picker-field-ids').fill('f0, f1');
   await strap.getByTestId('picker-add').click();
   const strapCue = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
@@ -279,6 +282,7 @@ test('one rundown airs a server template on channel 1 and a clip on channel 2, m
 
   // A server template: the graphics channel by default.
   await page.getByTestId('add-from-server').click();
+  await page.locator('[data-testid="picker-folder"][data-name="HOUSE_STRAP"]').click(WIRE);
   const strapRow = page.locator('[data-testid="picker-row"][data-name="HOUSE_STRAP/HOUSE_STRAP"]');
   await expect(strapRow).toBeVisible(WIRE);
   await page.getByTestId('picker-field-ids').fill('f0, f1');

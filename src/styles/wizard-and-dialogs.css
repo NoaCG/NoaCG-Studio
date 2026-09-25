@@ -117,6 +117,26 @@
 .wz-header > .fb-open { margin-left: auto; }
 .wz-header > .wz-stepcount ~ .fb-open { margin-left: 0; }
 .wz-header > .fb-open ~ .gallery-close { margin-left: 0; }
+/* The account control (AuthStatus: `.auth-anon` signed out, `.auth-status` signed in, nothing
+   offline) is the fourth link in the same chain, just before the ✕. */
+.wz-header > .auth-anon,
+.wz-header > .auth-status { margin-left: auto; }
+.wz-header > .wz-stepcount ~ .auth-anon,
+.wz-header > .wz-stepcount ~ .auth-status,
+.wz-header > .fb-open ~ .auth-anon,
+.wz-header > .fb-open ~ .auth-status,
+.wz-header > .auth-anon ~ .gallery-close,
+.wz-header > .auth-status ~ .gallery-close { margin-left: 0; }
+/* Sized so the header's row height is still the brand lockup's 30px (see .wz-home below): the
+   topbar's 34px avatar and 36px pill would have spent the Entry step's measured budget. */
+.wz-wizard .wz-header .auth-signin { padding: 4px 12px; font-size: 13px; }
+.wz-wizard .wz-header .avatar-btn { width: 30px; height: 30px; }
+/* Where the bar carries the name inside the pill (auth.css, above 1480px), the pill keeps its
+   own width and only its height and picture shrink. */
+@media (min-width: 1481px) {
+  .wz-wizard .wz-header .avatar-btn.account-pill { width: auto; }
+  .wz-wizard .wz-header .account-pill .account-avatar { width: 24px; height: 24px; }
+}
 /* The wizard header's Home door and the + New graphic door beside it (the shared shell order:
    logo -> Home -> + New graphic). Sized so the header's ROW HEIGHT is still set by the brand
    lockup (30px) and not by these buttons - the Entry step's vertical budget at 1366x768 is

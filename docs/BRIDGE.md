@@ -105,8 +105,56 @@ Two consequences the UI is built around:
 Since Chrome 147 the same permission also gates a WebSocket from a public page to loopback, so a
 push channel later costs no second prompt. Safari blocks `https` -> `http://localhost` outright
 with no permission to grant. Not measured here (no Safari on this machine) and stated as a limit,
-not a claim: the Settings panel names Chrome/Edge as the supported browsers for this one feature
-and says so rather than looking broken.
+not a claim: the Settings panel and the Downloads page name Safari as not supported for this one
+feature and say so rather than looking broken.
+
+### 1b-ff. Firefox has the same gate, and on a machine that forgets, it asks again
+
+Added 2026-09-25, from a production test on a shared school laptop.
+
+**Firefox 153 turned Local Network Access on for every desktop user** (Mozilla's support
+article, "Control personal device and local network permissions in Firefox"). It splits the gate
+in two, and the Bridge is the first half. The loopback half prompts *"<site> wants to access
+other apps and services on this device"*. The other half is about devices on the local network.
+The Bridge works in Firefox once that prompt is answered. The operator ran a two-channel show
+through it. So Firefox is **supported**, and Chrome and Edge stay **recommended** (Downloads,
+"Which browser").
+
+**Why it asked again when clips were added.** The first prompt came in the tab the Bridge
+opened to pair. The second came in the production tab when the picker made that tab's first
+Bridge request. The laptop runs Firefox set to delete everything when it closes. These are the
+likely causes, stated as causes and not as a measurement: nobody reproduced it at a keyboard here.
+
+- Firefox only keeps an Allow permanently when it is allowed to remember decisions. The prompt
+  in the operator's screenshot had no remember option at all.
+- When Firefox cannot remember, the Allow is **temporary**. It belongs to the tab that asked,
+  and it expires, by default after an hour (`privacy.temporary_permission_expire_time_ms`).
+  So every new tab asks again, and a long show can be asked again in the middle.
+- A profile that clears site settings on close also loses a permanent Allow every night. The
+  Bridge token in localStorage goes with it, so the operator pairs again every day.
+
+The Bridge cannot make any of this go away. A page cannot grant itself a permission, and
+the fetch is already one address (`127.0.0.1:<port>`) from one tab. What the code does:
+
+- It asks `navigator.permissions` for **`loopback-network`** first, the name Firefox and current
+  Chrome use, and falls back to `local-network-access`. Before this it asked only for the old
+  name. Firefox threw on that name, so a Firefox operator facing a waiting prompt was told
+  "this browser cannot do it (Safari)". Now the diagnosis quotes the words Firefox's own prompt
+  uses.
+- Safari is now named by its user agent. A browser that simply has no such permission (Firefox
+  before 153) is told the true hop: the Bridge is not running.
+- The pairing page and Playout settings link the Downloads page's browser notes when the prompt
+  repeats.
+
+**The durable fix is a browser policy, on the machine.** Policy survives "delete everything on
+close" because it is not site data:
+
+| Browser | Policy | Value |
+|---|---|---|
+| Firefox | `LocalNetworkAccess` -> `SkipDomains` (`policies.json` or GPO `Software\Policies\Mozilla\Firefox\LocalNetworkAccess\SkipDomains`) | `noacg.studio` |
+| Chrome / Edge | `LoopbackNetworkAccessAllowedForUrls` (older: `LocalNetworkAccessAllowedForUrls`) | `https://noacg.studio` |
+
+A self-hosted NoaCG on the studio LAN needs neither (§1b row 2).
 
 ### 1c. So: whose machine, and which hop
 
@@ -142,7 +190,8 @@ that needs no browser at all (`noacg caspar play`, §4).
    is also where Chrome asks whether the site may reach your local network, and the page says so
    first.
 2. Once, per studio: fill in the CasparCG host and AMCP port under **Settings -> Playout**, name
-   the server's channels (`1 Graphics`, and with one click on **Add channel** `2 Inserts`), say
+   the server's channels (they start as `Channel 1`, and **Add channel** adds `Channel 2`; NoaCG
+   does not assume what a studio puts on which channel, so the operator renames them), say
    which channel the production's graphics go to (and on which layer) and which one new clips go
    to, and press **Test connection**. It round-trips a real AMCP `VERSION` and prints the
    server's own version string. The settings are **app-wide and persisted** - they survive
@@ -289,16 +338,23 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   On the server source the AMCP proxy carries `/cls`, `/tls`, `/fls`, `/cinf` and `/thumbnail`
   only; the scanner's richer `/templates` (GDD) is not reachable this way, and no scanner port is
   opened for it.
+- **Browsed as folders** (2026-09-25). The server names a file by its path under its media or
+  template folder (`SPORTS/HOCKEY/GOAL_REPLAY`). Listed flat, a deep library's names pushed the
+  Add buttons out of the popover. The picker now shows the folders at the current level first,
+  then the files there by their own name, truncated, with the full name on hover. A path line
+  above steps back out. The list is still one `CLS` or `TLS`; the folders are drawn from the names
+  on the page (`folderView` in `PlayoutItemPicker.tsx`), so no new Bridge route was needed.
 - **A PlayoutItem** in the show record (`src/model/shows.ts`, additive optional): adapter, kind,
-  the server's name, the channel and layer, a clip's length, a template's fields. A cue over it is
-  an ordinary `ShowCue` with `source: 'playout'`.
+  the server's name, the channel and layer, a clip's length, whether a clip loops (§5a), a
+  template's fields. A cue over it is an ordinary `ShowCue` with `source: 'playout'`.
 - **Channels** (2026-09-23). A real broadcast runs graphics on one CasparCG channel and video
   inserts on another, and one rundown holds both. Settings -> Playout names the server's channels
-  once (`spx-gfx-caspar`, additive: a record from before reads as one row, its one channel, named
-  Graphics) and holds two defaults: the GRAPHICS channel, where the output URL and new server
-  templates go, and the CLIP channel, where new clips go. Adding the first extra channel names it
-  Inserts and makes it the clip default, so a stock one-channel server never has a clip aimed at
-  a channel it lacks. Every server cue then picks its channel in its editor, beside the layer,
+  once (`spx-gfx-caspar`, additive: a record from before reads as one row, its one channel) and
+  holds two defaults: the GRAPHICS channel, where the output URL and new server templates go,
+  and the CLIP channel, where new clips go. A row starts named by its number (`Channel 2`; until
+  2026-09-25 the defaults were `Graphics` and `Inserts`, which assumed a use) and a name the
+  operator has not changed follows the row's number. Adding the first extra channel makes it the
+  clip default, so a stock one-channel server never has a clip aimed at a channel it lacks. Every server cue then picks its channel in its editor, beside the layer,
   from that list - never a typed number - and the rundown row wears the address as the server
   writes it (`2-10`). `PlayoutItem.channel` is optional and a plain number: absent means the
   graphics channel, which is where every item saved before it has always played, and a number
@@ -331,6 +387,47 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
 - **What the page believes.** ON AIR on a server cue means the command was accepted; nothing
   reports back what the server holds until OSC state arrives (milestone 2). A refused command
   never marks a row, and the note line says which hop refused and why.
+
+### 5a. Clip playback: what CasparCG already does, and what NoaCG uses
+
+A show that has to open the CasparCG Client to loop a background is a show NoaCG did not serve.
+The rule is the one the whole Bridge follows: **use the server's own AMCP parameter, never a
+timer in the page**. A page-side timer dies with the tab. A native parameter keeps running on
+the server whatever happens to the operator's laptop.
+
+What CasparCG 2.3-2.5 does natively for a clip on a layer:
+
+| Operator wants | Native AMCP | In NoaCG |
+|---|---|---|
+| Play once / stop | `PLAY c-l "CLIP"` / `STOP c-l` | since 2026-09-22 |
+| Pause / resume | `PAUSE c-l` / `RESUME c-l` | since 2026-09-22 |
+| **Loop** | `PLAY c-l "CLIP" LOOP` | **2026-09-25**: a Loop box in the clip's cue editor (`PlayoutItem.loop`, additive). Protocol v2 already carried `loop`, so the Bridge 0.4 on the Releases page plays it with no new download. |
+| Fade in | `PLAY c-l "CLIP" MIX <frames>` (also `PUSH`, `WIPE`, `SLIDE`, with an easing) | proposed, below |
+| Fade out | `PLAY c-l EMPTY MIX <frames>` (mixes the layer to nothing, then it is empty) | proposed, below |
+| Play the next clip when this one ends | `LOADBG c-l "NEXT" AUTO` (optionally `MIX <frames> AUTO`) | proposed, below |
+| Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | later |
+| Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | later |
+| Volume / audio fade | `MIXER c-l VOLUME <0-1> <frames>` | later |
+
+**The proposal for the rest, smallest first, each one additive in the record and in protocol v2
+(no version bump), each needing one Bridge release:**
+
+1. **Fade.** One per-clip setting, *Fade: none / short / long*, stored as frames. None is 0,
+   short 12, long 25, counted in the channel's own frames because that is what `MIX` counts.
+   Take sends `MIX n` after the clip name. Out on a faded clip sends `PLAY c-l EMPTY MIX n`
+   instead of `STOP`, so the clip fades away and leaves the layer empty. That changes `take` and
+   `out` by one optional `transition: { type: 'mix', frames }` field, and `casparLine` by two
+   branches. It is the one change operators will feel on every insert.
+2. **Then play.** One per-clip pick, *Then play: nothing / <another clip cue on the same slot>*.
+   After a Take, the page sends `LOADBG c-l "NEXT" AUTO` (with the fade if the next clip has
+   one). CasparCG switches at the last frame by itself: no timer, no gap, and it works with the
+   page closed. The limit is native too. A layer has one background, so this chains ONE clip
+   ahead. A longer playlist needs the page to learn when the switch happened and queue the next
+   one, which is OSC state (§9, milestone 2). Until then a rundown of clips is taken cue by cue,
+   the way the CasparCG Client's own rundown does it without its auto-step.
+3. **Not proposed:** a NoaCG-side playlist engine, clip trimming, or audio mixing. Each is a
+   real feature of a dedicated playout tool, and none of them was what sent the operator back to
+   one. The Loop and Fade rows above were.
 
 ---
 
@@ -393,9 +490,10 @@ with each other and most of them are the user's to fix:
 
 | State | What the app saw | What it says |
 |---|---|---|
-| `permission` | `navigator.permissions` reports `prompt` | Your browser is asking - answer the prompt at the top of the window. |
+| `permission` | `navigator.permissions` reports `prompt` for `loopback-network` (or `local-network-access`) | Your browser is asking - answer the prompt at the top of the window. In Firefox, the sentence quotes Firefox's own words: "access other apps and services on this device". |
 | `permission` | it reports `denied` | Allow "local network access" for this site, in the icon left of the address. |
-| `permission` | the query threw, so this browser has no such permission | This browser will not do it at all (Safari). Use Chrome or Edge, or `noacg caspar play`. |
+| `permission` | no name is known AND the browser is Safari | Safari will not do it at all. Use Chrome, Edge or Firefox, or `noacg caspar play`. |
+| `bridge` | no name is known, not Safari (a browser without the gate) | Start NoaCG Bridge: nothing stands in the way, so the Bridge is simply not answering. |
 | `bridge` | `/health` unreachable with the permission not in the way | Start NoaCG Bridge on this machine (double-click NoaCG-Bridge.exe; Settings -> Playout links the download). |
 | `bridge` | `/health` answered, then a route came back 403 | The Bridge is running for a **different** deployment. Restart it with `--origin <this site>`. |
 | `outdated` | `/health` answered as the old agent, or below protocol 2 | Update NoaCG Bridge. |
@@ -440,9 +538,14 @@ Stated plainly, because this doc's whole purpose is to not overstate.
   the 501 mapping, pairing, the refusals), `e2e/bridge-connect.spec.ts` (Settings, pairing, the
   one button, each hop), `e2e/playout-cues.spec.ts` (the picker, the cues, each verb's envelope,
   the scanner-missing and Bridge-missing sentences).
-- **NOT verified**: the hosted-origin permission prompt on `https://noacg.studio` (needs a
-  person at the keyboard); a Linux server (whether its media scanner is running there); Safari;
-  SmartScreen on a machine that never saw the exe; a genuine 2.3.3.
+- **In production, 2026-09-25** (an operator, Firefox on Windows, a school laptop set to forget
+  everything on close): the Bridge paired and drove a multi-channel show. Firefox's prompt came
+  once at pairing and again in the production tab when clips were first listed (§1b-ff).
+- **NOT verified**: the hosted-origin permission prompt in Chrome on `https://noacg.studio`
+  (needs a person at the keyboard); that the Firefox and Chrome policies in §1b-ff silence the
+  prompt on that laptop; a Linux server (whether its media scanner is running there); Safari;
+  SmartScreen on a machine that never saw the exe; a genuine 2.3.3. Loop through `PLAY … LOOP`
+  is pinned in the adapter's tests and was not run against the real server this time.
 
 ---
 

@@ -43,6 +43,8 @@ interface FakeBridge {
   /** The server refuses a TAKE onto this channel, the way a channel missing from its config does. */
   refuseTakeOnChannel?: number;
   templates: string[];
+  /** What CLS lists; the default is one movie and one still at the top of the media folder. */
+  media?: { name: string; kind: string; frames?: number; fps?: number }[];
   actions: unknown[];
   thumbnails: string[];
 }
@@ -93,10 +95,10 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
       const items =
         body.kind === 'template'
           ? state.templates.map((name) => ({ name, kind: 'template' }))
-          : [
+          : (state.media ?? [
               { name: 'GIORNO', kind: 'movie', frames: 1500, fps: 25, bytes: 10485760, changed: '20260814221648' },
               { name: 'JÄÄKIEKKO', kind: 'still', frames: 0, fps: 0, bytes: 259408, changed: '20260922174500' },
-            ];
+            ]);
       await json(route, 200, { ok: true, v: 2, items });
       return;
     }
@@ -154,6 +156,16 @@ async function productionPage(page: Page, options: { saved?: boolean } = {}): Pr
 
 const lastAction = (bridge: FakeBridge) => bridge.actions[bridge.actions.length - 1];
 
+/** A file in the open picker by its FULL server name: step into each folder on its path, the
+ *  way an operator browses, and return its row. */
+async function pickerFile(page: Page, name: string) {
+  const parts = name.split('/');
+  for (const folder of parts.slice(0, -1)) {
+    await page.locator(`[data-testid="picker-folder"][data-name="${folder}"]`).click();
+  }
+  return page.locator(`[data-testid="picker-row"][data-name="${name}"]`);
+}
+
 test('the door is absent until a Bridge is paired, and lists the server\'s templates and media once it is', async ({ page }) => {
   await fakeBridge(page);
   await productionPage(page);
@@ -168,8 +180,10 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
 
   await page.getByTestId('add-from-server').click();
   await expect(page.getByTestId('playout-picker')).toBeVisible();
-  // Templates first, as the server lists them, with the one NoaCG exported marked as known.
-  await expect(page.getByTestId('picker-row')).toHaveCount(3);
+  // Templates first, browsed as folders: the two folders the server's names open with, then
+  // the one template that sits at the top of the template folder.
+  await expect(page.getByTestId('picker-folder')).toHaveText([/BK/, /HOUSE_STRAP/]);
+  await expect(page.getByTestId('picker-row')).toHaveCount(1);
   await page.getByTestId('picker-media').click();
   const rows = page.getByTestId('picker-row');
   await expect(rows).toHaveCount(2);
@@ -212,6 +226,103 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
   await expect(page.getByTestId('playout-on-air')).toHaveCount(0);
 });
 
+test('a deep media library is browsed folder by folder, a long name gives way, and Add never leaves the popover', async ({ page }) => {
+  const LONG = 'SPORTS/HOCKEY/2026_FINAL_THIRD_PERIOD_GOAL_REPLAY_SLOW_MOTION_CAMERA_ANGLE_B_WITH_CROWD_SOUND';
+  await seedSettings(page);
+  await fakeBridge(page, {
+    media: [
+      { name: LONG, kind: 'movie', frames: 250, fps: 25 },
+      { name: 'SPORTS/HOCKEY/INTRO', kind: 'movie', frames: 125, fps: 25 },
+      { name: 'SPORTS/FOOTBALL/KICKOFF', kind: 'movie', frames: 50, fps: 25 },
+      { name: 'GIORNO', kind: 'movie', frames: 1500, fps: 25 },
+    ],
+  });
+  await productionPage(page);
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-media').click();
+
+  // The top of the media folder: one folder (with everything under it counted) and one file.
+  const picker = page.getByTestId('playout-picker');
+  await expect(page.getByTestId('picker-folder')).toHaveCount(1);
+  await expect(page.getByTestId('picker-folder')).toContainText('SPORTS');
+  await expect(page.getByTestId('picker-folder')).toContainText('3 files');
+  await expect(page.getByTestId('picker-row')).toHaveCount(1);
+  await expect(page.getByTestId('picker-up')).toBeDisabled();
+
+  // Into SPORTS: two folders and no files; the path line says where this is.
+  await page.locator('[data-testid="picker-folder"][data-name="SPORTS"]').click();
+  await expect(page.getByTestId('picker-folder')).toHaveText([/FOOTBALL/, /HOCKEY/]);
+  await expect(page.getByTestId('picker-row')).toHaveCount(0);
+  await expect(page.getByTestId('picker-path')).toContainText('All media');
+  await expect(page.getByTestId('picker-path')).toContainText('SPORTS');
+
+  // Into HOCKEY: files by their OWN names, the full server name on hover.
+  await page.locator('[data-testid="picker-folder"][data-name="HOCKEY"]').click();
+  const long = page.locator(`[data-testid="picker-row"][data-name="${LONG}"]`);
+  await expect(long.locator('strong')).toHaveText(LONG.split('/').pop()!);
+  await expect(long.locator('.pd-picker-name')).toHaveAttribute('title', LONG);
+  // The name truncates and the Add button sits inside the popover, with nothing to scroll sideways.
+  const add = long.getByTestId('picker-add');
+  const [addBox, pickerBox] = [await add.boundingBox(), await picker.boundingBox()];
+  expect(addBox!.x + addBox!.width).toBeLessThanOrEqual(pickerBox!.x + pickerBox!.width);
+  expect(await picker.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  expect(await long.locator('strong').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+
+  // Up one, then the top crumb: back out the way it came in.
+  await page.getByTestId('picker-up').click();
+  await expect(page.getByTestId('picker-folder')).toHaveText([/FOOTBALL/, /HOCKEY/]);
+  await page.getByTestId('picker-path').getByRole('button', { name: 'All media' }).click();
+  await expect(page.getByTestId('picker-row')).toHaveCount(1);
+
+  // Adding from inside a folder still adds the server's full name, and the cue reads its own.
+  await (await pickerFile(page, LONG)).getByTestId('picker-add').click();
+  await expect(page.getByTestId('playout-cue-where')).toContainText(LONG);
+  await expect(page.getByTestId('cue-label')).toHaveValue(LONG.split('/').pop()!);
+});
+
+test('a clip set to Loop is taken with LOOP, the row says so, and the choice survives a reload', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page);
+  await productionPage(page);
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-media').click();
+  await (await pickerFile(page, 'GIORNO')).getByTestId('picker-add').click();
+
+  const loop = page.getByTestId('playout-loop');
+  await expect(loop).not.toBeChecked();
+  await loop.check();
+  const cue = page.locator('.pd-cue', { hasText: 'GIORNO' });
+  await expect(cue).toContainText('loop');
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => lastAction(bridge)).toEqual({
+    verb: 'take',
+    item: { kind: 'media', name: 'GIORNO' },
+    slot: { adapter: 'casparcg', channel: 1, layer: 10 },
+    loop: true,
+  });
+  await expect(page.getByTestId('playout-loop-row')).toContainText('applies at the next Take');
+  await page.getByTestId('verb-out').click();
+
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('select-cue').click();
+  await expect(page.getByTestId('playout-loop')).toBeChecked();
+
+  // Off again: the next take plays once, and the record drops the flag rather than storing false.
+  await page.getByTestId('playout-loop').uncheck();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => lastAction(bridge)).toEqual({
+    verb: 'take',
+    item: { kind: 'media', name: 'GIORNO' },
+    slot: { adapter: 'casparcg', channel: 1, layer: 10 },
+  });
+  const stored = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return (loadShows()[0].playoutItems ?? []).map((i) => 'loop' in i);
+  });
+  expect(stored).toEqual([false]);
+});
+
 test('a server template takes the next free layer, carries its typed fields as JSON data, and Update, Next and Out follow', async ({ page }) => {
   await seedSettings(page);
   const bridge = await fakeBridge(page);
@@ -220,7 +331,7 @@ test('a server template takes the next free layer, carries its typed fields as J
   await page.getByTestId('add-from-server').click();
   // A template NoaCG did not make: the field ids are typed once, beside the name.
   await page.getByTestId('picker-field-ids').fill('f0, f1');
-  await page.locator('[data-testid="picker-row"][data-name="HOUSE_STRAP/HOUSE_STRAP"]').getByTestId('picker-add').click();
+  await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
 
   const cue = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
   await expect(cue).toContainText('Server template');
@@ -344,7 +455,7 @@ test('one rundown cues a template on the graphics channel and a clip on the inse
   // A server template: the graphics channel, which the record stores as no channel at all.
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-field-ids').fill('f0');
-  await page.locator('[data-testid="picker-row"][data-name="HOUSE_STRAP/HOUSE_STRAP"]').getByTestId('picker-add').click();
+  await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
   const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
   await expect(strap.getByTestId('cue-layer')).toHaveText('1-21');
   const editor = page.getByTestId('playout-cue-editor');
@@ -488,7 +599,7 @@ test('a re-take onto a channel the server refuses leaves nothing marked ON AIR, 
   await productionPage(page);
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-field-ids').fill('f0');
-  await page.locator('[data-testid="picker-row"][data-name="HOUSE_STRAP/HOUSE_STRAP"]').getByTestId('picker-add').click();
+  await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
   const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
   await page.getByTestId('verb-take').click();
   await expect(strap).toContainText('ON AIR');

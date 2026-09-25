@@ -1364,10 +1364,14 @@ Storm warning issued</code></pre>
             which round-trips a real AMCP <code>VERSION</code> and shows the server's own version
             string. The Bridge listens on <code>127.0.0.1</code> only; CasparCG can be any machine
             on the studio network, exactly as with the Client, and nothing is exposed to the
-            internet. On the hosted studio, Chrome asks once whether the site may reach your local
-            network; the pairing page says so before you click, and the answer sticks. Use Chrome
-            or Edge on that machine: Safari refuses a page reaching a local program outright, with
-            nothing to grant.
+            internet. On the hosted studio, the browser asks once whether the site may reach your
+            local network (Firefox words it &ldquo;access other apps and services on this
+            device&rdquo;); the pairing page says so before you click. Chrome and Edge are
+            recommended and Firefox works; Safari refuses a page reaching a local program
+            outright, with nothing to grant. A browser set to forget site permissions (common on
+            shared school computers) asks again every day or every tab: the
+            <a href="/downloads#browsers">browser notes on the Downloads page</a> name the policy
+            that allows NoaCG once, for good.
           </p>
           <p>
             The production page then grows a <strong>Put on air</strong> / <strong>Take off</strong>
@@ -1379,17 +1383,19 @@ Storm warning issued</code></pre>
           <p>
             With the Bridge paired, the rundown's foot gains <strong>&#65291; From the playout
             server&hellip;</strong>. It lists the HTML templates and the media in the server's own
-            folders, as the server itself lists them, and adds one as a cue beside the production's
-            graphics. A server template is taken with its field values, updated, stepped with Next
-            and taken off; a clip rolls, pauses, resumes and stops. Clips play on layer 10, below
-            every graphic, so a strap never disappears behind a rolling clip. The file stays on the
+            folders, as the server itself lists them, browsed folder by folder (hover a name for
+            its full path), and adds one as a cue beside the production's graphics. A server
+            template is taken with its field values, updated, stepped with Next and taken off; a
+            clip rolls, pauses, resumes and stops. Tick <strong>Loop</strong> in a clip's cue and
+            CasparCG repeats it until you take it off. Clips play on layer 10, below every
+            graphic, so a strap never disappears behind a rolling clip. The file stays on the
             server; only its name is stored in the production.
           </p>
           <p>
             <strong>More than one channel.</strong> A studio that runs graphics on one CasparCG
             channel and video inserts on another names both under <strong>Settings &rarr;
-            Playout</strong>: <strong>Add channel</strong> adds <code>2 Inserts</code> and makes it
-            where new clips go, while templates and the production's own graphics stay on the
+            Playout</strong>: <strong>Add channel</strong> adds <code>Channel 2</code> (rename it
+            to whatever it carries) and makes it where new clips go, while templates and the production's own graphics stay on the
             graphics channel. Every server cue shows its address in the rundown the way CasparCG
             writes it (<code>2-10</code> is channel 2, layer 10), and its editor has a
             <strong>Channel</strong> pick beside the layer to move that cue to another channel.

@@ -69,6 +69,11 @@ export interface PlayoutItem {
    *  unchanged. A plain number, not a reference to a Settings row: the record syncs to machines
    *  whose studio may name its channels differently, and CasparCG only knows the number. */
   channel?: number;
+  /** ADDITIVE OPTIONAL. A clip that LOOPS: its Take sends CasparCG's own `PLAY … LOOP`, so the
+   *  server repeats it until Out and nothing on this page has to watch for the end. Absent or
+   *  false plays it once, which is how every clip saved before 2026-09-25 plays. A template
+   *  never carries it. */
+  loop?: boolean;
   /** A clip's length, when the server reported one. */
   frames?: number;
   fps?: number;
@@ -574,6 +579,19 @@ export function setPlayoutItemChannel(showId: string, itemId: string, channel: n
     const item = show.playoutItems?.find((i) => i.id === itemId);
     if (!item || !Number.isInteger(channel) || channel < MIN_PLAYOUT_CHANNEL || channel > MAX_PLAYOUT_CHANNEL) return false;
     item.channel = channel;
+    return true;
+  });
+}
+
+/** Turn looping on or off for a server clip (the cue editor's Loop box). Only a clip loops;
+ *  the flag is dropped rather than stored as false, so a clip that never looped stays byte for
+ *  byte the record it was. */
+export function setPlayoutItemLoop(showId: string, itemId: string, loop: boolean): Show[] {
+  return patchShow(showId, (show) => {
+    const item = show.playoutItems?.find((i) => i.id === itemId);
+    if (!item || item.kind !== 'media') return false;
+    if (loop) item.loop = true;
+    else delete item.loop;
     return true;
   });
 }

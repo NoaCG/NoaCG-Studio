@@ -1763,8 +1763,44 @@
 .pd-picker-head { display: flex; align-items: center; gap: 8px; }
 .pd-picker-tabs { display: flex; gap: 4px; }
 .pd-picker-tabs button[aria-selected='true'] { color: var(--amber); border-color: var(--amber); }
-.pd-picker-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.pd-picker-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; }
+/* One column that may SHRINK below its content: a grid track sized `auto` grows to the longest
+   nowrap name, which is what once pushed every Add button off the popover's right edge. */
+.pd-picker-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.pd-picker-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; min-width: 0; }
+/* The Add button never shrinks and never scrolls away; the name gives way instead. */
+.pd-picker-row > button { flex: none; }
+/* A folder row is one button across the row: the whole line opens the folder. */
+.pd-picker-row > .pd-picker-folder {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pd-picker-folder-icon { flex: none; width: 48px; text-align: center; color: var(--amber); font-size: 12px; }
+/* The path line: an Up arrow, then each folder as a crumb, the last one the current folder. */
+.pd-picker-path { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; font-size: 12px; }
+.pd-picker-crumb-wrap { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.pd-picker-crumb {
+  min-width: 0;
+  max-width: 16ch;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--muted, inherit);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pd-picker-crumb[aria-current='location'] { color: inherit; font-weight: 600; }
+.pd-picker-crumb:hover { text-decoration: underline; }
 .pd-picker-row:hover { background: rgba(255, 255, 255, 0.04); }
 /* A clip's thumbnail at the frame's own aspect, so a 16:9 still is not cropped into a square. */
 .pd-picker-thumb { flex: none; width: 48px; height: 27px; border-radius: 3px; background: var(--void, #0a0c10); overflow: hidden; }
@@ -1780,6 +1816,9 @@
 .pd-server-where { margin: 0 0 8px; }
 .pd-server-where code { font-size: 12px; }
 .pd-clip-transport { gap: 6px; margin-bottom: 8px; }
+/* The clip's Loop box: a checkbox, its word, and what it does in muted type after it. */
+.pd-clip-loop { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 12.5px; }
+.pd-clip-loop .muted { font-size: 11px; }
 .pd-add-field { display: flex; gap: 6px; align-items: center; }
 .pd-add-field input { flex: 1; min-width: 0; }
 /* On the PROGRAM header, what is up on the server - a badge beside the layer badge, dimmer:

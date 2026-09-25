@@ -26,6 +26,7 @@ import {
   playoutItemOf,
   removePlayoutItem,
   setPlayoutItemChannel,
+  setPlayoutItemLoop,
   setPlayoutItemFields,
   setPlayoutItemLayer,
   type PlayoutItem,
@@ -1910,7 +1911,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const values = cueView(cue).values;
     const action: PlayoutAction =
       verb === 'take'
-        ? { verb, item: itemRef, slot, ...(item.kind === 'template' ? { data: values } : {}) }
+        ? {
+            verb,
+            item: itemRef,
+            slot,
+            ...(item.kind === 'template' ? { data: values } : {}),
+            // A looping clip is CasparCG's own `PLAY … LOOP`: the server repeats it until Out.
+            ...(item.kind === 'media' && item.loop ? { loop: true } : {}),
+          }
         : verb === 'update'
           ? { verb, slot, data: values }
           : { verb, slot, item: itemRef };
@@ -3199,6 +3207,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 />
               </div>
             )}
+            {/* LOOP, the one clip option: CasparCG repeats the file itself (`PLAY … LOOP`), so a
+                looping background or sting needs nothing from this page until Out. It is read
+                at Take, so a change while the clip is up says it applies to the next one. */}
+            {selectedPlayoutItem.kind === 'media' && (
+              <label className="pd-clip-loop" data-testid="playout-loop-row">
+                <input
+                  type="checkbox"
+                  checked={selectedPlayoutItem.loop === true}
+                  onChange={(e) => setShows(setPlayoutItemLoop(show.id, selectedPlayoutItem.id, e.target.checked))}
+                  data-testid="playout-loop"
+                />
+                <span>Loop</span>
+                <span className="muted">
+                  {editingIsLive
+                    ? 'repeats until Out · a change applies at the next Take'
+                    : 'repeats until Out, instead of playing once'}
+                </span>
+              </label>
+            )}
             {selectedPlayoutItem.kind === 'media' && editingIsLive && (
               <div className="row pd-clip-transport" data-testid="playout-clip-transport">
                 <button onClick={() => void playoutVerb(editingCue, 'pause', 'Pause')} data-testid="playout-pause">
@@ -3568,7 +3595,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     {/* The KIND beside the name: the label above is the operator's own word for
                         the cue, so this is what says "that one is the scoreboard" at a glance. */}
                     {poolEntry ? `${graphicKindLabel(poolEntry.type)} · ` : ''}
-                    {playoutItem ? `${playoutItem.kind === 'media' ? 'Server clip' : 'Server template'} · ` : ''}
+                    {playoutItem ? `${playoutItem.kind === 'media' ? (playoutItem.loop ? 'Server clip ⟲ loop' : 'Server clip') : 'Server template'} · ` : ''}
                     {view.note || cueGraphic || playoutItem?.name || 'missing graphic'}
                   </span>
                 </button>
