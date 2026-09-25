@@ -54,7 +54,9 @@ that works:
 
 Write the rule on the second occurrence unless the first was expensive. State the outcome and
 its reason, never "ask the owner first" on its own. Plain text, no shouted emphasis: current
-models over-apply it. `npm run audit:instructions` checks the whole system about monthly.
+models over-apply it. `npm run audit:instructions` checks the whole system about monthly. After any change to
+how instructions load, measure it: `node scripts/instruction-load-probe.mjs run <files>` lists
+every instruction file a fresh session received and flags one that arrived twice.
 
 ## Writing one
 

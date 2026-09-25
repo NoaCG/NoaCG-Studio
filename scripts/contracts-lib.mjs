@@ -89,9 +89,9 @@ export const MERGE_DRIVER = 'noacg-contracts';
 /**
  * What the ALWAYS-LOADED compiled layer may cost, in bytes.
  *
- * The root `AGENTS.md` is the one generated file every session pays for at launch: Codex reads
- * it, the Claude desktop app reads it natively, and the Claude CLI reads it through the root
- * `CLAUDE.md` import. Only `**`-scoped rules land in it. Everything else loads only when a file it
+ * The root `AGENTS.md` is the one generated file every session pays for at launch: Codex reads it
+ * natively and Claude reads it through the root `CLAUDE.md` import (`.claude/settings.json` turns
+ * Claude's own AGENTS.md reading off, so nothing arrives twice). Only `**`-scoped rules land in it. Everything else loads only when a file it
  * scopes to is touched. A rule that does not belong in every session's first tokens gets a scope,
  * and adding one here means removing one.
  */
@@ -569,9 +569,9 @@ export function ruleHomes(scope, owned) {
  */
 export function deepestOwner(dir, owned) {
   // THE REPOSITORY ROOT IS A DIRECTORY LIKE ANY OTHER once it carries the marker. Kernel rules -
-  // the ones scoped `**` - live only in the generated root AGENTS.md: Codex and the Claude desktop
-  // app read it natively, and the Claude CLI reads it through the root CLAUDE.md import. Without it
-  // neither tool would see the global rule set, including "only the merge queue writes main".
+  // the ones scoped `**` - live only in the generated root AGENTS.md: Codex reads it natively and
+  // Claude through the root CLAUDE.md import. Without it neither tool would see the global rule
+  // set, including "only the merge queue writes main".
   if (dir === '') return owned.has('') ? '' : null;
   const parts = dir.split('/');
   for (let i = parts.length; i > 0; i -= 1) {

@@ -78,16 +78,19 @@ function report(transcript) {
   return problems;
 }
 
-const [mode, ...rest] = process.argv.slice(2);
-if (mode === 'session' && rest[0]) {
-  process.exit(report(transcriptFor(rest[0])) ? 1 : 0);
-} else if (mode === 'run' && rest.length > 0) {
-  const prompt = `Use the Read tool to read only the first 2 lines of each of these files, one at a time: ${rest.join(', ')}. Then reply DONE.`;
-  const run = spawnSync(process.env.CLAUDE_BIN || 'claude', ['-p', prompt, '--model', 'claude-haiku-4-5-20251001',
-    '--allowedTools', 'Read', '--output-format', 'json'], { cwd: ROOT, encoding: 'utf8' });
-  if (run.status !== 0) throw new Error(`claude exited ${run.status}: ${run.stderr || run.error}`);
-  process.exit(report(transcriptFor(JSON.parse(run.stdout).session_id)) ? 1 : 0);
-} else {
+function main() {
+  const [mode, ...rest] = process.argv.slice(2);
+  if (mode === 'session' && rest[0]) return report(transcriptFor(rest[0])) ? 1 : 0;
+  if (mode === 'run' && rest.length > 0) {
+    const prompt = `Use the Read tool to read only the first 2 lines of each of these files, one at a time: ${rest.join(', ')}. Then reply DONE.`;
+    const run = spawnSync(process.env.CLAUDE_BIN || 'claude', ['-p', prompt, '--model', 'claude-haiku-4-5-20251001',
+      '--allowedTools', 'Read', '--output-format', 'json'], { cwd: ROOT, encoding: 'utf8' });
+    if (run.status !== 0) throw new Error(`claude exited ${run.status}: ${run.stderr || run.error}`);
+    return report(transcriptFor(JSON.parse(run.stdout).session_id)) ? 1 : 0;
+  }
   console.error('usage: instruction-load-probe.mjs run <file>... | session <transcript or session id>');
-  process.exit(2);
+  return 2;
 }
+
+// Only when a person runs it; the test imports `loadsIn`.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main());

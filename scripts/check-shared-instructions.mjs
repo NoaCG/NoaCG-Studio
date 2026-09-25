@@ -695,9 +695,9 @@ function checkRepositoryFile(file, label) {
 // That saving is the whole point of migrating an area - the pair rule holds for the prose files
 // that have not migrated yet, which is still nearly all of them.
 //
-// The ROOT is the exception: its `**` rules are written nowhere else, so the Claude CLI (which does
-// not read AGENTS.md by default) needs the root CLAUDE.md import to see them. Where Claude reads
-// AGENTS.md natively as well, it loads the file once, not twice (measured 2026-09-25).
+// The ROOT is the exception: its `**` rules are written nowhere else, and `.claude/settings.json`
+// sets Claude's instructionFiles to claude-md, so the root CLAUDE.md import is Claude's only way to
+// them. Measured with scripts/instruction-load-probe.mjs: every instruction file loads once.
 const agentsFiles = findFilesNamed(ROOT, 'AGENTS.md').filter(
   (file) => rel(file) === 'AGENTS.md' || !rel(file).startsWith('.'),
 );
