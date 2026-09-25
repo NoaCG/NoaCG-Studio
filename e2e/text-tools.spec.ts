@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';
 import { elementPoint } from './_canvas';
-import { enableAdvancedMode, bootstrapGraphic } from './_create';
+import { enableAdvancedMode, createProject } from './_create';
 import { durableValue } from './_storage';
 
 // The canvas TEXT TOOLS (the stage toolbar's T / area-text switch, placed designs): the T
@@ -263,6 +263,6 @@ test('tool-created text survives a reload as a real field of the saved project',
 });
 
 test('the text tools are a placed-design surface: a catalog template offers no toolbar switch', async ({ page }) => {
-  await bootstrapGraphic(page, 'Hairline');
+  await createProject(page, 'Hairline');
   await expect(page.getByTestId('tool-switch')).toHaveCount(0);
 });

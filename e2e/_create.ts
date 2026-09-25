@@ -201,6 +201,24 @@ export async function openWorkingGraphicInEditor(page: Page): Promise<void> {
 }
 
 /**
+ * From wherever a wizard walk stands, go to Finish and press "Edit this graphic": the walk's
+ * graphic becomes the working document and the NEW editor opens on it. This is the road the old
+ * editor's "Create project" and Finish's code-editor door used to take. It waits for whichever of
+ * the two controls is on screen rather than sampling one, because Finish paints its doors a frame
+ * after the step itself.
+ */
+export async function finishIntoNewEditor(page: Page): Promise<void> {
+  const edit = page.getByTestId('wz-finish-edit-artwork');
+  const skip = page.getByTestId('wz-skip-to-finish');
+  await expect(edit.or(skip).first()).toBeVisible();
+  if (!(await edit.isVisible())) await skip.click();
+  await edit.click();
+  // 20 s: the modal closes once the cold Prettier format behind the create resolves.
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+}
+
+/**
  * Open the export window on the WORKING graphic: its template, its sample data and its saved
  * library id, which is exactly what the old editor's Export panel exported. The window renders
  * the same ExportSurface that panel did (components/ExportWindow.tsx), so the target list, the

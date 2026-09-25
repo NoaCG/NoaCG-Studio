@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { switchToAdvancedMode, skipOldEditor } from './_create';
+import { switchToAdvancedMode, skipOldEditor, finishIntoNewEditor } from './_create';
 import { awaitPreviewRebuild } from './_preview';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
 
@@ -51,20 +51,6 @@ async function createProject(page: Page) {
   });
 }
 
-/**
- * Create from wherever the walk stands and land in the NEW editor: skip to Finish (unless the
- * walk is already there) and press "Edit this graphic", which applies the imported graphic to
- * the working document. For the tests that read only the created template; the ones that read
- * the old editor's preview or panels still call createProject above, which skips.
- */
-async function createIntoNewEditor(page: Page) {
-  const edit = page.getByTestId('wz-finish-edit-artwork');
-  if (!(await edit.isVisible())) await page.getByTestId('wz-skip-to-finish').click();
-  await edit.click();
-  // 20 s: the modal closes once the cold Prettier format behind the create resolves.
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  await expect(page.getByTestId('editor-foundation')).toBeVisible();
-}
 
 /** One pixel of the created template's artwork asset, at fractions of its SOURCE size. */
 async function assetPixel(page: Page, fx: number, fy: number) {
@@ -208,7 +194,7 @@ test('erase: the erased region seeds the first text field, placed and sized from
   await toEraseSurface(page);
   await drawRect(page, MARK.x0, MARK.y0, MARK.x1, MARK.y1);
   await expect(page.getByTestId('erase-done')).toContainText('A text field will sit');
-  await createIntoNewEditor(page);
+  await finishIntoNewEditor(page);
 
   // The field exists on the design, showing its sample where the baked text was.
   const frame = page.frameLocator('iframe.preview-frame');
@@ -262,7 +248,7 @@ test('erase: on a 2x export the seeded field maps to design pixels', async ({ pa
   await toEraseSurface(page);
   await drawRect(page, MARK.x0, MARK.y0, MARK.x1, MARK.y1);
   await expect(page.getByTestId('erase-done')).toBeVisible();
-  await createIntoNewEditor(page);
+  await finishIntoNewEditor(page);
 
   // The measured ink starts at 0.18 × 3840 ≈ 691 SOURCE px; the design shows the art
   // frame-sized at 1920, so every placed number is HALVED — the erase and its measurement

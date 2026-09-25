@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootstrapGraphic, skipOldEditor } from './_create';
+import { bootstrapGraphic } from './_create';
 
 // OFFLINE: the feedback surfaces must not exist at all.
 //
@@ -25,12 +25,12 @@ test.describe('feedback, offline', () => {
   });
 
   test('the absence is the gate, not an empty topbar', async ({ page }) => {
-    skipOldEditor();
     // Mutation guard: the assertion above passes vacuously if the topbar failed to render at
     // all. Prove the neighbours ARE there, so "no feedback button" means the gate closed rather
-    // than the shell being broken.
+    // than the shell being broken. The bootstrap lands on Home, whose header door is the
+    // neighbour (the old editor's Home button was, until that editor closed).
     await bootstrapGraphic(page);
-    await expect(page.getByTestId('open-home')).toBeVisible();
+    await expect(page.getByTestId('home-new-project')).toBeVisible();
     await expect(page.getByTestId('beta-feedback-open')).toHaveCount(0);
   });
 

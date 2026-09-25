@@ -635,6 +635,30 @@ const MAP = [
     /^src\/components\/NewGraphicButton\.tsx$/,
     ['project.spec.ts', 'library.spec.ts', 'control.spec.ts', 'productions.spec.ts', 'wizard-kit.spec.ts'],
   ],
+  // THE SURFACES THE OLD EDITOR'S SPECS WERE MOVED ONTO (2026-09-25). Those specs used to stand
+  // in the old code editor to reach an export, a production or the save dialog; they now open the
+  // export window (openExportWindow), a production page (openProductionWithCurrent) or the new
+  // editor's header (openWorkingGraphicInEditor, whose Home button carries `open-home`), all in
+  // e2e/_create.ts. A change to one of those surfaces selects the specs that now stand on it.
+  [
+    /^src\/components\/(ExportWindow|ExportSurface)\.tsx$/,
+    ['exports.spec.ts', 'control.spec.ts', 'local-relay.spec.ts', 'ograf-conformance.spec.ts', 'render.spec.ts', 'template-pack-10.spec.ts', 'template-pack-4.spec.ts', 'production-controls.spec.ts'],
+  ],
+  [
+    /^src\/components\/home\/ProductionPage\.tsx$/,
+    ['bridge-connect.spec.ts', 'cross-tab.spec.ts', 'playout-cues.spec.ts', 'playout-drills.spec.ts', 'production-audience.spec.ts', 'production-chat-intake.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'productions.spec.ts', 'quiz-pilot.spec.ts'],
+  ],
+  [
+    /^src\/components\/(editorFoundation\/EditorFoundation|save\/(SaveControls|SaveDialogs))\.tsx$/,
+    ['auth.spec.ts', 'library.spec.ts', 'playout-cues.spec.ts', 'playout-drills.spec.ts', 'production-controls.spec.ts', 'production-pack.spec.ts', 'productions.spec.ts'],
+  ],
+  // The SVG import family's tests that read only the created template walk Finish's "Edit this
+  // graphic" into the new editor (finishIntoNewEditor), so the Finish step and the editor's mount
+  // select them too.
+  [
+    /^src\/components\/(editorFoundation\/EditorFoundation|wizard\/steps\/FinishStep)\.tsx$/,
+    ['import-svg.spec.ts', 'import-prepare.spec.ts', 'import-stretch.spec.ts'],
+  ],
   // The door's ORDER beside Home and the wizard's own mount (guarded start-over, guard over
   // the wizard) are pinned in project.spec.ts - so the two shells whose headers it measures,
   // and the save dialogs whose z-order it clicks through, select it too. App.tsx is CORE

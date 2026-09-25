@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode, finishIntoEditor, startNewProject, switchToAdvancedMode, openExportWindow } from './_create';
+import { enableAdvancedMode, finishIntoEditor, startNewProject, switchToAdvancedMode } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { chooseType, pickDesign } from './_browse';
@@ -111,7 +111,7 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
     const t = useTemplateStore.getState().template;
     return { css: t.css, js: t.js, resolution: t.resolution, fps: t.fps };
   });
-  await openExportWindow(page);
+  await page.getByTestId('dock-tab-export').click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),

@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 
 // Cues over the PLAYOUT SERVER'S OWN LIBRARY (docs/BRIDGE.md §5): a template or a clip that
 // already lives on the CasparCG box, listed through NoaCG Bridge, added to the rundown beside
@@ -140,6 +140,8 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
 async function productionPage(page: Page, options: { saved?: boolean } = {}): Promise<void> {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   if (options.saved) {
+    // The save controls are in the new editor's header; Home, where the bootstrap lands, has none.
+    await openWorkingGraphicInEditor(page);
     await page.getByTestId('save-graphic').click();
     await expect(page.getByTestId('save-dialog')).toBeVisible();
     await page.getByTestId('save-name').fill('Hairline');
@@ -263,7 +265,6 @@ test('a server template takes the next free layer, carries its typed fields as J
 });
 
 test('a template NoaCG exported brings its own fields, matched by the export slug', async ({ page }) => {
-  skipOldEditor();
   await seedSettings(page);
   await fakeBridge(page);
   await productionPage(page, { saved: true });

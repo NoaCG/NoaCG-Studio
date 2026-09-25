@@ -3,7 +3,7 @@ import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';
 import { elementPoint } from './_canvas';
 import { previewFrame } from './_frame';
-import { addToProductionFromFinish, switchToAdvancedMode, openExportWindow } from './_create';
+import { addToProductionFromFinish, switchToAdvancedMode } from './_create';
 
 // The Import Graphic workflow, end to end (docs/IMPORT_MVP.md): a flat PNG design becomes
 // a working SPX template with editable text fields and per-layer animation.
@@ -377,7 +377,7 @@ test('import graphic: an added field is live — sample data drives it with no m
   await expect(frame.locator('#f2')).toHaveText('ACME Broadcast');
 
   // The definition carries the field, so SPX gets the same control: the export validates.
-  await openExportWindow(page);
+  await page.getByTestId('dock-tab-export').click();
   await expect(page.locator('.panel-body')).not.toContainText('✗');
 });
 
@@ -760,7 +760,7 @@ test('import graphic: the artwork and a field animate as separate layers from th
 
 test('import graphic: the exported SPX package validates', async ({ page }) => {
   await createImported(page);
-  await openExportWindow(page);
+  await page.getByTestId('dock-tab-export').click();
   // Export is gated on zero validation errors; the panel says so inline.
   await expect(page.locator('.panel-body')).not.toContainText('✗');
 });

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { switchToAdvancedMode, openExportWindow } from './_create';
+import { switchToAdvancedMode } from './_create';
 import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng, framedCardPng, CARD_TEXT_RECT } from './_png';
 import { elementPoint } from './_canvas';
@@ -515,7 +515,7 @@ test('import graphic: a scaled design still previews, validates, and exports', a
   await expect(frame.locator('.imported-design-art')).toBeVisible();
 
   // And it exports: validation passes and the package carries the artwork plus the scale.
-  await openExportWindow(page);
+  await page.getByTestId('dock-tab-export').click();
   await page.locator('.issue', { hasText: 'SPX export' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),

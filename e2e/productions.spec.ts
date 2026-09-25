@@ -431,7 +431,6 @@ test('a dropped recovery RPC is retried, and only an answer is ever concluded fr
 
 
 test('every graphic gets its own playout layer, typed, and it is what the output stacks', async ({ page }) => {
-  skipOldEditor();
   // docs/PLAYOUT_DASHBOARD.md §5. Layers used to be DERIVED from pool position and moved with
   // ↑/↓ arrows, which made the layer an accident of ordering. They are now numbers: distinct by
   // construction from 20 up, editable, and the SAME number the export declares and the browser
@@ -444,6 +443,8 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   await expect(page.getByTestId('save-dialog')).toBeHidden();
 
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Anchor L3');
   await page.getByTestId('save-confirm').click();
@@ -519,18 +520,20 @@ test('every graphic gets its own playout layer, typed, and it is what the output
 });
 
 test('the program monitor is the real renderer, and every verb reaches it without a wire', async ({ page }) => {
-  skipOldEditor();
   // The verbs work on an UNPUBLISHED production: they drive the local PROGRAM monitor, which is
   // the same createOutputStage the published output URL is built from. That is what makes the
   // whole surface provable offline — and it is why Rehearse is gone (§6): preview is local and
   // always available, so a separate practise mode was a second way to do what this already does.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Anchor L3');
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toBeHidden();
 
   await bootstrapGraphic(page, { category: 'Tickers' });
+
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Ticker crawl');
   await page.getByTestId('save-confirm').click();

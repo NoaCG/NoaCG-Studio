@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { finishIntoEditor, startNewProject } from '../_create';
+import { finishIntoEditor, finishIntoNewEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 
 // Shared setup for the configured-mode (authenticated) community specs. Credentials come from env so
@@ -71,11 +71,7 @@ export async function createGraphicInEditor(page: Page, category: string, varian
   await page.locator('[data-entry="template"]').click();
   await chooseType(page, category);
   await pickDesign(page, variant);
-  await page.getByTestId('wz-skip-to-finish').click();
-  await page.getByTestId('wz-finish-edit-artwork').click();
-  // 20 s: the modal closes once the cold Prettier format behind the create resolves.
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await finishIntoNewEditor(page);
 }
 
 /** Drop a screenshot of a signed-in surface into test-results/signed-in/. These surfaces render

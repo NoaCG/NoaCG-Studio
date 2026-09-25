@@ -205,6 +205,7 @@ test.describe('signed-in UX walk (configured)', () => {
     await page.getByTestId('save-name').fill('Hairline');
     await page.getByTestId('save-confirm').click();
 
+    await expect(page.getByTestId('save-dialog')).toBeHidden();
     // Build a one-graphic production so the hosted-publish controls become reachable. Publishing
     // lives on the production's own PAGE (docs/GOALS_ARCHIVE.md "Student release" step 8).
     await openProductionWithCurrent(page, 'Evening bulletin');

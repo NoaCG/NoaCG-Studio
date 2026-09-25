@@ -1,4 +1,4 @@
-import { enableAdvancedMode, bootstrapGraphic } from './_create';
+import { createProject, enableAdvancedMode } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { awaitPreviewRebuild } from './_preview';
 import { test, expect, type Page } from '@playwright/test';
@@ -751,7 +751,7 @@ test('every export target packages the new categories with no dangling reference
 // call. Proving it at the design-time preview alone would prove the parser and not the product.
 test('a kicker typed on air reaches the strip through the control path', async ({ page }) => {
   await enableAdvancedMode(page);
-  await bootstrapGraphic(page, 'House Wire');
+  await createProject(page, 'House Wire');
   // The preview rebuilds on a debounce after the create; the control update has to land on the
   // NEW document rather than the one it is replacing (e2e/AGENTS.md).
   await awaitPreviewRebuild(page);

@@ -1,4 +1,4 @@
-import { enableAdvancedMode, finishIntoEditor, openExportWindow } from './_create';
+import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
@@ -47,7 +47,7 @@ test('layout: code dock left ONCE OPENED, canvas + timeline in the centre, tool 
 
 test('export: validation shows inline and gates the download on a broken template', async ({ page }) => {
   await createHairline(page);
-  await openExportWindow(page);
+  await page.getByTestId('dock-tab-export').click();
   await expect(page.locator('.panel-body .status-ok')).toContainText('valid and ready');
   // Break the runtime: blank the JS in the editor (the pane ships closed — open it first).
   await showCode(page);

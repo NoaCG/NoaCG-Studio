@@ -140,6 +140,8 @@ jobs:
       # the 23 configured tests that reached it through `createGraphic`, `createProject` or
       # `enableAdvancedMode` now skip until they are rewritten
       # (docs/backlog/specs-that-still-open-the-old-editor.md). Raise it as each one comes back.
+      # 46 on 2026-09-25: 15 of them came back, standing on Home, a production page or the new
+      # editor instead (row F), and 8 still skip.
       MIN_TESTS: 46
       # An entry here is coverage being given up, so adding one needs a reason written next to it.
       # `bridge-real-server.spec.ts` drives a REAL Bridge process and a REAL CasparCG over the
@@ -151,8 +153,6 @@ jobs:
       # a while: since 2026-09-24 no route opens that editor, so a test that walked into it skips
       # with a reason naming docs/backlog/specs-that-still-open-the-old-editor.md, which lists
       # every one and what it asserted. Take a file off this list in the change that rewrites it.
-      # 2026-09-25: 15 tests came back (13 files left the list, plus one test each in anonymous
-      # and signed-in-ux), so the floor went from 31 to 46.
       # Nothing else may skip: with the local stack there is no other reason to.
       ALLOWED_SKIPS: >-
         bridge-real-server.spec.ts
