@@ -15,7 +15,7 @@ defects next to that change, fixed here:
 - **The control page's "Sign in to open this panel" and "Graphic not found" used the full page.**
   Before, they sat in a 190px column at the left edge, because they reused Home's two-column grid
   with no nav in it, so the heading wrapped over two lines and the rest of the page was empty.
-  Every old `#/graphic/<id>` link lands on this page now.
+  An old `#/graphic/<id>` link to a graphic this browser does not hold lands on this page now.
 - **The "Start from a template" card no longer says "Tweak the code it writes".** No door opens
   code any more, so the card ends after "choose your fields, style and animation".
 - **Home's recent-graphics cards print the category name ("Lower third"), not its id

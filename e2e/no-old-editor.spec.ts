@@ -208,7 +208,7 @@ test('a stale #/graphic/<id> opens that graphic\'s control page, at boot and in 
   await page.getByTestId('control-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
   // Home's recent-graphics card names the category, as the Graphics list does, not its id.
-  await expect(page.getByTestId('shelf-graphic').first().locator('.muted')).toContainText('Lower third');
+  await expect(page.getByTestId('shelf-graphic').filter({ hasText: 'Lab lower third' }).locator('.muted')).toContainText('Lower third');
   await page.evaluate((graphicId) => {
     window.location.hash = `#/graphic/${graphicId}`;
   }, id);
@@ -221,6 +221,7 @@ test('a stale #/graphic/<id> opens that graphic\'s control page, at boot and in 
   await expect(page).toHaveURL(/#\/control\/no-such-graphic$/);
   // The message spans the page, not the 190px nav column of Home's grid it once fell into.
   const lookup = await page.getByTestId('control-lookup').boundingBox();
+  expect(lookup, 'the lookup state has no box').not.toBeNull();
   expect(lookup!.width, 'the lookup state sits in a narrow column').toBeGreaterThan(600);
   await expectOldEditorNeverShown(page);
 });
