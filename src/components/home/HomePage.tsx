@@ -22,7 +22,7 @@ import { publishGate } from '../../community/gate';
 import { checkTemplateLegibility } from '../../validation/designRulesWarnings';
 import type { ProjectLegibility } from '../../model/designRules';
 import type { ValidationIssue, ValidationResult } from '../../validation/validateTemplate';
-import type { SpxTemplate } from '../../model/types';
+import { graphicKindLabel, type SpxTemplate } from '../../model/types';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import AuthStatus from '../auth/AuthStatus';
@@ -335,8 +335,10 @@ export default function HomePage({ route }: { route: Route }) {
                   >
                     <GraphicThumb template={g.template} values={activeValues(g)} label={g.name} fill />
                     <span className="home-shelf-name">{g.name}</span>
+                    {/* The category's NAME ("Lower third"), as the Graphics list prints it,
+                        never its id ("lower-third"). */}
                     <span className="muted">
-                      {g.type} · {new Date(g.updatedAt).toLocaleDateString()}
+                      {graphicKindLabel(g.type)} · {new Date(g.updatedAt).toLocaleDateString()}
                     </span>
                   </button>
                 ))}

@@ -334,7 +334,12 @@ export default function GraphicControlPage({ id }: { id: string }) {
           </a>
           <span className="tpl-name">Control panel</span>
         </header>
-        <div className="home-body">
+        {/* ONE cell. `.home-body` is Home's two-column grid (a 190px nav, then the content;
+            under 900px a nav row, then the content), and this state has no nav, so the message
+            used to fall into the nav's column and wrap "Sign in to open this panel" over two
+            lines at the left edge of an empty page. A stale `#/graphic/<id>` link to a graphic
+            this browser does not hold lands here, so it is a page students see. */}
+        <div className="home-body" style={{ gridTemplateColumns: '1fr', gridTemplateRows: 'minmax(0, 1fr)' }}>
           <main className="home-content" data-testid="control-lookup">
             {lookup === 'looking' ? (
               <>
