@@ -115,8 +115,58 @@
             CasparCG server's address and press <strong>Test connection</strong>.</li>
         </ol>
         <p class="dl-note">
-          Use Chrome or Edge. Safari does not let a web page reach a program on the same computer.
           The Bridge listens on this computer only and never exposes CasparCG to the internet.
+        </p>
+
+        <!-- WHICH BROWSER. `id="browsers"` is an address: the pairing page and Playout settings
+             link here when a browser keeps asking. Each row says what that browser does with
+             the one permission the hosted studio needs, because that is the whole difference. -->
+        <h3 id="browsers">Which browser</h3>
+        <table class="dl-browsers" data-testid="bridge-browsers">
+          <tbody>
+            <tr>
+              <th scope="row"><span class="dl-pill dl-pill--best">Recommended</span></th>
+              <td>
+                <strong>Chrome or Edge.</strong> Asks once whether the site may reach your local
+                network, and remembers the answer.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row"><span class="dl-pill">Supported</span></th>
+              <td>
+                <strong>Firefox.</strong> Asks whether the site may
+                <em>access other apps and services on this device</em>: that is the Bridge, so
+                choose <strong>Allow</strong>. See the note below if it asks every time.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row"><span class="dl-pill dl-pill--no">Not supported</span></th>
+              <td>
+                <strong>Safari.</strong> It does not let a web page reach a program on the same
+                computer, and has no setting that allows it. Use another browser, or
+                <code>noacg caspar play</code> from a terminal.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="dl-note" data-testid="bridge-browsers-forget">
+          <strong>Does the browser ask again every day, or in every tab?</strong> It is set to
+          forget site permissions. That is common on shared school computers that clear
+          everything when the browser closes. Whoever manages the computer can allow
+          <code>noacg.studio</code> once, for good, with a browser policy:
+        </p>
+        <ul class="dl-note">
+          <li><strong>Firefox:</strong> the <code>LocalNetworkAccess</code> policy with
+            <code>"SkipDomains": ["noacg.studio"]</code>. It survives &ldquo;delete everything
+            on close&rdquo;.</li>
+          <li><strong>Chrome and Edge:</strong> the
+            <code>LoopbackNetworkAccessAllowedForUrls</code> policy (older versions:
+            <code>LocalNetworkAccessAllowedForUrls</code>) with
+            <code>https://noacg.studio</code>.</li>
+        </ul>
+        <p class="dl-note">
+          Running NoaCG from a computer on your own studio network rather than from noacg.studio?
+          Then no browser asks at all.
         </p>
         <p class="dl-note" data-testid="bridge-not-needed">
           <strong>Using OBS, vMix or another browser source?</strong> You do not need the Bridge.

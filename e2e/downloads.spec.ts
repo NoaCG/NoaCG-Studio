@@ -120,6 +120,28 @@ test('with neither API answering the page still downloads the newest Bridge and 
   await expect(page.getByTestId('cli-version')).toHaveText('latest');
 });
 
+test('the Bridge card says which browsers work, and what to do about one that keeps asking', async ({ page }) => {
+  await fakeChannels(page, 'down');
+  await page.goto('/downloads#browsers');
+  const table = page.getByTestId('bridge-browsers');
+  await expect(table).toBeVisible();
+  // One verdict per row, in the order a reader decides: the best, the one that works, the one that cannot.
+  const rows = table.locator('tr');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText('Recommended');
+  await expect(rows.nth(0)).toContainText('Chrome or Edge');
+  await expect(rows.nth(1)).toContainText('Supported');
+  await expect(rows.nth(1)).toContainText('Firefox');
+  // Firefox's own words for the prompt, so a reader recognises it on screen.
+  await expect(rows.nth(1)).toContainText('access other apps and services on this device');
+  await expect(rows.nth(2)).toContainText('Not supported');
+  await expect(rows.nth(2)).toContainText('Safari');
+  // The repeated prompt on a machine that forgets everything has a named, durable fix.
+  await expect(page.getByTestId('bridge-browsers-forget')).toContainText('forget site permissions');
+  await expect(page.getByTestId('download-bridge')).toContainText('SkipDomains');
+  await expect(page.getByTestId('download-bridge')).toContainText('LoopbackNetworkAccessAllowedForUrls');
+});
+
 test('the classroom package sits under the two tools and its zip is served from /downloads', async ({ page, request }) => {
   await fakeChannels(page, 'down');
   await page.goto('/downloads#classroom');

@@ -29,6 +29,7 @@ import { SVG_CANDIDATE_ATTR } from '../../assets/svgImport';
 import WizardPreview, { type PreviewBoxOverlay, type PreviewGrowCap } from './WizardPreview';
 import BrandLogo from '../BrandLogo';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
+import AuthStatus from '../auth/AuthStatus';
 import EntryStep from './steps/EntryStep';
 import {
   ImportStep,
@@ -1696,6 +1697,12 @@ export default function CreationWizard() {
               Its push is the chain in styles.css (.wz-stepcount ~ .fb-open ~ .gallery-close),
               since the step counter is absent on Entry and this button is absent offline. */}
           <BetaFeedbackButton area="wizard" />
+
+          {/* THE ACCOUNT, the same control every other bar carries. The wizard is where the
+              landing's "Start creating" puts a first-time visitor, full screen over the studio,
+              so without it a signed-out reader had no way to sign in or make an account and no
+              word that they were signed out at all. It renders nothing offline. */}
+          <AuthStatus />
 
           <button
             className="gallery-close"

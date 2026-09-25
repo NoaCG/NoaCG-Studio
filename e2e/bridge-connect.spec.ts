@@ -318,8 +318,8 @@ test('the permission diagnosis is only ever offered where the browser actually g
 });
 
 test('a browser that has no such permission reports "unknown" rather than pretending it is granted', async ({ page }) => {
-  // Chrome exposes the gate as an ordinary permission; Safari and Firefox do not know the name
-  // and throw. Reading that as "granted" would produce a call that simply fails with no
+  // Chrome and Firefox 153+ expose the gate as an ordinary permission; Safari and an older
+  // Firefox know none of its names and throw. Reading that as "granted" would produce a call that simply fails with no
   // explanation, and reading it as "prompt" would send a Safari user hunting for a bubble that
   // browser never shows - so it has its own answer, and its own sentence in the panel.
   await page.goto('/app');
@@ -332,6 +332,46 @@ test('a browser that has no such permission reports "unknown" rather than preten
     return localNetworkPermission();
   });
   expect(state).toBe('unknown');
+});
+
+test('the loopback permission is read by the name Firefox and current Chrome use, and an older Chrome still answers', async ({ page }) => {
+  // The Bridge is on loopback. Firefox 153+ and Chrome after the split call that half
+  // `loopback-network`; an older Chrome knows only `local-network-access`. Asking for the old
+  // name alone read Firefox as "no such permission" and blamed the browser for a waiting prompt.
+  await page.goto('/app');
+  const read = async (known: Record<string, string>) =>
+    page.evaluate(async (names) => {
+      Object.defineProperty(navigator, 'permissions', {
+        configurable: true,
+        value: {
+          query: ({ name }: { name: string }) =>
+            name in names ? Promise.resolve({ state: names[name] }) : Promise.reject(new TypeError(`unknown ${name}`)),
+        },
+      });
+      const { localNetworkPermission } = await import('/src/control/playoutLink.ts');
+      return localNetworkPermission();
+    }, known);
+  expect(await read({ 'loopback-network': 'prompt', 'local-network': 'granted' })).toBe('prompt');
+  expect(await read({ 'local-network-access': 'granted' })).toBe('granted');
+
+  // Which browser, by user agent, only to word the sentence: every Chromium and Firefox UA also
+  // says "Safari", so Safari is the one that says it with nothing else.
+  const who = await page.evaluate(async () => {
+    const { isFirefox, isSafari } = await import('/src/control/playoutLink.ts');
+    const ua = {
+      firefox: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0',
+      chrome: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+      edge: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0',
+      safari: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+    };
+    return Object.fromEntries(Object.entries(ua).map(([k, v]) => [k, { firefox: isFirefox(v), safari: isSafari(v) }]));
+  });
+  expect(who).toEqual({
+    firefox: { firefox: true, safari: false },
+    chrome: { firefox: false, safari: false },
+    edge: { firefox: false, safari: false },
+    safari: { firefox: false, safari: true },
+  });
 });
 
 // ── The settings themselves ─────────────────────────────────────────────────────────────────
@@ -357,8 +397,8 @@ test('the server is configured once, app-wide, and survives a reload', async ({ 
   await expect(back.getByTestId('caspar-layer')).toHaveValue('30');
 });
 
-test('a studio saved before channels had names reads as one row, and one click names the insert channel', async ({ page }) => {
-  // A v1 record with one channel and no table: the table is that one channel, named Graphics,
+test('a studio saved before channels had names reads as one row, and one click adds a second channel named by its number', async ({ page }) => {
+  // A v1 record with one channel and no table: the table is that one channel, named by its number,
   // and clips still go where they always went. Seeded only when ABSENT, unlike seedSettings,
   // because the reload below must read back what the table wrote, not the seed again.
   await page.addInitScript(
@@ -376,24 +416,32 @@ test('a studio saved before channels had names reads as one row, and one click n
   const section = page.getByTestId('settings-playout');
   await expect(section.getByTestId('caspar-channel-row')).toHaveCount(1);
   await expect(section.getByTestId('caspar-channel-number')).toHaveValue('3');
-  await expect(section.getByTestId('caspar-channel-name')).toHaveValue('Graphics');
+  // Named by number, never by a use: NoaCG does not assume what a studio puts on a channel.
+  await expect(section.getByTestId('caspar-channel-name')).toHaveValue('Channel 3');
   await expect(section.getByTestId('caspar-graphics-channel')).toHaveValue('3');
   await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('3');
   // The graphics channel cannot be removed out from under the output URL.
   await expect(section.getByTestId('caspar-channel-remove')).toBeDisabled();
 
-  // Add channel: the next number, already named Inserts and already the clip default.
+  // Add channel: the next number, named by that number and made the clip default.
   await section.getByTestId('caspar-channel-add').click();
   const rows = section.getByTestId('caspar-channel-row');
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(1).getByTestId('caspar-channel-number')).toHaveValue('4');
-  await expect(rows.nth(1).getByTestId('caspar-channel-name')).toHaveValue('Inserts');
+  await expect(rows.nth(1).getByTestId('caspar-channel-name')).toHaveValue('Channel 4');
   await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('4');
-  await expect(section.getByTestId('caspar-clip-channel').locator('option:checked')).toHaveText('4 · Inserts');
-  // A second added row is a plain one: the clip default stays where it was put.
+  // A starting name is not said twice: the pick reads `Channel 4`, not `4 · Channel 4`.
+  await expect(section.getByTestId('caspar-clip-channel').locator('option:checked')).toHaveText('Channel 4');
+  // A second added row: named the same way, and the clip default stays where it was put.
   await section.getByTestId('caspar-channel-add').click();
-  await expect(rows.nth(2).getByTestId('caspar-channel-name')).toHaveValue('');
+  await expect(rows.nth(2).getByTestId('caspar-channel-name')).toHaveValue('Channel 5');
   await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('4');
+
+  // The operator's own word for a channel is kept; a starting name follows its number.
+  await rows.nth(1).getByTestId('caspar-channel-name').fill('Inserts');
+  await expect(section.getByTestId('caspar-clip-channel').locator('option:checked')).toHaveText('4 · Inserts');
+  await rows.nth(2).getByTestId('caspar-channel-number').fill('7');
+  await expect(rows.nth(2).getByTestId('caspar-channel-name')).toHaveValue('Channel 7');
 
   // A number past the range is clamped, never a row that silently vanishes on the next load.
   await rows.nth(2).getByTestId('caspar-channel-number').fill('150');

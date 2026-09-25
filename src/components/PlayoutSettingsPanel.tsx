@@ -3,6 +3,7 @@ import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   BRIDGE_DOWNLOAD_URL,
   channelLabel,
+  defaultChannelName,
   loadPlayoutSettings,
   playoutConfigured,
   savePlayoutSettings,
@@ -60,24 +61,29 @@ export default function PlayoutSettingsPanel() {
   //    number no row names any more. ──
   const setRow = (index: number, patch: Partial<PlayoutChannel>) => {
     const was = settings.channels[index].channel;
-    const channels = settings.channels.map((row, i) => (i === index ? { ...row, ...patch } : row));
     const moved = patch.channel !== undefined && patch.channel !== was;
+    // A row still wearing its starting name (`Channel 3`) is renamed with its number, so a
+    // renumbered row never reads `Channel 3` on channel 4. A name the operator typed stays.
+    const renamed =
+      moved && settings.channels[index].name === defaultChannelName(was) ? { name: defaultChannelName(patch.channel!) } : {};
+    const channels = settings.channels.map((row, i) => (i === index ? { ...row, ...patch, ...renamed } : row));
     set({
       channels,
       ...(moved && settings.channel === was ? { channel: patch.channel } : {}),
       ...(moved && settings.clipChannel === was ? { clipChannel: patch.channel } : {}),
     });
   };
-  /** The next number up, and - while clips still share the graphics channel - the row a studio
-   *  with an insert channel wants, already named and already the clip default. One click from a
-   *  stock single-channel studio to "1 Graphics, 2 Inserts". */
+  /** The next number up, named by its number like every new row. While clips still share the
+   *  graphics channel, the new row also becomes the clip default: a studio adds a second
+   *  channel to put something else on it, and a stock single-channel studio never has a clip
+   *  aimed at a channel it lacks. Both picks stay one select away below. */
   const highestChannel = Math.max(...settings.channels.map((row) => row.channel));
   const addRow = () => {
     const next = Math.min(MAX_PLAYOUT_CHANNEL, highestChannel + 1);
-    const firstInserts = settings.clipChannel === settings.channel;
+    const firstExtra = settings.clipChannel === settings.channel;
     set({
-      channels: [...settings.channels, { channel: next, name: firstInserts ? 'Inserts' : '' }],
-      ...(firstInserts ? { clipChannel: next } : {}),
+      channels: [...settings.channels, { channel: next, name: defaultChannelName(next) }],
+      ...(firstExtra ? { clipChannel: next } : {}),
     });
   };
   const removeRow = (index: number) => set({ channels: settings.channels.filter((_, i) => i !== index) });
@@ -189,7 +195,7 @@ export default function PlayoutSettingsPanel() {
                   <input
                     value={row.name}
                     onChange={(e) => setRow(i, { name: e.target.value })}
-                    placeholder="What it carries, e.g. Inserts"
+                    placeholder="Name this channel"
                     aria-label={`Channel ${row.channel} name`}
                     data-testid="caspar-channel-name"
                   />
@@ -301,9 +307,14 @@ export default function PlayoutSettingsPanel() {
       )}
       <p className="dlg-hint">
         No connection? <code>noacg caspar status</code> in a terminal makes the same call without a
-        browser, and says whether the problem is this page or the server. Chrome and Edge are the
-        browsers this works in; Safari refuses a secure page reaching a local address outright, and
-        there <code>noacg caspar play</code> airs a production with no browser at all.
+        browser, and says whether the problem is this page or the server. Chrome, Edge and Firefox
+        work; Safari refuses a secure page reaching a local address outright, and there{' '}
+        <code>noacg caspar play</code> airs a production with no browser at all. A browser that
+        asks for permission again and again is set to forget it:{' '}
+        <a href="/downloads#browsers" target="_blank" rel="noopener">
+          the browser notes
+        </a>{' '}
+        name the setting.
       </p>
       <p className="dlg-hint">
         Which server versions work, what to put on a channel by hand, and how to play an exported

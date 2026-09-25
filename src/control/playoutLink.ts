@@ -7,9 +7,10 @@
 // answer about which hop is broken - the surfaces that use it never say "failed".
 //
 // THE HOPS, and why they are told apart (measured 2026-08-24, Chromium 149):
-//   permission  Chrome's Local Network Access gates a PUBLIC page reaching 127.0.0.1. It is a
-//               user permission, not the old Access-Control-Allow-Private-Network header,
-//               which no longer helps at all. While it is unanswered the request HANGS rather
+//   permission  Local Network Access gates a PUBLIC page reaching 127.0.0.1 - Chrome and Edge,
+//               and Firefox since 153 ("wants to access other apps and services on this
+//               device"). It is a user permission, not the old Access-Control-Allow-Private-
+//               Network header, which no longer helps at all. While it is unanswered the request HANGS rather
 //               than failing, which is why every call here carries a timeout and why a timeout
 //               means "answer the prompt", never "unreachable".
 //   bridge      No Bridge on that address, or one started for another deployment.
@@ -69,8 +70,8 @@ export interface PlayoutSettings {
   channel: number;
   /** The output URL's layer on the graphics channel. */
   layer: number;
-  /** The channels this studio uses, each with the operator's word for it (`1 Graphics`,
-   *  `2 Inserts`). A cue picks its channel from this list rather than typing a number. ADDITIVE:
+  /** The channels this studio uses, each with the operator's word for it (`Channel 1` until
+   *  somebody renames it `Graphics`, `Inserts` or whatever it carries). A cue picks its channel from this list rather than typing a number. ADDITIVE:
    *  a record saved before it existed reads as one row, the graphics channel. Always holds the
    *  graphics channel after load. */
   channels: PlayoutChannel[];
@@ -95,9 +96,16 @@ export const PLAYOUT_DEFAULTS: PlayoutSettings = {
   layer: 20,
   // One channel: a stock casparcg.config has exactly one, so a fresh studio never cues a clip
   // onto a channel the server does not have. "Add channel" in Settings makes the second.
-  channels: [{ channel: 1, name: 'Graphics' }],
+  // Named by NUMBER, not by a use: a studio may run graphics, clips, a second language or a
+  // multiviewer on any channel, and the operator renames a row to say which.
+  channels: [{ channel: 1, name: defaultChannelName(1) }],
   clipChannel: 1,
 };
+
+/** The name a channel row starts with until the operator renames it: `Channel 2`. */
+export function defaultChannelName(channel: number): string {
+  return `Channel ${channel}`;
+}
 
 /** A channel number as stored, or null when it is not one. */
 function channelNumber(value: unknown): number | null {
@@ -117,7 +125,7 @@ function normalized(s: PlayoutSettings): PlayoutSettings {
   const rows = (Array.isArray(s.channels) ? s.channels : [])
     .map((row) => ({ channel: channelNumber(row?.channel), name: typeof row?.name === 'string' ? row.name : '' }))
     .filter((row): row is PlayoutChannel => row.channel !== null);
-  const channels = rows.some((row) => row.channel === channel) ? rows : [{ channel, name: 'Graphics' }, ...rows];
+  const channels = rows.some((row) => row.channel === channel) ? rows : [{ channel, name: defaultChannelName(channel) }, ...rows];
   const clip = channelNumber(s.clipChannel);
   const clipChannel = clip !== null && channels.some((row) => row.channel === clip) ? clip : channel;
   return { ...s, channel, channels, clipChannel };
@@ -193,16 +201,18 @@ export function channelName(s: PlayoutSettings, channel: number): string {
   return s.channels.find((row) => row.channel === channel)?.name.trim() ?? '';
 }
 
-/** `2 · Inserts` - a channel as the operator reads it, or the bare number when it has no name. */
+/** `2 · Inserts` - a channel as the operator reads it, or the bare number when it has no name.
+ *  A row still wearing its starting name reads `Channel 2`, not `2 · Channel 2`. */
 export function channelLabel(s: PlayoutSettings, channel: number): string {
   const name = channelName(s, channel);
+  if (name === defaultChannelName(channel)) return name;
   return name ? `${channel} · ${name}` : String(channel);
 }
 
 /** `channel 2 (Inserts)` - the same, as it reads inside a sentence. */
 export function channelTitle(s: PlayoutSettings, channel: number): string {
   const name = channelName(s, channel);
-  return name ? `channel ${channel} (${name})` : `channel ${channel}`;
+  return name && name !== defaultChannelName(channel) ? `channel ${channel} (${name})` : `channel ${channel}`;
 }
 
 /** `1-20` - what the operator sees on the button, and what CasparCG calls the layer. */
@@ -216,19 +226,42 @@ export function slotAddress(slot: Pick<Slot, 'channel' | 'layer'>): string {
 
 export type PermissionState = 'granted' | 'prompt' | 'denied' | 'unknown';
 
-/** Chrome exposes the gate as an ordinary permission, so a surface can say what stands in the
- *  way BEFORE making a call that would otherwise hang. Browsers that do not know the name
- *  throw, and 'unknown' is the honest answer for them. */
+/**
+ * The permission's name, newest first. The Bridge is on LOOPBACK, and both Chrome (since it split
+ * the gate in two) and Firefox (153+) call that half `loopback-network`; older Chromes know only
+ * the single `local-network-access`. A name a browser does not know makes `query` throw, so each
+ * is tried in turn.
+ */
+const PERMISSION_NAMES = ['loopback-network', 'local-network-access'] as const;
+
+/** The browsers expose the gate as an ordinary permission, so a surface can say what stands in
+ *  the way BEFORE making a call that would otherwise hang. A browser that knows none of the
+ *  names answers 'unknown', which is the honest answer for it. */
 export async function localNetworkPermission(): Promise<PermissionState> {
-  try {
-    const q = navigator.permissions as unknown as {
-      query(d: { name: string }): Promise<{ state: PermissionState }>;
-    };
-    const status = await q.query({ name: 'local-network-access' });
-    return status.state;
-  } catch {
-    return 'unknown';
+  const q = navigator.permissions as unknown as {
+    query(d: { name: string }): Promise<{ state: PermissionState }>;
+  } | undefined;
+  for (const name of PERMISSION_NAMES) {
+    try {
+      const status = await q!.query({ name });
+      return status.state;
+    } catch {
+      // Not a name this browser knows; try the next one.
+    }
   }
+  return 'unknown';
+}
+
+/** Firefox, by its user agent. Only used to word a sentence: Firefox names the prompt
+ *  differently, and on a profile that forgets site settings it asks again per tab. */
+export function isFirefox(userAgent = navigator.userAgent): boolean {
+  return /\bFirefox\//.test(userAgent) && !/\bSeamonkey\//i.test(userAgent);
+}
+
+/** Safari, by its user agent: the one engine that refuses a secure page reaching loopback with
+ *  no permission to grant. Every Chromium and Firefox UA also says "Safari", hence the rest. */
+export function isSafari(userAgent = navigator.userAgent): boolean {
+  return /\bSafari\//.test(userAgent) && !/\b(Chrome|Chromium|CriOS|Edg|EdgiOS|FxiOS|Firefox|OPR)\//.test(userAgent);
 }
 
 /**
@@ -362,21 +395,36 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
 
   const gated = localNetworkGateApplies(window.location.origin, bridgeUrl);
   const permission = gated ? await localNetworkPermission() : 'granted';
-  if (gated && permission !== 'granted') {
-    // Three different situations, and only one of them has a prompt to answer. Telling a
-    // Safari user to look for a permission bubble that browser never shows would send them
-    // hunting for a control that does not exist.
-    const detail =
-      permission === 'denied'
-        ? `Your browser is blocking this site from reaching your local network. Allow "local network access" for ${window.location.host} in the site settings (the icon left of the address), then try again.`
-        : permission === 'prompt'
-          ? 'Your browser is asking whether this site may reach your local network - answer the prompt at the top of the window, then try again.'
-          : 'This browser does not let a secure page reach an address on your own machine, and offers no permission to grant (Safari behaves this way). Use Chrome or Edge here, or air the production from a terminal with `noacg caspar play`.';
-    return { state: 'permission', detail };
+  // Three different situations, and only one of them has a prompt to answer. Telling a Safari
+  // user to look for a permission bubble that browser never shows would send them hunting for
+  // a control that does not exist - and telling a Firefox user without the gate (before 153)
+  // that the browser refuses would hide the real answer, that the Bridge is not running.
+  if (gated && (permission === 'denied' || permission === 'prompt')) {
+    return { state: 'permission', detail: permissionSentence(permission) };
+  }
+  if (gated && permission === 'unknown' && isSafari()) {
+    return {
+      state: 'permission',
+      detail:
+        'Safari does not let a secure page reach a program on your own computer, and offers no permission to grant. Use Chrome, Edge or Firefox here, or air the production from a terminal with `noacg caspar play`.',
+    };
   }
   // Past the permission check, so a hang here is the Bridge's silence and not a waiting prompt.
   if ('timedOut' in health) return noBridge(`No answer from ${bridgeUrl}.`);
   return noBridge(`Could not reach ${bridgeUrl}.`);
+}
+
+/** What to do about the permission, in the words the browser's own prompt uses. */
+function permissionSentence(permission: 'denied' | 'prompt'): string {
+  const host = window.location.host;
+  if (permission === 'denied') {
+    return isFirefox()
+      ? `Firefox is blocking ${host} from reaching NoaCG Bridge. Click the icon left of the address, clear the blocked "access other apps and services on this device" permission, then try again and choose Allow.`
+      : `Your browser is blocking ${host} from reaching NoaCG Bridge. Allow "local network access" for ${host} in the site settings (the icon left of the address), then try again.`;
+  }
+  return isFirefox()
+    ? `Firefox is asking whether ${host} may "access other apps and services on this device" - that is NoaCG Bridge. Answer Allow at the top of the window, then try again.`
+    : 'Your browser is asking whether this site may reach your local network - that is NoaCG Bridge. Answer the prompt at the top of the window, then try again.';
 }
 
 /** A Bridge reply, whichever hop it names, as one sentence with a state. */

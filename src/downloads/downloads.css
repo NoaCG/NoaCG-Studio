@@ -60,6 +60,26 @@
 .doc-body .dl-card .dl-note { font-size: 14px; }
 .dl-card pre { margin: 8px 0; }
 
+/* WHICH BROWSER: a two-column table, a verdict pill on the left and one sentence on the right.
+   The pill's colour carries the verdict (amber recommended, plain supported, muted red not). */
+.dl-browsers { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 14px; }
+.dl-browsers th,
+.dl-browsers td { padding: 8px 0; border-top: 1px solid var(--line); vertical-align: top; text-align: left; }
+.dl-browsers th { width: 1%; padding-right: 14px; white-space: nowrap; font-weight: 400; }
+.dl-pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--paper);
+}
+.dl-pill--best { border-color: rgba(246, 166, 35, 0.6); color: var(--amber); }
+.dl-pill--no { border-color: rgba(229, 83, 75, 0.5); color: #e5908a; }
+.doc-body .dl-card ul.dl-note { padding-left: 20px; margin: 6px 0 12px; }
+.doc-body .dl-card ul.dl-note li { margin: 4px 0; }
+
 /* A phone header holds the wordmark, the current page and the button; at 390px the button's
    label wrapped to two lines at the docs' spacing, so the row tightens here instead. */
 @media (max-width: 420px) {

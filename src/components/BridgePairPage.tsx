@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import BrandLogo from './BrandLogo';
 import {
+  isFirefox,
   localNetworkGateApplies,
   pairBridge,
   parseBridgePair,
@@ -76,8 +77,23 @@ export default function BridgePairPage({ params }: { params: URLSearchParams }) 
       </p>
       {gated && (
         <p className="hint" data-testid="bridge-pair-permission-note">
-          Your browser will ask whether {window.location.host} may reach devices on your local
-          network. Answer <strong>Allow</strong>; it asks once.
+          {isFirefox() ? (
+            <>
+              Firefox will ask whether {window.location.host} may{' '}
+              <em>access other apps and services on this device</em> - that is NoaCG Bridge. Answer{' '}
+              <strong>Allow</strong>. If Firefox asks again later, on another tab or on another
+              day, it is set to forget site permissions; the{' '}
+              <a href="/downloads#browsers" target="_blank" rel="noopener">
+                browser notes
+              </a>{' '}
+              say which one setting stops that.
+            </>
+          ) : (
+            <>
+              Your browser will ask whether {window.location.host} may reach devices on your local
+              network. Answer <strong>Allow</strong>; it asks once.
+            </>
+          )}
         </p>
       )}
       {result && (
