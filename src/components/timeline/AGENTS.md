@@ -1,13 +1,7 @@
 # src/components/timeline - the motion-authoring surfaces
 
-Loaded alongside the root `AGENTS.md` and `src/components/AGENTS.md` when working in this
-directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
-Keep it accurate.
-
-Split out of `src/components/AGENTS.md` on 2026-08-26: at 16 KB it was the largest single
-section of a file EVERY component session loads, and it describes five files nothing else
-imports but AppShell, SidePanel and one canvas module. The parent keeps a pointer and the
-MotionPresetPicker paragraph, which belongs to a file that is still loose in components/.
+The parent keeps a pointer and the MotionPresetPicker paragraph, which belongs to a file that is
+still loose in components/.
 
 ## The surfaces
 

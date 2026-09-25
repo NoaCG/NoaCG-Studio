@@ -89,9 +89,9 @@ export const MERGE_DRIVER = 'noacg-contracts';
 /**
  * What the ALWAYS-LOADED compiled layer may cost, in bytes.
  *
- * The root `AGENTS.md` is the one generated file every session pays for at launch: Codex reads
- * it, the Claude desktop app reads it natively, and the Claude CLI reads it through the root
- * `CLAUDE.md` import. Only `**`-scoped rules land in it. Everything else loads only when a file it
+ * The root `AGENTS.md` is the one generated file every session pays for at launch: Codex reads it
+ * natively and Claude reads it through the root `CLAUDE.md` import (`.claude/settings.json` turns
+ * Claude's own AGENTS.md reading off, so nothing arrives twice). Only `**`-scoped rules land in it. Everything else loads only when a file it
  * scopes to is touched. A rule that does not belong in every session's first tokens gets a scope,
  * and adding one here means removing one.
  */
@@ -221,6 +221,12 @@ export function parseRule(relPath, text) {
     carried: false,
   };
   if (rule.scope.length === 0) problems.push(`${relPath}: scope is empty - name the globs the rule applies to, or ** for everywhere`);
+  // A `**/...` glob spans every folder without being `**`, so it has no folder contract to live in
+  // and would reach Codex nowhere (ruleHomes). Say ** or name the folders.
+  const unhomed = rule.scope.filter((glob) => glob.startsWith('**/'));
+  if (unhomed.length > 0) {
+    problems.push(`${relPath}: scope ${unhomed.join(', ')} spans every folder without being ** - use ** or name the folders it applies to`);
+  }
   if (!KINDS.includes(rule.kind)) problems.push(`${relPath}: kind must be one of ${KINDS.join(', ')}, not "${rule.kind}"`);
   if (!STATUSES.includes(rule.status)) problems.push(`${relPath}: status must be one of ${STATUSES.join(', ')}, not "${rule.status}"`);
   if (!/^20\d\d-\d\d-\d\d$/.test(rule.since)) problems.push(`${relPath}: since must be a date (YYYY-MM-DD)`);
@@ -541,24 +547,23 @@ export function nestedContracts(rules, owned) {
 }
 
 /**
- * The contracts one rule is written into.
+ * The contracts one rule is written into - the folder contracts Codex reads.
  *
- * Normally that is the deepest owned directory holding every glob in its scope. The ROOT is the
- * exception: it is loaded by every session, so only a rule scoped `**` belongs there. A rule whose
- * globs merely span two top-level folders goes into each folder's own contract instead, and a
- * glob no owned folder covers reaches Claude through `.claude/rules/` and Codex through
- * `npm run rules -- <path>`.
+ * Each glob goes to the deepest owned directory that holds it, so a rule about the wizard and the
+ * AI layer lands in both of those contracts rather than in a shared ancestor every `src` session
+ * pays for. A home whose ancestor is also a home is dropped, because Codex loads the whole chain
+ * from the root down and would read the rule twice. Only a `**` rule reaches the root, which
+ * every session loads. A glob no owned folder covers reaches Claude through `.claude/rules/` and
+ * Codex through `npm run rules -- <path>`.
  */
 export function ruleHomes(scope, owned) {
-  const home = deepestOwner(scopeOwner(scope), owned);
-  if (home) return [home];
   if (scope.includes('**')) return owned.has('') ? [''] : [];
   const homes = new Set();
   for (const glob of scope) {
     const own = deepestOwner(globDirectory(glob), owned);
     if (own) homes.add(own);
   }
-  return [...homes];
+  return [...homes].filter((home) => ![...homes].some((other) => home.startsWith(`${other}/`)));
 }
 
 /**
@@ -570,9 +575,9 @@ export function ruleHomes(scope, owned) {
  */
 export function deepestOwner(dir, owned) {
   // THE REPOSITORY ROOT IS A DIRECTORY LIKE ANY OTHER once it carries the marker. Kernel rules -
-  // the ones scoped `**` - live only in the generated root AGENTS.md: Codex and the Claude desktop
-  // app read it natively, and the Claude CLI reads it through the root CLAUDE.md import. Without it
-  // neither tool would see the global rule set, including "only the merge queue writes main".
+  // the ones scoped `**` - live only in the generated root AGENTS.md: Codex reads it natively and
+  // Claude through the root CLAUDE.md import. Without it neither tool would see the global rule
+  // set, including "only the merge queue writes main".
   if (dir === '') return owned.has('') ? '' : null;
   const parts = dir.split('/');
   for (let i = parts.length; i > 0; i -= 1) {

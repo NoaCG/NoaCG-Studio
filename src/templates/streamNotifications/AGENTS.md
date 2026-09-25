@@ -1,12 +1,5 @@
 # src/templates/streamNotifications - the stream event alerts
 
-Loaded alongside the root `AGENTS.md` and `src/templates/AGENTS.md` when working in this
-directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
-Keep it accurate.
-
-Minted on 2026-09-02, when the category index found this was the one category the parent
-contract had never described. Add a RULE here; leave the reasoning in the code's own comments.
-
 ## streamNotifications/ - sn01…sn04
 
 sn01…sn04 (prefix `stream-notification`, `TemplateType 'stream-notification'`), registered in

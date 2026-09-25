@@ -1,8 +1,6 @@
 # src/ai/pro/harness - the Pro Harness loop
 
-Loaded alongside the root `AGENTS.md`, `src/ai/AGENTS.md` and `src/ai/pro/AGENTS.md` when working
-in this directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it
-directly). Keep it accurate. **Every `##` section states its STATUS in its first line.**
+**Every `##` section states its STATUS in its first line.**
 
 Design and record: `docs/PRO_HARNESS_PLAN.md`. Add a RULE here; leave the reasoning in the code's
 own comments and the plan.

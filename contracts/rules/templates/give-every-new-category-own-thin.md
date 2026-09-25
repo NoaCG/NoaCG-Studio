@@ -2,7 +2,7 @@
 v: 1
 scope: src/templates/**
 kind: rule
-fires: contract
+fires: gate:check-shared-instructions
 status: active
 since: 2026-09-07
 record: contracts/records/templates/2026-09-07-give-every-new-category-own-thin.md

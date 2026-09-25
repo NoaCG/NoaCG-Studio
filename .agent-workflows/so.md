@@ -22,7 +22,8 @@ you chose to review before reviewing it.
   recently.
 - Prefer the most recently active line of work. If two candidates are genuinely equally
   plausible, ask the user which one to review rather than guessing; that is the one question
-  this workflow is allowed to stop for.
+  this workflow is allowed to stop for. Ask it as `needs: decision`, one question, with your
+  recommended candidate first.
 
 ## Ground it (read-only evidence)
 

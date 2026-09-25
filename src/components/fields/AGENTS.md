@@ -1,12 +1,5 @@
 # src/components/fields - the one editable-field control
 
-Loaded alongside the root `AGENTS.md` and `src/components/AGENTS.md` when working in this
-directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
-Keep it accurate.
-
-Split out of `src/components/AGENTS.md` on 2026-08-09. Add a RULE here; leave the reasoning in
-the code's own comments.
-
 ## Field controls (fields/) - ONE control, every surface
 
 **FieldControl.tsx** is THE editable-field control. Every surface where a human changes a field's

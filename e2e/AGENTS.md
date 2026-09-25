@@ -1,12 +1,7 @@
 # e2e - the Playwright suite
 
-Loaded alongside the root `AGENTS.md` when working in this directory (Claude reads it via this
-directory's `CLAUDE.md` import; Codex reads it directly). Keep it accurate. The suite's plan, the
-sharding and the queue rules are the root contract's "Verifying changes"; the full procedure is
-**docs/VERIFICATION.md**.
-
-Split out of the root `AGENTS.md` on 2026-08-22: these are the traps a SPEC falls into, so they
-belong where specs are written rather than in the contract every session loads.
+The suite's plan, the sharding and the queue rules are the root contract's "Verifying changes"; the
+full procedure is **docs/VERIFICATION.md**.
 
 ## Gotchas when writing a spec
 

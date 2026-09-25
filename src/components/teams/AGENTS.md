@@ -1,8 +1,7 @@
 # src/components/teams - the team surfaces
 
-Loaded alongside `src/components/AGENTS.md` when working in this directory (Claude reads it via
-this directory's `CLAUDE.md` import; Codex reads it directly). The design it implements is
-`docs/TEAMS_PLAN.md` §6, and the mockups it was built from are in `docs/design/teams/`.
+The design it implements is `docs/TEAMS_PLAN.md` §6, and the mockups it was built from are in
+`docs/design/teams/`.
 
 ## The gate is one hook, and reading the wrong thing is the trap
 

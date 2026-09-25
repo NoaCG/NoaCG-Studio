@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/WizardPreview.tsx, e2e/**
+scope: e2e/*import*.spec.ts, src/components/wizard/WizardPreview.tsx
 kind: trap
 fires: contract
 status: active

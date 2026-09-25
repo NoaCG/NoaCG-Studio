@@ -37,6 +37,11 @@ export function wiringProblem(eventName, matcher, command) {
   const settings = JSON.parse(readFileSync(SETTINGS, 'utf8'));
   const entry = (settings.hooks?.[eventName] ?? []).find((row) => row.matcher === matcher);
   if (!entry) return `no ${eventName} matcher for ${matcher} in .claude/settings.json`;
-  if (!entry.hooks.some((h) => h.command === command)) return `the ${matcher} matcher exists but does not run ${command}`;
+  // Settings spell the script from the checkout's top level (`node "$(git rev-parse
+  // --show-toplevel)/scripts/hooks/x.mjs"`) so a session whose working directory drifted into a
+  // subfolder, or that switched worktrees, still runs its own checkout's copy; the tests name the
+  // plain relative form.
+  const plain = (c) => c.replace(/^node "\$\(git rev-parse --show-toplevel\)\/(.+)"$/, 'node $1');
+  if (!entry.hooks.some((h) => plain(h.command) === command)) return `the ${matcher} matcher exists but does not run ${command}`;
   return null;
 }

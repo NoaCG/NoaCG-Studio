@@ -1,8 +1,5 @@
 # src/docs - the public documentation page
 
-Loaded alongside the root AGENTS.md when working in this directory (Claude reads it via this
-directory's CLAUDE.md import; Codex reads it directly). Keep it accurate.
-
 **The page itself is `docs.html` at the repository root**, not in this directory; `docs.css` and
 `docs.ts` are its stylesheet and its one progressive-enhancement module. This file is the contract
 for all three, and for anything else that becomes public documentation.

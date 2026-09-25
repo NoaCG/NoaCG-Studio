@@ -57,6 +57,7 @@ import {
   headIsMainMerge,
   integrationBase,
 } from './e2e-affected.mjs';
+import * as rules from './rules.mjs';
 
 /** True only when this file was RUN, not imported (the same guard e2e-affected.mjs carries). */
 const isEntrypoint =
@@ -505,6 +506,7 @@ async function main() {
   for (const c of battery.cheap) console.log(`       ${c}`);
   console.log('\n  2. the rendered sweeps - one browser job at a time, so enqueue them:');
   for (const c of [...battery.sweeps, ...battery.specs, ...battery.factory]) console.log(`       npm run queue -- "${c}"`);
+  console.log(`     ${rules.text('templates/run-factory-gate-before-queueing-catalog')}`);
   if (battery.look.length) {
     console.log('\n  3. and a look at the result for each affected category (screenshots, never a gate;');
     console.log('     it writes into the out-dir you name, so keep that out of the commit):');

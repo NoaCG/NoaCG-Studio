@@ -1,15 +1,8 @@
 # src/components/canvas - the direct-manipulation surface
 
-Loaded alongside the root `AGENTS.md` and `src/components/AGENTS.md` when working in this
-directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
-Keep it accurate.
-
-Split out of `src/components/AGENTS.md` on 2026-08-22, when the files moved here with it:
-CanvasInteraction (the gesture layer), CanvasSelection (the overlay), CanvasGuides, partLocks.ts
-and pasteboard.ts. The stage the gestures act on - the iframe, the zoom and the pan - is
-PreviewFrame's, which stays in `src/components/`. The selection and keyframe INTERACTION
-contract is docs/TIMELINE_INTERACTION_MODEL.md. Add a RULE here; leave the reasoning in the
-code's own comments.
+The stage the gestures act on - the iframe, the zoom and the pan - is PreviewFrame's, which stays in
+`src/components/`. The selection and keyframe INTERACTION contract is
+docs/TIMELINE_INTERACTION_MODEL.md.
 
 ## Canvas direct manipulation (Era 6)
 

@@ -1,7 +1,6 @@
 # src/landing - the public landing page's motion system
 
-Loaded alongside the root AGENTS.md when working in this directory (Claude reads it via this directory's CLAUDE.md import; Codex reads it directly). Keep it accurate. The
-landing is the static `index.html` at `/` (no React); it loads motion.ts as a module script.
+The landing is the static `index.html` at `/` (no React); it loads motion.ts as a module script.
 
 **POLICY: the landing never fakes product UI** (editor, Monaco, timeline) - it shows on-air
 output and real screenshots only, and roadmap features are tagged planned/coming, never shown as

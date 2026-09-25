@@ -182,8 +182,8 @@ Goal: leave the changed code simpler than the review left it, without changing w
 ## 5. Commit and report
 
 - If the check produced changes and verification is green, commit them to the **feature
-  branch** with a message that explains the actual change and reads as human-written - no
-  chat/session language, no agent or AI mentions, never a `Co-Authored-By` trailer.
+  branch** with a message that explains the actual change to an outside reader (the command
+  guard refuses a message that breaks the house style, and says why).
 - Report per phase: what review found and fixed, what simplify changed (or that nothing
   needed it), which verification gates ran and their results, and anything deferred as
   out of scope.
