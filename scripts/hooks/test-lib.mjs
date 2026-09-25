@@ -37,6 +37,10 @@ export function wiringProblem(eventName, matcher, command) {
   const settings = JSON.parse(readFileSync(SETTINGS, 'utf8'));
   const entry = (settings.hooks?.[eventName] ?? []).find((row) => row.matcher === matcher);
   if (!entry) return `no ${eventName} matcher for ${matcher} in .claude/settings.json`;
-  if (!entry.hooks.some((h) => h.command === command)) return `the ${matcher} matcher exists but does not run ${command}`;
+  // Settings spell the script from the project root (`node "$CLAUDE_PROJECT_DIR/scripts/hooks/x.mjs"`)
+  // so a session whose working directory drifted into a subfolder still finds it; the tests name the
+  // plain relative form.
+  const plain = (c) => c.replace(/^node "\$CLAUDE_PROJECT_DIR\/(.+)"$/, 'node $1');
+  if (!entry.hooks.some((h) => plain(h.command) === command)) return `the ${matcher} matcher exists but does not run ${command}`;
   return null;
 }
