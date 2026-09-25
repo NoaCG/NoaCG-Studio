@@ -162,6 +162,9 @@
       "PowerShell(node scripts/wave-plan-check.mjs *)"
     ]
   },
+  "pluginConfigs": {
+    "agents-md@builtin": { "options": { "instructionFiles": "claude-md" } }
+  },
   "hooks": {
     "SessionStart": [
       {
