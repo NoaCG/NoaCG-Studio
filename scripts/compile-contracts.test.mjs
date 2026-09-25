@@ -406,6 +406,13 @@ test('the kernel has a byte ceiling, because every session pays for it before to
   assert.deepEqual(kernelBudget(new Map()).problems, [], 'an empty store has no kernel and no problem');
 });
 
+test('a **/ scope is refused, because no folder contract can hold it for Codex', () => {
+  const { problems } = parseRule('contracts/rules/a/b.md', GOOD.replace(/scope: .*/, 'scope: **/*.spec.ts'));
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /spans every folder without being \*\*/);
+  assert.deepEqual(parseRule('contracts/rules/a/b.md', GOOD.replace(/scope: .*/, 'scope: **')).problems, []);
+});
+
 test('a scope that matches no file is refused, because that rule would never load', () => {
   // A dead scope fails SILENTLY: the store lists the rule, the index prints it, and no session it
   // was written for ever sees it. Found on 2026-09-07 - a rule scoped to `src/components/control/**`

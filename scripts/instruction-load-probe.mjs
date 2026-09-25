@@ -72,7 +72,9 @@ function report(transcript) {
   for (const [file, { n, how }] of counts) {
     const problem = n > 1 ? `  LOADED ${n} TIMES` : isFolderContract(file) ? '  GENERATED FOLDER CONTRACT (its rules also load from .claude/rules)' : '';
     if (problem) problems += 1;
-    console.log(`${String(n).padStart(2)}x  ${file.replace(os.homedir(), '~')}  [${[...how].join(', ')}]${problem}`);
+    // A transcript can outlive its worktree; then whether an AGENTS.md was generated is unknowable.
+    const gone = !problem && path.basename(file) === 'AGENTS.md' && !existsSync(file) ? '  (file gone - cannot tell whether it was generated)' : '';
+    console.log(`${String(n).padStart(2)}x  ${file.replace(os.homedir(), '~')}  [${[...how].join(', ')}]${problem}${gone}`);
   }
   console.log(problems === 0 ? 'every instruction file loaded once' : `${problems} problem(s)`);
   return problems;

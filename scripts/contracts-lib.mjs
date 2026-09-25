@@ -221,6 +221,12 @@ export function parseRule(relPath, text) {
     carried: false,
   };
   if (rule.scope.length === 0) problems.push(`${relPath}: scope is empty - name the globs the rule applies to, or ** for everywhere`);
+  // A `**/...` glob spans every folder without being `**`, so it has no folder contract to live in
+  // and would reach Codex nowhere (ruleHomes). Say ** or name the folders.
+  const unhomed = rule.scope.filter((glob) => glob.startsWith('**/'));
+  if (unhomed.length > 0) {
+    problems.push(`${relPath}: scope ${unhomed.join(', ')} spans every folder without being ** - use ** or name the folders it applies to`);
+  }
   if (!KINDS.includes(rule.kind)) problems.push(`${relPath}: kind must be one of ${KINDS.join(', ')}, not "${rule.kind}"`);
   if (!STATUSES.includes(rule.status)) problems.push(`${relPath}: status must be one of ${STATUSES.join(', ')}, not "${rule.status}"`);
   if (!/^20\d\d-\d\d-\d\d$/.test(rule.since)) problems.push(`${relPath}: since must be a date (YYYY-MM-DD)`);

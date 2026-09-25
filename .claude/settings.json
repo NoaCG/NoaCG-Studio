@@ -169,59 +169,59 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/session-start.mjs\"" },
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/cloud-session-setup.mjs\"", "timeout": 600 }
+          { "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/session-start.mjs\"" },
+          { "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/cloud-session-setup.mjs\"", "timeout": 600 }
         ]
       }
     ],
     "PreToolUse": [
       {
         "matcher": "Bash|PowerShell",
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/guard-command.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/guard-command.mjs\"" }]
       },
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/guard-edit.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/guard-edit.mjs\"" }]
       },
       {
         "matcher": "mcp__ccd_session__spawn_task",
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/spawn-task-guard.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/spawn-task-guard.mjs\"" }]
       },
       {
         "matcher": "mcp__Claude_Browser__preview_start",
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/guard-preview.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/guard-preview.mjs\"" }]
       },
       {
         "matcher": "Agent",
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/guard-agent-launch.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/guard-agent-launch.mjs\"" }]
       },
       {
         "matcher": "AskUserQuestion",
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/guard-question.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/guard-question.mjs\"" }]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "Bash|PowerShell",
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/warn-command.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/warn-command.mjs\"" }]
       },
       {
         "matcher": "Write",
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/warn-edit.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/warn-edit.mjs\"" }]
       },
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/lint-file.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/lint-file.mjs\"" }]
       }
     ],
     "Stop": [
       {
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/stop-wait.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/stop-wait.mjs\"" }]
       }
     ],
     "SubagentStop": [
       {
-        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/stop-wait.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/stop-wait.mjs\"" }]
       }
     ]
   }
