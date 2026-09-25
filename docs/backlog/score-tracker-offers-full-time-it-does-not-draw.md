@@ -7,8 +7,8 @@ state: unstarted
 found: "an imported score tracker with no Full time layer still gets a Full time button on the dashboard, and pressing it changes the state to Final with nothing visible on air"
 serves: NOW
 size: small
-touches: src/templates/importedDesign/, src/components/home/
-covered-by: e2e/classroom-package.spec.ts
+touches: src/templates/behaviours/score.ts
+covered-by: none
 needs-owner: none
 ---
 
