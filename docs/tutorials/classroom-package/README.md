@@ -7,6 +7,7 @@ Five graphics for one quiz show. Open them, copy them, make them yours, and run 
 - **Illustrator**: the five files you open and change.
 - **SVG**: the same five, saved for NoaCG. Import these first to see how it works.
 - **Previews**: a picture of every graphic, and of every look the quiz and the score can have.
+- **credits-english.txt**: the English credits from the end of this page, ready to copy.
 
 ## Make your own
 
@@ -22,13 +23,13 @@ Five graphics for one quiz show. Open them, copy them, make them yours, and run 
 
 - **Show intro**: type the Title and Subtitle. Take, then Out.
 - **Name tag**: one graphic for everybody. Type the Name and Role and press Take. Type the next person and press Update.
-- **Quiz**: type the question and four answers, pick the correct one, Take. Then Select, Lock and Reveal.
+- **Quiz**: type the question and four answers, pick the correct one, Take. When a player answers, click their letter under Selected answer, then press Select answer, Lock it in and Reveal correct.
 - **Score tracker**: type both names. +1 and -1 change the score.
 - **End credits**: paste the whole list into one field. A line ending in ":" is a title, and the names go under it. Take, and it rolls.
 
 ## Credits to paste
 
-The credits file already holds the Finnish list. Here is the same crew in English. "Title: Name" on one line works too, and an empty line starts a new part.
+The credits file already holds the Finnish list. Here is the same crew in English. Copy it from credits-english.txt, not from the PDF. A PDF loses the empty line before "Quiz Night 2026", and that line then rolls as a second producer. Paste it and change the Heading to CREDITS. "Title: Name" on one line works too, and an empty line starts a new part.
 
 ```
 Host: Maija Meikäläinen

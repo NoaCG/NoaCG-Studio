@@ -48,6 +48,10 @@ which is where Explorer's Downloads shows it. It is also on the site at
   `quiz-3-locked-in.png`, `quiz-4-reveal.png`, `score-tracker-1-scores.png`,
   `score-tracker-2-point-for-1.png`, `score-tracker-3-point-for-2.png`, `end-credits.png`
 
+**The zip changed on 2026-09-25.** The live walk (row J) rewrote it in all three places with a
+new README and a 23rd file, `credits-english.txt`. The list above is what E packed. What changed
+and why is in `docs/acceptance/owner-queue/2026-09-25-j-classroom-live-walk.md`.
+
 ## Route (under a minute)
 
 1. Open `C:\downloads\NoaCG-classroom-package.zip` and read `README.pdf`. It is one page.

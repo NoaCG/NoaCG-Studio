@@ -10,7 +10,8 @@
 //    the learning platform. Chromium prints it on one A4 page, headings in Oswald like the
 //    graphics. The Markdown is the small subset the README uses (headings, bullets, bold, inline
 //    code, one code block), converted here so the repo needs no Markdown package for one page.
-// 2. The zip: Illustrator/, SVG/, Previews/, README.md and README.pdf inside one folder named
+// 2. The zip: Illustrator/, SVG/, Previews/, README.md, README.pdf and credits-english.txt (cut
+//    from the README's paste example, never stored on its own) inside one folder named
 //    NoaCG-classroom-package, written to public/downloads/NoaCG-classroom-package.zip, which the
 //    site serves at /downloads/NoaCG-classroom-package.zip (linked from /downloads and /docs).
 //    Each --copy-to writes the same bytes to another place, such as the owner's Downloads folder.
@@ -115,19 +116,46 @@ async function writePdf() {
 
 // ── The zip ──────────────────────────────────────────────────────────────────────────────────
 
+// A fixed date, so an entry's bytes change only when its file does. README.pdf still differs on
+// every run: Chromium stamps a new creation date and id into it.
+const ENTRY = { date: new Date('2026-09-25T00:00:00Z') };
+
 function addTree(zip, abs, rel) {
   if (statSync(abs).isDirectory()) {
     for (const name of readdirSync(abs).sort()) addTree(zip, path.join(abs, name), `${rel}/${name}`);
   } else {
-    // A fixed date, so an entry's bytes change only when its file does. README.pdf still differs
-    // on every run: Chromium stamps a new creation date and id into it.
-    zip.file(rel, readFileSync(abs), { date: new Date('2026-09-25T00:00:00Z') });
+    // TEXT GOES IN WITH LF, whatever the checkout wrote. A Windows checkout with core.autocrlf
+    // writes the SVGs and the README with CRLF, so zipping the working tree as it stands made the
+    // zip depend on which checkout packed it (end-credits.svg went in once with CRLF and once with
+    // LF). The repository stores LF, so the zip does too.
+    const bytes = /\.(md|svg)$/i.test(abs)
+      ? Buffer.from(readFileSync(abs, 'utf8').replace(/\r\n/g, '\n'))
+      : readFileSync(abs);
+    zip.file(rel, bytes, ENTRY);
   }
+}
+
+/**
+ * THE ENGLISH CREDITS AS A PLAIN TEXT FILE, cut from README.md's one code block, so README.md
+ * stays the only place the list is written. A student who copies the list out of README.pdf gets
+ * whatever the PDF viewer makes of it: the empty line before the closing line is lost, so "Quiz
+ * Night 2026" rolls as a second producer (measured on noacg.studio, 2026-09-25), and a viewer
+ * that keeps soft wraps can split a long line in two. Notepad copies the file exactly. CRLF, so
+ * an old Notepad shows it as lines too; the credits box reads either.
+ */
+function creditsText() {
+  const md = readFileSync(path.join(PACKAGE, 'README.md'), 'utf8').replace(/\r\n/g, '\n');
+  const block = /```\n([\s\S]*?)\n```/.exec(md);
+  if (!block) throw new Error('README.md has no code block to cut credits-english.txt from');
+  // No newline after the last line: select-all and copy then carries exactly the list the README
+  // shows, with no empty line at the end of the credits box.
+  return block[1].replace(/\n/g, '\r\n');
 }
 
 async function writeZip(copies) {
   const zip = new JSZip();
   for (const entry of CONTENTS) addTree(zip, path.join(PACKAGE, entry), `${ZIP_NAME}/${entry}`);
+  zip.file(`${ZIP_NAME}/credits-english.txt`, creditsText(), ENTRY);
   const bytes = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
   mkdirSync(path.dirname(ZIP_OUT), { recursive: true });
   writeFileSync(ZIP_OUT, bytes);
