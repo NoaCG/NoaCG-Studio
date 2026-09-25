@@ -256,7 +256,8 @@ Each stage lands alone, verified, before the next.
    offline build renders zero team UI (extend `e2e/auth.spec.ts`'s zero-auth assertion).
    **LANDED 2026-09-02** - see below.
 4. **Client: team production list + open + verb saves over CAS + republish by member.**
-   Evidence: the three-context e2e (below).
+   Evidence: the three-context e2e (below). **LANDED 2026-09-25** with a two-context walk -
+   see below.
 5. **The named verification build-out: multi-context e2e in `e2e/configured/`** -
    `teams.spec.ts`, three authenticated browser contexts against the real backend: A creates
    a team and a production and publishes; B joins by code, edits a cue, republishes; C joins
@@ -333,6 +334,55 @@ Two things for stage 4 to know. The CAS token is a `timestamptz` written truncat
 milliseconds, so a JavaScript `Date` round-trip is lossless - do not re-format it. And moving a
 team production back to personal is ONE statement by the team owner that sets `owner_id` to
 themselves AND clears `team_id`: writing either alone is refused.
+
+**Stage 4 LANDED 2026-09-25**, prompted by a defect found in testing that day: somebody invited to
+a team could not find the team or anything it held. A team was reachable only through a
+production's Share door, and a new member owns no production to open one from. What landed:
+
+- **Where a team is FOUND.** Home's productions list splits into "My productions" and "Shared with
+  my teams", one band per team headed by the team's chip, member count and role, with its
+  productions under it (each wearing the chip and "edited by <name>, <time>"). Home's nav gains a
+  **Teams** section - one card per team: members, productions, the door to its join code. Both
+  exist only for an account that is in a team, so §6's rule holds: a user who never opened the
+  door never sees the word. The share dialog also opens straight on a team (`openTeam`), for the
+  bands, the cards and the production header.
+- **"Appears immediately" is a fetch, not a subscription.** `backend/teamProductions.ts` fetches
+  teams, members and every production's head as soon as a session exists (`components/teams/
+  TeamSync.tsx`, mounted once in App), again on every return to the tab, straight after this tab
+  joins, leaves, creates or moves anything, and every 15 s while the tab is in view. A tick reads
+  heads only; a document is fetched only when its token moved. Realtime on `team_productions`
+  would need the table in the publication - a migration - for a latency the tick already meets.
+- **One store, not a forked production page.** Team records live IN MEMORY in
+  `model/teamShows.ts`, beside the personal list rather than in it: `model/shows.ts` reads both
+  (`readEditable`), and its save envelope routes a record carrying `teamId` back to the team store,
+  which announces the edit to the save pump. So every existing mutator and the whole production
+  page edit a team production unchanged, while `loadAllShows` - what the LWW sync engine reads -
+  stays personal-only and `SYNC_KINDS` did not grow. Signing out reloads the page, which empties
+  the store: nothing of a team is left on a lab computer's disk.
+- **The CAS re-apply is a three-way merge, where §3 sketched re-applying verbs.** The mutators edit
+  records in place rather than logging verbs, so a refused save is merged instead
+  (`model/teamShowMerge.ts`): base (what this tab last saw), ours, theirs, per top-level field and
+  PER ITEM in the id-keyed lists (graphics, cues, datasets, playout items) - Anna adding a cue and
+  Ben retyping another both survive, and a reorder on one side survives an edit on the other. Only
+  the same field or item changed differently on both sides is a conflict; theirs stands and the
+  production page says so, naming who saved. A poll never replaces the merge base under an edit
+  still on its way up, which is the one way a merge could silently drop a teammate's change.
+- **Moving** writes `team_productions`, stamps a published `control_shows` row with the team, and
+  tombstones the personal record - same id, so the page stays put and the four links never move.
+  Publishing a team production sends `team_id` (`control/hostedControl.ts`), which is what lets a
+  member who publishes FIRST create a team-stamped row rather than a personal one. Only the team
+  owner is offered Delete, and a member who presses Unpublish is told it is the owner's call -
+  the database refuses them without an error, so the page says it instead.
+- **Migration 0067**, the one schema change: the 0061 unpublish sweep skipped team rows only when
+  the publisher and the tombstone's owner differed, and after a move they are the same person - so
+  a day after a published production moved into a team, the sweep would have taken it off air. A
+  team-stamped row is now never swept; the self-check runs the sweep against a team row and a
+  personal one and rolls both back.
+- **Not built, still open:** moving a team production back to personal (owner-only, the one
+  statement described above), the member list and "Published by" in the production header (the
+  team's button opens the dialog that has the list), and the stage 5 THREE-context walk. The
+  two-context walk in `e2e/configured/teams.spec.ts` covers join, find, move, a member's edit and
+  its "edited by" read back cold by the owner.
 
 ## 8. Risks, scope edges, open questions
 

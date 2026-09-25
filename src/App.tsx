@@ -19,6 +19,7 @@ import StorageAlertDialog from './components/save/StorageAlertDialog';
 import SaveDialogs from './components/save/SaveDialogs';
 import ShareWithTeamDialog from './components/teams/ShareWithTeamDialog';
 import JoinTeamDialog from './components/teams/JoinTeamDialog';
+import TeamSync from './components/teams/TeamSync';
 import { useAuthUi } from './components/auth/authUi';
 import { isBackendConfigured } from './backend/config';
 import { isAgentRequestUrl } from './backend/agentAccess';
@@ -445,6 +446,10 @@ export default function App() {
           pinned by e2e/auth.spec.ts. */}
       <ShareWithTeamDialog />
       {route.view === 'join-team' && <JoinTeamDialog code={route.code} />}
+      {/* The team productions list, fetched with the session whatever surface it starts on, so
+          a production a teammate shared is on Home - and a cold link to one opens - without a
+          reload (components/teams/TeamSync.tsx). Nothing at all offline or signed out. */}
+      <TeamSync />
       <ExportWindow />
       {/* A failed write to browser storage is announced HERE, not by whichever surface hit it:
           the wizard closes itself the moment a create replaces the route, so an inline message

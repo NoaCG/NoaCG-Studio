@@ -124,14 +124,6 @@
   font-weight: 600;
 }
 
-/* The staged line - the one sentence that says why "Move to team" is off. It is quieter than a
-   hint and louder than nothing, because it answers the question the reader arrived with.
-   DELETE IT AND ENABLE THE BUTTON TOGETHER, in stage 4. */
-.team-staged {
-  border-left: 2px solid var(--accent-line);
-  padding-left: 10px;
-}
-
 /* The join code, which somebody reads out loud across a classroom. Big, monospaced and tracked
    so O/0 and I/l are told apart at the back of the room; the dashed amber frame marks it as the
    thing to copy rather than the thing to read past. */
@@ -209,3 +201,97 @@
 /* Remove sits AFTER the role label, so the role stays in one column down the list and the
    button does not shove it around as names change length. */
 .team-member-remove { flex: none; margin-left: 0; }
+
+/* ── Team productions on Home (stage 4) ────────────────────────────────────────────────────────
+   One band per team under "Shared with my teams": the team's own head row (chip, member count,
+   the door to its members and join code), then its production cards in the ordinary grid. */
+.team-bands { margin-top: 8px; }
+.team-band + .team-band { margin-top: 16px; }
+.team-band-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.team-band-head .spacer { flex: 1; }
+.team-band-meta { font-size: 12px; color: var(--text-dim); }
+/* The door to the team's members and join code: an ordinary small button, because the band's
+   productions are what the eye is there for and an underlined accent link out-shouted them. */
+.team-band-open { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.team-band > .hint { margin: 0 0 6px; }
+/* A team production's card carries the team's chip and "edited by" under its name. The card keeps
+   the ordinary skin - the chip is what marks it, so the green "has a live URL" tint still reads
+   the same on a team card as on your own. */
+.prod-card-team {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -2px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ── The Teams section of Home ─────────────────────────────────────────────────────────────── */
+.team-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+.team-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--hairline-2);
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+.team-card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.team-card-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.team-card-members { margin: 0; font-size: 13px; }
+/* The productions a team holds, as plain links - the card is about the TEAM; the productions'
+   own cards are one click away on the productions list. */
+.team-card-prods { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.team-card-actions { display: flex; gap: 6px; margin-top: auto; }
+.team-card-actions button { min-height: 40px; }
+
+/* The production page's header, for a team production: ONE button in the Share button's place -
+   the people icon, the team's name and the save state - on the header's width budget
+   (playout-dashboard.css: the production name is what gives way, and every control keeps its
+   one-line width). Amber-outlined like the chip, so it reads as the same "belongs to a team". */
+.pd-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: var(--accent-line);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.pd-team-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.pd-team-save { font-size: 11.5px; color: var(--text-faint); }
+/* The resting state ("edited by Anna, 12:03") is detail, and stands down to the tooltip first. */
+.pd-team-save:not(.pending):not(.failed) { display: none; }
+@media (min-width: 1600px) {
+  .pd-team-save:not(.pending):not(.failed) { display: inline; }
+}
+.pd-team-save.failed { color: var(--danger); }
+@media (max-width: 1440px) {
+  .pd-team-name { display: none; }
+}
+.pd-team-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--accent-line);
+  background: var(--accent-bg);
+  font-size: 13px;
+}
+.pd-team-note .spacer { flex: 1; }

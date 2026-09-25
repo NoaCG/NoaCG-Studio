@@ -17,7 +17,7 @@ import { hasChatGraphic, chatGraphicBlock, stripChatGraphic, chatBackendRefKey, 
 import { listMyShows, type ShowRow } from '../showchat/chatData';
 import ModerationPanel from '../showchat/ModerationPanel';
 import { slug } from '../model/slug';
-import { addGraphicToShow, createShow, loadShows, type Show } from '../model/shows';
+import { addGraphicToShow, createShowNamed, loadShows, type Show } from '../model/shows';
 import { commitDurableWrites } from '../model/durableStore';
 import { useTemplateStore, type PlayoutAction } from '../store/templateStore';
 import { useRouter } from '../app/router';
@@ -53,9 +53,10 @@ export default function ControlPanel() {
   const activeShow = shows.find((s) => s.id === showId) ?? null;
 
   const makeShow = () => {
-    const next = createShow(newShowName);
-    setShows(next);
-    setShowId(next[next.length - 1]?.id ?? '');
+    // By the id it was given, not by list position: team productions are listed after your own.
+    const made = createShowNamed(newShowName);
+    setShows(loadShows());
+    setShowId(made.id);
     setNewShowName('');
   };
   const addCurrent = async () => {

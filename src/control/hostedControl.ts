@@ -391,6 +391,11 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     // null-checked at every use. The profile carries its own `v` inside the jsonb, so the
     // column never needs a version of its own.
     profile: show.profile ?? {},
+    // A TEAM production's published row belongs to the team (migration 0054), which is what lets
+    // any member republish or operate it and keeps its four links fixed whoever publishes. Named
+    // only for a team production, so a personal publish writes exactly the columns it always did
+    // - and on a personal row the database would refuse a stamp nobody asked for anyway.
+    ...(show.teamId ? { team_id: show.teamId } : {}),
   };
   const { error } = await sb.from('control_shows').upsert(published, { onConflict: 'id' });
   // AN INSTANCE THAT HAS NOT RUN 0058 MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE

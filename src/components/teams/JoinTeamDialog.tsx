@@ -21,6 +21,7 @@ import { useAuthState } from '../auth/useAuthState';
 import { useModalGate } from '../spaceKey';
 import SignInPrompt from '../auth/SignInPrompt';
 import { joinTeamByCode, suggestedDisplayName, type Team } from '../../backend/teams';
+import { refreshTeams } from '../../backend/teamProductions';
 import TeamChip from './TeamChip';
 import { useEscapeToClose } from './useEscapeToClose';
 
@@ -82,6 +83,9 @@ function Dialog({
       return;
     }
     setJoined(team);
+    // Fetch the team's productions NOW, not on the next tick: Done lands on the productions list,
+    // and the team's band has to be there when it does (the "joined, and nothing happened" bug).
+    void refreshTeams();
   };
 
   return (
@@ -138,14 +142,15 @@ function Dialog({
             </>
           )}
 
-          {/* WHAT THIS MAY PROMISE IS WHAT STAGE 3 DELIVERS. It used to say team productions
-              appear on Home, which is stage 4's list (docs/TEAMS_PLAN.md §7) - so a student who
-              joined, pressed Done and found Home unchanged had been told the feature works.
-              Update this sentence when that list lands, not before. */}
+          {/* WHAT THIS MAY PROMISE IS WHAT HOME DELIVERS. The team's productions are listed in
+              its own band on the productions list (ProductionsSection's TeamBands) and the team
+              in the Teams section, both fetched by the join itself - so the sentence can name
+              the place, which is what a student reading it needs. */}
           {joined && (
             <p className="hint" data-testid="join-team-done">
               You joined <TeamChip name={joined.name} />. Your teammates can see your name in the
-              team; productions the team shares will appear on Home.
+              team. Everything the team shares is on your Home, under <strong>Shared with my
+              teams</strong>, and the team itself is under <strong>Teams</strong>.
             </p>
           )}
 

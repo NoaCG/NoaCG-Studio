@@ -133,6 +133,16 @@ test('offline / no-backend: a production grows no team door, on its page or on i
   // The word itself, on the surface the plan singles out. Scoped to the productions grid so the
   // Data workspace's "Teams" table preset (a different sense of the word) cannot answer for it.
   await expect(page.locator('.prod-grid')).not.toContainText(/team/i);
+  // Stage 4's places to FIND a team: the band heading, the team bands and the Teams nav entry.
+  // The productions list rendered (the card above), so their absence is the gate's doing.
+  await expect(page.getByTestId(TEAM.myProductionsHead)).toHaveCount(0);
+  await expect(page.getByTestId(TEAM.teamProductions)).toHaveCount(0);
+  await expect(page.getByTestId('home-nav-productions')).toBeVisible();
+  await expect(page.getByTestId(TEAM.navTeams)).toHaveCount(0);
+  // And the section's own route resolves to a surface that exists instead of to the section.
+  await page.goto('/app#/home/teams');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId(TEAM.teamsSection)).toHaveCount(0);
 });
 
 test('offline / no-backend: a join-team link opens no dialog and lands on Home', async ({ page }) => {

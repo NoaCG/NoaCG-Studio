@@ -159,6 +159,21 @@ h2 + .lib-row,
    touch target is pinned by the phone walk in e2e/layout.spec.ts. */
 .prod-card-actions .primary { flex: 1; min-height: 44px; }
 .prod-card-actions > button:not(.primary) { min-height: 44px; }
+/* MINE AND THE TEAM'S (docs/TEAMS_PLAN.md §6). Drawn only once the account is in a team, so a
+   solo user's Home is unchanged. A real sub-heading with a rule under it rather than the folders
+   band's quiet microlabel: the separation IS the information here - "these are yours, those came
+   through a team" - so it has to read from across the room, not on inspection. */
+.prod-band-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 18px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--hairline-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+.prod-band-count { font-family: var(--font-mono); font-size: 11px; font-weight: 400; color: var(--text-faint); }
 /* The make-one slot: dashed, so it reads as an empty place rather than a production. */
 .prod-card-new { border-style: dashed; border-color: var(--border); background: none; }
 .prod-card-new .spacer { flex: 1; min-height: 4px; }

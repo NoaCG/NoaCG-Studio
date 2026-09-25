@@ -158,8 +158,17 @@ Two surfaces here mount it, and both must ask the SAME gate: **`useTeamsAvailabl
 
 - **sections/ProductionsSection** - "Share with a team…" as the production card's `RowMenu`. The
   menu is drawn ONLY when it has an item, so offline a card has no ⋯ at all. Delete stays a
-  visible button; do not move it in to tidy up.
-- **ProductionPage** - the header button, beside Export… and a header's width from ■ All out.
+  visible button; do not move it in to tidy up. Once the account is in a team the list splits:
+  **My productions**, then **Shared with my teams**, one band per team (`TeamBands`). A team
+  production is the same card plus the chip and "edited by", its ⋯ opens the team, and only the
+  team's OWNER gets Delete. Your own list is capped on the dashboard; a team's never is - the
+  invitation is the news.
+- **sections/TeamsSection** - `#/home/teams`, listed in the nav only while the account is in a
+  team: one card per team with its members, its productions and the join-code door.
+- **ProductionPage** - the header button, beside Export… and a header's width from ■ All out. On a
+  team production the Share button's place holds the TEAM's button instead, on the same width
+  budget (its name stands down under 1440px like Share's word). Opened cold on a team production
+  before the first team fetch, the page says "Loading" rather than "no longer exists".
 
 **Never gate a team surface on `useAuthState().signedIn`** - it is TRUE offline (deliberately,
 so a gate cannot trap a user in a build with no login), so that reading renders the door in

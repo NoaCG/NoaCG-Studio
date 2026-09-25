@@ -34,6 +34,19 @@ export const TEAM = {
   joinDisplayName: 'join-team-display-name',
   join: 'join-team',
   joinDone: 'join-team-done',
+  // Stage 4 - where a team and what it holds are FOUND. Each is drawn only for somebody in a team,
+  // so the offline spec pins all of them absent and the configured walk pins them visible.
+  /** "My productions", the band heading that appears once there is a team band beside it. */
+  myProductionsHead: 'my-productions-head',
+  /** "Shared with my teams" - every team's band on the productions list. */
+  teamProductions: 'team-productions',
+  /** The Teams entry in Home's nav, and the section it opens. */
+  navTeams: 'home-nav-teams',
+  teamsSection: 'teams-section',
+  /** A team production's header: its team chip and save state. */
+  productionTeam: 'production-team',
+  moveToTeam: 'move-to-team',
+  moved: 'team-moved',
 } as const;
 
 /** A join link with a code shaped like a real one (8 URL-safe characters, migration 0053) but
