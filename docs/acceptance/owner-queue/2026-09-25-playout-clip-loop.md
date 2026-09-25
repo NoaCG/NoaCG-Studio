@@ -12,8 +12,9 @@ it keeps going even if the laptop's browser closes. The current NoaCG Bridge alr
 this, so it works with no new download. If you change the box while the clip is on air, the
 change applies at the next Take, and the editor says so.
 
-The rest of clip playback is written up as a proposal in `docs/BRIDGE.md` §5a: fade in and out
-with CasparCG's `MIX`, and "then play" with its `LOADBG … AUTO`. Each needs a Bridge release.
+Loop ships alone, on purpose. The rest of clip playback (fade, "then play", and anything else)
+will be planned in its own session before anything is built. `docs/BRIDGE.md` §5a lists what
+CasparCG can already do, as input for that plan.
 
 ## The route, under a minute
 

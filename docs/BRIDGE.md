@@ -409,8 +409,10 @@ What CasparCG 2.3-2.5 does natively for a clip on a layer:
 | Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | later |
 | Volume / audio fade | `MIXER c-l VOLUME <0-1> <frames>` | later |
 
-**The proposal for the rest, smallest first, each one additive in the record and in protocol v2
-(no version bump), each needing one Bridge release:**
+**Not decided (owner, 2026-09-25).** Loop shipped alone. What else clip playback needs is to be
+planned properly in its own session before anything is built. The sketch below is one input to
+that plan, not the plan. Each item in it is additive in the record and in protocol v2 (no
+version bump), and each needs a Bridge release:
 
 1. **Fade.** One per-clip setting, *Fade: none / short / long*, stored as frames. None is 0,
    short 12, long 25, counted in the channel's own frames because that is what `MIX` counts.
