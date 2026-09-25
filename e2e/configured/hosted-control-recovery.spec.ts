@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn } from './_helpers';
 
 // THE HOSTED CONTROL PAGE SURVIVES ITS OPERATOR'S FIRST TAKE (docs/CLOUD_PLAYOUT.md §3).
@@ -68,7 +68,7 @@ test('a fresh operator page boots, takes its first cue, and holds it on air', as
   await page.keyboard.press('Escape'); // the wizard signIn leaves open — not this walk
   await clearPublishedShows(page);
 
-  await createProject(page);
+  await bootstrapGraphic(page);
   // Answer the analytics prompt the way a first-visit operator does. It no longer covers the
   // Links popover's Publish row - a notice lost to popovers and dialogs on 2026-09-03 (the
   // layer scale in src/styles/base.css) - so this is part of the walk rather than a dodge.
@@ -78,13 +78,7 @@ test('a fresh operator page boots, takes its first cue, and holds it on air', as
   }
 
   const showName = `Recovery Walk ${Date.now()}`;
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(showName);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, showName);
 
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });

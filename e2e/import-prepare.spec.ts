@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { switchToAdvancedMode } from './_create';
+import { switchToAdvancedMode, skipOldEditor, finishIntoNewEditor } from './_create';
 import { awaitPreviewRebuild } from './_preview';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
 
@@ -50,6 +50,7 @@ async function createProject(page: Page) {
     await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
   });
 }
+
 
 /** One pixel of the created template's artwork asset, at fractions of its SOURCE size. */
 async function assetPixel(page: Page, fx: number, fy: number) {
@@ -188,11 +189,12 @@ test('erase: dropping one mark replays the rest from the original — fills neve
 });
 
 test('erase: the erased region seeds the first text field, placed and sized from the mark', async ({ page }) => {
+  skipOldEditor();
   await dropCard(page, framedCardPng(1000, 600));
   await toEraseSurface(page);
   await drawRect(page, MARK.x0, MARK.y0, MARK.x1, MARK.y1);
   await expect(page.getByTestId('erase-done')).toContainText('A text field will sit');
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   // The field exists on the design, showing its sample where the baked text was.
   const frame = page.frameLocator('iframe.preview-frame');
@@ -246,7 +248,7 @@ test('erase: on a 2x export the seeded field maps to design pixels', async ({ pa
   await toEraseSurface(page);
   await drawRect(page, MARK.x0, MARK.y0, MARK.x1, MARK.y1);
   await expect(page.getByTestId('erase-done')).toBeVisible();
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   // The measured ink starts at 0.18 × 3840 ≈ 691 SOURCE px; the design shows the art
   // frame-sized at 1920, so every placed number is HALVED — the erase and its measurement

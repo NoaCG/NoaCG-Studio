@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 // THE COLD BOOT (docs/CLOUD_PLAYOUT.md §3): the cue is taken BEFORE any renderer exists, and the
@@ -37,16 +37,10 @@ test('a cue taken before the renderer exists is on air when the browser source b
     const { syncNow } = await import('/src/backend/syncController.ts');
     await syncNow();
   });
-  await createProject(page, { name: 'House Scorebug' });
+  await bootstrapGraphic(page, { name: 'House Scorebug' });
 
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
   const showName = `Cold Boot ${Date.now()}`;
-  await section.getByPlaceholder('New production name').fill(showName);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
   // Publishing opens the links popover; its own toggle closes it (quiz-output.spec.ts says why

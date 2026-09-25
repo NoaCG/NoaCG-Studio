@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { FAKE_JOIN_ROUTE, TEAM } from './_teams';
-import { createProject } from './_create';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
 
 // Era 5.6: the editor is open to everyone — there is no login wall anywhere. And with no Supabase
 // backend configured (the default, and always the case in this test's env) the app must grow NO
@@ -89,7 +89,8 @@ test('offline / no-backend: Settings grows no Account section, and a session-exp
 // neither: a word about signing in, or about another computer, would be auth UI on a build that
 // has no accounts.
 test('offline / no-backend: the save dialog names no account and no other computer', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   const where = page.getByTestId('save-where');
   // The positive half first, so the absence below is not answering for a missing dialog.

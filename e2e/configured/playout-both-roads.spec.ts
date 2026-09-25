@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 // ONE PRESS, ONE ENTRANCE - on every surface, with the verb travelling TWO roads.
@@ -86,16 +86,10 @@ test('one press is one entrance on the sender, on another operator, and on air',
   // A scorebug, for the same reason output-realtime-floor.spec.ts uses one: it has a plain
   // entrance with nothing conditional in it, so the only thing that can move `data-plays` is a
   // `play` command actually reaching a stage.
-  await createProject(page, { name: 'House Scorebug' });
+  await bootstrapGraphic(page, { name: 'House Scorebug' });
 
   const showName = `Both Roads ${Date.now()}`;
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(showName);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, showName);
 
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });

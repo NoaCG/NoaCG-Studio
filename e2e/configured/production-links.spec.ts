@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn } from './_helpers';
 
 // A PRODUCTION'S URLS OUTLIVE UNPUBLISHING (docs/CLOUD_PLAYOUT.md §3, migration 0040).
@@ -36,7 +36,7 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   // createProject's `name` is the CATALOG DESIGN to build from, not the project's own name -
   // "Link Keeper" is this spec's production, named below. Passing it here asked the catalog
   // for a design that has never existed, so this walk threw before it reached the claim.
-  await createProject(page);
+  await bootstrapGraphic(page);
   // Answer the analytics prompt, as a real operator does once on a first visit. It used to be
   // required: at a bare z-index 1200 the banner covered ⟳ Publish changes and Unpublish in the
   // Links popover's foot. A notice now loses to a popover (the layer scale in
@@ -47,13 +47,7 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   }
 
   const showName = `Link Keeper ${Date.now()}`;
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(showName);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, showName);
 
   /** The four addresses as the app itself knows them, read back off the synced show record. */
   const capabilities = () =>

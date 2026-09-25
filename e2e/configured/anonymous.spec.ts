@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { dismissWizard, SUPABASE_URL } from './_helpers';
-import { createProject, enableAdvancedMode } from '../_create';
+import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 import { ACCOUNT_IS_FOR, NO_ACCOUNT_NEEDED } from '../../src/components/auth/accountCopy';
 
@@ -203,7 +203,8 @@ test.describe('anonymous visitor (open editor)', () => {
     // is the one who never reads it and loses a lab session's work. A save is the moment they are
     // looking. The signed-in half is signed-in-ux.spec.ts, and the offline suite pins that an
     // offline build says neither (e2e/auth.spec.ts).
-    await createProject(page, 'Hairline');
+    await bootstrapGraphic(page, 'Hairline');
+    await openWorkingGraphicInEditor(page);
     await page.getByTestId('save-graphic').click();
     const where = page.getByTestId('save-where');
     await expect(where).toContainText('on this computer only');

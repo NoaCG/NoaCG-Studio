@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 // THE PUBLISHED QUIZ PATH (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 3): the hidden-pick
@@ -26,17 +26,11 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
     const { syncNow } = await import('/src/backend/syncController.ts');
     await syncNow();
   });
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
 
   // A throwaway production, published for real.
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
   const showName = `Live Quiz ${Date.now()}`;
-  await section.getByPlaceholder('New production name').fill(showName);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
   // Publishing opens the links popover (the URLs are the point). Close it through its OWN

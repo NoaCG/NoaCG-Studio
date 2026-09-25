@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { createProject } from './_create';
+import { bootstrapGraphic, openExportWindow, openWorkingGraphicInEditor, skipOldEditor } from './_create';
 import { awaitPreviewAfterReload } from './_preview';
 
 // THE TITLE / TOPIC / INFORMATION PACK (src/templates/pack4/).
@@ -284,7 +284,8 @@ test('the notice escalates and stands down without moving the main walk', async 
 });
 
 test('the notice’s level events reach the generated control page', async ({ page }) => {
-  await createProject(page, { category: 'Info cards', name: 'Public Advisory' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Info cards', name: 'Public Advisory' });
   await page.getByTestId('dock-tab-control').click();
   // The Rehearse panel and the timeline's simulator both offer the event, which is the point:
   // one button comes from the machine's `controls` metadata, the other from the graph itself.
@@ -294,7 +295,9 @@ test('the notice’s level events reach the generated control page', async ({ pa
 });
 
 test('a pack graphic survives save, reload and reopen unchanged', async ({ page }) => {
-  await createProject(page, { category: 'Info cards', name: 'Frost Checklist' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { category: 'Info cards', name: 'Frost Checklist' });
+  await openWorkingGraphicInEditor(page);
 
   const before = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -323,7 +326,7 @@ test('a pack graphic survives save, reload and reopen unchanged', async ({ page 
 
 test('a stepped pack card exports to every target with nothing dangling', async ({ page }) => {
   test.setTimeout(120_000);
-  await createProject(page, { category: 'Info cards', name: 'Clean Steps' });
+  await bootstrapGraphic(page, { category: 'Info cards', name: 'Clean Steps' });
 
   const targets = [
     'SPX export',
@@ -334,7 +337,7 @@ test('a stepped pack card exports to every target with nothing dangling', async 
     'LiveOS (NetOn.Live) export',
   ];
 
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   for (const label of targets) {
     await page.locator('.issue', { hasText: label }).click();
     const [download] = await Promise.all([

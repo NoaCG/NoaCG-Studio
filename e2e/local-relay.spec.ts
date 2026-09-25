@@ -1,5 +1,5 @@
 import { test, expect, type Route, type Page, type BrowserContext } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { relayServe, routeOrigin } from './_relay';
@@ -13,8 +13,8 @@ import { relayServe, routeOrigin } from './_relay';
 // panel's sends and the graphic's receiver are pinned to v1 without spawning a server.
 
 test('the overlay package ships the local-control bundle, and panel drives graphic through the relay protocol', async ({ page, context }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-export').click();
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'HTML overlay (OBS / vMix)' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),

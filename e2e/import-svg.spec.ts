@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { switchToAdvancedMode } from './_create';
+import { switchToAdvancedMode, skipOldEditor, finishIntoNewEditor } from './_create';
 import { lowerThirdPng } from './_png';
 import { pickDesign } from './_browse';
 import { fileURLToPath } from 'node:url';
@@ -50,6 +50,7 @@ async function createProject(page: Page) {
     await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
   });
 }
+
 
 test('svg import: the drop is recognised, inventoried, and swaps the walk to the SVG rail', async ({ page }) => {
   await dropSvg(page);
@@ -219,6 +220,7 @@ test('svg import: overflow-only text fit — a long value shrinks, a short one s
 });
 
 test('svg import: sanitizer — script, handlers, foreignObject, SMIL and network refs never reach the template', async ({ page }) => {
+  skipOldEditor();
   await dropSvgMarkup(
     page,
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
@@ -239,7 +241,7 @@ test('svg import: sanitizer — script, handlers, foreignObject, SMIL and networ
   await expect(card).toContainText('SVG-native (SMIL) animation was removed');
   await expect(card).toContainText('References to files on the internet were removed');
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const verdict = await page.evaluate(async () => {
     const [{ useTemplateStore }, { validateTemplate }] = await Promise.all([
@@ -281,7 +283,7 @@ test('svg import: outlined text gets the honest answer, and still imports as a f
   await expect(honest).toContainText('fixed graphic');
 
   // A fixed graphic is still a playable import.
-  await createProject(page);
+  await finishIntoNewEditor(page);
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.length;
@@ -403,7 +405,7 @@ test('svg import: the static: prefix says a text layer is DRAWING, and its words
   await expect(page.getByTestId('map-svg-off-t0')).toHaveText('stays as drawn');
   await expect(page.getByTestId('map-svg-row-t1').locator('input[type=checkbox]')).toBeChecked();
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   // ONE field, and the numeral is still on the artwork: drawn, unbound, its words intact.
   const state = await page.evaluate(async () => {
@@ -777,6 +779,7 @@ test('svg import: layer names that repeat are numbered, so no two fields read th
 });
 
 test('svg import: text on a path binds the path run, and keeps its curve when an operator types', async ({ page }) => {
+  skipOldEditor();
   await dropSvgMarkup(
     page,
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
@@ -787,7 +790,7 @@ test('svg import: text on a path binds the path run, and keeps its curve when an
   );
   await page.locator('.wz-next').click();
   await expect(page.getByTestId('map-svg-sample-t0')).toHaveValue('Around the bend');
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   // The field id is on the <textPath>, not the <text>: update() writes textContent, and writing
   // it on the <text> would REPLACE the textPath element — the first typed word would straighten
@@ -835,6 +838,7 @@ test('svg import: a wrapped source line becomes one clean sample, unless the fil
 });
 
 test('svg import: a PostScript font name finds the bundled face, and ships under its own name', async ({ page }) => {
+  skipOldEditor();
   // Illustrator writes PostScript names, so a file set in Archivo Bold asks for "Archivo-Bold".
   // Matched literally that finds nothing, and the graphic goes to air in a substitute face.
   await dropSvgMarkup(
@@ -853,7 +857,7 @@ test('svg import: a PostScript font name finds the bundled face, and ships under
   await expect(page.getByTestId('map-svg-font-ok-JetBrainsMono-Regular')).toContainText('(JetBrains Mono)');
   await expect(page.getByTestId('map-svg-font-warn-Archivo-Bold')).toHaveCount(0);
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   // The @font-face is declared under the name the ARTWORK asks for, over the bundled file: a
   // face declared as "Archivo" answers nothing in an SVG whose own CSS says "Archivo-Bold".
@@ -1092,12 +1096,13 @@ test('svg import: outlined text — a glyph-shaped group becomes a placed live f
 });
 
 test('svg import: the layer stagger preset walks the artwork’s own top-level layers, as per-layer data', async ({ page }) => {
+  skipOldEditor();
   await dropSvg(page);
   await page.locator('.wz-next').click();
   await page.locator('.wz-next').click();
   // Only the SVG variant offers it — its groups are the layers.
   await page.locator('.wz-anim', { hasText: 'Layer stagger' }).click();
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const data = await page.evaluate(async () => {
     const [{ useTemplateStore }, { parseAnimData }] = await Promise.all([
@@ -1933,6 +1938,7 @@ test('svg import: a field drawn on the artwork becomes a real field, where it wa
 // same column. `data-measured` on the draw surface exists for that procedure, and for anyone
 // reading the DOM to work out why a drag seemed to do nothing. e2e/AGENTS.md carries the trap.
 test('svg import: a drawn field can be renamed and removed, and cancelling draws nothing', async ({ page }) => {
+  skipOldEditor();
   await dropSvgMarkup(page, STAGE_SVG, 'stage.svg');
   await page.locator('.wz-next').click();
 
@@ -1963,7 +1969,7 @@ test('svg import: a drawn field can be renamed and removed, and cancelling draws
   await removes.first().click();
   await expect(page.getByTestId('map-svg-added')).toContainText('1 added');
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.map((f) => `${f.field}:${f.title}`);
@@ -2222,6 +2228,7 @@ const FOLLOWERS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920
 // tied and second in the file), s2 Strap (1000).
 
 test('svg import: the followers of a growing panel are proposed, then become the author’s own', async ({ page }) => {
+  skipOldEditor();
   await dropSvgMarkup(page, FOLLOWERS_SVG, 'followers.svg');
   await page.locator('.wz-next').click();
 
@@ -2254,7 +2261,7 @@ test('svg import: the followers of a growing panel are proposed, then become the
   await expect(page.getByTestId('map-svg-follower-s1')).toContainText('Moves out of the way');
   await expect(page.getByTestId('map-svg-follower-s1').locator('select')).toHaveCount(0);
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const js = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -2354,6 +2361,7 @@ test('svg import: two boxes in one graphic grow differently', async ({ page }) =
 test('svg import: a growth limit stops at the frame and at the box, and cannot be dragged past either', async ({
   page,
 }) => {
+  skipOldEditor();
   await dropSvgMarkup(page, TWO_BOX_SVG, 'two-box.svg');
   await page.locator('.wz-next').click();
   // Sideways growth carries no line, so this is the box that may get TALLER.
@@ -2395,7 +2403,7 @@ test('svg import: a growth limit stops at the frame and at the box, and cannot b
   // WHAT TRAVELS INTO THE GRAPHIC is the margin that drag left, and it is inside both ends -
   // which is the assertion the clamp itself has to pass, rather than the line's own reading of
   // where it drew itself.
-  await createProject(page);
+  await finishIntoNewEditor(page);
   const table = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
@@ -2407,13 +2415,14 @@ test('svg import: a growth limit stops at the frame and at the box, and cannot b
 });
 
 test('svg import: an untouched proposal is left to the runtime, not frozen into the graphic', async ({ page }) => {
+  skipOldEditor();
   // A reader who never opens the follower list has expressed no opinion, so the graphic ships
   // WITHOUT a follower table and the runtime derives the set the way the hug always has. Writing
   // the proposal down instead would freeze a design-time guess into every future playout.
   await dropSvgMarkup(page, FOLLOWERS_SVG, 'followers.svg');
   await page.locator('.wz-next').click();
   await boxGrow(page).selectOption('grow-x');
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const js = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -2444,6 +2453,7 @@ const TEXT_BELOW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192
 </svg>`;
 
 test('svg import: only artwork travels — a text layer is never offered as one', async ({ page }) => {
+  skipOldEditor();
   await dropSvgMarkup(page, TEXT_BELOW_SVG, 'text-below.svg');
   await page.locator('.wz-next').click();
   await boxGrow(page).selectOption('grow-y');
@@ -2493,7 +2503,7 @@ test('svg import: only artwork travels — a text layer is never offered as one'
   // they were shown, and the line nobody asked them about is still in the table.
   await page.getByTestId('map-svg-follower-drop-s1').click();
   await expect(page.getByTestId('map-svg-followers').locator('.map-svg-row')).toHaveCount(0);
-  await createProject(page);
+  await finishIntoNewEditor(page);
   const table = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, skipOldEditor } from './_create';
 import { elementPoint } from './_canvas';
 
 // Timeline v2 Phase 2 — the Inspector column (the shared selection's third consumer) and
@@ -8,7 +8,7 @@ import { elementPoint } from './_canvas';
 // keyframe timeline). Selection must stay synchronized: canvas ↔ timeline ↔ Inspector.
 
 async function createHairline(page: Page) {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 }
 
 /** The Inspector is a tab in the right dock (active by default). Ensure it is docked and the
@@ -22,6 +22,7 @@ async function openInspector(page: Page) {
 }
 
 test('inspector: sits in the right dock, empty until something is selected', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   await openInspector(page);
   await expect(page.getByTestId('inspector-empty')).toContainText('Select an element');
@@ -37,6 +38,7 @@ test('inspector: sits in the right dock, empty until something is selected', asy
 });
 
 test('inspector: selecting a timeline row shows that layer — selection synced all around', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   await openInspector(page);
   // Select the Name line via its timeline row label (the shared-selection handle).
@@ -58,6 +60,7 @@ test('inspector: selecting a timeline row shows that layer — selection synced 
 });
 
 test('inspector: canvas clicks drive it too (select it to affect it)', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   await openInspector(page);
   // Click the Name line on the CANVAS. Pad-agnostic mapping (see e2e/_canvas.ts) — the overlay
@@ -70,6 +73,7 @@ test('inspector: canvas clicks drive it too (select it to affect it)', async ({ 
 });
 
 test('inspector: a new selection reveals it; an explicit close holds until the selection changes', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   // Close the Inspector explicitly (it is open by default in the right dock).
   await page.getByTestId('toggle-inspector').click();
@@ -90,6 +94,7 @@ test('inspector: a new selection reveals it; an explicit close holds until the s
 });
 
 test('inspector: the pivot sets the transform-origin, and the runtime honours it', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   await openInspector(page);
   await page.locator('.timeline-label[data-part="#f0"]').click();
@@ -140,6 +145,7 @@ test('inspector: the pivot sets the transform-origin, and the runtime honours it
 });
 
 test('inspector: the 3D transform rows arm and key a rotation (docs/PRESET_MODEL_REVIEW.md gap 7)', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   await openInspector(page);
   await page.locator('.timeline-label[data-part="#f0"]').click();
@@ -176,6 +182,7 @@ test('inspector: the 3D transform rows arm and key a rotation (docs/PRESET_MODEL
 });
 
 test('redo: Ctrl+Shift+Z restores an undone edit; a new edit clears the redo branch', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   // The speed knob writes the data block's speed field (one undoable apply per pick).
   const speed = async () =>
@@ -199,6 +206,7 @@ test('redo: Ctrl+Shift+Z restores an undone edit; a new edit clears the redo bra
 });
 
 test('inspector: filter rows compose into one filter track without clobbering each other (gap 8)', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   await openInspector(page);
   await page.locator('.timeline-label[data-part="#f0"]').click();

@@ -140,7 +140,9 @@ jobs:
       # the 23 configured tests that reached it through `createGraphic`, `createProject` or
       # `enableAdvancedMode` now skip until they are rewritten
       # (docs/backlog/specs-that-still-open-the-old-editor.md). Raise it as each one comes back.
-      MIN_TESTS: 31
+      # 46 on 2026-09-25: 15 of them came back, standing on Home, a production page or the new
+      # editor instead (row F), and 8 still skip.
+      MIN_TESTS: 46
       # An entry here is coverage being given up, so adding one needs a reason written next to it.
       # `bridge-real-server.spec.ts` drives a REAL Bridge process and a REAL CasparCG over the
       # network, behind `BRIDGE_REAL=1`; a runner has neither, so its tests can only ever skip.
@@ -154,11 +156,7 @@ jobs:
       # Nothing else may skip: with the local stack there is no other reason to.
       ALLOWED_SKIPS: >-
         bridge-real-server.spec.ts
-        account.spec.ts anonymous.spec.ts audience-live.spec.ts community-authed.spec.ts
-        follow-status-is-visible.spec.ts hosted-control-recovery.spec.ts hosted-space-modes.spec.ts
-        moderator.spec.ts output-cold-boot.spec.ts output-realtime-floor.spec.ts
-        output-url-cannot-push.spec.ts playout-both-roads.spec.ts production-data-key.spec.ts
-        production-links.spec.ts quiz-output.spec.ts relay-cold-boot.spec.ts scorebug-output.spec.ts
+        account.spec.ts anonymous.spec.ts community-authed.spec.ts moderator.spec.ts
         signed-in-ux.spec.ts
     steps:
       - uses: actions/checkout@v5

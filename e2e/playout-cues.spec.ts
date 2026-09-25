@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 
 // Cues over the PLAYOUT SERVER'S OWN LIBRARY (docs/BRIDGE.md §5): a template or a clip that
 // already lives on the CasparCG box, listed through NoaCG Bridge, added to the rundown beside
@@ -138,8 +138,10 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
  *  `saved`, the graphic is first put in the library under its own name, which is what lets a
  *  server template be matched back to it. */
 async function productionPage(page: Page, options: { saved?: boolean } = {}): Promise<void> {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   if (options.saved) {
+    // The save controls are in the new editor's header; Home, where the bootstrap lands, has none.
+    await openWorkingGraphicInEditor(page);
     await page.getByTestId('save-graphic').click();
     await expect(page.getByTestId('save-dialog')).toBeVisible();
     await page.getByTestId('save-name').fill('Hairline');
@@ -147,13 +149,7 @@ async function productionPage(page: Page, options: { saved?: boolean } = {}): Pr
     await expect(page.getByTestId('save-dialog')).toBeHidden();
     await expect(page.getByTestId('save-status')).toHaveText('Saved');
   }
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('Evening News');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, 'Evening News');
 }
 
 const lastAction = (bridge: FakeBridge) => bridge.actions[bridge.actions.length - 1];

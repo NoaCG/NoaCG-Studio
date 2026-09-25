@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { createProject } from './_create';
+import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import { awaitPreviewRebuild } from './_preview';
 
 // The gap-list pack (docs/PACK_TAXONOMY.md): the commerce, fundraising, sponsor, location and
@@ -73,10 +73,11 @@ test('the two new categories are browsable, and every design in them creates', a
 });
 
 test('discover → select → edit → timeline → save → reload keeps a commerce card whole', async ({ page }) => {
+  skipOldEditor();
   // A product card is the pack's most field-heavy design: five text lines plus an image slot,
   // with two elements that vanish when their field is cleared. If anything in the round trip
   // drops a field, this is where it shows.
-  await createProject(page, { category: 'Info cards', name: 'House Product' });
+  await bootstrapGraphic(page, { category: 'Info cards', name: 'House Product' });
 
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -139,7 +140,7 @@ test('a transition carries the timer machine that clears it, and actually clears
   // The transition type is the only graphic in the catalog whose whole content is its
   // LIFECYCLE, so this is the assertion that cannot be borrowed from anywhere else: the arrow
   // exists in the data, and the RUNTIME honours it.
-  await createProject(page, { category: 'Transitions', name: 'Volt Stinger' });
+  await bootstrapGraphic(page, { category: 'Transitions', name: 'Volt Stinger' });
 
   const machine = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -225,8 +226,8 @@ test('every export target packages a graphic from each new category', async ({ p
   ];
 
   for (const cat of NEW_CATEGORIES) {
-    await createProject(page, { category: cat.label, name: cat.design });
-    await page.getByTestId('dock-tab-export').click();
+    await bootstrapGraphic(page, { category: cat.label, name: cat.design });
+    await openExportWindow(page);
 
     for (const label of TARGETS) {
       await page.locator('.issue', { hasText: label }).click();

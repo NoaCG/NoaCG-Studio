@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { dropSvg, intoExistingProduction, intoProduction, QUIZ_SVG, SCOREBUG_SVG } from '../_svg-import';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn } from './_helpers';
 
 // THE REAL-SERVER WALK of NoaCG Bridge (docs/BRIDGE.md, milestone 1). Nothing is faked: a
@@ -272,16 +272,10 @@ test('one rundown airs a server template on channel 1 and a clip on channel 2, m
   const empty2 = await frame(page, token, 'mc-02-channel-2-empty', 2);
 
   // ── A production with one rundown, offline and signed out: nothing here needs an account. ──
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const consent = page.getByTestId('analytics-consent');
   if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(`Two channel walk ${Date.now()}`);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, `Two channel walk ${Date.now()}`);
 
   // A server template: the graphics channel by default.
   await page.getByTestId('add-from-server').click();

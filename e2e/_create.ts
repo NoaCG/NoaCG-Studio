@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
 
 /**
  * THE OLD CODE EDITOR IS CLOSED (owner, 2026-09-24). No route renders AppShell and there is no
@@ -22,10 +21,10 @@ export function skipOldEditor(): void {
 // Walking the wizard UI costs ~1.5-2 s per test and re-exercises the same clicks hundreds of
 // times per run. This helper produces the EXACT template the wizard's Create button would -
 // it runs the same code path in the page (buildDraftTemplate on a default draft with the
-// variant picked, formatTemplate, applyTemplate with resetSampleData, setActiveTab, the
-// doc-kind flip, and the project-brand capture) - without the click walk. The wizard's own
-// specs (wizard-*.spec.ts, flows.spec.ts, ux.spec.ts's direction test, ...) keep clicking
-// through the real steps; that is what covers the wizard.
+// variant picked, formatTemplate, applyTemplate with resetSampleData, the doc-kind flip, and
+// the project-brand capture) - without the click walk. The wizard's own specs
+// (wizard-*.spec.ts, flows.spec.ts, ux.spec.ts's direction test, ...) keep clicking through the
+// real steps; that is what covers the wizard.
 
 export interface CreateSpec {
   /** Exact catalog variant name, e.g. 'Hairline', 'Match Strip', 'Glass Mark'. */
@@ -38,11 +37,6 @@ export interface CreateSpec {
   steps?: boolean;
 }
 
-/**
- * Open /app and create a catalog project directly - the deterministic, fast counterpart of
- * clicking Entry -> Category -> Template -> Create project. Waits out the preview rebuild,
- * so the test starts against the created document.
- */
 /**
  * RETIRED: Advanced mode no longer exists, so a spec that opted into it reached the old editor.
  * It skips the calling test (OLD_EDITOR_SKIP above). The page parameter stays so the specs still
@@ -67,18 +61,28 @@ export async function finishIntoEditor(_page: Page): Promise<void> {
 }
 
 /**
- * RETIRED with the old editor: this bootstrap landed in AppShell and every caller asserted on
- * it, so it skips the calling test (OLD_EDITOR_SKIP above). The body below it is kept for the
- * rewrite, which still needs a fast way to put a created catalog graphic in the working slot.
+ * RETIRED with the old editor: this bootstrap landed in AppShell and every caller asserted on it,
+ * so it skips the calling test (OLD_EDITOR_SKIP above). A spec rewritten off the old editor calls
+ * `bootstrapGraphic` below instead, which puts the same graphic in the working slot and lands on
+ * Home.
  */
-export async function createProject(page: Page, spec: string | CreateSpec = 'Hairline'): Promise<void> {
-  const wanted: CreateSpec = typeof spec === 'string' ? { name: spec } : spec;
+export async function createProject(_page: Page, _spec: string | CreateSpec = 'Hairline'): Promise<void> {
   skipOldEditor();
-  await page.goto('/app');
-  // Boot signal only — deliberately NOT the wizard: the wizard auto-opens solely on a
-  // first-ever visit (no autosaved project), so a mid-test re-bootstrap lands straight in
-  // the editor. This helper never drives the wizard UI; both shells render a `.topbar`.
-  //
+}
+
+/**
+ * Put a created catalog graphic in the working slot and land on HOME (`#/home`). Every surface
+ * that still exists starts from there and reads the working document: a production
+ * (`openProductionWithCurrent`), the export window (`openExportWindow`) and the new editor.
+ * It is `createProject` without the old editor, which that helper landed in until 2026-09-24.
+ */
+export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = 'Hairline'): Promise<void> {
+  const wanted: CreateSpec = typeof spec === 'string' ? { name: spec } : spec;
+  // `#/home` rather than the bare route: a first-ever visit rewrites the bare route to `#/new`
+  // and opens the wizard, while an explicit Home route closes the startup wizard (App.tsx), so a
+  // first visit and a mid-test re-bootstrap land on the same page. This helper never drives the
+  // wizard UI.
+  await page.goto('/app#/home');
   // 30 s, NOT the 7 s default. This is a COLD /app boot: Vite transforms the app's module graph
   // on first request, and `/app` then boots through app.html's watchdog with durable-store
   // hydration allowed 4 s of its own before it falls back to localStorage. Under a nine-worker
@@ -86,79 +90,149 @@ export async function createProject(page: Page, spec: string | CreateSpec = 'Hai
   // seconds, and it fails as "element(s) not found" - which reads like a broken shell rather
   // than a slow one. Measured 2026-09-05: the first two wave2 tests failed here on two
   // consecutive full plans and all six passed in 15 s when the file ran alone.
-  await expect(page.locator('.topbar')).toBeVisible({ timeout: 30_000 });
-  await awaitPreviewRebuild(page, () =>
-    page.evaluate(async (s: CreateSpec) => {
-      const { CATALOG, variantsFor } = await import('/src/templates/catalog.ts');
-      const { CATEGORIES } = await import('/src/model/wizard.ts');
-      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-      const { formatTemplate } = await import('/src/format/formatCode.ts');
-      const { setDefaultBrand } = await import('/src/model/brand.ts');
-      const { createLook } = await import('/src/model/packets.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { saveProject } = await import('/src/model/project.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { useDocKindStore } = await import('/src/store/docKindStore.ts');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await page.evaluate(async (s: CreateSpec) => {
+    const { CATALOG, variantsFor } = await import('/src/templates/catalog.ts');
+    const { CATEGORIES } = await import('/src/model/wizard.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const { formatTemplate } = await import('/src/format/formatCode.ts');
+    const { setDefaultBrand } = await import('/src/model/brand.ts');
+    const { createLook } = await import('/src/model/packets.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { saveProject } = await import('/src/model/project.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useDocKindStore } = await import('/src/store/docKindStore.ts');
 
-      const cat = s.category
-        ? CATEGORIES.find((c) => c.id === s.category || c.name === s.category)
-        : undefined;
-      const pool = cat ? variantsFor(cat.id) : Object.values(CATALOG).flat();
-      // Exact name first; substring second (the specs historically matched card text with
-      // hasText); no name = the category's first card, the wizard's default order.
-      const variant = s.name
-        ? pool.find((v) => v.name === s.name) ?? pool.find((v) => v.name.includes(s.name!))
-        : pool[s.index ?? 0];
-      if (!variant) throw new Error(`createProject: no catalog variant for ${JSON.stringify(s)}`);
+    const cat = s.category
+      ? CATEGORIES.find((c) => c.id === s.category || c.name === s.category)
+      : undefined;
+    const pool = cat ? variantsFor(cat.id) : Object.values(CATALOG).flat();
+    // Exact name first; substring second (the specs historically matched card text with
+    // hasText); no name = the category's first card, the wizard's default order.
+    const variant = s.name
+      ? pool.find((v) => v.name === s.name) ?? pool.find((v) => v.name.includes(s.name!))
+      : pool[s.index ?? 0];
+    if (!variant) throw new Error(`bootstrapGraphic: no catalog variant for ${JSON.stringify(s)}`);
 
-      // The same draft the wizard holds after picking this variant card (CreationWizard's
-      // onPickVariant patch on a fresh draft), then the same create path as its Create button.
-      const draft = mergeDraft(initialDraft(), {
-        variantId: variant.id,
-        lines: variant.suggestedLines.map((l) => ({ ...l })),
-        zone: null,
-        logoEnabled: null,
-        animation: s.steps ? { presetId: null, outPresetId: null, steps: true } : { presetId: null, outPresetId: null },
-        paletteId: null,
-        customPalette: null,
-        fontId: null,
-      });
-      const template = await formatTemplate(buildDraftTemplate(variant, draft));
-      const store = useTemplateStore.getState();
-      store.applyTemplate(template, { resetSampleData: true });
-      store.setActiveTab('html');
-      useDocKindStore.getState().setKind('spx');
-      // A NAMED brand, and the default pointer at it - the anonymous record Create used to
-      // write is retired (model/brand.ts). This is what makes the wizard's footer chooser
-      // appear in a spec that starts from a created project, exactly as the old toggle did.
-      //
-      // It is a DURABLE write where the old `saveBrand` was a synchronous localStorage one, so
-      // it is committed below before this bootstrap returns: a spec that reloads soon after
-      // would otherwise come back to an empty look list about one time in three, and read as
-      // the chooser being broken (e2e/AGENTS.md, the durable-seed hazard).
-      const made = createLook(`${variant.name} look`, {
-        styleTag: variant.styleTag,
-        palette: variant.defaultPalette,
-        fontId: variant.defaultFontId,
-        customFont: null,
-      });
-      setDefaultBrand(made.id);
+    // The same draft the wizard holds after picking this variant card (CreationWizard's
+    // onPickVariant patch on a fresh draft), then the same create path as its Create button.
+    const draft = mergeDraft(initialDraft(), {
+      variantId: variant.id,
+      lines: variant.suggestedLines.map((l) => ({ ...l })),
+      zone: null,
+      logoEnabled: null,
+      animation: s.steps ? { presetId: null, outPresetId: null, steps: true } : { presetId: null, outPresetId: null },
+      paletteId: null,
+      customPalette: null,
+      fontId: null,
+    });
+    const template = await formatTemplate(buildDraftTemplate(variant, draft));
+    const store = useTemplateStore.getState();
+    store.applyTemplate(template, { resetSampleData: true });
+    useDocKindStore.getState().setKind('spx');
+    // A NAMED brand, and the default pointer at it - the anonymous record Create used to
+    // write is retired (model/brand.ts). This is what makes the wizard's footer chooser
+    // appear in a spec that starts from a created project, exactly as the old toggle did.
+    //
+    // It is a DURABLE write where the old `saveBrand` was a synchronous localStorage one, so
+    // it is committed below before this bootstrap returns: a spec that reloads soon after
+    // would otherwise come back to an empty look list about one time in three, and read as
+    // the chooser being broken (e2e/AGENTS.md, the durable-seed hazard).
+    const made = createLook(`${variant.name} look`, {
+      styleTag: variant.styleTag,
+      palette: variant.defaultPalette,
+      fontId: variant.defaultFontId,
+      customFont: null,
+    });
+    setDefaultBrand(made.id);
 
-      // The production autosaver intentionally waits 800 ms, but this direct bootstrap can
-      // reach a reload assertion sooner than a person can finish the wizard. Persist the same
-      // working-slot payload now so returning-user tests start from a durable created project.
-      const created = useTemplateStore.getState();
-      saveProject(
-        created.template,
-        created.baseline,
-        { graphicId: created.saved.graphicId, dirty: created.saved.dirty },
-        created.aiSpec,
-        created.aiThread,
-      );
-      await commitDurableWrites();
-    }, wanted),
-  );
+    // The production autosaver intentionally waits 800 ms, but this direct bootstrap can
+    // reach a reload assertion sooner than a person can finish the wizard. Persist the same
+    // working-slot payload now so returning-user tests start from a durable created project.
+    const created = useTemplateStore.getState();
+    saveProject(
+      created.template,
+      created.baseline,
+      { graphicId: created.saved.graphicId, dirty: created.saved.dirty },
+      created.aiSpec,
+      created.aiThread,
+    );
+    await commitDurableWrites();
+  }, wanted);
   await expect(page.locator('.wz-modal')).toBeHidden();
+}
+
+/**
+ * Put the working graphic into a NEW production and land on that production's page. The old
+ * editor's Rehearse panel did this with "Create", "+ Add current" and "Open production page";
+ * this calls the same model functions that panel called (`createShowNamedChecked`, then
+ * `addGraphicToShow` with the saved library id when there is one), waits for the durable write,
+ * and navigates inside the app rather than reloading, so the page keeps whatever state the spec
+ * built up. Returns the production's id.
+ */
+export async function openProductionWithCurrent(page: Page, name: string): Promise<string> {
+  const id = await page.evaluate(async (showName: string) => {
+    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useRouter } = await import('/src/app/router.ts');
+    const { show, error: notCreated } = createShowNamedChecked(showName);
+    if (notCreated) throw new Error(`openProductionWithCurrent: ${notCreated}`);
+    const { template, saved } = useTemplateStore.getState();
+    const { error } = addGraphicToShow(show.id, template, { graphicId: saved.graphicId });
+    const failure = error ?? (await commitDurableWrites());
+    if (failure) throw new Error(`openProductionWithCurrent: ${failure}`);
+    useRouter.getState().navigate({ view: 'production', id: show.id });
+    return show.id;
+  }, name);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  return id;
+}
+
+/**
+ * Open the NEW editor on the working graphic, by its route (`/app?editor=foundation#/editor-
+ * foundation`), the same place Finish's "Edit this graphic" lands. Its header carries the save
+ * controls (`save-graphic`, the save dialog) that the old editor's topbar used to. The working
+ * slot is durable by then (bootstrapGraphic commits it), so the load reads the created graphic.
+ */
+export async function openWorkingGraphicInEditor(page: Page): Promise<void> {
+  await page.goto('/app?editor=foundation#/editor-foundation');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+}
+
+/**
+ * From wherever a wizard walk stands, go to Finish and press "Edit this graphic": the walk's
+ * graphic becomes the working document and the NEW editor opens on it. This is the road the old
+ * editor's "Create project" and Finish's code-editor door used to take. It waits for whichever of
+ * the two controls is on screen rather than sampling one, because Finish paints its doors a frame
+ * after the step itself.
+ */
+export async function finishIntoNewEditor(page: Page): Promise<void> {
+  const edit = page.getByTestId('wz-finish-edit-artwork');
+  const skip = page.getByTestId('wz-skip-to-finish');
+  await expect(edit.or(skip).first()).toBeVisible();
+  if (!(await edit.isVisible())) await skip.click();
+  await edit.click();
+  // 20 s: the modal closes once the cold Prettier format behind the create resolves.
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+}
+
+/**
+ * Open the export window on the WORKING graphic: its template, its sample data and its saved
+ * library id, which is exactly what the old editor's Export panel exported. The window renders
+ * the same ExportSurface that panel did (components/ExportWindow.tsx), so the target list, the
+ * validation and "Validate & download" are the ones under test. The doors that open it (Finish,
+ * a Home row) have their own specs.
+ */
+export async function openExportWindow(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const { useExportUi } = await import('/src/components/ExportWindow.tsx');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { template, sampleData, saved } = useTemplateStore.getState();
+    useExportUi.getState().openExport({ template, sampleData, graphicId: saved.graphicId });
+  });
+  await expect(page.getByTestId('export-window')).toBeVisible();
 }
 
 /**

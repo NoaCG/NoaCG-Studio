@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { finishIntoEditor, startNewProject } from '../_create';
+import { finishIntoEditor, finishIntoNewEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 
 // Shared setup for the configured-mode (authenticated) community specs. Credentials come from env so
@@ -61,6 +61,17 @@ export async function createGraphic(page: Page, category: string, variant: strin
   await finishIntoEditor(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
   await page.waitForTimeout(650);
+}
+
+/** Create a graphic through the wizard (which opens on load) and land in the NEW editor through
+ *  Finish's "Edit this graphic" - the working document then holds it, and the editor's header
+ *  carries the save controls. The road `createGraphic` above took into the old editor. */
+export async function createGraphicInEditor(page: Page, category: string, variant: string): Promise<void> {
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await chooseType(page, category);
+  await pickDesign(page, variant);
+  await finishIntoNewEditor(page);
 }
 
 /** Drop a screenshot of a signed-in surface into test-results/signed-in/. These surfaces render

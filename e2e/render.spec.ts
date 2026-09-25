@@ -1,4 +1,4 @@
-import { createProject } from './_create';
+import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import { pickDesign } from './_browse';
 
 // The Export tab's Video & image render section (src/components/render/RenderPanel.tsx).
@@ -9,11 +9,11 @@ import { pickDesign } from './_browse';
 import { test, expect, type Page } from '@playwright/test';
 
 async function createHairline(page: Page) {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 }
 
 async function openRenderPanel(page: Page) {
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await expect(page.getByTestId('render-panel')).toBeVisible();
   // The panel measures the graphic in a hidden iframe before it can render.
   await expect(page.getByTestId('render-breakdown')).not.toContainText('Measuring', { timeout: 15_000 });
@@ -174,6 +174,7 @@ test('cancel mid-render returns to the idle form', async ({ page }) => {
 // cases only ever drive the dock panel; these two exercise the modal.
 
 test('the standalone export window carries the render section, measured off the saved record', async ({ page }) => {
+  skipOldEditor();
   await createHairline(page);
   // Save it, then export from the Home row's ⋯ menu — the door that reads the RECORD's
   // template, not the store, so the render section measures a graphic independent of the

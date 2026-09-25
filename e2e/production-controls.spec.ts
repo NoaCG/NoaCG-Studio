@@ -1,7 +1,7 @@
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, openExportWindow, openWorkingGraphicInEditor, skipOldEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import { relayServe, routeOrigin } from './_relay';
 import { importProofCase } from './_proofCase';
@@ -14,18 +14,11 @@ import { importProofCase } from './_proofCase';
 
 /** Create the current editor graphic's production and land on its page. */
 async function productionFor(page: Page, name: string): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(name);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await expect(section.locator('.status-ok')).toContainText('is in the production');
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, name);
 }
 
 test('the production page re-asks for machine state, so a change it did not cause still reaches the chip', async ({ page }) => {
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
 
   const chip = page.getByTestId('machine-state-chip');
@@ -65,7 +58,7 @@ test('a Take pressed a moment after the page opens still airs - and stays aired'
   // production and replayed `snap` to that stale "off". The graphic aired and went straight
   // back off: black monitor, chip reading Off, every action greyed, nothing said. Offline it
   // was every take, because with no wire `liveCue` can only move locally.
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
 
   // Past the first state poll - the window the old bug needed.
@@ -94,7 +87,7 @@ test('the selected cue is still identifiable once it is on air, and the editor n
   // Selection now takes an OUTLINE, which no tally touches, and the two stack. The trap in the
   // other direction is just as easy: give selection a border-color again and it wins, and the
   // row loses its red. Both are asserted here, on one row, at once.
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
 
   const rows = page.locator('.pd-cue');
@@ -124,7 +117,7 @@ test('the selected cue is still identifiable once it is on air, and the editor n
 });
 
 test('quiz actions on the production page: greying, select/lock, live update keeps the lock, snap recovers the verdict', async ({ page }) => {
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
 
   const actions = page.getByTestId('cue-actions');
@@ -198,7 +191,7 @@ test('quiz actions on the production page: greying, select/lock, live update kee
 });
 
 test('scorebug actions group by section and drive the clock; a plain lower third shows no actions block', async ({ page }) => {
-  await createProject(page, { name: 'Club Scorebug' });
+  await bootstrapGraphic(page, { name: 'Club Scorebug' });
   await productionFor(page, 'Club Match');
 
   const actions = page.getByTestId('cue-actions');
@@ -228,7 +221,7 @@ test('a match board reaches every one of its controls from the cockpit: both clo
   // The scorebug test above covers Start/Stop. This covers what Phase 4 actually promised an
   // operator: the REST of the surface — reset, the interval pair, and the fields a two-team
   // board carries that a strip does not (a period breakdown, club colours, two crests).
-  await createProject(page, { name: 'House Match Board' });
+  await bootstrapGraphic(page, { name: 'House Match Board' });
   await productionFor(page, 'Cup Tie');
 
   const chip = page.getByTestId('machine-state-chip');
@@ -302,13 +295,14 @@ test('a match board reaches every one of its controls from the cockpit: both clo
 test('an audience Q&A cue reveals its answer; switching to a plain cue swaps the actions away honestly', async ({ page }) => {
   // A plain lower third in the library first — the leak check needs a second, machine-less
   // graphic in the same production.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Plain Strap');
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toBeHidden();
 
-  await createProject(page, { name: 'House Q&A' });
+  await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Town Hall');
 
   const actions = page.getByTestId('cue-actions');
@@ -338,11 +332,12 @@ test('an audience Q&A cue reveals its answer; switching to a plain cue swaps the
 });
 
 test('± LIVE NUMBERS bumps a figure on air without publishing other staged edits', async ({ page }) => {
+  skipOldEditor();
   // The podium board is the block's reason to exist: game-show points change on every
   // question, and stepper-then-✎-Update was two presses under pressure. The block itself is
   // generic — any graphic with a `number` field gets it — so this walk is also the podium
   // type's playout proof: per-contestant scores, the spotlight machine beside them.
-  await createProject(page, { name: 'House Podiums' });
+  await bootstrapGraphic(page, { name: 'House Podiums' });
   await productionFor(page, 'Game Night');
 
   // Off air: the block renders (the template has number fields), every button waits for Take.
@@ -393,7 +388,7 @@ test('a scoreboard GOAL raises the flag AND moves that side\'s score on the same
   // sends the event with that side's score moved by one as its payload, so the flag and the
   // figure land together (or not at all), the cue keeps the new figure, and the next press
   // counts from it. The ± steppers stay the correction road.
-  await createProject(page, { name: 'House Score' });
+  await bootstrapGraphic(page, { name: 'House Score' });
   await productionFor(page, 'Derby');
 
   const goalA = page.getByTestId('cue-action-goalA');
@@ -650,8 +645,8 @@ function behindStart(text: string): number {
 
 test('an exported package recovers a running match clock when the renderer reloads', async ({ page, context }) => {
   test.setTimeout(120_000);
-  await createProject(page, { name: 'House Match Board' });
-  await page.getByTestId('dock-tab-export').click();
+  await bootstrapGraphic(page, { name: 'House Match Board' });
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),
@@ -811,7 +806,7 @@ test.describe('the control area is the one scroller', () => {
     test.use({ viewport: { width: 1920, height: 1080 } });
 
     test('only the control area and the cue list scroll, and the monitors are capped', async ({ page }) => {
-      await createProject(page, { name: 'Arena Quiz' });
+      await bootstrapGraphic(page, { name: 'Arena Quiz' });
       await productionFor(page, 'Quiz Night');
       await expect(page.getByTestId('cue-editor')).toBeVisible();
 
@@ -870,7 +865,7 @@ test.describe('the control area is the one scroller', () => {
     test.use({ viewport: { width: 1536, height: 814 } });
 
     test('a graphic with eight fields makes the CONTROL AREA longer, not the editor scrollable', async ({ page }) => {
-      await createProject(page, { name: 'Arena Quiz' });
+      await bootstrapGraphic(page, { name: 'Arena Quiz' });
       await productionFor(page, 'Quiz Night');
       const editor = page.getByTestId('cue-editor');
       await expect(editor).toBeVisible();
@@ -923,7 +918,7 @@ test.describe('the control area is the one scroller', () => {
    */
   test('a portrait cue is letterboxed into the production stage, it does not re-size the monitors', async ({ page }) => {
     await page.setViewportSize({ width: 1536, height: 814 });
-    await createProject(page, { name: 'Arena Quiz' });
+    await bootstrapGraphic(page, { name: 'Arena Quiz' });
     await productionFor(page, 'Mixed Shapes');
 
     // A second graphic on the same production, drawn 1080x1920. Built here rather than through
@@ -977,7 +972,7 @@ test.describe('the control area is the one scroller', () => {
    * its own track", and that is a number the browser already keeps.
    */
   test('a scoreboard cue lays its number fields out without overlapping the fields beside them', async ({ page }) => {
-    await createProject(page, { name: 'House Scorebug' });
+    await bootstrapGraphic(page, { name: 'House Scorebug' });
     await productionFor(page, 'Match Night');
     const editor = page.getByTestId('cue-editor');
     await expect(editor).toBeVisible();
@@ -1036,7 +1031,7 @@ test.describe('the control area is the one scroller', () => {
    */
   test('on a tall window the verbs are two across beside PROGRAM, packed and not thin', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1000 });
-    await createProject(page, { name: 'House Scorebug' });
+    await bootstrapGraphic(page, { name: 'House Scorebug' });
     await productionFor(page, 'Match Night');
     const verbs = page.locator('.pd-stagehead [data-testid="production-verbs"]');
     await expect(verbs).toBeVisible();
@@ -1101,7 +1096,7 @@ test.describe('the control area is the one scroller', () => {
  */
 test.describe('the cue editor groups fields by what they belong to', () => {
   test('a scoreboard reads one team per band, headed by that team’s own name', async ({ page }) => {
-    await createProject(page, { name: 'House Scorebug' });
+    await bootstrapGraphic(page, { name: 'House Scorebug' });
     await productionFor(page, 'Match Night');
     const editor = page.getByTestId('cue-editor');
     await expect(editor).toBeVisible();
@@ -1140,7 +1135,7 @@ test.describe('the cue editor groups fields by what they belong to', () => {
     // The trap this pins. A quiz titles its fields "Answer A", "Answer B", "Answer C", "Answer
     // D" - the same tokens a scoreboard uses for two teams. Grouped, it would put Answer A in
     // one band, Answer B in another, and C and D in a third called "Both".
-    await createProject(page, { name: 'Arena Quiz' });
+    await bootstrapGraphic(page, { name: 'Arena Quiz' });
     await productionFor(page, 'Quiz Night');
     const editor = page.getByTestId('cue-editor');
     await expect(editor).toBeVisible();
@@ -1191,7 +1186,8 @@ test.describe('the cue editor groups fields by what they belong to', () => {
 // profile that could change legality would be the behaviour the whole design refuses.
 
 test('the Controls panel arranges the ⚡ block, and deleting the profile puts the generated one back', async ({ page }) => {
-  await createProject(page, { name: 'Club Scorebug' });
+  skipOldEditor();
+  await bootstrapGraphic(page, { name: 'Club Scorebug' });
   await productionFor(page, 'Club Match');
 
   // The generated panel first, so what the profile changes is measured against it: six controls
@@ -1683,7 +1679,7 @@ test('the EXPORTED controller says where its combined controls run, and carries 
 
 /** A production of two cues on one lower third, named so the rundown reads in order. */
 async function twoCueRundown(page: Page): Promise<Locator> {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Evening News');
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
   await page.getByTestId('cue-label').fill('Anna');

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { expectMachineState } from './_stage';
 import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
@@ -11,19 +11,12 @@ import { settleDurableWrites } from './_durable';
 // deliberate; data never airs itself.
 
 async function productionFor(page: Page, name: string): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(name);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await expect(section.locator('.status-ok')).toContainText('is in the production');
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, name);
 }
 
 test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience result — then the next question from the bank', async ({ page }) => {
   test.setTimeout(120_000);
-  await createProject(page, { name: 'Arena Quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
 
   // ── The question bank, authored on the Data tab - which opens in its OWN browser tab now,
@@ -125,7 +118,7 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
 });
 
 test('the TV-style flow still stands: select paints immediately, lock follows, verdict tells the wrong pick apart', async ({ page }) => {
-  await createProject(page, { name: 'House Quiz' });
+  await bootstrapGraphic(page, { name: 'House Quiz' });
   await productionFor(page, 'Studio Quiz');
 
   const chip = page.getByTestId('machine-state-chip');

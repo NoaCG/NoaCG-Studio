@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic } from './_create';
 import { settleDurableWrites } from './_durable';
 
 // The LIBRARY -> AIR gate (src/validation/productionGate.ts, docs/AGENT_SAVE.md): a library
@@ -30,7 +30,7 @@ async function seedBrokenAndValid(page: import('@playwright/test').Page) {
 }
 
 test('publishControlShow and the production builders refuse an invalid graphic, and pass a valid one', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const { badId, fineId } = await seedBrokenAndValid(page);
   await settleDurableWrites(page);
 
@@ -72,7 +72,7 @@ test('publishControlShow and the production builders refuse an invalid graphic, 
 });
 
 test('the export dialog shows the gate\'s verdict and keeps the download disabled', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const { badId } = await seedBrokenAndValid(page);
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${badId}`);

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
-import { E2E_EMAIL, createGraphic, haveCreds, settleSync, shot, signIn, wipeMyGraphics, wipeMySubmissions } from './_helpers';
-import { skipOldEditor } from '../_create';
+import { E2E_EMAIL, createGraphic, createGraphicInEditor, haveCreds, settleSync, shot, signIn, wipeMyGraphics, wipeMySubmissions } from './_helpers';
+import { openProductionWithCurrent, skipOldEditor } from '../_create';
 
 // The signed-in UX walk. The 2026-07 review could only read these surfaces from source — the
 // editor's account features render NOTHING offline, so the whole offline suite is blind to them.
@@ -200,22 +200,15 @@ test.describe('signed-in UX walk (configured)', () => {
     await signIn(page);
     await settleSync(page);
     await wipeMyGraphics(page);
-    await createGraphic(page, 'Lower thirds', 'Hairline');
+    await createGraphicInEditor(page, 'Lower thirds', 'Hairline');
     await page.getByTestId('save-graphic').click();
     await page.getByTestId('save-name').fill('Hairline');
     await page.getByTestId('save-confirm').click();
 
-    // Build a one-graphic production so the hosted-publish controls become reachable.
-    await page.getByTestId('dock-tab-control').click();
-    const panel = page.locator('.panel-body');
-    await panel.getByPlaceholder('New production name').fill('Evening bulletin');
-    await panel.getByRole('button', { name: 'Create', exact: true }).click();
-    await panel.getByRole('button', { name: '+ Add current' }).click();
-
-    // Publishing lives on the production's own PAGE now (the editor block is slim by design,
-    // docs/GOALS_ARCHIVE.md "Student release" step 8) — follow its link and publish from there.
-    await panel.getByTestId('open-production-page').click();
-    await expect(page.getByTestId('production-page')).toBeVisible();
+    await expect(page.getByTestId('save-dialog')).toBeHidden();
+    // Build a one-graphic production so the hosted-publish controls become reachable. Publishing
+    // lives on the production's own PAGE (docs/GOALS_ARCHIVE.md "Student release" step 8).
+    await openProductionWithCurrent(page, 'Evening bulletin');
     const publish = page.getByTestId('production-publish');
     await expect(publish).toBeEnabled();
     // The cloud-playout wave renamed rundowns to productions in user-facing strings — the

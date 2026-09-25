@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { createGraphic, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
+import { openProductionWithCurrent } from '../_create';
+import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
 
 // THE AUDIENCE LINK, against the real backend — the half of Phase 5 the offline suite cannot own.
 //
@@ -21,18 +22,12 @@ test.describe(() => {
     await signIn(page);
     await settleSync(page);
     await wipeMyGraphics(page);
-    await createGraphic(page, 'Lower thirds', 'Hairline');
+    await createGraphicInEditor(page, 'Lower thirds', 'Hairline');
 
     // A production whose NAME is the whole point of the test: nobody types an ending anywhere
     // below, and the link still has to come out readable.
     const productionName = `Friday Night Live ${Date.now()}`;
-    await page.getByTestId('dock-tab-control').click();
-    const section = page.locator('.panel-section', { hasText: 'Productions' });
-    await section.getByPlaceholder('New production name').fill(productionName);
-    await section.getByRole('button', { name: 'Create', exact: true }).click();
-    await section.getByRole('button', { name: '+ Add current' }).click();
-    await section.getByTestId('open-production-page').click();
-    await expect(page.getByTestId('production-page')).toBeVisible();
+    await openProductionWithCurrent(page, productionName);
 
     await page.getByTestId('production-publish').click();
     await expect(page.getByTestId('production-links')).toBeVisible({ timeout: 30_000 });

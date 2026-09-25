@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject } from '../_create';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 // THE PUBLISHED SPORTS PATH (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 4): a scorebug driven from
@@ -46,16 +46,10 @@ test('a published scorebug takes a score bump and a running clock on the real ou
   });
   // The house scorebug counts UP from 0:00, so a running clock is visibly moving rather than
   // merely reported as running.
-  await createProject(page, { name: 'House Scorebug' });
+  await bootstrapGraphic(page, { name: 'House Scorebug' });
 
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
   const showName = `Live Match ${Date.now()}`;
-  await section.getByPlaceholder('New production name').fill(showName);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
   // Publishing opens the links popover; its own toggle closes it (quiz-output.spec.ts says why
