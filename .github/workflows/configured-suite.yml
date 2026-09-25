@@ -111,6 +111,12 @@ jobs:
       # GoTrue's default minimum and account.spec.ts round-trips a password change.
       E2E_EMAIL: e2e@noacg.local
       E2E_PASSWORD: noacg-e2e-local-pw
+      # The SECOND account of the two-person team walk in e2e/configured/teams.spec.ts: a teammate
+      # who joins a team the first account made. Same reasoning as the pair above - minted in the
+      # step below, destroyed with the stack - and the walk skips without it, which the no-skips
+      # guard at the end of this job would then report.
+      E2E_TEAMMATE_EMAIL: e2e-teammate@noacg.local
+      E2E_TEAMMATE_PASSWORD: noacg-e2e-local-pw
       # JOB level, not step level, deliberately: `supabase status` and `supabase stop` load
       # config.toml too, and config.toml's [auth.external.google] reads these through env().
       # Measured 2026-08-25: the unmodified config loads cleanly with them UNSET, so this is
@@ -340,6 +346,27 @@ jobs:
             exit 1
           fi
           echo "Test account authenticates."
+
+          # The teammate, the same two proofs: created (or already there), and able to sign in.
+          create="$(curl -s -o /tmp/create-mate.json -w '%{http_code}' \
+            -X POST "${VITE_SUPABASE_URL}/auth/v1/admin/users" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"${E2E_TEAMMATE_EMAIL}\",\"password\":\"${E2E_TEAMMATE_PASSWORD}\",\"email_confirm\":true}")"
+          case "$create" in
+            2*|422) ;;
+            *)  echo "::error title=Could not create the teammate account::admin/users answered ${create}."
+                cat /tmp/create-mate.json; exit 1 ;;
+          esac
+          mate="$(curl -s -X POST "${VITE_SUPABASE_URL}/auth/v1/token?grant_type=password" \
+            -H "apikey: ${VITE_SUPABASE_ANON_KEY}" -H 'Content-Type: application/json' \
+            -d "{\"email\":\"${E2E_TEAMMATE_EMAIL}\",\"password\":\"${E2E_TEAMMATE_PASSWORD}\"}" | jq -r '.access_token // empty')"
+          if [ -z "$mate" ]; then
+            echo "::error title=The teammate account cannot sign in::The password grant returned no access_token for ${E2E_TEAMMATE_EMAIL}, so the two-person team walk would fail at its second sign-in. Environment fault, not a regression."
+            exit 1
+          fi
+          echo "Teammate account authenticates."
 
       # playwright.live.config.ts starts its own Vite dev server; the env exported above is what
       # puts the app in configured mode, signs the specs in, and gives api/ its server-side half.

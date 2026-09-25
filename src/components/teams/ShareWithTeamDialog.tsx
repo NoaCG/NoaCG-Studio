@@ -1,21 +1,23 @@
 // "Share with a team…" - THE ONE TEAM DOOR (docs/TEAMS_PLAN.md §6, mockup
 // `docs/design/teams/teams-share-dialog.html`).
 //
-// Everything a team is reached from here: make one, read out its join code, see who is in it,
-// rotate the code, leave, delete. There is deliberately no team entry in the topbar, no team
-// section on Home and no team item in Settings - a user who never opens this dialog never sees
-// the word "team" anywhere, which is the plan's §6 rule and the reason the door hangs off a
-// PRODUCTION (the thing a team is for) rather than off the account.
+// Everything a team is reached from here: make one, move a production into it, read out its join
+// code, see who is in it, rotate the code, leave, delete. The FIRST door hangs off a PRODUCTION
+// (the thing a team is for) rather than off the account, so a user who never opens it never sees
+// the word "team" anywhere - the plan's §6 rule. Once somebody IS in a team, Home shows it: the
+// Teams section and the team bands on the productions list open this same dialog on that team
+// (`openTeam`), because "where is the team I was invited to" must never need a search.
 //
-// WHAT STAGE 3 DOES NOT DO, said here rather than discovered. Moving the production INTO the team
-// is stage 4's verb: it writes `team_productions` and tombstones the personal record, and until
-// the team-productions list exists (also stage 4) a moved production would leave the personal
-// list and appear nowhere. So the primary action is present, disabled, and says why. Every
-// control that is ENABLED here works end to end against the real RPCs from migration 0053.
+// MOVING is stage 4's verb (backend/teamProductions.ts `moveProductionToTeam`): the production
+// goes to `team_productions` and leaves the personal list in the same step, and it appears in the
+// team's band on every member's Home. Every control here works end to end against the real RPCs
+// from migrations 0053 and 0054.
 //
 // THE THREE SCREENS mirror the mockup: `pick` (choose a team, or start a new one), `create`
 // (name it, and name yourself), `team` (the join code, the member list, leaving). They are one
-// dialog rather than three because they are one errand.
+// dialog rather than three because they are one errand. Opened on a team, or from a production
+// that is already in one, it starts on `team` and has no `pick` to go back to - there is nothing
+// to share.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { routeHash, useRouter } from '../../app/router';
@@ -34,6 +36,8 @@ import {
   type Team,
   type TeamMember,
 } from '../../backend/teams';
+import { moveProductionToTeam, refreshTeams } from '../../backend/teamProductions';
+import { loadShows } from '../../model/shows';
 import { useTeamsUi } from './teamsUi';
 import { useTeamsAvailable } from './useTeamsAvailable';
 import { useEscapeToClose } from './useEscapeToClose';
@@ -62,9 +66,17 @@ function Dialog() {
   const { user } = useAuthState();
   useModalGate(true);
 
-  const [screen, setScreen] = useState<Screen>('pick');
+  // The production this was opened from, read once: a production already in a team has nothing to
+  // share, so the dialog opens on its team instead, and so does a request made about a team alone.
+  const [production] = useState(() => (share.showId ? loadShows().find((s) => s.id === share.showId) ?? null : null));
+  const startTeam = share.teamId ?? production?.teamId ?? null;
+  /** Whether there is a production here to move - the pick screen exists only then. */
+  const canMove = Boolean(production && !production.teamId);
+  const [screen, setScreen] = useState<Screen>(startTeam ? 'team' : 'pick');
   const [teams, setTeams] = useState<Team[] | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(startTeam);
+  /** The outcome of a move, shown on the team screen it lands on. */
+  const [moved, setMoved] = useState<{ name: string; warning: string | null } | null>(null);
   const [members, setMembers] = useState<TeamMember[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +125,7 @@ function Dialog() {
       setLoadError(err);
       // Land on the team you are in when there is exactly one - the class case, where picking
       // from a list of one is a step that asks nothing.
-      if (list.length === 1) setSelectedId(list[0].id);
+      if (list.length === 1) setSelectedId((was) => was ?? list[0].id);
     });
     refreshMembers();
     return () => { stale = true; };
@@ -138,6 +150,7 @@ function Dialog() {
     }
     setTeams((list) => [...(list ?? []), team]);
     setSelectedId(team.id);
+    void refreshTeams();
     // A team that exists but whose creator's membership row failed to write is still a team, and
     // the code screen is where it can be repaired - so this reports the problem and continues,
     // rather than pretending nothing was made.
@@ -171,7 +184,10 @@ function Dialog() {
     }
     setTeams((list) => (list ?? []).filter((t) => t.id !== selected.id));
     setSelectedId(null);
-    setScreen('pick');
+    void refreshTeams();
+    // Opened on the team, there is no pick screen to fall back to: the errand is over.
+    if (canMove) setScreen('pick');
+    else close();
   };
 
   const remove = async (member: TeamMember) => {
@@ -185,6 +201,7 @@ function Dialog() {
       return;
     }
     refreshMembers();
+    void refreshTeams();
   };
 
   const destroy = async () => {
@@ -200,7 +217,27 @@ function Dialog() {
     }
     setTeams((list) => (list ?? []).filter((t) => t.id !== selected.id));
     setSelectedId(null);
-    setScreen('pick');
+    void refreshTeams();
+    if (canMove) setScreen('pick');
+    else close();
+  };
+
+  /** Move the production into the selected team, then show that team - the place it now lives. */
+  const move = async () => {
+    if (!selected || !production) return;
+    setBusy(true);
+    setError(null);
+    // Re-read at the moment of the move: the page behind this dialog may have saved an edit since
+    // it opened, and the team must receive the production as it is now.
+    const current = loadShows().find((s) => s.id === production.id) ?? production;
+    const { error: err, warning } = await moveProductionToTeam(current, selected.id);
+    setBusy(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setMoved({ name: current.name, warning });
+    setScreen('team');
   };
 
   const copy = () => {
@@ -215,7 +252,8 @@ function Dialog() {
   const title =
     screen === 'create' ? 'New team'
     : screen === 'team' && selected ? `Team “${selected.name}”`
-    : `Share “${share.showName}” with a team`;
+    : screen === 'team' ? 'Team'
+    : `Share “${share.showName ?? production?.name ?? 'this production'}” with a team`;
 
   return (
     <div className="gallery-backdrop" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
@@ -271,8 +309,21 @@ function Dialog() {
             </>
           )}
 
+          {screen === 'team' && !selected && (
+            <p className={loadError ? 'status-bad' : 'hint'}>
+              {teams === null ? 'Loading the team…' : loadError ? 'The team could not be loaded.' : 'You are no longer in this team.'}
+            </p>
+          )}
+
           {screen === 'team' && selected && (
             <>
+              {moved && (
+                <p className="status-ok" data-testid="team-moved">
+                  “{moved.name}” is now in <TeamChip name={selected.name} />. Everyone in the team finds
+                  it on their Home, under the team’s name, and can edit, publish and operate it.
+                </p>
+              )}
+              {moved?.warning && <p className="status-bad">{moved.warning}</p>}
               <div className="team-codewrap">
                 <span className="team-codelabel">Join code</span>
                 <div className="team-code mono" data-testid="team-join-code">{selected.joinCode}</div>
@@ -332,26 +383,22 @@ function Dialog() {
             <>
               <button onClick={close}>Cancel</button>
               <div className="spacer" />
-              {/* Stage 4 (docs/TEAMS_PLAN.md §7) turns this on and makes it the primary again,
-                  swapping with the button beside it. It stays visible and disabled rather than
-                  hidden, because the reason it is off is the answer to the question the reader
-                  arrived with - and the sentence above the footer gives it. But it is NOT the
-                  primary while it does nothing: the loudest control on a screen has to be one
-                  that works, and here that is the one that gets the code out to the class. */}
               <button
-                disabled
-                title="Moving a production to a team arrives with the team productions list"
-                data-testid="move-to-team"
-              >
-                Move to team
-              </button>
-              <button
-                className="primary"
-                disabled={!selected}
+                disabled={!selected || busy}
                 onClick={() => { setError(null); setScreen('team'); }}
                 data-testid="open-team-details"
               >
                 Join code &amp; members
+              </button>
+              {/* The primary: what the reader opened a production's Share door to do. */}
+              <button
+                className="primary"
+                disabled={!selected || busy || !canMove}
+                onClick={() => void move()}
+                title={selected ? `Move this production into “${selected.name}”` : 'Pick a team first'}
+                data-testid="move-to-team"
+              >
+                {busy ? 'Moving…' : 'Move to team'}
               </button>
             </>
           )}
@@ -371,7 +418,11 @@ function Dialog() {
           )}
           {screen === 'team' && selected && (
             <>
-              <button onClick={() => { setError(null); setConfirmDelete(false); setScreen('pick'); }}>Back</button>
+              {/* Back only where there is somewhere to go back TO: opened on a team, or after a
+                  move, the pick screen would offer to share something that has nothing to share. */}
+              {canMove && !moved && (
+                <button onClick={() => { setError(null); setConfirmDelete(false); setScreen('pick'); }}>Back</button>
+              )}
               {/* The destructive control sits with Back, on the LEFT, and the spacer holds the
                   width of the dialog between it and the primary. Parked next to Done it was one
                   slipped click from deleting a team - and Done is the button a reader presses
@@ -475,12 +526,12 @@ function PickScreen({
         graphics. Every member can edit a team production’s rundown, republish its graphics and
         operate it.
       </p>
-      {/* The honest half. It is a sentence rather than a disabled tooltip because the reader
-          came here to move something, and a control that will not say why is worse than one
-          that will. Delete this line and enable the button together, in stage 4. */}
-      <p className="hint team-staged">
-        Moving a production into a team arrives with the team productions list. For now this is
-        where you set the team up and hand out its join code.
+      {/* What the move DOES, said before the press rather than discovered after it: the
+          production leaves your own list, and deleting it becomes the team owner's call. */}
+      <p className="hint" data-testid="move-explainer">
+        Moving takes the production out of your own list and into the team’s, where every member
+        sees it on their Home straight away. Its published links stay the same. Only the team
+        owner can delete it.
       </p>
     </>
   );

@@ -37,16 +37,21 @@ import GraphicsSection from './sections/GraphicsSection';
 import ProductionsSection from './sections/ProductionsSection';
 import VideosSection, { VideoList } from './sections/VideosSection';
 import LooksSection from './sections/LooksSection';
+import TeamsSection from './sections/TeamsSection';
+import { useTeamsAvailable } from '../teams/useTeamsAvailable';
+import { useTeamState } from '../teams/useTeamState';
 import { openNewEditor } from '../editorFoundation/openNewEditor';
-import { IconFilm, IconGrid, IconLink, IconPalette, IconSliders, IconTv } from '../icons';
+import { IconFilm, IconGrid, IconLink, IconPalette, IconSliders, IconTv, IconUsers } from '../icons';
 
-type Section = 'productions' | 'graphics' | 'videos' | 'looks';
+type Section = 'productions' | 'teams' | 'graphics' | 'videos' | 'looks';
 
 /** Productions lead (docs/GOALS_ARCHIVE.md "Student release" step 8) — the production is the unit that
  *  airs, so it is the first thing Home offers. Recent/Control-panels are retired sections: the
  *  dashboard covers "recent", and every graphic row reaches its control panel. */
 const SECTIONS: { id: Section; label: string; icon: ReactNode }[] = [
   { id: 'productions', label: 'Productions', icon: <IconTv /> },
+  // Only while the account is in a team - see `sections` below.
+  { id: 'teams', label: 'Teams', icon: <IconUsers /> },
   { id: 'graphics', label: 'Graphics', icon: <IconGrid /> },
   { id: 'videos', label: 'Videos', icon: <IconFilm /> },
   { id: 'looks', label: 'Brands', icon: <IconPalette /> },
@@ -67,6 +72,14 @@ export default function HomePage({ route }: { route: Route }) {
   // session; offline, `useAuthState` reports signed-in but there is no profile button at all.
   const { backendConfigured: hasBackend, status: authStatus } = useAuthState();
   const profileMenuShown = hasBackend && authStatus === 'signed-in';
+  // THE TEAMS SECTION IS LISTED ONLY FOR SOMEBODY IN A TEAM (docs/TEAMS_PLAN.md §6): a user who
+  // never opened the team door sees no nav item with the word in it, and one who was invited
+  // finds their team one click from anywhere on Home. `useTeamsAvailable` is the one gate, so the
+  // offline build can never list it.
+  const teamsAvailable = useTeamsAvailable();
+  const teamState = useTeamState();
+  const teamsShown = teamsAvailable && teamState.teams.length > 0;
+  const sections = SECTIONS.filter((s) => s.id !== 'teams' || teamsShown);
 
   // One nonce refreshes every list after any mutation (the model layer is the store).
   const [rev, setRev] = useState(0);
@@ -86,6 +99,7 @@ export default function HomePage({ route }: { route: Route }) {
   const productions = useMemo(() => loadShows(), [rev]);
   const videos = useMemo(() => listSavedVideoProjects(), [rev]);
   /* eslint-enable react-hooks/exhaustive-deps */
+  const personalCount = productions.filter((p) => !p.teamId).length;
 
   const [query, setQuery] = useState('');
   const [productionFilter, setProductionFilter] = useState<string | null>(null);
@@ -161,6 +175,7 @@ export default function HomePage({ route }: { route: Route }) {
   }, [productions, productionsByGraphic, searchFiltered]);
   const sectionCounts: Record<Section, number> = {
     productions: productions.length,
+    teams: teamState.teams.length,
     graphics: graphics.length,
     videos: videos.length,
     looks: looks.length,
@@ -184,7 +199,7 @@ export default function HomePage({ route }: { route: Route }) {
 
   /** null = the dashboard. Old bookmarks/specs naming the retired sections land there too. */
   const section: Section | null =
-    route.view === 'home' && SECTIONS.some((s) => s.id === route.section)
+    route.view === 'home' && sections.some((s) => s.id === route.section)
       ? (route.section as Section)
       : null;
 
@@ -229,7 +244,7 @@ export default function HomePage({ route }: { route: Route }) {
         {/* The topbar says WHERE you are, not just that you are home (handoff §5a): a routed
             section is a page, and the crumb is the only thing that says which one. */}
         <span className="tpl-name">
-          Home{section ? ` · ${SECTIONS.find((s) => s.id === section)?.label}` : ''}
+          Home{section ? ` · ${sections.find((s) => s.id === section)?.label}` : ''}
         </span>
         {/* The wizard door in the SHARED LEFT ORDER (owner walk, 2026-08-29) - logo, Home,
             ＋ New graphic. On Home the crumb beside the logo IS the Home control, so the door
@@ -260,7 +275,7 @@ export default function HomePage({ route }: { route: Route }) {
 
       <div className="home-body">
         <nav className="home-nav" aria-label="Home sections">
-          {SECTIONS.map((s) => (
+          {sections.map((s) => (
             <button
               key={s.id}
               className={s.id === section ? 'active' : ''}
@@ -301,9 +316,11 @@ export default function HomePage({ route }: { route: Route }) {
                 onChanged={refresh}
                 limit={5}
               />
-              {productions.length > 5 && (
+              {/* The dashboard caps YOUR productions at five; a team's are always all listed
+                  (ProductionsSection's TeamBands), so only your own can be behind this link. */}
+              {personalCount > 5 && (
                 <button className="link-inline" onClick={() => navigate({ view: 'home', section: 'productions' })}>
-                  View all {productions.length} productions →
+                  View all {personalCount} of your productions →
                 </button>
               )}
 
@@ -363,6 +380,10 @@ export default function HomePage({ route }: { route: Route }) {
               }}
               onChanged={refresh}
             />
+          )}
+
+          {section === 'teams' && (
+            <TeamsSection productions={productions} onOpen={(p) => navigate({ view: 'production', id: p.id })} />
           )}
 
           {section === 'graphics' && (

@@ -27,17 +27,25 @@ redundancy.
 
 ## What is here
 
-- **`teamsUi.ts`** - which production's share dialog is open. A module store because the door is
-  reached from two SIBLINGS (Home's production card menu, the production page header) and the
-  dialog mounts ONCE in `App.tsx`. Two mount points would put two dialogs on screen.
+- **`teamsUi.ts`** - which team dialog is open: `openShare` (from a production) or `openTeam`
+  (from a team - Home's bands, the Teams section, the production header). A module store because
+  the door is reached from SIBLINGS and the dialog mounts ONCE in `App.tsx`. Two mount points would
+  put two dialogs on screen.
 - **`ShareWithTeamDialog.tsx`** - the one door: three screens (`pick`, `create`, `team`) in one
   dialog because they are one errand. It fetches teams AND every member row it can see on open
   (RLS scopes both), so the pick list's member counts and the team screen's list come from one
-  query rather than one per row.
+  query rather than one per row. **Move to team** is the pick screen's primary. Opened on a team,
+  or from a production already in one, it starts on `team` and offers no Back - there is nothing
+  to share.
+- **`TeamSync.tsx`** - starts and stops `backend/teamProductions.ts` with the session, mounted
+  once in App so a cold link to a team production finds its record whatever surface it lands on.
+- **`useTeamState.ts`** - every team surface's read of that controller (teams, members, heads,
+  save state), through ONE external store so Home, the page and the dialogs render one fetch.
+- **`teamLabels.ts`** - "3 members · you own it" and the "edited by" time, printed one way.
 - **`JoinTeamDialog.tsx`** - route-driven, mounted by `App.tsx` on `#/join-team/<code>`.
 - **`TeamChip.tsx`** - one component so the amber-outlined chip is identical in every place a
-  thing belongs to a team. Stage 4 attaches it to team production cards and the production
-  header.
+  thing belongs to a team: the dialog, Home's team bands and team production cards, the Teams
+  section.
 - **`useTeamsAvailable.ts`** - the gate above.
 
 ## Three things that were defects, so do not undo them
@@ -54,10 +62,20 @@ redundancy.
   `height`, the same way Settings and the save dialog do. And `.destructive` has NO global rule -
   every surface writes its own - so a delete control without one looks like every other button.
 
-## Stage 3 is not the whole feature
+## A team is FOUND on Home, and only by somebody in one
 
-Moving a production INTO a team is stage 4 (`docs/TEAMS_PLAN.md` §7), which is why the primary
-action on the pick screen is disabled and a `.team-staged` sentence says so. Stage 4 enables it,
-swaps it back to primary, and deletes that sentence. Do not ship the button enabled before the
-team productions list exists: a moved production would leave the personal list and appear
-nowhere.
+Stage 4 (`docs/TEAMS_PLAN.md` §7) exists because an invited student could not
+find the team they had joined. So once an account is in a team, Home shows it in two places -
+"Shared with my teams" on the productions list (a band per team) and the **Teams** nav section -
+and the join's Done lands on a list that already has the band, because the join itself refetches
+(`refreshTeams`). `e2e/configured/teams.spec.ts` pins that with a five-second wait, shorter than
+the background tick, so a band that only arrives on the tick fails.
+
+Both places, and the "My productions" heading beside them, are drawn only for an account IN a
+team - never for one that merely could be. That is §6's rule restated for Home: the offline pins
+in `e2e/auth.spec.ts` cover all three test ids.
+
+A team production is edited through the ordinary production page. Its record lives in the
+in-memory team store (`model/teamShows.ts`) and every save goes out over compare-and-swap - so a
+surface here never writes `team_productions` itself except to MOVE or DELETE one, and never
+treats a team record as a personal one (`deleteShow` tombstones personal records only).

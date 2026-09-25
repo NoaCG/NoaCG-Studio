@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { createShow, deleteShow, type Show } from '../../../model/shows';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createShowNamedChecked, deleteShow, type Show } from '../../../model/shows';
 import { outputPageUrl, unpublishControlShow } from '../../../control/hostedControl';
 import { installPack, parsePack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
@@ -16,6 +16,11 @@ import GraphicThumb from '../GraphicThumb';
 import RowMenu from '../RowMenu';
 import { useTeamsUi } from '../../teams/teamsUi';
 import { useTeamsAvailable } from '../../teams/useTeamsAvailable';
+import { useTeamState } from '../../teams/useTeamState';
+import TeamChip from '../../teams/TeamChip';
+import { deleteTeamProduction, teamMemberName, type TeamProductionHead } from '../../../backend/teamProductions';
+import type { Team, TeamMember } from '../../../backend/teams';
+import { editedWhen, teamMeta } from '../../teams/teamLabels';
 import { IconDownload, IconLink, IconTrash, IconTv, IconUpload, IconUsers } from '../../icons';
 
 /**
@@ -55,6 +60,79 @@ function ProductionStats({ show, onBrowse }: { show: Show; onBrowse?: (showId: s
 }
 
 /**
+ * SHARED WITH MY TEAMS - one band per team this account is in, each headed by the team itself.
+ *
+ * The heading is the answer to "where is the team I was invited to": its chip, how many people are
+ * in it and whether it is yours, and the door to its members and join code. A team with nothing
+ * in it yet still gets its band, saying how something gets there - an empty list with no heading
+ * is exactly the "joined, and nothing happened" state this exists to end. Every team production
+ * is listed, in the dashboard too: the invitation is the news, and a cap would hide it.
+ */
+function TeamBands({
+  teams,
+  members,
+  loaded,
+  loadError,
+  productions,
+  userId,
+  renderCard,
+  onOpenTeam,
+}: {
+  teams: Team[];
+  members: TeamMember[];
+  loaded: boolean;
+  loadError: string | null;
+  productions: Show[];
+  userId: string | undefined;
+  renderCard: (show: Show) => ReactNode;
+  onOpenTeam: (teamId: string) => void;
+}) {
+  return (
+    <section className="team-bands" data-testid="team-productions">
+      <h3 className="prod-band-head">
+        Shared with my teams <span className="prod-band-count">{productions.length}</span>
+      </h3>
+      {!loaded && <p className="hint">Loading your teams…</p>}
+      {/* A failed refresh keeps what is on screen, and says so, rather than emptying the band. */}
+      {loadError && (
+        <p className="status-bad" data-testid="team-productions-error">
+          Your teams could not be refreshed ({loadError}). What is shown may be out of date.
+        </p>
+      )}
+      {teams.map((team) => {
+        const held = productions.filter((p) => p.teamId === team.id);
+        return (
+          <div className="team-band" key={team.id} data-testid={`team-band-${team.id}`}>
+            <div className="team-band-head">
+              <TeamChip name={team.name} />
+              <span className="team-band-meta">{teamMeta(team, members, userId)}</span>
+              <div className="spacer" />
+              <button
+                className="team-band-open"
+                onClick={() => onOpenTeam(team.id)}
+                title="See who is in the team, and the join code to invite someone"
+                data-testid="team-band-open"
+              >
+                <IconUsers />
+                Members &amp; join code
+              </button>
+            </div>
+            {held.length > 0 ? (
+              <div className="prod-grid">{held.map(renderCard)}</div>
+            ) : (
+              <p className="hint" data-testid="team-band-empty">
+                Nothing shared in this team yet. Anyone in it can open one of their own productions,
+                choose <strong>Share</strong> and move it here - it then appears for everybody.
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+/**
  * The Productions section — Home's LEAD (docs/GOALS_ARCHIVE.md "Student release" step 8): a production
  * is the unit that airs, so the dashboard door and the output URL are the two things one click
  * away. Everything about one production (graphics, cues, publish, operating) lives on its own
@@ -82,6 +160,11 @@ export default function ProductionsSection({
   // user who never opens the door never sees the word team" is made of.
   const teamsAvailable = useTeamsAvailable();
   const openShare = useTeamsUi((s) => s.openShare);
+  const openTeam = useTeamsUi((s) => s.openTeam);
+  const teamState = useTeamState();
+  // A team production's delete is a server round trip (and the team owner's alone), so it can
+  // fail after the confirm - the reason lands on the card that asked.
+  const [teamDeleteError, setTeamDeleteError] = useState<{ id: string; message: string } | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [exportShow, setExportShow] = useState<Show | null>(null);
@@ -93,17 +176,28 @@ export default function ProductionsSection({
   // listed here with Install until the user installs or dismisses it. Signed-in and backed only -
   // an offline build asks nothing and grows no row. `waitingConfirm` is the one package whose
   // Dismiss is asking "sure?", the same two-step the production Delete uses.
-  const { backendConfigured, signedIn } = useAuthState();
+  const { backendConfigured, signedIn, user } = useAuthState();
   const [waiting, setWaiting] = useState<WaitingPackage[]>([]);
   const [waitingNote, setWaitingNote] = useState<string | null>(null);
   const [waitingConfirm, setWaitingConfirm] = useState<string | null>(null);
-  const shown = limit ? productions.slice(0, limit) : productions;
+  // MINE AND THE TEAM'S, NEVER INTERLEAVED (TEAMS_PLAN §6, mockup `teams-home.html`). A production
+  // somebody shared with you through a team must be findable at a glance, and one mixed into your
+  // own list by date is not - so team productions get their own band per team, after yours.
+  const personal = productions.filter((p) => !p.teamId);
+  const teamProductions = productions.filter((p) => p.teamId);
+  // The bands exist once there is a team to show - never for a user in no team, who sees this
+  // section exactly as it always was (§6: the word "team" appears only after the door is opened).
+  const showTeams = teamsAvailable && (teamState.teams.length > 0 || teamProductions.length > 0);
+  const shown = limit ? personal.slice(0, limit) : personal;
+  // Open the record this call MADE, never "the last one in the list": team productions are listed
+  // after your own, so the last one is somebody's team production the moment you are in a team.
+  // A write that did not land opens nothing (the app-level storage alert says why).
   const create = () => {
-    const next = createShow(newName);
-    setNewName('');
+    const { show, error } = createShowNamedChecked(newName);
     onChanged();
-    const made = next[next.length - 1];
-    if (made) onOpen(made);
+    if (error) return;
+    setNewName('');
+    onOpen(show);
   };
 
   // Load the waiting list when a session appears, and again whenever the tab comes back into
@@ -191,6 +285,168 @@ export default function ProductionsSection({
     await importPackText(file.name, await file.text());
   };
 
+  /**
+   * One production's card. A TEAM production (`teamId`) is the same card with three differences:
+   * it wears the team's chip and "edited by", its overflow menu opens the team rather than the
+   * share door, and only the team's owner is offered Delete (migration 0054, ruling 3) - a member
+   * who pressed it would be refused by the database, which is a worse way to find out.
+   */
+  const productionCard = (r: Show) => {
+    const team = r.teamId ? teamState.teams.find((t) => t.id === r.teamId) ?? null : null;
+    const head: TeamProductionHead | undefined = teamState.heads[r.id];
+    const canDelete = !r.teamId || (team !== null && team.ownerId === user?.id);
+    return (
+    <div
+      className={`prod-card${r.hostedSlug ? ' live' : ''}${team ? ' team' : ''}`}
+      key={r.id}
+      data-testid={`production-row-${r.id}`}
+      data-team={team?.id}
+    >
+      <div className="prod-card-head">
+        {/* The NAME is the card's own door — reaching for "Open dashboard" for every
+            open was an acceptance-round papercut. */}
+        <button
+          className="lib-name-link"
+          onClick={() => onOpen(r)}
+          title={`Open "${r.name}"`}
+          data-testid="open-production-name"
+        >
+          <strong>{r.name}</strong>
+        </button>
+        <span className={`prod-badge${r.hostedSlug ? ' live' : ''}`}>
+          {r.hostedSlug ? '● Live' : 'Idle'}
+        </span>
+        <div className="spacer" />
+        {!canDelete ? null : confirmDelete === r.id ? (
+          <button
+            className="destructive"
+            onClick={() => {
+              if (team) {
+                // A team production is deleted on the server - both planes, the team
+                // owner's call (backend/teamProductions.ts) - never by a local tombstone.
+                setConfirmDelete(null);
+                setTeamDeleteError(null);
+                void deleteTeamProduction(r).then(({ error }) => {
+                  if (error) setTeamDeleteError({ id: r.id, message: error });
+                  onChanged();
+                });
+                return;
+              }
+              // A DELETED PRODUCTION STOPS BEING PUBLISHED (docs/CLOUD_PLAYOUT.md,
+              // "Publication lifecycle"). Deleting used to tombstone the local record only,
+              // and its output URL and control page stayed live on the server forever -
+              // five of nineteen publications were that, measured 2026-09-23. The request
+              // is fire-and-forget: offline, signed out or on another account's row it
+              // does nothing, and the nightly sweep (migration 0061) unpublishes whatever
+              // a deleted production left behind.
+              if (r.hostedSlug) void unpublishControlShow(r.id).catch(() => undefined);
+              deleteShow(r.id);
+              setConfirmDelete(null);
+              onChanged();
+            }}
+            title={
+              team
+                ? 'Delete this production for everyone in the team. Its links stop working if it is published.'
+                : r.hostedSlug
+                ? 'Delete this production. It is published, so its output and control links stop working. Its graphics stay saved wherever else they live.'
+                : 'Delete this production (its graphics stay saved wherever else they live)'
+            }
+            data-testid="production-delete-confirm"
+          >
+            {team ? 'Delete for the team?' : r.hostedSlug ? 'Delete and unpublish?' : 'Delete?'}
+          </button>
+        ) : (
+          <button onClick={() => setConfirmDelete(r.id)} title="Delete this production" aria-label={`Delete ${r.name}`}>
+            <IconTrash />
+          </button>
+        )}
+        {/* The overflow menu exists only when it has something in it. Delete stays a
+            visible button: it is this card's oldest action and moving it would relocate a
+            control people already know for the sake of tidiness. */}
+        {teamsAvailable && (
+          <RowMenu
+            label={`More actions for ${r.name}`}
+            items={[
+              team
+                ? {
+                    label: 'Team members & join code…',
+                    icon: <IconUsers />,
+                    onClick: () => openTeam(team.id),
+                    testid: 'open-team',
+                  }
+                : {
+                    label: 'Share with a team…',
+                    icon: <IconUsers />,
+                    onClick: () => openShare(r.id, r.name),
+                    testid: 'share-with-team',
+                  },
+            ]}
+          />
+        )}
+      </div>
+
+      {/* WHOSE IT IS AND WHO TOUCHED IT LAST (TEAMS_PLAN §6): the team's chip and "edited
+          by" from the server row, so a shared production never passes for one of yours. */}
+      {team && (
+        <p className="prod-card-team" data-testid="team-production-meta">
+          <TeamChip name={team.name} />
+          {head && (
+            <span>
+              edited by {teamMemberName(team.id, head.updatedBy)}, {editedWhen(head.updatedAt)}
+            </span>
+          )}
+        </p>
+      )}
+      {teamDeleteError?.id === r.id && <p className="status-bad">{teamDeleteError.message}</p>}
+
+      <ProductionStats show={r} onBrowse={onBrowseGraphics} />
+
+      {/* What is actually in it. Four is the strip's width, and the remainder is
+          counted rather than dropped silently. */}
+      {r.graphics.length > 0 && (
+        <div className="prod-card-strip">
+          {r.graphics.slice(0, 4).map((g) => (
+            <GraphicThumb key={g.id} template={g.template} label={g.name} />
+          ))}
+          {r.graphics.length > 4 && (
+            <span className="prod-card-more">+{r.graphics.length - 4}</span>
+          )}
+        </div>
+      )}
+
+      <div className="prod-card-actions">
+        <button className="primary" onClick={() => onOpen(r)} data-testid="open-production">
+          Open dashboard
+        </button>
+        {r.outputSlug && (
+          <button
+            onClick={() => {
+              void copyLink(outputPageUrl(r.outputSlug!)).then((ok) => {
+                if (!ok) return;
+                setCopiedLink(r.id);
+                setTimeout(() => setCopiedLink((c) => (c === r.id ? null : c)), 2000);
+              });
+            }}
+            title="Copy the browser-output URL (the one your playout client loads)"
+            data-testid="copy-production-output"
+          >
+            {copiedLink === r.id ? '✓ Copied' : <><IconLink /> Output URL</>}
+          </button>
+        )}
+        <button
+          onClick={() => setExportShow(r)}
+          disabled={r.graphics.length === 0}
+          title="Export every graphic of this production — OGraf, CasparCG, SPX, OBS/vMix overlay, H2R, LiveOS"
+          aria-label={`Export ${r.name}`}
+          data-testid="export-production-row"
+        >
+          <IconDownload />
+        </button>
+      </div>
+    </div>
+    );
+  };
+
   return (
     <>
       {heading && (
@@ -251,129 +507,26 @@ export default function ProductionsSection({
           {waitingNote && <p className="status-bad">{waitingNote}</p>}
         </div>
       )}
-      {productions.length === 0 && (
-        <p className="hint" data-testid="no-productions">No productions yet — name one below, then add graphics and cues.</p>
+      {/* The band heading appears only beside a team band: a user in no team keeps the one list
+          they always had, with no word added to it. */}
+      {showTeams && (
+        <h3 className="prod-band-head" data-testid="my-productions-head">
+          My productions <span className="prod-band-count">{personal.length}</span>
+        </h3>
+      )}
+      {personal.length === 0 && (
+        <p className="hint" data-testid="no-productions">
+          {showTeams
+            ? 'None of your own yet. Name one below; what your teams share is listed under each team.'
+            : 'No productions yet — name one below, then add graphics and cues.'}
+        </p>
       )}
       {/* CARDS, not rows (re-design/handoff.md §5a). A production is the unit that airs — it
           has a state, a size, and a set of graphics — and a one-line row could show none of
           that. The card leads with its name and whether it is published, then what is in it,
           then a strip of the graphics themselves, then the ways to open and take it away. */}
       <div className="prod-grid">
-        {shown.map((r) => (
-          <div
-            className={`prod-card${r.hostedSlug ? ' live' : ''}`}
-            key={r.id}
-            data-testid={`production-row-${r.id}`}
-          >
-            <div className="prod-card-head">
-              {/* The NAME is the card's own door — reaching for "Open dashboard" for every
-                  open was an acceptance-round papercut. */}
-              <button
-                className="lib-name-link"
-                onClick={() => onOpen(r)}
-                title={`Open "${r.name}"`}
-                data-testid="open-production-name"
-              >
-                <strong>{r.name}</strong>
-              </button>
-              <span className={`prod-badge${r.hostedSlug ? ' live' : ''}`}>
-                {r.hostedSlug ? '● Live' : 'Idle'}
-              </span>
-              <div className="spacer" />
-              {confirmDelete === r.id ? (
-                <button
-                  className="destructive"
-                  onClick={() => {
-                    // A DELETED PRODUCTION STOPS BEING PUBLISHED (docs/CLOUD_PLAYOUT.md,
-                    // "Publication lifecycle"). Deleting used to tombstone the local record only,
-                    // and its output URL and control page stayed live on the server forever -
-                    // five of nineteen publications were that, measured 2026-09-23. The request
-                    // is fire-and-forget: offline, signed out or on another account's row it
-                    // does nothing, and the nightly sweep (migration 0061) unpublishes whatever
-                    // a deleted production left behind.
-                    if (r.hostedSlug) void unpublishControlShow(r.id).catch(() => undefined);
-                    deleteShow(r.id);
-                    setConfirmDelete(null);
-                    onChanged();
-                  }}
-                  title={
-                    r.hostedSlug
-                      ? 'Delete this production. It is published, so its output and control links stop working. Its graphics stay saved wherever else they live.'
-                      : 'Delete this production (its graphics stay saved wherever else they live)'
-                  }
-                  data-testid="production-delete-confirm"
-                >
-                  {r.hostedSlug ? 'Delete and unpublish?' : 'Delete?'}
-                </button>
-              ) : (
-                <button onClick={() => setConfirmDelete(r.id)} title="Delete this production" aria-label={`Delete ${r.name}`}>
-                  <IconTrash />
-                </button>
-              )}
-              {/* The overflow menu exists only when it has something in it. Delete stays a
-                  visible button: it is this card's oldest action and moving it would relocate a
-                  control people already know for the sake of tidiness. */}
-              {teamsAvailable && (
-                <RowMenu
-                  label={`More actions for ${r.name}`}
-                  items={[
-                    {
-                      label: 'Share with a team…',
-                      icon: <IconUsers />,
-                      onClick: () => openShare(r.id, r.name),
-                      testid: 'share-with-team',
-                    },
-                  ]}
-                />
-              )}
-            </div>
-
-            <ProductionStats show={r} onBrowse={onBrowseGraphics} />
-
-            {/* What is actually in it. Four is the strip's width, and the remainder is
-                counted rather than dropped silently. */}
-            {r.graphics.length > 0 && (
-              <div className="prod-card-strip">
-                {r.graphics.slice(0, 4).map((g) => (
-                  <GraphicThumb key={g.id} template={g.template} label={g.name} />
-                ))}
-                {r.graphics.length > 4 && (
-                  <span className="prod-card-more">+{r.graphics.length - 4}</span>
-                )}
-              </div>
-            )}
-
-            <div className="prod-card-actions">
-              <button className="primary" onClick={() => onOpen(r)} data-testid="open-production">
-                Open dashboard
-              </button>
-              {r.outputSlug && (
-                <button
-                  onClick={() => {
-                    void copyLink(outputPageUrl(r.outputSlug!)).then((ok) => {
-                      if (!ok) return;
-                      setCopiedLink(r.id);
-                      setTimeout(() => setCopiedLink((c) => (c === r.id ? null : c)), 2000);
-                    });
-                  }}
-                  title="Copy the browser-output URL (the one your playout client loads)"
-                  data-testid="copy-production-output"
-                >
-                  {copiedLink === r.id ? '✓ Copied' : <><IconLink /> Output URL</>}
-                </button>
-              )}
-              <button
-                onClick={() => setExportShow(r)}
-                disabled={r.graphics.length === 0}
-                title="Export every graphic of this production — OGraf, CasparCG, SPX, OBS/vMix overlay, H2R, LiveOS"
-                aria-label={`Export ${r.name}`}
-                data-testid="export-production-row"
-              >
-                <IconDownload />
-              </button>
-            </div>
-          </div>
-        ))}
+        {shown.map(productionCard)}
         {/* The way to make one, as the grid's last card — the reference's dashed slot. A
             create row above the list read as a stray form; here it is one of the choices. */}
         <div className="prod-card prod-card-new">
@@ -430,6 +583,18 @@ export default function ProductionsSection({
           </div>
         )}
       </div>
+      {showTeams && (
+        <TeamBands
+          teams={teamState.teams}
+          members={teamState.members}
+          loaded={teamState.loaded}
+          loadError={teamState.loadError}
+          productions={teamProductions}
+          userId={user?.id}
+          renderCard={productionCard}
+          onOpenTeam={openTeam}
+        />
+      )}
       {exportShow && <ProductionExportDialog show={exportShow} onClose={() => setExportShow(null)} />}
     </>
   );

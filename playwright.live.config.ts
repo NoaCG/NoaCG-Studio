@@ -12,6 +12,8 @@ const fileEnv = loadEnv('development', process.cwd(), '');
 for (const key of [
   'E2E_EMAIL',
   'E2E_PASSWORD',
+  'E2E_TEAMMATE_EMAIL',
+  'E2E_TEAMMATE_PASSWORD',
   'SUPABASE_SERVICE_ROLE_KEY',
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',

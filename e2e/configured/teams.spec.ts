@@ -1,8 +1,19 @@
 import { test, expect } from '@playwright/test';
-import { dismissWizard, haveCreds, shot, signIn, SUPABASE_URL } from './_helpers';
+import {
+  dismissWizard,
+  E2E_TEAMMATE_EMAIL,
+  E2E_TEAMMATE_PASSWORD,
+  haveCreds,
+  haveTeammateCreds,
+  shot,
+  signIn,
+  signInAs,
+  SUPABASE_URL,
+} from './_helpers';
 import { FAKE_JOIN_ROUTE, TEAM } from '../_teams';
 
-// Teams, stage 3 (docs/TEAMS_PLAN.md §7): the DOOR, in both of its shapes.
+// Teams (docs/TEAMS_PLAN.md §7): the DOOR in both of its shapes (stage 3), and - with a second
+// account - the invited teammate FINDING the team and what it holds (stage 4).
 //
 // This spec is the other half of the offline pin in e2e/auth.spec.ts. That one asserts the team
 // ids have count 0 with no backend; this one asserts the SAME ids (both import e2e/_teams.ts) are
@@ -95,8 +106,8 @@ test.describe('teams: the share door', () => {
       await expect(door).toBeVisible();
       await door.click();
       await expect(page.getByTestId(TEAM.dialog)).toBeVisible();
-      // The dialog is honest about what stage 3 does not do: moving is off, and says why.
-      await expect(page.getByTestId('move-to-team')).toBeDisabled();
+      // The pick screen says what a move does before anybody presses it.
+      await expect(page.getByTestId('move-explainer')).toBeVisible();
       // Shoot the SETTLED screen. Taken before the fetch lands, the review shot is a picture of
       // the word "Loading", which tells a reader nothing about the screen they are reviewing.
       //
@@ -209,6 +220,121 @@ test.describe('teams: the share door', () => {
         await stray.getByTestId('production-delete-confirm').click();
       }
       await expect(page.locator('[data-testid^="production-row-"]', { hasText: showName })).toHaveCount(0);
+    });
+  });
+  // ── Two accounts: the invitation is FOUND ─────────────────────────────────────────────────────
+  // The defect this walk exists for (2026-09-25): a student joined their teacher's team and could
+  // not find the team, nor anything it held, without searching - a team was reachable only through
+  // a production's Share door, and a new member owns no production to open one from. Now the
+  // team's band is on the productions list and the team is in Home's nav, both there on the very
+  // screen the join's Done lands on, with no reload. B then edits it, and A reads that edit back through
+  // the compare-and-swap save, "edited by" and all.
+  test.describe('two accounts', () => {
+    test.skip(!haveCreds || !haveTeammateCreds, 'set E2E_TEAMMATE_EMAIL and E2E_TEAMMATE_PASSWORD for the two-person walk');
+    test.setTimeout(180_000);
+
+    test('an invited teammate finds the team and its production on Home, and both edit it', async ({ browser }) => {
+      const ownerContext = await browser.newContext();
+      const mateContext = await browser.newContext();
+      const owner = await ownerContext.newPage();
+      const mate = await mateContext.newPage();
+      // `E2E team ` prefix, so the sweep in the walk above deletes it if this run dies mid-way.
+      const teamName = `${TEAM_NAME()} shared`;
+      const showName = `Team share walk ${Date.now()}`;
+      try {
+        // A makes a production and a team, then MOVES the production into the team.
+        await signIn(owner);
+        await dismissWizard(owner);
+        await declineAnalytics(owner);
+        await owner.goto('/app#/home/productions');
+        await owner.getByTestId('new-production-name').fill(showName);
+        await owner.getByTestId('new-production').click();
+        await expect(owner.getByTestId('production-page')).toBeVisible();
+        const showId = owner.url().split('#/production/')[1]?.split('/')[0] ?? '';
+        expect(showId).toMatch(/^[0-9a-f-]{36}$/);
+
+        await owner.getByTestId(TEAM.door).click();
+        await owner.getByTestId(TEAM.newTeam).click();
+        await owner.getByTestId(TEAM.newTeamName).fill(teamName);
+        await owner.getByTestId(TEAM.newTeamDisplayName).fill('Anna Owner');
+        await owner.getByTestId(TEAM.createTeam).click();
+        const code = ((await owner.getByTestId(TEAM.joinCode).textContent({ timeout: 20_000 })) ?? '').trim();
+        expect(code).toMatch(/^[A-Za-z0-9_-]{8}$/);
+        // Back to the pick screen, where the new team is selected, and move.
+        await owner.getByRole('button', { name: 'Back', exact: true }).click();
+        await owner.locator('.team-pickrow', { hasText: teamName }).click();
+        await owner.getByTestId(TEAM.moveToTeam).click();
+        await expect(owner.getByTestId(TEAM.moved)).toBeVisible({ timeout: 20_000 });
+        await shot(owner, 'teams-moved');
+        await owner.getByRole('button', { name: 'Done', exact: true }).click();
+        // The page stays on the same production - same id - now wearing the team's chip.
+        await expect(owner.getByTestId(TEAM.productionTeam)).toContainText(teamName);
+        await shot(owner, 'teams-production-header');
+
+        // On A's Home it has LEFT "My productions" and sits in the team's band.
+        await owner.goto('/app#/home/productions');
+        await expect(owner.getByTestId(TEAM.myProductionsHead)).toBeVisible({ timeout: 20_000 });
+        const ownerBand = owner.locator('[data-testid^="team-band-"]', { hasText: teamName });
+        await expect(ownerBand.getByTestId(`production-row-${showId}`)).toBeVisible();
+        await expect(owner.locator('.prod-grid').first().getByTestId(`production-row-${showId}`)).toHaveCount(0);
+        await shot(owner, 'teams-home-owner');
+
+        // B joins from the link, and Done lands on a Home that ALREADY shows the team's band and
+        // its production - no reload, no search.
+        await signInAs(mate, E2E_TEAMMATE_EMAIL, E2E_TEAMMATE_PASSWORD);
+        await dismissWizard(mate);
+        await declineAnalytics(mate);
+        await mate.goto(`/app#/join-team/${code}`);
+        await mate.getByTestId(TEAM.joinDisplayName).fill('Ben Teammate');
+        await mate.getByTestId(TEAM.join).click();
+        await expect(mate.getByTestId(TEAM.joinDone)).toBeVisible({ timeout: 20_000 });
+        await shot(mate, 'teams-join-done-says-where');
+        await mate.getByTestId('join-team-done-close').click();
+        const mateBand = mate.locator('[data-testid^="team-band-"]', { hasText: teamName });
+        // FIVE seconds, deliberately short: the background refresh ticks every 15 s, so a band
+        // that only arrives on the tick fails here. "Immediately" means the join fetched it.
+        await expect(mateBand).toBeVisible({ timeout: 5_000 });
+        const mateCard = mateBand.getByTestId(`production-row-${showId}`);
+        await expect(mateCard).toBeVisible();
+        await expect(mateCard.getByTestId(TEAM.chip)).toContainText(teamName);
+        await expect(mateCard.getByTestId('team-production-meta')).toContainText('edited by Anna Owner');
+        await shot(mate, 'teams-home-shared-band');
+
+        // The Teams section: one click from anywhere on Home, naming who is in it.
+        await mate.getByTestId(TEAM.navTeams).click();
+        const teamCard = mate.getByTestId(TEAM.teamsSection).locator('.team-card', { hasText: teamName });
+        await expect(teamCard.getByTestId('team-card-members')).toContainText('Anna Owner (owner)');
+        await expect(teamCard.getByTestId('team-card-members')).toContainText('you');
+        await shot(mate, 'teams-section');
+
+        // B opens it from there and makes an edit: a data table, on the Data workspace.
+        await teamCard.getByTestId('team-card-production').filter({ hasText: showName }).click();
+        await expect(mate.getByTestId(TEAM.productionTeam)).toContainText(teamName);
+        await mate.goto(`/app#/production/${showId}/data`);
+        await mate.getByTestId('add-dataset').click();
+        await expect(mate.getByTestId('dataset-name')).toHaveCount(1);
+        // The save has reached the server once the header stops saying "Saving…".
+        await expect(mate.getByTestId('production-team-save')).toContainText('edited by you', { timeout: 20_000 });
+
+        // A opens the production COLD (a reload - the path a teammate's link takes) and reads
+        // B's edit and B's name off the server row.
+        await owner.goto(`/app#/production/${showId}/data`);
+        await owner.reload();
+        await expect(owner.getByTestId('dataset-name')).toHaveCount(1, { timeout: 20_000 });
+        await expect(owner.getByTestId('production-team-save')).toContainText('edited by Ben Teammate');
+      } finally {
+        // Deleting the team cascades its productions (0054) and B's membership with them.
+        await owner.goto('/app#/home/teams').catch(() => undefined);
+        const card = owner.locator('.team-card', { hasText: teamName });
+        if (await card.count().catch(() => 0)) {
+          await card.getByTestId('team-card-open').click();
+          await owner.getByTestId(TEAM.deleteTeam).click();
+          await owner.getByTestId(TEAM.deleteTeam).click();
+          await expect(owner.locator('.team-card', { hasText: teamName })).toHaveCount(0, { timeout: 20_000 });
+        }
+        await ownerContext.close();
+        await mateContext.close();
+      }
     });
   });
 });

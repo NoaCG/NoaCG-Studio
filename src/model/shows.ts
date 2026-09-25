@@ -13,6 +13,7 @@ import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
 import { durable } from './durableStore';
 import { uuid } from './id';
+import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -215,6 +216,17 @@ export interface Show {
   updatedAt: string;
   /** Soft-delete tombstone (hidden from the UI, kept so the delete syncs). See Packet.deleted. */
   deleted?: boolean;
+  /**
+   * The TEAM that holds this production (docs/TEAMS_PLAN.md §4), present only on a record read
+   * from the server's `team_productions` - the column there is the authority, and this is a copy
+   * of it so every reader can tell a team production from a personal one without asking.
+   *
+   * NEVER PERSISTED HERE. `saveAll` routes a record carrying it to the in-memory team store
+   * (model/teamShows.ts) instead of this browser's own list, and the server save strips it
+   * (backend/teamProductions.ts `teamDoc`), so neither plane stores a second copy of the answer.
+   * ADDITIVE OPTIONAL: absent means a personal production, which is every record written before.
+   */
+  teamId?: string;
 }
 
 const SHOWS_KEY = 'spx-gfx-shows';
@@ -230,9 +242,31 @@ function notifyDataChanged(): void {
   }
 }
 
+/**
+ * Persist a list the save envelope read and mutated.
+ *
+ * TWO DESTINATIONS. A record carrying `teamId` is a team production and goes back to the in-memory
+ * team store, which pushes a changed one to the server (model/teamShows.ts); everything else is
+ * this browser's own list. A personal record HIDDEN behind a team production of the same id - the
+ * tombstone a move leaves behind - is never handed to a mutator (`readEditable` skips it), so it is
+ * carried over from what is stored rather than dropped: that tombstone is how the move reaches
+ * this account's other devices.
+ */
 function saveAll(list: Show[]): string | null {
+  const personal: Show[] = [];
+  for (const show of list) {
+    if (show.teamId) writeTeamShow(show);
+    else personal.push(show);
+  }
+  const shadowed = teamShowIds();
+  if (shadowed.size > 0) {
+    const present = new Set(personal.map((s) => s.id));
+    for (const hidden of loadAllShows()) {
+      if (shadowed.has(hidden.id) && !present.has(hidden.id)) personal.push(hidden);
+    }
+  }
   try {
-    durable.setItem(SHOWS_KEY, JSON.stringify(list));
+    durable.setItem(SHOWS_KEY, JSON.stringify(personal));
     notifyDataChanged();
     return null;
   } catch {
@@ -240,9 +274,10 @@ function saveAll(list: Show[]): string | null {
   }
 }
 
-/** All shows INCLUDING tombstones — for the sync engine. Back-fills a stable sync timestamp
- *  and normalizes the format stamp on read (pure read-shape: no updatedAt bump, so a record
- *  never looks freshly edited just because a newer build read it). */
+/** All PERSONAL shows INCLUDING tombstones — for the sync engine, which must never see a team
+ *  production (TEAMS_PLAN §2: team rows live outside the LWW mirror). Back-fills a stable sync
+ *  timestamp and normalizes the format stamp on read (pure read-shape: no updatedAt bump, so a
+ *  record never looks freshly edited just because a newer build read it). */
 export function loadAllShows(): Show[] {
   try {
     const list = JSON.parse(durable.getItem(SHOWS_KEY) ?? '[]') as Show[];
@@ -252,9 +287,22 @@ export function loadAllShows(): Show[] {
   }
 }
 
-/** Live shows for the UI (tombstones hidden). */
+/**
+ * What the UI and every mutator below edit: this browser's own productions, then the team
+ * productions this tab holds. ONE HOME PER PRODUCTION (TEAMS_PLAN §4): a production moved into a
+ * team keeps its id - the published links are keyed by it - so a personal record with a team
+ * record's id is the move's tombstone and stays out of sight here.
+ */
+function readEditable(): Show[] {
+  const team = loadTeamShows();
+  if (team.length === 0) return loadAllShows();
+  const ids = new Set(team.map((s) => s.id));
+  return [...loadAllShows().filter((s) => !ids.has(s.id)), ...team];
+}
+
+/** Live shows for the UI (tombstones hidden), team productions included. */
 export function loadShows(): Show[] {
-  return loadAllShows().filter((s) => !s.deleted);
+  return readEditable().filter((s) => !s.deleted);
 }
 
 /** The live productions whose pool holds a copy of this LIBRARY graphic (SavedGraphic's
@@ -342,7 +390,7 @@ export function addGraphicToShow(
   template: SpxTemplate,
   opts?: { graphicId?: string | null },
 ): { shows: Show[]; error: string | null } {
-  const all = loadAllShows();
+  const all = readEditable();
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: all.filter((s) => !s.deleted), error: 'That show no longer exists.' };
   const existing = show.graphics.findIndex((g) => g.name === template.name);
@@ -379,7 +427,7 @@ export function addGraphicToShow(
 }
 
 export function removeShowGraphic(showId: string, graphicId: string): Show[] {
-  const all = loadAllShows();
+  const all = readEditable();
   const show = all.find((s) => s.id === showId);
   if (show) {
     show.graphics = show.graphics.filter((g) => g.id !== graphicId);
@@ -408,7 +456,7 @@ export function removeShowGraphic(showId: string, graphicId: string): Show[] {
  * almost always, which is how it survived until a loaded suite hit the boundary.
  */
 function patchShow(showId: string, mutate: (show: Show, at: string) => boolean): Show[] {
-  const all = loadAllShows();
+  const all = readEditable();
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (show) {
     const at = nowIso();
@@ -1121,7 +1169,7 @@ export function duplicateLayers(graphics: SavedGraphic[]): Map<number, SavedGrap
 /** Set one pool graphic's playout layer. Out-of-range values clamp rather than refuse — the
  *  control is a number input and a half-typed "1" must not be rejected mid-keystroke. */
 export function setShowGraphicLayer(showId: string, graphicId: string, layer: number): Show[] {
-  const all = loadAllShows();
+  const all = readEditable();
   const show = all.find((s) => s.id === showId && !s.deleted);
   const graphic = show?.graphics.find((g) => g.id === graphicId);
   if (show && graphic) {
@@ -1134,7 +1182,7 @@ export function setShowGraphicLayer(showId: string, graphicId: string, layer: nu
 }
 
 export function moveShowGraphic(showId: string, graphicId: string, dir: -1 | 1): Show[] {
-  const all = loadAllShows();
+  const all = readEditable();
   const show = all.find((s) => s.id === showId);
   if (show) {
     const i = show.graphics.findIndex((g) => g.id === graphicId);
@@ -1152,7 +1200,7 @@ export function moveShowGraphic(showId: string, graphicId: string, dir: -1 | 1):
 
 /** Record (or clear, with undefined) a show's hosted control slug after (un)publishing. */
 export function setShowHostedSlug(showId: string, slug: string | undefined): Show[] {
-  const all = loadAllShows();
+  const all = readEditable();
   const show = all.find((s) => s.id === showId);
   if (show) {
     if (slug) show.hostedSlug = slug;
@@ -1163,7 +1211,11 @@ export function setShowHostedSlug(showId: string, slug: string | undefined): Sho
   return all.filter((s) => !s.deleted);
 }
 
-/** Delete = tombstone (strip payload, keep the id + fresh timestamp) so the delete syncs. */
+/** Delete = tombstone (strip payload, keep the id + fresh timestamp) so the delete syncs.
+ *  PERSONAL records only: a team production is the team owner's to delete, on the server
+ *  (backend/teamProductions.ts), and a tombstone here would never reach the team. It is also
+ *  the second half of a MOVE, which is why it reads the personal list even while a team record
+ *  of the same id is in view. */
 export function deleteShow(showId: string): Show[] {
   const all = loadAllShows();
   const show = all.find((s) => s.id === showId);

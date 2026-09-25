@@ -191,6 +191,10 @@ import { IconDownload, IconTv, IconUsers } from '../icons';
 import PlayoutSettingsDialog, { PlayoutTargetButton } from '../PlayoutSettingsDialog';
 import { useTeamsUi } from '../teams/teamsUi';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
+import { useTeamState } from '../teams/useTeamState';
+import { editedWhen } from '../teams/teamLabels';
+import { teamShowsStatus } from '../../model/teamShows';
+import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
 
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
@@ -280,7 +284,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const show: Show | null = shows.find((s) => s.id === id) ?? null;
 
   const backendConfigured = isBackendConfigured();
-  const { needsSignIn, status: authStatus } = useAuthState();
+  const { needsSignIn, status: authStatus, user } = useAuthState();
+  const teamState = useTeamState();
+  const teamsOn = useTeamsAvailable();
   const openSignIn = useAuthUi((s) => s.openSignIn);
   const signInOpen = useAuthUi((s) => s.signInOpen);
   /**
@@ -1500,10 +1506,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           <a className="brand brand-home" href="/" title="NoaCG Studio front page">
             <BrandLogo size={24} />
           </a>
-          <span className="tpl-name">Production not found</span>
+          <span className="tpl-name">{teamShowsStatus() === 'loading' ? 'Opening production…' : 'Production not found'}</span>
         </header>
         <main className="home-content" style={{ padding: 24 }}>
-          <p className="hint">This production no longer exists.</p>
+          {/* A TEAM production opened cold - a teammate's link, a reload - arrives with the
+              first team fetch, a moment after this page. Saying "no longer exists" for that
+              moment tells somebody their team's work is gone. */}
+          <p className="hint" data-testid={teamShowsStatus() === 'loading' ? 'production-loading' : 'production-missing'}>
+            {teamShowsStatus() === 'loading'
+              ? 'Loading your team productions…'
+              : teamsOn
+                ? 'This production no longer exists, or it belongs to a team you are not in.'
+                : 'This production no longer exists.'}
+          </p>
           <div className="row">
             <button onClick={() => goBack({ view: 'home', section: 'productions' })} data-testid="production-back">
               ← Back
@@ -1742,6 +1757,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   const unpublish = async () => {
     if (accountBlocks(UNPUBLISH_NEEDS_ACCOUNT)) return;
+    // Taking a TEAM production off air is the team owner's call (migration 0054, ruling 3), and
+    // the database refuses anybody else without saying so - the delete simply matches no row. So
+    // it is said here, before the local record is told a publication ended that did not.
+    const team = show.teamId ? teamState.teams.find((t) => t.id === show.teamId) : null;
+    if (show.teamId && team?.ownerId !== user?.id) {
+      setNote('Only the team owner can unpublish a team production. You can still republish it, and operate it.');
+      return;
+    }
     setBusy(true);
     try {
       await unpublishControlShow(show.id);
@@ -3855,6 +3878,15 @@ function ProductionShell({
   usePlayoutVerbKeys(onKey, sub === null);
   const teamsAvailable = useTeamsAvailable();
   const openShare = useTeamsUi((s) => s.openShare);
+  const openTeam = useTeamsUi((s) => s.openTeam);
+  const teamState = useTeamState();
+  // A TEAM production says so in the header: its team's chip (the door to the team), who saved
+  // it last, and whether this tab's own edit has reached the server yet (TEAMS_PLAN §6).
+  const team = show.teamId ? teamState.teams.find((t) => t.id === show.teamId) ?? null : null;
+  const head = teamState.heads[show.id];
+  const saving = teamState.saving[show.id];
+  const teamNote = teamState.notes[show.id];
+  const edited = team && head ? `edited by ${teamMemberName(team.id, head.updatedBy)}, ${editedWhen(head.updatedAt)}` : '';
 
   return (
     <div className="app playout-dashboard" data-testid="production-page">
@@ -3974,7 +4006,26 @@ function ProductionShell({
             else" controls and a header's width away from ■ All out. It is absent offline and
             signed out - `useTeamsAvailable` is the one gate, and this surface asks it rather
             than testing the auth state itself. */}
-        {teamsAvailable && (
+        {/* A TEAM production's door is its team, in the Share button's place and on the same
+            width budget: the team's name gives way to the people icon under 1440px exactly as
+            Share's word does, and "edited by" rides the tooltip until 1600px. Saving… and Not
+            saved are never hidden - they are the two states an operator must not miss. */}
+        {teamsAvailable && team && (
+          <button
+            className="pd-team"
+            onClick={() => openTeam(team.id)}
+            title={`In team “${team.name}”${edited ? ` · ${edited}` : ''} - see its members and join code`}
+            aria-label={`Team ${team.name}`}
+            data-testid="production-team"
+          >
+            <IconUsers />
+            <span className="pd-team-name">{team.name}</span>
+            <span className={`pd-team-save${saving ? ` ${saving}` : ''}`} data-testid="production-team-save">
+              {saving === 'pending' ? 'Saving…' : saving === 'failed' ? 'Not saved' : edited}
+            </span>
+          </button>
+        )}
+        {teamsAvailable && !show.teamId && (
           <button
             onClick={() => openShare(show.id, show.name)}
             title="Share this production with a team, so everyone works on it from their own account"
@@ -3997,6 +4048,15 @@ function ProductionShell({
           ■ All out
         </button>
       </header>
+      {/* A teammate's save changed this production under the operator, or a save failed. Said
+          once, in words, and dismissable - never silent (TEAMS_PLAN §3). */}
+      {teamNote && (
+        <div className="pd-team-note" role="status" data-testid="production-team-note">
+          <span>{teamNote}</span>
+          <div className="spacer" />
+          <button onClick={() => dismissTeamNote(show.id)}>OK</button>
+        </div>
+      )}
       <main className="pd-body">{children}</main>
     </div>
   );

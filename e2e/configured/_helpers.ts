@@ -9,6 +9,12 @@ export const E2E_EMAIL = process.env.E2E_EMAIL ?? '';
 export const E2E_PASSWORD = process.env.E2E_PASSWORD ?? '';
 export const haveCreds = Boolean(E2E_EMAIL && E2E_PASSWORD);
 
+/** A SECOND account, for the walks that need two people: a teammate joining a team the first
+ *  account made (teams.spec.ts). Optional - the specs that need it skip without it. */
+export const E2E_TEAMMATE_EMAIL = process.env.E2E_TEAMMATE_EMAIL ?? '';
+export const E2E_TEAMMATE_PASSWORD = process.env.E2E_TEAMMATE_PASSWORD ?? '';
+export const haveTeammateCreds = Boolean(E2E_TEAMMATE_EMAIL && E2E_TEAMMATE_PASSWORD);
+
 export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
 
@@ -35,14 +41,19 @@ export async function dismissWizard(page: Page): Promise<void> {
  *  fresh load presents, so createGraphic can run directly. There is no Advanced mode to switch on
  *  any more (owner, 2026-09-24): the sign-in lives on Home, which every boot reaches. */
 export async function signIn(page: Page): Promise<void> {
+  await signInAs(page, E2E_EMAIL, E2E_PASSWORD);
+}
+
+/** `signIn` with named credentials - the second account of a two-person walk. */
+export async function signInAs(page: Page, account: string, password: string): Promise<void> {
   await page.goto('/app');
   // The startup wizard covers the topbar — close it to reach the Sign in button.
   await dismissWizard(page);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   const email = page.locator('#auth-email');
   await email.waitFor({ state: 'visible', timeout: 15_000 });
-  await email.fill(E2E_EMAIL);
-  await page.locator('#auth-pass').fill(E2E_PASSWORD);
+  await email.fill(account);
+  await page.locator('#auth-pass').fill(password);
   await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
   // The dialog closes itself on session; the account appears in the topbar.
   await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
