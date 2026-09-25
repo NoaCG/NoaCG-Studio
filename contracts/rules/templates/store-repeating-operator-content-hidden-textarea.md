@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/templates/**
+scope: src/templates/infographics/**, src/templates/types/lists.ts, src/templates/types/sportsBoards.ts
 kind: rule
 fires: contract
 status: active

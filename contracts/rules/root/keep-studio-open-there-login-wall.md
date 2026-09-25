@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/**, api/**
+scope: api/**, src/backend/**, src/components/auth/**, src/App.tsx
 kind: rule
 fires: contract
 status: active

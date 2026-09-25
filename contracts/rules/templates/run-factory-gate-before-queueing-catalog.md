@@ -2,7 +2,7 @@
 v: 1
 scope: src/templates/**
 kind: trap
-fires: contract
+fires: gate:catalog-affected
 status: active
 since: 2026-09-19
 record: contracts/records/templates/2026-09-19-run-factory-gate-before-queueing-catalog.md

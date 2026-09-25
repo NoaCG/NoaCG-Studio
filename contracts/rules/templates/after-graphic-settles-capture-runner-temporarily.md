@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: e2e/**, scripts/**
+scope: scripts/*shots*.mjs, scripts/*sweep*.mjs, scripts/*bench*.mjs, scripts/*spike*.mjs, scripts/*capture*.mjs, scripts/taste-frame-review.mjs, e2e/editor-*.spec.ts
 kind: trap
 fires: contract
 status: active
