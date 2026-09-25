@@ -4,6 +4,8 @@
 //
 //   npm run audit:instructions            the report
 //   npm run audit:instructions -- --json  the same numbers as JSON
+//   add --record to append this run to the history the next run compares against; the monthly
+//   review passes it, so an ad hoc run never becomes the baseline
 //
 // It measures and lists; it never edits. The budgets and the ladder in contracts/README.md are the
 // protection - this only notices when they are being worked around. The monthly quality review
@@ -13,6 +15,7 @@
 // The global files live outside the repository, so on a machine without them (CI, a cloud box)
 // those rows read "absent" rather than failing.
 
+import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -25,7 +28,12 @@ const HOME = os.homedir();
 const GLOBAL_MAX_BYTES = 2560;
 const HISTORY = path.join(HOME, '.claude', 'instruction-audit-history.jsonl');
 
-const read = (file) => (existsSync(file) ? readFileSync(file, 'utf8').replace(/\r\n/g, '\n') : null);
+// Every scan below reads the same instruction files, so each is read once.
+const texts = new Map();
+const read = (file) => {
+  if (!texts.has(file)) texts.set(file, existsSync(file) ? readFileSync(file, 'utf8').replace(/\r\n/g, '\n') : null);
+  return texts.get(file);
+};
 const bytes = (file) => (existsSync(file) ? statSync(file).size : null);
 const shown = (file) => (file.startsWith(ROOT) ? path.relative(ROOT, file) : file.replace(HOME, '~'));
 const dirs = (dir) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith('.')).map((d) => d.name) : []);
@@ -34,7 +42,11 @@ const dirs = (dir) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true 
 // rules file with no `paths:` scope.
 const globalFile = path.join(HOME, '.codex', 'AGENTS.md');
 const claudeGlobal = read(path.join(HOME, '.claude', 'CLAUDE.md'));
-const memoryIndex = path.join(HOME, '.claude', 'projects', 'C--claude-NoaCG-Studio', 'memory', 'MEMORY.md');
+// Claude keys a project's memory by the primary checkout's path with every `:`, `\`, `/` and `.`
+// turned into `-`, so a worktree shares the primary checkout's memory.
+const primaryCheckout = path.dirname(execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+  { cwd: ROOT, encoding: 'utf8' }).trim());
+const memoryIndex = path.join(HOME, '.claude', 'projects', primaryCheckout.replace(/[:\\/.]/g, '-'), 'memory', 'MEMORY.md');
 const rulesDir = path.join(ROOT, '.claude', 'rules');
 const unscopedRules = existsSync(rulesDir)
   ? readdirSync(rulesDir).filter((f) => f.endsWith('.md') && !/^---\npaths:/.test(read(path.join(rulesDir, f))))
@@ -105,7 +117,9 @@ const linesMatching = (regex) => proseFiles.flatMap((file) => read(file).split('
   .map((line, i) => (regex.test(line) && !PREAMBLE.test(line) ? `${shown(file)}:${i + 1}` : null))
   .filter(Boolean));
 
-const HARNESS = /\b(claude code|codex|desktop (app|pane)|older models?|classifier|permission prompts?|agent sessions?)\b/i;
+// A harness name next to a limitation - the shape of a workaround that a newer release may have
+// made unnecessary. A plain mention of Codex or Claude Code is not one.
+const HARNESS = /\b(claude code|codex|desktop (app|pane)|the cli|classifier|older models?)\b.*\b(cannot|can't|does not|doesn't|never|refuses?|fails?|broken|bug|workaround|forever|disabled|not yet)\b/i;
 const harnessWorkarounds = [
   ...active.filter((r) => HARNESS.test(r.body)).map((r) => `${r.id} (since ${r.since})`),
   ...linesMatching(HARNESS),
@@ -145,4 +159,4 @@ if (process.argv.includes('--json')) {
   list('Rules about harness or model behaviour - still needed?', harnessWorkarounds);
   list('Lines about asking or widening scope - check they agree', askingLines);
 }
-if (!process.argv.includes('--no-record') && existsSync(path.dirname(HISTORY))) appendFileSync(HISTORY, `${JSON.stringify(snapshot)}\n`);
+if (process.argv.includes('--record') && existsSync(path.dirname(HISTORY))) appendFileSync(HISTORY, `${JSON.stringify(snapshot)}\n`);

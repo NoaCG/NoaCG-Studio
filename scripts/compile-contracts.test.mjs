@@ -429,4 +429,6 @@ test('only a ** rule reaches the root contract; a rule spanning two owned folder
   assert.deepEqual(ruleHomes(['src/a/**', 'docs/x.md'], owned), ['src'], 'a glob no owned folder covers adds no home');
   assert.deepEqual(ruleHomes(['src/a/**', 'src/b/**'], owned), ['src'], 'a common owned ancestor below the root still wins');
   assert.deepEqual(ruleHomes(['docs/x.md'], new Set(['src'])), [], 'no owner at all');
+  assert.deepEqual(ruleHomes(['src/a/**', 'e2e/b.spec.ts'], new Set(['src', 'e2e'])).sort(), ['e2e', 'src'], 'an unowned root still splits per folder');
+  assert.deepEqual(ruleHomes(['**'], new Set(['src'])), [], 'a ** rule has no home when the root is not owned');
 });

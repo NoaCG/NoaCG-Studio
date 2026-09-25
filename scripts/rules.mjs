@@ -35,7 +35,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export function text(id) {
   const file = path.join(ROOT, RULES_DIR, `${id}.md`);
   if (!existsSync(file)) throw new Error(`[rules] no rule \`${id}\` in the store - the mechanism names a rule that is not there`);
-  const body = readFileSync(file, 'utf8').replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n/, '');
+  const body = readFileSync(file, 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n/, '');
   return body.trim().replace(/\s*\n\s*/g, ' ');
 }
 

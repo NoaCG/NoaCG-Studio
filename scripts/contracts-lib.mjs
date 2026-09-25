@@ -551,8 +551,8 @@ export function nestedContracts(rules, owned) {
  */
 export function ruleHomes(scope, owned) {
   const home = deepestOwner(scopeOwner(scope), owned);
-  if (home !== '') return home === null ? [] : [home];
-  if (scope.includes('**')) return [''];
+  if (home) return [home];
+  if (scope.includes('**')) return owned.has('') ? [''] : [];
   const homes = new Set();
   for (const glob of scope) {
     const own = deepestOwner(globDirectory(glob), owned);
@@ -570,10 +570,9 @@ export function ruleHomes(scope, owned) {
  */
 export function deepestOwner(dir, owned) {
   // THE REPOSITORY ROOT IS A DIRECTORY LIKE ANY OTHER once it carries the marker. Kernel rules -
-  // the ones scoped `**` - reach Claude Code through `.claude/rules/everywhere.md`, which it loads
-  // at launch; Codex reads AGENTS.md files and nothing else, so without a generated root contract
-  // it would see none of them. That is the whole global rule set, including "never merge into main
-  // yourself" and "publishing past main needs the user".
+  // the ones scoped `**` - live only in the generated root AGENTS.md: Codex and the Claude desktop
+  // app read it natively, and the Claude CLI reads it through the root CLAUDE.md import. Without it
+  // neither tool would see the global rule set, including "only the merge queue writes main".
   if (dir === '') return owned.has('') ? '' : null;
   const parts = dir.split('/');
   for (let i = parts.length; i > 0; i -= 1) {
