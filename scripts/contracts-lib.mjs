@@ -541,24 +541,23 @@ export function nestedContracts(rules, owned) {
 }
 
 /**
- * The contracts one rule is written into.
+ * The contracts one rule is written into - the folder contracts Codex reads.
  *
- * Normally that is the deepest owned directory holding every glob in its scope. The ROOT is the
- * exception: it is loaded by every session, so only a rule scoped `**` belongs there. A rule whose
- * globs merely span two top-level folders goes into each folder's own contract instead, and a
- * glob no owned folder covers reaches Claude through `.claude/rules/` and Codex through
- * `npm run rules -- <path>`.
+ * Each glob goes to the deepest owned directory that holds it, so a rule about the wizard and the
+ * AI layer lands in both of those contracts rather than in a shared ancestor every `src` session
+ * pays for. A home whose ancestor is also a home is dropped, because Codex loads the whole chain
+ * from the root down and would read the rule twice. Only a `**` rule reaches the root, which
+ * every session loads. A glob no owned folder covers reaches Claude through `.claude/rules/` and
+ * Codex through `npm run rules -- <path>`.
  */
 export function ruleHomes(scope, owned) {
-  const home = deepestOwner(scopeOwner(scope), owned);
-  if (home) return [home];
   if (scope.includes('**')) return owned.has('') ? [''] : [];
   const homes = new Set();
   for (const glob of scope) {
     const own = deepestOwner(globDirectory(glob), owned);
     if (own) homes.add(own);
   }
-  return [...homes];
+  return [...homes].filter((home) => ![...homes].some((other) => home.startsWith(`${other}/`)));
 }
 
 /**

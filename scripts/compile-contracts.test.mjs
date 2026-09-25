@@ -431,4 +431,10 @@ test('only a ** rule reaches the root contract; a rule spanning two owned folder
   assert.deepEqual(ruleHomes(['docs/x.md'], new Set(['src'])), [], 'no owner at all');
   assert.deepEqual(ruleHomes(['src/a/**', 'e2e/b.spec.ts'], new Set(['src', 'e2e'])).sort(), ['e2e', 'src'], 'an unowned root still splits per folder');
   assert.deepEqual(ruleHomes(['**'], new Set(['src'])), [], 'a ** rule has no home when the root is not owned');
+  const deep = new Set(['', 'src', 'src/components/wizard', 'src/ai']);
+  assert.deepEqual(ruleHomes(['src/components/wizard/**', 'src/ai/**'], deep).sort(), ['src/ai', 'src/components/wizard'],
+    'two owned folders get the rule, not the ancestor every src session loads');
+  assert.deepEqual(ruleHomes(['src/**', 'src/components/wizard/**'], deep), ['src'],
+    'an ancestor home already covers its descendant, and Codex would read the rule twice down that chain');
+  assert.deepEqual(ruleHomes(['package.json', 'src/ai/x.ts'], deep), ['src/ai'], 'a root-level file never makes the root a home');
 });
