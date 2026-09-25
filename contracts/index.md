@@ -354,7 +354,7 @@ contracts nothing; `npm run rules -- <path>` lists what applies to a file.
 | `templates/generate-playout-behaviour-controls-template-machine` | rule | contract | active | `src/templates/**` | Generate playout behaviour and controls from the template's machine and fields, never from a category or group. |
 | `templates/give-each-measured-explicit-position-phase` | trap | contract | active | `src/templates/**` | Give each measured `tl.add()` an explicit position when a phase contains multiple segments. |
 | `templates/give-every-design-unique-variant-name` | rule | contract | active | `src/templates/**` | Give every design a unique variant name and a unique created-template name. |
-| `templates/give-every-new-category-own-thin` | rule | contract | active | `src/templates/**` | Give every new category its own `AGENTS.md` and thin importing `CLAUDE.md` in its first commit. |
+| `templates/give-every-new-category-own-thin` | rule | gate:check-shared-instructions (carried) | active | `src/templates/**` | Give every new category its own `AGENTS.md` and thin importing `CLAUDE.md` in its first commit. |
 | `templates/give-kit-style-family-never-resolve` | rule | contract | active | `src/templates/kit.ts`, `src/templates/packs.ts` | Give a kit ONE Style family and never re-resolve it into another. |
 | `templates/give-non-wrapping-reveal-mask-flex` | trap | contract | active | `src/templates/**` | Give a non-wrapping reveal mask in a flex row `flex: none`. |
 | `templates/guard-every-load-time-dom-rebuild` | trap | contract | active | `src/templates/**` | Guard every load-time DOM rebuild or paint with the DOM-ready pattern. |

@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { parseFrontmatter as parseFrontmatterText } from './owner-receipts.mjs';
 import { GENERATED_MARKER } from './contracts-lib.mjs';
 import { measured } from './measured.mjs';
+import * as rules from './rules.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_WRAPPER_LINES = 25;
@@ -738,9 +739,8 @@ if (existsSync(templatesRoot)) {
     if (TEMPLATE_DIRS_WITHOUT_CONTRACT.has(entry.name)) continue;
     if (existsSync(path.join(templatesRoot, entry.name, 'AGENTS.md'))) continue;
     failures.push(
-      `template category src/templates/${entry.name}/ has no AGENTS.md - a category's rules ` +
-        'belong beside its code, not in the parent every template session loads ' +
-        '(docs/AGENT_WORKFLOWS.md, "Instruction size")',
+      `template category src/templates/${entry.name}/ has no AGENTS.md. ` +
+        rules.text('templates/give-every-new-category-own-thin'),
     );
   }
 }
