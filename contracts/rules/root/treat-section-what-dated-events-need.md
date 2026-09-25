@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: **
+scope: .agent-workflows/orchestrator.md, .agent-workflows/orchestrator/**, .agent-workflows/next.md, docs/GOALS.md
 kind: rule
 fires: contract
 status: active

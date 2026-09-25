@@ -3,7 +3,7 @@ v: 1
 scope: **
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/root/2026-09-07-never-occupy-checkout-holds-feature-branch.md
 ---

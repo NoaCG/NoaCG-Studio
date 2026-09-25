@@ -693,6 +693,10 @@ function checkRepositoryFile(file, label) {
 // reads a file they scope to, so a wrapper here would charge every Claude session for them twice.
 // That saving is the whole point of migrating an area - the pair rule holds for the prose files
 // that have not migrated yet, which is still nearly all of them.
+//
+// The ROOT is the exception: its `**` rules are written nowhere else, so the Claude CLI (which does
+// not read AGENTS.md by default) needs the root CLAUDE.md import to see them. Where Claude reads
+// AGENTS.md natively as well, it loads the file once, not twice (measured 2026-09-25).
 const agentsFiles = findFilesNamed(ROOT, 'AGENTS.md').filter(
   (file) => rel(file) === 'AGENTS.md' || !rel(file).startsWith('.'),
 );
@@ -701,7 +705,7 @@ const isGeneratedContract = (file) => existsSync(file) && text(file).includes(GE
 for (const agentsFile of agentsFiles) {
   checkRepositoryFile(agentsFile, 'authoritative project instructions');
   const claudeFile = path.join(path.dirname(agentsFile), 'CLAUDE.md');
-  if (isGeneratedContract(agentsFile)) {
+  if (isGeneratedContract(agentsFile) && rel(agentsFile) !== 'AGENTS.md') {
     if (existsSync(claudeFile)) {
       failures.push(
         `${rel(claudeFile)} sits beside a GENERATED contract. Claude Code loads those rules from ` +

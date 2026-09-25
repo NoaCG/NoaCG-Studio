@@ -170,6 +170,7 @@
     "learn": "node scripts/learn.mjs",
     "contract:migrate": "node scripts/contract-migrate.mjs",
     "rules": "node scripts/rules.mjs",
+    "audit:instructions": "node scripts/instruction-audit.mjs",
     "contracts:compile": "node scripts/compile-contracts.mjs",
     "check:contracts": "node scripts/compile-contracts.mjs --check",
     "check:contract-evidence": "node scripts/check-contract-evidence.mjs",

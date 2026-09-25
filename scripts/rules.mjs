@@ -8,15 +8,13 @@
 // is read; this is for everything else: a Codex task preamble (scripts/codex-rescue.mjs), a
 // session that edited through the shell and wants to know what it just walked past, a person.
 
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { loadRules, rulesFor } from './contracts-lib.mjs';
+import { loadRules, RULES_DIR, rulesFor } from './contracts-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-
-/** The store, read once per process - `text()` is called from a gate's failure path. */
-let cached = null;
 
 /**
  * ONE RULE'S SENTENCE, for the mechanism that carries it.
@@ -30,12 +28,15 @@ let cached = null;
  *
  * Throws on an unknown id rather than returning an empty string: a gate printing nothing where
  * its rule should be is the failure this exists to prevent.
+ *
+ * Reads the one file the id names rather than the whole store: loading and validating every rule
+ * takes seconds, and a hook calls this on every matching tool call.
  */
 export function text(id) {
-  cached ??= loadRules(ROOT);
-  const rule = cached.rules.find((r) => r.id === id);
-  if (!rule) throw new Error(`[rules] no rule \`${id}\` in the store - the mechanism names a rule that is not there`);
-  return rule.body.replace(/\s*\n\s*/g, ' ');
+  const file = path.join(ROOT, RULES_DIR, `${id}.md`);
+  if (!existsSync(file)) throw new Error(`[rules] no rule \`${id}\` in the store - the mechanism names a rule that is not there`);
+  const body = readFileSync(file, 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n/, '');
+  return body.trim().replace(/\s*\n\s*/g, ' ');
 }
 
 function main() {

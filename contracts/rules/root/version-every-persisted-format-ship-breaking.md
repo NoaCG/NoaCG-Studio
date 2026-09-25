@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: **
+scope: src/model/**, src/store/**, supabase/**
 kind: invariant
 fires: contract
 status: active

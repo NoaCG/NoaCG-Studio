@@ -224,16 +224,22 @@ try {
 //
 // Answered from a cache shared by every worktree, so the ordinary session start pays nothing and
 // one fetch every ten minutes serves the whole machine. Silent when nothing is open.
-try {
-  const { formatAlarms, readAlarms } = await import('../alarm-issues.mjs');
-  const { alarms, asOfMinutes } = readAlarms({ cwd: root, timeoutMs: 4000 });
-  const lines = formatAlarms(alarms, { asOfMinutes });
-  if (lines.length > 0) {
-    console.log('');
-    for (const line of lines) console.log(line);
+//
+// ORCHESTRATOR HOME ONLY (owner-decisions-2026-09-25). An ordinary session is doing one named
+// task, and a red alarm printed into it reads as an invitation to widen the task. The orchestrator
+// plans from it, the daily morning brief reports it, and `/next` reads it when it looks for work.
+if (isOrchestratorHome) {
+  try {
+    const { formatAlarms, readAlarms } = await import('../alarm-issues.mjs');
+    const { alarms, asOfMinutes } = readAlarms({ cwd: root, timeoutMs: 4000 });
+    const lines = formatAlarms(alarms, { asOfMinutes });
+    if (lines.length > 0) {
+      console.log('');
+      for (const line of lines) console.log(line);
+    }
+  } catch {
+    // Awareness only. GitHub being unreachable must never stop a session from starting.
   }
-} catch {
-  // Awareness only. GitHub being unreachable must never stop a session from starting.
 }
 
 // --- Owner receipts and the handoff drain ----------------------------------------------------
@@ -242,35 +248,36 @@ try {
 // plan it (docs/backlog/README.md, "Owner receipts"). One line here is the cheapest place that
 // cannot be skipped: it is in context before the first prompt. The handoff drain is the
 // orchestrator's own bookkeeping, so it prints only in the orchestrator home.
-try {
-  const { formatReceipts, isStanding, readReceipts, stillOpen } = await import('../owner-receipts.mjs');
-  const receipts = readReceipts(root).filter((receipt) => receipt.receipt && receipt.problems.length === 0);
-  // The asks that stand, which is what he is owed. Findings are real work and reach a session
-  // through the ordinary backlog drain, never under his name.
-  const standing = receipts.filter(isStanding);
-  if (standing.length > 0) {
-    const oldest = Math.max(...standing.map((receipt) => receipt.ageDays ?? 0));
-    console.log('');
-    console.log(
-      `Owner receipts: ${standing.length} standing ask(s) (oldest ${oldest} day(s)) - ` +
-        'node scripts/owner-receipts.mjs lists what the owner asked for and when.',
-    );
-    // The home gets the slugs, one line each and capped: this is context every turn will carry,
-    // and the full listing with the asks is one allowlisted command away.
-    if (isOrchestratorHome) {
+//
+// Now the receipts print only there too, for the same reason as the alarms above: the
+// orchestrator plans from them and `/next` reads them when it looks for work.
+if (isOrchestratorHome) {
+  try {
+    const { formatReceipts, isStanding, readReceipts, stillOpen } = await import('../owner-receipts.mjs');
+    const receipts = readReceipts(root).filter((receipt) => receipt.receipt && receipt.problems.length === 0);
+    // The asks that stand, which is what he is owed. Findings are real work and reach a session
+    // through the ordinary backlog drain, never under his name.
+    const standing = receipts.filter(isStanding);
+    if (standing.length > 0) {
+      const oldest = Math.max(...standing.map((receipt) => receipt.ageDays ?? 0));
+      console.log('');
+      console.log(
+        `Owner receipts: ${standing.length} standing ask(s) (oldest ${oldest} day(s)) - ` +
+          'node scripts/owner-receipts.mjs lists what the owner asked for and when.',
+      );
+      // The slugs, one line each and capped: this is context every turn will carry, and the full
+      // listing with the asks is one allowlisted command away.
       const compact = formatReceipts(standing, { compact: true }).slice(1);
       for (const line of compact.slice(0, 12)) console.log(line);
       if (compact.length > 12) console.log(`  ... and ${compact.length - 12} more (node scripts/owner-receipts.mjs)`);
     }
-  }
-  // Findings are counted separately and never named here: they are our bugs, not his requirements,
-  // and no plan has to account for one. But a defect he hit himself must not become invisible
-  // just because it stopped being printed as an ask.
-  const findings = receipts.filter((receipt) => stillOpen(receipt) && receipt.kind === 'finding');
-  if (findings.length > 0) {
-    console.log(`  plus ${findings.length} finding(s) raised while serving them - real work, never his requirement.`);
-  }
-  if (isOrchestratorHome) {
+    // Findings are counted separately and never named here: they are our bugs, not his requirements,
+    // and no plan has to account for one. But a defect he hit himself must not become invisible
+    // just because it stopped being printed as an ask.
+    const findings = receipts.filter((receipt) => stillOpen(receipt) && receipt.kind === 'finding');
+    if (findings.length > 0) {
+      console.log(`  plus ${findings.length} finding(s) raised while serving them - real work, never his requirement.`);
+    }
     const { drain, handoffFiles, newestWavePlan, parseHandoffSection } = await import('../handoff-drain.mjs');
     const { readFileSync } = await import('node:fs');
     const plan = newestWavePlan(root);
@@ -284,9 +291,9 @@ try {
           `${plan ? ` against ${plan.split(/[\\/]/).pop()}` : ' (no fresh wave plan)'} - node scripts/handoff-drain.mjs lists them.`,
       );
     }
+  } catch {
+    // Awareness only - a receipt that cannot be read must never stop a session from starting.
   }
-} catch {
-  // Awareness only - a receipt that cannot be read must never stop a session from starting.
 }
 
 // --- The job queue ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: **
+scope: src/templates/**, src/export/**
 kind: invariant
 fires: contract
 status: active

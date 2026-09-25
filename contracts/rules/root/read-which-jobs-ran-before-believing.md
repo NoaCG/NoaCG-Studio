@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: **
+scope: .agent-workflows/queue-merge.md, .github/workflows/**
 kind: trap
 fires: contract
 status: active

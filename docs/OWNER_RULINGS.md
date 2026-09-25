@@ -1113,3 +1113,24 @@ rename the example files and the drawn trees on the docs page, run `npm run writ
 and `npm run build`: the check names every file still on the old word. To drop the Board rule
 entirely, delete the `board` block in `auditSvg` in `scripts/check-example-layers.mjs`. To require
 an empty `Moments` layer after all, first show that a Save a Copy keeps one.
+
+## owner-decisions-2026-09-25 - instructions, questions and scope
+
+Given while cutting the always-loaded instructions down. Supersedes the question part of
+owner-decisions-2026-09-05 and the "fix it even when unrelated" and "ask before new work" rules.
+
+- **Questions come in three kinds.** Operational decisions an agent can make (branch order,
+  sequencing, whether necessary work gets done, facts the repo can answer) are decided and not
+  asked. Owner-level decisions that change the outcome (intent, product direction, UX and taste,
+  scope, money) get Grill-Me before building: challenge the assumptions, offer better
+  alternatives, and ask one question at a time with a recommended answer. Orchestrator and night
+  waves ask nothing. `scripts/hooks/guard-question.mjs` carries this.
+- **Problems outside the task.** Fix what the change breaks, and also fix clear, low-risk,
+  contained bugs or unfinished work you notice and understand. Do not expand into large,
+  architectural, alignment-sensitive, expensive or owner-decision work; record or report it.
+- **New instructions climb a ladder.** Fix the cause; else make it mechanically checkable; else
+  scope the instruction to the folder or workflow where it matters; an always-loaded rule is the
+  last resort and lives within the byte budget. One incident is evidence, not a rule.
+- **One shared global instruction file.** `~/.codex/AGENTS.md` is the source and
+  `~/.claude/CLAUDE.md` imports it. The Unslop writing rules are gone. Communication is short,
+  direct, easy to scan, answer first.

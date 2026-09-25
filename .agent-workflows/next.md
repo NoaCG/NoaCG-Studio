@@ -60,7 +60,9 @@ quick scan, not an audit.
   this session touched, plus the nested `AGENTS.md`/`CLAUDE.md` and `docs/` contracts that govern
   them.
 - **The backlog, only if the session's own work is exhausted:** `docs/GOALS.md` (unchecked
-  milestones). Do not consult tool-private memory as shared project truth.
+  milestones), `node scripts/alarm-issues.mjs` (what is red on `main`) and
+  `node scripts/owner-receipts.mjs` (standing owner asks). Session start no longer prints these
+  outside the orchestrator home. Do not consult tool-private memory as shared project truth.
 - **Verify before you list.** Backlog entries, memory notes, old TODOs, and handoff prompts go
   stale: before offering one, spend the thirty seconds to confirm in the current code/git that
   it is still open and not already done. A completed item offered as work is this workflow's
@@ -160,6 +162,8 @@ paragraph. A run that ends in prose alone is a failed run, *including* the "noth
 run.
 
 - Recommended option first, its label suffixed `(Recommended)`.
+- Start the question text with `needs: decision -`: what to work on next is the owner's scope
+  choice, and `scripts/hooks/guard-question.mjs` refuses a question without that tag.
 - In Claude Code, the AskUserQuestion tool takes **2-4 options**. If you wrote 5 numbered
   options, carry the top 4 - the auto-added "Other" covers the rest.
 - Labels must match the numbered options above so "option 2" and the button (or typed digit)

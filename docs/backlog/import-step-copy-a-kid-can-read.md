@@ -39,7 +39,7 @@ produces a confident wrong sentence.
 2. Cut the paragraphs that explain the mechanism - how far a layer moves, why a rule drawn across
    the panel stays full width. A user needs the outcome, not the model.
 3. The "What it does" behaviour box gets the same treatment.
-4. Read it back cold against the unslop rules, then have someone who has never seen the step follow
+4. Read it back cold as a first-time reader, then have someone who has never seen the step follow
    it end to end.
 
 The `/docs` pages were rewritten this way on 2026-09-02 and he accepted them the same day

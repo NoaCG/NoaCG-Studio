@@ -1,51 +1,70 @@
-// PreToolUse guard for AskUserQuestion: a question to the owner is refused unless it names, in its
-// own text, the ONE reason it is his - `needs: account|money|identity|harness|alignment`.
+// PreToolUse guard for AskUserQuestion. A question to the owner is one of three kinds
+// (docs/OWNER_RULINGS.md, owner-decisions-2026-09-25):
 //
-// WHY A HOOK. Owner, 2026-09-05 (docs/OWNER_RULINGS.md, owner-decisions-2026-09-05): "you don't
-// need me, a flawed human, to make decisions about code design or really anything else. Always
-// ask the super intelligent AI what to do. We should never stop working because of a technical or
-// design question." And, the same day, on the harness: "Claude Code and Codex have the tendency to
-// stop and ask questions. Every time the agent tries to ask a question, it triggers a note that it
-// goes through and checks if this is actually something we need to ask the owner about." The ask
-// is the moment; this is the note, delivered at that moment, and it refuses rather than warns
-// because a PreToolUse warning reaches the user and never the model (scripts/hooks/lib.mjs).
+//   1. OPERATIONAL - branch order, sequencing, whether necessary work gets done, a fact the repo
+//      can answer. Never asked: the agent decides and keeps working.
+//   2. OWNER-LEVEL - intent, product direction, UX or taste, scope, money: his choice changes the
+//      result. Asked BEFORE building, Grill-Me style: one question per call, a recommended answer,
+//      and a better alternative when there is one.
+//   3. Anything inside an orchestrator or night wave. Never asked: nobody is there to answer.
 //
-// EXACT, so it refuses (docs/MISTAKE_TRIGGERS.md "Refuse or warn"): the four reasons are the ones
-// `check-owner-queue.mjs` already accepts for an owner-action item, plus `alignment` - whether the
-// plan is still what he wants NoaCG to be, the one thing he kept for the weekly check. A question
-// that carries the tag has been through the checklist; one that does not is answered by a consult
-// to the strongest model available, decided, and recorded so he can revert it later.
+// A hook cannot tell kind 1 from kind 2 by reading the words, so the question declares its kind
+// with a tag - `needs: decision` for an owner-level choice, or one of the older reasons that are
+// also only his (account, money, identity, harness, alignment). Writing the tag is the check;
+// an untagged question is refused with the rule so the agent sorts it first. Kind 3 is refused
+// outright when the harness says the call comes from a wave-row subagent.
 //
-// FAILS OPEN on input it cannot read. Nothing is exported: a hook reads stdin at module top level,
-// so guard-question.test.mjs spawns this file with real event JSON.
+// It refuses rather than warns because a PreToolUse warning reaches the user and never the model
+// (scripts/hooks/lib.mjs). FAILS OPEN on input it cannot read. Nothing is exported: a hook reads
+// stdin at module top level, so guard-question.test.mjs spawns this file with real event JSON.
 
+import * as rules from '../rules.mjs';
 import { deny, readHookInput } from './lib.mjs';
 
-const REASONS = ['account', 'money', 'identity', 'harness', 'alignment'];
+const REASONS = ['decision', 'account', 'money', 'identity', 'harness', 'alignment'];
 const TAG = new RegExp(`\\bneeds:\\s*(${REASONS.join('|')})\\b`, 'i');
+const RULE = rules.text('root/question-owner-names-reason-own-text');
 
 const input = await readHookInput();
 if (!input || input.tool_name !== 'AskUserQuestion') process.exit(0);
 
 const questions = Array.isArray(input.tool_input?.questions) ? input.tool_input.questions : [];
-const untagged = questions.filter((q) => !TAG.test(`${q?.header ?? ''} ${q?.question ?? ''}`));
-if (questions.length === 0 || untagged.length === 0) process.exit(0);
+if (questions.length === 0) process.exit(0);
 
-deny([
-  'STOP - is this actually the owner\'s question? (ruling 2026-09-05: it almost never is)',
-  '',
-  ...untagged.map((q) => `  ? ${String(q?.question ?? '').slice(0, 140)}`),
-  '',
-  'He answers exactly five kinds of question, and each one names its reason in the question text:',
-  '  needs: account    - a login, a credential, a third-party console only he can reach',
-  '  needs: money      - a purchase, a paid tier, anything that costs',
-  '  needs: identity   - a public act in his name (a post, an email, a listing)',
-  '  needs: harness    - a setting in his Claude/Codex app or machine that no session can change',
-  '  needs: alignment  - whether the plan is still what he wants NoaCG to be (weekly, not per row)',
-  '',
-  'Everything else - a merge conflict, a design choice, which option, when, whether to continue -',
-  'is answered by a consult to the strongest model available, then DECIDED and RECORDED where he',
-  'can revert it (the handoff, docs/OWNER_RULINGS.md for a rule, an owner-queue item if he should',
-  'look later). Then keep working. If it truly is one of the five, ask again with the tag in the',
-  'question text.',
-].join('\n'));
+if (/^wave-row/.test(String(input.agent_type ?? ''))) {
+  deny([
+    'STOP - a wave asks nothing. Nobody is there to answer.',
+    '',
+    RULE,
+  ].join('\n'));
+}
+
+if (questions.length > 1) {
+  deny([
+    `STOP - ${questions.length} questions in one call. Ask ONE, with your recommendation, and let the answer shape the next.`,
+    '',
+    RULE,
+  ].join('\n'));
+}
+
+const [question] = questions;
+const text = `${question?.header ?? ''} ${question?.question ?? ''}`;
+if (!TAG.test(text)) {
+  deny([
+    'STOP - is this the owner\'s question? Sort it first:',
+    `  ? ${String(question?.question ?? '').slice(0, 140)}`,
+    '',
+    RULE,
+    '',
+    'If it is his, put the tag in the question text and ask again: `needs: decision` for an',
+    'outcome-changing choice, or `needs: account|money|identity|harness|alignment`.',
+  ].join('\n'));
+}
+
+const options = Array.isArray(question?.options) ? question.options : [];
+if (!options.some((o) => /\(recommended\)/i.test(String(o?.label ?? '')))) {
+  deny([
+    'STOP - no recommended answer. Put your recommendation first, its label ending in',
+    '`(Recommended)`, and say in its description why. Offer a better alternative if you see one.',
+  ].join('\n'));
+}

@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: **
+scope: .agent-workflows/queue-merge.md, .agent-workflows/check.md
 kind: rule
 fires: contract
 status: active

@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: **
+scope: .agent-workflows/queue-merge.md, .agent-workflows/handoff.md, scripts/contracts-merge-driver.mjs
 kind: trap
 fires: contract
 status: active

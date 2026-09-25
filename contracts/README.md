@@ -1,8 +1,10 @@
 # The rule store
 
 The loaded contracts are compiled from here. Nothing in this directory loads into a session by
-itself; `scripts/compile-contracts.mjs` turns the active rules into `.claude/rules/*.md` (which
-Claude Code loads only when a matching file is read) and into `index.md`. The design and the
+itself; `scripts/compile-contracts.mjs` turns the active rules into the root `AGENTS.md` (the
+`**` rules, loaded by every session and held to a byte budget), `.claude/rules/*.md` (which
+Claude Code loads only when a matching file is read), the nested `AGENTS.md` Codex reads, and
+`index.md`. The design and the
 measurements behind it are in `docs/WORKFLOW_ARCHITECTURE.md` §5.3.
 
 ## Layout
@@ -35,6 +37,24 @@ record. `allow-numbers: true` admits a number that IS the rule (a budget, a rese
 `fires:` says what carries the rule. A rule a hook, gate or spec carries costs the compiled
 contracts nothing: the mechanism fires at the moment, and the index still lists it. `contract`
 means prose is the only home it has.
+
+## Before writing one: the ladder
+
+A mistake is evidence, not automatically a rule. Climb this ladder and stop at the first step
+that works:
+
+1. **Fix the cause.** Change the code, the name, the default or the doc so the mistake cannot
+   happen again. No rule.
+2. **Make it mechanical.** A test, gate, hook or better default whose failure message is the
+   rule. Set `fires:` to it and the rule costs the loaded contracts nothing.
+3. **Scope it.** Give it the narrowest `scope:` where it matters, so it loads only there.
+4. **Always-loaded, last.** A `**` scope goes into every Claude and Codex session. `learn`
+   refuses one without `--always`, and the root budget (`KERNEL_MAX_BYTES`) means adding a
+   rule there retires another.
+
+Write the rule on the second occurrence unless the first was expensive. State the outcome and
+its reason, never "ask the owner first" on its own. Plain text, no shouted emphasis: current
+models over-apply it. `npm run audit:instructions` checks the whole system about monthly.
 
 ## Writing one
 

@@ -122,3 +122,10 @@ test('what learn writes is what the compiler parses', () => {
   assert.match(record, /^# wizard\/x\n/);
   assert.match(record, /Recorded 2026-09-06 on `claude\/x` at abc1234\./);
 });
+
+test('a ** scope is refused without --always, because it loads into every session', () => {
+  const everywhere = decide(input({ scope: ['**'] }), []);
+  assert.equal(everywhere.action, 'refuse');
+  assert.match(everywhere.problems.join(' '), /Climb the ladder/);
+  assert.equal(decide(input({ scope: ['**'], always: true }), []).action, 'new');
+});

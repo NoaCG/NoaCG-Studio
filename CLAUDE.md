@@ -1,0 +1,3 @@
+# NoaCG Studio
+
+@AGENTS.md

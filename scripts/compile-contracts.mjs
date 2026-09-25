@@ -23,8 +23,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  compileOutputs, deepestOwner, findDuplicates, GENERATED_MARKER, kernelBudget, loadRules,
-  NESTED_ATTRIBUTES, NESTED_CONTRACT, OUTPUT_DIR, reportOutputs, scopeOwner,
+  compileOutputs, findDuplicates, GENERATED_MARKER, kernelBudget, loadRules,
+  NESTED_ATTRIBUTES, NESTED_CONTRACT, OUTPUT_DIR, reportOutputs, ruleHomes,
 } from './contracts-lib.mjs';
 import { DRIVER_NAME, SKIP_INSTALL_ENV, install as installMergeDriver, isInstalled } from './contracts-merge-driver.mjs';
 import { measured } from './measured.mjs';
@@ -278,7 +278,7 @@ function main() {
     // Codex reads AGENTS.md files, so a rule whose area has not migrated reaches Codex only
     // through that area's remaining prose - which is fine mid-migration and invisible without
     // this line. Reported, never refused: during phase 2b it is true of almost every rule.
-    const homeless = rules.filter((r) => r.status === 'active' && !r.carried && !deepestOwner(scopeOwner(r.scope), owned));
+    const homeless = rules.filter((r) => r.status === 'active' && !r.carried && ruleHomes(r.scope, owned).length === 0);
     if (homeless.length > 0) {
       console.log(`${LABEL} ${homeless.length} rule(s) reach Codex only through prose, because no migrated directory owns them:`);
       for (const rule of homeless) console.log(`    ${rule.id}  (scope ${rule.scope.join(', ')})`);

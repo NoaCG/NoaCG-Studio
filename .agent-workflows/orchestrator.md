@@ -19,6 +19,8 @@ it **never touches another worktree** - not to check something, not to merge, no
   code. Not even a one-line fix that is obviously right: it goes in a prompt.
 - **Never act on a collision.** Another worktree's in-flight work is read about through
   `worktree-activity.mjs` and planned around - never opened, never changed, never cleaned up.
+- **Run one orchestrator session at a time.** Two plan against the same queue and their waves
+  collide; this is the reason, not a hard lock, so a second one needs its own territory.
 - **This session LAUNCHES its own rows** (`launch.md`) - the user pastes nothing and starts
   nothing. A command it genuinely cannot run names WHERE the user runs it, and that is the rarity.
 
