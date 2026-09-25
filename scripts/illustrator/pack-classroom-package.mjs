@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PACKS THE NOACG CLASSROOM PACKAGE: the README as a one-page PDF, then the whole folder as a zip.
+// PACKS THE NOACG CLASSROOM PACKAGE: the README as a two-page PDF, then the whole folder as a zip.
 //
 //   node scripts/illustrator/pack-classroom-package.mjs [--copy-to <file.zip>]...
 //
@@ -7,9 +7,11 @@
 // Illustrator, and again after any change to docs/tutorials/classroom-package/README.md.
 //
 // 1. README.md -> README.pdf. README.md is the source and README.pdf is what a student opens from
-//    the learning platform. Chromium prints it on one A4 page, headings in Oswald like the
-//    graphics. The Markdown is the small subset the README uses (headings, bullets, bold, inline
-//    code, one code block), converted here so the repo needs no Markdown package for one page.
+//    the learning platform. Chromium prints it on two A4 pages, headings in Oswald like the
+//    graphics: page 1 is what to do, and page 2, after the README's one `---`, is the layer names
+//    of every graphic. The Markdown is the small subset the README uses (headings, bullets, bold,
+//    inline code, one table, one code block, one `---` as the page break), converted here so the
+//    repo needs no Markdown package for two pages.
 // 2. The zip: Illustrator/, SVG/, Previews/, README.md, README.pdf and credits-english.txt (cut
 //    from the README's paste example, never stored on its own) inside one folder named
 //    NoaCG-classroom-package, written to public/downloads/NoaCG-classroom-package.zip, which the
@@ -29,6 +31,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const PACKAGE = path.join(ROOT, 'docs', 'tutorials', 'classroom-package');
 const ZIP_NAME = 'NoaCG-classroom-package';
 const ZIP_OUT = path.join(ROOT, 'public', 'downloads', `${ZIP_NAME}.zip`);
+/** README.pdf's page count: what to do, then the layer names. */
+const PAGES = 2;
 /** What goes in the zip, in this order. Anything else in the folder stays out. */
 const CONTENTS = ['README.pdf', 'README.md', 'Illustrator', 'SVG', 'Previews'];
 
@@ -42,10 +46,13 @@ const inline = (s) =>
 function markdownToHtml(md) {
   const out = [];
   let list = false;
+  let table = false;
   let code = null;
-  const closeList = () => {
+  const closeBlock = () => {
     if (list) out.push('</ul>');
     list = false;
+    if (table) out.push('</table>');
+    table = false;
   };
   for (const line of md.replace(/\r\n/g, '\n').split('\n')) {
     if (code !== null) {
@@ -56,28 +63,42 @@ function markdownToHtml(md) {
       continue;
     }
     if (line.startsWith('```')) {
-      closeList();
+      closeBlock();
       code = [];
+    } else if (line === '---') {
+      // The page break: what follows starts page 2.
+      closeBlock();
+      out.push('<hr>');
     } else if (/^#{1,3} /.test(line)) {
-      closeList();
+      closeBlock();
       const level = line.indexOf(' ');
       out.push(`<h${level}>${inline(line.slice(level + 1))}</h${level}>`);
+    } else if (line.startsWith('|')) {
+      // A table row. The first row is the header; the |---| row under it only marks that.
+      const cells = line.replace(/^\|\s*|\s*\|$/g, '').split(/\s*\|\s*/);
+      if (cells.every((c) => /^-+$/.test(c))) continue;
+      const tag = table ? 'td' : 'th';
+      if (list) closeBlock();
+      if (!table) out.push('<table>');
+      table = true;
+      out.push(`<tr>${cells.map((c) => `<${tag}>${inline(c)}</${tag}>`).join('')}</tr>`);
     } else if (line.startsWith('- ')) {
+      if (table) closeBlock();
       if (!list) out.push('<ul>');
       list = true;
       out.push(`<li>${inline(line.slice(2))}</li>`);
     } else if (line.trim() === '') {
-      closeList();
+      closeBlock();
     } else {
-      closeList();
+      closeBlock();
       out.push(`<p>${inline(line)}</p>`);
     }
   }
-  closeList();
+  closeBlock();
   return out.join('\n');
 }
 
-// The page: A4, one column of type, the paste example in two columns so the page stays one page.
+// The page: A4, one column of type, the paste example in two columns so page 1 holds it all.
 const page = (body) => `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><style>
   @font-face { font-family: Oswald; src: url('${pathToFileURL(path.join(ROOT, 'public', 'fonts', 'oswald.woff2'))}'); }
@@ -90,6 +111,12 @@ const page = (body) => `<!DOCTYPE html>
   p { margin: 1.5mm 0; }
   ul { margin: 1mm 0; padding-left: 5mm; }
   li { margin: 0.6mm 0; }
+  hr { break-after: page; border: 0; margin: 0; }
+  /* The layer-name table: one row per graphic, a thin rule between rows, header on a tint. */
+  table { border-collapse: collapse; width: 100%; margin: 2mm 0; font-size: 9.5pt; line-height: 1.35; }
+  th, td { text-align: left; vertical-align: top; padding: 1.8mm 2mm; border-bottom: 1px solid #c9d1e0; }
+  th { font-family: Oswald, Arial, sans-serif; font-weight: 700; background: #eef1f6; border-bottom: 2px solid #ffcc00; }
+  code { font-family: Consolas, 'Courier New', monospace; font-size: 0.95em; white-space: nowrap; }
   pre { font-family: Consolas, 'Courier New', monospace; font-size: 9pt; line-height: 1.3;
         background: #eef1f6; border-left: 3px solid #ffcc00; padding: 2mm 4mm; margin: 2mm 0;
         column-count: 2; column-gap: 8mm; white-space: pre-wrap; }
@@ -103,12 +130,13 @@ async function writePdf() {
     await tab.setContent(html, { waitUntil: 'load' });
     await tab.evaluate(() => document.fonts.ready);
     const pdf = await tab.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
-    // One page is the brief: count the page objects in what Chromium wrote, and keep the last
-    // good README.pdf when it is more.
+    // Two pages is the brief, what to do and then the layer names: count the page objects in
+    // what Chromium wrote, and keep the last good README.pdf when it is anything else. A third
+    // page means one of the two overflowed.
     const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
-    if (pages !== 1) throw new Error(`README.pdf would be ${pages} pages - the README is one page, shorten it`);
+    if (pages !== PAGES) throw new Error(`README.pdf would be ${pages} pages - the README is ${PAGES}, shorten the page that overflows`);
     writeFileSync(path.join(PACKAGE, 'README.pdf'), pdf);
-    console.log('pack-classroom-package: README.pdf, 1 page');
+    console.log(`pack-classroom-package: README.pdf, ${PAGES} pages`);
   } finally {
     await browser.close();
   }
