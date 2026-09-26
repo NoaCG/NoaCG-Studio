@@ -124,7 +124,7 @@ Check basic grounded helper, budgeted free service, BYOK, existing external CLI 
 MCP all fit shared operations with undo/conflicts and real-model quality evaluation. Subscription
 agent login is a separate feasibility issue, not assumed access. Check structured GDD objects,
 arrays/collections, binding/animation ownership, updates and replay. OGraf, SPX, CasparCG and
-NoaCG production need named-host evidence; flag the unknown YLE environment and free-AI budget
+NoaCG production need named-host evidence; flag the unknown receiving-broadcaster environment and free-AI budget
 at the correct gates. No silent scope removal because something is complex.
 
 9. Studio/reference reuse

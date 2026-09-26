@@ -326,7 +326,7 @@ middleware. No in-editor operator rehearsal - authors round-trip to a CG server 
 traps it proves:** loop-by-recipe, behaviour as undocumented convention, and craft gated behind
 price.
 
-### MXMZ (cloud, the one Yle named)
+### MXMZ (cloud, the closest working model)
 
 Import-first: Illustrator/Figma SVG in, every layer exposed, designers trained "for one day".
 The editor is AE-shaped and real: per-property keyframe lanes with add/prev/next, numeric

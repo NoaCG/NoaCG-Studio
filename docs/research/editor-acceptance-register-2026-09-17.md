@@ -89,7 +89,7 @@ These extend existing task IDs; no product pass is implied by the interaction st
   playhead and durations come from the timeline, without forms. Open actual wizard quiz/timer/stretch output,
   change a panel size, retain custom actions/fields/reveal logic, then save/rehearse/export.
 - B17 and R1.5: validate manifest/runtime/resource behavior on an identified OGraf host;
-  record YLE renderer/version/workflow separately before a YLE compatibility claim.
+  record the receiving broadcaster's renderer/version/workflow before a compatibility claim.
 
 ## Timeline-first acceptance correction, 2026-09-18
 

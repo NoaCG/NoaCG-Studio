@@ -59,8 +59,8 @@ It produces the wave table, so if the window later runs short the routing alread
   a claim about the past; the log says whether it is still true**, and nothing deletes an item when
   the work lands somewhere else.
 - **The north star, two ranges, nothing more:** `grep -n '^#' docs/GOALS.md` for the skeleton, then
-  `sed -n '/^## NOW/,/^## NEXT/p' docs/GOALS.md` for the current push. `## NOW` is the push;
-  `## NEXT`, `## THEN` and `## Parking lot` are parked. That is enough to classify every pasted
+  the `## Outcomes` section. The outcomes marked `(now)` are the push, each with its done criteria for
+  this phase; `(next)`, `(later)` and `Later and parked` wait. That is enough to classify every pasted
   task, whatever its own handoff says about urgency. Never read the whole file, and never read
   `docs/GOALS_ARCHIVE.md`.
 - **The register, one read:** the state table at the top of `docs/PROGRAMMES.md` (and a

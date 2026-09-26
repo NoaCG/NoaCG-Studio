@@ -269,7 +269,7 @@ the original scanners' claims. Verdicts: **we beat** (nobody credible matches), 
 | Free tier that produces airable output | **Nobody in A or D.** Singular watermarks, Loopic caps at 3 fields and minifies, Pixla renders demo data only | No | AGPL-3.0, no meter that can degrade an output, no watermark anywhere in `src/` | we beat | done |
 | Free **and** open and self-hostable | CasparCG, OBS, Sofie, Ontime, NodeCG, Ferryman, OGraf Studio | No | Same position, one layer down. This is a **match**, not a lead | match | done |
 | The only free path that reaches air with no watermark and no expiry | Nobody. Chyron gives students 90 days, Viz Artist watermarks its free output | No | True, and this is the narrow form the claim must take | we beat | done |
-| Interface in the user's language | UNRESEARCHED per vendor | Yes | **Absent.** Zero i18n in `src/`, while `taxonomy.ts` carries Finnish and Swedish search terms. First-named user is a Finnish student; named reference customer is Yle | gap | weeks |
+| Interface in the user's language | UNRESEARCHED per vendor | Yes | **Absent.** Zero i18n in `src/`, while `taxonomy.ts` carries Finnish and Swedish search terms. First-named user is a Finnish student; the home market is Nordic broadcasters | gap | weeks |
 | A price page a buyer reads in 30 seconds | Pixla, Singular, Loopic, H2R, Stagetimer | Yes | A footer clause with a stale hedge | gap | hours |
 | 24/7 support and an SLA | Every vendor in A and B | Yes for facilities | Absent, and structurally impossible with no paid surface | gap-wrong | quarters |
 | Listed in the ecosystem directory | 29 entries at ograf.dev, seven of them editors | No | Deliberately not, by the owner's 2026-09-01 ruling, until our output runs in software we did not write | gap | days |
@@ -384,7 +384,7 @@ rather than by our assertion.
    lands in a dataset instead of in cues. Ontime, Rundown Studio, Stagetimer and Sofie all import
    from a spreadsheet. This is the cheapest row in the whole matrix.
 10. **The interface speaks only English.** Zero i18n, for a first-named user who is a Finnish
-    student and a named reference customer who is Yle, in a repo that already localised the
+    student and a home market of Nordic broadcasters, in a repo that already localised the
     catalog's *search index* into Finnish and Swedish.
 11. **A corrected SVG means starting over.** No re-import path, so the mapping, the font embedding
     and the behaviour binding are all done again by hand. For a student production with a deadline

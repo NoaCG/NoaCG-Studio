@@ -63,7 +63,7 @@ holding no grants at all. Every figure quoted in these receipts is read off `350
 
 - **It is not a person looking at the page.** Every hosted claim here is structural - text,
   attributes, counts, rows, timestamps - and none of it judges how the surface LOOKS on a phone.
-  Two owner-queue items carry the routes for that, and it is the one thing left before 2026-10-20
+  Two owner-queue items carry the routes for that, and it is the one thing left before the first showing
   that no gate can do.
 - It did not walk two operators on one production, or a control whose steps expand past the batch
   cap. Both are live-verify step 10 and both remain unwitnessed.

@@ -60,7 +60,7 @@ because `docs/STACK_FRESHNESS.md` is time-driven and nothing in CI ever notices 
 
 This is the half the owner attends, so it is written for him and it is short. Read four things:
 
-- the north star and `## NOW` in `docs/GOALS.md` - what we have committed to build next;
+- the North Star and the outcomes marked `(now)` in `docs/GOALS.md` - what we are building toward;
 - the programme register in `docs/PROGRAMMES.md` - which programmes are ACTIVE, AUTHORIZED or held,
   and what each one's next gate is;
 - `node scripts/owner-receipts.mjs` - what he has asked for, what advanced, what is still unstarted;

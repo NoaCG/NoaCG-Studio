@@ -1,4 +1,4 @@
-# A control panel for any graphic - the ten rows for 2026-10-20
+# A control panel for any graphic - the ten rows for the first showing
 
 ## Problem and authority
 
@@ -6,7 +6,7 @@ A graphic should bring its own control panel whichever road made it, and a produ
 able to arrange and combine what its graphics expose without anyone hand-building a panel. The
 plan is `docs/CONTROL_PANEL_ANY_GRAPHIC.md`; its §5 lists ten rows and this spec is their
 acceptance inventory. The owner's rulings of 2026-09-15 are the authority, verbatim in
-`docs/OWNER_RULINGS.md`: ALIGN-2026-09-14-3 (the Elämäni biisi proof case and its date),
+`docs/OWNER_RULINGS.md`: ALIGN-2026-09-14-3 (the voting-show proof case),
 ALIGN-2026-09-15-1 (the brief and its constraints), ALIGN-2026-09-15-2 (build the profile, as a
 general capability), ALIGN-2026-09-15-3 (portable graphics, NoaCG-owned production behaviour,
 plus the two shared-data rows) and ALIGN-2026-09-15-4 (the rows start now). Programme P2 is

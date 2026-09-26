@@ -261,7 +261,7 @@ So the pattern for the next reported field is not "empty means off" or "empty me
 An issue was filed on `ebu/ograf` describing the §1 asymmetry - purely technical: the three
 artefacts that disagree, the exact files and lines, one concrete thing a Controller cannot learn,
 and the smallest additive change that would close it. It pitches nothing and invites nobody; the
-standing ruling that EBU/YLE **outreach** waits until a real production runs on working OGraf
+standing ruling that EBU and broadcaster **outreach** waits until a real production runs on working OGraf
 playout is untouched by it, and remains in force.
 
 **URL: https://github.com/ebu/ograf/issues/82** (filed 2026-08-30)

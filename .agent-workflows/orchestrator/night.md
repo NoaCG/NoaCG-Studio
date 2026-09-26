@@ -53,7 +53,7 @@ chain instead of by pre-approval:
   what catches the belief being wrong, and what it finds goes in the continuation's own handoff
   either way.
 - **A continuation is a FRONTIER row the landing just uncovered, and nothing else.** Its GOAL and
-  WHY use the handoff's "what is left" as evidence, checked against its active spec and `## NOW`, an ACTIVE
+  WHY use the handoff's "what is left" as evidence, checked against its active spec and a `(now)` outcome in GOALS, an ACTIVE
   programme, an owner receipt or the wave's stated goals; its files are free; and it waits on no
   human - an item that needs a ruling, a walk, a payment or a credential goes to needs-you in the
   report, never continued around. The loop writes the prompt in the section-5 format, preserving
@@ -136,8 +136,8 @@ Each tick, in this order, and nothing else:
    pick exactly like a planned row (its own worktree, its own queue, its own handoff), record
    the start with `node scripts/wave-launch.mjs record --letter <L> --branch <b> --size <size>` so
    the horizon learns, and append the launch and its traced why to the wave-state file. A refill
-   unit is a **frontier row the loop launches under the WHY chain**: its why traces to `## NOW`, an
-   ACTIVE programme, an owner receipt or the wave's goals, or it is a candidate row in the report,
+   unit is a **frontier row the loop launches under the WHY chain**: its why traces to a `(now)` outcome in
+   GOALS, an ACTIVE programme, an owner receipt or the wave's goals, or it is a candidate row in the report,
    never a launch. **The bound is the HORIZON and the report, not a count.** The handoff
    continuations below were capped at the wave's session count because they had no other limit;
    refill has one - it runs until `wave-horizon.mjs` closes the window or the report checkpoint is
@@ -156,7 +156,7 @@ wave-state file under `## Candidates` as a TABLE `candidates.mjs` reads - column
 `L | size | serves | TOUCHES | SPECS | goal` plus an optional `browser` (`yes`/`no` only; any other
 cell derives the need from SPECS); `size` is `small`, `standard` or `large` (`wave-horizon`),
 `TOUCHES` and `SPECS` are the files and covering specs (`collision-check`), and `serves` traces the
-why to `## NOW`, an ACTIVE programme or an owner receipt. Each candidate is a FRONTIER unit under
+why to a `(now)` outcome in GOALS, an ACTIVE programme or an owner receipt. Each candidate is a FRONTIER unit under
 the same WHY chain as a continuation; the fields come from its backlog item's front matter
 (`serves`/`size`/`touches`/`covered-by`, `docs/backlog/README.md`). A unit that collides or does not
 fit is held, not dropped, and re-tried when a slot or the window allows. When the list is spent and

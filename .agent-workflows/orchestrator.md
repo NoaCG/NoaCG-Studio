@@ -53,10 +53,10 @@ never pastes what a session already wrote down. **Owner feedback from testing th
 OUTRANKS a handoff's own idea of what comes next.** A vague report is ONE session whose first step
 is reproduce-and-scope.
 
-**A row is on the FRONTIER when three things hold:** its why traces to the user's ask, to `## NOW`
-in `docs/GOALS.md`, to an ACTIVE programme in `docs/PROGRAMMES.md` or to an owner receipt; its
+**A row is on the FRONTIER when three things hold:** its why traces to the user's ask, to an
+outcome marked `(now)` in `docs/GOALS.md`, to an ACTIVE programme in `docs/PROGRAMMES.md` or to an owner receipt; its
 files are free; and it waits on no human. **Capacity fills the frontier in a fixed order, and never
-past it:** the user's own feedback, then live files in `docs/handoffs/`, then `## NOW`, then the
+past it:** the user's own feedback, then live files in `docs/handoffs/`, then the unsatisfied `(now)` outcomes, then the
 next stages of ACTIVE programmes - and of AUTHORIZED ones whose only unmet entry condition is a
 DATE, because a date orders and never gates (owner, 2026-09-03) - then standing owner asks (`node scripts/owner-receipts.mjs`
 - what the owner asked for, when, and how long it has waited), then `docs/backlog/` items whose

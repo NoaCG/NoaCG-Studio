@@ -409,8 +409,8 @@ changed in the **dashboard**; the toml is kept in step by hand, as a record of i
    fonts, /api, IndexedDB, the sandboxed preview frame, third-party internet). The same
    inline script is the boot watchdog: a boot that never mounts paints a plain-HTML
    diagnosis pointing there instead of a white screen. Pinned by
-   `e2e/network-resilience.spec.ts`; born from the 2026-08-20 Yle demo failing inside the
-   wizard on Yle's restricted network with nothing recorded anywhere.
+   `e2e/network-resilience.spec.ts`; born from a demo failing inside the wizard on a
+   restricted broadcaster network with nothing recorded anywhere.
 
 ## Known limits (deliberate, revisit when they hurt)
 

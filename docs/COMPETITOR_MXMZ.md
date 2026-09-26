@@ -12,8 +12,8 @@ evidence about a shipped feature and strong evidence about a SOLD one, because a
 hide the thing it competes on. Anything here that would change an architecture decision should be
 re-checked in a demo before it does.
 
-Named by Yle as the working model (2026-08-20), which is why they matter more than the older three
-in `docs/GOALS.md` "Who we are replacing".
+The closest working model of the "your own SVG, playable" workflow, which is why they matter more
+than the older three in `docs/GOALS.md` "Who we are replacing".
 
 ---
 
@@ -80,7 +80,7 @@ precisely the thing their architecture has no place to put.
 
 ## 4. Where they are ahead of us today
 
-Honest list, because these are what a Yle designer would notice inside five minutes:
+Honest list, because these are what a broadcast designer would notice inside five minutes:
 
 - **The timeline is their trained primary surface.** Frame-accurate keyframes on every layer and
   every property. Ours exists and is real, but it sits in Advanced mode and nobody is taught it.

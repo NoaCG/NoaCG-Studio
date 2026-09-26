@@ -213,7 +213,7 @@ The premium pack ships a `js/spx_interface.js` with small utilities (not require
 
 ## 7. Real-world dialects (measured from production templates)
 
-A 2026-08 sweep of ~200 real production templates (Yle shows, orchestra packages, SmartPX's
+A 2026-08 sweep of ~200 real production templates (broadcaster shows, orchestra packages, SmartPX's
 own packs — the local `spx_examples/` corpus, `docs/SPX_EXAMPLES_CORPUS.md`) shows how far
 templates in the wild drift from the clean form above. **The importer and validator must
 accept all of this; the generator emits none of it.**

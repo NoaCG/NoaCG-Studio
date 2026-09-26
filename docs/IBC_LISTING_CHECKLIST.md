@@ -202,7 +202,7 @@ finds something, that is worth more.
   HTML/CSS/JS; OGraf is one of six export targets. What we guarantee is that the package we emit
   is a conformant OGraf v1 Graphic, checked weekly against the published schemas.
 - **"Who is using it?"** Nobody has reported a NoaCG package in production. It is used in teaching,
-  and Yle asked for editable OGraf base packages, which is why `/ograf` exists.
+  and broadcasters asked for editable OGraf base packages, which is why `/ograf` exists.
 - **"Is it really free?"** Yes, and there is no paid surface at all (owner ruling, 2026-09-07).
   Creating, previewing and exporting need no account. Hosted AI for people who will not bring
   their own key is subsidised by the project rather than sold, and bring-your-own-key is free as

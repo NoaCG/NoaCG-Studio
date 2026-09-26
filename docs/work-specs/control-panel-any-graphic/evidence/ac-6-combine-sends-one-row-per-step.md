@@ -87,7 +87,7 @@ The owner-queue item's route now says to open the output URL for exactly this re
   claim (a delayed step counting from the WIRE rather than the cue) is pinned as a rule offline
   and is the strongest remaining candidate for a second hosted case.
 - **Nothing persists a wait.** A tab reloaded mid-countdown loses the unsent tail by design (§6d),
-  and the button's hover says so. Whether that is acceptable for 2026-10-20 is the one question
+  and the button's hover says so. Whether that is acceptable for the first showing is the one question
   still on the owner's route, and it is the expensive one to change later.
 - A patch step can be stored and sent but not composed: the composer authors no values, which is
   what keeps it from becoming a payload editor.
