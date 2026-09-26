@@ -8,7 +8,7 @@
 //
 // `docs/acceptance/OWNER_QUEUE.md` ("The shape of an item") says every file under
 // `docs/acceptance/owner-queue/` opens with front matter carrying `kind:` (one of KINDS below)
-// and `date:`. `.agent-workflows/walk.md` step 2 reads those two keys to pick the list an item
+// and `date:`. `.agent-workflows/walk.md` reads those two keys to pick the list an item
 // goes in, sort it newest-first, filter it (`/walk hardware`) and skip `done: true` items. On
 // 2026-09-02, 30 of 59 files carried neither key, so more than half the queue could not be
 // sorted or filtered by the mechanism its own contract describes - the documented shape was
@@ -46,7 +46,32 @@ export const QUEUE_DIR = 'docs/acceptance/owner-queue';
  * three older values still pass unchanged: this is a WIDENING, so no item filed against the
  * earlier vocabulary goes red for a value its session never saw.
  */
-export const KINDS = Object.freeze(['walk', 'walk-p', 'owner-action', 'hardware', 'agent']);
+/**
+ * THE THREE KINDS an item filed from `KINDS_V2_REQUIRED_FROM` carries (docs/GOALS.md, "How done
+ * works"; .agent-workflows/verify.md, step 5). Everything an agent can verify, it verifies; an item
+ * exists only where the owner's eyes, judgment or decision add value:
+ *
+ * - decision - something only he can decide.
+ * - phone    - a quick look he can take from his phone.
+ * - desktop  - a desktop or production check where product judgment matters.
+ *
+ * The older kinds stay readable and are MIGRATED ON READ by `canonicalKind`: walk-p reads as
+ * phone, walk and hardware as desktop, owner-action as decision. `agent` has no new equivalent,
+ * because an item an agent can settle is not his at all.
+ */
+export const KINDS_V2 = Object.freeze(['decision', 'phone', 'desktop']);
+
+/** From this date an item must carry one of `KINDS_V2`; older items are read as they were. */
+export const KINDS_V2_REQUIRED_FROM = '2026-09-27';
+
+const LEGACY_TO_V2 = Object.freeze({ 'walk-p': 'phone', walk: 'desktop', hardware: 'desktop', 'owner-action': 'decision' });
+
+/** The v2 kind an item means, whichever vocabulary it was filed in. */
+export function canonicalKind(kind) {
+  return KINDS_V2.includes(kind) ? kind : (LEGACY_TO_V2[kind] ?? kind);
+}
+
+export const KINDS = Object.freeze(['walk', 'walk-p', 'owner-action', 'hardware', 'agent', ...KINDS_V2]);
 
 /**
  * The only value `serves:` may carry. It marks an item whose work serves an outcome marked `(now)`
@@ -67,7 +92,7 @@ export const SERVES = 'now';
  * these four is not his, and filing it is the bug this gate catches.
  *
  * - account  - credentials or a console we do not hold.
- * - money    - it costs money, or publishes past `main` where a later commit cannot undo it.
+ * - money    - a significant or unusual cost; routine releases and trivial costs are not his.
  * - identity - he must speak or sign as himself or as the organisation.
  * - harness  - the agent harness refuses it by design, and the item says which refusal it hit.
  *
@@ -300,7 +325,7 @@ export function placeOf(text) {
 export const ROUTE_REQUIRED_FROM = '2026-09-10';
 
 /** The kinds a walk actually opens something for, and therefore the kinds that need a route. */
-const ROUTED_KINDS = Object.freeze(['walk', 'walk-p', 'agent']);
+const ROUTED_KINDS = Object.freeze(['walk', 'walk-p', 'agent', 'phone', 'desktop']);
 
 /**
  * `parseFrontmatter` gives back the TEXT of each value, so `done: true` arrives as the string
@@ -328,7 +353,13 @@ export function auditOwnerQueueItem(text) {
   const { data } = parsed;
   const problems = [];
   if (!data.kind) problems.push('missing kind:');
-  else if (!KINDS.includes(data.kind)) problems.push(`kind: '${data.kind}' is not one of ${KINDS.join(', ')}`);
+  else if (!KINDS.includes(data.kind)) problems.push(`kind: '${data.kind}' is not one of ${KINDS_V2.join(', ')}`);
+  else if (!KINDS_V2.includes(data.kind) && String(data.date ?? '') >= KINDS_V2_REQUIRED_FROM) {
+    problems.push(
+      `kind: '${data.kind}' is retired for items filed from ${KINDS_V2_REQUIRED_FROM}: use ${KINDS_V2.join(', ')}. ` +
+        'Work an agent can verify is verified, never filed here.',
+    );
+  }
   if (!data.date) problems.push('missing date:');
   // `serves:` is OPTIONAL and its absence is never a problem - an item that does not serve the
   // current push simply has no key. But it is the whole priority mechanism, so a misspelt value
@@ -343,8 +374,8 @@ export function auditOwnerQueueItem(text) {
   if (data.needs !== undefined && !NEEDS.includes(data.needs)) {
     problems.push(`needs: '${data.needs}' is not one of ${NEEDS.join(', ')}`);
   }
-  if (data.needs !== undefined && data.kind !== 'owner-action') {
-    problems.push(`needs: only belongs on kind: owner-action (this is kind: ${data.kind ?? 'missing'})`);
+  if (data.needs !== undefined && canonicalKind(data.kind) !== 'decision') {
+    problems.push(`needs: only belongs on kind: decision (this is kind: ${data.kind ?? 'missing'})`);
   }
   if (data.kind === 'owner-action' && data.needs === undefined && String(data.date ?? '') >= NEEDS_REQUIRED_FROM) {
     problems.push(
@@ -358,8 +389,8 @@ export function auditOwnerQueueItem(text) {
   if (data.because !== undefined && !WALK_BECAUSE.includes(data.because)) {
     problems.push(`because: '${data.because}' is not one of ${WALK_BECAUSE.join(', ')}`);
   }
-  if (data.because !== undefined && !['walk', 'walk-p'].includes(data.kind)) {
-    problems.push(`because: only belongs on kind: walk or walk-p (this is kind: ${data.kind ?? 'missing'})`);
+  if (data.because !== undefined && !['phone', 'desktop'].includes(canonicalKind(data.kind))) {
+    problems.push(`because: only belongs on kind: phone or desktop (this is kind: ${data.kind ?? 'missing'})`);
   }
   if (
     ['walk', 'walk-p'].includes(data.kind) &&
@@ -465,7 +496,7 @@ function groupByPlace(items) {
  * names no route at all. Grouping either would print one bucket called "on their own" and call it
  * a place.
  */
-const UNGROUPED_KINDS = Object.freeze(['owner-action', 'hardware']);
+const UNGROUPED_KINDS = Object.freeze(['owner-action', 'hardware', 'decision']);
 
 /** One item, one line, with what the reader needs in order to pick it. */
 function printItem(item, extra) {
@@ -509,7 +540,11 @@ function printList(heading, items) {
  */
 function reportRoutes(queue, filter) {
   const open = queue.filter((item) => !isTrue(item.data.done));
-  const of = (kind) => open.filter((item) => item.data.kind === kind);
+  // A filter or list names a kind in either vocabulary; a v2 name also collects the legacy items
+  // that migrate to it on read, except legacy hardware items, which stay on their own blocked list.
+  const of = (kind) => open.filter((item) => item.data.kind === kind || (
+    KINDS_V2.includes(kind) && canonicalKind(item.data.kind) === kind && item.data.kind !== 'hardware'
+  ));
 
   if (filter) {
     const items = of(filter);
@@ -525,12 +560,12 @@ function reportRoutes(queue, filter) {
   // Printed for the same reason `needs:` is: a wrong reason should be visible to HIM, not only to
   // the gate. An item filed before the requirement shows nothing, which is honest - it was never
   // asked.
-  printList('From your phone (walk-p)', of('walk-p'));
-  printList('At the computer (walk)', of('walk'));
+  printList('From your phone', of('phone'));
+  printList('At the computer', of('desktop'));
 
   // The `needs:` key is what is worth reading on an owner-action item, so it is printed beside the
   // title: a wrong reason is then visible to HIM and not only to the gate.
-  printFlatList('Only you can do these (owner-action)', of('owner-action'), (item) => `needs: ${item.data.needs ?? '?'}`);
+  printFlatList('Only you can decide these', of('decision'), (item) => (item.data.needs ? `needs: ${item.data.needs}` : null));
 
   const hardware = of('hardware').length;
   const agent = of('agent').length;
@@ -592,7 +627,7 @@ function main() {
   const grouped = routed.filter((item) => item.place.id !== OWN_ROUTE.id);
   measured.optional(
     grouped.length,
-    `queue items grouped by route (of ${routed.length} open walk/walk-p/agent; ${new Set(grouped.map((item) => item.place.id)).size} place(s))`,
+    `queue items grouped by route (of ${routed.length} open phone/desktop/agent; ${new Set(grouped.map((item) => item.place.id)).size} place(s))`,
     'zero is honest for a drained queue, or for one whose every remaining item opens somewhere nobody else does.',
   );
 

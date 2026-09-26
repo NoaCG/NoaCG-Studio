@@ -330,8 +330,10 @@ try {
         since = 0;
       }
     }
+    // The orchestrator plans from the queue's results; an ordinary session gets only what concerns
+    // its own branch (the landed and refused lines below), not every job that finished.
     const done = finishedSince(jobs, since);
-    if (done.length > 0) {
+    if (isOrchestratorHome && done.length > 0) {
       console.log('');
       console.log(`Queued work that finished since your last session (${done.length}):`);
       for (const job of done.slice(-8)) {
@@ -354,7 +356,6 @@ try {
       console.log('');
       console.log(`THIS WORKTREE'S BRANCH HAS LANDED: ${mine.branch} is in main as ${String(mine.sha).slice(0, 8)}.`);
       console.log('  Merged and pushed - nothing here is waiting to merge.');
-      console.log('  If the work is finished, run /handoff so the owner knows this session is done.');
     }
 
     // THE OTHER HALF OF THAT LINE, and the one that was missing. A landing runs in a background
