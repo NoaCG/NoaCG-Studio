@@ -525,7 +525,8 @@ pre-built now.
 
 **Walked, not only stated.** §6h exports the proof case through both SPX doors and reads what the
 boundary costs an operator standing at SPX: on the starter package the combined control, the
-bindings and the tree are all gone, and nothing in the package says so.
+bindings and the tree are all gone. Since 2026-09-27 the package says so, with the SPX operator's
+by-hand equivalent of each (`src/export/spxLeftBehind.ts`).
 
 **What this check did NOT change.** The two primitives, the step marks, the general table in §6c,
 the refusals, the timing rule in §6d. The score example proves the shared-data row and nothing
@@ -585,9 +586,10 @@ four costs above:
 
 **What stays open.** The real-SPX run of the embed is the SPX line of
 `docs/backlog/casparcg-production-acceptance-matrix.md` and is folded into the owner's desktop walk
-`docs/acceptance/owner-queue/2026-09-16-a-profile-driven-where-the-show-is-run.md`. That the
-starter package says nothing about what it drops, and the Shown trap, are
-`docs/backlog/the-spx-package-drops-the-profile-without-saying-so.md`.
+`docs/acceptance/owner-queue/2026-09-16-a-profile-driven-where-the-show-is-run.md`. The starter
+package now says what it drops and carries the SPX rule for the Shown field
+(`src/export/spxLeftBehind.ts`); what the rule cannot fix, SPX setting Shown itself, and the
+unmeasured CasparCG flavour, are `docs/backlog/the-spx-package-drops-the-profile-without-saying-so.md`.
 
 ## 7. The constraints, checked
 

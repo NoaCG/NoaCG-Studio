@@ -29,6 +29,7 @@ import { saveAs } from 'file-saver';
 import { slug } from '../model/slug';
 import { buildStarterInto } from './targets/spxStarter';
 import { onAirGuideMd } from './onAirGuide';
+import { spxLeftBehindMd, spxReportedFieldRulesMd, type PackagedGraphic } from './spxLeftBehind';
 import { showFieldReferenceMd, type ProductionFieldGraphic } from './fieldReference';
 import { addLocalControlBundle } from './localControl';
 import { EXPORT_TARGETS } from './registry';
@@ -114,10 +115,12 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
   const usedSlugs = new Set<string>();
   const folderNames: string[] = [];
   const fieldGraphics: ProductionFieldGraphic[] = [];
+  const packaged: PackagedGraphic[] = [];
   for (const graphic of show.graphics) {
     const template = exportTemplateFor(graphic, library, usedSlugs);
     const name = slug(template.name);
     folderNames.push(name);
+    packaged.push({ poolId: graphic.id, poolName: graphic.name, template });
     fieldGraphics.push({ template, layer: showGraphicLayer(graphic), file: `${name}/${name}.html` });
     await buildStarterInto(root.folder(name)!, template, {
       entries: entriesForSavedGraphic(graphic, library),
@@ -131,9 +134,13 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
       show.graphics.map((g) => ({ template: templateForSavedGraphic(g, library), entries: entriesForSavedGraphic(g, library) })),
     ),
   );
+  // What the production uses that SPX cannot carry, and the Update-after-Continue rule, in the
+  // SPX operator's own actions (§6h). Both are '' when there is nothing to say, so a plain
+  // production's README and guide read exactly as before.
+  const spxNotes = [spxLeftBehindMd(show, packaged), spxReportedFieldRulesMd(packaged)].filter(Boolean).join('\n');
   // The aggregated panel written just above is the one a reader standing at this root wants;
   // each graphic folder carries its own as well.
-  root.file('GETTING-ON-AIR.md', onAirGuideMd({ controlPanel: 'show_controlpanel.html' }));
+  root.file('GETTING-ON-AIR.md', onAirGuideMd({ controlPanel: 'show_controlpanel.html', spxNotes }));
   // ONE table for the whole production: which graphic is on which layer, and every field ID it
   // answers to. The package is driven by SPX or a CasparCG client here, and both speak ids.
   root.file(
@@ -164,7 +171,8 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
       `\n## The fields (FIELDS.md)\n` +
       `Every graphic's fields with the ID a playout client sends them under (f0, f1, …). Keep it\n` +
       `open beside a CasparCG client — the client shows ids, FIELDS.md says what they mean.\n` +
-      `\nExtract this folder into your SPX/CasparCG templates directory as-is.\n`,
+      `\nExtract this folder into your SPX/CasparCG templates directory as-is.\n` +
+      (spxNotes ? `\n${spxNotes}` : ''),
   );
   return zip;
 }

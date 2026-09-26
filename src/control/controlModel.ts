@@ -7,7 +7,7 @@
 import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import { parseAnimData } from '../blocks/animData';
-import { deriveMachine, machineControls, type ControlButton } from '../blocks/animMachine';
+import { deriveMachine, machineControls, walkEntry, type ControlButton } from '../blocks/animMachine';
 import { slug } from '../model/slug';
 import { readPublishedProfile } from '../model/profile';
 import { splitBoundWrites, type PressVerb, type TreeWrite } from '../model/productionData';
@@ -707,6 +707,24 @@ export function canAdvance(js: string, state: { groups?: Record<string, string> 
   if (at + 1 >= path.length) return false;
   if (at + 1 < path.length - 1) return true;
   return main.transitions.some((t) => operator(t) && t.to === path[at + 1]);
+}
+
+/**
+ * The operator events a plain Next (SPX Continue, `CG … NEXT`) fires somewhere on the graphic's
+ * walk, by the same reading as `canAdvance`: the authored operator arrow that reaches each
+ * waypoint (`walkEntry`), plus `next` itself wherever an authored `next` arrow leaves the path.
+ * An export that tells a host's operator "press Continue for this control" asks this.
+ */
+export function continueEvents(js: string): Set<string> {
+  const main = machineOf(js)?.groups[0];
+  const events = new Set<string>();
+  if (!main) return events;
+  for (let i = 1; i < (main.defaultPath ?? []).length; i++) {
+    const t = walkEntry(main, i);
+    if (t?.trigger === 'operator' && t.event) events.add(t.event);
+  }
+  if (main.transitions.some((t) => t.trigger === 'operator' && t.event === 'next')) events.add('next');
+  return events;
 }
 
 // ── The control ⇄ graphic message protocol ──────────────────────────────────

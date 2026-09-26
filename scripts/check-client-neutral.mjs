@@ -100,7 +100,7 @@ const ALLOWED = [
   { file: 'src/export/showExport.ts', line: "'In an SPX rundown the fields appear by name and you never type an id. A CasparCG ' +", why: 'the exported FIELDS.md explaining how each host addresses fields' },
   { file: 'src/export/showExport.ts', line: "`Serve this folder over http (SPX's template server, or any local web server), run each\\n` +", why: 'names one concrete way to serve the folder' },
   { file: 'src/export/showExport.ts', line: '`every local file its own private origin. In an SPX or CasparCG rundown you do not need the\\n` +', why: 'says which hosts make the bundled panel unnecessary' },
-  { file: 'src/export/showExport.ts', line: '`\\nExtract this folder into your SPX/CasparCG templates directory as-is.\\n`,', why: 'where the exported folder goes in the template-file hosts' },
+  { file: 'src/export/showExport.ts', line: '`\\nExtract this folder into your SPX/CasparCG templates directory as-is.\\n` +', why: 'where the exported folder goes in the template-file hosts' },
   { file: 'src/validation/engineSupport.ts', line: "{ id: 'browser', label: 'A current browser', chromium: null, note: 'SPX’s own renderer, and the studio preview' },", why: 'names which renderer an engine row IS' },
 ];
 
