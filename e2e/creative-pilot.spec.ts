@@ -8,6 +8,7 @@
 
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import * as rules from '../scripts/rules.mjs';
 
 const open = async (page: Page) => {
   await page.goto('/app', { waitUntil: 'domcontentloaded' });
@@ -1465,7 +1466,10 @@ test.describe('creative pilot (phase C)', () => {
     // …and BOTH of its calls carried the neutral example, repair included - a repair round
     // that quietly re-anchored on the catalog would break the whole A-vs-B comparison.
     expect(bSystems).toHaveLength(2);
-    expect(bSystems.every((s) => s.includes('graphic-box') && !s.includes('.lower-third-box {'))).toBe(true);
+    expect(
+      bSystems.every((s) => s.includes('graphic-box') && !s.includes('.lower-third-box {')),
+      rules.text('ai/let-catalog-design-code-reach-any'),
+    ).toBe(true);
 
     // Arm A: the control's wiring - the provider's own stages are read back off the
     // telemetry ring, which is where §12's cost and latency for this arm come from.

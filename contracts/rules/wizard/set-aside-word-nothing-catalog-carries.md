@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/BrowseStep.tsx, src/templates/search.ts
+scope: src/components/wizard/steps/BrowseStep.tsx
 kind: invariant
 fires: contract
 status: active

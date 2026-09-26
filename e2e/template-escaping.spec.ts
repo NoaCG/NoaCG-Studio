@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import * as rules from '../scripts/rules.mjs';
 
 // FIELD TEXT IS DATA, NEVER MARKUP — the whole catalog, driven with a markup payload.
 //
@@ -86,7 +87,8 @@ test('no catalog variant lets field text execute as markup', async ({ page }) =>
   expect(
     fired,
     'These variants rendered field text as markup and it EXECUTED. Escape it where the runtime ' +
-      'reads the field (shared/base.ts ESCAPE_HTML_JS), not inside the design’s row builder.',
+      'reads the field (shared/base.ts ESCAPE_HTML_JS), not inside the design’s row builder. ' +
+      rules.text('templates/escape-field-text-shared-data-reading'),
   ).toEqual([]);
 });
 

@@ -5,6 +5,7 @@ import { finishIntoEditor, enableAdvancedMode } from './_create';
 import { durableValue } from './_storage';
 import { chooseType, pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
+import * as rules from '../scripts/rules.mjs';
 
 // Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows
 // from it: only a first-ever visit (no autosaved project) opens the wizard, and a returning
@@ -145,7 +146,7 @@ test('the wizard door is on every /app surface, beside Home', async ({ page }) =
       },
       [surface.door, surface.afterSelector] as const,
     );
-    expect(placement, `+ New graphic placement on ${surface.hash}`).toEqual({
+    expect(placement, `+ New graphic placement on ${surface.hash}. ${rules.text('components/link-logo-every-header-public-front')}`).toEqual({
       followsHome: true,
       beforeTheSpacer: true,
       amber: false,

@@ -26,4 +26,4 @@ no longer exist wastes the read.
 ## Evidence
 
 The script's own header says every line was checked against its frame on 2026-09-10; the naming
-system is `docs/OWNER_RULINGS.md` (2026-09-24) and `src/templates/behaviours/layer-names.json`.
+system is `src/templates/behaviours/layer-names.json`, explained in `docs/SVG_AUTHORING.md`.

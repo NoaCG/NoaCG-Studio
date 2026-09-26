@@ -3,7 +3,7 @@ v: 1
 scope: src/model/types.ts
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-08
 record: contracts/records/model/2026-09-08-carries-html-plus-css-plus-plus.md
 ---

@@ -48,6 +48,7 @@ import { fileURLToPath } from 'node:url';
 
 import { escapeHtml, matchesRole, rowTokenOf } from './behaviour-docs.mjs';
 import { measured } from './measured.mjs';
+import * as rules from './rules.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SYSTEM_FILE = 'src/templates/behaviours/layer-names.json';
@@ -719,7 +720,10 @@ function main() {
     console.error(`check-example-layers: ${file} breaks the layer-naming system (docs.html#svg-layers):`);
     for (const p of problems) console.error(`  - ${p}`);
   }
-  if (failed) process.exit(1);
+  if (failed) {
+    console.error(rules.text('templates/name-every-layer-svg-you-draw'));
+    process.exit(1);
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

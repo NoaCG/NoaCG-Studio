@@ -2,7 +2,7 @@
 v: 1
 scope: src/model/productionData.ts
 kind: invariant
-fires: contract
+fires: test:scripts/production-data.test.mjs
 status: active
 since: 2026-09-08
 record: contracts/records/model/2026-09-08-imports-nothing-touches-dom-storage-deliberate.md

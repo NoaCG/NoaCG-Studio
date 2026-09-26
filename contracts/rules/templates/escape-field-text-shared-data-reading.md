@@ -2,7 +2,7 @@
 v: 1
 scope: src/templates/**
 kind: trap
-fires: contract
+fires: test:e2e/template-escaping.spec.ts
 status: active
 since: 2026-09-07
 record: contracts/records/templates/2026-09-07-escape-field-text-shared-data-reading.md
