@@ -511,7 +511,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   airedRef.current = airedData;
   const machineStateRef = useRef(machineState);
   machineStateRef.current = machineState;
-  /** Sends the cue editor's typing still inside its debounce (`takeCue` says why). */
+  /** Sends the cue editor's typing still inside its debounce (`sendVerb` says why). */
   const flushTyping = useRef<() => void>(() => {});
   const reportsRef = useRef<ResolvedControlShow['live']>({});
   reportsRef.current = resolved?.live ?? {};
@@ -601,9 +601,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * page's own monitor with no hop at all, and one send that both writes the durable row and has
    * the database broadcast the same commands to every other surface. It answers whether it LANDED,
    * so a caller sending several batches can stop at the first refusal rather than pressing on.
+   *
+   * THE TYPING STILL IN THE EDITOR'S DEBOUNCE LEAVES FIRST (`flushTyping`). The overlay lets a
+   * Take, an Update or a ⚡ payload air an edit the shared buffer has not seen yet, and until the
+   * debounced write landed that edit lived only in this tab. A reload in that window (a phone does
+   * it on its own) brought the tab back on the buffer's older key, and Reveal correct, which
+   * carries the key the cue shows, then lit that older key on air (configured run 36276590046).
+   * The stage write now leaves beside the verb, so what remains is the two requests' round trip.
    */
-  const sendVerb = (items: ControlSendItem[]): Promise<boolean> =>
-    sendControlVerb({
+  const sendVerb = (items: ControlSendItem[]): Promise<boolean> => {
+    flushTyping.current();
+    return sendControlVerb({
       slug,
       showId: resolved?.id ?? null,
       items,
@@ -616,6 +624,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         return false;
       },
     );
+  };
 
   /** The layers that are up, front to back. */
   const liveLayers = (payload?.graphics ?? [])
@@ -768,7 +777,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * be refused too — the same rule ■ All out already follows.
    */
   fireCombineRef.current = (control, due) => {
-    flushTyping.current();
     const { steps, mirrors, dropped, tree } = resolveCombineSend(due, combineNow, combineWorld);
 
     for (const drop of dropped) {
@@ -842,19 +850,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     scheduler.press(control.id, planCombine(control, ticked), (due) => fireCombineRef.current(control, due));
   };
 
-  /**
-   * STAGE THE TYPING A PRESS IS ABOUT TO AIR, NOW rather than when the debounce runs out. The
-   * overlay lets a Take or an Update air an edit the shared buffer has not seen yet, and until
-   * the debounced write lands that edit lives only in this tab. A reload in that window (a phone
-   * does it on its own) brought the tab back on the buffer's older key, and Reveal correct, which
-   * carries the key the cue shows, then lit that older key on air (configured run 36276590046).
-   * The stage write now leaves beside the verb, so what remains is the two requests' own round
-   * trip. The editor fills `flushTyping` in, since the debounce is its own.
-   */
-  const takeCue = (cue: OutputCue) => {
-    flushTyping.current();
-    return sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue) }));
-  };
+  const takeCue = (cue: OutputCue) =>
+    sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue) }));
   const nextLayer = () => {
     if (selectedGraphic) void sendVerb([{ graphic: selectedGraphic, msg: { t: 'next' } }]);
   };
@@ -868,7 +865,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   };
   const updateLive = () => {
     if (selectedGraphic && selectedCue && selectedIsLive) {
-      flushTyping.current();
       void sendVerb([{ graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } }]);
     }
   };
@@ -885,7 +881,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   const snapTo = (groupId: string | null, stateId: string) => {
     if (!selectedGraphic || !selectedLayerCueId || !selectedCue) return;
-    flushTyping.current();
     void sendVerb([
       { graphic: selectedGraphic, msg: { t: 'snap', snap: groupId === null ? null : { [groupId]: stateId } } },
       { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } },
@@ -1528,10 +1523,10 @@ function HostedCueEditor({
   /** Stage NOW, taking this graphic's typing still inside the debounce along in the same write.
    *  Cancelling the timer without sending those edits left them on this screen and on no other. */
   const stageNow = (data: Record<string, string>) => {
-    const held = pending.current?.graphic === cue.graphic ? pending.current.data : {};
-    if (pending.current?.graphic === cue.graphic) pending.current = null;
+    const held = pending.current?.graphic === cue.graphic ? pending.current : null;
+    if (held) pending.current = null;
     flushPending();
-    onStage(cue.graphic, { ...held, ...data });
+    onStage(cue.graphic, { ...held?.data, ...data });
   };
   // No dependencies on purpose: the page must hold this render's closure over `onStage`.
   useEffect(() => onFlushReady(flushPending));
@@ -1635,12 +1630,10 @@ function HostedCueEditor({
         // An `adjust` field (a goal's +1) rode moved by its delta: stage the new figure into the
         // shared buffer at once (the live-number bump's rule, so every open page follows and the
         // next press counts from it). A BOUND field is not among them - it is not this cue's.
-        // Typing still in the debounce goes out with it either way: the payload may carry it to
-        // air (Reveal correct carries the key), and the buffer must not lag what is on air.
-        stageNow(staged);
         if (Object.keys(staged).length > 0) {
           setEcho((v) => ({ ...v, ...staged }));
           setEntryId('');
+          stageNow(staged);
           onPreview({ ...currentValues(), ...staged });
         }
         void onSend([
