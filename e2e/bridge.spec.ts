@@ -12,7 +12,7 @@ import JSZip from 'jszip';
 //      naming the type, and the SAME bridge reading it back as the same sources - with a stale
 //      generated half detected when the sources change underneath it;
 //   4. normalize: an authored GSAP region becomes NoaCG keyframe data; a bare hand-crafted one is
-//      not failed over editability;
+//      not failed over editability; the SPX steps count is re-derived from the default path;
 //   5. fail-closed safety: a template the share-safety screen refuses is never benched.
 
 type Bridge = {
@@ -20,7 +20,7 @@ type Bridge = {
   types(): Array<{ id: string; neutral: boolean; fields: unknown[]; events: unknown[] }>;
   scaffold(req: unknown): { template: Template; notes: string[] };
   validate(t: Template, o?: { bench?: boolean }): Promise<{ ok: boolean; benchSkipped: string | null; merged: { errors: { rule: string; message: string }[]; warnings: { rule: string }[] }; readiness: { id: string; state: string }[] }>;
-  normalize(t: Template): { template: Template; converted: boolean; dataRegion: boolean; note: string };
+  normalize(t: Template): { template: Template; converted: boolean; dataRegion: boolean; note: string; stepsRewritten?: { from: string; to: string } };
   exportPackage(t: Template, o?: unknown): Promise<Uint8Array>;
   readPackage(b: Uint8Array, n: string): Promise<{ kind: string; imported: { template: Template; noacg: { type: string | null; stale: boolean } | null } | null; ograf: { errors: string[]; noacg: { type: string; source?: unknown } | null; stale: boolean } | null }>;
   inspect(i: unknown): { descriptors: unknown[]; buttons: unknown[] };
@@ -201,6 +201,50 @@ function buildOutTimeline() {
   // to an author whose region contains none of them.
   expect(result.bareNote).toContain('markers');
   expect(result.missingEaseNote).toContain('easeIn');
+});
+
+test('normalize re-derives the SPX steps from a default path an author grew by hand, and says so', async ({ page }) => {
+  await toBridge(page);
+  // Measured on CLI 0.3.2 (2026-09-15): a typeless scaffold ships "steps": "1",
+  // an agent authors a three-waypoint machine into NOACG_ANIM and leaves the number alone, and
+  // the OGraf stepCount then told a playout server there was no Continue to press.
+  const result = await page.evaluate(async () => {
+    const b = window.noacgBridge;
+    const ad = await import('/src/blocks/animData.ts');
+    const { template } = b.scaffold({ fields: [{ label: 'A', kind: 'text' }, { label: 'B', kind: 'text' }], name: 'Grown path' });
+    const data = ad.parseAnimData(template.js)!;
+    const [first, last] = [data.steps[0], data.steps[data.steps.length - 1]];
+    data.steps = [first, { ...first, name: 'Winner' }, last];
+    data.machine = { groups: [{
+      id: 'main', initial: 'off', defaultPath: ['a', 'b', 'out'],
+      states: [{ id: 'off', name: 'Off' }, { id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'out', name: 'Out' }],
+      transitions: [{ from: 'a', to: 'b', trigger: 'operator', event: 'next' }],
+    }] };
+    const grown = { ...template, js: ad.spliceAnimData(template.js, data)! };
+    const n = b.normalize(grown);
+    const v = await b.validate(n.template, { bench: false });
+    const zip = await b.exportPackage(n.template);
+    let bin = '';
+    for (let i = 0; i < zip.length; i += 0x8000) bin += String.fromCharCode(...zip.subarray(i, i + 0x8000));
+    return {
+      scaffoldSteps: template.settings.steps,
+      steps: n.template.settings.steps,
+      definition: /"steps"\s*:\s*"(\d+)"/.exec(n.template.html)?.[1],
+      rewritten: n.stepsRewritten,
+      again: b.normalize(n.template).stepsRewritten,
+      ok: v.ok, errors: v.merged.errors.map((e) => `${e.rule}: ${e.message}`),
+      base64: btoa(bin),
+    };
+  });
+  expect(result.ok, result.errors.join('\n')).toBe(true);
+  expect(result.scaffoldSteps).toBe('1');
+  expect(result.steps).toBe('2');
+  expect(result.definition, 'the definition in the html is what SPX reads').toBe('2');
+  expect(result.rewritten).toEqual({ from: '1', to: '2' });
+  expect(result.again, 'a count already derived is left alone, and nothing is reported').toBeUndefined();
+  const zip = await JSZip.loadAsync(Buffer.from(result.base64, 'base64'));
+  const manifestName = Object.keys(zip.files).find((f) => f.endsWith('.ograf.json'))!;
+  expect(JSON.parse(await zip.file(manifestName)!.async('string')).stepCount).toBe(2);
 });
 
 test('a template the share-safety screen refuses is never benched', async ({ page }) => {

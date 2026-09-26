@@ -29,7 +29,7 @@ import { docTopics, readDoc } from './commands/docs.js';
 import { scaffoldRequestFrom } from './commands/scaffold.js';
 import { describePack, makePack, rundownFrom } from './commands/pack.js';
 import { notLoggedIn, savePackage } from './commands/save.js';
-import { describeValidation, regenerateInPlace, sourcesOf } from './commands/validate.js';
+import { describeNormalize, describeValidation, regenerateInPlace, sourcesOf } from './commands/validate.js';
 import { ografBench } from './ografBench.js';
 import { EXIT_OK, parseArgs, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from './output.js';
 import { shoot } from './screenshot.js';
@@ -166,7 +166,7 @@ async function validate(input: Input): Promise<Result> {
   const normalized = await b.normalize(pkg.imported.template);
   const template = normalized.template;
   const validation = await b.validate(template, { bench: input.bench ?? true, houseContract: input.houseContract ?? true });
-  const content: Content = text(describeValidation(validation) + (normalized.converted || !normalized.dataRegion ? `\nNormalize: ${normalized.note}` : ''));
+  const content: Content = text([describeValidation(validation), ...describeNormalize(normalized)].join('\n'));
   let thumbnail: { png: Uint8Array; width: number; height: number } | undefined;
   if (input.screenshots) {
     const size = { width: template.resolution.width, height: template.resolution.height };
@@ -177,7 +177,7 @@ async function validate(input: Input): Promise<Result> {
     }
   }
   if (dir) {
-    const changes = await regenerateInPlace(b, dir, template, { thumbnail, before, converted: normalized.converted });
+    const changes = await regenerateInPlace(b, dir, template, { thumbnail, before, converted: normalized.converted, stepsRewritten: normalized.stepsRewritten });
     content.push({ type: 'text', text: `Regenerated the package in ${dir}.${changes.map((c) => `\n  changed: ${c}`).join('')}` });
   }
   return { content, isError: !validation.ok };
