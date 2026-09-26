@@ -300,6 +300,13 @@ own command: `gh workflow run ci.yml --ref <branch>`. A dispatched run has no `e
 finds no diff base, and escalates to the FULL suite by design. (A pull request reaches the same
 honest base through `PR_BASE`.)
 
+## A slow gate is a defect
+
+Built-but-unlanded work does not exist for users, so landing throughput matters. A slow or
+repeated CI run has a cause, and finding it is real work: when a docs-only change runs the full
+suite, the mechanism that chose the suite is wrong. Make the gate cheaper, never skip it, and never
+batch merges to save CI, because batching batches the failures too.
+
 ## One browser-driving job per MACHINE, not per worktree
 
 A suite, a catalog sweep and a bench are the same workload under different names - a dev server

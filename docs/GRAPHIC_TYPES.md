@@ -51,6 +51,12 @@ working, not a shortcut — and it is what makes promoting an existing variant s
 
 ## 3. Fields
 
+**A category's fields fit the shape of its content.** End credits is the worked example: one field
+whose format says what the content is (`docs/END_CREDITS.md`), parsed into groups. Take categories
+one at a time; extract a shared mechanism only when two categories want the same thing, never a
+universal field model up front. A category's field logic is proven three ways: in NoaCG playout, in
+the control panel operating and editing it, and in an offline export that works with no NoaCG.
+
 `TypeField` names fields **logically** (`selectedAnswer`), never `fN`. Ids are positional and
 assigned at compile time, so inserting a field renumbers nothing the type references.
 

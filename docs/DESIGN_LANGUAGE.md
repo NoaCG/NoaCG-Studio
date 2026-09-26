@@ -9,6 +9,33 @@ Values below are for a **1920×1080 canvas**; scale linearly for other resolutio
 
 ---
 
+## Principles and floors
+
+The judgement calls this rulebook rests on, kept short. The sections below are how to meet them.
+
+- **One coherent product.** A package reads as one system across its pieces, and the studio reads
+  as one product, never several unrelated ones on the same page. A mark (logo) is on every piece
+  of a package or on none.
+- **Sameness is a defect, not a house style.** A catalog where most designs share one silhouette is
+  unfinished, however good each one is; no design is pinned first. Palette and silhouette are what
+  a viewer reads, so when a score and the picture disagree, trust the picture.
+- **Legibility floors** (ratified; floors, not targets): text contrast at least 3.25:1 against what
+  it sits on; weight 500 or heavier for text that must read at a glance; secondary text (role
+  lines, "ON AIR", sponsor wordmarks) at least 28 px on the 1080 canvas. The 28 px floor decides
+  which text is judged as secondary, it is not a universal gate. Stricter numbers (4.5:1, 600,
+  32 px) were declined because they legislate the design.
+- **Marks:** a mark inside a container is centred in it or visibly balanced; between an accent line
+  and text it is optically balanced, never crowded. There is no hard rule for where a mark goes; it
+  depends on the design. A mark is refused only by a genuine type constraint, never by an authoring
+  default: a logo can fit any graphic that is designed for it.
+- **The current look is a baseline.** The studio's brand (`NoaCG-Brand-Kit/BRAND-MANUAL.md`: dark
+  control room, one amber on-air accent) is today's style, not a permanent identity; a redesign is
+  expected. Do not build anything that assumes it will last.
+
+These floors run as reporting checks in `src/ai/spike/tasteCheck.ts`; they report, they do not gate.
+
+---
+
 ## 0. Words we use
 
 The product is a design tool, so its own vocabulary has to be right. Two terms get confused
