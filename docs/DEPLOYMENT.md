@@ -248,6 +248,11 @@ Why: measured over the 2026-08-08..2026-09-07 billing cycle, `main` took 719 pus
 only documentation, contracts, workflow tooling or tests** - rebuilding a byte-identical site.
 Replaying the cycle through the filter leaves 371 builds instead of 718.
 
+The credit is spent in build CPU minutes, wall minutes times vCPUs, so the build machine matters
+as much as the count: pinning it to Basic cut one build's cost by 39%. Elastic machines shorten
+wall time, not the bill. Never answer build cost with bigger batches of pull requests; that
+batches CI failures as well.
+
 **The list is a DENY list, and that direction is the safety argument.** A file is
 deploy-affecting unless it is named, so an unrecognised directory builds. The two mistakes are
 not symmetric: a needless build costs about $0.045, a wrongly skipped one leaves production
