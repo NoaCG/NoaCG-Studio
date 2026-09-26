@@ -135,8 +135,9 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
     await expect(tab.getByTestId('hosted-control-page'), tag).toBeVisible({ timeout: 60_000 });
     await tab.getByTestId('hosted-select-cue').filter({ hasText: 'Quiz board' }).first().click();
     if (variant === 'fast') {
+      // Released BEFORE the unroute, which settles any route it still holds on its own.
+      for (const r of heldReports.splice(0)) await r.continue();
       await output.unroute(REPORT_RPC);
-      for (const r of heldReports) await r.continue();
     }
     // The tab comes back knowing the quiz is locked, on the key that is on air.
     await expect.soft(tab.getByTestId('hosted-state-chip'), tag).toContainText('Locked', WIRE);
