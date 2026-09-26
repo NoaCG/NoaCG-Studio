@@ -46,15 +46,14 @@ export interface OgrafReturn {
 }
 
 export interface ForeignOgrafLayer {
-  frame: HTMLIFrameElement;
   /** Route one ControlMessage. Anything with no OGraf meaning (`snap`, `hello`) is dropped. */
   send(msg: ControlMessage): void;
   /** Take the Graphic off air or back, from inside its document (see `offair` in ografHost.ts). */
   setOffAir(off: boolean): void;
   /** Every reply in arrival order, the most recent RETURNS_KEPT only. */
   returns: readonly OgrafReturn[];
-  /** Resolves once the host document has loaded and been handed `load()` and the queued calls
-   *  (or the layer was destroyed first). */
+  /** Resolves once the host document has loaded and been handed the port, with `load()` and
+   *  every call sent so far waiting on it (or the layer was destroyed first). */
   loaded: Promise<void>;
   destroy(): void;
 }
@@ -116,16 +115,16 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   const channel = new MessageChannel();
   const returns: OgrafReturn[] = [];
   const pending = new Map<number, OgrafCall>();
-  const queue: { call: OgrafCall; args: unknown[] }[] = [];
   let nextId = 1;
-  let ready = false;
+  // Posted at once: a port holds what it is sent until the far end starts listening, so nothing
+  // waits on the frame's load here, and `load()` is the first call the Graphic sees.
   const post = (call: OgrafCall, args: unknown[]) => {
     const callId = nextId++;
     if (call !== 'offair') pending.set(callId, call);
     if (pending.size > PENDING_KEPT) pending.delete(pending.keys().next().value as number);
     channel.port1.postMessage({ id: callId, call, args });
   };
-  const call = (name: OgrafCall, args: unknown[]) => (ready ? post(name, args) : queue.push({ call: name, args }));
+  post('mount', [spec.data ?? {}, { resolution: { width: resolution.width, height: resolution.height } }]);
 
   channel.port1.onmessage = (ev: MessageEvent) => {
     const data = ev.data as { id?: unknown; payload?: unknown } | null;
@@ -148,9 +147,6 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
       frame.style.visibility = 'visible';
       // The host document, and nothing else yet: the package is imported only by `mount`.
       frame.contentWindow?.postMessage({ type: OGRAF_PORT_TYPE }, '*', [channel.port2]);
-      ready = true;
-      post('mount', [spec.data ?? {}, { resolution: { width: resolution.width, height: resolution.height } }]);
-      for (const q of queue.splice(0)) post(q.call, q.args);
       resolveLoaded();
     },
     { once: true },
@@ -159,12 +155,11 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   parent.appendChild(frame);
 
   return {
-    frame,
     send: (msg) => {
       const mapped = ografCallFor(msg);
-      if (mapped) call(mapped.call, mapped.args);
+      if (mapped) post(mapped.call, mapped.args);
     },
-    setOffAir: (off) => call('offair', [off]),
+    setOffAir: (off) => post('offair', [off]),
     returns,
     loaded,
     destroy: () => {

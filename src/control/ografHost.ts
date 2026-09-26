@@ -50,11 +50,11 @@ export interface OgrafHostOptions {
 export const OGRAF_PORT_TYPE = 'noacg-ograf-port';
 /** The calls the bridge admits; anything else is dropped unanswered. `offair` takes effect at
  *  once and answers nothing; the rest run one at a time in arrival order and answer each. */
-export const OGRAF_CALLS = ['mount', 'play', 'stop', 'update', 'custom', 'dispose', 'offair'] as const;
+export const OGRAF_CALLS = ['mount', 'play', 'stop', 'update', 'custom', 'offair'] as const;
 export type OgrafCall = (typeof OGRAF_CALLS)[number];
 /** How long one call may take before the calls behind it go ahead (answered 504). A Graphic that
  *  never resolves an action must not hold the operator's Stop hostage. */
-export const OGRAF_CALL_TIMEOUT_MS = 15_000;
+const OGRAF_CALL_TIMEOUT_MS = 15_000;
 
 /** JSON for an inline <script>: a `</script>` inside a string must not end the element. */
 const inScript = (value: unknown): string => JSON.stringify(value).replace(/</g, '\\u003c');
@@ -99,7 +99,10 @@ function packageScope(packageBase: string): string {
 
 /** The host page. Transparent background, the stage sized to the canvas, no chrome. */
 export function ografHostDocument(opts: OgrafHostOptions): string {
-  const base = opts.packageBase.endsWith('/') ? opts.packageBase : `${opts.packageBase}/`;
+  // Sandboxed, the base is the validated CSP scope itself, so the script URL and the policy agree.
+  const base = opts.sandbox
+    ? packageScope(opts.packageBase)
+    : opts.packageBase.endsWith('/') ? opts.packageBase : `${opts.packageBase}/`;
   const mainUrl = inScript(`${base}${opts.main.replace(/^\.\//, '')}`);
   const tag = inScript(opts.tag);
   // FIRST in the head, so nothing the document loads precedes it.
@@ -113,7 +116,11 @@ export function ografHostDocument(opts: OgrafHostOptions): string {
   const calls = ${inScript(OGRAF_CALLS)};
   let port = null;
   let chain = Promise.resolve();
-  const timeout = () => new Promise((r) => setTimeout(() => r({ statusCode: 504, statusMessage: 'no answer within ${OGRAF_CALL_TIMEOUT_MS} ms' }), ${OGRAF_CALL_TIMEOUT_MS}));
+  const answer = (p) => {
+    let timer;
+    const late = new Promise((r) => { timer = setTimeout(() => r({ statusCode: 504, statusMessage: 'no answer within ${OGRAF_CALL_TIMEOUT_MS} ms' }), ${OGRAF_CALL_TIMEOUT_MS}); });
+    return Promise.race([p, late]).finally(() => clearTimeout(timer));
+  };
   window.addEventListener('message', (ev) => {
     if (port || ev.source !== window.parent || !ev.data || ev.data.type !== ${inScript(OGRAF_PORT_TYPE)} || !ev.ports[0]) return;
     port = ev.ports[0];
@@ -121,7 +128,7 @@ export function ografHostDocument(opts: OgrafHostOptions): string {
       const m = e.data;
       if (!m || !calls.includes(m.call) || !Array.isArray(m.args)) return;
       if (m.call === 'offair') { host.offair(m.args[0]); return; }
-      chain = chain.then(() => Promise.race([host[m.call](...m.args), timeout()])).then((out) => {
+      chain = chain.then(() => answer(host[m.call](...m.args))).then((out) => {
         // The ReturnPayload's own fields only: a Graphic may return anything, and a value
         // postMessage cannot clone would otherwise stall every call behind this one.
         port.postMessage({ id: m.id, payload: { statusCode: out && out.statusCode, statusMessage: out && out.statusMessage, currentStep: out && out.currentStep } });

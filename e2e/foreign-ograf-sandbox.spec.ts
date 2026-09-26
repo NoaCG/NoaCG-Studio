@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { OgrafReturn } from '../src/output/foreignOgraf';
 
 /**
  * A STRANGER'S OGRAF PACKAGE ON THE OUTPUT STAGE, BEHIND THE BOUNDARY (docs/OGRAF_ECOSYSTEM.md §3).
@@ -60,6 +61,8 @@ function packageFiles(name: string): Map<string, Buffer> {
   return files;
 }
 
+const PACKAGES = new Map(['benign', 'hostile'].map((name) => [name, packageFiles(name)]));
+
 const TYPES: Record<string, string> = {
   '.mjs': 'text/javascript',
   '.js': 'text/javascript',
@@ -77,7 +80,6 @@ interface Served {
 
 async function mountHarness(page: Page): Promise<Served> {
   const served: Served = { scope: [], exfil: [], swapped: false };
-  const packages = new Map(['benign', 'hostile'].map((name) => [name, packageFiles(name)]));
   await page.addInitScript((credential) => {
     // The TOP document only: this script runs in every frame, the sandboxed ones included.
     if (window.top === window) {
@@ -103,7 +105,7 @@ async function mountHarness(page: Page): Promise<Served> {
       return route.fulfill({ status: 200, contentType: 'application/json', headers: open, body: JSON.stringify({ credential: CREDENTIAL }) });
     }
     const m = /^\/__foreign-ograf\/packages\/([a-z]+)\/(.+)$/.exec(path);
-    const body = m ? packages.get(m[1])?.get(decodeURIComponent(m[2])) : undefined;
+    const body = m ? PACKAGES.get(m[1])?.get(decodeURIComponent(m[2])) : undefined;
     if (!body) return route.fulfill({ status: 404, headers: open, body: 'not in package' });
     const ext = path.slice(path.lastIndexOf('.'));
     return route.fulfill({ status: 200, contentType: TYPES[ext] ?? 'application/octet-stream', headers: open, body });
@@ -116,12 +118,6 @@ async function mountHarness(page: Page): Promise<Served> {
   return served;
 }
 
-interface OgrafReturn {
-  call: string;
-  statusCode: number;
-  statusMessage?: string;
-  currentStep?: number;
-}
 
 type StageHandle = {
   apply(g: string, m: unknown): void;
@@ -251,7 +247,8 @@ test.describe('a foreign OGraf package on the output stage', () => {
     expect(probe.seen).not.toContain(CREDENTIAL);
     expect(probe.seen).not.toContain('noacg-e2e-credential');
 
-    // It FETCHES THE INTERNET: refused before a request leaves, by fetch, image and beacon.
+    // It FETCHES THE INTERNET: refused before a request leaves (fetch and image here; its beacon
+    // is covered by the empty request log at the end).
     expect(outcome('fetch-internet')).toMatch(/^fetch-internet: refused/);
     expect(outcome('image-internet')).toMatch(/^image-internet: refused/);
     // …and it cannot take the page with it.
