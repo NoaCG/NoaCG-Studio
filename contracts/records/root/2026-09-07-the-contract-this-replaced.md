@@ -58,7 +58,7 @@ catalog road, CasparCG + OBS are still the verification targets, AI work stays p
   non-technical user can make a great graphic AND run it live without ever touching code.
   **AI-assisted** (later), but a pro keeps full control.
 - **Client-agnostic, and nothing MANDATORY** - a playout client is one TARGET among others,
-  never our word for a general concept; OGraf leads (EBU/YLE are the first customers). A slot is
+  never our word for a general concept; OGraf leads (EBU broadcasters are the first customers). A slot is
   `logo: 'optional'` + `defaultLogo`, never `'built-in'`. Gate: `check:client-neutral`.
 - **Export anywhere, standards-first** - the source is the NoaCG-native code-as-truth document;
   every target is an adapter off it. SPX stays the strictest gate, rock-solid; OGraf is the
