@@ -279,10 +279,15 @@ jobs:
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # A TRACE OF THE ATTEMPT THAT FAILED, not of the retry that passed. The config traces on the
+      # first retry only, so a hosted flake used to leave a trace of its green second attempt and
+      # nothing of the failure. Here a failure is most often a slow answer from the staging project,
+      # and only the failed attempt's network timings can tell that apart from a page that waited
+      # on the wrong thing.
       - name: Configured E2E suite against staging
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: hosted-report.json
-        run: npm run test:e2e:live -- --reporter=list,json || true
+        run: npm run test:e2e:live -- --reporter=list,json --trace=retain-on-failure || true
 
       # The SAME verdict as the local nightly, from the same script AND the same expected run, so
       # the two cannot drift. This job used to carry its own floor and allowlist; configured-suite
