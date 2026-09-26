@@ -14,7 +14,9 @@ import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpe
 // a reloaded tab shows the shared staged buffer. A key aired by a Take or an Update reached that
 // buffer only when the typing debounce ran out, so a reload inside that window brought the tab
 // back on the older key and the Reveal lit it on air. Pressing Take or Update now stages the
-// typing at once (HostedControlPage `flushTyping`).
+// typing at once (HostedControlPage `flushTyping`). The rekey round holds that window open by
+// construction (the reload comes about 100 ms after the Update, the debounce is 400 ms), and
+// without the fix it went red on all three repeats of configured run 36278592787.
 //
 // Three ways a class reaches the reload, one per round:
 //   settled - locked, the renderer has reported it, a moment passes, then the reload;
@@ -30,7 +32,6 @@ const LETTERS = ['A', 'B', 'C', 'D'] as const;
 type Letter = (typeof LETTERS)[number];
 type Variant = 'settled' | 'fast' | 'rekey';
 const VARIANTS: Variant[] = ['settled', 'fast', 'rekey'];
-/** Rounds per run: one of each variant. Raised on a throwaway branch to repeat the hunt. */
 const ROUNDS = VARIANTS.length;
 
 /** Which row's verdict is lit in one picture of the board, or null when none is. */
@@ -108,7 +109,11 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
       // The key is corrected ON AIR while locked, and the tab reloads the moment the Update has
       // landed. That used to be inside the typing debounce, so the shared buffer never saw the
       // new key: the tab came back on the old one, and its Reveal carried the old one to air.
-      const updated = tab.waitForResponse((r) => r.url().includes('/rpc/control_send') && r.ok());
+      // The Update's OWN response: air learns of the Lock from the broadcast, so the Lock's
+      // response can still be on its way here.
+      const updated = tab.waitForResponse(
+        (r) => r.url().includes('/rpc/control_send') && r.ok() && (r.request().postData() ?? '').includes('"update"'),
+      );
       await tab.getByTestId(`hosted-field-f5-opt-${key}`).click();
       await tab.getByTestId('hosted-update-cue').click();
       await updated;

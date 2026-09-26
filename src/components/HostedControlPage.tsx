@@ -848,7 +848,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * the debounced write lands that edit lives only in this tab. A reload in that window (a phone
    * does it on its own) brought the tab back on the buffer's older key, and Reveal correct, which
    * carries the key the cue shows, then lit that older key on air (configured run 36276590046).
-   * The editor fills `flushTyping` in, since the debounce is its own.
+   * The stage write now leaves beside the verb, so what remains is the two requests' own round
+   * trip. The editor fills `flushTyping` in, since the debounce is its own.
    */
   const takeCue = (cue: OutputCue) => {
     flushTyping.current();
@@ -1429,7 +1430,7 @@ function HostedCueEditor({
   /** Count values on this page at once, with the write still to come: the typing debounce. */
   onStageNote: (graphic: string, data: Record<string, string>) => void;
   /** Hands the page this editor's debounce flush: a press that airs the cue's values sends the
-   *  typing it holds first, so the buffer never lags what is on air. */
+   *  typing it holds in the same moment, rather than up to 400 ms later. */
   onFlushReady: (flush: () => void) => void;
   /** The fields a combined press just moved on air. The editor's own echo has to follow them, or
    *  a field the operator typed into would keep an older figure than the board shows. */
@@ -1505,30 +1506,35 @@ function HostedCueEditor({
   // Debounced shared staging: a typing operator sends a few rows, not one per keystroke. The
   // values count on this page from the keystroke (`onStageNote`), so the debounce delays only
   // what the OTHER screens see, never what this page's Take airs.
-  const pending = useRef<Record<string, string>>({});
+  // The held typing names the GRAPHIC it was typed for: the selection can move to another
+  // graphic's cue inside the debounce, and the editor stays mounted across that move.
+  const pending = useRef<{ graphic: string; data: Record<string, string> } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stageSoon = (key: string, value: string) => {
-    pending.current[key] = value;
-    onStageNote(cue.graphic, { [key]: value });
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const batch = pending.current;
-      pending.current = {};
-      onStage(cue.graphic, batch);
-    }, 400);
-  };
-  /** Stage NOW, taking any typing still inside the debounce along in the same write. Cancelling
-   *  the timer without sending those edits left them on this screen and on no other. */
-  const stageNow = (data: Record<string, string>) => {
+  /** Send the typing still inside the debounce now, to the graphic it was typed for. */
+  const flushPending = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
-    const batch = { ...pending.current, ...data };
-    pending.current = {};
-    onStage(cue.graphic, batch);
+    const held = pending.current;
+    pending.current = null;
+    if (held) onStage(held.graphic, held.data);
   };
-  // No dependencies on purpose: `stageNow` is a new closure every render, and the page must hold
-  // the one that sends to this render's graphic.
-  useEffect(() => onFlushReady(() => stageNow({})));
+  const stageSoon = (key: string, value: string) => {
+    if (pending.current && pending.current.graphic !== cue.graphic) flushPending();
+    pending.current = { graphic: cue.graphic, data: { ...pending.current?.data, [key]: value } };
+    onStageNote(cue.graphic, { [key]: value });
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(flushPending, 400);
+  };
+  /** Stage NOW, taking this graphic's typing still inside the debounce along in the same write.
+   *  Cancelling the timer without sending those edits left them on this screen and on no other. */
+  const stageNow = (data: Record<string, string>) => {
+    const held = pending.current?.graphic === cue.graphic ? pending.current.data : {};
+    if (pending.current?.graphic === cue.graphic) pending.current = null;
+    flushPending();
+    onStage(cue.graphic, { ...held, ...data });
+  };
+  // No dependencies on purpose: the page must hold this render's closure over `onStage`.
+  useEffect(() => onFlushReady(flushPending));
   const edit = (key: string, value: string) => {
     setEcho((v) => ({ ...v, [key]: value }));
     setEntryId('');
@@ -1629,10 +1635,12 @@ function HostedCueEditor({
         // An `adjust` field (a goal's +1) rode moved by its delta: stage the new figure into the
         // shared buffer at once (the live-number bump's rule, so every open page follows and the
         // next press counts from it). A BOUND field is not among them - it is not this cue's.
+        // Typing still in the debounce goes out with it either way: the payload may carry it to
+        // air (Reveal correct carries the key), and the buffer must not lag what is on air.
+        stageNow(staged);
         if (Object.keys(staged).length > 0) {
           setEcho((v) => ({ ...v, ...staged }));
           setEntryId('');
-          stageNow(staged);
           onPreview({ ...currentValues(), ...staged });
         }
         void onSend([
