@@ -16,6 +16,7 @@
 
 import JSZip from 'jszip';
 import { parseAnimData } from '../blocks/animData';
+import { spxSteps } from '../blocks/animMachine';
 import { animationBreach } from '../blocks/animationRegion';
 import { publishGate } from '../community/gate';
 import { eventButtons, fieldDescriptors, machineStateGroups, type ControlButton } from '../control/controlModel';
@@ -291,6 +292,11 @@ export interface NormalizeResult {
   /** Whether the region is data-shaped AFTER this call (timeline-editable in the studio). */
   dataRegion: boolean;
   note: string;
+  /** Set when the SPX definition's `steps` was rewritten. It is DERIVED from the default path
+   *  (`spxSteps`, the one rule), so a hand-kept number that fell behind an added waypoint is
+   *  corrected here instead of shipping as an OGraf `stepCount` that hides a Continue from a
+   *  playout server. `from` is the author's value, reported so the rewrite is never silent. */
+  stepsRewritten?: { from: string; to: string };
 }
 
 /**
@@ -302,8 +308,26 @@ export interface NormalizeResult {
  * panel can edit it. An already data-shaped region passes through untouched; a region the
  * importer cannot read keeps the author's code byte-identical - honest hand-crafted output the
  * timeline renders read-only. Mirrors `src/ai/claudeProvider.ts convertEmittedRegion`.
+ * Whenever the region is data-shaped afterwards, the SPX `steps` is re-derived from it and a
+ * rewrite is reported in `stepsRewritten`: an agent that adds a waypoint by hand never has to
+ * keep that number itself.
  */
 export function normalize(template: SpxTemplate): NormalizeResult {
+  const result = normalizeRegion(template);
+  const data = result.dataRegion ? parseAnimData(result.template.js) : null;
+  if (!data) return result;
+  // This is a re-sync site of `settings.steps`, so it calls spxSteps like every other one
+  // (contracts: blocks/rule-default-path-length-minus-numerically). The compare is against the
+  // AUTHOR's value: the conversion below already re-syncs a converted region, and that rewrite
+  // has to be reported too.
+  const steps = String(spxSteps(data));
+  if (template.settings.steps === steps) return result;
+  const settings = { ...result.template.settings, steps };
+  const html = replaceDefinitionInHtml(result.template.html, settings, result.template.fields);
+  return { ...result, template: { ...result.template, settings, html }, stepsRewritten: { from: template.settings.steps, to: steps } };
+}
+
+function normalizeRegion(template: SpxTemplate): NormalizeResult {
   if (parseAnimData(template.js)) {
     return { template, converted: false, dataRegion: true, note: 'The ANIMATION region is already NoaCG keyframe data (timeline-editable).' };
   }

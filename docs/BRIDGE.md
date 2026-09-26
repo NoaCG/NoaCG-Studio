@@ -237,17 +237,21 @@ packaged (§6). In code it is the playout agent (`cli/src/playout/`); to a perso
 
 `cli/src/playout/protocol.ts`, mirrored byte for byte at `src/control/playoutProtocol.ts` (a test
 refuses drift). The vocabulary is deliberately not CasparCG's, so OBS, vMix and an OGraf renderer
-can add an adapter without the page's model moving:
+can add an adapter without the page's model moving. OGraf did exactly that (below), additively,
+so the version stayed 2:
 
-- **target** - `{ adapter: 'casparcg', host, port }`, which server.
+- **target** - `{ adapter: 'casparcg', host, port }` or `{ adapter: 'ograf', baseUrl }`, which
+  server.
 - **item** - `{ kind: 'template' | 'media' | 'url', name }`, what is in its library (`url` is a web
-  page its browser engine loads, the NoaCG output URL being one; never listed, only taken).
-- **slot** - `{ adapter: 'casparcg', channel, layer }`, where on it. Channels and layers exist only
-  inside the casparcg slot.
+  page its browser engine loads, the NoaCG output URL being one; never listed, only taken). An
+  OGraf graphic is a `template` whose name is the graphic's id.
+- **slot** - `{ adapter: 'casparcg', channel, layer }` or `{ adapter: 'ograf', rendererId,
+  renderTarget }`, where on it. Channels and layers exist only inside the casparcg slot; an OGraf
+  `renderTarget` is the renderer's own shallow identifier, shaped by its `renderTargetSchema`.
 - **verb** - `take` (with `data` for a template, `loop` for a clip), `update` (data), `next`,
-  `out`, `pause`, `resume`. A slot-only verb may name the `item` the page believes is in the slot,
-  because `out` on a template plays its exit through the CG layer where `out` on a clip stops the
-  video layer.
+  `out`, `pause`, `resume`, and `clear` (remove at once, no exit: OGraf's All out). A slot-only
+  verb may name the `item` the page believes is in the slot, because `out` on a template plays its
+  exit through the CG layer where `out` on a clip stops the video layer.
 
 Routes, all JSON:
 
@@ -256,13 +260,42 @@ Routes, all JSON:
 | `GET /health` | no | `{ ok, agent: 'noacg-bridge', v: 2, version, adapters }` - presence, protocol version, nothing about the studio |
 | `POST /pair` | code | `{ code }` -> `{ token }`, once |
 | `POST /status` | yes | `{ target }` -> the server's version (`VERSION`) |
-| `POST /list` | yes | `{ target, kind }` -> the library of that kind (`TLS` / `CLS`) |
+| `POST /list` | yes | `{ target, kind }` -> the library of that kind (`TLS` / `CLS`), and for OGraf the `renderers` it can play on |
 | `POST /thumbnail` | yes | `{ target, name }` -> a clip's PNG, base64 (`THUMBNAIL RETRIEVE`) |
 | `POST /act` | yes | `{ target, action }` -> one command |
 | `POST /amcp` | yes | one raw line, the terminal's route |
 
 An error names its hop: `{ hop: 'agent' | 'target', code, detail, raw? }` with `code` one of
-`no-media-scanner`, `refused`, `unreachable`, `not-found`, `unsupported`, `usage`.
+`no-media-scanner`, `refused`, `unreachable`, `not-found`, `unsupported`, `usage`, `uncertain`.
+`uncertain` means the command was sent and no clear answer came back, so it may have happened:
+look at the output before repeating it. The Bridge never retries one.
+
+**The OGraf adapter** (`adapters/ograf.ts`) speaks the EBU OGraf Server API, with every route and
+body taken from the pinned OpenAPI (`ebu/ograf` at `c821671`, `v1/specification/open-api/server-api.yaml`).
+`baseUrl` gets `/ograf/v1` appended unless it already ends in it, so `http://gfx:8080` and
+SuperFly.tv's `http://gfx:8080/api/ograf/v1` both work. Paths below are under that root:
+
+| verb | Server API |
+|---|---|
+| status | `GET /` |
+| list template | `GET /graphics`, then `GET /renderers` and `GET /renderers/{id}` for each: the graphics, and where they can play |
+| take | `PUT .../clear` (filter: the render target), `POST .../load` (`params.data` = the cue's data), `POST .../playAction` (`params: {}`) |
+| update | `GET /renderers/{id}/target?renderTarget=<json>`, then `POST .../updateAction` (`params.data`) |
+| next | the target read, then `POST .../playAction` (`params: { delta: 1 }`) |
+| out | the target read, then `POST .../stopAction` (`params: {}`); nothing loaded is already out |
+| clear (All out) | `PUT .../clear` (filter: the render target) |
+
+`...` is `/renderers/{rendererId}/target/graphicInstance`. The Bridge stays stateless: a take
+replaces what the render target holds, the way a CasparCG take replaces its layer, and later verbs
+read the target for its graphic instance rather than remembering an id, so a Bridge restart or a
+second controller strands nothing; update, next and out act on whatever graphic the target holds,
+as they would on a CasparCG layer. Each verb gets one 7 s budget for all its requests, so the
+Bridge answers, uncertain if need be, before the page stops waiting. A `200` is the graphic accepting the call, never its animation
+finishing; a `200` whose `statusCode` is not 2xx is the graphic refusing, and a `200` with no
+`statusCode` is `uncertain`. A take that loads and then does not play says so. The standard has no
+upload route, so the adapter plays what is already on the server, and a vendor's private upload
+endpoint is not treated as the standard. `media`, `url`, `pause` and `resume` are refused before
+anything is sent.
 
 **Why `/health` answers any origin.** A cross-origin refusal is *opaque* to the page that made
 it: JavaScript cannot tell "403, wrong origin" from "nothing is listening there". A Bridge that
@@ -386,7 +419,11 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   not the rundown's to clear.
 - **What the page believes.** ON AIR on a server cue means the command was accepted; nothing
   reports back what the server holds until OSC state arrives (milestone 2). A refused command
-  never marks a row, and the note line says which hop refused and why.
+  never marks a row, and the note line says which hop refused and why. That belief is page memory
+  today, so a reload forgets which server cues are up. **Planned, not built**
+  (`docs/RUNDOWN_AUTOMATION_PLAN.md` §2.7): after an accepted Take or Out the page writes the cue's
+  ON AIR marker, never the verb, to the command log, so a reload, the hosted page and a timed
+  clip's deadline all read it from there. The verb still goes only through the Bridge.
 
 ### 5a. Clip playback: what CasparCG already does, and what NoaCG uses
 
@@ -402,17 +439,22 @@ What CasparCG 2.3-2.5 does natively for a clip on a layer:
 | Play once / stop | `PLAY c-l "CLIP"` / `STOP c-l` | since 2026-09-22 |
 | Pause / resume | `PAUSE c-l` / `RESUME c-l` | since 2026-09-22 |
 | **Loop** | `PLAY c-l "CLIP" LOOP` | **2026-09-25**: a Loop box in the clip's cue editor (`PlayoutItem.loop`, additive). Protocol v2 already carried `loop`, so the Bridge 0.4 on the Releases page plays it with no new download. |
-| Fade in | `PLAY c-l "CLIP" MIX <frames>` (also `PUSH`, `WIPE`, `SLIDE`, with an easing) | proposed, below |
-| Fade out | `PLAY c-l EMPTY MIX <frames>` (mixes the layer to nothing, then it is empty) | proposed, below |
-| Play the next clip when this one ends | `LOADBG c-l "NEXT" AUTO` (optionally `MIX <frames> AUTO`) | proposed, below |
-| Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | later |
-| Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | later |
-| Volume / audio fade | `MIXER c-l VOLUME <0-1> <frames>` | later |
+| Fade in | `PLAY c-l "CLIP" MIX <frames>` (also `PUSH`, `WIPE`, `SLIDE`, with an easing) | planned, build 2 |
+| Fade out | `PLAY c-l EMPTY MIX <frames>` (mixes the layer to nothing, then it is empty) | planned, build 2 |
+| Play the next clip when this one ends | `LOADBG c-l "NEXT" AUTO` (optionally `MIX <frames> AUTO`) | planned, build 2, as the native form of a timed cue's Next |
+| Clear the layer when the clip ends | `LOADBG c-l EMPTY AUTO` | planned, build 2, as the native form of a timed cue's Out |
+| Level | `MIXER c-l VOLUME <0-1> <frames>` | planned, build 2, in dB per clip |
+| Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | not proposed |
+| Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | not proposed |
 
-**Not decided (owner, 2026-09-25).** Loop shipped alone. What else clip playback needs is to be
-planned properly in its own session before anything is built. The sketch below is one input to
-that plan, not the plan. Each item in it is additive in the record and in protocol v2 (no
-version bump), and each needs a Bridge release:
+**Planned 2026-09-26, not built.** Loop shipped alone, and the owner asked for the rest to be
+planned before anything is built (2026-09-25). The plan is build 2 of
+[`RUNDOWN_AUTOMATION_PLAN.md`](RUNDOWN_AUTOMATION_PLAN.md) §3, beside the timed cues a clip's end
+drives, and it waits on the owner's pick. Where it differs from the sketch below it wins: fade is
+stored as a word the adapter turns into frames, level is added in dB, audio files become their own
+kind on their own layer, and "then play" becomes a timed cue's Next. The sketch was its input.
+Each item in it is additive in the record and in protocol v2 (no version bump), and each needs a
+Bridge release:
 
 1. **Fade.** One per-clip setting, *Fade: none / short / long*, stored as frames. None is 0,
    short 12, long 25, counted in the channel's own frames because that is what `MIX` counts.
@@ -560,7 +602,12 @@ Stated plainly, because this doc's whole purpose is to not overstate.
 - **Milestone 3 - remote operators and more adapters.** `noacg bridge follow --production
   <slug>`: the Bridge follows the durable command log with the output-slug capability and
   executes `{ t: 'playout' }` rows only after its start cursor, so a phone can roll a clip and a
-  recovery never re-rolls one. `adapters/obs.ts` (obs-websocket v5), `adapters/vmix.ts` (its HTTP
-  API), `adapters/ograf.ts` (an OGraf server or renderer), each with its own item kinds and slot.
+  recovery never re-rolls one. `adapters/obs.ts` (obs-websocket v5) and `adapters/vmix.ts` (its
+  HTTP API), each with its own item kinds and slot.
+- **OGraf, the rest of it.** The protocol and `adapters/ograf.ts` landed on 2026-09-26 (§3a),
+  proved against a fake server by `e2e/bridge-ograf.spec.ts`. Still to come: a playout target of
+  kind OGraf in Settings, a cue's "Plays on" pick of renderer and render target built from the
+  renderer's schema, and a real round against a pinned SuperFly.tv `ograf-server`
+  (`docs/backlog/bridge-ograf-adapter.md`).
 - **Not part of this**: uploading or syncing files to the server's folders. AMCP has no upload;
   that is a helper on the server box or a share the Bridge writes to, a separate design.

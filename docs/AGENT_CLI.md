@@ -409,8 +409,9 @@ block, and the three gates as steps 3 and 4 of the loop - validate with the mach
 bench, then `inspect` with the buttons SHOWN to the user. The gate words are pinned by
 `cli/test/unit.test.mjs`, which CI runs, so a rewrite that drops one fails there rather than on
 air.
-The SPX definition's `steps` is the author's to keep at `defaultPath.length - 1`: nothing
-recomputes it for a package edited on disk, and the OGraf `stepCount` is generated from it.
+The SPX definition's `steps` is derived, `defaultPath.length - 1` (`spxSteps`): the bridge's
+`normalize` re-derives it for a package edited on disk, `validate` reports the rewrite on a
+`Steps:` line and on the html it changed, and the OGraf `stepCount` is generated from it.
 
 The canonical source is the one under `cli/skill/`; the in-repo dogfooding adapters
 (`.agent-workflows/noacg-graphic.md`, `.claude/skills/noacg-graphic/`, `.agents/skills/noacg-graphic/`)

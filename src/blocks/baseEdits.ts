@@ -46,8 +46,24 @@ function matchingStyles(css: string, node: Element): CSSStyleDeclaration[] {
   return styles;
 }
 
-/** No inspection mutation: identifiers and all values are read from source. */
+// A gesture repeatedly inspects the same immutable document. Retain only its derived
+// numbers, weakly, and invalidate on source replacement; never retain parsed DOM nodes.
+const inspectionCache = new WeakMap<SpxTemplate, {
+  html: string; css: string; js: string; fields: SpxTemplate['fields']; values: Map<string, BaseValues>;
+}>();
 export function baseValues(template: SpxTemplate, selector: string): BaseValues {
+  let cached = inspectionCache.get(template);
+  if (!cached || cached.html !== template.html || cached.css !== template.css || cached.js !== template.js || cached.fields !== template.fields) {
+    cached = { html: template.html, css: template.css, js: template.js, fields: template.fields, values: new Map() };
+    inspectionCache.set(template, cached);
+  }
+  let value = cached.values.get(selector);
+  if (!value) { value = inspectBaseValues(template, selector); cached.values.set(selector, value); }
+  return { ...value };
+}
+
+/** No inspection mutation: identifiers and all values are read from source. */
+function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues {
   const part = getTemplateParts(template.html, template.fields).find(p => p.selector === selector);
   const doc = new DOMParser().parseFromString(template.html, 'text/html');
   const nodes = doc.querySelectorAll(selector);

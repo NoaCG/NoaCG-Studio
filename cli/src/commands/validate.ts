@@ -14,7 +14,7 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { BridgeClient, type BridgeValidation, type SpxTemplate } from '../bridgeClient.js';
+import { BridgeClient, type BridgeValidation, type NormalizeResult, type SpxTemplate } from '../bridgeClient.js';
 import { ografBench } from '../ografBench.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { shoot } from '../screenshot.js';
@@ -32,6 +32,19 @@ export function describeValidation(v: BridgeValidation): string {
   if (v.benchSkipped) lines.push(`Bench:     skipped - ${v.benchSkipped}`);
   if (v.unclaimed.length) lines.push(`Other:     ${v.unclaimed.map((u) => `${u.rule}: ${u.message}`).join('; ')}`);
   return lines.join('\n');
+}
+
+/** What normalize did that the author has to hear about, one line each: a converted or
+ *  unconvertible ANIMATION region, and a re-derived SPX `steps`. That number is the author's own
+ *  source, so rewriting it is never silent. Shared by the terminal and the MCP verb. */
+export function describeNormalize(n: Pick<NormalizeResult, 'converted' | 'dataRegion' | 'note' | 'stepsRewritten'>): string[] {
+  const lines: string[] = [];
+  if (n.converted || !n.dataRegion) lines.push(`Normalize: ${n.note}`);
+  if (n.stepsRewritten) {
+    const { from, to } = n.stepsRewritten;
+    lines.push(`Steps: set "steps" in the SPX definition to ${to} (the source said ${from || 'nothing'}). It is derived from the default path - its length minus one - and the OGraf stepCount follows it, so extend the path, never the number.`);
+  }
+  return lines;
 }
 
 /** The editable sources as they are on disk (null where a file is missing), read BEFORE
@@ -55,7 +68,7 @@ export async function regenerateInPlace(
   bridge: BridgeClient,
   dir: string,
   template: SpxTemplate,
-  opts: { thumbnail?: Thumbnail; before: Record<string, string | null>; converted: boolean },
+  opts: { thumbnail?: Thumbnail; before: Record<string, string | null>; normalized: Pick<NormalizeResult, 'converted' | 'stepsRewritten'> },
 ): Promise<string[]> {
   let thumbnail = opts.thumbnail;
   // A validate without screenshots keeps the thumbnail an earlier one wrote: the manifest's
@@ -74,11 +87,15 @@ export async function regenerateInPlace(
       ? `${file} (removed: the generated manifest of the package's previous name)`
       : `${file} (removed: the package is now named by its html${newHtml ? ` - its content lives in ${newHtml}` : ''})`);
   }
+  const { converted, stepsRewritten: steps } = opts.normalized;
+  const why = (file: string): string => {
+    if (file === 'js/template.js' && converted) return 'ANIMATION region converted to NoaCG keyframe data';
+    if (/\.html?$/i.test(file) && steps) return `SPX "steps" ${steps.from} -> ${steps.to}, derived from the default path`;
+    return 'normalized to the package layout';
+  };
   const after = await sourcesOf(dir, template);
   for (const [file, text] of Object.entries(after)) {
-    if (opts.before[file] !== null && opts.before[file] !== undefined && text !== opts.before[file]) {
-      changes.push(file === 'js/template.js' && opts.converted ? `${file} (ANIMATION region converted to NoaCG keyframe data)` : `${file} (normalized to the package layout)`);
-    }
+    if (opts.before[file] !== null && opts.before[file] !== undefined && text !== opts.before[file]) changes.push(`${file} (${why(file)})`);
   }
   return changes;
 }
@@ -132,7 +149,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     const normalized = await bridge.normalize(pkg.imported.template);
     const template = normalized.template;
     const validation = await bridge.validate(template, { bench, houseContract });
-    Object.assign(report, { ok: validation.ok, validation, normalize: { converted: normalized.converted, dataRegion: normalized.dataRegion, note: normalized.note }, stale: pkg.imported.noacg?.stale ?? false });
+    Object.assign(report, { ok: validation.ok, validation, normalize: { ...normalized, template: undefined }, stale: pkg.imported.noacg?.stale ?? false });
 
     let thumbnail: { png: Uint8Array; width: number; height: number } | undefined;
     if (shotsDir) {
@@ -151,7 +168,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     }
 
     const changes = isDirectory
-      ? await regenerateInPlace(bridge, path.resolve(input), template, { thumbnail, before, converted: normalized.converted })
+      ? await regenerateInPlace(bridge, path.resolve(input), template, { thumbnail, before, normalized })
       : [];
     if (isDirectory) {
       report.regenerated = true;
@@ -160,8 +177,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
 
     out.result(report);
     out.say(describeValidation(validation));
-    if (normalized.converted) out.say(`Normalize: ${normalized.note}`);
-    else if (!normalized.dataRegion) out.say(`Normalize: ${normalized.note}`);
+    for (const line of describeNormalize(normalized)) out.say(line);
     if (report.screenshots) out.say(`Screenshots: ${Object.values(report.screenshots as Record<string, string>).join(', ')}`);
     if (isDirectory) {
       out.say(`Regenerated the package in ${path.resolve(input)}${pkg.imported.noacg?.stale ? ' (the generated half was stale - written from other sources than the ones on disk)' : ''}.`);

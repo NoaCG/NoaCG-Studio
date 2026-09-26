@@ -5,10 +5,13 @@ import { baseValues, type BasePatch } from '../../blocks/baseEdits';
 import { slotSize } from '../../blocks/designLayout';
 import type { EditorSession } from './session';
 import type { EditorOperation } from './operations';
+import ArtworkAppearance from './ArtworkAppearance';
+import type { RenderedPart } from './protocol';
 interface Props {
   view: TimelineView; template: SpxTemplate; selection: string[];
   select: (selector: string | null, toggle: boolean) => void;
   session: EditorSession; linked: boolean; setLinked: (value: boolean) => void;
+  appearance?: RenderedPart['appearance'];
 }
 function Numeric({ label, value, commit }: { label: string; value: number; commit: (value: number) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -23,7 +26,7 @@ function Numeric({ label, value, commit }: { label: string; value: number; commi
       if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); }
     }} /></label>;
 }
-function Inspector({ view, template, selection, select, session, linked, setLinked }: Props) {
+function Inspector({ view, template, selection, select, session, linked, setLinked, appearance }: Props) {
   const [tab, setTab] = useState('properties');
   const [error, setError] = useState('');
   const part = view.parts.find(p => p.selector === selection[0]);
@@ -60,6 +63,13 @@ function Inspector({ view, template, selection, select, session, linked, setLink
       <h2>{part?.label ?? 'Graphic'}</h2>
       {selection.length > 1 && <p>{selection.length} layers selected</p>}
       {part ? <>
+        {selection.length === 1 && <ArtworkAppearance key={part.selector + ':' + session.version().source} template={template} selector={part.selector} session={session} appearance={appearance} />}
+        <div className="ef-edit-actions">
+          <button onClick={() => execute({ kind: 'layer.duplicate', selector: part.selector })} disabled={selection.length !== 1}>Duplicate</button>
+          <button onClick={() => execute({ kind: 'layer.delete', selector: part.selector })} disabled={selection.length !== 1}>Delete</button>
+          <button onClick={() => execute({ kind: 'layer.reorder', selector: part.selector, direction: 'backward' })} disabled={selection.length !== 1}>Send backward</button>
+          <button onClick={() => execute({ kind: 'layer.reorder', selector: part.selector, direction: 'forward' })} disabled={selection.length !== 1}>Bring forward</button>
+        </div>
         {base && selection.length === 1 && <>
           <span className="ef-section-label">{base.mode === 'flow' ? 'Layout offset' : 'Position'} · base</span>
           <div className="ef-number-row">

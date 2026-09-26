@@ -58,6 +58,7 @@ function NumberControl({ descriptor: d, value, onChange, testId }: FieldControlP
       <input
         className="ctl-num"
         type="number"
+        aria-label={d.label}
         min={d.min}
         max={d.max}
         step={d.step}

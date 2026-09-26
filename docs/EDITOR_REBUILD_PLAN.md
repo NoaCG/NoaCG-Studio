@@ -450,6 +450,10 @@ The old editor is a temporary rollout fallback. Remove replaced paths after thei
 migrate and checks pass; R1.5 closes default-switch and retirement evidence, leaving one editor.
 Keep working import/runtime/export behavior until its explicit replacement is proven.
 
+## Usable artwork sequencing, 2026-09-26
+
+The owner pulled basic R1.2b artwork editing ahead of R1.1b: text content, font/size/solid colour, same-parent reorder/duplicate/delete, marquee and multi-object movement. Match the current NoaCG shell branding in this follow-up. The [implementation brief](research/editor-artwork-basics/README.md) records acceptance and evidence; grouping and advanced tools remain in R1.2b. Resume keys, Out and fidelity slices after this bounded journey.
+
 ## Source patches and preview protocol
 
 Keep `SpxTemplate`, `animData`, `animEdit`, `timelineLens`, interpreter/export adapters and sound

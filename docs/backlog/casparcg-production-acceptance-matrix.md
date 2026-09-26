@@ -64,3 +64,11 @@ agent on the machine with CasparCG installed can run each of them (`BRIDGE_REAL=
   log as every operator page, so this is a finding on the command roads, not on the Bridge.
 - **Still unproven on real hardware:** SDI with key and fill, a second machine on the LAN, the
   venue's own box and network, and an SPX server (the `docs/GOALS.md` outcome 5 target).
+- **The SPX server check tests the output embed, not the starter package.** That is the door
+  `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6h recommends for the proof case. On a published proof-case
+  production: the Template file row's **Download** in the production's links, the file into SPX's
+  `ASSETS/templates`, one rundown item, Play. It passes when SPX lists the file by its name, Play
+  puts the production's output up over transparent video, a Reveal and a `+1` pressed on the hosted
+  control page show inside SPX's output, and Stop takes the frame down. It is the step-3 variant of
+  the owner's walk `docs/acceptance/owner-queue/2026-09-16-a-profile-driven-where-the-show-is-run.md`
+  on the machine that has SPX, and needs no one else where an agent has one.

@@ -16,6 +16,13 @@ internal names.
 their layers and an optional `--rundown` of cues. Press Install on Home → Productions and the
 production opens, ready to run. It uses your existing `noacg login` key and works from any machine.
 
+**Fixed: `validate` now keeps the step count right for you.** Adding a waypoint to a machine's
+default path by hand used to leave the SPX `"steps"` at its old value, so the OGraf `stepCount`
+was too low and a playout server offered no Continue for the new step, while validate stayed
+green. Validate now derives the number from the default path, writes it into the html, and
+prints a `Steps:` line naming the old and new value. Nothing to do: change the path, not the
+number.
+
 ## 0.4.1 - 2026-09-23
 
 **New: `noacg bridge`.** It runs NoaCG Bridge, the local program that lets the NoaCG page in your

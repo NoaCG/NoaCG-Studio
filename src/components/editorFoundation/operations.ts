@@ -4,12 +4,18 @@ import { locateAnimData, parseAnimData, serializeAnimData, spliceAnimData } from
 import { setKeyframe } from '../../blocks/animEdit';
 import { createArtwork, editBase, baseValues, type BasePatch, type Creation } from '../../blocks/baseEdits';
 import { setSlotSize, setLineFit } from '../../blocks/designLayout';
+import { editArtworkText, editArtworkStyle, type ArtworkStyle } from '../../blocks/artworkEdits';
+import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
   | { kind: 'key.set'; selector: string; step: number; property: string; time: number; value: number }
   | { kind: 'base.set'; selector: string; values: BasePatch }
   | { kind: 'box.resize'; selector: string; width: number; height: number }
+  | { kind: 'text.set'; selector: string; text: string }
+  | { kind: 'style.set'; selector: string; values: ArtworkStyle }
+  | { kind: 'layer.duplicate' | 'layer.delete'; selector: string }
+  | { kind: 'layer.reorder'; selector: string; direction: 'forward' | 'backward' }
   | { kind: 'layer.create'; geometry: Creation };
 export interface OperationPatch {
   template: SpxTemplate;
@@ -35,6 +41,15 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = editBase(next, operation.selector, operation.values); targets.add(operation.selector);
     } else if (operation.kind === 'layer.create') {
       const result = createArtwork(next, operation.geometry); next = result.template; targets.add(result.selector);
+    } else if (operation.kind === 'text.set') {
+      next = editArtworkText(next, operation.selector, operation.text); targets.add(operation.selector);
+    } else if (operation.kind === 'style.set') {
+      next = editArtworkStyle(next, operation.selector, operation.values); targets.add(operation.selector);
+    } else if (operation.kind === 'layer.duplicate' || operation.kind === 'layer.delete') {
+      const result = changeArtworkLayer(next, operation.selector, operation.kind === 'layer.duplicate' ? 'duplicate' : 'delete');
+      next = result.template; targets.add(result.selector);
+    } else if (operation.kind === 'layer.reorder') {
+      next = reorderArtwork(next, operation.selector, operation.direction); targets.add(operation.selector);
     } else if (operation.kind === 'box.resize') {
       const base = baseValues(next, operation.selector);
       if (base.mode !== 'placed' || ![operation.width, operation.height].every(n => Number.isFinite(n) && n > 0)) {
@@ -43,9 +58,9 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = setSlotSize(next, base.target.slice(1), operation.width, operation.height, base.scaled);
       next = setLineFit(next, operation.selector.slice(1), { maxWidth: operation.width }) ?? next;
       targets.add(operation.selector);
-    } else {
+    } else if (operation.kind === 'key.set') {
       next = applyKeyOperations(next, [operation]).template; targets.add(operation.selector);
-    }
+    } else throw new Error('Unknown editor operation.');
   }
   return { template: next, changedTargets: [...targets], diff: (['html', 'css', 'js'] as const)
     .filter(file => template[file] !== next[file]).map(file => ({ file, before: template[file], after: next[file] })) };

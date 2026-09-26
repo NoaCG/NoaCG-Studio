@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-08-27
 state: advanced
-note: "2026-09-22: the first slice is built - NoaCG Bridge lists the server's clips and templates and cues them from the rundown (docs/BRIDGE.md §5); position readout and the rest of item 3 are milestone 2 there. 2026-09-25 (branch claude/noacg-bridge-feedback-cimjwc): server clips can Loop (native PLAY ... LOOP) and the picker browses folders. Still missing: the rest of clip playback (fade, play-next and whatever else a show needs), which the owner wants planned in its own session before anything is built - docs/BRIDGE.md §5a is its input"
+note: "2026-09-22: the first slice is built - NoaCG Bridge lists the server's clips and templates and cues them from the rundown (docs/BRIDGE.md §5); position readout and the rest of item 3 are milestone 2 there. 2026-09-25 (branch claude/noacg-bridge-feedback-cimjwc): server clips can Loop (native PLAY ... LOOP) and the picker browses folders. Still missing: the rest of clip playback. 2026-09-26: planned as build 2 of docs/RUNDOWN_AUTOMATION_PLAN.md (§3: level, fade, audio files as their own kind and layer, a clip that ends on the server by itself); nothing of it is built, and it waits on the owner's pick"
 asked: "play local video files through the cloud playout into CasparCG, without the web (owner sketch in the 2026-08-27 wave input)"
 ---
 # Play local video files through the cloud playout into CasparCG, without the web
@@ -83,6 +83,12 @@ this one.
   half of a real show onto that surface.
 
 ## Status
+
+**2026-09-26:** the file model, the video cue, and roll, pause and out are built for CasparCG
+(`docs/BRIDGE.md` §5 and §5a); the position readout is not. What clip playback still needs (level,
+fade, audio files, a clip that ends on the server by itself) is planned as build 2 of
+[`docs/RUNDOWN_AUTOMATION_PLAN.md`](../RUNDOWN_AUTOMATION_PLAN.md) §3, beside the timed cues it
+works with. The text below is the item as filed.
 
 **Next-wave candidate.** It does not compete with the 2026-09-12 student production for the
 calendar, but it is the highest-value thing in this folder because it is the only one with a named

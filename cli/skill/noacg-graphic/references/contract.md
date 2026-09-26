@@ -48,7 +48,7 @@ window.SPXGCTemplateDefinition = {
   "playserver": "OVERLAY", "playchannel": "1", "playlayer": "7", "webplayout": "7",
   "out": "manual",          /* or "none", or a number of ms to auto-clear */
   "dataformat": "json", "uicolor": "7",
-  "steps": "1",             /* the walk's length: `defaultPath.length - 1`, so "1" with no machine (§5d) */
+  "steps": "1",             /* derived: `defaultPath.length - 1`, and `validate` rewrites it (§5d) */
   "DataFields": [
     { "field": "f0", "ftype": "textfield", "title": "Team A", "value": "HOME" },
     { "field": "f1", "ftype": "number",    "title": "Score A", "value": "0" },
@@ -307,10 +307,11 @@ server has. Here ⟳ Take shows the nominees, » Next fires `reveal` (the same a
 fires), ■ Out clears. A button an operator can press is never the ONLY way to reach a state that
 the show needs.
 
-Keep the SPX definition's `steps` in step with the walk: it is `defaultPath.length - 1` (two,
-here), and the OGraf manifest's `stepCount` is generated from it. Nothing recomputes it for you
-when you add a waypoint by hand, and a graphic that under-reports it tells a dumb host there is
-no Continue to press - so the reveal never happens on that host.
+The SPX definition's `steps` is derived from the walk: `defaultPath.length - 1` (two, here), and
+the OGraf manifest's `stepCount` is generated from it. When you add or remove a waypoint,
+`validate` rewrites the number and prints a `Steps:` line saying so. Change the path, never the
+number: an under-reported count tells a dumb host there is no Continue to press, and the reveal
+never happens on that host.
 
 ## 6. Frame, safety, legibility
 
