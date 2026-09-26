@@ -647,6 +647,7 @@ test.describe('teams: the share door', () => {
         }
         await selectCueFor(ben, gfx.cleo);
         await expect(ben.getByTestId('cue-field-f0')).toHaveValue(said.cleo);
+        await expect(ben.getByTestId('production-preview').frameLocator('iframe').locator('#f0')).toContainText(said.cleo);
         await shot(ben, 'teams-three-cold-open');
 
         // B REPUBLISHES - the payload is pinned at publish, and A's publish predates B's and C's

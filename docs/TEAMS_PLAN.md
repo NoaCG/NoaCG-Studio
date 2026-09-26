@@ -263,6 +263,8 @@ Each stage lands alone, verified, before the next.
    a team and a production and publishes; B joins by code, edits a cue, republishes; C joins
    and operates via the production page; assert all three read the same rundown and the
    capability slugs never changed. This is the scenario-proven rung for the claim.
+   **LANDED 2026-09-27** on a local backend, walking GOALS outcome 5's list rather than this
+   sketch - see below.
 6. **Owner walk** - the three-student scenario end to end (kind: walk, owner-queue item).
    Owner acceptance is the rung above scenario-proven; production-proven is the autumn class.
 
@@ -380,9 +382,46 @@ production's Share door, and a new member owns no production to open one from. W
   personal one and rolls both back.
 - **Not built, still open:** moving a team production back to personal (owner-only, the one
   statement described above), the member list and "Published by" in the production header (the
-  team's button opens the dialog that has the list), and the stage 5 THREE-context walk. The
-  two-context walk in `e2e/configured/teams.spec.ts` covers join, find, move, a member's edit and
-  its "edited by" read back cold by the owner.
+  team's button opens the dialog that has the list). The two-context walk in
+  `e2e/configured/teams.spec.ts` covers join, find, move, a member's edit and its "edited by" read
+  back cold by the owner; stage 5's three-context walk is below.
+
+**Stage 5 LANDED 2026-09-27** as the "three accounts" walk in `e2e/configured/teams.spec.ts`, green
+in `configured-suite.yml` against a local stack. It walks GOALS outcome 5's list instead of the
+cue-editing sketch in item 5, because that list names where a production could stay trapped in one
+account: a graphic comes into a production from its author's OWN library, and publishing resolves
+graphics through the PUBLISHER's library.
+
+- **What it proves.** Anna makes a team and a production holding a graphic from her library, moves
+  it in and publishes from the team. Ben and Cleo join by the link; each adds a graphic from their
+  own library and types its text, and Cleo adds a data table, every edit read back off the server
+  row. Anna signs out. Ben opens the production cold, finds all three graphics, their text and the
+  table, republishes - the output and control addresses are the ones Anna's publish minted - and
+  plays it out: Take of Anna's graphic (its author gone, and in no other library) and of Cleo's,
+  Update of Cleo's text, Out, each read back on the output page by its text, its play count and
+  the rows it applied. Then all three read the same rundown (graphics, layers, cues and values,
+  tables, both addresses): Cleo on the page she left open, Anna from a fresh sign-in, whose desk
+  also agrees with what is on air.
+- **The third account** is minted by the walk itself through the admin endpoint, with the
+  service-role key both configured workflows already hand the suite, so no workflow changed.
+- **Two defects it found, both fixed.** Ben and Cleo adding a graphic at once each took "the lowest
+  free layer" from the same base, so the merge of the refused save left both on one layer, where
+  they replace each other on air: a graphic WE added that lands on a layer a graphic THEY added
+  holds now moves up (`model/teamShowMerge.ts`, pinned by `scripts/team-show-merge.test.mjs`). And
+  a desk opened onto a production somebody else had put on air said every on-air field was "not on
+  air yet" and rebuilt its program monitor with template defaults, because what air showed was
+  known only from the desk's own sends; it now starts from the renderer's report, or the live
+  cue's values when none has reported (`ProductionPage.tsx`).
+- **Proven able to fail:** configured-suite run 36271675262 is the walk red on the desk defect
+  before its fix; run 36272412328 is a mutant that publishes without the team stamp, where Ben's
+  republish must be refused.
+- **Not proven, still open.** A graphic's saved entries and any library edit made after it was
+  added still resolve through whoever publishes, so the hosted panel and the design on air depend
+  on which member pressed Publish (`docs/backlog/a-team-productions-output-depends-on-who-publishes.md`).
+  Two members' graphics with one name replace each other
+  (`docs/backlog/two-members-graphics-with-one-name-replace-each-other.md`); the walk names them
+  apart. The run is on a local stack, so latency-shaped defects need `hosted-latency.yml`. The
+  output is asserted by text and counters, not by picture, and stage 6's owner walk remains.
 
 ## 8. Risks, scope edges, open questions
 

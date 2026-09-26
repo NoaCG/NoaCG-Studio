@@ -153,8 +153,9 @@ Each outcome carries its priority (now, next, later). List order is not priority
 - **Current state:** CasparCG with NoaCG Bridge is production-proven and the main production path;
   OBS and browser sources are proven; vMix exports exist but are unproven in vMix; SPX is unproven
   on a real SPX server. Bridge lists the server's clips and cues them from the rundown, with loop;
-  volume is not built. Teams, join codes, team productions on Home and moving a production into a
-  team exist.
+  volume is not built. Teams exist, and a three-member walk on a local backend proves members
+  adding graphics from their own libraries and one playing the production out with its creator
+  signed out. Saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**
   - **Basic media:** clips and audio play reliably from the rundown through CasparCG, with volume,
     loop and the other attributes a production genuinely needs. Anything beyond reliable basic
