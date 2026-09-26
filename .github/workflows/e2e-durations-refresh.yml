@@ -54,7 +54,9 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: read # the run it records from, and that run's blob reports
+  # Read: the run it records from, and that run's blob reports. Write: the `gh workflow run ci.yml`
+  # that gives the pull request its `CI gate`, which a read-only token is refused (HTTP 403).
+  actions: write
   issues: write # the rolling alarm at the bottom
 
 # One at a time: two refreshes racing would force-push the same branch from two recordings.

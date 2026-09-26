@@ -605,8 +605,17 @@ function record(runId) {
       }
     }
     if (zips === 0) throw new Error(`run ${target.id} has no blob reports left - they expire after 7 days.`);
-    const merged = run('npx', ['playwright', 'merge-reports', '--reporter=json', flat], { maxBuffer: 256 * 1024 * 1024 });
-    const minutes = minutesByFile(JSON.parse(merged));
+    // The merged report goes to a FILE, never stdout. Playwright's JSON reporter prints to stdout
+    // and `merge-reports` exits the moment it returns; on Linux a write to a pipe is asynchronous,
+    // so the exit cut the report off mid-string (at 146 KB of about 2 MB on run 35591672899, the
+    // first scheduled refresh) and JSON.parse threw. On Windows, where this was first run by hand,
+    // the same pipe is synchronous, which is why it worked there and never in the workflow.
+    const report = join(work, 'merged.json');
+    run('npx', ['playwright', 'merge-reports', '--reporter=json', flat], {
+      stdio: 'inherit',
+      env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_FILE: report },
+    });
+    const minutes = minutesByFile(JSON.parse(readFileSync(report, 'utf8')));
 
     // The per-job OVERHEAD, from the same run. `gh run view --json jobs` does not carry step
     // timings, so this asks the REST endpoint that does; a failure here is not fatal, because a
