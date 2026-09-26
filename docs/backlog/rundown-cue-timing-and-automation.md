@@ -3,10 +3,11 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-24
-state: unstarted
+state: advanced
+note: "2026-09-26 (branch claude/b-rundown-automation-plan): the plan landed as docs/RUNDOWN_AUTOMATION_PLAN.md. Build 1 there is items 1-4, specified to the migration and the specs; items 5-11 each have a recommendation. Nothing is built; the build waits on the owner's pick (owner-queue 2026-09-26-b-rundown-automation-plan)"
 asked: "Cue duration with auto-advance options, and the other automation options we need to plan; start building after tomorrow's lecture (paraphrase, 2026-09-24)"
 size: large
-touches: src/model/shows.ts, src/components/home/ProductionPage.tsx, src/control/
+touches: src/model/shows.ts, src/components/home/ProductionPage.tsx, src/components/HostedControlPage.tsx, src/components/playoutKeys.ts, src/control/, supabase/migrations/
 covered-by: e2e/playout-cues.spec.ts
 needs-owner: none
 ---
@@ -16,6 +17,10 @@ needs-owner: none
 **Filed:** 2026-09-24. **Source:** owner, after a comparison of NoaCG against other playout
 clients. Start after the 2026-09-25 lecture. The FIRST deliverable is a plan he can read, because
 he asked for the automation options to be planned before any of them is built.
+
+**The plan is [`docs/RUNDOWN_AUTOMATION_PLAN.md`](../RUNDOWN_AUTOMATION_PLAN.md) (2026-09-26).** It
+supersedes "What it would take" below where the two differ: its §2 is the build for items 1-4, and
+its §4 gives items 5-11 a paragraph and a recommendation each.
 
 ## Why
 
