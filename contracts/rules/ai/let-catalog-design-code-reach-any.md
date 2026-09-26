@@ -2,7 +2,7 @@
 v: 1
 scope: src/ai/**
 kind: invariant
-fires: contract
+fires: test:e2e/creative-pilot.spec.ts
 status: active
 since: 2026-09-07
 record: contracts/records/ai/2026-09-07-let-catalog-design-code-reach-any.md

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFile } from 'node:fs/promises';
 
-// The FREE OGRAF STARTERS page (/ograf, docs/OGRAF.md) - the Yle ask: editable base packages,
+// The FREE OGRAF STARTERS page (/ograf, docs/OGRAF.md) - a broadcaster's ask: editable base packages,
 // not from-scratch authoring. Three properties are load-bearing:
 //
 //   1. every card's data-starter NAME resolves against the live catalog - starters are named

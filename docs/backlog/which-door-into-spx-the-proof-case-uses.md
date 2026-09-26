@@ -38,7 +38,7 @@ is standing there, in front of the people watching.
 ## What it would take
 
 **This receipt is the OFFLINE half only, and it needs nobody.** Take the two proof-case graphics
-(`e2e/fixtures/agent-made/elamani-biisi.noacgpack.json`), export the production through both doors,
+(`e2e/fixtures/agent-made/vote-show.noacgpack.json`), export the production through both doors,
 and write down exactly what an SPX operator gets from each: which fields, which buttons, what
 happens to a combined control, what happens to a `+1` on a bound field, and what the embed asks of
 the room's network. The answer is derivable from the code, it has never been derived, and §6f is a

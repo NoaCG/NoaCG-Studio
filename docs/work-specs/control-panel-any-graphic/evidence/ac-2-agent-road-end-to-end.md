@@ -16,7 +16,7 @@ That sha is this branch's own base, so the validator, the bench and the panel ge
 these graphics are the integrated tree's, deployed.
 
 The two proof-case graphics of the plan's §3a and §3b were taken from
-`e2e/fixtures/agent-made/elamani-biisi.noacgpack.json`, written into two scaffolded packages, and
+`e2e/fixtures/agent-made/vote-show.noacgpack.json`, written into two scaffolded packages, and
 put back through the shipped gates. Wall clock, each verb timed by a stopwatch wrapper:
 
 | Verb | Votes board | Totals board |

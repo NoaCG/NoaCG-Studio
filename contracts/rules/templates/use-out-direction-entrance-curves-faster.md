@@ -3,7 +3,7 @@ v: 1
 scope: src/templates/**
 kind: taste
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/templates/2026-09-07-use-out-direction-entrance-curves-faster.md
 ---

@@ -2,7 +2,7 @@
 v: 1
 scope: src/components/video/VideoAppShell.tsx, src/components/home/GraphicControlPage.tsx, src/components/home/HomePage.tsx, src/components/home/ProductionPage.tsx
 kind: invariant
-fires: contract
+fires: test:e2e/project.spec.ts
 status: active
 since: 2026-09-24
 supersedes: components/make-logo-every-header-real-link

@@ -72,7 +72,7 @@ function ConfiguredPasswordRecoveryPage() {
   if (status === 'signed-in') return <NewPasswordCard />;
   // A real token that produced no session is NOT proof the link is dead, and saying so would be
   // a lie in the failure class this repo designs for: backend/auth.ts readSessionBounded gives
-  // up after 6 s and reports signed-out on a network that black-holes *.supabase.co (the Yle
+  // up after 6 s and reports signed-out on a network that black-holes *.supabase.co (the broadcaster
   // demo). Telling that reader their link expired sends them to request another one down the
   // same blocked path, which will also appear to work. So say what is actually known - the
   // check did not complete - and offer the cheap thing first.

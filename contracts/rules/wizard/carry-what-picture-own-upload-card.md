@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/ai/**, src/model/imagePurpose.ts
+scope: src/components/wizard/steps/ai/**
 kind: rule
 fires: contract
 status: active

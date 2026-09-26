@@ -3,7 +3,7 @@ v: 1
 scope: src/components/AssetsPanel.tsx
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/components/2026-09-07-rewrite-every-code-reference-asset-moves.md
 ---

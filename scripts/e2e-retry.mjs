@@ -22,7 +22,8 @@
 //     change wrote or edited is the change's, not the suite's; it is bounced to its author, never
 //     quarantined on the strength of a second run.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, readdirSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -68,18 +69,31 @@ export function retryPlan({ failed, reports, shards, changed = [] }) {
   return { ok: true, specs: failed };
 }
 
-/** Merge the blob reports in `dir` into one JSON report, with the Playwright the shards used. */
+/**
+ * Merge the blob reports in `dir` into one JSON report, with the Playwright the shards used.
+ *
+ * The reporter writes to a FILE (`PLAYWRIGHT_JSON_OUTPUT_FILE`), never to stdout: on the Linux
+ * runner the captured stdout once carried something besides the report, and `JSON.parse` failed
+ * mid-document, which turned a one-spec flake into a red main. A file only the reporter writes
+ * cannot be mixed with anything else that shares the pipe.
+ */
 function mergeBlobReports(dir) {
-  const res = spawnSync('npx', ['--no-install', 'playwright', 'merge-reports', '--reporter=json', dir], {
-    encoding: 'utf8',
-    windowsHide: true,
-    shell: process.platform === 'win32',
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  if (res.status !== 0) {
-    throw new Error(`merge-reports failed: ${String(res.stderr ?? '').trim() || `exit ${res.status}`}`);
+  const tmp = mkdtempSync(path.join(os.tmpdir(), 'e2e-retry-'));
+  const file = path.join(tmp, 'merged.json');
+  try {
+    const res = spawnSync('npx', ['--no-install', 'playwright', 'merge-reports', '--reporter=json', dir], {
+      encoding: 'utf8',
+      windowsHide: true,
+      shell: process.platform === 'win32',
+      env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_FILE: file },
+    });
+    if (res.status !== 0) {
+      throw new Error(`merge-reports failed: ${String(res.stderr ?? '').trim() || `exit ${res.status}`}`);
+    }
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
   }
-  return JSON.parse(res.stdout);
 }
 
 /** What the change touched, from the planner's own reader; an unusable base is "nothing known". */

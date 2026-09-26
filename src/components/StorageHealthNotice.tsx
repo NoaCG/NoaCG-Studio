@@ -4,7 +4,7 @@ import { durableStoreHealth } from '../model/durableStore';
 /**
  * The boot-health notice for a browser where the durable store could not run on IndexedDB
  * (model/durableStore.ts). Degrading was always silent; on locked-down machines (enterprise
- * site-data policies - the class of network the Yle demo failed on) that silence read as
+ * site-data policies - the class of network a broadcaster demo failed on) that silence read as
  * "my work vanished". Two honest messages, one per failure shape:
  *
  *  - 'timeout' (a wedged backend): saved documents EXIST in IndexedDB and could not be

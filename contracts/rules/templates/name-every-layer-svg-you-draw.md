@@ -2,7 +2,7 @@
 v: 1
 scope: public/docs/examples/**, docs/tutorials/**, docs/svg-samples/**, scripts/illustrator/**, cli/skill/noacg-graphic/**, src/templates/behaviours/layer-names.json, docs/SVG_AUTHORING.md
 kind: rule
-fires: contract
+fires: gate:check-example-layers
 status: active
 since: 2026-09-24
 record: contracts/records/templates/2026-09-24-name-every-layer-svg-you-draw.md

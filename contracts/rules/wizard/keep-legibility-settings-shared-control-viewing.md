@@ -7,4 +7,4 @@ status: active
 since: 2026-09-07
 record: contracts/records/wizard/2026-09-07-keep-legibility-settings-shared-control-viewing.md
 ---
-Keep the legibility settings ONE shared control - the viewing-target select and the two size-floor toggles are mirrors of one tri-state and interlock in the component. Render it on the AI step and the editor Style panel, NOT on the catalog walk. It is PROJECT METADATA riding `draft.legibility`, never the `:root` contract, and every AI generation resolves it into the request while the result card stamps what its request carried.
+Keep the legibility settings ONE shared control, `ViewingControls`: the viewing target, and the size floors drawn as three radios over the one tri-state `LegibilityFloors`. Render it on the AI step, NOT on the catalog walk. It is PROJECT METADATA riding `draft.legibility`, never the `:root` contract, and every AI generation resolves it into the request while the result card stamps what its request carried.

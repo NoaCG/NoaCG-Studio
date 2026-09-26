@@ -8,7 +8,7 @@
 // engineering decision and it stays. What must never happen is the product describing ITSELF in
 // one client's words: "SPX live preview", "Make SPX-ready", "the SPX out setting", "the name the
 // operator sees in SPX". A broadcaster reading those concludes NoaCG is an SPX tool, and the
-// first customers this product is aimed at (EBU, YLE) come through OGraf, not SPX.
+// first customers this product is aimed at (EBU members) come through OGraf, not SPX.
 //
 // So the rule this gate holds is narrow and checkable:
 //

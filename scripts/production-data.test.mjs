@@ -20,8 +20,17 @@ import ts from 'typescript';
 // The rules live in ONE place, because they are implemented twice - here against the real
 // TypeScript module, and in 0048's self-check against the real plpgsql body.
 import { MERGE_PATCH_CONFORMANCE } from './merge-patch-conformance.mjs';
+import * as rules from './rules.mjs';
 
 const source = readFileSync(fileURLToPath(new URL('../src/model/productionData.ts', import.meta.url)), 'utf8');
+
+// The module stays self-contained: no imports (type-only ones included), no DOM, no storage.
+// Checked here, before the transpile, because a real import would otherwise fail the data: URL
+// load below with a resolution error that names neither the file nor the reason.
+const SELF_CONTAINED = rules.text('model/imports-nothing-touches-dom-storage-deliberate');
+assert.doesNotMatch(source, /^\s*import\b|\bimport\s*\(|^\s*export\b[^;\n]*\bfrom\s+['"]|^\s*\}\s*from\s+['"]/m, SELF_CONTAINED);
+assert.doesNotMatch(source, /\b(document|window|localStorage|sessionStorage|indexedDB|navigator)\b/, SELF_CONTAINED);
+
 const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;

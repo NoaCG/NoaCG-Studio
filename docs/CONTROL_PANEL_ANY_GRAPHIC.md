@@ -338,8 +338,8 @@ and the evidence for each line. It is short because most of it is already standi
      combined controls and no production data tree. It is the honest offline fallback, and it costs
      the profile.
    Comparing the two doors on the proof case is offline work nobody has done, and it is filed as
-   `docs/backlog/spx-is-the-playout-on-20-october.md` so the choice is made before the day rather
-   than in the room.
+   `docs/backlog/which-door-into-spx-the-proof-case-uses.md` so the choice is made before a
+   production depends on it.
 
 3. **An authoring story that looks effortless to people who make graphics for a living.** EXISTS
    and is timed, with one honest hole. The skill teaches the contract (row 1), and the road is

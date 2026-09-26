@@ -2,7 +2,7 @@
 v: 1
 scope: src/templates/meta.ts, src/templates/search.ts
 kind: rule
-fires: contract
+fires: test:scripts/use-case-search.test.mjs
 status: active
 since: 2026-09-07
 record: contracts/records/templates/2026-09-07-enforce-occasion-admission-through-limit-occasion.md

@@ -9,8 +9,8 @@ import {
   type PanelGraphicLike,
 } from './dataIngest.js';
 
-// The house scorebug's contract (src/templates/scoreboards/scorebugShared.ts) - the shape the
-// Yle demo drives, so the mapping is proven against the real field list.
+// The house scorebug's contract (src/templates/scoreboards/scorebugShared.ts) - the shape a
+// broadcaster demo drives, so the mapping is proven against the real field list.
 const SCOREBUG: PanelGraphicLike = {
   name: 'House Scorebug',
   fields: [

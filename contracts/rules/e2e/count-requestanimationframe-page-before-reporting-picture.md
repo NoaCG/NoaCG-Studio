@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: docs/acceptance/**, docs/handoffs/**, src/components/home/**
+scope: .agent-workflows/verify.md, docs/acceptance/**
 kind: trap
 fires: contract
 status: active

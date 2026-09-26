@@ -22,6 +22,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { withBundledPage } from './catalog-emit.mjs';
+import * as rules from './rules.mjs';
 
 const SPECS = [
   { entry: fileURLToPath(new URL('../src/templates/templateMeta.ts', import.meta.url)), globalName: 'NOACG_META' },
@@ -96,7 +97,7 @@ const QUERIES = [
 const gathered = await withBundledPage(SPECS, (page) => page.evaluate(GATHER, QUERIES));
 
 test('the taxonomy validates, occasion rule included', () => {
-  assert.deepEqual(gathered.problems, [], gathered.problems.join('\n'));
+  assert.deepEqual(gathered.problems, [], `${gathered.problems.join('\n')}\n${rules.text('templates/enforce-occasion-admission-through-limit-occasion')}`);
 });
 
 test('the occasion vocabulary stays closed and small', () => {

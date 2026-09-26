@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 // THE PROOF CASE'S PRODUCTION, installed from the pack two agents authored for it
-// (`e2e/fixtures/agent-made/README.md`): the Elämäni biisi votes board and totals board, a cue
+// (`e2e/fixtures/agent-made/README.md`): the vote-show votes board and totals board, a cue
 // each, ready to operate. Two specs drive it now — the in-app combined controls and the hosted
 // page's resolution — so the import lives here rather than in whichever one wrote it first.
 //
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 // about the one the import flow produces.
 
 const PROOF_PACK = readFileSync(
-  fileURLToPath(new URL('./fixtures/agent-made/elamani-biisi.noacgpack.json', import.meta.url)),
+  fileURLToPath(new URL('./fixtures/agent-made/vote-show.noacgpack.json', import.meta.url)),
   'utf8',
 );
 
@@ -26,7 +26,7 @@ export async function importProofCase(page: Page): Promise<void> {
   const card = page.getByTestId('import-pack-card');
   await expect(card).toBeVisible();
   await card.getByTestId('import-pack-file').setInputFiles({
-    name: 'elamani-biisi.noacgpack.json',
+    name: 'vote-show.noacgpack.json',
     mimeType: 'application/json',
     buffer: Buffer.from(PROOF_PACK),
   });
