@@ -362,6 +362,36 @@ export default function MapSvgFieldsStep({
     setProposed(proposeFollowers(stage, svg, growId, growAxis));
   }, [svg, growId, growAxis]);
 
+  // ── WHEN A FONT LANDS, EVERY TEXT MEASUREMENT BELOW IS TAKEN AGAIN ──
+  // The stage's text is laid out in a fallback face until the face the artwork asks for has
+  // loaded, and a fallback is a different WIDTH: the classroom show intro's "QUIZ NIGHT" measured
+  // 860 units wide in it and 653 in Oswald, which moved its centre 103 units right of its plate's
+  // and made the grid read a centred title as right-aligned. The graphic's runtime re-fits on
+  // `document.fonts.ready`, so the step has to measure the face that runtime measures, not the
+  // one standing in for it. Two ways a face lands: the author picks or uploads one (the draft's
+  // fonts), or the document finishes loading a face the artwork already names - a bundled
+  // family's @font-face loads lazily, on the stage's own first layout, AFTER the first
+  // measurement. `loadingdone` is the second; the `ready` read covers a load that finished
+  // before this listener was attached.
+  const [fontsLanded, setFontsLanded] = useState(0);
+  useEffect(() => {
+    const fonts = document.fonts;
+    if (!fonts) return;
+    let live = true;
+    const landed = () => {
+      if (live) setFontsLanded((n) => n + 1);
+    };
+    fonts.addEventListener('loadingdone', landed);
+    void fonts.ready.then(landed);
+    return () => {
+      live = false;
+      fonts.removeEventListener('loadingdone', landed);
+    };
+  }, []);
+  const fontKey = `${draft.svgFonts
+    .map((f) => `${f.family}:${f.customFont?.asset.path ?? f.fontId ?? ''}`)
+    .join('|')}#${fontsLanded}`;
+
   // ── WHICH SHAPES ARE WORTH OFFERING AS THE ONE THAT GROWS (owner walk, 2026-09-01) ──
   // A LAYOUT effect, not an ordinary one: the picker's presence depends on this measurement, so
   // measuring after paint would show the question for one frame and then take it away - which is
@@ -399,7 +429,7 @@ export default function MapSvgFieldsStep({
       if (fit) fits[lineId] = fit;
     }
     setBoxFits(fits);
-  }, [svg, boundMarkerIds, allMarkerIds, placedLines]);
+  }, [svg, boundMarkerIds, allMarkerIds, placedLines, fontKey]);
 
   // ── WHERE EVERY LAYER SITS, FOR THE UNMATCHED COUNT (fieldAutoMap.ts, `isPlate`) ──
   // The notice says how many layers nothing is using, and without geometry it counts the board's
@@ -410,11 +440,9 @@ export default function MapSvgFieldsStep({
   // A LAYOUT effect, for the reason the grouping above is one: the count is a NUMBER on screen,
   // and measuring after paint would print the inflated one for a frame and then correct it.
   //
-  // It re-runs when a FONT lands, because `uploadFont` below registers the face under the very
-  // family the artwork asks for - so the stage's text stops being laid out in the fallback and
-  // the ink moves under a number the reader is looking at.
+  // It re-runs when a FONT lands (`fontKey` above), because the stage's text stops being laid
+  // out in the fallback and the ink moves under a number the reader is looking at.
   const [layerBoxes, setLayerBoxes] = useState<Map<string, FillLayer['box']>>(new Map());
-  const fontKey = draft.svgFonts.map((f) => `${f.family}:${f.customFont?.asset.path ?? f.fontId ?? ''}`).join('|');
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!svg || !stage) {
