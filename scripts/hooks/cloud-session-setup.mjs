@@ -11,9 +11,10 @@
 //      .claude/rules) is read from disk when a file is read, so it arrives current; the ROOT
 //      CLAUDE.md/AGENTS.md was read at launch, before any hook, so it is stale in context and is
 //      re-printed below when it changed. What still comes from the starting commit is what the
-//      client read at launch: this session's hooks, permissions and skill list. Never the primary checkout (the merge queue
-//      runs there), never a detached HEAD, a dirty tree or a branch with its own commits - those are
-//      only reported. It runs before step 1 so the install reads the lockfile it will build with.
+//      client read at launch: this session's hooks, permissions and skill list. Never the primary
+//      checkout (the merge queue runs there), never a detached HEAD, a dirty tree or a branch with
+//      its own commits - those are only reported. It runs before step 1 so the install reads the
+//      lockfile it will build with.
 //
 //   1. DEPENDENCIES. The container is a fresh clone with no node_modules, at the root or in cli/,
 //      and `npm run build` cannot start without them. `npm ci` from the lockfile, only when a
@@ -192,7 +193,8 @@ function installIfMissing(dir, label, { force = false } = {}) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   // The checkout this hook ships in - the settings start it from the current checkout's top level.
   const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
-  const fresh = freshen(root, (await readHookInput()) ?? {});
+  // A person running this by hand has no hook event to pipe in; waiting on the terminal would hang.
+  const fresh = freshen(root, (process.stdin.isTTY ? null : await readHookInput()) ?? {});
   if (fresh.line) console.log(fresh.line);
   installIfMissing(root, 'root', { force: fresh.lockMoved });
   if (process.env.CLAUDE_CODE_REMOTE === 'true') {
