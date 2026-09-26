@@ -386,7 +386,11 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   not the rundown's to clear.
 - **What the page believes.** ON AIR on a server cue means the command was accepted; nothing
   reports back what the server holds until OSC state arrives (milestone 2). A refused command
-  never marks a row, and the note line says which hop refused and why.
+  never marks a row, and the note line says which hop refused and why. That belief is page memory
+  today, so a reload forgets which server cues are up. **Planned, not built**
+  (`docs/RUNDOWN_AUTOMATION_PLAN.md` §2.7): after an accepted Take or Out the page writes the cue's
+  ON AIR marker, never the verb, to the command log, so a reload, the hosted page and a timed
+  clip's deadline all read it from there. The verb still goes only through the Bridge.
 
 ### 5a. Clip playback: what CasparCG already does, and what NoaCG uses
 
@@ -402,17 +406,22 @@ What CasparCG 2.3-2.5 does natively for a clip on a layer:
 | Play once / stop | `PLAY c-l "CLIP"` / `STOP c-l` | since 2026-09-22 |
 | Pause / resume | `PAUSE c-l` / `RESUME c-l` | since 2026-09-22 |
 | **Loop** | `PLAY c-l "CLIP" LOOP` | **2026-09-25**: a Loop box in the clip's cue editor (`PlayoutItem.loop`, additive). Protocol v2 already carried `loop`, so the Bridge 0.4 on the Releases page plays it with no new download. |
-| Fade in | `PLAY c-l "CLIP" MIX <frames>` (also `PUSH`, `WIPE`, `SLIDE`, with an easing) | proposed, below |
-| Fade out | `PLAY c-l EMPTY MIX <frames>` (mixes the layer to nothing, then it is empty) | proposed, below |
-| Play the next clip when this one ends | `LOADBG c-l "NEXT" AUTO` (optionally `MIX <frames> AUTO`) | proposed, below |
-| Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | later |
-| Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | later |
-| Volume / audio fade | `MIXER c-l VOLUME <0-1> <frames>` | later |
+| Fade in | `PLAY c-l "CLIP" MIX <frames>` (also `PUSH`, `WIPE`, `SLIDE`, with an easing) | planned, build 2 |
+| Fade out | `PLAY c-l EMPTY MIX <frames>` (mixes the layer to nothing, then it is empty) | planned, build 2 |
+| Play the next clip when this one ends | `LOADBG c-l "NEXT" AUTO` (optionally `MIX <frames> AUTO`) | planned, build 2, as the native form of a timed cue's Next |
+| Clear the layer when the clip ends | `LOADBG c-l EMPTY AUTO` | planned, build 2, as the native form of a timed cue's Out |
+| Level | `MIXER c-l VOLUME <0-1> <frames>` | planned, build 2, in dB per clip |
+| Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | not proposed |
+| Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | not proposed |
 
-**Not decided (owner, 2026-09-25).** Loop shipped alone. What else clip playback needs is to be
-planned properly in its own session before anything is built. The sketch below is one input to
-that plan, not the plan. Each item in it is additive in the record and in protocol v2 (no
-version bump), and each needs a Bridge release:
+**Planned 2026-09-26, not built.** Loop shipped alone, and the owner asked for the rest to be
+planned before anything is built (2026-09-25). The plan is build 2 of
+[`RUNDOWN_AUTOMATION_PLAN.md`](RUNDOWN_AUTOMATION_PLAN.md) §3, beside the timed cues a clip's end
+drives, and it waits on the owner's pick. Where it differs from the sketch below it wins: fade is
+stored as a word the adapter turns into frames, level is added in dB, audio files become their own
+kind on their own layer, and "then play" becomes a timed cue's Next. The sketch was its input.
+Each item in it is additive in the record and in protocol v2 (no version bump), and each needs a
+Bridge release:
 
 1. **Fade.** One per-clip setting, *Fade: none / short / long*, stored as frames. None is 0,
    short 12, long 25, counted in the channel's own frames because that is what `MIX` counts.
