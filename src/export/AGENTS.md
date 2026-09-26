@@ -208,6 +208,14 @@ export-time reflow, stretching, or cropping.
   invalid graphic cannot export whoever calls them; the dialog shows the SAME verdict
   (`productionGateFailures`), never a second opinion. The edge is `export -> validation`,
   `productionGate` only (docs/ARCHITECTURE.md §3). Pinned by e2e/production-gate.spec.ts.
+- **spxLeftBehind.ts** - what the SPX production package (`buildShowZip`) SAYS it drops
+  (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6h), written into its README and GETTING-ON-AIR.md. The
+  package still carries none of the production (§6f); these are words, in SPX's own actions.
+  `spxLeftBehindMd` is keyed on the PRODUCTION (published combined controls, bindings, data
+  tree) and is '' without them; `spxReportedFieldRulesMd` is keyed on the GRAPHIC (a hidden
+  field a control `set`s where Continue fires it - `continueEvents` in control/controlModel.ts,
+  the same reading as `canAdvance` - which SPX re-sends stale on every Update) and stays with
+  or without a profile. Pinned by e2e/shows.spec.ts.
 - **noacgPackage.ts** - the DUAL graphic package (docs/AGENT_CLI.md): ONE folder that is both the
   SPX starter layout (`<slug>.html`, `css/template.css`, `js/template.js`, `js/gsap.min.js`,
   images/, fonts/ - the editable SOURCES) and a valid OGraf v1 package (`<slug>.ograf.json` +
