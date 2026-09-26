@@ -1,19 +1,25 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
   dismissWizard,
+  E2E_EMAIL,
   E2E_TEAMMATE_EMAIL,
   E2E_TEAMMATE_PASSWORD,
   haveCreds,
   haveTeammateCreds,
+  lastAppliedRow,
+  SERVICE_ROLE_KEY,
   shot,
   signIn,
   signInAs,
   SUPABASE_URL,
 } from './_helpers';
+import { settleDurableWrites } from '../_durable';
 import { FAKE_JOIN_ROUTE, TEAM } from '../_teams';
 
-// Teams (docs/TEAMS_PLAN.md §7): the DOOR in both of its shapes (stage 3), and - with a second
-// account - the invited teammate FINDING the team and what it holds (stage 4).
+// Teams (docs/TEAMS_PLAN.md §7): the DOOR in both of its shapes (stage 3), with a second account
+// the invited teammate FINDING the team and what it holds (stage 4), and with a third the shared
+// production proved end to end (stage 5): three members build it, and it plays out with its
+// creator signed out.
 //
 // This spec is the other half of the offline pin in e2e/auth.spec.ts. That one asserts the team
 // ids have count 0 with no backend; this one asserts the SAME ids (both import e2e/_teams.ts) are
@@ -41,6 +47,162 @@ async function declineAnalytics(page: import('@playwright/test').Page): Promise<
     await consent.getByRole('button', { name: 'No thanks' }).click();
     await expect(consent).toHaveCount(0);
   }
+}
+
+// ── The three-member walk's helpers ─────────────────────────────────────────────────────────────
+
+/** The THIRD account. Neither workflow mints it: the walk does, through the same admin endpoint
+ *  and service-role key both workflows already hand the suite, so a run on either backend needs no
+ *  new secret or workflow step. Derived from the first account's address so it lands on the same
+ *  throwaway domain (`e2e-third@noacg.local` on the local stack). */
+const E2E_THIRD_EMAIL = process.env.E2E_THIRD_EMAIL ?? E2E_EMAIL.replace(/^[^@]*/, 'e2e-third');
+const E2E_THIRD_PASSWORD = E2E_TEAMMATE_PASSWORD;
+
+/** Create an account, or accept that it already exists. Throws on anything else, so an
+ *  environment fault reads as one here rather than as a sign-in timeout three minutes later. */
+async function mintAccount(email: string, password: string): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+    method: 'POST',
+    headers: {
+      apikey: SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password, email_confirm: true }),
+  });
+  if (res.ok) return;
+  const body = await res.text();
+  if (res.status === 422 && /exist|registered/i.test(body)) return;
+  throw new Error(`could not mint ${email}: admin/users answered ${res.status} ${body}`);
+}
+
+/** Save a graphic into the signed-in account's OWN library, through the model call Save uses, and
+ *  push it - the library is where a member's graphic comes from before it is added to anything. */
+async function makeLibraryGraphic(page: Page, name: string): Promise<void> {
+  await page.evaluate(async (n) => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { error } = createGraphic({ ...variantsFor('lower-third')[0].create({}), name: n }, { name: n, packageId: null });
+    if (error) throw new Error(error);
+  }, name);
+  await settleDurableWrites(page);
+  await page.evaluate(async () => {
+    const { syncNow } = await import('/src/backend/syncController.ts');
+    await syncNow();
+  });
+}
+
+/** Delete the named graphics from the signed-in library and push the tombstones. Best effort:
+ *  it runs in teardown, where a failure must not hide the walk's own. */
+async function dropLibraryGraphics(page: Page, names: string[]): Promise<void> {
+  await page
+    .evaluate(async (wanted) => {
+      const { loadGraphics, deleteGraphic } = await import('/src/model/library.ts');
+      for (const g of loadGraphics()) if (wanted.includes(g.name)) deleteGraphic(g.id);
+      const { syncNow } = await import('/src/backend/syncController.ts');
+      await syncNow();
+    }, names)
+    .catch(() => undefined);
+}
+
+/** A production's rundown as a page HOLDS it: pool graphics, cues (label, graphic, the values the
+ *  members typed), data tables and the two capability slugs. Null when the page holds no such
+ *  production. This is what "all three read the same rundown" compares. */
+interface HeldRundown {
+  graphics: string[];
+  cues: { label: string; graphic: string | null; values: Record<string, string> }[];
+  datasets: string[];
+  hostedSlug: string | null;
+  outputSlug: string | null;
+}
+
+async function heldRundown(page: Page, showId: string): Promise<HeldRundown | null> {
+  return page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id);
+    if (!s) return null;
+    const names = new Map(s.graphics.map((g) => [g.id, g.name] as const));
+    return {
+      graphics: s.graphics.map((g) => g.name),
+      cues: (s.cues ?? []).map((c) => ({ label: c.label, graphic: names.get(c.sourceId) ?? null, values: c.values })),
+      datasets: (s.datasets ?? []).map((d) => d.name),
+      hostedSlug: s.hostedSlug ?? null,
+      outputSlug: s.outputSlug ?? null,
+    };
+  }, showId);
+}
+
+/** The same summary off the SERVER row (`team_productions.doc`), read with this page's session -
+ *  what tells "the edit reached the team" from "the edit is on this screen". */
+async function serverRundown(page: Page, showId: string): Promise<HeldRundown | null> {
+  return page.evaluate(async (id) => {
+    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const sb = await getSupabase();
+    if (!sb) return null;
+    const { data } = await sb.from('team_productions').select('doc').eq('id', id).maybeSingle();
+    type Doc = {
+      graphics: { id: string; name: string }[];
+      cues?: { label: string; sourceId: string; values: Record<string, string> }[];
+      datasets?: { name: string }[];
+      hostedSlug?: string;
+      outputSlug?: string;
+    };
+    const s = (data as { doc?: Doc } | null)?.doc;
+    if (!s) return null;
+    const names = new Map(s.graphics.map((g) => [g.id, g.name] as const));
+    return {
+      graphics: s.graphics.map((g) => g.name),
+      cues: (s.cues ?? []).map((c) => ({ label: c.label, graphic: names.get(c.sourceId) ?? null, values: c.values })),
+      datasets: (s.datasets ?? []).map((d) => d.name),
+      hostedSlug: s.hostedSlug ?? null,
+      outputSlug: s.outputSlug ?? null,
+    };
+  }, showId);
+}
+
+/** The first field's value on the cue made for `graphic`, off the server row. */
+async function serverCueText(page: Page, showId: string, graphic: string): Promise<string | null> {
+  const doc = await serverRundown(page, showId);
+  return doc?.cues.find((c) => c.graphic === graphic)?.values.f0 ?? null;
+}
+
+/** The rundown as the production page SHOWS it: every cue row's label, in order. */
+async function shownRundown(page: Page): Promise<string[]> {
+  return page.getByTestId('cue-list').locator('.pd-cue [data-testid="select-cue"] strong').allTextContents();
+}
+
+/** Select the cue made for `graphic` on the production page. */
+async function selectCueFor(page: Page, graphic: string): Promise<void> {
+  await page.getByTestId('cue-list').locator('.pd-cue', { hasText: graphic }).getByTestId('select-cue').click();
+}
+
+/** Add a graphic from this member's own library to the open production, and type the text its
+ *  cue should carry. */
+async function addFromLibrary(page: Page, graphic: string, text: string): Promise<void> {
+  await page.getByTestId('add-graphic-pick').selectOption({ label: graphic });
+  await page.getByTestId('add-graphic').click();
+  await expect(page.getByTestId('cue-list').locator('.pd-cue', { hasText: graphic })).toBeVisible();
+  await selectCueFor(page, graphic);
+  await page.getByTestId('cue-field-f0').fill(text);
+}
+
+/** Join a team through its link, under a display name, and close the done screen. */
+async function joinTeam(page: Page, code: string, displayName: string): Promise<void> {
+  await page.goto(`/app#/join-team/${code}`);
+  await page.getByTestId(TEAM.joinDisplayName).fill(displayName);
+  await page.getByTestId(TEAM.join).click();
+  await expect(page.getByTestId(TEAM.joinDone)).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId('join-team-done-close').click();
+}
+
+/** Sign out through the account menu. The page reloads onto the signed-out workspace, which is
+ *  what empties the in-memory team store (model/teamShows.ts). */
+async function signOut(page: Page): Promise<void> {
+  const reloaded = page.waitForEvent('load');
+  await page.getByTestId('account-button').click();
+  await page.getByTestId('account-menu').getByRole('menuitem', { name: 'Sign out' }).click();
+  await reloaded;
+  await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
 }
 
 test.describe('teams: the share door', () => {
@@ -334,6 +496,250 @@ test.describe('teams: the share door', () => {
         }
         await ownerContext.close();
         await mateContext.close();
+      }
+    });
+  });
+
+  // ── Three accounts: the production belongs to the team (TEAMS_PLAN §7 stage 5) ────────────────
+  // GOALS outcome 5 asks for shared productions proved before anything is rebuilt: several members
+  // add graphics to one production, open and use it later, and it stays usable - graphics, data
+  // and playout - when its creator is absent. The two-account walk never adds a graphic from a
+  // second account and never plays out, and those are exactly where a production could stay
+  // trapped in the account that made it: a graphic is copied into the production from its
+  // author's OWN library, and publishing resolves each graphic through the PUBLISHER's library.
+  //
+  // So: Anna (A) makes the team and the production, adds a graphic from her library and publishes.
+  // Ben (B) and Cleo (C) join; each adds a graphic from their own library and types its text, and
+  // Cleo adds a data table. Anna signs out. Ben then opens the production cold, finds everyone's
+  // graphics and data, republishes, and plays it out - Anna's graphic and Cleo's, Take, Update and
+  // Out, each read back off the output page. Finally all three read the same rundown, Anna from a
+  // fresh sign-in, and the output address never moved.
+  test.describe('three accounts', () => {
+    test.skip(
+      !haveCreds || !haveTeammateCreds || !SERVICE_ROLE_KEY,
+      'set E2E_TEAMMATE_EMAIL/E2E_TEAMMATE_PASSWORD and SUPABASE_SERVICE_ROLE_KEY for the three-person walk',
+    );
+    test.setTimeout(420_000);
+
+    test('three members build one production, and a member plays it out with its creator signed out', async ({ browser }) => {
+      await mintAccount(E2E_THIRD_EMAIL, E2E_THIRD_PASSWORD);
+      const stamp = Date.now();
+      // `E2E team ` prefix, so the sweep in the one-account walk deletes it if this run dies.
+      const teamName = `${TEAM_NAME()} three`;
+      const showName = `Team three walk ${stamp}`;
+      const gfx = { anna: `Anna strap ${stamp}`, ben: `Ben strap ${stamp}`, cleo: `Cleo strap ${stamp}` };
+      const said = { anna: 'Anna Aalto', ben: 'Ben Berg', cleo: 'Cleo Castell', cleoLater: 'Cleo Castell, updated' };
+      const contexts: BrowserContext[] = [];
+      const open = async (): Promise<Page> => {
+        const context = await browser.newContext();
+        contexts.push(context);
+        return context.newPage();
+      };
+      const anna = await open();
+      const ben = await open();
+      const cleo = await open();
+      let showId = '';
+      /** Anna's signed-in page, whichever it is at the time - teardown needs the team owner. */
+      let owner: Page | null = null;
+      try {
+        // ── A: a graphic of her own, a production, a team, and a publish. ──────────────────────
+        await signIn(anna);
+        await dismissWizard(anna);
+        await declineAnalytics(anna);
+        owner = anna;
+        await makeLibraryGraphic(anna, gfx.anna);
+        await anna.goto('/app#/home/productions');
+        await anna.getByTestId('new-production-name').fill(showName);
+        await anna.getByTestId('new-production').click();
+        await expect(anna.getByTestId('production-page')).toBeVisible();
+        showId = anna.url().split('#/production/')[1]?.split('/')[0] ?? '';
+        expect(showId).toMatch(/^[0-9a-f-]{36}$/);
+        await addFromLibrary(anna, gfx.anna, said.anna);
+        await expect.poll(async () => (await heldRundown(anna, showId))?.cues[0]?.values.f0, { timeout: 10_000 }).toBe(said.anna);
+
+        await anna.getByTestId(TEAM.door).click();
+        await anna.getByTestId(TEAM.newTeam).click();
+        await anna.getByTestId(TEAM.newTeamName).fill(teamName);
+        await anna.getByTestId(TEAM.newTeamDisplayName).fill('Anna Owner');
+        await anna.getByTestId(TEAM.createTeam).click();
+        const code = ((await anna.getByTestId(TEAM.joinCode).textContent({ timeout: 20_000 })) ?? '').trim();
+        expect(code).toMatch(/^[A-Za-z0-9_-]{8}$/);
+        await anna.getByRole('button', { name: 'Back', exact: true }).click();
+        await anna.locator('.team-pickrow', { hasText: teamName }).click();
+        await anna.getByTestId(TEAM.moveToTeam).click();
+        await expect(anna.getByTestId(TEAM.moved)).toBeVisible({ timeout: 20_000 });
+        await anna.getByRole('button', { name: 'Done', exact: true }).click();
+        await expect(anna.getByTestId(TEAM.productionTeam)).toContainText(teamName);
+
+        // Published FROM the team: the row is team-stamped, and the slugs travel in the team's doc.
+        await anna.getByTestId('production-publish').click();
+        await expect(anna.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+        await expect(anna.getByTestId('production-links')).toBeVisible();
+        await anna.getByTestId('production-links-toggle').click();
+        await expect(anna.getByTestId('production-links')).toBeHidden();
+        await expect.poll(async () => (await serverRundown(anna, showId))?.outputSlug ?? null, { timeout: 30_000 }).not.toBeNull();
+        const published = (await serverRundown(anna, showId))!;
+        expect(published.hostedSlug, 'publishing must put the control slug in the team document').toBeTruthy();
+        expect(published.cues.map((c) => c.values.f0)).toEqual([said.anna]);
+
+        // ── B and C join, each from the link, each under their own name. ───────────────────────
+        await signInAs(ben, E2E_TEAMMATE_EMAIL, E2E_TEAMMATE_PASSWORD);
+        await dismissWizard(ben);
+        await declineAnalytics(ben);
+        await signInAs(cleo, E2E_THIRD_EMAIL, E2E_THIRD_PASSWORD);
+        await dismissWizard(cleo);
+        await declineAnalytics(cleo);
+        await makeLibraryGraphic(ben, gfx.ben);
+        await makeLibraryGraphic(cleo, gfx.cleo);
+        await joinTeam(ben, code, 'Ben Teammate');
+        await joinTeam(cleo, code, 'Cleo Third');
+
+        // B opens it from the team's band on Home; C from a teammate's link. Both pages are up
+        // before either adds anything, so C's first save may be refused and merged - the walk
+        // asserts the outcome, which is the same whichever of the two paths the timing takes.
+        await ben
+          .locator('[data-testid^="team-band-"]', { hasText: teamName })
+          .getByTestId(`production-row-${showId}`)
+          .getByTestId('open-production-name')
+          .click();
+        await expect(ben.getByTestId(TEAM.productionTeam)).toContainText(teamName, { timeout: 20_000 });
+        await cleo.goto(`/app#/production/${showId}`);
+        await expect(cleo.getByTestId(TEAM.productionTeam)).toContainText(teamName, { timeout: 20_000 });
+
+        // ── Each adds a graphic from their OWN library and types its text. ─────────────────────
+        await addFromLibrary(ben, gfx.ben, said.ben);
+        await expect.poll(() => serverCueText(ben, showId, gfx.ben), { timeout: 30_000 }).toBe(said.ben);
+        await addFromLibrary(cleo, gfx.cleo, said.cleo);
+        await expect.poll(() => serverCueText(cleo, showId, gfx.cleo), { timeout: 30_000 }).toBe(said.cleo);
+        // …and C adds a data table, on the Data workspace, as the two-account walk's B does.
+        await cleo.goto(`/app#/production/${showId}/data`);
+        await cleo.getByTestId('add-dataset').click();
+        await expect(cleo.getByTestId('dataset-name')).toHaveCount(1);
+        await expect.poll(async () => (await serverRundown(cleo, showId))?.datasets.length ?? 0, { timeout: 30_000 }).toBe(1);
+        const built = (await serverRundown(cleo, showId))!;
+        expect(built.graphics.sort()).toEqual([gfx.anna, gfx.ben, gfx.cleo].sort());
+        expect(Object.fromEntries(built.cues.map((c) => [c.graphic, c.values.f0]))).toEqual({
+          [gfx.anna]: said.anna,
+          [gfx.ben]: said.ben,
+          [gfx.cleo]: said.cleo,
+        });
+        await cleo.goto(`/app#/production/${showId}`);
+
+        // ── A signs out. Nothing of the team stays on her screen. ──────────────────────────────
+        await anna.goto('/app#/home');
+        await expect(anna.getByTestId('home-page')).toBeVisible();
+        await signOut(anna);
+        owner = null;
+
+        // ── Later, B opens it COLD and finds every member's graphics and data. ─────────────────
+        await ben.goto(`/app#/production/${showId}`);
+        await ben.reload();
+        const rundown = ben.getByTestId('cue-list');
+        for (const name of [gfx.anna, gfx.ben, gfx.cleo]) {
+          await expect(rundown.locator('.pd-cue', { hasText: name })).toBeVisible({ timeout: 20_000 });
+        }
+        await selectCueFor(ben, gfx.cleo);
+        await expect(ben.getByTestId('cue-field-f0')).toHaveValue(said.cleo);
+        await shot(ben, 'teams-three-cold-open');
+
+        // B REPUBLISHES - the payload is pinned at publish, and A's publish predates B's and C's
+        // graphics - and the output address is the one A's publish minted.
+        await expect(ben.getByTestId('production-mode')).toContainText('SHOW');
+        await ben.getByTestId('production-links-toggle').click();
+        await ben.getByTestId('production-republish').click();
+        await expect(ben.getByTestId('publish-freshness')).toHaveCount(0, { timeout: 30_000 });
+        await ben.getByTestId('production-links-toggle').click();
+        await expect(ben.getByTestId('production-links')).toBeHidden();
+        const benHeld = (await heldRundown(ben, showId))!;
+        expect(benHeld.outputSlug, 'a member republishing must keep the address the creator published').toBe(published.outputSlug);
+        expect(benHeld.hostedSlug).toBe(published.hostedSlug);
+
+        // The output page: every member's graphic is in the payload B pinned.
+        const air = await ben.context().newPage();
+        air.on('pageerror', (e) => console.log('[output pageerror]', e.message));
+        await air.goto(`/output?production=${encodeURIComponent(published.outputSlug!)}&debug=1`);
+        await expect(air.locator('pre')).toContainText('realtime:', { timeout: 60_000 });
+        for (const name of [gfx.anna, gfx.ben, gfx.cleo]) await expect(air.locator(`iframe[title="${name}"]`)).toHaveCount(1);
+        const onAir = (name: string) => air.frameLocator(`iframe[title="${name}"]`).locator('#f0');
+        const airPlays = async () => Number(await air.evaluate(() => document.body.getAttribute('data-plays')));
+
+        // TAKE A's graphic - its author is signed out and it is in nobody else's library.
+        let rows = await lastAppliedRow(air);
+        await selectCueFor(ben, gfx.anna);
+        await ben.getByTestId('verb-take').click();
+        await expect(onAir(gfx.anna)).toContainText(said.anna, { timeout: 30_000 });
+        await expect.poll(airPlays, { timeout: 30_000 }).toBe(1);
+        await expect.poll(() => lastAppliedRow(air), { timeout: 60_000 }).toBeGreaterThanOrEqual(rows + 3);
+
+        // TAKE C's graphic, then UPDATE its text from B's desk.
+        rows = await lastAppliedRow(air);
+        await selectCueFor(ben, gfx.cleo);
+        await ben.getByTestId('verb-take').click();
+        await expect(onAir(gfx.cleo)).toContainText(said.cleo, { timeout: 30_000 });
+        await expect.poll(airPlays, { timeout: 30_000 }).toBe(2);
+        await expect.poll(() => lastAppliedRow(air), { timeout: 60_000 }).toBeGreaterThanOrEqual(rows + 3);
+        await ben.getByTestId('cue-field-f0').fill(said.cleoLater);
+        await ben.getByTestId('verb-update').click();
+        await expect(onAir(gfx.cleo)).toContainText(said.cleoLater, { timeout: 30_000 });
+        await shot(air, 'teams-three-on-air');
+
+        // OUT: the take-off reaches the renderer as durable rows (`clearCueItems`: stop, cue), and
+        // plays nothing.
+        rows = await lastAppliedRow(air);
+        await ben.getByTestId('verb-out').click();
+        await expect.poll(() => lastAppliedRow(air), { timeout: 60_000 }).toBeGreaterThanOrEqual(rows + 2);
+        await expect(rundown.locator('.pd-cue.on-air', { hasText: gfx.cleo })).toHaveCount(0);
+        expect(await airPlays()).toBe(2);
+        await air.close();
+
+        // ── All three read the same rundown: C on the page she left open, A signed in afresh. ──
+        await expect.poll(() => serverCueText(ben, showId, gfx.cleo), { timeout: 30_000 }).toBe(said.cleoLater);
+        const truth = (await serverRundown(ben, showId))!;
+        expect(truth.datasets).toHaveLength(1);
+        expect(truth.outputSlug).toBe(published.outputSlug);
+        const annaAgain = await open();
+        await signIn(annaAgain);
+        await dismissWizard(annaAgain);
+        await declineAnalytics(annaAgain);
+        owner = annaAgain;
+        await annaAgain.goto(`/app#/production/${showId}`);
+        for (const [who, page] of [
+          ['Ben', ben],
+          ['Cleo', cleo],
+          ['Anna', annaAgain],
+        ] as const) {
+          await expect.poll(() => heldRundown(page, showId), { timeout: 45_000, message: `${who} reads the team's rundown` }).toEqual(truth);
+        }
+        const shown = await shownRundown(ben);
+        expect(shown).toHaveLength(3);
+        await expect.poll(() => shownRundown(cleo), { timeout: 20_000 }).toEqual(shown);
+        await expect.poll(() => shownRundown(annaAgain), { timeout: 20_000 }).toEqual(shown);
+        await shot(annaAgain, 'teams-three-creator-back');
+      } finally {
+        // Unpublish (A owns the published row), then delete the team, which cascades its
+        // productions and both memberships (0054). Then each member's library graphic.
+        if (owner) {
+          if (showId) {
+            await owner
+              .evaluate(async (id) => {
+                const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+                await unpublishControlShow(id);
+              }, showId)
+              .catch(() => undefined);
+          }
+          await owner.goto('/app#/home/teams').catch(() => undefined);
+          const card = owner.locator('.team-card', { hasText: teamName });
+          if (await card.count().catch(() => 0)) {
+            await card.getByTestId('team-card-open').click();
+            await owner.getByTestId(TEAM.deleteTeam).click();
+            await owner.getByTestId(TEAM.deleteTeam).click();
+            await expect(owner.locator('.team-card', { hasText: teamName })).toHaveCount(0, { timeout: 20_000 });
+          }
+          await dropLibraryGraphics(owner, [gfx.anna]);
+        }
+        await dropLibraryGraphics(ben, [gfx.ben]);
+        await dropLibraryGraphics(cleo, [gfx.cleo]);
+        for (const context of contexts) await context.close();
       }
     });
   });
