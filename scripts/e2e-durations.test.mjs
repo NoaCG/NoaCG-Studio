@@ -378,3 +378,12 @@ test('the workflow pushes the branch the pull request body tells you to dispatch
   assert.ok(branch, 'e2e-durations-refresh.yml no longer sets BRANCH - this assertion needs updating with it');
   assert.equal(branch[1], REFRESH_BRANCH);
 });
+
+// The dispatch that gives the pull request its `CI gate` runs at the very END of a refresh, after
+// the recording, the push and the pull request have all worked, so a token that may not dispatch
+// fails the one step nothing before it exercises - and only in a week that had something to propose.
+test('the workflow token may dispatch the ci.yml run it asks for', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/e2e-durations-refresh.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /gh workflow run ci\.yml/);
+  assert.match(workflow, /^ {2}actions: write$/m);
+});
