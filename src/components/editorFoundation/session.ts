@@ -89,9 +89,10 @@ export class EditorSession {
     this.ownWrite = true;
     try {
       this.port.apply(patch.template); this.sync();
-      if (request.operations.some(op => op.kind === 'layer.create')) {
+      if (request.operations.some(op => op.kind === 'layer.create' || op.kind === 'layer.duplicate')) {
         this.port.restore({ ...this.port.view(), selectedParts: patch.changedTargets });
       }
+      if (request.operations.some(op => op.kind === 'layer.delete')) this.port.restore({ ...this.port.view(), selectedParts: [] });
     } finally { this.ownWrite = false; }
     this.past = [...this.past, { before, after: this.current, beforeView, afterView: structuredClone(this.port.view()) }].slice(-30);
     this.future = [];

@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent } from 'react';
+import { useRef, useState, type MouseEvent } from 'react';
 import type { SpxTemplate } from '../../model/types';
 import { baseValues, type BaseValues, type Creation, type CreationKind } from '../../blocks/baseEdits';
 import type { EditorSession, Revision } from './session';
@@ -15,6 +15,7 @@ export function inverseDelta(matrix: number[], point: Point): Point {
 interface Gesture {
   expected: Revision; start: Point; operations: EditorOperation[]; moved: boolean;
   base?: BaseValues; part?: RenderedPart; handle?: number; creation?: Creation;
+  members?: { base: BaseValues; part: RenderedPart }[];
 }
 export function useArtworkGesture(template: SpxTemplate, session: EditorSession, preview: () => PreviewController | null,
   linked: boolean, drawingSpace: PreviewReply['drawingSpace']) {
@@ -26,7 +27,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
     if (current.current) { session.cancel(); preview()?.previewCss(template.css, 'cancel'); }
     current.current = null; setDraft(null); setTool('select');
   };
-  const begin = (point: Point, part?: RenderedPart, handle?: number) => {
+  const begin = (point: Point, part?: RenderedPart, handle?: number, selected?: RenderedPart[]) => {
     setError('');
     try {
       const expected = session.version();
@@ -36,12 +37,15 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         throw new Error('This layer has a zero scale axis. Restore it with the numeric Scale controls first.');
       }
       if (base && part?.parent) inverseDelta(part.parent, { x: 0, y: 0 });
+      const doc = new DOMParser().parseFromString(template.html, 'text/html');
+      const members = selected?.filter(item => !selected.some(other => other !== item && doc.querySelector(other.selector)?.contains(doc.querySelector(item.selector) ?? null)))
+        .map(part => { const base = baseValues(template, part.selector); inverseDelta(part.parent ?? [1, 0, 0, 1], { x: 0, y: 0 }); return { base, part }; });
       if (!base && tool === 'select') return;
       if (!base && !drawingSpace) throw new Error('The drawing surface is not ready.');
       const local = drawingSpace ? inverseDelta(drawingSpace, { x: point.x - drawingSpace[4], y: point.y - drawingSpace[5] }) : point;
       const creation = !base && tool !== 'select' ? { shape: tool, x: local.x, y: local.y, width: 160, height: 90 } : undefined;
       session.begin(expected);
-      current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation };
+      current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation, members };
     } catch (cause) { setError(String(cause instanceof Error ? cause.message : cause)); }
   };
   const move = (point: Point, modifiers: { shiftKey: boolean; altKey: boolean }) => {
@@ -51,6 +55,16 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       const delta = { x: point.x - gesture.start.x, y: point.y - gesture.start.y };
       if (Math.hypot(delta.x, delta.y) < 2 && !gesture.moved) return;
       gesture.moved = true;
+      if (gesture.members?.length && gesture.handle === undefined) {
+        const constrained = modifiers.shiftKey ? Math.abs(delta.x) >= Math.abs(delta.y) ? { x: delta.x, y: 0 } : { x: 0, y: delta.y } : delta;
+        gesture.operations = gesture.members.map(({ base, part }) => {
+          const change = inverseDelta(part.parent ?? [1, 0, 0, 1], constrained);
+          return { kind: 'base.set', selector: base.selector, values: { x: base.x + change.x, y: base.y + change.y } };
+        });
+        preview()?.noteInput('drag');
+        preview()?.previewCss(session.preview(gesture.operations).template.css);
+        return;
+      }
       if (gesture.creation && drawingSpace) {
         const change = inverseDelta(drawingSpace, delta);
         let w = change.x, h = change.y;
@@ -97,11 +111,12 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       } else session.cancel();
     } catch (cause) { preview()?.previewCss(template.css, 'cancel'); session.cancel(); setError(cause instanceof Error ? cause.message : String(cause)); }
     current.current = null; setDraft(null); if (gesture.creation) setTool('select');
+    return gesture.moved;
   };
   return { tool, setTool, draft, error, begin, move, end, cancel, active: () => !!current.current };
 }
 
-export function pointerPoint(event: PointerEvent, size: { width: number; height: number }, pan: Point, scale: number, width: number, height: number): Point {
+export function pointerPoint(event: MouseEvent, size: { width: number; height: number }, pan: Point, scale: number, width: number, height: number): Point {
   const box = event.currentTarget.getBoundingClientRect();
   return { x: (event.clientX - box.left - size.width / 2 - pan.x) / scale + width / 2,
     y: (event.clientY - box.top - size.height / 2 - pan.y) / scale + height / 2 };

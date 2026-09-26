@@ -40,6 +40,8 @@ ownership. Those planning refinements are not product passes. The R1.0 implement
 
 2026-09-20 owner feedback: R1.1a creation buttons work, but text and colours cannot be changed. This is a reported gap, not a reproduced test in this documentation update. B04 core/static authoring remains open pending the implementation follow-up's reproduction, fixes and complete-task evidence. Retain any measured component passes; none closes the user outcome. The [outcome/checkpoint contract](editor-outcomes-and-review-readiness-2026-09-20.md) defines team proof before owner review, including content/basic type/colour, undo and save/reopen. No new product evidence is claimed here.
 
+The owner authorized the usable-artwork follow-up on 2026-09-26, including NoaCG visual consistency. The [brief and receipt](editor-artwork-basics/README.md) tracks the B01/B02/B03/B04/B11 task evidence. This changes delivery order, not the remaining keyframe, Out, grouping, first-user or receiving-host gates.
+
 ## Evidence in hand
 
 Default catalog/SVG routes walked; source-changing drag/undo trials; F4 30-layer/300-key

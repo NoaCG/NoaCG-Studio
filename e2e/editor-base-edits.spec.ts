@@ -48,6 +48,152 @@ async function rect(page: Page, selector: string) {
   });
 }
 
+test('B04 basic artwork text and appearance controls are available', async ({ page }) => {
+  await seed(page);
+  await expect(page.getByRole('textbox', { name: 'Artwork text', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Font', exact: true })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Font size', exact: true })).toBeVisible();
+});
+
+for (const name of ['catalog', 'svg']) test('B04 artwork content, appearance and structure on ' + name, async ({ page }) => {
+  await seed(page, name);
+  const initial = await source(page);
+  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0', 'Operator sample stays'));
+  const text = page.getByRole('textbox', { name: 'Artwork text', exact: true });
+  await text.fill('Evening report');
+  await page.getByRole('button', { name: 'Apply text', exact: true }).click();
+  await expect((await preview(page)).locator('#f0')).toHaveText('Evening report');
+  expect((await source(page)).js).toBe(initial.js);
+  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData.f0)).toBe('Operator sample stays');
+  await page.getByRole('combobox', { name: 'Font', exact: true }).selectOption({ label: 'Archivo' });
+  await page.getByRole('textbox', { name: 'Font size', exact: true }).fill('42');
+  await page.locator('.ef-appearance-field .grow').fill('#22aa77');
+  await page.getByRole('button', { name: 'Apply appearance' }).click();
+  await expect.poll(async () => (await preview(page)).locator('#f0').evaluate(el => {
+    const css = getComputedStyle(el); return [css.fontFamily.includes('Archivo'), css.fontSize, el.namespaceURI?.includes('svg') ? css.fill : css.color];
+  })).toEqual([true, '42px', 'rgb(34, 170, 119)']);
+  const styled = await source(page);
+  const selected = (await page.locator('.ef-selection rect').boundingBox())!;
+  await page.mouse.dblclick(selected.x + selected.width / 2, selected.y + selected.height / 2);
+  await expect(page.locator('.ef-inline-text textarea')).toBeFocused();
+  await page.locator('.ef-inline-text textarea').fill('Canceled');
+  await page.locator('.ef-inline-text textarea').press('Escape');
+  expect(await source(page)).toEqual(styled);
+  await page.mouse.dblclick(selected.x + selected.width / 2, selected.y + selected.height / 2);
+  await page.locator('.ef-inline-text textarea').fill('Late edition');
+  await page.locator('.ef-inline-text').getByRole('button', { name: 'Apply text' }).click();
+  await expect((await preview(page)).locator('#f0')).toHaveText('Late edition');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+  expect(await source(page)).toEqual(styled);
+  await page.getByRole('button', { name: 'Duplicate', exact: true }).click();
+  await ready(page);
+  const duplicated = await source(page), newField = duplicated.fields.at(-1)!;
+  expect(newField.field).not.toBe('f0'); expect(newField.value).toBe('Evening report');
+  await expect((await preview(page)).locator('#' + newField.field)).toHaveText('Evening report');
+  await expect(page.locator('.ef-track[data-selector="#' + newField.field + '"]')).toHaveClass(/is-selected/);
+  await page.getByRole('button', { name: 'Send backward' }).click(); await ready(page);
+  await expect.poll(async () => (await preview(page)).locator('#f0').evaluate((el, id) => !!(el.compareDocumentPosition(el.ownerDocument.getElementById(id)!) & Node.DOCUMENT_POSITION_PRECEDING), newField.field)).toBe(true);
+  await page.getByRole('button', { name: 'Delete', exact: true }).click(); await ready(page);
+  expect((await source(page)).fields).toEqual(styled.fields);
+  await expect((await preview(page)).locator('#' + newField.field)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+  await expect((await preview(page)).locator('#' + newField.field)).toHaveText('Evening report');
+  await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page);
+  await expect((await preview(page)).locator('#' + newField.field)).toHaveCount(0);
+});
+
+test('B02 multi-object drag, marquee and cancel share one undo transaction', async ({ page }) => {
+  await seed(page);
+  await page.locator('.ef-track[data-selector="#f1"] .ef-layer').click({ modifiers: ['Control'] });
+  await expect(page.locator('.ef-selection rect')).toHaveCount(2);
+  const original = await source(page), a = await rect(page, '#f0'), b = await rect(page, '#f1');
+  const selected = (await page.locator('.ef-selection rect').first().boundingBox())!;
+  const board = (await page.locator('.ef-artboard').boundingBox())!;
+  const factor = board.width / original.resolution.width;
+  const start = { x: selected.x + selected.width / 2, y: selected.y + selected.height / 2 };
+  await page.mouse.move(start.x, start.y); await page.mouse.down();
+  await page.mouse.move(start.x + 30, start.y + 12, { steps: 12 });
+  await page.keyboard.press('Escape'); await page.mouse.up(); await ready(page);
+  expect(await source(page)).toEqual(original);
+  await expect(page.locator('.ef-selection rect')).toHaveCount(2);
+  // Cancellation restores source synchronously and rendered geometry on the correlated reply.
+  await expect.poll(async () => (await page.locator('.ef-selection rect').first().boundingBox())!.x).toBeCloseTo(selected.x, 1);
+  await page.mouse.move(start.x, start.y); await page.mouse.down();
+  await page.mouse.move(start.x + 30, start.y + 12, { steps: 12 }); await page.mouse.up();
+  await expect.poll(async () => (await rect(page, '#f0')).x - a.x).toBeCloseTo(30 / factor, 1);
+  await expect.poll(async () => (await rect(page, '#f1')).x - b.x).toBeCloseTo(30 / factor, 1);
+  const changed = await source(page);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+  expect(await source(page)).toEqual(original);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page);
+  expect(await source(page)).toEqual(changed);
+  // Start in empty stage space and fully enclose the composition.
+  await page.mouse.move(board.x - 5, board.y - 5); await page.mouse.down();
+  await page.mouse.move(board.x + board.width + 5, board.y + board.height + 5, { steps: 8 }); await page.mouse.up();
+  await expect(page.locator('.ef-track[data-selector="#f0"]')).toHaveClass(/is-selected/);
+  await expect(page.locator('.ef-track[data-selector="#f1"]')).toHaveClass(/is-selected/);
+  expect(await source(page)).toEqual(changed);
+});
+
+test('B04 solid fill and reference-sensitive refusal preserve source atomically', async ({ page }) => {
+  await seed(page);
+  await page.getByRole('button', { name: 'rectangle tool' }).click();
+  const board = (await page.locator('.ef-artboard').boundingBox())!;
+  await page.mouse.click(board.x + board.width / 2, board.y + board.height / 3); await ready(page);
+  await page.locator('.ef-appearance-field .grow').fill('#ee7722');
+  await page.getByRole('button', { name: 'Apply appearance' }).click();
+  await expect.poll(async () => (await preview(page)).locator('#rectangle-1').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(238, 119, 34)');
+  await page.evaluate(async () => {
+    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    store.applyTemplate({ ...store.template, js: store.template.js + '\nfunction customReference() { return document.getElementById("rectangle-1"); }' });
+  });
+  await ready(page);
+  const before = await source(page);
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('custom behavior');
+  expect(await source(page)).toEqual(before);
+});
+
+test('B04 duplicate retains CSS cascade and delete removes rules before an ID can be reused', async ({ page }) => {
+  await seed(page);
+  const result = await page.evaluate(async () => {
+    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const original = useTemplateStore.getState().template;
+    const template = { ...original, css: original.css + '\n#f0, #f1 { color: #112233; }\n#f1 { color: #778899; }' };
+    const duplicate = applyOperations(template, [{ kind: 'layer.duplicate', selector: '#f0' }]);
+    const id = duplicate.changedTargets[0];
+    const removed = applyOperations(duplicate.template, [{ kind: 'layer.delete', selector: id }]).template;
+    const sheet = new CSSStyleSheet(); sheet.replaceSync(duplicate.template.css);
+    const rules = [...sheet.cssRules].filter(r => r instanceof CSSStyleRule).map(r => ({ selector: (r as CSSStyleRule).selectorText, color: (r as CSSStyleRule).style.color }));
+    let refused = false;
+    try { applyOperations(template, [{ kind: 'text.set', selector: '#f0', text: 'Must not land' }, { kind: 'style.set', selector: '#f1', values: { fontSize: -1 } }]); } catch { refused = true; }
+    return { id, rules, removedCss: removed.css, refused, originalUnchanged: useTemplateStore.getState().template === original };
+  });
+  expect(result.rules.filter(r => r.selector.includes('#f1')).at(-1)?.color).toBe('rgb(119, 136, 153)');
+  expect(result.rules.find(r => r.selector === result.id && r.color)?.color).toBe('rgb(17, 34, 51)');
+  expect(result.removedCss).not.toContain(result.id + ' ');
+  expect(result.refused && result.originalUnchanged).toBe(true);
+});
+
+test('B03 multi-object SVG drag maps the same screen delta through different parents', async ({ page }) => {
+  await seed(page, 'svg', true);
+  await page.locator('.ef-track[data-selector="#f1"] .ef-layer').click({ modifiers: ['Shift'] });
+  await expect(page.locator('.ef-selection rect')).toHaveCount(2);
+  const before = await source(page), a = await rect(page, '#f0'), b = await rect(page, '#f1');
+  const stage = (await page.locator('.ef-artboard').boundingBox())!, factor = stage.width / before.resolution.width;
+  const selected = (await page.locator('.ef-selection rect').first().boundingBox())!;
+  const x = selected.x + selected.width / 2, y = selected.y + selected.height / 2;
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 12, y + 8, { steps: 8 }); await page.mouse.up();
+  await expect.poll(async () => (await rect(page, '#f0')).x - a.x).toBeCloseTo(12 / factor, 1);
+  await expect.poll(async () => (await rect(page, '#f1')).x - b.x).toBeCloseTo(12 / factor, 1);
+  await expect.poll(async () => (await rect(page, '#f0')).y - a.y).toBeCloseTo(8 / factor, 1);
+  await expect.poll(async () => (await rect(page, '#f1')).y - b.y).toBeCloseTo(8 / factor, 1);
+  expect((await source(page)).js).toBe(before.js);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+  expect(await source(page)).toEqual(before);
+});
+
 test('D03 flow offset preserves siblings, exact motion, cancellation, atomic history and saved source', async ({ page }) => {
   await seed(page);
   const original = await source(page), a = await rect(page, '#f0'), sibling = await rect(page, '#f1');
@@ -254,6 +400,14 @@ test('B03 linked/unlinked, negative and zero scale, Shift/Alt pivot and singular
 for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives save/reopen and SPX/CasparCG/OGraf export', async ({ page }) => {
   await seed(page, name);
   const initial = await source(page);
+  await page.getByRole('textbox', { name: 'Artwork text', exact: true }).fill('Nightly news');
+  await page.getByRole('button', { name: 'Apply text', exact: true }).click();
+  await expect((await preview(page)).locator('#f0')).toHaveText('Nightly news');
+  await page.getByRole('combobox', { name: 'Font', exact: true }).selectOption('oswald');
+  await page.getByRole('textbox', { name: 'Font size', exact: true }).fill('40');
+  await page.locator('.ef-appearance-field .grow').fill('#eeaa44');
+  await page.getByRole('button', { name: 'Apply appearance' }).click();
+  await expect.poll(async () => (await preview(page)).locator('#f0').evaluate(el => getComputedStyle(el).fontSize)).toBe('40px');
   await numeric(page, name === 'catalog' ? 'Layout offset X' : 'Position X', 40);
   await numeric(page, 'Scale X %', 150);
   const stage = (await page.locator('.ef-artboard').boundingBox())!;
@@ -308,6 +462,8 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
       }, { field });
     }
     await expect(view.locator('#' + field)).toHaveText('Exported operator text');
+    await expect(view.locator('#f0')).toHaveText('Nightly news');
+    expect(await view.locator('#f0').evaluate(el => getComputedStyle(el).fontFamily)).toContain('Oswald');
     // Settle against the editor's measured held pose, not a sleep or source-property presence.
     await view.evaluate(() => document.fonts.ready);
     await expect.poll(() => view.locator('#f0').evaluate(relative, root).then(p => p.x), { message: name + ' ' + target + ' horizontal geometry' }).toBeCloseTo(expected.x, 1);

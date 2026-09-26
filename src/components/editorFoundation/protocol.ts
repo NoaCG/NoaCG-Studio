@@ -11,6 +11,7 @@ export interface RenderedPart {
   parent?: [number, number, number, number];
   corners?: { x: number; y: number }[];
   anchor?: { x: number; y: number };
+  appearance?: { fontFamily: string; fontSize: number; color: string; fill: string };
 }
 export interface PreviewReply extends Envelope {
   drawingSpace?: [number, number, number, number, number, number] | null;
