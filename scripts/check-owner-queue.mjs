@@ -8,7 +8,7 @@
 //
 // `docs/acceptance/OWNER_QUEUE.md` ("The shape of an item") says every file under
 // `docs/acceptance/owner-queue/` opens with front matter carrying `kind:` (one of KINDS below)
-// and `date:`. `.agent-workflows/walk.md` step 2 reads those two keys to pick the list an item
+// and `date:`. `.agent-workflows/walk.md` reads those two keys to pick the list an item
 // goes in, sort it newest-first, filter it (`/walk hardware`) and skip `done: true` items. On
 // 2026-09-02, 30 of 59 files carried neither key, so more than half the queue could not be
 // sorted or filtered by the mechanism its own contract describes - the documented shape was
@@ -92,7 +92,7 @@ export const SERVES = 'now';
  * these four is not his, and filing it is the bug this gate catches.
  *
  * - account  - credentials or a console we do not hold.
- * - money    - it costs money, or publishes past `main` where a later commit cannot undo it.
+ * - money    - a significant or unusual cost; routine releases and trivial costs are not his.
  * - identity - he must speak or sign as himself or as the organisation.
  * - harness  - the agent harness refuses it by design, and the item says which refusal it hit.
  *
@@ -541,8 +541,10 @@ function printList(heading, items) {
 function reportRoutes(queue, filter) {
   const open = queue.filter((item) => !isTrue(item.data.done));
   // A filter or list names a kind in either vocabulary; a v2 name also collects the legacy items
-  // that migrate to it on read.
-  const of = (kind) => open.filter((item) => item.data.kind === kind || (KINDS_V2.includes(kind) && canonicalKind(item.data.kind) === kind));
+  // that migrate to it on read, except legacy hardware items, which stay on their own blocked list.
+  const of = (kind) => open.filter((item) => item.data.kind === kind || (
+    KINDS_V2.includes(kind) && canonicalKind(item.data.kind) === kind && item.data.kind !== 'hardware'
+  ));
 
   if (filter) {
     const items = of(filter);
@@ -559,7 +561,7 @@ function reportRoutes(queue, filter) {
   // the gate. An item filed before the requirement shows nothing, which is honest - it was never
   // asked.
   printList('From your phone', of('phone'));
-  printList('At the computer', of('desktop').filter((item) => item.data.kind !== 'hardware'));
+  printList('At the computer', of('desktop'));
 
   // The `needs:` key is what is worth reading on an owner-action item, so it is printed beside the
   // title: a wrong reason is then visible to HIM and not only to the gate.
