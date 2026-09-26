@@ -21,7 +21,7 @@
 // only. With `sandbox` it is the BOUNDARY ADAPTER the output stage mounts a foreign package
 // through (docs/OGRAF_ECOSYSTEM.md §3): the stage puts it in an opaque-origin frame, the network
 // policy below confines every load to the package, and the lifecycle is driven over a
-// nonce-checked postMessage bridge instead of `page.evaluate`.
+// MessagePort the embedding page hands it, instead of `page.evaluate`.
 
 /** What the host needs to mount one Graphic. */
 export interface OgrafHostOptions {
@@ -36,26 +36,39 @@ export interface OgrafHostOptions {
   width: number;
   height: number;
   /** Run as the isolation boundary: impose the package network policy and answer lifecycle
-   *  calls from the embedding page over postMessage (OGRAF_CALL_TYPE / OGRAF_RETURN_TYPE). */
-  sandbox?: { nonce: string };
+   *  calls over the MessagePort the embedding page sends with OGRAF_PORT_TYPE. */
+  sandbox?: boolean;
 }
 
-/** The embedding page -> host document: one lifecycle call. */
-export const OGRAF_CALL_TYPE = 'noacg-ograf-call';
-/** The host document -> embedding page: that call's ReturnPayload. */
-export const OGRAF_RETURN_TYPE = 'noacg-ograf-return';
-/** The calls the bridge admits; anything else is dropped unanswered. */
-export const OGRAF_CALLS = ['mount', 'play', 'stop', 'update', 'custom', 'dispose'] as const;
+/**
+ * The embedding page -> host document, ONCE, on the frame's first load and before any package
+ * code has run: `{ type: OGRAF_PORT_TYPE }` with a MessagePort transferred. Every call and reply
+ * after that rides the port, `{ id, call, args }` one way and `{ id, payload }` back. A port
+ * reaches only the document it was handed to, so a frame that later navigates itself away takes
+ * nothing of the channel with it, and no sibling frame can speak on it.
+ */
+export const OGRAF_PORT_TYPE = 'noacg-ograf-port';
+/** The calls the bridge admits; anything else is dropped unanswered. `offair` takes effect at
+ *  once and answers nothing; the rest run one at a time in arrival order and answer each. */
+export const OGRAF_CALLS = ['mount', 'play', 'stop', 'update', 'custom', 'dispose', 'offair'] as const;
 export type OgrafCall = (typeof OGRAF_CALLS)[number];
+/** How long one call may take before the calls behind it go ahead (answered 504). A Graphic that
+ *  never resolves an action must not hold the operator's Stop hostage. */
+export const OGRAF_CALL_TIMEOUT_MS = 15_000;
+
+/** JSON for an inline <script>: a `</script>` inside a string must not end the element. */
+const inScript = (value: unknown): string => JSON.stringify(value).replace(/</g, '\\u003c');
 
 /**
  * THE NETWORK POLICY of a sandboxed host document: every script, style sheet, image, font,
  * media file and fetch comes from the package's own base URL and nowhere else. A CSP source with
  * a path that ends in '/' matches that path and below, so `../` out of the package is refused as
- * surely as another host is. Inline script and eval stay allowed: they are the frame's own code
- * and fetch nothing, and a stranger's library may need them. Refused by `default-src 'none'`:
- * frames, workers, manifests, prefetches. What a CSP cannot stop is listed in §3 of
- * docs/OGRAF_ECOSYSTEM.md.
+ * surely as another host is. (An ENCODED `..%2f` stays under the prefix, so the package's server
+ * must never decode it into a separator; §3 lists what that server owes.) Inline script and eval
+ * stay allowed: they are the frame's own code and fetch nothing, and a stranger's library may
+ * need them. Workers are refused outright (`worker-src` would otherwise fall back to
+ * `script-src`), and frames, manifests and prefetches by `default-src 'none'`. What a CSP cannot
+ * stop is listed in §3 of docs/OGRAF_ECOSYSTEM.md.
  */
 export function ografNetworkPolicy(packageBase: string): string {
   const base = packageScope(packageBase);
@@ -67,6 +80,7 @@ export function ografNetworkPolicy(packageBase: string): string {
     `font-src ${base} data:`,
     `media-src ${base} data: blob:`,
     `connect-src ${base}`,
+    "worker-src 'none'",
     "form-action 'none'",
     "base-uri 'none'",
   ].join('; ');
@@ -86,29 +100,33 @@ function packageScope(packageBase: string): string {
 /** The host page. Transparent background, the stage sized to the canvas, no chrome. */
 export function ografHostDocument(opts: OgrafHostOptions): string {
   const base = opts.packageBase.endsWith('/') ? opts.packageBase : `${opts.packageBase}/`;
-  const mainUrl = JSON.stringify(`${base}${opts.main.replace(/^\.\//, '')}`);
-  const tag = JSON.stringify(opts.tag);
-  const nonce = opts.sandbox ? JSON.stringify(opts.sandbox.nonce) : '';
+  const mainUrl = inScript(`${base}${opts.main.replace(/^\.\//, '')}`);
+  const tag = inScript(opts.tag);
   // FIRST in the head, so nothing the document loads precedes it.
   const policy = opts.sandbox
     ? `<meta http-equiv="Content-Security-Policy" content="${ografNetworkPolicy(base)}">\n`
     : '';
-  // Driven by the embedding page. Only the PARENT, with this document's nonce, naming an admitted
-  // call, is answered, and calls run one at a time in arrival order, as a renderer issues them.
+  // Driven by the embedding page over the ONE port its parent hands over (OGRAF_PORT_TYPE).
   const bridge = opts.sandbox
     ? `
-  const calls = ${JSON.stringify(OGRAF_CALLS)};
+  const host = window.__ografHost;
+  const calls = ${inScript(OGRAF_CALLS)};
+  let port = null;
   let chain = Promise.resolve();
+  const timeout = () => new Promise((r) => setTimeout(() => r({ statusCode: 504, statusMessage: 'no answer within ${OGRAF_CALL_TIMEOUT_MS} ms' }), ${OGRAF_CALL_TIMEOUT_MS}));
   window.addEventListener('message', (ev) => {
-    const m = ev.data;
-    if (ev.source !== window.parent || !m || m.type !== ${JSON.stringify(OGRAF_CALL_TYPE)} || m.nonce !== ${nonce}) return;
-    if (!calls.includes(m.call) || !Array.isArray(m.args)) return;
-    chain = chain.then(() => window.__ografHost[m.call](...m.args)).then((out) => {
-      // The ReturnPayload's own fields only: a Graphic may return anything, and a value
-      // postMessage cannot clone would otherwise stall every call behind this one.
-      const payload = { statusCode: out && out.statusCode, statusMessage: out && out.statusMessage, currentStep: out && out.currentStep };
-      parent.postMessage({ type: ${JSON.stringify(OGRAF_RETURN_TYPE)}, nonce: ${nonce}, id: m.id, payload }, '*');
-    }).catch(() => {});
+    if (port || ev.source !== window.parent || !ev.data || ev.data.type !== ${inScript(OGRAF_PORT_TYPE)} || !ev.ports[0]) return;
+    port = ev.ports[0];
+    port.onmessage = (e) => {
+      const m = e.data;
+      if (!m || !calls.includes(m.call) || !Array.isArray(m.args)) return;
+      if (m.call === 'offair') { host.offair(m.args[0]); return; }
+      chain = chain.then(() => Promise.race([host[m.call](...m.args), timeout()])).then((out) => {
+        // The ReturnPayload's own fields only: a Graphic may return anything, and a value
+        // postMessage cannot clone would otherwise stall every call behind this one.
+        port.postMessage({ id: m.id, payload: { statusCode: out && out.statusCode, statusMessage: out && out.statusMessage, currentStep: out && out.currentStep } });
+      }).catch(() => {});
+    };
   });`
     : '';
   return `<!doctype html>
@@ -157,6 +175,9 @@ ${policy}<meta charset="utf-8">
       return out;
     },
     mounted() { return !!state.el; },
+    // OFF AIR FROM THE INSIDE, as a NoaCG layer does it (stage.ts): hiding the frame from the
+    // embedder would let Chromium throttle it, and a replayed entrance would finish on air.
+    offair(on) { document.getElementById('stage').style.opacity = on ? '0' : ''; },
   };
   window.addEventListener('error', (e) => { state.error = String(e.message || e.error); });
   window.__noacgHostReady = true;${bridge}

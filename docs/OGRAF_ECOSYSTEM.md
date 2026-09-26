@@ -361,7 +361,7 @@ stage's frames already carrying `sandbox="allow-scripts"` (`src/output/stage.ts:
 
 - One sandboxed iframe per foreign Graphic, running an `ografHost.ts`-style host document; the
   host document is the boundary adapter - it alone registers the custom element, calls the
-  lifecycle, and speaks `ReturnPayload`s back over nonce-checked postMessage. `ControlMessage`
+  lifecycle, and speaks `ReturnPayload`s back over a private message channel. `ControlMessage`
   events map onto `customAction` exactly as the contract module already defines.
 - One-graphic-per-frame also dissolves two documented light-DOM limits at once
   (`docs/OGRAF.md` known limits): same-design instances no longer collide, and a foreign
@@ -389,18 +389,23 @@ NoaCG graphics load exactly as before. What each part does:
 - **The network policy** (`ografNetworkPolicy`, `src/control/ografHost.ts`) is a CSP that comes
   first in the host document: every script, style, image, font, media file and fetch must come
   from the package's base URL. A CSP source whose path ends in `/` matches that path and below,
-  so `../` out of the package is refused like any other host. Inline script and eval are allowed
-  because they fetch nothing.
+  so `../` out of the package is refused like any other host. Workers are refused outright.
+  Inline script and eval are allowed because they fetch nothing.
 - **The bridge.** The page sends only the calls `ografCallFor` (`src/control/ografContract.ts`)
   maps a ControlMessage to: Take is `playAction({goto: 0})`, Next is `playAction({delta: 1})`, an
-  operator event is `customAction`, and `snap` maps to nothing. It accepts a reply only from that
-  frame's window, with that frame's nonce, to a call still pending, and keeps only
-  `statusCode`/`statusMessage`/`currentStep` from it. The host document answers only its parent,
-  with its nonce, for an allowlisted call.
+  operator event is `customAction`, and `snap` maps to nothing. The calls travel on a
+  MessagePort handed to the host document on the frame's first load, before any package code
+  has run. The host takes one port, from its parent only, so a sibling cannot speak on it, and a
+  frame that navigates itself away leaves the port behind, so nothing more reaches it. A reply is
+  believed only for a call still pending, and only `statusCode`/`statusMessage`/`currentStep` are
+  kept. Calls run one at a time, and one that has not answered in 15 s is answered 504 so the
+  calls behind it (the operator's Stop) go ahead. Off air is set from inside the host document,
+  as for a NoaCG layer.
 - **What the package's server owes.** It answers only the package's own files, from a file map
-  rather than a filesystem path. It sends `Access-Control-Allow-Origin: *`, because the frame's
-  origin is opaque and sends no credentials, and it never redirects, because a redirect relaxes
-  the policy's path match. The spec serves the fixtures this way. The in-app scope that stores
+  rather than a filesystem path, and it compares the raw path: an encoded `..%2f` stays under
+  the package prefix as far as the CSP is concerned, so decoding it into a separator would walk
+  out. It sends `Access-Control-Allow-Origin: *`, because the frame's origin is opaque and sends
+  no credentials, and it never redirects, because a redirect relaxes the policy's path match. The spec serves the fixtures this way. The in-app scope that stores
   and serves an imported package is part of the library item
   (`docs/backlog/import-foreign-ograf-packages.md`).
 - **The proof.** `e2e/foreign-ograf-sandbox.spec.ts` checks two fixtures on the real `/output`
@@ -415,8 +420,8 @@ NoaCG graphics load exactly as before. What each part does:
 - **Residuals a CSP cannot close**, stated rather than hidden: the frame can navigate ITSELF to
   another URL (CSP has no navigation directive), and WebRTC and DNS prefetch are not governed by
   `connect-src`. What such a request could carry is only what the frame holds, which is the
-  operator's data for that graphic and no credential. Once a frame has navigated away, the stage
-  sends it nothing more (the spec checks this too).
+  operator's data for that graphic and no credential. Once a frame has navigated away, nothing
+  more reaches it (the spec checks this too).
 
 ## 4. Interop strategy - the evidence bar, both directions
 

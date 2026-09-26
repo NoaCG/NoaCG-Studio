@@ -76,14 +76,17 @@ async function runProbes() {
   await probe('walk-out-image', () => loadImage(new URL('../benign/assets/mark.svg', import.meta.url).href));
 
   // Commands its NEIGHBOURS: every sibling frame is told to play in NoaCG's preview vocabulary and
-  // to play in the foreign bridge's, and the parent is sent a forged state report.
+  // to play over a bridge port it offers, and the parent is sent a forged state report.
   await probe('command-neighbours', () => {
     let sent = 0;
     for (let i = 0; i < parent.frames.length; i += 1) {
       const win = parent.frames[i];
       if (win === window) continue;
       win.postMessage({ type: 'spx-preview-cmd', cmd: 'play' }, '*');
-      win.postMessage({ type: 'noacg-ograf-call', nonce: 'guessed', id: 1, call: 'play', args: [{ goto: 0 }] }, '*');
+      // Offer a foreign host document a bridge port of its own, then drive it on that port.
+      const channel = new MessageChannel();
+      win.postMessage({ type: 'noacg-ograf-port' }, '*', [channel.port2]);
+      channel.port1.postMessage({ id: 1, call: 'play', args: [{ goto: 0 }] });
       sent += 1;
     }
     parent.postMessage({ type: 'spx-preview-state', state: { groups: { forged: 'forged' } }, overflow: [], motion: 0 }, '*');

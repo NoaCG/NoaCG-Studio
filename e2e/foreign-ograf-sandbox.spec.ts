@@ -221,6 +221,14 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await expect(board).toHaveAttribute('data-on', 'false');
     expect(await returnsOf(page, 'benign')).toHaveLength(7);
 
+    // Off air is taken from INSIDE the document, as for a NoaCG layer: the frame stays composited.
+    const hostStage = page.frameLocator('iframe[title="benign"]').locator('#stage');
+    await page.evaluate(() => (window as unknown as { __stage: { setVisible(v: boolean): void } }).__stage.setVisible(false));
+    await expect(hostStage).toHaveCSS('opacity', '0');
+    await expect(frame).toHaveCSS('opacity', '1');
+    await page.evaluate(() => (window as unknown as { __stage: { setVisible(v: boolean): void } }).__stage.setVisible(true));
+    await expect(hostStage).toHaveCSS('opacity', '1');
+
     // The NoaCG graphic beside it plays as ever.
     const idle = await freshState(page, 'lt0');
     await apply(page, 'lt0', { t: 'play' });
@@ -264,7 +272,10 @@ test.describe('a foreign OGraf package on the output stage', () => {
     const afterHostile = await freshState(page, 'lt0');
     expect(afterHostile, "the forged state report was not taken as the NoaCG graphic's").not.toContain('forged');
     expect(JSON.parse(afterHostile), 'the forged `play` was not obeyed: lt01 is still off').toEqual({ groups: { main: 'off' } });
-    // The forged `play` never reached the benign Graphic either: it is still off until WE play it.
+    // The port it offered the benign host was refused, so its `play` never ran: the Graphic is off
+    // until WE play it. (Here the host already holds the stage's port by then, and it takes one
+    // port only; its check that the port comes from its parent is not isolated by this spec.
+    // Removing that check alone stays green, measured.)
     await expect(page.frameLocator('iframe[title="benign"]').locator('.board')).toHaveAttribute('data-on', 'false');
     await apply(page, 'benign', { t: 'play' });
     expect(await nthReturn(page, 'benign', 2)).toEqual({ call: 'play', statusCode: 200, currentStep: 0 });
@@ -282,7 +293,8 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await hostile!.evaluate(() => {
       location.href = 'data:text/html,<script>addEventListener("message", () => { document.title = "got a call"; })</script>';
     });
-    await expect(page.locator('iframe[title="hostile"]')).toHaveAttribute('data-ograf', 'navigated');
+    await expect.poll(() => hostile!.url()).toMatch(/^data:/);
+    await hostile!.waitForLoadState('load');
     await apply(page, 'hostile', { t: 'update', data: { note: 'operator data' } });
     const heard = await hostile!.evaluate(() => new Promise<string>((r) => setTimeout(() => r(document.title), 300)));
     expect(heard, 'a call reached the document the frame navigated to').toBe('');

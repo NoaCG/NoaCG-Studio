@@ -70,7 +70,9 @@ export interface OutputStage {
   /** Called whenever a document reports a state OR an overflow set that differs from the last
    *  one seen. Both ride the one reply, so one callback carries both. */
   onState(cb: (graphic: string, state: PreviewMachineState | null, overflow: string[]) => void): void;
-  /** The graphic keys the stage hosts: the payload's in its order, then any foreign packages. */
+  /** The PUBLISHED graphic keys the stage hosts, in LAYER order — furthest back first. Foreign
+   *  packages are not listed: they answer no state request, which the boot catch-up waits on
+   *  (catchUp.ts). Their keys are `ografReturns`'. */
   graphics: string[];
   /** What each FOREIGN OGraf Graphic has answered, in arrival order (foreignOgraf.ts). A foreign
    *  Graphic reports no machine state, so this is all a caller hears back from one. */
@@ -215,8 +217,17 @@ export function createOutputStage(
 
   // A stranger's package never goes through composeDocument: its own frame, its own bridge.
   const foreign = new Map<string, ForeignOgrafLayer>();
+  // One bad package is that package's problem: the rest of the stage still airs.
   for (const spec of options.foreign ?? []) {
-    if (!frames.has(spec.key) && !foreign.has(spec.key)) foreign.set(spec.key, mountForeignOgraf(stage, spec, payload.resolution));
+    if (frames.has(spec.key) || foreign.has(spec.key)) {
+      console.error(`output stage: foreign package "${spec.key}" skipped, its key is already on the stage`);
+      continue;
+    }
+    try {
+      foreign.set(spec.key, mountForeignOgraf(stage, spec, payload.resolution));
+    } catch (err) {
+      console.error(`output stage: foreign package "${spec.key}" skipped:`, err);
+    }
   }
 
   // State replies carry no graphic name — the SOURCE window identifies the sender.
@@ -291,7 +302,7 @@ export function createOutputStage(
     motion,
     replies,
     onState: (cb) => stateCbs.push(cb),
-    graphics: [...payload.graphics.map((g) => g.key), ...foreign.keys()],
+    graphics: payload.graphics.map((g) => g.key),
     ografReturns: new Map([...foreign].map(([key, layer]) => [key, layer.returns])),
     // FROM INSIDE EACH DOCUMENT, never by hiding the stage from out here. This used to set the
     // stage's own opacity to 0, on the reasoning that the documents would keep compositing and
@@ -304,9 +315,7 @@ export function createOutputStage(
     // visible to the compositor, keeps its frame rate, and finishes the replay unseen.
     setVisible: (visible) => {
       for (const key of frames.keys()) post(key, { cmd: 'offair', on: !visible });
-      // A foreign document has no `offair` command, and nothing is replayed into one at boot,
-      // so there is no running entrance for the embedder's throttling to spoil.
-      for (const layer of foreign.values()) layer.frame.style.opacity = visible ? '' : '0';
+      for (const layer of foreign.values()) layer.setOffAir(!visible);
     },
     whenLoaded: () =>
       foreign.size ? Promise.all([allLoaded, ...[...foreign.values()].map((l) => l.loaded)]).then(() => undefined) : allLoaded,
