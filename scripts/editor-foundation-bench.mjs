@@ -198,8 +198,11 @@ if (process.argv.includes('--verify')) {
           for (const [i, tool] of ['rectangle', 'ellipse', 'text'].entries()) {
             await page.getByRole('button', { name: tool + ' tool', exact: true }).click();
             const x = artboard.x + artboard.width * (.35 + i * .16), y = artboard.y + artboard.height * .35;
-            await page.mouse.move(x, y); await page.mouse.down();
-            await page.mouse.move(x + 45, y + 24, { steps: 5 }); await page.mouse.up();
+            if (artwork && tool === 'text') await page.mouse.click(x, y);
+            else {
+              await page.mouse.move(x, y); await page.mouse.down();
+              await page.mouse.move(x + (artwork ? artboard.width * .08 : 45), y + (artwork ? artboard.height * .09 : 24), { steps: 5 }); await page.mouse.up();
+            }
             await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
           }
           if (artwork) {
@@ -245,7 +248,7 @@ if (process.argv.includes('--verify')) {
       await page.screenshot({ path: resolve(output, 'wizard-finish-built.png'), fullPage: true });
       await context.close();
     }
-    const sourceFiles = ['src/App.tsx', 'src/blocks/baseEdits.ts', 'src/blocks/designLayout.ts', 'src/blocks/artworkEdits.ts', 'src/blocks/artworkLayers.ts',
+    const sourceFiles = ['src/App.tsx', 'src/blocks/baseEdits.ts', 'src/blocks/designLayout.ts', 'src/blocks/artworkEdits.ts', 'src/blocks/artworkLayers.ts', 'src/components/fields/FieldControl.tsx',
       'src/components/wizard/CreationWizard.tsx', 'src/components/wizard/steps/FinishStep.tsx',
       ...readdirSync(resolve(root, 'src/components/editorFoundation')).filter(name => /\.(tsx?|css)$/.test(name)).map(name => 'src/components/editorFoundation/' + name)];
     if (!captureFinish) writeFileSync(resolve(output, 'latency-built.json'), JSON.stringify({
