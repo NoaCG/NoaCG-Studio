@@ -19,9 +19,13 @@
 //   2. A push made with the workflow token starts NO workflow run (GitHub's rule for
 //      GITHUB_TOKEN), so the branch would sit on its pull request with no `CI gate` and no
 //      `Reviewed` on its tip, and a pull request without its required checks never enters the
-//      queue. `workflow_dispatch` IS allowed from the token, so the branch's run is asked for by
-//      dispatch, with `require_review` so the Reviewed job runs on it and `diff_base` so it plans
-//      the change rather than the whole suite. The merge group re-tests the merged result anyway.
+//      queue. The fix is the bot's GitHub App token (`botTokenIsApp`): its push and pull request
+//      start their own runs, and GitHub holds none of them for approval. Until the App is set up,
+//      the workflow token is used, and the branch's run is asked for by dispatch, with
+//      `require_review` so the Reviewed job runs on it and `diff_base` so it plans the change
+//      rather than the whole suite. Measured on 2026-09-26 (#438): checks from a dispatched run
+//      did not count toward the pull request, so that fallback still needs a person to approve the
+//      held pull_request run. The merge group re-tests the merged result either way.
 //
 // WHAT A BRANCH ALREADY ON ORIGIN MEANS is decided by `alreadyQueued`, once, for every caller:
 // an OPEN pull request is the landing in progress (reuse it); a CLOSED, unmerged one is a person
@@ -46,10 +50,23 @@ const BOT_IDENTITY = {
   email: '41898282+github-actions[bot]@users.noreply.github.com',
 };
 
-/** Spawn one tool and hand back its text; a non-zero exit is an error naming the command. */
-export function spawnRunner(tool) {
+/**
+ * Whether this workflow queues with the bot's GitHub App token. The workflows set
+ * NOACG_BOT_TOKEN=app when their App token step ran. An App's push and pull request start their
+ * own CI, as a session's do, so nothing needs dispatching; without the App the workflow token is
+ * used and the run is dispatched as described above.
+ */
+export const botTokenIsApp = () => process.env.NOACG_BOT_TOKEN === 'app';
+
+/**
+ * Spawn one tool and hand back its text; a non-zero exit is an error naming the command.
+ * `token`, when given, is the GH_TOKEN for this runner's children only, so one step can queue a
+ * landing with the bot's App token while its other `gh` calls keep the workflow token.
+ */
+export function spawnRunner(tool, { token = '' } = {}) {
+  const env = token ? { ...process.env, GH_TOKEN: token } : process.env;
   return (args, { cwd = process.cwd(), allowFailure = false } = {}) => {
-    const res = spawnSync(tool, args, { cwd, encoding: 'utf8', windowsHide: true });
+    const res = spawnSync(tool, args, { cwd, encoding: 'utf8', windowsHide: true, env });
     const out = String(res.stdout ?? '').trim();
     const err = String(res.stderr ?? '').trim();
     if (res.status !== 0 && !allowFailure) {
@@ -117,7 +134,7 @@ export function mechanicalDescription(mechanism, runUrl) {
  * @param {(args: string[], opts?: object) => {status:number,out:string,err:string}} [input.git]
  * @param {(args: string[], opts?: object) => {status:number,out:string,err:string}} [input.gh]
  */
-export function queuePullRequest({ branch, title, body, mechanism, runUrl = '', diffBase = '', dispatch = true, force = false, git = spawnRunner('git'), gh = spawnRunner('gh') }) {
+export function queuePullRequest({ branch, title, body, mechanism, runUrl = '', diffBase = '', dispatch = !botTokenIsApp(), force = false, git = spawnRunner('git'), gh = spawnRunner('gh') }) {
   if (!branch) throw new Error('queuePullRequest: a branch is required');
   const tip = git(['rev-parse', branch]).out;
   git(['push', ...(force ? ['--force'] : []), 'origin', `refs/heads/${branch}:refs/heads/${branch}`]);

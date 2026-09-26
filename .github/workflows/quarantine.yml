@@ -116,13 +116,33 @@ jobs:
       contents: write # push the release branch
       pull-requests: write # open it, label it, auto-merge it
       statuses: write # the mechanical `noacg/reviewed` stamp
-      actions: write # dispatch the release branch's run
+      actions: write # dispatch the release branch's run when the bot App is not set up
     steps:
+      # THE BOT'S OWN TOKEN. It queues the release branch below.
+      # A GitHub App installation token makes the bot's push and pull request start their own CI,
+      # which GITHUB_TOKEN never does, and GitHub holds none of those runs for approval. Without the
+      # App configured (repository variable NOACG_BOT_CLIENT_ID, secret NOACG_BOT_PRIVATE_KEY) this
+      # step is skipped and the job falls back to the workflow token, as before.
+      - name: Bot token
+        id: bot
+        if: ${{ vars.NOACG_BOT_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NOACG_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.NOACG_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-statuses: write
+
       - uses: actions/checkout@v5
+        with:
+          # The release push uses this credential.
+          token: ${{ steps.bot.outputs.token || github.token }}
 
       - name: Release what has earned it
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
+          NOACG_BOT_TOKEN: ${{ steps.bot.outputs.token != '' && 'app' || 'workflow' }}
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/e2e-quarantine.mjs release-due --queue --run "$RUN_URL"
