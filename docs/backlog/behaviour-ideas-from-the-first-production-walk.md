@@ -1,3 +1,12 @@
+---
+v: 2
+source: owner
+kind: ask
+raised: 2026-08-23
+state: unstarted
+asked: "no reason for the goal animation if the number doesn't change" - plus a countdown with an optional manual start, and a live vote from real data later (paraphrase)
+size: small
+---
 # Three behaviour ideas from the first real-production walk
 
 **Filed:** 2026-09-26. **Source:** the owner's walk after running seven graphics in a real
