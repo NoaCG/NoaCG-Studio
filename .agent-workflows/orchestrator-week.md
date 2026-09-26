@@ -24,9 +24,10 @@ Tuesday, not Monday, by his ruling (2026-09-03): his weekly allowance can be spe
 
 ## 1. Measure - three commands, nothing recalled
 
-Work from the PRIMARY checkout, `C:\claude\NoaCG-Studio`, so the orchestrator home and the `.env`
-the feedback count needs are in reach. The wave plans live in the store, not in a checkout
-(`node scripts/wave-plan-store.mjs --list`), and are reachable from anywhere.
+Work from a checkout of current `origin/main` - the scheduled run gets a fresh worktree of its own -
+and never in the primary checkout, which the merge queue relies on. The feedback count reads the
+main checkout's `.env` by itself, the orchestrator home is found from any checkout, and the wave
+plans live in the store (`node scripts/wave-plan-store.mjs --list`), reachable from anywhere.
 
     node scripts/orchestrator-week.mjs
     npm run feedback:count
