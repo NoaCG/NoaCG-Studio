@@ -2,14 +2,9 @@ import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dropSvg } from './_svg-import';
 
-// THE FIELDS STEP READS THE ALIGNMENT FROM THE FACE THE GRAPHIC IS DRAWN IN.
-//
-// The classroom show intro centres "QUIZ NIGHT" in its yellow plate with no `text-anchor`, only
-// the position Illustrator wrote. Its face (Oswald) is a bundled family whose @font-face loads
-// lazily, on the step's own first layout, so the step's first measurement is taken in a wider
-// fallback that puts the title's centre right of its plate's. The runtime re-fits once the fonts
-// are ready and centres the title on air at every length, so a step that never measured again
-// told a student "right" about a title that behaves centred.
+// THE FIELDS STEP READS THE ALIGNMENT FROM THE FACE THE GRAPHIC IS DRAWN IN. The show intro's
+// title is centred by position alone, in Oswald, which loads lazily on the step's first layout;
+// measured only in the wider fallback it read as right-aligned (MapSvgFieldsStep, `fontKey`).
 const SHOW_INTRO = fileURLToPath(
   new URL('../docs/tutorials/classroom-package/SVG/show-intro.svg', import.meta.url),
 );

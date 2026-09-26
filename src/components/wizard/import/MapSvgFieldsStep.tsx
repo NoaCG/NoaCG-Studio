@@ -310,6 +310,26 @@ export default function MapSvgFieldsStep({
     [draft.designFields],
   );
 
+  // ── WHEN A FONT LANDS, EVERY TEXT MEASUREMENT BELOW IS TAKEN AGAIN ──
+  // Until the face the artwork names has loaded, the stage lays its text out in a fallback of
+  // another width (the classroom show intro's centred "QUIZ NIGHT": 860 units against 653 in
+  // Oswald, which read as right-aligned), and the runtime re-fits on `document.fonts.ready`. A
+  // face lands when the author picks or uploads one (the draft's fonts), or when a bundled
+  // @font-face the stage itself asked for finishes loading (`loadingdone`; one pass on `ready`
+  // covers a load that finished before this listener was attached).
+  const [fontsLanded, setFontsLanded] = useState(0);
+  useEffect(() => {
+    const fonts = document.fonts;
+    if (!fonts) return;
+    const landed = () => setFontsLanded((n) => n + 1);
+    fonts.addEventListener('loadingdone', landed);
+    void fonts.ready.then(landed);
+    return () => fonts.removeEventListener('loadingdone', landed);
+  }, []);
+  const fontKey = `${draft.svgFonts
+    .map((f) => `${f.family}:${f.customFont?.asset.path ?? f.fontId ?? ''}`)
+    .join('|')}#${fontsLanded}`;
+
   // ── GROWTH DEFAULTS ON WHERE THE ARTWORK IS UNAMBIGUOUS (docs/GOALS.md NOW goal 5) ──
   // Measured on the step's own render, and only while the author has not touched a growth
   // control: an authored answer is never recomputed, while the proposal follows the rows (a
@@ -352,7 +372,7 @@ export default function MapSvgFieldsStep({
       cur.on === want.on && cur.shapeId === want.shapeId && (!want.on || (cur.axis ?? 'x') === 'xy');
     if (settled) return;
     onDraft({ svgStretch: want });
-  }, [svg, draft.svgFields, boundMarkerIds, placedLines, draft.svgBehaviour, draft.svgStretch, onDraft]);
+  }, [svg, draft.svgFields, boundMarkerIds, placedLines, draft.svgBehaviour, draft.svgStretch, onDraft, fontKey]);
   useEffect(() => {
     const stage = stageRef.current;
     if (!svg || !stage || !growId) {
@@ -360,37 +380,7 @@ export default function MapSvgFieldsStep({
       return;
     }
     setProposed(proposeFollowers(stage, svg, growId, growAxis));
-  }, [svg, growId, growAxis]);
-
-  // ── WHEN A FONT LANDS, EVERY TEXT MEASUREMENT BELOW IS TAKEN AGAIN ──
-  // The stage's text is laid out in a fallback face until the face the artwork asks for has
-  // loaded, and a fallback is a different WIDTH: the classroom show intro's "QUIZ NIGHT" measured
-  // 860 units wide in it and 653 in Oswald, which moved its centre 103 units right of its plate's
-  // and made the grid read a centred title as right-aligned. The graphic's runtime re-fits on
-  // `document.fonts.ready`, so the step has to measure the face that runtime measures, not the
-  // one standing in for it. Two ways a face lands: the author picks or uploads one (the draft's
-  // fonts), or the document finishes loading a face the artwork already names - a bundled
-  // family's @font-face loads lazily, on the stage's own first layout, AFTER the first
-  // measurement. `loadingdone` is the second; the `ready` read covers a load that finished
-  // before this listener was attached.
-  const [fontsLanded, setFontsLanded] = useState(0);
-  useEffect(() => {
-    const fonts = document.fonts;
-    if (!fonts) return;
-    let live = true;
-    const landed = () => {
-      if (live) setFontsLanded((n) => n + 1);
-    };
-    fonts.addEventListener('loadingdone', landed);
-    void fonts.ready.then(landed);
-    return () => {
-      live = false;
-      fonts.removeEventListener('loadingdone', landed);
-    };
-  }, []);
-  const fontKey = `${draft.svgFonts
-    .map((f) => `${f.family}:${f.customFont?.asset.path ?? f.fontId ?? ''}`)
-    .join('|')}#${fontsLanded}`;
+  }, [svg, growId, growAxis, fontKey]);
 
   // ── WHICH SHAPES ARE WORTH OFFERING AS THE ONE THAT GROWS (owner walk, 2026-09-01) ──
   // A LAYOUT effect, not an ordinary one: the picker's presence depends on this measurement, so
