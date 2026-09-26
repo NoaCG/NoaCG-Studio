@@ -79,6 +79,14 @@ test('a plan in the contract shape passes', () => {
   assert.deepEqual(verdict.pools, ['opus', 'agy-gemini']);
 });
 
+test('a Fable row is refused with the route that replaces it: Opus implements, Fable only consults', () => {
+  const plan = GOOD.replace('| C | follow-on | on claude/a-thing landing | scripts/x.mjs | migration 0055 | opus | no |',
+    '| C | follow-on | on claude/a-thing landing | scripts/x.mjs | migration 0055 | fable | no |');
+  const { problems } = checkPlan(plan, { exists, handoffs, receipts, now: NOW });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /^row C: POOL "fable" - Fable does not implement: run the row on opus, and consult `design-consult`/);
+});
+
 test('parseWaveTable accepts # or L as the letter column and names a missing column', () => {
   const { rows, problems } = parseWaveTable('## Wave table\n\n| # | goal | START | TOUCHES | MINTS | browser |\n|---|---|---|---|---|---|\n| A | g | now | src/a.ts | - | no |\n');
   assert.equal(rows[0].letter, 'A');

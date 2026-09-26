@@ -59,6 +59,9 @@ QUEUE  Then, as your LAST THREE actions and in this order:
   GATE, with pointers. DO is optional and reserved for a required constraint or reproduction, never
   a coding recipe. The worker checks assumptions against the repository, chooses the route, tests
   and repairs it. Scope expansion returns to the collision pass before touching another row's files.
+- **The block is the whole brief.** GOAL, WHY and ACCEPT travel in it, so READ never names the wave
+  plan (three rows reading its 84 KB cost more than their prompts); give a line range for a large
+  file (`src/x.ts:120-180`) so the row reads what matters, and let it fetch anything else itself.
 - **READ points, it never summarizes**: the session reads the files at current HEAD. **TRAPS carries
   only what exists nowhere but a chat**; a trap already in a repo file gets a pointer, never a
   reprinted area contract.

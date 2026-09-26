@@ -32,7 +32,7 @@ second way is where live data drifts out of sync. His words for the goal: consis
 simplicity, not a large redesign.
 
 ## What it would take
-A Fable (`wave-row-design`) review that reads the code and proposes a plan. Implementation comes
+A design consult (`design-consult`, Fable) that reads the code and proposes a plan. Implementation comes
 after the owner has seen the plan. The review answers six questions:
 
 1. How do quiz controls and every other graphic's controls become one model with one set of

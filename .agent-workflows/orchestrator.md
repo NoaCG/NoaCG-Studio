@@ -62,7 +62,8 @@ is in `docs/private/` in the main checkout: plan with it, never cite a date as t
 copy it into public text.
 
 **Day wave or night wave.** A NIGHT wave is planned in the evening, started by the user, landed by
-morning through the queue; everything marked *night* is mandatory there. An interactively started
+morning through the queue; everything marked *night* is mandatory there. It starts in a FRESH
+orchestrator session, never on top of the day's context, which it would otherwise re-read all night. An interactively started
 wave may open with a brief alignment step, a few `needs: decision` questions Grill-Me style, when a
 major owner-level choice shapes the whole wave. **START-NOW mode** (`/orchestrator now`) skips it:
 no questions, decide and launch. Once a wave runs it asks nothing. **THE WAVE WINDOW is whatever

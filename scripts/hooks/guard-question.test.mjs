@@ -53,7 +53,7 @@ test('more than one question per call is refused, even when every one is tagged'
 });
 
 test('a wave-row subagent may not ask at all', () => {
-  const { status, message } = runHook(HOOK, ask([q('needs: decision - which layout?')], { agent_type: 'wave-row-design' }));
+  const { status, message } = runHook(HOOK, ask([q('needs: decision - which layout?')], { agent_type: 'wave-row-deciding' }));
   assert.equal(status, 2);
   assert.match(message, /a wave asks nothing/);
 });
