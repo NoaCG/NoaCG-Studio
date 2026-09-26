@@ -3,11 +3,12 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-24
-state: unstarted
+state: advanced
+note: "Isolation landed 2026-09-26: a foreign package plays on the output stage in its own sandboxed frame under a package-only network policy, proven by a benign and a hostile fixture (e2e/foreign-ograf-sandbox.spec.ts). The library kind, the Home import door, the rundown and recovery remain."
 asked: "Create the backlog item for the possibility to import foreign packages; start building after tomorrow's lecture (paraphrase, 2026-09-24)"
 serves: P6
 size: large
-touches: src/bridge/ografHost.ts, src/output/stage.ts, src/model/, src/components/home/
+touches: src/control/ografHost.ts, src/output/stage.ts, src/output/foreignOgraf.ts, src/model/, src/components/home/
 needs-owner: none
 ---
 
@@ -20,7 +21,7 @@ the 2026-09-25 lecture.
 
 An OGraf client that can only play its own graphics is half a client. SPX 1.4, ograf-server,
 LiveOS, Erizos and BBright all put a stranger's package in their rundown; NoaCG does that only from
-the command line (`noacg inspect`, `noacg validate`, `src/bridge/ografHost.ts`). Graphics made in
+the command line (`noacg inspect`, `noacg validate`, `src/control/ografHost.ts`). Graphics made in
 Loopic, DJ HTML Creator, everviz or by hand are arriving as OGraf packages. Playing them in the
 same rundown as NoaCG's own graphics is what an operator expects of an OGraf client, and it is the
 `OGraf import v1` rung on the `docs/GOALS.md` OGraf ladder.
@@ -29,7 +30,10 @@ same rundown as NoaCG's own graphics is what an operator expects of an OGraf cli
 
 The boundary is already written in `docs/OGRAF_ECOSYSTEM.md` §2 and §3. In short:
 
-1. **Isolation first.** A foreign package is executable JavaScript from a stranger. It runs in the
+1. **Isolation first. DONE 2026-09-26** (`src/output/foreignOgraf.ts`, `docs/OGRAF_ECOSYSTEM.md`
+   §3 "Built and proven", `e2e/foreign-ograf-sandbox.spec.ts`). What remains of it lives in step
+   2: the in-app scope that stores the package and serves its files the way §3 says a package's
+   server must. A foreign package is executable JavaScript from a stranger. It runs in the
    sandboxed-frame pattern `/output` already uses for its own graphics (`src/output/stage.ts`, no
    `allow-same-origin`), with no controller credentials, a bounded message bridge, asset paths
    kept inside the package and an explicit network policy. Shadow DOM is styling, not a sandbox.
@@ -57,7 +61,10 @@ through the adapter. The two routes share the manifest-derived cue editor.
   custom actions and a multi-step `stepCount`) imports, plays, updates, steps and stops in a
   production.
 - A hostile fixture (it reads `parent`, fetches the internet, walks out of its asset folder) is
-  contained, and the spec asserts each refusal.
+  contained, and the spec asserts each refusal. **Met 2026-09-26** on the output stage with a
+  hand-written benign fixture and the hostile one (`e2e/fixtures/foreign-ograf/`). Still open:
+  the SuperFly.tv example and a Loopic export in the corpus, and the same walk through an
+  imported library item in a production.
 - Output reload mid-show recovers the imported graphic to its step and data.
 - A Playwright spec and an owner-queue file with the route.
 

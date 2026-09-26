@@ -187,7 +187,7 @@ measurements from the driver through `frameLocator().evaluate()` (see `src/ai/sa
 
 Third-party OGraf packages are mounted under the app origin at `/__noacg-package/<id>/...` by
 `context.route` (a module import needs a real http(s) URL, and a component's
-`new URL(…, import.meta.url)` needs a base) and hosted by `src/bridge/ografHost.ts` - a minimal
+`new URL(…, import.meta.url)` needs a base) and hosted by `src/control/ografHost.ts` - a minimal
 renderer for ONE Graphic with a driver the CLI calls.
 
 ### Verifying the CLI

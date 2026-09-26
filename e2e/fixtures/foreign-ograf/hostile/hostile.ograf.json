@@ -1,0 +1,13 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "stranger-hostile-probe",
+  "version": "1.0.0",
+  "name": "Hostile probe (written for the NoaCG isolation spec)",
+  "description": "A conforming OGraf Graphic whose load() tries to escape: it reads its parent, looks for credentials, fetches the internet, walks out of its package and commands its neighbours. Every attempt is recorded in its own DOM for e2e/foreign-ograf-sandbox.spec.ts. Written for the spec; never a downloaded package.",
+  "author": { "name": "NoaCG e2e" },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "schema": { "type": "object", "properties": {} },
+  "stepCount": 1
+}

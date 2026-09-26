@@ -1,0 +1,28 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "stranger-results-board",
+  "version": "1.0.0",
+  "name": "Results board (third party)",
+  "description": "A hand-written OGraf Graphic that NoaCG did not make: a sub-module import, a package image, a package data file, three steps and a custom action with a payload. The benign half of e2e/foreign-ograf-sandbox.spec.ts.",
+  "author": { "name": "A third party" },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "headline": { "type": "string", "title": "Headline", "default": "Results" },
+      "score": { "type": "number", "title": "Score", "default": 0 }
+    }
+  },
+  "stepCount": 3,
+  "customActions": [
+    {
+      "id": "highlight",
+      "name": "Highlight",
+      "description": "Tint the board.",
+      "schema": { "type": "object", "properties": { "tint": { "type": "string", "title": "Tint", "enum": ["gold", "silver"], "default": "gold" } } }
+    }
+  ],
+  "renderRequirements": [{ "resolution": { "width": { "ideal": 1920 }, "height": { "ideal": 1080 } } }]
+}

@@ -41,7 +41,7 @@ import { readinessRows, unclaimedFindings, type ReadinessRow } from '../validati
 import { benchTemplateRuntime, mergeResults } from '../validation/runtimeBench';
 import { typeFloorFor } from '../validation/typeFloor';
 import type { ValidationIssue, ValidationResult } from '../validation/validateTemplate';
-import { hostTagFor, ografHostDocument, type OgrafHostOptions } from './ografHost';
+import { hostTagFor, ografHostDocument, type OgrafHostOptions } from '../control/ografHost';
 
 export const BRIDGE_CHANNEL = 'noacg-bridge' as const;
 /** Bump on a BREAKING change to any function below; additive fields never bump. */

@@ -33,7 +33,7 @@ There are two separate causes and they need separate fixes, which is why they sh
 `graphic.mjs` does not use it** - `_customAction` returns `{statusCode: 200, currentStep}` and
 `_updateAction` returns `{statusCode: 200}`, while `noacgMachineState` is bound in the runtime
 object and used only internally for snap and step tracking. A host that embeds the Web Component
-directly - the reference `ograf-server` renderer page, `src/bridge/ografHost.ts`, anyone's own
+directly - the reference `ograf-server` renderer page, `src/control/ografHost.ts`, anyone's own
 loader - would receive `result` today if we wrote it. We are leaving the only available channel
 unused.
 
@@ -56,7 +56,7 @@ that hits it will hit it during a show.
 **Half one (ours, small, do it first).** Return `result` from the emitted `_customAction`,
 `_updateAction` and `_playAction` when the graphic carries a machine: the group→state map from
 `noacgMachineState()`, plus the overflow report. Additive and ignorable - a host that does not read
-`result` is unaffected, and `statusCode` semantics do not change. Extend `src/bridge/ografHost.ts`
+`result` is unaffected, and `statusCode` semantics do not change. Extend `src/control/ografHost.ts`
 to surface it, and add a conformance case. Under a day.
 
 **Half two (upstream, cheap to ask, slow to land). DONE 2026-08-30 -

@@ -23,6 +23,8 @@ import {
   type PreviewStateMessage,
 } from '../preview/previewProtocol';
 import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
+import type { ControlMessage } from '../control/controlModel';
+import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
 import type { SpxTemplate } from '../model/types';
 import { DEFAULT_SETTINGS } from '../model/types';
 
@@ -68,8 +70,13 @@ export interface OutputStage {
   /** Called whenever a document reports a state OR an overflow set that differs from the last
    *  one seen. Both ride the one reply, so one callback carries both. */
   onState(cb: (graphic: string, state: PreviewMachineState | null, overflow: string[]) => void): void;
-  /** The graphic keys the stage hosts, in LAYER order — furthest back first. */
+  /** The PUBLISHED graphic keys the stage hosts, in LAYER order — furthest back first. Foreign
+   *  packages are not listed: they answer no state request, which the boot catch-up waits on
+   *  (catchUp.ts). Their keys are `ografReturns`'. */
   graphics: string[];
+  /** What each FOREIGN OGraf Graphic has answered, in arrival order (foreignOgraf.ts). A foreign
+   *  Graphic reports no machine state, so this is all a caller hears back from one. */
+  ografReturns: ReadonlyMap<string, readonly OgrafReturn[]>;
   /** Take the WHOLE stage off or back on air — the renderer's own surface, never the graphics'
    *  own state. Boot catch-up replays missed commands as commands, so their animations run;
    *  airing that replay would put the outage's history on screen. Off air it settles unseen and
@@ -92,6 +99,10 @@ export interface OutputStageOptions {
    *  serves both and a rehearsal cannot drift from what airs. Call `rescale()` on the returned
    *  stage after the box changes; the stage listens to window resizes either way. */
   fit?: () => { width: number; height: number };
+  /** FOREIGN OGraf packages to place on the stage beside the published graphics, each in its
+   *  own isolated frame (foreignOgraf.ts, docs/OGRAF_ECOSYSTEM.md §3). The published graphics
+   *  load exactly as they do without it. */
+  foreign?: ForeignOgrafSpec[];
 }
 
 /** Build the stage into `root` and keep it scaled to its fit box (the viewport by default). */
@@ -204,6 +215,21 @@ export function createOutputStage(
     replies.set(spec.key, 0);
   });
 
+  // A stranger's package never goes through composeDocument: its own frame, its own bridge.
+  const foreign = new Map<string, ForeignOgrafLayer>();
+  // One bad package is that package's problem: the rest of the stage still airs.
+  for (const spec of options.foreign ?? []) {
+    if (frames.has(spec.key) || foreign.has(spec.key)) {
+      console.error(`output stage: foreign package "${spec.key}" skipped, its key is already on the stage`);
+      continue;
+    }
+    try {
+      foreign.set(spec.key, mountForeignOgraf(stage, spec, payload.resolution));
+    } catch (err) {
+      console.error(`output stage: foreign package "${spec.key}" skipped:`, err);
+    }
+  }
+
   // State replies carry no graphic name — the SOURCE window identifies the sender.
   const onMessage = (ev: MessageEvent) => {
     const data = ev.data as PreviewStateMessage | undefined;
@@ -232,6 +258,9 @@ export function createOutputStage(
   window.addEventListener('message', onMessage);
 
   const apply = (graphic: string, msg: ControlEventRow['msg']) => {
+    // A status row has no OGraf meaning either; ografCallFor drops whatever it cannot map.
+    const foreignLayer = foreign.get(graphic);
+    if (foreignLayer) return foreignLayer.send(msg as ControlMessage);
     if (!frames.has(graphic)) return;
     switch (msg.t) {
       case 'update':
@@ -274,6 +303,7 @@ export function createOutputStage(
     replies,
     onState: (cb) => stateCbs.push(cb),
     graphics: payload.graphics.map((g) => g.key),
+    ografReturns: new Map([...foreign].map(([key, layer]) => [key, layer.returns])),
     // FROM INSIDE EACH DOCUMENT, never by hiding the stage from out here. This used to set the
     // stage's own opacity to 0, on the reasoning that the documents would keep compositing and
     // their timelines keep ticking. They do not: Chromium throttles the rendering of an iframe
@@ -285,12 +315,15 @@ export function createOutputStage(
     // visible to the compositor, keeps its frame rate, and finishes the replay unseen.
     setVisible: (visible) => {
       for (const key of frames.keys()) post(key, { cmd: 'offair', on: !visible });
+      for (const layer of foreign.values()) layer.setOffAir(!visible);
     },
-    whenLoaded: () => allLoaded,
+    whenLoaded: () =>
+      foreign.size ? Promise.all([allLoaded, ...[...foreign.values()].map((l) => l.loaded)]).then(() => undefined) : allLoaded,
     rescale,
     destroy: () => {
       window.removeEventListener('message', onMessage);
       window.removeEventListener('resize', rescale);
+      for (const layer of foreign.values()) layer.destroy();
       stage.remove();
     },
   };
