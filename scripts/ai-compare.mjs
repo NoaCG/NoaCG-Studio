@@ -49,6 +49,15 @@ if (process.env.CI) {
   process.exit(1);
 }
 
+// A RUN SPENDS REAL MONEY, SO IT SAYS SO BEFORE IT STARTS. Nothing here is free, and a bare
+// invocation used to start spending straight away. `--confirm-spend` is the explicit step: the
+// caller has read the estimate above and decided the cost is acceptable (docs/GOALS.md, "Autonomous
+// work": trivial expected costs need no owner, significant or unusual ones do).
+if (!process.argv.includes('--confirm-spend')) {
+  console.error('[ai-compare] This spends real tokens across every arm and brief (the header has the rates; a full bank is dollars, not cents). Re-run with --confirm-spend once that cost is acceptable.');
+  process.exit(1);
+}
+
 const BASE = `http://localhost:${devPort()}`;
 const ARGS = process.argv.slice(2);
 const flag = (name) => ARGS.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');

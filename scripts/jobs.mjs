@@ -950,8 +950,21 @@ function cmdPresence() {
     console.error(`presence: say one of ${PRESENCE.join(', ')} - or nothing, to read it back.`);
     process.exit(1);
   }
+  // `--for <minutes>` is the brief override: a person at the desk lets one blocked run through
+  // and gets the reserve back on its own. Without it a declaration stands for the usual twelve
+  // hours, the length of a night wave.
+  const forAt = args.indexOf('--for');
+  let ttlMs;
+  if (forAt >= 0) {
+    const minutes = Number(args[forAt + 1]);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 720) {
+      console.error('presence: --for takes whole minutes, 1 to 720 (for example --for 30).');
+      process.exit(1);
+    }
+    ttlMs = minutes * 60 * 1000;
+  }
   ensureJobsDir(dir);
-  const record = writePresence(dir, asked, { by: currentBranch() ?? 'unknown branch' });
+  const record = writePresence(dir, asked, { by: currentBranch() ?? 'unknown branch', ...(ttlMs ? { ttlMs } : {}) });
   const floor = freeMemFloorFor(record.state);
   console.log(`Machine marked ${record.state}. Floor for one suite-equivalent is now ${(floor / 1024).toFixed(1)} GB.`);
   console.log(`  holds until ${new Date(record.until).toISOString()}, then back to in-use on its own.`);

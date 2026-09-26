@@ -144,7 +144,7 @@ for (const model of CANDIDATES) {
     console.log(`  route verified: ${route.provider}:${route.model}`);
 
     await new Promise((resolve, reject) => {
-      const child = spawn(process.execPath, ['scripts/ai-bench.mjs', runDir, BRIEFS].filter(Boolean), {
+      const child = spawn(process.execPath, ['scripts/ai-bench.mjs', runDir, BRIEFS, '--confirm-spend'].filter(Boolean), {
         stdio: 'inherit',
         // The bench signs itself in: a managed key is only available to a signed-in caller
         // once a backend is configured, and it runs in a fresh context with no session.

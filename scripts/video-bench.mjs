@@ -37,6 +37,15 @@ import { chromium } from '@playwright/test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 
+// A RUN SPENDS REAL MONEY, SO IT SAYS SO BEFORE IT STARTS. Nothing here is free, and a bare
+// invocation used to start spending straight away. `--confirm-spend` is the explicit step: the
+// caller has read the estimate above and decided the cost is acceptable (docs/GOALS.md, "Autonomous
+// work": trivial expected costs need no owner, significant or unusual ones do).
+if (!process.argv.includes('--confirm-spend')) {
+  console.error('[video-bench] This spends real tokens: each video generation is two model calls (the header has the rates). Re-run with --confirm-spend once that cost is acceptable.');
+  process.exit(1);
+}
+
 const BASE = `http://localhost:${devPort()}`;
 // Flags are position-independent; the three positional args keep their old meaning.
 const ARGS = process.argv.slice(2);

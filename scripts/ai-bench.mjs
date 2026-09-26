@@ -27,8 +27,19 @@ if (process.env.CI) {
 }
 
 const BASE = `http://localhost:${devPort()}`;
-const OUT = outDir(process.argv[2], './bench-out', 'Usage: node scripts/ai-bench.mjs [out-dir]');
-const FILTER = process.argv[3] ?? '';
+// A RUN SPENDS REAL MONEY, SO IT SAYS SO BEFORE IT STARTS. Nothing here is free, and a bare
+// invocation used to start spending straight away. `--confirm-spend` is the explicit step: the
+// caller has read the estimate above and decided the cost is acceptable (docs/GOALS.md, "Autonomous
+// work": trivial expected costs need no owner, significant or unusual ones do).
+if (!process.argv.includes('--confirm-spend')) {
+  console.error('[ai-bench] This spends real tokens, roughly a few cents per brief (the header has the rates). Re-run with --confirm-spend once that cost is acceptable.');
+  process.exit(1);
+}
+
+// Positional arguments ignore flags, so --confirm-spend can sit anywhere on the line.
+const POS = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const OUT = outDir(POS[0], './bench-out', 'Usage: node scripts/ai-bench.mjs [out-dir] [count | id,id,...] --confirm-spend');
+const FILTER = POS[1] ?? '';
 mkdirSync(OUT, { recursive: true });
 
 // ── The brief bank: deliberately OFF-catalog graphics (no starting template) ──
