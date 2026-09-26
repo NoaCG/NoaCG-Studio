@@ -5,10 +5,10 @@ re-checked against `.github/workflows/hosted-latency.yml` and issue #382 on 2026
 
 ## Why
 
-The hosted-latency suite is the only gate that runs the configured specs against a real hosted
-backend (staging), which is where published productions, the hosted control page and the output
-page live (outcome 5 in `docs/GOALS.md`). It has been red on every run since 2026-09-23, and the
-rolling issue #382 stays open. A gate that is always red stops being read, so a real hosted
+The hosted-latency suite runs the configured specs against the hosted staging backend, which is
+where published productions, the hosted control page and the output page are exercised at real
+network latency (outcome 5 in `docs/GOALS.md`). Every completed run since 2026-09-23 has failed,
+and the rolling issue #382 stays open. A gate that is always red stops being read, so a real hosted
 regression would now land unnoticed.
 
 The failures look like latency, not defects: each spec timed out waiting on `.auth-status` (20 s),

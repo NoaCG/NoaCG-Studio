@@ -11,7 +11,7 @@ conclusion stays `failure` on purpose and the red-main issue names it as a flaky
 landing then inherits that red: `lastVerdictBefore` walks back to the nearest commit with a
 verdict, finds the flaky run's `failure`, and `shouldRevert` refuses a genuine, confirmed break with
 "main was already red ... fix main forward". One flaky test is enough to switch the revert off for
-the landing after it, and nobody is told that this is why.
+the landing after it, and the refusal reads as if main had been genuinely broken.
 
 Over a quiet stretch the next landing is usually green and closes the issue, so this is rare. It
 bites exactly when two landings arrive close together, which is when the revert matters most.
