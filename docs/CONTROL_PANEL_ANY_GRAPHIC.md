@@ -2,17 +2,17 @@
 
 **Status: a PLAN, written 2026-09-15 from the weekly alignment of the same day. P2 is at DESIGN,
 so this builds nothing; it says what the one approach is, proves it on paper against the
-2026-10-20 case, and separates what must exist by that date from what waits.**
+proof case, and separates what the first showing needs from what waits.**
 
 The brief: one control-panel approach that fits ANY graphic we have - catalog templates,
 imported SVGs, graphics a coding agent makes through the NoaCG CLI, and later a stranger's OGraf
-package. The proof case is Elämäni biisi on Yle, 2026-10-20: five people vote on who performs
+package. The proof case is a voting show: five people vote on who performs
 each song, one graphic shows each person's vote for the current song, another keeps a running
 total of how many songs each person has guessed right. The owner wants to prompt it in Claude
 Code, save it with the CLI, and run it from the playout dashboard within minutes, in front of the
 producer and director.
 
-**What 2026-10-20 is, answered 2026-09-16** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-15-6): a
+**What the first showing is, answered 2026-09-16** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-15-6): a
 DEMONSTRATION, not an air date. The programme's own graphics are made in post by its own people;
 what is wanted on the day is a graphic that updates so the host and the contestants can follow the
 score, the playout in the room is SPX, and the point is to show the producers and creators how
@@ -38,10 +38,10 @@ agent door being allowed to WRITE the contract it already reads: today the skill
 tells a coding agent that authoring its own machine "is a later capability", while the runtime,
 the validator, the bench and all five renderers already accept one, and the owner blessed it on
 2026-08-27 under three gates. So the recommendation is to teach and gate the contract on the
-agent road before 2026-10-20, walk the proof case through it once ourselves, and hold everything
+agent road before the first showing, walk the proof case through it once ourselves, and hold everything
 else - phones, self-sorting rows on the SVG road, OGraf legality - until a real show asks for it.
 One thing did ask, the same day: the production control profile the road reserved is built for
-2026-10-20 as two primitives, ARRANGE and COMBINE (§6), with the proof case as its evidence and
+the first showing as two primitives, ARRANGE and COMBINE (§6), with the proof case as its evidence and
 not its shape. The reasons follow.
 
 ---
@@ -193,7 +193,7 @@ vocabulary lacks.
   field no ⚡ event carries as payload gets it, on air, partial updates), the ⚡ block in five
   sections, New game in red.
 
-### 3c. The operator's minute on 2026-10-20
+### 3c. The operator's minute at the first showing
 
 Before the song: type the song, the performers, the five picks and the correct letter into the
 votes cue; ⟳ Take. After the performance: » Next (or ⚡ Reveal performer). Read the board, then
@@ -202,7 +202,7 @@ correct guess per song, and every one of them is in today's dashboard. The total
 the whole show; the votes board is taken and cleared per song.
 
 Who that minute is for, since the 2026-09-16 answer: the host and the contestants reading the
-room's SPX output, with the programme's producers watching the operator. The presses are the same
+room's SPX output, with the show's producers watching the operator. The presses are the same
 ones either way. What changes is that a mistake costs a retake in the room instead of going out, so
 the minute demonstrates how quickly the graphic was made rather than surviving a transmission.
 
@@ -224,14 +224,14 @@ at:
 2. **A control's section is a static word.** The totals board's buttons sit under "Panelist 3"
    while the field beside them says "Katri". An additive `sectionField` on a control, naming the
    field whose current value heads the section, would put the person's name on the buttons on
-   every surface. Nice on 2026-10-20, not needed for it.
+   every surface. Nice for the first showing, not needed for it.
 3. **"+1 to whoever was right" cannot be one press across two graphics, and should not be
    faked.** A graphic never reacts to another graphic, an `adjust` delta is static, and a total
    the graphic bumped internally would drift from the log and vanish on recovery - the drift the
    `adjust` mechanism exists to prevent. The honest answers are the operator's presses (today),
    then a combined control in the production control profile - Reveal, then after a beat the
    five +1s each offered as a tick, one ordered batch of already-declared events (§6, built for
-   2026-10-20 by the owner's ruling of 2026-09-15) - and only then the open design question
+   the first showing by the owner's ruling of 2026-09-15) - and only then the open design question
    `docs/SVG_BEHAVIOUR_PLAN.md` §13 already names - whether a DERIVED value can be a field. That
    question is not bent around here.
 
@@ -248,14 +248,14 @@ package carries states the same contract as `schema`, `customActions` and `stepC
 sections and adjusts riding `v_noacg`. Nothing is added to any format.
 
 **Do the five votes come from an operator, or from the voters' phones through the audience join
-page?** From the operator, for 2026-10-20 and as the standing default. The audience plane counts
+page?** From the operator, for the first showing and as the standing default. The audience plane counts
 anonymous votes per option: `audience_votes` is keyed by `(round, device)`, a device token is
 never returned to an operator, and a tally is counts by option index. "Each person's vote" needs
 five NAMED seats, which is a different round kind, not a setting. It is worth building only if
 the production wants the panel to lock in from their phones, and it changes nothing about the
 graphic: named picks would stage onto the same five Pick fields through the same road a poll
 tally takes today (stage a cue, the operator takes it), so nothing viewer-written airs without a
-press. Design it when Yle asks; do not build it for the demo.
+press. Design it when a production asks; do not build it for the proof case.
 
 **Does a running total need rows that reorder themselves, which no recipe does today?** No, and
 the distinction is the useful part. Reordering is PAINT, and the control surface for a total is
@@ -267,7 +267,7 @@ board. A recipe is the wrong tool for a graphic that is prompted rather than dra
 
 ---
 
-## 5. What has to exist for 2026-10-20, and what waits
+## 5. What has to exist for the first showing, and what waits
 
 Ordered by what would sink the demo. **These rows start now** (owner, 2026-09-15,
 ALIGN-2026-09-15-4: work that is ready does not wait for its date). What the earlier dates still
@@ -292,7 +292,7 @@ below are what we BUILD; §5a is what the DAY needs**, and the two are not the s
 Rows 5 to 10 are the owner's 2026-09-15 rulings (§6). Everything else waits, each with the thing
 that would pull it up:
 
-- **Named-seat voting on `/join`** (§4, question 2) - when Yle asks for phones. Not the demo.
+- **Named-seat voting on `/join`** (§4, question 2) - when a production asks for phones.
 - **`sectionField` on a control** (§3d.2) - cheap, additive, after row 3 says whether it matters.
 - **`arrange` for the SVG road** - the ranking recipe's spike, unchanged in priority.
 - **Derived-value-as-field** - the bracket's and the auto-+1's shared question; a design of its
@@ -303,11 +303,11 @@ that would pull it up:
 
 ---
 
-### 5a. What 20 October actually needs
+### 5a. What the first showing actually needs
 
 **Answered 2026-09-16** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-15-6). The day is a demonstration:
 a score that updates so the host and the contestants can follow along, running on SPX, in front of
-the programme's producers and creators, to show how easily the graphic was made. A dated event gets
+the show's producers and creators, to show how easily the graphic was made. A dated event gets
 a clear list of what it needs and never the whole machine (owner, 2026-09-15), so here is the list
 and the evidence for each line. It is short because most of it is already standing.
 
@@ -352,16 +352,16 @@ and the evidence for each line. It is short because most of it is already standi
    minute with an audience watching - which is the half the producers will actually judge.
 
 4. **Nothing else, and this is the part worth saying out loud.** The day needs no broadcast chain,
-   no compatibility with Yle's own playout, and none of the programme's graphics, which its own
-   people make in post. Named-seat voting from phones stays where §4 put it - build it when Yle
-   asks. The early-October production is a separate, earlier date and still needs only the
+   no compatibility with the broadcaster's own playout, and none of the programme's graphics, which
+   its own people make in post. Named-seat voting from phones stays where §4 put it, built when a
+   production asks. The early-October production is a separate, earlier date and still needs only the
    scoreboards and quiz boards that already exist.
 
 ---
 
 ## 6. The production control profile - two primitives, and the proof that they are general
 
-**Ruled 2026-09-15, after this plan's first landing: build the profile for 2026-10-20.** The
+**Ruled 2026-09-15, after this plan's first landing: build the profile for the first showing.** The
 owner's framing binds the design and is quoted in `docs/OWNER_RULINGS.md` ALIGN-2026-09-15-2: the
 "one press: Reveal plus a delayed action" case is EVIDENCE for a general capability, never the
 workflow being designed around. NoaCG should control essentially any sensible graphic sequence -
@@ -424,7 +424,7 @@ against his example. Read against the standing challenge set (`docs/BEHAVIOUR_AU
 
 | Sequence a show wants | Which half answers it | Steps |
 |---|---|---|
-| Elämäni biisi: reveal the performer, then three seconds later the +1s for whoever was right | COMBINE across two graphics: `reveal` on the votes board; after 3 s, five `+1` steps on the totals board, each marked **ask** | 6 |
+| Voting show: reveal the performer, then three seconds later the +1s for whoever was right | COMBINE across two graphics: `reveal` on the votes board; after 3 s, five `+1` steps on the totals board, each marked **ask** | 6 |
 | Awards: reveal nominees in the producer's order, a beat apart, then the envelope | COMBINE on one graphic: five per-row reveals (the survey's `set` per row) with after 2 s on each, then `envelope` | 6 |
 | Late-night top ten: run the list by itself, one entry every four seconds | COMBINE: » Next on the cue, nine times, after 4 s each. The countdown is visible; Out cancels the rest | 9 |
 | Football: the operator understands football, not the software | ARRANGE: pin Goal A, Goal B, Clock start, Clock stop; hide Clear flag and the ± corrections into a "More" section | 0 |
@@ -583,5 +583,5 @@ Made here, recorded so they can be reverted rather than adjudicated:
     (§5 rows 9 and 10). Both are the shared-data capability, one case of the control model.
 
 **Needs him: nothing.** The one question the first landing put to him - whether to build the
-profile for 2026-10-20 - he answered the same day (ALIGN-2026-09-15-2), and §6 is the design his
+profile for the first showing - he answered the same day (ALIGN-2026-09-15-2), and §6 is the design his
 answer asked for.

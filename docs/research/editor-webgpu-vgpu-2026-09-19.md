@@ -68,7 +68,7 @@ sustained playout frame pacing, alpha correctness or competition with OBS encodi
 CasparCG test requirements include offscreen composition and actual fill/key or relevant output
 capture, channel cadence and GPU contention. Probe enable-gpu=false and true; retain a working
 fallback for the former. Existing permissive host flags are not a recommendation to relax
-NoaCG's iframe isolation or ship unsafe browser flags as the solution. Actual YLE host/version
+NoaCG's iframe isolation or ship unsafe browser flags as the solution. Actual receiving-host/version
 qualification remains separate. No OBS/CasparCG hardware test was performed for this research.
 
 ## Fit with the source and layer model

@@ -2,73 +2,21 @@
 
 Orientation, not rules. The rules that bind are compiled into `AGENTS.md` files from
 `contracts/rules/`; this is what a person or an agent reads ONCE to know what the product is and
-where to look. It is a doc rather than part of the root contract because the root contract is read
-in full by fifty-four instruction chains, and a product pitch does not belong in every session's
-first tokens.
-
-# AGENTS.md
-
-Guidance for AI agents working in this repo. Keep it accurate - update it when architecture or
-conventions change. This root file holds the product identity, the non-negotiables and the working
-practices; **deep per-area contracts live in nested `AGENTS.md` files** (marked `*` in the
-repository map, `docs/ARCHITECTURE.md` §8) - read the relevant one before editing that area from
-outside it.
-
-Be concise with all of your responses.
+where to look.
 
 ## What this is
 
-**NoaCG Studio** - a **free, open source** browser tool for creating modern, high-production-value
-HTML broadcast graphics and exporting them to **many broadcast/streaming environments**
-("anything-goes export": OGraf, CasparCG, SPX Graphics, OBS/vMix overlays today; more over time).
-A graphic comes from a template, a description, the user's own SVG artwork, or a coding agent
-through the NoaCG CLI. For TV channels, streamers, organizations and universities, technical and
-non-technical users alike - it is used in teaching, but it is a production tool, not a code
-tutorial.
+**NoaCG Studio** is a free, open source (AGPL-3.0) professional broadcast graphics creation and
+cloud playout platform. A graphic comes from a template or brand, the user's own SVG artwork, the
+editor, or a coding agent through the NoaCG CLI, and it plays out through NoaCG's own production,
+rundown and control panel to CasparCG (through NoaCG Bridge), OBS and other browser sources, vMix,
+SPX and OGraf hosts. Everything is free to use and to self-host; there is no paid surface.
 
-**It competes on accessibility: free and open source (AGPL-3.0), with no paid surface and none
-planned** (owner, 2026-09-07). Everything the product does is free to use and to self-host, hosted
-AI included - it is subsidised by the project rather than sold. The goal is users and adoption, and
-the ruling that settled it is in `docs/OWNER_RULINGS.md`. **OGraf**, the EBU's open format, is the
-interchange and playout contract the product is heading into (`docs/GOALS.md` "OGraf-first"). What
-the public page may claim about any of this is graded, row by row, in `docs/PROMISE_AUDIT.md`.
-
-Brand: dark control-room, one amber "on-air" accent, restrained glow. `NoaCG-Brand-Kit/BRAND-MANUAL.md`
-owns the palette and records which shipped typefaces diverge from it, and why.
-
-Binding docs, read before generating or judging templates: **`docs/DESIGN_LANGUAGE.md`** (taste +
-motion + code style) and **`docs/GOALS.md`** (north star + what is NOT done - a landed goal moves
-verbatim to `docs/GOALS_ARCHIVE.md`, and GOALS.md stays inside the line budget its own opening
-paragraph states, which `npm run check:goals-budget` enforces). **In GOALS.md, `## NOW`
-is the push and everything under `## NEXT`, `## THEN` and `## Parking lot` is PARKED** - parked
-work is not started because a doc describes it well, unless that section carves out an exception
-in its own text (the OGraf one does).
-
-**Current push (from 2026-08-22): STUDENTS MAKE THEIR OWN GRAPHICS AND PLAY THEM OUT** - binding
-roadmap in the "NOW" section of `docs/GOALS.md`; the student release before it is CLOSED (history
-in `docs/GOALS_ARCHIVE.md`). A student draws their own graphic - any graphic, not a lower third -
-gets the BEHAVIOUR their show needs onto it, and plays it out **without writing a line of code**.
-That "NOW" section names what is owed, over two capabilities - SVG import ending in somebody's
-own graphic playing on their own system, and the CLI carrying a graphic from an agent to the
-NoaCG player in minutes. Two graphics decide it: a QUIZ (lock / reveal) and a SCOREBOARD
-(score + / -). SVG import is how the artwork gets in. Wizard-first still holds for the
-catalog road, CasparCG + OBS are still the verification targets, AI work stays postponed.
-
-**The pillars (keep every change true to these):**
-- **Best & easiest to create - and put on air** - premium output with the least friction; a
-  non-technical user can make a great graphic AND run it live without ever touching code.
-  **AI-assisted** (later), but a pro keeps full control.
-- **Client-agnostic, and nothing MANDATORY** - a playout client is one TARGET among others,
-  never our word for a general concept; OGraf leads (EBU/YLE are the first customers). A slot is
-  `logo: 'optional'` + `defaultLogo`, never `'built-in'`. Gate: `check:client-neutral`.
-- **Export anywhere, standards-first** - the source is the NoaCG-native code-as-truth document;
-  every target is an adapter off it. SPX stays the strictest gate, rock-solid; OGraf is the
-  canonical interchange and playout contract (`docs/OGRAF_FIRST_REVIEW.md`).
-- **Code is real & always available, view optional** - every visual/AI action writes real
-  HTML/CSS/JS; **nothing hides behind a visual-only scene model**. No-code users keep the view
-  hidden, pros work in it. Generated code is clean and commented; exports are always plug-and-play.
-  The student release demotes only the VIEW (the editor becomes Advanced mode), never the code.
-
+- Direction, priorities and what "done" means for each area: **`docs/GOALS.md`**.
+- Taste for generated graphics: **`docs/DESIGN_LANGUAGE.md`**.
+- Brand: `NoaCG-Brand-Kit/BRAND-MANUAL.md`, today's baseline; a redesign is expected.
+- What the public page may claim: `docs/PROMISE_AUDIT.md`.
+- The code map: `docs/ARCHITECTURE.md`.
 ## Commands
 
 ```bash

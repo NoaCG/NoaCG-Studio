@@ -34,11 +34,10 @@ already tracked in `docs/acceptance/owner-queue/` need no second home here.
 ## Owed a human look
 
 - Countdown manual start - a design pass, not a bug; raised with the goal-bumps-score work.
-- Send Yle the `/ograf` page and `/app?diag=1` - promised at the 2026-08-20 meeting.
 - Blind reads owed on design-principles teaching and the Pro Phase B package - both merged,
   both judged only by me.
 - Owner gallery read of graphics import + recreate; the hosted `/output` walk.
-- Live walks owed: weather pack, Fight Night pack, the Yle scorebug on the production data API,
+- Live walks owed: weather pack, Fight Night pack, the scorebug on the production data API,
   the picture-publish path in controller partial bumps.
 - `-> Preview` in the cue editor is undecided - it shipped, nobody ruled on whether it stays.
 - 50px design rule wants re-ratification.

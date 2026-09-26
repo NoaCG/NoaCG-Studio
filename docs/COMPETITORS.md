@@ -88,7 +88,7 @@ than list on an assertion.
 
 ---
 
-## MXMZ - the one Yle named as the working model
+## MXMZ - the closest working model
 
 Read 2026-08-22, re-read 2026-08-28. Full account: `docs/COMPETITOR_MXMZ.md`. Cloud-native HTML5/SVG
 graphics, spun out of Banijay's sports arm, in Grass Valley AMPP, price floor under $3,000/year.
@@ -96,11 +96,11 @@ graphics, spun out of Banijay's sports arm, in Grass Valley AMPP, price floor un
 | Capability | They have | Us | Verdict |
 |---|---|---|---|
 | SVG import, every layer exposed | Yes, from Illustrator / Figma / Canva, no renaming ritual | SVG import v1, the current push | **Match, unproven at their scale** |
-| Keyframe timeline as the primary surface | Yes, frame-accurate, every layer and property, trained in one day | Timeline v2 exists, sits in Advanced mode, nobody is taught it | **GAP** - not the feature, the teaching |
+| Keyframe timeline as the primary surface | Yes, frame-accurate, every layer and property, trained in one day | Timeline v2 exists in the new editor, nobody is taught it | **GAP** - not the feature, the teaching |
 | Authored behaviour / logic | **Nothing public shows them authoring logic at all.** This covers AUTHORED LOGIC only - it is not a claim about AI or automation, see the two rows below | Full state machine: structural guards, parallel groups, timers, snap, serial queue, inside the template | **We beat**, on logic |
 | AI-assisted assembly from newsroom context | **Not built by MXMZ - but MXMZ is one of four engines HighField AI drives** (story analysis, asset retrieval, data verification, layout, template selection + playout mapping; NRCS in, filled package out, human sign-off before air) | Nothing takes a story, a rundown or a running production as input; no assembly layer lists us as an engine | **GAP, and the biggest one on this page** |
 | AI that AUTHORS a graphic | Nothing public, from them or from HighField - the templates are made by hand in XPression, Viz, Unreal or MXMZ | The agent door (`docs/AGENT_CLI.md`) and Create with AI: a chat produces a complete, validated, benched, playable graphic | **We beat**, on an axis nobody else is contesting |
-| Third-party playout reach | Grass Valley AMPP; ToolsOnAir just:live / just:play pro 2026 names MXMZ templates on macOS SDI/NDI | **SPX is on that same ToolsOnAir list**, so our canonical format reaches it - unclaimed, and never tested by us | **Match on paper, untested** |
+| Third-party playout reach | Grass Valley AMPP; ToolsOnAir just:live / just:play pro 2026 names MXMZ templates on macOS SDI/NDI | **SPX is on that same ToolsOnAir list**, so our SPX export reaches it - unclaimed, and never tested by us | **Match on paper, untested** |
 | Control panel | Hand-built per vertical (Match Control, per-sport panels) | GENERATED from the machine, every event a button, legality mirrored as greying | **We beat** |
 | Live data binding | JSON, Opta / Gracenote / Sportradar and custom APIs | The production DATA API (`docs/DATA_API.md`), update rows in the control log | **Match** |
 | Version control with rollback | Yes, every adjustment logged, rollback to any iteration | Undo and saved documents | **GAP** |
@@ -200,7 +200,7 @@ Last read 2026-07-09. HTML broadcast graphics, the **closest positioning to ours
 
 | Capability | They have | Us | Verdict |
 |---|---|---|---|
-| Timeline and canvas editing | The bar Advanced mode has to beat | Timeline v2 and the canvas exist | **Unjudged** - nobody has put them side by side |
+| Timeline and canvas editing | The bar the new editor has to beat | Timeline v2 and the canvas exist | **Unjudged** - nobody has put them side by side |
 | LiveOS integration | A legacy `templates.json` export into a LiveOS templates folder | We reach LiveOS through OGraf, which cannot drift | **We beat**, on robustness |
 | Everything else | UNRESEARCHED | | The single biggest hole in this file, given the positioning overlap |
 
@@ -267,8 +267,8 @@ requirements list.
 - **Singular.live** - cloud graphics, browser control room, their playout reaching air. They do
   most of what we intend, so our gap to open is **breadth** over equivalent cloud playout.
 - **Loopic** - HTML broadcast graphics, closest positioning to ours. Its timeline and canvas
-  editing are what Advanced mode has to beat.
-- **MXMZ** (mxmz.com - named by Yle as the working model; researched 2026-08-22, re-read
+  editing are what the new editor has to beat.
+- **MXMZ** (mxmz.com - the closest working model; researched 2026-08-22, re-read
   2026-08-28 in `docs/COMPETITOR_MXMZ.md`) - they prove the "your own SVG, playable" workflow at
   broadcast scale, so our SVG import has to match it: every layer auto-exposed, no renaming ritual.
   We beat them on what they lock away (free-forever, self-host, export anywhere, a catalog) and on

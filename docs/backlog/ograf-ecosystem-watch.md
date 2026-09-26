@@ -12,7 +12,7 @@ interop testing; they do not establish universal renderer compatibility or nativ
 ## Why
 
 We bet the export story on OGraf leading (root `AGENTS.md`, "Client-agnostic, and nothing
-MANDATORY"; EBU/YLE as first customers). That bet is either getting stronger or it is not, and the
+MANDATORY"; broadcasters asked for it first). That bet is either getting stronger or it is not, and the
 only way to tell is whether **other people's products** adopt the spec. Nothing in this repository
 can know that, and nothing in this repository was recording it - each month's competitor review
 found OGraf news, said it in chat, and the evidence evaporated when the session closed.
@@ -82,7 +82,7 @@ A ledger that only accumulates is the landfill `docs/backlog/README.md` warns ab
   Election"*. Denmark's parliamentary election was 2026-03-24.
   *What it means for us:* the strongest single data point on this page. Election night is the
   hardest live graphics night a public broadcaster has, and OGraf survived one at national scale.
-  That is the reference a Yle-shaped customer asks for, and it is an argument we can make in public
+  That is the reference a public-broadcaster customer asks for, and it is an argument we can make in public
   copy without qualification.
   <https://tech.ebu.ch/publications/presentations/2026/nts2026/open-graphics-for-live-media-ograf-proven-in-a-national-election>
 

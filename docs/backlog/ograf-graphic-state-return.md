@@ -65,7 +65,7 @@ responses with the renderer-level endpoint as the precedent, leads with the thre
 disagreement, gives the live-vote use case, and raises the adjacent question - nothing reports a
 loaded instance's current step or data, so a controller that reconnects cannot learn what is on air
 without asking the graphic - as a separable second item rather than folding it in. It is purely
-technical and pitches nothing: the standing ruling that EBU/YLE **outreach** waits for a real
+technical and pitches nothing: the standing ruling that EBU and broadcaster **outreach** waits for a real
 production on working OGraf playout is untouched.
 
 **What NOT to do:** invent a NoaCG push channel inside an OGraf package. The command log is our

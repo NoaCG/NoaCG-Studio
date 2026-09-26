@@ -40,8 +40,9 @@ tools and selected artwork. Keep independent CLI/MCP authoring and editable roun
 paired live-document MCP later. No AI draft edit silently changes on-air output. Monaco is optional.
 
 ### Portable production
-Readable `SpxTemplate`/`NOACG_ANIM` remains the only source of truth. Save/reopen and local asset
-bundling feed OGraf, SPX, CasparCG and NoaCG production through existing adapters. Match pinned
+A saved graphic reopens exactly as it was and can reach every supported target from one saved
+graphic; the internal format is an engineering decision, not a product principle. Save/reopen and
+local asset bundling feed OGraf, SPX, CasparCG and NoaCG production through the existing adapters. Match pinned
 Zero Density Studio on the required tasks and beat its complete artwork-to-branded-production
 workflow. This is the destination; only measured evidence can establish that comparison.
 
@@ -101,7 +102,7 @@ workflow. This is the destination; only measured evidence can establish that com
   instanced precompositions. Owner approved 2026-09-19: groups ship in R1.2b; named P-COMP
   delivers reusable instances after R1.5. Both remain required for full completion.
 - New Text is editable in playout by default; honor wizard exclusions and driven fields.
-  Stable schema keys survive label changes. OGraf/YLE acceptance includes a named runtime host.
+  Stable schema keys survive label changes. OGraf acceptance includes a named receiving host.
 - Linear, Easy Ease In/Out, Easy Ease, Bounce, Overshoot and Hold Keyframe share one batch action:
   marquee/Ctrl/Cmd/Shift selection, toolbar or right-click. Shared evaluator/export parity; new curve graph UI deferred.
 - UI, chat and external tools use one operation registry over deterministic readable patches.

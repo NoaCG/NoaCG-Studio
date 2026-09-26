@@ -59,7 +59,7 @@ So roughly **weekly, one wave carries a COHERENCE SESSION** - fresh context, no 
 2. Contradictions between contracts (nested AGENTS.md vs root, docs vs code) - fix or file.
 3. Docs nothing references and references to nothing - delete or repair; git is the archive.
 4. The byte ratchet: tighten `project_doc_max_bytes` where headroom allows. It only moves down.
-5. GOALS drift: does ## NOW still match what waves actually built? Report the gap - the owner
+5. GOALS drift: do the `(now)` outcomes and their current states still match what waves built? Report the gap - the owner
    rules on direction.
 
 Its output is small diffs plus a one-page verdict in its handoff. When no wave has carried one for

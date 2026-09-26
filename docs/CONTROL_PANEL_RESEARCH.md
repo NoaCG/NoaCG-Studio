@@ -88,7 +88,7 @@ marketing video frame. Treat accordingly.
 6. **Legality and state.** [blank] Nothing public describes a disabled control, a state readout,
    or an illegal press.
 
-**The shape:** links 1-3 are excellent and are the thing Yle named them for. Link 4 is absorbed by
+**The shape:** links 1-3 are excellent and are the reason they are the model. Link 4 is absorbed by
 services. Links 5-6 are a product somebody at MXMZ builds.
 
 ---
