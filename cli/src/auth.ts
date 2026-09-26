@@ -3,7 +3,8 @@
 // holds - never the user's session - and it can do one thing: put graphics in the library.
 //
 // WHERE. `<configDir>/credentials.json`, keyed by deployment origin, so one machine can hold a
-// key for noacg.studio and another for a self-host. POSIX: the directory is 0700 and the file
+// key for noacg.studio and another for a self-host. `NOACG_CREDENTIALS_DIR` moves it (config.ts
+// credentialsDir), so several checkouts on one account can each hold a login of their own. POSIX: the directory is 0700 and the file
 // 0600. Windows has no mode bits; the directory's ACL is reset to the current user only
 // (`icacls … /inheritance:r /grant:r <user>:(OI)(CI)F`), best effort - the default %APPDATA%
 // is already per-user, so the reset narrows an unusual setup rather than creating safety from
@@ -21,7 +22,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { cliVersion, configDir, noacgUrl } from './config.js';
+import { cliVersion, credentialsDir, noacgUrl } from './config.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -43,7 +44,7 @@ interface CredentialsFile {
 }
 
 export function credentialsPath(): string {
-  return path.join(configDir(), 'credentials.json');
+  return path.join(credentialsDir(), 'credentials.json');
 }
 
 async function readFile(): Promise<CredentialsFile> {

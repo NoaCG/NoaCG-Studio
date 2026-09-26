@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { writeCliCredentialsEnv } from './cli-credentials-env.mjs';
 import { readHookInput } from './lib.mjs';
 import { HOME_RELATIVE_PATH } from '../orchestrator-home.mjs';
 import { reattachMainIfSafe } from '../reattach-main.mjs';
@@ -88,6 +89,13 @@ if (stubRoot && !roots.some((root) => root.toLowerCase() === stubRoot.toLowerCas
 // worktrees' paths, so longest match wins).
 const root = roots.filter((r) => isUnder(sessionCwd, r)).sort((a, b) => b.length - a.length)[0];
 if (!root) process.exit(0); // cwd outside every checkout (shouldn't happen) - stay quiet
+
+// Each checkout keeps its own `noacg login`, so one row's logout cannot sign its siblings out.
+try {
+  writeCliCredentialsEnv();
+} catch {
+  // Best effort: without it the CLI uses the per-user store, as it did before.
+}
 
 const branch = gitLines(['rev-parse', '--abbrev-ref', 'HEAD'], root)[0] ?? 'unknown';
 const branchLabel = branch === 'HEAD' ? 'detached HEAD' : `branch ${branch}`;

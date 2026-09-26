@@ -34,7 +34,7 @@ import { readDoc, skillDir } from '../dist/commands/docs.js';
 import { flagBool, flagList, flagNumber, flagString, parseArgs, table, UsageError } from '../dist/output.js';
 import { FRAMES_MARKER, isGeneratedFile, markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo, zipDirectory } from '../dist/workspace.js';
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
-import { cliVersion, noacgUrl } from '../dist/config.js';
+import { cliVersion, configDir, credentialsDir, noacgUrl } from '../dist/config.js';
 import { parseFieldList } from '../dist/commands/scaffold.js';
 
 const exec = promisify(execFile);
@@ -384,17 +384,65 @@ test('an agent key is recognised by prefix and length, and only ever shown as a 
   assert.equal(shown.includes(key), false);
 });
 
-// configDir() is per-OS: %APPDATA% on Windows, $XDG_CONFIG_HOME on Linux, and a fixed path under
-// ~/Library on macOS with no env door. CI is Linux and this project is developed on Windows, so
-// the store is covered on both; macOS would need a real home directory to write into.
-const noConfigDoor = process.platform === 'darwin' ? 'configDir() has no env override on darwin' : false;
-
-test('the credential store: written per deployment, 0600 where modes exist, and forgotten on request', { skip: noConfigDoor }, async () => {
-  const home = await tmpdir();
-  const before = { APPDATA: process.env.APPDATA, XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME, NOACG_AGENT_KEY: process.env.NOACG_AGENT_KEY };
+/** Run `fn` with these environment variables (undefined = unset), then put every one back. */
+async function withEnv(vars, fn) {
+  const before = Object.fromEntries(Object.keys(vars).map((k) => [k, process.env[k]]));
+  const apply = (values) => {
+    for (const [k, v] of Object.entries(values)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  };
+  apply(vars);
   try {
-    process.env.APPDATA = home;
-    process.env.XDG_CONFIG_HOME = home;
+    return await fn();
+  } finally {
+    apply(before);
+  }
+}
+
+// The key file lives in the per-OS config directory unless NOACG_CREDENTIALS_DIR names another,
+// and that override is also how these tests keep away from the developer's real key.
+test('with no override the key store is exactly the per-user config directory it always was', async () => {
+  await withEnv({ NOACG_CREDENTIALS_DIR: undefined }, async () => {
+    const perOs =
+      process.platform === 'win32'
+        ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'noacg')
+        : process.platform === 'darwin'
+          ? path.join(os.homedir(), 'Library', 'Application Support', 'noacg')
+          : path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'noacg');
+    assert.equal(configDir(), perOs);
+    assert.equal(credentialsDir(), perOs);
+    assert.equal(credentialsPath(), path.join(perOs, 'credentials.json'));
+  });
+  await withEnv({ NOACG_CREDENTIALS_DIR: '  ' }, async () => {
+    assert.equal(credentialsDir(), configDir(), 'a blank override is no override');
+  });
+});
+
+test('two key stores on one account: logging out in one leaves the other signed in', async () => {
+  const [a, b] = [await tmpdir(), await tmpdir()];
+  const origin = 'http://127.0.0.1:1'; // what run() points the CLI at; neither command calls it
+  const keyA = `${AGENT_KEY_PREFIX}${'a'.repeat(32)}`;
+  const keyB = `${AGENT_KEY_PREFIX}${'e'.repeat(32)}`;
+  for (const [dir, key] of [[a, keyA], [b, keyB]]) {
+    const r = await run(['login', '--key', key, '--json'], { NOACG_CREDENTIALS_DIR: dir });
+    assert.equal(r.code, 0, r.stderr);
+  }
+  const out = await run(['logout', '--local', '--json'], { NOACG_CREDENTIALS_DIR: b });
+  assert.equal(out.code, 0, out.stderr);
+  assert.equal(JSON.parse(out.stdout).forgotten, true);
+
+  const held = async (dir) => withEnv({ NOACG_CREDENTIALS_DIR: dir, NOACG_AGENT_KEY: undefined }, () => resolveKey(origin));
+  assert.equal(await held(b), null, 'the store that logged out holds nothing');
+  assert.equal((await held(a))?.key, keyA, "the sibling's key is untouched");
+});
+
+test('the credential store: written per deployment, 0600 where modes exist, and forgotten on request', async () => {
+  const home = await tmpdir();
+  const before = { NOACG_CREDENTIALS_DIR: process.env.NOACG_CREDENTIALS_DIR, NOACG_AGENT_KEY: process.env.NOACG_AGENT_KEY };
+  try {
+    process.env.NOACG_CREDENTIALS_DIR = home;
     delete process.env.NOACG_AGENT_KEY;
 
     const key = `${AGENT_KEY_PREFIX}${'b'.repeat(32)}`;
@@ -677,7 +725,7 @@ async function drivenLogin({ waitSec }) {
   const key = `${AGENT_KEY_PREFIX}${'d'.repeat(32)}`;
   const { server: stub, origin } = await stubDeployment(key);
   const home = await tmpdir();
-  const env = { ...process.env, NOACG_URL: origin, APPDATA: home, XDG_CONFIG_HOME: home };
+  const env = { ...process.env, NOACG_URL: origin, NOACG_CREDENTIALS_DIR: home };
   delete env.NOACG_AGENT_KEY;
 
   const child = spawn(process.execPath, [cli, 'login', '--no-browser', '--wait', String(waitSec)], { env });
@@ -759,7 +807,7 @@ async function drivenLogin({ waitSec }) {
   }
 }
 
-test('a successful login exits 0 promptly, with the browser tab still open', { skip: noConfigDoor }, async () => {
+test('a successful login exits 0 promptly, with the browser tab still open', async () => {
   const session = await drivenLogin({ waitSec: 60 });
   try {
     const done = await session.complete(`code=test-code&state=${session.state}`);
@@ -778,7 +826,7 @@ test('a successful login exits 0 promptly, with the browser tab still open', { s
     assert.match(stdout, /revoke it any time/, 'the success line says how to take the key back');
     assert.doesNotMatch(stderr, /Logged in to /, 'the success line is not on stderr');
 
-    const stored = JSON.parse(await fs.readFile(path.join(session.home, 'noacg', 'credentials.json'), 'utf8'));
+    const stored = JSON.parse(await fs.readFile(path.join(session.home, 'credentials.json'), 'utf8'));
     assert.equal(stored.deployments[session.origin].key, session.key, 'the key it printed about is the key it stored');
   } finally {
     session.release();

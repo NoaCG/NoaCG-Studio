@@ -60,7 +60,8 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
   mcp                            Run as an MCP server over stdio: one tool, noacg, command = the verb.
 
 Environment: NOACG_URL (default https://noacg.studio), NOACG_BROWSER (a Chromium executable),
-             NOACG_AGENT_KEY (a key for CI - beats the stored one).
+             NOACG_AGENT_KEY (a key for CI - beats the stored one),
+             NOACG_CREDENTIALS_DIR (where login keeps its key; default the config dir).
 Exit codes: 0 clean, 1 findings / refused, 2 usage or IO error.`;
 
 type Command = (args: ParsedArgs, out: Out) => Promise<number>;

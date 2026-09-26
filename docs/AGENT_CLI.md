@@ -154,7 +154,19 @@ install script would turn `npx @noacg/cli` into a package that installs half-bui
 Environment: `NOACG_URL` (the deployment to drive and save to; default `https://noacg.studio`;
 `http://localhost:<port>` for a dev server; any self-host), `NOACG_BROWSER` (a Chromium
 executable when the system Chrome/Edge channel is not wanted), `NOACG_AGENT_KEY` (a key for CI /
-containers - beats the stored one), `NOACG_AGENT_NAME` (what `login` calls itself).
+containers - beats the stored one), `NOACG_AGENT_NAME` (what `login` calls itself),
+`NOACG_CREDENTIALS_DIR` (the folder `login` keeps its key in; default the per-user config
+directory).
+
+In this repository each checkout keeps its own login. The key used to be one file per user
+account, so a wave row that ran `noacg logout` or logged in again silently signed out or replaced
+the key every sibling row and the owner's own terminal were using. The SessionStart hook
+(`scripts/hooks/cli-credentials-env.mjs`) writes a line to `$CLAUDE_ENV_FILE` that sets
+`NOACG_CREDENTIALS_DIR` to `.noacg/` (gitignored) at the root of whichever checkout a Bash command
+runs in, resolved per command because rows are subagents that share their launcher's session
+environment. A fresh worktree therefore starts logged out; `noacg doctor` prints the `key store`
+line when the override is active. Not covered: the PowerShell tool (it does not read the env file)
+and Codex sessions, which still use the per-user store unless the variable is set by hand.
 
 Vocabulary (the product's): `save` puts a graphic in the LIBRARY. `publish` is what a PRODUCTION
 does when it goes to the hosted control page / output URL; `add`, `publish`, `take`/`update`/
