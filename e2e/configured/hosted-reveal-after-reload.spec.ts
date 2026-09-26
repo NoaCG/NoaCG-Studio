@@ -10,11 +10,18 @@ import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpe
 // honest, round after round on one production: after the reload, do the tab's own PROGRAM
 // monitor, the key its editor shows and the renderer (OBS) agree on the verdict?
 //
+// Its first run found a road G's fix left open. Reveal correct CARRIES the key the cue shows, and
+// a reloaded tab shows the shared staged buffer. A key aired by a Take or an Update reached that
+// buffer only when the typing debounce ran out, so a reload inside that window brought the tab
+// back on the older key and the Reveal lit it on air. Pressing Take or Update now stages the
+// typing at once (HostedControlPage `flushTyping`).
+//
 // Three ways a class reaches the reload, one per round:
 //   settled - locked, the renderer has reported it, a moment passes, then the reload;
 //   fast    - the reload the instant the lock is on air, racing the renderer's own report;
-//   rekey   - the key changed and Updated on air after the Take, then lock and reload at once,
-//             so the aired key is not the one the cue was taken with.
+//   rekey   - locked on one key, the key corrected and Updated on air, and the reload the
+//             moment that Update has landed, so the aired key is not the one the cue was taken
+//             with and the tab has had no time to spare.
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
@@ -90,10 +97,6 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
     await tab.getByTestId(`hosted-field-f6-opt-${pick}`).click();
     await tab.getByTestId('hosted-take-cue').click();
     await expect(tab.getByTestId('hosted-live-chip'), tag).toContainText('Quiz board', WIRE);
-    if (variant === 'rekey') {
-      await tab.getByTestId(`hosted-field-f5-opt-${key}`).click();
-      await tab.getByTestId('hosted-update-cue').click();
-    }
     await tab.getByRole('button', { name: /Select answer/ }).click();
     // This round's pick on air, unlocked, before the lock: the previous round's picture is gone.
     await expect(air.locator(`[data-noacg-role~="answer.selected/${pick}"]`), tag).toHaveClass(/imported-design-on/, WIRE);
@@ -101,6 +104,16 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
     await tab.getByRole('button', { name: /Lock it in/ }).click();
     await expect(air.locator('[data-noacg-role~="locked"]'), tag).toHaveClass(/imported-design-on/, WIRE);
     if (variant === 'settled') await tab.waitForTimeout(3_000);
+    if (variant === 'rekey') {
+      // The key is corrected ON AIR while locked, and the tab reloads the moment the Update has
+      // landed. That used to be inside the typing debounce, so the shared buffer never saw the
+      // new key: the tab came back on the old one, and its Reveal carried the old one to air.
+      const updated = tab.waitForResponse((r) => r.url().includes('/rpc/control_send') && r.ok());
+      await tab.getByTestId(`hosted-field-f5-opt-${key}`).click();
+      await tab.getByTestId('hosted-update-cue').click();
+      await updated;
+      await tab.waitForTimeout(100);
+    }
 
     await tab.reload();
     await expect(tab.getByTestId('hosted-control-page'), tag).toBeVisible({ timeout: 60_000 });
