@@ -5,6 +5,7 @@ import { setCssDeclaration, setFieldDefault } from './edit';
 import { lineFontSize, setLineTextStyle } from './designLayout';
 import { replaceDefinitionInHtml } from '../model/spxDefinition';
 import { BEHAVIOUR_ROLE_ATTR, parseBehaviourData } from './behaviourData';
+import { parseAnimData } from './animData';
 
 export function artworkNode(template: SpxTemplate, selector: string): Element {
   const doc = new DOMParser().parseFromString(template.html, 'text/html');
@@ -73,16 +74,23 @@ export function editArtworkText(template: SpxTemplate, selector: string, text: s
   return next;
 }
 
-export interface ArtworkStyle { fontId?: string; fontSize?: number; color?: string; fill?: string }
+export interface ArtworkStyle { fontId?: string; fontSize?: number; color?: string; fill?: string; opacity?: number }
 export function editArtworkStyle(template: SpxTemplate, selector: string, patch: ArtworkStyle): SpxTemplate {
   const node = artworkNode(template, selector), text = artworkText(template, selector);
   const svg = node.namespaceURI === 'http://www.w3.org/2000/svg';
   if (!Object.keys(patch).length) throw new Error('Choose an appearance change.');
   if ((patch.fontId !== undefined || patch.fontSize !== undefined || patch.color !== undefined) && !text) throw new Error('Typography requires a plain text layer.');
   if (patch.fontSize !== undefined && (!Number.isFinite(patch.fontSize) || patch.fontSize < 1 || patch.fontSize > 2000)) throw new Error('Font size must be between 1 and 2000.');
+  if (patch.opacity !== undefined) {
+    if (!Number.isFinite(patch.opacity) || patch.opacity < 0 || patch.opacity > 1) throw new Error('Opacity must be between 0 and 100%.');
+    const motion = parseAnimData(template.js);
+    if (motion && (node.matches(motion.root) || motion.steps.some(step => Object.entries(step.layers).some(([target, tracks]) => node.matches(target) && ('opacity' in tracks || 'autoAlpha' in tracks))))) {
+      throw new Error('Opacity is animated on this layer. Preserve that motion or change its animation in source.');
+    }
+  }
   for (const color of [patch.color, patch.fill]) if (color !== undefined && !/^#[\da-f]{6}$/i.test(color)) throw new Error('Choose a solid six-digit hex colour.');
   if (patch.fill !== undefined && (text || !['div', 'rect', 'ellipse', 'circle', 'path', 'polygon'].includes(node.tagName.toLowerCase()))) throw new Error('Select a solid shape to change its fill.');
-  const properties = [patch.fontId !== undefined && 'font-family', patch.fontSize !== undefined && 'font-size', patch.color !== undefined && (svg ? 'fill' : 'color'), patch.fill !== undefined && (svg ? 'fill' : 'background')].filter(Boolean) as string[];
+  const properties = [patch.fontId !== undefined && 'font-family', patch.fontSize !== undefined && 'font-size', patch.color !== undefined && (svg ? 'fill' : 'color'), patch.fill !== undefined && (svg ? 'fill' : 'background'), patch.opacity !== undefined && 'opacity'].filter(Boolean) as string[];
   if (properties.some(prop => (node as HTMLElement).style.getPropertyValue(prop))) throw new Error('This layer has inline appearance rules. Edit its source to preserve their priority.');
   let next = template;
   if (!svg && text) next = setLineTextStyle(next, node.id, patch) ?? next;
@@ -98,6 +106,7 @@ export function editArtworkStyle(template: SpxTemplate, selector: string, patch:
   }
   if (patch.color !== undefined) css = setCssDeclaration(css, selector, svg ? 'fill' : 'color', patch.color);
   if (patch.fill !== undefined) css = setCssDeclaration(css, selector, svg ? 'fill' : 'background', patch.fill);
+  if (patch.opacity !== undefined) css = setCssDeclaration(css, selector, 'opacity', String(patch.opacity));
   return { ...next, css };
 }
 

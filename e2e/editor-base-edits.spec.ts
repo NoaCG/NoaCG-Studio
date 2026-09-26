@@ -55,6 +55,31 @@ test('B04 basic artwork text and appearance controls are available', async ({ pa
   await expect(page.getByRole('textbox', { name: 'Font size', exact: true })).toBeVisible();
 });
 
+test('B04 basic opacity preserves motion and survives history and reopening', async ({ page }) => {
+  await seed(page);
+  const original = await source(page);
+  await page.getByRole('spinbutton', { name: /Opacity %/ }).fill('60');
+  await page.getByRole('button', { name: 'Apply appearance' }).click();
+  await expect.poll(async () => (await preview(page)).locator('#f0').evaluate(el => getComputedStyle(el).opacity)).toBe('0.6');
+  expect((await source(page)).js).toBe(original.js);
+  const changed = await source(page);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+  expect(await source(page)).toEqual(original);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page);
+  expect(await source(page)).toEqual(changed);
+  await saveThroughDialog(page, 'Translucent title');
+  await page.reload(); await ready(page);
+  await expect.poll(async () => (await preview(page)).locator('#f0').evaluate(el => getComputedStyle(el).opacity)).toBe('0.6');
+  const refused = await page.evaluate(async () => {
+    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const template = useTemplateStore.getState().template;
+    try { applyOperations(template, [{ kind: 'style.set', selector: '.lower-third-box', values: { opacity: .5 } }]); return ''; }
+    catch (error) { return String(error); }
+  });
+  expect(refused).toContain('animated');
+});
+
 for (const name of ['catalog', 'svg']) test('B04 artwork content, appearance and structure on ' + name, async ({ page }) => {
   await seed(page, name);
   const initial = await source(page);

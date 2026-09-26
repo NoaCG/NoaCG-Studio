@@ -36,6 +36,8 @@ export default function ArtworkAppearance({ template, selector, session, appeara
       <label className="ef-appearance-field">{text ? 'Text colour' : 'Solid fill'}<FieldControl descriptor={{ key: 'appearance-color', label: text ? 'Text colour' : 'Solid fill', kind: 'color', defaultValue: '#ffffff' }}
         value={(text ? draft.color : draft.fill) ?? hex}
         onChange={value => setDraft({ ...draft, [text ? 'color' : 'fill']: String(value) })} testId="artwork-colour" /></label>
+      <div className="ef-appearance-field">Opacity %<FieldControl descriptor={{ key: 'appearance-opacity', label: 'Opacity %', kind: 'number', defaultValue: 100, min: 0, max: 100, step: 1 }}
+        value={Math.round((draft.opacity ?? appearance?.opacity ?? 1) * 100)} onChange={value => setDraft({ ...draft, opacity: Number(value) / 100 })} testId="artwork-opacity" /></div>
       <div className="ef-edit-actions"><button disabled={!Object.keys(draft).length} onClick={apply}>Apply appearance</button>
         <button disabled={!Object.keys(draft).length} onClick={() => setDraft({})}>Reset changes</button></div>
     </>}
