@@ -3,6 +3,7 @@
 //
 //   npm run rules -- src/components/wizard/steps/BrowseStep.tsx e2e/wizard-filters.spec.ts
 //   npm run rules -- --area wizard
+//   npm run rules -- --loaded src/templates/tickers/AGENTS.md src/templates/tickers/tk01.ts
 //
 // Claude Code loads folder guidance by itself when it reads a file (.claude/rules/ and the
 // folder CLAUDE.md wrappers). Codex loads AGENTS.md files only from the root down to where it
@@ -13,7 +14,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { GENERATED_MARKER, parseRules, RULES_DIR, rulesFor } from './contracts-lib.mjs';
+import { GENERATED_MARKER, parseRules, RULES_DIR, rulesFor, validateAgainstTree } from './contracts-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -66,10 +67,51 @@ export function folderContracts(relPaths, root = ROOT) {
   return out;
 }
 
+/** Explicit native loads, not guessed from cwd: a session can change its shell directory. */
+export function loadedGuidance(files, root = ROOT) {
+  const contracts = new Set();
+  const ids = new Set();
+  for (const file of files) {
+    const rel = path.relative(root, path.resolve(root, file)).replaceAll('\\', '/');
+    if (rel === '..' || rel.startsWith('../') || path.isAbsolute(rel)
+      || !['AGENTS.md', 'AGENTS.override.md'].includes(path.basename(rel))) {
+      throw new Error(`[rules] --loaded must name an instruction file inside this checkout: ${file}`);
+    }
+    // Fail on a typo instead of silently claiming to have deduplicated a missing file.
+    const body = readFileSync(path.join(root, rel), 'utf8');
+    contracts.add(rel);
+    if (body.includes(GENERATED_MARKER)) {
+      for (const match of body.matchAll(/^- \*\*\w+\*\* `([^`]+)`:/gm)) ids.add(match[1]);
+    }
+  }
+  return { contracts, ids };
+}
+
+/** Keep sibling/file-scoped rules even when another rule in the same area was loaded. */
+export function missingRules(rules, relPaths, loaded, root = ROOT) {
+  const selected = relPaths.flatMap((rel) => rulesFor(rules, rel))
+    .filter((r) => !(r.scope.length === 1 && r.scope[0] === '**') && !loaded.ids.has(r.id));
+  return [...new Map(selected.map((r) => [r.id, r])).values()].filter((rule) => {
+    // Use the compiler's carrier proof. An unproven carrier must not hide its sentence.
+    validateAgainstTree(rule, root);
+    return !rule.carried;
+  });
+}
+
 function main() {
-  const args = process.argv.slice(2);
+  const args = [];
+  const loadedFiles = [];
+  const input = process.argv.slice(2);
+  const from = process.env.INIT_CWD || process.cwd();
+  for (let i = 0; i < input.length; i += 1) {
+    if (input[i] !== '--loaded') args.push(input[i]);
+    else {
+      if (!input[i + 1] || input[i + 1].startsWith('--')) throw new Error('[rules] --loaded needs an AGENTS.md path');
+      loadedFiles.push(path.resolve(from, input[++i]));
+    }
+  }
   if (args.length === 0) {
-    console.error('Usage: npm run rules -- <the files you will edit>   or   npm run rules -- --area <area>');
+    console.error('Usage: npm run rules -- [--loaded <AGENTS.md>] <files>   or   npm run rules -- --area <area>');
     process.exit(1);
   }
   // Parsed, not validated (`loadRules` takes about fifteen seconds, longer than a Codex shell
@@ -87,21 +129,22 @@ function main() {
   // `**` rules, which already arrived with the root AGENTS.md.
   // `npm run` moves to the package root, so a relative path is resolved from where the caller
   // typed it (INIT_CWD), and a path outside this checkout has no folder guidance here.
-  const from = process.env.INIT_CWD || process.cwd();
   const relPaths = [];
   for (const file of args) {
     const rel = path.relative(ROOT, path.resolve(from, file));
     if (rel.startsWith('..') || path.isAbsolute(rel)) console.error(`[rules] ${file} is outside this checkout - skipped`);
     else relPaths.push(rel.replaceAll('\\', '/'));
   }
-  for (const { contract, text } of folderContracts(relPaths)) console.log(`===== ${contract}\n\n${text}\n`);
-  const selected = relPaths.flatMap((rel) => rulesFor(rules, rel)).filter((r) => !(r.scope.length === 1 && r.scope[0] === '**'));
-  const unique = [...new Map(selected.map((r) => [r.id, r])).values()];
+  const loaded = loadedGuidance(loadedFiles);
+  for (const { contract, text } of folderContracts(relPaths)) {
+    if (!loaded.contracts.has(contract)) console.log(`===== ${contract}\n\n${text}\n`);
+  }
+  const unique = missingRules(rules, relPaths, loaded);
   if (unique.length > 0) console.log('===== rules scoped to these paths\n');
   for (const rule of unique) {
     console.log(`- ${rule.kind} \`${rule.id}\` (${rule.fires}): ${rule.body.replace(/\s*\n\s*/g, ' ')}`);
   }
-  console.log('\n[rules] this is all the folder guidance for these paths; the folder AGENTS.md files add nothing to it.');
+  console.log('\n[rules] folder guidance complete with the declared native loads; proven carried rules stay with their checks.');
 }
 
 // Only when a person runs it. `text()` above is imported by the gates that carry a rule, and an
