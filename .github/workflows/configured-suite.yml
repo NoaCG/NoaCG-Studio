@@ -38,8 +38,9 @@
 # code is permanently, silently green, which is the hole that let five specs sit on main
 # unverified. The guards, in order: the stack must come up, the schema must match the repository,
 # the realtime publication must hold the tables the playout specs subscribe to, the test account
-# must actually AUTHENTICATE (not merely exist), and the JSON report must show nothing skipped and
-# at least MIN_TESTS run. Every way this job could execute zero tests fails loudly.
+# must actually AUTHENTICATE (not merely exist), and the JSON report must match
+# e2e/configured/expected-run.json: nothing skipped outside its allowlist, and at least its floor
+# run. Every way this job could execute zero tests fails loudly.
 #
 # ── IT ALSO RUNS ON EVERY LANDING (2026-09-04) ────────────────────────────────────────────────
 #
@@ -125,45 +126,6 @@ jobs:
       # that boolean override is a no-op on 2.111.0. No spec uses Google sign-in.
       SUPABASE_AUTH_GOOGLE_CLIENT_ID: local-e2e-unused
       SUPABASE_AUTH_GOOGLE_SECRET: local-e2e-unused
-      # THE FLOOR IS WHAT ACTUALLY RUNS, which is the suite's size minus the one test that is
-      # allowlisted below. `npx playwright test --config playwright.live.config.ts --list` counts
-      # 54 on 2026-09-22, after anonymous.spec.ts gained its two signed-out sign-in doors (Start
-      # production and a control-panel link), and `bridge-real-server.spec.ts` skips its tests
-      # without real hardware - so 53 run. (Its second test, the two-channel walk, was added on
-      # 2026-09-23 and skips the same way, so it moved the listed count and not this floor.) The suite was 52 against a floor of 51 before
-      # that, the same arithmetic one test smaller. The floor was
-      # 51 on 2026-09-21,
-      # with `dashboard-hosted-walk.spec.ts` added that day; the floor had drifted to 46 against a
-      # suite of 50 before it. It had
-      # drifted twice before that - 35 against a suite of 39, then 36 against 43 - and every test
-      # of slack is a test that can stop being collected (a file renamed out of `testDir`, a
-      # `describe` dropped) while `scripts/configured-verdict.mjs`, which only compares the TOTAL
-      # against this number, still reads the job green. With the local stack there is no reason for
-      # any test to skip, so the floor is an equality in all but name: raise it in the same change
-      # that adds a test, and lower it deliberately in the one that removes a test. 54 on
-      # 2026-09-24, with `shared-lab-computer.spec.ts` (two students taking turns on one browser).
-      # 31 later the same night: the old code editor was closed (e2e/no-old-editor.spec.ts), and
-      # the 23 configured tests that reached it through `createGraphic`, `createProject` or
-      # `enableAdvancedMode` now skip until they are rewritten
-      # (docs/backlog/specs-that-still-open-the-old-editor.md). Raise it as each one comes back.
-      # 46 on 2026-09-25: 15 of them came back, standing on Home, a production page or the new
-      # editor instead (row F), and 8 still skip.
-      MIN_TESTS: 46
-      # An entry here is coverage being given up, so adding one needs a reason written next to it.
-      # `bridge-real-server.spec.ts` drives a REAL Bridge process and a REAL CasparCG over the
-      # network, behind `BRIDGE_REAL=1`; a runner has neither, so its tests can only ever skip.
-      # It landed on 2026-09-22 and made every run of this suite red (issue #371) while the code it
-      # covers was fine.
-      #
-      # The rest of the list is the old code editor's, and it is coverage given up on purpose, for
-      # a while: since 2026-09-24 no route opens that editor, so a test that walked into it skips
-      # with a reason naming docs/backlog/specs-that-still-open-the-old-editor.md, which lists
-      # every one and what it asserted. Take a file off this list in the change that rewrites it.
-      # Nothing else may skip: with the local stack there is no other reason to.
-      ALLOWED_SKIPS: >-
-        bridge-real-server.spec.ts
-        account.spec.ts anonymous.spec.ts community-authed.spec.ts moderator.spec.ts
-        signed-in-ux.spec.ts
     steps:
       - uses: actions/checkout@v5
 
@@ -387,7 +349,7 @@ jobs:
         id: assert
         run: >-
           node scripts/configured-verdict.mjs configured-report.json
-          --min "$MIN_TESTS" --allow "$ALLOWED_SKIPS"
+          --expect e2e/configured/expected-run.json
           --label "Configured suite (local stack)"
 
       # Container logs are the difference between "the playout specs are red" and "realtime never

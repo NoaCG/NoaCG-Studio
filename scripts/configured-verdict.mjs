@@ -22,7 +22,13 @@
 // It also fingerprints the failure set so the caller can tell "the same known problem again" from
 // "something new" - see the rolling-issue step in either workflow.
 //
-//   node scripts/configured-verdict.mjs <report.json> [--min N] [--allow "a.spec.ts b.spec.ts"]
+// THE FLOOR AND THE ALLOWLIST LIVE IN ONE FILE, e2e/configured/expected-run.json, which both
+// workflows pass. They used to be each workflow's own MIN_TESTS and ALLOWED_SKIPS, and the copies
+// drifted: bridge-real-server.spec.ts was allowlisted in configured-suite.yml on 2026-09-22 and
+// never in hosted-latency.yml, so every hosted run from then on was red with 0 failed (issue #382),
+// and that job's floor sat at 33 against 54 tests.
+//
+//   node scripts/configured-verdict.mjs <report.json> --expect e2e/configured/expected-run.json
 //
 // Writes a human summary to stdout, GitHub `::error` lines to stdout, a markdown block to
 // $GITHUB_STEP_SUMMARY and key=value pairs to $GITHUB_OUTPUT when those are set. Exits 0 always:
@@ -98,6 +104,27 @@ export function repoRelative(file, rootDir, workspace) {
 export const failingLine = (s) =>
   `- \`${s.file}\` - ${s.title} (${s.statuses.join(' then ')})`;
 
+/**
+ * The expected run, parsed from its JSON text and checked, because a missing or mistyped floor
+ * would otherwise read as 0 and pass anything. Throws with the reason; the CLI turns that into a
+ * red verdict. Returns the shape `verdict` takes.
+ */
+export function readExpectations(text) {
+  const parsed = JSON.parse(text);
+  const { minTests, allowedSkips } = parsed ?? {};
+  if (!Number.isInteger(minTests) || minTests < 1) {
+    throw new Error(`minTests must be a positive integer, got ${JSON.stringify(minTests)}`);
+  }
+  if (!allowedSkips || typeof allowedSkips !== 'object' || Array.isArray(allowedSkips)) {
+    throw new Error('allowedSkips must be an object of spec file -> reason');
+  }
+  const unexplained = Object.entries(allowedSkips).filter(([, why]) => typeof why !== 'string' || !why.trim());
+  if (unexplained.length) {
+    throw new Error(`every allowed skip needs its reason: ${unexplained.map(([file]) => file).join(', ')}`);
+  }
+  return { minTests, allowedSkips: Object.keys(allowedSkips).join(' ') };
+}
+
 export function verdict(report, { minTests, allowedSkips, workspace = '' }) {
   const stats = report?.stats ?? {};
   const expected = stats.expected ?? 0;
@@ -172,14 +199,25 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
     const i = args.indexOf(flag);
     return i >= 0 && args[i + 1] !== undefined ? args[i + 1] : fallback;
   };
-  const minTests = Number(valueOf('--min', '0'));
-  const allowedSkips = valueOf('--allow', '');
+  const expectFile = valueOf('--expect', '');
   const label = valueOf('--label', 'Configured suite');
 
   const out = (line) => console.log(line);
   const emit = (name, value) => {
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
   };
+
+  let minTests;
+  let allowedSkips;
+  try {
+    ({ minTests, allowedSkips } = readExpectations(readFileSync(expectFile, 'utf8')));
+  } catch (error) {
+    out(`::error title=No expected run::Could not read the expected run from "${expectFile}" (${error.message}), so nothing below can be judged.`);
+    emit('green', 'false');
+    emit('summary', 'no readable expected run - the verdict could not be judged');
+    process.exit(0);
+  }
+
   // A MULTILINE output needs the delimiter form, and the delimiter has to be a string the
   // value cannot contain: a spec title carrying it would close the block early and the rest
   // of the list would be read as further key=value pairs.

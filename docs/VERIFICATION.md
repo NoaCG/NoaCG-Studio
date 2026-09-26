@@ -107,7 +107,7 @@ Two things that route buys, and one it costs:
 - **No Supabase secret lives in GitHub.** The local stack's keys are the CLI's published shared
   defaults, read at runtime from `supabase status`. The repo is public and `.env` points at
   PRODUCTION, so the previous design had to withhold `SUPABASE_SERVICE_ROLE_KEY` and lost two
-  specs to it; both are back, and `ALLOWED_SKIPS` is empty.
+  specs to it; both are back.
 - **Nothing is written to production.** The suite creates and deletes real rows every run; they
   used to land in the owner's production project, against `playwright.live.config.ts`'s own
   advice.
@@ -131,7 +131,9 @@ that let five specs sit on main unverified. The guards, in the order they fire:
    timeouts that read like a renderer bug;
 4. the test account must **authenticate**, not merely exist - one password grant turns twenty
    ambiguous UI timeouts into one unambiguous step;
-5. the JSON report must show **nothing skipped and at least `MIN_TESTS` run**.
+5. the JSON report must match **`e2e/configured/expected-run.json`**: nothing skipped outside
+   its allowlist, each entry with its reason, and at least its floor run. `hosted-latency.yml`
+   reads the same file, so the two tiers cannot disagree about what a full run is.
 
 **A repeat of the same failure set posts nothing** (the `nightly.yml` amendment, ported here). The
 run still fails and the rolling issue stays open - only the COMMENT is withheld, and GitHub mails
@@ -142,7 +144,7 @@ beside a familiar one), and there must be zero hard failures - only flakes are e
 This is deliberately NOT the same as downgrading flaky to a warning: the verdict is unchanged,
 each distinct problem is simply said once instead of nightly.
 
-When the suite grows, raise `MIN_TESTS` in the same commit; a stale value only makes the guard
+When the suite grows, raise `minTests` in that file in the same commit; a stale value only makes the guard
 weaker. The run summary lists every test that actually executed - read that, not the exit code.
 
 ## Running the suite: traps

@@ -1,3 +1,5 @@
+// guards: e2e/configured/expected-run.json, e2e/configured/*.spec.ts
+//
 // The configured suite's verdict, pinned against the cases that actually happened.
 //
 // Every fixture below is a shape observed on a real run between 2026-08-24 and 2026-08-25, because
@@ -7,7 +9,8 @@
 // because it read each spec's LAST result and a flake ends `passed`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verdict, isUnclean, allSpecs, repoRelative, failingLine } from './configured-verdict.mjs';
+import { existsSync, readFileSync } from 'node:fs';
+import { verdict, isUnclean, allSpecs, repoRelative, failingLine, readExpectations } from './configured-verdict.mjs';
 import { failureSet } from './ci-failure-set.mjs';
 
 const spec = (file, title, ...results) => ({ file, title, tests: [{ results: results.map((status) => ({ status })) }] });
@@ -171,4 +174,30 @@ test('a flake is named with the transition that made it red, not with its last s
     v.failing.map(failingLine).join('\n'),
     '- `output-cold-boot.spec.ts` - a cue taken before the renderer exists (timedOut then passed)',
   );
+});
+
+// THE EXPECTED RUN, shared by configured-suite.yml and hosted-latency.yml. Each kept its own copy
+// until 2026-09-26, and the hosted copy never learned about bridge-real-server.spec.ts: every
+// hosted run went red with 0 failed (issue #382). A floor that fails to parse must not read as 0.
+test('the expected run refuses a floor that is missing, zero or not a number', () => {
+  for (const minTests of [undefined, 0, '48', 4.5]) {
+    assert.throws(() => readExpectations(JSON.stringify({ minTests, allowedSkips: {} })), /minTests/);
+  }
+});
+
+test('the expected run refuses an allowed skip without its reason', () => {
+  assert.throws(
+    () => readExpectations(JSON.stringify({ minTests: 1, allowedSkips: { 'a.spec.ts': 'why', 'b.spec.ts': ' ' } })),
+    /b.spec.ts/,
+  );
+  assert.throws(() => readExpectations(JSON.stringify({ minTests: 1, allowedSkips: ['a.spec.ts'] })), /allowedSkips/);
+});
+
+test('the committed expected run parses, and names only spec files that exist', () => {
+  const file = new URL('../e2e/configured/expected-run.json', import.meta.url);
+  const { minTests, allowedSkips } = readExpectations(readFileSync(file, 'utf8'));
+  assert.ok(minTests > 0);
+  for (const name of allowedSkips.split(' ').filter(Boolean)) {
+    assert.ok(existsSync(new URL(`../e2e/configured/${name}`, import.meta.url)), `${name} is allowed to skip but does not exist`);
+  }
 });

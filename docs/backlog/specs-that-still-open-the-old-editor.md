@@ -1021,8 +1021,8 @@ Era 6 — direct manipulation (docs/WYSIWYG_PLAN.md, revised: NO move mode).
 These run only against a configured backend (`npm run test:e2e:live:queued`), never in CI.
 `signed-in-ux.spec.ts`'s topbar test calls `skipOldEditor()` directly: the bar it measured was the
 old editor's. `agent-access.spec.ts` is not skipped: its step 4 now asserts that the printed
-`#/graphic/<id>` link opens the control page at `#/control/<id>`. `.github/workflows/configured-suite.yml`
-lists every file below in `ALLOWED_SKIPS`; `MIN_TESTS` went from 54 to 31 when the editor closed
+`#/graphic/<id>` link opens the control page at `#/control/<id>`. `e2e/configured/expected-run.json`
+lists every file below in `allowedSkips`; the floor went from 54 to 31 when the editor closed
 and back up to 46 on 2026-09-25, when 15 of these tests returned. Take a file off that list, and
 raise the floor, in the change that rewrites it.
 
