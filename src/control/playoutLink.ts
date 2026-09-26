@@ -28,10 +28,12 @@ import {
   type AdapterId,
   type AgentError,
   type ItemKind,
+  type CasparSlot,
+  type CasparTarget,
   type ListItem,
+  type OgrafSlot,
   type PlayoutAction,
   type Slot,
-  type Target,
 } from './playoutProtocol';
 
 const STORE_KEY = 'spx-gfx-caspar';
@@ -170,11 +172,11 @@ export function playoutConfigured(s: PlayoutSettings): boolean {
 }
 
 /** The settings as the protocol names them: which server, and where on it. */
-export function targetOf(s: PlayoutSettings): Target {
+export function targetOf(s: PlayoutSettings): CasparTarget {
   return { adapter: 'casparcg', host: s.host.trim(), port: s.amcpPort };
 }
 
-export function slotOf(s: PlayoutSettings, layer = s.layer, channel = s.channel): Slot {
+export function slotOf(s: PlayoutSettings, layer = s.layer, channel = s.channel): CasparSlot {
   return { adapter: 'casparcg', channel, layer };
 }
 
@@ -191,7 +193,7 @@ export function channelOf(s: PlayoutSettings, item: { channel?: number }): numbe
 }
 
 /** Where an item plays, as the protocol names it. */
-export function itemSlot(s: PlayoutSettings, item: { channel?: number; layer: number }): Slot {
+export function itemSlot(s: PlayoutSettings, item: { channel?: number; layer: number }): CasparSlot {
   return slotOf(s, item.layer, channelOf(s, item));
 }
 
@@ -215,9 +217,21 @@ export function channelTitle(s: PlayoutSettings, channel: number): string {
   return name && name !== defaultChannelName(channel) ? `channel ${channel} (${name})` : `channel ${channel}`;
 }
 
-/** `1-20` - what the operator sees on the button, and what CasparCG calls the layer. */
-export function slotAddress(slot: Pick<Slot, 'channel' | 'layer'>): string {
+/** `1-20` - what the operator sees on the button, and what CasparCG calls the layer. An OGraf
+ *  slot reads as its renderer and the render target's own fields: `renderer-0 layerId=1`. */
+export function slotAddress(slot: Pick<CasparSlot, 'channel' | 'layer'> | OgrafSlot): string {
+  if ('rendererId' in slot) {
+    return [slot.rendererId, ...Object.entries(slot.renderTarget).map(([k, v]) => `${k}=${String(v)}`)].join(' ');
+  }
   return `${slot.channel}-${slot.layer}`;
+}
+
+/** The order live slots are named in: by channel and then front to back, the way the server
+ *  stacks them. An OGraf slot has no channel, so it follows, by its address. */
+export function compareSlots(a: Slot, b: Slot): number {
+  if (a.adapter === 'casparcg' && b.adapter === 'casparcg') return a.channel - b.channel || b.layer - a.layer;
+  if (a.adapter !== b.adapter) return a.adapter === 'casparcg' ? -1 : 1;
+  return slotAddress(a).localeCompare(slotAddress(b));
 }
 
 // ---------------------------------------------------------------------------------------------

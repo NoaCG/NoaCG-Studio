@@ -38,6 +38,7 @@ import {
   channelLabel,
   channelOf,
   channelTitle,
+  compareSlots,
   defaultChannelFor,
   itemSlot,
   loadPlayoutSettings,
@@ -1803,7 +1804,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     .map((l) => ({ ...l, cue: l.live ? (cues.find((c) => c.id === l.live!.cueId) ?? null) : null }))
     .filter((l): l is { item: PlayoutItem; live: { cueId: string; slot: Slot }; cue: ShowCue } => !!l.cue)
     .map((l) => ({ slot: l.live.slot, name: l.item.name, cue: l.cue, label: l.cue.label }))
-    .sort((a, b) => a.slot.channel - b.slot.channel || b.slot.layer - a.slot.layer);
+    .sort((a, b) => compareSlots(a.slot, b.slot));
 
   const selectedGraphic = selectedCue ? cueGraphicName(selectedCue) : null;
   /** A cue over the playout server's library, and whether THIS cue is what this page last put

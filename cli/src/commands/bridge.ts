@@ -18,6 +18,7 @@ import { spawn } from 'node:child_process';
 import { cliVersion, noacgUrl } from '../config.js';
 import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
+import { ografAdapter } from '../playout/adapters/ograf.js';
 import { PAIRING_TTL_MS, allowedOrigins, createBridgeServer, DEFAULT_BRIDGE_PORT, isLoopbackHost, type Pairing } from '../playout/server.js';
 import { PLAYOUT_V } from '../playout/protocol.js';
 import { mintPairingCode, resolveToken } from '../playout/token.js';
@@ -59,7 +60,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   const quiet = args.flags.quiet === true;
   const pairing: Pairing = { code: mintPairingCode(), expiresAt: Date.now() + PAIRING_TTL_MS, used: false };
   const server = createBridgeServer(
-    { token, origins, adapters: [casparcgAdapter], version: cliVersion(), pairing },
+    { token, origins, adapters: [casparcgAdapter, ografAdapter], version: cliVersion(), pairing },
     (line) => {
       if (!quiet) out.log(`[bridge] ${line}`);
     },

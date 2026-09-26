@@ -21,7 +21,8 @@ import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { isIP } from 'node:net';
 import { amcpSend } from './amcp.js';
 import type { PlayoutAdapter } from './adapters/casparcg.js';
-import { PLAYOUT_V, type AdapterId, type AgentError, type ItemKind, type PlayoutAction, type Target } from './protocol.js';
+import { ografApiBase } from './adapters/ograf.js';
+import { PLAYOUT_V, type AgentError, type ItemKind, type PlayoutAction, type RenderTargetId, type Slot, type Target } from './protocol.js';
 import { secretMatches } from './token.js';
 import { noacgUrl } from '../config.js';
 import { UsageError } from '../output.js';
@@ -129,14 +130,41 @@ export function readTarget(body: Record<string, unknown>, adapters: PlayoutAdapt
   if (!isRecord(t)) throw new UsageError('The request names no target.');
   const adapter = typeof t.adapter === 'string' ? t.adapter : '';
   if (!adapters.some((a) => a.id === adapter)) throw new UsageError(`This Bridge has no adapter "${adapter}".`);
+  if (adapter === 'ograf') {
+    const baseUrl = typeof t.baseUrl === 'string' ? t.baseUrl.trim() : '';
+    if (!baseUrl) throw new UsageError('The target has no base URL.');
+    ografApiBase(baseUrl);
+    return { adapter: 'ograf', baseUrl };
+  }
   const host = typeof t.host === 'string' && t.host.trim() ? t.host.trim() : '';
   if (!host) throw new UsageError('The target has no host.');
   const port = typeof t.port === 'number' && Number.isInteger(t.port) && t.port > 0 && t.port < 65536 ? t.port : DEFAULT_AMCP_PORT;
-  return { adapter: adapter as AdapterId, host, port };
+  return { adapter: 'casparcg', host, port };
 }
 
-function readSlot(v: unknown): PlayoutAction['slot'] {
-  if (!isRecord(v) || v.adapter !== 'casparcg') throw new UsageError('The action has no casparcg slot.');
+/** How a target is named in the Bridge's own log. */
+function targetLabel(target: Target): string {
+  return target.adapter === 'ograf' ? target.baseUrl : `${target.host}:${target.port}`;
+}
+
+/** An OGraf render target identifier: the standard allows only a shallow object. */
+function readRenderTarget(v: unknown): RenderTargetId {
+  if (!isRecord(v)) throw new UsageError('An ograf slot needs a renderTarget object.');
+  const out: RenderTargetId = {};
+  for (const [k, val] of Object.entries(v)) {
+    if (typeof val === 'string' || typeof val === 'boolean' || (typeof val === 'number' && Number.isFinite(val))) out[k] = val;
+    else throw new UsageError(`A renderTarget holds only strings, numbers and booleans; "${k}" is not one.`);
+  }
+  return out;
+}
+
+function readSlot(v: unknown): Slot {
+  if (isRecord(v) && v.adapter === 'ograf') {
+    const rendererId = typeof v.rendererId === 'string' ? v.rendererId.trim() : '';
+    if (!rendererId) throw new UsageError('An ograf slot names its renderer.');
+    return { adapter: 'ograf', rendererId, renderTarget: readRenderTarget(v.renderTarget) };
+  }
+  if (!isRecord(v) || v.adapter !== 'casparcg') throw new UsageError('The action has no casparcg or ograf slot.');
   const channel = typeof v.channel === 'number' ? v.channel : NaN;
   const layer = typeof v.layer === 'number' ? v.layer : NaN;
   if (!Number.isInteger(channel) || !Number.isInteger(layer)) throw new UsageError('A slot needs a whole channel and layer.');
@@ -171,6 +199,8 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
     case 'pause':
     case 'resume':
       return { verb: a.verb, slot, item: isRecord(a.item) ? readItem(a.item) : undefined };
+    case 'clear':
+      return { verb: 'clear', slot };
     default:
       throw new UsageError(`Unknown verb "${String(a.verb)}".`);
   }
@@ -263,11 +293,11 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
 
         const target = readTarget(body, options.adapters);
         const adapter = byId.get(target.adapter)!;
-        const at = `${target.host}:${target.port}`;
+        const at = targetLabel(target);
 
         if (url === '/status') {
           const r = await adapter.status(target);
-          log(`${at} VERSION -> ${r.ok ? r.raw : r.error.code}`);
+          log(`${at} status -> ${r.ok ? r.raw : r.error.code}`);
           send(200, r.ok ? { ok: true, v: PLAYOUT_V, version: r.value.version, raw: r.raw } : { ok: false, v: PLAYOUT_V, error: r.error }, true);
           return;
         }
@@ -276,8 +306,14 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           if (kind !== 'template' && kind !== 'media') throw new UsageError('A list is of kind "template" or "media".');
           const path = typeof body.path === 'string' ? body.path : undefined;
           const r = await adapter.list(target, kind, path);
-          log(`${at} list ${kind} -> ${r.ok ? `${r.value.length} items` : r.error.code}`);
-          send(200, r.ok ? { ok: true, v: PLAYOUT_V, items: r.value } : { ok: false, v: PLAYOUT_V, error: r.error }, true);
+          // A target with renderers (OGraf) answers where its library can play in the same reply.
+          const rr = r.ok && adapter.renderers ? await adapter.renderers(target) : undefined;
+          log(`${at} list ${kind} -> ${r.ok ? `${r.value.length} items` : r.error.code}${rr ? `, ${rr.ok ? `${rr.value.length} renderers` : rr.error.code}` : ''}`);
+          if (!r.ok || (rr && !rr.ok)) {
+            send(200, { ok: false, v: PLAYOUT_V, error: !r.ok ? r.error : (rr as { ok: false; error: AgentError }).error }, true);
+            return;
+          }
+          send(200, { ok: true, v: PLAYOUT_V, items: r.value, ...(rr?.ok ? { renderers: rr.value } : {}) }, true);
           return;
         }
         if (url === '/thumbnail') {
@@ -296,6 +332,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         if (url === '/amcp') {
           // The terminal's route (`noacg caspar send` through a Bridge): one raw line, never
           // composed by the page.
+          if (target.adapter !== 'casparcg') throw new UsageError('The /amcp route speaks to CasparCG only.');
           if (typeof body.command !== 'string' || !body.command.trim()) throw new UsageError('No AMCP command given.');
           const command = body.command.trim();
           log(`${at} <<< ${command}`);
