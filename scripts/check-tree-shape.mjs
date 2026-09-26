@@ -50,7 +50,7 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   'LICENSE',
   'NoaCG-Brand-Kit', 'README.md', 'admin.html', 'api', 'app.html', 'benchmarks', 'bridge.html', 'cli',
   // `contracts/` is the rule store the loaded contracts are compiled from (docs/WORKFLOW_ARCHITECTURE.md
-  // §5.3): one rule per file, one record per incident, neither loaded into a session.
+  // §2): one rule per file, one record per incident, neither loaded into a session.
   'contracts', 'docs',
   'docs.html', 'downloads.html', 'e2e',
   'eslint.config.js', 'index.html', 'join.html', 'ograf.html', 'output.html', 'package-lock.json',

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Where merges actually needed a resolution (docs/WORKFLOW_ARCHITECTURE.md §1.4).
+// Where merges actually needed a resolution (baseline and targets: docs/METRICS.md).
 //
 //   npm run metrics:conflicts                # last 45 days
 //   npm run metrics:conflicts -- --days 30

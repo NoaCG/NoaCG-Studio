@@ -443,7 +443,7 @@ async function cmdAddMerge() {
     console.error('  To land without it, say why on the record:  npm run queue:merge -- --unreviewed "<reason>"');
     process.exit(1);
   }
-  // THE QUEUE IS ON GITHUB (2026-09-06, docs/WORKFLOW_ARCHITECTURE.md §5.2). Queueing means:
+  // THE QUEUE IS ON GITHUB (2026-09-06, docs/WORKFLOW_ARCHITECTURE.md §5). Queueing means:
   // push the branch, open (or reuse) its pull request, post the review verdict as the
   // `noacg/reviewed` commit status on the tip, add the `land` label and turn auto-merge on.
   // GitHub's merge queue does the rest, one group at a time, on GitHub's runners - nothing on this

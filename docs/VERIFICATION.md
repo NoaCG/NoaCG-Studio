@@ -45,8 +45,8 @@ fixtures nothing imports (a migration's SQL, the catalog) says so.
 or unknown tier, a `workflow` that does not name the gate, a `none` without a reason, a guard
 matching no file in the repository, and a `scripts/check-*.mjs` with no `check:` script all fail
 the build. `node scripts/gates.mjs list [--gate <tier>] [--changed <ref>]` says what would run
-and which gates a change reaches; the build still runs every gate in its tier, the declarations
-are what a scoped tier (`docs/WORKFLOW_ARCHITECTURE.md` §5.1, T0) will select from.
+and which gates a change reaches; the build still runs every gate in its tier, and the
+declarations are what a path-scoped build would select from.
 
 **The incident it comes from.** On 2026-09-06 a nine-row wave landed red. `test:use-case-search`
 held the rule that would have caught it, sat outside `npm run build` because it needs Chromium,
@@ -998,8 +998,8 @@ arriving onto a red `main` and `main` alone runs with `cancel-in-progress: false
 
 ### A red main answers itself first: second run, quarantine, revert
 
-Since phase 1c of `docs/WORKFLOW_ARCHITECTURE.md` a red `main` run is not a person's job until
-three mechanisms have had their turn, all in `ci.yml`:
+A red `main` run is not a person's job until three mechanisms have had their turn, all in
+`ci.yml` (`docs/WORKFLOW_ARCHITECTURE.md` §6 places them among the validation tiers):
 
 1. **The second run.** When the E2E shards fail on `main` or in the merge group, the `E2E retry`
    job reads the failed spec FILES off the shards' blob reports (`scripts/e2e-retry.mjs`) and runs

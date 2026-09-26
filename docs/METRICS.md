@@ -1,8 +1,9 @@
 # Workflow metrics: the baseline and how to re-measure it
 
-The targets in `docs/WORKFLOW_ARCHITECTURE.md` §9 are checkable only against a baseline taken
-the same way. This file is that baseline, taken 2026-09-06 on `origin/main` at 296df0ef, and the
-commands that reproduce each number. Re-run them, put the new column beside the old, and the
+The 2026-09-06 workflow plan set these targets (its §9, in
+`git show 353527c3:docs/WORKFLOW_ARCHITECTURE.md`), and they are checkable only against a baseline
+taken the same way. This file is that baseline, taken 2026-09-06 on `origin/main` at 296df0ef, and
+the commands that reproduce each number. Re-run them, put the new column beside the old, and the
 architecture either improved or it did not.
 
 | Metric | 2026-09-06 | Target | Command |
@@ -27,15 +28,15 @@ architecture either improved or it did not.
 | AI-only wizard commits forced into a giant | 25% (13 of 51) | ≤ 10% | `npm run metrics:cochange` |
 
 The co-change script counts `src/model/wizard.ts` among the giants and takes only the wizard's
-own AI files as the AI capability, so its numbers sit above the audit's hand counts in
-`WORKFLOW_ARCHITECTURE.md` §5.5 (37 / 43 / 4%); the script's definition is the one the targets
-are measured against.
+own AI files as the AI capability, so its numbers sit above the plan's hand counts in its module
+audit (§5.5 of the same git version: 37 / 43 / 4%); the script's definition is the one the
+targets are measured against.
 | Direct importers of `src/model/wizard.ts` | 621 (reverse closure 866 files) | file gone | `npx depcruise --config .dependency-cruiser.cjs --output-type json src` and count `resolved === 'src/model/wizard.ts'` |
 | Files in the test map's `CORE` | 141 | ≤ 20 | classify `git ls-files` through `planFor` in `scripts/e2e-affected.mjs` |
 
 Three numbers in the plan were measured with one-off scripts (the change-class table, the
-sentence-level evidence split, the reverse closures); they are quoted in
-`docs/WORKFLOW_ARCHITECTURE.md` §2 with the method and are not repeated by an npm script.
+sentence-level evidence split, the reverse closures); the plan quotes them with the method in its
+§2 (same git version) and no npm script repeats them.
 
 ## Every re-measurement is its OWN FILE under `docs/metrics/`
 
@@ -48,7 +49,7 @@ That is the point. This file was a single append target, so two migration rows r
 conflicted in it every time, and a conflict stops the landing job dead. It is the same fix, for the
 same reason, as one file per owner-queue item and one file per rule in `contracts/rules/`: the
 directories that absorbed 811 commits with 11 resolutions are the ones where an item is a file
-(`docs/WORKFLOW_ARCHITECTURE.md` §1.4).
+(§1.4 of the 2026-09-06 plan named at the top).
 
 What stays here is the BASELINE and the commands, because those are read constantly and change
 rarely. A measurement is written once and read later; it does not belong in a file every row edits.

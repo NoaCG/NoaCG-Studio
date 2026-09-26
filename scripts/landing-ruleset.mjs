@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The one ruleset on `main`: the merge queue is the only way onto it (docs/WORKFLOW_ARCHITECTURE.md
-// §5.2).
+// §5).
 //
 //   node scripts/landing-ruleset.mjs            # print the ruleset GitHub holds, and the one this file wants
 //   node scripts/landing-ruleset.mjs --apply    # create it, or update it to match

@@ -14,7 +14,7 @@
 // WHY A FILE AND NOT A TABLE IN A DOC. docs/CI_STABILITY.md kept a flake table by hand, with the
 // rule that a row needs a re-run-green receipt on the same sha. Nothing read the table, so a spec
 // in it still turned main red and still stopped the queue, and the receipt was a person's
-// screenshot. This file is the same rule made mechanical (docs/WORKFLOW_ARCHITECTURE.md §5.1,
+// screenshot. This file is the same rule made mechanical (docs/WORKFLOW_ARCHITECTURE.md §6,
 // phase 1c): ci.yml re-runs the failed specs of a red main run once on the same commit, and a
 // fail-then-pass IS the receipt - the gate writes the entry here through the merge queue, so the
 // history shows who quarantined what, from which run, and the change went through the same door

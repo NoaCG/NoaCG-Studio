@@ -1,4 +1,4 @@
-// The rule store behind the compiled contracts (docs/WORKFLOW_ARCHITECTURE.md §5.3).
+// The rule store behind the compiled contracts (docs/WORKFLOW_ARCHITECTURE.md §2).
 //
 // One rule per file under contracts/rules/<area>/<slug>.md, one incident per file under
 // contracts/records/<area>/<date>-<slug>.md. Nothing here is loaded into a session directly:
@@ -45,8 +45,9 @@ const KIND_PRIORITY = { invariant: 0, trap: 1, rule: 2, taste: 3 };
 
 /**
  * Near-duplicate threshold on `similarity()`. Two active rules at or above it fail the compile:
- * one of them supersedes the other, or they are one rule. Calibrated on the empty store, so it
- * is a first guess; docs/WORKFLOW_ARCHITECTURE.md phase 2b re-measures it on the migrated corpus.
+ * one of them supersedes the other, or they are one rule. Set on a near-empty store and checked
+ * on the first migrated corpus, where it refused nothing and needed no change
+ * (docs/metrics/2026-09-07-templates-migrated.md).
  */
 export const DUPLICATE_THRESHOLD = 0.6;
 

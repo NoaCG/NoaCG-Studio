@@ -1,4 +1,4 @@
-// Keep the local landing ledger fed from GitHub (docs/WORKFLOW_ARCHITECTURE.md §5.2).
+// Keep the local landing ledger fed from GitHub (docs/WORKFLOW_ARCHITECTURE.md §5).
 //
 // Eleven scripts read `<git-common-dir>/noacg-jobs/landed.jsonl` - the listing, the tick, the
 // night report, the session-start notice, the latency metric. The laptop lander wrote it; the

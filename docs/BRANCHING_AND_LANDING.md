@@ -58,7 +58,7 @@ instruction that still names one.
     current commit, so a later commit makes the job refuse and ask you to queue again.
     `.agent-workflows/queue-merge.md` is the procedure.
   - **The queue is GitHub's merge queue, not anything on a laptop** (2026-09-06,
-    `docs/WORKFLOW_ARCHITECTURE.md` §5.2). `npm run queue:merge` pushes the branch, opens or
+    `docs/WORKFLOW_ARCHITECTURE.md` §5). `npm run queue:merge` pushes the branch, opens or
     reuses its pull request, posts the `/check` verdict as the `noacg/reviewed` commit status on
     the tip, labels it `land` and turns auto-merge on. When `CI gate` and `Reviewed` pass on the
     pull request, GitHub queues it, builds a temporary merge of the queued pull requests on `main`,

@@ -31,7 +31,8 @@ evidence either way.
 
 ## The mechanism
 
-`docs/WORKFLOW_ARCHITECTURE.md` §5.2 already designs it: a stacked pull request is one whose BASE
+The 2026-09-06 workflow plan already designed it (§5.2, "Stacked branches", in
+`git show 353527c3:docs/WORKFLOW_ARCHITECTURE.md`): a stacked pull request is one whose BASE
 is the parent branch; the queue lands the parent, GitHub retargets the child to `main`, and the
 child's checks re-run. So `cmdAddMerge` in `scripts/jobs.mjs` runs `merge-order.mjs`'s containment
 check on the tip, and when the branch contains another branch that is ahead of `origin/main`:

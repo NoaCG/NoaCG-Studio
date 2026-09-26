@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// How often work on one capability is forced into a shared file (docs/WORKFLOW_ARCHITECTURE.md
-// §5.5). The number the module-boundary rows are measured by.
+// How often work on one capability is forced into a shared file (baseline and targets:
+// docs/METRICS.md). The number the module-boundary rows are measured by.
 //
 //   npm run metrics:cochange                 # the wizard capabilities, last 60 days
 //   npm run metrics:cochange -- --days 30

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// What CI costs per change, from the Actions API (docs/WORKFLOW_ARCHITECTURE.md §1.2, §9).
+// What CI costs per change, from the Actions API (baseline and targets: docs/METRICS.md).
 //
 //   npm run metrics:ci                       # the last 200 ci.yml runs
 //   npm run metrics:ci -- --limit 500

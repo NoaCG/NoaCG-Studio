@@ -37,7 +37,7 @@ export const TITLE = 'CI is red on main';
  * SHOULD THIS RUN REVERT WHAT IT TESTED? Pure, for the same reason `planRedMainComment` is: a
  * revert is the one thing here that changes `main`, and the rule must be checkable by hand.
  *
- * The evidence a revert needs (docs/WORKFLOW_ARCHITECTURE.md §3, "sheriffs + auto-revert"):
+ * The evidence a revert needs (docs/WORKFLOW_ARCHITECTURE.md §6, "A red main answers itself first"):
  *   - a push to main, so something landed here;
  *   - a verdict: a run that only ran out of clock reverts nothing;
  *   - a SECOND RUN that happened and failed, for at least one of the things that failed. For a

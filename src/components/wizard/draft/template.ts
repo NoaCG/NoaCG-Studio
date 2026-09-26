@@ -1,4 +1,4 @@
-// The TEMPLATE road's part of the draft (docs/WORKFLOW_ARCHITECTURE.md §5.5): the brand
+// The TEMPLATE road's part of the draft (docs/ARCHITECTURE.md §5): the brand
 // chooser's patches over the catalog palettes, and the universal in/out motion the Animation
 // step writes onto a built design. The WizardDraft record itself is ./core.ts.
 

@@ -1,5 +1,5 @@
 // The draft's PROJECT-FORMAT helpers, held apart from ./core.ts so they are a leaf every
-// capability can read (docs/WORKFLOW_ARCHITECTURE.md §5.5, wizard row 2).
+// capability can read (docs/ARCHITECTURE.md §5, wizard row 2).
 //
 // WHY THEY ARE NOT IN ./core.ts. Import-graphic sits behind ../import/index.ts, and ./core.ts
 // reads that index for the capability's build passes - so any VALUE edge from an import step

@@ -1,7 +1,7 @@
 # After a landing: apply whatever production and staging are missing, then ask the advisors
 # about what that just changed.
 #
-# main is written only by GitHub's merge queue (docs/WORKFLOW_ARCHITECTURE.md §5.2), and that
+# main is written only by GitHub's merge queue (docs/WORKFLOW_ARCHITECTURE.md §5), and that
 # merge is an ordinary push, so this fires on every landing. The token comes from the
 # `production` environment's SUPABASE_ACCESS_TOKEN; without it the job says so and nothing
 # fails - a refused statement in db-push never fails a landing either, it reports and files.

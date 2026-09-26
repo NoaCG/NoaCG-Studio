@@ -3,7 +3,7 @@
 //
 //   node scripts/land-watch.mjs --pr 58 --branch claude/x     # what `npm run queue:merge` enqueues
 //
-// The landing itself is GitHub's merge queue (docs/WORKFLOW_ARCHITECTURE.md §5.2). But eleven
+// The landing itself is GitHub's merge queue (docs/WORKFLOW_ARCHITECTURE.md §5). But eleven
 // things on this machine key on a LOCAL merge job for the branch - the hook that freezes a queued
 // branch, the tick's QUEUED and LANDED events, stop-wait's "unqueued" warning, the night report,
 // the session-start notice - and none of them should have to learn a second shape. So queueing

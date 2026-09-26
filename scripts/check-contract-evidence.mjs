@@ -2,7 +2,7 @@
 // gate: build
 // guards: **/AGENTS.md, **/CLAUDE.md, scripts/contract-evidence-baseline.json
 //
-// Hand-written contracts may not GROW evidence (docs/WORKFLOW_ARCHITECTURE.md phase 0).
+// Hand-written contracts may not GROW evidence (docs/WORKFLOW_ARCHITECTURE.md §2).
 //
 //   node scripts/check-contract-evidence.mjs           # part of `npm run build`
 //   node scripts/check-contract-evidence.mjs --write   # refresh the baseline after a cut

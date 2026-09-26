@@ -5,7 +5,7 @@
 //
 // Chromium's answer to a red tree is a sheriff who reverts the culprit; the queue keeps moving
 // and the author fixes forward on a branch. This is that answer without the sheriff
-// (docs/WORKFLOW_ARCHITECTURE.md §3, phase 1c). ci.yml calls it after a main run whose failure
+// (docs/WORKFLOW_ARCHITECTURE.md §6, phase 1c). ci.yml calls it after a main run whose failure
 // was run a second time on the same commit and failed again, when the last main commit WITH A
 // VERDICT was green - so everything since is the culprit by the only evidence there is. Landings
 // arrive faster than full runs finish, and a superseded run cancels itself, so "since" is the

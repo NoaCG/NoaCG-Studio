@@ -52,5 +52,5 @@ binds - "no rule" is a defect only when it is unexamined.
   modules, what each does, and why the fourth escaped.
 - `contracts/rules/blocks/` - 69 rules; the twenty `src/blocks/*.ts` paths their scopes name do not
   include the four.
-- `docs/WORKFLOW_ARCHITECTURE.md`, "Phase 2b, the first row, as landed" - ownership read by
+- `docs/WORKFLOW_ARCHITECTURE.md` §2, "Compiled, never hand-edited" - ownership read by
   scanning for the generated marker, and what `--report` covers.

@@ -6,12 +6,12 @@
 //
 //   node scripts/check-retired-names.mjs        # part of `npm run build`
 //
-// WHY. When the merge queue replaced the laptop lander (docs/WORKFLOW_ARCHITECTURE.md §5.2) the
+// WHY. When the merge queue replaced the laptop lander (docs/WORKFLOW_ARCHITECTURE.md §5) the
 // orchestrator contract kept telling its rows to read `auto-merge.mjs` refusals, to quote
 // `merge-order` verdicts as a landing order, and to fall back to the safe-merge workflow - for two
 // days, across nine files, while every landing went through GitHub. The freshness gate could not
 // see it: every script it named still existed. What had changed was the MEANING of the name, and
-// only a list of retired names can carry that. This is the negative check §5.3 designs.
+// only a list of retired names can carry that. This is that negative check.
 //
 // WHAT IT CHECKS. `contracts/retired.json` lists each retired mechanism with a regular expression,
 // the date, the replacement and the reason. Every instruction file is read paragraph by paragraph

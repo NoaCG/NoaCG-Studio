@@ -8,7 +8,7 @@
 // WHY. The `build` script used to name every repo-shape check and every `node --test` file, one
 // `&&` at a time: 31 segments, 88 test files, and the single most-conflicted line in the
 // repository - 66 edits and 15 merge resolutions in a month, because every new test edited the
-// same line (docs/WORKFLOW_ARCHITECTURE.md §1.4, phase 1d). And `check-gate-coverage` refused a
+// same line (docs/METRICS.md, the baseline; phase 1d). And `check-gate-coverage` refused a
 // gate with no home rather than asking each gate where its home is, so the cheap fix was always
 // to make the line longer.
 //

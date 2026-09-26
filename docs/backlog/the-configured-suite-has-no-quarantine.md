@@ -35,9 +35,9 @@ The mechanism exists; the question is how much of it a non-blocking tier should 
    blocks nothing may want the retry and a plain report instead of a quarantine file, which would
    otherwise let a genuinely broken teams spec sit quarantined and unnoticed for weeks.
 
-Read `docs/WORKFLOW_ARCHITECTURE.md`, "Phase 1c, as landed", and `docs/VERIFICATION.md`, "A red
-main answers itself first", before choosing - both state the invariants the ci.yml version keeps,
-and a second implementation that keeps fewer of them is worse than none.
+Read `docs/WORKFLOW_ARCHITECTURE.md` §6 and `docs/VERIFICATION.md`, both under "A red main
+answers itself first", before choosing - both state the invariants the ci.yml version keeps, and
+a second implementation that keeps fewer of them is worse than none.
 
 ## Evidence
 

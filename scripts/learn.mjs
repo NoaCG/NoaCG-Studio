@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The write path for a lesson (docs/WORKFLOW_ARCHITECTURE.md §5.3).
+// The write path for a lesson (docs/WORKFLOW_ARCHITECTURE.md §3).
 //
 //   npm run learn -- --area wizard --evidence "On this branch the raw duration aired because ..."
 //       records an OBSERVATION: one record file, no rule, nothing recompiled. This is the default,
