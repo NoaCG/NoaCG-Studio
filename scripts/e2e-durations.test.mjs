@@ -330,14 +330,10 @@ test('the pull request body carries the case, the run, and the review it does no
   // budget, so the body says out loud that neither is here.
   assert.match(body, /noacg\/reviewed/);
   assert.match(body, /queue-merge/);
-  // And the one command a person cannot guess: a token-pushed branch gets no pull request event,
-  // so the `Reviewed` check never runs until somebody asks for it by dispatch. It carries
-  // `diff_base` because ci.yml reads an empty one as "run the whole suite" - nine runners and a
-  // quarter of an hour, for a JSON file no spec can observe.
-  assert.match(body, /gh workflow run ci\.yml --ref bot\/e2e-durations -f require_review=true -f diff_base=abc1234/);
-  // And never an EMPTY diff_base, which is how ci.yml spells "run everything".
-  const noSha = refreshBody(before, tableOf(after.minutes, after.overhead, { run: '222' }), verdict, balance);
-  assert.match(noSha, /-f diff_base=\$\(git rev-parse origin\/main\)/);
+  // The App token started this pull request's CI, so the body gives no dispatch command any more:
+  // it says the checks are already running and that `/queue-merge` re-runs `Reviewed`.
+  assert.match(body, /App token/);
+  assert.doesNotMatch(body, /gh workflow run/);
 });
 
 // A quiet week is read in the same places a loud one is - the job summary the owner-queue item

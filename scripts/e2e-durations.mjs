@@ -483,22 +483,11 @@ export function refreshBody(before, after, verdict, balance) {
     'deliberately posts no `noacg/reviewed` stamp and turns no auto-merge on. Read the diff, then',
     'take it through the queue like any other branch - `/check`, then `/queue-merge`.',
     '',
-    'Then one extra command, because a branch pushed with a workflow token starts no run of its own',
-    '(GitHub\'s rule for `GITHUB_TOKEN`). `CI gate` is here because the job asked for it by dispatch;',
-    '`Reviewed` is not, because that job runs on pull request events this pull request never raised.',
-    'Once `/queue-merge` has posted the stamp, ask for the run that reads it:',
-    '',
-    '```',
-    // `diff_base` matters as much as the flag beside it: a dispatch with an EMPTY one plans the
-    // whole suite (ci.yml's input docs), which is nine runners and a quarter of an hour for a JSON
-    // file no spec can observe. The sha is the main commit this table was measured on, so the plan
-    // covers everything between it and this branch; a table that somehow carries no sha falls back
-    // to a substitution that is correct wherever it is pasted, rather than to an empty flag.
-    `gh workflow run ci.yml --ref ${REFRESH_BRANCH} -f require_review=true ` +
-      `-f diff_base=${after.source.sha || '$(git rev-parse origin/main)'}`,
-    '```',
-    '',
-    'Auto-merge takes it from there.',
+    // The bot App token opened this pull request, so its own CI started with it; nothing needs a
+    // dispatch any more (.github/workflows/e2e-durations-refresh.yml, scripts/queue-pr.mjs).
+    'This pull request was opened with the bot\'s App token, so its CI has already run: `CI gate` is',
+    'on it. `Reviewed` stays red until the review stamp exists, and `/queue-merge` re-runs it once it',
+    'has posted the stamp. Auto-merge takes it from there.',
     '',
     `Opened by \`.github/workflows/e2e-durations-refresh.yml\`; \`node scripts/e2e-durations.mjs --refresh ${after.source.run ?? ''}\` reproduces it.`,
   ].join('\n');
