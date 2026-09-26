@@ -116,7 +116,7 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 | Train / slice | Deliverable and exit demonstration |
 |---|---|
 | R1.0 Foundation | Merged/live via PR #331; foundation engineering checks passed, owner acceptance open. Flagged route: professional shell, selection, read-only bars, scrub, operation registry/history, preview protocol and latency harness. Record D01-D05 decisions before starting; tests close in their assigned slices. B01/B02/B11/B13 foundation only. |
-| R1.1a Base edits and tools | Usable static graphic: Finish -> Edit; create text/shapes, edit wording/basic font/size/colours/opacity, position/scale, undo and save/reopen. Base placement, creation and scaling are engineering-verified ([receipt](research/editor-r1-1a/README.md)); the follow-up must finish usable static authoring before B04 core or workflow readiness can close. Preserve wizard fields. |
+| R1.1a Base edits and tools | Usable static graphic: Finish -> Edit; create text/shapes, edit wording/basic font/size/colours/opacity, position/scale, undo and save/reopen. Base placement, creation and scaling are engineering-verified ([original receipt](research/editor-r1-1a/README.md)); the [basic-artwork follow-up](research/editor-artwork-basics/README.md) verifies the bounded customization journey. Preserve wizard fields; owner acceptance remains open. |
 | R1.1a follow-up: usable artwork | Owner authorized 2026-09-26: pull text editing, basic font/size/solid colour, same-parent reorder/duplicate/delete, marquee and multi-object movement forward from R1.2b. Match current NoaCG branding. Complete the catalog/import customization journey before keys; [brief and evidence](research/editor-artwork-basics/README.md). |
 | R1.1b Keys and bar moves | Text + box: off-canvas first key, move playhead 1 s, canvas drag creates second key; visible spans and bar-body moves carry keys. B05/B13 key/bar portions; no trim UI yet. |
 | R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
@@ -153,7 +153,7 @@ Existing E/B identities are retained; split rows close only when all portions pa
 | E04 base transforms, pivot and parent coordinates | R1.1-R1.2 / B03 |
 | E05 typography/content/fit | R1.1a usable content/basic type/colour; R1.2b rich typography/fit / B04 |
 | E06 text/shapes/images and asset replacement | R1.1a core; R1.2b full / B04 |
-| E07 duplicate/delete/reorder/align/distribute/group movement | R1.2b / B02, B04 |
+| E07 duplicate/delete/reorder/align/distribute/group movement | R1.1a follow-up: duplicate/delete/reorder and selection movement; R1.2b: align/distribute/grouping / B02, B04 |
 | E08 per-property animation, diamonds and deterministic seek | R1.1-R1.2 / B05 |
 | E09 multi-key retime/copy/snap/zoom/nudge | R1.2 / B06 |
 | E10 easing and Hold parity | R1.1-R1.2 / B05, B06 |
