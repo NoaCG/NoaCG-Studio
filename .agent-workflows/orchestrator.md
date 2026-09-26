@@ -48,29 +48,28 @@ and queueing a branch **NO LIVE SESSION HOLDS**, are neither, so this session DO
 
 ## Input, and the frontier
 
-Whatever the user pasted, in any mix - and **`docs/handoffs/` is read by default**, so the user
-never pastes what a session already wrote down. **Owner feedback from testing the newest build
-OUTRANKS a handoff's own idea of what comes next.** A vague report is ONE session whose first step
-is reproduce-and-scope.
+**Two sources of authority, and only two:** the owner's current feedback and direction (what he
+pasted or said; feedback from testing the newest build outranks everything else), and the
+UNSATISFIED OUTCOMES in `docs/GOALS.md` - the ones marked `(now)` and their done criteria for this
+phase. Everything else is INVENTORY: `docs/handoffs/` (read by default), `docs/backlog/` items and
+owner receipts (`node scripts/owner-receipts.mjs`), bugs, red CI, unfinished work. Inventory
+supplies tasks, never priority, and joins a wave only when it connects to an outcome or a concrete
+reliability requirement. A vague report is ONE session whose first step is reproduce-and-scope.
 
-**A row is on the FRONTIER when three things hold:** its why traces to the user's ask, to an
-outcome marked `(now)` in `docs/GOALS.md`, to an ACTIVE programme in `docs/PROGRAMMES.md` or to an owner receipt; its
-files are free; and it waits on no human. **Capacity fills the frontier in a fixed order, and never
-past it:** the user's own feedback, then live files in `docs/handoffs/`, then the unsatisfied `(now)` outcomes, then the
-next stages of ACTIVE programmes - and of AUTHORIZED ones whose only unmet entry condition is a
-DATE, because a date orders and never gates (owner, 2026-09-03) - then standing owner asks (`node scripts/owner-receipts.mjs`
-- what the owner asked for, when, and how long it has waited), then `docs/backlog/` items whose
-stated why serves NOW or an ACTIVE programme. Capacity left after the frontier is left over -
-**never invent work to fill a wave**.
+**A row is on the FRONTIER when three things hold:** its why traces to the owner's feedback, to an
+unsatisfied outcome's done criteria, or to reliability; its files are free; and it waits on no
+human. Fill it with the most important unsatisfied outcome first, and finish important existing
+work on an outcome before starting new work on it. Capacity left over stays left over - **never
+invent work to fill a wave**. An owner ask this wave does not start becomes a `docs/backlog/` item
+naming its outcome, written by one row's first commit. Private context (dates, partners, demos)
+is in `docs/private/` in the main checkout: plan with it, never cite a date as the reason, never
+copy it into public text.
 
-**A standing ask is work, and spare capacity STARTS it** (owner, 2026-09-03); the reason one waits
-is owed in section 4 per receipt (`orchestrator/pushback.md`). **An owner ask this wave does not
-start becomes a receipt** (`docs/backlog/`, front matter per its README), written by one row's
-first commit, so the ask is in the repository before the session that heard it ends.
-
-**Day wave or night wave.** A NIGHT wave is planned in the evening, started by the user, landed
-and pushed by morning with the queue doing the merging. Everything marked *night* is mandatory
-there. **THE WAVE WINDOW is whatever time the user names in the invocation** and the plan scopes
+**Day wave or night wave, and how it starts.** A NIGHT wave is planned in the evening, started by
+the user, landed by morning through the queue; everything marked *night* is mandatory there. An
+interactively started wave may open with a brief alignment step, a few `needs: decision`
+questions Grill-Me style, when a major owner-level choice shapes the whole wave. **START-NOW mode**
+(`/orchestrator now`) skips it: no questions, decide and launch. Once a wave runs it asks nothing. **THE WAVE WINDOW is whatever time the user names in the invocation** and the plan scopes
 to it - prompt cores sized to finish inside it, tails cut first. Unstated, plan to the next
 natural checkpoint and say which. **24 hours is the absolute ceiling of any unattended chain.**
 
@@ -91,10 +90,11 @@ natural checkpoint and say which. **24 hours is the absolute ceiling of any unat
    branch's own worktree, the only session that may queue it again.
 4. **What I would push back on.** -> `orchestrator/pushback.md`
 5. **The prompts, and every row's route** - then the launch. -> `orchestrator/prompts.md`, `orchestrator/routing.md`
-6. **Open questions, then one pick.** **The ask-test is strict: a question reaches the user only
-   when the user holds information the machine lacks** - a taste ruling, product direction, real
-   money, an external account, an irreversible step past `main`; an important machine-decidable
-   choice is DECIDED, reported with its why, and vetoed after the fact (`orchestrator/pushback.md`).
+6. **Decisions deferred, then one pick.** Preserve the intended outcome, use engineering judgment,
+   keep going. Defer only a decision that materially changes direction, costs significantly or
+   unusually, changes an important external, security or privacy boundary, or is hard to reverse
+   (`docs/GOALS.md`, "Autonomous work"): record it and continue other work. The rest is DECIDED,
+   reported with its why, and revertible after the fact (`orchestrator/pushback.md`).
 7. **The morning report.** -> `orchestrator/report.md`
 
 **A night wave does not end with the text.** After section 6, with no further prompting, this
@@ -125,8 +125,8 @@ These fire while the wave table is being written, before any module is loaded.
 - **Every row names its POOL**, with one clause on the kind of thinking the task rewards.
   Routing is a step of the plan, not a default (`orchestrator/routing.md`).
 - **Every pasted task gets a prompt.** Flagging is not vetoing.
-- **Handoff files are CONSUMED, not archived - git is the archive.** Every file read is classified
-  in the wave-state file; the drain names what the plan has not (`orchestrator/collisions.md`).
+- **Handoffs are continuation records, not a queue.** A row writes one only for unfinished work; a
+  row that finishes a handoff's work deletes it; the report counts open handoffs before and after.
 - **One browser-driving job per MACHINE, not per worktree** (root `AGENTS.md`). Editing
   parallelises; a browser job does not. Tell sessions to use the `:queued` form.
 - **The owner queue is a RECORD, NEVER a gate on what can be started** - report its depth in
@@ -161,9 +161,10 @@ reaches `main` - GitHub's merge queue lands it), `check` (review, simplify, veri
 `so` (an independent second opinion on a big call), `handoff`, `walk`, `cleanup-worktrees`,
 `rescue` (delegation to Codex). Name the workflow in a prompt; never paste its procedure.
 
-## Every wave improves the orchestration system
+## Learning, without growing the rules
 
-Each wave is an experiment on the orchestration itself, and the same failure must never fire
-twice. **A recurring failure becomes a mechanism before it becomes text**; the order, and where the
-lesson and its evidence go, is `orchestrator/coherence.md`. A wave that taught nothing says so; a
-lesson is found, never invented.
+Every wave teaches something, and learning is not adding rules. Record a meaningful failure or
+surprise as an observation (`npm run learn -- --area orchestrator --evidence "..."`); one ordinary
+mistake stays evidence. For a pattern or an expensive failure, fix the cause first, then a default,
+a check or the scheduling, and a rule last; verify the fix works. The ladder, the periodic
+synthesis and the outcome measures are `orchestrator/coherence.md`.

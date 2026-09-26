@@ -276,7 +276,7 @@ test('a READ block ends at a blank line, an unindented line, a prompt key or a k
 test('an answered alignment question the plan never mentions is refused', () => {
   const alignment = [{ id: 'ALIGN-2026-09-15-1', question: 'Still the top of NOW?', answer: 'Yes.' }];
   const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], alignment, now: NOW });
-  assert.ok(problems.some((p) => /alignment answer ALIGN-2026-09-15-1 is not in docs\/OWNER_RULINGS\.md/.test(p)));
+  assert.ok(problems.some((p) => /alignment answer ALIGN-2026-09-15-1 is not recorded yet/.test(p)));
 
   const mentions = checkPlan(`${GOOD}
 

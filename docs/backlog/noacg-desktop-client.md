@@ -70,7 +70,7 @@ Explicitly NOT in scope: replacing the CasparCG Server. That is where the cost l
 
 **Unlocked on 2026-09-10.** Asked at the weekly alignment session whether the desktop app stays
 parked by his August decision, the owner answered "Everything should be unlocked. There's no reason
-to lock anything" (ALIGN-2026-09-10-4 in `docs/OWNER_RULINGS.md`). That ends the 2026-08-16 parking
+to lock anything" (ALIGN-2026-09-10-4 in the retired owner rulings). That ends the 2026-08-16 parking
 for this item, so it now waits its turn on the shelf like any other ask rather than being held
 back on principle. Replacing the CasparCG Server stays out of scope, because that is this item's
 shape, not a lock. Its close relative,

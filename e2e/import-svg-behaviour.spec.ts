@@ -1069,7 +1069,7 @@ test('imported countdown: the take starts it, and the operator holds, resumes an
 
   // ── THE TAKE STARTS THE COUNT ───────────────────────────────────────────────────────────────
   //
-  // The owner ruling this behaviour was built to (docs/OWNER_RULINGS.md,
+  // The owner ruling this behaviour was built to (the retired owner rulings,
   // operator-stories-2026-08-27): "duration set beforehand, starts on TAKE". Read off the RENDERER
   // rather than off the machine, because the clock is the one thing here no state can vouch for.
   const air = page.frameLocator('[data-testid="program-stage"] iframe');

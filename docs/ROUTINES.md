@@ -125,7 +125,7 @@ automate" safe rather than merely optimistic.
 worth having: an answer that stays in a chat window is a ruling the repository never learned. The
 routine writes each question into its own gitignored file under an id (`ALIGN-<date>-<n>`) and fills
 the answer in beside it when he gives one, which is capture a routine is allowed to do. From there
-`scripts/alignment-answers.mjs` compares those answers against `docs/OWNER_RULINGS.md`, and
+`scripts/alignment-answers.mjs` checks whether a tracked doc records each answer by its id, and
 `wave-plan-check.mjs` **refuses a wave plan that does not mention an answered id which is not yet
 recorded**. So the next `/orchestrator` plans the row that writes the ruling, and the refusal comes
 back every morning until it has landed. `npm run alignment:pending` prints what is outstanding and

@@ -15,7 +15,8 @@ MODEL  <available model and effort> - <what KIND of thinking this task rewards>
 START  now
 TOUCHES <files>   MINTS <slot, or ->
 GOAL   One sentence: what is true when this is done.
-WHY    The real problem it solves, or the goal it serves.
+WHY    The real problem it solves: the docs/GOALS.md outcome it moves, or the reliability need.
+ACCEPT The observable acceptance criteria this row must make true (the outcome's done criteria).
 READ   file, file, file.
 SPEC   docs/work-specs/<slug>/work.json AC-1,AC-2 (substantial work only; omit otherwise)
 SIZE   small or standard (substantial work; decompose large autonomously)
@@ -27,9 +28,9 @@ GATE   npm run build and the necessary focused checks. Commit the verified outco
        Report state changes via wave-launch progress with the returned worker ID (hosts.md).
 QUEUE  Then, as your LAST THREE actions and in this order:
        1. run /check (review, simplify, verify) on the branch - name each leg's mode;
-       2. write docs/handoffs/<date>-a-<slug>.md: what is left and why, evidence and traps that
-          exist in no repo file, anything that needs the owner, and pointers (commits, the check
-          stamp, the owner-queue item) - what landed is one line of commit pointers, never a story;
+       2. ONLY if meaningful work is left unfinished, write docs/handoffs/<date>-a-<slug>.md: what
+          remains, why, the GOALS outcome, what done means. Finished work writes none; a row that
+          finishes a handoff's work deletes that handoff in its own branch;
        3. run /queue-merge. Do not commit after queueing: queueing pins the branch, and a later
           commit makes the landing job refuse. Never merge into main yourself.
        Never end a turn waiting on something that cannot wake you - a CI run, a landing, a

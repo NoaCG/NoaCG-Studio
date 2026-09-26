@@ -27,7 +27,7 @@
 //   - every STANDING owner ask mentioned by slug somewhere in the plan (scripts/owner-receipts.mjs)
 //     - a plan may hold or defer one, never fail to see it. A FINDING is not one of these.
 //   - every ANSWERED alignment question mentioned by id (scripts/alignment-answers.mjs) - what he
-//     said on Tuesday, still not in docs/OWNER_RULINGS.md. Unlike an ask this one is not deferrable:
+//     said on Tuesday, still not recorded. Unlike an ask this one is not deferrable:
 //     it is a ruling already given, and it repeats every morning until a branch records it.
 //   - every CANDIDATE ROW of a weekly review written in the last week classified under
 //     `## Weekly review` (scripts/weekly-candidates.mjs) - planned as a row, or deferred or
@@ -445,13 +445,13 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
     }
   }
   // An answered alignment question is a ruling he has already given, so the plan may not hold or
-  // defer it the way it may an ask - it plans the row that writes it into docs/OWNER_RULINGS.md.
+  // defer it the way it may an ask - it plans the row that records it where it belongs.
   // Mentioning the id is what passes here; the answer stops being pending when the ruling lands,
   // so an unrecorded one comes back tomorrow and the morning after that. The id is matched WHOLE
   // (`mentionsId`), so a plan naming ...-10 does not silently satisfy the refusal for ...-1.
   for (const entry of alignment) {
     if (!mentionsId(text, entry.id)) {
-      problems.push(`alignment answer ${entry.id} is not in docs/OWNER_RULINGS.md and this plan does not mention it - plan the row that records what he said`);
+      problems.push(`alignment answer ${entry.id} is not recorded yet and this plan does not mention it - plan the row that records what he said where it belongs`);
     }
   }
   // A candidate row from a weekly review inside this plan's window. Unlike an alignment answer it

@@ -130,7 +130,7 @@
       "measuredAt": "2026-09-01",
       "claim": "A Codex row always names a fallback pool, because Codex capacity is shared with the owner's other projects and can be near zero on a given day. Codex is otherwise available by default (owner, 2026-09-03) - this constrains the plan's shape, not how much Codex it uses.",
       "reprobe": null,
-      "source": "docs/OWNER_RULINGS.md, owner-decisions-2026-09-03"
+      "source": "the retired owner rulings, owner-decisions-2026-09-03"
     },
     {
       "id": "codex-writable-root-is-the-launching-session-cwd",

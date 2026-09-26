@@ -18,9 +18,10 @@ behind a link. Every number in it names the command it came from.
    whose handoff leaves genuinely valuable follow-up, in the section-5 format, so the user can
    scroll and paste. **A finished session gets no prompt.** Never invent work to fill this section
    - most mornings it holds zero or one block, and an empty section is the good outcome.
-4. **Handoffs, drained** - the output of `node scripts/handoff-drain.mjs`: every file with its
-   class, and the one quoted "what is left" line for each `deferred` or `owner` file. Never the
-   full text. A file still `UNCLASSIFIED` here is the report's own defect, fixed before it ships.
+4. **Handoffs, drained** - OPEN HANDOFFS AT THE START AND AT THE END of the wave, and why if the
+   end number is higher (a wave with a finite backlog should leave fewer); then the output of
+   `node scripts/handoff-drain.mjs`: every file with its class, and the one quoted "what is left"
+   line for each `deferred` or `owner` file. Never the full text. A file still `UNCLASSIFIED` here is the report's own defect, fixed before it ships.
 5. **Refused, and WHICH KIND** - a refusal is written on the pull request (`gh pr view <n>`,
    `gh pr checks <n>`), and the four kinds `queue-merge.md` names are different mornings: red ON THE PULL REQUEST
    (`CI gate` or `Reviewed`), so it never entered the queue; dropped FROM THE MERGE GROUP, `CI gate`
@@ -54,8 +55,9 @@ behind a link. Every number in it names the command it came from.
     cheaply, and the pattern of vetoes is what tunes the next wave's decisions.
 11. **One lesson, in every report** - one thing this wave taught that the next wave will apply,
     named concretely; when it is an orchestration lesson, the report says which mechanism, test,
-    state or module carries it now (the core's "Every wave improves the orchestration system").
-    A wave that taught nothing says so - a lesson is found, never invented.
+    state or module carries it now, and it is recorded as an observation (`npm run learn`); a rule
+    only by the ladder in `coherence.md`. A wave that taught nothing says so - a lesson is found,
+    never invented.
 
 **The report and the questionnaire are written for a NON-TECHNICAL reader**: what happened, what
 was chosen, why, and what to do - in plain words, with jargon never carrying the meaning.

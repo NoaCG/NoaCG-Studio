@@ -114,7 +114,7 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'A finished session gets no prompt.',
       // Handoffs are working files, not records - git already keeps the history. Without the
       // consumed/spent/deferred pass the folder grows monotonically and every plan re-reads it.
-      'Handoff files are CONSUMED, not archived - git is the archive.',
+      'Handoffs are continuation records, CONSUMED and deleted, never a queue.',
       // Literal obedience is the failure mode this pair guards: the why travels so a session can
       // beat the route, and spare capacity drains a declared backlog instead of invented work.
       'WHY is a TARGET, not a route.',
@@ -122,10 +122,10 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       // Paid-for on 2026-08-26: a build gate landing mid-wave turns every sibling's merge of
       // main into a moving target, and their reds read as their own fault.
       'A GATE LANDS ALONE.',
-      // The owner is the top-level coordinator, consulted on major forks - never a gate on
-      // machine-decidable choices, however important; and a why that is not true breaks
-      // working software when executed to the letter.
-      'a question reaches the user only when the',
+      // A running wave asks nothing and defers only the decisions docs/GOALS.md names; everything
+      // else is decided and reported. And a why that is not true breaks working software when
+      // executed to the letter.
+      'Defer only a decision that materially changes direction',
       'THE WHY MUST BE TRUE, and function outranks cosmetics.',
       'THE WAVE WINDOW is whatever time the user names in the invocation',
       // Context rot reads as the agents getting dumber - the weekly fresh-eyes session is the
@@ -136,7 +136,8 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       // The self-feeding wave is bounded by the report, not by pre-approval - the loop can
       // extend a wave, never extend itself past the owner's checkpoint.
       'THE REPORT IS THE CHECKPOINT.',
-      'Every wave improves the orchestration system',
+      // Learning is continuous and is not adding rules: observations first, a rule last.
+      'Learning, without growing the rules',
       // Routing is a step of the plan, and three mechanisms make the plan's readiness, the
       // handoff drain and the owner's asks observable rather than remembered (2026-09-02).
       'Every row names its POOL',

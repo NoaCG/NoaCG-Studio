@@ -21,4 +21,4 @@ generates); this one guides inside the product.
 
 **Status:** backlog only - needs a plan pass and an owner ruling on scope/tier before any build.
 On 2026-09-10 the owner said it matters but can wait, behind the editors and the North Star 2027
-goals (ALIGN-2026-09-10-1 in `docs/OWNER_RULINGS.md`).
+goals (ALIGN-2026-09-10-1 in the retired owner rulings).

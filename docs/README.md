@@ -88,7 +88,6 @@ Layers of documentation, top to bottom:
 | `AI_LITE_PLAN.md` | ACTIVE PLAN: how Lite gets good and stays inside the ~€0.01 budget - what the 2026-08-07 switch-on and first real round measured, the route table with live prices, what the model decides vs the platform, why the judge stays off, and the build order. |
 | `ACCEPTANCE_SPX_CASPARCG.md` | OPEN manual checklist: the parts of acceptance only a real SPX/CasparCG stack can prove. Not yet run. |
 | `GOALS.md` | THE ONE DIRECTION DOCUMENT: the North Star, how done works, and one outcome spec per area (why, desired state, current state, done for this phase, evidence, plans), each marked now, next or later. Its line budget is stated once, in its own opening paragraph, which `npm run check:goals-budget` reads. |
-| `PROGRAMMES.md` | THE REGISTER, ratified 2026-09-01: which long-running programmes the owner has authorized, each programme's state, entry conditions, scope edges and reopen triggers. Only the owner writes AUTHORIZED; the orchestrator advances ACTIVE programmes without per-step permission. The argument and claims are `NORTH_STAR_2027.md`. |
 | `VERIFICATION.md` | The full verification procedure behind root `AGENTS.md`'s rules: which suite to run, why the pre-merge gate lives in CI rather than the laptop, how a run is read job-by-job, and what each catalog gate measures. |
 | `WORKFLOW_ARCHITECTURE.md` | The development workflow for 12+ parallel sessions: the measured bottlenecks (landing on one laptop, the full suite per landing, contracts growing 8 KB a day, single-line registries), the target architecture (cloud landing queue, validation tiers, compiled contracts from `contracts/rules/`, the `learn` write path, the orchestrator's role), the source-modularity audit, the staged plan and the acceptance metrics. |
 | `METRICS.md` | The 2026-09-06 baseline for every target in `WORKFLOW_ARCHITECTURE.md` §9, with the `npm run metrics:*` command that reproduces each number. Each later re-measurement is its own file under `docs/metrics/`, so a row that measures something conflicts with nobody. |
@@ -154,7 +153,6 @@ Layers of documentation, top to bottom:
 | `AI_LITE_BRAND_PLAN.md` | Lite brand graphics - beat free templates or ship nothing. Its own §2 value gate FAILED on the owner's blind ballot (2026-08-14); REVIVED by owner decision 2026-08-15 with a re-run of that same gate as the bar. |
 | `VERCEL_PRO_NO_OVERAGE_PLAN.md` | The operating plan for using the Pro subscription fully while keeping the bill at the fixed platform fee. Review on a Vercel pricing change or before enabling another paid service. |
 | `IBC_LISTING_CHECKLIST.md` | Getting NoaCG listed in the OGraf ecosystem, for one ~45-minute sitting. Everything a machine could check is checked; what remains is the owner's half. |
-| `NORTH_STAR_2027.md` | RATIFIED 2026-09-01 with amendments: the one-year north star, eight programmes with customer-facing acceptance claims, and the claim-maturity evidence model (implemented -> machine-verified -> scenario-proven -> owner-accepted -> production-proven). §9 records the rulings; the LIVE programme state is `PROGRAMMES.md`. |
 | `CATALOG_LAZY_LOADING_PLAN.md` | **Design note only, nothing built.** The catalog is eagerly loaded for every visitor: `/app` boots 802 script modules in dev, 520 of them `src/templates`. **Production measured 2026-07-31: 1 171 KB transferred, 1 612 ms to a usable editor** — the "4.16 MB" in the first draft was the DECODED chunk, not the wire, and the note now says so. The stage-1 audit found the blocker is two declared values per variant, so the fix is small; the measurement says it is also **not urgent**, and the one reading that could change that (real mobile hardware) has never been taken. Two questions open for the owner: when, and category-vs-pack. |
 
 ## Rationale / historical (do not read as current behaviour)
@@ -162,7 +160,6 @@ Layers of documentation, top to bottom:
 | Doc | What it explains |
 |---|---|
 | `GOALS_ARCHIVE.md` | Every milestone that shipped up to 2026-08-07, with its date and rationale, plus the ratified decisions behind them. The live roadmap is `GOALS.md`. |
-| `OWNER_RULINGS.md` | The dated log of rulings the owner gave in session, moved out of the memory store on 2026-09-03. Read it as EVIDENCE, not authority: several predate the landing queue and the student-release pivot, `GOALS.md` outranks all of it, and the precedence order is in `MISTAKE_TRIGGERS.md`. |
 | `ERA5_PLAN.md` | Why the server era is shaped as it is (Supabase, AGPL split, offline invariance). Shipped through 5.6; 5.7 payments open. |
 | `TIMELINE_PLAN.md` | Archived pre-v2 timeline research; forward direction is EDITOR_PLAN.md. |
 | `WYSIWYG_PLAN.md` | Archived first-editor history and failure lessons; superseded as forward direction. |
@@ -224,9 +221,5 @@ dates and rationale) and delete it from `GOALS.md`. When the direction
 changes, rewrite `GOALS.md`; the archive keeps the history. Plans get their own doc only while
 they need design rationale; when they finish, they move to the historical table above.
 
-Two files sit beside it without duplicating it (ratified 2026-09-01): `NORTH_STAR_2027.md` is the
-one-year vision, claims and evidence model - direction, not a work list; `PROGRAMMES.md` is the
-authorization register - which long-running programmes the orchestrator may advance, and their
-state. The roadmap says what the push is; the register says what else is legal to work on.
 
 - [Editor review package](research/editor-review-brief-2026-09-18.md) - current unified roadmap, latest canvas/timeline mockup, retained whole-workspace and reuse evidence, and second-opinion questions. Monaco optional; implementation paused.

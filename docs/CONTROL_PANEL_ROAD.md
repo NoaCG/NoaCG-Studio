@@ -519,3 +519,10 @@ fires, not in a road map.
 He named six of the eight explicitly, which is stronger than leaving the list alone: renderer
 redundancy, operator identity, timing carried as data, cue representation, the rate limit and log
 exposure, and the proving bar are all expected to be outgrown rather than merely tolerated.
+
+## Standing decisions
+
+Owner decisions that still bind this plan (moved from the retired rulings file, 2026-09-26).
+
+- Poll results are held until Show result by default; an operator checkbox turns on live updating during the broadcast.
+- Anything that scrolls has an operator speed control, scrolls all the way through by default without parking names mid-screen, and may end on an optional logo or text beat.

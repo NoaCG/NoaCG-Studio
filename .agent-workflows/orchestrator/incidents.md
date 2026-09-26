@@ -2,8 +2,10 @@
 
 Every rule in this system was paid for. The rule keeps its why in one clause; the story lives
 here, dated, so a session planning a wave does not carry it and a session about to CHANGE a rule
-can find it. **Append only. Never delete an entry** - a rule that is repealed keeps its incident,
-because the next person to propose the same rule needs to know it was tried.
+can find it. **Frozen history.** New evidence goes to the learning records (`npm run learn -- --area
+orchestrator --evidence "..."`, under `contracts/records/`), which the weekly session synthesizes. Never
+delete an entry here - a repealed rule keeps its incident, because the next person to propose the
+same rule needs to know it was tried.
 
 Cite an entry from a rule by its heading, e.g. *(evidence: `incidents.md` "the copy gate landed
 mid-wave")*.

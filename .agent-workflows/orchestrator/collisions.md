@@ -81,12 +81,12 @@ queue bounces the conflicting pull request to its session. Both are solved by on
 
 - **the owner queue** - one file per item under `docs/acceptance/owner-queue/`, named
   `<date>-<letter>-<slug>.md`. Never a shared list (root `AGENTS.md` rule 7).
-- **the handoff** - one file per session at `docs/handoffs/<date>-<letter>-<slug>.md`, so the
-  morning report can collect every session's handoff without the user opening any of them.
+- **the handoff** - only when a session leaves meaningful work unfinished, one file at
+  `docs/handoffs/<date>-<letter>-<slug>.md`; a finished session writes none.
 
 ## Consuming the handoff folder
 
-**Handoff files are CONSUMED, not archived - git is the archive.** A new plan classifies every
+**Handoffs are continuation records, CONSUMED and deleted, never a queue.** A plan classifies every
 file in `docs/handoffs/` it read, one line each under `## Handoffs` in the wave-state file:
 **consumed** (a prompt in section 5 was written from it), **spent** (nothing left worth a prompt -
 every open item traced, never invented work), **deferred** (machine-continuable, not this wave -

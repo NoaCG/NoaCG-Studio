@@ -92,7 +92,7 @@ measured on the first page the way `spreadFirstPage` already spreads hue and fam
 
 Asked at the weekly alignment session whether the catalog needs to look broader for the next
 demonstration, or whether it rides entirely on someone importing their own graphic. Paraphrased from speech, so
-the intent binds and the wording does not - full answer in `docs/OWNER_RULINGS.md` §ALIGN-2026-09-10-2.
+the intent binds and the wording does not - full answer in the retired owner rulings §ALIGN-2026-09-10-2.
 
 > ... it's not a requirement for the day. It's more maybe just a vanity thing. ... For example
 > there are many types of graphics or looks that we don't have. We are going quite strong with the

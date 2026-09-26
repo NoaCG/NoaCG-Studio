@@ -380,7 +380,7 @@ show needs them:
 2. **A clock the operator can correct on air.** Ten products ship a timer, two ship the correction.
    Everyone overruns.
 3. **Credits with a speed control**, which the owner already ruled on
-   (`docs/OWNER_RULINGS.md`, credits, amended 2026-08-28) and which nothing has been built for.
+   (the retired owner rulings, credits, amended 2026-08-28) and which nothing has been built for.
 
 ## 5. Which gaps are reachable with no expression language
 

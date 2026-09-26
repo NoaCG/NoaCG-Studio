@@ -1,8 +1,8 @@
 # Teams - the P1 design
 
 **Status: RATIFIED 2026-09-01 by the owner, with all five §8 questions answered - programme P1 is
-ACTIVE (`docs/PROGRAMMES.md`). Implementation follows §7's stages in order; §7 records where each
-one got to.** The claim it serves is `docs/NORTH_STAR_2027.md` §5 P1; the autumn class is the
+ACTIVE (the retired programme register). Implementation follows §7's stages in order; §7 records where each
+one got to.** The claim it serves is the retired 2027 North Star §5 P1; the autumn class is the
 first customer.
 
 ## 1. Goal, claim, non-claims
@@ -45,7 +45,7 @@ The alternative was `team_id` on every content table with predicates widened to
    `ai_generations`, `user_grants`, `user_feedback`, personal documents and assets must never
    become team-readable; a rewrite that touches them all to reach the two tables that matter
    maximizes the audit surface for zero claim value. Every migration here is a scope edge
-   (`docs/PROGRAMMES.md` P1); the right design minimizes how many there are.
+   (the retired programme register P1); the right design minimizes how many there are.
 2. **It breaks the sync engine's core assumption.** `src/backend/supabaseProvider.ts` lists
    records with no user filter - RLS IS the filter - and `src/backend/sync.ts` reconciles the
    entire visible set as "this account's library". Widen visibility and every member's device
@@ -386,7 +386,7 @@ production's Share door, and a new member owns no production to open one from. W
 
 ## 8. Risks, scope edges, open questions
 
-**Scope edges** (each returns to the owner per `docs/PROGRAMMES.md`): every migration - M1 and
+**Scope edges** (each returns to the owner per the retired programme register): every migration - M1 and
 M2 are ratified BY this plan, anything beyond them is a new ask; SMTP/Google OAuth provisioning
 (owner consoles); any change touching a per-user predicate other than the `control_shows`
 OR-branch named in §3.

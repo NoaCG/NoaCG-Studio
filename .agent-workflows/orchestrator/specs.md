@@ -5,7 +5,7 @@ fixes use GOAL/WHY/GATE as before. Do not backfill old projects merely to popula
 
 ## Authority and the specification checkpoint
 
-Owner intent/rulings -> `docs/GOALS.md`, `docs/NORTH_STAR_2027.md`, `docs/PROGRAMMES.md` ->
+Owner intent -> the outcome and its done criteria in `docs/GOALS.md` ->
 active spec -> plan -> task -> implementation -> verification. The last two describe reality,
 not permission to redefine the goal. Use those existing sources as the constitution; link the
 relevant sections instead of copying product principles. A handoff or discovery is evidence.
@@ -87,8 +87,8 @@ The read-only checker refuses missing criteria, missing/altered evidence, old sp
 and a changed reviewed tree. `evidence-complete` means the record is consistent, NOT that a hash
 or an agent's prose proves behaviour. The reviewer must judge the actual evidence; a zero process
 exit, file existence or regex match is not functional verification. Keep implemented,
-machine-verified, scenario-proven, owner-accepted and production-proven distinct as PROGRAMMES
-already requires. Queueing declares the bounded branch finished, never silently the whole parent.
+machine-verified, scenario-proven, owner-accepted and production-proven distinct, as GOALS.md
+("How done works") requires. Queueing declares the bounded branch finished, never silently the whole parent.
 
 After this pilot, follow `docs/backlog/instruction-context-rot-after-spec-pilot.md`: audit actual
 loaded context, stale instructions and deeper chains. Do not let this ledger become another layer

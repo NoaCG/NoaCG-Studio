@@ -11,7 +11,7 @@ judgement about direction, a design, or an adversarial read of a decision somebo
 made - never volume, and never because a queue was full.
 
 Everything in `wave-row` applies unchanged: the repository's contracts bind you, `npm run build`
-verifies, the check workflow runs before you queue, you write the handoff the prompt names, and
+verifies, the check workflow runs before you queue, you write the handoff the prompt names only if work is left unfinished, and
 `/queue-merge` is your last action. Never merge or push by hand.
 
 For design work, `docs/DESIGN_LANGUAGE.md` and the brand manual are binding and are read before
