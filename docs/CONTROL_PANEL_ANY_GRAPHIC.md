@@ -330,16 +330,15 @@ and the evidence for each line. It is short because most of it is already standi
    - the **output embed** (`src/export/outputEmbed.ts`) - one SPX-legal file whose body is the
      production's own output URL, so SPX's Play and Stop move the frame while every cue, the
      combined control and the shared data stay with the NoaCG operator. This is the door the day
-     wants. **It has never been run against a real SPX server**
-     (`docs/acceptance/owner-queue/2026-08-25-spx-output-embed-on-a-real-spx-server.md`, open since
-     2026-08-25, and the check needs a machine no session here has);
+     wants. **It has never been run against a real SPX server** (the SPX line of
+     `docs/backlog/casparcg-production-acceptance-matrix.md`, and the check needs a machine no
+     session here has);
    - the **SPX starter export** (`src/export/targets/spxStarter.ts`) - a self-contained folder that
      is the strictest export gate we have and carries fields plus the default path, but by §6f no
      combined controls and no production data tree. It is the honest offline fallback, and it costs
      the profile.
-   Comparing the two doors on the proof case is offline work nobody has done, and it is filed as
-   `docs/backlog/which-door-into-spx-the-proof-case-uses.md` so the choice is made before a
-   production depends on it.
+   **Walked on the proof case 2026-09-27, §6h: the output embed, with the starter package on the
+   playout machine as the offline fallback.** The real-SPX check now tests exactly that door.
 
 3. **An authoring story that looks effortless to people who make graphics for a living.** EXISTS
    and is timed, with one honest hole. The skill teaches the contract (row 1), and the road is
@@ -524,6 +523,10 @@ row 9's stepper change does not reach it, and its field stepper stays what it is
 show ever needs either, that is the demand that reopens this paragraph, recorded then, not
 pre-built now.
 
+**Walked, not only stated.** §6h exports the proof case through both SPX doors and reads what the
+boundary costs an operator standing at SPX: on the starter package the combined control, the
+bindings and the tree are all gone, and nothing in the package says so.
+
 **What this check did NOT change.** The two primitives, the step marks, the general table in §6c,
 the refusals, the timing rule in §6d. The score example proves the shared-data row and nothing
 else; the profile proves sequencing; the contract proves graphic-specific controls. None of the
@@ -535,6 +538,56 @@ three defines the others.
 with `ask` on the +1s, which is the proof case in §6c's first row. §5 gains the rows that build
 this. §8's decision 5 is amended. The reserved shape in the road is unchanged, so no other document
 moves.
+
+### 6h. Which door into SPX the proof case uses - walked 2026-09-27
+
+**How it was walked.** The proof-case pack (`e2e/fixtures/agent-made/vote-show.noacgpack.json`;
+there is no separate score-only fixture in that folder, so this pack is the whole sample) was
+imported through the app's own pack import (`e2e/_proofCase.ts`) and given the profile, bindings and
+tree the hosted walk uses (`e2e/configured/hosted-control-profile.spec.ts:181-216`): the combined
+control "Reveal, then the points" (Reveal, then two ticked `+1`s, the first after 5 s), Panelist 1's
+name bound to `panel.katri.name` on both boards, Points 1 bound to `panel.katri.points`, and a tree
+seeded with Katri on 3 points. Both doors were then built by the app's own builders at `19518e21`
+(`buildShowZip` in `src/export/showExport.ts`, `outputEmbedHtml` in `src/export/outputEmbed.ts`),
+and the two templates of the SPX package were run in Chromium through SPX's classic globals
+(`update`, `play`, `next`). The spec was scratch and is not kept; every "measured" below is that run.
+
+| What the operator at SPX gets | **Output embed** (`vote_show_output.html`) | **SPX starter** (the production package) |
+|---|---|---|
+| Rundown items | One, on layer 20 (`outputEmbed.ts:47`), carrying both graphics inside one frame | Two: `votes_board.html` on layer 7 and `totals_board.html` on layer 8, the pool's own numbers written into each definition (`showExport.ts:76-93`) |
+| Fields in SPX | Output URL, Debug overlay, Stay dark until Play, and one instruction line (`outputEmbed.ts:78-108`). None of the graphics' fields: those are edited in NoaCG | Votes board: 16 fields (Song, Performer A-D, Panelist 1-5, Pick 1-5, Correct) plus the hidden Shown. Totals board: Name 1-5 and Points 1-5 as number fields |
+| Buttons in SPX | Play and Stop show and hide the frame; Continue is off (`steps: '1'`, `outputEmbed.ts:75, 224-226`); one **Reload output** button (`:101-107`) | Play, Update, Stop on both items. Continue once on the votes board, and it IS the reveal: measured, Continue moved the board to `revealed` and marked 2 right, 2 wrong and the correct performer. The totals board has no Continue and no `+1`: its eleven controls (`+1`/`−1` per panelist, New game) are not SPX fields, so SPX never shows them |
+| Where the show's own buttons are | The hosted control page on a phone or laptop, and the in-app production page: every control, arranged (§6e) | `show_controlpanel.html` has Reveal and the ten ± buttons, but it pairs with a graphic only over a same-origin BroadcastChannel in the same browser (`showExport.ts:1-6`), so it cannot reach the copy SPX renders; the package's README says an SPX rundown does not need it (`showExport.ts:161-163`). No ARRANGE either: the panel is built without it (`showExport.ts:127-133`) |
+| The combined control | One press on the hosted page, with its countdown, cancel and ticks (`hosted-control-profile.spec.ts:284-407`) | **Gone, silently.** Measured: the whole package was searched for the control's name, its id, the arranged name "Reset the board" and §6f's line "combined controls run from", and none is there. The operator's equivalent is three actions on two items: Continue on the votes board, wait, then type Points 2 and Points 3 one higher and press Update on the totals board |
+| A `+1` on a bound field (Points 1) | Patches the tree, and every field bound to `panel.katri.points` follows (§5 row 9; `hosted-control-profile.spec.ts:427-456`) | Points 1 is a plain number field: the operator types the next number and presses Update. Measured: 3 became 4 on air. Nothing is bound to anything |
+| Shared production data | Katri's name is entered once in the tree and shows on both boards | No tree and no bindings: `panel.katri` and the seeded name are absent from the package (measured). The name is typed twice, in Panelist 1 and in Name 1, and the two can drift |
+| Update after the reveal | The hosted Reveal writes Shown = `revealed` with the arrow (the control's `set`), so later edits keep the marks | **A trap.** The SPX item keeps its hidden Shown at `votes` (SPX stores a hidden field and sends it with the item's data, `docs/SPX_TEMPLATE_FORMAT.md:119`), and the votes board repaints the marks from Shown on every update (its own `update()`, under "THE READ-BACK"). Measured: an Update after Continue left the board in `revealed` with every mark cleared. Recovery is Stop, Play, Continue, so the SPX rule is: finish the picks before Continue |
+| What it asks of the room's network | For the whole show, the playout machine (CasparCG's HTML producer or SPX's web renderer) reaches `noacg.studio` over HTTPS and the production's Supabase project for REST and a Realtime WebSocket, and so does the operator's phone or laptop. A proxy that passes the WebSocket upgrade and eats the frames leaves the output on the 30 s poll floor, a show 30 s late (`docs/CLOUD_PLAYOUT.md` §3, lines 255-277). The production must be published: the file sits beside the output URL (`src/components/home/ProductionLinks.tsx:282-310`), and it carries the output capability only, never the control slug (`outputEmbed.ts:12-17`) | Nothing. Fonts and GSAP ship in each folder (`fonts/inter.woff2`, `js/gsap.min.js` in the measured listing) and no hosted receiver is baked (`showExport.ts:18-22`), so it runs on a machine with no network |
+| Proven on real hardware | The output page itself has run in CasparCG's HTML producer on 2.5.0, and was brought down to 2.3.2's older engine after a real 2.3.2 server refused it (`docs/CLOUD_PLAYOUT.md:289-291, 362-372`). The embed file inside a real SPX: never | The SPX starter format, on the lower-third fixture by hand (`docs/ACCEPTANCE_SPX_CASPARCG.md`). These two graphics in a real SPX: never |
+
+**Recommendation: the output embed.** The proof case exists to show a score the host can follow
+and one press that reveals and then scores, and the embed is the only door where both survive. On
+the starter package the combined control disappears without a word, a `+1` becomes typing a number
+into a second rundown item, the name is typed twice, and an Update after the reveal wipes it. What
+the embed adds is narrow and checkable before the day: whether a real SPX lists and plays the file
+(the page inside it already runs in CasparCG), and whether the room's network lets the playout
+machine out. Download both anyway: the starter package on the playout machine is the fallback.
+
+**The starter package wins when** any one of these holds, and the operator is then briefed on the
+four costs above:
+
+1. the playout machine cannot reach `noacg.studio` and the Supabase project for the show, because
+   the room has no internet or blocks outbound HTTPS or WebSockets and nobody can open them in time;
+2. the real-SPX check of the embed fails (SPX does not list the file, Play puts up nothing, or the
+   frame paints opaque) and there is no fix before the day;
+3. the room wants every cue taken from SPX's own rundown with no NoaCG control page beside it.
+   The embed cannot take a cue by design (`outputEmbed.ts:12-17`), so that room gets the starter.
+
+**What stays open.** The real-SPX run of the embed is the SPX line of
+`docs/backlog/casparcg-production-acceptance-matrix.md` and is folded into the owner's desktop walk
+`docs/acceptance/owner-queue/2026-09-16-a-profile-driven-where-the-show-is-run.md`. That the
+starter package says nothing about what it drops, and the Shown trap, are
+`docs/backlog/the-spx-package-drops-the-profile-without-saying-so.md`.
 
 ## 7. The constraints, checked
 
