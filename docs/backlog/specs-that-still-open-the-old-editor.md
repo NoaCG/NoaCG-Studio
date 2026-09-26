@@ -1023,7 +1023,8 @@ These run only against a configured backend (`npm run test:e2e:live:queued`), ne
 old editor's. `agent-access.spec.ts` is not skipped: its step 4 now asserts that the printed
 `#/graphic/<id>` link opens the control page at `#/control/<id>`. `e2e/configured/expected-run.json`
 lists every file below in `allowedSkips`; the floor went from 54 to 31 when the editor closed
-and back up to 46 on 2026-09-25, when 15 of these tests returned. Take a file off that list, and
+and back up to 46 on 2026-09-25, when 15 of these tests returned; it is `minTests` in that file.
+Take a file off that list, and
 raise the floor, in the change that rewrites it.
 
 ### `e2e/configured/account.spec.ts` - 1 of 3 skipped

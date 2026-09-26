@@ -217,23 +217,15 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
   for (const r of plan.toLocal) {
     if (skipPull.has(recordKey(r))) continue;
     try {
-      // A RECORD WITH NO ASSETS IN STORAGE NEEDS NO ROUND TRIP. `list()` already returned the
-      // whole row; the only thing `get()` adds is rehydrateAssets, so for a body without a
-      // sentinel it is one serialized request to receive data we are already holding.
-      //
-      // This is not a micro-optimization: the pull loop is sequential, and a fresh device pulls
-      // everything the account holds. It was first fixed for TOMBSTONES alone: measured on a
-      // GitHub runner 2026-08-24 (run 32767300909), 141 of 155 pulls were tombstones, 207 ms
-      // each, 29.4 s in total, past the 30 s the UI was being waited on for. Live records pay the
-      // same way: on 2026-09-26 (run 36252087565) a fresh sign-in to the hosted test account
-      // pulled 129 saved looks one request each, 29 s of sequential fetches, and seven specs
-      // failed waiting on the sync indicator. The cost grows with everything an account keeps,
-      // so this is a user-facing defect, not only a slow test.
-      //
-      // GUARDED, NOT ASSUMED: a body that still holds a Storage sentinel (a look's custom font, a
-      // graphic's images) takes the normal get() and rehydrates exactly as before.
-      const needsAssets = hasStorageSentinel(r.body);
-      const full = needsAssets ? ((await remote.get(r.kind, r.id)) ?? r) : r;
+      // Skipping get() when there is nothing to rehydrate (see hasStorageSentinel) is not a
+      // micro-optimization: the loop is sequential and a fresh device pulls everything the
+      // account holds. It was first done for TOMBSTONES alone: on a GitHub runner 2026-08-24
+      // (run 32767300909), 141 of 155 pulls were tombstones, 207 ms each, 29.4 s in total, past
+      // the 30 s the UI was waited on for. Live records paid the same way: on 2026-09-26 (run
+      // 36252087565) a fresh sign-in to the hosted test account pulled 129 saved looks one request
+      // each, 29 s, and seven specs failed waiting on the sync indicator. The cost grows with
+      // everything an account keeps, so it is a user-facing defect, not only a slow test.
+      const full = hasStorageSentinel(r.body) ? ((await remote.get(r.kind, r.id)) ?? r) : r;
       await local.put(full);
       pulled += 1;
     } catch (e) {

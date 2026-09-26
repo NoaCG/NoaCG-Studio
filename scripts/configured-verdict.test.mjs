@@ -176,9 +176,8 @@ test('a flake is named with the transition that made it red, not with its last s
   );
 });
 
-// THE EXPECTED RUN, shared by configured-suite.yml and hosted-latency.yml. Each kept its own copy
-// until 2026-09-26, and the hosted copy never learned about bridge-real-server.spec.ts: every
-// hosted run went red with 0 failed (issue #382). A floor that fails to parse must not read as 0.
+// THE EXPECTED RUN, shared by both workflows (the script header says why, issue #382). A floor
+// that fails to parse must not read as 0.
 test('the expected run refuses a floor that is missing, zero or not a number', () => {
   for (const minTests of [undefined, 0, '48', 4.5]) {
     assert.throws(() => readExpectations(JSON.stringify({ minTests, allowedSkips: {} })), /minTests/);
