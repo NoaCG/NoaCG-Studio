@@ -1,8 +1,8 @@
 ---
 v: 1
-scope: src/ai/claudeProvider.ts, src/ai/telemetry.ts
+scope: scripts/ai-compare.mjs, scripts/ai-bench.mjs, .github/workflows/**
 kind: rule
-fires: contract
+fires: gate:ai-compare
 status: active
 since: 2026-09-07
 record: contracts/records/ai/2026-09-07-keep-paid-runs-out-they-require.md

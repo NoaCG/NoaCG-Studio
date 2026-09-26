@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { toApp } from '../_bench';
 import { ONLY_DESIGNS, SCOPE_NOTE } from '../_catalogScope';
+import * as rules from '../../scripts/rules.mjs';
 
 // A MULTI-COLUMN BLOCK NEVER SPILLS ITS WORDS SIDEWAYS.
 //
@@ -163,6 +164,7 @@ test(`a multi-column block keeps its columns inside its own width${SCOPE_NOTE}`,
       + 'entirely. The cause is almost always a definite height on the container - see the `height` '
       + 'in each row - which switches multicol out of balancing. Leave the height indefinite and '
       + 'let the stage fit shrink the type instead (src/templates/shared/stageFit.ts, "NEVER ON A '
-      + 'MULTI-COLUMN BLOCK").',
+      + 'MULTI-COLUMN BLOCK"). '
+      + rules.text('templates/pin-reserve-height-multicolumn-text-block'),
   ).toEqual([]);
 });

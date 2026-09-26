@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/templates/**
+scope: src/templates/shared/base.ts, src/templates/shared/numerals.ts, src/model/brand.ts, src/model/fonts.ts, src/model/themeTokens.ts, src/ai/creative/scaffold.ts
 kind: rule
 fires: contract
 status: active

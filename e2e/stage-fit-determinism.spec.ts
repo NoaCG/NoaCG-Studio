@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import * as rules from '../scripts/rules.mjs';
 
 // THE STAGE RESERVE MUST BE A PROPERTY OF THE DESIGN, NOT OF THE MACHINE.
 //
@@ -203,7 +204,8 @@ test('a reserve is the same number every time it is measured', async ({ page }) 
       'set under load. The two ways stageFit.ts has got this wrong: measuring the reserve off the ' +
       'VISUAL rect, so an animated ancestor\'s transform lands in it (stageLayoutHeight is the ' +
       'answer), and re-measuring while the other lines are still PINNED from the previous pass ' +
-      '(stageUnpin). Do not re-record a baseline over it.',
+      '(stageUnpin). Do not re-record a baseline over it. ' +
+      rules.text('templates/measure-stage-reserves-layout-dimensions-never'),
   ).toEqual([]);
 });
 

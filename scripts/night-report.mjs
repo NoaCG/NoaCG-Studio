@@ -29,6 +29,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { finishedSince, giveUpReason, jobsDir, readJobs, readLandings, refusalGuidance } from './jobs-store.mjs';
+import { mainCheckout } from './read-dotenv.mjs';
 
 /** The default window. A night is the evening's last queueing to the morning's first reading. */
 export const DEFAULT_WINDOW_HOURS = 12;
@@ -298,7 +299,11 @@ export function parseArgs(argv, now = Date.now()) {
  * than being wrong loudly: run from `scripts/` it throws ENOENT, and run from another checkout it
  * writes the report where nothing will read it.
  */
-export const REPORT_FILE = join(fileURLToPath(new URL('..', import.meta.url)), 'docs', 'handoffs', 'night-report.local.md');
+//
+// And into the MAIN checkout's docs/handoffs even when run from a linked worktree: the scheduled
+// morning brief now runs in a fresh worktree of origin/main that is thrown away afterwards, and
+// the report is for a person to open in one known place.
+export const REPORT_FILE = join(mainCheckout(fileURLToPath(new URL('..', import.meta.url))), 'docs', 'handoffs', 'night-report.local.md');
 
 async function main() {
   let options;

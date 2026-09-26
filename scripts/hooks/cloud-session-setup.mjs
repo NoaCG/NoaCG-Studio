@@ -1,6 +1,7 @@
-// SessionStart hook, CLOUD SESSIONS ONLY (Claude Code on the web, `CLAUDE_CODE_REMOTE=true`):
-// make a fresh container able to build and run the e2e suite before the first command, so no
-// session spends its first half hour rediscovering the same three gaps.
+// SessionStart hook: make a fresh checkout able to build before the first command, so no session
+// spends its first minutes rediscovering the same gaps. Step 1 runs everywhere - a fresh cloud
+// container and a fresh local worktree alike (the desktop app creates one per scheduled run and per
+// worktree session, with no node_modules); step 2 only in the cloud (`CLAUDE_CODE_REMOTE=true`).
 //
 //   1. DEPENDENCIES. The container is a fresh clone with no node_modules, at the root or in cli/,
 //      and `npm run build` cannot start without them. `npm ci` from the lockfile, only when a
@@ -17,7 +18,7 @@
 //      the image's files, under the executable names the newer layout expects. A real install of
 //      the pinned build, whenever the image has one, is left alone.
 //
-//   3. Nothing else. Local sessions (Windows, the owner's laptop) never reach this file's work.
+//   3. Nothing else.
 //
 // Everything here is idempotent and prints one line per thing it changed; SessionStart output
 // becomes part of the session's context, so a quiet run means there was nothing to do.
@@ -25,7 +26,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const BROWSERS_DIR = process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers';
 
@@ -98,23 +99,34 @@ export function aliasPinnedChromium(browsersDir, revisions) {
   return linked;
 }
 
-/** `npm ci` in `dir` when it has a lockfile and no node_modules yet. */
+/**
+ * `npm ci` in `dir` when it has a lockfile and no FINISHED install. npm writes
+ * node_modules/.package-lock.json last, so an install that died part way leaves a node_modules
+ * without it and the next session start tries again (`npm ci` clears the partial tree itself).
+ */
 function installIfMissing(dir, label) {
-  if (!existsSync(join(dir, 'package-lock.json')) || existsSync(join(dir, 'node_modules'))) return;
-  const run = spawnSync('npm', ['ci', '--no-audit', '--no-fund'], { cwd: dir, stdio: 'ignore', shell: false });
+  if (!existsSync(join(dir, 'package-lock.json')) || existsSync(join(dir, 'node_modules', '.package-lock.json'))) return;
+  // npm is a .cmd file on Windows, which only a shell can start - given one fixed command string,
+  // so no argument is ever concatenated into a shell line.
+  const run = process.platform === 'win32'
+    ? spawnSync('npm ci --no-audit --no-fund', { cwd: dir, stdio: 'ignore', shell: true })
+    : spawnSync('npm', ['ci', '--no-audit', '--no-fund'], { cwd: dir, stdio: 'ignore' });
   console.log(
     run.status === 0
-      ? `Cloud setup: installed ${label} dependencies (npm ci).`
-      : `Cloud setup: npm ci in ${label} FAILED (exit ${run.status}) - run it by hand before building.`,
+      ? `Setup: installed ${label} dependencies (npm ci).`
+      : `Setup: npm ci in ${label} FAILED (exit ${run.status}) - run it by hand before building.`,
   );
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href && process.env.CLAUDE_CODE_REMOTE === 'true') {
-  const root = resolve(process.env.CLAUDE_PROJECT_DIR || process.cwd());
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  // The checkout this hook ships in - the settings start it from the current checkout's top level.
+  const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
   installIfMissing(root, 'root');
-  installIfMissing(join(root, 'cli'), 'cli/');
-  const linked = aliasPinnedChromium(BROWSERS_DIR, pinnedRevisions(root));
-  if (linked.length > 0) {
-    console.log(`Cloud setup: Playwright's pinned Chromium pointed at the image's build (${linked.join(', ')}).`);
+  if (process.env.CLAUDE_CODE_REMOTE === 'true') {
+    installIfMissing(join(root, 'cli'), 'cli/');
+    const linked = aliasPinnedChromium(BROWSERS_DIR, pinnedRevisions(root));
+    if (linked.length > 0) {
+      console.log(`Cloud setup: Playwright's pinned Chromium pointed at the image's build (${linked.join(', ')}).`);
+    }
   }
 }

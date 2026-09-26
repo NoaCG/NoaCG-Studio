@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { toApp } from '../_bench';
 import { ONLY_DESIGNS, SCOPE_NOTE, categoryOutOfScope } from '../_catalogScope';
+import * as rules from '../../scripts/rules.mjs';
 
 // A STRAP SPENDS WIDTH, NEVER HEIGHT - measured over every mark-capable lower third, not just the
 // six that take the shared slot.
@@ -166,6 +167,7 @@ test(`a mark never makes a lower third taller${SCOPE_NOTE}`, async ({ page }) =>
   expect(
     stale,
     'These are listed in MAY_GROW but no longer grow. Delete the entry and the exception note in '
-      + 'the design\'s own source - the rule covers them now.',
+      + 'the design\'s own source - the rule covers them now. '
+      + rules.text('templates/verify-shared-marks-both-square-portrait'),
   ).toEqual([]);
 });

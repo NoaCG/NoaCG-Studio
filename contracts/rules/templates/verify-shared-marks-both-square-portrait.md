@@ -2,7 +2,7 @@
 v: 1
 scope: src/templates/shared/logoSlot.ts, src/templates/lowerThirds/**
 kind: rule
-fires: contract
+fires: test:e2e/catalog/mark-height.spec.ts
 status: active
 since: 2026-09-07
 record: contracts/records/templates/2026-09-07-verify-shared-marks-both-square-portrait.md

@@ -1,3 +1,5 @@
+// guards: src/model/productionData.ts
+//
 // Unit tests for the production-data contract (src/model/productionData.ts).
 //
 // These run in the BUILD GATE rather than in Playwright because there is no browser in the

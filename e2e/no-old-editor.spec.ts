@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { pickDesign } from './_browse';
+import * as rules from '../scripts/rules.mjs';
 
 // NOBODY CAN REACH THE OLD CODE EDITOR (owner, 2026-09-24).
 //
@@ -53,7 +54,7 @@ async function bootLikeTheLabComputer(page: Page): Promise<void> {
 async function expectOldEditorNeverShown(page: Page): Promise<void> {
   await expect(page.locator(OLD_EDITOR)).toHaveCount(0);
   const seen = await page.evaluate(() => (window as unknown as { __oldEditorSeen?: boolean }).__oldEditorSeen);
-  expect(seen, 'the old code editor (AppShell) entered the DOM').toBe(false);
+  expect(seen, `the old code editor (AppShell) entered the DOM. ${rules.text('root/render-old-code-editor-route-never')}`).toBe(false);
 }
 
 /** Seed one saved library graphic through the model (the control page needs a record). */

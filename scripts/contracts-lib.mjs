@@ -339,6 +339,17 @@ function walk(dir, out = []) {
   return out;
 }
 
+/**
+ * Every rule under contracts/rules, PARSED but not validated against the tree. The validation
+ * lists every tracked file and takes seconds; a lookup (`npm run rules`) only needs each rule's
+ * text and scope, and `npm run check:contracts` is what validates.
+ */
+export function parseRules(root) {
+  return walk(path.join(root, RULES_DIR)).sort()
+    .map((file) => parseRule(path.relative(root, file).replaceAll('\\', '/'), readFileSync(file, 'utf8')).rule)
+    .filter(Boolean);
+}
+
 /** Every rule under contracts/rules, parsed and validated against the tree. */
 export function loadRules(root) {
   const files = walk(path.join(root, RULES_DIR)).sort();
@@ -625,8 +636,9 @@ function renderNested(dir, rules) {
   // Claude Code loads folder rules by itself, Codex loads only the chain down to where it started.
   if (dir === ROOT_TITLE) {
     lines.push(
-      'Folder rules load in Claude Code by themselves. In Codex, run `npm run rules -- <path>` before',
-      'editing a file to print the rules that apply to it. Map of the code: `docs/ARCHITECTURE.md`.',
+      'Folder rules load in Claude Code by themselves. In Codex, before editing, run',
+      '`npm run rules -- <the files you will edit>` once: it prints all their folder guidance, so no',
+      'folder AGENTS.md needs reading. Map of the code: `docs/ARCHITECTURE.md`.',
     );
   }
   lines.push('');

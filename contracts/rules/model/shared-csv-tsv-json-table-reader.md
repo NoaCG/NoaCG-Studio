@@ -2,7 +2,7 @@
 v: 1
 scope: src/model/csv.ts
 kind: invariant
-fires: contract
+fires: test:scripts/csv.test.mjs
 status: active
 since: 2026-09-08
 record: contracts/records/model/2026-09-08-shared-csv-tsv-json-table-reader.md

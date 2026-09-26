@@ -17,6 +17,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
+import * as rules from './rules.mjs';
+
 const source = readFileSync(fileURLToPath(new URL('../src/model/csv.ts', import.meta.url)), 'utf8');
 const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
@@ -33,7 +35,7 @@ test('a quoted field keeps its commas', () => {
 test('a quoted field keeps its newlines, and the row does not split', () => {
   const { header, rows } = parseCsv('Question,Note\n"Line one\nLine two",ok\n');
   assert.deepEqual(header, ['Question', 'Note']);
-  assert.equal(rows.length, 1);
+  assert.equal(rows.length, 1, rules.text('model/shared-csv-tsv-json-table-reader'));
   assert.equal(rows[0][0], 'Line one\nLine two');
 });
 

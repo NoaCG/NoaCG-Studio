@@ -2,7 +2,7 @@
 v: 1
 scope: src/App.tsx, src/app/router.ts, src/components/AppShell.tsx, src/model/prefs.ts
 kind: invariant
-fires: contract
+fires: test:e2e/no-old-editor.spec.ts
 status: active
 since: 2026-09-24
 record: contracts/records/root/2026-09-24-render-old-code-editor-route-never.md
