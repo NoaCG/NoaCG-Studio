@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/model/designRules.ts
+scope: src/model/designRules.ts, src/validation/designRulesWarnings.ts
 kind: invariant
 fires: contract
 status: active

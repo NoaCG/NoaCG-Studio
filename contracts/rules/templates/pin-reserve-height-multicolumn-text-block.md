@@ -2,7 +2,7 @@
 v: 1
 scope: src/templates/shared/stageFit.ts
 kind: trap
-fires: contract
+fires: test:e2e/catalog/multicol-containment.spec.ts
 status: active
 since: 2026-09-07
 record: contracts/records/templates/2026-09-07-pin-reserve-height-multicolumn-text-block.md

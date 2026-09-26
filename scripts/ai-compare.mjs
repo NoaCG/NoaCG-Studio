@@ -41,6 +41,13 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
+import * as rules from './rules.mjs';
+
+// A paid run never belongs in CI: it needs a dev server and real credentials, and it spends money.
+if (process.env.CI) {
+  console.error(`[ai-compare] refused in CI. ${rules.text('ai/keep-paid-runs-out-they-require')}`);
+  process.exit(1);
+}
 
 const BASE = `http://localhost:${devPort()}`;
 const ARGS = process.argv.slice(2);

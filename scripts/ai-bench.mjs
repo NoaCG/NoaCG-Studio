@@ -18,6 +18,13 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 import { outDir } from './out-dir.mjs';
+import * as rules from './rules.mjs';
+
+// A paid run never belongs in CI: it needs a dev server and real credentials, and it spends money.
+if (process.env.CI) {
+  console.error(`[ai-bench] refused in CI. ${rules.text('ai/keep-paid-runs-out-they-require')}`);
+  process.exit(1);
+}
 
 const BASE = `http://localhost:${devPort()}`;
 const OUT = outDir(process.argv[2], './bench-out', 'Usage: node scripts/ai-bench.mjs [out-dir]');

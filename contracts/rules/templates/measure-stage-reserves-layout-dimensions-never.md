@@ -2,7 +2,7 @@
 v: 1
 scope: src/templates/shared/stageFit.ts
 kind: trap
-fires: contract
+fires: test:e2e/stage-fit-determinism.spec.ts
 status: active
 since: 2026-09-07
 record: contracts/records/templates/2026-09-07-measure-stage-reserves-layout-dimensions-never.md

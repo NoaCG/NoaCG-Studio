@@ -507,6 +507,7 @@ async function main() {
   console.log('\n  2. the rendered sweeps - one browser job at a time, so enqueue them:');
   for (const c of [...battery.sweeps, ...battery.specs, ...battery.factory]) console.log(`       npm run queue -- "${c}"`);
   console.log(`     ${rules.text('templates/run-factory-gate-before-queueing-catalog')}`);
+  console.log(`     Adding a design: ${rules.text('templates/update-adding-design-keeping-existing-designs')}`);
   if (battery.look.length) {
     console.log('\n  3. and a look at the result for each affected category (screenshots, never a gate;');
     console.log('     it writes into the out-dir you name, so keep that out of the commit):');
