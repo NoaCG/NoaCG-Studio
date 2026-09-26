@@ -28,7 +28,7 @@ import { measured } from './measured.mjs';
 import { RULESET_NAME, REQUIRED_CHECKS, findExisting, rulesetVerdict } from './landing-ruleset-reader.mjs';
 
 /** The checks whose answer is a fact about GitHub, not about this tree. */
-export const CHECK_IDS = ['org-actions-pr', 'repo-actions-pr', 'ruleset', 'required-checks', 'migration-token', 'land-label'];
+export const CHECK_IDS = ['org-actions-pr', 'repo-actions-pr', 'ruleset', 'required-checks', 'migration-token', 'bot-app', 'land-label'];
 
 /**
  * The report, as a pure function of what was observed. `facts` carries one entry per check:
@@ -76,6 +76,12 @@ export function preflightReport(facts = {}) {
       says: 'the `production` environment holds SUPABASE_ACCESS_TOKEN',
       why: 'post-land.yml applies what production and staging are missing on every landing; without the token it says so and migrations wait for a person',
       fix: 'add it in the repository settings, Environments, production (the owner holds the value; nothing here can)',
+    },
+    {
+      id: 'bot-app',
+      says: 'the bot GitHub App is set up (variable NOACG_BOT_CLIENT_ID, secret NOACG_BOT_PRIVATE_KEY)',
+      why: 'a bot pull request opened with the workflow token gets its CI held for approval; the App token starts it by itself',
+      fix: 'create a GitHub App with repository permissions Contents, Pull requests and Commit statuses (read and write), install it on this repository only, then add its Client ID as the variable and a private key as the secret (the owner holds the key; nothing here can)',
     },
     {
       id: 'land-label',
@@ -134,6 +140,13 @@ export function gather({ repo = 'NoaCG/NoaCG-Studio', rulesetName = RULESET_NAME
 
   const secrets = ghJson([`repos/${repo}/environments/production/secrets`]);
   facts['migration-token'] = secrets === null ? null : (secrets.secrets ?? []).some((s) => s?.name === 'SUPABASE_ACCESS_TOKEN');
+
+  const variables = ghJson([`repos/${repo}/actions/variables?per_page=100`]);
+  const repoSecrets = ghJson([`repos/${repo}/actions/secrets?per_page=100`]);
+  facts['bot-app'] = variables === null || repoSecrets === null
+    ? null
+    : (variables.variables ?? []).some((v) => v?.name === 'NOACG_BOT_CLIENT_ID')
+      && (repoSecrets.secrets ?? []).some((s) => s?.name === 'NOACG_BOT_PRIVATE_KEY');
 
   const labels = ghJson([`repos/${repo}/labels?per_page=100`]);
   facts['land-label'] = labels === null ? null : labels.some((l) => l?.name === 'land');

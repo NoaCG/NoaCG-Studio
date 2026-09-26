@@ -32,6 +32,8 @@ import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
 import { changedBacklogFiles, receiptsFor, servesVerdict } from './owner-receipts.mjs';
 import { isGeneratedBody, pullRequestBody, pullRequestTitle } from './pr-description.mjs';
+import { reviveReviewed } from './cloud-queue.mjs';
+import { spawnRunner } from './queue-pr.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
@@ -552,7 +554,10 @@ function queueOnGitHub(branch, tip, description, why = '') {
   // subjects listed as this change's, on a branch that has integrated main.
   spawnSync('git', ['fetch', '--no-tags', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`, '+refs/heads/main:refs/remotes/origin/main'], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
   const remoteAhead = spawnSync('git', ['merge-base', '--is-ancestor', `refs/remotes/origin/${branch}`, tip], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
-  const remoteExists = spawnSync('git', ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true }).status === 0;
+  const remoteTip = spawnSync('git', ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
+  const remoteExists = remoteTip.status === 0;
+  // The push below moves nothing when origin already holds this tip, so no new run starts.
+  const pushesNothing = remoteExists && remoteTip.stdout.trim() === tip;
   if (remoteExists && remoteAhead.status !== 0) {
     console.error(`add-merge refused: origin/${branch} has commits this checkout does not (the lander's integration of main, or another session's push).`);
     console.error(`  Take them in first, then run /check on the new tip and queue again:  git pull --ff-only origin ${branch}`);
@@ -579,6 +584,7 @@ function queueOnGitHub(branch, tip, description, why = '') {
   const subjects = commitSubjects(`origin/main..${tip}`);
   if (subjects.length === 0) subjects.push(...commitSubjects(`${tip}~1..${tip}`));
   const body = pullRequestBody({ subjects, tested: description, why });
+  const prExisted = Boolean(pr);
   if (!pr) {
     const url = ghRun(['pr', 'create', '--base', 'main', '--head', branch, '--title', pullRequestTitle(subjects, branch), '--body', body]);
     pr = { number: Number(url.split('/').pop()), url };
@@ -588,6 +594,16 @@ function queueOnGitHub(branch, tip, description, why = '') {
     ghRun(['pr', 'edit', String(pr.number), '--body', body]);
   }
   ghRun(['api', `repos/{owner}/{repo}/statuses/${tip}`, '-f', 'state=success', '-f', 'context=noacg/reviewed', '-f', `description=${description.slice(0, 140)}`]);
+  // A pull request stamped long after its run - a bot's proposal reviewed hours later, or a branch
+  // queued again with no new commit - has a `Reviewed` that already failed for want of this stamp,
+  // and it never looks again. Re-run it (the cloud path's own rule). Only when this push started no
+  // new run on an existing pull request: after a real push the new run reads the stamp itself, and
+  // asking before GitHub has listed that run would dispatch a second one. No waiting here.
+  if (pushesNothing && prExisted) {
+    const revived = reviveReviewed({ branch, sha: tip, gh: spawnRunner('gh'), waitMs: 0 });
+    if (revived.outcome === 'rerun') console.log(`Reviewed had failed before the stamp existed; re-ran it on run ${revived.run}.`);
+    if (revived.outcome === 'timeout') console.log(`Run ${revived.run} is still going with Reviewed red; re-run that job once the run finishes.`);
+  }
   // The label marks a queued pull request for the ledger sync and the listing; auto-merge is what
   // hands it to GitHub's merge queue the moment its required checks (`CI gate`, `Reviewed`) pass.
   ghRun(['label', 'create', 'land', '--force', '--color', 'F5A623', '--description', 'Queued for the landing queue']);

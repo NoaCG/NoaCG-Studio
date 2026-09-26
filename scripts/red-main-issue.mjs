@@ -3,7 +3,8 @@
 //
 //   node scripts/red-main-issue.mjs            (from ci.yml's gate job; reads the env below)
 //
-// Env: GH_REPO, GH_TOKEN (for `gh`), RUN_ID, SHA, RUN_URL.
+// Env: GH_REPO, GH_TOKEN (for `gh`), RUN_ID, SHA, RUN_URL; NOACG_BOT_GH_TOKEN and NOACG_BOT_TOKEN
+// when the workflow holds the bot's App token, which the revert then queues with.
 //
 // WHY THIS IS A SCRIPT AND NOT SIX LINES OF BASH. It used to be six lines of bash, and they
 // deduped by COMMIT SHA: a re-run of the same commit stayed silent, a new commit always commented.
@@ -265,7 +266,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   let revert;
   if (verdict.revert) {
     console.log(`Reverting: ${verdict.reason}`);
-    revert = revertLanding({ since: verdict.since, sha, runUrl, failing: describeFailureSet(items, { max: 4 }) });
+    // The revert queues with the bot's App token when the workflow has one (NOACG_BOT_GH_TOKEN),
+    // so its pull request starts its own CI; the issue comments stay on the workflow token.
+    const gh = spawnRunner('gh', { token: process.env.NOACG_BOT_GH_TOKEN ?? '' });
+    revert = revertLanding({ since: verdict.since, sha, runUrl, failing: describeFailureSet(items, { max: 4 }), gh });
     console.log(revert.status === 'queued' ? `Revert queued: ${revert.url}` : `::warning title=Revert::${revert.status}: ${revert.reason}`);
   } else {
     revert = { status: 'skipped', reason: verdict.reason };

@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { alreadyQueued, branchExistsOnOrigin, mechanicalDescription, pullRequestFor, queuePullRequest, LAND_LABEL, REVIEW_CONTEXT } from './queue-pr.mjs';
+import { alreadyQueued, branchExistsOnOrigin, mechanicalDescription, pullRequestFor, queuePullRequest, spawnRunner, LAND_LABEL, REVIEW_CONTEXT } from './queue-pr.mjs';
 
 function fakeRunners({ openPr = null, closedPr = null, remoteBranch = false } = {}) {
   const calls = [];
@@ -71,6 +71,27 @@ test('a stale branch is replaced with a force-push; dispatch can be left out; a 
   assert.ok(!plain.calls.some((c) => c[1] === 'workflow'));
   assert.ok(!plain.calls.some((c) => c[0] === 'git' && c[1] === 'push' && c[2] === '--force'));
   assert.throws(() => queuePullRequest({ title: 't', body: 'b', mechanism: 'm', git: plain.git, gh: plain.gh }), /branch is required/);
+});
+
+test('with the bot App token nothing is dispatched: the push and the pull request start their own runs', () => {
+  const before = process.env.NOACG_BOT_TOKEN;
+  process.env.NOACG_BOT_TOKEN = 'app';
+  try {
+    const { calls, git, gh } = fakeRunners();
+    queuePullRequest({ branch: 'quarantine/enter-2', title: 't', body: 'b', mechanism: 'm', diffBase: 'b'.repeat(40), git, gh });
+    assert.ok(!calls.some((c) => c[1] === 'workflow'), 'no dispatched run');
+    assert.ok(calls.some((c) => c[1] === 'pr' && c[2] === 'create'), 'the pull request is still opened');
+    assert.ok(calls.some((c) => c[1] === 'api' && c.includes(`context=${REVIEW_CONTEXT}`)), 'and still stamped');
+  } finally {
+    if (before === undefined) delete process.env.NOACG_BOT_TOKEN;
+    else process.env.NOACG_BOT_TOKEN = before;
+  }
+});
+
+test('a runner given a token hands it to its children as GH_TOKEN, and only to them', () => {
+  const echo = ['-e', 'process.stdout.write(process.env.GH_TOKEN ?? "")'];
+  assert.equal(spawnRunner('node', { token: 'app-token' })(echo).out, 'app-token');
+  assert.equal(spawnRunner('node')(echo).out, process.env.GH_TOKEN ?? '');
 });
 
 test('the description is bounded to what a commit status accepts and says where it came from', () => {

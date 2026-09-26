@@ -55,7 +55,8 @@ permissions:
   contents: write
   pull-requests: write
   # Read: the run it records from, and that run's blob reports. Write: the `gh workflow run ci.yml`
-  # that gives the pull request its `CI gate`, which a read-only token is refused (HTTP 403).
+  # that gives the pull request its `CI gate` when the bot App is not set up, which a read-only token
+  # is refused (HTTP 403).
   actions: write
   issues: write # the rolling alarm at the bottom
 
@@ -73,7 +74,25 @@ jobs:
     # one has nothing to gain from a tight deadline.
     timeout-minutes: 20
     steps:
+      # THE BOT'S OWN TOKEN. It opens the table proposal below.
+      # A GitHub App installation token makes the bot's push and pull request start their own CI,
+      # which GITHUB_TOKEN never does, and GitHub holds none of those runs for approval. Without the
+      # App configured (repository variable NOACG_BOT_CLIENT_ID, secret NOACG_BOT_PRIVATE_KEY) this
+      # step is skipped and the job falls back to the workflow token, as before.
+      - name: Bot token
+        id: bot
+        if: ${{ vars.NOACG_BOT_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NOACG_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.NOACG_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: actions/checkout@v5
+        with:
+          # The push below uses this credential.
+          token: ${{ steps.bot.outputs.token || github.token }}
 
       - uses: actions/setup-node@v5
         with:
@@ -108,7 +127,8 @@ jobs:
       - name: Open or update the pull request
         if: ${{ steps.refresh.outputs.material == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
+          BOT_APP: ${{ steps.bot.outputs.token != '' }}
           GH_REPO: ${{ github.repository }}
           # Also `REFRESH_BRANCH` in scripts/e2e-durations.mjs, which writes it into the pull
           # request body; a test asserts the two strings agree.
@@ -160,7 +180,8 @@ jobs:
           # keeps it from escalating to the whole suite for a file no spec can observe. The
           # `Reviewed` half is deliberately NOT asked for: that stamp is the person's, and this
           # pull request is waiting for one.
-          gh workflow run ci.yml --ref "$BRANCH" -f "diff_base=$BASE"
+          # With the App token the push and the pull request have started their own runs already.
+          if [ "$BOT_APP" != "true" ]; then gh workflow run ci.yml --ref "$BRANCH" -f "diff_base=$BASE"; fi
 
       - name: Say so when nothing moved
         if: ${{ steps.refresh.outputs.material != 'true' }}

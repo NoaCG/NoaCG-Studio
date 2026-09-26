@@ -1063,9 +1063,27 @@ jobs:
       # Enough history for the revert - the last-verdict walk reads 40 first-parent commits and
       # `git revert -m 1` needs each merge's parents - without the full clone every green landing
       # would otherwise pay to close an issue.
+      # THE BOT'S OWN TOKEN. It queues the quarantine entry and the revert below.
+      # A GitHub App installation token makes the bot's push and pull request start their own CI,
+      # which GITHUB_TOKEN never does, and GitHub holds none of those runs for approval. Without the
+      # App configured (repository variable NOACG_BOT_CLIENT_ID, secret NOACG_BOT_PRIVATE_KEY) this
+      # step is skipped and the job falls back to the workflow token, as before.
+      - name: Bot token
+        id: bot
+        if: ${{ vars.NOACG_BOT_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NOACG_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.NOACG_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-statuses: write
+
       - uses: actions/checkout@v5
         with:
           fetch-depth: 60
+          # The quarantine and revert pushes use this credential.
+          token: ${{ steps.bot.outputs.token || github.token }}
 
       # THE FLAKE GOES ON THE RECORD. The retry passed, so the gate passed; the specs it re-ran
       # are written into e2e/quarantine.json on a branch off origin/main and queued
@@ -1077,7 +1095,8 @@ jobs:
         if: ${{ needs.gate.result == 'success' && needs.e2e-retry.result == 'success' }}
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
+          NOACG_BOT_TOKEN: ${{ steps.bot.outputs.token != '' && 'app' || 'workflow' }}
           GH_REPO: ${{ github.repository }}
           SPECS: ${{ needs.e2e-retry.outputs.specs }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -1104,6 +1123,9 @@ jobs:
         if: ${{ needs.gate.result == 'failure' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          # The revert queues with the bot's token; the issue stays on the workflow token.
+          NOACG_BOT_GH_TOKEN: ${{ steps.bot.outputs.token }}
+          NOACG_BOT_TOKEN: ${{ steps.bot.outputs.token != '' && 'app' || 'workflow' }}
           GH_REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
           SHA: ${{ github.sha }}
