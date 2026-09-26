@@ -149,10 +149,15 @@ export const POLICY = Object.freeze({
    *
    * `NOACG_JOBS_FREE_MB` still retunes it without a code change, and now pins BOTH - an explicit
    * operator override is not something a presence flag should be able to loosen or tighten.
+   *
+   * `away` CARRIES HALF A GIGABYTE OVER THE MEASURED COST. Admitting a suite at exactly its cost
+   * leaves nothing for the rest of the system, and on Windows that tips into the page file, where
+   * everything slows at once - the instability an unattended wave must not cause. 3.5 GB still
+   * admits the suite in the case that motivated `away` (3.5 GB free all evening, nobody there).
    */
   freeMemFloorMb: Object.freeze({
     present: overrideFloorMb() ?? 4096,
-    away: overrideFloorMb() ?? 3072,
+    away: overrideFloorMb() ?? 3584,
   }),
   /**
    * A job killed at this age is recorded `timed-out` rather than sitting forever.
@@ -777,7 +782,7 @@ export function schedule(jobs, {
             : `only ${(freeLeftMb / 1024).toFixed(1)} GB of ${(freeMemMb / 1024).toFixed(1)} GB free RAM unclaimed this pass, needs ${(needsMb / 1024).toFixed(1)}`)
           + (awayWouldStart
             ? ` - the at-the-desk floor holds ${((needsMb - awayNeedsMb) / 1024).toFixed(1)} GB back for whoever is`
-              + ' at the keyboard; `npm run jobs -- presence away` starts it now'
+              + ' at the keyboard; `npm run jobs -- presence away --for 30` releases it for half an hour'
             : ''),
       });
       continue;

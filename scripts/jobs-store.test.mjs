@@ -554,7 +554,7 @@ test('a NOACG_JOBS_FREE_MB nobody can parse means the variable was not set, neve
   for (const [value, tag] of [['4gb', 'words'], ['', 'empty'], ['-1', 'negative'], ['0', 'zero'], ['NaN', 'nan']]) {
     const floors = await floorsWith(value, tag);
     assert.equal(floors.present, 4096, `NOACG_JOBS_FREE_MB=${JSON.stringify(value)} must fall back, not disable`);
-    assert.equal(floors.away, 3072);
+    assert.equal(floors.away, 3584);
   }
 
   // A number it CAN parse still pins both, which is the documented override.
