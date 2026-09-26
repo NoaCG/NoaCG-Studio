@@ -11,7 +11,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   auditOwnerQueueItem,
+  canonicalKind,
   KINDS,
+  KINDS_V2,
+  KINDS_V2_REQUIRED_FROM,
   NEEDS,
   OWN_ROUTE,
   WALK_BECAUSE,
@@ -50,10 +53,10 @@ test('front matter present but missing date: is reported', () => {
 
 test('an unrecognised kind is reported by name', () => {
   const text = '---\nkind: tooling\ndate: 2026-08-27\n---\n# A title\n';
-  // The expected message is built from KINDS rather than typed out, so widening the vocabulary
+  // The expected message is built from KINDS_V2 rather than typed out, so changing the vocabulary
   // does not require editing a literal in two places - the point of this test is that an unknown
   // value is named and the legal set is printed, not what the legal set happens to be today.
-  assert.deepEqual(auditOwnerQueueItem(text), [`kind: 'tooling' is not one of ${KINDS.join(', ')}`]);
+  assert.deepEqual(auditOwnerQueueItem(text), [`kind: 'tooling' is not one of ${KINDS_V2.join(', ')}`]);
 });
 
 // The 2026-09-02 widening added `walk-p` and `agent`. It must stay a WIDENING: seven sibling
@@ -142,7 +145,7 @@ test('a misspelt reason is refused at any date, which an absent one is not', () 
 
 test('a reason on a kind that cannot carry one says which kind it is', () => {
   const problems = auditOwnerQueueItem(walkItem('kind: agent\ndate: 2026-09-11\nbecause: taste'));
-  assert.match(problems.join(' '), /only belongs on kind: walk or walk-p/);
+  assert.match(problems.join(' '), /only belongs on kind: phone or desktop/);
 });
 
 test('a walk item filed before the rule needs no reason', () => {
@@ -185,13 +188,13 @@ test('a reason on a walk item is refused - that is the wrong kind dressed up', (
   const text = '---\nkind: walk\ndate: 2026-09-05\nneeds: account\n---\n# A title\n';
   const problems = auditOwnerQueueItem(text);
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /only belongs on kind: owner-action/);
+  assert.match(problems[0], /only belongs on kind: decision/);
 });
 
 test('the date gate compares dates, not string length or arrival order', () => {
   const before = '---\nkind: owner-action\ndate: 2026-09-04\n---\n# A title\n';
   const on = '---\nkind: owner-action\ndate: 2026-09-05\n---\n# A title\n';
-  const after = '---\nkind: owner-action\ndate: 2026-12-31\n---\n# A title\n';
+  const after = '---\nkind: owner-action\ndate: 2026-09-26\n---\n# A title\n';
   assert.deepEqual(auditOwnerQueueItem(before), []);
   assert.equal(auditOwnerQueueItem(on).length, 1);
   assert.equal(auditOwnerQueueItem(after).length, 1);
@@ -309,11 +312,51 @@ test('an item filed before the route date is left alone', () => {
 });
 
 test('hardware and owner-action need no route - one is blocked, the other is a console', () => {
-  assert.deepEqual(auditOwnerQueueItem('---\nkind: hardware\ndate: 2026-12-31\n---\n# T\n'), []);
-  const action = '---\nkind: owner-action\ndate: 2026-12-31\nneeds: account\n---\n# T\n';
+  assert.deepEqual(auditOwnerQueueItem('---\nkind: hardware\ndate: 2026-09-26\n---\n# T\n'), []);
+  const action = '---\nkind: owner-action\ndate: 2026-09-26\nneeds: account\n---\n# T\n';
   assert.deepEqual(auditOwnerQueueItem(action), []);
 });
 
 test('a done item is a record, not a walk, so it needs no route', () => {
-  assert.deepEqual(auditOwnerQueueItem('---\nkind: walk\ndate: 2026-12-31\ndone: true\n---\n# T\n'), []);
+  assert.deepEqual(auditOwnerQueueItem('---\nkind: walk\ndate: 2026-09-26\ndone: true\n---\n# T\n'), []);
+});
+
+// --- THE THREE KINDS (decision, phone, desktop) ---
+// Everything an agent can verify, it verifies; an item exists only where the owner's judgment adds
+// value. Old items keep reading as they did, migrated on read; new items use the new names.
+
+test('the old kinds read as the new ones, and agent has no owner equivalent', () => {
+  assert.equal(canonicalKind('walk-p'), 'phone');
+  assert.equal(canonicalKind('walk'), 'desktop');
+  assert.equal(canonicalKind('hardware'), 'desktop');
+  assert.equal(canonicalKind('owner-action'), 'decision');
+  assert.equal(canonicalKind('agent'), 'agent');
+  for (const kind of KINDS_V2) assert.equal(canonicalKind(kind), kind);
+});
+
+test('from the cutoff a new item must use one of the three kinds', () => {
+  const walk = `---\nkind: walk\ndate: ${KINDS_V2_REQUIRED_FROM}\nbecause: taste\n---\n# T\n\n## The route, under a minute\n\nOpen /app.\n`;
+  assert.match(auditOwnerQueueItem(walk).join(' '), /is retired for items filed from/);
+  const agent = `---\nkind: agent\ndate: ${KINDS_V2_REQUIRED_FROM}\n---\n# T\n\n## The route, under a minute\n\nOpen /app.\n`;
+  assert.match(auditOwnerQueueItem(agent).join(' '), /verified, never filed here/);
+});
+
+test('a phone or desktop item with a route, and a decision item, pass after the cutoff', () => {
+  for (const kind of ['phone', 'desktop']) {
+    const item = `---\nkind: ${kind}\ndate: ${KINDS_V2_REQUIRED_FROM}\n---\n# T\n\n## The route, under a minute\n\nOpen /app.\n`;
+    assert.deepEqual(auditOwnerQueueItem(item), [], kind);
+  }
+  assert.deepEqual(auditOwnerQueueItem(`---\nkind: decision\ndate: ${KINDS_V2_REQUIRED_FROM}\n---\n# T\n`), []);
+});
+
+test('a phone or desktop item still needs its route', () => {
+  const item = `---\nkind: phone\ndate: ${KINDS_V2_REQUIRED_FROM}\n---\n# T\n\nNo route here.\n`;
+  assert.match(auditOwnerQueueItem(item).join(' '), /no route section/);
+});
+
+test('needs: sits on a decision item and because: on a phone or desktop item', () => {
+  const decision = `---\nkind: decision\ndate: ${KINDS_V2_REQUIRED_FROM}\nneeds: account\n---\n# T\n`;
+  assert.deepEqual(auditOwnerQueueItem(decision), []);
+  const phone = `---\nkind: phone\ndate: ${KINDS_V2_REQUIRED_FROM}\nbecause: taste\n---\n# T\n\n## The route, under a minute\n\nOpen /app.\n`;
+  assert.deepEqual(auditOwnerQueueItem(phone), []);
 });

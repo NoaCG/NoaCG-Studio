@@ -23,16 +23,21 @@ test('an untagged question is refused with the three-kinds rule and the question
   assert.match(message, /needs: decision/);
 });
 
-test('a tagged question with a recommended answer passes', () => {
+test('a question tagged needs: decision with a recommended answer passes', () => {
   for (const text of [
     'needs: decision - should the ticker speed field be per item or per strip?',
-    'needs: money - buy the Pro tier for the render worker?',
-    'Which account should the SMTP sender use? (needs: account)',
-    'needs: Alignment - is the scoreboard still the second graphic?',
+    'Which account should the SMTP sender use? (needs: decision)',
+    'Needs: Decision - is the scoreboard still the second graphic?',
   ]) {
     assert.equal(runHook(HOOK, ask([q(text)])).status, 0, text);
   }
-  assert.equal(runHook(HOOK, ask([q('Which?', 'needs: harness')])).status, 0, 'the tag may sit in the header');
+  assert.equal(runHook(HOOK, ask([q('Which?', 'needs: decision')])).status, 0, 'the tag may sit in the header');
+});
+
+test('the retired reason tags no longer pass on their own', () => {
+  for (const text of ['needs: money - buy the Pro tier?', 'needs: account - which sender?', 'needs: harness - allow it?']) {
+    assert.equal(runHook(HOOK, ask([q(text)])).status, 2, text);
+  }
 });
 
 test('a tagged question without a recommended answer is refused', () => {
@@ -42,7 +47,7 @@ test('a tagged question without a recommended answer is refused', () => {
 });
 
 test('more than one question per call is refused, even when every one is tagged', () => {
-  const { status, message } = runHook(HOOK, ask([q('needs: money - renew the domain?'), q('needs: decision - which colour?')]));
+  const { status, message } = runHook(HOOK, ask([q('needs: decision - renew the domain?'), q('needs: decision - which colour?')]));
   assert.equal(status, 2);
   assert.match(message, /2 questions in one call/);
 });

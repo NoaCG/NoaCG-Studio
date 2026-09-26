@@ -9,9 +9,10 @@
 //   3. Anything inside an orchestrator or night wave. Never asked: nobody is there to answer.
 //
 // A hook cannot tell kind 1 from kind 2 by reading the words, so the question declares its kind
-// with a tag - `needs: decision` for an owner-level choice, or one of the older reasons that are
-// also only his (account, money, identity, harness, alignment). Writing the tag is the check;
-// an untagged question is refused with the rule so the agent sorts it first. Kind 3 is refused
+// with one tag, `needs: decision`: the agent has classified it as something only the owner
+// should decide. Writing the tag is the check; an untagged question is refused with the rule so
+// the agent sorts it first. (The older reasons - account, money, identity, harness, alignment -
+// are all decisions only he can make, so the one tag covers them.) Kind 3 is refused
 // outright when the harness says the call comes from a wave-row subagent.
 //
 // It refuses rather than warns because a PreToolUse warning reaches the user and never the model
@@ -21,8 +22,7 @@
 import * as rules from '../rules.mjs';
 import { deny, readHookInput } from './lib.mjs';
 
-const REASONS = ['decision', 'account', 'money', 'identity', 'harness', 'alignment'];
-const TAG = new RegExp(`\\bneeds:\\s*(${REASONS.join('|')})\\b`, 'i');
+const TAG = /\bneeds:\s*decision\b/i;
 const RULE = rules.text('root/question-owner-names-reason-own-text');
 
 const input = await readHookInput();
@@ -56,8 +56,7 @@ if (!TAG.test(text)) {
     '',
     RULE,
     '',
-    'If it is his, put the tag in the question text and ask again: `needs: decision` for an',
-    'outcome-changing choice, or `needs: account|money|identity|harness|alignment`.',
+    'If it is his, put `needs: decision` in the question text and ask again.',
   ].join('\n'));
 }
 

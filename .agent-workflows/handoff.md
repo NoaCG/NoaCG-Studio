@@ -152,9 +152,9 @@ remaining work. If the answer is the boring expected one, say nothing.
   worktree, and never offer to.
 - **Create or update no files** - no handoff file, session summary, timestamped note, project
   document, or tool-specific memory. Deliver all continuation context in the response so the same
-  handoff works in Claude Code and Codex. The one exception is a WAVE session whose starting
-  prompt names a handoff file under `docs/handoffs/`: that file is the channel the next
-  orchestrator reads, and the prompt's instruction outranks this rule - write the file the
-  prompt names (before queueing, so it lands with the work); this workflow's response is then
-  the human-facing copy of the same content.
+  handoff works in Claude Code and Codex. The one exception is a WAVE session that leaves
+  meaningful work UNFINISHED: it writes one handoff file under `docs/handoffs/` (what remains, why
+  it matters, the `docs/GOALS.md` outcome it serves and what done means) before queueing, because
+  that file is how the orchestrator continues it. Completed work writes no file; the pull request
+  and its commits are the record. This workflow's response is then the human-facing copy.
 - **Be fast enough to use after every session.**

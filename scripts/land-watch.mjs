@@ -52,7 +52,7 @@ export function watchVerdict(pr, checks = [], { expectSha = null } = {}) {
   // queue, so without this it would read as waiting until the cap, be retried once, and read as
   // waiting again - for ever, on a branch only its own session can fix. The conflict is the verdict.
   if (pr.state === 'OPEN' && pr.mergeable === 'CONFLICTING') {
-    return { verdict: 'refused', reason: 'the pull request conflicts with main and cannot enter the queue - integrate main, resolve, and queue again' };
+    return { verdict: 'refused', reason: 'the pull request conflicts with main and cannot enter the queue - in the branch\'s worktree merge origin/main, regenerate generated files, run /check and queue again (.agent-workflows/queue-merge.md, section 4)' };
   }
   const failed = (checks ?? []).filter((c) => FAILED.test(c.conclusion ?? c.state ?? ''));
   const failedNames = [...new Set(failed.map((c) => c.name ?? c.context))].join(', ');

@@ -161,6 +161,7 @@ sweep-*.json
 !.agents/skills/so/
 !.agents/skills/spx-html-template-expert/
 !.agents/skills/start/
+!.agents/skills/verify/
 !.agents/skills/walk/
 skills-lock.json
 
