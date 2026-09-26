@@ -511,6 +511,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   airedRef.current = airedData;
   const machineStateRef = useRef(machineState);
   machineStateRef.current = machineState;
+  /** Sends the cue editor's typing still inside its debounce (`takeCue` says why). */
+  const flushTyping = useRef<() => void>(() => {});
   const reportsRef = useRef<ResolvedControlShow['live']>({});
   reportsRef.current = resolved?.live ?? {};
   const restoreProgram = useCallback(() => {
@@ -766,6 +768,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * be refused too — the same rule ■ All out already follows.
    */
   fireCombineRef.current = (control, due) => {
+    flushTyping.current();
     const { steps, mirrors, dropped, tree } = resolveCombineSend(due, combineNow, combineWorld);
 
     for (const drop of dropped) {
@@ -839,8 +842,18 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     scheduler.press(control.id, planCombine(control, ticked), (due) => fireCombineRef.current(control, due));
   };
 
-  const takeCue = (cue: OutputCue) =>
-    sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue) }));
+  /**
+   * STAGE THE TYPING A PRESS IS ABOUT TO AIR, NOW rather than when the debounce runs out. The
+   * overlay lets a Take or an Update air an edit the shared buffer has not seen yet, and until
+   * the debounced write lands that edit lives only in this tab. A reload in that window (a phone
+   * does it on its own) brought the tab back on the buffer's older key, and Reveal correct, which
+   * carries the key the cue shows, then lit that older key on air (configured run 36276590046).
+   * The editor fills `flushTyping` in, since the debounce is its own.
+   */
+  const takeCue = (cue: OutputCue) => {
+    flushTyping.current();
+    return sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue) }));
+  };
   const nextLayer = () => {
     if (selectedGraphic) void sendVerb([{ graphic: selectedGraphic, msg: { t: 'next' } }]);
   };
@@ -854,6 +867,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   };
   const updateLive = () => {
     if (selectedGraphic && selectedCue && selectedIsLive) {
+      flushTyping.current();
       void sendVerb([{ graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } }]);
     }
   };
@@ -870,6 +884,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   const snapTo = (groupId: string | null, stateId: string) => {
     if (!selectedGraphic || !selectedLayerCueId || !selectedCue) return;
+    flushTyping.current();
     void sendVerb([
       { graphic: selectedGraphic, msg: { t: 'snap', snap: groupId === null ? null : { [groupId]: stateId } } },
       { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } },
@@ -1071,6 +1086,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               onSend={(items) => sendVerb(items)}
               onStage={stageShared}
               onStageNote={noteStaged}
+              onFlushReady={(flush) => {
+                flushTyping.current = flush;
+              }}
               moved={combineMoved}
               bound={boundFields(selectedCue.graphic)}
               boundOf={(field) => boundValues[selectedCue.graphic]?.[field]}
@@ -1372,6 +1390,7 @@ function HostedCueEditor({
   onSend,
   onStage,
   onStageNote,
+  onFlushReady,
   moved,
   combined,
   bound,
@@ -1409,6 +1428,9 @@ function HostedCueEditor({
   onStage: (graphic: string, data: Record<string, string>) => void;
   /** Count values on this page at once, with the write still to come: the typing debounce. */
   onStageNote: (graphic: string, data: Record<string, string>) => void;
+  /** Hands the page this editor's debounce flush: a press that airs the cue's values sends the
+   *  typing it holds first, so the buffer never lags what is on air. */
+  onFlushReady: (flush: () => void) => void;
   /** The fields a combined press just moved on air. The editor's own echo has to follow them, or
    *  a field the operator typed into would keep an older figure than the board shows. */
   moved: CombineMirror[] | null;
@@ -1504,6 +1526,9 @@ function HostedCueEditor({
     pending.current = {};
     onStage(cue.graphic, batch);
   };
+  // No dependencies on purpose: `stageNow` is a new closure every render, and the page must hold
+  // the one that sends to this render's graphic.
+  useEffect(() => onFlushReady(() => stageNow({})));
   const edit = (key: string, value: string) => {
     setEcho((v) => ({ ...v, [key]: value }));
     setEntryId('');
