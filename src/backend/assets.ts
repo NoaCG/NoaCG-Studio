@@ -67,10 +67,10 @@ export async function externalizeAssets(body: unknown, uid: string, upload: Uplo
  * A cloud `list()` already returns the whole row; the ONLY thing `get()` adds is
  * `rehydrateAssets`, so a body with no sentinel has nothing to gain from the extra round trip.
  *
- * A plain string scan rather than a tree walk: the callers use it on bodies that are expected to
- * be small (tombstones), and on a large body one `JSON.stringify` is still far cheaper than the
- * network request it avoids. It can only over-report (a literal "spx-storage:" in ordinary text
- * costs one needless fetch), never under-report, which is the safe direction.
+ * A plain string scan rather than a tree walk: it runs once per pulled record, and on a large body
+ * one `JSON.stringify` is still far cheaper than the network request it avoids. It can only
+ * over-report (a literal "spx-storage:" in ordinary text costs one needless fetch), never
+ * under-report, which is the safe direction.
  */
 export function hasStorageSentinel(body: unknown): boolean {
   if (body === null || body === undefined) return false;

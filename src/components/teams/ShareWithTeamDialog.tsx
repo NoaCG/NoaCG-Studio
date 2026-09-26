@@ -49,6 +49,16 @@ function ofTeam(members: TeamMember[] | null, teamId: string): TeamMember[] {
   return (members ?? []).filter((m) => m.teamId === teamId);
 }
 
+/**
+ * `list` holding `team` exactly once. The open-time fetch and a create race: on a slow backend
+ * the fetch can answer after the new team's insert and before `createTeam` returns, so the team
+ * arrives from both sides. Appending blindly listed it twice (hosted-latency run 36256306109);
+ * replacing with the fetch alone could drop it.
+ */
+function withTeam(list: Team[] | null, team: Team): Team[] {
+  return [...(list ?? []).filter((t) => t.id !== team.id), team];
+}
+
 type Screen = 'pick' | 'create' | 'team';
 
 export default function ShareWithTeamDialog() {
@@ -121,7 +131,8 @@ function Dialog() {
     let stale = false;
     void listMyTeams().then(({ teams: list, error: err }) => {
       if (stale) return;
-      setTeams(list);
+      // Keep a team created while this fetch was in flight (see `withTeam`).
+      setTeams((created) => (created ?? []).reduce(withTeam, list));
       setLoadError(err);
       // Land on the team you are in when there is exactly one - the class case, where picking
       // from a list of one is a step that asks nothing.
@@ -148,7 +159,7 @@ function Dialog() {
       setError(err);
       return;
     }
-    setTeams((list) => [...(list ?? []), team]);
+    setTeams((list) => withTeam(list, team));
     setSelectedId(team.id);
     void refreshTeams();
     // A team that exists but whose creator's membership row failed to write is still a team, and

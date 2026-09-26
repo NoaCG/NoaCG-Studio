@@ -1,0 +1,12 @@
+{
+  "$comment": "What a full run of e2e/configured/ must show, read by scripts/configured-verdict.mjs for BOTH workflows that run it: configured-suite.yml (local stack) and hosted-latency.yml (hosted staging). One file, so the two cannot drift. minTests is the number of tests that run: 58 listed on 2026-09-26, minus the 10 in the skipped files below. Raise it in the change that adds a test or brings a skipped one back, and lower it deliberately in the one that removes a test. An entry in allowedSkips is coverage given up, so it needs its reason; take a file off in the change that makes it run again.",
+  "minTests": 48,
+  "allowedSkips": {
+    "bridge-real-server.spec.ts": "Drives a real NoaCG Bridge and a real CasparCG behind BRIDGE_REAL=1. A runner has neither, so its tests can only skip (issue #371).",
+    "account.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
+    "anonymous.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
+    "community-authed.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
+    "moderator.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
+    "signed-in-ux.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted."
+  }
+}
