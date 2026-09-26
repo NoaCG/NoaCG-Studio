@@ -1058,6 +1058,27 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // another operator drove, and the follower's rows carry those in anyway.
       if (liveCueMoves.current === movesAtRequest) {
         setLiveCue(resolved.liveCue);
+        // WHAT AIR IS SHOWING, for a desk that opens onto layers somebody else put there - a
+        // teammate taking over, or the creator coming back (the three-member walk in
+        // e2e/configured/teams.spec.ts found it). `airedData` is otherwise only what THIS page
+        // sent, so a cold desk compared every on-air cue with nothing: its editor said "2 changes
+        // not on air yet" about values that were on air, and the rebuilt PROGRAM monitor showed
+        // the template's defaults. The renderer's own report is the best answer. A layer it has
+        // not reported (the report trails a take, and no renderer need be open at all) falls
+        // back to the live cue's values in the rundown, which is what its Take sent.
+        setAiredData((prev) => {
+          let next = prev;
+          for (const [graphic, cueId] of Object.entries(resolved.liveCue)) {
+            if (!cueId || next[graphic]) continue;
+            const reported = resolved.live[graphic]?.data;
+            const values =
+              reported && Object.keys(reported).length > 0
+                ? reported
+                : cuesRef.current.find((c) => c.id === cueId)?.values;
+            if (values) next = { ...next, [graphic]: { ...values } };
+          }
+          return next;
+        });
         // …and the recovery is triggered by THE WIRE'S OWN ANSWER, never by `liveCue` moving —
         // see the effect below for what that distinction cost.
         setBootLive(resolved.liveCue);

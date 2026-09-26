@@ -724,12 +724,6 @@ test.describe('teams: the share door', () => {
         // …and her desk agrees with AIR. Anna's graphic is still up (B took it and only took
         // Cleo's out), so the program monitor must show what B sent, and the on-air cue's editor
         // must not claim its values are unsent - she opened the desk after the take, not before.
-        const resolved = await annaAgain.evaluate(async (slug) => {
-          const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
-          const r = await controlShowBySlug(slug);
-          return r ? { live: r.live, liveCue: r.liveCue } : null;
-        }, published.hostedSlug!);
-        console.log('[three-member walk] published live state:', JSON.stringify(resolved));
         await expect(annaAgain.getByTestId('cue-list').locator('.pd-cue.on-air', { hasText: gfx.anna })).toHaveCount(1);
         await selectCueFor(annaAgain, gfx.anna);
         await expect(annaAgain.getByTestId('cue-unsent')).not.toContainText('not on air yet');
