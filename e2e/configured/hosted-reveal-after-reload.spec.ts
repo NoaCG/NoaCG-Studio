@@ -1,4 +1,4 @@
-import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { test, expect, type FrameLocator, type Page, type Route } from '@playwright/test';
 import { dropSvg, intoProduction, QUIZ_SVG } from '../_svg-import';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
@@ -20,7 +20,11 @@ import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpe
 //
 // Three ways a class reaches the reload, one per round:
 //   settled - locked, the renderer has reported it, a moment passes, then the reload;
-//   fast    - the reload the instant the lock is on air, racing the renderer's own report;
+//   fast    - the reload the instant the lock is on air, before the renderer has reported it.
+//             That report lags by design, so the round holds it back (fault injection) and the
+//             tab boots on the previous question's report. The monitor has to replay the log
+//             rows after that report, as the renderer's own recovery does; it used to rebuild
+//             the previous reveal and light the old key (configured run 36279794719);
 //   rekey   - locked on one key, the key corrected and Updated on air, and the reload the
 //             moment that Update has landed, so the aired key is not the one the cue was taken
 //             with and the tab has had no time to spare.
@@ -28,6 +32,7 @@ import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpe
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
 const WIRE = { timeout: 30_000 };
+const REPORT_RPC = '**/rpc/control_output_report';
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
 type Letter = (typeof LETTERS)[number];
 type Variant = 'settled' | 'fast' | 'rekey';
@@ -94,6 +99,12 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
     const takenKey = variant === 'rekey' ? LETTERS[(LETTERS.indexOf(key) + 2) % 4] : key;
     const tag = `round ${round + 1} (${variant}, key ${key})`;
 
+    // FAULT INJECTION for the fast round: the renderer's state reports are held until the
+    // reloaded tab has booted, so the report it reads is the PREVIOUS question's, the way it is
+    // for real inside the renderer's 800 ms report debounce (src/output/main.ts).
+    const heldReports: Route[] = [];
+    if (variant === 'fast') await output.route(REPORT_RPC, (r) => void heldReports.push(r));
+
     await tab.getByTestId(`hosted-field-f5-opt-${takenKey}`).click();
     await tab.getByTestId(`hosted-field-f6-opt-${pick}`).click();
     await tab.getByTestId('hosted-take-cue').click();
@@ -123,6 +134,10 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
     await tab.reload();
     await expect(tab.getByTestId('hosted-control-page'), tag).toBeVisible({ timeout: 60_000 });
     await tab.getByTestId('hosted-select-cue').filter({ hasText: 'Quiz board' }).first().click();
+    if (variant === 'fast') {
+      await output.unroute(REPORT_RPC);
+      for (const r of heldReports) await r.continue();
+    }
     // The tab comes back knowing the quiz is locked, on the key that is on air.
     await expect.soft(tab.getByTestId('hosted-state-chip'), tag).toContainText('Locked', WIRE);
     await expect.soft(tab.getByTestId(`hosted-field-f5-opt-${key}`), tag).toHaveAttribute('aria-pressed', 'true');
