@@ -9,11 +9,11 @@
 // started, so a Codex session started at the root runs this before editing, as the root contract
 // tells it to - measured on 2026-09-26: it does, once, with every file it plans to touch.
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { GENERATED_MARKER, parseRule, RULES_DIR, rulesFor } from './contracts-lib.mjs';
+import { GENERATED_MARKER, parseRules, RULES_DIR, rulesFor } from './contracts-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -66,22 +66,15 @@ export function folderContracts(relPaths, root = ROOT) {
   return out;
 }
 
-/**
- * The store PARSED but not validated. `loadRules` also checks every scope against the file tree,
- * which takes about fifteen seconds - longer than a Codex shell command is given - and a lookup
- * only needs each rule's text and scope; `npm run check:contracts` is the validation.
- */
-function parsedRules(root = ROOT) {
-  const dir = path.join(root, RULES_DIR);
-  return readdirSync(dir, { recursive: true })
-    .filter((f) => String(f).endsWith('.md'))
-    .map((f) => parseRule(`${RULES_DIR}/${String(f).replaceAll('\\', '/')}`, readFileSync(path.join(dir, String(f)), 'utf8')).rule)
-    .filter(Boolean);
-}
-
 function main() {
   const args = process.argv.slice(2);
-  const rules = parsedRules();
+  if (args.length === 0) {
+    console.error('Usage: npm run rules -- <the files you will edit>   or   npm run rules -- --area <area>');
+    process.exit(1);
+  }
+  // Parsed, not validated (`loadRules` takes about fifteen seconds, longer than a Codex shell
+  // command is given).
+  const rules = parseRules(ROOT);
   const areaIndex = args.indexOf('--area');
   if (areaIndex >= 0) {
     for (const rule of rules.filter((r) => r.status === 'active' && r.area === args[areaIndex + 1])) {
@@ -92,7 +85,15 @@ function main() {
   // A path lookup is the complete folder guidance for those files, so a session reads nothing
   // else to get it: the hand-written folder contracts first, then the scoped rules - minus the
   // `**` rules, which already arrived with the root AGENTS.md.
-  const relPaths = args.map((file) => path.relative(ROOT, path.resolve(file)).replaceAll('\\', '/'));
+  // `npm run` moves to the package root, so a relative path is resolved from where the caller
+  // typed it (INIT_CWD), and a path outside this checkout has no folder guidance here.
+  const from = process.env.INIT_CWD || process.cwd();
+  const relPaths = [];
+  for (const file of args) {
+    const rel = path.relative(ROOT, path.resolve(from, file));
+    if (rel.startsWith('..') || path.isAbsolute(rel)) console.error(`[rules] ${file} is outside this checkout - skipped`);
+    else relPaths.push(rel.replaceAll('\\', '/'));
+  }
   for (const { contract, text } of folderContracts(relPaths)) console.log(`===== ${contract}\n\n${text}\n`);
   const selected = relPaths.flatMap((rel) => rulesFor(rules, rel)).filter((r) => !(r.scope.length === 1 && r.scope[0] === '**'));
   const unique = [...new Map(selected.map((r) => [r.id, r])).values()];

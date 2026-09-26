@@ -99,9 +99,13 @@ export function aliasPinnedChromium(browsersDir, revisions) {
   return linked;
 }
 
-/** `npm ci` in `dir` when it has a lockfile and no node_modules yet. */
+/**
+ * `npm ci` in `dir` when it has a lockfile and no FINISHED install. npm writes
+ * node_modules/.package-lock.json last, so an install that died part way leaves a node_modules
+ * without it and the next session start tries again (`npm ci` clears the partial tree itself).
+ */
 function installIfMissing(dir, label) {
-  if (!existsSync(join(dir, 'package-lock.json')) || existsSync(join(dir, 'node_modules'))) return;
+  if (!existsSync(join(dir, 'package-lock.json')) || existsSync(join(dir, 'node_modules', '.package-lock.json'))) return;
   // npm is a .cmd file on Windows, which only a shell can start - given one fixed command string,
   // so no argument is ever concatenated into a shell line.
   const run = process.platform === 'win32'
