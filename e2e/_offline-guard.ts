@@ -27,6 +27,7 @@ import { chromium } from '@playwright/test';
 import { devPort } from '../scripts/dev-port.mjs';
 import { activeRuns, blockingRuns, describeRuns, selfAndAncestors, selfRun } from '../scripts/e2e-runs.mjs';
 import { resolve } from 'node:path';
+import * as rules from '../scripts/rules.mjs';
 
 /** Keys playwright.config.ts pins EMPTY. A non-empty value means the pin did not apply. */
 const MUST_BE_EMPTY = [
@@ -107,7 +108,8 @@ async function waitForOtherRuns(): Promise<void> {
       announced = true;
       console.log(
         `Queued behind browser-driving work in another checkout - starting when it finishes ` +
-          `(node scripts/e2e-runs.mjs --all to watch):\n${describeRuns(runs)}`,
+          `(node scripts/e2e-runs.mjs --all to watch):\n${describeRuns(runs)}\n` +
+          rules.text('root/enqueue-browser-driving-work-rather-than'),
       );
     }
     await new Promise((done) => setTimeout(done, 5_000));

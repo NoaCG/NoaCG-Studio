@@ -3,7 +3,7 @@ v: 1
 scope: **
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 supersedes: root/write-blocks-deterministic-transforms-template-template
 record: contracts/records/root/2026-09-07-treat-code-single-source-truth-canonical.md

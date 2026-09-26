@@ -145,6 +145,76 @@ each distinct problem is simply said once instead of nightly.
 When the suite grows, raise `MIN_TESTS` in the same commit; a stale value only makes the guard
 weaker. The run summary lists every test that actually executed - read that, not the exit code.
 
+## Running the suite: traps
+
+Each entry is the trap, the sign that gives it away, and the fix. The hazards of WRITING a spec
+are in `e2e/AGENTS.md`.
+
+- **A spec in `e2e/quarantine.json` is not in the blocking plan.** It failed and then passed on one
+  commit, so the planner keeps it out of the shards, and `quarantine.yml` runs it on every push to
+  `main` until `RELEASE_AFTER` consecutive passes release it (`npm run quarantine list`; the
+  mechanism is in "A red main answers itself first" below). A change that edits the spec runs it
+  blocking again, so the fix is tested. Fix it by reproducing the flake first, never by softening
+  the assertion. The release is earned by passing, not by editing the file, though a hand release
+  through the queue is allowed once the cause is fixed.
+- **A suite that skips itself exits 0.** `npm run test:e2e:live` with `E2E_EMAIL` / `E2E_PASSWORD`
+  unset skips every spec and exits 0, so a job that checks only the exit code is silently green
+  forever. The JSON report's `.specs[].ok` is also true for a skipped spec, so a summary built on
+  it reports skipped specs as passed. Read `.specs[].tests[].results[].status`, and make an
+  env-gated job a verdict by asserting on `.stats`: `skipped == 0` and
+  `expected + unexpected + flaky >= <declared count>`.
+- **A Claude Code cloud container fails specs that are green everywhere else, differently every
+  run.** Sign: a different random subset fails on each run of an unchanged tree, at boot (for
+  example `expect(page.locator('.wz-modal')).toBeVisible()` right after `page.goto('/app')`),
+  while the same specs are green on the laptop and in `nightly.yml`. So a red there is not
+  evidence about your change: check the last nightly, or re-run on the base commit, before
+  believing it. The cause is boot latency on a starved CPU: the durable store's hydration falls
+  back after 4 s (`src/model/durableStore.ts`), against the 7 s `expect` timeout in
+  `playwright.config.ts`. The fix in a spec is the pattern in `e2e/_svg-import.ts`, an explicit
+  `waitFor({ state: 'visible', timeout: 10_000 })` on the cold-boot auto-open. Never a longer
+  global timeout, which only hides the next one.
+- **A wholesale local red can be green on CI with no code fault.** The checkout is the cause, not
+  the code. Before blaming your change, re-run the SAME spec files in a clean worktree of the base commit
+  (`git worktree add <dir> origin/main`; never the shared `git stash`): equal failure counts mean the
+  failures were already there. The pre-merge gate belongs to
+  CI on a clean checkout anyway.
+- **A worktree with no `npm install` deadlocks against itself.** A linked worktree lives inside the
+  primary checkout, so Node's upward `node_modules` walk reaches the parent's. Playwright resolves
+  from there, `scripts/e2e-runs.mjs` records the queue ticket under the parent's root, and the
+  run's own globalSetup then waits for itself. It reads exactly like normal contention. Signs: the
+  queue names a root you are not in, the blocking pid's command line points at the parent's
+  `node_modules\.bin` and chains back to your own shell, and CPU stays near zero for the whole
+  wait. The usual first sign is `npm run build` failing on `check-workflows` with
+  `Cannot find module '@action-validator/cli/cli.mjs'`. Fix: `npm install` here, kill the stuck
+  pid, and kill the orphaned Vite it left on this checkout's port (Playwright starts `webServer`
+  before globalSetup, so the server survives).
+- **Do not edit `src/` while a bench, spike or sweep is in flight.** Those runners drive the dev
+  server, so a save triggers a Vite full reload and the page navigates away under them. Sign:
+  `page.evaluate: Execution context was destroyed`. The ledger is written at the END, so
+  everything already measured is lost. Docs, memory and scratchpad files are safe: they are not in
+  the module graph.
+- **Stopping a background bench does not stop the bench.** Killing the shell leaves the npm and
+  node descendants reparented and alive, holding a headless browser and the one paid concurrency
+  slot, and `scripts/e2e-runs.mjs` cannot see them. Sign: later cells fail `already_running` at no
+  cost, which looks like a free wholesale failure. After stopping any bench or eval, check
+  `Get-CimInstance Win32_Process -Filter "Name='node.exe'"` for a surviving runner and stop the
+  whole chain. Tell an orphan by CPU: seconds of CPU over hours of wall clock.
+- **`l3-sweep <category>` writes its screenshots into `./<category>/` in the CWD.** They are
+  untracked and invisible until a `git add -A` sweeps them into the commit. Delete the directory,
+  or pass an out-dir outside the repo, before committing.
+- **`pro-spike --control` does not start a dev server.** Start one for the checkout you are
+  measuring with `npm run dev:worktree`, which serves the tree it ships in on that checkout's
+  reserved port and refuses if the port is busy. `preview_start` is not the answer in a worktree:
+  it serves whatever checkout the harness process sits in and can report a port from somewhere
+  else (`docs/DEV_PORTS.md`, "Starting a dev server"). If you ever drive a server you did not
+  start, trust Vite's own banner in `preview_logs` over any reported port. A measurement against
+  someone else's source is not a measurement.
+- **A dev server on this checkout's port blocks this checkout's e2e runs** until it is stopped.
+  The guard's port check refuses them on purpose, because Playwright would otherwise adopt that
+  server and its env instead of starting one with the offline-pinned vars. So a sweep session and
+  a suite session in the same worktree are mutually exclusive: stop the server before running
+  specs.
+
 ## A clean merge is not proof the integration worked
 
 `git merge` decides whether two diffs touch the same LINES. It has no opinion about whether the

@@ -3,7 +3,7 @@ v: 1
 scope: **
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 supersedes: root/read-build-own-exit-code-never
 record: contracts/records/root/2026-09-07-run-after-changes-keep-tree-lint.md

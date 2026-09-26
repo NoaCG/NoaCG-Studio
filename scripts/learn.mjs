@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 // The write path for a lesson (docs/WORKFLOW_ARCHITECTURE.md §5.3).
 //
+//   npm run learn -- --area wizard --evidence "On this branch the raw duration aired because ..."
+//       records an OBSERVATION: one record file, no rule, nothing recompiled. This is the default,
+//       because learning is not adding rules. The ladder (contracts/README.md) comes first: fix
+//       the cause, improve the mechanism or default, add an automated check, then scoped guidance.
+//
 //   npm run learn -- --area wizard --scope "src/components/wizard/**" --kind trap \
 //       --rule "An input-only value lives in a holder carrying \`class=\"noacg-data-source\"\`, never an inline style." \
 //       --evidence "On this branch the raw duration aired because ..." [--fires hook:guard-edit]
 //       [--supersedes wizard/old-rule] [--distinct] [--allow-numbers] [--always] [--dry-run]
 //
-// It writes ONE new rule file and ONE new record file, both with names nobody else will choose,
+// A new rule needs --because "<why fixing the cause, a mechanism or an automated check does not
+// cover it>", written into its record. It writes ONE new rule file and ONE new record file, both with names nobody else will choose,
 // so twelve sessions can learn twelve things without touching a shared file. What it refuses,
 // and why, is the point:
 //
@@ -76,8 +82,19 @@ export function renderRule({ scope, kind, fires, since, supersedes, record, allo
   return lines.join('\n');
 }
 
-export function renderRecord({ id, date, evidence, branch, sha }) {
-  return [`# ${id}`, '', `Rule: \`${id}\`. ${stampLine(date, branch, sha)}`, '', evidence.trim(), ''].join('\n');
+export function renderRecord({ id, date, evidence, branch, sha, because = '' }) {
+  const why = because.trim() ? ['', `Why a rule rather than a fix, a mechanism or a check: ${because.trim()}`] : [];
+  return [`# ${id}`, '', `Rule: \`${id}\`. ${stampLine(date, branch, sha)}`, '', evidence.trim(), ...why, ''].join('\n');
+}
+
+/** An observation: what happened, recorded as evidence, with no rule attached. */
+export function renderObservation({ area, date, evidence, branch, sha }) {
+  return [`# Observation (${area})`, '', stampLine(date, branch, sha), '', evidence.trim(), ''].join('\n');
+}
+
+/** Where an observation goes: the area's records, dated, named after its first words. */
+export function observationPath(area, date, evidence) {
+  return `${RECORDS_DIR}/${area}/${date}-observed-${slugOf(evidence)}.md`;
 }
 
 const stampLine = (date, branch, sha) => `Recorded ${date}${branch ? ` on \`${branch}\`` : ''}${sha ? ` at ${sha}` : ''}.`;
@@ -86,7 +103,7 @@ const stampLine = (date, branch, sha) => `Recorded ${date}${branch ? ` on \`${br
  * Decide what a lesson becomes. Pure: takes the parsed arguments and the loaded rules, returns
  * { action: 'new' | 'append' | 'refuse', ... }. The CLI does the writing.
  */
-export function decide({ area, scope, kind, fires, rule, supersedes, allowNumbers, distinct = false, always = false }, rules, root = ROOT) {
+export function decide({ area, scope, kind, fires, rule, supersedes, allowNumbers, distinct = false, always = false, because = '' }, rules, root = ROOT) {
   const problems = [];
   if (scope.includes('**') && !always) {
     problems.push('--scope "**" loads this rule into every session. Climb the ladder in contracts/README.md first: ' +
@@ -111,6 +128,13 @@ export function decide({ area, scope, kind, fires, rule, supersedes, allowNumber
   }
   if (rules.some((r) => r.id === id)) {
     return { action: 'refuse', problems: [`a rule ${id} already exists and reads differently - say --supersedes ${id}, or reword the rule`] };
+  }
+  if (!String(because).trim()) {
+    return {
+      action: 'refuse',
+      problems: ['--because is required for a new rule: say why fixing the cause, a mechanism or an automated check ' +
+        'does not cover this (the ladder in contracts/README.md). Without a rule, record the evidence alone: drop --rule.'],
+    };
   }
   return { action: 'new', id, text, nearest: match };
 }
@@ -168,7 +192,7 @@ function writeNewRule(verdict, input, ctx) {
     console.log(text);
     return;
   }
-  if (record) writeText(record, renderRecord({ id, date: ctx.date, evidence: input.evidence, branch: ctx.branch, sha: ctx.sha }));
+  if (record) writeText(record, renderRecord({ id, date: ctx.date, evidence: input.evidence, branch: ctx.branch, sha: ctx.sha, because: input.because }));
   for (const old of input.supersedes) {
     const target = ctx.rules.find((r) => r.id === old);
     writeText(target.path, readStore(target.path).replace(/^status: active$/m, 'status: retired'));
@@ -185,6 +209,26 @@ function writeNewRule(verdict, input, ctx) {
   console.log('  Commit the rule, the record and the regenerated files together.');
 }
 
+function recordObservation(input, args) {
+  if (!input.area || !/^[a-z0-9-]+$/.test(input.area) || !input.evidence) {
+    console.error(`${LABEL} an observation needs --area <name> and --evidence "<what happened>"; add --rule only when the ladder says so.`);
+    process.exit(1);
+  }
+  const date = today();
+  const rel = observationPath(input.area, date, input.evidence);
+  const text = renderObservation({ area: input.area, date, evidence: input.evidence, branch: git(['rev-parse', '--abbrev-ref', 'HEAD']), sha: git(['rev-parse', '--short', 'HEAD']) });
+  if (args.includes('--dry-run')) {
+    console.log(`${LABEL} would write ${rel}:\n${text}`);
+    return;
+  }
+  // Same day, same opening words: append rather than overwrite what another session recorded.
+  if (existsSync(path.join(ROOT, rel))) writeText(rel, `${readStore(rel).trimEnd()}\n\n---\n\n${text}`);
+  else writeText(rel, text);
+  console.log(`${LABEL} recorded an observation: ${rel}. No rule was written.`);
+  console.log('  If it recurs, is expensive or systemic: fix the cause, improve the mechanism, or add a check first.');
+  console.log('  A rule is the last step: --rule "..." --because "why a fix, mechanism or check does not cover it".');
+}
+
 function main() {
   const args = process.argv.slice(2);
   const input = {
@@ -198,7 +242,12 @@ function main() {
     allowNumbers: args.includes('--allow-numbers'),
     distinct: args.includes('--distinct'),
     always: args.includes('--always'),
+    because: (arg(args, '--because') ?? '').trim(),
   };
+  if (!input.rule) {
+    recordObservation(input, args);
+    return;
+  }
   const { rules, problems: storeProblems } = loadRules(ROOT);
   if (storeProblems.length > 0) {
     console.error(`${LABEL} the store has problems; fix them first (npm run check:contracts):`);

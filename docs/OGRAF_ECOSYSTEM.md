@@ -423,8 +423,8 @@ build WORKING OGraf playout first, on the EXISTING NoaCG output architecture - t
 renderer and the durable command log - never a separate playout system. All outreach - the
 ograf.dev listing, any EBU pitch or working-group contact, public claims - is gated behind
 NoaCG being something a broadcaster can test in a real production.** This reorders the ratified
-ladder's first rung (the listing was previously "cheapest credibility per minute"); the GOALS.md
-NEXT section carries the same gate, and the review's §12 carries a dated update note.
+ladder's first rung (the listing was previously "cheapest credibility per minute"); the standards
+outcome in GOALS.md makes reliably playing foreign packages the next milestone, and the review's §12 carries a dated update note.
 
 **Must influence current work:** only discipline, no tasks. What may START is the register's call
 and not this file's: `docs/PROGRAMMES.md`, "P6 OGraf & Interoperability" records that P6 may start
