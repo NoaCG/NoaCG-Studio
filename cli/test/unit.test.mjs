@@ -867,3 +867,42 @@ test('the skill no longer calls an authored machine a later capability', async (
   }
   assert.doesNotMatch(await shippedSkill(), /later capability/i, 'SKILL.md still defers authoring a machine');
 });
+
+// ---------------------------------------------------------------- a re-derived steps count
+// The SPX `steps` is derived from the machine's default path (`spxSteps`), and the bridge's
+// normalize re-derives it (e2e/bridge.spec.ts pins that half in a real bridge). This half is what
+// the AUTHOR sees: the number lives in their own html, so rewriting it has to be as visible as
+// every other regeneration - in the summary, and on the file it changed. Before the re-sync an
+// agent that grew a scaffold's path from two waypoints to three kept "steps": "1", validate was
+// green, and the OGraf stepCount told a playout server there was no Continue to press.
+test('a re-derived SPX steps count is reported, in the summary and on the html it rewrote', async (t) => {
+  const { describeNormalize, regenerateInPlace } = await import('../dist/commands/validate.js');
+  const dir = await tmpdir();
+  const definition = (steps) => `<html><head><script id="spx-template-definition">window.SPXGCTemplateDefinition = { "steps": "${steps}", "DataFields": [] };</script></head><body></body></html>`;
+  await fs.mkdir(path.join(dir, 'css'));
+  await fs.mkdir(path.join(dir, 'js'));
+  await fs.writeFile(path.join(dir, 'grown_path.html'), definition(1));
+  await fs.writeFile(path.join(dir, 'css', 'template.css'), 'body{}');
+  await fs.writeFile(path.join(dir, 'js', 'template.js'), 'var NOACG_ANIM = {};');
+  const template = { name: 'grown_path', resolution: { width: 1920, height: 1080 } };
+  const normalized = { converted: false, dataRegion: true, note: 'already data', stepsRewritten: { from: '1', to: '2' } };
+
+  const summary = describeNormalize(normalized);
+  for (const line of summary) t.diagnostic(line);
+  assert.equal(summary.length, 1, 'a data-shaped region says nothing about its region, only about the count');
+  assert.match(summary[0], /^Steps: .*to 2 \(the source said 1\).*default path/);
+  assert.deepEqual(describeNormalize({ ...normalized, stepsRewritten: undefined }), [], 'no rewrite, no line');
+
+  // What the bridge exports for the normalized template: the same sources, the definition derived.
+  const zip = new JSZip();
+  zip.file('grown_path/grown_path.html', definition(2));
+  zip.file('grown_path/css/template.css', 'body{}');
+  zip.file('grown_path/js/template.js', 'var NOACG_ANIM = {};');
+  zip.file('grown_path/grown_path.ograf.json', JSON.stringify({ stepCount: 2 }));
+  const bridge = { exportPackage: async () => zip.generateAsync({ type: 'uint8array' }) };
+  const before = { 'grown_path.html': definition(1), 'css/template.css': 'body{}', 'js/template.js': 'var NOACG_ANIM = {};' };
+  const changes = await regenerateInPlace(bridge, dir, template, { before, normalized });
+  for (const c of changes) t.diagnostic(`changed: ${c}`);
+  assert.deepEqual(changes, ['grown_path.html (SPX "steps" 1 -> 2, derived from the default path)']);
+  assert.match(await fs.readFile(path.join(dir, 'grown_path.html'), 'utf8'), /"steps": "2"/);
+});

@@ -127,6 +127,9 @@ export interface NormalizeResult {
   converted: boolean;
   dataRegion: boolean;
   note: string;
+  /** The SPX `steps` normalize re-derived from the default path, when it differed from the
+   *  author's. Absent from a deployment older than the re-sync. */
+  stepsRewritten?: { from: string; to: string };
 }
 
 export interface BridgeTypeSummary {
