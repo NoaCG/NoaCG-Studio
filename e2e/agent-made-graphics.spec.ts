@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 // AN AGENT-AUTHORED MACHINE, DRIVEN FROM THE PRODUCTION PAGE.
 //
-// The fixture beside this file is the Elämäni biisi proof case (docs/CONTROL_PANEL_ANY_GRAPHIC.md
+// The fixture beside this file is the vote-show proof case (docs/CONTROL_PANEL_ANY_GRAPHIC.md
 // §3a, §3b), authored through the CLI against the shipped `noacg-graphic` skill on 2026-09-15 and
 // packed with `noacg pack`. Every other control-panel spec drives a graphic the STUDIO built from
 // a type; this one drives one an agent wrote by hand, which is the claim the skill makes and the
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 // The second test is a LAYOUT pin, and it is here rather than in layout.spec.ts because it is the
 // same surface: the five transport verbs must not overlap. See its own comment for the failure.
 const PACK = readFileSync(
-  fileURLToPath(new URL('./fixtures/agent-made/elamani-biisi.noacgpack.json', import.meta.url)),
+  fileURLToPath(new URL('./fixtures/agent-made/vote-show.noacgpack.json', import.meta.url)),
   'utf8',
 );
 
@@ -27,7 +27,7 @@ async function importProofCase(page: import('@playwright/test').Page) {
   const card = page.getByTestId('import-pack-card');
   await expect(card).toBeVisible();
   await card.getByTestId('import-pack-file').setInputFiles({
-    name: 'elamani-biisi.noacgpack.json',
+    name: 'vote-show.noacgpack.json',
     mimeType: 'application/json',
     buffer: Buffer.from(PACK),
   });

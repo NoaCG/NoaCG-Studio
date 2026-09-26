@@ -100,7 +100,7 @@ for (const file of files) {
         let value = String(f.value ?? '');
         // Packs ship TEXT fields with empty defaults (operators fill them per rundown
         // item) and empty fields collapse their boxes - so an empty text default gets
-        // the field's title as sample data, the convention Yle's own example frames use.
+        // the field's title as sample data, the convention a broadcaster's own example frames use.
         const ftype = String(f.ftype ?? 'textfield');
         if (!value && (ftype === 'textfield' || ftype === 'textarea') && f.title) value = String(f.title);
         data[f.field] = value;

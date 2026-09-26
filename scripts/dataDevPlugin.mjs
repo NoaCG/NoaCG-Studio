@@ -2,7 +2,7 @@
 //
 // Same shape as meDevPlugin: the integrator's route exists in development exactly as in
 // production, the REAL handler runs in both, and there is deliberately NO route list here -
-// the catch-all owns the closed dispatch table. This is also what lets the Yle demo loop
+// the catch-all owns the closed dispatch table. This is also what lets a broadcaster demo loop
 // (scripts/data-api-demo.mjs) be rehearsed against a local dev server carrying a real .env
 // before a deploy exists, and what the offline e2e spec drives to pin the refusal shapes.
 

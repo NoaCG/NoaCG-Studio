@@ -255,7 +255,7 @@ test.describe('a declared input-only holder is not a field that failed to paint'
 
 // ── The arrow walk: gate 3's promise, measured ──────────────────────────────────────────────
 //
-// The fixture is the Elämäni biisi proof case (e2e/fixtures/agent-made/), two graphics an agent
+// The fixture is the vote-show proof case (e2e/fixtures/agent-made/), two graphics an agent
 // authored through the CLI against the shipped skill. The totals board is the one that matters
 // here: eleven controls, each legal from both states of its parallel `flash` group, so TWENTY-TWO
 // arrows - and on 2026-09-15 `validate` reported 0 errors and 0 warnings on it having pressed
@@ -274,7 +274,7 @@ test.describe('a declared input-only holder is not a field that failed to paint'
 //     ENTERED `alert` - the phase label alone would not, since it is written before the dispatch
 //     and a guarded-out event leaves it standing over the pose that was already on screen.
 const PROOF_PACK = readFileSync(
-  fileURLToPath(new URL('./fixtures/agent-made/elamani-biisi.noacgpack.json', import.meta.url)),
+  fileURLToPath(new URL('./fixtures/agent-made/vote-show.noacgpack.json', import.meta.url)),
   'utf8',
 );
 

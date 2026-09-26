@@ -153,7 +153,7 @@ export default function PlaceFieldsStep({ art, draft, onDraft, onBackToPrepare }
 
   // STILL-BAKED TEXT, carried forward honestly: the Prepare step's scan is an offer the
   // wizard never blocks on, so a user can walk past it - and fields placed here would then
-  // sit ON TOP of the baked words with nothing saying so (the Yle-demo "text is not being
+  // sit ON TOP of the baked words with nothing saying so (the broadcaster demo's "text is not being
   // removed" walk). Re-scan the CURRENT artwork (an erased design comes back clean, so a
   // completed erase never nags) and stand down for the standing "it's meant to be there"
   // answer (draft.designKeepBakedText). Same one-scan-per-artwork guard as Prepare's.

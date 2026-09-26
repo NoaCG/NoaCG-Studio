@@ -27,7 +27,7 @@ import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpe
 // server's own timestamps - and the DOM is asserted only for what the DOM is: what the operator
 // can see, reach and read.
 //
-// THE FIXTURE IS THE PROOF CASE. The two Elämäni biisi boards under `e2e/fixtures/agent-made/`,
+// THE FIXTURE IS THE PROOF CASE. The two vote-show boards under `e2e/fixtures/agent-made/`,
 // authored through the CLI against the shipped skill rather than scaffolded from a type, so the
 // controls this profile arranges and combines are an agent's own declarations (plan §3a, §3b).
 //
@@ -36,7 +36,7 @@ import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpe
 // The picture belongs to `e2e/agent-made-graphics.spec.ts` and to the in-app walk.
 
 const PACK = readFileSync(
-  fileURLToPath(new URL('../fixtures/agent-made/elamani-biisi.noacgpack.json', import.meta.url)),
+  fileURLToPath(new URL('../fixtures/agent-made/vote-show.noacgpack.json', import.meta.url)),
   'utf8',
 );
 
@@ -155,7 +155,7 @@ test('a published profile arranges, combines and moves the shared value on the h
   const card = page.getByTestId('import-pack-card');
   await expect(card).toBeVisible({ timeout: 30_000 });
   await card.getByTestId('import-pack-file').setInputFiles({
-    name: 'elamani-biisi.noacgpack.json',
+    name: 'vote-show.noacgpack.json',
     mimeType: 'application/json',
     buffer: Buffer.from(PACK),
   });

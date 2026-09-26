@@ -447,7 +447,7 @@ test('a production carries its control profile canonically, and deleting it leav
     const { createShowNamed, setShowProfile, deleteShowProfile, loadShows, upsertShow } = await import(
       '/src/model/shows.ts'
     );
-    const show = createShowNamed('Elämäni biisi');
+    const show = createShowNamed('Vote show');
     // Authored the way a surface would hand it over: keys in no particular order, a default
     // spelled out, a zero wait. All three must be gone from what lands on the record.
     setShowProfile(show.id, {

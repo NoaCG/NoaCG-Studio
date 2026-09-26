@@ -1321,7 +1321,7 @@ test('artwork with no baked-in text is offered nothing, and names the rule that 
 
 test('detected text walked past unerased follows to the Text step as an honest note', async ({ page }) => {
   // The wizard never blocks Next, so ignoring the proposal must not silently drop the fact:
-  // fields placed now would sit ON TOP of the baked words, and nothing said so (the Yle-demo
+  // fields placed now would sit ON TOP of the baked words, and nothing said so (the broadcaster-demo
   // complaint "the text is not being removed" was exactly this walk).
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();

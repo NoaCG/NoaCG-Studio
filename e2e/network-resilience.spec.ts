@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { pickDesign } from './_browse';
 
-// RESTRICTED-NETWORK RESILIENCE (docs/GOALS.md "the SVG road"): the Yle demo died inside the
+// RESTRICTED-NETWORK RESILIENCE (docs/GOALS.md "the SVG road"): a broadcaster demo died inside the
 // wizard on a corporate network, and nothing said why. These specs pin the four guarantees
 // that close that class of failure:
 //

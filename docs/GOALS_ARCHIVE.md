@@ -65,14 +65,14 @@ a primary long-term differentiator, not a nice-to-have.
 ## Milestones
 
 ### The SVG road (the two halves that landed first)
-- [x] **OGraf boilerplate story** (Yle's explicit ask): a curated, teaching-grade OGraf starter
+- [x] **OGraf boilerplate story** (a broadcaster's explicit ask): a curated, teaching-grade OGraf starter
       set - our validated export packaged as free, hand-editable base templates an organization
       modifies instead of starting from scratch. Study `SuperFlyTV/ograf-devtool` + the EBU
       examples for what authors already get.
       *(2026-08-20) Shipped as the public `/ograf` starters page - `ograf.html` + `src/ograf/`,
       built by the real exporter on click; see `docs/OGRAF.md` "The free starters page"
       (354addb0, 56d7853c, 5fc812bb).*
-- [x] **Restricted-network resilience**: the Yle demo died inside the wizard on their corporate
+- [x] **Restricted-network resilience**: a broadcaster demo died inside the wizard on their corporate
       network. No third-party host may ever block create/preview/export; diagnose, harden,
       pin with an e2e spec that walks the wizard with all third-party hosts blocked, and give
       failures a visible diagnosis instead of a silent stall.
@@ -1763,7 +1763,7 @@ and the verdict; the 2026-08-14 Lite arm cost **$0.0069 for 8 cells** and the ot
 
 *What stayed in `GOALS.md`: the one-line competitive read and the pointer to the full doc.*
 
-**MXMZ** (mxmz.com, added 2026-08-20 - named by Yle as the working model) - Dutch cloud
+**MXMZ** (mxmz.com, added 2026-08-20 - named by a broadcaster as the working model) - Dutch cloud
 broadcast-graphics SaaS out of Banijay/Southfields: design in Illustrator/Figma/Canva, import
 the SVG with **every layer auto-exposed** for animation and JSON data binding, browser timeline,
 operator playout with newsroom/sports-data integrations; 200+ channels, from ~$3k/yr. They prove
@@ -2092,8 +2092,7 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 > keeps full control through **Advanced mode** - the editor, one toggle away, never required. The
 > generated HTML/CSS/JS is the single source of truth and stays clean and readable.
 >
-> **The dates: an early-October production on the scoreboards and quiz boards; 2026-10-20,
-> Elämäni biisi on Yle.** NOW lists what they need. Work that serves none of them is still current when it makes sense.
+> **Two dated productions (the dates are private context).** NOW lists what they need. Work that serves none of them is still current when it makes sense.
 >
 > **The year beyond this file**: [`NORTH_STAR_2027.md`](NORTH_STAR_2027.md) (ratified 2026-09-01)
 > is the one-year north star and evidence model; [`PROGRAMMES.md`](PROGRAMMES.md) is the live
@@ -2134,7 +2133,7 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 > - **Rive** - designer-first state-machine logic; sets the bar for our machine + logic surface.
 > - **Singular.live** - cloud graphics + browser control room; our gap to open is breadth.
 > - **Loopic** - closest positioning; its timeline/canvas are what Advanced mode has to beat.
-> - **MXMZ** - Yle's named model; proves "your own SVG, playable" at broadcast scale. Nothing
+> - **MXMZ** - a broadcaster's named model; proves "your own SVG, playable" at broadcast scale. Nothing
 >   public shows them authoring LOGIC at all - that gap is ours to take.
 > - **Pixla** - a control room in a box (rundown, prompter, timer, switcher control) around a
 >   designer. One row there forces OUR user into another tool: they cannot draw a rectangle. The
@@ -2265,9 +2264,8 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 >       on a calendar row (`gsap-licence` in `scripts/check-vendored-versions.mjs`), due around
 >       2027-03-04. The replaceability half is unchanged and still binding.
 >
-> **The Yle thread**: one message is owed now (the demo script's B0); the owner re-contacts in a few weeks, and in roughly a
-> month Yle would try NoaCG inside one of their productions. Expect one question - which ports and
-> hosts their strict network blocks. Answer it when they report it.
+> **A broadcaster trial** (private context). Expect one question - which ports and hosts a strict
+> network blocks. Answer it when it is reported.
 >
 > ## NEXT - coding agents make NoaCG graphics (the agent door)
 >

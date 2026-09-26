@@ -22,7 +22,7 @@
     <div id="root"></div>
     <!-- BOOT WATCHDOG + CONNECTION CHECK. Inline and dependency-free ON PURPOSE: this script
          is the one part of /app that still runs when a filtering proxy blocks the JS chunks
-         themselves (the Yle-demo failure class, docs/GOALS.md "the SVG road"). Two jobs:
+         themselves (the failure class a real demo hit, docs/GOALS.md "the SVG road"). Two jobs:
          (1) if the module boot has not reached 'mounted' in time, paint a plain-HTML
              diagnosis instead of leaving a white screen;
          (2) on /app?diag=1, render the connection check the app links to - src/main.tsx

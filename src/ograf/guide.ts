@@ -1,6 +1,6 @@
 // GUIDE.md — the modification walkthrough bundled into an OGraf STARTER package (ograf.html).
 //
-// The Yle ask behind the starters page (docs/GOALS.md "the SVG road"): organizations adopting
+// A broadcaster's ask behind the starters page (docs/GOALS.md "the SVG road"): organizations adopting
 // OGraf want a BASE they modify, not from-scratch authoring — and a base is only a base if a
 // newcomer can find where the data, the look and the motion live without reading the whole
 // file. FIELDS.md already states the data contract; this guide is the map around it. It reads

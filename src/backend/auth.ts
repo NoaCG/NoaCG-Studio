@@ -19,7 +19,7 @@ export interface AuthState {
  * `getSession()` is not the local read it looks like: for a returning user whose access token
  * has expired, supabase-js refreshes it OVER THE NETWORK inside the call, with no timeout of
  * its own. On a network that silently black-holes `*.supabase.co` (corporate filtering - the
- * Yle-demo failure class) that promise hangs for the browser's own connect timeout, and
+ * failure class a real demo hit) that promise hangs for the browser's own connect timeout, and
  * everything chained on it (sync status, entitlement, AI status) sits in 'loading' meanwhile.
  * So every boot-path read goes through this bounded wrapper: on timeout the caller proceeds
  * signed-out, and if the refresh does land later, onAuthStateChange corrects the state - the

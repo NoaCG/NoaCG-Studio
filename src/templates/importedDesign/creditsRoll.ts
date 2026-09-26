@@ -41,7 +41,7 @@ import { CREDITS_PARSER_JS } from '../endCredits/shared';
 
 /**
  * THE AUTHORED PACE, in lines per second at Scroll speed 100. Chosen so the classroom package's
- * default credits roll through in about thirty seconds (the owner's brief, 2026-09-24, and Yle's
+ * default credits roll through in about thirty seconds (the owner's brief, 2026-09-24, and a broadcaster's
  * guideline of at most thirty): its 32 lines and section gaps run about 36 lines of leading, its
  * 800-tall Credits box adds 16, and 52 lines at 1.75 a second is 30 s. At 1.35 the same list took
  * 38.8 s (e2e/classroom-package.spec.ts measures it). Through a whole 1080 frame at a 52px
