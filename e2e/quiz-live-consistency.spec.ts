@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { createProject } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { dropSvg, intoProduction } from './_svg-import';
 
 // THE QUIZ ON AIR, THE SAME WAY ON EVERY BOARD (owner production test, 2026-09-22).
@@ -19,22 +19,12 @@ import { dropSvg, intoProduction } from './_svg-import';
 //    ride fast (hostedControl.ts, SLOW_AFTER_EVENT_MS). The rule is pinned below; the road itself
 //    can only run against a backend (e2e/configured/playout-both-roads.spec.ts).
 // 3. The boards use two answer models, and this spec says which is which, so a board that drifts
-//    from its family fails here rather than in front of an audience.
+//    from its family fails here rather than in front of an audience. Both models stay (two show
+//    formats, answerBoard.ts ANSWER_PICK_SECTION), and the pick section's heading names the one
+//    this board uses: "Pick, then lock" or "Pick, one press".
 
 const DOCS_QUIZ = fileURLToPath(new URL('../public/docs/examples/quiz.svg', import.meta.url));
 const CATALOG = ['qz01', 'qz02', 'qz03', 'qz04', 'qz05', 'qz06', 'qz07', 'qz08', 'qz09', 'qz10', 'qz11', 'qz12', 'qz13', 'qz14', 'qz15'];
-
-/** Create the current editor graphic's production and land on its page. */
-async function productionFor(page: Page, name: string): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill(name);
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await expect(section.locator('.status-ok')).toContainText('is in the production');
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
-}
 
 /** The ⚡ buttons the production page renders for the selected cue, by event id. */
 async function actionEvents(page: Page): Promise<string[]> {
@@ -73,11 +63,13 @@ for (const id of CATALOG) {
   test(`${id}: a correct answer changed on air reaches PROGRAM with Reveal, and again with Update`, async ({ page }) => {
     await page.goto('/');
     const meta = await quizMeta(page, id);
-    await createProject(page, { name: meta.name });
-    await productionFor(page, `Live key ${id}`);
+    await bootstrapGraphic(page, meta.name);
+    await openProductionWithCurrent(page, `Live key ${id}`);
     const program = page.frameLocator('[data-testid="program-stage"] iframe');
     const show = ['qz13', 'qz14', 'qz15'].includes(id);
     expect(await actionEvents(page)).toEqual(show ? SHOW_CONTROLS : BOARD_CONTROLS);
+    // The model is named where the operator reads it: the pick section's heading.
+    await expect(page.getByTestId('cue-actions').locator('h4').first()).toHaveText(show ? 'Pick, one press' : 'Pick, then lock');
 
     await page.getByTestId('verb-take').click();
     await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
@@ -108,12 +100,62 @@ for (const id of CATALOG) {
   });
 }
 
+// 4. A quiz SAVED BEFORE finding 1 was fixed keeps the buttons it was built with: the control list
+//    is compiled into the template, and a saved template names no type to compile it again from.
+//    The control model re-derives it on every read (control/controlUpgrades.ts), so the old Reveal
+//    carries the key on every surface without the graphic being rebuilt or re-saved.
+
+/** Strip the answer key from Reveal in the editor's graphic - the shape every quiz was saved in
+ *  before 2026-09-22 - and report the field the key lives in and the buttons read back. */
+async function saveAsBeforeTheFix(page: Page) {
+  return page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const { eventButtons } = await import('/src/control/controlModel.ts');
+    const template = useTemplateStore.getState().template;
+    const data = parseAnimData(template.js)!;
+    const controls = data.machine!.controls!;
+    const key = controls.find((c) => c.event === 'judge')!.payload![0];
+    const old = { ...data, machine: { ...data.machine!, controls: controls.map((c) => (c.event === 'judge' ? { ...c, payload: undefined } : c)) } };
+    const js = spliceAnimData(template.js, old)!;
+    useTemplateStore.getState().applyTemplate({ ...template, js });
+    const saved = parseAnimData(useTemplateStore.getState().template.js)!.machine!.controls!.find((c) => c.event === 'judge')!;
+    return { key, savedPayload: saved.payload ?? null, readPayload: eventButtons(js).find((b) => b.event === 'judge')!.payload ?? null };
+  });
+}
+
+test('a catalog quiz saved before Reveal carried the key still reveals the key in the cue', async ({ page }) => {
+  await page.goto('/');
+  const meta = await quizMeta(page, 'qz01');
+  await bootstrapGraphic(page, meta.name);
+  const saved = await saveAsBeforeTheFix(page);
+  expect(saved.key).toBe(meta.correct);
+  expect(saved.savedPayload).toBeNull(); // the graphic really holds the old shape
+  expect(saved.readPayload).toEqual([meta.correct]); // and every surface reads the current one
+
+  await openProductionWithCurrent(page, 'Saved quiz');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
+  await page.getByTestId(`cue-field-${meta.selected}-opt-B`).click();
+  await page.getByTestId('cue-action-select').click();
+  await page.getByTestId('cue-action-lock').click();
+  const other = meta.key === 'A' ? 'B' : 'A';
+  await page.getByTestId(`cue-field-${meta.correct}-opt-${other}`).click();
+  await expect(page.getByTestId('cue-action-judge')).toHaveAttribute('title', /Correct answer/);
+  await page.getByTestId('cue-action-judge').click();
+  await expect(page.getByTestId('machine-state-chip')).toHaveText(/Reveal/);
+  await expect(program.locator('.quiz-option').nth(row(other))).toHaveClass(/quiz-correct/);
+  await expect(program.locator('.quiz-option.quiz-correct')).toHaveCount(1);
+});
+
 test('the docs example quiz: a correct answer changed on air reaches PROGRAM with Reveal, and again with Update', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/app');
   await dropSvg(page, DOCS_QUIZ);
   await intoProduction(page, 'Docs quiz', 'Docs quiz night');
   expect(await actionEvents(page)).toEqual(IMPORTED_CONTROLS);
+  await expect(page.getByTestId('cue-actions').locator('h4').first()).toHaveText('Pick, then lock');
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   const look = (name: string) => program.locator(`[data-noacg-role~="${name}"]`);
   // The mapped quiz's two letter pickers, in the order the recipe declares them: the key, the pick.
@@ -137,6 +179,12 @@ test('the docs example quiz: a correct answer changed on air reaches PROGRAM wit
   await page.getByTestId('verb-update').click();
   await expect(look(`answer.correct/${key}`)).toHaveClass(/imported-design-on/);
   await expect(look(`answer.correct/${other}`)).not.toHaveClass(/imported-design-on/);
+
+  // The imported quiz names its key in its behaviour table, and a copy saved before the fix reads
+  // back with the key on Reveal too (finding 4).
+  const saved = await saveAsBeforeTheFix(page);
+  expect(saved.savedPayload).toBeNull();
+  expect(saved.readPayload).toEqual([saved.key]);
 });
 
 test('a clock-free graphic sends its events on the fast road, and a clock keeps the slow one', async ({ page }) => {
