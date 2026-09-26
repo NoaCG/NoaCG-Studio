@@ -177,7 +177,7 @@ async function validate(input: Input): Promise<Result> {
     }
   }
   if (dir) {
-    const changes = await regenerateInPlace(b, dir, template, { thumbnail, before, converted: normalized.converted, stepsRewritten: normalized.stepsRewritten });
+    const changes = await regenerateInPlace(b, dir, template, { thumbnail, before, normalized });
     content.push({ type: 'text', text: `Regenerated the package in ${dir}.${changes.map((c) => `\n  changed: ${c}`).join('')}` });
   }
   return { content, isError: !validation.ok };

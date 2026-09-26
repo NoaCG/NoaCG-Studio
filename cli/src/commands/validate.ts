@@ -68,7 +68,7 @@ export async function regenerateInPlace(
   bridge: BridgeClient,
   dir: string,
   template: SpxTemplate,
-  opts: { thumbnail?: Thumbnail; before: Record<string, string | null>; converted: boolean; stepsRewritten?: NormalizeResult['stepsRewritten'] },
+  opts: { thumbnail?: Thumbnail; before: Record<string, string | null>; normalized: Pick<NormalizeResult, 'converted' | 'stepsRewritten'> },
 ): Promise<string[]> {
   let thumbnail = opts.thumbnail;
   // A validate without screenshots keeps the thumbnail an earlier one wrote: the manifest's
@@ -87,16 +87,15 @@ export async function regenerateInPlace(
       ? `${file} (removed: the generated manifest of the package's previous name)`
       : `${file} (removed: the package is now named by its html${newHtml ? ` - its content lives in ${newHtml}` : ''})`);
   }
+  const { converted, stepsRewritten: steps } = opts.normalized;
+  const why = (file: string): string => {
+    if (file === 'js/template.js' && converted) return 'ANIMATION region converted to NoaCG keyframe data';
+    if (/\.html?$/i.test(file) && steps) return `SPX "steps" ${steps.from} -> ${steps.to}, derived from the default path`;
+    return 'normalized to the package layout';
+  };
   const after = await sourcesOf(dir, template);
   for (const [file, text] of Object.entries(after)) {
-    if (opts.before[file] !== null && opts.before[file] !== undefined && text !== opts.before[file]) {
-      const steps = opts.stepsRewritten;
-      changes.push(file === 'js/template.js' && opts.converted
-        ? `${file} (ANIMATION region converted to NoaCG keyframe data)`
-        : /\.html?$/i.test(file) && steps
-          ? `${file} (SPX "steps" ${steps.from} -> ${steps.to}, derived from the default path)`
-          : `${file} (normalized to the package layout)`);
-    }
+    if (opts.before[file] !== null && opts.before[file] !== undefined && text !== opts.before[file]) changes.push(`${file} (${why(file)})`);
   }
   return changes;
 }
@@ -150,7 +149,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     const normalized = await bridge.normalize(pkg.imported.template);
     const template = normalized.template;
     const validation = await bridge.validate(template, { bench, houseContract });
-    Object.assign(report, { ok: validation.ok, validation, normalize: { converted: normalized.converted, dataRegion: normalized.dataRegion, note: normalized.note, stepsRewritten: normalized.stepsRewritten }, stale: pkg.imported.noacg?.stale ?? false });
+    Object.assign(report, { ok: validation.ok, validation, normalize: { ...normalized, template: undefined }, stale: pkg.imported.noacg?.stale ?? false });
 
     let thumbnail: { png: Uint8Array; width: number; height: number } | undefined;
     if (shotsDir) {
@@ -169,7 +168,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     }
 
     const changes = isDirectory
-      ? await regenerateInPlace(bridge, path.resolve(input), template, { thumbnail, before, converted: normalized.converted, stepsRewritten: normalized.stepsRewritten })
+      ? await regenerateInPlace(bridge, path.resolve(input), template, { thumbnail, before, normalized })
       : [];
     if (isDirectory) {
       report.regenerated = true;

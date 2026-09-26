@@ -901,7 +901,7 @@ test('a re-derived SPX steps count is reported, in the summary and on the html i
   zip.file('grown_path/grown_path.ograf.json', JSON.stringify({ stepCount: 2 }));
   const bridge = { exportPackage: async () => zip.generateAsync({ type: 'uint8array' }) };
   const before = { 'grown_path.html': definition(1), 'css/template.css': 'body{}', 'js/template.js': 'var NOACG_ANIM = {};' };
-  const changes = await regenerateInPlace(bridge, dir, template, { before, converted: false, stepsRewritten: normalized.stepsRewritten });
+  const changes = await regenerateInPlace(bridge, dir, template, { before, normalized });
   for (const c of changes) t.diagnostic(`changed: ${c}`);
   assert.deepEqual(changes, ['grown_path.html (SPX "steps" 1 -> 2, derived from the default path)']);
   assert.match(await fs.readFile(path.join(dir, 'grown_path.html'), 'utf8'), /"steps": "2"/);
