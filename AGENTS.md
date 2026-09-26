@@ -2,8 +2,9 @@
 # NoaCG Studio
 
 Compiled from `contracts/rules`. Change a rule there (`npm run learn -- ...`), never here.
-Folder rules load in Claude Code by themselves. In Codex, run `npm run rules -- <path>` before
-editing a file to print the rules that apply to it. Map of the code: `docs/ARCHITECTURE.md`.
+Folder rules load in Claude Code by themselves. In Codex, before editing, run
+`npm run rules -- <the files you will edit>` once: it prints all their folder guidance, so no
+folder AGENTS.md needs reading. Map of the code: `docs/ARCHITECTURE.md`.
 
 - **invariant** `root/emit-clean-commented-code-person-can`: Write clean, commented code a person can edit, and prefer the obvious form over the clever one.
 - **invariant** `root/green-gate-human-seeing-work-observable`: Observable product work adds its own file under `docs/acceptance/owner-queue/` in the same commit: what changed, the route to it, what to look at, and the date. A green gate is not a human seeing it.
