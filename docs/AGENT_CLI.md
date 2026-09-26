@@ -155,18 +155,22 @@ Environment: `NOACG_URL` (the deployment to drive and save to; default `https://
 `http://localhost:<port>` for a dev server; any self-host), `NOACG_BROWSER` (a Chromium
 executable when the system Chrome/Edge channel is not wanted), `NOACG_AGENT_KEY` (a key for CI /
 containers - beats the stored one), `NOACG_AGENT_NAME` (what `login` calls itself),
-`NOACG_CREDENTIALS_DIR` (the folder `login` keeps its key in; default the per-user config
-directory).
+`NOACG_CREDENTIALS_DIR` (the folder `login` keeps its key in, best given as an absolute path;
+default the per-user config directory).
 
 In this repository each checkout keeps its own login. The key used to be one file per user
-account, so a wave row that ran `noacg logout` or logged in again silently signed out or replaced
-the key every sibling row and the owner's own terminal were using. The SessionStart hook
-(`scripts/hooks/cli-credentials-env.mjs`) writes a line to `$CLAUDE_ENV_FILE` that sets
-`NOACG_CREDENTIALS_DIR` to `.noacg/` (gitignored) at the root of whichever checkout a Bash command
-runs in, resolved per command because rows are subagents that share their launcher's session
-environment. A fresh worktree therefore starts logged out; `noacg doctor` prints the `key store`
-line when the override is active. Not covered: the PowerShell tool (it does not read the env file)
-and Codex sessions, which still use the per-user store unless the variable is set by hand.
+account, so a wave row that ran `noacg logout` or logged in again silently signed out (a plain
+`logout` also revoked) or replaced the key every sibling row and the owner's own terminal were
+using. The SessionStart hook (`scripts/hooks/cli-credentials-env.mjs`) writes a line to
+`$CLAUDE_ENV_FILE` that sets `NOACG_CREDENTIALS_DIR` to `.noacg/` (gitignored) at the root of the
+checkout a Bash command STARTS in, resolved per command because rows are subagents that share
+their launcher's session environment (a `cd` inside the command does not move it). A fresh
+worktree therefore starts logged out: log in there, or give the command `NOACG_AGENT_KEY`.
+Removing the worktree deletes its `.noacg/` but not the key on the server, so `noacg logout`
+first, or revoke it in Settings. `noacg doctor` prints a `key store` line when the override is
+active. Not covered, and still on the per-user store: the PowerShell tool (it does not read the
+env file), Codex sessions, and the `noacg` MCP server, which cannot log in or out but whose
+`save` reads that store.
 
 Vocabulary (the product's): `save` puts a graphic in the LIBRARY. `publish` is what a PRODUCTION
 does when it goes to the hosted control page / output URL; `add`, `publish`, `take`/`update`/

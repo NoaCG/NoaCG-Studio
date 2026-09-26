@@ -97,7 +97,7 @@ const mark = (label) => {
  * itself the same way and for the same reason.
  */
 const cliEnv = () => {
-  const env = { ...process.env, NOACG_URL: origin, NOACG_CREDENTIALS_DIR: store, APPDATA: store, XDG_CONFIG_HOME: store };
+  const env = { ...process.env, NOACG_URL: origin, NOACG_CREDENTIALS_DIR: store };
   delete env.NOACG_AGENT_KEY;
   return env;
 };

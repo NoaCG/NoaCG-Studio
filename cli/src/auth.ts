@@ -4,11 +4,11 @@
 //
 // WHERE. `<configDir>/credentials.json`, keyed by deployment origin, so one machine can hold a
 // key for noacg.studio and another for a self-host. `NOACG_CREDENTIALS_DIR` moves it (config.ts
-// credentialsDir), so several checkouts on one account can each hold a login of their own. POSIX: the directory is 0700 and the file
-// 0600. Windows has no mode bits; the directory's ACL is reset to the current user only
-// (`icacls … /inheritance:r /grant:r <user>:(OI)(CI)F`), best effort - the default %APPDATA%
-// is already per-user, so the reset narrows an unusual setup rather than creating safety from
-// nothing. A keychain would be better and is a native dependency; stated, not hidden.
+// credentialsDir), so several checkouts on one account can each hold a login of their own.
+// POSIX: the directory is 0700 and the file 0600. Windows has no mode bits; the directory's ACL
+// is reset to the current user only (`icacls … /inheritance:r /grant:r <user>:(OI)(CI)F`), best
+// effort - the default %APPDATA% is already per-user, so the reset narrows an unusual setup
+// rather than creating safety from nothing. A keychain would be better and is a native dependency; stated, not hidden.
 //
 // PRECEDENCE. `NOACG_AGENT_KEY` (CI, containers) beats the file; a `--key` given to `noacg login`
 // is the paste fallback for a machine with no browser, and is stored like a minted one.

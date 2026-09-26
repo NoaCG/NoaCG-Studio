@@ -30,6 +30,14 @@ const roots = gitLines(['worktree', 'list', '--porcelain'], sessionCwd)
   .map((line) => normalize(line.slice('worktree '.length)));
 if (roots.length === 0) process.exit(0); // not a git checkout - nothing to check
 
+// Each checkout keeps its own `noacg login`, so one row's logout cannot sign its siblings out.
+// The lines resolve the checkout per command, so they need nothing the checks below compute.
+try {
+  writeCliCredentialsEnv();
+} catch {
+  // Best effort: without it the CLI uses the per-user store, as it did before.
+}
+
 // Sweep leftover EMPTY worktree folders (shared rule with cleanup-worktrees). `git worktree
 // remove` on Windows can't delete the folder while a session is cwd'd inside it, so it
 // deregisters the worktree and empties the files but leaves the now-empty directory behind.
@@ -89,13 +97,6 @@ if (stubRoot && !roots.some((root) => root.toLowerCase() === stubRoot.toLowerCas
 // worktrees' paths, so longest match wins).
 const root = roots.filter((r) => isUnder(sessionCwd, r)).sort((a, b) => b.length - a.length)[0];
 if (!root) process.exit(0); // cwd outside every checkout (shouldn't happen) - stay quiet
-
-// Each checkout keeps its own `noacg login`, so one row's logout cannot sign its siblings out.
-try {
-  writeCliCredentialsEnv();
-} catch {
-  // Best effort: without it the CLI uses the per-user store, as it did before.
-}
 
 const branch = gitLines(['rev-parse', '--abbrev-ref', 'HEAD'], root)[0] ?? 'unknown';
 const branchLabel = branch === 'HEAD' ? 'detached HEAD' : `branch ${branch}`;

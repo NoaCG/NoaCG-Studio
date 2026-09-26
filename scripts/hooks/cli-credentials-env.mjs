@@ -1,29 +1,36 @@
-// Each checkout of this repository keeps its own `noacg login`.
+// Each checkout of this repository keeps its own `noacg login` (why, and what is not covered:
+// docs/AGENT_CLI.md, after the environment list).
 //
-// The CLI keeps its scoped agent key in one per-user file, so on a machine running several
-// sessions at once a row that ran `noacg logout` (or logged in again) silently ended or replaced
-// the key every sibling row and the owner's own terminal were using. The CLI reads
-// NOACG_CREDENTIALS_DIR for where to keep the key (cli/src/config.ts credentialsDir); this sets it,
-// for every Bash command a Claude Code session runs, to `.noacg/` at the root of the checkout the
-// command runs in (gitignored). A value already in the environment wins; outside a Claude Code
-// session nothing changes.
-//
-// HOW. A SessionStart hook may write shell lines to $CLAUDE_ENV_FILE, and Claude Code sources them
-// before each Bash command. The line resolves the checkout AT COMMAND TIME rather than baking in
-// the session's own: a wave row is a subagent that shares its launcher's session environment but
-// runs in a worktree of its own, and a path fixed at session start would put every row back in
-// one store. The Bash tool only - the PowerShell tool does not read the file, so an agent that
-// logs in there still uses the per-user store (docs/AGENT_CLI.md).
+// A SessionStart hook may write shell lines to $CLAUDE_ENV_FILE, and Claude Code sources them
+// before each Bash command. These set NOACG_CREDENTIALS_DIR (cli/src/config.ts credentialsDir) to
+// `.noacg/` at the root of the checkout the command starts in, resolved per command because a wave
+// row is a subagent sharing its launcher's session environment from a worktree of its own. A value
+// already set wins. The walk to the nearest `.git` is pure shell, because a `git rev-parse` would
+// add about 40 ms to every Bash command on Windows (measured 2026-09-27); Git Bash hands $PWD's
+// /c/... form to Windows programs as C:/.... The checkout counts only if it carries THIS file, so
+// another repository, or a worktree on a branch older than this change (whose .gitignore does not
+// cover .noacg/), keeps the per-user store. The test pins that the marker is this file's own path.
 
 import { writeFileSync } from 'node:fs';
 
-export const CLI_CREDENTIALS_ENV = [
-  '# noacg CLI: this checkout keeps its own login (scripts/hooks/cli-credentials-env.mjs)',
-  'if [ -z "${NOACG_CREDENTIALS_DIR:-}" ] && __noacg_root="$(git rev-parse --show-toplevel 2>/dev/null)" && [ -n "$__noacg_root" ]; then export NOACG_CREDENTIALS_DIR="$__noacg_root/.noacg"; fi; unset __noacg_root',
-  '',
-].join('\n');
+export const MARKER = 'scripts/hooks/cli-credentials-env.mjs';
 
-/** Write the line into the session's env file. Returns whether there was a file to write. */
+export const CLI_CREDENTIALS_ENV = `# noacg CLI: this checkout keeps its own login (${MARKER})
+if [ -z "\${NOACG_CREDENTIALS_DIR:-}" ]; then
+  __noacg_d=$PWD
+  while [ -n "$__noacg_d" ] && [ ! -e "$__noacg_d/.git" ]; do __noacg_d=\${__noacg_d%/*}; done
+  if [ -n "$__noacg_d" ] && [ -e "$__noacg_d/${MARKER}" ]; then
+    export NOACG_CREDENTIALS_DIR="$__noacg_d/.noacg"
+  fi
+  unset __noacg_d
+fi
+`;
+
+/**
+ * Write the lines into the session's env file. The file is this hook's own (Claude Code gives each
+ * SessionStart hook one), so it is replaced rather than appended to: the hook runs again on resume
+ * and compact. Returns whether there was a file to write.
+ */
 export function writeCliCredentialsEnv(envFile = process.env.CLAUDE_ENV_FILE) {
   if (!envFile) return false;
   writeFileSync(envFile, CLI_CREDENTIALS_ENV);

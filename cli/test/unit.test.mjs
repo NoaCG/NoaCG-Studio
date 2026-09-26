@@ -404,13 +404,9 @@ async function withEnv(vars, fn) {
 // The key file lives in the per-OS config directory unless NOACG_CREDENTIALS_DIR names another,
 // and that override is also how these tests keep away from the developer's real key.
 test('with no override the key store is exactly the per-user config directory it always was', async () => {
-  await withEnv({ NOACG_CREDENTIALS_DIR: undefined }, async () => {
-    const perOs =
-      process.platform === 'win32'
-        ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'noacg')
-        : process.platform === 'darwin'
-          ? path.join(os.homedir(), 'Library', 'Application Support', 'noacg')
-          : path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'noacg');
+  const base = path.resolve('/fixed-config-home');
+  await withEnv({ NOACG_CREDENTIALS_DIR: undefined, APPDATA: base, XDG_CONFIG_HOME: base }, async () => {
+    const perOs = process.platform === 'darwin' ? path.join(os.homedir(), 'Library', 'Application Support', 'noacg') : path.join(base, 'noacg');
     assert.equal(configDir(), perOs);
     assert.equal(credentialsDir(), perOs);
     assert.equal(credentialsPath(), path.join(perOs, 'credentials.json'));
@@ -433,18 +429,14 @@ test('two key stores on one account: logging out in one leaves the other signed 
   assert.equal(out.code, 0, out.stderr);
   assert.equal(JSON.parse(out.stdout).forgotten, true);
 
-  const held = async (dir) => withEnv({ NOACG_CREDENTIALS_DIR: dir, NOACG_AGENT_KEY: undefined }, () => resolveKey(origin));
+  const held = (dir) => withEnv({ NOACG_CREDENTIALS_DIR: dir, NOACG_AGENT_KEY: undefined }, () => resolveKey(origin));
   assert.equal(await held(b), null, 'the store that logged out holds nothing');
   assert.equal((await held(a))?.key, keyA, "the sibling's key is untouched");
 });
 
 test('the credential store: written per deployment, 0600 where modes exist, and forgotten on request', async () => {
   const home = await tmpdir();
-  const before = { NOACG_CREDENTIALS_DIR: process.env.NOACG_CREDENTIALS_DIR, NOACG_AGENT_KEY: process.env.NOACG_AGENT_KEY };
-  try {
-    process.env.NOACG_CREDENTIALS_DIR = home;
-    delete process.env.NOACG_AGENT_KEY;
-
+  await withEnv({ NOACG_CREDENTIALS_DIR: home, NOACG_AGENT_KEY: undefined }, async () => {
     const key = `${AGENT_KEY_PREFIX}${'b'.repeat(32)}`;
     await storeKey('https://noacg.studio', { key, prefix: displayPrefix(key), name: 'laptop', createdAt: '2026-08-26T00:00:00.000Z' });
     await storeKey('http://localhost:5184', { key: `${AGENT_KEY_PREFIX}${'c'.repeat(32)}`, prefix: 'x…', name: 'dev', createdAt: '2026-08-26T00:00:00.000Z' });
@@ -474,12 +466,7 @@ test('the credential store: written per deployment, 0600 where modes exist, and 
     const fromEnv = await resolveKey('http://localhost:5184');
     assert.equal(fromEnv.source, 'env');
     assert.equal(fromEnv.key, process.env.NOACG_AGENT_KEY);
-  } finally {
-    for (const [k, v] of Object.entries(before)) {
-      if (v === undefined) delete process.env[k];
-      else process.env[k] = v;
-    }
-  }
+  });
 });
 
 // ---------------------------------------------------------------- the process contract

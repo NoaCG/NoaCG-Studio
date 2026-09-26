@@ -25,7 +25,8 @@ export function browserExecutable(): string | undefined {
  * Where `noacg login` keeps the scoped key: the config directory, unless NOACG_CREDENTIALS_DIR
  * names another. The override is for one account holding more than one login - several checkouts
  * whose agents each log in and out, or a test - so that one of them logging out cannot end
- * another's session. Unset, the key lives exactly where it always has.
+ * another's session. A relative value is taken from the current folder. Unset, the key lives
+ * exactly where it always has.
  */
 export function credentialsDir(): string {
   const override = process.env.NOACG_CREDENTIALS_DIR?.trim();
