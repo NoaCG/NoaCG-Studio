@@ -36,6 +36,19 @@ capacity. No other routine may write a tracked file, and this one may not write 
 skimmed and then ignored. The morning brief says nothing on a clean night, and that is not a bug to
 be helpfully fixed later.
 
+## Every run starts from current main
+
+The desktop app cuts each run's worktree from its own last fetch of `main`, which can be a landing
+or more behind. Step 0 of `scripts/hooks/cloud-session-setup.mjs` fetches and fast-forwards a
+clean worktree with no commits of its own before any tool runs, and prints one `Freshness:` line
+when it moved. Folder guidance loads when a file is read, so it is then current. The root
+`CLAUDE.md`/`AGENTS.md` is the exception: the client reads it at launch, before any hook, so when it
+changed the hook prints the current root contract, which replaces the startup copy.
+
+What still comes from the starting commit is what the client reads at launch: the session's hooks,
+permissions and skill list. A change to those takes effect on the next run. The primary checkout,
+a detached HEAD, a dirty tree and a branch with its own commits are never moved, only reported.
+
 ## Daily - the morning brief
 
 `daily-morning-brief`, 07:00 Helsinki, so the verdict is in hand **before the morning wave is
