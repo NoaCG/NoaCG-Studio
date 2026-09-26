@@ -31,6 +31,9 @@ behind a link. Every number in it names the command it came from.
    green - `gh pr merge <n> --auto` puts it back. Name the kind, not just the failure, and read the
    watcher job's log (`node scripts/jobs.mjs log <id>`), not only the listing: a refused landing
    drops out of `npm run jobs` by morning and reads as "never queued", a different (wrong) story.
+   **Landing friction is a first-class defect**: the owner measures a wave by hours spent building
+   against hours spent shepherding merges, so refusals and re-queues are vitals, and every
+   recurring refusal kind becomes a mechanism fix, never a habit.
 6. **Still unqueued** - `npm run jobs` for every branch ahead of `main` with no landing,
    `node scripts/worktree-activity.mjs` for work a session left uncommitted.
 7. **Spend, on each pool's own meter** - `npm run harness:usage -- --wave`, pasted as it prints:
