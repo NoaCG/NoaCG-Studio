@@ -217,12 +217,43 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
       s17.failures.length === 0 && s17.pushed === 0 && l17.store.has('look:ghost'),
     );
 
+    // 18. a pull fetches a record AGAIN only when it has assets to rehydrate. list() already
+    //     returned the whole row, so a body with no Storage sentinel is applied as listed; one
+    //     holding a sentinel still takes get(), and its rehydrated body is what lands. Fetching
+    //     every record again, one request each, cost a fresh sign-in 29 s against the hosted test
+    //     account (129 saved looks, run 36252087565).
+    localStorage.removeItem('spx-gfx-sync');
+    const l18 = mem([]);
+    const r18 = mem([
+      rec('plain', T1),
+      rec('gone', T1, { deleted: true }),
+      rec('font', T1, { font: { path: 'f.woff2', data: 'spx-storage:u/abc' } }),
+    ]);
+    const fetched: string[] = [];
+    const listed = r18.get;
+    r18.get = async (kind: string, id: string) => {
+      fetched.push(id);
+      const r = await listed(kind, id);
+      return r && { ...r, body: { ...(r.body as object), font: { path: 'f.woff2', data: 'data:font/woff2;base64,AAAA' } } };
+    };
+    const s18 = await runSync(l18, r18);
+    const font18 = (l18.store.get('look:font')?.body as { font?: { data?: string } } | undefined)?.font?.data;
+    check(
+      'a pull fetches again only what has assets in Storage',
+      s18.pulled === 3 &&
+        fetched.join() === 'font' &&
+        font18 === 'data:font/woff2;base64,AAAA' &&
+        l18.store.has('look:plain') &&
+        l18.store.has('look:gone'),
+      { fetched, s18, font18 },
+    );
+
     return out;
   });
 
   const failures = results.filter((r) => !r.pass);
   expect(failures, JSON.stringify(failures, null, 2)).toEqual([]);
-  expect(results.length).toBe(20);
+  expect(results.length).toBe(21);
 });
 
 test('asset externalization: round-trips through a Storage stub', async ({ page }) => {

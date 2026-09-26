@@ -210,30 +210,30 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
     }
   }
 
-  // 2. Pull: re-fetch each record via get() so the provider can rehydrate externalized assets
-  //    (list() returns cheap sentinel bodies; get() returns the full body). Falls back to the
-  //    list record if get() returns nothing. A failed pull just retries next pass — LWW
-  //    re-derives it from the unchanged timestamps.
+  // 2. Pull. A record whose body still holds a Storage sentinel is re-fetched via get(), so the
+  //    provider can rehydrate its externalized assets; every other record is applied as list()
+  //    returned it. Falls back to the list record if get() returns nothing. A failed pull just
+  //    retries next pass — LWW re-derives it from the unchanged timestamps.
   for (const r of plan.toLocal) {
     if (skipPull.has(recordKey(r))) continue;
     try {
-      // A TOMBSTONE NEEDS NO ROUND TRIP. `list()` already returned the whole row; the only thing
-      // `get()` adds is rehydrateAssets, and a delete strips the payload before pushing
-      // (library.ts deleteGraphic, shows.ts deleteShow), so there is nothing left to rehydrate.
-      // Re-fetching it costs one serialized request to receive data we are already holding.
+      // A RECORD WITH NO ASSETS IN STORAGE NEEDS NO ROUND TRIP. `list()` already returned the
+      // whole row; the only thing `get()` adds is rehydrateAssets, so for a body without a
+      // sentinel it is one serialized request to receive data we are already holding.
       //
-      // This is not a micro-optimization: the pull loop is sequential, tombstones are never
-      // reaped before 90 days, and every fresh device pulls every tombstone the account has ever
-      // accumulated. Measured on a GitHub runner 2026-08-24 (run 32767300909): 141 of 155 pulls
-      // were tombstones, 207 ms each, 29.4 s in total - past the 30 s the UI was being waited on
-      // for, on an account only seven weeks old. The cost grows without bound as an account ages,
-      // so this was a real user-facing defect, not only a slow test.
+      // This is not a micro-optimization: the pull loop is sequential, and a fresh device pulls
+      // everything the account holds. It was first fixed for TOMBSTONES alone: measured on a
+      // GitHub runner 2026-08-24 (run 32767300909), 141 of 155 pulls were tombstones, 207 ms
+      // each, 29.4 s in total, past the 30 s the UI was being waited on for. Live records pay the
+      // same way: on 2026-09-26 (run 36252087565) a fresh sign-in to the hosted test account
+      // pulled 129 saved looks one request each, 29 s of sequential fetches, and seven specs
+      // failed waiting on the sync indicator. The cost grows with everything an account keeps,
+      // so this is a user-facing defect, not only a slow test.
       //
-      // GUARDED, NOT ASSUMED: the "no payload" claim belongs to today's two delete paths. Should a
-      // tombstone ever arrive still holding a Storage sentinel, it takes the normal get() and
-      // rehydrates exactly as before.
-      const cheapTombstone = r.deleted && !hasStorageSentinel(r.body);
-      const full = cheapTombstone ? r : ((await remote.get(r.kind, r.id)) ?? r);
+      // GUARDED, NOT ASSUMED: a body that still holds a Storage sentinel (a look's custom font, a
+      // graphic's images) takes the normal get() and rehydrates exactly as before.
+      const needsAssets = hasStorageSentinel(r.body);
+      const full = needsAssets ? ((await remote.get(r.kind, r.id)) ?? r) : r;
       await local.put(full);
       pulled += 1;
     } catch (e) {
