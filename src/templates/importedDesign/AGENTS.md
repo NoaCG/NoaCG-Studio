@@ -79,7 +79,7 @@ and being a width alone, it never wraps.
 
 **THE LADDER is overflow-only, and its ORDER is the ruling** (owner 2026-08-23 and 2026-08-26):
 **fill the room, grow the panel where the author opted in, wrap into the room the design already
-has, shrink to 55%, squeeze what is still over, and report the field.** Copy that cannot be made to
+has, shrink (reported past 55%, down to a 30% floor), squeeze only what no size holds, and report it.** Copy that cannot be made to
 fit is warned about, never cut - `noacgTextOverflow()` names the fields, and the warning rides the
 machine-state answer rather than a channel of its own (`control/controlModel.ts`). Each rung cost a
 measured defect; §3 holds the evidence:
@@ -125,8 +125,8 @@ measured defect; §3 holds the evidence:
 - **Wrap only into room already drawn**, keeping the designer's own gaps: line to the nearest thing
   below it inside its panel, re-asked at every size, dropping a LINE rather than printing through
   the layer below. Every bound is measured off the rest pose, never a constant.
-- **The shrink is FLOORED at 55%**, and past the floor the block is SQUEEZED to its budget
-  (`svgSqueeze`), because nothing may ever paint outside the panel.
+- **Past 55% a value is reported too long; type shrinks to a 30% floor, then is SQUEEZED no narrower than 70%**
+  (`svgSqueeze`), only what no size can hold, because nothing may ever paint outside the panel.
 - **Measure exactly, and from the DESIGN**: screen px convert through the element's CTM, never an
   advance/ink ratio; the drawn text is read in the real face and never re-taken from what is on
   screen, or a playout renderer's first `update()` becomes a budget nothing can overflow (owner

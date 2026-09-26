@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: **
+scope: src/**/*.tsx
 kind: rule
 fires: contract
 status: active

@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { featuresOf, parseRule } from './contracts-lib.mjs';
-import { decide, renderRecord, renderRule, slugOf } from './learn.mjs';
+import { decide, observationPath, renderObservation, renderRecord, renderRule, slugOf } from './learn.mjs';
 
 const body = 'An input-only value lives in a holder carrying `class="noacg-data-source"`, never an inline `style="display:none"`.';
 const EXISTING = {
@@ -34,6 +34,7 @@ const input = (overrides = {}) => ({
   rule: 'A wizard step never writes the draft from a render; it calls `onDraft` from an event handler.',
   supersedes: [],
   allowNumbers: false,
+  because: 'no gate can tell an event handler from a render',
   ...overrides,
 });
 
@@ -128,4 +129,33 @@ test('a ** scope is refused without --always, because it loads into every sessio
   assert.equal(everywhere.action, 'refuse');
   assert.match(everywhere.problems.join(' '), /Climb the ladder/);
   assert.equal(decide(input({ scope: ['**'], always: true }), []).action, 'new');
+});
+
+// --- OBSERVATION FIRST ---
+// Learning is not adding rules: a lesson is recorded as evidence, and a rule needs a reason why a
+// fix, a mechanism or an automated check does not cover it.
+
+test('a new rule without --because is refused, and the refusal names the ladder', () => {
+  const verdict = decide(input({ because: '' }), []);
+  assert.equal(verdict.action, 'refuse');
+  assert.match(verdict.problems.join(' '), /--because is required/);
+  assert.match(verdict.problems.join(' '), /drop --rule/);
+});
+
+test('evidence for an existing rule needs no --because - it adds no rule', () => {
+  const paraphrase = 'Use `class="noacg-data-source"` on an input-only holder instead of an inline `style="display:none"`.';
+  assert.equal(decide(input({ rule: paraphrase, because: '' }), [EXISTING]).action, 'append');
+});
+
+test('an observation is a dated record under its area, with no rule attached', () => {
+  const rel = observationPath('wizard', '2026-09-26', 'The raw duration aired because the holder was inline.');
+  assert.match(rel, /^contracts\/records\/wizard\/2026-09-26-observed-[a-z0-9-]+\.md$/);
+  const text = renderObservation({ area: 'wizard', date: '2026-09-26', evidence: 'It aired.', branch: 'b', sha: 'abc1234' });
+  assert.match(text, /^# Observation \(wizard\)/);
+  assert.doesNotMatch(text, /Rule:/);
+});
+
+test('a rule record says why it is a rule', () => {
+  const text = renderRecord({ id: 'wizard/x', date: '2026-09-26', evidence: 'It aired.', because: 'no check can see it' });
+  assert.match(text, /Why a rule rather than a fix, a mechanism or a check: no check can see it/);
 });

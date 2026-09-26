@@ -3,8 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-08-27
-state: unstarted
-note: "unlocked by the owner on 2026-09-10 (ALIGN-2026-09-10-4 in docs/OWNER_RULINGS.md), which supersedes the 2026-08-16 parking recorded in docs/NATIVE_PLAYOUT_RESEARCH.md; nothing has landed against it yet"
+state: parked
+note: "parked by docs/GOALS.md (2026-09-26): native playout waits for an OGraf-compatible runtime or server, so a local client that owns the playout box is not current work"
 asked: "a local NoaCG client that owns the box, with CasparCG rented as the engine (owner sketch in the 2026-08-27 wave input)"
 ---
 # NoaCG Desktop - our own local client that owns the box, with CasparCG rented as the engine

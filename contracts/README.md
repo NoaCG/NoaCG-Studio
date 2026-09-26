@@ -52,17 +52,26 @@ that works:
    refuses one without `--always`, and the root budget (`KERNEL_MAX_BYTES`) means adding a
    rule there retires another.
 
-Write the rule on the second occurrence unless the first was expensive. State the outcome and
-its reason, never "ask the owner first" on its own. Plain text, no shouted emphasis: current
-models over-apply it. `npm run audit:instructions` checks the whole system about monthly. After any change to
+A single ordinary mistake is evidence, not a rule: record it and move on. Act on a repeated,
+expensive or systemic failure, and write a rule only when a fix, a mechanism or a check cannot
+carry the lesson. State the outcome and its reason, never "ask the owner first" on its own. Plain text, no shouted emphasis: current
+models over-apply it. `npm run audit:instructions` checks the whole system about monthly. When the agents move to a substantially newer model, review the always-loaded rules and retire what the model now does reliably by default. After any change to
 how instructions load, measure it: `node scripts/instruction-load-probe.mjs run <files>` lists
 every instruction file a fresh session received and flags one that arrived twice.
 
-## Writing one
+## Recording a lesson
+
+```
+npm run learn -- --area wizard --evidence "what happened"
+```
+
+That records an observation: one record under `contracts/records/<area>/`, no rule, nothing
+recompiled. The monthly review reads the records for patterns. When the ladder says a rule is
+right:
 
 ```
 npm run learn -- --area wizard --scope "src/components/wizard/**" --kind trap \
-  --rule "..." --evidence "..."
+  --rule "..." --because "why a fix, a mechanism or a check does not cover it" --evidence "..."
 ```
 
 `learn` refuses evidence in the rule text, appends the evidence to an existing rule's record when
